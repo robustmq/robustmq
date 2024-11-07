@@ -24,16 +24,21 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 };
 use tonic::{Request, Response, Status};
 
+use crate::handler::cache::CacheManager;
 use crate::storage::cluster::ClusterStorage;
 use crate::storage::user::UserStorage;
 
 pub struct GrpcAdminServices {
     client_pool: Arc<ClientPool>,
+    cache_manager: Arc<CacheManager>,
 }
 
 impl GrpcAdminServices {
-    pub fn new(client_pool: Arc<ClientPool>) -> Self {
-        GrpcAdminServices { client_pool }
+    pub fn new(client_pool: Arc<ClientPool>, cache_manager: Arc<CacheManager>) -> Self {
+        GrpcAdminServices {
+            client_pool,
+            cache_manager,
+        }
     }
 }
 
@@ -88,7 +93,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         request: Request<CreateUserRequest>,
     ) -> Result<Response<CreateUserReply>, Status> {
         let req = request.into_inner();
-
+        let username = req.username.clone();
         let mqtt_user = MqttUser {
             username: req.username,
             password: req.password,
@@ -97,12 +102,28 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
         let user_storage = UserStorage::new(self.client_pool.clone());
 
-        match user_storage.save_user(mqtt_user).await {
-            Ok(_) => return Ok(Response::new(CreateUserReply::default())),
+        match user_storage.user_list().await {
+            Ok(date) => {
+                let is_existed = date.iter().any(|user| *user.key() == username);
+                if is_existed {
+                    return Err(Status::cancelled("user has beed existed"));
+                }
+            }
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
+
+        match user_storage.save_user(mqtt_user.clone()).await {
+            Ok(_) => {}
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+
+        self.cache_manager.add_user(mqtt_user.clone());
+
+        return Ok(Response::new(CreateUserReply::default()));
     }
 
     async fn mqtt_broker_delete_user(
@@ -110,10 +131,25 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         request: Request<DeleteUserRequest>,
     ) -> Result<Response<DeleteUserReply>, Status> {
         let req = request.into_inner();
+        let username = req.username;
 
         let user_storage = UserStorage::new(self.client_pool.clone());
 
-        match user_storage.delete_user(req.username).await {
+        match user_storage.user_list().await {
+            Ok(date) => {
+                let is_existed = date.iter().any(|user| *user.key() == username);
+                if !is_existed {
+                    return Err(Status::cancelled("user does not existed"));
+                }
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+
+        self.cache_manager.del_user(username.clone());
+
+        match user_storage.delete_user(username.clone()).await {
             Ok(_) => return Ok(Response::new(DeleteUserReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));

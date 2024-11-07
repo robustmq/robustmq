@@ -39,6 +39,10 @@ pub fn broker_ws_addr() -> String {
 pub fn broker_wss_addr() -> String {
     "wss://127.0.0.1:8094".to_string()
 }
+#[allow(dead_code)]
+pub fn broker_grpc_addr() -> String {
+    "127.0.0.1:9981".to_string()
+}
 
 #[allow(dead_code)]
 pub fn username() -> String {
@@ -114,6 +118,41 @@ pub fn build_v5_conn_pros(props: Properties, err_pwd: bool, ws: bool, ssl: bool)
 }
 
 #[allow(dead_code)]
+pub fn build_v5_conn_pros_by_user_information(
+    props: Properties,
+    username: String,
+    password: String,
+    ws: bool,
+    ssl: bool,
+) -> ConnectOptions {
+    let mut conn_opts = if ws {
+        ConnectOptionsBuilder::new_ws_v5()
+    } else {
+        ConnectOptionsBuilder::new_v5()
+    };
+    if ssl {
+        let ssl_opts = SslOptionsBuilder::new()
+            .trust_store(format!(
+                "{}/../../config/example/certs/ca.pem",
+                env!("CARGO_MANIFEST_DIR")
+            ))
+            .unwrap()
+            .verify(false)
+            .disable_default_trust_store(false)
+            .finalize();
+        conn_opts.ssl_options(ssl_opts);
+    }
+    conn_opts
+        .keep_alive_interval(Duration::from_secs(600))
+        .clean_start(true)
+        .connect_timeout(Duration::from_secs(60))
+        .properties(props.clone())
+        .user_name(username)
+        .password(password)
+        .finalize()
+}
+
+#[allow(dead_code)]
 pub fn build_v3_conn_pros(mqtt_version: u32, err_pwd: bool, ws: bool, ssl: bool) -> ConnectOptions {
     let pwd = if err_pwd { err_password() } else { password() };
     let mut conn_opts = if ws {
@@ -139,6 +178,40 @@ pub fn build_v3_conn_pros(mqtt_version: u32, err_pwd: bool, ws: bool, ssl: bool)
         .connect_timeout(Duration::from_secs(50))
         .user_name(username())
         .password(pwd)
+        .finalize()
+}
+
+#[allow(dead_code)]
+pub fn build_v3_conn_pros_by_user_information(
+    mqtt_version: u32,
+    username: String,
+    password: String,
+    ws: bool,
+    ssl: bool,
+) -> ConnectOptions {
+    let mut conn_opts = if ws {
+        ConnectOptionsBuilder::new_ws()
+    } else {
+        ConnectOptionsBuilder::with_mqtt_version(mqtt_version)
+    };
+    if ssl {
+        let ssl_opts = SslOptionsBuilder::new()
+            .trust_store(format!(
+                "{}/../../config/example/certs/ca.pem",
+                env!("CARGO_MANIFEST_DIR")
+            ))
+            .unwrap()
+            .verify(false)
+            .disable_default_trust_store(false)
+            .finalize();
+        conn_opts.ssl_options(ssl_opts);
+    }
+    conn_opts
+        .keep_alive_interval(Duration::from_secs(600))
+        .clean_session(true)
+        .connect_timeout(Duration::from_secs(50))
+        .user_name(username)
+        .password(password)
         .finalize()
 }
 

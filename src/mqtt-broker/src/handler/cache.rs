@@ -245,7 +245,10 @@ impl CacheManager {
                     let user: MqttUser = serde_json::from_str(&data.value).unwrap();
                     self.add_user(user);
                 }
-                MetadataCacheAction::Del => self.del_user(data.value),
+                MetadataCacheAction::Del => {
+                    let user: MqttUser = serde_json::from_str(&data.value).unwrap();
+                    self.del_user(user.username);
+                }
             },
             MetadataCacheType::Topic => match data.action {
                 MetadataCacheAction::Set => {}
@@ -273,9 +276,8 @@ impl CacheManager {
         self.user_info.insert(user.username.clone(), user);
     }
 
-    pub fn del_user(&self, value: String) {
-        let data: MqttUser = serde_json::from_str(&value).unwrap();
-        self.user_info.remove(&data.username);
+    pub fn del_user(&self, username: String) {
+        self.user_info.remove(&username);
     }
 
     pub fn add_session(&self, client_id: String, session: MqttSession) {
