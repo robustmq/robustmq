@@ -98,6 +98,43 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
         }
     }
 
+    async fn save_user(&self, user_info: MqttUser) -> Result<(), CommonError> {
+        match self.pool.get_conn() {
+            Ok(mut conn) => {
+                let sql = format!(
+                    "insert into {} ( `username`, `password`, `is_superuser`, `salt`) values ('{}', '{}', '{}', null);",
+                    self.table_user(),
+                    user_info.username,
+                    user_info.password,
+                    user_info.is_superuser as i32,
+                );
+                let _data: Vec<(String, String, Option<String>, u8, Option<String>)> = conn.query(sql).unwrap();
+                return Ok(());
+            }
+            Err(e) => {
+                return Err(CommonError::CommmonError(e.to_string()));
+            }
+        }
+    }
+    
+    async fn delete_user(&self, username: String) -> Result<(), CommonError> {
+        match self.pool.get_conn() {
+            Ok(mut conn) => {
+                let sql = format!(
+                    "delete from {} where username = '{}';",
+                    self.table_user(),
+                    username
+                );
+                let _data: Vec<(String, String, Option<String>, u8, Option<String>)> = conn.query(sql).unwrap();
+                return Ok(());
+            }
+            Err(e) => {
+                return Err(CommonError::CommmonError(e.to_string()));
+            }
+        }
+    }
+
+
     async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, CommonError> {
         return Ok(Vec::new());
     }
