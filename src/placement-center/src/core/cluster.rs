@@ -14,9 +14,12 @@
 
 use common_base::config::placement_center::placement_center_conf;
 use dashmap::DashMap;
+use protocol::placement_center::placement_center_inner::{
+    RegisterNodeRequest, UnRegisterNodeRequest,
+};
 use raft::StateRole;
 use serde::{Deserialize, Serialize};
-use protocol::placement_center::placement_center_inner::{RegisterNodeRequest,UnRegisterNodeRequest};
+
 use super::raft_node::RaftNode;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -127,6 +130,6 @@ pub fn register_node_by_req(_: &RegisterNodeRequest) {
     //todo
 }
 
-pub fn un_register_node_by_req(_:&UnRegisterNodeRequest) {
+pub fn un_register_node_by_req(_: &UnRegisterNodeRequest) {
     //todo
 }
