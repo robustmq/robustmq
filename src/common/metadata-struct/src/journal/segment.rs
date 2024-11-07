@@ -65,5 +65,4 @@ pub enum SegmentStatus {
     SealUp,
     PrepareDelete,
     Deleteing,
-    Delete,
 }
