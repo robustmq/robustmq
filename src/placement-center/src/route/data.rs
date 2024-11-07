@@ -37,8 +37,10 @@ impl fmt::Display for StorageData {
 #[derive(Debug, Deserialize, Serialize)]
 pub enum StorageDataType {
     // Cluster
-    ClusterRegisterNode,
-    ClusterUngisterNode,
+    ClusterAddNode,
+    ClusterDeleteNode,
+    ClusterAddCluster,
+    ClusterDeleteCluster,
     ClusterSetResourceConfig,
     ClusterDeleteResourceConfig,
     ClusterSetIdempotentData,

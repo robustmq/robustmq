@@ -71,7 +71,7 @@ impl BrokerHeartbeat {
                                 };
                                 let pcs = self.placement_center_storage.clone();
                                 let data = StorageData::new(
-                                    StorageDataType::ClusterUngisterNode,
+                                    StorageDataType::ClusterDeleteNode,
                                     UnRegisterNodeRequest::encode_to_vec(&req),
                                 );
                                 tokio::spawn(async move {

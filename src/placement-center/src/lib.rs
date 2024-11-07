@@ -127,8 +127,6 @@ impl PlacementCenter {
             self.rocksdb_engine_handler.clone(),
             self.cluster_cache.clone(),
             self.engine_cache.clone(),
-            self.call_manager.clone(),
-            self.client_pool.clone(),
         ));
 
         self.init_cache();
@@ -185,6 +183,8 @@ impl PlacementCenter {
             raft_machine_apply.clone(),
             self.cluster_cache.clone(),
             self.rocksdb_engine_handler.clone(),
+            self.client_pool.clone(),
+            self.call_manager.clone(),
         );
 
         let kv_handler = GrpcKvService::new(
@@ -295,8 +295,6 @@ impl PlacementCenter {
             self.rocksdb_engine_handler.clone(),
             self.cluster_cache.clone(),
             self.engine_cache.clone(),
-            self.call_manager.clone(),
-            self.client_pool.clone(),
         ));
 
         let stop_recv = stop_send.subscribe();
