@@ -139,9 +139,7 @@ impl AuthDriver {
                 self.cache_manager.del_user(username.clone());
                 Ok(())
             }
-            Err(e) => {
-                Err(e)
-            }
+            Err(e) => Err(e),
         }
     }
 
