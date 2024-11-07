@@ -39,6 +39,7 @@ impl DataRouteJournal {
             engine_cache,
         }
     }
+
     pub async fn create_shard(&self, value: Vec<u8>) -> Result<Vec<u8>, PlacementCenterError> {
         let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
 
@@ -52,15 +53,19 @@ impl DataRouteJournal {
 
     pub async fn delete_shard(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let shard_info = serde_json::from_slice::<JournalShard>(&value)?;
-        let cluster_name = shard_info.cluster_name;
-        let namespace = shard_info.namespace;
-        let shard_name = shard_info.shard_name;
 
         let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
-        shard_storage.delete(&cluster_name, &namespace, &shard_name)?;
+        shard_storage.delete(
+            &shard_info.cluster_name,
+            &shard_info.namespace,
+            &shard_info.shard_name,
+        )?;
 
-        self.engine_cache
-            .remove_shard(&cluster_name, &namespace, &shard_name);
+        self.engine_cache.remove_shard(
+            &shard_info.cluster_name,
+            &shard_info.namespace,
+            &shard_info.shard_name,
+        );
 
         Ok(())
     }
@@ -78,270 +83,21 @@ impl DataRouteJournal {
 
     pub async fn delete_segment(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let segment = serde_json::from_slice::<JournalSegment>(&value)?;
-        let cluster_name = segment.cluster_name;
-        let namespace = segment.namespace;
-        let shard_name = segment.shard_name;
-        let segment_seq = segment.segment_seq;
 
         let segment_storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
-        segment_storage.delete(&cluster_name, &namespace, &shard_name, segment_seq)?;
+        segment_storage.delete(
+            &segment.cluster_name,
+            &segment.namespace,
+            &segment.shard_name,
+            segment.segment_seq,
+        )?;
 
-        self.engine_cache
-            .remove_segment(&cluster_name, &namespace, &shard_name, segment_seq);
+        self.engine_cache.remove_segment(
+            &segment.cluster_name,
+            &segment.namespace,
+            &segment.shard_name,
+            segment.segment_seq,
+        );
         Ok(())
     }
-}
-
-#[cfg(test)]
-mod tests {
-    // use std::sync::Arc;
-
-    // use common_base::config::placement_center::{
-    //     placement_center_test_conf, PlacementCenterConfig,
-    // };
-    // use common_base::tools::{now_mills, unique_id};
-    // use grpc_clients::pool::ClientPool;
-    // use metadata_struct::journal::node_extend::JournalNodeExtend;
-    // use metadata_struct::journal::segment::JournalSegment;
-    // use metadata_struct::journal::shard::JournalShard;
-    // use metadata_struct::placement::node::BrokerNode;
-    // use prost::Message;
-    // use protocol::placement_center::placement_center_inner::ClusterType;
-    // use protocol::placement_center::placement_center_journal::{
-    //     CreateNextSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
-    // };
-    // use rocksdb_engine::RocksDBEngine;
-
-    // use super::DataRouteJournal;
-    // use crate::journal::cache::JournalCacheManager;
-    // use crate::core::cache::PlacementCacheManager;
-    // use crate::controller::journal::call_node::JournalInnerCallManager;
-    // use crate::storage::journal::segment::SegmentStorage;
-    // use crate::storage::journal::shard::ShardStorage;
-    // use crate::storage::rocksdb::{column_family_list, storage_data_fold};
-
-    // #[tokio::test]
-    // async fn shard_test() {
-    //     let (client_pool, config, engine_cache, cluster_cache, rocksdb_engine_handler) =
-    //         build_ins();
-    //     let call_manager = Arc::new(JournalInnerCallManager::new(cluster_cache.clone()));
-
-    //     let route = DataRouteJournal::new(
-    //         rocksdb_engine_handler.clone(),
-    //         engine_cache.clone(),
-    //         cluster_cache,
-    //         call_manager,
-    //         client_pool,
-    //     );
-
-    //     let cluster_name = config.cluster_name.clone();
-    //     let namespace = "n1".to_string();
-    //     let shard_name = "s1".to_string();
-
-    //     // create shard
-    //     let request = CreateShardRequest {
-    //         cluster_name: cluster_name.clone(),
-    //         namespace: namespace.clone(),
-    //         shard_name: shard_name.clone(),
-    //         replica: 2,
-    //     };
-
-    //     let value = CreateShardRequest::encode_to_vec(&request);
-    //     let data = route.create_shard(value).await.unwrap();
-    //     let segment = serde_json::from_slice::<JournalSegment>(&data).unwrap();
-    //     assert_eq!(segment.replicas.len(), 2);
-    //     assert_eq!(segment.segment_seq, 0);
-
-    //     assert!(engine_cache
-    //         .get_shard(&cluster_name, &namespace, &shard_name)
-    //         .is_some());
-
-    //     assert!(engine_cache
-    //         .get_segment(&cluster_name, &namespace, &shard_name, 0)
-    //         .is_some());
-
-    //     let shard_storage = ShardStorage::new(rocksdb_engine_handler.clone());
-    //     assert!(shard_storage
-    //         .get(&cluster_name, &namespace, &shard_name)
-    //         .unwrap()
-    //         .is_some());
-
-    //     let segment_storage = SegmentStorage::new(rocksdb_engine_handler.clone());
-    //     assert!(segment_storage
-    //         .get(&cluster_name, &namespace, &shard_name, 0)
-    //         .unwrap()
-    //         .is_some());
-
-    //     let shard = engine_cache
-    //         .get_shard(&cluster_name, &namespace, &shard_name)
-    //         .unwrap();
-    //     assert_eq!(shard.last_segment_seq, 0);
-
-    //     // create next segment
-    //     let request = CreateNextSegmentRequest {
-    //         cluster_name: cluster_name.clone(),
-    //         namespace: namespace.clone(),
-    //         shard_name: shard_name.clone(),
-    //         active_segment_next_num: 1,
-    //     };
-    //     let value = CreateNextSegmentRequest::encode_to_vec(&request);
-    //     let segment_res = route.create_segment(value.clone()).await.unwrap();
-    //     let segment = serde_json::from_slice::<JournalSegment>(&segment_res).unwrap();
-    //     assert_eq!(segment.segment_seq, 1);
-    //     assert_eq!(segment.replicas.len(), 2);
-
-    //     let shard = engine_cache
-    //         .get_shard(&cluster_name, &namespace, &shard_name)
-    //         .unwrap();
-    //     assert_eq!(shard.last_segment_seq, 1);
-
-    //     assert!(engine_cache
-    //         .get_segment(&cluster_name, &namespace, &shard_name, 1)
-    //         .is_some());
-
-    //     assert!(segment_storage
-    //         .get(&cluster_name, &namespace, &shard_name, 1)
-    //         .unwrap()
-    //         .is_some());
-
-    //     // create next next segment
-    //     let res = route.create_segment(value).await;
-    //     assert!(res.is_err());
-
-    //     // delete min next segment
-    //     let request = DeleteSegmentRequest {
-    //         cluster_name: cluster_name.clone(),
-    //         namespace: namespace.clone(),
-    //         shard_name: shard_name.clone(),
-    //         segment_seq: 1,
-    //     };
-
-    //     let value = DeleteSegmentRequest::encode_to_vec(&request);
-    //     assert!(route.delete_segment(value).await.is_err());
-
-    //     // delete min segment
-    //     let request = DeleteSegmentRequest {
-    //         cluster_name: cluster_name.clone(),
-    //         namespace: namespace.clone(),
-    //         shard_name: shard_name.clone(),
-    //         segment_seq: 0,
-    //     };
-
-    //     let value = DeleteSegmentRequest::encode_to_vec(&request);
-    //     assert!(route.delete_segment(value).await.is_ok());
-
-    //     assert!(engine_cache
-    //         .get_segment(&cluster_name, &namespace, &shard_name, 0)
-    //         .is_none());
-
-    //     assert!(segment_storage
-    //         .get(&cluster_name, &namespace, &shard_name, 0)
-    //         .unwrap()
-    //         .is_none());
-
-    //     let shard = engine_cache
-    //         .get_shard(&cluster_name, &namespace, &shard_name)
-    //         .unwrap();
-    //     assert_eq!(shard.start_segment_seq, 1);
-
-    //     // delete shard
-    //     let request = DeleteShardRequest {
-    //         cluster_name: cluster_name.clone(),
-    //         namespace: namespace.clone(),
-    //         shard_name: shard_name.clone(),
-    //     };
-    //     let value = DeleteShardRequest::encode_to_vec(&request);
-    //     assert!(route.delete_shard(value).await.is_ok());
-
-    //     assert!(engine_cache
-    //         .get_shard(&cluster_name, &namespace, &shard_name)
-    //         .is_none());
-    //     assert!(shard_storage
-    //         .get(&cluster_name, &namespace, &shard_name)
-    //         .unwrap()
-    //         .is_none());
-    // }
-
-    // fn build_ins() -> (
-    //     Arc<ClientPool>,
-    //     PlacementCenterConfig,
-    //     Arc<JournalCacheManager>,
-    //     Arc<PlacementCacheManager>,
-    //     Arc<RocksDBEngine>,
-    // ) {
-    //     let client_pool = Arc::new(ClientPool::new(3));
-    //     let config = placement_center_test_conf();
-    //     let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-    //         &storage_data_fold(&config.rocksdb.data_path),
-    //         config.rocksdb.max_open_files.unwrap(),
-    //         column_family_list(),
-    //     ));
-    //     let engine_cache = Arc::new(JournalCacheManager::new());
-    //     let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
-
-    //     let shard_info = JournalShard {
-    //         shard_uid: unique_id(),
-    //         cluster_name: config.cluster_name.clone(),
-    //         namespace: "n1".to_string(),
-    //         shard_name: "s1".to_string(),
-    //         replica: 2,
-    //         start_segment_seq: 0,
-    //         active_segment_seq: 0,
-    //         status: metadata_struct::journal::shard::JournalShardStatus::Run,
-    //         last_segment_seq: 0,
-    //         create_time: now_mills(),
-    //     };
-
-    //     engine_cache.add_shard(&shard_info);
-
-    //     add_node(config.clone(), &cluster_cache);
-    //     (
-    //         client_pool,
-    //         config,
-    //         engine_cache,
-    //         cluster_cache,
-    //         rocksdb_engine_handler,
-    //     )
-    // }
-
-    // fn add_node(config: PlacementCenterConfig, cluster_cache: &Arc<PlacementCacheManager>) {
-    //     let extend_info = JournalNodeExtend {
-    //         data_fold: vec!["/tmp/t1".to_string(), "/tmp/t2".to_string()],
-    //         tcp_addr: "127.0.0.1:3110".to_string(),
-    //         tcps_addr: "127.0.0.1:3111".to_string(),
-    //     };
-
-    //     let node = BrokerNode {
-    //         cluster_name: config.cluster_name.clone(),
-    //         cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
-    //         create_time: now_mills(),
-    //         extend: serde_json::to_string(&extend_info).unwrap(),
-    //         node_id: 1,
-    //         node_inner_addr: "".to_string(),
-    //         node_ip: "".to_string(),
-    //     };
-    //     cluster_cache.add_broker_node(node);
-
-    //     let node = BrokerNode {
-    //         cluster_name: config.cluster_name.clone(),
-    //         cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
-    //         create_time: now_mills(),
-    //         extend: serde_json::to_string(&extend_info).unwrap(),
-    //         node_id: 2,
-    //         node_inner_addr: "".to_string(),
-    //         node_ip: "".to_string(),
-    //     };
-    //     cluster_cache.add_broker_node(node);
-
-    //     let node = BrokerNode {
-    //         cluster_name: config.cluster_name.clone(),
-    //         cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
-    //         create_time: now_mills(),
-    //         extend: serde_json::to_string(&extend_info).unwrap(),
-    //         node_id: 3,
-    //         node_inner_addr: "".to_string(),
-    //         node_ip: "".to_string(),
-    //     };
-    //     cluster_cache.add_broker_node(node);
-    // }
 }

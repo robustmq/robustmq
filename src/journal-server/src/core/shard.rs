@@ -61,14 +61,15 @@ pub fn get_delete_shard_status(
     req: &GetShardDeleteStatusRequest,
 ) -> Result<bool, JournalServerError> {
     // Does the file exist
-    let mut fold_flag = false;
+    let mut fold_exist = false;
     let conf = journal_server_conf();
     for data_fold in conf.storage.data_path.iter() {
         let shard_fold_name = data_fold_shard(&req.namespace, &req.shard_name, data_fold);
-        fold_flag = Path::new(data_fold).exists();
+        fold_exist = Path::new(data_fold).exists();
     }
 
     // Does the cache exist
-    let cache_flag = cache_manager.shard_is_exists(&req.namespace, &req.shard_name);
-    Ok(!fold_flag && !cache_flag)
+    let cache_exist = cache_manager.shard_is_exists(&req.namespace, &req.shard_name);
+
+    Ok(!fold_exist && !cache_exist)
 }

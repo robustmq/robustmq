@@ -25,6 +25,7 @@ use super::file::SegmentFile;
 use super::manager::SegmentFileManager;
 use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
+use crate::index::build_index_message;
 
 pub async fn write_data(
     cache_manager: &Arc<CacheManager>,
@@ -102,6 +103,9 @@ pub async fn write_data(
                         &msg.shard_name,
                         msg.segment,
                     )?;
+
+                    // build index
+                    build_index_message()?;
                 }
                 Err(e) => {
                     status.error = Some(JournalEngineError {
