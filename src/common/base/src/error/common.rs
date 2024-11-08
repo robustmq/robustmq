@@ -78,8 +78,14 @@ pub enum CommonError {
     #[error("Parameter cannot be empty, parameter name: {0}")]
     ParameterCannotBeNull(String),
 
+    #[error("Invalid parameter format, parameter name: {0}")]
+    InvalidParameterFormat(String),
+
     #[error("Module {0} does not support this feature {1}")]
     NotSupportFeature(String, String),
+
+    #[error("Unavailable cluster type")]
+    UnavailableClusterType,
 
     #[error("Unavailable storage type")]
     UnavailableStorageType,
