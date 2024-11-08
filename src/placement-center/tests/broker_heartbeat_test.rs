@@ -40,8 +40,8 @@ mod tests {
             cluster_name: cluster_name.clone(),
             node_id,
             node_ip: node_ip(),
+            node_inner_addr: node_ip(),
             extend_info: extend_info(),
-            ..Default::default()
         };
         client
             .register_node(tonic::Request::new(request))
