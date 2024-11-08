@@ -18,7 +18,8 @@ sh example/mqtt-cluster/start.sh
 sleep 10
 
 # Run Cargo Test
-cargo nextest run
+# cargo nextest run
+cargo test
 
 if [ $? -ne 0 ]; then
     echo "Test case failed to run"
