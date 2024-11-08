@@ -2,6 +2,11 @@
 VERSION:=$(shell grep "version =" Cargo.toml | awk -F'"' '{print $2}' | head -n 1 | sed 's/version = //g')
 
 ##@ Build Mac Release
+.PHONY: build-local
+build-local: ## Build mac version robustmq.
+	sh scripts/build-release.sh local $(VERSION)
+
+##@ Build Mac Release
 .PHONY: build-mac-release
 build-mac-release: ## Build mac version robustmq.
 	sh scripts/build-release.sh mac $(VERSION)

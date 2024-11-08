@@ -21,12 +21,12 @@ action=$2
 conf=$3
 if [[ -z $mod ]]
 then
- echo "Enter the name of the component to start, for example: mqtt-server | journal-server | placement-center"
+ echo "Enter the name of the component to start, for example: mqtt | journal | placement"
  exit
 fi
 
-if [ "$mod" != "mqtt-server" -a "$mod" != "journal-server" -a "$mod" != "placement-center" ]; then
-    echo "platform Error, optional: mqtt-server, journal-server, placement-center"
+if [ "$mod" != "mqtt" -a "$mod" != "journal" -a "$mod" != "placement" ]; then
+    echo "cluster type Error, optional: mqtt, journal, placement"
     exit
 fi
 

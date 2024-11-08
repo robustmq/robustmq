@@ -15,11 +15,13 @@
 use std::sync::Arc;
 
 use metadata_struct::journal::segment::JournalSegment;
+use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
 
 use crate::core::error::PlacementCenterError;
 use crate::journal::cache::JournalCacheManager;
 use crate::storage::journal::segment::SegmentStorage;
+use crate::storage::journal::segment_meta::SegmentMetadataStorage;
 use crate::storage::journal::shard::ShardStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 
@@ -40,7 +42,7 @@ impl DataRouteJournal {
         }
     }
 
-    pub async fn create_shard(&self, value: Vec<u8>) -> Result<Vec<u8>, PlacementCenterError> {
+    pub async fn set_shard(&self, value: Vec<u8>) -> Result<Vec<u8>, PlacementCenterError> {
         let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
 
         let shard_info = serde_json::from_slice::<JournalShard>(&value)?;
@@ -70,11 +72,11 @@ impl DataRouteJournal {
         Ok(())
     }
 
-    pub async fn create_segment(&self, value: Vec<u8>) -> Result<Vec<u8>, PlacementCenterError> {
+    pub async fn set_segment(&self, value: Vec<u8>) -> Result<Vec<u8>, PlacementCenterError> {
         let segment = serde_json::from_slice::<JournalSegment>(&value)?;
 
-        let segment_storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
-        segment_storage.save(segment.clone())?;
+        let storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
+        storage.save(segment.clone())?;
 
         self.engine_cache.set_segment(&segment);
 
@@ -84,8 +86,8 @@ impl DataRouteJournal {
     pub async fn delete_segment(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let segment = serde_json::from_slice::<JournalSegment>(&value)?;
 
-        let segment_storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
-        segment_storage.delete(
+        let storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
+        storage.delete(
             &segment.cluster_name,
             &segment.namespace,
             &segment.shard_name,
@@ -97,6 +99,37 @@ impl DataRouteJournal {
             &segment.namespace,
             &segment.shard_name,
             segment.segment_seq,
+        );
+        Ok(())
+    }
+
+    pub async fn set_segment_meta(&self, value: Vec<u8>) -> Result<Vec<u8>, PlacementCenterError> {
+        let meta = serde_json::from_slice::<JournalSegmentMetadata>(&value)?;
+
+        let storage = SegmentMetadataStorage::new(self.rocksdb_engine_handler.clone());
+        storage.save(meta.clone())?;
+
+        self.engine_cache.set_segment_meta(&meta);
+
+        Ok(value)
+    }
+
+    pub async fn delete_segment_meta(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+        let meta = serde_json::from_slice::<JournalSegmentMetadata>(&value)?;
+
+        let storage = SegmentMetadataStorage::new(self.rocksdb_engine_handler.clone());
+        storage.delete(
+            &meta.cluster_name,
+            &meta.namespace,
+            &meta.shard_name,
+            meta.segment_seq,
+        )?;
+
+        self.engine_cache.remove_segment_meta(
+            &meta.cluster_name,
+            &meta.namespace,
+            &meta.shard_name,
+            meta.segment_seq,
         );
         Ok(())
     }

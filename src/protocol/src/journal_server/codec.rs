@@ -18,8 +18,8 @@ use tokio_util::codec;
 
 use super::journal_engine::{
     ApiKey, CreateShardReq, CreateShardReqBody, CreateShardResp, CreateShardRespBody,
-    DeleteShardReq, DeleteShardReqBody, DeleteShardResp, DeleteShardRespBody, GetActiveSegmentReq,
-    GetActiveSegmentReqBody, GetActiveSegmentResp, GetActiveSegmentRespBody, GetClusterMetadataReq,
+    DeleteShardReq, DeleteShardReqBody, DeleteShardResp, DeleteShardRespBody, GetShardMetadataReq,
+    GetShardMetadataReqBody, GetShardMetadataResp, GetShardMetadataRespBody, GetClusterMetadataReq,
     GetClusterMetadataResp, GetClusterMetadataRespBody, OffsetCommitReq, OffsetCommitReqBody,
     OffsetCommitResp, OffsetCommitRespBody, ReadReq, ReadReqBody, ReadResp, ReadRespBody,
     ReqHeader, RespHeader, WriteReq, WriteReqBody, WriteResp, WriteRespBody,
@@ -43,9 +43,9 @@ pub enum JournalEnginePacket {
     GetClusterMetadataReq(GetClusterMetadataReq),
     GetClusterMetadataResp(GetClusterMetadataResp),
 
-    // GetActiveSegment
-    GetActiveSegmentReq(GetActiveSegmentReq),
-    GetActiveSegmentResp(GetActiveSegmentResp),
+    // GetShardMetadata
+    GetShardMetadataReq(GetShardMetadataReq),
+    GetShardMetadataResp(GetShardMetadataResp),
 
     // OffsetCommit
     OffsetCommitReq(OffsetCommitReq),
@@ -130,19 +130,19 @@ impl codec::Encoder<JournalEnginePacket> for JournalServerCodec {
                 body_byte = GetClusterMetadataRespBody::encode_to_vec(&body);
             }
 
-            // GetActiveSegment
-            JournalEnginePacket::GetActiveSegmentReq(data) => {
+            // GetShardMetadata
+            JournalEnginePacket::GetShardMetadataReq(data) => {
                 let header = data.header.unwrap();
                 let body = data.body.unwrap();
                 header_byte = ReqHeader::encode_to_vec(&header);
-                body_byte = GetActiveSegmentReqBody::encode_to_vec(&body);
+                body_byte = GetShardMetadataReqBody::encode_to_vec(&body);
                 req_type = 1;
             }
-            JournalEnginePacket::GetActiveSegmentResp(data) => {
+            JournalEnginePacket::GetShardMetadataResp(data) => {
                 let header = data.header.unwrap();
                 let body = data.body.unwrap();
                 header_byte = RespHeader::encode_to_vec(&header);
-                body_byte = GetActiveSegmentRespBody::encode_to_vec(&body);
+                body_byte = GetShardMetadataRespBody::encode_to_vec(&body);
             }
 
             // OffsetCommit
@@ -307,7 +307,7 @@ impl codec::Decoder for JournalServerCodec {
 
                         ApiKey::GetClusterMetadata => get_cluster_metadata_req(body_bytes, header),
 
-                        ApiKey::GetActiveSegment => get_active_segment_req(body_bytes, header),
+                        ApiKey::GetShardMetadata => get_shard_metadata_req(body_bytes, header),
 
                         ApiKey::OffsetCommit => offset_commit_req(body_bytes, header),
 
@@ -328,7 +328,7 @@ impl codec::Decoder for JournalServerCodec {
 
                     ApiKey::GetClusterMetadata => get_cluster_metadata_resp(body_bytes, header),
 
-                    ApiKey::GetActiveSegment => get_active_segment_resp(body_bytes, header),
+                    ApiKey::GetShardMetadata => get_shard_metadata_resp(body_bytes, header),
 
                     ApiKey::OffsetCommit => offset_commit_resp(body_bytes, header),
 
@@ -522,39 +522,39 @@ fn get_cluster_metadata_resp(
     }
 }
 
-fn get_active_segment_req(
+fn get_shard_metadata_req(
     body_bytes: BytesMut,
     header: ReqHeader,
 ) -> Result<Option<JournalEnginePacket>, Error> {
-    match GetActiveSegmentReqBody::decode(body_bytes.as_ref()) {
+    match GetShardMetadataReqBody::decode(body_bytes.as_ref()) {
         Ok(body) => {
-            let item = JournalEnginePacket::GetActiveSegmentReq(GetActiveSegmentReq {
+            let item = JournalEnginePacket::GetShardMetadataReq(GetShardMetadataReq {
                 header: Some(header),
                 body: Some(body),
             });
             Ok(Some(item))
         }
         Err(e) => Err(Error::DecodeBodyError(
-            "get_active_segment_req".to_string(),
+            "get_shard_metadata_req".to_string(),
             e.to_string(),
         )),
     }
 }
 
-fn get_active_segment_resp(
+fn get_shard_metadata_resp(
     body_bytes: BytesMut,
     header: RespHeader,
 ) -> Result<Option<JournalEnginePacket>, Error> {
-    match GetActiveSegmentRespBody::decode(body_bytes.as_ref()) {
+    match GetShardMetadataRespBody::decode(body_bytes.as_ref()) {
         Ok(body) => {
-            let item = JournalEnginePacket::GetActiveSegmentResp(GetActiveSegmentResp {
+            let item = JournalEnginePacket::GetShardMetadataResp(GetShardMetadataResp {
                 header: Some(header),
                 body: Some(body),
             });
             Ok(Some(item))
         }
         Err(e) => Err(Error::DecodeBodyError(
-            "get_active_segment_resp".to_string(),
+            "get_shard_metadata_resp".to_string(),
             e.to_string(),
         )),
     }

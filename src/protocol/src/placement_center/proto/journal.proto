@@ -29,6 +29,12 @@ service EngineService {
   rpc CreateNextSegment(CreateNextSegmentRequest) returns(CreateNextSegmentReply){}
 
   rpc DeleteSegment(DeleteSegmentRequest) returns(DeleteSegmentReply){}
+
+  rpc UpdateSegmentStatus(UpdateSegmentStatusRequest) returns(UpdateSegmentStatusReply){}
+
+  rpc ListSegmentMeta(ListSegmentMetaRequest) returns(ListSegmentMetaReply){}
+
+  rpc UpdateSegmentMeta(UpdateSegmentMetaRequest) returns(UpdateSegmentMetaReply){}
 }
 
 message ListShardRequest{
@@ -94,5 +100,36 @@ message DeleteSegmentRequest{
 }
 
 message DeleteSegmentReply{
+
+}
+
+message UpdateSegmentStatusRequest{
+    string cluster_name = 1;
+    string namespace = 2;
+    string shard_name = 3;
+    string status =4;
+}
+
+message UpdateSegmentStatusReply{
+
+}
+
+message ListSegmentMetaRequest{
+    string cluster_name = 1;
+    string namespace = 2;
+    string shard_name = 3;
+    uint32 segment_no = 4;
+}
+
+message ListSegmentMetaReply{
+    bytes segments = 1;
+
+}
+
+message UpdateSegmentMetaRequest{
+     bytes segment_meta = 1;
+}
+
+message UpdateSegmentMetaReply{
 
 }
