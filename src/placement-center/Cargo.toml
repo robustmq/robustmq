@@ -52,7 +52,6 @@ slog = "2"
 slog-term = "2.9.0"
 slog-async = "2.8.0"
 time = "0.3.36"
-regex = "1.10.4"
 log.workspace = true
 mobc.workspace = true
 tracing.workspace = true
