@@ -37,7 +37,7 @@ mod tests {
             node_id,
             node_ip: node_ip(),
             extend_info: extend_info(),
-            node_inner_addr: node_ip()
+            node_inner_addr: node_ip(),
         };
         client
             .register_node(tonic::Request::new(request))
