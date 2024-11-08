@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::net::{IpAddr, SocketAddr};
 use common_base::error::common::CommonError;
-use protocol::placement_center::placement_center_inner::{ClusterType, DeleteIdempotentDataRequest, RegisterNodeRequest, SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest};
+use protocol::placement_center::placement_center_inner::{
+    ClusterType, DeleteIdempotentDataRequest, RegisterNodeRequest, SetIdempotentDataRequest,
+    SetResourceConfigRequest, UnRegisterNodeRequest,
+};
+use std::net::{IpAddr, SocketAddr};
 use tonic::Status;
 
 pub trait ValidateExt {
@@ -30,18 +33,21 @@ pub trait ValidateExt {
 //Returns: Result<(), Status>.
 fn ensure_param_not_empty(field_name: &str, field_value: &str) -> Result<(), Status> {
     if field_value.is_empty() {
-        println!("field_name: {:?}, field_value: {:?}", field_name, field_value);
-        Err(
-            Status::invalid_argument(
-                CommonError::ParameterCannotBeNull(field_name.to_string()).to_string()
-            )
-        )
+        println!(
+            "field_name: {:?}, field_value: {:?}",
+            field_name, field_value
+        );
+        Err(Status::invalid_argument(
+            CommonError::ParameterCannotBeNull(field_name.to_string()).to_string(),
+        ))
     } else {
-        println!("field_name: {:?}, field_value: {:?}", field_name, field_value);
+        println!(
+            "field_name: {:?}, field_value: {:?}",
+            field_name, field_value
+        );
         Ok(())
     }
 }
-
 
 //This method is used to verify whether the IP address is correct,
 // and it can also validate cases with port numbers.
@@ -52,14 +58,14 @@ fn ensure_param_not_empty(field_name: &str, field_value: &str) -> Result<(), Sta
 //
 //Returns: Result<(), Status>.
 fn validate_ip(field_name: &str, ip: &str) -> Result<(), Status> {
-    let is_ip_addr_correct:Result<IpAddr, _> = ip.parse();
+    let is_ip_addr_correct: Result<IpAddr, _> = ip.parse();
     let is_socket_correct: Result<SocketAddr, _> = ip.parse();
 
     if is_ip_addr_correct.is_ok() || is_socket_correct.is_ok() {
         Ok(())
-    }else {
+    } else {
         Err(Status::invalid_argument(
-            CommonError::InvalidParameterFormat(field_name.to_string(), ip.to_string()).to_string()
+            CommonError::InvalidParameterFormat(field_name.to_string(), ip.to_string()).to_string(),
         ))
     }
 }
@@ -70,7 +76,6 @@ impl ValidateExt for RegisterNodeRequest {
     // 2. cluster_name, node_ip, node_inner_addr can not empty
     // 3. node_ip, node_inner_add is correct ipv4/v6
     fn validate_ext(&self) -> Result<(), Status> {
-
         if !ClusterType::is_valid(self.cluster_type) {
             return Err(Status::invalid_argument(
                 CommonError::UnavailableClusterType.to_string(),
@@ -83,7 +88,6 @@ impl ValidateExt for RegisterNodeRequest {
 
         validate_ip("node_ip", &self.node_ip)?;
         validate_ip("node_inner_addr", &self.node_inner_addr)?;
-
 
         Ok(())
     }
@@ -149,9 +153,13 @@ mod validate_test {
         let param = String::new();
         let result = ensure_param_not_empty("cluster_name", &param);
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err().message(), Status::invalid_argument(
-            CommonError::ParameterCannotBeNull("cluster_name".to_string()).to_string()
-        ).message());
+        assert_eq!(
+            result.unwrap_err().message(),
+            Status::invalid_argument(
+                CommonError::ParameterCannotBeNull("cluster_name".to_string()).to_string()
+            )
+            .message()
+        );
 
         let param = "cluster_name";
         let result = ensure_param_not_empty("cluster_name", &param);
@@ -165,7 +173,7 @@ mod validate_test {
             "256.256.256.256",
             "10.0.0.1",
             "127.0.0.1",
-            "127.0.0.1:8228"
+            "127.0.0.1:8228",
         ];
 
         for ip in test_ips {
@@ -175,10 +183,21 @@ mod validate_test {
                     println!("{:?}", result);
                     assert!(result.is_err());
                     let status = result.unwrap_err();
-                    assert_eq!(status.code(), Status::invalid_argument("node_ip".to_string()).code());
-                    assert_eq!(status.message(), Status::invalid_argument(
-                        CommonError::InvalidParameterFormat("node_ip".to_string(), ip.to_string()).to_string()
-                    ).message());
+                    assert_eq!(
+                        status.code(),
+                        Status::invalid_argument("node_ip".to_string()).code()
+                    );
+                    assert_eq!(
+                        status.message(),
+                        Status::invalid_argument(
+                            CommonError::InvalidParameterFormat(
+                                "node_ip".to_string(),
+                                ip.to_string()
+                            )
+                            .to_string()
+                        )
+                        .message()
+                    );
                 }
                 &_ => {
                     println!("{:?}", ip);

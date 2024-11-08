@@ -17,7 +17,9 @@ mod common;
 mod tests {
     use common_base::error::common::CommonError;
     use protocol::placement_center::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
-    use protocol::placement_center::placement_center_inner::{HeartbeatRequest, RegisterNodeRequest, SetIdempotentDataRequest, UnRegisterNodeRequest};
+    use protocol::placement_center::placement_center_inner::{
+        HeartbeatRequest, RegisterNodeRequest, SetIdempotentDataRequest, UnRegisterNodeRequest,
+    };
     use protocol::placement_center::placement_center_journal::engine_service_client::EngineServiceClient;
     use protocol::placement_center::placement_center_journal::{
         CreateNextSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
@@ -63,11 +65,7 @@ mod tests {
             extend_info: extend_info(),
         };
 
-        let valid_field = [
-            "cluster_name",
-            "node_ip",
-            "node_inner_addr"
-        ];
+        let valid_field = ["cluster_name", "node_ip", "node_inner_addr"];
 
         for field in valid_field {
             let mut test_request = valid_request.clone();
@@ -81,19 +79,23 @@ mod tests {
             {
                 println!("{:?}", test_request);
                 let response = test_client
-                .register_node(tonic::Request::new(test_request))
-                .await;
+                    .register_node(tonic::Request::new(test_request))
+                    .await;
 
                 assert!(response.is_err());
                 let status = response.unwrap_err();
-                assert_eq!(status.code(),
-                   Status::invalid_argument(CommonError::ParameterCannotBeNull(field.to_string())
-                       .to_string()).code());
-            assert_eq!(status.message(),
-                   CommonError::ParameterCannotBeNull(field.to_string()).to_string());
-
+                assert_eq!(
+                    status.code(),
+                    Status::invalid_argument(
+                        CommonError::ParameterCannotBeNull(field.to_string()).to_string()
+                    )
+                    .code()
+                );
+                assert_eq!(
+                    status.message(),
+                    CommonError::ParameterCannotBeNull(field.to_string()).to_string()
+                );
             }
-
         }
     }
 
@@ -124,13 +126,10 @@ mod tests {
             "255.255.255.255:9999",
             "0.0.0.0:10009",
             "123.112.154.123:10000",
-            "172.192.140.21:32145"
+            "172.192.140.21:32145",
         ];
 
-        let field = [
-            "node_ip",
-            "node_inner_addr"
-        ];
+        let field = ["node_ip", "node_inner_addr"];
 
         let mut field_ip: Vec<(&str, &str)> = Vec::new();
 
@@ -144,22 +143,23 @@ mod tests {
             let mut test_request = valid_request.clone();
             let mut test_client = client.clone();
             match field {
-                "node_ip" =>  test_request.node_ip = ip.parse().unwrap(),
-                "node_inner_addr" =>  test_request.node_inner_addr = ip.parse().unwrap(),
+                "node_ip" => test_request.node_ip = ip.parse().unwrap(),
+                "node_inner_addr" => test_request.node_inner_addr = ip.parse().unwrap(),
                 _ => unreachable!(),
             }
 
             {
-                let response = test_client.register_node(tonic::Request::new(valid_request.clone())).await;
+                let response = test_client
+                    .register_node(tonic::Request::new(valid_request.clone()))
+                    .await;
                 assert!(response.is_ok());
             }
-
         }
     }
 
     #[tokio::test]
     async fn test_register_node_method_param_ip_is_err() {
-        let  client = PlacementCenterServiceClient::connect(pc_addr())
+        let client = PlacementCenterServiceClient::connect(pc_addr())
             .await
             .unwrap();
 
@@ -180,13 +180,10 @@ mod tests {
             "256.111.111.111",
             "111.256.111.111",
             "111.111.256.111",
-            "111.111.111.256"
+            "111.111.111.256",
         ];
 
-        let field = [
-            "node_ip",
-            "node_inner_addr"
-        ];
+        let field = ["node_ip", "node_inner_addr"];
 
         let mut field_ip: Vec<(&str, &str)> = Vec::new();
 
@@ -206,22 +203,21 @@ mod tests {
             }
             {
                 let response = test_client
-                .register_node(tonic::Request::new(test_request.clone()))
-                .await;
-            println!("{:?}", response);
-            assert!(response.is_err());
-            if let Err(ref e) = response {
-                assert_eq!(e.code(), tonic::Code::InvalidArgument);
-                assert_eq!(
-                    e.message(),
-                    CommonError::InvalidParameterFormat(field.to_string(), ip.to_string())
-                        .to_string()
-                );
-            }
+                    .register_node(tonic::Request::new(test_request.clone()))
+                    .await;
+                println!("{:?}", response);
+                assert!(response.is_err());
+                if let Err(ref e) = response {
+                    assert_eq!(e.code(), tonic::Code::InvalidArgument);
+                    assert_eq!(
+                        e.message(),
+                        CommonError::InvalidParameterFormat(field.to_string(), ip.to_string())
+                            .to_string()
+                    );
+                }
             }
         }
     }
-
 
     #[tokio::test]
     async fn test_heartbeat() {
