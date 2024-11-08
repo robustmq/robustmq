@@ -144,7 +144,7 @@ build_local(){
     build="./build"
     target="robustmq"
     
-    package_name=${target}-test-cases
+    package_name=${target}-local
 
     echo "package name: ${package_name}"
     mkdir -p ${build}
