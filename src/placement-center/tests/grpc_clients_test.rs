@@ -54,8 +54,8 @@ mod tests {
             .await
             .unwrap();
 
-        let mut valid_request = RegisterNodeRequest {
-            cluster_name: String::new(),
+        let valid_request = RegisterNodeRequest {
+            cluster_name: cluster_name(),
             cluster_type: cluster_type(),
             node_ip: node_ip(),
             node_id: node_id(),
@@ -70,15 +70,17 @@ mod tests {
         ];
 
         for field in valid_field {
+            let mut test_request = valid_request.clone();
             match field {
-                "cluster_name" => valid_request.cluster_name = String::new(),
-                "node_ip" => valid_request.node_ip = String::new(),
-                "node_inner_addr" => valid_request.node_inner_addr = String::new(),
+                "cluster_name" => test_request.cluster_name = String::new(),
+                "node_ip" => test_request.node_ip = String::new(),
+                "node_inner_addr" => test_request.node_inner_addr = String::new(),
                 _ => unreachable!(),
             }
 
+            println!("{:?}", test_request);
             let response = client
-                .register_node(tonic::Request::new(valid_request.clone()))
+                .register_node(tonic::Request::new(test_request))
                 .await;
 
             assert!(response.is_err());
@@ -87,7 +89,7 @@ mod tests {
                        Status::invalid_argument(CommonError::InvalidParameterFormat(field.to_string())
                            .to_string()).code());
             assert_eq!(status.message(),
-                       CommonError::InvalidParameterFormat(field.to_string()).to_string()
+                       CommonError::ParameterCannotBeNull(field.to_string()).to_string()
             );
         }
     }
@@ -150,7 +152,7 @@ mod tests {
             .await
             .unwrap();
 
-        let mut valid_request = RegisterNodeRequest {
+        let valid_request = RegisterNodeRequest {
             cluster_name: cluster_name(),
             cluster_type: cluster_type(),
             node_ip: node_ip(),
@@ -163,7 +165,6 @@ mod tests {
             "255",
             "255.255",
             "255.255.255",
-            "255.255.255.255",
             "256.256.256.256",
             "256.111.111.111",
             "111.256.111.111",
@@ -185,15 +186,17 @@ mod tests {
         }
 
         for (field, ip) in field_ip {
+            let mut test_request = valid_request.clone();
             match field {
-                "node_ip" => valid_request.node_ip = ip.parse().unwrap(),
-                "node_inner_addr" => valid_request.node_inner_addr = ip.parse().unwrap(),
+                "node_ip" => test_request.node_ip = ip.parse().unwrap(),
+                "node_inner_addr" => test_request.node_inner_addr = ip.parse().unwrap(),
                 _ => unreachable!(),
             }
 
             let response = client
-                .register_node(tonic::Request::new(valid_request.clone()))
+                .register_node(tonic::Request::new(test_request.clone()))
                 .await;
+            println!("{:?}", response);
             assert!(response.is_err());
             if let Err(ref e) = response {
                 assert_eq!(e.code(), tonic::Code::InvalidArgument);

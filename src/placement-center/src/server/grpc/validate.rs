@@ -21,25 +21,27 @@ pub trait ValidateExt {
     fn validate_ext(&self) -> Result<(), Status>;
 }
 
-fn ensure_param_not_empty(param: &str) -> Result<(), Status> {
-    if param.is_empty() {
+fn ensure_param_not_empty(field_name: &str, field_value: &str) -> Result<(), Status> {
+    if field_value.is_empty() {
+        println!("field_name: {:?}, field_value: {:?}", field_name, field_value);
         Err(
             Status::invalid_argument(
-                CommonError::ParameterCannotBeNull(param.to_string()).to_string()
+                CommonError::ParameterCannotBeNull(field_name.to_string()).to_string()
             )
         )
     } else {
+        println!("field_name: {:?}, field_value: {:?}", field_name, field_value);
         Ok(())
     }
 }
 
-fn validate_ip(field: &str, ip: &str) -> Result<(), Status> {
+fn validate_ip(field_name: &str, ip: &str) -> Result<(), Status> {
     let ipv4_re = Regex::new(r"^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$");
     if ipv4_re.unwrap().is_match(ip) {
         Ok(())
     }else {
         Err(Status::invalid_argument(
-            CommonError::InvalidParameterFormat(field.to_string()).to_string()
+            CommonError::InvalidParameterFormat(field_name.to_string()).to_string()
         ))
     }
 }
@@ -47,14 +49,14 @@ fn validate_ip(field: &str, ip: &str) -> Result<(), Status> {
 impl ValidateExt for RegisterNodeRequest {
     fn validate_ext(&self) -> Result<(), Status> {
         if !ClusterType::is_valid(self.cluster_type) {
-            return Err(Status::unavailable(
+            return Err(Status::invalid_argument(
                 CommonError::UnavailableClusterType.to_string(),
             ));
         }
 
-        ensure_param_not_empty(&self.cluster_name)?;
-        ensure_param_not_empty(&self.node_ip)?;
-        ensure_param_not_empty(&self.node_inner_addr)?;
+        ensure_param_not_empty("cluster_name", &self.cluster_name)?;
+        ensure_param_not_empty("node_ip", &self.node_ip)?;
+        ensure_param_not_empty("node_inner_addr", &self.node_inner_addr)?;
 
         validate_ip("node_ip", &self.node_ip)?;
         validate_ip("node_inner_addr", &self.node_inner_addr)?;
@@ -122,14 +124,14 @@ mod validate_test {
     #[test]
     fn test_ensure_param_not_empty() {
         let param = String::new();
-        let result = ensure_param_not_empty(&param);
+        let result = ensure_param_not_empty("cluster_name", &param);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().message(), Status::invalid_argument(
-            CommonError::ParameterCannotBeNull(param.to_string()).to_string()
+            CommonError::ParameterCannotBeNull("cluster_name".to_string()).to_string()
         ).message());
 
         let param = "cluster_name";
-        let result = ensure_param_not_empty(&param);
+        let result = ensure_param_not_empty("cluster_name", &param);
         assert!(result.is_ok());
     }
 
