@@ -2648,7 +2648,6 @@ dependencies = [
  "protocol",
  "raft",
  "rand",
- "regex",
  "rocksdb",
  "rocksdb-engine",
  "serde",
