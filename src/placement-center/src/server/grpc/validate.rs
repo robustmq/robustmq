@@ -21,6 +21,13 @@ pub trait ValidateExt {
     fn validate_ext(&self) -> Result<(), Status>;
 }
 
+//Ensure that the param is not empty.
+//
+//Parameters:
+// - `field_name: &str`: The name of the field.
+// - `field_value: &str`: The value of the field.
+//
+//Returns: Result<(), Status>.
 fn ensure_param_not_empty(field_name: &str, field_value: &str) -> Result<(), Status> {
     if field_value.is_empty() {
         println!("field_name: {:?}, field_value: {:?}", field_name, field_value);
@@ -35,6 +42,15 @@ fn ensure_param_not_empty(field_name: &str, field_value: &str) -> Result<(), Sta
     }
 }
 
+
+//This method is used to verify whether the IP address is correct,
+// and it can also validate cases with port numbers.
+//
+//Parameters:
+// - `field_name: &str`: The name of the field.
+// - `ip: &str`: ip addr.
+//
+//Returns: Result<(), Status>.
 fn validate_ip(field_name: &str, ip: &str) -> Result<(), Status> {
     let is_ip_addr_correct:Result<IpAddr, _> = ip.parse();
     let is_socket_correct: Result<SocketAddr, _> = ip.parse();
@@ -49,7 +65,12 @@ fn validate_ip(field_name: &str, ip: &str) -> Result<(), Status> {
 }
 
 impl ValidateExt for RegisterNodeRequest {
+    // validate params:
+    // 1. is valid cluster_type
+    // 2. cluster_name, node_ip, node_inner_addr can not empty
+    // 3. node_ip, node_inner_add is correct ipv4/v6
     fn validate_ext(&self) -> Result<(), Status> {
+
         if !ClusterType::is_valid(self.cluster_type) {
             return Err(Status::invalid_argument(
                 CommonError::UnavailableClusterType.to_string(),
