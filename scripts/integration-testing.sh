@@ -13,20 +13,73 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+rm -rf build/
+make build
 
-sh example/mqtt-cluster/start.sh
-sleep 10
+start_server(){
+    cd build
+    tar -xzvf robustmq-local.tar.gz
+    cd ..
+
+    sh build/robustmq-local/bin/robust-server place start example/mqtt-cluster/placement-center/node-1.toml
+    sleep 3
+    no1=`ps -ef | grep example/mqtt-cluster/placement-center/node-1.toml | grep -v grep | awk '{print $2}'`
+    if [ -n "$no1" ]
+    then
+        echo "placement-center node 1 started successfully. process no: $no1"
+    fi
+
+    sh build/robustmq-local/bin/robust-server journal start example/mqtt-cluster/journal-server/node-1.toml
+    sleep 3
+    no1=`ps -ef | grep example/mqtt-cluster/journal-server/node-1.toml | grep -v grep | awk '{print $2}'`
+    if [ -n "$no1" ]
+    then
+        echo "journal-engine node 1 started successfully. process no: $no1"
+    fi
+
+    sh build/robustmq-local/bin/robust-server mqtt start example/mqtt-cluster/mqtt-server/node-1.toml
+    sleep 3
+    no1=`ps -ef | grep example/mqtt-cluster/mqtt-server/node-1.toml | grep -v grep | awk '{print $2}'`
+    if [ -n "$no1" ]
+    then
+        echo "mqtt-server node 1 started successfully. process no: $no1"
+    fi
+
+    sleep 3
+}
+
+stop_server(){
+    no1=`ps -ef | grep example/mqtt-cluster/placement-center/node-1.toml | grep -v grep | awk '{print $2}'`
+    if [ -n "$no1" ]
+    then
+        kill $no1
+    fi
+
+    no1=`ps -ef | grep example/mqtt-cluster/journal-server/node-1.toml | grep -v grep | awk '{print $2}'`
+    if [ -n "$no1" ]
+    then
+        kill $no1
+    fi
+
+
+    no1=`ps -ef | grep example/mqtt-cluster/mqtt-server/node-1.toml | grep -v grep | awk '{print $2}'`
+    if [ -n "$no1" ]
+    then
+        kill $no1
+    fi
+}
+
+start_server
 
 # Run Cargo Test
-# cargo nextest run
-cargo test
+cargo nextest run
 
 if [ $? -ne 0 ]; then
     echo "Test case failed to run"
-    sh example/mqtt-cluster/stop.sh
     exit 1
 else
     echo "Test case runs successfully"
-    sh example/mqtt-cluster/stop.sh
 fi
+
+stop_server
 
