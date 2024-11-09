@@ -19,7 +19,9 @@ use protocol::placement_center::placement_center_journal::engine_service_server:
 use protocol::placement_center::placement_center_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, CreateShardReply, CreateShardRequest,
     DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest,
-    ListSegmentReply, ListSegmentRequest, ListShardReply, ListShardRequest,
+    ListSegmentMetaReply, ListSegmentMetaRequest, ListSegmentReply, ListSegmentRequest,
+    ListShardReply, ListShardRequest, UpdateSegmentMetaReply, UpdateSegmentMetaRequest,
+    UpdateSegmentStatusReply, UpdateSegmentStatusRequest,
 };
 use rocksdb_engine::RocksDBEngine;
 use tonic::{Request, Response, Status};
@@ -32,6 +34,7 @@ use crate::journal::services::segmet::{create_segment_by_req, delete_segment_by_
 use crate::journal::services::shard::{create_shard_by_req, delete_shard_by_req};
 use crate::route::apply::RaftMachineApply;
 use crate::storage::journal::segment::SegmentStorage;
+use crate::storage::journal::segment_meta::SegmentMetadataStorage;
 use crate::storage::journal::shard::ShardStorage;
 
 pub struct GrpcEngineService {
@@ -303,5 +306,79 @@ impl EngineService for GrpcEngineService {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
+    }
+
+    async fn update_segment_status(
+        &self,
+        request: Request<UpdateSegmentStatusRequest>,
+    ) -> Result<Response<UpdateSegmentStatusReply>, Status> {
+        let _ = request.into_inner();
+
+        return Ok(Response::new(UpdateSegmentStatusReply::default()));
+    }
+
+    async fn list_segment_meta(
+        &self,
+        request: Request<ListSegmentMetaRequest>,
+    ) -> Result<Response<ListSegmentMetaReply>, Status> {
+        let req = request.into_inner();
+        if req.cluster_name.is_empty() {
+            return Err(Status::cancelled(
+                PlacementCenterError::RequestParamsNotEmpty(req.cluster_name).to_string(),
+            ));
+        }
+
+        let storage = SegmentMetadataStorage::new(self.rocksdb_engine_handler.clone());
+        let res = if req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == 0 {
+            match storage.list_by_cluster(&req.cluster_name) {
+                Ok(list) => list,
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
+            }
+        } else if !req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == 0 {
+            match storage.list_by_namespace(&req.cluster_name, &req.namespace) {
+                Ok(list) => list,
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
+            }
+        } else if !req.namespace.is_empty() && !req.shard_name.is_empty() && req.segment_no == 0 {
+            match storage.list_by_shard(&req.cluster_name, &req.namespace, &req.shard_name) {
+                Ok(list) => list,
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
+            }
+        } else {
+            match storage.get(
+                &req.cluster_name,
+                &req.namespace,
+                &req.shard_name,
+                req.segment_no,
+            ) {
+                Ok(Some(shard)) => vec![shard],
+                Ok(None) => Vec::new(),
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
+            }
+        };
+
+        let body = match serde_json::to_vec(&res) {
+            Ok(data) => data,
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        };
+        return Ok(Response::new(ListSegmentMetaReply { segments: body }));
+    }
+
+    async fn update_segment_meta(
+        &self,
+        request: Request<UpdateSegmentMetaRequest>,
+    ) -> Result<Response<UpdateSegmentMetaReply>, Status> {
+        let _ = request.into_inner();
+        return Ok(Response::new(UpdateSegmentMetaReply::default()));
     }
 }

@@ -40,6 +40,13 @@ impl JournalSegment {
         }
         None
     }
+
+    pub fn name(&self) -> String {
+        format!(
+            "{},{},{},{}",
+            self.cluster_name, self.namespace, self.shard_name, self.segment_seq
+        )
+    }
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
@@ -58,5 +65,4 @@ pub enum SegmentStatus {
     SealUp,
     PrepareDelete,
     Deleteing,
-    Delete,
 }

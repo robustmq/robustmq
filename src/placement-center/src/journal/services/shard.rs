@@ -16,12 +16,17 @@ use std::sync::Arc;
 
 use common_base::tools::{now_mills, unique_id};
 use grpc_clients::pool::ClientPool;
+use metadata_struct::journal::segment::SegmentStatus;
+use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::{JournalShard, JournalShardStatus};
 use protocol::placement_center::placement_center_journal::{
     CreateShardReply, CreateShardRequest, DeleteShardReply, DeleteShardRequest,
 };
 
-use super::segmet::{build_first_segment, starting_segment, sync_save_segment_info};
+use super::segmet::{
+    build_first_segment, sync_save_segment_info, sync_save_segment_metadata_info,
+    update_segment_status,
+};
 use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::journal::cache::JournalCacheManager;
@@ -60,18 +65,16 @@ pub async fn create_shard_by_req(
             start_segment_seq: 0,
             active_segment_seq: 0,
             last_segment_seq: 0,
-            status: metadata_struct::journal::shard::JournalShardStatus::Run,
+            status: JournalShardStatus::Run,
             create_time: now_mills(),
         };
 
         sync_save_shard_info(raft_machine_apply, &shard).await?;
 
-        engine_cache.set_shard(&shard);
-
         shard
     };
 
-    let mut segment = if let Some(segment) = engine_cache.get_segment(
+    let segment = if let Some(segment) = engine_cache.get_segment(
         &shard.cluster_name,
         &shard.namespace,
         &shard.shard_name,
@@ -83,15 +86,32 @@ pub async fn create_shard_by_req(
 
         sync_save_segment_info(raft_machine_apply, &segment).await?;
 
-        engine_cache.set_segment(&segment);
+        let metadata = JournalSegmentMetadata {
+            cluster_name: segment.cluster_name.clone(),
+            namespace: segment.namespace.clone(),
+            shard_name: segment.shard_name.clone(),
+            segment_seq: segment.segment_seq,
+            start_offset: -1,
+            end_offset: -1,
+            start_timestamp: -1,
+            end_timestamp: -1,
+        };
 
+        sync_save_segment_metadata_info(raft_machine_apply, &metadata).await?;
         segment
     };
 
-    starting_segment(engine_cache, raft_machine_apply, &mut segment).await?;
+    update_segment_status(
+        engine_cache,
+        raft_machine_apply,
+        &segment,
+        SegmentStatus::Write,
+    )
+    .await?;
 
     // update segment cache
     update_cache_by_set_shard(&req.cluster_name, call_manager, client_pool, shard.clone()).await?;
+
     update_cache_by_set_segment(
         &segment.cluster_name,
         call_manager,
@@ -114,7 +134,7 @@ pub async fn delete_shard_by_req(
     client_pool: &Arc<ClientPool>,
     req: &DeleteShardRequest,
 ) -> Result<DeleteShardReply, PlacementCenterError> {
-    let mut shard = if let Some(shard) =
+    let shard = if let Some(shard) =
         engine_cache.get_shard(&req.cluster_name, &req.namespace, &req.shard_name)
     {
         shard
@@ -124,14 +144,23 @@ pub async fn delete_shard_by_req(
         ));
     };
 
-    prepare_delete_shard(raft_machine_apply, engine_cache, &mut shard).await?;
+    update_shard_status(
+        raft_machine_apply,
+        engine_cache,
+        &shard,
+        JournalShardStatus::PrepareDelete,
+    )
+    .await?;
+
+    engine_cache.set_shard(&shard);
+    engine_cache.add_wait_delete_shard(&shard);
 
     update_cache_by_set_shard(&req.cluster_name, call_manager, client_pool, shard.clone()).await?;
 
     Ok(DeleteShardReply::default())
 }
 
-pub async fn update_shard_start_segment(
+pub async fn update_start_segment_by_shard(
     raft_machine_apply: &Arc<RaftMachineApply>,
     engine_cache: &Arc<JournalCacheManager>,
     shard: &mut JournalShard,
@@ -143,7 +172,7 @@ pub async fn update_shard_start_segment(
     Ok(())
 }
 
-pub async fn update_shard_last_segment(
+pub async fn update_last_segment_by_shard(
     raft_machine_apply: &Arc<RaftMachineApply>,
     engine_cache: &Arc<JournalCacheManager>,
     shard: &mut JournalShard,
@@ -160,7 +189,7 @@ async fn sync_save_shard_info(
     shard: &JournalShard,
 ) -> Result<(), PlacementCenterError> {
     let data = StorageData::new(
-        StorageDataType::JournalCreateShard,
+        StorageDataType::JournalSetShard,
         serde_json::to_vec(&shard)?,
     );
     if (raft_machine_apply.client_write(data).await?).is_some() {
@@ -183,26 +212,18 @@ pub async fn sync_delete_shard_info(
     Err(PlacementCenterError::ExecutionResultIsEmpty)
 }
 
-async fn prepare_delete_shard(
-    raft_machine_apply: &Arc<RaftMachineApply>,
-    engine_cache: &Arc<JournalCacheManager>,
-    shard: &mut JournalShard,
-) -> Result<(), PlacementCenterError> {
-    shard.status = JournalShardStatus::PrepareDelete;
-    sync_save_shard_info(raft_machine_apply, shard).await?;
-    engine_cache.set_shard(shard);
-    engine_cache.add_wait_delete_shard(shard);
-    Ok(())
-}
-
-pub async fn deleteing_shard(
+pub async fn update_shard_status(
     raft_machine_apply: &Arc<RaftMachineApply>,
     engine_cache: &Arc<JournalCacheManager>,
     shard: &JournalShard,
+    status: JournalShardStatus,
 ) -> Result<(), PlacementCenterError> {
     let mut new_shard = shard.clone();
-    new_shard.status = JournalShardStatus::Deleteing;
+    new_shard.status = status;
     sync_save_shard_info(raft_machine_apply, &new_shard).await?;
     engine_cache.set_shard(&new_shard);
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {}

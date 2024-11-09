@@ -19,7 +19,7 @@ enum ApiKey{
     CreateShard = 5;
     DeleteShard = 6;
     
-    GetActiveSegment = 7;
+    GetShardMetadata = 7;
 }
 
 enum ApiVersion{
@@ -109,34 +109,34 @@ message DeleteShardResp{
 
 
 /** Get Active Segment **/
-message GetActiveSegmentReqBody{
-    repeated GetActiveSegmentReqShard shards = 1;
+message GetShardMetadataReqBody{
+    repeated GetShardMetadataReqShard shards = 1;
 }
 
-message GetActiveSegmentReqShard{
+message GetShardMetadataReqShard{
     string namespace = 1;
     string shard_name = 2;
 }
 
-message GetActiveSegmentReq{
+message GetShardMetadataReq{
     ReqHeader header = 1;
-    GetActiveSegmentReqBody body = 2;
+    GetShardMetadataReqBody body = 2;
 }
 
 
-message GetActiveSegmentRespBody{
-    repeated GetActiveSegmentRespShard segments = 1;
+message GetShardMetadataRespBody{
+    repeated GetShardMetadataRespShard segments = 1;
 }
 
-message GetActiveSegmentRespShard{
+message GetShardMetadataRespShard{
     string namespace = 1;
     string shard = 2;
     ClientSegmentMetadata active_segment = 3;
 }
 
-message GetActiveSegmentResp{
+message GetShardMetadataResp{
     RespHeader header = 1;
-    GetActiveSegmentRespBody body = 2;
+    GetShardMetadataRespBody body = 2;
 }
 
 /** Write Request **/

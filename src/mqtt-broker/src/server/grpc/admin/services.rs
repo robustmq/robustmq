@@ -24,16 +24,21 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 };
 use tonic::{Request, Response, Status};
 
+use crate::handler::cache::CacheManager;
+use crate::security::AuthDriver;
 use crate::storage::cluster::ClusterStorage;
-use crate::storage::user::UserStorage;
 
 pub struct GrpcAdminServices {
     client_pool: Arc<ClientPool>,
+    cache_manager: Arc<CacheManager>,
 }
 
 impl GrpcAdminServices {
-    pub fn new(client_pool: Arc<ClientPool>) -> Self {
-        GrpcAdminServices { client_pool }
+    pub fn new(client_pool: Arc<ClientPool>, cache_manager: Arc<CacheManager>) -> Self {
+        GrpcAdminServices {
+            client_pool,
+            cache_manager,
+        }
     }
 }
 
@@ -69,8 +74,8 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         let mut reply = ListUserReply::default();
 
         let mut user_list = Vec::new();
-        let user_storage = UserStorage::new(self.client_pool.clone());
-        match user_storage.user_list().await {
+        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        match auth_driver.read_all_user().await {
             Ok(date) => {
                 date.iter()
                     .for_each(|user| user_list.push(user.value().encode()));
@@ -88,17 +93,17 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         request: Request<CreateUserRequest>,
     ) -> Result<Response<CreateUserReply>, Status> {
         let req = request.into_inner();
-
         let mqtt_user = MqttUser {
             username: req.username,
             password: req.password,
             is_superuser: req.is_superuser,
         };
 
-        let user_storage = UserStorage::new(self.client_pool.clone());
-
-        match user_storage.save_user(mqtt_user).await {
-            Ok(_) => return Ok(Response::new(CreateUserReply::default())),
+        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        match auth_driver.save_user(mqtt_user).await {
+            Ok(_) => {
+                return Ok(Response::new(CreateUserReply::default()));
+            }
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -111,9 +116,8 @@ impl MqttBrokerAdminService for GrpcAdminServices {
     ) -> Result<Response<DeleteUserReply>, Status> {
         let req = request.into_inner();
 
-        let user_storage = UserStorage::new(self.client_pool.clone());
-
-        match user_storage.delete_user(req.username).await {
+        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        match auth_driver.delete_user(req.username).await {
             Ok(_) => return Ok(Response::new(DeleteUserReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));

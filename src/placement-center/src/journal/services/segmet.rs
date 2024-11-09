@@ -17,6 +17,7 @@ use std::sync::Arc;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::node_extend::JournalNodeExtend;
 use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentStatus};
+use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
 use protocol::placement_center::placement_center_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, DeleteSegmentReply, DeleteSegmentRequest,
@@ -24,11 +25,13 @@ use protocol::placement_center::placement_center_journal::{
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
 
-use super::shard::update_shard_last_segment;
+use super::shard::update_last_segment_by_shard;
 use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::journal::cache::JournalCacheManager;
-use crate::journal::controller::call_node::{update_cache_by_set_segment, JournalInnerCallManager};
+use crate::journal::controller::call_node::{
+    update_cache_by_set_segment, update_cache_by_set_shard, JournalInnerCallManager,
+};
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
 
@@ -51,33 +54,36 @@ pub async fn create_segment_by_req(
     };
 
     let segment = build_next_segment(&shard, engine_cache, cluster_cache).await?;
+    sync_save_segment_info(raft_machine_apply, &segment).await?;
 
-    let data = StorageData::new(
-        StorageDataType::JournalCreateSegment,
-        serde_json::to_vec(&segment)?,
-    );
+    let metadata = JournalSegmentMetadata {
+        cluster_name: segment.cluster_name.clone(),
+        namespace: segment.namespace.clone(),
+        shard_name: segment.shard_name.clone(),
+        segment_seq: segment.segment_seq,
+        start_offset: -1,
+        end_offset: -1,
+        start_timestamp: -1,
+        end_timestamp: -1,
+    };
+    sync_save_segment_metadata_info(raft_machine_apply, &metadata).await?;
 
-    if (raft_machine_apply.client_write(data).await?).is_some() {
-        engine_cache.set_segment(&segment);
+    update_last_segment_by_shard(
+        raft_machine_apply,
+        engine_cache,
+        &mut shard,
+        segment.segment_seq,
+    )
+    .await?;
 
-        update_shard_last_segment(
-            raft_machine_apply,
-            engine_cache,
-            &mut shard,
-            segment.segment_seq,
-        )
-        .await?;
-
-        update_cache_by_set_segment(
-            &segment.cluster_name,
-            call_manager,
-            client_pool,
-            segment.clone(),
-        )
-        .await?;
-    } else {
-        return Err(PlacementCenterError::ExecutionResultIsEmpty);
-    }
+    update_cache_by_set_shard(&segment.cluster_name, call_manager, client_pool, shard).await?;
+    update_cache_by_set_segment(
+        &segment.cluster_name,
+        call_manager,
+        client_pool,
+        segment.clone(),
+    )
+    .await?;
 
     let replica: Vec<u64> = segment.replicas.iter().map(|rep| rep.node_id).collect();
     Ok(CreateNextSegmentReply {
@@ -102,7 +108,7 @@ pub async fn delete_segment_by_req(
         ));
     };
 
-    let mut segment = if let Some(segment) = engine_cache.get_segment(
+    let segment = if let Some(segment) = engine_cache.get_segment(
         &req.cluster_name,
         &req.namespace,
         &req.shard_name,
@@ -116,7 +122,13 @@ pub async fn delete_segment_by_req(
         )));
     };
 
-    prepare_delete_segment(engine_cache, raft_machine_apply, &mut segment).await?;
+    update_segment_status(
+        engine_cache,
+        raft_machine_apply,
+        &segment,
+        SegmentStatus::PrepareDelete,
+    )
+    .await?;
 
     engine_cache.add_wait_delete_segment(&segment);
 
@@ -131,7 +143,7 @@ pub async fn delete_segment_by_req(
     Ok(DeleteSegmentReply::default())
 }
 
-pub async fn build_first_segment(
+pub(crate) async fn build_first_segment(
     shard_info: &JournalShard,
     engine_cache: &Arc<JournalCacheManager>,
     cluster_cache: &Arc<PlacementCacheManager>,
@@ -139,7 +151,7 @@ pub async fn build_first_segment(
     build_segment(shard_info, engine_cache, cluster_cache, 0).await
 }
 
-pub async fn build_next_segment(
+async fn build_next_segment(
     shard_info: &JournalShard,
     engine_cache: &Arc<JournalCacheManager>,
     cluster_cache: &Arc<PlacementCacheManager>,
@@ -182,7 +194,7 @@ async fn build_segment(
         ));
     }
 
-    // Get the node copies at random
+    //todo Get the node copies at random
     let mut rng = thread_rng();
     let node_ids: Vec<u64> = node_list
         .choose_multiple(&mut rng, shard_info.replica as usize)
@@ -234,6 +246,7 @@ fn calc_node_fold(
         return Err(PlacementCenterError::NodeDoesNotExist(node_id));
     };
 
+    //todo
     let data = serde_json::from_str::<JournalNodeExtend>(&node.extend)?;
     let fold_list = data.data_fold;
     let mut rng = thread_rng();
@@ -242,39 +255,14 @@ fn calc_node_fold(
     Ok(random_element.clone())
 }
 
-pub async fn starting_segment(
-    engine_cache: &Arc<JournalCacheManager>,
-    raft_machine_apply: &Arc<RaftMachineApply>,
-    segment: &mut JournalSegment,
-) -> Result<(), PlacementCenterError> {
-    segment.status = SegmentStatus::Write;
-
-    sync_save_segment_info(raft_machine_apply, segment).await?;
-
-    engine_cache.set_segment(segment);
-    Ok(())
-}
-
-pub async fn prepare_delete_segment(
-    engine_cache: &Arc<JournalCacheManager>,
-    raft_machine_apply: &Arc<RaftMachineApply>,
-    segment: &mut JournalSegment,
-) -> Result<(), PlacementCenterError> {
-    segment.status = SegmentStatus::PrepareDelete;
-    sync_save_segment_info(raft_machine_apply, segment).await?;
-
-    engine_cache.set_segment(segment);
-
-    Ok(())
-}
-
-pub async fn deleteing_segment(
+pub async fn update_segment_status(
     engine_cache: &Arc<JournalCacheManager>,
     raft_machine_apply: &Arc<RaftMachineApply>,
     segment: &JournalSegment,
+    status: SegmentStatus,
 ) -> Result<(), PlacementCenterError> {
     let mut new_segment = segment.clone();
-    new_segment.status = SegmentStatus::Deleteing;
+    new_segment.status = status;
     sync_save_segment_info(raft_machine_apply, &new_segment).await?;
 
     engine_cache.set_segment(&new_segment);
@@ -287,7 +275,7 @@ pub async fn sync_save_segment_info(
     segment: &JournalSegment,
 ) -> Result<(), PlacementCenterError> {
     let data = StorageData::new(
-        StorageDataType::JournalCreateSegment,
+        StorageDataType::JournalSetSegment,
         serde_json::to_vec(&segment)?,
     );
     if (raft_machine_apply.client_write(data).await?).is_some() {
@@ -302,6 +290,34 @@ pub async fn sync_delete_segment_info(
 ) -> Result<(), PlacementCenterError> {
     let data = StorageData::new(
         StorageDataType::JournalDeleteSegment,
+        serde_json::to_vec(&segment)?,
+    );
+    if (raft_machine_apply.client_write(data).await?).is_some() {
+        return Ok(());
+    }
+    Err(PlacementCenterError::ExecutionResultIsEmpty)
+}
+
+pub async fn sync_save_segment_metadata_info(
+    raft_machine_apply: &Arc<RaftMachineApply>,
+    segment: &JournalSegmentMetadata,
+) -> Result<(), PlacementCenterError> {
+    let data = StorageData::new(
+        StorageDataType::JournalSetSegmentMetadata,
+        serde_json::to_vec(&segment)?,
+    );
+    if (raft_machine_apply.client_write(data).await?).is_some() {
+        return Ok(());
+    }
+    Err(PlacementCenterError::ExecutionResultIsEmpty)
+}
+
+pub async fn sync_delete_segment_metadata_info(
+    raft_machine_apply: &Arc<RaftMachineApply>,
+    segment: &JournalSegmentMetadata,
+) -> Result<(), PlacementCenterError> {
+    let data = StorageData::new(
+        StorageDataType::JournalDeleteSegmentMetadata,
         serde_json::to_vec(&segment)?,
     );
     if (raft_machine_apply.client_write(data).await?).is_some() {

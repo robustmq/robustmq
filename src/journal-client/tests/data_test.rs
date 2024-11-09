@@ -22,8 +22,8 @@ mod tests {
     use journal_client::tool::resp_header_error;
     use protocol::journal_server::codec::{JournalEnginePacket, JournalServerCodec};
     use protocol::journal_server::journal_engine::{
-        ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, GetActiveSegmentReq,
-        GetActiveSegmentReqBody, GetActiveSegmentReqShard, GetClusterMetadataReq, ReadReq,
+        ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, GetClusterMetadataReq,
+        GetShardMetadataReq, GetShardMetadataReqBody, GetShardMetadataReqShard, ReadReq,
         ReadReqBody, ReadReqMessage, ReadReqMessageOffset, ReqHeader, WriteReq, WriteReqBody,
         WriteReqMessages, WriteReqSegmentMessages,
     };
@@ -110,13 +110,13 @@ mod tests {
         let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
         let mut stream = Framed::new(socket, JournalServerCodec::new());
 
-        let req_packet = JournalEnginePacket::GetActiveSegmentReq(GetActiveSegmentReq {
+        let req_packet = JournalEnginePacket::GetShardMetadataReq(GetShardMetadataReq {
             header: Some(ReqHeader {
-                api_key: ApiKey::GetActiveSegment.into(),
+                api_key: ApiKey::GetShardMetadata.into(),
                 api_version: ApiVersion::V0.into(),
             }),
-            body: Some(GetActiveSegmentReqBody {
-                shards: vec![GetActiveSegmentReqShard {
+            body: Some(GetShardMetadataReqBody {
+                shards: vec![GetShardMetadataReqShard {
                     namespace: namespace.clone(),
                     shard_name: shard_name.clone(),
                 }],
@@ -126,7 +126,7 @@ mod tests {
         let _ = stream.send(req_packet.clone()).await;
 
         if let Some(Ok(resp)) = stream.next().await {
-            if let JournalEnginePacket::GetActiveSegmentResp(data) = resp {
+            if let JournalEnginePacket::GetShardMetadataResp(data) = resp {
                 println!("{:?}", data);
                 assert!(resp_header_error(&data.header.unwrap()).is_ok());
                 let body = data.body.unwrap();

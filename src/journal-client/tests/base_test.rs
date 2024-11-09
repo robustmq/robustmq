@@ -18,8 +18,8 @@ mod tests {
     use protocol::journal_server::codec::{JournalEnginePacket, JournalServerCodec};
     use protocol::journal_server::journal_engine::{
         ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, DeleteShardReq, DeleteShardReqBody,
-        GetActiveSegmentReq, GetActiveSegmentReqBody, GetActiveSegmentReqShard,
-        GetClusterMetadataReq, OffsetCommitReq, OffsetCommitReqBody, ReadReq, ReadReqBody,
+        GetClusterMetadataReq, GetShardMetadataReq, GetShardMetadataReqBody,
+        GetShardMetadataReqShard, OffsetCommitReq, OffsetCommitReqBody, ReadReq, ReadReqBody,
         ReadReqMessage, ReadReqMessageOffset, ReqHeader, WriteReq, WriteReqBody, WriteReqMessages,
         WriteReqSegmentMessages,
     };
@@ -102,17 +102,17 @@ mod tests {
         let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
         let mut stream = Framed::new(socket, JournalServerCodec::new());
 
-        let shards = vec![GetActiveSegmentReqShard {
+        let shards = vec![GetShardMetadataReqShard {
             namespace: "b1".to_string(),
             shard_name: "s1".to_string(),
         }];
 
-        let req_packet = JournalEnginePacket::GetActiveSegmentReq(GetActiveSegmentReq {
+        let req_packet = JournalEnginePacket::GetShardMetadataReq(GetShardMetadataReq {
             header: Some(ReqHeader {
-                api_key: ApiKey::GetActiveSegment.into(),
+                api_key: ApiKey::GetShardMetadata.into(),
                 api_version: ApiVersion::V0.into(),
             }),
-            body: Some(GetActiveSegmentReqBody { shards }),
+            body: Some(GetShardMetadataReqBody { shards }),
         });
 
         let _ = stream.send(req_packet.clone()).await;

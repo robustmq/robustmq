@@ -16,18 +16,21 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use metadata_struct::journal::segment::JournalSegment;
+use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
 use rocksdb_engine::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 
 use crate::core::error::PlacementCenterError;
 use crate::storage::journal::segment::SegmentStorage;
+use crate::storage::journal::segment_meta::SegmentMetadataStorage;
 use crate::storage::journal::shard::ShardStorage;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct JournalCacheManager {
     pub shard_list: DashMap<String, JournalShard>,
     pub segment_list: DashMap<String, DashMap<u32, JournalSegment>>,
+    pub segment_meta_list: DashMap<String, DashMap<u32, JournalSegmentMetadata>>,
     pub wait_delete_shard_list: DashMap<String, JournalShard>,
     pub wait_delete_segment_list: DashMap<String, JournalSegment>,
 }
@@ -37,6 +40,7 @@ impl JournalCacheManager {
         JournalCacheManager {
             shard_list: DashMap::with_capacity(8),
             segment_list: DashMap::with_capacity(256),
+            segment_meta_list: DashMap::with_capacity(256),
             wait_delete_shard_list: DashMap::with_capacity(8),
             wait_delete_segment_list: DashMap::with_capacity(8),
         }
@@ -129,6 +133,45 @@ impl JournalCacheManager {
         }
     }
 
+    pub fn get_segment_meta(
+        &self,
+        cluster_name: &str,
+        namespace: &str,
+        shard_name: &str,
+        segment_seq: u32,
+    ) -> Option<JournalSegmentMetadata> {
+        let key = self.shard_key(cluster_name, namespace, shard_name);
+        if let Some(list) = self.segment_meta_list.get(&key) {
+            let res = list.get(&segment_seq)?;
+            return Some(res.clone());
+        }
+        None
+    }
+
+    pub fn set_segment_meta(&self, meta: &JournalSegmentMetadata) {
+        let key = self.shard_key(&meta.cluster_name, &meta.namespace, &meta.shard_name);
+        if let Some(list) = self.segment_meta_list.get(&key) {
+            list.insert(meta.segment_seq, meta.clone());
+        } else {
+            let data = DashMap::with_capacity(8);
+            data.insert(meta.segment_seq, meta.clone());
+            self.segment_meta_list.insert(key.clone(), data);
+        }
+    }
+
+    pub fn remove_segment_meta(
+        &self,
+        cluster_name: &str,
+        namespace: &str,
+        shard_name: &str,
+        segment_seq: u32,
+    ) {
+        let key = self.shard_key(cluster_name, namespace, shard_name);
+        if let Some(list) = self.segment_meta_list.get(&key) {
+            list.remove(&segment_seq);
+        }
+    }
+
     pub fn add_wait_delete_shard(&self, shard: &JournalShard) {
         self.wait_delete_shard_list.insert(
             self.shard_key(&shard.cluster_name, &shard.namespace, &shard.shard_name),
@@ -199,6 +242,12 @@ pub fn load_journal_cache(
     let res = segment_storage.all_segment()?;
     for segment in res {
         engine_cache.set_segment(&segment);
+    }
+
+    let segment_metadata_storage = SegmentMetadataStorage::new(rocksdb_engine_handler.clone());
+    let res = segment_metadata_storage.all_segment()?;
+    for meta in res {
+        engine_cache.set_segment_meta(&meta);
     }
     Ok(())
 }

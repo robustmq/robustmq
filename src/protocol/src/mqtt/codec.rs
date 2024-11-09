@@ -314,6 +314,9 @@ impl MqttCodec {
                         buffer,
                     )?
                 }
+                MqttPacket::Auth(auth, auth_properties) => {
+                    crate::mqtt::mqttv5::auth::write(&auth, &auth_properties, buffer)?
+                }
             };
         }
         Ok(())
@@ -433,6 +436,9 @@ fn calc_mqtt_packet_len(
                     &mut buffer,
                 )?
             }
+            MqttPacket::Auth(auth, auth_properties) => {
+                crate::mqtt::mqttv5::auth::write(&auth, &auth_properties, &mut buffer)?
+            }
         };
     }
     Ok(size)
@@ -454,6 +460,7 @@ pub fn parse_mqtt_packet_to_name(packet: MqttPacket) -> String {
         MqttPacket::PingReq(_) => "ping",
         MqttPacket::PingResp(_) => "pong",
         MqttPacket::Disconnect(_, _) => "disconnect",
+        MqttPacket::Auth(_, _) => "auth",
     };
     name.to_string()
 }

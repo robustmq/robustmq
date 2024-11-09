@@ -16,8 +16,8 @@ use bytes::BytesMut;
 use tokio_util::codec;
 
 use super::{
-    check, connack, connect, disconnect, ping, puback, pubcomp, publish, pubrec, pubrel, suback,
-    subscribe, unsuback, unsubscribe, ConnectReadOutcome, MqttPacket, PacketType,
+    auth, check, connack, connect, disconnect, ping, puback, pubcomp, publish, pubrec, pubrel,
+    suback, subscribe, unsuback, unsubscribe, ConnectReadOutcome, MqttPacket, PacketType,
 };
 
 #[derive(Clone, Debug)]
@@ -83,6 +83,9 @@ impl codec::Encoder<MqttPacket> for Mqtt5Codec {
             MqttPacket::PingResp(_) => ping::pingresp::write(buffer)?,
             MqttPacket::Disconnect(disconnect, disconnect_properties) => {
                 disconnect::write(&disconnect, &disconnect_properties, buffer)?
+            }
+            MqttPacket::Auth(auth, auth_properties) => {
+                auth::write(&auth, &auth_properties, buffer)?
             }
         };
         Ok(())
@@ -165,6 +168,10 @@ impl codec::Decoder for Mqtt5Codec {
             PacketType::Disconnect => {
                 let (disconnect, disconnect_properties) = disconnect::read(fixed_header, packet)?;
                 MqttPacket::Disconnect(disconnect, disconnect_properties)
+            }
+            PacketType::Auth => {
+                let (auth, auth_properties) = auth::read(fixed_header, packet)?;
+                MqttPacket::Auth(auth, auth_properties)
             }
         };
         Ok(Some(packet))

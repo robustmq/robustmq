@@ -16,11 +16,14 @@ use crate::core::error::JournalServerError;
 
 pub mod engine;
 pub mod keys;
-pub mod message_key;
 pub mod offset;
 pub mod segment;
 pub mod tag;
 pub mod time;
+
+pub fn build_index_message() -> Result<(), JournalServerError> {
+    Ok(())
+}
 
 pub fn delete_segment_all_index() -> Result<(), JournalServerError> {
     Ok(())

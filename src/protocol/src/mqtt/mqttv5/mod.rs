@@ -16,6 +16,7 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 use crate::mqtt::common::*;
 
+pub mod auth;
 pub mod codec;
 pub mod connack;
 pub mod connect;

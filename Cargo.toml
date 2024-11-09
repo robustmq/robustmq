@@ -37,7 +37,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0-beta"
+version = "0.1.1"
 edition = "2021"
 license = "Apache-2.0"
 
@@ -122,8 +122,3 @@ overflow-checks = false
 
 [profile.release]
 overflow-checks = false
-
-
-[workspace.package."*"]
-[workspace.package."*".dependencies]
-[workspace.package."journal-server"]
