@@ -21,7 +21,7 @@ use protocol::journal_server::journal_engine::{
 };
 
 use crate::core::cache::CacheManager;
-use crate::core::error::JournalServerError;
+use crate::core::error::{get_journal_server_code, JournalServerError};
 use crate::core::offset::OffsetManager;
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::read::read_data;
@@ -104,11 +104,12 @@ impl DataHandler {
                 .get_shard(&req_body.namespace, &shard.shard_name)
                 .is_none()
             {
+                let e = JournalServerError::ShardNotExist(shard.shard_name.clone());
                 result.push(OffsetCommitShardResp {
                     shard_name: shard.shard_name.clone(),
                     error: Some(JournalEngineError {
-                        code: 1,
-                        error: JournalServerError::ShardNotExist(shard.shard_name).to_string(),
+                        code: get_journal_server_code(&e),
+                        error: e.to_string(),
                     }),
                 });
                 continue;
@@ -158,10 +159,10 @@ impl DataHandler {
             ));
         };
 
-        if segment.is_seal_up() {
-            return Err(JournalServerError::SegmentHasBeenSealed(
+        if !segment.allow_read() {
+            return Err(JournalServerError::SegmentStatusError(
                 shard_name.to_string(),
-                segment_no,
+                format!("{:?}", segment.status),
             ));
         }
 

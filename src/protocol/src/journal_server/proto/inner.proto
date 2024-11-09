@@ -70,4 +70,5 @@ enum JournalUpdateCacheResourceType{
     JournalNode = 0;
     Shard = 1;
     Segment = 2;
+    SegmentMeta = 3;
 }

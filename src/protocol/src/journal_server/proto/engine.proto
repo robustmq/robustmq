@@ -4,7 +4,7 @@ package journal.engine;
 /** Error **/
 
 message JournalEngineError{
-    ErrorCode code = 1;
+    string code = 1;
     string error = 2;
 }
 
@@ -26,10 +26,6 @@ enum ApiVersion{
      V0 = 0;
 }
 
-enum ErrorCode{
-    Success = 0;
-}
-
 message ReqHeader{
     ApiKey api_key = 1;
     ApiVersion api_version = 2;
@@ -44,6 +40,7 @@ message RespHeader{
 message ClientSegmentMetadata{
     uint32 segment_no = 1;
     repeated uint64 replicas = 2;
+    bytes meta =3;
 }
 
 /** Get Cluster Metadata **/
@@ -73,9 +70,7 @@ message CreateShardReqBody{
     uint32 replica_num = 3;
 }
 
-message CreateShardRespBody{
-    ClientSegmentMetadata active_segment = 1;
-}
+message CreateShardRespBody{}
 
 message CreateShardReq{
     ReqHeader header = 1;
@@ -108,7 +103,7 @@ message DeleteShardResp{
 }
 
 
-/** Get Active Segment **/
+/** Get Shard Metadata **/
 message GetShardMetadataReqBody{
     repeated GetShardMetadataReqShard shards = 1;
 }
@@ -131,7 +126,7 @@ message GetShardMetadataRespBody{
 message GetShardMetadataRespShard{
     string namespace = 1;
     string shard = 2;
-    ClientSegmentMetadata active_segment = 3;
+    repeated ClientSegmentMetadata segments = 3;
 }
 
 message GetShardMetadataResp{
@@ -197,7 +192,6 @@ message ReadReqMessage{
 message ReadReqMessageOffset{
     uint32 segment = 1;
     uint64 offset = 2;
-
 }
 
 message ReadRespBody{

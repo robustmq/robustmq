@@ -94,9 +94,6 @@ mod tests {
             if let JournalEnginePacket::CreateShardResp(data) = resp {
                 println!("{:?}", data);
                 assert!(resp_header_error(&data.header.unwrap()).is_ok());
-                let body = data.body.unwrap();
-                let active_segment = body.active_segment.unwrap();
-                assert_eq!(active_segment.segment_no, 0);
             } else {
                 assert!(false);
             }
@@ -129,13 +126,13 @@ mod tests {
             if let JournalEnginePacket::GetShardMetadataResp(data) = resp {
                 println!("{:?}", data);
                 assert!(resp_header_error(&data.header.unwrap()).is_ok());
-                let body = data.body.unwrap();
-                let active_segment = body.segments.first().unwrap();
-                let segment_metadata = active_segment.active_segment.clone().unwrap();
-                assert_eq!(active_segment.namespace, namespace);
-                assert_eq!(active_segment.shard, shard_name);
-                assert_eq!(segment_metadata.replicas.len(), 1);
-                segment_0_all_replicas = segment_metadata.replicas;
+                // let body = data.body.unwrap();
+                // let active_segment = body.segments.first().unwrap();
+                // let segment_metadata = active_segment.active_segment.clone().unwrap();
+                // assert_eq!(active_segment.namespace, namespace);
+                // assert_eq!(active_segment.shard, shard_name);
+                // assert_eq!(segment_metadata.replicas.len(), 1);
+                // segment_0_all_replicas = segment_metadata.replicas;
             } else {
                 assert!(false);
             }

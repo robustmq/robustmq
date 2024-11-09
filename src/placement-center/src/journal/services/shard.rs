@@ -31,7 +31,8 @@ use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::journal::cache::JournalCacheManager;
 use crate::journal::controller::call_node::{
-    update_cache_by_set_segment, update_cache_by_set_shard, JournalInnerCallManager,
+    update_cache_by_set_segment, update_cache_by_set_segment_meta, update_cache_by_set_shard,
+    JournalInnerCallManager,
 };
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
@@ -91,13 +92,15 @@ pub async fn create_shard_by_req(
             namespace: segment.namespace.clone(),
             shard_name: segment.shard_name.clone(),
             segment_seq: segment.segment_seq,
-            start_offset: -1,
+            start_offset: 0,
             end_offset: -1,
-            start_timestamp: -1,
+            start_timestamp: 0,
             end_timestamp: -1,
         };
 
         sync_save_segment_metadata_info(raft_machine_apply, &metadata).await?;
+        update_cache_by_set_segment_meta(&req.cluster_name, call_manager, client_pool, metadata)
+            .await?;
         segment
     };
 
