@@ -177,7 +177,7 @@ mod tests {
             cluster_type: ClusterType::MqttBrokerServer.into(),
             cluster_name: cluster_name.clone(),
             extend_info: "{}".to_string(),
-            ..Default::default()
+            node_inner_addr: "".to_string(),
         };
         let data = RegisterNodeRequest::encode_to_vec(&req);
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
