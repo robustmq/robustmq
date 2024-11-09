@@ -206,7 +206,7 @@ async fn sync_save_node(
     Err(PlacementCenterError::ExecutionResultIsEmpty)
 }
 
-async fn sync_delete_node(
+pub async fn sync_delete_node(
     raft_machine_apply: &Arc<RaftMachineApply>,
     req: &UnRegisterNodeRequest,
 ) -> Result<(), PlacementCenterError> {
