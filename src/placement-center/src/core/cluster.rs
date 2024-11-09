@@ -211,7 +211,7 @@ async fn sync_delete_node(
     req: &UnRegisterNodeRequest,
 ) -> Result<(), PlacementCenterError> {
     let data = StorageData::new(
-        StorageDataType::ClusterAddNode,
+        StorageDataType::ClusterDeleteNode,
         UnRegisterNodeRequest::encode_to_vec(req),
     );
     if (raft_machine_apply.client_write(data).await?).is_some() {
