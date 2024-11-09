@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::net::{IpAddr, SocketAddr};
+
 use common_base::error::common::CommonError;
 use protocol::placement_center::placement_center_inner::{
     ClusterType, DeleteIdempotentDataRequest, RegisterNodeRequest, SetIdempotentDataRequest,
     SetResourceConfigRequest, UnRegisterNodeRequest,
 };
-use std::net::{IpAddr, SocketAddr};
 use tonic::Status;
 
 pub trait ValidateExt {
