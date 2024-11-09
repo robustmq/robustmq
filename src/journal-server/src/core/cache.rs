@@ -21,6 +21,7 @@ use grpc_clients::placement::placement::call::node_list;
 use grpc_clients::pool::ClientPool;
 use log::{error, info};
 use metadata_struct::journal::segment::JournalSegment;
+use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
 use metadata_struct::placement::node::BrokerNode;
 use protocol::journal_server::journal_inner::{
@@ -39,6 +40,7 @@ pub struct CacheManager {
     pub node_list: DashMap<u64, BrokerNode>,
     shards: DashMap<String, JournalShard>,
     segments: DashMap<String, DashMap<u32, JournalSegment>>,
+    segment_metadatas: DashMap<String, DashMap<u32, JournalSegmentMetadata>>,
 }
 
 impl CacheManager {
@@ -47,11 +49,13 @@ impl CacheManager {
         let node_list = DashMap::with_capacity(2);
         let shards = DashMap::with_capacity(8);
         let segments = DashMap::with_capacity(8);
+        let segment_metadatas = DashMap::with_capacity(8);
         CacheManager {
             cluster,
             node_list,
             shards,
             segments,
+            segment_metadatas,
         }
     }
 
@@ -370,5 +374,5 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
             );
         }
     }
-    // load group
+    // load segment data
 }

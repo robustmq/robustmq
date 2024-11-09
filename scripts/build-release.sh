@@ -16,7 +16,7 @@
 platform=$1
 version=$2
 
-if [ "$platform" != "linux-x86" -a "$platform" != "linux-arm" -a "$platform" != "mac" -a "$platform" != "win-x86" -a "$platform" != "win-arm" ]; then
+if [ "$platform" != "linux-x86" -a "$platform" != "linux-arm" -a "$platform" != "mac" -a "$platform" != "win-x86" -a "$platform" != "win-arm" -a "$platform" != "local" ]; then
     echo "platform Error, optional: linux-x86,linux-arm, mac, win-x86, win-arm"
     exit
 fi
@@ -139,6 +139,44 @@ build_win_arm_release(){
     cross_build $platform_name $package_name $version
 }
 
+build_local(){
+
+    build="./build"
+    target="robustmq"
+    
+    package_name=${target}-local
+
+    echo "package name: ${package_name}"
+    mkdir -p ${build}
+
+    # build
+	cargo build
+
+    # makdir fold
+	mkdir -p ${build}/${package_name}
+	mkdir -p ${build}/${package_name}/bin
+	mkdir -p ${build}/${package_name}/libs
+	mkdir -p ${build}/${package_name}/config
+
+    # copy bin
+	cp -rf target/debug/mqtt-server ${build}/${package_name}/libs 
+	cp -rf target/debug/placement-center ${build}/${package_name}/libs 
+	cp -rf target/debug/journal-server ${build}/${package_name}/libs 
+	cp -rf target/debug/cli-command ${build}/${package_name}/libs 
+
+    # copy bin&config
+	cp -rf bin/* ${build}/${package_name}/bin
+	cp -rf config/* ${build}/${package_name}/config
+
+    # chmod file
+	chmod -R 777 ${build}/${package_name}/bin/*
+
+    # bundel file
+	cd ${build} && tar zcvf ${package_name}.tar.gz ${package_name} && rm -rf ${package_name}
+    cd ..
+	echo "build release package success. ${package_name}.tar.gz "
+}
+
 if [ "$platform" = "linux-x86" ]; then
    build_linux_x86_release $version
 fi
@@ -159,3 +197,8 @@ if [ "$platform" = "win-arm" ]; then
     build_win_arm_release $version
 fi
 
+if [ "$platform" = "local" ]; then
+    echo "build local"
+    rm -rf ../build/
+    build_local
+fi

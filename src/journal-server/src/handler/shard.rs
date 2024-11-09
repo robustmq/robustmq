@@ -17,8 +17,8 @@ use std::sync::Arc;
 use common_base::config::journal_server::journal_server_conf;
 use grpc_clients::pool::ClientPool;
 use protocol::journal_server::journal_engine::{
-    ClientSegmentMetadata, CreateShardReq, DeleteShardReq, GetActiveSegmentReq,
-    GetActiveSegmentRespShard,
+    ClientSegmentMetadata, CreateShardReq, DeleteShardReq, GetShardMetadataReq,
+    GetShardMetadataRespShard,
 };
 use protocol::placement_center::placement_center_journal::{
     CreateNextSegmentRequest, CreateShardRequest, DeleteShardRequest,
@@ -145,10 +145,10 @@ impl ShardHandler {
         Ok(())
     }
 
-    pub async fn active_segment(
+    pub async fn get_shard_metadata(
         &self,
-        request: GetActiveSegmentReq,
-    ) -> Result<Vec<GetActiveSegmentRespShard>, JournalServerError> {
+        request: GetShardMetadataReq,
+    ) -> Result<Vec<GetShardMetadataRespShard>, JournalServerError> {
         if request.body.is_none() {
             return Err(JournalServerError::RequestBodyNotEmpty(
                 "active_segment".to_string(),
@@ -172,7 +172,7 @@ impl ShardHandler {
                 .cache_manager
                 .get_active_segment(&raw.namespace, &raw.shard_name)
             {
-                GetActiveSegmentRespShard {
+                GetShardMetadataRespShard {
                     namespace: raw.namespace.clone(),
                     shard: raw.shard_name.clone(),
                     active_segment: Some(ClientSegmentMetadata {
@@ -194,7 +194,7 @@ impl ShardHandler {
                     request,
                 )
                 .await?;
-                GetActiveSegmentRespShard {
+                GetShardMetadataRespShard {
                     namespace: raw.namespace.clone(),
                     shard: raw.shard_name.clone(),
                     active_segment: Some(ClientSegmentMetadata {

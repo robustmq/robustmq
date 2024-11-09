@@ -12,6 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub fn segment_gc() {}
+use serde::{Deserialize, Serialize};
 
-pub fn shard_gc() {}
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct JournalSegmentMetadata {
+    pub cluster_name: String,
+    pub namespace: String,
+    pub shard_name: String,
+    pub segment_seq: u32,
+    pub start_offset: i64,
+    pub end_offset: i64,
+    pub start_timestamp: i64,
+    pub end_timestamp: i64,
+}
+
+impl JournalSegmentMetadata {
+    pub fn name(&self) -> String {
+        format!(
+            "{},{},{},{}",
+            self.cluster_name, self.namespace, self.shard_name, self.segment_seq
+        )
+    }
+}

@@ -20,9 +20,9 @@ use log::{error, info};
 use protocol::journal_server::codec::JournalEnginePacket;
 use protocol::journal_server::journal_engine::{
     ApiKey, ApiVersion, CreateShardResp, CreateShardRespBody, DeleteShardResp, DeleteShardRespBody,
-    GetActiveSegmentResp, GetActiveSegmentRespBody, GetClusterMetadataResp,
-    GetClusterMetadataRespBody, JournalEngineError, OffsetCommitResp, OffsetCommitRespBody,
-    ReadResp, ReadRespBody, RespHeader, WriteResp, WriteRespBody,
+    GetClusterMetadataResp, GetClusterMetadataRespBody, GetShardMetadataResp,
+    GetShardMetadataRespBody, JournalEngineError, OffsetCommitResp, OffsetCommitRespBody, ReadResp,
+    ReadRespBody, RespHeader, WriteResp, WriteRespBody,
 };
 
 use super::cluster::ClusterHandler;
@@ -140,27 +140,27 @@ impl Command {
                 return Some(JournalEnginePacket::DeleteShardResp(resp));
             }
 
-            JournalEnginePacket::GetActiveSegmentReq(request) => {
-                let mut resp = GetActiveSegmentResp::default();
+            JournalEnginePacket::GetShardMetadataReq(request) => {
+                let mut resp = GetShardMetadataResp::default();
                 let mut header = RespHeader {
-                    api_key: ApiKey::GetActiveSegment.into(),
+                    api_key: ApiKey::GetShardMetadata.into(),
                     api_version: ApiVersion::V0.into(),
                     ..Default::default()
                 };
-                match self.shard_handler.active_segment(request).await {
+                match self.shard_handler.get_shard_metadata(request).await {
                     Ok(segments) => {
-                        resp.body = Some(GetActiveSegmentRespBody { segments });
+                        resp.body = Some(GetShardMetadataRespBody { segments });
                     }
                     Err(e) => {
                         header.error = Some(JournalEngineError {
                             code: 1,
                             error: e.to_string(),
                         });
-                        resp.body = Some(GetActiveSegmentRespBody::default());
+                        resp.body = Some(GetShardMetadataRespBody::default());
                     }
                 }
                 resp.header = Some(header);
-                return Some(JournalEnginePacket::GetActiveSegmentResp(resp));
+                return Some(JournalEnginePacket::GetShardMetadataResp(resp));
             }
 
             /* Data Handler */

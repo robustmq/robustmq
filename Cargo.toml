@@ -122,8 +122,3 @@ overflow-checks = false
 
 [profile.release]
 overflow-checks = false
-
-
-[workspace.package."*"]
-[workspace.package."*".dependencies]
-[workspace.package."journal-server"]

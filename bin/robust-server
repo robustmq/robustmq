@@ -21,12 +21,12 @@ action=$2
 conf=$3
 if [[ -z $mod ]]
 then
- echo "Enter the name of the component to start, for example: mqtt-server | journal-server | placement-center"
+ echo "Enter the name of the component to start, for example: mqtt | journal | place"
  exit
 fi
 
-if [ "$mod" != "mqtt-server" -a "$mod" != "journal-server" -a "$mod" != "placement-center" ]; then
-    echo "platform Error, optional: mqtt-server, journal-server, placement-center"
+if [ "$mod" != "mqtt" -a "$mod" != "journal" -a "$mod" != "place" ]; then
+    echo "cluster type Error, optional: mqtt, journal, place"
     exit
 fi
 
@@ -41,37 +41,53 @@ if [ "$action" != "start" -a "$action" != "stop" ]; then
     exit
 fi
 
+case "$mod" in
+  mqtt)
+    bin_name="mqtt-server"
+    ;;
+  journal)
+    bin_name="journal-server"
+    ;;
+  place)
+    bin_name="placement-center"
+    ;;
+  *)
+    echo "未知的变量a值: $a"
+    exit 1
+    ;;
+esac
+
 if [ $action = "start" ]
   then
     if [[ -z $conf ]]
     then
-        conf=${workdir}/../config/${mod}.toml
+        conf=${workdir}/../config/${bin_name}.toml
     fi
     echo "config:$conf"
-    echo "${mod} is starting..."
-    nohup ${workdir}/../libs/${mod} --conf=$conf >> ${workdir}/../logs/${mod}-nohub.log 2>&1 &
+    echo "${bin_name} is starting..."
+    nohup ${workdir}/../libs/${bin_name} --conf=$conf >> ${workdir}/../logs/${bin_name}-nohub.log 2>&1 &
     sleep 3
-    num=` ps -ef | grep /libs/${mod} | grep -v grep | wc -l`
+    num=` ps -ef | grep /libs/${bin_name} | grep -v grep | wc -l`
     if [ $num -ge 1 ]
     then
-        echo "${mod} started successfully."
+        echo "${bin_name} started successfully."
     else
-        echo "WARN: ${mod} started failure."
+        echo "WARN: ${bin_name} started failure."
     fi
   elif [ $action = "stop" ]
   then
-    no=`ps -ef | grep ${mod}  | grep conf | grep -v grep | awk '{print $2}'`
+    no=`ps -ef | grep ${bin_name}  | grep conf | grep -v grep | awk '{print $2}'`
     if [[ -n $no ]]
     then
         echo "Currently running process number: $no"
         kill $no
         sleep 3
-        num=`ps -ef | grep /libs/${mod} | grep conf | grep -v grep | wc -l`
+        num=`ps -ef | grep /libs/${bin_name} | grep conf | grep -v grep | wc -l`
         if [ $num -eq 0 ]
         then
-            echo "${mod} stop successfully."
+            echo "${bin_name} stop successfully."
         else
-            echo "WARN: ${mod} stop failure."
+            echo "WARN: ${bin_name} stop failure."
         fi
     fi
   else

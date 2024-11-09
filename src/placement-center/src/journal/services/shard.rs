@@ -17,12 +17,16 @@ use std::sync::Arc;
 use common_base::tools::{now_mills, unique_id};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::SegmentStatus;
+use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::{JournalShard, JournalShardStatus};
 use protocol::placement_center::placement_center_journal::{
     CreateShardReply, CreateShardRequest, DeleteShardReply, DeleteShardRequest,
 };
 
-use super::segmet::{build_first_segment, sync_save_segment_info, update_segment_status};
+use super::segmet::{
+    build_first_segment, sync_save_segment_info, sync_save_segment_metadata_info,
+    update_segment_status,
+};
 use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::journal::cache::JournalCacheManager;
@@ -67,8 +71,6 @@ pub async fn create_shard_by_req(
 
         sync_save_shard_info(raft_machine_apply, &shard).await?;
 
-        engine_cache.set_shard(&shard);
-
         shard
     };
 
@@ -84,8 +86,18 @@ pub async fn create_shard_by_req(
 
         sync_save_segment_info(raft_machine_apply, &segment).await?;
 
-        engine_cache.set_segment(&segment);
+        let metadata = JournalSegmentMetadata {
+            cluster_name: segment.cluster_name.clone(),
+            namespace: segment.namespace.clone(),
+            shard_name: segment.shard_name.clone(),
+            segment_seq: segment.segment_seq,
+            start_offset: -1,
+            end_offset: -1,
+            start_timestamp: -1,
+            end_timestamp: -1,
+        };
 
+        sync_save_segment_metadata_info(raft_machine_apply, &metadata).await?;
         segment
     };
 
@@ -177,7 +189,7 @@ async fn sync_save_shard_info(
     shard: &JournalShard,
 ) -> Result<(), PlacementCenterError> {
     let data = StorageData::new(
-        StorageDataType::JournalCreateShard,
+        StorageDataType::JournalSetShard,
         serde_json::to_vec(&shard)?,
     );
     if (raft_machine_apply.client_write(data).await?).is_some() {

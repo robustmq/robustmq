@@ -17,6 +17,7 @@ use std::sync::Arc;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::node_extend::JournalNodeExtend;
 use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentStatus};
+use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
 use protocol::placement_center::placement_center_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, DeleteSegmentReply, DeleteSegmentRequest,
@@ -55,7 +56,18 @@ pub async fn create_segment_by_req(
     let segment = build_next_segment(&shard, engine_cache, cluster_cache).await?;
     sync_save_segment_info(raft_machine_apply, &segment).await?;
 
-    engine_cache.set_segment(&segment);
+    let metadata = JournalSegmentMetadata {
+        cluster_name: segment.cluster_name.clone(),
+        namespace: segment.namespace.clone(),
+        shard_name: segment.shard_name.clone(),
+        segment_seq: segment.segment_seq,
+        start_offset: -1,
+        end_offset: -1,
+        start_timestamp: -1,
+        end_timestamp: -1,
+    };
+    sync_save_segment_metadata_info(raft_machine_apply, &metadata).await?;
+
     update_last_segment_by_shard(
         raft_machine_apply,
         engine_cache,
@@ -263,7 +275,7 @@ pub async fn sync_save_segment_info(
     segment: &JournalSegment,
 ) -> Result<(), PlacementCenterError> {
     let data = StorageData::new(
-        StorageDataType::JournalCreateSegment,
+        StorageDataType::JournalSetSegment,
         serde_json::to_vec(&segment)?,
     );
     if (raft_machine_apply.client_write(data).await?).is_some() {
@@ -278,6 +290,34 @@ pub async fn sync_delete_segment_info(
 ) -> Result<(), PlacementCenterError> {
     let data = StorageData::new(
         StorageDataType::JournalDeleteSegment,
+        serde_json::to_vec(&segment)?,
+    );
+    if (raft_machine_apply.client_write(data).await?).is_some() {
+        return Ok(());
+    }
+    Err(PlacementCenterError::ExecutionResultIsEmpty)
+}
+
+pub async fn sync_save_segment_metadata_info(
+    raft_machine_apply: &Arc<RaftMachineApply>,
+    segment: &JournalSegmentMetadata,
+) -> Result<(), PlacementCenterError> {
+    let data = StorageData::new(
+        StorageDataType::JournalSetSegmentMetadata,
+        serde_json::to_vec(&segment)?,
+    );
+    if (raft_machine_apply.client_write(data).await?).is_some() {
+        return Ok(());
+    }
+    Err(PlacementCenterError::ExecutionResultIsEmpty)
+}
+
+pub async fn sync_delete_segment_metadata_info(
+    raft_machine_apply: &Arc<RaftMachineApply>,
+    segment: &JournalSegmentMetadata,
+) -> Result<(), PlacementCenterError> {
+    let data = StorageData::new(
+        StorageDataType::JournalDeleteSegmentMetadata,
         serde_json::to_vec(&segment)?,
     );
     if (raft_machine_apply.client_write(data).await?).is_some() {

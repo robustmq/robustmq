@@ -47,10 +47,12 @@ pub enum StorageDataType {
     ClusterDeleteIdempotentData,
 
     // Journal
-    JournalCreateShard,
+    JournalSetShard,
     JournalDeleteShard,
-    JournalCreateSegment,
+    JournalSetSegment,
     JournalDeleteSegment,
+    JournalSetSegmentMetadata,
+    JournalDeleteSegmentMetadata,
 
     // kv
     KvSet,
