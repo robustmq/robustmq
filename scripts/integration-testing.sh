@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+rm -rf /tmp/robust-test
 rm -rf build/
 make build
 
@@ -21,7 +21,7 @@ start_server(){
     tar -xzvf robustmq-local.tar.gz
     cd ..
 
-    sh build/robustmq-local/bin/robust-server place start example/mqtt-cluster/placement-center/node-1.toml
+    build/robustmq-local/bin/robust-server place start example/mqtt-cluster/placement-center/node-1.toml
     sleep 3
     no1=`ps -ef | grep example/mqtt-cluster/placement-center/node-1.toml | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
@@ -29,7 +29,7 @@ start_server(){
         echo "placement-center node 1 started successfully. process no: $no1"
     fi
 
-    sh build/robustmq-local/bin/robust-server journal start example/mqtt-cluster/journal-server/node-1.toml
+    build/robustmq-local/bin/robust-server journal start example/mqtt-cluster/journal-server/node-1.toml
     sleep 3
     no1=`ps -ef | grep example/mqtt-cluster/journal-server/node-1.toml | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
@@ -37,7 +37,7 @@ start_server(){
         echo "journal-engine node 1 started successfully. process no: $no1"
     fi
 
-    sh build/robustmq-local/bin/robust-server mqtt start example/mqtt-cluster/mqtt-server/node-1.toml
+    build/robustmq-local/bin/robust-server mqtt start example/mqtt-cluster/mqtt-server/node-1.toml
     sleep 3
     no1=`ps -ef | grep example/mqtt-cluster/mqtt-server/node-1.toml | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
