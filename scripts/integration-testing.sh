@@ -16,7 +16,9 @@
 rm -rf /tmp/robust-test
 rm -rf build/
 make build
+du -sh
 rm -rf target
+du -sh
 start_server(){
     cd build
     tar -xzvf robustmq-local.tar.gz

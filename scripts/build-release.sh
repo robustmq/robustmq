@@ -150,7 +150,7 @@ build_local(){
     mkdir -p ${build}
 
     # build
-	cargo build
+	cargo build 
 
     # makdir fold
 	mkdir -p ${build}/${package_name}
