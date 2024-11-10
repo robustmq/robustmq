@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -141,6 +142,21 @@ impl AuthDriver {
             }
             Err(e) => Err(e),
         }
+    }
+
+    pub async fn update_user_cache(&self) -> Result<(), CommonError> {
+        let all_users: DashMap<String, MqttUser> = self.driver.read_all_user().await?;
+
+        for entry in all_users.iter() {
+            let user = entry.value().clone();
+            self.cache_manager.add_user(user);
+        }
+
+        let db_usernames: HashSet<String> =
+            all_users.iter().map(|user| user.key().clone()).collect();
+        self.cache_manager.retain_users(db_usernames);
+
+        Ok(())
     }
 
     pub async fn check_login_auth(

@@ -27,4 +27,5 @@ pub mod response;
 pub mod retain;
 pub mod session;
 pub mod topic;
+pub mod user;
 pub mod validator;

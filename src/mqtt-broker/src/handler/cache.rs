@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -278,6 +279,11 @@ impl CacheManager {
 
     pub fn del_user(&self, username: String) {
         self.user_info.remove(&username);
+    }
+
+    pub fn retain_users(&self, usernames: HashSet<String>) {
+        self.user_info
+            .retain(|username, _| usernames.contains(username));
     }
 
     pub fn add_session(&self, client_id: String, session: MqttSession) {
