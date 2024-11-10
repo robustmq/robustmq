@@ -18,7 +18,7 @@ use bytes::BytesMut;
 use common_base::tools::{file_exists, try_create_fold};
 use prost::Message;
 use protocol::journal_server::journal_record::JournalRecord;
-use tokio::fs::{File, OpenOptions};
+use tokio::fs::{self, File, OpenOptions};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 use super::fold::{data_file_segment, data_fold_shard};
@@ -60,18 +60,26 @@ impl SegmentFile {
         Ok(remove_dir_all(segment_file)?)
     }
 
-    pub async fn write(&self, record: JournalRecord) -> Result<(), JournalServerError> {
+    pub async fn write(&self, records: &[JournalRecord]) -> Result<(), JournalServerError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = OpenOptions::new().append(true).open(segment_file).await?;
         let mut writer = tokio::io::BufWriter::new(file);
 
-        let data = JournalRecord::encode_to_vec(&record);
-
-        writer.write_u64(record.offset).await?;
-        writer.write_u32(data.len() as u32).await?;
-        writer.write_all(data.as_ref()).await?;
+        for record in records {
+            let data = JournalRecord::encode_to_vec(record);
+            writer.write_u64(record.offset).await?;
+            writer.write_u32(data.len() as u32).await?;
+            writer.write_all(data.as_ref()).await?;
+        }
+        
         writer.flush().await?;
         Ok(())
+    }
+
+    pub async fn size(&self) -> Result<u64, JournalServerError> {
+        let segment_file = data_file_segment(&self.data_fold, self.segment_no);
+        let metadata = fs::metadata(segment_file).await?;
+        return Ok(metadata.len());
     }
 
     pub async fn read(
@@ -167,7 +175,7 @@ mod tests {
                 segment: 1,
                 tags: vec![],
             };
-            match segment.write(record.clone()).await {
+            match segment.write(&vec![record.clone()]).await {
                 Ok(()) => {}
                 Err(e) => {
                     panic!("{:?}", e);

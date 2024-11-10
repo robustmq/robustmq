@@ -11,3 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+async fn try_trigger_segment_scroll() {
+    //50%: This triggers the creation of the next Segment
+
+    // 98%: Triggers the creation of a scroll Segment state
+}
