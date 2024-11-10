@@ -19,7 +19,7 @@ mkdir -p ${workdir}/../logs
 mod=$1
 action=$2
 conf=$3
-if [[ -z $mod ]]
+if [ -z $mod ]
 then
  echo "Enter the name of the component to start, for example: mqtt | journal | place"
  exit
@@ -30,7 +30,7 @@ if [ "$mod" != "mqtt" -a "$mod" != "journal" -a "$mod" != "place" ]; then
     exit
 fi
 
-if [[ -z $action ]]
+if [ -z $action ]
 then
  echo "Pleasemake sure the positon variable is start or stop."
  exit
@@ -59,7 +59,7 @@ esac
 
 if [ $action = "start" ]
   then
-    if [[ -z $conf ]]
+    if [ -z $conf ]
     then
         conf=${workdir}/../config/${bin_name}.toml
     fi
@@ -77,7 +77,7 @@ if [ $action = "start" ]
   elif [ $action = "stop" ]
   then
     no=`ps -ef | grep ${bin_name}  | grep conf | grep -v grep | awk '{print $2}'`
-    if [[ -n $no ]]
+    if [ -n $no ]
     then
         echo "Currently running process number: $no"
         kill $no
