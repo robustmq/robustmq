@@ -64,6 +64,10 @@ jobs:
       image: amd64/rust
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-builder
       - name: Install cargo-nextest
         uses: baptiste0928/cargo-install@v1
         with:
