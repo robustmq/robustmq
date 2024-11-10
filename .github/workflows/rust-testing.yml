@@ -63,9 +63,6 @@ jobs:
       image: amd64/rust
     steps:
       - uses: actions/checkout@v4
-      - name: Install dependencies (ubuntu-latest)
-        run: |
-          sudo apt-get install protobuf-compiler
       - name: Install cargo-nextest
         uses: baptiste0928/cargo-install@v1
         with:
