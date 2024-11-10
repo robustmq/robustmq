@@ -71,6 +71,19 @@ impl SegmentFileManager {
         None
     }
 
+    pub fn get_segment_end_offset(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        segment: u32,
+    ) -> Option<u64> {
+        let key = self.key(namespace, shard_name, segment);
+        if let Some(data) = self.segment_files.get(&key) {
+            return Some(data.end_offset);
+        }
+        None
+    }
+
     pub fn incr_end_offset(
         &self,
         namespace: &str,

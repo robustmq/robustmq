@@ -17,4 +17,3 @@ pub mod fold;
 pub mod manager;
 pub mod read;
 pub mod status;
-pub mod write;
