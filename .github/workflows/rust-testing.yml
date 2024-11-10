@@ -16,14 +16,14 @@ name: Integration Testing
 
 on:
   push:
-    branches: [ "cache" ]
+    branches: [ "main" ]
     paths-ignore:
       - "docs/**"
       - "**.md"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/pull_request_template.md"
   pull_request:
-    branches: [ "cache" ]
+    branches: [ "main" ]
     paths-ignore:
       - "docs/**"
       - "**.md"
