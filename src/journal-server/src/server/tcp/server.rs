@@ -22,6 +22,7 @@ use tokio::sync::{broadcast, mpsc};
 
 use crate::core::cache::CacheManager;
 use crate::core::offset::OffsetManager;
+use crate::core::write::WriteManager;
 use crate::handler::command::Command;
 use crate::segment::manager::SegmentFileManager;
 use crate::server::connection::NetworkConnectionType;
@@ -38,6 +39,7 @@ pub async fn start_tcp_server(
     cache_manager: Arc<CacheManager>,
     offset_manager: Arc<OffsetManager>,
     segment_file_manager: Arc<SegmentFileManager>,
+    write_manager: Arc<WriteManager>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     let conf = journal_server_conf();
@@ -46,6 +48,7 @@ pub async fn start_tcp_server(
         cache_manager.clone(),
         offset_manager,
         segment_file_manager,
+        write_manager,
     );
 
     let proc_config = ProcessorConfig {

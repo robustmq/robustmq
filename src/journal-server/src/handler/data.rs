@@ -23,15 +23,16 @@ use protocol::journal_server::journal_engine::{
 use crate::core::cache::CacheManager;
 use crate::core::error::{get_journal_server_code, JournalServerError};
 use crate::core::offset::OffsetManager;
+use crate::core::write::{write_data, WriteManager};
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::read::read_data;
-use crate::segment::write::write_data;
 
 #[derive(Clone)]
 pub struct DataHandler {
     cache_manager: Arc<CacheManager>,
     offset_manager: Arc<OffsetManager>,
     segment_file_manager: Arc<SegmentFileManager>,
+    write_manager: Arc<WriteManager>,
 }
 
 impl DataHandler {
@@ -39,11 +40,13 @@ impl DataHandler {
         cache_manager: Arc<CacheManager>,
         offset_manager: Arc<OffsetManager>,
         segment_file_manager: Arc<SegmentFileManager>,
+        write_manager: Arc<WriteManager>,
     ) -> DataHandler {
         DataHandler {
             cache_manager,
             offset_manager,
             segment_file_manager,
+            write_manager,
         }
     }
 
@@ -60,8 +63,13 @@ impl DataHandler {
             self.valitator(&message.namespace, &message.shard_name, message.segment)?;
         }
 
-        let results =
-            write_data(&self.cache_manager, &self.segment_file_manager, &req_body).await?;
+        let results = write_data(
+            &self.cache_manager,
+            &self.segment_file_manager,
+            &self.write_manager,
+            &req_body,
+        )
+        .await?;
         Ok(results)
     }
 
