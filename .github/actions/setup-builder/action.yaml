@@ -30,7 +30,7 @@ runs:
       run: |
         apt-get update
         apt-get install -y protobuf-compiler
-        apt-get install llvm libclang-dev
+        apt-get install -y llvm libclang-dev
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: nightly
