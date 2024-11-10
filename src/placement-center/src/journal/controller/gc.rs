@@ -167,7 +167,7 @@ pub async fn gc_segment_thread(
     client_pool: Arc<ClientPool>,
 ) {
     for segment in engine_cache.wait_delete_segment_list.iter() {
-        if segment.status != SegmentStatus::PrepareDelete {
+        if segment.status != SegmentStatus::PreDelete {
             warn!(
                 "segment {} in wait_delete_segment_list is in the wrong state, current state is {:?}",
                 segment.name(),

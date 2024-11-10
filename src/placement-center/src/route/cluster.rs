@@ -154,12 +154,11 @@ mod tests {
 
     use common_base::config::placement_center::placement_center_test_conf;
     use common_base::tools::unique_id;
-    use prost::Message as _;
-    use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
+    use metadata_struct::placement::node::BrokerNode;
+    use protocol::placement_center::placement_center_inner::ClusterType;
 
     use crate::core::cache::PlacementCacheManager;
     use crate::route::cluster::DataRouteCluster;
-    use crate::storage::placement::cluster::ClusterStorage;
     use crate::storage::placement::node::NodeStorage;
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
@@ -171,15 +170,14 @@ mod tests {
         let node_id = 999;
         let node_ip = "127.0.0.1".to_string();
 
-        let req = RegisterNodeRequest {
+        let node = BrokerNode {
+            cluster_name: cluster_name.clone(),
             node_id,
             node_ip: node_ip.clone(),
-            cluster_type: ClusterType::MqttBrokerServer.into(),
-            cluster_name: cluster_name.clone(),
-            extend_info: "{}".to_string(),
+            cluster_type: ClusterType::MqttBrokerServer.as_str_name().to_string(),
             ..Default::default()
         };
-        let data = RegisterNodeRequest::encode_to_vec(&req);
+        let data = serde_json::to_vec(&node).unwrap();
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
             &config.rocksdb.data_path,
             config.rocksdb.max_open_files.unwrap(),
@@ -190,14 +188,6 @@ mod tests {
         route.add_node(data).await.unwrap();
 
         let node_storage = NodeStorage::new(rocksdb_engine.clone());
-        let cluster_storage = ClusterStorage::new(rocksdb_engine.clone());
-
-        let cluster = cluster_storage
-            .get(ClusterType::MqttBrokerServer.as_str_name(), &cluster_name)
-            .unwrap();
-        let cl = cluster.unwrap();
-        assert_eq!(cl.cluster_name, cluster_name);
-
         let node = node_storage.get(&cluster_name, node_id).unwrap();
         let nd = node.unwrap();
         assert_eq!(nd.node_id, node_id);
@@ -206,12 +196,6 @@ mod tests {
         let _ = node_storage.delete(&cluster_name, node_id);
         let res = node_storage.get(&cluster_name, node_id).unwrap();
         assert!(res.is_none());
-
-        let cluster = cluster_storage
-            .get(ClusterType::MqttBrokerServer.as_str_name(), &cluster_name)
-            .unwrap();
-        let cl = cluster.unwrap();
-        assert_eq!(cl.cluster_name, cluster_name);
 
         remove_dir_all(config.rocksdb.data_path).unwrap();
     }

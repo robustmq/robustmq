@@ -28,8 +28,8 @@ pub struct JournalSegment {
 }
 
 impl JournalSegment {
-    pub fn is_seal_up(&self) -> bool {
-        self.status == SegmentStatus::PrepareSealUp || self.status == SegmentStatus::SealUp
+    pub fn allow_read(&self) -> bool {
+        self.status == SegmentStatus::Write
     }
 
     pub fn get_fold(&self, node_id: u64) -> Option<String> {
@@ -60,9 +60,10 @@ pub struct Replica {
 pub enum SegmentStatus {
     #[default]
     Idle,
+    PreWrite,
     Write,
-    PrepareSealUp,
+    PreSealUp,
     SealUp,
-    PrepareDelete,
+    PreDelete,
     Deleteing,
 }

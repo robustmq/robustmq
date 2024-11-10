@@ -12,5 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub fn batch_write() {}
-pub fn write_segment() {}
+use dashmap::DashMap;
+use protocol::journal_server::journal_record::JournalRecord;
+
+pub struct SegentWrite {
+    last_write_time: u64,
+}
+
+pub struct WriteManager {
+    segment_write: DashMap<String, SegentWrite>,
+}
+
+impl WriteManager {
+    pub fn new() -> Self {
+        WriteManager {
+            segment_write: DashMap::with_capacity(8),
+        }
+    }
+
+    pub fn write(&self, namespace: &str, shard_name: &str, segment: u32, datas: &[JournalRecord]) {}
+
+    fn get_write(&self, namespace: &str, shard_name: &str, segment: u32) {
+        let key = self.key(namespace, shard_name, segment);
+        // let write = if let Some(write) = self.segment_write.get(&key) {
+        //     write
+        // } else {
+        //     // let (sender, recv) = mpsc::channel::<JournalRecord>(1000);
+        // };
+        // write
+    }
+
+    fn key(&self, namespace: &str, shard_name: &str, segment: u32) -> String {
+        format!("{}_{}_{}", namespace, shard_name, segment)
+    }
+}
