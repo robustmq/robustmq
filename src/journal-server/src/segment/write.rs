@@ -24,7 +24,7 @@ use protocol::journal_server::journal_record::JournalRecord;
 use super::file::SegmentFile;
 use super::manager::SegmentFileManager;
 use crate::core::cache::CacheManager;
-use crate::core::error::JournalServerError;
+use crate::core::error::{get_journal_server_code, JournalServerError};
 use crate::index::build_index_message;
 
 pub async fn write_data(
@@ -109,7 +109,7 @@ pub async fn write_data(
                 }
                 Err(e) => {
                     status.error = Some(JournalEngineError {
-                        code: 1,
+                        code: get_journal_server_code(&e),
                         error: e.to_string(),
                     });
                 }

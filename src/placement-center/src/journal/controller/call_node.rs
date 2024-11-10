@@ -20,6 +20,7 @@ use grpc_clients::journal::inner::call::journal_inner_update_cache;
 use grpc_clients::pool::ClientPool;
 use log::{debug, error, info};
 use metadata_struct::journal::segment::JournalSegment;
+use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
 use metadata_struct::placement::node::BrokerNode;
 use protocol::journal_server::journal_inner::{
@@ -165,6 +166,23 @@ pub async fn update_cache_by_set_segment(
     let mesage = JournalInnerCallMessage {
         action_type: JournalUpdateCacheActionType::Set,
         resource_type: JournalUpdateCacheResourceType::Segment,
+        cluster_name: cluster_name.to_string(),
+        data,
+    };
+    add_call_message(call_manager, cluster_name, client_pool, mesage).await?;
+    Ok(())
+}
+
+pub async fn update_cache_by_set_segment_meta(
+    cluster_name: &str,
+    call_manager: &Arc<JournalInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    segment_info: JournalSegmentMetadata,
+) -> Result<(), PlacementCenterError> {
+    let data = serde_json::to_string(&segment_info)?;
+    let mesage = JournalInnerCallMessage {
+        action_type: JournalUpdateCacheActionType::Set,
+        resource_type: JournalUpdateCacheResourceType::SegmentMeta,
         cluster_name: cluster_name.to_string(),
         data,
     };
