@@ -30,7 +30,8 @@ use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::journal::cache::JournalCacheManager;
 use crate::journal::controller::call_node::{
-    update_cache_by_set_segment, update_cache_by_set_shard, JournalInnerCallManager,
+    update_cache_by_set_segment, update_cache_by_set_segment_meta, update_cache_by_set_shard,
+    JournalInnerCallManager,
 };
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
@@ -67,6 +68,8 @@ pub async fn create_segment_by_req(
         end_timestamp: -1,
     };
     sync_save_segment_metadata_info(raft_machine_apply, &metadata).await?;
+    update_cache_by_set_segment_meta(&req.cluster_name, call_manager, client_pool, metadata)
+        .await?;
 
     update_last_segment_by_shard(
         raft_machine_apply,
@@ -126,7 +129,7 @@ pub async fn delete_segment_by_req(
         engine_cache,
         raft_machine_apply,
         &segment,
-        SegmentStatus::PrepareDelete,
+        SegmentStatus::PreDelete,
     )
     .await?;
 

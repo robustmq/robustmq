@@ -206,12 +206,12 @@ async fn sync_save_node(
     Err(PlacementCenterError::ExecutionResultIsEmpty)
 }
 
-async fn sync_delete_node(
+pub async fn sync_delete_node(
     raft_machine_apply: &Arc<RaftMachineApply>,
     req: &UnRegisterNodeRequest,
 ) -> Result<(), PlacementCenterError> {
     let data = StorageData::new(
-        StorageDataType::ClusterAddNode,
+        StorageDataType::ClusterDeleteNode,
         UnRegisterNodeRequest::encode_to_vec(req),
     );
     if (raft_machine_apply.client_write(data).await?).is_some() {

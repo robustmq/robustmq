@@ -29,6 +29,7 @@ use super::cluster::ClusterHandler;
 use super::data::DataHandler;
 use super::shard::ShardHandler;
 use crate::core::cache::CacheManager;
+use crate::core::error::get_journal_server_code;
 use crate::core::offset::OffsetManager;
 use crate::segment::manager::SegmentFileManager;
 use crate::server::connection::NetworkConnection;
@@ -80,7 +81,7 @@ impl Command {
                     Ok(data) => resp.body = Some(GetClusterMetadataRespBody { nodes: data }),
                     Err(e) => {
                         header.error = Some(JournalEngineError {
-                            code: 1,
+                            code: get_journal_server_code(&e),
                             error: e.to_string(),
                         });
                         resp.body = Some(GetClusterMetadataRespBody::default());
@@ -100,14 +101,12 @@ impl Command {
                     ..Default::default()
                 };
                 match self.shard_handler.create_shard(request).await {
-                    Ok(replicas) => {
-                        resp.body = Some(CreateShardRespBody {
-                            active_segment: Some(replicas),
-                        });
+                    Ok(()) => {
+                        resp.body = Some(CreateShardRespBody {});
                     }
                     Err(e) => {
                         header.error = Some(JournalEngineError {
-                            code: 1,
+                            code: get_journal_server_code(&e),
                             error: e.to_string(),
                         });
                         resp.body = Some(CreateShardRespBody::default());
@@ -130,7 +129,7 @@ impl Command {
                     }
                     Err(e) => {
                         header.error = Some(JournalEngineError {
-                            code: 1,
+                            code: get_journal_server_code(&e),
                             error: e.to_string(),
                         });
                         resp.body = Some(DeleteShardRespBody::default());
@@ -153,7 +152,7 @@ impl Command {
                     }
                     Err(e) => {
                         header.error = Some(JournalEngineError {
-                            code: 1,
+                            code: get_journal_server_code(&e),
                             error: e.to_string(),
                         });
                         resp.body = Some(GetShardMetadataRespBody::default());
@@ -177,7 +176,7 @@ impl Command {
                     }
                     Err(e) => {
                         header.error = Some(JournalEngineError {
-                            code: 1,
+                            code: get_journal_server_code(&e),
                             error: e.to_string(),
                         });
                         resp.body = Some(WriteRespBody::default());
@@ -200,7 +199,7 @@ impl Command {
                     }
                     Err(e) => {
                         header.error = Some(JournalEngineError {
-                            code: 1,
+                            code: get_journal_server_code(&e),
                             error: e.to_string(),
                         });
                         resp.body = Some(ReadRespBody::default());
@@ -223,7 +222,7 @@ impl Command {
                     }
                     Err(e) => {
                         header.error = Some(JournalEngineError {
-                            code: 1,
+                            code: get_journal_server_code(&e),
                             error: e.to_string(),
                         });
                         resp.body = Some(OffsetCommitRespBody::default());
