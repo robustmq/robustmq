@@ -263,6 +263,7 @@ impl EngineService for GrpcEngineService {
             &self.raft_machine_apply,
             &self.call_manager,
             &self.client_pool,
+            &self.rocksdb_engine_handler,
             &req,
         )
         .await

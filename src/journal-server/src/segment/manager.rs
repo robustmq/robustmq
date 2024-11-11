@@ -89,7 +89,7 @@ impl SegmentFileManager {
         namespace: &str,
         shard_name: &str,
         segment: u32,
-        end_offset:u64,
+        end_offset: u64,
     ) -> Result<(), JournalServerError> {
         let key = self.key(namespace, shard_name, segment);
         if let Some(mut data) = self.segment_files.get_mut(&key) {

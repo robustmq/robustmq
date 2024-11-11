@@ -209,22 +209,13 @@ async fn start_segment_sync_write_thread(
                             continue;
                         };
 
-                        if segment_meta.end_offset > 0 {
-                            if (end_offset + packet.data.len() as u64) > segment_meta.end_offset as u64{
-                                raw_cache_manager.update_segment_status(&raw_namespace, &raw_shard_name, segment_no,SegmentStatus::PreSealUp);
-                                continue;
-                            }
+                        if segment_meta.end_offset > 0  && (end_offset + packet.data.len() as u64) > segment_meta.end_offset as u64{
+                            raw_cache_manager.update_segment_status(&raw_namespace, &raw_shard_name, segment_no,SegmentStatus::PreSealUp);
+                            continue;
                         }
 
                         // check file size
-                        let file_size = match segment_write.size().await{
-                            Ok(size) => {
-                                size
-                            },
-                            Err(e) => {
-                                0
-                            }
-                        };
+                        let file_size = (segment_write.size().await).unwrap_or_default();
 
                         if file_size >= max_file_size{
                             raw_cache_manager.update_segment_status(&raw_namespace, &raw_shard_name, segment_no,SegmentStatus::PreSealUp);
@@ -258,7 +249,7 @@ async fn start_segment_sync_write_thread(
 
                         // update segment end offset
                         if let Some(end_offset) = offsets.last(){
-                            match segment_file_manager.update_end_offset(&raw_namespace,&raw_shard_name,segment_no,end_offset.clone()){
+                            match segment_file_manager.update_end_offset(&raw_namespace,&raw_shard_name,segment_no,*end_offset){
                                 Ok(()) =>{}
                                 Err(e) => {
                                     error!("{}",e);

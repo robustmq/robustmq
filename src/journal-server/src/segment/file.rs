@@ -71,7 +71,7 @@ impl SegmentFile {
             writer.write_u32(data.len() as u32).await?;
             writer.write_all(data.as_ref()).await?;
         }
-        
+
         writer.flush().await?;
         Ok(())
     }
@@ -79,7 +79,7 @@ impl SegmentFile {
     pub async fn size(&self) -> Result<u64, JournalServerError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let metadata = fs::metadata(segment_file).await?;
-        return Ok(metadata.len());
+        Ok(metadata.len())
     }
 
     pub async fn read(

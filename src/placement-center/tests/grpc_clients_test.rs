@@ -343,7 +343,6 @@ mod tests {
             cluster_name: cluster_name(),
             namespace: namespace(),
             shard_name: shard_name(),
-            active_segment_next_num: 1,
         };
         match client
             .create_next_segment(tonic::Request::new(request))
