@@ -25,6 +25,7 @@ pub struct JournalSegment {
     pub leader: u64,
     pub isr: Vec<Replica>,
     pub status: SegmentStatus,
+    pub config: SegmentConfig,
 }
 
 impl JournalSegment {
@@ -66,4 +67,9 @@ pub enum SegmentStatus {
     SealUp,
     PreDelete,
     Deleteing,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct SegmentConfig {
+    pub max_segment_size: u64,
 }

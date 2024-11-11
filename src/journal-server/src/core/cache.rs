@@ -21,7 +21,7 @@ use grpc_clients::placement::journal::call::{list_segment, list_segment_meta, li
 use grpc_clients::placement::placement::call::node_list;
 use grpc_clients::pool::ClientPool;
 use log::{error, info};
-use metadata_struct::journal::segment::JournalSegment;
+use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
 use metadata_struct::placement::node::BrokerNode;
@@ -166,6 +166,21 @@ impl CacheManager {
             }
         }
         None
+    }
+
+    pub fn update_segment_status(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        segment_no: u32,
+        status: SegmentStatus,
+    ) {
+        let key = self.shard_key(namespace, shard_name);
+        if let Some(sgement_list) = self.segments.get(&key) {
+            if let Some(mut segment) = sgement_list.get_mut(&segment_no) {
+                segment.status = status;
+            }
+        }
     }
 
     pub fn set_segment_meta(&self, segment: JournalSegmentMetadata) {

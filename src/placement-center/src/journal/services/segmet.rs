@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::node_extend::JournalNodeExtend;
-use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentStatus};
+use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig, SegmentStatus};
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
 use protocol::placement_center::placement_center_journal::{
@@ -231,6 +231,9 @@ async fn build_segment(
         leader: calc_leader_node(&replicas),
         replicas: replicas.clone(),
         isr: replicas.clone(),
+        config: SegmentConfig {
+            max_segment_size: 1024 * 1024 * 1024,
+        },
     })
 }
 

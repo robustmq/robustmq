@@ -19,6 +19,7 @@ use common_base::config::journal_server::journal_server_conf;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use log::{debug, error};
+use metadata_struct::journal::segment::SegmentStatus;
 use protocol::journal_server::journal_engine::{
     WriteReqBody, WriteRespMessage, WriteRespMessageStatus,
 };
@@ -42,12 +43,12 @@ pub struct SegmentWrite {
 
 pub struct SegmentWriteData {
     data: Vec<JournalRecord>,
-    resp_sx: oneshot::Sender<Vec<SegmentWriteResp>>,
+    resp_sx: oneshot::Sender<SegmentWriteResp>,
 }
 
 #[derive(Default)]
 pub struct SegmentWriteResp {
-    offset: u64,
+    offset: Vec<u64>,
     error: Option<JournalServerError>,
 }
 
@@ -75,9 +76,9 @@ impl WriteManager {
         shard_name: &str,
         segment: u32,
         datas: Vec<JournalRecord>,
-    ) -> Result<Vec<SegmentWriteResp>, JournalServerError> {
-        let write = self.get_write(namespace, shard_name, segment)?;
-        let (sx, rx) = oneshot::channel::<Vec<SegmentWriteResp>>();
+    ) -> Result<SegmentWriteResp, JournalServerError> {
+        let write = self.get_write(namespace, shard_name, segment).await?;
+        let (sx, rx) = oneshot::channel::<SegmentWriteResp>();
 
         let data = SegmentWriteData {
             data: datas,
@@ -104,7 +105,7 @@ impl WriteManager {
         Ok(())
     }
 
-    fn get_write(
+    async fn get_write(
         &self,
         namespace: &str,
         shard_name: &str,
@@ -125,7 +126,8 @@ impl WriteManager {
                 self.cache_manager.clone(),
                 recv,
                 stop_recv,
-            )?;
+            )
+            .await?;
 
             let write = SegmentWrite {
                 last_write_time: 0,
@@ -143,7 +145,7 @@ impl WriteManager {
     }
 }
 
-fn start_segment_sync_write_thread(
+async fn start_segment_sync_write_thread(
     namespace: &str,
     shard_name: &str,
     segment_no: u32,
@@ -152,6 +154,137 @@ fn start_segment_sync_write_thread(
     mut data_recv: Receiver<SegmentWriteData>,
     mut stop_recv: broadcast::Receiver<bool>,
 ) -> Result<(), JournalServerError> {
+    let segment_file_meta = if let Some(segment_file) =
+        segment_file_manager.get_segment_file(namespace, shard_name, segment_no)
+    {
+        segment_file
+    } else {
+        return Err(JournalServerError::SegmentFileNotExists(format!(
+            "{}-{}",
+            shard_name, segment_no
+        )));
+    };
+
+    let mut end_offset = segment_file_meta.end_offset;
+
+    let raw_namespace = namespace.to_string();
+    let raw_shard_name = shard_name.to_string();
+    let raw_cache_manager = cache_manager.clone();
+
+    let file_size_50_percent = false;
+    let file_size_98_percent = false;
+
+    let (segment_write, max_file_size) = open_segment_write(
+        namespace,
+        shard_name,
+        segment_no,
+        segment_file_manager.clone(),
+        cache_manager,
+    )
+    .await?;
+
+    tokio::spawn(async move {
+        debug!("");
+
+        loop {
+            select! {
+                val = stop_recv.recv() =>{
+                    if let Ok(flag) = val {
+                        if flag {
+                            debug!("{}","TCP Server handler thread stopped successfully.");
+                            break;
+                        }
+                    }
+                },
+                val = data_recv.recv()=>{
+                    if let Some(packet) = val{
+                        if packet.data.is_empty(){
+                            continue;
+                        }
+
+                        // check if the offset exceeds the end offset
+                        let segment_meta =if let Some(segment) = raw_cache_manager.get_segment_meta(&raw_namespace, &raw_shard_name, segment_no) {
+                            segment
+                        } else {
+                            continue;
+                        };
+
+                        if segment_meta.end_offset > 0 {
+                            if (end_offset + packet.data.len() as u64) > segment_meta.end_offset as u64{
+                                raw_cache_manager.update_segment_status(&raw_namespace, &raw_shard_name, segment_no,SegmentStatus::PreSealUp);
+                                continue;
+                            }
+                        }
+
+                        // check file size
+                        let file_size = match segment_write.size().await{
+                            Ok(size) => {
+                                size
+                            },
+                            Err(e) => {
+                                0
+                            }
+                        };
+
+                        if file_size >= max_file_size{
+                            raw_cache_manager.update_segment_status(&raw_namespace, &raw_shard_name, segment_no,SegmentStatus::PreSealUp);
+                            continue;
+                        }
+
+                        // build write data
+                        let mut offsets = Vec::new();
+                        let mut records =  Vec::new();
+                        for mut record in packet.data{
+
+                            let offset = end_offset+1;
+
+                            record.offset = offset;
+                            end_offset = offset;
+
+                            offsets.push(offset);
+                            records.push(record);
+                        }
+
+                        // batch write data
+                        let mut resp = SegmentWriteResp::default();
+                        match segment_write.write(&records).await {
+                            Ok(()) => {
+                                resp.offset = offsets.clone();
+                            }
+                            Err(e) => {
+                                resp.error = Some(e);
+                            }
+                        }
+
+                        // update segment end offset
+                        if let Some(end_offset) = offsets.last(){
+                            match segment_file_manager.update_end_offset(&raw_namespace,&raw_shard_name,segment_no,end_offset.clone()){
+                                Ok(()) =>{}
+                                Err(e) => {
+                                    error!("{}",e);
+                                }
+                            }
+                        }
+
+                        // resp write client
+                        if packet.resp_sx.send(resp).is_err(){
+                            error!("Write data to the Segment file, write success, call the oneshot channel to return the write information failed. Failure message");
+                        }
+                    }
+                }
+            }
+        }
+    });
+    Ok(())
+}
+
+async fn open_segment_write(
+    namespace: &str,
+    shard_name: &str,
+    segment_no: u32,
+    segment_file_manager: Arc<SegmentFileManager>,
+    cache_manager: Arc<CacheManager>,
+) -> Result<(SegmentFile, u64), JournalServerError> {
     let segment =
         if let Some(segment) = cache_manager.get_segment(namespace, shard_name, segment_no) {
             segment
@@ -172,70 +305,15 @@ fn start_segment_sync_write_thread(
         ));
     };
 
-    let segment = SegmentFile::new(
-        namespace.to_string(),
-        shard_name.to_string(),
-        segment_no,
-        fold,
-    );
-
-    let segment_file = if let Some(segment_file) =
-        segment_file_manager.get_segment_file(namespace, shard_name, segment_no)
-    {
-        segment_file
-    } else {
-        return Err(JournalServerError::SegmentFileNotExists(format!(
-            "{}-{}",
-            shard_name, segment_no
-        )));
-    };
-    let end_offset = segment_file.end_offset;
-
-    tokio::spawn(async move {
-        debug!("");
-
-        loop {
-            select! {
-                val = stop_recv.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
-                            debug!("{}","TCP Server handler thread stopped successfully.");
-                            break;
-                        }
-                    }
-                },
-                val = data_recv.recv()=>{
-                    if let Some(packet) = val{
-                        if packet.data.is_empty(){
-                            continue;
-                        }
-                        let mut results = Vec::new();
-
-                        for mut record in packet.data{
-
-                            let offset = end_offset+1;
-                            record.offset = offset;
-
-                            let mut resp = SegmentWriteResp::default();
-                            match segment.write(record.clone()).await {
-                                Ok(()) => {
-                                    resp.offset = offset;
-                                }
-                                Err(e) => {
-                                    resp.error = Some(e);
-                                }
-                            }
-                            results.push(resp);
-                        }
-                        if packet.resp_sx.send(results).is_err(){
-                            error!("Write data to the Segment file, write success, call the oneshot channel to return the write information failed. Failure message");
-                        }
-                    }
-                }
-            }
-        }
-    });
-    Ok(())
+    Ok((
+        SegmentFile::new(
+            namespace.to_string(),
+            shard_name.to_string(),
+            segment_no,
+            fold,
+        ),
+        segment.config.max_segment_size,
+    ))
 }
 
 pub async fn write_data(
@@ -279,25 +357,35 @@ pub async fn write_data(
             .await?;
 
         let mut resp_message_status = Vec::new();
-        for resp_raw in resp {
-            let status = if let Some(err) = resp_raw.error {
+
+        let is_error = resp.error.is_some();
+        let error = if is_error {
+            let err = resp.error.unwrap();
+            Some(
+                protocol::journal_server::journal_engine::JournalEngineError {
+                    code: get_journal_server_code(&err),
+                    error: err.to_string(),
+                },
+            )
+        } else {
+            None
+        };
+
+        for resp_raw in resp.offset {
+            let status = if is_error {
                 WriteRespMessageStatus {
-                    error: Some(
-                        protocol::journal_server::journal_engine::JournalEngineError {
-                            code: get_journal_server_code(&err),
-                            error: err.to_string(),
-                        },
-                    ),
+                    error: error.clone(),
                     ..Default::default()
                 }
             } else {
                 WriteRespMessageStatus {
-                    offset: resp_raw.offset,
+                    // offset: resp_raw.offset,
                     ..Default::default()
                 }
             };
             resp_message_status.push(status);
         }
+
         resp_message.messages = resp_message_status;
         results.push(resp_message);
     }
