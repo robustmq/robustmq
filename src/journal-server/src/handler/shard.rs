@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use common_base::config::journal_server::journal_server_conf;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::journal::segment::JournalSegment;
 use protocol::journal_server::journal_engine::{
     ClientSegmentMetadata, CreateShardReq, DeleteShardReq, GetShardMetadataReq,
     GetShardMetadataRespShard,
@@ -130,17 +131,19 @@ impl ShardHandler {
 
             // If the Shard has an active Segment,
             // it returns an error, triggers the client to retry, and triggers the server to create the next Segment.
-            if self
+            let segment = if let Some(segment) = self
                 .cache_manager
                 .get_active_segment(&raw.namespace, &raw.shard_name)
-                .is_none()
             {
-                self.trigger_create_next_segment(&raw.namespace, &raw.shard_name)
-                    .await?;
-
+                segment
+            } else {
+                // Active Segment does not exist, try to update cache. 
+                // The Active Segment will only be updated if the Segment is successfully created
                 load_metadata_cache(&self.cache_manager, &self.client_pool).await;
                 return Err(JournalServerError::NotActiveSegmet(shard.name()));
             };
+
+
 
             let key = self
                 .cache_manager
@@ -208,5 +211,9 @@ impl ShardHandler {
         )
         .await?;
         Ok(())
+    }
+
+    async fn tranf_segment_status(segment: &JournalSegment){
+
     }
 }

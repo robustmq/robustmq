@@ -211,7 +211,7 @@ async fn start_segment_sync_write_thread(
 
                         if segment_meta.end_offset > 0 {
                             if (end_offset + packet.data.len() as u64) > segment_meta.end_offset as u64{
-
+                                raw_cache_manager.update_segment_status(&raw_namespace, &raw_shard_name, segment_no,SegmentStatus::PreSealUp);
                                 continue;
                             }
                         }
@@ -227,7 +227,7 @@ async fn start_segment_sync_write_thread(
                         };
 
                         if file_size >= max_file_size{
-                            raw_cache_manager.update_segment_status(&raw_namespace, &raw_shard_name, segment_no,SegmentStatus::SealUp);
+                            raw_cache_manager.update_segment_status(&raw_namespace, &raw_shard_name, segment_no,SegmentStatus::PreSealUp);
                             continue;
                         }
 
@@ -277,7 +277,6 @@ async fn start_segment_sync_write_thread(
     });
     Ok(())
 }
-
 
 async fn open_segment_write(
     namespace: &str,

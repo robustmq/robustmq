@@ -12,19 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::error::JournalServerError;
-
 pub mod engine;
 pub mod keys;
 pub mod offset;
 pub mod segment;
 pub mod tag;
 pub mod time;
-
-pub fn build_index_message() -> Result<(), JournalServerError> {
-    Ok(())
-}
-
-pub fn delete_segment_all_index() -> Result<(), JournalServerError> {
-    Ok(())
-}
+pub mod build;
