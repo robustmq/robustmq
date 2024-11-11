@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt;
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -69,20 +67,6 @@ pub enum SegmentStatus {
     SealUp,
     PreDelete,
     Deleteing,
-}
-
-impl fmt::Display for SegmentStatus {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            SegmentStatus::Idle => write!(f, "Idle"),
-            SegmentStatus::PreWrite => write!(f, "PreWrite"),
-            SegmentStatus::Write => write!(f, "Write"),
-            SegmentStatus::PreSealUp => write!(f, "PreSealUp"),
-            SegmentStatus::SealUp => write!(f, "SealUp"),
-            SegmentStatus::PreDelete => write!(f, "PreDelete"),
-            SegmentStatus::Deleteing => write!(f, "Deleteing"),
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
