@@ -137,13 +137,11 @@ impl ShardHandler {
             {
                 segment
             } else {
-                // Active Segment does not exist, try to update cache. 
+                // Active Segment does not exist, try to update cache.
                 // The Active Segment will only be updated if the Segment is successfully created
                 load_metadata_cache(&self.cache_manager, &self.client_pool).await;
                 return Err(JournalServerError::NotActiveSegmet(shard.name()));
             };
-
-
 
             let key = self
                 .cache_manager
@@ -202,7 +200,6 @@ impl ShardHandler {
             cluster_name: conf.cluster_name.to_string(),
             namespace: namespace.to_string(),
             shard_name: shard_name.to_string(),
-            active_segment_next_num: 1,
         };
         let reply = grpc_clients::placement::journal::call::create_next_segment(
             self.client_pool.clone(),
@@ -213,7 +210,5 @@ impl ShardHandler {
         Ok(())
     }
 
-    async fn tranf_segment_status(segment: &JournalSegment){
-
-    }
+    async fn tranf_segment_status(segment: &JournalSegment) {}
 }
