@@ -143,7 +143,7 @@ impl ShardHandler {
                 load_metadata_cache(&self.cache_manager, &self.client_pool).await;
                 return Err(JournalServerError::NotActiveSegmet(shard.name()));
             };
-            
+
             // Try to transition the Segment state
             self.tranf_segment_status(
                 &raw.namespace,
