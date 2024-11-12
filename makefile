@@ -30,6 +30,14 @@ build-arm-release: ## Build arm version robustmq.
 test:  ## Integration testing for Robustmq
 	sh ./scripts/integration-testing.sh
 
+.PHONY: unit-test
+unit-test:  ## Integration testing for Robustmq
+	sh ./scripts/unit-test.sh
+
+.PHONY: integration-test
+integration-test:  ## Integration testing for Robustmq
+	sh ./scripts/integration-test.sh
+
 .PHONY: clean
 clean:  ## Clean the project.
 	cargo clean

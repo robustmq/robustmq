@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod common;
-
 #[cfg(test)]
 mod tests {
     use std::process;
@@ -24,7 +22,7 @@ mod tests {
         Client, ConnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, QOS_1,
     };
 
-    use crate::common::{
+    use crate::mqtt_client::mqtt::common::{
         broker_addr, build_create_pros, build_v5_pros, connect_server5, distinct_conn, password,
         username,
     };
