@@ -74,7 +74,7 @@ pub async fn create_segment_by_req(
         )
         .is_none()
     {
-        let segment = build_next_segment(&shard, engine_cache, cluster_cache).await?;
+        let segment = build_segment(&shard, engine_cache, cluster_cache, next_segment_no).await?;
         sync_save_segment_info(raft_machine_apply, &segment).await?;
 
         let metadata = JournalSegmentMetadata {
@@ -88,15 +88,17 @@ pub async fn create_segment_by_req(
             end_timestamp: -1,
         };
         sync_save_segment_metadata_info(raft_machine_apply, &metadata).await?;
-        update_cache_by_set_segment_meta(&req.cluster_name, call_manager, client_pool, metadata)
-            .await?;
+
         update_last_segment_by_shard(
             raft_machine_apply,
             engine_cache,
             &mut shard,
-            segment.segment_seq,
+            next_segment_no,
         )
         .await?;
+
+        update_cache_by_set_segment_meta(&req.cluster_name, call_manager, client_pool, metadata)
+            .await?;
         update_cache_by_set_segment(
             &req.cluster_name,
             call_manager,
@@ -104,6 +106,7 @@ pub async fn create_segment_by_req(
             segment.clone(),
         )
         .await?;
+
         shard_notice = true;
     }
 
@@ -191,26 +194,6 @@ pub(crate) async fn build_first_segment(
     cluster_cache: &Arc<PlacementCacheManager>,
 ) -> Result<JournalSegment, PlacementCenterError> {
     build_segment(shard_info, engine_cache, cluster_cache, 0).await
-}
-
-async fn build_next_segment(
-    shard_info: &JournalShard,
-    engine_cache: &Arc<JournalCacheManager>,
-    cluster_cache: &Arc<PlacementCacheManager>,
-) -> Result<JournalSegment, PlacementCenterError> {
-    let segment_no = if let Some(segment_no) = engine_cache.next_segment_seq(
-        &shard_info.cluster_name,
-        &shard_info.namespace,
-        &shard_info.shard_name,
-    ) {
-        segment_no
-    } else {
-        return Err(PlacementCenterError::ShardDoesNotExist(
-            shard_info.shard_name.clone(),
-        ));
-    };
-
-    build_segment(shard_info, engine_cache, cluster_cache, segment_no).await
 }
 
 async fn build_segment(
