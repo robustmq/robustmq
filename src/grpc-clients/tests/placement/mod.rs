@@ -12,4 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod segment;
+mod kv_test;
+mod mqtt_acl_test;
+mod mqtt_admin_test;
+mod mqtt_blacklist_test;
+mod mqtt_last_will_test;
+mod mqtt_session_test;
+mod mqtt_share_sub_test;
+mod mqtt_topic_test;
+mod mqtt_user_test;
+mod openraft_test;
+mod placement_test;

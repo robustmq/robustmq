@@ -34,9 +34,17 @@ test:  ## Integration testing for Robustmq
 unit-test:  ## Integration testing for Robustmq
 	sh ./scripts/unit-test.sh
 
-.PHONY: integration-test
-integration-test:  ## Integration testing for Robustmq
-	sh ./scripts/integration-test.sh
+.PHONY: mqtt-ig-test
+mqtt-ig-test:  ## Integration testing for MQTT Broker
+	sh ./scripts/mqtt-ig-test.sh
+
+.PHONY: place-ig-test
+place-ig-test:  ## Integration testing for Placement Center
+	sh ./scripts/place-ig-test.sh
+
+.PHONY: journal-ig-test
+journal-ig-test:  ## Integration testing for Journal Engine
+	sh ./scripts/journal-ig-test.sh
 
 .PHONY: clean
 clean:  ## Clean the project.

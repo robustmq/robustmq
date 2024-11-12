@@ -20,7 +20,9 @@ mod tests {
         NodeListRequest, RegisterNodeRequest, UnRegisterNodeRequest,
     };
 
-    use crate::place_server::common::{cluster_name, cluster_type, extend_info, node_id, node_ip, pc_addr};
+    use crate::place_server::common::{
+        cluster_name, cluster_type, extend_info, node_id, node_ip, pc_addr,
+    };
 
     #[tokio::test]
     async fn node_heartbeat_keep_alive_test() {
