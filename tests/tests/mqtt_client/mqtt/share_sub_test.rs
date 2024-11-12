@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod common;
-
 #[cfg(test)]
 mod tests {
     use common_base::tools::unique_id;
     use paho_mqtt::{Message, QOS_1};
 
-    use crate::common::{broker_addr, connect_server5, distinct_conn};
+    use crate::mqtt_client::mqtt::common::{broker_addr, connect_server5, distinct_conn};
 
     #[tokio::test]
     async fn client5_subscribe_test() {

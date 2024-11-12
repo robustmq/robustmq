@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod common;
-
 #[cfg(test)]
 mod tests {
     use std::process;
@@ -26,7 +24,7 @@ mod tests {
     use paho_mqtt::{Client, PropertyCode, ReasonCode};
     use protocol::broker_mqtt::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequest};
 
-    use crate::common::{
+    use crate::mqtt_client::mqtt::common::{
         broker_addr, broker_grpc_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr,
         build_create_pros, build_v5_conn_pros_by_user_information, build_v5_pros, distinct_conn,
     };

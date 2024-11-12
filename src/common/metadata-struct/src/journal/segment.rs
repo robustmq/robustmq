@@ -14,6 +14,7 @@
 
 use std::fmt;
 
+use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -82,6 +83,19 @@ impl fmt::Display for SegmentStatus {
             SegmentStatus::PreDelete => write!(f, "PreDelete"),
             SegmentStatus::Deleteing => write!(f, "Deleteing"),
         }
+    }
+}
+
+pub fn str_to_segment_status(status: &str) -> Result<SegmentStatus, CommonError> {
+    match status {
+        "Idle" => Ok(SegmentStatus::Idle),
+        "PreWrite" => Ok(SegmentStatus::PreWrite),
+        "Write" => Ok(SegmentStatus::Write),
+        "PreSealUp" => Ok(SegmentStatus::PreSealUp),
+        "SealUp" => Ok(SegmentStatus::SealUp),
+        "PreDelete" => Ok(SegmentStatus::PreDelete),
+        "Deleteing" => Ok(SegmentStatus::Deleteing),
+        _ => Err(CommonError::CommmonError("".to_string())),
     }
 }
 

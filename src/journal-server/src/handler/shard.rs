@@ -234,7 +234,9 @@ impl ShardHandler {
                 cluster_name: conf.cluster_name.to_string(),
                 namespace: namespace.to_string(),
                 shard_name: shard_name.to_string(),
-                status: SegmentStatus::PreWrite.to_string(),
+                segment_seq: segment.segment_seq,
+                cur_status: segment.status.to_string(),
+                next_status: SegmentStatus::PreWrite.to_string(),
             };
             update_segment_status(client_pool.clone(), conf.placement_center.clone(), request)
                 .await?;

@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod common;
-
 #[cfg(test)]
 mod tests {
     use common_base::tools::unique_id;
     use paho_mqtt::{Message, MessageBuilder, Properties, PropertyCode, QOS_1};
 
-    use crate::common::{
+    use crate::mqtt_client::mqtt::common::{
         broker_addr, connect_server5, connect_server5_response_information, distinct_conn,
     };
 

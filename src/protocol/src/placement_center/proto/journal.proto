@@ -104,7 +104,9 @@ message UpdateSegmentStatusRequest{
     string cluster_name = 1;
     string namespace = 2;
     string shard_name = 3;
-    string status =4;
+    uint32 segment_seq = 4;
+    string cur_status = 5;
+    string next_status = 6;
 }
 
 message UpdateSegmentStatusReply{

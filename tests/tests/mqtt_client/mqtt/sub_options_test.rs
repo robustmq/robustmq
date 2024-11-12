@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod common;
-
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
@@ -21,7 +19,7 @@ mod tests {
     use common_base::tools::unique_id;
     use paho_mqtt::{Message, RetainHandling, SubscribeOptions, QOS_0, QOS_2};
 
-    use crate::common::{broker_addr, connect_server5, distinct_conn};
+    use crate::mqtt_client::mqtt::common::{broker_addr, connect_server5, distinct_conn};
 
     #[tokio::test]
     async fn sub_options_no_local_test() {
