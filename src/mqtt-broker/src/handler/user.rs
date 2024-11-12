@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
+use std::time::Duration;
 
 use log::{error, info};
-use tokio::{select, sync::broadcast, time::sleep};
+use tokio::select;
+use tokio::sync::broadcast;
+use tokio::time::sleep;
 
 use crate::security::AuthDriver;
 
