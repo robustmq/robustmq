@@ -24,11 +24,12 @@ use protocol::placement_center::placement_center_journal::{
 };
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
+use rocksdb_engine::RocksDBEngine;
 
 use super::shard::update_last_segment_by_shard;
 use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
-use crate::journal::cache::JournalCacheManager;
+use crate::journal::cache::{load_journal_cache, JournalCacheManager};
 use crate::journal::controller::call_node::{
     update_cache_by_set_segment, update_cache_by_set_segment_meta, update_cache_by_set_shard,
     JournalInnerCallManager,
@@ -42,6 +43,7 @@ pub async fn create_segment_by_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &CreateNextSegmentRequest,
 ) -> Result<CreateNextSegmentReply, PlacementCenterError> {
     let mut shard = if let Some(shard) =
@@ -53,46 +55,86 @@ pub async fn create_segment_by_req(
             req.cluster_name.to_string(),
         ));
     };
-
-    let segment = build_next_segment(&shard, engine_cache, cluster_cache).await?;
-    sync_save_segment_info(raft_machine_apply, &segment).await?;
-
-    let metadata = JournalSegmentMetadata {
-        cluster_name: segment.cluster_name.clone(),
-        namespace: segment.namespace.clone(),
-        shard_name: segment.shard_name.clone(),
-        segment_seq: segment.segment_seq,
-        start_offset: -1,
-        end_offset: -1,
-        start_timestamp: -1,
-        end_timestamp: -1,
+    let next_segment_no = if let Some(segment_no) =
+        engine_cache.next_segment_seq(&req.cluster_name, &req.namespace, &req.shard_name)
+    {
+        segment_no
+    } else {
+        return Err(PlacementCenterError::ShardDoesNotExist(shard.name()));
     };
-    sync_save_segment_metadata_info(raft_machine_apply, &metadata).await?;
-    update_cache_by_set_segment_meta(&req.cluster_name, call_manager, client_pool, metadata)
+
+    let mut shard_notice = false;
+    // If the next Segment hasn't already been created, it triggers the creation of the next Segment
+    if engine_cache
+        .get_segment(
+            &req.cluster_name,
+            &req.namespace,
+            &req.shard_name,
+            next_segment_no,
+        )
+        .is_none()
+    {
+        let segment = build_segment(&shard, engine_cache, cluster_cache, next_segment_no).await?;
+        sync_save_segment_info(raft_machine_apply, &segment).await?;
+
+        let metadata = JournalSegmentMetadata {
+            cluster_name: segment.cluster_name.clone(),
+            namespace: segment.namespace.clone(),
+            shard_name: segment.shard_name.clone(),
+            segment_seq: segment.segment_seq,
+            start_offset: -1,
+            end_offset: -1,
+            start_timestamp: -1,
+            end_timestamp: -1,
+        };
+        sync_save_segment_metadata_info(raft_machine_apply, &metadata).await?;
+
+        update_last_segment_by_shard(
+            raft_machine_apply,
+            engine_cache,
+            &mut shard,
+            next_segment_no,
+        )
         .await?;
 
-    update_last_segment_by_shard(
-        raft_machine_apply,
-        engine_cache,
-        &mut shard,
-        segment.segment_seq,
-    )
-    .await?;
+        update_cache_by_set_segment_meta(&req.cluster_name, call_manager, client_pool, metadata)
+            .await?;
+        update_cache_by_set_segment(
+            &req.cluster_name,
+            call_manager,
+            client_pool,
+            segment.clone(),
+        )
+        .await?;
 
-    update_cache_by_set_shard(&segment.cluster_name, call_manager, client_pool, shard).await?;
-    update_cache_by_set_segment(
-        &segment.cluster_name,
-        call_manager,
-        client_pool,
-        segment.clone(),
-    )
-    .await?;
+        shard_notice = true;
+    }
 
-    let replica: Vec<u64> = segment.replicas.iter().map(|rep| rep.node_id).collect();
-    Ok(CreateNextSegmentReply {
-        segment_no: segment.segment_seq,
-        replica,
-    })
+    let active_segment = if let Some(segment) = engine_cache.get_segment(
+        &req.cluster_name,
+        &req.namespace,
+        &req.shard_name,
+        shard.active_segment_seq,
+    ) {
+        segment
+    } else {
+        load_journal_cache(engine_cache, rocksdb_engine_handler)?;
+        return Err(PlacementCenterError::SegmentDoesNotExist(shard.name()));
+    };
+
+    // try fixed segment status
+    if active_segment.status == SegmentStatus::SealUp
+        || active_segment.status == SegmentStatus::PreDelete
+        || active_segment.status == SegmentStatus::Deleteing
+    {
+        shard.active_segment_seq = next_segment_no;
+        shard_notice = true;
+    }
+    if shard_notice {
+        update_cache_by_set_shard(&req.cluster_name, call_manager, client_pool, shard).await?;
+    }
+
+    Ok(CreateNextSegmentReply {})
 }
 
 pub async fn delete_segment_by_req(
@@ -152,26 +194,6 @@ pub(crate) async fn build_first_segment(
     cluster_cache: &Arc<PlacementCacheManager>,
 ) -> Result<JournalSegment, PlacementCenterError> {
     build_segment(shard_info, engine_cache, cluster_cache, 0).await
-}
-
-async fn build_next_segment(
-    shard_info: &JournalShard,
-    engine_cache: &Arc<JournalCacheManager>,
-    cluster_cache: &Arc<PlacementCacheManager>,
-) -> Result<JournalSegment, PlacementCenterError> {
-    let segment_no = if let Some(segment_no) = engine_cache.next_segment_seq(
-        &shard_info.cluster_name,
-        &shard_info.namespace,
-        &shard_info.shard_name,
-    ) {
-        segment_no
-    } else {
-        return Err(PlacementCenterError::ShardDoesNotExist(
-            shard_info.shard_name.clone(),
-        ));
-    };
-
-    build_segment(shard_info, engine_cache, cluster_cache, segment_no).await
 }
 
 async fn build_segment(
