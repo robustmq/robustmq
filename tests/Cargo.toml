@@ -35,3 +35,6 @@ journal-client.workspace = true
 paho-mqtt.workspace = true
 mqtt-broker.workspace = true
 grpc-clients.workspace = true
+metadata-struct.workspace = true
+log.workspace = true
+tonic.workspace = true

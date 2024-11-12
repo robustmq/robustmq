@@ -14,3 +14,4 @@
 
 pub mod journal_client;
 pub mod mqtt_client;
+pub mod place_server;
