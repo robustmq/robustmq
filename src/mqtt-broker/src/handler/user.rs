@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use log::{error, info};
-use tokio::{select, sync::broadcast};
+use tokio::{select, sync::broadcast, time::sleep};
 
 use crate::security::AuthDriver;
 
@@ -58,5 +58,6 @@ impl UpdateUserCache {
                 error!("{}", e);
             }
         };
+        sleep(Duration::from_secs(10)).await;
     }
 }
