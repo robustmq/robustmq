@@ -17,6 +17,8 @@ use std::num::ParseIntError;
 use common_base::error::common::CommonError;
 use thiserror::Error;
 
+use super::write::SegmentWriteData;
+
 #[derive(Error, Debug)]
 pub enum JournalServerError {
     #[error("Directory {0} No rocksdb instance available")]
@@ -29,7 +31,19 @@ pub enum JournalServerError {
     StdIoError(#[from] std::io::Error),
 
     #[error("{0}")]
+    BroadcastBoolSendError(#[from] tokio::sync::broadcast::error::SendError<bool>),
+
+    #[error("{0}")]
+    MpscSegmentWriteDataSendError(#[from] tokio::sync::mpsc::error::SendError<SegmentWriteData>),
+
+    #[error("{0}")]
+    OneshotRecvError(#[from] tokio::sync::oneshot::error::RecvError),
+
+    #[error("{0}")]
     ProstDecodeError(#[from] prost::DecodeError),
+
+    #[error("{0}")]
+    TokioTimeErrorElapsed(#[from] tokio::time::error::Elapsed),
 
     #[error("{0}")]
     SerdeJsonError(#[from] serde_json::Error),
@@ -43,14 +57,20 @@ pub enum JournalServerError {
     #[error("Shard {0} does not exist")]
     ShardNotExist(String),
 
+    #[error("No Segment is available for Shard {0}")]
+    NotAvailableSegmets(String),
+
+    #[error("Shard {0} Not Active, is triggering the creation of an active Segment")]
+    NotActiveSegmet(String),
+
     #[error("Shard {0},segment {1} does not exist")]
     SegmentNotExist(String, u32),
 
     #[error("Connection ID {0} information not found in cache.")]
     NotFoundConnectionInCache(u64),
 
-    #[error("Segment {1} of the shard {0} has been sealed and is not allowed to be written.")]
-    SegmentHasBeenSealed(String, u32),
+    #[error("Segment {0} is currently in state {1} and is not allowed to write data")]
+    SegmentStatusError(String, String),
 
     #[error("Current node is not the Leader of Segment {1} in the shard {0}")]
     NotLeader(String, u32),
@@ -63,6 +83,53 @@ pub enum JournalServerError {
 
     #[error("Data directory configuration for Segment {0} on node {1} cannot be found, please check that the metadata information is correct")]
     SegmentDataDirectoryNotFound(String, u64),
+
+    #[error("Segment meta {0} does not exist, maybe it hasn't been initialized yet.")]
+    SegmentMetaNotExists(String),
 }
 
-pub enum JournalServerErrorCode {}
+pub fn get_journal_server_code(e: &JournalServerError) -> String {
+    match e {
+        JournalServerError::NoRocksdbInstanceAvailable(_) => {
+            "NoRocksdbInstanceAvailable".to_string()
+        }
+        JournalServerError::CommonError(_) => "CommonError".to_string(),
+        JournalServerError::BroadcastBoolSendError(_) => "BroadcastBoolSendError".to_string(),
+        JournalServerError::MpscSegmentWriteDataSendError(_) => {
+            "MpscSegmentWriteDataSendError".to_string()
+        }
+        JournalServerError::OneshotRecvError(_) => "OneshotRecvError".to_string(),
+        JournalServerError::TokioTimeErrorElapsed(_) => "TokioTimeErrorElapsed".to_string(),
+        JournalServerError::StdIoError(_) => "StdIoError".to_string(),
+        JournalServerError::ProstDecodeError(_) => "ProstDecodeError".to_string(),
+        JournalServerError::SerdeJsonError(_) => "SerdeJsonError".to_string(),
+        JournalServerError::ParseIntError(_) => "ParseIntError".to_string(),
+        JournalServerError::RequestBodyNotEmpty(_) => "RequestBodyNotEmpty".to_string(),
+        JournalServerError::ShardNotExist(_) => "ShardNotExist".to_string(),
+        JournalServerError::NotAvailableSegmets(_) => "NotAvailableSegmets".to_string(),
+        JournalServerError::NotActiveSegmet(_) => "NotActiveSegmet".to_string(),
+        JournalServerError::SegmentNotExist(_, _) => "SegmentNotExist".to_string(),
+        JournalServerError::NotFoundConnectionInCache(_) => "NotFoundConnectionInCache".to_string(),
+        JournalServerError::SegmentStatusError(_, _) => "SegmentStatusError".to_string(),
+        JournalServerError::NotLeader(_, _) => "NotLeader".to_string(),
+        JournalServerError::SegmentFileAlreadyExists(_) => "SegmentFileAlreadyExists".to_string(),
+        JournalServerError::SegmentFileNotExists(_) => "SegmentFileNotExists".to_string(),
+        JournalServerError::SegmentDataDirectoryNotFound(_, _) => {
+            "SegmentDataDirectoryNotFound".to_string()
+        }
+        JournalServerError::SegmentMetaNotExists(_) => "SegmentMetaNotExists".to_string(),
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::{get_journal_server_code, JournalServerError};
+
+    #[tokio::test]
+    async fn get_journal_server_code_test() {
+        let e = JournalServerError::SegmentMetaNotExists("xx".to_string());
+        assert_eq!(
+            get_journal_server_code(&e),
+            "SegmentMetaNotExists".to_string()
+        );
+    }
+}

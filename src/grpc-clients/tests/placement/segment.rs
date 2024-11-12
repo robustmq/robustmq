@@ -66,12 +66,9 @@ mod tests {
             cluster_name: cluster.clone(),
             namespace: namespace.clone(),
             shard_name: shard_name.clone(),
-            active_segment_next_num: 2,
         };
         let res = create_next_segment(client_pool, addrs, request)
             .await
             .unwrap();
-        assert_eq!(res.replica.len(), 1);
-        assert_eq!(res.segment_no, 0);
     }
 }

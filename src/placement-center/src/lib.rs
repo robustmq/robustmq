@@ -233,6 +233,8 @@ impl PlacementCenter {
             self.cluster_cache.clone(),
             raft_machine_apply.clone(),
             stop_send.clone(),
+            self.client_pool.clone(),
+            self.call_manager.clone(),
         );
         tokio::spawn(async move {
             ctrl.start_node_heartbeat_check().await;

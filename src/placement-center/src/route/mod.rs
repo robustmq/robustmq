@@ -120,21 +120,31 @@ impl DataRoute {
             }
 
             // Journal Engine
-            StorageDataType::JournalCreateShard => Ok(Some(
-                self.route_journal.create_shard(storage_data.value).await?,
+            StorageDataType::JournalSetShard => Ok(Some(
+                self.route_journal.set_shard(storage_data.value).await?,
             )),
             StorageDataType::JournalDeleteShard => {
                 self.route_journal.delete_shard(storage_data.value).await?;
                 Ok(None)
             }
-            StorageDataType::JournalCreateSegment => Ok(Some(
-                self.route_journal
-                    .create_segment(storage_data.value)
-                    .await?,
+            StorageDataType::JournalSetSegment => Ok(Some(
+                self.route_journal.set_segment(storage_data.value).await?,
             )),
             StorageDataType::JournalDeleteSegment => {
                 self.route_journal
                     .delete_segment(storage_data.value)
+                    .await?;
+                Ok(None)
+            }
+
+            StorageDataType::JournalSetSegmentMetadata => Ok(Some(
+                self.route_journal
+                    .set_segment_meta(storage_data.value)
+                    .await?,
+            )),
+            StorageDataType::JournalDeleteSegmentMetadata => {
+                self.route_journal
+                    .delete_segment_meta(storage_data.value)
                     .await?;
                 Ok(None)
             }

@@ -71,17 +71,31 @@ impl SegmentFileManager {
         None
     }
 
-    pub fn incr_end_offset(
+    pub fn get_segment_end_offset(
         &self,
         namespace: &str,
         shard_name: &str,
         segment: u32,
+    ) -> Option<u64> {
+        let key = self.key(namespace, shard_name, segment);
+        if let Some(data) = self.segment_files.get(&key) {
+            return Some(data.end_offset);
+        }
+        None
+    }
+
+    pub fn update_end_offset(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        segment: u32,
+        end_offset: u64,
     ) -> Result<(), JournalServerError> {
         let key = self.key(namespace, shard_name, segment);
         if let Some(mut data) = self.segment_files.get_mut(&key) {
-            data.end_offset += 1;
-            let offset_index = OffsetIndexManager::new(self.rocksdb_engine_handler.clone());
-            offset_index.save_end_offset(namespace, shard_name, segment, data.end_offset)?;
+            data.end_offset = end_offset;
+            // let offset_index = OffsetIndexManager::new(self.rocksdb_engine_handler.clone());
+            // offset_index.save_end_offset(namespace, shard_name, segment, data.end_offset)?;
         }
         Ok(())
     }

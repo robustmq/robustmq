@@ -32,6 +32,7 @@ members = [
     "src/journal-server",
     "src/journal-client",
     "src/storage-adapter",
+    "tests"
 ]
 
 resolver = "2"
@@ -119,11 +120,8 @@ robustmq-test = { path = "tests" }
 
 [profile.dev]
 overflow-checks = false
+incremental = true
 
 [profile.release]
 overflow-checks = false
-
-
-[workspace.package."*"]
-[workspace.package."*".dependencies]
-[workspace.package."journal-server"]
+incremental = true

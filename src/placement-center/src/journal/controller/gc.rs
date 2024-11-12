@@ -29,7 +29,9 @@ use protocol::journal_server::journal_inner::{
 
 use crate::core::cache::PlacementCacheManager;
 use crate::journal::cache::JournalCacheManager;
-use crate::journal::services::segmet::{sync_delete_segment_info, update_segment_status};
+use crate::journal::services::segmet::{
+    sync_delete_segment_info, sync_delete_segment_metadata_info, update_segment_status,
+};
 use crate::journal::services::shard::{
     sync_delete_shard_info, update_shard_status, update_start_segment_by_shard,
 };
@@ -113,6 +115,7 @@ pub async fn gc_shard_thread(
             let key =
                 engine_cache.shard_key(&shard.cluster_name, &shard.namespace, &shard.shard_name);
 
+            // delete segment
             if let Some(segment_list) = engine_cache.segment_list.get(&key) {
                 for segment in segment_list.iter() {
                     if let Err(e) =
@@ -127,6 +130,23 @@ pub async fn gc_shard_thread(
                 }
             }
 
+            // delete segment meta
+            if let Some(list) = engine_cache.segment_meta_list.get(&key) {
+                for segment in list.iter() {
+                    if let Err(e) =
+                        sync_delete_segment_metadata_info(&raft_machine_apply, &segment.clone())
+                            .await
+                    {
+                        error!(
+                            "Failed to delete data from Segment {} with error message {}",
+                            segment.name(),
+                            e
+                        );
+                    };
+                }
+            }
+
+            // delete shard
             if let Err(e) = sync_delete_shard_info(&raft_machine_apply, &shard).await {
                 error!(
                     "Failed to delete Shard {} data with error message :{}",
@@ -147,7 +167,7 @@ pub async fn gc_segment_thread(
     client_pool: Arc<ClientPool>,
 ) {
     for segment in engine_cache.wait_delete_segment_list.iter() {
-        if segment.status != SegmentStatus::PrepareDelete {
+        if segment.status != SegmentStatus::PreDelete {
             warn!(
                 "segment {} in wait_delete_segment_list is in the wrong state, current state is {:?}",
                 segment.name(),
@@ -233,6 +253,7 @@ pub async fn gc_segment_thread(
 
         // update info
         if !flag {
+            // delete segment
             if let Err(e) = sync_delete_segment_info(&raft_machine_apply, &segment).await {
                 error!(
                     "Failed to delete Segment {} data with error message :{}",
@@ -241,6 +262,24 @@ pub async fn gc_segment_thread(
                 );
             };
 
+            // delete segment meta
+            if let Some(meta) = engine_cache.get_segment_meta(
+                &segment.cluster_name,
+                &segment.namespace,
+                &segment.shard_name,
+                segment.segment_seq,
+            ) {
+                if let Err(e) = sync_delete_segment_metadata_info(&raft_machine_apply, &meta).await
+                {
+                    error!(
+                        "Failed to delete Segment metadata {} data with error message :{}",
+                        segment.name(),
+                        e
+                    );
+                };
+            }
+
+            // update start segment by shard
             if let Err(e) = update_start_segment_by_shard(
                 &raft_machine_apply,
                 &engine_cache,

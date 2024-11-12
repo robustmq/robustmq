@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt;
+
+use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -25,11 +28,12 @@ pub struct JournalSegment {
     pub leader: u64,
     pub isr: Vec<Replica>,
     pub status: SegmentStatus,
+    pub config: SegmentConfig,
 }
 
 impl JournalSegment {
-    pub fn is_seal_up(&self) -> bool {
-        self.status == SegmentStatus::PrepareSealUp || self.status == SegmentStatus::SealUp
+    pub fn allow_read(&self) -> bool {
+        self.status == SegmentStatus::Write
     }
 
     pub fn get_fold(&self, node_id: u64) -> Option<String> {
@@ -60,9 +64,42 @@ pub struct Replica {
 pub enum SegmentStatus {
     #[default]
     Idle,
+    PreWrite,
     Write,
-    PrepareSealUp,
+    PreSealUp,
     SealUp,
-    PrepareDelete,
+    PreDelete,
     Deleteing,
+}
+
+impl fmt::Display for SegmentStatus {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            SegmentStatus::Idle => write!(f, "Idle"),
+            SegmentStatus::PreWrite => write!(f, "PreWrite"),
+            SegmentStatus::Write => write!(f, "Write"),
+            SegmentStatus::PreSealUp => write!(f, "PreSealUp"),
+            SegmentStatus::SealUp => write!(f, "SealUp"),
+            SegmentStatus::PreDelete => write!(f, "PreDelete"),
+            SegmentStatus::Deleteing => write!(f, "Deleteing"),
+        }
+    }
+}
+
+pub fn str_to_segment_status(status: &str) -> Result<SegmentStatus, CommonError> {
+    match status {
+        "Idle" => Ok(SegmentStatus::Idle),
+        "PreWrite" => Ok(SegmentStatus::PreWrite),
+        "Write" => Ok(SegmentStatus::Write),
+        "PreSealUp" => Ok(SegmentStatus::PreSealUp),
+        "SealUp" => Ok(SegmentStatus::SealUp),
+        "PreDelete" => Ok(SegmentStatus::PreDelete),
+        "Deleteing" => Ok(SegmentStatus::Deleteing),
+        _ => Err(CommonError::CommmonError("".to_string())),
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct SegmentConfig {
+    pub max_segment_size: u64,
 }

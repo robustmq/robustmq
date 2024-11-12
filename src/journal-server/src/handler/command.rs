@@ -20,16 +20,18 @@ use log::{error, info};
 use protocol::journal_server::codec::JournalEnginePacket;
 use protocol::journal_server::journal_engine::{
     ApiKey, ApiVersion, CreateShardResp, CreateShardRespBody, DeleteShardResp, DeleteShardRespBody,
-    GetActiveSegmentResp, GetActiveSegmentRespBody, GetClusterMetadataResp,
-    GetClusterMetadataRespBody, JournalEngineError, OffsetCommitResp, OffsetCommitRespBody,
-    ReadResp, ReadRespBody, RespHeader, WriteResp, WriteRespBody,
+    GetClusterMetadataResp, GetClusterMetadataRespBody, GetShardMetadataResp,
+    GetShardMetadataRespBody, JournalEngineError, OffsetCommitResp, OffsetCommitRespBody, ReadResp,
+    ReadRespBody, RespHeader, WriteResp, WriteRespBody,
 };
 
 use super::cluster::ClusterHandler;
 use super::data::DataHandler;
 use super::shard::ShardHandler;
 use crate::core::cache::CacheManager;
+use crate::core::error::get_journal_server_code;
 use crate::core::offset::OffsetManager;
+use crate::core::write::WriteManager;
 use crate::segment::manager::SegmentFileManager;
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
@@ -47,10 +49,16 @@ impl Command {
         cache_manager: Arc<CacheManager>,
         offset_manager: Arc<OffsetManager>,
         segment_file_manager: Arc<SegmentFileManager>,
+        write_manager: Arc<WriteManager>,
     ) -> Self {
         let cluster_handler = ClusterHandler::new(cache_manager.clone());
         let shard_handler = ShardHandler::new(cache_manager.clone(), client_pool);
-        let data_handler = DataHandler::new(cache_manager, offset_manager, segment_file_manager);
+        let data_handler = DataHandler::new(
+            cache_manager,
+            offset_manager,
+            segment_file_manager,
+            write_manager,
+        );
         Command {
             cluster_handler,
             shard_handler,
@@ -80,7 +88,7 @@ impl Command {
                     Ok(data) => resp.body = Some(GetClusterMetadataRespBody { nodes: data }),
                     Err(e) => {
                         header.error = Some(JournalEngineError {
-                            code: 1,
+                            code: get_journal_server_code(&e),
                             error: e.to_string(),
                         });
                         resp.body = Some(GetClusterMetadataRespBody::default());
@@ -100,14 +108,12 @@ impl Command {
                     ..Default::default()
                 };
                 match self.shard_handler.create_shard(request).await {
-                    Ok(replicas) => {
-                        resp.body = Some(CreateShardRespBody {
-                            active_segment: Some(replicas),
-                        });
+                    Ok(()) => {
+                        resp.body = Some(CreateShardRespBody {});
                     }
                     Err(e) => {
                         header.error = Some(JournalEngineError {
-                            code: 1,
+                            code: get_journal_server_code(&e),
                             error: e.to_string(),
                         });
                         resp.body = Some(CreateShardRespBody::default());
@@ -130,7 +136,7 @@ impl Command {
                     }
                     Err(e) => {
                         header.error = Some(JournalEngineError {
-                            code: 1,
+                            code: get_journal_server_code(&e),
                             error: e.to_string(),
                         });
                         resp.body = Some(DeleteShardRespBody::default());
@@ -140,27 +146,27 @@ impl Command {
                 return Some(JournalEnginePacket::DeleteShardResp(resp));
             }
 
-            JournalEnginePacket::GetActiveSegmentReq(request) => {
-                let mut resp = GetActiveSegmentResp::default();
+            JournalEnginePacket::GetShardMetadataReq(request) => {
+                let mut resp = GetShardMetadataResp::default();
                 let mut header = RespHeader {
-                    api_key: ApiKey::GetActiveSegment.into(),
+                    api_key: ApiKey::GetShardMetadata.into(),
                     api_version: ApiVersion::V0.into(),
                     ..Default::default()
                 };
-                match self.shard_handler.active_segment(request).await {
+                match self.shard_handler.get_shard_metadata(request).await {
                     Ok(segments) => {
-                        resp.body = Some(GetActiveSegmentRespBody { segments });
+                        resp.body = Some(GetShardMetadataRespBody { segments });
                     }
                     Err(e) => {
                         header.error = Some(JournalEngineError {
-                            code: 1,
+                            code: get_journal_server_code(&e),
                             error: e.to_string(),
                         });
-                        resp.body = Some(GetActiveSegmentRespBody::default());
+                        resp.body = Some(GetShardMetadataRespBody::default());
                     }
                 }
                 resp.header = Some(header);
-                return Some(JournalEnginePacket::GetActiveSegmentResp(resp));
+                return Some(JournalEnginePacket::GetShardMetadataResp(resp));
             }
 
             /* Data Handler */
@@ -177,7 +183,7 @@ impl Command {
                     }
                     Err(e) => {
                         header.error = Some(JournalEngineError {
-                            code: 1,
+                            code: get_journal_server_code(&e),
                             error: e.to_string(),
                         });
                         resp.body = Some(WriteRespBody::default());
@@ -200,7 +206,7 @@ impl Command {
                     }
                     Err(e) => {
                         header.error = Some(JournalEngineError {
-                            code: 1,
+                            code: get_journal_server_code(&e),
                             error: e.to_string(),
                         });
                         resp.body = Some(ReadRespBody::default());
@@ -223,7 +229,7 @@ impl Command {
                     }
                     Err(e) => {
                         header.error = Some(JournalEngineError {
-                            code: 1,
+                            code: get_journal_server_code(&e),
                             error: e.to_string(),
                         });
                         resp.body = Some(OffsetCommitRespBody::default());

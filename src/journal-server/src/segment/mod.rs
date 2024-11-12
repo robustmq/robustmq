@@ -16,4 +16,4 @@ pub mod file;
 pub mod fold;
 pub mod manager;
 pub mod read;
-pub mod write;
+pub mod status;

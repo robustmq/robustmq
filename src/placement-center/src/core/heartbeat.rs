@@ -17,19 +17,22 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use common_base::tools::now_second;
+use grpc_clients::pool::ClientPool;
 use log::{error, info};
-use prost::Message;
 use protocol::placement_center::placement_center_inner::{ClusterType, UnRegisterNodeRequest};
 
+use super::cluster::un_register_node_by_req;
 use crate::core::cache::PlacementCacheManager;
+use crate::journal::controller::call_node::JournalInnerCallManager;
 use crate::route::apply::RaftMachineApply;
-use crate::route::data::{StorageData, StorageDataType};
 
 pub struct BrokerHeartbeat {
     timeout_ms: u64,
     check_time_ms: u64,
     cluster_cache: Arc<PlacementCacheManager>,
-    placement_center_storage: Arc<RaftMachineApply>,
+    raft_machine_apply: Arc<RaftMachineApply>,
+    client_pool: Arc<ClientPool>,
+    call_manager: Arc<JournalInnerCallManager>,
 }
 
 impl BrokerHeartbeat {
@@ -37,13 +40,17 @@ impl BrokerHeartbeat {
         timeout_ms: u64,
         check_time_ms: u64,
         cluster_cache: Arc<PlacementCacheManager>,
-        placement_center_storage: Arc<RaftMachineApply>,
+        raft_machine_apply: Arc<RaftMachineApply>,
+        client_pool: Arc<ClientPool>,
+        call_manager: Arc<JournalInnerCallManager>,
     ) -> Self {
         BrokerHeartbeat {
             timeout_ms,
             check_time_ms,
             cluster_cache,
-            placement_center_storage,
+            raft_machine_apply,
+            client_pool,
+            call_manager,
         }
     }
 
@@ -69,24 +76,24 @@ impl BrokerHeartbeat {
                                     cluster_name: node.cluster_name.clone(),
                                     cluster_type: ClusterType::JournalServer.into(),
                                 };
-                                let pcs = self.placement_center_storage.clone();
-                                let data = StorageData::new(
-                                    StorageDataType::ClusterDeleteNode,
-                                    UnRegisterNodeRequest::encode_to_vec(&req),
-                                );
-                                tokio::spawn(async move {
-                                    match pcs.client_write(data).await {
-                                        Ok(_) => {
-                                            info!(
-                                                   "The heartbeat of the Storage Engine node times out and is deleted from the cluster. Node ID: {}, node IP: {}.",
-                                                    node.node_id,
-                                                    node.node_ip);
-                                        }
-                                        Err(e) => {
-                                            error!("{}", e);
-                                        }
-                                    }
-                                });
+
+                                if let Err(e) = un_register_node_by_req(
+                                    &self.cluster_cache,
+                                    &self.raft_machine_apply,
+                                    &self.client_pool,
+                                    &self.call_manager,
+                                    req,
+                                )
+                                .await
+                                {
+                                    error!("{}", e);
+                                    continue;
+                                }
+
+                                info!(
+                                    "The heartbeat of the Storage Engine node times out and is deleted from the cluster. Node ID: {}, node IP: {}.",
+                                     node.node_id,
+                                     node.node_ip);
                             }
                         }
                     } else {

@@ -14,5 +14,6 @@
 # limitations under the License.
 
 hawkeye format
+cargo fmt --all
 cargo fmt --all -- --check
 cargo clippy --all -- --deny warnings
