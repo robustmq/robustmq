@@ -32,6 +32,7 @@ use tonic::{Request, Response, Status};
 
 use crate::core::cache::PlacementCacheManager;
 use crate::mqtt::services::share_sub::ShareSubLeader;
+use crate::mqtt::services::topic::{create_topic_req, set_topic_retain_message_req};
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::acl::AclStorage;
@@ -139,7 +140,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
 
         let data = StorageData::new(
-            StorageDataType::MqttCreateUser,
+            StorageDataType::MqttSetUser,
             CreateUserRequest::encode_to_vec(&req),
         );
 
@@ -175,13 +176,36 @@ impl MqttService for GrpcMqttService {
         request: Request<CreateTopicRequest>,
     ) -> Result<Response<CreateTopicReply>, Status> {
         let req = request.into_inner();
-        let data = StorageData::new(
-            StorageDataType::MqttCreateTopic,
-            CreateTopicRequest::encode_to_vec(&req),
-        );
 
-        match self.raft_machine_apply.client_write(data).await {
+        match create_topic_req(
+            &self.rocksdb_engine_handler,
+            &self.cluster_cache,
+            &self.raft_machine_apply,
+            req,
+        )
+        .await
+        {
             Ok(_) => return Ok(Response::new(CreateTopicReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn set_topic_retain_message(
+        &self,
+        request: Request<SetTopicRetainMessageRequest>,
+    ) -> Result<Response<SetTopicRetainMessageReply>, Status> {
+        let req = request.into_inner();
+
+        match set_topic_retain_message_req(
+            &self.rocksdb_engine_handler,
+            &self.raft_machine_apply,
+            req,
+        )
+        .await
+        {
+            Ok(_) => return Ok(Response::new(SetTopicRetainMessageReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -286,7 +310,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<CreateSessionReply>, Status> {
         let req: CreateSessionRequest = request.into_inner();
         let data = StorageData::new(
-            StorageDataType::MqttCreateSession,
+            StorageDataType::MqttSetSession,
             CreateSessionRequest::encode_to_vec(&req),
         );
 
@@ -310,24 +334,6 @@ impl MqttService for GrpcMqttService {
 
         match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(DeleteSessionReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
-    }
-
-    async fn set_topic_retain_message(
-        &self,
-        request: Request<SetTopicRetainMessageRequest>,
-    ) -> Result<Response<SetTopicRetainMessageReply>, Status> {
-        let req = request.into_inner();
-        let data = StorageData::new(
-            StorageDataType::MqttSetTopicRetainMessage,
-            SetTopicRetainMessageRequest::encode_to_vec(&req),
-        );
-
-        match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(SetTopicRetainMessageReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -403,7 +409,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<CreateAclReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
-            StorageDataType::MqttCreateAcl,
+            StorageDataType::MqttSetAcl,
             CreateAclRequest::encode_to_vec(&req),
         );
 
@@ -467,7 +473,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<CreateBlacklistReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
-            StorageDataType::MqttCreateBlacklist,
+            StorageDataType::MqttSetBlacklist,
             CreateBlacklistRequest::encode_to_vec(&req),
         );
 

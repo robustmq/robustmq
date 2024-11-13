@@ -13,3 +13,4 @@
 // limitations under the License.
 
 pub mod share_sub;
+pub mod topic;

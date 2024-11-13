@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod common;
 #[cfg(test)]
 mod tests {
     use common_base::error::common::CommonError;
@@ -26,7 +25,7 @@ mod tests {
     };
     use tonic::Status;
 
-    use crate::common::{
+    use crate::place_server::common::{
         cluster_name, cluster_type, extend_info, namespace, node_id, node_ip, pc_addr, producer_id,
         seq_num, shard_name, shard_replica,
     };

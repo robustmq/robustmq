@@ -77,13 +77,10 @@ impl DataRouteCluster {
 
     pub async fn delete_node(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let req: UnRegisterNodeRequest = UnRegisterNodeRequest::decode(value.as_ref())?;
-
         let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
         node_storage.delete(&req.cluster_name, req.node_id)?;
-
         self.cluster_cache
             .remove_broker_node(&req.cluster_name, req.node_id);
-
         Ok(())
     }
 

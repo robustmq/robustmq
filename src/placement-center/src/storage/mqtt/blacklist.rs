@@ -45,23 +45,13 @@ impl MqttBlackListStorage {
 
     pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttAclBlackList>, CommonError> {
         let prefix_key = storage_key_mqtt_blacklist_prefix(cluster_name);
-        match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
-            Ok(data) => {
-                let mut results = Vec::new();
-                for raw in data {
-                    match serde_json::from_slice::<MqttAclBlackList>(&raw.data) {
-                        Ok(blacklist) => {
-                            results.push(blacklist);
-                        }
-                        Err(e) => {
-                            return Err(e.into());
-                        }
-                    }
-                }
-                Ok(results)
-            }
-            Err(e) => Err(e),
+        let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let mut results = Vec::new();
+        for raw in data {
+            let blacklist = serde_json::from_slice::<MqttAclBlackList>(&raw.data)?;
+            results.push(blacklist);
         }
+        Ok(results)
     }
 
     pub fn delete(

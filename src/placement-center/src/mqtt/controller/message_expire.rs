@@ -208,20 +208,15 @@ mod tests {
             MessageExpire::new(cluster_name.clone(), rocksdb_engine_handler.clone());
 
         let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
-        let topic = MqttTopic::new(unique_id(), "tp1".to_string());
+        let mut topic = MqttTopic::new(unique_id(), "t1".to_string(), "tp1".to_string());
+        let retain_msg = MqttMessage::build_message("c1", &Publish::default(), &None, 600);
+        topic.retain_message = Some(retain_msg.encode());
+        topic.retain_message_expired_at = Some(3);
+
         topic_storage
             .save(&cluster_name, &topic.topic_name.clone(), topic.clone())
             .unwrap();
 
-        let retain_msg = MqttMessage::build_message("c1", &Publish::default(), &None, 600);
-        topic_storage
-            .set_topic_retain_message(
-                &cluster_name,
-                &topic.topic_name.clone(),
-                retain_msg.encode(),
-                3,
-            )
-            .unwrap();
         tokio::spawn(async move {
             loop {
                 message_expire.retain_message_expire().await;

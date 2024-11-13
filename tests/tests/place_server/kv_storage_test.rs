@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod common;
-
 #[cfg(test)]
 mod tests {
     use protocol::placement_center::placement_center_kv::kv_service_client::KvServiceClient;
@@ -21,7 +19,7 @@ mod tests {
         DeleteRequest, ExistsRequest, GetRequest, SetRequest,
     };
 
-    use crate::common::pc_addr;
+    use crate::place_server::common::pc_addr;
 
     #[tokio::test]
     async fn kv_storage() {

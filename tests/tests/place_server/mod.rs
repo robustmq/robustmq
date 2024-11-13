@@ -12,4 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod mqtt_admin_test;
+pub mod broker_heartbeat_test;
+pub mod cluster_node_test;
+pub mod common;
+pub mod grpc_clients_test;
+pub mod kv_storage_test;
+pub mod share_sub;

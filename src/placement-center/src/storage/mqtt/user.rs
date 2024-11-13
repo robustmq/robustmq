@@ -47,35 +47,20 @@ impl MqttUserStorage {
 
     pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttUser>, CommonError> {
         let prefix_key = storage_key_mqtt_user_cluster_prefix(cluster_name);
-        match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
-            Ok(data) => {
-                let mut results = Vec::new();
-                for raw in data {
-                    match serde_json::from_slice::<MqttUser>(&raw.data) {
-                        Ok(topic) => {
-                            results.push(topic);
-                        }
-                        Err(e) => {
-                            return Err(e.into());
-                        }
-                    }
-                }
-                Ok(results)
-            }
-            Err(e) => Err(e),
+        let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let mut results = Vec::new();
+        for raw in data {
+            results.push(serde_json::from_slice::<MqttUser>(&raw.data)?);
         }
+        Ok(results)
     }
 
     pub fn get(&self, cluster_name: &str, username: &str) -> Result<Option<MqttUser>, CommonError> {
         let key: String = storage_key_mqtt_user(cluster_name, username);
-        match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
-            Ok(Some(data)) => match serde_json::from_slice::<MqttUser>(&data.data) {
-                Ok(user) => Ok(Some(user)),
-                Err(e) => Err(e.into()),
-            },
-            Ok(None) => Ok(None),
-            Err(e) => Err(e),
+        if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
+            return Ok(Some(serde_json::from_slice::<MqttUser>(&data.data)?));
         }
+        Ok(None)
     }
 
     pub fn delete(&self, cluster_name: &str, user_name: &str) -> Result<(), CommonError> {

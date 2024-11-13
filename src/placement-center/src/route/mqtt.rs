@@ -15,11 +15,11 @@
 use std::sync::Arc;
 
 use metadata_struct::mqtt::session::MqttSession;
+use metadata_struct::mqtt::topic::MqttTopic;
 use prost::Message as _;
 use protocol::placement_center::placement_center_mqtt::{
-    CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteSessionRequest,
-    DeleteTopicRequest, DeleteUserRequest, SaveLastWillMessageRequest,
-    SetTopicRetainMessageRequest, UpdateSessionRequest,
+    CreateSessionRequest, CreateUserRequest, DeleteSessionRequest, DeleteTopicRequest,
+    DeleteUserRequest, SaveLastWillMessageRequest, UpdateSessionRequest,
 };
 
 use crate::core::error::PlacementCenterError;
@@ -56,10 +56,9 @@ impl DataRouteMqtt {
     }
 
     pub fn create_topic(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
-        let req = CreateTopicRequest::decode(value.as_ref())?;
+        let topic = serde_json::from_slice::<MqttTopic>(&value)?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
-        let topic = serde_json::from_slice(&req.content)?;
-        storage.save(&req.cluster_name, &req.topic_name, topic)?;
+        storage.save(&topic.cluster_name, &topic.topic_name, topic.clone())?;
         Ok(())
     }
 
@@ -67,19 +66,6 @@ impl DataRouteMqtt {
         let req = DeleteTopicRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&req.cluster_name, &req.topic_name)?;
-        Ok(())
-    }
-
-    pub fn set_topic_retain_message(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
-        let req: SetTopicRetainMessageRequest =
-            SetTopicRetainMessageRequest::decode(value.as_ref())?;
-        let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
-        storage.set_topic_retain_message(
-            &req.cluster_name,
-            &req.topic_name,
-            req.retain_message,
-            req.retain_message_expired_at,
-        )?;
         Ok(())
     }
 
@@ -102,36 +88,33 @@ impl DataRouteMqtt {
     pub fn update_session(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let req = UpdateSessionRequest::decode(value.as_ref())?;
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
-        let result = storage.get(&req.cluster_name, &req.client_id)?;
-        if result.is_none() {
-            return Err(PlacementCenterError::SessionDoesNotExist);
+
+        if let Some(mut session) = storage.get(&req.cluster_name, &req.client_id)? {
+            if req.connection_id > 0 {
+                session.update_connnction_id(Some(req.connection_id));
+            } else {
+                session.update_connnction_id(None);
+            }
+
+            if req.broker_id > 0 {
+                session.update_broker_id(Some(req.broker_id));
+            } else {
+                session.update_broker_id(None);
+            }
+
+            if req.reconnect_time > 0 {
+                session.reconnect_time = Some(req.reconnect_time);
+            }
+
+            if req.distinct_time > 0 {
+                session.distinct_time = Some(req.distinct_time);
+            } else {
+                session.distinct_time = None;
+            }
+
+            storage.save(&req.cluster_name, &req.client_id, session)?;
         }
 
-        let mut session = result.unwrap();
-
-        if req.connection_id > 0 {
-            session.update_connnction_id(Some(req.connection_id));
-        } else {
-            session.update_connnction_id(None);
-        }
-
-        if req.broker_id > 0 {
-            session.update_broker_id(Some(req.broker_id));
-        } else {
-            session.update_broker_id(None);
-        }
-
-        if req.reconnect_time > 0 {
-            session.reconnect_time = Some(req.reconnect_time);
-        }
-
-        if req.distinct_time > 0 {
-            session.distinct_time = Some(req.distinct_time);
-        } else {
-            session.distinct_time = None;
-        }
-
-        storage.save(&req.cluster_name, &req.client_id, session)?;
         Ok(())
     }
 

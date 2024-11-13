@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod common;
-
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
@@ -26,7 +24,9 @@ mod tests {
     };
     use tokio::time::sleep;
 
-    use crate::common::{cluster_name, cluster_type, extend_info, node_id, node_ip, pc_addr};
+    use crate::place_server::common::{
+        cluster_name, cluster_type, extend_info, node_id, node_ip, pc_addr,
+    };
 
     #[tokio::test]
     async fn node_heartbeat_keep_alive_test() {

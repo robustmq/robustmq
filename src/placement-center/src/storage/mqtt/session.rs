@@ -68,14 +68,10 @@ impl MqttSessionStorage {
         client_id: &str,
     ) -> Result<Option<MqttSession>, CommonError> {
         let key: String = storage_key_mqtt_session(cluster_name, client_id);
-        match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
-            Ok(Some(data)) => match serde_json::from_slice::<MqttSession>(&data.data) {
-                Ok(session) => Ok(Some(session)),
-                Err(e) => Err(e.into()),
-            },
-            Ok(None) => Ok(None),
-            Err(e) => Err(e),
+        if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
+            return Ok(Some(serde_json::from_slice::<MqttSession>(&data.data)?));
         }
+        Ok(None)
     }
 
     pub fn delete(&self, cluster_name: &str, client_id: &str) -> Result<(), CommonError> {

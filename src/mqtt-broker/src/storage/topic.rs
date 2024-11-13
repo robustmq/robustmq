@@ -240,7 +240,7 @@ mod tests {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_pool);
         let topic_name: String = "test_password".to_string();
-        let topic = MqttTopic::new(unique_id(), topic_name.clone());
+        let topic = MqttTopic::new(unique_id(), "c1".to_string(), topic_name.clone());
         topic_storage.save_topic(topic).await.unwrap();
 
         let result = topic_storage
@@ -286,7 +286,7 @@ mod tests {
             payload: Bytes::from(content.clone()),
             ..Default::default()
         };
-        let topic = MqttTopic::new(unique_id(), topic_name.clone());
+        let topic = MqttTopic::new(unique_id(), "c1".to_string(), topic_name.clone());
         topic_storage.save_topic(topic).await.unwrap();
 
         let result_message = topic_storage

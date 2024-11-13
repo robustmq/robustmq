@@ -3128,6 +3128,8 @@ dependencies = [
  "futures",
  "grpc-clients",
  "journal-client",
+ "log",
+ "metadata-struct",
  "mqtt-broker",
  "paho-mqtt",
  "protocol",
@@ -3136,6 +3138,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util",
+ "tonic",
 ]
 
 [[package]]
