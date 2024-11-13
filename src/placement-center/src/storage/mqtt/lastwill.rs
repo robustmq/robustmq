@@ -16,7 +16,6 @@ use std::sync::Arc;
 
 use metadata_struct::mqtt::lastwill::LastWillData;
 
-use super::session::MqttSessionStorage;
 use crate::core::error::PlacementCenterError;
 use crate::storage::engine::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_save_by_cluster,
@@ -41,12 +40,6 @@ impl MqttLastWillStorage {
         client_id: &str,
         last_will_message: LastWillData,
     ) -> Result<(), PlacementCenterError> {
-        let session_storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
-        let results = session_storage.get(cluster_name, client_id)?;
-        if results.is_none() {
-            return Err(PlacementCenterError::SessionDoesNotExist);
-        }
-
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, last_will_message)?;
         Ok(())

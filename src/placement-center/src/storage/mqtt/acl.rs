@@ -57,23 +57,13 @@ impl AclStorage {
 
     pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttAcl>, CommonError> {
         let prefix_key = storage_key_mqtt_acl_prefix(cluster_name);
-        match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
-            Ok(data) => {
-                let mut results = Vec::new();
-                for raw in data {
-                    match serde_json::from_slice::<Vec<MqttAcl>>(&raw.data) {
-                        Ok(acl_list) => {
-                            results.extend(acl_list);
-                        }
-                        Err(e) => {
-                            return Err(e.into());
-                        }
-                    }
-                }
-                Ok(results)
-            }
-            Err(e) => Err(e),
+        let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let mut results = Vec::new();
+        for raw in data {
+            let acl_list = serde_json::from_slice::<Vec<MqttAcl>>(&raw.data)?;
+            results.extend(acl_list);
         }
+        Ok(results)
     }
 
     pub fn delete(&self, cluster_name: &str, delete_acl: &MqttAcl) -> Result<(), CommonError> {
@@ -112,14 +102,10 @@ impl AclStorage {
         resource_name: &str,
     ) -> Result<Vec<MqttAcl>, CommonError> {
         let key = storage_key_mqtt_acl(cluster_name, resource_type, resource_name);
-        match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
-            Ok(Some(data)) => match serde_json::from_slice::<Vec<MqttAcl>>(&data.data) {
-                Ok(session) => Ok(session),
-                Err(e) => Err(e.into()),
-            },
-            Ok(None) => Ok(Vec::new()),
-            Err(e) => Err(e),
+        if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
+            return Ok(serde_json::from_slice::<Vec<MqttAcl>>(&data.data)?);
         }
+        Ok(Vec::new())
     }
 
     fn acl_exists(&self, acl_list: &[MqttAcl], acl: &MqttAcl) -> bool {
@@ -134,10 +120,4 @@ impl AclStorage {
         }
         false
     }
-}
-
-#[cfg(test)]
-mod tests {
-    #[tokio::test]
-    async fn unique_id_int() {}
 }

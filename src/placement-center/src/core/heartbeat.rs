@@ -17,19 +17,31 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use common_base::tools::now_second;
+use grpc_clients::pool::ClientPool;
 use log::{error, info};
-use prost::Message;
-use protocol::placement_center::placement_center_inner::{ClusterType, UnRegisterNodeRequest};
+use metadata_struct::placement::node::str_to_cluster_type;
+use protocol::placement_center::placement_center_inner::UnRegisterNodeRequest;
+use serde::{Deserialize, Serialize};
 
+use super::cluster::un_register_node_by_req;
 use crate::core::cache::PlacementCacheManager;
+use crate::journal::controller::call_node::JournalInnerCallManager;
 use crate::route::apply::RaftMachineApply;
-use crate::route::data::{StorageData, StorageDataType};
+
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+pub struct NodeHeartbeatData {
+    pub cluster_name: String,
+    pub node_id: u64,
+    pub time: u64,
+}
 
 pub struct BrokerHeartbeat {
     timeout_ms: u64,
     check_time_ms: u64,
     cluster_cache: Arc<PlacementCacheManager>,
-    placement_center_storage: Arc<RaftMachineApply>,
+    raft_machine_apply: Arc<RaftMachineApply>,
+    client_pool: Arc<ClientPool>,
+    call_manager: Arc<JournalInnerCallManager>,
 }
 
 impl BrokerHeartbeat {
@@ -37,71 +49,66 @@ impl BrokerHeartbeat {
         timeout_ms: u64,
         check_time_ms: u64,
         cluster_cache: Arc<PlacementCacheManager>,
-        placement_center_storage: Arc<RaftMachineApply>,
+        raft_machine_apply: Arc<RaftMachineApply>,
+        client_pool: Arc<ClientPool>,
+        call_manager: Arc<JournalInnerCallManager>,
     ) -> Self {
         BrokerHeartbeat {
             timeout_ms,
             check_time_ms,
             cluster_cache,
-            placement_center_storage,
+            raft_machine_apply,
+            client_pool,
+            call_manager,
         }
     }
 
     pub async fn start(&mut self) {
-        for (cluster_name, node_list) in self.cluster_cache.node_list.clone() {
-            for (node_id, node) in node_list.clone() {
-                if !self
-                    .cluster_cache
-                    .node_heartbeat
-                    .contains_key(&cluster_name)
+        let node_list = self.cluster_cache.node_list.clone();
+
+        for node_raw in node_list.iter() {
+            let cluster_name = node_raw.key();
+
+            for node_raw in node_raw.value().iter() {
+                let node_id = node_raw.key();
+                let node = node_raw.value();
+
+                if let Some(heart_data) =
+                    self.cluster_cache.get_broker_heart(cluster_name, *node_id)
                 {
-                    continue;
-                }
-                if let Some(cluster_heartbeat) =
-                    self.cluster_cache.node_heartbeat.get(&cluster_name)
-                {
-                    if let Some(time) = cluster_heartbeat.get(&node_id) {
-                        if now_second() - *time >= self.timeout_ms / 1000 {
-                            let cluster_name = node.cluster_name.clone();
-                            if self.cluster_cache.cluster_list.get(&cluster_name).is_some() {
-                                let req = UnRegisterNodeRequest {
-                                    node_id: node.node_id,
-                                    cluster_name: node.cluster_name.clone(),
-                                    cluster_type: ClusterType::JournalServer.into(),
-                                };
-                                let pcs = self.placement_center_storage.clone();
-                                let data = StorageData::new(
-                                    StorageDataType::ClusterUngisterNode,
-                                    UnRegisterNodeRequest::encode_to_vec(&req),
-                                );
-                                tokio::spawn(async move {
-                                    match pcs.client_write(data).await {
-                                        Ok(_) => {
-                                            info!(
-                                                   "The heartbeat of the Storage Engine node times out and is deleted from the cluster. Node ID: {}, node IP: {}.",
-                                                    node.node_id,
-                                                    node.node_ip);
-                                        }
-                                        Err(e) => {
-                                            error!("{}", e);
-                                        }
-                                    }
-                                });
-                            }
+                    if now_second() - heart_data.time >= self.timeout_ms / 1000
+                        && self.cluster_cache.cluster_list.get(cluster_name).is_some()
+                    {
+                        let cluster_type = str_to_cluster_type(&node.cluster_type).unwrap();
+                        let req = UnRegisterNodeRequest {
+                            node_id: *node_id,
+                            cluster_name: cluster_name.to_string(),
+                            cluster_type: cluster_type.into(),
+                        };
+
+                        if let Err(e) = un_register_node_by_req(
+                            &self.cluster_cache,
+                            &self.raft_machine_apply,
+                            &self.client_pool,
+                            &self.call_manager,
+                            req,
+                        )
+                        .await
+                        {
+                            error!("Heartbeat timeout, failed to delete node {} in cluster {}, error message :{}", node_id,cluster_name,e);
+                            continue;
                         }
-                    } else {
-                        self.cluster_cache.report_heart_by_broker_node(
-                            &cluster_name,
-                            node_id,
-                            now_second(),
-                        );
+
+                        self.cluster_cache
+                            .remove_broker_heart(cluster_name, *node_id);
+                        info!(
+                                    "The heartbeat of the Node times out and is deleted from the cluster. Node ID: {}, node IP: {}.",
+                                     *node_id,
+                                     node.node_ip);
                     }
                 } else {
-                    self.cluster_cache.report_heart_by_broker_node(
-                        &cluster_name,
-                        node_id,
-                        now_second(),
-                    );
+                    self.cluster_cache
+                        .report_broker_heart(cluster_name, *node_id);
                 }
             }
         }

@@ -19,7 +19,9 @@ use prost::Message;
 use protocol::placement_center::placement_center_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, CreateShardReply, CreateShardRequest,
     DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest,
-    ListSegmentReply, ListSegmentRequest, ListShardReply, ListShardRequest,
+    ListSegmentMetaReply, ListSegmentMetaRequest, ListSegmentReply, ListSegmentRequest,
+    ListShardReply, ListShardRequest, UpdateSegmentMetaReply, UpdateSegmentMetaRequest,
+    UpdateSegmentStatusReply, UpdateSegmentStatusRequest,
 };
 
 use crate::placement::{retry_call, PlacementCenterInterface, PlacementCenterService};
@@ -156,6 +158,75 @@ pub async fn delete_segment(
     .await
     {
         Ok(data) => match DeleteSegmentReply::decode(data.as_ref()) {
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => Err(e),
+    }
+}
+
+pub async fn update_segment_status(
+    client_pool: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: UpdateSegmentStatusRequest,
+) -> Result<UpdateSegmentStatusReply, CommonError> {
+    let request_data = UpdateSegmentStatusRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Journal,
+        PlacementCenterInterface::UpdateSegmentStatus,
+        client_pool,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match UpdateSegmentStatusReply::decode(data.as_ref()) {
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => Err(e),
+    }
+}
+
+pub async fn list_segment_meta(
+    client_pool: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: ListSegmentMetaRequest,
+) -> Result<ListSegmentMetaReply, CommonError> {
+    let request_data = ListSegmentMetaRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Journal,
+        PlacementCenterInterface::ListSegmentMeta,
+        client_pool,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match ListSegmentMetaReply::decode(data.as_ref()) {
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => Err(e),
+    }
+}
+
+pub async fn update_segment_meta(
+    client_pool: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: UpdateSegmentMetaRequest,
+) -> Result<UpdateSegmentMetaReply, CommonError> {
+    let request_data = UpdateSegmentMetaRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Journal,
+        PlacementCenterInterface::UpdateSegmentMeta,
+        client_pool,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match UpdateSegmentMetaReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
             Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },

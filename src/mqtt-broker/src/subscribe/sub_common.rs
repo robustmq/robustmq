@@ -535,7 +535,7 @@ mod tests {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
         let metadata_cache = Arc::new(CacheManager::new(client_pool, "test-cluster".to_string()));
         let topic_name = "/test/topic".to_string();
-        let topic = MqttTopic::new(unique_id(), topic_name.clone());
+        let topic = MqttTopic::new(unique_id(), "c1".to_string(), topic_name.clone());
         metadata_cache.add_topic(&topic_name, &topic);
 
         let sub_path = "/test/topic".to_string();

@@ -13,4 +13,5 @@
 // limitations under the License.
 
 pub mod segment;
+pub mod segment_meta;
 pub mod shard;

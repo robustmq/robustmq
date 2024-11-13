@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -53,6 +54,10 @@ pub trait AuthStorageAdapter {
     async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, CommonError>;
 
     async fn get_user(&self, username: String) -> Result<Option<MqttUser>, CommonError>;
+
+    async fn save_user(&self, user_info: MqttUser) -> Result<(), CommonError>;
+
+    async fn delete_user(&self, username: String) -> Result<(), CommonError>;
 }
 
 pub struct AuthDriver {
@@ -98,6 +103,60 @@ impl AuthDriver {
 
     pub async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, CommonError> {
         self.driver.read_all_blacklist().await
+    }
+
+    pub async fn save_user(&self, user_info: MqttUser) -> Result<(), CommonError> {
+        match self.driver.read_all_user().await {
+            Ok(date) => {
+                let is_existed = date.iter().any(|user| *user.key() == user_info.username);
+                if is_existed {
+                    return Err(CommonError::CommmonError(
+                        "user has beed existed".to_string(),
+                    ));
+                }
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        };
+        self.cache_manager.add_user(user_info.clone());
+        self.driver.save_user(user_info).await
+    }
+
+    pub async fn delete_user(&self, username: String) -> Result<(), CommonError> {
+        match self.driver.read_all_user().await {
+            Ok(date) => {
+                let is_existed = date.iter().any(|user| *user.key() == username);
+                if !is_existed {
+                    return Err(CommonError::CommmonError("user does not exist".to_string()));
+                };
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        };
+        match self.driver.delete_user(username.clone()).await {
+            Ok(()) => {
+                self.cache_manager.del_user(username.clone());
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    pub async fn update_user_cache(&self) -> Result<(), CommonError> {
+        let all_users: DashMap<String, MqttUser> = self.driver.read_all_user().await?;
+
+        for entry in all_users.iter() {
+            let user = entry.value().clone();
+            self.cache_manager.add_user(user);
+        }
+
+        let db_usernames: HashSet<String> =
+            all_users.iter().map(|user| user.key().clone()).collect();
+        self.cache_manager.retain_users(db_usernames);
+
+        Ok(())
     }
 
     pub async fn check_login_auth(
@@ -181,7 +240,6 @@ impl AuthDriver {
                 return Err(e.into());
             }
         }
-
         Ok(false)
     }
 

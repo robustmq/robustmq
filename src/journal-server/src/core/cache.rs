@@ -15,19 +15,23 @@
 use std::sync::Arc;
 
 use common_base::config::journal_server::journal_server_conf;
+use common_base::tools::now_second;
 use dashmap::DashMap;
-use grpc_clients::placement::journal::call::{list_segment, list_shard};
+use grpc_clients::placement::journal::call::{list_segment, list_segment_meta, list_shard};
 use grpc_clients::placement::placement::call::node_list;
 use grpc_clients::pool::ClientPool;
 use log::{error, info};
-use metadata_struct::journal::segment::JournalSegment;
+use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
+use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
 use metadata_struct::placement::node::BrokerNode;
 use protocol::journal_server::journal_inner::{
     JournalUpdateCacheActionType, JournalUpdateCacheResourceType,
 };
 use protocol::placement_center::placement_center_inner::NodeListRequest;
-use protocol::placement_center::placement_center_journal::{ListSegmentRequest, ListShardRequest};
+use protocol::placement_center::placement_center_journal::{
+    ListSegmentMetaRequest, ListSegmentRequest, ListShardRequest,
+};
 use rocksdb_engine::RocksDBEngine;
 
 use super::cluster::JournalEngineClusterConfig;
@@ -37,8 +41,9 @@ use crate::segment::manager::{create_local_segment, SegmentFileManager};
 pub struct CacheManager {
     pub cluster: DashMap<String, JournalEngineClusterConfig>,
     pub node_list: DashMap<u64, BrokerNode>,
-    shards: DashMap<String, JournalShard>,
-    segments: DashMap<String, DashMap<u32, JournalSegment>>,
+    pub shards: DashMap<String, JournalShard>,
+    pub segments: DashMap<String, DashMap<u32, JournalSegment>>,
+    pub segment_metadatas: DashMap<String, DashMap<u32, JournalSegmentMetadata>>,
 }
 
 impl CacheManager {
@@ -47,11 +52,13 @@ impl CacheManager {
         let node_list = DashMap::with_capacity(2);
         let shards = DashMap::with_capacity(8);
         let segments = DashMap::with_capacity(8);
+        let segment_metadatas = DashMap::with_capacity(8);
         CacheManager {
             cluster,
             node_list,
             shards,
             segments,
+            segment_metadatas,
         }
     }
 
@@ -72,6 +79,21 @@ impl CacheManager {
         self.cluster.insert("local".to_string(), cluster);
     }
 
+    pub fn update_local_cache_time(&self, time: u64) {
+        if let Some(mut cluster) = self.cluster.get_mut("local") {
+            cluster.last_update_local_cache_time = time;
+        }
+    }
+
+    pub fn is_allow_update_local_cache(&self) -> bool {
+        if let Some(cluster) = self.cluster.get("local") {
+            if (now_second() - cluster.last_update_local_cache_time) > 3 {
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn set_shard(&self, shard: JournalShard) {
         let key = self.shard_key(&shard.namespace, &shard.shard_name);
         self.shards.insert(key, shard);
@@ -89,6 +111,7 @@ impl CacheManager {
         let key = self.shard_key(namespace, shard_name);
         self.shards.remove(&key);
         self.segments.remove(&key);
+        self.segment_metadatas.remove(&key);
     }
 
     pub fn shard_is_exists(&self, namespace: &str, shard_name: &str) -> bool {
@@ -101,9 +124,7 @@ impl CacheManager {
         if let Some(shard) = self.shards.get(&key) {
             if let Some(segment) = self.get_segment(namespace, shard_name, shard.active_segment_seq)
             {
-                if !segment.is_seal_up() {
-                    return Some(segment);
-                }
+                return Some(segment);
             }
         }
 
@@ -123,8 +144,12 @@ impl CacheManager {
 
     pub fn delete_segment(&self, segment: &JournalSegment) {
         let key = self.shard_key(&segment.namespace, &segment.shard_name);
-        if let Some(segment_list) = self.segments.get(&key) {
-            segment_list.remove(&segment.segment_seq);
+        if let Some(list) = self.segments.get(&key) {
+            list.remove(&segment.segment_seq);
+        }
+
+        if let Some(list) = self.segment_metadatas.get(&key) {
+            list.remove(&segment.segment_seq);
         }
     }
 
@@ -143,7 +168,55 @@ impl CacheManager {
         None
     }
 
-    fn shard_key(&self, namespace: &str, shard_name: &str) -> String {
+    pub fn update_segment_status(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        segment_no: u32,
+        status: SegmentStatus,
+    ) {
+        let key = self.shard_key(namespace, shard_name);
+        if let Some(sgement_list) = self.segments.get(&key) {
+            if let Some(mut segment) = sgement_list.get_mut(&segment_no) {
+                segment.status = status;
+            }
+        }
+    }
+
+    pub fn set_segment_meta(&self, segment: JournalSegmentMetadata) {
+        let key = self.shard_key(&segment.namespace, &segment.shard_name);
+        if let Some(list) = self.segment_metadatas.get(&key) {
+            list.insert(segment.segment_seq, segment);
+        } else {
+            let data = DashMap::with_capacity(2);
+            data.insert(segment.segment_seq, segment);
+            self.segment_metadatas.insert(key, data);
+        }
+    }
+
+    pub fn delete_segment_meta(&self, segment: &JournalSegment) {
+        let key = self.shard_key(&segment.namespace, &segment.shard_name);
+        if let Some(list) = self.segment_metadatas.get(&key) {
+            list.remove(&segment.segment_seq);
+        }
+    }
+
+    pub fn get_segment_meta(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        segment_no: u32,
+    ) -> Option<JournalSegmentMetadata> {
+        let key = self.shard_key(namespace, shard_name);
+        if let Some(list) = self.segment_metadatas.get(&key) {
+            if let Some(segment) = list.get(&segment_no) {
+                return Some(segment.clone());
+            }
+        }
+        None
+    }
+
+    pub fn shard_key(&self, namespace: &str, shard_name: &str) -> String {
         format!("{}_{}", namespace, shard_name)
     }
 }
@@ -161,6 +234,16 @@ pub async fn update_cache(
         JournalUpdateCacheResourceType::Shard => parse_shard(cache_manager, action_type, data),
         JournalUpdateCacheResourceType::Segment => {
             parse_segment(
+                cache_manager,
+                segement_file_manager,
+                rocksdb_engine_handler,
+                action_type,
+                data,
+            )
+            .await
+        }
+        JournalUpdateCacheResourceType::SegmentMeta => {
+            parse_segment_meta(
                 cache_manager,
                 segement_file_manager,
                 rocksdb_engine_handler,
@@ -285,8 +368,47 @@ async fn parse_segment(
     }
 }
 
+async fn parse_segment_meta(
+    cache_manager: &Arc<CacheManager>,
+    segement_file_manager: &Arc<SegmentFileManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    action_type: JournalUpdateCacheActionType,
+    data: &str,
+) {
+    match action_type {
+        JournalUpdateCacheActionType::Set => {
+            match serde_json::from_str::<JournalSegmentMetadata>(data) {
+                Ok(segment) => {
+                    info!(
+                        "Update the cache, set segment meta, segment name:{}",
+                        segment.name()
+                    );
+                    cache_manager.set_segment_meta(segment);
+                }
+                Err(e) => {
+                    error!(
+                        "Set segment meta information failed to parse with error message :{},body:{}",
+                        e, data,
+                    );
+                }
+            }
+        }
+        _ => {
+            error!(
+                "UpdateCache updates SegmentMeta information, only supports Set operations, not {:?}",
+                action_type
+            );
+        }
+    }
+}
+
 pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool: &Arc<ClientPool>) {
     let conf = journal_server_conf();
+
+    if !cache_manager.is_allow_update_local_cache() {
+        return;
+    }
+
     // load node
     let request = NodeListRequest {
         cluster_name: conf.cluster_name.clone(),
@@ -370,5 +492,33 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
             );
         }
     }
-    // load group
+    // load segment data
+    let request = ListSegmentMetaRequest {
+        cluster_name: conf.cluster_name.clone(),
+        ..Default::default()
+    };
+    match list_segment_meta(client_pool.clone(), conf.placement_center.clone(), request).await {
+        Ok(list) => match serde_json::from_slice::<Vec<JournalSegmentMetadata>>(&list.segments) {
+            Ok(data) => {
+                info!(
+                    "Load the segment metadata cache, the number of segments is {}",
+                    data.len()
+                );
+                for meta in data {
+                    cache_manager.set_segment_meta(meta);
+                }
+            }
+            Err(e) => {
+                panic!("Failed to decode the JournalShard information, {}", e);
+            }
+        },
+        Err(e) => {
+            panic!(
+                "Loading the shardcache from the Placement Center failed, {}",
+                e
+            );
+        }
+    }
+
+    cache_manager.update_local_cache_time(now_second());
 }

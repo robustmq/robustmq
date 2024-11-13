@@ -63,6 +63,9 @@ pub enum PlacementCenterInterface {
     ListSegment,
     CreateSegment,
     DeleteSegment,
+    UpdateSegmentStatus,
+    ListSegmentMeta,
+    UpdateSegmentMeta,
 
     // mqtt service interface
     GetShareSubLeader,

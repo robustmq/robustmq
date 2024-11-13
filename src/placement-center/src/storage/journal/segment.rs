@@ -29,7 +29,7 @@ use crate::storage::rocksdb::RocksDBEngine;
 
 #[allow(dead_code)]
 pub fn is_seal_up_segment(status: &SegmentStatus) -> bool {
-    *status == SegmentStatus::PrepareSealUp || *status == SegmentStatus::SealUp
+    *status == SegmentStatus::PreSealUp || *status == SegmentStatus::SealUp
 }
 
 pub struct SegmentStorage {

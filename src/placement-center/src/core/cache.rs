@@ -22,6 +22,7 @@ use metadata_struct::placement::node::BrokerNode;
 use raft::StateRole;
 use serde::{Deserialize, Serialize};
 
+use super::heartbeat::NodeHeartbeatData;
 use crate::core::cluster::ClusterMetadata;
 use crate::core::raft_node::RaftNode;
 use crate::storage::placement::cluster::ClusterStorage;
@@ -36,7 +37,7 @@ pub struct PlacementCacheManager {
     // broker cluster & node
     pub cluster_list: DashMap<String, ClusterInfo>,
     pub node_list: DashMap<String, DashMap<u64, BrokerNode>>,
-    pub node_heartbeat: DashMap<String, DashMap<u64, u64>>,
+    pub node_heartbeat: DashMap<String, NodeHeartbeatData>,
 }
 
 impl PlacementCacheManager {
@@ -57,8 +58,6 @@ impl PlacementCacheManager {
     }
 
     pub fn add_broker_node(&self, node: BrokerNode) {
-        self.report_heart_by_broker_node(&node.cluster_name, node.node_id, now_second());
-
         if let Some(data) = self.node_list.get_mut(&node.cluster_name) {
             data.insert(node.node_id, node);
         } else {
@@ -74,23 +73,20 @@ impl PlacementCacheManager {
         node_id: u64,
     ) -> Option<(u64, BrokerNode)> {
         if let Some(data) = self.node_list.get_mut(cluster_name) {
-            if let Some(data) = self.node_heartbeat.get_mut(cluster_name) {
-                data.remove(&node_id);
-            }
             return data.remove(&node_id);
         }
         None
     }
 
     pub fn get_broker_num(&self, cluster_name: &str) -> usize {
-        if let Some(data) = self.node_list.get_mut(cluster_name) {
+        if let Some(data) = self.node_list.get(cluster_name) {
             return data.len();
         }
         0
     }
 
     pub fn get_broker_node(&self, cluster_name: &str, node_id: u64) -> Option<BrokerNode> {
-        if let Some(data) = self.node_list.get_mut(cluster_name) {
+        if let Some(data) = self.node_list.get(cluster_name) {
             if let Some(value) = data.get(&node_id) {
                 return Some(value.clone());
             }
@@ -100,7 +96,7 @@ impl PlacementCacheManager {
 
     pub fn get_broker_node_addr_by_cluster(&self, cluster_name: &str) -> Vec<String> {
         let mut results = Vec::new();
-        if let Some(data) = self.node_list.get_mut(cluster_name) {
+        if let Some(data) = self.node_list.get(cluster_name) {
             for (_, node) in data.clone() {
                 if node.cluster_name.eq(cluster_name) {
                     results.push(node.node_inner_addr);
@@ -112,7 +108,7 @@ impl PlacementCacheManager {
 
     pub fn get_broker_node_id_by_cluster(&self, cluster_name: &str) -> Vec<u64> {
         let mut results = Vec::new();
-        if let Some(data) = self.node_list.get_mut(cluster_name) {
+        if let Some(data) = self.node_list.get(cluster_name) {
             for (_, node) in data.clone() {
                 if node.cluster_name.eq(cluster_name) {
                     results.push(node.node_id);
@@ -122,14 +118,27 @@ impl PlacementCacheManager {
         results
     }
 
-    pub fn report_heart_by_broker_node(&self, cluster_name: &str, node_id: u64, time: u64) {
-        if let Some(data) = self.node_heartbeat.get_mut(cluster_name) {
-            data.insert(node_id, time);
-        } else {
-            let data = DashMap::with_capacity(2);
-            data.insert(node_id, time);
-            self.node_heartbeat.insert(cluster_name.to_owned(), data);
+    pub fn report_broker_heart(&self, cluster_name: &str, node_id: u64) {
+        let key = self.node_key(cluster_name, node_id);
+        let data = NodeHeartbeatData {
+            cluster_name: cluster_name.to_string(),
+            node_id,
+            time: now_second(),
+        };
+        self.node_heartbeat.insert(key, data);
+    }
+
+    pub fn remove_broker_heart(&self, cluster_name: &str, node_id: u64) {
+        let key = self.node_key(cluster_name, node_id);
+        self.node_heartbeat.remove(&key);
+    }
+
+    pub fn get_broker_heart(&self, cluster_name: &str, node_id: u64) -> Option<NodeHeartbeatData> {
+        let key = self.node_key(cluster_name, node_id);
+        if let Some(heart) = self.node_heartbeat.get(&key) {
+            return Some(heart.clone());
         }
+        None
     }
 
     pub fn load_cache(&mut self, rocksdb_engine_handler: Arc<RocksDBEngine>) {
@@ -171,14 +180,6 @@ impl PlacementCacheManager {
         Vec::new()
     }
 
-    #[allow(dead_code)]
-    pub fn get_raft_members(&self) -> Vec<RaftNode> {
-        if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
-            return cluster.members.iter().map(|v| v.clone()).collect();
-        }
-        Vec::new()
-    }
-
     pub fn get_votes_node_by_id(&self, node_id: u64) -> Option<RaftNode> {
         if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
             if let Some(node) = cluster.get_node_by_id(node_id) {
@@ -193,30 +194,6 @@ impl PlacementCacheManager {
             return cluster.is_raft_role_change(new_role);
         }
         false
-    }
-
-    #[allow(dead_code)]
-    pub fn is_leader(&self) -> bool {
-        if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
-            return cluster.is_leader();
-        }
-        false
-    }
-
-    #[allow(dead_code)]
-    pub fn get_raft_leader(&self) -> Option<RaftNode> {
-        if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
-            return cluster.leader.clone();
-        }
-        None
-    }
-
-    #[allow(dead_code)]
-    pub fn get_raft_local_node(&self) -> Option<RaftNode> {
-        if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
-            return Some(cluster.local.clone());
-        }
-        None
     }
 
     pub fn get_current_raft_role(&self) -> String {
@@ -240,6 +217,9 @@ impl PlacementCacheManager {
         }
     }
 
+    fn node_key(&self, cluster_name: &str, node_id: u64) -> String {
+        format!("{}_{}", cluster_name, node_id)
+    }
     fn cluster_key(&self) -> String {
         "cluster".to_string()
     }

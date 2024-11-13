@@ -2,6 +2,11 @@
 VERSION:=$(shell grep "version =" Cargo.toml | awk -F'"' '{print $2}' | head -n 1 | sed 's/version = //g')
 
 ##@ Build Mac Release
+.PHONY: build
+build: ## Build mac version robustmq.
+	sh scripts/build-release.sh local $(VERSION)
+
+##@ Build Mac Release
 .PHONY: build-mac-release
 build-mac-release: ## Build mac version robustmq.
 	sh scripts/build-release.sh mac $(VERSION)
@@ -24,6 +29,22 @@ build-arm-release: ## Build arm version robustmq.
 .PHONY: test
 test:  ## Integration testing for Robustmq
 	sh ./scripts/integration-testing.sh
+
+.PHONY: unit-test
+unit-test:  ## Integration testing for Robustmq
+	sh ./scripts/unit-test.sh
+
+.PHONY: mqtt-ig-test
+mqtt-ig-test:  ## Integration testing for MQTT Broker
+	sh ./scripts/mqtt-ig-test.sh
+
+.PHONY: place-ig-test
+place-ig-test:  ## Integration testing for Placement Center
+	sh ./scripts/place-ig-test.sh
+
+.PHONY: journal-ig-test
+journal-ig-test:  ## Integration testing for Journal Engine
+	sh ./scripts/journal-ig-test.sh
 
 .PHONY: clean
 clean:  ## Clean the project.

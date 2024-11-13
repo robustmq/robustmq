@@ -37,35 +37,38 @@ impl fmt::Display for StorageData {
 #[derive(Debug, Deserialize, Serialize)]
 pub enum StorageDataType {
     // Cluster
-    ClusterRegisterNode,
-    ClusterUngisterNode,
+    ClusterAddNode,
+    ClusterDeleteNode,
+    ClusterAddCluster,
+    ClusterDeleteCluster,
     ClusterSetResourceConfig,
     ClusterDeleteResourceConfig,
     ClusterSetIdempotentData,
     ClusterDeleteIdempotentData,
 
     // Journal
-    JournalCreateShard,
+    JournalSetShard,
     JournalDeleteShard,
-    JournalCreateSegment,
+    JournalSetSegment,
     JournalDeleteSegment,
+    JournalSetSegmentMetadata,
+    JournalDeleteSegmentMetadata,
 
     // kv
     KvSet,
     KvDelete,
 
     // mqtt
-    MqttCreateUser,
+    MqttSetUser,
     MqttDeleteUser,
-    MqttCreateTopic,
+    MqttSetTopic,
     MqttDeleteTopic,
-    MqttSetTopicRetainMessage,
-    MqttCreateSession,
+    MqttSetSession,
     MqttDeleteSession,
     MqttUpdateSession,
     MqttSaveLastWillMessage,
-    MqttCreateAcl,
+    MqttSetAcl,
     MqttDeleteAcl,
-    MqttCreateBlacklist,
+    MqttSetBlacklist,
     MqttDeleteBlacklist,
 }

@@ -15,7 +15,7 @@
 use std::io::Cursor;
 use std::sync::Arc;
 
-use log::error;
+use log::warn;
 use openraft::storage::RaftStateMachine;
 use openraft::{
     AnyError, EntryPayload, ErrorSubject, ErrorVerb, LogId, OptionalSend, RaftSnapshotBuilder,
@@ -198,7 +198,7 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
                         resp_value = data;
                     }
                     Err(e) => {
-                        error!(
+                        warn!(
                             "Raft route failed to process message with error message: {}",
                             e
                         );

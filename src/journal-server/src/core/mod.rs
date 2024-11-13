@@ -15,7 +15,6 @@
 pub mod cache;
 pub mod cluster;
 pub mod error;
-pub mod gc;
 pub mod group;
 pub mod namespace;
 pub mod offset;

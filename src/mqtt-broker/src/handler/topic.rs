@@ -15,6 +15,7 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
+use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use common_base::error::mqtt_broker::MqttBrokerError;
 use common_base::tools::unique_id;
@@ -120,7 +121,8 @@ where
     } else {
         let topic_storage = TopicStorage::new(client_pool.clone());
         let topic_id = unique_id();
-        let topic = MqttTopic::new(topic_id, topic_name.to_owned());
+        let conf = broker_mqtt_conf();
+        let topic = MqttTopic::new(topic_id, conf.cluster_name.clone(), topic_name.to_owned());
         topic_storage.save_topic(topic.clone()).await?;
         metadata_cache.add_topic(topic_name, &topic);
 

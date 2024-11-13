@@ -24,13 +24,11 @@ use std::time::Instant;
 
 use bincode::{deserialize, serialize};
 use data::{StorageData, StorageDataType};
-use grpc_clients::pool::ClientPool;
 use log::{error, info};
 
 use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::journal::cache::JournalCacheManager;
-use crate::journal::controller::call_node::JournalInnerCallManager;
 use crate::route::cluster::DataRouteCluster;
 use crate::route::journal::DataRouteJournal;
 use crate::route::kv::DataRouteKv;
@@ -51,17 +49,11 @@ impl DataRoute {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cluster_cache: Arc<PlacementCacheManager>,
         engine_cache: Arc<JournalCacheManager>,
-        call_manager: Arc<JournalInnerCallManager>,
-        client_pool: Arc<ClientPool>,
     ) -> DataRoute {
         let route_kv = DataRouteKv::new(rocksdb_engine_handler.clone());
         let route_mqtt = DataRouteMqtt::new(rocksdb_engine_handler.clone());
-        let route_cluster = DataRouteCluster::new(
-            rocksdb_engine_handler.clone(),
-            cluster_cache.clone(),
-            call_manager.clone(),
-            client_pool.clone(),
-        );
+        let route_cluster =
+            DataRouteCluster::new(rocksdb_engine_handler.clone(), cluster_cache.clone());
         let route_journal =
             DataRouteJournal::new(rocksdb_engine_handler.clone(), engine_cache.clone());
         DataRoute {
@@ -93,16 +85,20 @@ impl DataRoute {
                 self.route_kv.delete(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::ClusterRegisterNode => {
-                self.route_cluster.register_node(storage_data.value).await?;
+            StorageDataType::ClusterAddNode => {
+                self.route_cluster.add_node(storage_data.value).await?;
                 Ok(None)
             }
-            StorageDataType::ClusterUngisterNode => {
-                self.route_cluster
-                    .unregister_node(storage_data.value)
-                    .await?;
+            StorageDataType::ClusterDeleteNode => {
+                self.route_cluster.delete_node(storage_data.value).await?;
                 Ok(None)
             }
+
+            StorageDataType::ClusterAddCluster => {
+                self.route_cluster.add_cluster(storage_data.value).await?;
+                Ok(None)
+            }
+            StorageDataType::ClusterDeleteCluster => Ok(None),
 
             StorageDataType::ClusterSetResourceConfig => {
                 self.route_cluster.set_resource_config(storage_data.value)?;
@@ -124,17 +120,15 @@ impl DataRoute {
             }
 
             // Journal Engine
-            StorageDataType::JournalCreateShard => Ok(Some(
-                self.route_journal.create_shard(storage_data.value).await?,
+            StorageDataType::JournalSetShard => Ok(Some(
+                self.route_journal.set_shard(storage_data.value).await?,
             )),
             StorageDataType::JournalDeleteShard => {
                 self.route_journal.delete_shard(storage_data.value).await?;
                 Ok(None)
             }
-            StorageDataType::JournalCreateSegment => Ok(Some(
-                self.route_journal
-                    .create_segment(storage_data.value)
-                    .await?,
+            StorageDataType::JournalSetSegment => Ok(Some(
+                self.route_journal.set_segment(storage_data.value).await?,
             )),
             StorageDataType::JournalDeleteSegment => {
                 self.route_journal
@@ -143,8 +137,20 @@ impl DataRoute {
                 Ok(None)
             }
 
+            StorageDataType::JournalSetSegmentMetadata => Ok(Some(
+                self.route_journal
+                    .set_segment_meta(storage_data.value)
+                    .await?,
+            )),
+            StorageDataType::JournalDeleteSegmentMetadata => {
+                self.route_journal
+                    .delete_segment_meta(storage_data.value)
+                    .await?;
+                Ok(None)
+            }
+
             // Mqtt Broker
-            StorageDataType::MqttCreateAcl => {
+            StorageDataType::MqttSetAcl => {
                 self.route_cluster.create_acl(storage_data.value)?;
                 Ok(None)
             }
@@ -152,7 +158,7 @@ impl DataRoute {
                 self.route_cluster.delete_acl(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::MqttCreateBlacklist => {
+            StorageDataType::MqttSetBlacklist => {
                 self.route_cluster.create_blacklist(storage_data.value)?;
                 Ok(None)
             }
@@ -160,7 +166,7 @@ impl DataRoute {
                 self.route_cluster.delete_blacklist(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::MqttCreateUser => {
+            StorageDataType::MqttSetUser => {
                 self.route_mqtt.create_user(storage_data.value)?;
                 Ok(None)
             }
@@ -168,7 +174,7 @@ impl DataRoute {
                 self.route_mqtt.delete_user(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::MqttCreateTopic => {
+            StorageDataType::MqttSetTopic => {
                 self.route_mqtt.create_topic(storage_data.value)?;
                 Ok(None)
             }
@@ -176,7 +182,7 @@ impl DataRoute {
                 self.route_mqtt.delete_topic(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::MqttCreateSession => {
+            StorageDataType::MqttSetSession => {
                 self.route_mqtt.create_session(storage_data.value)?;
                 Ok(None)
             }
@@ -186,11 +192,6 @@ impl DataRoute {
             }
             StorageDataType::MqttUpdateSession => {
                 self.route_mqtt.update_session(storage_data.value)?;
-                Ok(None)
-            }
-            StorageDataType::MqttSetTopicRetainMessage => {
-                self.route_mqtt
-                    .set_topic_retain_message(storage_data.value)?;
                 Ok(None)
             }
             StorageDataType::MqttSaveLastWillMessage => {

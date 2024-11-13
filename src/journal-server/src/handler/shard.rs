@@ -15,16 +15,18 @@
 use std::sync::Arc;
 
 use common_base::config::journal_server::journal_server_conf;
+use grpc_clients::placement::journal::call::update_segment_status;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
 use protocol::journal_server::journal_engine::{
-    ClientSegmentMetadata, CreateShardReq, DeleteShardReq, GetActiveSegmentReq,
-    GetActiveSegmentRespShard,
+    ClientSegmentMetadata, CreateShardReq, DeleteShardReq, GetShardMetadataReq,
+    GetShardMetadataRespShard,
 };
 use protocol::placement_center::placement_center_journal::{
-    CreateNextSegmentRequest, CreateShardRequest, DeleteShardRequest,
+    CreateNextSegmentRequest, CreateShardRequest, DeleteShardRequest, UpdateSegmentStatusRequest,
 };
 
-use crate::core::cache::CacheManager;
+use crate::core::cache::{load_metadata_cache, CacheManager};
 use crate::core::error::JournalServerError;
 
 #[derive(Clone)]
@@ -41,10 +43,7 @@ impl ShardHandler {
         }
     }
 
-    pub async fn create_shard(
-        &self,
-        request: CreateShardReq,
-    ) -> Result<ClientSegmentMetadata, JournalServerError> {
+    pub async fn create_shard(&self, request: CreateShardReq) -> Result<(), JournalServerError> {
         if request.body.is_none() {
             return Err(JournalServerError::RequestBodyNotEmpty(
                 "create_shard".to_string(),
@@ -52,12 +51,11 @@ impl ShardHandler {
         }
         let req_body = request.body.unwrap();
 
-        let shard = if let Some(shard) = self
+        if self
             .cache_manager
             .get_shard(&req_body.namespace, &req_body.shard_name)
+            .is_none()
         {
-            shard
-        } else {
             let conf = journal_server_conf();
             let request = CreateShardRequest {
                 cluster_name: conf.cluster_name.to_string(),
@@ -71,46 +69,9 @@ impl ShardHandler {
                 request,
             )
             .await?;
-            return Ok(ClientSegmentMetadata {
-                segment_no: reply.segment_no,
-                replicas: reply.replica,
-            });
+            return Ok(());
         };
-
-        let segment = if let Some(segment) = self
-            .cache_manager
-            .get_active_segment(&req_body.namespace, &req_body.shard_name)
-        {
-            segment
-        } else {
-            let conf = journal_server_conf();
-            let request = CreateNextSegmentRequest {
-                cluster_name: conf.cluster_name.to_string(),
-                namespace: req_body.namespace.to_string(),
-                shard_name: req_body.shard_name.to_string(),
-                active_segment_next_num: 1,
-            };
-            let reply = grpc_clients::placement::journal::call::create_next_segment(
-                self.client_pool.clone(),
-                conf.placement_center.clone(),
-                request,
-            )
-            .await?;
-            return Ok(ClientSegmentMetadata {
-                segment_no: reply.segment_no,
-                replicas: reply.replica,
-            });
-        };
-
-        let replica_ids = segment
-            .replicas
-            .iter()
-            .map(|replica| replica.node_id)
-            .collect();
-        Ok(ClientSegmentMetadata {
-            segment_no: segment.segment_seq,
-            replicas: replica_ids,
-        })
+        Ok(())
     }
 
     pub async fn delete_shard(&self, request: DeleteShardReq) -> Result<(), JournalServerError> {
@@ -145,10 +106,10 @@ impl ShardHandler {
         Ok(())
     }
 
-    pub async fn active_segment(
+    pub async fn get_shard_metadata(
         &self,
-        request: GetActiveSegmentReq,
-    ) -> Result<Vec<GetActiveSegmentRespShard>, JournalServerError> {
+        request: GetShardMetadataReq,
+    ) -> Result<Vec<GetShardMetadataRespShard>, JournalServerError> {
         if request.body.is_none() {
             return Err(JournalServerError::RequestBodyNotEmpty(
                 "active_segment".to_string(),
@@ -165,47 +126,133 @@ impl ShardHandler {
             {
                 shard
             } else {
+                // todo Is enable auto create shard
                 return Err(JournalServerError::ShardNotExist(raw.shard_name));
             };
 
-            let resp_segment = if let Some(segment) = self
+            // If the Shard has an active Segment,
+            // it returns an error, triggers the client to retry, and triggers the server to create the next Segment.
+            let active_segment = if let Some(segment) = self
                 .cache_manager
                 .get_active_segment(&raw.namespace, &raw.shard_name)
             {
-                GetActiveSegmentRespShard {
-                    namespace: raw.namespace.clone(),
-                    shard: raw.shard_name.clone(),
-                    active_segment: Some(ClientSegmentMetadata {
-                        segment_no: segment.segment_seq,
-                        replicas: segment.replicas.iter().map(|rep| rep.node_id).collect(),
-                    }),
-                }
+                segment
             } else {
-                let conf = journal_server_conf();
-                let request = CreateNextSegmentRequest {
-                    cluster_name: conf.cluster_name.to_string(),
-                    namespace: raw.namespace.to_string(),
-                    shard_name: raw.shard_name.to_string(),
-                    active_segment_next_num: 1,
-                };
-                let reply = grpc_clients::placement::journal::call::create_next_segment(
-                    self.client_pool.clone(),
-                    conf.placement_center.clone(),
-                    request,
-                )
-                .await?;
-                GetActiveSegmentRespShard {
-                    namespace: raw.namespace.clone(),
-                    shard: raw.shard_name.clone(),
-                    active_segment: Some(ClientSegmentMetadata {
-                        segment_no: reply.segment_no,
-                        replicas: reply.replica,
-                    }),
-                }
+                // Active Segment does not exist, try to update cache.
+                // The Active Segment will only be updated if the Segment is successfully created
+                load_metadata_cache(&self.cache_manager, &self.client_pool).await;
+                return Err(JournalServerError::NotActiveSegmet(shard.name()));
             };
-            results.push(resp_segment);
+
+            // Try to transition the Segment state
+            self.tranf_segment_status(
+                &raw.namespace,
+                &raw.shard_name,
+                &active_segment,
+                &self.client_pool,
+            )
+            .await?;
+
+            let key = self
+                .cache_manager
+                .shard_key(&raw.namespace, &raw.shard_name);
+
+            let segments = if let Some(segments) = self.cache_manager.segments.get(&key) {
+                segments
+            } else {
+                load_metadata_cache(&self.cache_manager, &self.client_pool).await;
+                return Err(JournalServerError::NotAvailableSegmets(raw.shard_name));
+            };
+
+            let mut resp_shard_segments = Vec::new();
+            for segment_raw in segments.iter() {
+                let segment = segment_raw.value();
+
+                let meta = if let Some(meta) = self.cache_manager.get_segment_meta(
+                    &raw.namespace,
+                    &raw.shard_name,
+                    segment.segment_seq,
+                ) {
+                    meta
+                } else {
+                    load_metadata_cache(&self.cache_manager, &self.client_pool).await;
+                    return Err(JournalServerError::SegmentMetaNotExists(raw.shard_name));
+                };
+
+                let meta_val = serde_json::to_vec(&meta)?;
+                let client_segment_meta = ClientSegmentMetadata {
+                    segment_no: segment.segment_seq,
+                    replicas: segment.replicas.iter().map(|rep| rep.node_id).collect(),
+                    meta: meta_val,
+                };
+                resp_shard_segments.push(client_segment_meta);
+            }
+
+            let resp_shard = GetShardMetadataRespShard {
+                namespace: raw.namespace,
+                shard: raw.shard_name,
+                segments: resp_shard_segments,
+            };
+
+            results.push(resp_shard);
         }
 
         Ok(results)
+    }
+
+    async fn trigger_create_next_segment(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+    ) -> Result<(), JournalServerError> {
+        let conf = journal_server_conf();
+        let request = CreateNextSegmentRequest {
+            cluster_name: conf.cluster_name.to_string(),
+            namespace: namespace.to_string(),
+            shard_name: shard_name.to_string(),
+        };
+        let reply = grpc_clients::placement::journal::call::create_next_segment(
+            self.client_pool.clone(),
+            conf.placement_center.clone(),
+            request,
+        )
+        .await?;
+        Ok(())
+    }
+
+    async fn tranf_segment_status(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        segment: &JournalSegment,
+        client_pool: &Arc<ClientPool>,
+    ) -> Result<(), JournalServerError> {
+        let conf = journal_server_conf();
+        // When the state is Idle, reverse the state to PreWrite
+        if segment.status == SegmentStatus::Idle {
+            let request = UpdateSegmentStatusRequest {
+                cluster_name: conf.cluster_name.to_string(),
+                namespace: namespace.to_string(),
+                shard_name: shard_name.to_string(),
+                segment_seq: segment.segment_seq,
+                cur_status: segment.status.to_string(),
+                next_status: SegmentStatus::PreWrite.to_string(),
+            };
+            update_segment_status(client_pool.clone(), conf.placement_center.clone(), request)
+                .await?;
+        }
+
+        // When the state SealUp/PreDelete/Deleteing,
+        // try to create a new Segment, and modify the Active Active Segment for the next Segment
+        if segment.status == SegmentStatus::SealUp
+            || segment.status == SegmentStatus::PreDelete
+            || segment.status == SegmentStatus::Deleteing
+        {
+            self.trigger_create_next_segment(namespace, shard_name)
+                .await?;
+        }
+
+        // There is no need to handle an Active Segment in the PreWrite & Write && PreSealUp state, where the Active Segment allows state writing.
+        Ok(())
     }
 }
