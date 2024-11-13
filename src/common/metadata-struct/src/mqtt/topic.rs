@@ -17,15 +17,17 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct MqttTopic {
     pub topic_id: String,
+    pub cluster_name: String,
     pub topic_name: String,
     pub retain_message: Option<Vec<u8>>,
     pub retain_message_expired_at: Option<u64>,
 }
 
 impl MqttTopic {
-    pub fn new(topic_id: String, topic_name: String) -> Self {
+    pub fn new(topic_id: String, cluster_name: String, topic_name: String) -> Self {
         MqttTopic {
             topic_id,
+            cluster_name,
             topic_name,
             retain_message: None,
             retain_message_expired_at: None,

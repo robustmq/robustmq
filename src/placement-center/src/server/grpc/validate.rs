@@ -34,18 +34,10 @@ pub trait ValidateExt {
 //Returns: Result<(), Status>.
 fn ensure_param_not_empty(field_name: &str, field_value: &str) -> Result<(), Status> {
     if field_value.is_empty() {
-        println!(
-            "field_name: {:?}, field_value: {:?}",
-            field_name, field_value
-        );
         Err(Status::invalid_argument(
             CommonError::ParameterCannotBeNull(field_name.to_string()).to_string(),
         ))
     } else {
-        println!(
-            "field_name: {:?}, field_value: {:?}",
-            field_name, field_value
-        );
         Ok(())
     }
 }

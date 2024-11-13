@@ -12,20 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-1.toml 2>/tmp/1.log &
-sleep 3
 
-no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
-if [ -n "$no1" ]
-then
-    echo "placement-center node 1 started successfully. process no: $no1"
-fi
+start_server(){
+    nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-1.toml 2>/tmp/1.log &
+    sleep 3
 
-cargo nextest run  --package grpc-clients --test mod -- placement
+    no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
+    if [ -n "$no1" ]
+    then
+        echo "placement-center node 1 started successfully. process no: $no1"
+    fi
+}
 
-no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
-if [ -n "$no1" ]
-then
-    echo "kill placement center $no1"
-    kill $no1
-fi
+stop_server(){
+    no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
+    if [ -n "$no1" ]
+    then
+        echo "kill placement center $no1"
+        kill $no1
+    fi
+}
+# Clean up
+rm -rf /tmp/robust-test/placement-center*
+
+# Start Server
+start_server
+
+# Run Placement integration Test
+cargo nextest run --package grpc-clients --test mod -- placement
+cargo nextest run --package robustmq-test --test mod -- place_server
+
+# Stop Server
+stop_server

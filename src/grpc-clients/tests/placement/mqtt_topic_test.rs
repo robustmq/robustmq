@@ -17,6 +17,7 @@ mod tests {
     use std::sync::Arc;
 
     use bytes::Bytes;
+    use common_base::tools::unique_id;
     use grpc_clients::placement::mqtt::call::{
         placement_create_topic, placement_delete_topic, placement_list_topic,
         placement_set_topic_retain_message,
@@ -35,16 +36,16 @@ mod tests {
     async fn mqtt_topic_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
-        let client_id: String = "test_cient_id".to_string();
-        let topic_id: String = "test_topic_ic".to_string();
+        let client_id: String = unique_id().to_string();
+        let topic_id: String = unique_id();
         let topic_name: String = "test_topic".to_string();
-        let cluster_name: String = "test_cluster".to_string();
+        let cluster_name: String = unique_id();
         let payload: String = "test_message".to_string();
-        let retain_message_expired_at: u64 = 10000;
 
-        let mut mqtt_topic: MqttTopic = MqttTopic {
+        let mqtt_topic: MqttTopic = MqttTopic {
             topic_id: topic_id.clone(),
             topic_name: topic_name.clone(),
+            cluster_name: cluster_name.clone(),
             retain_message: None,
             retain_message_expired_at: None,
         };
@@ -54,33 +55,20 @@ mod tests {
             topic_name: mqtt_topic.topic_name.clone(),
             content: mqtt_topic.encode(),
         };
-        match placement_create_topic(client_pool.clone(), addrs.clone(), request).await {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
 
-        let request = ListTopicRequest {
-            cluster_name: cluster_name.clone(),
-            topic_name: mqtt_topic.topic_name.clone(),
-        };
-        match placement_list_topic(client_pool.clone(), addrs.clone(), request).await {
-            Ok(data) => {
-                assert!(!data.topics.is_empty());
-                let mut flag: bool = false;
-                for raw in data.topics {
-                    let topic = serde_json::from_slice::<MqttTopic>(raw.as_slice()).unwrap();
-                    if topic == mqtt_topic {
-                        flag = true;
-                    }
-                }
-                assert!(flag);
-            }
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
+        placement_create_topic(client_pool.clone(), addrs.clone(), request)
+            .await
+            .unwrap();
+
+        contain_topic(
+            cluster_name.clone(),
+            topic_name.clone(),
+            client_pool.clone(),
+            addrs.clone(),
+            mqtt_topic.clone(),
+            true,
+        )
+        .await;
 
         let publish: Publish = Publish {
             dup: false,
@@ -90,79 +78,87 @@ mod tests {
             topic: Bytes::from(topic_name.clone()),
             payload: Bytes::from(payload.clone()),
         };
-        let retain_message = MqttMessage::build_message(&client_id, &publish, &None, 600);
-        mqtt_topic = MqttTopic {
+        let retain_message = MqttMessage::build_message(&client_id, &publish, &None, 600).encode();
+        let retain_message_expired_at: u64 = 10000;
+
+        let mqtt_topic = MqttTopic {
             topic_id: topic_id.clone(),
             topic_name: topic_name.clone(),
-            retain_message: Some(retain_message.encode()),
+            cluster_name: cluster_name.clone(),
+            retain_message: Some(retain_message.clone()),
             retain_message_expired_at: Some(retain_message_expired_at),
         };
 
         let request = SetTopicRetainMessageRequest {
             cluster_name: cluster_name.clone(),
             topic_name: mqtt_topic.topic_name.clone(),
-            retain_message: mqtt_topic.retain_message.clone().unwrap(),
-            retain_message_expired_at: mqtt_topic.retain_message_expired_at.unwrap(),
+            retain_message: retain_message.clone(),
+            retain_message_expired_at: retain_message_expired_at,
         };
-        match placement_set_topic_retain_message(client_pool.clone(), addrs.clone(), request).await
-        {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
 
-        let request = ListTopicRequest {
-            cluster_name: cluster_name.clone(),
-            topic_name: mqtt_topic.topic_name.clone(),
-        };
-        match placement_list_topic(client_pool.clone(), addrs.clone(), request).await {
-            Ok(data) => {
-                assert!(!data.topics.is_empty());
-                let mut flag: bool = false;
-                for raw in data.topics {
-                    let topic = serde_json::from_slice::<MqttTopic>(raw.as_slice()).unwrap();
-                    if topic == mqtt_topic {
-                        flag = true;
-                    }
-                }
-                assert!(flag);
-            }
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
+        placement_set_topic_retain_message(client_pool.clone(), addrs.clone(), request)
+            .await
+            .unwrap();
+
+        contain_topic(
+            cluster_name.clone(),
+            topic_name.clone(),
+            client_pool.clone(),
+            addrs.clone(),
+            mqtt_topic.clone(),
+            true,
+        )
+        .await;
 
         let request = DeleteTopicRequest {
             cluster_name: cluster_name.clone(),
             topic_name: mqtt_topic.topic_name.clone(),
         };
-        match placement_delete_topic(client_pool.clone(), addrs.clone(), request).await {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{:?}", e);
+
+        placement_delete_topic(client_pool.clone(), addrs.clone(), request)
+            .await
+            .unwrap();
+
+        contain_topic(
+            cluster_name.clone(),
+            topic_name.clone(),
+            client_pool.clone(),
+            addrs.clone(),
+            mqtt_topic.clone(),
+            false,
+        )
+        .await;
+    }
+
+    async fn contain_topic(
+        cluster_name: String,
+        topic_name: String,
+        client_pool: Arc<ClientPool>,
+        addrs: Vec<String>,
+        mqtt_topic: MqttTopic,
+        contain: bool,
+    ) {
+        let request = ListTopicRequest {
+            cluster_name: cluster_name,
+            topic_name: topic_name,
+        };
+        let data = placement_list_topic(client_pool, addrs, request)
+            .await
+            .unwrap();
+
+        let mut flag: bool = false;
+        for raw in data.topics.clone() {
+            let topic = serde_json::from_slice::<MqttTopic>(raw.as_slice()).unwrap();
+            if topic == mqtt_topic {
+                flag = true;
             }
         }
-
-        let request = ListTopicRequest {
-            cluster_name: cluster_name.clone(),
-            topic_name: mqtt_topic.topic_name.clone(),
-        };
-        match placement_list_topic(client_pool.clone(), addrs.clone(), request).await {
-            Ok(data) => {
-                assert!(data.topics.is_empty());
-                let mut flag: bool = false;
-                for raw in data.topics {
-                    let topic = serde_json::from_slice::<MqttTopic>(raw.as_slice()).unwrap();
-                    if topic == mqtt_topic {
-                        flag = true;
-                    }
-                }
-                assert!(!flag);
-            }
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+        if contain {
+            assert!(!data.topics.is_empty());
+            assert!(flag);
+        } else {
+            assert!(!flag);
+            assert!(data.topics.is_empty());
         }
     }
 }

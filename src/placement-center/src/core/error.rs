@@ -104,6 +104,9 @@ pub enum PlacementCenterError {
     #[error("Topic [{0}] does not exist")]
     TopicDoesNotExist(String),
 
+    #[error("Topic [{0}] already exist")]
+    TopicAlreadyExist(String),
+
     #[error("Segment {0} is in the wrong state. It should not be sealed.")]
     SegmentWrongState(String),
 }

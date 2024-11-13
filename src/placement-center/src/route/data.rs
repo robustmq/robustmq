@@ -59,17 +59,16 @@ pub enum StorageDataType {
     KvDelete,
 
     // mqtt
-    MqttCreateUser,
+    MqttSetUser,
     MqttDeleteUser,
-    MqttCreateTopic,
+    MqttSetTopic,
     MqttDeleteTopic,
-    MqttSetTopicRetainMessage,
-    MqttCreateSession,
+    MqttSetSession,
     MqttDeleteSession,
     MqttUpdateSession,
     MqttSaveLastWillMessage,
-    MqttCreateAcl,
+    MqttSetAcl,
     MqttDeleteAcl,
-    MqttCreateBlacklist,
+    MqttSetBlacklist,
     MqttDeleteBlacklist,
 }

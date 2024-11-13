@@ -150,7 +150,7 @@ impl DataRoute {
             }
 
             // Mqtt Broker
-            StorageDataType::MqttCreateAcl => {
+            StorageDataType::MqttSetAcl => {
                 self.route_cluster.create_acl(storage_data.value)?;
                 Ok(None)
             }
@@ -158,7 +158,7 @@ impl DataRoute {
                 self.route_cluster.delete_acl(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::MqttCreateBlacklist => {
+            StorageDataType::MqttSetBlacklist => {
                 self.route_cluster.create_blacklist(storage_data.value)?;
                 Ok(None)
             }
@@ -166,7 +166,7 @@ impl DataRoute {
                 self.route_cluster.delete_blacklist(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::MqttCreateUser => {
+            StorageDataType::MqttSetUser => {
                 self.route_mqtt.create_user(storage_data.value)?;
                 Ok(None)
             }
@@ -174,7 +174,7 @@ impl DataRoute {
                 self.route_mqtt.delete_user(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::MqttCreateTopic => {
+            StorageDataType::MqttSetTopic => {
                 self.route_mqtt.create_topic(storage_data.value)?;
                 Ok(None)
             }
@@ -182,7 +182,7 @@ impl DataRoute {
                 self.route_mqtt.delete_topic(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::MqttCreateSession => {
+            StorageDataType::MqttSetSession => {
                 self.route_mqtt.create_session(storage_data.value)?;
                 Ok(None)
             }
@@ -192,11 +192,6 @@ impl DataRoute {
             }
             StorageDataType::MqttUpdateSession => {
                 self.route_mqtt.update_session(storage_data.value)?;
-                Ok(None)
-            }
-            StorageDataType::MqttSetTopicRetainMessage => {
-                self.route_mqtt
-                    .set_topic_retain_message(storage_data.value)?;
                 Ok(None)
             }
             StorageDataType::MqttSaveLastWillMessage => {

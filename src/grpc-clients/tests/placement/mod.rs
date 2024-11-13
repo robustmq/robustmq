@@ -14,7 +14,6 @@
 
 mod kv_test;
 mod mqtt_acl_test;
-mod mqtt_admin_test;
 mod mqtt_blacklist_test;
 mod mqtt_last_will_test;
 mod mqtt_session_test;

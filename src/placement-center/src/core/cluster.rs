@@ -125,10 +125,6 @@ impl ClusterMetadata {
         let n_role = role_to_string(new_role);
         n_role != self.raft_role
     }
-
-    pub fn is_leader(&self) -> bool {
-        self.raft_role == role_to_string(StateRole::Leader)
-    }
 }
 
 fn role_to_string(role: StateRole) -> String {
@@ -175,6 +171,8 @@ pub async fn register_node_by_req(
         update_cache_by_add_journal_node(&cluster_name, call_manager, client_pool, node.clone())
             .await?;
     }
+
+    cluster_cache.report_broker_heart(&cluster_name, req.node_id);
     Ok(())
 }
 

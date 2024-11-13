@@ -15,7 +15,6 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use prost::Message;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterService;
@@ -101,8 +100,8 @@ impl PlacementCenterService for GrpcPlacementService {
         let req = request.into_inner();
         let mut nodes = Vec::new();
         if let Some(node_list) = self.cluster_cache.node_list.get(&req.cluster_name) {
-            for (_, node) in node_list.clone() {
-                nodes.push(node.encode())
+            for raw in node_list.iter() {
+                nodes.push(raw.value().encode())
             }
         }
         return Ok(Response::new(NodeListReply { nodes }));
@@ -160,11 +159,8 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<HeartbeatRequest>,
     ) -> Result<Response<HeartbeatReply>, Status> {
         let req = request.into_inner();
-        self.cluster_cache.report_heart_by_broker_node(
-            &req.cluster_name,
-            req.node_id,
-            now_second(),
-        );
+        self.cluster_cache
+            .report_broker_heart(&req.cluster_name, req.node_id);
         return Ok(Response::new(HeartbeatReply::default()));
     }
 
