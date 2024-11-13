@@ -30,7 +30,10 @@ use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::journal::cache::JournalCacheManager;
 use crate::journal::controller::call_node::JournalInnerCallManager;
-use crate::journal::services::segmet::{create_segment_by_req, delete_segment_by_req};
+use crate::journal::services::segmet::{
+    create_segment_by_req, delete_segment_by_req, update_segment_meta_req,
+    update_segment_status_req,
+};
 use crate::journal::services::shard::{create_shard_by_req, delete_shard_by_req};
 use crate::route::apply::RaftMachineApply;
 use crate::storage::journal::segment::SegmentStorage;
@@ -263,6 +266,7 @@ impl EngineService for GrpcEngineService {
             &self.raft_machine_apply,
             &self.call_manager,
             &self.client_pool,
+            &self.rocksdb_engine_handler,
             &req,
         )
         .await
@@ -312,9 +316,27 @@ impl EngineService for GrpcEngineService {
         &self,
         request: Request<UpdateSegmentStatusRequest>,
     ) -> Result<Response<UpdateSegmentStatusReply>, Status> {
-        let _ = request.into_inner();
+        let req = request.into_inner();
+        if req.cluster_name.is_empty() {
+            return Err(Status::cancelled(
+                PlacementCenterError::RequestParamsNotEmpty(req.cluster_name).to_string(),
+            ));
+        }
 
-        return Ok(Response::new(UpdateSegmentStatusReply::default()));
+        match update_segment_status_req(
+            &self.engine_cache,
+            &self.raft_machine_apply,
+            &self.call_manager,
+            &self.client_pool,
+            req,
+        )
+        .await
+        {
+            Ok(()) => return Ok(Response::new(UpdateSegmentStatusReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
     }
 
     async fn list_segment_meta(
@@ -378,7 +400,21 @@ impl EngineService for GrpcEngineService {
         &self,
         request: Request<UpdateSegmentMetaRequest>,
     ) -> Result<Response<UpdateSegmentMetaReply>, Status> {
-        let _ = request.into_inner();
-        return Ok(Response::new(UpdateSegmentMetaReply::default()));
+        let req = request.into_inner();
+
+        match update_segment_meta_req(
+            &self.engine_cache,
+            &self.raft_machine_apply,
+            &self.call_manager,
+            &self.client_pool,
+            req,
+        )
+        .await
+        {
+            Ok(()) => return Ok(Response::new(UpdateSegmentMetaReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
     }
 }

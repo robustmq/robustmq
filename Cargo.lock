@@ -3118,6 +3118,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "robustmq-test"
+version = "0.1.1"
+dependencies = [
+ "axum 0.7.4",
+ "bytes",
+ "common-base",
+ "dashmap",
+ "futures",
+ "grpc-clients",
+ "journal-client",
+ "log",
+ "metadata-struct",
+ "mqtt-broker",
+ "paho-mqtt",
+ "protocol",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+ "tonic",
+]
+
+[[package]]
 name = "rocksdb"
 version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

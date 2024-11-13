@@ -17,6 +17,8 @@ use std::num::ParseIntError;
 use common_base::error::common::CommonError;
 use thiserror::Error;
 
+use super::write::SegmentWriteData;
+
 #[derive(Error, Debug)]
 pub enum JournalServerError {
     #[error("Directory {0} No rocksdb instance available")]
@@ -29,7 +31,19 @@ pub enum JournalServerError {
     StdIoError(#[from] std::io::Error),
 
     #[error("{0}")]
+    BroadcastBoolSendError(#[from] tokio::sync::broadcast::error::SendError<bool>),
+
+    #[error("{0}")]
+    MpscSegmentWriteDataSendError(#[from] tokio::sync::mpsc::error::SendError<SegmentWriteData>),
+
+    #[error("{0}")]
+    OneshotRecvError(#[from] tokio::sync::oneshot::error::RecvError),
+
+    #[error("{0}")]
     ProstDecodeError(#[from] prost::DecodeError),
+
+    #[error("{0}")]
+    TokioTimeErrorElapsed(#[from] tokio::time::error::Elapsed),
 
     #[error("{0}")]
     SerdeJsonError(#[from] serde_json::Error),
@@ -80,6 +94,12 @@ pub fn get_journal_server_code(e: &JournalServerError) -> String {
             "NoRocksdbInstanceAvailable".to_string()
         }
         JournalServerError::CommonError(_) => "CommonError".to_string(),
+        JournalServerError::BroadcastBoolSendError(_) => "BroadcastBoolSendError".to_string(),
+        JournalServerError::MpscSegmentWriteDataSendError(_) => {
+            "MpscSegmentWriteDataSendError".to_string()
+        }
+        JournalServerError::OneshotRecvError(_) => "OneshotRecvError".to_string(),
+        JournalServerError::TokioTimeErrorElapsed(_) => "TokioTimeErrorElapsed".to_string(),
         JournalServerError::StdIoError(_) => "StdIoError".to_string(),
         JournalServerError::ProstDecodeError(_) => "ProstDecodeError".to_string(),
         JournalServerError::SerdeJsonError(_) => "SerdeJsonError".to_string(),

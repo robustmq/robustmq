@@ -24,8 +24,7 @@ use protocol::placement_center::placement_center_journal::{
 };
 
 use super::segmet::{
-    build_first_segment, sync_save_segment_info, sync_save_segment_metadata_info,
-    update_segment_status,
+    build_segment, sync_save_segment_info, sync_save_segment_metadata_info, update_segment_status,
 };
 use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
@@ -83,7 +82,7 @@ pub async fn create_shard_by_req(
     ) {
         segment
     } else {
-        let segment = build_first_segment(&shard, engine_cache, cluster_cache).await?;
+        let segment = build_segment(&shard, engine_cache, cluster_cache, 0).await?;
 
         sync_save_segment_info(raft_machine_apply, &segment).await?;
 

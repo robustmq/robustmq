@@ -31,6 +31,7 @@ use super::shard::ShardHandler;
 use crate::core::cache::CacheManager;
 use crate::core::error::get_journal_server_code;
 use crate::core::offset::OffsetManager;
+use crate::core::write::WriteManager;
 use crate::segment::manager::SegmentFileManager;
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
@@ -48,10 +49,16 @@ impl Command {
         cache_manager: Arc<CacheManager>,
         offset_manager: Arc<OffsetManager>,
         segment_file_manager: Arc<SegmentFileManager>,
+        write_manager: Arc<WriteManager>,
     ) -> Self {
         let cluster_handler = ClusterHandler::new(cache_manager.clone());
         let shard_handler = ShardHandler::new(cache_manager.clone(), client_pool);
-        let data_handler = DataHandler::new(cache_manager, offset_manager, segment_file_manager);
+        let data_handler = DataHandler::new(
+            cache_manager,
+            offset_manager,
+            segment_file_manager,
+            write_manager,
+        );
         Command {
             cluster_handler,
             shard_handler,

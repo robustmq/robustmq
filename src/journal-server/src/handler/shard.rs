@@ -15,13 +15,15 @@
 use std::sync::Arc;
 
 use common_base::config::journal_server::journal_server_conf;
+use grpc_clients::placement::journal::call::update_segment_status;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
 use protocol::journal_server::journal_engine::{
     ClientSegmentMetadata, CreateShardReq, DeleteShardReq, GetShardMetadataReq,
     GetShardMetadataRespShard,
 };
 use protocol::placement_center::placement_center_journal::{
-    CreateNextSegmentRequest, CreateShardRequest, DeleteShardRequest,
+    CreateNextSegmentRequest, CreateShardRequest, DeleteShardRequest, UpdateSegmentStatusRequest,
 };
 
 use crate::core::cache::{load_metadata_cache, CacheManager};
@@ -130,17 +132,26 @@ impl ShardHandler {
 
             // If the Shard has an active Segment,
             // it returns an error, triggers the client to retry, and triggers the server to create the next Segment.
-            if self
+            let active_segment = if let Some(segment) = self
                 .cache_manager
                 .get_active_segment(&raw.namespace, &raw.shard_name)
-                .is_none()
             {
-                self.trigger_create_next_segment(&raw.namespace, &raw.shard_name)
-                    .await?;
-
+                segment
+            } else {
+                // Active Segment does not exist, try to update cache.
+                // The Active Segment will only be updated if the Segment is successfully created
                 load_metadata_cache(&self.cache_manager, &self.client_pool).await;
                 return Err(JournalServerError::NotActiveSegmet(shard.name()));
             };
+
+            // Try to transition the Segment state
+            self.tranf_segment_status(
+                &raw.namespace,
+                &raw.shard_name,
+                &active_segment,
+                &self.client_pool,
+            )
+            .await?;
 
             let key = self
                 .cache_manager
@@ -199,7 +210,6 @@ impl ShardHandler {
             cluster_name: conf.cluster_name.to_string(),
             namespace: namespace.to_string(),
             shard_name: shard_name.to_string(),
-            active_segment_next_num: 1,
         };
         let reply = grpc_clients::placement::journal::call::create_next_segment(
             self.client_pool.clone(),
@@ -207,6 +217,42 @@ impl ShardHandler {
             request,
         )
         .await?;
+        Ok(())
+    }
+
+    async fn tranf_segment_status(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        segment: &JournalSegment,
+        client_pool: &Arc<ClientPool>,
+    ) -> Result<(), JournalServerError> {
+        let conf = journal_server_conf();
+        // When the state is Idle, reverse the state to PreWrite
+        if segment.status == SegmentStatus::Idle {
+            let request = UpdateSegmentStatusRequest {
+                cluster_name: conf.cluster_name.to_string(),
+                namespace: namespace.to_string(),
+                shard_name: shard_name.to_string(),
+                segment_seq: segment.segment_seq,
+                cur_status: segment.status.to_string(),
+                next_status: SegmentStatus::PreWrite.to_string(),
+            };
+            update_segment_status(client_pool.clone(), conf.placement_center.clone(), request)
+                .await?;
+        }
+
+        // When the state SealUp/PreDelete/Deleteing,
+        // try to create a new Segment, and modify the Active Active Segment for the next Segment
+        if segment.status == SegmentStatus::SealUp
+            || segment.status == SegmentStatus::PreDelete
+            || segment.status == SegmentStatus::Deleteing
+        {
+            self.trigger_create_next_segment(namespace, shard_name)
+                .await?;
+        }
+
+        // There is no need to handle an Active Segment in the PreWrite & Write && PreSealUp state, where the Active Segment allows state writing.
         Ok(())
     }
 }

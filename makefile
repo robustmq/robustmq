@@ -31,6 +31,22 @@ test:  ## Integration testing for Robustmq
 	cargo clean
 	sh ./scripts/integration-testing.sh
 
+.PHONY: unit-test
+unit-test:  ## Integration testing for Robustmq
+	sh ./scripts/unit-test.sh
+
+.PHONY: mqtt-ig-test
+mqtt-ig-test:  ## Integration testing for MQTT Broker
+	sh ./scripts/mqtt-ig-test.sh
+
+.PHONY: place-ig-test
+place-ig-test:  ## Integration testing for Placement Center
+	sh ./scripts/place-ig-test.sh
+
+.PHONY: journal-ig-test
+journal-ig-test:  ## Integration testing for Journal Engine
+	sh ./scripts/journal-ig-test.sh
+
 .PHONY: clean
 clean:  ## Clean the project.
 	cargo clean

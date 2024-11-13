@@ -84,12 +84,9 @@ message CreateNextSegmentRequest{
     string cluster_name = 1;
     string namespace = 2;
     string shard_name = 3;
-    uint32 active_segment_next_num = 4;
 }
 
 message CreateNextSegmentReply{
-    uint32 segment_no = 1;
-    repeated uint64 replica = 2;
 }
 
 message DeleteSegmentRequest{
@@ -107,7 +104,9 @@ message UpdateSegmentStatusRequest{
     string cluster_name = 1;
     string namespace = 2;
     string shard_name = 3;
-    string status =4;
+    uint32 segment_seq = 4;
+    string cur_status = 5;
+    string next_status = 6;
 }
 
 message UpdateSegmentStatusReply{
