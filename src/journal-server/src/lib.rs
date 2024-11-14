@@ -111,7 +111,7 @@ impl JournalServer {
 
         self.start_prometheus();
 
-        self.register_node();
+        self.init_node();
 
         self.waiting_stop();
     }
@@ -188,8 +188,9 @@ impl JournalServer {
         });
     }
 
-    fn register_node(&self) {
+    fn init_node(&self) {
         self.daemon_runtime.block_on(async move {
+            // todo
             sleep(Duration::from_secs(3)).await;
             match register_journal_node(self.client_pool.clone(), self.config.clone()).await {
                 Ok(()) => {}
@@ -215,6 +216,7 @@ impl JournalServer {
             }
 
             metadata_and_local_segment_diff_check();
+            info!("Journal Node was initialized successfully");
         });
     }
 

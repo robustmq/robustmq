@@ -91,7 +91,7 @@ pub fn key_shard_namespace_prefix(cluster_name: &str, namespace: &str) -> String
 }
 
 pub fn key_all_shard() -> String {
-    "/journal/shard".to_string()
+    "/journal/shard/".to_string()
 }
 
 pub fn key_segment(
@@ -132,21 +132,21 @@ pub fn key_segment_metadata(
     segement_seq: u32,
 ) -> String {
     format!(
-        "/journal/segment/metadata/{}/{}/{}/{}",
+        "/journal/segmentmeta/{}/{}/{}/{}",
         cluster_name, namespace, shard_name, segement_seq
     )
 }
 
 pub fn key_all_segment_metadata() -> String {
-    "/journal/segment/metadata".to_string()
+    "/journal/segmentmeta".to_string()
 }
 
 pub fn key_segment_metadata_cluster_prefix(cluster_name: &str) -> String {
-    format!("/journal/segment/metadata/{}", cluster_name)
+    format!("/journal/segmentmeta/{}", cluster_name)
 }
 
 pub fn key_segment_metadata_namespace_prefix(cluster_name: &str, namespace: &str) -> String {
-    format!("/journal/segment/metadata/{}/{}", cluster_name, namespace)
+    format!("/journal/segmentmeta/{}/{}", cluster_name, namespace)
 }
 
 pub fn key_segment_metadata_shard_prefix(

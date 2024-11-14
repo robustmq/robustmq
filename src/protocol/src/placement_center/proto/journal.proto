@@ -73,7 +73,7 @@ message ListSegmentRequest{
     string cluster_name = 1;
     string namespace = 2;
     string shard_name = 3;
-    uint32 segment_no = 4;
+    int32 segment_no = 4;
 }
 
 message ListSegmentReply{
