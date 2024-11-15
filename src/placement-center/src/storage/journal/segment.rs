@@ -61,57 +61,30 @@ impl SegmentStorage {
         segment_seq: u32,
     ) -> Result<Option<JournalSegment>, CommonError> {
         let shard_key: String = key_segment(cluster_name, namespace, shard_name, segment_seq);
-
-        match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), shard_key) {
-            Ok(Some(data)) => match serde_json::from_slice::<JournalSegment>(&data.data) {
-                Ok(segment) => Ok(Some(segment)),
-                Err(e) => Err(e.into()),
-            },
-            Ok(None) => Ok(None),
-            Err(e) => Err(e),
+        if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), shard_key)? {
+            return Ok(Some(serde_json::from_slice::<JournalSegment>(&data.data)?));
         }
+        Ok(None)
     }
 
     pub fn all_segment(&self) -> Result<Vec<JournalSegment>, CommonError> {
         let prefix_key = key_all_segment();
-        match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
-            Ok(data) => {
-                let mut results = Vec::new();
-                for raw in data {
-                    match serde_json::from_slice::<JournalSegment>(&raw.data) {
-                        Ok(topic) => {
-                            results.push(topic);
-                        }
-                        Err(e) => {
-                            return Err(e.into());
-                        }
-                    }
-                }
-                Ok(results)
-            }
-            Err(e) => Err(e),
+        let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let mut results = Vec::new();
+        for raw in data {
+            results.push(serde_json::from_slice::<JournalSegment>(&raw.data)?);
         }
+        Ok(results)
     }
 
     pub fn list_by_cluster(&self, cluster_name: &str) -> Result<Vec<JournalSegment>, CommonError> {
         let prefix_key = key_segment_cluster_prefix(cluster_name);
-        match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
-            Ok(data) => {
-                let mut results = Vec::new();
-                for raw in data {
-                    match serde_json::from_slice::<JournalSegment>(&raw.data) {
-                        Ok(topic) => {
-                            results.push(topic);
-                        }
-                        Err(e) => {
-                            return Err(e.into());
-                        }
-                    }
-                }
-                Ok(results)
-            }
-            Err(e) => Err(e),
+        let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let mut results = Vec::new();
+        for raw in data {
+            results.push(serde_json::from_slice::<JournalSegment>(&raw.data)?);
         }
+        Ok(results)
     }
 
     pub fn list_by_namespace(
@@ -120,23 +93,12 @@ impl SegmentStorage {
         namespace: &str,
     ) -> Result<Vec<JournalSegment>, CommonError> {
         let prefix_key = key_segment_namespace_prefix(cluster_name, namespace);
-        match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
-            Ok(data) => {
-                let mut results = Vec::new();
-                for raw in data {
-                    match serde_json::from_slice::<JournalSegment>(&raw.data) {
-                        Ok(topic) => {
-                            results.push(topic);
-                        }
-                        Err(e) => {
-                            return Err(e.into());
-                        }
-                    }
-                }
-                Ok(results)
-            }
-            Err(e) => Err(e),
+        let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let mut results = Vec::new();
+        for raw in data {
+            results.push(serde_json::from_slice::<JournalSegment>(&raw.data)?);
         }
+        Ok(results)
     }
 
     pub fn list_by_shard(
@@ -146,23 +108,12 @@ impl SegmentStorage {
         shard_name: &str,
     ) -> Result<Vec<JournalSegment>, CommonError> {
         let prefix_key = key_segment_shard_prefix(cluster_name, namespace, shard_name);
-        match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
-            Ok(data) => {
-                let mut results = Vec::new();
-                for raw in data {
-                    match serde_json::from_slice::<JournalSegment>(&raw.data) {
-                        Ok(topic) => {
-                            results.push(topic);
-                        }
-                        Err(e) => {
-                            return Err(e.into());
-                        }
-                    }
-                }
-                Ok(results)
-            }
-            Err(e) => Err(e),
+        let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let mut results = Vec::new();
+        for raw in data {
+            results.push(serde_json::from_slice::<JournalSegment>(&raw.data)?);
         }
+        Ok(results)
     }
 
     pub fn delete(

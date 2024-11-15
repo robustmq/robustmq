@@ -58,13 +58,9 @@ impl ResourceConfigStorage {
     ) -> Result<Option<Vec<u8>>, CommonError> {
         let key = key_resource_config(cluster_name, resource_key.join("/"));
 
-        match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
-            Ok(Some(data)) => match serde_json::from_slice::<Vec<u8>>(&data.data) {
-                Ok(config) => Ok(Some(config)),
-                Err(e) => Err(e.into()),
-            },
-            Ok(None) => Ok(None),
-            Err(e) => Err(e),
+        if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
+            return Ok(Some(serde_json::from_slice::<Vec<u8>>(&data.data)?));
         }
+        Ok(None)
     }
 }

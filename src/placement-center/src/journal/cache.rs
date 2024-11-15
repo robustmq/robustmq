@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use metadata_struct::journal::segment::JournalSegment;
+use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
 use rocksdb_engine::RocksDBEngine;
@@ -83,6 +83,24 @@ impl JournalCacheManager {
         None
     }
 
+    pub fn shard_idle_segment_num(
+        &self,
+        cluster_name: &str,
+        namespace: &str,
+        shard_name: &str,
+    ) -> u32 {
+        let key = self.shard_key(cluster_name, namespace, shard_name);
+        let mut num = 0;
+        if let Some(segment_list) = self.segment_list.get(&key) {
+            for segment in segment_list.iter() {
+                if segment.status == SegmentStatus::Idle {
+                    num += 1
+                }
+            }
+        }
+        num
+    }
+
     pub fn get_segment(
         &self,
         cluster_name: &str,
@@ -112,9 +130,9 @@ impl JournalCacheManager {
             self.segment_list.insert(key.clone(), data);
         }
 
-        if let Some(mut shard) = self.shard_list.get_mut(&key) {
-            shard.last_segment_seq = segment.segment_seq;
-        }
+        // if let Some(mut shard) = self.shard_list.get_mut(&key) {
+        //     shard.last_segment_seq = segment.segment_seq;
+        // }
     }
 
     pub fn remove_segment(
@@ -126,9 +144,9 @@ impl JournalCacheManager {
     ) {
         let key = self.shard_key(cluster_name, namespace, shard_name);
         if let Some(segment_list) = self.segment_list.get(&key) {
-            if let Some(mut shard) = self.shard_list.get_mut(&key) {
-                shard.start_segment_seq = segment_seq + 1;
-            }
+            // if let Some(mut shard) = self.shard_list.get_mut(&key) {
+            //     shard.start_segment_seq = segment_seq + 1;
+            // }
             segment_list.remove(&segment_seq);
         }
     }

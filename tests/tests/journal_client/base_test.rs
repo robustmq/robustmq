@@ -26,9 +26,11 @@ mod tests {
     use tokio::net::TcpStream;
     use tokio_util::codec::Framed;
 
+    use crate::journal_client::common::journal_tcp_addr;
+
     #[tokio::test]
     async fn get_cluster_metadata_base_test() {
-        let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
+        let socket = TcpStream::connect(&journal_tcp_addr()).await.unwrap();
 
         let mut stream = Framed::new(socket, JournalServerCodec::new());
 
@@ -49,7 +51,7 @@ mod tests {
 
     #[tokio::test]
     async fn create_shard_test() {
-        let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
+        let socket = TcpStream::connect(&journal_tcp_addr()).await.unwrap();
 
         let mut stream = Framed::new(socket, JournalServerCodec::new());
 
@@ -74,32 +76,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn delete_shard_test() {
-        let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
-        let mut stream = Framed::new(socket, JournalServerCodec::new());
-
-        let req_packet = JournalEnginePacket::DeleteShardReq(DeleteShardReq {
-            header: Some(ReqHeader {
-                api_key: ApiKey::DeleteShard.into(),
-                api_version: ApiVersion::V0.into(),
-            }),
-            body: Some(DeleteShardReqBody {
-                namespace: "b1".to_string(),
-                shard_name: "s1".to_string(),
-            }),
-        });
-
-        let _ = stream.send(req_packet.clone()).await;
-
-        if let Some(data) = stream.next().await {
-            let resp = data.unwrap();
-            println!("{:?}", resp);
-        }
-    }
-
-    #[tokio::test]
-    async fn get_active_segment_test() {
-        let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
+    async fn get_shard_metadata_test() {
+        let socket = TcpStream::connect(&journal_tcp_addr()).await.unwrap();
         let mut stream = Framed::new(socket, JournalServerCodec::new());
 
         let shards = vec![GetShardMetadataReqShard {
@@ -124,8 +102,32 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn delete_shard_test() {
+        let socket = TcpStream::connect(&journal_tcp_addr()).await.unwrap();
+        let mut stream = Framed::new(socket, JournalServerCodec::new());
+
+        let req_packet = JournalEnginePacket::DeleteShardReq(DeleteShardReq {
+            header: Some(ReqHeader {
+                api_key: ApiKey::DeleteShard.into(),
+                api_version: ApiVersion::V0.into(),
+            }),
+            body: Some(DeleteShardReqBody {
+                namespace: "b1".to_string(),
+                shard_name: "s1".to_string(),
+            }),
+        });
+
+        let _ = stream.send(req_packet.clone()).await;
+
+        if let Some(data) = stream.next().await {
+            let resp = data.unwrap();
+            println!("{:?}", resp);
+        }
+    }
+
+    #[tokio::test]
     async fn write_base_test() {
-        let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
+        let socket = TcpStream::connect(&journal_tcp_addr()).await.unwrap();
         let mut stream = Framed::new(socket, JournalServerCodec::new());
 
         let req_packet = JournalEnginePacket::WriteReq(WriteReq {
@@ -157,7 +159,7 @@ mod tests {
 
     #[tokio::test]
     async fn read_base_test() {
-        let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
+        let socket = TcpStream::connect(&journal_tcp_addr()).await.unwrap();
         let mut stream = Framed::new(socket, JournalServerCodec::new());
 
         let req_packet = JournalEnginePacket::ReadReq(ReadReq {
@@ -187,7 +189,7 @@ mod tests {
 
     #[tokio::test]
     async fn offset_base_test() {
-        let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
+        let socket = TcpStream::connect(&journal_tcp_addr()).await.unwrap();
         let mut stream = Framed::new(socket, JournalServerCodec::new());
 
         let req_packet = JournalEnginePacket::OffsetCommitReq(OffsetCommitReq {
