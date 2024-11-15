@@ -43,7 +43,7 @@ pub async fn gc_shard_thread(
     cluster_cache: Arc<PlacementCacheManager>,
     client_pool: Arc<ClientPool>,
 ) {
-    for shard in engine_cache.wait_delete_shard_list.iter() {
+    for (_, shard) in engine_cache.wait_delete_shard_list.clone() {
         if shard.status != JournalShardStatus::PrepareDelete {
             warn!(
                 "shard {} in wait_delete_shard_list is in the wrong state, current state is {:?}",
@@ -166,7 +166,7 @@ pub async fn gc_segment_thread(
     cluster_cache: Arc<PlacementCacheManager>,
     client_pool: Arc<ClientPool>,
 ) {
-    for segment in engine_cache.wait_delete_segment_list.iter() {
+    for (_, segment) in engine_cache.wait_delete_segment_list.clone() {
         if segment.status != SegmentStatus::PreDelete {
             warn!(
                 "segment {} in wait_delete_segment_list is in the wrong state, current state is {:?}",

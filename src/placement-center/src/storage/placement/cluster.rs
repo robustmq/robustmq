@@ -75,14 +75,10 @@ impl ClusterStorage {
         cluster_name: &str,
     ) -> Result<Option<ClusterInfo>, CommonError> {
         let key = key_cluster(cluster_type, cluster_name);
-        match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
-            Ok(Some(data)) => match serde_json::from_slice::<ClusterInfo>(&data.data) {
-                Ok(info) => Ok(Some(info)),
-                Err(e) => Err(e.into()),
-            },
-            Ok(None) => Ok(None),
-            Err(e) => Err(e),
+        if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
+            return Ok(Some(serde_json::from_slice::<ClusterInfo>(&data.data)?));
         }
+        Ok(None)
     }
 
     /// Delete cluster information from RocksDB.
@@ -114,22 +110,11 @@ impl ClusterStorage {
         } else {
             key_cluster_prefix()
         };
-        match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
-            Ok(data) => {
-                let mut results = Vec::new();
-                for raw in data {
-                    match serde_json::from_slice::<ClusterInfo>(&raw.data) {
-                        Ok(topic) => {
-                            results.push(topic);
-                        }
-                        Err(e) => {
-                            return Err(e.into());
-                        }
-                    }
-                }
-                Ok(results)
-            }
-            Err(e) => Err(e),
+        let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let mut results = Vec::new();
+        for raw in data {
+            results.push(serde_json::from_slice::<ClusterInfo>(&raw.data)?);
         }
+        Ok(results)
     }
 }

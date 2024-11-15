@@ -72,6 +72,9 @@ pub enum PlacementCenterError {
     #[error("segment {0} state cache error, server current state {1}, passed state {2}")]
     SegmentStateError(String, String, String),
 
+    #[error("Segment {0} state is {1} and no deletion is allowed")]
+    NoAllowDeleteSegment(String, String),
+
     #[error("Shard {0} already has enough segments, there is no need to create new segments")]
     ShardHasEnoughSegment(String),
 
