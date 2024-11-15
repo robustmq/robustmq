@@ -20,15 +20,16 @@ use metadata_struct::mqtt::user::MqttUser;
 use protocol::placement_center::placement_center_inner::ClusterType;
 
 use super::controller::session_expire::ExpireLastWill;
+use super::is_send_last_will;
 use crate::core::cache::PlacementCacheManager;
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct MqttCacheManager {
-    pub topic_list: DashMap<String, DashMap<String, MqttTopic>>,
-    pub user_list: DashMap<String, DashMap<String, MqttUser>>,
-    pub expire_last_wills: DashMap<String, DashMap<String, ExpireLastWill>>,
+    topic_list: DashMap<String, DashMap<String, MqttTopic>>,
+    user_list: DashMap<String, DashMap<String, MqttUser>>,
+    expire_last_wills: DashMap<String, DashMap<String, ExpireLastWill>>,
 }
 
 impl MqttCacheManager {
@@ -90,6 +91,18 @@ impl MqttCacheManager {
         if let Some(data) = self.expire_last_wills.get_mut(cluster_name) {
             data.remove(client_id);
         }
+    }
+
+    pub fn get_expire_last_wills(&self, cluster_name: &str) -> Vec<ExpireLastWill> {
+        let mut results = Vec::new();
+        if let Some(list) = self.expire_last_wills.get(cluster_name) {
+            for raw in list.iter() {
+                if is_send_last_will(raw.value()) {
+                    results.push(raw.value().clone());
+                }
+            }
+        }
+        results
     }
 
     pub fn load_cache(

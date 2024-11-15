@@ -123,10 +123,12 @@ impl RaftMachineApply {
         &self,
         data: StorageData,
     ) -> Result<ClientWriteResponse<TypeConfig>, PlacementCenterError> {
-        match self.openraft_node.client_write(data).await {
-            Ok(data) => Ok(data),
-            Err(e) => Err(PlacementCenterError::CommmonError(e.to_string())),
-        }
+        let resp = timeout(
+            Duration::from_secs(10),
+            self.openraft_node.client_write(data),
+        )
+        .await?;
+        Ok(resp?)
     }
 
     pub async fn transfer_leader(&self, node_id: u64) -> Result<(), PlacementCenterError> {

@@ -48,9 +48,9 @@ pub struct JournalInnerCallNodeSender {
 }
 
 pub struct JournalInnerCallManager {
-    pub node_sender: DashMap<String, JournalInnerCallNodeSender>,
-    pub node_sender_thread: DashMap<String, Sender<bool>>,
-    pub placement_cache_manager: Arc<PlacementCacheManager>,
+    node_sender: DashMap<String, JournalInnerCallNodeSender>,
+    node_stop_sender: DashMap<String, Sender<bool>>,
+    placement_cache_manager: Arc<PlacementCacheManager>,
 }
 
 impl JournalInnerCallManager {
@@ -59,9 +59,57 @@ impl JournalInnerCallManager {
         let node_sender_thread = DashMap::with_capacity(2);
         JournalInnerCallManager {
             node_sender,
-            node_sender_thread,
+            node_stop_sender: node_sender_thread,
             placement_cache_manager,
         }
+    }
+
+    pub fn get_node_sender(
+        &self,
+        cluster: &str,
+        node_addr: &str,
+    ) -> Option<JournalInnerCallNodeSender> {
+        let key = self.node_key(cluster, node_addr);
+        if let Some(sender) = self.node_sender.get(&key) {
+            return Some(sender.clone());
+        }
+        None
+    }
+
+    pub fn add_node_sender(
+        &self,
+        cluster: &str,
+        node_addr: &str,
+        sender: JournalInnerCallNodeSender,
+    ) {
+        let key = self.node_key(cluster, node_addr);
+        self.node_sender.insert(key, sender);
+    }
+
+    #[allow(dead_code)]
+    pub fn remove_node_sender(&self, cluster: &str, node_addr: &str) {
+        let key = self.node_key(cluster, node_addr);
+        self.node_sender.remove(&key);
+    }
+
+    #[allow(dead_code)]
+    pub fn get_node_stop_sender(&self, cluster: &str, node_addr: &str) -> Option<Sender<bool>> {
+        let key = self.node_key(cluster, node_addr);
+        if let Some(sender) = self.node_stop_sender.get(&key) {
+            return Some(sender.clone());
+        }
+        None
+    }
+
+    pub fn add_node_stop_sender(&self, cluster: &str, node_addr: &str, sender: Sender<bool>) {
+        let key = self.node_key(cluster, node_addr);
+        self.node_stop_sender.insert(key, sender);
+    }
+
+    #[allow(dead_code)]
+    pub fn remove_node_stop_sender(&self, cluster: &str, node_addr: &str) {
+        let key = self.node_key(cluster, node_addr);
+        self.node_stop_sender.remove(&key);
     }
 
     fn node_key(&self, cluster: &str, node_addr: &str) -> String {
@@ -76,7 +124,7 @@ pub async fn call_thread_manager(
     loop {
         // start thread
         for (key, node_sender) in call_manager.node_sender.clone() {
-            if !call_manager.node_sender_thread.contains_key(&key) {
+            if !call_manager.node_stop_sender.contains_key(&key) {
                 let (stop_send, _) = broadcast::channel(2);
                 start_call_thread(
                     key.clone(),
@@ -86,12 +134,12 @@ pub async fn call_thread_manager(
                     stop_send.clone(),
                 )
                 .await;
-                call_manager.node_sender_thread.insert(key, stop_send);
+                call_manager.node_stop_sender.insert(key, stop_send);
             }
         }
 
         // gc thread
-        for (key, sx) in call_manager.node_sender_thread.clone() {
+        for (key, sx) in call_manager.node_stop_sender.clone() {
             if !call_manager.node_sender.contains_key(&key) {
                 match sx.send(true) {
                     Ok(_) => {}
@@ -191,7 +239,7 @@ pub async fn update_cache_by_set_segment_meta(
 }
 
 async fn start_call_thread(
-    key: String,
+    cluster: String,
     addr: String,
     call_manager: Arc<JournalInnerCallManager>,
     client_pool: Arc<ClientPool>,
@@ -199,7 +247,7 @@ async fn start_call_thread(
 ) {
     tokio::spawn(async move {
         let mut raw_stop_rx = stop_send.subscribe();
-        if let Some(node_send) = call_manager.node_sender.get(&key) {
+        if let Some(node_send) = call_manager.get_node_sender(&cluster, &addr) {
             let mut data_recv = node_send.sender.subscribe();
             info!("Thread starts successfully, Inner communication between Placement Center and Journal Engine node [{}].",addr);
             loop {
@@ -255,19 +303,19 @@ async fn add_call_message(
         .placement_cache_manager
         .get_broker_node_addr_by_cluster(cluster_name)
     {
-        let key = call_manager.node_key(cluster_name, &addr);
-        if let Some(node_sender) = call_manager.node_sender.get(&key) {
+        if let Some(node_sender) = call_manager.get_node_sender(cluster_name, &addr) {
             match node_sender.sender.send(message.clone()) {
                 Ok(_) => {}
                 Err(e) => {
-                    error!("v1{}", e);
+                    error!("{}", e);
                 }
             }
         } else {
             // add sender
             let (sx, _) = broadcast::channel::<JournalInnerCallMessage>(1000);
-            call_manager.node_sender.insert(
-                key.clone(),
+            call_manager.add_node_sender(
+                cluster_name,
+                &addr,
                 JournalInnerCallNodeSender {
                     sender: sx.clone(),
                     addr: addr.clone(),
@@ -277,14 +325,14 @@ async fn add_call_message(
             // start thread
             let (stop_send, _) = broadcast::channel(2);
             start_call_thread(
-                key.clone(),
-                addr,
+                cluster_name.to_string(),
+                addr.clone(),
                 call_manager.clone(),
                 client_pool.clone(),
                 stop_send.clone(),
             )
             .await;
-            call_manager.node_sender_thread.insert(key, stop_send);
+            call_manager.add_node_stop_sender(cluster_name, &addr, stop_send);
 
             // Wait 2s for the "broadcast rx" thread to start, otherwise the send message will report a "channel closed" error
             sleep(Duration::from_secs(2)).await;
