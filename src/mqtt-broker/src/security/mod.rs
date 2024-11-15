@@ -58,6 +58,10 @@ pub trait AuthStorageAdapter {
     async fn save_user(&self, user_info: MqttUser) -> Result<(), CommonError>;
 
     async fn delete_user(&self, username: String) -> Result<(), CommonError>;
+
+    async fn save_acl(&self, acl: MqttAcl) -> Result<(), CommonError>;
+
+    async fn delete_acl(&self, acl: MqttAcl) -> Result<(), CommonError>;
 }
 
 pub struct AuthDriver {
@@ -178,6 +182,21 @@ impl AuthDriver {
         }
 
         Ok(false)
+    }
+
+    pub async fn save_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
+        self.cache_manager.add_acl(acl.clone());
+        self.driver.save_acl(acl).await
+    }
+
+    pub async fn delete_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
+        match self.driver.delete_acl(acl.clone()).await {
+            Ok(()) => {
+                self.cache_manager.remove_acl(acl.clone());
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
     }
 
     pub async fn allow_publish(

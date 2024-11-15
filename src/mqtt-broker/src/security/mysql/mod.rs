@@ -140,6 +140,14 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
         return Ok(Vec::new());
     }
 
+    async fn save_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
+        return Ok(());
+    }
+
+    async fn delete_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
+        return Ok(());
+    }
+
     async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, CommonError> {
         return Ok(Vec::new());
     }

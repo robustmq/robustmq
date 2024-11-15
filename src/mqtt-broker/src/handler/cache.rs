@@ -561,6 +561,10 @@ impl CacheManager {
         self.acl_metadata.parse_mqtt_acl(acl);
     }
 
+    pub fn remove_acl(&self, acl: MqttAcl) {
+        self.acl_metadata.remove_mqtt_acl(acl);
+    }
+
     pub fn add_blacklist(&self, blacklist: MqttAclBlackList) {
         self.acl_metadata.parse_mqtt_blacklist(blacklist);
     }
