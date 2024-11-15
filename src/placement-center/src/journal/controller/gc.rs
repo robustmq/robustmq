@@ -43,7 +43,7 @@ pub async fn gc_shard_thread(
     cluster_cache: Arc<PlacementCacheManager>,
     client_pool: Arc<ClientPool>,
 ) {
-    for (_, shard) in engine_cache.wait_delete_shard_list.clone() {
+    for shard in engine_cache.get_wait_delete_shard_list() {
         if shard.status != JournalShardStatus::PrepareDelete {
             warn!(
                 "shard {} in wait_delete_shard_list is in the wrong state, current state is {:?}",
@@ -112,38 +112,38 @@ pub async fn gc_shard_thread(
 
         // delete shard/segment by storage/cache
         if !flag {
-            let key =
-                engine_cache.shard_key(&shard.cluster_name, &shard.namespace, &shard.shard_name);
-
             // delete segment
-            if let Some(segment_list) = engine_cache.segment_list.get(&key) {
-                for segment in segment_list.iter() {
-                    if let Err(e) =
-                        sync_delete_segment_info(&raft_machine_apply, &segment.clone()).await
-                    {
-                        error!(
-                            "Failed to delete data from Segment {} with error message {}",
-                            segment.name(),
-                            e
-                        );
-                    };
-                }
+            for segment in engine_cache.get_segment_list_by_shard(
+                &shard.cluster_name,
+                &shard.namespace,
+                &shard.shard_name,
+            ) {
+                if let Err(e) =
+                    sync_delete_segment_info(&raft_machine_apply, &segment.clone()).await
+                {
+                    error!(
+                        "Failed to delete data from Segment {} with error message {}",
+                        segment.name(),
+                        e
+                    );
+                };
             }
 
             // delete segment meta
-            if let Some(list) = engine_cache.segment_meta_list.get(&key) {
-                for segment in list.iter() {
-                    if let Err(e) =
-                        sync_delete_segment_metadata_info(&raft_machine_apply, &segment.clone())
-                            .await
-                    {
-                        error!(
-                            "Failed to delete data from Segment {} with error message {}",
-                            segment.name(),
-                            e
-                        );
-                    };
-                }
+            for segment in engine_cache.get_segment_meta_list_by_shard(
+                &shard.cluster_name,
+                &shard.namespace,
+                &shard.shard_name,
+            ) {
+                if let Err(e) =
+                    sync_delete_segment_metadata_info(&raft_machine_apply, &segment.clone()).await
+                {
+                    error!(
+                        "Failed to delete data from Segment {} with error message {}",
+                        segment.name(),
+                        e
+                    );
+                };
             }
 
             // delete shard
@@ -166,7 +166,7 @@ pub async fn gc_segment_thread(
     cluster_cache: Arc<PlacementCacheManager>,
     client_pool: Arc<ClientPool>,
 ) {
-    for (_, segment) in engine_cache.wait_delete_segment_list.clone() {
+    for segment in engine_cache.get_wait_delete_segment_list() {
         if segment.status != SegmentStatus::PreDelete {
             warn!(
                 "segment {} in wait_delete_segment_list is in the wrong state, current state is {:?}",

@@ -76,7 +76,7 @@ impl BrokerHeartbeat {
                     {
                         let cluster_type = str_to_cluster_type(&node.cluster_type).unwrap();
                         let req = UnRegisterNodeRequest {
-                            node_id: node_id,
+                            node_id,
                             cluster_name: cluster_name.to_string(),
                             cluster_type: cluster_type.into(),
                         };

@@ -162,7 +162,7 @@ pub async fn delete_segment_by_req(
         ));
     };
 
-    let segment = if let Some(segment) = engine_cache.get_segment(
+    let mut segment = if let Some(segment) = engine_cache.get_segment(
         &req.cluster_name,
         &req.namespace,
         &req.shard_name,
@@ -191,6 +191,7 @@ pub async fn delete_segment_by_req(
     )
     .await?;
 
+    segment.status = SegmentStatus::PreDelete;
     engine_cache.add_wait_delete_segment(&segment);
 
     update_cache_by_set_segment(

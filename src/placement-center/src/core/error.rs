@@ -17,7 +17,10 @@ use std::net::AddrParseError;
 use std::string::FromUtf8Error;
 
 use common_base::error::common::CommonError;
+use openraft::error::{ClientWriteError, RaftError};
 use thiserror::Error;
+
+use crate::raft::raftv2::typeconfig::TypeConfig;
 
 #[derive(Error, Debug)]
 pub enum PlacementCenterError {
@@ -47,6 +50,12 @@ pub enum PlacementCenterError {
 
     #[error("{0}")]
     AddrParseError(#[from] AddrParseError),
+
+    #[error("{0}")]
+    TokioTimeErrorElapsed(#[from] tokio::time::error::Elapsed),
+
+    #[error("{0}")]
+    OpenRaftError(#[from] RaftError<TypeConfig, ClientWriteError<TypeConfig>>),
 
     #[error("Description The interface {0} submitted logs to the commit log")]
     RaftLogCommitTimeout(String),

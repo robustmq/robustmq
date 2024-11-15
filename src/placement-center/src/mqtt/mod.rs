@@ -12,6 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::tools::now_second;
+use controller::session_expire::ExpireLastWill;
+
 pub mod cache;
 pub mod controller;
 pub mod services;
+
+pub fn is_send_last_will(lastwill: &ExpireLastWill) -> bool {
+    if now_second() >= lastwill.delay_sec {
+        return true;
+    }
+    false
+}
