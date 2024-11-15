@@ -43,14 +43,10 @@ impl KvStorage {
     }
 
     pub fn get(&self, key: String) -> Result<Option<String>, CommonError> {
-        match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
-            Ok(Some(data)) => match serde_json::from_slice::<String>(&data.data) {
-                Ok(data) => Ok(Some(data)),
-                Err(e) => Err(e.into()),
-            },
-            Ok(None) => Ok(None),
-            Err(e) => Err(e),
+        if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
+            return Ok(Some(serde_json::from_slice::<String>(&data.data)?));
         }
+        Ok(None)
     }
 
     pub fn exists(&self, key: String) -> Result<bool, CommonError> {

@@ -198,21 +198,21 @@ impl EngineService for GrpcEngineService {
         }
 
         let segment_storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
-        let res = if req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == 0 {
+        let res = if req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == -1 {
             match segment_storage.list_by_cluster(&req.cluster_name) {
                 Ok(list) => list,
                 Err(e) => {
                     return Err(Status::cancelled(e.to_string()));
                 }
             }
-        } else if !req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == 0 {
+        } else if !req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == -1 {
             match segment_storage.list_by_namespace(&req.cluster_name, &req.namespace) {
                 Ok(list) => list,
                 Err(e) => {
                     return Err(Status::cancelled(e.to_string()));
                 }
             }
-        } else if !req.namespace.is_empty() && !req.shard_name.is_empty() && req.segment_no == 0 {
+        } else if !req.namespace.is_empty() && !req.shard_name.is_empty() && req.segment_no == -1 {
             match segment_storage.list_by_shard(&req.cluster_name, &req.namespace, &req.shard_name)
             {
                 Ok(list) => list,
@@ -225,7 +225,7 @@ impl EngineService for GrpcEngineService {
                 &req.cluster_name,
                 &req.namespace,
                 &req.shard_name,
-                req.segment_no,
+                req.segment_no as u32,
             ) {
                 Ok(Some(shard)) => vec![shard],
                 Ok(None) => Vec::new(),
@@ -351,21 +351,21 @@ impl EngineService for GrpcEngineService {
         }
 
         let storage = SegmentMetadataStorage::new(self.rocksdb_engine_handler.clone());
-        let res = if req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == 0 {
+        let res = if req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == -1 {
             match storage.list_by_cluster(&req.cluster_name) {
                 Ok(list) => list,
                 Err(e) => {
                     return Err(Status::cancelled(e.to_string()));
                 }
             }
-        } else if !req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == 0 {
+        } else if !req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == -1 {
             match storage.list_by_namespace(&req.cluster_name, &req.namespace) {
                 Ok(list) => list,
                 Err(e) => {
                     return Err(Status::cancelled(e.to_string()));
                 }
             }
-        } else if !req.namespace.is_empty() && !req.shard_name.is_empty() && req.segment_no == 0 {
+        } else if !req.namespace.is_empty() && !req.shard_name.is_empty() && req.segment_no == -1 {
             match storage.list_by_shard(&req.cluster_name, &req.namespace, &req.shard_name) {
                 Ok(list) => list,
                 Err(e) => {
@@ -377,7 +377,7 @@ impl EngineService for GrpcEngineService {
                 &req.cluster_name,
                 &req.namespace,
                 &req.shard_name,
-                req.segment_no,
+                req.segment_no as u32,
             ) {
                 Ok(Some(shard)) => vec![shard],
                 Ok(None) => Vec::new(),

@@ -67,7 +67,7 @@ mod tests {
             namespace: namespace.clone(),
             shard_name: shard_name.clone(),
         };
-        let res = create_next_segment(client_pool, addrs, request)
+        create_next_segment(client_pool, addrs, request)
             .await
             .unwrap();
     }

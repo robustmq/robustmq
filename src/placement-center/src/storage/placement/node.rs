@@ -48,14 +48,10 @@ impl NodeStorage {
     #[allow(dead_code)]
     pub fn get(&self, cluster_name: &str, node_id: u64) -> Result<Option<BrokerNode>, CommonError> {
         let node_key = key_node(cluster_name, node_id);
-        match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), node_key) {
-            Ok(Some(data)) => match serde_json::from_slice::<BrokerNode>(&data.data) {
-                Ok(node) => Ok(Some(node)),
-                Err(e) => Err(e.into()),
-            },
-            Ok(None) => Ok(None),
-            Err(e) => Err(e),
+        if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), node_key)? {
+            return Ok(Some(serde_json::from_slice::<BrokerNode>(&data.data)?));
         }
+        Ok(None)
     }
 
     pub fn list(&self, cluster_name: Option<String>) -> Result<Vec<BrokerNode>, CommonError> {
@@ -65,22 +61,11 @@ impl NodeStorage {
             key_node_prefix_all()
         };
 
-        match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
-            Ok(data) => {
-                let mut results = Vec::new();
-                for raw in data {
-                    match serde_json::from_slice::<BrokerNode>(&raw.data) {
-                        Ok(node) => {
-                            results.push(node);
-                        }
-                        Err(e) => {
-                            return Err(e.into());
-                        }
-                    }
-                }
-                Ok(results)
-            }
-            Err(e) => Err(e),
+        let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let mut results = Vec::new();
+        for raw in data {
+            results.push(serde_json::from_slice::<BrokerNode>(&raw.data)?);
         }
+        Ok(results)
     }
 }
