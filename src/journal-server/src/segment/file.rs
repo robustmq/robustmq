@@ -175,7 +175,7 @@ mod tests {
                 segment: 1,
                 tags: vec![],
             };
-            match segment.write(&vec![record.clone()]).await {
+            match segment.write(&[record.clone()]).await {
                 Ok(()) => {}
                 Err(e) => {
                     panic!("{:?}", e);

@@ -57,14 +57,14 @@ impl RocksDBEngine {
             Ok(serialized) => match self.db.put_cf(cf, key, serialized) {
                 Ok(()) => {}
                 Err(e) => {
-                    return Err(CommonError::CommmonError(format!(
+                    return Err(CommonError::CommonError(format!(
                         "Failed to put to ColumnFamily:{:?}",
                         e
                     )));
                 }
             },
             Err(err) => {
-                return Err(CommonError::CommmonError(format!(
+                return Err(CommonError::CommonError(format!(
                     "Failed to serialize to String. T: {:?}, err: {:?}",
                     value, err
                 )))
@@ -92,14 +92,14 @@ impl RocksDBEngine {
             Ok(opt) => match opt {
                 Some(found) => match serde_json::from_slice::<T>(&found) {
                     Ok(t) => Ok(Some(t)),
-                    Err(err) => Err(CommonError::CommmonError(format!(
+                    Err(err) => Err(CommonError::CommonError(format!(
                         "Failed to deserialize: {:?}",
                         err
                     ))),
                 },
                 None => Ok(None),
             },
-            Err(err) => Err(CommonError::CommmonError(format!(
+            Err(err) => Err(CommonError::CommonError(format!(
                 "Failed to get from ColumnFamily: {:?}",
                 err
             ))),

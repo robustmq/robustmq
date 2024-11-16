@@ -99,7 +99,7 @@ impl Connection {
         self.login_user = user_name;
     }
 
-    pub fn is_response_proplem_info(&self) -> bool {
+    pub fn is_response_problem_info(&self) -> bool {
         self.request_problem_info == 1
     }
 
@@ -212,7 +212,7 @@ pub async fn disconnect_connection(
     connect_id: u64,
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    connnection_manager: &Arc<ConnectionManager>,
+    connection_manager: &Arc<ConnectionManager>,
     subscribe_manager: &Arc<SubscribeManager>,
 ) -> Result<(), CommonError> {
     // Remove the connection cache
@@ -235,7 +235,7 @@ pub async fn disconnect_connection(
     }
 
     // Close the real network connection
-    connnection_manager.close_connect(connect_id).await;
+    connection_manager.close_connect(connect_id).await;
     Ok(())
 }
 

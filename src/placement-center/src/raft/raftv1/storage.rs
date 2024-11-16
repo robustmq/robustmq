@@ -34,14 +34,14 @@ impl RaftRocksDBStorage {
     pub fn read_lock(&self) -> Result<RwLockReadGuard<'_, RaftMachineStorage>, CommonError> {
         match self.core.read() {
             Ok(object) => Ok(object),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         }
     }
 
     pub fn write_lock(&self) -> Result<RwLockWriteGuard<'_, RaftMachineStorage>, CommonError> {
         match self.core.write() {
             Ok(object) => Ok(object),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         }
     }
 }
@@ -52,14 +52,14 @@ impl RaftRocksDBStorage {
         store.recovery_snapshot(snapshot)
     }
 
-    pub fn append_entries(&self, entrys: &[Entry]) -> Result<(), CommonError> {
+    pub fn append_entries(&self, entries: &[Entry]) -> Result<(), CommonError> {
         let mut store = self.write_lock()?;
-        store.append_entrys(entrys)
+        store.append_entries(entries)
     }
 
-    pub fn commmit_index(&self, idx: u64) -> Result<(), CommonError> {
+    pub fn commit_index(&self, idx: u64) -> Result<(), CommonError> {
         let mut store = self.write_lock()?;
-        let _ = store.commmit_index(idx);
+        let _ = store.commit_index(idx);
         Ok(())
     }
 
@@ -69,7 +69,7 @@ impl RaftRocksDBStorage {
         Ok(())
     }
 
-    pub fn set_hard_state_comit(&self, hs: u64) -> Result<(), CommonError> {
+    pub fn set_hard_state_commit(&self, hs: u64) -> Result<(), CommonError> {
         let store = self.write_lock()?;
         let _ = store.update_hard_state_commit(hs);
         Ok(())

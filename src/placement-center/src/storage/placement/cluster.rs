@@ -30,7 +30,7 @@ pub struct ClusterStorage {
 }
 
 impl ClusterStorage {
-    /// Create a new ClusterStorge instance.
+    /// Create a new ClusterStorage instance.
     ///
     /// Parameters:
     /// - `rocksdb_engine_handler: Arc<RocksDBEngine>`: The RocksDB engine handler.

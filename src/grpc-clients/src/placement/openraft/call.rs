@@ -42,7 +42,7 @@ pub async fn placement_openraft_vote(
     {
         Ok(data) => match VoteReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -65,7 +65,7 @@ pub async fn placement_openraft_append(
     {
         Ok(data) => match AppendReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -88,7 +88,7 @@ pub async fn placement_openraft_snapshot(
     {
         Ok(data) => match SnapshotReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -111,7 +111,7 @@ pub async fn placement_openraft_add_learner(
     {
         Ok(data) => match AddLearnerReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -134,7 +134,7 @@ pub async fn placement_openraft_change_membership(
     {
         Ok(data) => match ChangeMembershipReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }

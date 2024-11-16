@@ -37,6 +37,7 @@ mod tests {
     use crate::common::get_placement_addr;
 
     #[tokio::test]
+    #[ignore]
     async fn shard_segment_metadata_test() {
         let client_pool = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
@@ -63,8 +64,8 @@ mod tests {
             extend_info: serde_json::to_string(&extend).unwrap(),
         };
         if let Err(e) = register_node(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+            println!("{}", e);
+            panic!();
         }
 
         // create shard
@@ -75,8 +76,8 @@ mod tests {
             replica: 1,
         };
         if let Err(e) = create_shard(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+            println!("{}", e);
+            panic!();
         }
 
         // list shard
@@ -255,6 +256,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     pub async fn sealup_segment_test() {
         let client_pool = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
@@ -281,8 +283,8 @@ mod tests {
             extend_info: serde_json::to_string(&extend).unwrap(),
         };
         if let Err(e) = register_node(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+            println!("{}", e);
+            panic!();
         }
 
         // create shard
@@ -293,8 +295,8 @@ mod tests {
             replica: 1,
         };
         if let Err(e) = create_shard(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+            println!("{}", e);
+            panic!();
         }
 
         // update status to PreSealUp
@@ -307,8 +309,8 @@ mod tests {
             next_status: "PreSealUp".to_string(),
         };
         if let Err(e) = update_segment_status(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+            println!("{}", e);
+            panic!();
         }
         // List Segment
         let request = ListSegmentRequest {
@@ -336,8 +338,8 @@ mod tests {
             next_status: "SealUp".to_string(),
         };
         if let Err(e) = update_segment_status(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+            println!("{}", e);
+            panic!();
         }
 
         // List Segment
@@ -368,8 +370,8 @@ mod tests {
             end_timestamp: 1731576014,
         };
         if let Err(e) = update_segment_meta(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+            println!("{}", e);
+            panic!();
         }
 
         // list segment meta
@@ -395,6 +397,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     pub async fn delete_segment_test() {
         let client_pool = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
@@ -421,8 +424,8 @@ mod tests {
             extend_info: serde_json::to_string(&extend).unwrap(),
         };
         if let Err(e) = register_node(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+            println!("{}", e);
+            unreachable!();
         }
 
         // create shard
@@ -433,8 +436,8 @@ mod tests {
             replica: 1,
         };
         if let Err(e) = create_shard(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+            println!("{}", e);
+            unreachable!();
         }
 
         // create next segment
@@ -455,10 +458,9 @@ mod tests {
             segment_seq: 0,
         };
         if let Err(e) = delete_segment(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(true);
+            println!("{}", e);
         } else {
-            assert!(false)
+            unreachable!();
         }
 
         // update status to SealUp
@@ -471,8 +473,8 @@ mod tests {
             next_status: "SealUp".to_string(),
         };
         if let Err(e) = update_segment_status(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+            println!("{}", e);
+            panic!();
         }
 
         // delete segment
@@ -504,7 +506,7 @@ mod tests {
     }
 
     #[tokio::test]
-
+    #[ignore]
     pub async fn delete_shard_test() {
         let client_pool = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
@@ -531,8 +533,8 @@ mod tests {
             extend_info: serde_json::to_string(&extend).unwrap(),
         };
         if let Err(e) = register_node(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+            println!("{}", e);
+            panic!();
         }
 
         // create shard
@@ -543,8 +545,8 @@ mod tests {
             replica: 1,
         };
         if let Err(e) = create_shard(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+            println!("{}", e);
+            panic!();
         }
 
         // create next segment

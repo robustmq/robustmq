@@ -42,7 +42,7 @@ pub async fn journal_inner_update_cache(
     {
         Ok(data) => match UpdateJournalCacheReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -65,7 +65,7 @@ pub async fn journal_inner_delete_shard_file(
     {
         Ok(data) => match DeleteShardFileReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -88,7 +88,7 @@ pub async fn journal_inner_get_shard_delete_status(
     {
         Ok(data) => match GetShardDeleteStatusReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -111,7 +111,7 @@ pub async fn journal_inner_delete_segment_file(
     {
         Ok(data) => match DeleteSegmentFileReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -134,7 +134,7 @@ pub async fn journal_inner_get_segment_delete_status(
     {
         Ok(data) => match GetSegmentDeleteStatusReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }

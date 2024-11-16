@@ -223,7 +223,7 @@ impl CacheManager {
 
 pub async fn update_cache(
     cache_manager: &Arc<CacheManager>,
-    segement_file_manager: &Arc<SegmentFileManager>,
+    segment_file_manager: &Arc<SegmentFileManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     action_type: JournalUpdateCacheActionType,
     resource_type: JournalUpdateCacheResourceType,
@@ -235,7 +235,7 @@ pub async fn update_cache(
         JournalUpdateCacheResourceType::Segment => {
             parse_segment(
                 cache_manager,
-                segement_file_manager,
+                segment_file_manager,
                 rocksdb_engine_handler,
                 action_type,
                 data,
@@ -245,7 +245,7 @@ pub async fn update_cache(
         JournalUpdateCacheResourceType::SegmentMeta => {
             parse_segment_meta(
                 cache_manager,
-                segement_file_manager,
+                segment_file_manager,
                 rocksdb_engine_handler,
                 action_type,
                 data,
@@ -322,7 +322,7 @@ fn parse_shard(
 
 async fn parse_segment(
     cache_manager: &Arc<CacheManager>,
-    segement_file_manager: &Arc<SegmentFileManager>,
+    segment_file_manager: &Arc<SegmentFileManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     action_type: JournalUpdateCacheActionType,
     data: &str,
@@ -341,7 +341,7 @@ async fn parse_segment(
                     return;
                 }
 
-                match create_local_segment(segement_file_manager, rocksdb_engine_handler, &segment)
+                match create_local_segment(segment_file_manager, rocksdb_engine_handler, &segment)
                     .await
                 {
                     Ok(()) => {
@@ -370,7 +370,7 @@ async fn parse_segment(
 
 async fn parse_segment_meta(
     cache_manager: &Arc<CacheManager>,
-    segement_file_manager: &Arc<SegmentFileManager>,
+    segment_file_manager: &Arc<SegmentFileManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     action_type: JournalUpdateCacheActionType,
     data: &str,

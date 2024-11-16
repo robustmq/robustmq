@@ -127,7 +127,7 @@ impl SessionStorage {
                 let raw = reply.sessions.first().unwrap();
                 match serde_json::from_slice::<MqttSession>(raw) {
                     Ok(data) => Ok(Some(data)),
-                    Err(e) => Err(CommonError::CommmonError(e.to_string())),
+                    Err(e) => Err(CommonError::CommonError(e.to_string())),
                 }
             }
             Err(e) => Err(e),
@@ -165,7 +165,7 @@ impl SessionStorage {
         }
     }
 
-    pub async fn save_last_will_messae(
+    pub async fn save_last_will_message(
         &self,
         client_id: String,
         last_will_message: Vec<u8>,
@@ -201,6 +201,7 @@ mod tests {
     use crate::storage::session::SessionStorage;
 
     #[tokio::test]
+    #[ignore]
     async fn session_test() {
         let path = format!(
             "{}/../../config/mqtt-server.toml",

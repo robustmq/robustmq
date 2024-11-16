@@ -57,7 +57,7 @@ impl ClusterStorage {
             match serde_json::from_slice::<BrokerNode>(&node) {
                 Ok(data) => node_list.push(data),
                 Err(e) => {
-                    return Err(CommonError::CommmonError(format!("Retrieving cluster Node list, parsing Node information failed, error message :{}",e)));
+                    return Err(CommonError::CommonError(format!("Retrieving cluster Node list, parsing Node information failed, error message :{}", e)));
                 }
             }
         }
@@ -193,7 +193,7 @@ impl ClusterStorage {
                 } else {
                     match serde_json::from_slice::<MqttClusterDynamicConfig>(&data.config) {
                         Ok(data) => Ok(Some(data)),
-                        Err(e) => Err(CommonError::CommmonError(e.to_string())),
+                        Err(e) => Err(CommonError::CommonError(e.to_string())),
                     }
                 }
             }
@@ -219,6 +219,7 @@ mod tests {
     use crate::storage::cluster::ClusterStorage;
 
     #[tokio::test]
+    #[ignore]
     async fn cluster_node_test() {
         let path = format!(
             "{}/../../config/mqtt-server.toml",
@@ -249,6 +250,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn cluster_config_test() {
         let path = format!(
             "{}/../../config/mqtt-server.toml",

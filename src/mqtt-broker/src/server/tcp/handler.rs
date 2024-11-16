@@ -108,8 +108,8 @@ fn handler_child_process<S>(
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
     for index in 1..=handler_process_num {
-        let (child_hendler_sx, mut child_process_rx) = mpsc::channel::<RequestPackage>(1000);
-        child_process_list.insert(index, child_hendler_sx.clone());
+        let (child_handler_sx, mut child_process_rx) = mpsc::channel::<RequestPackage>(1000);
+        child_process_list.insert(index, child_handler_sx.clone());
 
         let mut raw_stop_rx = stop_sx.subscribe();
         let raw_connect_manager = connection_manager.clone();

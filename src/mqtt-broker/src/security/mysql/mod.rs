@@ -68,7 +68,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 return Ok(results);
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }
@@ -93,7 +93,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 return Ok(None);
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }
@@ -113,7 +113,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 return Ok(());
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }
@@ -131,7 +131,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 return Ok(());
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }

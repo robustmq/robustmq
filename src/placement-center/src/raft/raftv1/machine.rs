@@ -37,14 +37,14 @@ use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::core::raft_node::RaftNode;
 use crate::raft::raftv1::peer::PeerMessage;
-use crate::route::apply::{RaftMessage, RaftResponseMesage};
+use crate::route::apply::{RaftMessage, RaftResponseMessage};
 use crate::route::DataRoute;
 
 pub struct RaftMachine {
     cache_placement: Arc<PlacementCacheManager>,
     receiver: Receiver<RaftMessage>,
     seqnum: AtomicUsize,
-    resp_channel: HashMap<usize, oneshot::Sender<RaftResponseMesage>>,
+    resp_channel: HashMap<usize, oneshot::Sender<RaftResponseMessage>>,
     data_route: Arc<DataRoute>,
     peer_message_send: Sender<PeerMessage>,
     stop_recv: broadcast::Receiver<bool>,
@@ -112,7 +112,7 @@ impl RaftMachine {
                 }
 
                 Ok(Some(RaftMessage::Raft { message, chan })) => match raft_node.step(*message) {
-                    Ok(_) => match chan.send(RaftResponseMesage::Success) {
+                    Ok(_) => match chan.send(RaftResponseMessage::Success) {
                         Ok(_) => {}
                         Err(_) => {
                             error!("{}","commit entry Fails to return data to chan. chan may have been closed");
@@ -125,7 +125,7 @@ impl RaftMachine {
 
                 Ok(Some(RaftMessage::TransferLeader { node_id, chan })) => {
                     raft_node.transfer_leader(node_id);
-                    match chan.send(RaftResponseMesage::Success) {
+                    match chan.send(RaftResponseMessage::Success) {
                         Ok(_) => {}
                         Err(_) => {
                             error!("{}","commit entry Fails to return data to chan. chan may have been closed");
@@ -218,7 +218,7 @@ impl RaftMachine {
         let mut light_rd = raft_node.advance(ready);
         if let Some(commit) = light_rd.commit_index() {
             debug!("save light rd!!!,commit:{:?}", commit);
-            raft_node.mut_store().set_hard_state_comit(commit)?;
+            raft_node.mut_store().set_hard_state_commit(commit)?;
         }
 
         self.send_message(light_rd.take_messages()).await?;
@@ -233,11 +233,11 @@ impl RaftMachine {
     async fn handle_committed_entries(
         &mut self,
         raft_node: &mut RawNode<RaftRocksDBStorage>,
-        entrys: Vec<Entry>,
+        entries: Vec<Entry>,
     ) -> Result<(), PlacementCenterError> {
-        for entry in entrys {
+        for entry in entries {
             if !entry.data.is_empty() {
-                debug!("ready entrys entry type:{:?}", entry.get_entry_type());
+                debug!("ready entries entry type:{:?}", entry.get_entry_type());
                 match entry.get_entry_type() {
                     EntryType::EntryNormal => {
                         // Saves the service data sent by the client
@@ -251,10 +251,10 @@ impl RaftMachine {
                         match change_type {
                             ConfChangeType::AddNode => {
                                 let node = deserialize::<RaftNode>(change.get_context())?;
-                                self.cache_placement.add_raft_memner(node);
+                                self.cache_placement.add_raft_member(node);
                             }
                             ConfChangeType::RemoveNode => {
-                                self.cache_placement.remove_raft_memner(id);
+                                self.cache_placement.remove_raft_member(id);
                             }
                             ConfChangeType::AddLearnerNode => {
                                 //todo
@@ -270,14 +270,14 @@ impl RaftMachine {
             }
 
             let idx: u64 = entry.get_index();
-            let _ = raft_node.mut_store().commmit_index(idx);
+            let _ = raft_node.mut_store().commit_index(idx);
             if !entry.get_context().is_empty() {
                 let seq = deserialize(entry.get_context())?;
                 if let Some(chan) = self.resp_channel.remove(&seq) {
-                    match chan.send(RaftResponseMesage::Success) {
+                    match chan.send(RaftResponseMessage::Success) {
                         Ok(_) => {}
                         Err(_) => {
-                            return Err(PlacementCenterError::CommmonError(
+                            return Err(PlacementCenterError::CommonError(
                                 "commit entry Fails to return data to chan. chan may have been closed"
                                     .to_string(),
                             ));
@@ -311,14 +311,14 @@ impl RaftMachine {
                 {
                     Ok(_) => {}
                     Err(e) => {
-                        return Err(PlacementCenterError::CommmonError(format!(
+                        return Err(PlacementCenterError::CommonError(format!(
                             "Failed to write Raft Message to send queue with error message: {:?}",
                             e.to_string()
                         )))
                     }
                 }
             } else {
-                return Err(PlacementCenterError::CommmonError(format!("raft message was sent to node {}, but the node information could not be found. It may be that the node is not online yet.",to)));
+                return Err(PlacementCenterError::CommonError(format!("raft message was sent to node {}, but the node information could not be found. It may be that the node is not online yet.", to)));
             }
         }
         Ok(())
@@ -350,7 +350,7 @@ impl RaftMachine {
         let node = match RawNode::new(&conf, storage, &logger) {
             Ok(data) => data,
             Err(e) => {
-                return Err(PlacementCenterError::CommmonError(e.to_string()));
+                return Err(PlacementCenterError::CommonError(e.to_string()));
             }
         };
         Ok(node)

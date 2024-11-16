@@ -63,6 +63,17 @@ fn validate_ip(field_name: &str, ip: &str) -> Result<(), Status> {
     }
 }
 
+#[allow(dead_code)]
+fn is_valid_cluster_type(cluster_type: i32) -> Result<(), Status> {
+    if !ClusterType::is_valid(cluster_type) {
+        Err(Status::invalid_argument(
+            CommonError::UnavailableClusterType.to_string(),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 impl ValidateExt for RegisterNodeRequest {
     // validate params:
     // 1. is valid cluster_type
@@ -88,11 +99,8 @@ impl ValidateExt for RegisterNodeRequest {
 
 impl ValidateExt for UnRegisterNodeRequest {
     fn validate_ext(&self) -> Result<(), Status> {
-        if self.cluster_name.is_empty() {
-            return Err(Status::cancelled(
-                CommonError::ParameterCannotBeNull("cluster name".to_string()).to_string(),
-            ));
-        }
+        ensure_param_not_empty("cluster_name", &self.cluster_name)?;
+
         Ok(())
     }
 }
@@ -121,17 +129,8 @@ impl ValidateExt for SetResourceConfigRequest {
 
 impl ValidateExt for SetIdempotentDataRequest {
     fn validate_ext(&self) -> Result<(), Status> {
-        if self.cluster_name.is_empty() {
-            return Err(Status::cancelled(
-                CommonError::ParameterCannotBeNull("cluster name".to_string()).to_string(),
-            ));
-        }
-
-        if self.producer_id.is_empty() {
-            return Err(Status::cancelled(
-                CommonError::ParameterCannotBeNull("producer id".to_string()).to_string(),
-            ));
-        }
+        ensure_param_not_empty("cluster_name", &self.cluster_name)?;
+        ensure_param_not_empty("producer_id", &self.producer_id)?;
 
         Ok(())
     }
@@ -153,9 +152,7 @@ mod validate_test {
             )
             .message()
         );
-
-        let param = "cluster_name";
-        let result = ensure_param_not_empty("cluster_name", &param);
+        let result = ensure_param_not_empty("cluster_name", "cluster_name");
         assert!(result.is_ok());
     }
 
@@ -198,5 +195,17 @@ mod validate_test {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_valid_cluster_type() {
+        assert!(is_valid_cluster_type(1).is_ok());
+        let result = is_valid_cluster_type(10);
+        assert!(result.is_err());
+        let status = result.unwrap_err();
+        assert_eq!(
+            status.message(),
+            Status::invalid_argument(CommonError::UnavailableClusterType.to_string(),).message()
+        )
     }
 }

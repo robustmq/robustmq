@@ -137,8 +137,8 @@ impl codec::Decoder for Mqtt5Codec {
                 MqttPacket::PubRec(pubrec, pubrec_properties)
             }
             PacketType::PubRel => {
-                let (pubrel, pubrel_properteis) = pubrel::read(fixed_header, packet)?;
-                MqttPacket::PubRel(pubrel, pubrel_properteis)
+                let (pubrel, pubrel_properties) = pubrel::read(fixed_header, packet)?;
+                MqttPacket::PubRel(pubrel, pubrel_properties)
             }
             PacketType::PubComp => {
                 let (pubcomp, pubcomp_properties) = pubcomp::read(fixed_header, packet)?;

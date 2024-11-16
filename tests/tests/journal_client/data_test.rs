@@ -50,19 +50,14 @@ mod tests {
         let _ = stream.send(req_packet.clone()).await;
 
         let server_nodes = DashMap::with_capacity(2);
-        if let Some(Ok(resp)) = stream.next().await {
-            if let JournalEnginePacket::GetClusterMetadataResp(data) = resp {
-                println!("{:?}", data);
-                assert!(resp_header_error(&data.header.unwrap()).is_ok());
-
-                for node in data.body.unwrap().nodes {
-                    server_nodes.insert(node.node_id, node);
-                }
-            } else {
-                assert!(false);
+        if let Some(Ok(JournalEnginePacket::GetClusterMetadataResp(data))) = stream.next().await {
+            println!("{:?}", data);
+            assert!(resp_header_error(&data.header.unwrap()).is_ok());
+            for node in data.body.unwrap().nodes {
+                server_nodes.insert(node.node_id, node);
             }
         } else {
-            assert!(false);
+            panic!()
         }
 
         println!("{:?}", server_nodes);
@@ -90,15 +85,11 @@ mod tests {
 
         let _ = stream.send(req_packet.clone()).await;
 
-        if let Some(Ok(resp)) = stream.next().await {
-            if let JournalEnginePacket::CreateShardResp(data) = resp {
-                println!("{:?}", data);
-                assert!(resp_header_error(&data.header.unwrap()).is_ok());
-            } else {
-                assert!(false);
-            }
+        if let Some(Ok(JournalEnginePacket::CreateShardResp(data))) = stream.next().await {
+            println!("{:?}", data);
+            assert!(resp_header_error(&data.header.unwrap()).is_ok());
         } else {
-            assert!(false);
+            panic!();
         }
         sleep(Duration::from_secs(3)).await;
 
@@ -122,22 +113,18 @@ mod tests {
 
         let _ = stream.send(req_packet.clone()).await;
 
-        if let Some(Ok(resp)) = stream.next().await {
-            if let JournalEnginePacket::GetShardMetadataResp(data) = resp {
-                println!("{:?}", data);
-                assert!(resp_header_error(&data.header.unwrap()).is_ok());
-                // let body = data.body.unwrap();
-                // let active_segment = body.segments.first().unwrap();
-                // let segment_metadata = active_segment.active_segment.clone().unwrap();
-                // assert_eq!(active_segment.namespace, namespace);
-                // assert_eq!(active_segment.shard, shard_name);
-                // assert_eq!(segment_metadata.replicas.len(), 1);
-                // segment_0_all_replicas = segment_metadata.replicas;
-            } else {
-                assert!(false);
-            }
+        if let Some(Ok(JournalEnginePacket::GetShardMetadataResp(data))) = stream.next().await {
+            println!("{:?}", data);
+            assert!(resp_header_error(&data.header.unwrap()).is_ok());
+            // let body = data.body.unwrap();
+            // let active_segment = body.segments.first().unwrap();
+            // let segment_metadata = active_segment.active_segment.clone().unwrap();
+            // assert_eq!(active_segment.namespace, namespace);
+            // assert_eq!(active_segment.shard, shard_name);
+            // assert_eq!(segment_metadata.replicas.len(), 1);
+            // segment_0_all_replicas = segment_metadata.replicas;
         } else {
-            assert!(false);
+            panic!();
         }
 
         // write data
@@ -172,18 +159,14 @@ mod tests {
 
             let _ = stream.send(req_packet.clone()).await;
 
-            if let Some(Ok(resp)) = stream.next().await {
-                if let JournalEnginePacket::WriteResp(data) = resp {
-                    println!("{:?}", data);
-                    assert!(resp_header_error(&data.header.unwrap()).is_ok());
-                    let body = data.body.unwrap();
-                    let frist_status = body.status.first().unwrap();
-                    assert_eq!(frist_status.messages.first().unwrap().offset, 0);
-                } else {
-                    assert!(false);
-                }
+            if let Some(Ok(JournalEnginePacket::WriteResp(data))) = stream.next().await {
+                println!("{:?}", data);
+                assert!(resp_header_error(&data.header.unwrap()).is_ok());
+                let body = data.body.unwrap();
+                let first_status = body.status.first().unwrap();
+                assert_eq!(first_status.messages.first().unwrap().offset, 0);
             } else {
-                assert!(false);
+                panic!();
             }
         }
 
@@ -224,10 +207,10 @@ mod tests {
                 // assert_eq!(raw_msg.value, value);
                 // assert_eq!(raw_msg.tags, tags);
             } else {
-                assert!(false);
+                panic!();
             }
         } else {
-            assert!(false);
+            panic!();
         }
     }
 }

@@ -53,17 +53,17 @@ pub async fn gc_shard_thread(
             continue;
         }
 
-        // to deleteing
+        // to deleting
         if let Err(e) = update_shard_status(
             &raft_machine_apply,
             &engine_cache,
             &shard.clone(),
-            JournalShardStatus::Deleteing,
+            JournalShardStatus::Deleting,
         )
         .await
         {
             error!(
-                "Failed to convert Shard to deleteing state with error message: {}",
+                "Failed to convert Shard to deleting state with error message: {}",
                 e
             );
             continue;
@@ -187,17 +187,17 @@ pub async fn gc_segment_thread(
             continue;
         };
 
-        // to deleteing
+        // to deleting
         if let Err(e) = update_segment_status(
             &engine_cache,
             &raft_machine_apply,
             &segment.clone(),
-            SegmentStatus::Deleteing,
+            SegmentStatus::Deleting,
         )
         .await
         {
             error!(
-                "Failed to convert Segment to deleteing state with error message: {}",
+                "Failed to convert Segment to deleting state with error message: {}",
                 e
             );
         }

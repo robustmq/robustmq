@@ -56,7 +56,7 @@ pub(crate) async fn admin_interface_call(
                     inner_delete_user(client, request).await
                 }
                 _ => {
-                    return Err(CommonError::CommmonError(format!(
+                    return Err(CommonError::CommonError(format!(
                         "admin service does not support service interfaces [{:?}]",
                         interface
                     )))
@@ -92,7 +92,7 @@ impl Manager for MqttBrokerAdminServiceManager {
                 return Ok(client);
             }
             Err(err) => {
-                return Err(CommonError::CommmonError(format!(
+                return Err(CommonError::CommonError(format!(
                     "{},{}",
                     err,
                     self.addr.clone()

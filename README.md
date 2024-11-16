@@ -8,9 +8,9 @@
 </h3>
 
 ##  🚀 Introduction
-RobustMQ is a next-generation high-performance cloud-native converged message queue. The goal is to implement a message queue based on Rust that can be compatible with multiple mainstream message queue protocols and has complete Serveless architecture. 
+RobustMQ is a next-generation high-performance cloud-native converged message queue. The goal is to implement a message queue based on Rust that can be compatible with multiple mainstream message queue protocols and has complete Serverless architecture.
 
-It has long wanted to support multi-protocol and have a full Serverless architecture. At the same time, we hope to keep the architecture simple while adapting to different deployment scenarios and deployment requirements. To achieve lower deployment, operation and maintenance, and use costs. 
+It has long wanted to support multi-protocol and have a full Serverless architecture. At the same time, we hope to keep the architecture simple while adapting to different deployment scenarios and deployment requirements. To achieve lower deployment, operation and maintenance, and use costs.
 
 Official documentation:
 - [《English Version》](http://www.robustmq.com/docs/robustmq-tutorial/introduction/)
@@ -45,7 +45,7 @@ RobustMQ is a typical distributed layered architecture with separate computing l
 ![image](docs/images/robustmq-architecture.png)
 
 - Placement Center
-  
+
   The metadata storage and scheduling component of the RobustMQ cluster. It is responsible for cluster-related metadata storage, distribution, scheduling, and so on. Such as cluster node uplinking, configuration storage/distribution, and so on.
 
 - Multi-protocol computing layer
@@ -53,7 +53,7 @@ RobustMQ is a typical distributed layered architecture with separate computing l
   Broker Cluster, the computing layer of RobustMQ cluster. It is responsible for the adaptation of various messaging protocols and the implementation of message-related functions. The received data is written to the Storage Layer through the Storage Adapter Layer.
 
 - Storage Adapter Layer
-  
+
   Storage adapter layer component, its role to a variety of protocols MQ Topic/Queue/Partition unified abstract Shard. It is also responsible for the adaptation of different storage components, such as local file storage, remote HDFS, object storage, self-developed storage components, and so on. Thus, Shard data can be persistently stored to different storage engines.
 
 - Standalone storage engine
@@ -163,7 +163,7 @@ Build Arm Release
   help                            Display help messages.
 ```
 
-####  MQTT functional tests 
+####  MQTT functional tests
 MQTT functionality was tested through the MQTTX tool. MQTTX quick start: https://mqttx.app/zh/docs/get-started.
 
 ## RobustMQ AMQP
@@ -189,17 +189,14 @@ Please refer to [contribution guidelines](http://www.robustmq.com/docs/robustmq-
 - **Google Group**: Join [RobustMQ Google Group](https://groups.google.com/g/robustmq)
 
 - **Wechat Group**: If you're interested in contributing to this project or discussing development topics, scan the QR Code to join our WeChat group for real-time discussions and collaboration.
-<div align="center"> 
+<div align="center">
   <img src="docs/images/WechatGroup.jpg" alt="WeChat QR Code" width=200 />
 </div>
 
 - **Personal wechat**: Wechat group QR code will be updated regularly. If the QR code expires, the developer's personal wechat can be added.
-<div align="center"> 
+<div align="center">
   <img src="docs/images/wechat.jpg" alt="WeChat QR Code" width=200 />
 </div>
 
 ## License
 RobustMQ uses the Apache 2.0 license to strike a balance between open contributions and allowing you to use the software however you want
-
-
-

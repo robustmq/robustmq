@@ -81,9 +81,9 @@ pub enum PlacementCenterInterface {
     ListSession,
     UpdateSession,
     SaveLastWillMessage,
-    SetReourceConfig,
-    GetReourceConfig,
-    DeleteReourceConfig,
+    SetResourceConfig,
+    GetResourceConfig,
+    DeleteResourceConfig,
     SetIdempotentData,
     ExistsIdempotentData,
     DeleteIdempotentData,
@@ -127,8 +127,8 @@ impl PlacementCenterInterface {
                 set.insert(PlacementCenterInterface::Heartbeat);
                 set.insert(PlacementCenterInterface::SendRaftMessage);
                 set.insert(PlacementCenterInterface::SendRaftConfChange);
-                set.insert(PlacementCenterInterface::SetReourceConfig);
-                set.insert(PlacementCenterInterface::DeleteReourceConfig);
+                set.insert(PlacementCenterInterface::SetResourceConfig);
+                set.insert(PlacementCenterInterface::DeleteResourceConfig);
                 set.insert(PlacementCenterInterface::SetIdempotentData);
                 set.insert(PlacementCenterInterface::DeleteIdempotentData);
                 set
@@ -306,11 +306,11 @@ mod test {
         let err_info = r#"
         Grpc call of the node failed,Grpc status was status: Cancelled, message: "has to forward request to: Some(2), Some(Node { node_id: 2, rpc_addr: \"127.0.0.1:2228\" })", details: [], metadata: MetadataMap { headers: {"content-type": "application/grpc", "date": "Sun, 06 Oct 2024 10:25:36 GMT", "content-length": "0"} }
         "#;
-        let err = CommonError::CommmonError(err_info.to_string());
+        let err = CommonError::CommonError(err_info.to_string());
         assert!(is_has_to_forward(&err));
 
         let other_err_info = "Other error";
-        let other_err = CommonError::CommmonError(other_err_info.to_string());
+        let other_err = CommonError::CommonError(other_err_info.to_string());
         assert!(!is_has_to_forward(&other_err));
     }
 
@@ -319,7 +319,7 @@ mod test {
         let err = r#"
         Grpc call of the node failed,Grpc status was status: Cancelled, message: "has to forward request to: Some(2), Some(Node { node_id: 2, rpc_addr: \"127.0.0.1:2228\" })", details: [], metadata: MetadataMap { headers: {"content-type": "application/grpc", "date": "Sun, 06 Oct 2024 10:25:36 GMT", "content-length": "0"} }
         "#;
-        let err = CommonError::CommmonError(err.to_string());
+        let err = CommonError::CommonError(err.to_string());
         let res = get_forward_addr(&err);
         assert_eq!("127.0.0.1:2228".to_string(), res.unwrap());
     }

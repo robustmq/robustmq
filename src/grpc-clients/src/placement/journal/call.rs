@@ -44,7 +44,7 @@ pub async fn list_shard(
     {
         Ok(data) => match ListShardReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -67,7 +67,7 @@ pub async fn create_shard(
     {
         Ok(data) => match CreateShardReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -90,7 +90,7 @@ pub async fn delete_shard(
     {
         Ok(data) => match DeleteShardReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -113,7 +113,7 @@ pub async fn list_segment(
     {
         Ok(data) => match ListSegmentReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -136,7 +136,7 @@ pub async fn create_next_segment(
     {
         Ok(data) => match CreateNextSegmentReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -159,7 +159,7 @@ pub async fn delete_segment(
     {
         Ok(data) => match DeleteSegmentReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -182,7 +182,7 @@ pub async fn update_segment_status(
     {
         Ok(data) => match UpdateSegmentStatusReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -205,7 +205,7 @@ pub async fn list_segment_meta(
     {
         Ok(data) => match ListSegmentMetaReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -228,7 +228,7 @@ pub async fn update_segment_meta(
     {
         Ok(data) => match UpdateSegmentMetaReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }

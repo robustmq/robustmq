@@ -335,7 +335,7 @@ pub async fn publish_validator(
                 connection,
                 publish.pkid,
                 PubAckReason::PayloadFormatInvalid,
-                Some(MqttBrokerError::PacketLenthError(publish.payload.len()).to_string()),
+                Some(MqttBrokerError::PacketLengthError(publish.payload.len()).to_string()),
             ));
         } else {
             return Some(response_packet_mqtt_pubrec_fail(
@@ -343,7 +343,7 @@ pub async fn publish_validator(
                 connection,
                 publish.pkid,
                 PubRecReason::PayloadFormatInvalid,
-                Some(MqttBrokerError::PacketLenthError(publish.payload.len()).to_string()),
+                Some(MqttBrokerError::PacketLengthError(publish.payload.len()).to_string()),
             ));
         }
     }
@@ -359,7 +359,7 @@ pub async fn publish_validator(
                         connection,
                         publish.pkid,
                         PubAckReason::PayloadFormatInvalid,
-                        Some(MqttBrokerError::PacketLenthError(publish.payload.len()).to_string()),
+                        Some(MqttBrokerError::PacketLengthError(publish.payload.len()).to_string()),
                     ));
                 } else {
                     return Some(response_packet_mqtt_pubrec_fail(
@@ -367,7 +367,7 @@ pub async fn publish_validator(
                         connection,
                         publish.pkid,
                         PubRecReason::PayloadFormatInvalid,
-                        Some(MqttBrokerError::PacketLenthError(publish.payload.len()).to_string()),
+                        Some(MqttBrokerError::PacketLengthError(publish.payload.len()).to_string()),
                     ));
                 }
             }

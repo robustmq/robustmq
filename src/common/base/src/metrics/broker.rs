@@ -15,7 +15,7 @@
 use lazy_static::lazy_static;
 use prometheus::{register_int_gauge_vec, IntGaugeVec};
 
-use super::{SERVER_LABLE_GRPC, SERVER_LABLE_HTTP, SERVER_LABLE_MQTT};
+use super::{SERVER_LABEL_GRPC, SERVER_LABEL_HTTP, SERVER_LABEL_MQTT};
 
 const SERVER_MODULE: &str = "server_module";
 
@@ -25,13 +25,13 @@ lazy_static! {
 }
 
 pub fn metrics_mqtt4_broker_running() {
-    BROKER_STATUS.with_label_values(&[SERVER_LABLE_MQTT]).set(1);
+    BROKER_STATUS.with_label_values(&[SERVER_LABEL_MQTT]).set(1);
 }
 
 pub fn metrics_grpc_broker_running() {
-    BROKER_STATUS.with_label_values(&[SERVER_LABLE_GRPC]).set(1);
+    BROKER_STATUS.with_label_values(&[SERVER_LABEL_GRPC]).set(1);
 }
 
 pub fn metrics_http_broker_running() {
-    BROKER_STATUS.with_label_values(&[SERVER_LABLE_HTTP]).set(1);
+    BROKER_STATUS.with_label_values(&[SERVER_LABEL_HTTP]).set(1);
 }

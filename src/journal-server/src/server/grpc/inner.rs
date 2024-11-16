@@ -31,19 +31,19 @@ use crate::segment::manager::SegmentFileManager;
 
 pub struct GrpcJournalServerInnerService {
     cache_manager: Arc<CacheManager>,
-    segement_file_manager: Arc<SegmentFileManager>,
+    segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl GrpcJournalServerInnerService {
     pub fn new(
         cache_manager: Arc<CacheManager>,
-        segement_file_manager: Arc<SegmentFileManager>,
+        segment_file_manager: Arc<SegmentFileManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
         GrpcJournalServerInnerService {
             cache_manager,
-            segement_file_manager,
+            segment_file_manager,
             rocksdb_engine_handler,
         }
     }
@@ -63,7 +63,7 @@ impl JournalServerInnerService for GrpcJournalServerInnerService {
 
         update_cache(
             &self.cache_manager,
-            &self.segement_file_manager,
+            &self.segment_file_manager,
             &self.rocksdb_engine_handler,
             req.action_type(),
             req.resource_type(),
