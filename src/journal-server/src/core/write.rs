@@ -81,13 +81,13 @@ impl WriteManager {
         namespace: &str,
         shard_name: &str,
         segment: u32,
-        datas: Vec<JournalRecord>,
+        data_list: Vec<JournalRecord>,
     ) -> Result<SegmentWriteResp, JournalServerError> {
         let write = self.get_write(namespace, shard_name, segment).await?;
         let (sx, rx) = oneshot::channel::<SegmentWriteResp>();
 
         let data = SegmentWriteData {
-            data: datas,
+            data: data_list,
             resp_sx: sx,
         };
         write.data_sender.send(data).await?;
@@ -398,7 +398,7 @@ pub async fn write_data(
             ..Default::default()
         };
 
-        let mut datas = Vec::new();
+        let mut data_list = Vec::new();
         for message in shard_data.messages {
             // todo data validator
             let record = JournalRecord {
@@ -411,7 +411,7 @@ pub async fn write_data(
                 tags: message.tags,
                 ..Default::default()
             };
-            datas.push(record);
+            data_list.push(record);
         }
 
         let resp = write_manager
@@ -419,7 +419,7 @@ pub async fn write_data(
                 &shard_data.namespace,
                 &shard_data.shard_name,
                 shard_data.segment,
-                datas,
+                data_list,
             )
             .await?;
 

@@ -48,35 +48,35 @@ where
     pub fn new(
         cache_manager: Arc<CacheManager>,
         message_storage_adapter: Arc<S>,
-        sucscribe_manager: Arc<SubscribeManager>,
+        subscribe_manager: Arc<SubscribeManager>,
         client_pool: Arc<ClientPool>,
-        connnection_manager: Arc<ConnectionManager>,
+        connection_manager: Arc<ConnectionManager>,
         auth_driver: Arc<AuthDriver>,
     ) -> Self {
         let mqtt3_service = MqttService::new(
             MqttProtocol::Mqtt3,
             cache_manager.clone(),
-            connnection_manager.clone(),
+            connection_manager.clone(),
             message_storage_adapter.clone(),
-            sucscribe_manager.clone(),
+            subscribe_manager.clone(),
             client_pool.clone(),
             auth_driver.clone(),
         );
         let mqtt4_service = MqttService::new(
             MqttProtocol::Mqtt4,
             cache_manager.clone(),
-            connnection_manager.clone(),
+            connection_manager.clone(),
             message_storage_adapter.clone(),
-            sucscribe_manager.clone(),
+            subscribe_manager.clone(),
             client_pool.clone(),
             auth_driver.clone(),
         );
         let mqtt5_service = MqttService::new(
             MqttProtocol::Mqtt5,
             cache_manager.clone(),
-            connnection_manager.clone(),
+            connection_manager.clone(),
             message_storage_adapter.clone(),
-            sucscribe_manager.clone(),
+            subscribe_manager.clone(),
             client_pool.clone(),
             auth_driver.clone(),
         );
@@ -95,12 +95,12 @@ where
         addr: SocketAddr,
         packet: MqttPacket,
     ) -> Option<MqttPacket> {
-        let mut is_conect_pkg = false;
+        let mut is_connect_pkg = false;
         if let MqttPacket::Connect(_, _, _, _, _, _) = packet {
-            is_conect_pkg = true;
+            is_connect_pkg = true;
         }
 
-        if !is_conect_pkg && !self.check_login_status(tcp_connection.connection_id).await {
+        if !is_connect_pkg && !self.check_login_status(tcp_connection.connection_id).await {
             return Some(response_packet_mqtt_distinct_by_reason(
                 &MqttProtocol::Mqtt5,
                 Some(DisconnectReasonCode::NotAuthorized),

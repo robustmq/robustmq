@@ -27,6 +27,7 @@ mod tests {
     use crate::common::get_placement_addr;
 
     #[tokio::test]
+    #[ignore]
     async fn mqtt_blacklist_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];

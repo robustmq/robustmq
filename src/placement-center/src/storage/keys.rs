@@ -98,11 +98,11 @@ pub fn key_segment(
     cluster_name: &str,
     namespace: &str,
     shard_name: &str,
-    segement_seq: u32,
+    segment_seq: u32,
 ) -> String {
     format!(
         "/journal/segment/{}/{}/{}/{}",
-        cluster_name, namespace, shard_name, segement_seq
+        cluster_name, namespace, shard_name, segment_seq
     )
 }
 
@@ -129,11 +129,11 @@ pub fn key_segment_metadata(
     cluster_name: &str,
     namespace: &str,
     shard_name: &str,
-    segement_seq: u32,
+    segment_seq: u32,
 ) -> String {
     format!(
         "/journal/segmentmeta/{}/{}/{}/{}",
-        cluster_name, namespace, shard_name, segement_seq
+        cluster_name, namespace, shard_name, segment_seq
     )
 }
 

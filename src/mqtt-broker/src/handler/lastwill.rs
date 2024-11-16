@@ -110,7 +110,7 @@ fn build_publish_message_by_lastwill(
         let topic_name = match String::from_utf8(will.topic.to_vec()) {
             Ok(da) => da,
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         };
 
@@ -157,7 +157,7 @@ pub async fn save_last_will_message(
         last_will_properties: last_will_properties.clone(),
     };
     session_storage
-        .save_last_will_messae(client_id, lastwill.encode())
+        .save_last_will_message(client_id, lastwill.encode())
         .await
 }
 

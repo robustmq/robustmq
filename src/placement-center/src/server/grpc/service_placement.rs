@@ -86,7 +86,7 @@ impl PlacementCenterService for GrpcPlacementService {
             Ok(data) => data,
             Err(e) => {
                 return Err(Status::cancelled(
-                    CommonError::CommmonError(e.to_string()).to_string(),
+                    CommonError::CommonError(e.to_string()).to_string(),
                 ));
             }
         };

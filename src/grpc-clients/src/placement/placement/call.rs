@@ -46,7 +46,7 @@ pub async fn cluster_status(
     {
         Ok(data) => match ClusterStatusReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -69,7 +69,7 @@ pub async fn node_list(
     {
         Ok(data) => match NodeListReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -92,7 +92,7 @@ pub async fn register_node(
     {
         Ok(data) => match RegisterNodeReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -115,7 +115,7 @@ pub async fn unregister_node(
     {
         Ok(data) => match UnRegisterNodeReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -138,7 +138,7 @@ pub async fn heartbeat(
     {
         Ok(data) => match HeartbeatReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -161,7 +161,7 @@ pub async fn send_raft_message(
     {
         Ok(data) => match SendRaftMessageReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -184,7 +184,7 @@ pub async fn send_raft_conf_change(
     {
         Ok(data) => match SendRaftConfChangeReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -198,7 +198,7 @@ pub async fn set_resource_config(
     let request_data = SetResourceConfigRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Placement,
-        PlacementCenterInterface::SetReourceConfig,
+        PlacementCenterInterface::SetResourceConfig,
         client_pool,
         addrs,
         request_data,
@@ -207,7 +207,7 @@ pub async fn set_resource_config(
     {
         Ok(data) => match SetResourceConfigReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -221,7 +221,7 @@ pub async fn delete_resource_config(
     let request_data = DeleteResourceConfigRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Placement,
-        PlacementCenterInterface::DeleteReourceConfig,
+        PlacementCenterInterface::DeleteResourceConfig,
         client_pool,
         addrs,
         request_data,
@@ -230,7 +230,7 @@ pub async fn delete_resource_config(
     {
         Ok(data) => match DeleteResourceConfigReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -244,7 +244,7 @@ pub async fn get_resource_config(
     let request_data = GetResourceConfigRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Placement,
-        PlacementCenterInterface::GetReourceConfig,
+        PlacementCenterInterface::GetResourceConfig,
         client_pool,
         addrs,
         request_data,
@@ -253,7 +253,7 @@ pub async fn get_resource_config(
     {
         Ok(data) => match GetResourceConfigReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -276,7 +276,7 @@ pub async fn set_idempotent_data(
     {
         Ok(data) => match SetIdempotentDataReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -299,7 +299,7 @@ pub async fn delete_idempotent_data(
     {
         Ok(data) => match DeleteIdempotentDataReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -322,7 +322,7 @@ pub async fn exists_idempotent_data(
     {
         Ok(data) => match ExistsIdempotentDataReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }

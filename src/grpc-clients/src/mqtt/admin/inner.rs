@@ -31,7 +31,7 @@ pub(crate) async fn inner_cluster_status(
             Ok(result) => Ok(ClusterStatusReply::encode_to_vec(&result.into_inner())),
             Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
-        Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        Err(e) => Err(CommonError::CommonError(e.to_string())),
     }
 }
 
@@ -44,7 +44,7 @@ pub(crate) async fn inner_list_user(
             Ok(result) => Ok(ListUserReply::encode_to_vec(&result.into_inner())),
             Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
-        Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        Err(e) => Err(CommonError::CommonError(e.to_string())),
     }
 }
 
@@ -57,7 +57,7 @@ pub(crate) async fn inner_create_user(
             Ok(result) => Ok(CreateUserReply::encode_to_vec(&result.into_inner())),
             Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
-        Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        Err(e) => Err(CommonError::CommonError(e.to_string())),
     }
 }
 
@@ -70,6 +70,6 @@ pub(crate) async fn inner_delete_user(
             Ok(result) => Ok(DeleteUserReply::encode_to_vec(&result.into_inner())),
             Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
-        Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        Err(e) => Err(CommonError::CommonError(e.to_string())),
     }
 }

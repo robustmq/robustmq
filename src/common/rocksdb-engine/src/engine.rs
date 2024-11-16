@@ -39,7 +39,7 @@ where
 
     let content = match serde_json::to_vec(&value) {
         Ok(data) => data,
-        Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        Err(e) => return Err(CommonError::CommonError(e.to_string())),
     };
 
     let data = StorageDataWrap::new(content);

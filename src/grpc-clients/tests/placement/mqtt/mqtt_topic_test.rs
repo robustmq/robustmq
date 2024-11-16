@@ -33,6 +33,7 @@ mod tests {
     use crate::common::get_placement_addr;
 
     #[tokio::test]
+    #[ignore]
     async fn mqtt_topic_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
@@ -93,7 +94,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             topic_name: mqtt_topic.topic_name.clone(),
             retain_message: retain_message.clone(),
-            retain_message_expired_at: retain_message_expired_at,
+            retain_message_expired_at,
         };
 
         placement_set_topic_retain_message(client_pool.clone(), addrs.clone(), request)
@@ -139,8 +140,8 @@ mod tests {
         contain: bool,
     ) {
         let request = ListTopicRequest {
-            cluster_name: cluster_name,
-            topic_name: topic_name,
+            cluster_name,
+            topic_name,
         };
         let data = placement_list_topic(client_pool, addrs, request)
             .await

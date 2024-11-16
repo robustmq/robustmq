@@ -182,7 +182,7 @@ impl FixedHeader {
 
 impl fmt::Display for FixedHeader {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Fixed_header_1st_byte:{:#010b}, Fixed_header_length:{}, Varible_header_length + Payload_length:{} ",
+        write!(f, "Fixed_header_1st_byte:{:#010b}, Fixed_header_length:{}, Variable_header_length + Payload_length:{} ",
         self.byte1,
         self.fixed_header_len,
         self.remaining_len)
@@ -1129,7 +1129,7 @@ pub enum Error {
     MalformedRemainingLength,
     #[error("Insufficient number of bytes to frame packet, {0} more bytes required")]
     InsufficientBytes(usize),
-    #[error("Packet recieved has id Zero")]
+    #[error("Packet received has id Zero")]
     PacketIdZero,
     #[error("Payload size has been exceeded by {0} bytes")]
     PayloadSizeLimitExceeded(usize),

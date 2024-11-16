@@ -129,8 +129,8 @@ pub(crate) fn response_child_process(
                     },
                     val = response_process_rx.recv()=>{
                         if let Some(response_package) = val{
-                            let lable = format!("handler-{}",index);
-                            metrics_response_queue(&lable, response_process_rx.len());
+                            let label = format!("handler-{}",index);
+                            metrics_response_queue(&label, response_process_rx.len());
 
                             if let Some(protocol) =
                             raw_connect_manager.get_connect_protocol(response_package.connection_id)

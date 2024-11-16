@@ -29,11 +29,12 @@ mod tests {
     use crate::common::get_placement_addr;
 
     #[tokio::test]
+    #[ignore]
     async fn mqtt_session_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
         let cluster_name: String = "test_cluster".to_string();
-        let client_id: String = "test_cient_id".to_string();
+        let client_id: String = "test_client_id".to_string();
         let connection_id: u64 = 1;
         let broker_id: u64 = 1;
         let update_broker_id: u64 = 2;

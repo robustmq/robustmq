@@ -31,7 +31,7 @@ pub struct GrpcServer {
     port: u32,
     client_pool: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
-    segement_file_manager: Arc<SegmentFileManager>,
+    segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
@@ -40,14 +40,14 @@ impl GrpcServer {
         port: u32,
         client_pool: Arc<ClientPool>,
         cache_manager: Arc<CacheManager>,
-        segement_file_manager: Arc<SegmentFileManager>,
+        segment_file_manager: Arc<SegmentFileManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
         Self {
             port,
             client_pool,
             cache_manager,
-            segement_file_manager,
+            segment_file_manager,
             rocksdb_engine_handler,
         }
     }
@@ -60,7 +60,7 @@ impl GrpcServer {
         let admin_handler = GrpcJournalServerAdminService::new();
         let inner_handler = GrpcJournalServerInnerService::new(
             self.cache_manager.clone(),
-            self.segement_file_manager.clone(),
+            self.segment_file_manager.clone(),
             self.rocksdb_engine_handler.clone(),
         );
 

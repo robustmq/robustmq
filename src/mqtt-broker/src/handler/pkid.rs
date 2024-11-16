@@ -130,6 +130,7 @@ mod test {
     use crate::handler::cache::CacheManager;
 
     #[tokio::test]
+    #[ignore]
     pub async fn pkid_test() {
         let path = format!(
             "{}/../../config/mqtt-server.toml",

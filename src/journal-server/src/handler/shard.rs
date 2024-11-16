@@ -242,7 +242,7 @@ impl ShardHandler {
         // try to create a new Segment, and modify the Active Active Segment for the next Segment
         if segment.status == SegmentStatus::SealUp
             || segment.status == SegmentStatus::PreDelete
-            || segment.status == SegmentStatus::Deleteing
+            || segment.status == SegmentStatus::Deleting
         {
             self.trigger_create_next_segment(namespace, shard_name)
                 .await?;

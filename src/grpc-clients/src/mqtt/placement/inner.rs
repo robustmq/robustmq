@@ -31,7 +31,7 @@ pub(crate) async fn inner_delete_session(
             Ok(result) => Ok(DeleteSessionReply::encode_to_vec(&result.into_inner())),
             Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
-        Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        Err(e) => Err(CommonError::CommonError(e.to_string())),
     }
 }
 
@@ -44,7 +44,7 @@ pub(crate) async fn inner_update_cache(
             Ok(result) => Ok(UpdateCacheReply::encode_to_vec(&result.into_inner())),
             Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
-        Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        Err(e) => Err(CommonError::CommonError(e.to_string())),
     }
 }
 
@@ -59,6 +59,6 @@ pub(crate) async fn inner_send_last_will_message(
             )),
             Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
-        Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        Err(e) => Err(CommonError::CommonError(e.to_string())),
     }
 }

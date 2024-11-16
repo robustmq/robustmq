@@ -172,9 +172,9 @@ impl MqttCodec {
                     MqttPacket::PubRec(pubrec, pubrec_properties)
                 }
                 PacketType::PubRel => {
-                    let (pubrel, pubrel_properteis) =
+                    let (pubrel, pubrel_properties) =
                         crate::mqtt::mqttv5::pubrel::read(fixed_header, packet)?;
-                    MqttPacket::PubRel(pubrel, pubrel_properteis)
+                    MqttPacket::PubRel(pubrel, pubrel_properties)
                 }
                 PacketType::PubComp => {
                     let (pubcomp, pubcomp_properties) =

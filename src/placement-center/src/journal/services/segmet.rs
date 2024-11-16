@@ -134,7 +134,7 @@ pub async fn create_segment_by_req(
     // try fixed segment status
     if active_segment.status == SegmentStatus::SealUp
         || active_segment.status == SegmentStatus::PreDelete
-        || active_segment.status == SegmentStatus::Deleteing
+        || active_segment.status == SegmentStatus::Deleting
     {
         shard.active_segment_seq = next_segment_no;
         shard_notice = true;

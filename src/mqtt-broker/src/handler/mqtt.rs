@@ -67,9 +67,9 @@ use crate::subscribe::subscribe_manager::SubscribeManager;
 pub struct MqttService<S> {
     protocol: MqttProtocol,
     cache_manager: Arc<CacheManager>,
-    connnection_manager: Arc<ConnectionManager>,
+    connection_manager: Arc<ConnectionManager>,
     message_storage_adapter: Arc<S>,
-    sucscribe_manager: Arc<SubscribeManager>,
+    subscribe_manager: Arc<SubscribeManager>,
     client_pool: Arc<ClientPool>,
     auth_driver: Arc<AuthDriver>,
 }
@@ -81,18 +81,18 @@ where
     pub fn new(
         protocol: MqttProtocol,
         cache_manager: Arc<CacheManager>,
-        connnection_manager: Arc<ConnectionManager>,
+        connection_manager: Arc<ConnectionManager>,
         message_storage_adapter: Arc<S>,
-        sucscribe_manager: Arc<SubscribeManager>,
+        subscribe_manager: Arc<SubscribeManager>,
         client_pool: Arc<ClientPool>,
         auth_driver: Arc<AuthDriver>,
     ) -> Self {
         MqttService {
             protocol,
             cache_manager,
-            connnection_manager,
+            connection_manager,
             message_storage_adapter,
-            sucscribe_manager,
+            subscribe_manager,
             client_pool,
             auth_driver,
         }
@@ -102,7 +102,7 @@ where
     pub async fn connect(
         &mut self,
         connect_id: u64,
-        connnect: Connect,
+        connect: Connect,
         connect_properties: Option<ConnectProperties>,
         last_will: Option<LastWill>,
         last_will_properties: Option<LastWillProperties>,
@@ -115,7 +115,7 @@ where
         if let Some(res) = connect_validator(
             &self.protocol,
             &cluster,
-            &connnect,
+            &connect,
             &connect_properties,
             &last_will,
             &last_will_properties,
@@ -150,13 +150,13 @@ where
             }
         }
 
-        let (client_id, new_client_id) = get_client_id(&connnect.client_id);
+        let (client_id, new_client_id) = get_client_id(&connect.client_id);
 
         let connection = build_connection(
             connect_id,
             client_id.clone(),
             &cluster,
-            &connnect,
+            &connect,
             &connect_properties,
             &addr,
         );
@@ -164,7 +164,7 @@ where
         let (session, new_session) = match build_session(
             connect_id,
             client_id.clone(),
-            &connnect,
+            &connect,
             &connect_properties,
             &last_will,
             &last_will_properties,
@@ -243,7 +243,7 @@ where
             &session,
             &connection,
             connect_id,
-            &self.connnection_manager,
+            &self.connection_manager,
         )
         .await;
 
@@ -775,7 +775,7 @@ where
             subscribe_properties.clone(),
         );
 
-        self.sucscribe_manager
+        self.subscribe_manager
             .add_subscribe(
                 client_id.clone(),
                 self.protocol.clone(),
@@ -791,7 +791,7 @@ where
             &self.client_pool,
             &connection,
             connect_id,
-            &self.connnection_manager,
+            &self.connection_manager,
             &subscribe,
         )
         .await;
@@ -864,7 +864,7 @@ where
             }
         }
 
-        self.sucscribe_manager
+        self.subscribe_manager
             .remove_subscribe(&connection.client_id, &un_subscribe.filters);
 
         self.cache_manager
@@ -876,7 +876,7 @@ where
             &self.client_pool,
             &connection,
             connect_id,
-            &self.connnection_manager,
+            &self.connection_manager,
             &un_subscribe,
         )
         .await;
@@ -909,7 +909,7 @@ where
                 &session,
                 &connection,
                 connect_id,
-                &self.connnection_manager,
+                &self.connection_manager,
                 disconnect.reason_code,
             )
             .await;
@@ -920,8 +920,8 @@ where
             connect_id,
             &self.cache_manager,
             &self.client_pool,
-            &self.connnection_manager,
-            &self.sucscribe_manager,
+            &self.connection_manager,
+            &self.subscribe_manager,
         )
         .await
         {

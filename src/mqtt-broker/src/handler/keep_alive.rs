@@ -38,7 +38,7 @@ pub struct ClientKeepAlive {
     cache_manager: Arc<CacheManager>,
     stop_send: broadcast::Sender<bool>,
     client_pool: Arc<ClientPool>,
-    connnection_manager: Arc<ConnectionManager>,
+    connection_manager: Arc<ConnectionManager>,
     subscribe_manager: Arc<SubscribeManager>,
 }
 
@@ -46,13 +46,13 @@ impl ClientKeepAlive {
     pub fn new(
         client_pool: Arc<ClientPool>,
         subscribe_manager: Arc<SubscribeManager>,
-        connnection_manager: Arc<ConnectionManager>,
+        connection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<CacheManager>,
         stop_send: broadcast::Sender<bool>,
     ) -> Self {
         ClientKeepAlive {
             client_pool,
-            connnection_manager,
+            connection_manager,
             cache_manager,
             stop_send,
             subscribe_manager,
@@ -82,7 +82,7 @@ impl ClientKeepAlive {
 
         for connect_id in expire_connection {
             if let Some(connection) = self.cache_manager.get_connection(connect_id) {
-                if let Some(network) = self.connnection_manager.get_connect(connect_id) {
+                if let Some(network) = self.connection_manager.get_connect(connect_id) {
                     let protocol = network.protocol.clone().unwrap();
                     let resp = response_packet_mqtt_distinct_by_reason(
                         &protocol,
@@ -96,7 +96,7 @@ impl ClientKeepAlive {
 
                     if network.is_tcp() {
                         match self
-                            .connnection_manager
+                            .connection_manager
                             .write_tcp_frame(connection.connect_id, wrap)
                             .await
                         {
@@ -106,7 +106,7 @@ impl ClientKeepAlive {
                                     connect_id,
                                     &self.cache_manager,
                                     &self.client_pool,
-                                    &self.connnection_manager,
+                                    &self.connection_manager,
                                     &self.subscribe_manager,
                                 )
                                 .await
@@ -139,7 +139,7 @@ impl ClientKeepAlive {
                         }
 
                         match self
-                            .connnection_manager
+                            .connection_manager
                             .write_websocket_frame(
                                 connection.connect_id,
                                 Message::Binary(buff.to_vec()),
@@ -152,7 +152,7 @@ impl ClientKeepAlive {
                                     connect_id,
                                     &self.cache_manager,
                                     &self.client_pool,
-                                    &self.connnection_manager,
+                                    &self.connection_manager,
                                     &self.subscribe_manager,
                                 )
                                 .await
@@ -281,11 +281,11 @@ mod test {
             client_pool.clone(),
         ));
 
-        let connnection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
+        let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
         let alive = ClientKeepAlive::new(
             client_pool,
             subscribe_manager,
-            connnection_manager,
+            connection_manager,
             cache_manager.clone(),
             stop_send,
         );

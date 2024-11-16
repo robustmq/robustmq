@@ -247,7 +247,7 @@ pub(crate) async fn mqtt_interface_call(
                     )
                     .await,
                     _ => {
-                        return Err(CommonError::CommmonError(format!(
+                        return Err(CommonError::CommonError(format!(
                             "mqtt service does not support service interfaces [{:?}]",
                             interface
                         )))
@@ -284,7 +284,7 @@ impl Manager for MqttServiceManager {
                 return Ok(client);
             }
             Err(err) => {
-                return Err(CommonError::CommmonError(format!(
+                return Err(CommonError::CommonError(format!(
                     "{},{}",
                     err,
                     self.addr.clone()
@@ -318,6 +318,6 @@ where
             Ok(result) => Ok(encode_fn(&result.into_inner())),
             Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
-        Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        Err(e) => Err(CommonError::CommonError(e.to_string())),
     }
 }

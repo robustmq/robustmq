@@ -141,16 +141,16 @@ impl JournalServer {
         let connection_manager = self.connection_manager.clone();
         let cache_manager = self.cache_manager.clone();
         let stop_sx = self.stop_send.clone();
-        let offet_manager = self.offset_manager.clone();
-        let segement_file_manager = self.segment_file_manager.clone();
+        let offset_manager = self.offset_manager.clone();
+        let segment_file_manager = self.segment_file_manager.clone();
         let write_manager = self.write_manager.clone();
         self.server_runtime.spawn(async {
             start_tcp_server(
                 client_pool,
                 connection_manager,
                 cache_manager,
-                offet_manager,
-                segement_file_manager,
+                offset_manager,
+                segment_file_manager,
                 write_manager,
                 stop_sx,
             )

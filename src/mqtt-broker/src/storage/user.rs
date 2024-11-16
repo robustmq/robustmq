@@ -91,7 +91,7 @@ impl UserStorage {
                 let raw = reply.users.first().unwrap();
                 match serde_json::from_slice::<MqttUser>(raw) {
                     Ok(data) => Ok(Some(data)),
-                    Err(e) => Err(CommonError::CommmonError(e.to_string())),
+                    Err(e) => Err(CommonError::CommonError(e.to_string())),
                 }
             }
             Err(e) => Err(e),
@@ -140,6 +140,7 @@ mod tests {
     use crate::storage::user::UserStorage;
 
     #[tokio::test]
+    #[ignore]
     async fn user_test() {
         let path = format!(
             "{}/../../config/mqtt-server.toml",

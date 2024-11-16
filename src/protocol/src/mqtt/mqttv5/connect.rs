@@ -618,7 +618,7 @@ mod tests {
             retain: true,
         };
 
-        let user_perperties: Vec<(String, String)> = vec![
+        let user_properties: Vec<(String, String)> = vec![
             ("username".into(), "justin".into()),
             ("tag".to_string(), "middleware".to_string()),
         ];
@@ -631,12 +631,12 @@ mod tests {
             topic_alias_max: Some(100u16),
             request_response_info: Some(1u8), // require response message or not (1 or 0) from connack
             request_problem_info: Some(1u8),  // require response message or not (1 or 0)
-            user_properties: user_perperties,
+            user_properties,
             authentication_method: Some(authentication_method),
             authentication_data: Some(authentication_data),
         };
 
-        let will_user_perperties: Vec<(String, String)> = vec![
+        let will_user_properties: Vec<(String, String)> = vec![
             ("will_user".into(), "peter".into()),
             ("tag".to_string(), "middleware".to_string()),
         ];
@@ -647,7 +647,7 @@ mod tests {
             content_type: Some("content-type".to_string()),
             response_topic: Some("response-topic".to_string()),
             correlation_data: Some(Bytes::from("correlation-data")),
-            user_properties: will_user_perperties,
+            user_properties: will_user_properties,
         };
 
         // test the write method of connect packet in v5
