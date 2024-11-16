@@ -31,12 +31,26 @@ repos:
       - id: black
   - repo: local
     hooks:
+      - id: cargo-fmt-auto
+        name: cargo fmt auto
+        description: Format files with rustfmt automatically.
+        entry: bash -c 'cargo fmt'
+        language: rust
+        files: \.rs$
+        args: []
       - id: cargo-fmt
         name: cargo fmt
         description: Format files with rustfmt.
         entry: bash -c 'cargo fmt -- --check'
         language: rust
         files: \.rs$
+        args: []
+      - id: hawkey-fmt-check-auto
+        name: hawkeye fmt auto
+        description: Format files with hawkeye automatically.
+        entry: bash -c 'hawkeye format'
+        language: rust
+        files: \.*$
         args: []
       - id: hawkeye-fmt-check
         name: hawkeye fmt check
