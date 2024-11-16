@@ -32,10 +32,10 @@ impl ClusterHandler {
 
     pub fn get_cluster_metadata(&self) -> Result<Vec<GetClusterMetadataNode>, JournalServerError> {
         let mut result = Vec::new();
-        for (node_id, node) in self.cache_manager.node_list.clone() {
+        for node in self.cache_manager.all_node() {
             let journal_extend = serde_json::from_str::<JournalNodeExtend>(&node.extend)?;
             result.push(GetClusterMetadataNode {
-                node_id,
+                node_id: node.node_id,
                 tcp_addr: journal_extend.tcp_addr,
                 tcps_addr: journal_extend.tcps_addr,
             });

@@ -32,6 +32,7 @@ use rocksdb_engine::RocksDBEngine;
 use segment::manager::{
     load_local_segment_cache, metadata_and_local_segment_diff_check, SegmentFileManager,
 };
+use segment::status::SegmentScrollManager;
 use server::connection_manager::ConnectionManager;
 use server::grpc::server::GrpcServer;
 use server::tcp::server::start_tcp_server;
@@ -86,6 +87,7 @@ impl JournalServer {
         let write_manager = Arc::new(WriteManager::new(
             segment_file_manager.clone(),
             cache_manager.clone(),
+            client_pool.clone(),
         ));
         JournalServer {
             config,
@@ -170,6 +172,15 @@ impl JournalServer {
         let stop_sx = self.stop_send.clone();
         self.daemon_runtime
             .spawn(async move { report_heartbeat(client_pool, stop_sx).await });
+
+        let segment_scroll = SegmentScrollManager::new(
+            self.cache_manager.clone(),
+            self.client_pool.clone(),
+            self.segment_file_manager.clone(),
+        );
+        self.daemon_runtime.spawn(async move {
+            segment_scroll.trigger_segment_scroll().await;
+        });
     }
 
     fn waiting_stop(&self) {

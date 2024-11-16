@@ -18,8 +18,9 @@ use std::time::Duration;
 use common_base::config::journal_server::journal_server_conf;
 use common_base::tools::now_second;
 use dashmap::DashMap;
+use grpc_clients::pool::ClientPool;
 use log::{debug, error};
-use metadata_struct::journal::segment::SegmentStatus;
+use metadata_struct::journal::segment::segment_name;
 use protocol::journal_server::journal_engine::{
     WriteReqBody, WriteRespMessage, WriteRespMessageStatus,
 };
@@ -33,6 +34,8 @@ use super::cache::CacheManager;
 use super::error::{get_journal_server_code, JournalServerError};
 use crate::segment::file::SegmentFile;
 use crate::segment::manager::SegmentFileManager;
+use crate::segment::status::segment_status_to_sealup;
+use crate::segment::SegmentIdentity;
 
 #[derive(Clone)]
 pub struct SegmentWrite {
@@ -56,17 +59,20 @@ pub struct WriteManager {
     segment_write: DashMap<String, SegmentWrite>,
     segment_file_manager: Arc<SegmentFileManager>,
     cache_manager: Arc<CacheManager>,
+    client_pool: Arc<ClientPool>,
 }
 
 impl WriteManager {
     pub fn new(
         segment_file_manager: Arc<SegmentFileManager>,
         cache_manager: Arc<CacheManager>,
+        client_pool: Arc<ClientPool>,
     ) -> Self {
         WriteManager {
             segment_write: DashMap::with_capacity(8),
             segment_file_manager,
             cache_manager,
+            client_pool,
         }
     }
 
@@ -118,12 +124,16 @@ impl WriteManager {
             let (sender, recv) = mpsc::channel::<SegmentWriteData>(1000);
             let (stop_sender, stop_recv) = broadcast::channel::<bool>(1);
 
+            let segment_iden = SegmentIdentity {
+                namespace: namespace.to_string(),
+                shard_name: shard_name.to_string(),
+                segment_seq: segment,
+            };
             start_segment_sync_write_thread(
-                namespace,
-                shard_name,
-                segment,
+                segment_iden,
                 self.segment_file_manager.clone(),
                 self.cache_manager.clone(),
+                self.client_pool.clone(),
                 recv,
                 stop_recv,
             )
@@ -146,46 +156,38 @@ impl WriteManager {
 }
 
 async fn start_segment_sync_write_thread(
-    namespace: &str,
-    shard_name: &str,
-    segment_no: u32,
+    segment_identity: SegmentIdentity,
     segment_file_manager: Arc<SegmentFileManager>,
     cache_manager: Arc<CacheManager>,
+    client_pool: Arc<ClientPool>,
     mut data_recv: Receiver<SegmentWriteData>,
     mut stop_recv: broadcast::Receiver<bool>,
 ) -> Result<(), JournalServerError> {
+    let namespace = &segment_identity.namespace;
+    let shard_name = &segment_identity.shard_name;
+    let segment_no = segment_identity.segment_seq;
+
+    // Get the end offset of the local segment file
     let segment_file_meta = if let Some(segment_file) =
         segment_file_manager.get_segment_file(namespace, shard_name, segment_no)
     {
         segment_file
     } else {
-        return Err(JournalServerError::SegmentFileNotExists(format!(
-            "{}-{}",
-            shard_name, segment_no
-        )));
+        // todo try recover segment file. create or local cache
+        return Err(JournalServerError::SegmentFileNotExists(
+            segment_identity.name(),
+        ));
     };
+    let mut local_segment_end_offset = segment_file_meta.end_offset;
 
-    let mut end_offset = segment_file_meta.end_offset;
-
+    // build tokio task param
     let raw_namespace = namespace.to_string();
     let raw_shard_name = shard_name.to_string();
     let raw_cache_manager = cache_manager.clone();
-
-    let file_size_50_percent = false;
-    let file_size_98_percent = false;
-
-    let (segment_write, max_file_size) = open_segment_write(
-        namespace,
-        shard_name,
-        segment_no,
-        segment_file_manager.clone(),
-        cache_manager,
-    )
-    .await?;
+    let (segment_write, max_file_size) =
+        open_segment_write(cache_manager, namespace, shard_name, segment_no).await?;
 
     tokio::spawn(async move {
-        debug!("");
-
         loop {
             select! {
                 val = stop_recv.recv() =>{
@@ -202,58 +204,39 @@ async fn start_segment_sync_write_thread(
                             continue;
                         }
 
-                        // check if the offset exceeds the end offset
-                        let segment_meta =if let Some(segment) = raw_cache_manager.get_segment_meta(&raw_namespace, &raw_shard_name, segment_no) {
-                            segment
-                        } else {
-                            continue;
-                        };
-
-                        if segment_meta.end_offset > 0  && (end_offset + packet.data.len() as u64) > segment_meta.end_offset as u64{
-                            raw_cache_manager.update_segment_status(&raw_namespace, &raw_shard_name, segment_no,SegmentStatus::PreSealUp);
-                            continue;
-                        }
-
-                        // check file size
-                        let file_size = (segment_write.size().await).unwrap_or_default();
-
-                        if file_size >= max_file_size{
-                            raw_cache_manager.update_segment_status(&raw_namespace, &raw_shard_name, segment_no,SegmentStatus::PreSealUp);
-                            continue;
-                        }
-
-                        // build write data
-                        let mut offsets = Vec::new();
-                        let mut records =  Vec::new();
-                        for mut record in packet.data{
-
-                            let offset = end_offset+1;
-
-                            record.offset = offset;
-                            end_offset = offset;
-
-                            offsets.push(offset);
-                            records.push(record);
-                        }
-
-                        // batch write data
                         let mut resp = SegmentWriteResp::default();
-                        match segment_write.write(&records).await {
-                            Ok(()) => {
-                                resp.offset = offsets.clone();
-                            }
+                        match is_sealup_segment(
+                            &raw_cache_manager,
+                            &client_pool,
+                            &segment_write,
+                            local_segment_end_offset,
+                            packet.data.len() as u64,
+                            max_file_size,
+                        ).await{
+                            Ok(sealup) => {
+                                if sealup{
+                                    resp.error = Some(JournalServerError::SegmentAlreadySealUp(segment_name(&raw_namespace,&raw_shard_name,segment_no)));
+                                }else{
+                                    match batch_write_segment(
+                                        &packet,
+                                        &segment_write,
+                                        &segment_file_manager,
+                                        local_segment_end_offset).await
+                                    {
+                                        Ok(resp_data) =>{
+                                            if let Some(end_offset) = resp_data.offset.last() {
+                                                local_segment_end_offset = *end_offset;
+                                            }
+                                            resp = resp_data;
+                                        },
+                                        Err(e) => {
+                                            resp.error = Some(e);
+                                        }
+                                    }
+                                }
+                            },
                             Err(e) => {
                                 resp.error = Some(e);
-                            }
-                        }
-
-                        // update segment end offset
-                        if let Some(end_offset) = offsets.last(){
-                            match segment_file_manager.update_end_offset(&raw_namespace,&raw_shard_name,segment_no,*end_offset){
-                                Ok(()) =>{}
-                                Err(e) => {
-                                    error!("{}",e);
-                                }
                             }
                         }
 
@@ -269,12 +252,105 @@ async fn start_segment_sync_write_thread(
     Ok(())
 }
 
-async fn open_segment_write(
+async fn batch_write_segment(
+    packet: &SegmentWriteData,
+    segment_write: &SegmentFile,
+    segment_file_manager: &Arc<SegmentFileManager>,
+    mut local_segment_end_offset: u64,
+) -> Result<SegmentWriteResp, JournalServerError> {
+    let namespace = &segment_write.namespace;
+    let shard_name = &segment_write.shard_name;
+    let segment_no = segment_write.segment_no;
+
+    let mut resp = SegmentWriteResp::default();
+
+    // build write data
+    let mut offsets = Vec::new();
+    let mut records = Vec::new();
+    for mut record in packet.data.clone() {
+        record.offset = local_segment_end_offset + 1;
+        local_segment_end_offset = record.offset;
+        offsets.push(record.offset);
+        records.push(record);
+    }
+
+    // batch write data
+    match segment_write.write(&records).await {
+        Ok(()) => {
+            resp.offset = offsets.clone();
+        }
+        Err(e) => {
+            resp.error = Some(e);
+        }
+    }
+
+    // update local segment file end offset
+    if let Some(end_offset) = offsets.last() {
+        segment_file_manager.update_end_offset(namespace, shard_name, segment_no, *end_offset)?;
+    }
+
+    Ok(resp)
+}
+
+async fn is_sealup_segment(
+    cache_manager: &Arc<CacheManager>,
+    client_pool: &Arc<ClientPool>,
+    segment_write: &SegmentFile,
+    local_segment_end_offset: u64,
+    packet_len: u64,
+    max_file_size: u64,
+) -> Result<bool, JournalServerError> {
+    let namespace = &segment_write.namespace;
+    let shard_name = &segment_write.shard_name;
+    let segment_no = segment_write.segment_no;
+
+    // check if the offset exceeds the end offset
+    let segment_meta =
+        if let Some(segment) = cache_manager.get_segment_meta(namespace, shard_name, segment_no) {
+            segment
+        } else {
+            return Err(JournalServerError::SegmentMetaNotExists(format!(
+                "{},{},{}",
+                namespace, shard_name, segment_no
+            )));
+        };
+
+    if segment_meta.end_offset > -1
+        && (local_segment_end_offset + packet_len) > segment_meta.end_offset as u64
+    {
+        segment_status_to_sealup(
+            cache_manager,
+            client_pool,
+            namespace,
+            shard_name,
+            segment_no,
+        )
+        .await?;
+        return Ok(true);
+    }
+
+    // check file size
+    let file_size = (segment_write.size().await).unwrap_or_default();
+    if file_size >= max_file_size {
+        segment_status_to_sealup(
+            cache_manager,
+            client_pool,
+            namespace,
+            shard_name,
+            segment_no,
+        )
+        .await?;
+        return Ok(true);
+    }
+
+    Ok(false)
+}
+
+pub async fn open_segment_write(
+    cache_manager: Arc<CacheManager>,
     namespace: &str,
     shard_name: &str,
     segment_no: u32,
-    segment_file_manager: Arc<SegmentFileManager>,
-    cache_manager: Arc<CacheManager>,
 ) -> Result<(SegmentFile, u64), JournalServerError> {
     let segment =
         if let Some(segment) = cache_manager.get_segment(namespace, shard_name, segment_no) {
