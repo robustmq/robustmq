@@ -17,7 +17,7 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::unique_id;
-    use grpc_clients::{placement::mqtt::call::create_acl, pool::ClientPool};
+    use grpc_clients::{placement::mqtt::call::{create_acl, delete_acl}, pool::ClientPool};
     use paho_mqtt::Message;
 
     use crate::mqtt_client::mqtt::common::{broker_addr, broker_grpc_addr, connect_server34};
@@ -35,28 +35,46 @@ mod tests {
 
         let topic = "/tests/t1".to_string();
 
-        
-        add_acl(client_pool.clone(), grpc_addr.clone(), client_id.clone()).await;
+
+        add_test_acl(client_pool.clone(), grpc_addr.clone(), MqttAclResourceType::ClientId, client_id.clone(), topic.clone(), MqttAclAction::All, MqttAclPermission::Deny).await;
         publish_test(&client_id, &addr, &topic).await;
+        delete_test_acl(client_pool.clone(), grpc_addr.clone(), MqttAclResourceType::ClientId, client_id.clone(), topic.clone()).await;
     }
 
-    async fn add_acl(client_pool: Arc<ClientPool>, addr: Vec<String>, client_id: String) {
+    async fn add_test_acl(client_pool: Arc<ClientPool>, addr: Vec<String>, resource_type: MqttAclResourceType, resource_name: String, topic: String, action: MqttAclAction, permission: MqttAclPermission) {
         let acl = MqttAcl {
-            resource_type: MqttAclResourceType::ClientId,
-            resource_name: client_id,
+            resource_type,
+            resource_name,
             ip: "*".to_string(),
-            topic: "test".to_string(),
-            action: MqttAclAction::All,
-            permission: MqttAclPermission::Deny,
+            topic,
+            action,
+            permission,
         };
         let request = CreateAclRequest {
             cluster_name: "test".to_string(),
-            acl: acl,
+            acl,
         };
         create_acl(client_pool.clone(), addr.clone(), request).await;
     }
+    
+    async fn delete_test_acl(client_pool: Arc<ClientPool>, addr: Vec<String>, resource_type: MqttAclResourceType, resource_name: String, topic: String) {
+        let acl = MqttAcl {
+            resource_type,
+            resource_name,
+            ip: "".to_string(),
+            topic: "".to_string(),
+            action: MqttAclAction::All,
+            permission: MqttAclPermission::Deny,
+        };
 
-    async fn publish_test(client_id: &str, addr: &str, topic: &str) {
+        let request = DeleteAclRequest {
+            cluster_name: "test".to_string(),
+            acl,
+        };
+        delete_acl(client_pool.clone(), addr.clone(), request).await;
+    }
+
+    async fn client_publish_test(client_id: &str, addr: &str, topic: &str) {
         let mqtt_version = 3;
         let cli = connect_server34(mqtt_version, client_id, addr);
 
@@ -70,5 +88,9 @@ mod tests {
             }
         }
         distinct_conn(cli);
+    }
+
+    async fn client_subscribe_test(client_id: &str, addr: &str, topic: &str) {
+
     }
 }
