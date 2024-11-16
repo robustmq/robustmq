@@ -94,8 +94,8 @@ impl SegmentFileManager {
         let key = self.key(namespace, shard_name, segment);
         if let Some(mut data) = self.segment_files.get_mut(&key) {
             data.end_offset = end_offset;
-            // let offset_index = OffsetIndexManager::new(self.rocksdb_engine_handler.clone());
-            // offset_index.save_end_offset(namespace, shard_name, segment, data.end_offset)?;
+            let offset_index = OffsetIndexManager::new(self.rocksdb_engine_handler.clone());
+            offset_index.save_end_offset(namespace, shard_name, segment, data.end_offset)?;
         }
         Ok(())
     }
