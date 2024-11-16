@@ -11,25 +11,3 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-pub mod file;
-pub mod fold;
-pub mod manager;
-pub mod read;
-pub mod status;
-
-#[derive(Clone)]
-pub struct SegmentIdentity {
-    pub namespace: String,
-    pub shard_name: String,
-    pub segment_seq: u32,
-}
-
-impl SegmentIdentity {
-    pub fn name(&self) -> String {
-        format!(
-            "{},{},{}",
-            self.namespace, self.shard_name, self.segment_seq
-        )
-    }
-}

@@ -72,6 +72,9 @@ pub enum JournalServerError {
     #[error("Segment {0} is currently in state {1} and is not allowed to write data")]
     SegmentStatusError(String, String),
 
+    #[error("Segment {0} is already in the SealUp state and is not allowed to write")]
+    SegmentAlreadySealUp(String),
+
     #[error("Current node is not the Leader of Segment {1} in the shard {0}")]
     NotLeader(String, u32),
 
@@ -99,6 +102,7 @@ pub fn get_journal_server_code(e: &JournalServerError) -> String {
             "MpscSegmentWriteDataSendError".to_string()
         }
         JournalServerError::OneshotRecvError(_) => "OneshotRecvError".to_string(),
+        JournalServerError::SegmentAlreadySealUp(_) => "SegmentAlreadySealUp".to_string(),
         JournalServerError::TokioTimeErrorElapsed(_) => "TokioTimeErrorElapsed".to_string(),
         JournalServerError::StdIoError(_) => "StdIoError".to_string(),
         JournalServerError::ProstDecodeError(_) => "ProstDecodeError".to_string(),
