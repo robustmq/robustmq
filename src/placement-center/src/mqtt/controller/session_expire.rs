@@ -77,7 +77,7 @@ impl SessionExpire {
 
         if !lastwill_list.is_empty() {
             debug!("Will message due, list:{:?}", lastwill_list);
-            self.send_expire_lastwill_messsage(lastwill_list).await;
+            self.send_expire_lastwill_message(lastwill_list).await;
         }
 
         sleep(Duration::from_secs(10)).await;
@@ -164,7 +164,7 @@ impl SessionExpire {
         });
     }
 
-    async fn send_expire_lastwill_messsage(&self, last_will_list: Vec<ExpireLastWill>) {
+    async fn send_expire_lastwill_message(&self, last_will_list: Vec<ExpireLastWill>) {
         let lastwill_storage = MqttLastWillStorage::new(self.rocksdb_engine_handler.clone());
         let call = MqttBrokerCall::new(
             self.cluster_name.clone(),
@@ -351,7 +351,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_expire_lastwill_messsage_test() {
+    async fn get_expire_lastwill_message_test() {
         let config = placement_center_test_conf();
 
         let cluster_name = unique_id();
