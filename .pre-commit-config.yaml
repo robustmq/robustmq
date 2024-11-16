@@ -42,14 +42,16 @@ repos:
         name: cargo fmt
         description: Format files with rustfmt.
         entry: bash -c 'cargo fmt -- --check'
-        language: rust
+        language: system
+        pass_filenames: true
         files: \.rs$
         args: []
       - id: hawkey-fmt-check-auto
         name: hawkeye fmt auto
         description: Format files with hawkeye automatically.
         entry: bash -c 'hawkeye format'
-        language: rust
+        language: system
+        pass_filenames: true
         files: \.*$
         args: []
       - id: hawkeye-fmt-check
@@ -64,34 +66,34 @@ repos:
         description: Check cargo dependencies
         # we only check licenses
         entry: bash -c 'cargo deny check licenses'
-        language: rust
+        language: system
         files: \.rs$
         args: []
       - id: typos
         name: typos
         description: check typo
         entry: bash -c 'typos'
-        language: rust
+        language: system
         files: \.*$
         pass_filenames: false
       - id: cargo-check
         name: cargo check
         description: Check the package for errors.
         entry: bash -c 'cargo check --all'
-        language: rust
+        language: system
         files: \.rs$
         pass_filenames: false
       - id: cargo-clippy
         name: cargo clippy
         description: Lint rust sources
         entry: bash -c 'cargo clippy --all-targets --all-features --tests --benches -- -D warnings'
-        language: rust
+        language: system
         files: \.rs$
         pass_filenames: false
       - id: cargo-test
         name: cargo test
         description: unit test for the project
         entry: bash -c 'cargo nextest run --workspace --exclude robustmq-test'
-        language: rust
+        language: system
         files: \.rs$
         pass_filenames: false
