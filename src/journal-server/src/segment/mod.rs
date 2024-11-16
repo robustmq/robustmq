@@ -17,3 +17,19 @@ pub mod fold;
 pub mod manager;
 pub mod read;
 pub mod status;
+
+#[derive(Clone)]
+pub struct SegmentIdentity {
+    pub namespace: String,
+    pub shard_name: String,
+    pub segment_seq: u32,
+}
+
+impl SegmentIdentity {
+    pub fn name(&self) -> String {
+        format!(
+            "{},{},{}",
+            self.namespace, self.shard_name, self.segment_seq
+        )
+    }
+}

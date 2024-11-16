@@ -136,7 +136,7 @@ pub async fn delete_shard_by_req(
     client_pool: &Arc<ClientPool>,
     req: &DeleteShardRequest,
 ) -> Result<DeleteShardReply, PlacementCenterError> {
-    let shard = if let Some(shard) =
+    let mut shard = if let Some(shard) =
         engine_cache.get_shard(&req.cluster_name, &req.namespace, &req.shard_name)
     {
         shard
@@ -154,7 +154,7 @@ pub async fn delete_shard_by_req(
     )
     .await?;
 
-    engine_cache.set_shard(&shard);
+    shard.status = JournalShardStatus::PrepareDelete;
     engine_cache.add_wait_delete_shard(&shard);
 
     update_cache_by_set_shard(&req.cluster_name, call_manager, client_pool, shard.clone()).await?;

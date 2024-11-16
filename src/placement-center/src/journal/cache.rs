@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use metadata_struct::journal::segment::JournalSegment;
+use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
 use rocksdb_engine::RocksDBEngine;
@@ -28,11 +28,11 @@ use crate::storage::journal::shard::ShardStorage;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct JournalCacheManager {
-    pub shard_list: DashMap<String, JournalShard>,
-    pub segment_list: DashMap<String, DashMap<u32, JournalSegment>>,
-    pub segment_meta_list: DashMap<String, DashMap<u32, JournalSegmentMetadata>>,
-    pub wait_delete_shard_list: DashMap<String, JournalShard>,
-    pub wait_delete_segment_list: DashMap<String, JournalSegment>,
+    shard_list: DashMap<String, JournalShard>,
+    segment_list: DashMap<String, DashMap<u32, JournalSegment>>,
+    segment_meta_list: DashMap<String, DashMap<u32, JournalSegmentMetadata>>,
+    wait_delete_shard_list: DashMap<String, JournalShard>,
+    wait_delete_segment_list: DashMap<String, JournalSegment>,
 }
 
 impl JournalCacheManager {
@@ -70,6 +70,38 @@ impl JournalCacheManager {
         self.segment_list.remove(&key);
     }
 
+    pub fn get_segment_list_by_shard(
+        &self,
+        cluster_name: &str,
+        namespace: &str,
+        shard_name: &str,
+    ) -> Vec<JournalSegment> {
+        let key = self.shard_key(cluster_name, namespace, shard_name);
+        let mut results = Vec::new();
+        if let Some(segment_list) = self.segment_list.get(&key) {
+            for raw in segment_list.iter() {
+                results.push(raw.value().clone());
+            }
+        }
+        results
+    }
+
+    pub fn get_segment_meta_list_by_shard(
+        &self,
+        cluster_name: &str,
+        namespace: &str,
+        shard_name: &str,
+    ) -> Vec<JournalSegmentMetadata> {
+        let key = self.shard_key(cluster_name, namespace, shard_name);
+        let mut results = Vec::new();
+        if let Some(segment_list) = self.segment_meta_list.get(&key) {
+            for raw in segment_list.iter() {
+                results.push(raw.value().clone());
+            }
+        }
+        results
+    }
+
     pub fn next_segment_seq(
         &self,
         cluster_name: &str,
@@ -81,6 +113,24 @@ impl JournalCacheManager {
             return Some(shard.last_segment_seq + 1);
         }
         None
+    }
+
+    pub fn shard_idle_segment_num(
+        &self,
+        cluster_name: &str,
+        namespace: &str,
+        shard_name: &str,
+    ) -> u32 {
+        let key = self.shard_key(cluster_name, namespace, shard_name);
+        let mut num = 0;
+        if let Some(segment_list) = self.segment_list.get(&key) {
+            for segment in segment_list.iter() {
+                if segment.status == SegmentStatus::Idle {
+                    num += 1
+                }
+            }
+        }
+        num
     }
 
     pub fn get_segment(
@@ -111,10 +161,6 @@ impl JournalCacheManager {
             data.insert(segment.segment_seq, segment.clone());
             self.segment_list.insert(key.clone(), data);
         }
-
-        if let Some(mut shard) = self.shard_list.get_mut(&key) {
-            shard.last_segment_seq = segment.segment_seq;
-        }
     }
 
     pub fn remove_segment(
@@ -126,9 +172,6 @@ impl JournalCacheManager {
     ) {
         let key = self.shard_key(cluster_name, namespace, shard_name);
         if let Some(segment_list) = self.segment_list.get(&key) {
-            if let Some(mut shard) = self.shard_list.get_mut(&key) {
-                shard.start_segment_seq = segment_seq + 1;
-            }
             segment_list.remove(&segment_seq);
         }
     }
@@ -210,7 +253,23 @@ impl JournalCacheManager {
         );
     }
 
-    pub fn shard_key(&self, cluster_name: &str, namespace: &str, shard_name: &str) -> String {
+    pub fn get_wait_delete_shard_list(&self) -> Vec<JournalShard> {
+        let mut results = Vec::new();
+        for raw in self.wait_delete_shard_list.iter() {
+            results.push(raw.value().clone());
+        }
+        results
+    }
+
+    pub fn get_wait_delete_segment_list(&self) -> Vec<JournalSegment> {
+        let mut results = Vec::new();
+        for raw in self.wait_delete_segment_list.iter() {
+            results.push(raw.value().clone());
+        }
+        results
+    }
+
+    fn shard_key(&self, cluster_name: &str, namespace: &str, shard_name: &str) -> String {
         format!("{}_{}_{}", cluster_name, namespace, shard_name)
     }
 

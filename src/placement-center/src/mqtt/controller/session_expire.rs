@@ -71,11 +71,15 @@ impl SessionExpire {
     }
 
     pub async fn lastwill_expire_send(&self) {
-        let lastwill_list = self.get_expire_lastwill_messsage();
+        let lastwill_list = self
+            .mqtt_cache_manager
+            .get_expire_last_wills(&self.cluster_name);
+
         if !lastwill_list.is_empty() {
             debug!("Will message due, list:{:?}", lastwill_list);
             self.send_expire_lastwill_messsage(lastwill_list).await;
         }
+
         sleep(Duration::from_secs(10)).await;
     }
 
@@ -160,22 +164,6 @@ impl SessionExpire {
         });
     }
 
-    fn get_expire_lastwill_messsage(&self) -> Vec<ExpireLastWill> {
-        let mut results = Vec::new();
-        if let Some(list) = self
-            .mqtt_cache_manager
-            .expire_last_wills
-            .get(&self.cluster_name)
-        {
-            for (_, lastwill) in list.clone() {
-                if self.is_send_last_will(&lastwill) {
-                    results.push(lastwill);
-                }
-            }
-        }
-        results
-    }
-
     async fn send_expire_lastwill_messsage(&self, last_will_list: Vec<ExpireLastWill>) {
         let lastwill_storage = MqttLastWillStorage::new(self.rocksdb_engine_handler.clone());
         let call = MqttBrokerCall::new(
@@ -215,13 +203,6 @@ impl SessionExpire {
 
         false
     }
-
-    fn is_send_last_will(&self, lastwill: &ExpireLastWill) -> bool {
-        if now_second() >= lastwill.delay_sec {
-            return true;
-        }
-        false
-    }
 }
 
 #[cfg(test)]
@@ -239,6 +220,7 @@ mod tests {
     use super::{ExpireLastWill, SessionExpire};
     use crate::core::cache::PlacementCacheManager;
     use crate::mqtt::cache::MqttCacheManager;
+    use crate::mqtt::is_send_last_will;
     use crate::storage::mqtt::session::MqttSessionStorage;
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
@@ -352,45 +334,20 @@ mod tests {
 
     #[tokio::test]
     async fn is_send_last_will_test() {
-        let config = placement_center_test_conf();
-
-        let cluster_name = unique_id();
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &config.rocksdb.data_path,
-            config.rocksdb.max_open_files.unwrap(),
-            column_family_list(),
-        ));
-        let placement_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
-        let mqtt_cache_manager = Arc::new(MqttCacheManager::new(
-            rocksdb_engine_handler.clone(),
-            placement_cache.clone(),
-        ));
-        let client_pool = Arc::new(ClientPool::new(10));
-
-        let session_expire = SessionExpire::new(
-            rocksdb_engine_handler.clone(),
-            mqtt_cache_manager,
-            placement_cache,
-            client_pool,
-            cluster_name.clone(),
-        );
-
         let lastwill = ExpireLastWill {
             client_id: unique_id(),
             delay_sec: now_second() - 3,
             cluster_name: "test1".to_string(),
         };
 
-        assert!(session_expire.is_send_last_will(&lastwill));
+        assert!(is_send_last_will(&lastwill));
 
         let lastwill = ExpireLastWill {
             client_id: unique_id(),
             delay_sec: now_second() + 3,
             cluster_name: "test1".to_string(),
         };
-        assert!(!session_expire.is_send_last_will(&lastwill));
-
-        remove_dir_all(config.rocksdb.data_path).unwrap();
+        assert!(!is_send_last_will(&lastwill));
     }
 
     #[tokio::test]
@@ -408,15 +365,6 @@ mod tests {
             rocksdb_engine_handler.clone(),
             placement_cache.clone(),
         ));
-        let client_pool = Arc::new(ClientPool::new(10));
-
-        let session_expire = SessionExpire::new(
-            rocksdb_engine_handler.clone(),
-            mqtt_cache_manager.clone(),
-            placement_cache,
-            client_pool,
-            cluster_name.clone(),
-        );
 
         let client_id = unique_id();
         let expire_last_will = ExpireLastWill {
@@ -429,7 +377,7 @@ mod tests {
 
         let start = now_second();
         loop {
-            let lastwill_list = session_expire.get_expire_lastwill_messsage();
+            let lastwill_list = mqtt_cache_manager.get_expire_last_wills(&cluster_name);
             if !lastwill_list.is_empty() {
                 let mut flag = false;
                 for st in lastwill_list {
