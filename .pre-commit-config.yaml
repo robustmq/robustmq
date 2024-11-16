@@ -46,7 +46,7 @@ repos:
         pass_filenames: true
         files: \.rs$
         args: []
-      - id: hawkey-fmt-check-auto
+      - id: hawkeye-fmt-check-auto
         name: hawkeye fmt auto
         description: Format files with hawkeye automatically.
         entry: bash -c 'hawkeye format'
