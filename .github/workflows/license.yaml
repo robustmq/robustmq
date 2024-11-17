@@ -16,10 +16,19 @@ name: License checker
 
 on:
   push:
-    branches:
-    - develop
+    branches: [ "main" ]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/pull_request_template.md"
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ "main" ]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/pull_request_template.md"
 jobs:
   license-header-check:
     runs-on: ubuntu-20.04
