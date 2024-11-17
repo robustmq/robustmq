@@ -16,3 +16,4 @@ nohup.out
 .idea/misc.xml
 .idea/codeStyles/Project.xml
 .idea/codeStyles/codeStyleConfig.xml
+/precommit_venv/
