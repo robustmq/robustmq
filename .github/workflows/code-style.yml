@@ -15,15 +15,14 @@
 name: Code Style
 
 on:
+  workflow_dispatch:
   push:
-    branches: [ "main" ]
     paths-ignore:
       - "docs/**"
       - "**.md"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/pull_request_template.md"
   pull_request:
-    branches: [ "main" ]
     paths-ignore:
       - "docs/**"
       - "**.md"
