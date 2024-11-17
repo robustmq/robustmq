@@ -16,12 +16,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use common_base::config::journal_server::journal_server_conf;
+use common_base::tools::now_second;
 use dashmap::DashMap;
 use grpc_clients::placement::journal::call::{
     create_next_segment, update_segment_meta, update_segment_status,
 };
 use grpc_clients::pool::ClientPool;
-use log::warn;
+use log::{error, warn};
 use metadata_struct::journal::segment::{segment_name, SegmentStatus};
 use protocol::placement_center::placement_center_journal::{
     CreateNextSegmentRequest, UpdateSegmentMetaRequest, UpdateSegmentStatusRequest,
@@ -38,8 +39,8 @@ pub struct SegmentScrollManager {
     cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
     segment_file_manager: Arc<SegmentFileManager>,
-    percentage50_cache: DashMap<String, bool>,
-    percentage90_cache: DashMap<String, bool>,
+    percentage50_cache: DashMap<String, u64>,
+    percentage90_cache: DashMap<String, u64>,
 }
 
 impl SegmentScrollManager {
@@ -73,23 +74,29 @@ impl SegmentScrollManager {
                 {
                     Ok((segment_write, max_size)) => (segment_write, max_size),
                     Err(e) => {
-                        warn!("");
+                        error!("{}", e);
                         continue;
                     }
                 };
 
                 let key = segment_iden.name();
 
+                if self.percentage50_cache.contains_key(&key)
+                    && self.percentage90_cache.contains_key(&key)
+                {
+                    continue;
+                }
+
+                let file_size = match segment_write.size().await {
+                    Ok(size) => size,
+                    Err(e) => {
+                        error!("{}", e);
+                        continue;
+                    }
+                };
+
                 // 50%
                 if self.percentage50_cache.get(&key).is_none() {
-                    let file_size = match segment_write.size().await {
-                        Ok(size) => size,
-                        Err(e) => {
-                            warn!("");
-                            continue;
-                        }
-                    };
-
                     if file_size / max_size > 50 {
                         let request = CreateNextSegmentRequest {
                             cluster_name: conf.cluster_name.clone(),
@@ -104,23 +111,15 @@ impl SegmentScrollManager {
                         )
                         .await
                         {
-                            warn!("");
+                            error!("{}", e);
                         } else {
-                            self.percentage50_cache.insert(key.clone(), true);
+                            self.percentage50_cache.insert(key.clone(), now_second());
                         }
                     }
                 }
 
                 // 90%
                 if self.percentage50_cache.get(&key).is_none() {
-                    let file_size = match segment_write.size().await {
-                        Ok(size) => size,
-                        Err(e) => {
-                            warn!("");
-                            continue;
-                        }
-                    };
-
                     if file_size / max_size > 90 {
                         if let Some(current_end_offset) =
                             self.segment_file_manager.get_segment_end_offset(
@@ -139,7 +138,7 @@ impl SegmentScrollManager {
                             )
                             .await
                             {
-                                warn!("");
+                                error!("{}", e);
                                 continue;
                             }
 
@@ -157,13 +156,13 @@ impl SegmentScrollManager {
                             )
                             .await
                             {
-                                warn!("");
+                                error!("{}", e);
                                 continue;
                             }
 
-                            self.percentage90_cache.insert(key.clone(), true);
+                            self.percentage90_cache.insert(key.clone(), now_second());
                         } else {
-                            warn!("")
+                            error!("When the file size is 90%, try adjusting the segment state. The segment file metadata does not exist, maybe a file is missing.")
                         }
                     }
                 }
@@ -256,7 +255,8 @@ pub async fn segment_status_to_pre_sealup(
         segment_iden.segment_seq,
     ) {
         if segment.status != SegmentStatus::Write {
-            warn!("");
+            warn!("Segment {} enters the presealup state, but the current state is not Write, possibly because the Status checking thread is not running.",
+            segment_name(&segment_iden.namespace, &segment_iden.shard_name, segment_iden.segment_seq));
         }
         let request = UpdateSegmentStatusRequest {
             cluster_name: cluster_name.clone(),
@@ -268,7 +268,8 @@ pub async fn segment_status_to_pre_sealup(
         };
         update_segment_status(client_pool.clone(), addrs.clone(), request).await?;
     } else {
-        warn!("")
+        warn!("Segment {} enters the presealup state, but the current Segment is not found, possibly because the Status checking thread is not running.",
+        segment_name(&segment_iden.namespace, &segment_iden.shard_name, segment_iden.segment_seq));
     }
     // next segment preWrite
     let next_segment_no = segment_iden.segment_seq + 1;
@@ -278,7 +279,8 @@ pub async fn segment_status_to_pre_sealup(
         next_segment_no,
     ) {
         if segment.status != SegmentStatus::Write {
-            warn!("");
+            warn!("segment {} enters the presealup state and the next Segment is not currently in the Write state, possibly because the Status checking thread is not running.",
+            segment_name(&segment_iden.namespace, &segment_iden.shard_name, segment_iden.segment_seq));
         }
         let request = UpdateSegmentStatusRequest {
             cluster_name: cluster_name.clone(),
@@ -290,7 +292,8 @@ pub async fn segment_status_to_pre_sealup(
         };
         update_segment_status(client_pool.clone(), addrs.clone(), request).await?;
     } else {
-        warn!("")
+        warn!("segment {} enters the presealup state, but the next Segment is not found, possibly because the Status checking thread is not running.",
+        segment_name(&segment_iden.namespace, &segment_iden.shard_name, segment_iden.segment_seq));
     }
     Ok(())
 }

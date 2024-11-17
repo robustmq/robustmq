@@ -204,24 +204,6 @@ pub async fn create_local_segment(
     );
     segment_file.create().await?;
 
-    let start_offset = 0;
-    let end_offset = 0;
-
-    // init start/end offset
-    let offset_index = OffsetIndexManager::new(rocksdb_engine_handler.clone());
-    offset_index.save_start_offset(
-        &segment.namespace,
-        &segment.shard_name,
-        segment.segment_seq,
-        start_offset,
-    )?;
-    offset_index.save_end_offset(
-        &segment.namespace,
-        &segment.shard_name,
-        segment.segment_seq,
-        end_offset,
-    )?;
-
     // add segment file manager
     let segment_metadata = SegmentFileMetadata {
         namespace: segment.namespace.clone(),

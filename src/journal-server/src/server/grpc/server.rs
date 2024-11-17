@@ -57,7 +57,7 @@ impl GrpcServer {
             "Journal Engine Grpc Server start success. port:{}",
             self.port
         );
-        let admin_handler = GrpcJournalServerAdminService::new();
+        let admin_handler = GrpcJournalServerAdminService::new(self.cache_manager.clone());
         let inner_handler = GrpcJournalServerInnerService::new(
             self.cache_manager.clone(),
             self.segment_file_manager.clone(),

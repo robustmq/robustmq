@@ -12,7 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod journal_client;
-pub mod journal_server;
-pub mod mqtt_client;
-pub mod place_server;
+pub mod common;
+pub mod grpc_admin;

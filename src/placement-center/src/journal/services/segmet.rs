@@ -370,7 +370,7 @@ pub async fn build_segment(
         segment_seq: segment_no,
         leader: calc_leader_node(&replicas),
         replicas: replicas.clone(),
-        isr: replicas.clone(),
+        isr: replicas.iter().map(|rep| rep.node_id).collect(),
         config: SegmentConfig {
             max_segment_size: 1024 * 1024 * 1024,
         },

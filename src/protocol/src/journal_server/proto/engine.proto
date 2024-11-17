@@ -39,8 +39,9 @@ message RespHeader{
 
 message ClientSegmentMetadata{
     uint32 segment_no = 1;
-    repeated uint64 replicas = 2;
-    bytes meta =3;
+    uint64 leader = 2;
+    repeated uint64 replicas = 3;
+    string meta =4;
 }
 
 /** Get Cluster Metadata **/

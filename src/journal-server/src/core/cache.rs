@@ -126,6 +126,14 @@ impl CacheManager {
         self.segment_metadatas.remove(&key);
     }
 
+    pub fn get_shards(&self) -> Vec<JournalShard> {
+        let mut results = Vec::new();
+        for raw in self.shards.iter() {
+            results.push(raw.value().clone());
+        }
+        results
+    }
+
     pub fn shard_is_exists(&self, namespace: &str, shard_name: &str) -> bool {
         let key = self.shard_key(namespace, shard_name);
         self.shards.contains_key(&key) || self.segments.contains_key(&key)
@@ -396,8 +404,8 @@ async fn parse_segment(
         JournalUpdateCacheActionType::Set => match serde_json::from_str::<JournalSegment>(data) {
             Ok(segment) => {
                 info!(
-                    "Update the cache, set segment, shard name: {}, segment no:{}",
-                    segment.shard_name, segment.segment_seq
+                    "Segment cache update, action: set, segment:{}",
+                    segment.name()
                 );
                 if cache_manager
                     .get_segment(&segment.namespace, &segment.shard_name, segment.segment_seq)
@@ -533,6 +541,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
     // load segment
     let request = ListSegmentRequest {
         cluster_name: conf.cluster_name.clone(),
+        segment_no: -1,
         ..Default::default()
     };
     match list_segment(client_pool.clone(), conf.placement_center.clone(), request).await {
@@ -560,6 +569,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
     // load segment data
     let request = ListSegmentMetaRequest {
         cluster_name: conf.cluster_name.clone(),
+        segment_no: -1,
         ..Default::default()
     };
     match list_segment_meta(client_pool.clone(), conf.placement_center.clone(), request).await {
