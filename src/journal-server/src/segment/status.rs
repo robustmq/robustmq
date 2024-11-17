@@ -96,74 +96,70 @@ impl SegmentScrollManager {
                 };
 
                 // 50%
-                if self.percentage50_cache.get(&key).is_none() {
-                    if file_size / max_size > 50 {
-                        let request = CreateNextSegmentRequest {
-                            cluster_name: conf.cluster_name.clone(),
-                            namespace: segment_iden.namespace.clone(),
-                            shard_name: segment_iden.shard_name.clone(),
-                        };
+                if self.percentage50_cache.get(&key).is_none() && file_size / max_size > 50 {
+                    let request = CreateNextSegmentRequest {
+                        cluster_name: conf.cluster_name.clone(),
+                        namespace: segment_iden.namespace.clone(),
+                        shard_name: segment_iden.shard_name.clone(),
+                    };
 
-                        if let Err(e) = create_next_segment(
-                            self.client_pool.clone(),
-                            conf.placement_center.clone(),
-                            request,
-                        )
-                        .await
-                        {
-                            error!("{}", e);
-                        } else {
-                            self.percentage50_cache.insert(key.clone(), now_second());
-                        }
+                    if let Err(e) = create_next_segment(
+                        self.client_pool.clone(),
+                        conf.placement_center.clone(),
+                        request,
+                    )
+                    .await
+                    {
+                        error!("{}", e);
+                    } else {
+                        self.percentage50_cache.insert(key.clone(), now_second());
                     }
                 }
 
                 // 90%
-                if self.percentage50_cache.get(&key).is_none() {
-                    if file_size / max_size > 90 {
-                        if let Some(current_end_offset) =
-                            self.segment_file_manager.get_segment_end_offset(
-                                &segment_iden.namespace,
-                                &segment_iden.shard_name,
-                                segment_iden.segment_seq,
-                            )
+                if self.percentage50_cache.get(&key).is_none() && file_size / max_size > 90 {
+                    if let Some(current_end_offset) =
+                        self.segment_file_manager.get_segment_end_offset(
+                            &segment_iden.namespace,
+                            &segment_iden.shard_name,
+                            segment_iden.segment_seq,
+                        )
+                    {
+                        // update active/next segment status
+                        if let Err(e) = segment_status_to_pre_sealup(
+                            &self.cache_manager,
+                            &self.client_pool,
+                            conf.cluster_name.clone(),
+                            conf.placement_center.clone(),
+                            &segment_iden,
+                        )
+                        .await
                         {
-                            // update active/next segment status
-                            if let Err(e) = segment_status_to_pre_sealup(
-                                &self.cache_manager,
-                                &self.client_pool,
-                                conf.cluster_name.clone(),
-                                conf.placement_center.clone(),
-                                &segment_iden,
-                            )
-                            .await
-                            {
-                                error!("{}", e);
-                                continue;
-                            }
-
-                            // update active/next segment end/start offset
-                            // calc end_offset
-                            let calc_offset = self.calc_end_offset().await;
-                            let end_offset = current_end_offset + calc_offset;
-                            if let Err(e) = segment_meta_to_pre_sealup(
-                                &self.cache_manager,
-                                &self.client_pool,
-                                conf.cluster_name.clone(),
-                                conf.placement_center.clone(),
-                                &segment_iden,
-                                end_offset,
-                            )
-                            .await
-                            {
-                                error!("{}", e);
-                                continue;
-                            }
-
-                            self.percentage90_cache.insert(key.clone(), now_second());
-                        } else {
-                            error!("When the file size is 90%, try adjusting the segment state. The segment file metadata does not exist, maybe a file is missing.")
+                            error!("{}", e);
+                            continue;
                         }
+
+                        // update active/next segment end/start offset
+                        // calc end_offset
+                        let calc_offset = self.calc_end_offset().await;
+                        let end_offset = current_end_offset + calc_offset;
+                        if let Err(e) = segment_meta_to_pre_sealup(
+                            &self.cache_manager,
+                            &self.client_pool,
+                            conf.cluster_name.clone(),
+                            conf.placement_center.clone(),
+                            &segment_iden,
+                            end_offset,
+                        )
+                        .await
+                        {
+                            error!("{}", e);
+                            continue;
+                        }
+
+                        self.percentage90_cache.insert(key.clone(), now_second());
+                    } else {
+                        error!("When the file size is 90%, try adjusting the segment state. The segment file metadata does not exist, maybe a file is missing.")
                     }
                 }
             }
