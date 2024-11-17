@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod journal_client;
-pub mod journal_server;
-pub mod mqtt_client;
-pub mod place_server;
+pub fn journal_grpc_addr() -> String {
+    "127.0.0.1:2228".to_string()
+}

@@ -26,7 +26,7 @@ pub struct JournalSegment {
     pub replicas: Vec<Replica>,
     pub leader_epoch: u32,
     pub leader: u64,
-    pub isr: Vec<Replica>,
+    pub isr: Vec<u64>,
     pub status: SegmentStatus,
     pub config: SegmentConfig,
 }

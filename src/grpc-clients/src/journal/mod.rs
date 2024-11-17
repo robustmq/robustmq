@@ -43,7 +43,8 @@ pub enum JournalEngineInterface {
     GetSegmentDeleteStatus,
 
     // admin
-    GetShardList,
+    ListShard,
+    ListSegment,
 }
 
 async fn retry_call(

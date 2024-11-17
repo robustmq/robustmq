@@ -175,9 +175,10 @@ impl ShardHandler {
                     return Err(JournalServerError::SegmentMetaNotExists(raw.shard_name));
                 };
 
-                let meta_val = serde_json::to_vec(&meta)?;
+                let meta_val = serde_json::to_string(&meta)?;
                 let client_segment_meta = ClientSegmentMetadata {
                     segment_no: segment.segment_seq,
+                    leader: segment.leader,
                     replicas: segment.replicas.iter().map(|rep| rep.node_id).collect(),
                     meta: meta_val,
                 };

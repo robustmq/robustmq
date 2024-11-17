@@ -201,14 +201,8 @@ impl JournalServer {
 
     fn init_node(&self) {
         self.daemon_runtime.block_on(async move {
-            // todo
-            sleep(Duration::from_secs(3)).await;
-            match register_journal_node(self.client_pool.clone(), self.config.clone()).await {
-                Ok(()) => {}
-                Err(e) => {
-                    panic!("{}", e);
-                }
-            }
+            self.cache_manager.init_cluster();
+
             load_metadata_cache(&self.cache_manager, &self.client_pool).await;
 
             for path in self.config.storage.data_path.clone() {
@@ -227,6 +221,16 @@ impl JournalServer {
             }
 
             metadata_and_local_segment_diff_check();
+
+            // todo
+            sleep(Duration::from_secs(3)).await;
+            match register_journal_node(self.client_pool.clone(), self.config.clone()).await {
+                Ok(()) => {}
+                Err(e) => {
+                    panic!("{}", e);
+                }
+            }
+
             info!("Journal Node was initialized successfully");
         });
     }
