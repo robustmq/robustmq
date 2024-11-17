@@ -74,7 +74,7 @@ pub async fn create_shard_by_req(
         shard
     };
 
-    let segment = if let Some(segment) = engine_cache.get_segment(
+    let mut segment = if let Some(segment) = engine_cache.get_segment(
         &shard.cluster_name,
         &shard.namespace,
         &shard.shard_name,
@@ -110,6 +110,7 @@ pub async fn create_shard_by_req(
         SegmentStatus::Write,
     )
     .await?;
+    segment.status = SegmentStatus::Write;
 
     // update segment cache
     update_cache_by_set_shard(&req.cluster_name, call_manager, client_pool, shard.clone()).await?;

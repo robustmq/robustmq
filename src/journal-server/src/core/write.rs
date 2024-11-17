@@ -446,7 +446,7 @@ pub async fn write_data(
                 }
             } else {
                 WriteRespMessageStatus {
-                    // offset: resp_raw.offset,
+                    offset: resp_raw,
                     ..Default::default()
                 }
             };
@@ -456,5 +456,5 @@ pub async fn write_data(
         resp_message.messages = resp_message_status;
         results.push(resp_message);
     }
-    Ok(Vec::new())
+    Ok(results)
 }
