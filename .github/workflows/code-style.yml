@@ -99,7 +99,7 @@ jobs:
         uses: ./.github/actions/setup-builder
       - name: Install typos
         run: cargo install typos-cli@1.27.3
-      - uses: typos check
+      - name: typos check
         run: typos
 
   clippy:
