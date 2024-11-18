@@ -110,8 +110,8 @@ impl AuthDriver {
             Ok(date) => {
                 let is_existed = date.iter().any(|user| *user.key() == user_info.username);
                 if is_existed {
-                    return Err(CommonError::CommmonError(
-                        "user has beed existed".to_string(),
+                    return Err(CommonError::CommonError(
+                        "user has been existed".to_string(),
                     ));
                 }
             }
@@ -128,7 +128,7 @@ impl AuthDriver {
             Ok(date) => {
                 let is_existed = date.iter().any(|user| *user.key() == username);
                 if !is_existed {
-                    return Err(CommonError::CommmonError("user does not exist".to_string()));
+                    return Err(CommonError::CommonError("user does not exist".to_string()));
                 };
             }
             Err(e) => {

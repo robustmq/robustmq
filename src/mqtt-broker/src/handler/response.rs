@@ -134,9 +134,9 @@ pub fn response_packet_mqtt_distinct(
     if !protocol.is_mqtt5() {
         return MqttPacket::Disconnect(Disconnect { reason_code: None }, None);
     }
-    let mut properteis = DisconnectProperties::default();
-    if connection.is_response_proplem_info() {
-        properteis.reason_string = reason_string;
+    let mut properties = DisconnectProperties::default();
+    if connection.is_response_problem_info() {
+        properties.reason_string = reason_string;
     }
 
     MqttPacket::Disconnect(Disconnect { reason_code: code }, None)
@@ -196,7 +196,7 @@ pub fn response_packet_mqtt_puback_fail(
         reason: Some(reason),
     };
     let mut properties = PubAckProperties::default();
-    if connection.is_response_proplem_info() {
+    if connection.is_response_problem_info() {
         properties.reason_string = reason_string;
     }
     MqttPacket::PubAck(pub_ack, Some(properties))
@@ -238,7 +238,7 @@ pub fn response_packet_mqtt_pubrec_fail(
         reason: Some(reason),
     };
     let mut properties = PubRecProperties::default();
-    if connection.is_response_proplem_info() {
+    if connection.is_response_problem_info() {
         properties.reason_string = reason_string;
     }
     MqttPacket::PubRec(pub_ack, Some(properties))
@@ -288,7 +288,7 @@ pub fn response_packet_mqtt_pubcomp_fail(
         reason: Some(reason),
     };
     let mut properties = PubCompProperties::default();
-    if connection.is_response_proplem_info() {
+    if connection.is_response_problem_info() {
         properties.reason_string = reason_string;
     }
     MqttPacket::PubComp(pub_ack, Some(properties))
@@ -307,7 +307,7 @@ pub fn response_packet_mqtt_suback(
 
     let sub_ack = SubAck { pkid, return_codes };
     let mut properties = SubAckProperties::default();
-    if connection.is_response_proplem_info() {
+    if connection.is_response_problem_info() {
         properties.reason_string = reason_string;
     }
     MqttPacket::SubAck(sub_ack, Some(properties))
@@ -325,7 +325,7 @@ pub fn response_packet_mqtt_unsuback(
 ) -> MqttPacket {
     let unsub_ack = UnsubAck { pkid, reasons };
     let mut properties = UnsubAckProperties::default();
-    if connection.is_response_proplem_info() {
+    if connection.is_response_problem_info() {
         properties.reason_string = reason_string;
     }
     MqttPacket::UnsubAck(unsub_ack, None)

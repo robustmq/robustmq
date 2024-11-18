@@ -29,7 +29,7 @@ use crate::storage::session::SessionStorage;
 pub async fn build_session(
     connect_id: u64,
     client_id: String,
-    connnect: &Connect,
+    connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
@@ -40,7 +40,7 @@ pub async fn build_session(
     let is_contain_last_will = !last_will.is_none();
     let last_will_delay_interval = last_will_delay_interval(last_will_properties);
 
-    let (mut session, new_session) = if connnect.clean_session {
+    let (mut session, new_session) = if connect.clean_session {
         let session_storage = SessionStorage::new(client_pool.clone());
         match session_storage.get_session(client_id.clone()).await {
             Ok(Some(session)) => (session, false),

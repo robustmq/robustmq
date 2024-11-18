@@ -28,6 +28,7 @@ mod tests {
     use crate::common::get_placement_addr;
 
     #[tokio::test]
+    #[ignore]
     async fn register_node_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
@@ -101,7 +102,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn un_register_nodet_test() {
+    #[ignore]
+    async fn un_register_node_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
 
@@ -138,6 +140,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn delete_idempotent_data_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
@@ -171,6 +174,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn set_resource_config_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];

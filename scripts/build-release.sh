@@ -33,7 +33,7 @@ cross_build(){
 
     build="./build"
     target="robustmq"
-    
+
     package_name=${target}-${platform_package_name}-${version}
 
     echo "${arc} Architecture, start compiling"
@@ -50,11 +50,11 @@ cross_build(){
 	mkdir -p ${build}/${package_name}/config
 
     # copy bin
-	cp -rf target/${arc}/release/mqtt-server ${build}/${package_name}/libs 
-	cp -rf target/${arc}/release/placement-center ${build}/${package_name}/libs 
-	cp -rf target/${arc}/release/journal-server ${build}/${package_name}/libs 
-	cp -rf target/${arc}/release/cli-command-mqtt ${build}/${package_name}/libs 
-	cp -rf target/${arc}/release/cli-command-placement ${build}/${package_name}/libs 
+	cp -rf target/${arc}/release/mqtt-server ${build}/${package_name}/libs
+	cp -rf target/${arc}/release/placement-center ${build}/${package_name}/libs
+	cp -rf target/${arc}/release/journal-server ${build}/${package_name}/libs
+	cp -rf target/${arc}/release/cli-command-mqtt ${build}/${package_name}/libs
+	cp -rf target/${arc}/release/cli-command-placement ${build}/${package_name}/libs
 
     # copy bin&config
 	cp -rf bin/* ${build}/${package_name}/bin
@@ -63,7 +63,7 @@ cross_build(){
     # chmod file
 	chmod -R 777 ${build}/${package_name}/bin/*
 
-    # bundel file
+    # bundle file
 	cd ${build} && tar zcvf ${package_name}.tar.gz ${package_name} && rm -rf ${package_name}
     cd ..
 	echo "build release package success. ${package_name}.tar.gz "
@@ -143,14 +143,14 @@ build_local(){
 
     build="./build"
     target="robustmq"
-    
+
     package_name=${target}-local
 
     echo "package name: ${package_name}"
     mkdir -p ${build}
 
     # build
-	cargo build 
+	cargo build
 
     # makdir fold
 	mkdir -p ${build}/${package_name}
@@ -159,10 +159,10 @@ build_local(){
 	mkdir -p ${build}/${package_name}/config
 
     # copy bin
-	cp -rf target/debug/mqtt-server ${build}/${package_name}/libs 
-	cp -rf target/debug/placement-center ${build}/${package_name}/libs 
-	cp -rf target/debug/journal-server ${build}/${package_name}/libs 
-	cp -rf target/debug/cli-command ${build}/${package_name}/libs 
+	cp -rf target/debug/mqtt-server ${build}/${package_name}/libs
+	cp -rf target/debug/placement-center ${build}/${package_name}/libs
+	cp -rf target/debug/journal-server ${build}/${package_name}/libs
+	cp -rf target/debug/cli-command ${build}/${package_name}/libs
 
     # copy bin&config
 	cp -rf bin/* ${build}/${package_name}/bin
@@ -171,7 +171,7 @@ build_local(){
     # chmod file
 	chmod -R 777 ${build}/${package_name}/bin/*
 
-    # bundel file
+    # bundle file
 	cd ${build} && tar zcvf ${package_name}.tar.gz ${package_name} && rm -rf ${package_name}
     cd ..
 	echo "build release package success. ${package_name}.tar.gz "

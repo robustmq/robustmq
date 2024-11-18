@@ -66,22 +66,17 @@ impl BrokerHeartbeat {
     pub async fn start(&mut self) {
         let node_list = self.cluster_cache.node_list.clone();
 
-        for node_raw in node_list.iter() {
-            let cluster_name = node_raw.key();
-
-            for node_raw in node_raw.value().iter() {
-                let node_id = node_raw.key();
-                let node = node_raw.value();
-
+        for (cluster_name, node_list) in node_list.clone() {
+            for (node_id, node) in node_list {
                 if let Some(heart_data) =
-                    self.cluster_cache.get_broker_heart(cluster_name, *node_id)
+                    self.cluster_cache.get_broker_heart(&cluster_name, node_id)
                 {
                     if now_second() - heart_data.time >= self.timeout_ms / 1000
-                        && self.cluster_cache.cluster_list.get(cluster_name).is_some()
+                        && self.cluster_cache.cluster_list.get(&cluster_name).is_some()
                     {
                         let cluster_type = str_to_cluster_type(&node.cluster_type).unwrap();
                         let req = UnRegisterNodeRequest {
-                            node_id: *node_id,
+                            node_id,
                             cluster_name: cluster_name.to_string(),
                             cluster_type: cluster_type.into(),
                         };
@@ -100,15 +95,15 @@ impl BrokerHeartbeat {
                         }
 
                         self.cluster_cache
-                            .remove_broker_heart(cluster_name, *node_id);
+                            .remove_broker_heart(&cluster_name, node_id);
                         info!(
                                     "The heartbeat of the Node times out and is deleted from the cluster. Node ID: {}, node IP: {}.",
-                                     *node_id,
+                                     node_id,
                                      node.node_ip);
                     }
                 } else {
                     self.cluster_cache
-                        .report_broker_heart(cluster_name, *node_id);
+                        .report_broker_heart(&cluster_name, node_id);
                 }
             }
         }

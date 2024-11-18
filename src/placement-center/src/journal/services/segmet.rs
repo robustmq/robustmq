@@ -58,6 +58,7 @@ pub async fn create_segment_by_req(
             req.cluster_name.to_string(),
         ));
     };
+
     let next_segment_no = if let Some(segment_no) =
         engine_cache.next_segment_seq(&req.cluster_name, &req.namespace, &req.shard_name)
     {
@@ -65,6 +66,11 @@ pub async fn create_segment_by_req(
     } else {
         return Err(PlacementCenterError::ShardDoesNotExist(shard.name()));
     };
+
+    if engine_cache.shard_idle_segment_num(&req.cluster_name, &req.namespace, &req.shard_name) >= 1
+    {
+        return Ok(CreateNextSegmentReply {});
+    }
 
     let mut shard_notice = false;
     // If the next Segment hasn't already been created, it triggers the creation of the next Segment
@@ -128,7 +134,7 @@ pub async fn create_segment_by_req(
     // try fixed segment status
     if active_segment.status == SegmentStatus::SealUp
         || active_segment.status == SegmentStatus::PreDelete
-        || active_segment.status == SegmentStatus::Deleteing
+        || active_segment.status == SegmentStatus::Deleting
     {
         shard.active_segment_seq = next_segment_no;
         shard_notice = true;
@@ -156,7 +162,7 @@ pub async fn delete_segment_by_req(
         ));
     };
 
-    let segment = if let Some(segment) = engine_cache.get_segment(
+    let mut segment = if let Some(segment) = engine_cache.get_segment(
         &req.cluster_name,
         &req.namespace,
         &req.shard_name,
@@ -170,6 +176,13 @@ pub async fn delete_segment_by_req(
         )));
     };
 
+    if segment.status != SegmentStatus::SealUp {
+        return Err(PlacementCenterError::NoAllowDeleteSegment(
+            segment.name(),
+            segment.status.to_string(),
+        ));
+    }
+
     update_segment_status(
         engine_cache,
         raft_machine_apply,
@@ -178,6 +191,7 @@ pub async fn delete_segment_by_req(
     )
     .await?;
 
+    segment.status = SegmentStatus::PreDelete;
     engine_cache.add_wait_delete_segment(&segment);
 
     update_cache_by_set_segment(
@@ -241,61 +255,60 @@ pub async fn update_segment_meta_req(
     client_pool: &Arc<ClientPool>,
     req: UpdateSegmentMetaRequest,
 ) -> Result<(), PlacementCenterError> {
-    let meta = serde_json::from_slice::<JournalSegmentMetadata>(&req.segment_meta)?;
-    if meta.cluster_name.is_empty() {
+    if req.cluster_name.is_empty() {
         return Err(PlacementCenterError::RequestParamsNotEmpty(
-            meta.cluster_name,
+            req.cluster_name,
         ));
     }
 
     if engine_cache
         .get_segment(
-            &meta.cluster_name,
-            &meta.namespace,
-            &meta.shard_name,
-            meta.segment_seq,
+            &req.cluster_name,
+            &req.namespace,
+            &req.shard_name,
+            req.segment_no,
         )
         .is_none()
     {
         return Err(PlacementCenterError::SegmentDoesNotExist(format!(
             "{}_{}",
-            meta.shard_name, meta.segment_seq
+            req.shard_name, req.segment_no
         )));
     };
 
     let mut segment_meta = if let Some(meta) = engine_cache.get_segment_meta(
-        &meta.cluster_name,
-        &meta.namespace,
-        &meta.shard_name,
-        meta.segment_seq,
+        &req.cluster_name,
+        &req.namespace,
+        &req.shard_name,
+        req.segment_no,
     ) {
         meta
     } else {
         return Err(PlacementCenterError::SegmentMetaDoesNotExist(format!(
             "{}_{}",
-            meta.shard_name, meta.segment_seq
+            req.shard_name, req.segment_no
         )));
     };
 
-    if meta.start_offset > 0 {
-        segment_meta.start_offset = meta.start_offset;
+    if req.start_offset > 0 {
+        segment_meta.start_offset = req.start_offset;
     }
 
-    if meta.end_offset > 0 {
-        segment_meta.end_offset = meta.end_offset;
+    if req.end_offset > 0 {
+        segment_meta.end_offset = req.end_offset;
     }
 
-    if meta.start_timestamp > 0 {
-        segment_meta.start_timestamp = meta.start_timestamp;
+    if req.start_timestamp > 0 {
+        segment_meta.start_timestamp = req.start_timestamp;
     }
 
-    if meta.end_timestamp > 0 {
-        segment_meta.end_timestamp = meta.end_timestamp;
+    if req.end_timestamp > 0 {
+        segment_meta.end_timestamp = req.end_timestamp;
     }
 
     sync_save_segment_metadata_info(raft_machine_apply, &segment_meta).await?;
 
-    update_cache_by_set_segment_meta(&meta.cluster_name, call_manager, client_pool, segment_meta)
+    update_cache_by_set_segment_meta(&req.cluster_name, call_manager, client_pool, segment_meta)
         .await?;
 
     Ok(())
@@ -357,7 +370,7 @@ pub async fn build_segment(
         segment_seq: segment_no,
         leader: calc_leader_node(&replicas),
         replicas: replicas.clone(),
-        isr: replicas.clone(),
+        isr: replicas.iter().map(|rep| rep.node_id).collect(),
         config: SegmentConfig {
             max_segment_size: 1024 * 1024 * 1024,
         },

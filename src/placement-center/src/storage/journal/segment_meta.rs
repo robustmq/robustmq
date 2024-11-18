@@ -15,7 +15,6 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use metadata_struct::journal::segment::SegmentStatus;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 
 use crate::storage::engine::{
@@ -27,11 +26,6 @@ use crate::storage::keys::{
     key_segment_metadata_namespace_prefix, key_segment_metadata_shard_prefix,
 };
 use crate::storage::rocksdb::RocksDBEngine;
-
-#[allow(dead_code)]
-pub fn is_seal_up_segment(status: &SegmentStatus) -> bool {
-    *status == SegmentStatus::PreSealUp || *status == SegmentStatus::SealUp
-}
 
 pub struct SegmentMetadataStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -64,35 +58,23 @@ impl SegmentMetadataStorage {
         let shard_key: String =
             key_segment_metadata(cluster_name, namespace, shard_name, segment_seq);
 
-        match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), shard_key) {
-            Ok(Some(data)) => match serde_json::from_slice::<JournalSegmentMetadata>(&data.data) {
-                Ok(segment) => Ok(Some(segment)),
-                Err(e) => Err(e.into()),
-            },
-            Ok(None) => Ok(None),
-            Err(e) => Err(e),
+        if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), shard_key)? {
+            return Ok(Some(serde_json::from_slice::<JournalSegmentMetadata>(
+                &data.data,
+            )?));
         }
+
+        Ok(None)
     }
 
     pub fn all_segment(&self) -> Result<Vec<JournalSegmentMetadata>, CommonError> {
         let prefix_key = key_all_segment_metadata();
-        match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
-            Ok(data) => {
-                let mut results = Vec::new();
-                for raw in data {
-                    match serde_json::from_slice::<JournalSegmentMetadata>(&raw.data) {
-                        Ok(topic) => {
-                            results.push(topic);
-                        }
-                        Err(e) => {
-                            return Err(e.into());
-                        }
-                    }
-                }
-                Ok(results)
-            }
-            Err(e) => Err(e),
+        let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let mut results = Vec::new();
+        for raw in data {
+            results.push(serde_json::from_slice::<JournalSegmentMetadata>(&raw.data)?);
         }
+        Ok(results)
     }
 
     pub fn list_by_cluster(
@@ -100,23 +82,12 @@ impl SegmentMetadataStorage {
         cluster_name: &str,
     ) -> Result<Vec<JournalSegmentMetadata>, CommonError> {
         let prefix_key = key_segment_metadata_cluster_prefix(cluster_name);
-        match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
-            Ok(data) => {
-                let mut results = Vec::new();
-                for raw in data {
-                    match serde_json::from_slice::<JournalSegmentMetadata>(&raw.data) {
-                        Ok(topic) => {
-                            results.push(topic);
-                        }
-                        Err(e) => {
-                            return Err(e.into());
-                        }
-                    }
-                }
-                Ok(results)
-            }
-            Err(e) => Err(e),
+        let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let mut results = Vec::new();
+        for raw in data {
+            results.push(serde_json::from_slice::<JournalSegmentMetadata>(&raw.data)?);
         }
+        Ok(results)
     }
 
     pub fn list_by_namespace(
@@ -125,23 +96,12 @@ impl SegmentMetadataStorage {
         namespace: &str,
     ) -> Result<Vec<JournalSegmentMetadata>, CommonError> {
         let prefix_key = key_segment_metadata_namespace_prefix(cluster_name, namespace);
-        match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
-            Ok(data) => {
-                let mut results = Vec::new();
-                for raw in data {
-                    match serde_json::from_slice::<JournalSegmentMetadata>(&raw.data) {
-                        Ok(topic) => {
-                            results.push(topic);
-                        }
-                        Err(e) => {
-                            return Err(e.into());
-                        }
-                    }
-                }
-                Ok(results)
-            }
-            Err(e) => Err(e),
+        let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let mut results = Vec::new();
+        for raw in data {
+            results.push(serde_json::from_slice::<JournalSegmentMetadata>(&raw.data)?);
         }
+        Ok(results)
     }
 
     pub fn list_by_shard(
@@ -151,23 +111,12 @@ impl SegmentMetadataStorage {
         shard_name: &str,
     ) -> Result<Vec<JournalSegmentMetadata>, CommonError> {
         let prefix_key = key_segment_metadata_shard_prefix(cluster_name, namespace, shard_name);
-        match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
-            Ok(data) => {
-                let mut results = Vec::new();
-                for raw in data {
-                    match serde_json::from_slice::<JournalSegmentMetadata>(&raw.data) {
-                        Ok(topic) => {
-                            results.push(topic);
-                        }
-                        Err(e) => {
-                            return Err(e.into());
-                        }
-                    }
-                }
-                Ok(results)
-            }
-            Err(e) => Err(e),
+        let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let mut results = Vec::new();
+        for raw in data {
+            results.push(serde_json::from_slice::<JournalSegmentMetadata>(&raw.data)?);
         }
+        Ok(results)
     }
 
     pub fn delete(

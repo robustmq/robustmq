@@ -43,7 +43,8 @@ pub enum JournalEngineInterface {
     GetSegmentDeleteStatus,
 
     // admin
-    GetShardList,
+    ListShard,
+    ListSegment,
 }
 
 async fn retry_call(
@@ -54,7 +55,7 @@ async fn retry_call(
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     if addrs.is_empty() {
-        return Err(CommonError::CommmonError(
+        return Err(CommonError::CommonError(
             "Call address list cannot be empty".to_string(),
         ));
     }

@@ -17,7 +17,10 @@ use std::net::AddrParseError;
 use std::string::FromUtf8Error;
 
 use common_base::error::common::CommonError;
+use openraft::error::{ClientWriteError, RaftError};
 use thiserror::Error;
+
+use crate::raft::raftv2::typeconfig::TypeConfig;
 
 #[derive(Error, Debug)]
 pub enum PlacementCenterError {
@@ -48,11 +51,17 @@ pub enum PlacementCenterError {
     #[error("{0}")]
     AddrParseError(#[from] AddrParseError),
 
+    #[error("{0}")]
+    TokioTimeErrorElapsed(#[from] tokio::time::error::Elapsed),
+
+    #[error("{0}")]
+    OpenRaftError(#[from] RaftError<TypeConfig, ClientWriteError<TypeConfig>>),
+
     #[error("Description The interface {0} submitted logs to the commit log")]
     RaftLogCommitTimeout(String),
 
     #[error("{0}")]
-    CommmonError(String),
+    CommonError(String),
 
     #[error("Cluster {0} does not exist")]
     ClusterDoesNotExist(String),
@@ -71,6 +80,9 @@ pub enum PlacementCenterError {
 
     #[error("segment {0} state cache error, server current state {1}, passed state {2}")]
     SegmentStateError(String, String, String),
+
+    #[error("Segment {0} state is {1} and no deletion is allowed")]
+    NoAllowDeleteSegment(String, String),
 
     #[error("Shard {0} already has enough segments, there is no need to create new segments")]
     ShardHasEnoughSegment(String),

@@ -55,7 +55,7 @@ pub(crate) async fn placement_interface_call(
                     inner_send_last_will_message(client, request).await
                 }
                 _ => {
-                    return Err(CommonError::CommmonError(format!(
+                    return Err(CommonError::CommonError(format!(
                         "kv service does not support service interfaces [{:?}]",
                         interface
                     )))
@@ -93,7 +93,7 @@ impl Manager for MqttBrokerPlacementServiceManager {
                 return Ok(client);
             }
             Err(err) => {
-                return Err(CommonError::CommmonError(format!(
+                return Err(CommonError::CommonError(format!(
                     "{},{}",
                     err,
                     self.addr.clone()

@@ -13,5 +13,6 @@
 // limitations under the License.
 
 pub mod base_test;
+pub mod common;
 pub mod data_test;
 pub mod shard;

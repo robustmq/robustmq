@@ -32,7 +32,7 @@ fi
 
 if [ -z $action ]
 then
- echo "Pleasemake sure the positon variable is start or stop."
+ echo "Please make sure the position variable is start or stop."
  exit
 fi
 
@@ -91,5 +91,5 @@ if [ $action = "start" ]
         fi
     fi
   else
-    echo "Pleasemake sure the positon variable is start or stop."
+    echo "Please make sure the position variable is start or stop."
 fi

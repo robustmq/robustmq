@@ -123,7 +123,7 @@ impl MqttMessage {
         let data: MqttMessage = match serde_json::from_slice(record.data.as_slice()) {
             Ok(da) => da,
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         };
         Ok(data)

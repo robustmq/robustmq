@@ -152,7 +152,7 @@ impl ConnectionManager {
                         }
                         Err(e) => {
                             if times > cluster.network.response_max_try_mut_times {
-                                return Err(CommonError::CommmonError(format!(
+                                return Err(CommonError::CommonError(format!(
                                     "Failed to write data to the mqtt websocket client, error message: {:?}",
                                     e
                                 )));
@@ -162,7 +162,7 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > cluster.network.response_max_try_mut_times {
-                        return Err(CommonError::CommmonError(format!(
+                        return Err(CommonError::CommonError(format!(
                             "[write_frame]Connection management could not obtain an available websocket connection. Connection ID: {},len:{}",
                             connection_id,
                             self.tcp_write_list.len()
@@ -172,7 +172,7 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Locked => {
                     if times > cluster.network.response_max_try_mut_times {
-                        return Err(CommonError::CommmonError(
+                        return Err(CommonError::CommonError(
                             format!("[write_frame]Connection management failed to get websocket connection variable reference, connection ID: {connection_id}")
                         ));
                     }
@@ -212,7 +212,7 @@ impl ConnectionManager {
                         }
                         Err(e) => {
                             if times > cluster.network.response_max_try_mut_times {
-                                return Err(CommonError::CommmonError(format!(
+                                return Err(CommonError::CommonError(format!(
                                     "Failed to write data to the mqtt tcp client, error message: {e:?}"
                                 )));
                             }
@@ -221,7 +221,7 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > cluster.network.response_max_try_mut_times {
-                        return Err(CommonError::CommmonError(
+                        return Err(CommonError::CommonError(
                             format!(
                                 "[write_frame]Connection management could not obtain an available tcp connection. Connection ID: {},len:{}",
                                 connection_id,
@@ -232,7 +232,7 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Locked => {
                     if times > cluster.network.response_max_try_mut_times {
-                        return Err(CommonError::CommmonError(
+                        return Err(CommonError::CommonError(
                             format!(
                                 "[write_frame]Connection management failed to get tcp connection variable reference, connection ID: {}",connection_id
                             )
@@ -265,7 +265,7 @@ impl ConnectionManager {
                         }
                         Err(e) => {
                             if times > cluster.network.response_max_try_mut_times {
-                                return Err(CommonError::CommmonError(format!(
+                                return Err(CommonError::CommonError(format!(
                                     "Failed to write data to the mqtt tcp client, error message: {e:?}"
                                 )));
                             }
@@ -274,7 +274,7 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > cluster.network.response_max_try_mut_times {
-                        return Err(CommonError::CommmonError(
+                        return Err(CommonError::CommonError(
                             format!(
                                 "[write_frame]Connection management could not obtain an available tcp connection. Connection ID: {},len:{}",
                                 connection_id,
@@ -285,7 +285,7 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Locked => {
                     if times > cluster.network.response_max_try_mut_times {
-                        return Err(CommonError::CommmonError(
+                        return Err(CommonError::CommonError(
                             format!(
                                 "[write_frame]Connection management failed to get tcp connection variable reference, connection ID: {}",connection_id
                             )

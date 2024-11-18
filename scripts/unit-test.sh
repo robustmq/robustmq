@@ -13,19 +13,7 @@
 # limitations under the License.
 
 # Run Cargo Test
-cargo nextest run \
- -p amqp-broker \
- -p amqp-plugins \
- -p cli-command \
- -p common-base \
- -p metadata-struct \
- -p rocksdb-engine \
- -p third-driver \
- -p journal-client \
- -p journal-server \
- -p placement-center \
- -p protocol \
- -p storage-adapter
+cargo nextest run --workspace --exclude robustmq-test
 
  # Modules that are not suitable for unit testing
  # cmd

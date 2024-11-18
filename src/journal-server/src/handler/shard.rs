@@ -82,11 +82,11 @@ impl ShardHandler {
         }
         let req_body = request.body.unwrap();
 
-        let shard = self
+        if self
             .cache_manager
-            .get_shard(&req_body.namespace, &req_body.shard_name);
-
-        if shard.is_none() {
+            .get_shard(&req_body.namespace, &req_body.shard_name)
+            .is_none()
+        {
             return Err(JournalServerError::ShardNotExist(req_body.shard_name));
         }
 
@@ -145,7 +145,7 @@ impl ShardHandler {
             };
 
             // Try to transition the Segment state
-            self.tranf_segment_status(
+            self.try_tranf_segment_status(
                 &raw.namespace,
                 &raw.shard_name,
                 &active_segment,
@@ -153,21 +153,17 @@ impl ShardHandler {
             )
             .await?;
 
-            let key = self
+            let segments = self
                 .cache_manager
-                .shard_key(&raw.namespace, &raw.shard_name);
+                .get_segment_list_by_shard(&raw.namespace, &raw.shard_name);
 
-            let segments = if let Some(segments) = self.cache_manager.segments.get(&key) {
-                segments
-            } else {
+            if segments.is_empty() {
                 load_metadata_cache(&self.cache_manager, &self.client_pool).await;
                 return Err(JournalServerError::NotAvailableSegmets(raw.shard_name));
             };
 
             let mut resp_shard_segments = Vec::new();
-            for segment_raw in segments.iter() {
-                let segment = segment_raw.value();
-
+            for segment in segments {
                 let meta = if let Some(meta) = self.cache_manager.get_segment_meta(
                     &raw.namespace,
                     &raw.shard_name,
@@ -179,9 +175,10 @@ impl ShardHandler {
                     return Err(JournalServerError::SegmentMetaNotExists(raw.shard_name));
                 };
 
-                let meta_val = serde_json::to_vec(&meta)?;
+                let meta_val = serde_json::to_string(&meta)?;
                 let client_segment_meta = ClientSegmentMetadata {
                     segment_no: segment.segment_seq,
+                    leader: segment.leader,
                     replicas: segment.replicas.iter().map(|rep| rep.node_id).collect(),
                     meta: meta_val,
                 };
@@ -220,7 +217,7 @@ impl ShardHandler {
         Ok(())
     }
 
-    async fn tranf_segment_status(
+    async fn try_tranf_segment_status(
         &self,
         namespace: &str,
         shard_name: &str,
@@ -246,7 +243,7 @@ impl ShardHandler {
         // try to create a new Segment, and modify the Active Active Segment for the next Segment
         if segment.status == SegmentStatus::SealUp
             || segment.status == SegmentStatus::PreDelete
-            || segment.status == SegmentStatus::Deleteing
+            || segment.status == SegmentStatus::Deleting
         {
             self.trigger_create_next_segment(namespace, shard_name)
                 .await?;

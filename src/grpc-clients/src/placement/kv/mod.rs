@@ -89,7 +89,7 @@ pub(crate) async fn kv_interface_call(
                     .await
                 }
                 _ => {
-                    return Err(CommonError::CommmonError(format!(
+                    return Err(CommonError::CommonError(format!(
                         "kv service does not support service interfaces [{:?}]",
                         interface
                     )))
@@ -126,7 +126,7 @@ impl Manager for KvServiceManager {
                 return Ok(client);
             }
             Err(err) => {
-                return Err(CommonError::CommmonError(format!(
+                return Err(CommonError::CommonError(format!(
                     "{},{}",
                     err,
                     self.addr.clone()
@@ -160,7 +160,7 @@ where
             Ok(result) => Ok(encode_fn(&result.into_inner())),
             Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
-        Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        Err(e) => Err(CommonError::CommonError(e.to_string())),
     }
 }
 

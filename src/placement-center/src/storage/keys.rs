@@ -51,7 +51,7 @@ pub fn key_cluster_prefix() -> String {
 }
 
 pub fn key_cluster_prefix_by_type(cluster_type: &str) -> String {
-    format!("/clusters/{}", cluster_type)
+    format!("/clusters/{}/", cluster_type)
 }
 
 pub fn key_node(cluster_name: &str, node_id: u64) -> String {
@@ -59,7 +59,7 @@ pub fn key_node(cluster_name: &str, node_id: u64) -> String {
 }
 
 pub fn key_node_prefix(cluster_name: &str) -> String {
-    format!("/clusters/node/{}", cluster_name)
+    format!("/clusters/node/{}/", cluster_name)
 }
 
 pub fn key_node_prefix_all() -> String {
@@ -83,44 +83,44 @@ pub fn key_shard(cluster_name: &str, namespace: &str, shard_name: &str) -> Strin
 }
 
 pub fn key_shard_cluster_prefix(cluster_name: &str) -> String {
-    format!("/journal/shard/{}", cluster_name)
+    format!("/journal/shard/{}/", cluster_name)
 }
 
 pub fn key_shard_namespace_prefix(cluster_name: &str, namespace: &str) -> String {
-    format!("/journal/shard/{}/{}", cluster_name, namespace)
+    format!("/journal/shard/{}/{}/", cluster_name, namespace)
 }
 
 pub fn key_all_shard() -> String {
-    "/journal/shard".to_string()
+    "/journal/shard/".to_string()
 }
 
 pub fn key_segment(
     cluster_name: &str,
     namespace: &str,
     shard_name: &str,
-    segement_seq: u32,
+    segment_seq: u32,
 ) -> String {
     format!(
         "/journal/segment/{}/{}/{}/{}",
-        cluster_name, namespace, shard_name, segement_seq
+        cluster_name, namespace, shard_name, segment_seq
     )
 }
 
 pub fn key_all_segment() -> String {
-    "/journal/segment".to_string()
+    "/journal/segment/".to_string()
 }
 
 pub fn key_segment_cluster_prefix(cluster_name: &str) -> String {
-    format!("/journal/segment/{}", cluster_name)
+    format!("/journal/segment/{}/", cluster_name)
 }
 
 pub fn key_segment_namespace_prefix(cluster_name: &str, namespace: &str) -> String {
-    format!("/journal/segment/{}/{}", cluster_name, namespace)
+    format!("/journal/segment/{}/{}/", cluster_name, namespace)
 }
 
 pub fn key_segment_shard_prefix(cluster_name: &str, namespace: &str, shard_name: &str) -> String {
     format!(
-        "/journal/segment/{}/{}/{}",
+        "/journal/segment/{}/{}/{}/",
         cluster_name, namespace, shard_name
     )
 }
@@ -129,24 +129,24 @@ pub fn key_segment_metadata(
     cluster_name: &str,
     namespace: &str,
     shard_name: &str,
-    segement_seq: u32,
+    segment_seq: u32,
 ) -> String {
     format!(
-        "/journal/segment/metadata/{}/{}/{}/{}",
-        cluster_name, namespace, shard_name, segement_seq
+        "/journal/segmentmeta/{}/{}/{}/{}",
+        cluster_name, namespace, shard_name, segment_seq
     )
 }
 
 pub fn key_all_segment_metadata() -> String {
-    "/journal/segment/metadata".to_string()
+    "/journal/segmentmeta/".to_string()
 }
 
 pub fn key_segment_metadata_cluster_prefix(cluster_name: &str) -> String {
-    format!("/journal/segment/metadata/{}", cluster_name)
+    format!("/journal/segmentmeta/{}/", cluster_name)
 }
 
 pub fn key_segment_metadata_namespace_prefix(cluster_name: &str, namespace: &str) -> String {
-    format!("/journal/segment/metadata/{}/{}", cluster_name, namespace)
+    format!("/journal/segmentmeta/{}/{}/", cluster_name, namespace)
 }
 
 pub fn key_segment_metadata_shard_prefix(
@@ -155,7 +155,7 @@ pub fn key_segment_metadata_shard_prefix(
     shard_name: &str,
 ) -> String {
     format!(
-        "/journal/segment/metadata/{}/{}/{}",
+        "/journal/segmentmeta/{}/{}/{}/",
         cluster_name, namespace, shard_name
     )
 }
@@ -166,7 +166,7 @@ pub fn storage_key_mqtt_user(cluster_name: &str, user_name: &str) -> String {
 }
 
 pub fn storage_key_mqtt_user_cluster_prefix(cluster_name: &str) -> String {
-    format!("/mqtt/user/{}", cluster_name)
+    format!("/mqtt/user/{}/", cluster_name)
 }
 
 pub fn storage_key_mqtt_topic(cluster_name: &str, user_name: &str) -> String {
@@ -174,7 +174,7 @@ pub fn storage_key_mqtt_topic(cluster_name: &str, user_name: &str) -> String {
 }
 
 pub fn storage_key_mqtt_topic_cluster_prefix(cluster_name: &str) -> String {
-    format!("/mqtt/topic/{}", cluster_name)
+    format!("/mqtt/topic/{}/", cluster_name)
 }
 
 pub fn storage_key_mqtt_session(cluster_name: &str, client_id: &str) -> String {
@@ -182,14 +182,14 @@ pub fn storage_key_mqtt_session(cluster_name: &str, client_id: &str) -> String {
 }
 
 pub fn storage_key_mqtt_session_cluster_prefix(cluster_name: &str) -> String {
-    format!("/mqtt/session/{}", cluster_name)
+    format!("/mqtt/session/{}/", cluster_name)
 }
 
 pub fn storage_key_mqtt_last_will(cluster_name: &str, client_id: &str) -> String {
     format!("/mqtt/lastwill/{}/{}", cluster_name, client_id)
 }
 pub fn storage_key_mqtt_last_will_prefix(cluster_name: &str) -> String {
-    format!("/mqtt/lastwill/{}", cluster_name)
+    format!("/mqtt/lastwill/{}/", cluster_name)
 }
 
 pub fn storage_key_mqtt_node_sub_group_leader(cluster_name: &str) -> String {
@@ -208,7 +208,7 @@ pub fn storage_key_mqtt_acl(
 }
 
 pub fn storage_key_mqtt_acl_prefix(cluster_name: &str) -> String {
-    format!("/mqtt/acl/{}", cluster_name)
+    format!("/mqtt/acl/{}/", cluster_name)
 }
 
 pub fn storage_key_mqtt_blacklist(
@@ -223,5 +223,5 @@ pub fn storage_key_mqtt_blacklist(
 }
 
 pub fn storage_key_mqtt_blacklist_prefix(cluster_name: &str) -> String {
-    format!("/mqtt/blacklist/{}", cluster_name)
+    format!("/mqtt/blacklist/{}/", cluster_name)
 }

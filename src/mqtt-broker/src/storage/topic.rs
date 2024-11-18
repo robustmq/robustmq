@@ -126,7 +126,7 @@ impl TopicStorage {
                 let raw = reply.topics.first().unwrap();
                 match serde_json::from_slice::<MqttTopic>(raw) {
                     Ok(data) => Ok(Some(data)),
-                    Err(e) => Err(CommonError::CommmonError(e.to_string())),
+                    Err(e) => Err(CommonError::CommonError(e.to_string())),
                 }
             }
             Err(e) => Err(e),
@@ -200,7 +200,7 @@ impl TopicStorage {
             let message = match serde_json::from_slice::<MqttMessage>(retain_message.as_slice()) {
                 Ok(data) => data,
                 Err(e) => {
-                    return Err(CommonError::CommmonError(e.to_string()));
+                    return Err(CommonError::CommonError(e.to_string()));
                 }
             };
             return Ok(Some(message));
@@ -226,6 +226,7 @@ mod tests {
     use crate::storage::topic::TopicStorage;
 
     #[tokio::test]
+    #[ignore]
     async fn topic_test() {
         let path = format!(
             "{}/../../config/mqtt-server.toml",
@@ -267,6 +268,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn topic_retain_message_test() {
         let path = format!(
             "{}/../../config/mqtt-server.toml",

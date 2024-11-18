@@ -18,4 +18,6 @@ impl IndexBuildManager {
     pub fn new() -> Self {
         IndexBuildManager {}
     }
+
+    // pub fn
 }

@@ -67,7 +67,7 @@ pub enum CommonError {
     AddrParseError(#[from] AddrParseError),
 
     #[error("{0}")]
-    CommmonError(String),
+    CommonError(String),
 
     #[error("Grpc call of the node failed,Grpc status was {0}")]
     GrpcServerStatus(Status),

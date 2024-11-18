@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-set -ue
+set -u -e
 
 OS_TYPE=
 ARCH_TYPE=

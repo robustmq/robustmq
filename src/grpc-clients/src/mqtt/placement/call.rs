@@ -41,7 +41,7 @@ pub async fn broker_mqtt_delete_session(
     {
         Ok(data) => match DeleteSessionReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -64,7 +64,7 @@ pub async fn broker_mqtt_update_cache(
     {
         Ok(data) => match UpdateCacheReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }
@@ -87,7 +87,7 @@ pub async fn send_last_will_message(
     {
         Ok(data) => match SendLastWillMessageReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),
     }

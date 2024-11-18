@@ -94,8 +94,8 @@ impl SegmentFileManager {
         let key = self.key(namespace, shard_name, segment);
         if let Some(mut data) = self.segment_files.get_mut(&key) {
             data.end_offset = end_offset;
-            // let offset_index = OffsetIndexManager::new(self.rocksdb_engine_handler.clone());
-            // offset_index.save_end_offset(namespace, shard_name, segment, data.end_offset)?;
+            let offset_index = OffsetIndexManager::new(self.rocksdb_engine_handler.clone());
+            offset_index.save_end_offset(namespace, shard_name, segment, data.end_offset)?;
         }
         Ok(())
     }
@@ -113,7 +113,7 @@ impl SegmentFileManager {
 pub fn load_local_segment_cache(
     dir: &Path,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segement_file_manager: &Arc<SegmentFileManager>,
+    segment_file_manager: &Arc<SegmentFileManager>,
     local_data_folds: &Vec<String>,
 ) -> Result<(), JournalServerError> {
     let dir_str = dir.display().to_string();
@@ -131,7 +131,7 @@ pub fn load_local_segment_cache(
             load_local_segment_cache(
                 &path,
                 rocksdb_engine_handler,
-                segement_file_manager,
+                segment_file_manager,
                 local_data_folds,
             )?;
         } else {
@@ -170,7 +170,7 @@ pub fn load_local_segment_cache(
                 start_offset,
                 end_offset,
             };
-            segement_file_manager.add_segment_file(metadata);
+            segment_file_manager.add_segment_file(metadata);
         }
     }
     Ok(())
@@ -181,7 +181,7 @@ pub fn metadata_and_local_segment_diff_check() {
 }
 
 pub async fn create_local_segment(
-    segement_file_manager: &Arc<SegmentFileManager>,
+    segment_file_manager: &Arc<SegmentFileManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment: &JournalSegment,
 ) -> Result<(), JournalServerError> {
@@ -204,24 +204,6 @@ pub async fn create_local_segment(
     );
     segment_file.create().await?;
 
-    let start_offset = 0;
-    let end_offset = 0;
-
-    // init start/end offset
-    let offset_index = OffsetIndexManager::new(rocksdb_engine_handler.clone());
-    offset_index.save_start_offset(
-        &segment.namespace,
-        &segment.shard_name,
-        segment.segment_seq,
-        start_offset,
-    )?;
-    offset_index.save_end_offset(
-        &segment.namespace,
-        &segment.shard_name,
-        segment.segment_seq,
-        end_offset,
-    )?;
-
     // add segment file manager
     let segment_metadata = SegmentFileMetadata {
         namespace: segment.namespace.clone(),
@@ -230,7 +212,7 @@ pub async fn create_local_segment(
         start_offset: 0,
         end_offset: 0,
     };
-    segement_file_manager.add_segment_file(segment_metadata);
+    segment_file_manager.add_segment_file(segment_metadata);
 
     Ok(())
 }
@@ -259,7 +241,7 @@ mod tests {
             10000,
             column_family_list(),
         ));
-        let segement_file_manager =
+        let segment_file_manager =
             Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
 
         for path in data_fold.clone() {
@@ -267,11 +249,11 @@ mod tests {
             load_local_segment_cache(
                 path,
                 &rocksdb_engine_handler,
-                &segement_file_manager,
+                &segment_file_manager,
                 &data_fold,
             )
             .unwrap();
         }
-        println!("{}", segement_file_manager.segment_files.len());
+        println!("{}", segment_file_manager.segment_files.len());
     }
 }

@@ -23,9 +23,9 @@ lazy_static::lazy_static! {
         prometheus::register_int_gauge_vec!("app_version", "app version", &["short_version", "version"]).unwrap();
 }
 
-const SERVER_LABLE_MQTT: &str = "mqtt4";
-const SERVER_LABLE_GRPC: &str = "grpc";
-const SERVER_LABLE_HTTP: &str = "http";
+const SERVER_LABEL_MQTT: &str = "mqtt4";
+const SERVER_LABEL_GRPC: &str = "grpc";
+const SERVER_LABEL_HTTP: &str = "http";
 
 pub fn dump_metrics() -> String {
     let mut buffer = Vec::new();

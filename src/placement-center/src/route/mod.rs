@@ -243,7 +243,7 @@ impl DataRoute {
         let records = match deserialize::<Vec<(String, Vec<u8>)>>(&data) {
             Ok(data) => data,
             Err(e) => {
-                return Err(PlacementCenterError::CommmonError(e.to_string()));
+                return Err(PlacementCenterError::CommonError(e.to_string()));
             }
         };
 

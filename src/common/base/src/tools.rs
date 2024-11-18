@@ -124,7 +124,7 @@ pub fn file_exists(path: &str) -> bool {
 /// If the file does not exist, return a generic error indicating that the file does not exist
 pub fn read_file(path: &str) -> Result<String, CommonError> {
     if !path::Path::new(path).exists() {
-        return Err(CommonError::CommmonError(format!(
+        return Err(CommonError::CommonError(format!(
             "File {} does not exist",
             path
         )));

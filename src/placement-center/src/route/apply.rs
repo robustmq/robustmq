@@ -26,32 +26,32 @@ use crate::core::error::PlacementCenterError;
 use crate::raft::raftv2::typeconfig::TypeConfig;
 use crate::route::data::StorageData;
 
-pub enum RaftResponseMesage {
+pub enum RaftResponseMessage {
     Success,
     Fail,
 }
 pub enum RaftMessage {
     ConfChange {
         change: ConfChange,
-        chan: Sender<RaftResponseMesage>,
+        chan: Sender<RaftResponseMessage>,
     },
 
     // Received a message from another node
     Raft {
         // We put the message in the box to avoid having a large enum variant
         message: Box<RaftPreludeMessage>,
-        chan: Sender<RaftResponseMesage>,
+        chan: Sender<RaftResponseMessage>,
     },
 
     TransferLeader {
         node_id: u64,
-        chan: Sender<RaftResponseMesage>,
+        chan: Sender<RaftResponseMessage>,
     },
 
     // The data sent by the client is received. Procedure
     Propose {
         data: Vec<u8>,
-        chan: Sender<RaftResponseMesage>,
+        chan: Sender<RaftResponseMessage>,
     },
 }
 
@@ -107,7 +107,7 @@ impl RaftMachineApply {
         data: StorageData,
         action: String,
     ) -> Result<(), PlacementCenterError> {
-        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
+        let (sx, rx) = oneshot::channel::<RaftResponseMessage>();
         self.apply_raft_status_machine_message(
             RaftMessage::Propose {
                 data: serialize(&data).unwrap(),
@@ -123,14 +123,16 @@ impl RaftMachineApply {
         &self,
         data: StorageData,
     ) -> Result<ClientWriteResponse<TypeConfig>, PlacementCenterError> {
-        match self.openraft_node.client_write(data).await {
-            Ok(data) => Ok(data),
-            Err(e) => Err(PlacementCenterError::CommmonError(e.to_string())),
-        }
+        let resp = timeout(
+            Duration::from_secs(10),
+            self.openraft_node.client_write(data),
+        )
+        .await?;
+        Ok(resp?)
     }
 
     pub async fn transfer_leader(&self, node_id: u64) -> Result<(), PlacementCenterError> {
-        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
+        let (sx, rx) = oneshot::channel::<RaftResponseMessage>();
         self.apply_raft_status_machine_message(
             RaftMessage::TransferLeader { node_id, chan: sx },
             "transfer_leader".to_string(),
@@ -144,7 +146,7 @@ impl RaftMachineApply {
         message: RaftPreludeMessage,
         action: String,
     ) -> Result<(), PlacementCenterError> {
-        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
+        let (sx, rx) = oneshot::channel::<RaftResponseMessage>();
         self.apply_raft_status_machine_message(
             RaftMessage::Raft {
                 message: Box::new(message),
@@ -161,7 +163,7 @@ impl RaftMachineApply {
         change: ConfChange,
         action: String,
     ) -> Result<(), PlacementCenterError> {
-        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
+        let (sx, rx) = oneshot::channel::<RaftResponseMessage>();
         self.apply_raft_status_machine_message(
             RaftMessage::ConfChange { change, chan: sx },
             action,
@@ -174,7 +176,7 @@ impl RaftMachineApply {
         &self,
         message: RaftMessage,
         action: String,
-        rx: Receiver<RaftResponseMesage>,
+        rx: Receiver<RaftResponseMessage>,
     ) -> Result<(), PlacementCenterError> {
         let _ = self.raft_status_machine_sender.send(message).await;
         if !self.wait_recv_chan_resp(rx).await {
@@ -183,11 +185,11 @@ impl RaftMachineApply {
         Ok(())
     }
 
-    async fn wait_recv_chan_resp(&self, rx: Receiver<RaftResponseMesage>) -> bool {
+    async fn wait_recv_chan_resp(&self, rx: Receiver<RaftResponseMessage>) -> bool {
         let res = timeout(Duration::from_secs(30), async {
             match rx.await {
                 Ok(val) => val,
-                Err(_) => RaftResponseMesage::Fail,
+                Err(_) => RaftResponseMessage::Fail,
             }
         });
         res.await.is_ok()

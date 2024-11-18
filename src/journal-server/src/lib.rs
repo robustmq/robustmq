@@ -20,6 +20,7 @@ use core::offset::OffsetManager;
 use core::write::WriteManager;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 
 use common_base::config::journal_server::{journal_server_conf, JournalServerConfig};
 use common_base::metrics::register_prometheus_export;
@@ -31,12 +32,14 @@ use rocksdb_engine::RocksDBEngine;
 use segment::manager::{
     load_local_segment_cache, metadata_and_local_segment_diff_check, SegmentFileManager,
 };
+use segment::status::SegmentScrollManager;
 use server::connection_manager::ConnectionManager;
 use server::grpc::server::GrpcServer;
 use server::tcp::server::start_tcp_server;
 use tokio::runtime::Runtime;
 use tokio::signal;
 use tokio::sync::broadcast;
+use tokio::time::sleep;
 
 mod core;
 mod handler;
@@ -84,6 +87,7 @@ impl JournalServer {
         let write_manager = Arc::new(WriteManager::new(
             segment_file_manager.clone(),
             cache_manager.clone(),
+            client_pool.clone(),
         ));
         JournalServer {
             config,
@@ -101,8 +105,6 @@ impl JournalServer {
     }
 
     pub fn start(&self) {
-        self.register_node();
-
         self.start_grpc_server();
 
         self.start_tcp_server();
@@ -110,6 +112,8 @@ impl JournalServer {
         self.start_daemon_thread();
 
         self.start_prometheus();
+
+        self.init_node();
 
         self.waiting_stop();
     }
@@ -137,16 +141,16 @@ impl JournalServer {
         let connection_manager = self.connection_manager.clone();
         let cache_manager = self.cache_manager.clone();
         let stop_sx = self.stop_send.clone();
-        let offet_manager = self.offset_manager.clone();
-        let segement_file_manager = self.segment_file_manager.clone();
+        let offset_manager = self.offset_manager.clone();
+        let segment_file_manager = self.segment_file_manager.clone();
         let write_manager = self.write_manager.clone();
         self.server_runtime.spawn(async {
             start_tcp_server(
                 client_pool,
                 connection_manager,
                 cache_manager,
-                offet_manager,
-                segement_file_manager,
+                offset_manager,
+                segment_file_manager,
                 write_manager,
                 stop_sx,
             )
@@ -168,6 +172,15 @@ impl JournalServer {
         let stop_sx = self.stop_send.clone();
         self.daemon_runtime
             .spawn(async move { report_heartbeat(client_pool, stop_sx).await });
+
+        let segment_scroll = SegmentScrollManager::new(
+            self.cache_manager.clone(),
+            self.client_pool.clone(),
+            self.segment_file_manager.clone(),
+        );
+        self.daemon_runtime.spawn(async move {
+            segment_scroll.trigger_segment_scroll().await;
+        });
     }
 
     fn waiting_stop(&self) {
@@ -186,14 +199,10 @@ impl JournalServer {
         });
     }
 
-    fn register_node(&self) {
+    fn init_node(&self) {
         self.daemon_runtime.block_on(async move {
-            match register_journal_node(self.client_pool.clone(), self.config.clone()).await {
-                Ok(()) => {}
-                Err(e) => {
-                    panic!("{}", e);
-                }
-            }
+            self.cache_manager.init_cluster();
+
             load_metadata_cache(&self.cache_manager, &self.client_pool).await;
 
             for path in self.config.storage.data_path.clone() {
@@ -212,6 +221,17 @@ impl JournalServer {
             }
 
             metadata_and_local_segment_diff_check();
+
+            // todo
+            sleep(Duration::from_secs(3)).await;
+            match register_journal_node(self.client_pool.clone(), self.config.clone()).await {
+                Ok(()) => {}
+                Err(e) => {
+                    panic!("{}", e);
+                }
+            }
+
+            info!("Journal Node was initialized successfully");
         });
     }
 
