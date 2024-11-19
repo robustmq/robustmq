@@ -311,33 +311,33 @@ impl ConnectionManager {
     }
 
     pub fn get_connect(&self, connect_id: u64) -> Option<NetworkConnection> {
-        if let Some(connec) = self.connections.get(&connect_id) {
-            return Some(connec.clone());
+        if let Some(connect) = self.connections.get(&connect_id) {
+            return Some(connect.clone());
         }
         None
     }
 
     pub fn get_connect_protocol(&self, connect_id: u64) -> Option<MqttProtocol> {
-        if let Some(connec) = self.connections.get(&connect_id) {
-            return connec.protocol.clone();
+        if let Some(connect) = self.connections.get(&connect_id) {
+            return connect.protocol.clone();
         }
         None
     }
 
     pub fn set_connect_protocol(&self, connect_id: u64, protocol: u8) {
-        if let Some(mut connec) = self.connections.get_mut(&connect_id) {
+        if let Some(mut connect) = self.connections.get_mut(&connect_id) {
             match protocol {
-                3 => connec.set_protocol(MqttProtocol::Mqtt3),
-                4 => connec.set_protocol(MqttProtocol::Mqtt4),
-                5 => connec.set_protocol(MqttProtocol::Mqtt5),
+                3 => connect.set_protocol(MqttProtocol::Mqtt3),
+                4 => connect.set_protocol(MqttProtocol::Mqtt4),
+                5 => connect.set_protocol(MqttProtocol::Mqtt5),
                 _ => {}
             };
         }
     }
 
     pub fn is_websocket(&self, connect_id: u64) -> bool {
-        if let Some(connec) = self.connections.get(&connect_id) {
-            return connec.connection_type == NetworkConnectionType::WebSocket;
+        if let Some(connect) = self.connections.get(&connect_id) {
+            return connect.connection_type == NetworkConnectionType::WebSocket;
         }
         false
     }
