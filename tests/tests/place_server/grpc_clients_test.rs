@@ -287,9 +287,7 @@ mod tests {
                 .set_idempotent_data(tonic::Request::new(invalid_request))
                 .await;
 
-            if let Err(ref e) = response {
-                assert!(response.is_err());
-            }
+            assert!(response.is_err());
         }
     }
 
