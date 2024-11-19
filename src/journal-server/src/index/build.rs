@@ -183,8 +183,8 @@ fn start_segment_build_index_thread(
                 },
                 val = segment_write.read(last_build_offset, size)=>{
                     match val {
-                        Ok(datas) => {
-                            if datas.is_empty() {
+                        Ok(data) => {
+                            if data.is_empty() {
                                 sleep(Duration::from_secs(1)).await;
                                 data_empty_times += 1;
                                 // If the Segment has not written data for 10 minutes
@@ -207,7 +207,7 @@ fn start_segment_build_index_thread(
                                 continue;
                             }
                             data_empty_times = 0;
-                            for read_data in datas.iter() {
+                            for read_data in data.iter() {
                                 let position = read_data.position;
                                 let record = read_data.record.clone();
 
@@ -280,7 +280,7 @@ fn start_segment_build_index_thread(
                                     }
                                 }
                             }
-                            if let Some(last_read_data) = datas.last() {
+                            if let Some(last_read_data) = data.last() {
                                 match save_last_offset_build_index(
                                     &rocksdb_engine_handler,
                                     &segment_iden,
