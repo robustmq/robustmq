@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::any::Any;
 use std::fs::remove_dir_all;
+use std::io::ErrorKind;
 
 use bytes::BytesMut;
 use common_base::tools::{file_exists, try_create_fold};
@@ -99,7 +101,15 @@ impl SegmentFile {
             }
 
             // read offset
-            let record_offset = reader.read_u64().await?;
+            let record_offset = match reader.read_u64().await {
+                Ok(offset) => offset,
+                Err(e) => {
+                    if e.kind() == ErrorKind::UnexpectedEof {
+                        break;
+                    }
+                    return Err(e.into());
+                }
+            };
 
             // read len
             let len = reader.read_u32().await?;
@@ -183,7 +193,7 @@ mod tests {
             }
         }
 
-        let res = segment.read(Some(1003), 200).await.unwrap();
+        let res = segment.read(Some(1003), 20000).await.unwrap();
         for raw in res {
             println!("{:?}", raw);
         }

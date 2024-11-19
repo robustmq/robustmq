@@ -14,11 +14,11 @@
 
 use std::sync::Arc;
 
-use rocksdb_engine::engine::{rocksdb_engine_delete, rocksdb_engine_get, rocksdb_engine_save};
+use rocksdb_engine::engine::{rocksdb_engine_get, rocksdb_engine_save};
 use rocksdb_engine::RocksDBEngine;
 
 use super::engine::DB_COLUMN_FAMILY_INDEX;
-use super::keys::{offset_index_key, offset_segment_end, offset_segment_start};
+use super::keys::{offset_segment_end, offset_segment_position, offset_segment_start};
 use crate::core::error::JournalServerError;
 
 pub struct OffsetIndexManager {
@@ -37,14 +37,14 @@ impl OffsetIndexManager {
         namespace: &str,
         shard_name: &str,
         segment: u32,
-        offset: u64,
+        start_offset: u64,
     ) -> Result<(), JournalServerError> {
         let key = offset_segment_start(namespace, shard_name, segment);
         Ok(rocksdb_engine_save(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
             key,
-            offset,
+            start_offset,
         )?)
     }
 
@@ -71,14 +71,14 @@ impl OffsetIndexManager {
         namespace: &str,
         shard_name: &str,
         segment: u32,
-        offset: u64,
+        end_offset: u64,
     ) -> Result<(), JournalServerError> {
         let key = offset_segment_end(namespace, shard_name, segment);
         Ok(rocksdb_engine_save(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
             key,
-            offset,
+            end_offset,
         )?)
     }
 
@@ -100,35 +100,20 @@ impl OffsetIndexManager {
         Ok(0)
     }
 
-    pub fn save_offset_position(
+    pub fn save_position_offset(
         &self,
         namespace: &str,
         shard_name: &str,
         segment: u32,
         offset: u64,
-        position: u128,
+        position: u64,
     ) -> Result<(), JournalServerError> {
-        let key = offset_index_key(namespace, shard_name, segment, offset);
+        let key = offset_segment_position(namespace, shard_name, segment, offset);
         Ok(rocksdb_engine_save(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
             key,
             position,
-        )?)
-    }
-
-    pub fn delete_offset_position(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        segment: u32,
-        offset: u64,
-    ) -> Result<(), JournalServerError> {
-        let key = offset_index_key(namespace, shard_name, segment, offset);
-        Ok(rocksdb_engine_delete(
-            self.rocksdb_engine_handler.clone(),
-            DB_COLUMN_FAMILY_INDEX,
-            key,
         )?)
     }
 }
