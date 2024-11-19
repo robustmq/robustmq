@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::any::Any;
 use std::fs::remove_dir_all;
 use std::io::ErrorKind;
 
@@ -25,6 +24,12 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 use super::fold::{data_file_segment, data_fold_shard};
 use crate::core::error::JournalServerError;
+
+#[derive(Debug, Clone)]
+pub struct ReadData {
+    pub position: u64,
+    pub record: JournalRecord,
+}
 
 #[derive(Default)]
 pub struct SegmentFile {
@@ -45,13 +50,14 @@ impl SegmentFile {
         }
     }
 
-    pub async fn create(&self) -> Result<File, JournalServerError> {
+    pub async fn try_create(&self) -> Result<(), JournalServerError> {
         try_create_fold(&self.data_fold)?;
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         if file_exists(&segment_file) {
-            return Err(JournalServerError::SegmentFileAlreadyExists(segment_file));
+            return Ok(());
         }
-        Ok(File::create(segment_file).await?)
+        File::create(segment_file).await?;
+        Ok(())
     }
 
     pub async fn delete(&self) -> Result<(), JournalServerError> {
@@ -88,7 +94,7 @@ impl SegmentFile {
         &self,
         start_offset: Option<u64>,
         size: u64,
-    ) -> Result<Vec<JournalRecord>, JournalServerError> {
+    ) -> Result<Vec<ReadData>, JournalServerError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = File::open(segment_file).await?;
         let mut reader = tokio::io::BufReader::new(file);
@@ -101,6 +107,8 @@ impl SegmentFile {
             }
 
             // read offset
+            let position = reader.stream_position().await?;
+
             let record_offset = match reader.read_u64().await {
                 Ok(offset) => offset,
                 Err(e) => {
@@ -127,7 +135,7 @@ impl SegmentFile {
 
             already_size += buf.len() as u64;
             let record = JournalRecord::decode(buf)?;
-            results.push(record);
+            results.push(ReadData { position, record });
         }
 
         Ok(results)
@@ -153,8 +161,8 @@ mod tests {
             segment_no,
             data_fold.to_string(),
         );
-        assert!(segment.create().await.is_ok());
-        assert!(segment.create().await.is_err());
+        assert!(segment.try_create().await.is_ok());
+        assert!(segment.try_create().await.is_err());
     }
 
     #[tokio::test]
@@ -172,7 +180,7 @@ mod tests {
             data_fold.to_string(),
         );
 
-        segment.create().await.unwrap();
+        segment.try_create().await.unwrap();
         for i in 0..10 {
             let value = format!("data1#-{}", i);
             let record = JournalRecord {

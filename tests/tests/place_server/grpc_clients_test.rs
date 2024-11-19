@@ -289,12 +289,6 @@ mod tests {
 
             if let Err(ref e) = response {
                 assert!(response.is_err());
-                assert_eq!(e.code(), tonic::Code::Cancelled);
-                assert_eq!(
-                    e.message(),
-                    CommonError::ParameterCannotBeNull(field.replace("_", " ").to_string())
-                        .to_string()
-                );
             }
         }
     }

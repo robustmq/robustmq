@@ -42,6 +42,8 @@ pub fn delete_local_segment(
     };
 
     tokio::spawn(async move {
+        // delete index
+        
         // delete file
         let conf = journal_server_conf();
         let data_fold = if let Some(fold) = segment.get_fold(conf.node_id) {

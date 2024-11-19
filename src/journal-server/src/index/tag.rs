@@ -17,8 +17,8 @@ use std::sync::Arc;
 use rocksdb_engine::engine::{rocksdb_engine_get, rocksdb_engine_save};
 use rocksdb_engine::RocksDBEngine;
 
-use super::engine::DB_COLUMN_FAMILY_INDEX;
-use super::keys::tag_segment;
+use super::keys::{key_segment, tag_segment};
+use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
 use crate::core::error::JournalServerError;
 
 pub struct TagIndexManager {
@@ -57,6 +57,42 @@ impl TagIndexManager {
         tag: String,
     ) -> Result<u64, JournalServerError> {
         let key = tag_segment(namespace, shard_name, segment, tag);
+        if let Some(res) = rocksdb_engine_get(
+            self.rocksdb_engine_handler.clone(),
+            DB_COLUMN_FAMILY_INDEX,
+            key,
+        )? {
+            return Ok(serde_json::from_slice::<u64>(&res.data)?);
+        }
+
+        Ok(0)
+    }
+
+    pub fn save_key_position(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        segment: u32,
+        key: String,
+        position: u64,
+    ) -> Result<(), JournalServerError> {
+        let key = key_segment(namespace, shard_name, segment, key);
+        Ok(rocksdb_engine_save(
+            self.rocksdb_engine_handler.clone(),
+            DB_COLUMN_FAMILY_INDEX,
+            key,
+            position,
+        )?)
+    }
+
+    pub fn get_key_position(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        segment: u32,
+        key: String,
+    ) -> Result<u64, JournalServerError> {
+        let key = key_segment(namespace, shard_name, segment, key);
         if let Some(res) = rocksdb_engine_get(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,

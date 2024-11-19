@@ -17,8 +17,8 @@ use std::sync::Arc;
 use rocksdb_engine::engine::{rocksdb_engine_get, rocksdb_engine_save};
 use rocksdb_engine::RocksDBEngine;
 
-use super::engine::DB_COLUMN_FAMILY_INDEX;
 use super::keys::{timestamp_segment_end, timestamp_segment_start, timestamp_segment_time};
+use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
 use crate::core::error::JournalServerError;
 
 pub struct TimestampIndexManager {

@@ -68,12 +68,25 @@ pub(crate) fn tag_segment(namespace: &str, shard_name: &str, segment: u32, tag: 
     )
 }
 
+pub(crate) fn key_segment(namespace: &str, shard_name: &str, segment: u32, key: String) -> String {
+    format!(
+        "/index/{}/{}/{}/key/{}",
+        namespace, shard_name, segment, key
+    )
+}
+
 pub(crate) fn finish_build_index(namespace: &str, shard_name: &str, segment: u32) -> String {
-    format!("/index/{}/{}/{}/build/finish", namespace, shard_name, segment)
+    format!(
+        "/index/{}/{}/{}/build/finish",
+        namespace, shard_name, segment
+    )
 }
 
 pub(crate) fn last_offset_build_index(namespace: &str, shard_name: &str, segment: u32) -> String {
-    format!("/index/{}/{}/{}/build/last/offset", namespace, shard_name, segment)
+    format!(
+        "/index/{}/{}/{}/build/last/offset",
+        namespace, shard_name, segment
+    )
 }
 
 pub(crate) fn segment_index_prefix(namespace: &str, shard_name: &str, segment: u32) -> String {

@@ -23,6 +23,7 @@ use metadata_struct::journal::segment::JournalSegment;
 use rocksdb_engine::RocksDBEngine;
 
 use super::file::SegmentFile;
+use super::SegmentIdentity;
 use crate::core::error::JournalServerError;
 use crate::index::engine::storage_data_fold;
 use crate::index::offset::OffsetIndexManager;
@@ -58,13 +59,12 @@ impl SegmentFileManager {
         self.segment_files.insert(key, segment_file);
     }
 
-    pub fn get_segment_file(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        segment: u32,
-    ) -> Option<SegmentFileMetadata> {
-        let key = self.key(namespace, shard_name, segment);
+    pub fn get_segment_file(&self, segment_iden: &SegmentIdentity) -> Option<SegmentFileMetadata> {
+        let key = self.key(
+            &segment_iden.namespace,
+            &segment_iden.shard_name,
+            segment_iden.segment_seq,
+        );
         if let Some(data) = self.segment_files.get(&key) {
             return Some(data.clone());
         }
@@ -202,7 +202,8 @@ pub async fn create_local_segment(
         segment.segment_seq,
         fold,
     );
-    segment_file.create().await?;
+
+    segment_file.try_create().await?;
 
     // add segment file manager
     let segment_metadata = SegmentFileMetadata {
@@ -214,11 +215,6 @@ pub async fn create_local_segment(
     };
     segment_file_manager.add_segment_file(segment_metadata);
 
-    Ok(())
-}
-
-pub async fn delete_local_segment(segment: &JournalSegment) -> Result<(), JournalServerError> {
-    //todo
     Ok(())
 }
 

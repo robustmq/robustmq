@@ -15,237 +15,72 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use dashmap::DashMap;
-use log::{error, info};
-use metadata_struct::journal::segment::segment_name;
+use log::{debug, error, warn};
+use metadata_struct::journal::segment::{segment_name, SegmentStatus};
 use rocksdb_engine::engine::{
     rocksdb_engine_delete, rocksdb_engine_exists, rocksdb_engine_get, rocksdb_engine_prefix_map,
     rocksdb_engine_save,
 };
 use rocksdb_engine::RocksDBEngine;
-use tokio::sync::broadcast;
+use tokio::select;
+use tokio::sync::broadcast::{self, Receiver};
 use tokio::time::sleep;
 
-use super::engine::DB_COLUMN_FAMILY_INDEX;
 use super::keys::{finish_build_index, last_offset_build_index, segment_index_prefix};
+use super::offset::OffsetIndexManager;
+use super::tag::TagIndexManager;
+use super::time::TimestampIndexManager;
 use crate::core::cache::CacheManager;
+use crate::core::consts::{BUILD_INDE_PER_RECORD_NUM, DB_COLUMN_FAMILY_INDEX};
 use crate::core::error::JournalServerError;
 use crate::core::write::open_segment_write;
+use crate::segment::file::SegmentFile;
+use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
 
-pub struct IndexBuildManager {
-    cache_manager: Arc<CacheManager>,
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    index_segments: DashMap<String, SegmentIdentity>,
-    build_index_thread: DashMap<String, broadcast::Sender<bool>>,
-}
+pub async fn try_trigger_build_index(
+    cache_manager: &Arc<CacheManager>,
+    segment_file_manager: &Arc<SegmentFileManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    segment_iden: &SegmentIdentity,
+) {
+    let key = segment_name(
+        &segment_iden.namespace,
+        &segment_iden.shard_name,
+        segment_iden.segment_seq,
+    );
 
-impl IndexBuildManager {
-    pub fn new(
-        cache_manager: Arc<CacheManager>,
-        rocksdb_engine_handler: Arc<RocksDBEngine>,
-    ) -> Self {
-        let index_segments = DashMap::with_capacity(2);
-        let build_index_thread = DashMap::with_capacity(2);
-        IndexBuildManager {
+    if !cache_manager.contain_build_index_thread(segment_iden) {
+        if let Err(e) = build_thread(
             cache_manager,
+            segment_file_manager,
             rocksdb_engine_handler,
-            index_segments,
-            build_index_thread,
-        }
-    }
-
-    pub fn add_index_segment(
-        &self,
-        segment_iden: SegmentIdentity,
-    ) -> Result<(), JournalServerError> {
-        let key = segment_name(
-            &segment_iden.namespace,
-            &segment_iden.shard_name,
-            segment_iden.segment_seq,
-        );
-        self.index_segments.insert(key, segment_iden.clone());
-        if !is_finish_build_index(
-            self.rocksdb_engine_handler.clone(),
-            &segment_iden.namespace,
-            &segment_iden.shard_name,
-            segment_iden.segment_seq,
-        )? {
-            self.start_segment_build_index_thread(
-                self.cache_manager.clone(),
-                &segment_iden.namespace,
-                &segment_iden.shard_name,
-                segment_iden.segment_seq,
-            );
-        }
-        Ok(())
-    }
-
-    pub fn try_trigger_build_index(&self, namespace: &str, shard_name: &str, segment: u32) {
-        let key = segment_name(namespace, shard_name, segment);
-        if !self.build_index_thread.contains_key(&key) {
-            self.start_segment_build_index_thread(
-                self.cache_manager.clone(),
-                namespace,
-                shard_name,
-                segment,
+            segment_iden,
+        )
+        .await
+        {
+            error!(
+                "segment {} index building thread failed to start with error message :{}",
+                segment_name(
+                    &segment_iden.namespace,
+                    &segment_iden.shard_name,
+                    segment_iden.segment_seq
+                ),
+                e
             );
         }
     }
-
-    pub fn remode_index_segment(&self, namespace: &str, shard_name: &str, segment: u32) {
-        let key = segment_name(namespace, shard_name, segment);
-        self.index_segments.remove(&key);
-    }
-
-    pub fn start_segment_build_index_thread(
-        &self,
-        cache_manager: Arc<CacheManager>,
-        namespace: &str,
-        shard_name: &str,
-        segment: u32,
-    ) {
-        let key = segment_name(namespace, shard_name, segment);
-        if self.build_index_thread.contains_key(&key) {
-            return;
-        }
-        let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
-        let raw_namespace = namespace.to_string();
-        let raw_shard_name = shard_name.to_string();
-
-        tokio::spawn(async move {
-            let last_offset = match get_last_offset_build_index(
-                rocksdb_engine_handler,
-                &raw_namespace,
-                &raw_shard_name,
-                segment,
-            ) {
-                Ok(offset) => offset,
-                Err(e) => {
-                    error!(
-                        "Failed to get last_offset_build_index with error message :{}",
-                        e
-                    );
-                    return;
-                }
-            };
-
-            let (segment_write, _) = match open_segment_write(
-                cache_manager.clone(),
-                &raw_namespace,
-                &raw_shard_name,
-                segment,
-            )
-            .await
-            {
-                Ok((segment_write, max_size)) => (segment_write, max_size),
-                Err(e) => {
-                    error!("Failed to open Segment file with error message :{}", e);
-                    return;
-                }
-            };
-            let size = 10 * 1024 * 1024;
-            let mut data_empty_times = 0;
-            let max_data_empty_times = 10 * 60;
-            loop {
-                match segment_write.read(last_offset, size).await {
-                    Ok(datas) => {
-                        if datas.is_empty() {
-                            sleep(Duration::from_secs(1)).await;
-                            data_empty_times += 1;
-                            // If the Segment has not written data for 10 minutes
-                            // the indexing thread will exit and wait for data before continuing the build. Avoid idle threads.
-                            if data_empty_times >= max_data_empty_times {
-                                info!("");
-                                break;
-                            }
-                            continue;
-                        }
-                        data_empty_times = 0;
-                        for record in datas {
-                            // build position index
-
-                            // build timestamp index
-
-                            // build tag index
-                        }
-                    }
-                    Err(e) => {
-                        error!("Failed to read Segment file data with error message :{}", e);
-                    }
-                }
-            }
-        });
-    }
-}
-
-pub fn save_finish_build_index(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    namespace: &str,
-    shard_name: &str,
-    segment: u32,
-) -> Result<(), JournalServerError> {
-    let key = finish_build_index(namespace, shard_name, segment);
-    Ok(rocksdb_engine_save(
-        rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_INDEX,
-        key,
-        true,
-    )?)
-}
-
-pub fn is_finish_build_index(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    namespace: &str,
-    shard_name: &str,
-    segment: u32,
-) -> Result<bool, JournalServerError> {
-    let key = finish_build_index(namespace, shard_name, segment);
-    Ok(rocksdb_engine_exists(
-        rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_INDEX,
-        key,
-    )?)
-}
-
-pub fn save_last_offset_build_index(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    namespace: &str,
-    shard_name: &str,
-    segment: u32,
-) -> Result<(), JournalServerError> {
-    let key = last_offset_build_index(namespace, shard_name, segment);
-    Ok(rocksdb_engine_save(
-        rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_INDEX,
-        key,
-        true,
-    )?)
-}
-
-pub fn get_last_offset_build_index(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    namespace: &str,
-    shard_name: &str,
-    segment: u32,
-) -> Result<Option<u64>, JournalServerError> {
-    let key = last_offset_build_index(namespace, shard_name, segment);
-    if let Some(res) =
-        rocksdb_engine_get(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, key)?
-    {
-        return Ok(Some(serde_json::from_slice::<u64>(&res.data)?));
-    }
-
-    Ok(None)
 }
 
 pub fn delete_segment_index(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    namespace: &str,
-    shard_name: &str,
-    segment: u32,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {
-    let prefix_key_name = segment_index_prefix(namespace, shard_name, segment);
+    let prefix_key_name = segment_index_prefix(
+        &segment_iden.namespace,
+        &segment_iden.shard_name,
+        segment_iden.segment_seq,
+    );
     let comlumn_family = DB_COLUMN_FAMILY_INDEX;
     let data = rocksdb_engine_prefix_map(
         rocksdb_engine_handler.clone(),
@@ -260,4 +95,296 @@ pub fn delete_segment_index(
         )?;
     }
     Ok(())
+}
+
+async fn build_thread(
+    cache_manager: &Arc<CacheManager>,
+    segment_file_manager: &Arc<SegmentFileManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    segment_iden: &SegmentIdentity,
+) -> Result<(), JournalServerError> {
+    if is_finish_build_index(rocksdb_engine_handler, segment_iden)? {
+        warn!("segment {} is in the wrong state, marking that the index has been built but data is still being written.",
+        segment_name(&segment_iden.namespace, &segment_iden.shard_name, segment_iden.segment_seq));
+
+        // If the Segment is still writing data, but the index marker is completed
+        // it may be dirty data, so the index marker is removed.
+        return remove_last_offset_build_index(rocksdb_engine_handler, segment_iden);
+    }
+
+    let namespace = &segment_iden.namespace;
+    let shard_name = &segment_iden.shard_name;
+    let segment = segment_iden.segment_seq;
+
+    let last_build_offset = get_last_offset_build_index(rocksdb_engine_handler, segment_iden)?;
+
+    let (segment_write, _) =
+        open_segment_write(cache_manager.clone(), namespace, shard_name, segment).await?;
+
+    // Get the end offset of the local segment file
+    let segment_file_meta =
+        if let Some(segment_file) = segment_file_manager.get_segment_file(segment_iden) {
+            segment_file
+        } else {
+            return Err(JournalServerError::SegmentMetaNotExists(segment_name(
+                namespace, shard_name, segment,
+            )));
+        };
+
+    let (stop_sender, stop_recv) = broadcast::channel::<bool>(1);
+    cache_manager.add_build_index_thread(segment_iden.clone(), stop_sender);
+
+    start_segment_build_index_thread(
+        cache_manager.clone(),
+        rocksdb_engine_handler.clone(),
+        segment_iden.clone(),
+        segment_write,
+        segment_file_meta.start_offset,
+        last_build_offset,
+        stop_recv,
+    );
+    Ok(())
+}
+
+fn start_segment_build_index_thread(
+    cache_manager: Arc<CacheManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    segment_iden: SegmentIdentity,
+    segment_write: SegmentFile,
+    start_offset: u64,
+    mut last_build_offset: Option<u64>,
+    mut stop_recv: Receiver<bool>,
+) {
+    let offset_index = OffsetIndexManager::new(rocksdb_engine_handler.clone());
+    let time_index = TimestampIndexManager::new(rocksdb_engine_handler.clone());
+    let tag_index = TagIndexManager::new(rocksdb_engine_handler.clone());
+
+    tokio::spawn(async move {
+        let size = 10 * 1024 * 1024;
+        let mut data_empty_times = 0;
+        let max_data_empty_times = 10 * 60;
+
+        let raw_namespace = segment_iden.namespace.clone();
+        let raw_shard_name = segment_iden.shard_name.clone();
+        let segment = segment_iden.segment_seq;
+        loop {
+            select! {
+                val = stop_recv.recv() =>{
+                    if let Ok(flag) = val {
+                        if flag {
+                            cache_manager.remove_build_index_thread(segment_iden);
+                            debug!("segment {} index build thread exited successfully.",
+                                segment_name(&raw_namespace,
+                                    &raw_shard_name,
+                                    segment));
+                            break;
+                        }
+                    }
+                },
+                val = segment_write.read(last_build_offset, size)=>{
+                    match val {
+                        Ok(datas) => {
+                            if datas.is_empty() {
+                                sleep(Duration::from_secs(1)).await;
+                                data_empty_times += 1;
+                                // If the Segment has not written data for 10 minutes
+                                // the indexing thread will exit and wait for data before continuing the build. Avoid idle threads.
+                                if data_empty_times >= max_data_empty_times {
+                                    debug!("segment {} No data after 10 minutes of noise, index building thread temporarily quit",
+                                        segment_name(&raw_namespace,
+                                        &raw_shard_name,
+                                        segment));
+
+                                    if let Some(segment) = cache_manager.get_segment(&segment_iden.namespace, &segment_iden.shard_name, segment_iden.segment_seq){
+                                        if segment.status == SegmentStatus::SealUp{
+                                            if let Err(e) = save_finish_build_index(&rocksdb_engine_handler, &segment_iden){
+                                                error!("{}", e);
+                                            }
+                                        }
+                                    }
+                                    break;
+                                }
+                                continue;
+                            }
+                            data_empty_times = 0;
+                            for read_data in datas.iter() {
+                                let position = read_data.position;
+                                let record = read_data.record.clone();
+
+                                if (record.offset - start_offset) % BUILD_INDE_PER_RECORD_NUM == 0 {
+                                    // build position index
+                                    if let Err(e) = offset_index.save_position_offset(
+                                        &raw_namespace,
+                                        &raw_shard_name,
+                                        segment,
+                                        record.offset,
+                                        position,
+                                    ) {
+                                        error!(
+                                            "Segment {} Failed to save offset index, error message :{}",
+                                            segment_name(&raw_namespace, &raw_shard_name, segment),
+                                            e
+                                        );
+                                        continue;
+                                    }
+                                    // build timestamp index
+                                    if let Err(e) = time_index.save_timestamp_offset(
+                                        &raw_namespace,
+                                        &raw_shard_name,
+                                        segment,
+                                        record.create_time,
+                                        position,
+                                    ) {
+                                        error!(
+                                            "Segment {} Failed to save timestamp index, error message :{}",
+                                            segment_name(&raw_namespace, &raw_shard_name, segment),
+                                            e
+                                        );
+                                        continue;
+                                    }
+                                }
+
+                                // build key index
+                                if !record.key.is_empty() {
+                                    if let Err(e) = tag_index.save_key_position(
+                                        &raw_namespace,
+                                        &raw_shard_name,
+                                        segment,
+                                        record.key,
+                                        position,
+                                    ) {
+                                        error!(
+                                            "Segment {} Failed to save key index, error message :{}",
+                                            segment_name(&raw_namespace, &raw_shard_name, segment),
+                                            e
+                                        );
+                                        continue;
+                                    }
+                                }
+
+                                // build tag index
+                                for tag in record.tags {
+                                    if let Err(e) = tag_index.save_tag_position(
+                                        &raw_namespace,
+                                        &raw_shard_name,
+                                        segment,
+                                        tag,
+                                        position,
+                                    ) {
+                                        error!(
+                                            "Segment {} Failed to save tag index, error message :{}",
+                                            segment_name(&raw_namespace, &raw_shard_name, segment),
+                                            e
+                                        );
+                                        continue;
+                                    }
+                                }
+                            }
+                            if let Some(last_read_data) = datas.last() {
+                                match save_last_offset_build_index(
+                                    &rocksdb_engine_handler,
+                                    &segment_iden,
+                                ) {
+                                    Ok(data) => {
+                                        last_build_offset = Some(last_read_data.record.offset);
+                                    }
+                                    Err(e) => {
+                                        error!("Failure to save last_offset_build_index information with error message :{}",e);
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            error!("Failed to read Segment file data with error message :{}", e);
+                            sleep(Duration::from_millis(100)).await;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+fn save_finish_build_index(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    segment_iden: &SegmentIdentity,
+) -> Result<(), JournalServerError> {
+    let key = finish_build_index(
+        &segment_iden.namespace,
+        &segment_iden.shard_name,
+        segment_iden.segment_seq,
+    );
+    Ok(rocksdb_engine_save(
+        rocksdb_engine_handler.clone(),
+        DB_COLUMN_FAMILY_INDEX,
+        key,
+        true,
+    )?)
+}
+
+fn is_finish_build_index(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    segment_iden: &SegmentIdentity,
+) -> Result<bool, JournalServerError> {
+    let key = finish_build_index(
+        &segment_iden.namespace,
+        &segment_iden.shard_name,
+        segment_iden.segment_seq,
+    );
+    Ok(rocksdb_engine_exists(
+        rocksdb_engine_handler.clone(),
+        DB_COLUMN_FAMILY_INDEX,
+        key,
+    )?)
+}
+
+fn remove_last_offset_build_index(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    segment_iden: &SegmentIdentity,
+) -> Result<(), JournalServerError> {
+    let key = last_offset_build_index(
+        &segment_iden.namespace,
+        &segment_iden.shard_name,
+        segment_iden.segment_seq,
+    );
+    Ok(rocksdb_engine_delete(
+        rocksdb_engine_handler.clone(),
+        DB_COLUMN_FAMILY_INDEX,
+        key,
+    )?)
+}
+
+fn save_last_offset_build_index(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    segment_iden: &SegmentIdentity,
+) -> Result<(), JournalServerError> {
+    let key = last_offset_build_index(
+        &segment_iden.namespace,
+        &segment_iden.shard_name,
+        segment_iden.segment_seq,
+    );
+    Ok(rocksdb_engine_save(
+        rocksdb_engine_handler.clone(),
+        DB_COLUMN_FAMILY_INDEX,
+        key,
+        true,
+    )?)
+}
+
+fn get_last_offset_build_index(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    segment_iden: &SegmentIdentity,
+) -> Result<Option<u64>, JournalServerError> {
+    let key = last_offset_build_index(
+        &segment_iden.namespace,
+        &segment_iden.shard_name,
+        segment_iden.segment_seq,
+    );
+    if let Some(res) =
+        rocksdb_engine_get(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, key)?
+    {
+        return Ok(Some(serde_json::from_slice::<u64>(&res.data)?));
+    }
+
+    Ok(None)
 }

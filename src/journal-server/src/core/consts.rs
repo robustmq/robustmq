@@ -12,18 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
+pub const DB_COLUMN_FAMILY_INDEX: &str = "index";
 
-pub fn column_family_list() -> Vec<String> {
-    vec![DB_COLUMN_FAMILY_INDEX.to_string()]
-}
-
-pub fn storage_data_fold(data_fold: &Vec<String>) -> String {
-    if let Some(fold) = data_fold.first() {
-        return format!("{}/_index", fold);
-    }
-    panic!(
-        "No configuration data storage directory, configuration info :{:?}",
-        data_fold
-    );
-}
+pub const BUILD_INDE_PER_RECORD_NUM: u64 = 10000;

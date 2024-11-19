@@ -14,6 +14,7 @@
 
 pub mod cache;
 pub mod cluster;
+pub mod consts;
 pub mod error;
 pub mod group;
 pub mod namespace;

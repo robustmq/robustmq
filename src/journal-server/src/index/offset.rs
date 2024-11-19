@@ -17,8 +17,8 @@ use std::sync::Arc;
 use rocksdb_engine::engine::{rocksdb_engine_get, rocksdb_engine_save};
 use rocksdb_engine::RocksDBEngine;
 
-use super::engine::DB_COLUMN_FAMILY_INDEX;
 use super::keys::{offset_segment_end, offset_segment_position, offset_segment_start};
+use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
 use crate::core::error::JournalServerError;
 
 pub struct OffsetIndexManager {

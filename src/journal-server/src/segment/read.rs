@@ -59,7 +59,8 @@ pub async fn read_data(
             shard_message.segment = segment_no;
 
             let mut record_message = Vec::new();
-            for record in res {
+            for read_data in res {
+                let record = read_data.record;
                 record_message.push(ReadRespMessage {
                     offset: record.offset,
                     key: record.key,
