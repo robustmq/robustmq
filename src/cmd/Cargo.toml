@@ -17,7 +17,7 @@ name = "cmd"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-default-run = "journal-server"
+default-run = "cli-command"
 
 [[bin]]
 name = "mqtt-server"
