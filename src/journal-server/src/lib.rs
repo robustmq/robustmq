@@ -85,6 +85,7 @@ impl JournalServer {
             Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
 
         let write_manager = Arc::new(WriteManager::new(
+            rocksdb_engine_handler.clone(),
             segment_file_manager.clone(),
             cache_manager.clone(),
             client_pool.clone(),

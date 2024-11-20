@@ -33,9 +33,10 @@ use protocol::placement_center::placement_center_journal::{
     ListSegmentMetaRequest, ListSegmentRequest, ListShardRequest,
 };
 use rocksdb_engine::RocksDBEngine;
+use tokio::sync::broadcast;
 
 use super::cluster::JournalEngineClusterConfig;
-use crate::segment::manager::{create_local_segment, SegmentFileManager};
+use crate::segment::manager::{try_create_local_segment, SegmentFileManager};
 use crate::segment::SegmentIdentity;
 
 #[derive(Clone)]
@@ -46,6 +47,7 @@ pub struct CacheManager {
     segments: DashMap<String, DashMap<u32, JournalSegment>>,
     segment_metadatas: DashMap<String, DashMap<u32, JournalSegmentMetadata>>,
     leader_segments: DashMap<String, SegmentIdentity>,
+    build_index_thread: DashMap<String, broadcast::Sender<bool>>,
 }
 
 impl CacheManager {
@@ -56,6 +58,7 @@ impl CacheManager {
         let segments = DashMap::with_capacity(8);
         let segment_metadatas = DashMap::with_capacity(8);
         let leader_segments = DashMap::with_capacity(8);
+        let build_index_thread = DashMap::with_capacity(2);
         CacheManager {
             cluster,
             node_list,
@@ -63,6 +66,7 @@ impl CacheManager {
             segments,
             segment_metadatas,
             leader_segments,
+            build_index_thread,
         }
     }
 
@@ -263,6 +267,37 @@ impl CacheManager {
         None
     }
 
+    pub fn add_build_index_thread(
+        &self,
+        segment_iden: SegmentIdentity,
+        stop_send: broadcast::Sender<bool>,
+    ) {
+        let key = self.sgement_key(
+            &segment_iden.namespace,
+            &segment_iden.shard_name,
+            segment_iden.segment_seq,
+        );
+        self.build_index_thread.insert(key, stop_send);
+    }
+
+    pub fn remove_build_index_thread(&self, segment_iden: SegmentIdentity) {
+        let key = self.sgement_key(
+            &segment_iden.namespace,
+            &segment_iden.shard_name,
+            segment_iden.segment_seq,
+        );
+        self.build_index_thread.remove(&key);
+    }
+
+    pub fn contain_build_index_thread(&self, segment_iden: &SegmentIdentity) -> bool {
+        let key = self.sgement_key(
+            &segment_iden.namespace,
+            &segment_iden.shard_name,
+            segment_iden.segment_seq,
+        );
+        self.build_index_thread.contains_key(&key)
+    }
+
     pub fn get_leader_segment(&self) -> Vec<SegmentIdentity> {
         let mut results = Vec::new();
         for raw in self.leader_segments.iter() {
@@ -407,15 +442,13 @@ async fn parse_segment(
                     "Segment cache update, action: set, segment:{}",
                     segment.name()
                 );
-                if cache_manager
-                    .get_segment(&segment.namespace, &segment.shard_name, segment.segment_seq)
-                    .is_some()
-                {
-                    return;
-                }
 
-                match create_local_segment(segment_file_manager, rocksdb_engine_handler, &segment)
-                    .await
+                match try_create_local_segment(
+                    segment_file_manager,
+                    rocksdb_engine_handler,
+                    &segment,
+                )
+                .await
                 {
                     Ok(()) => {
                         cache_manager.set_segment(segment);
@@ -456,6 +489,11 @@ async fn parse_segment_meta(
                         "Update the cache, set segment meta, segment name:{}",
                         segment.name()
                     );
+                    let segment_iden = SegmentIdentity {
+                        namespace: segment.namespace.clone(),
+                        shard_name: segment.shard_name.clone(),
+                        segment_seq: segment.segment_seq,
+                    };
                     cache_manager.set_segment_meta(segment);
                 }
                 Err(e) => {

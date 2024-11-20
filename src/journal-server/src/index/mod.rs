@@ -16,6 +16,5 @@ pub mod build;
 pub mod engine;
 pub mod keys;
 pub mod offset;
-pub mod segment;
 pub mod tag;
 pub mod time;

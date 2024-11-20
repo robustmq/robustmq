@@ -142,7 +142,7 @@ impl SegmentScrollManager {
                         // update active/next segment end/start offset
                         // calc end_offset
                         let calc_offset = self.calc_end_offset().await;
-                        let end_offset = current_end_offset + calc_offset;
+                        let end_offset = current_end_offset as u64 + calc_offset;
                         if let Err(e) = segment_meta_to_pre_sealup(
                             &self.cache_manager,
                             &self.client_pool,
@@ -186,6 +186,7 @@ pub async fn segment_status_to_sealup(
             warn!("Segment {} enters the sealup state, but the current state is not PreSealUp, possibly because the Status checking thread is not running.",
             segment_name(namespace, shard_name, segment_no));
         }
+
         // active segment to sealup
         cache_manager.update_segment_status(
             namespace,
@@ -206,6 +207,8 @@ pub async fn segment_status_to_sealup(
         warn!("Segment {} enters the sealup state, but the current Segment is not found, possibly because the Status checking thread is not running.",
         segment_name(namespace, shard_name, segment_no));
     }
+
+    // update meta end timestamp
 
     // next segment to Write
     let next_segment_no = segment_no + 1;

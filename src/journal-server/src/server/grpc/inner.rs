@@ -124,7 +124,11 @@ impl JournalServerInnerService for GrpcJournalServerInnerService {
             return Ok(Response::new(DeleteSegmentFileReply::default()));
         }
 
-        match delete_local_segment(self.cache_manager.clone(), req) {
+        match delete_local_segment(
+            self.cache_manager.clone(),
+            self.segment_file_manager.clone(),
+            req,
+        ) {
             Ok(()) => {
                 return Ok(Response::new(DeleteSegmentFileReply::default()));
             }

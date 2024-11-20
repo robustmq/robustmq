@@ -25,6 +25,7 @@ use protocol::journal_server::journal_engine::{
     WriteReqBody, WriteRespMessage, WriteRespMessageStatus,
 };
 use protocol::journal_server::journal_record::JournalRecord;
+use rocksdb_engine::RocksDBEngine;
 use tokio::select;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::sync::{broadcast, oneshot};
@@ -32,6 +33,7 @@ use tokio::time::timeout;
 
 use super::cache::CacheManager;
 use super::error::{get_journal_server_code, JournalServerError};
+use crate::index::build::try_trigger_build_index;
 use crate::segment::file::SegmentFile;
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::status::segment_status_to_sealup;
@@ -56,6 +58,7 @@ pub struct SegmentWriteResp {
 }
 
 pub struct WriteManager {
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
     segment_write: DashMap<String, SegmentWrite>,
     segment_file_manager: Arc<SegmentFileManager>,
     cache_manager: Arc<CacheManager>,
@@ -64,11 +67,13 @@ pub struct WriteManager {
 
 impl WriteManager {
     pub fn new(
+        rocksdb_engine_handler: Arc<RocksDBEngine>,
         segment_file_manager: Arc<SegmentFileManager>,
         cache_manager: Arc<CacheManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         WriteManager {
+            rocksdb_engine_handler,
             segment_write: DashMap::with_capacity(8),
             segment_file_manager,
             cache_manager,
@@ -130,6 +135,7 @@ impl WriteManager {
                 segment_seq: segment,
             };
             start_segment_sync_write_thread(
+                self.rocksdb_engine_handler.clone(),
                 segment_iden,
                 self.segment_file_manager.clone(),
                 self.cache_manager.clone(),
@@ -156,28 +162,28 @@ impl WriteManager {
 }
 
 async fn start_segment_sync_write_thread(
-    segment_identity: SegmentIdentity,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    segment_iden: SegmentIdentity,
     segment_file_manager: Arc<SegmentFileManager>,
     cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
     mut data_recv: Receiver<SegmentWriteData>,
     mut stop_recv: broadcast::Receiver<bool>,
 ) -> Result<(), JournalServerError> {
-    let namespace = &segment_identity.namespace;
-    let shard_name = &segment_identity.shard_name;
-    let segment_no = segment_identity.segment_seq;
+    let namespace = &segment_iden.namespace;
+    let shard_name = &segment_iden.shard_name;
+    let segment_no = segment_iden.segment_seq;
 
     // Get the end offset of the local segment file
-    let segment_file_meta = if let Some(segment_file) =
-        segment_file_manager.get_segment_file(namespace, shard_name, segment_no)
-    {
-        segment_file
-    } else {
-        // todo try recover segment file. create or local cache
-        return Err(JournalServerError::SegmentFileNotExists(
-            segment_identity.name(),
-        ));
-    };
+    let segment_file_meta =
+        if let Some(segment_file) = segment_file_manager.get_segment_file(&segment_iden) {
+            segment_file
+        } else {
+            // todo try recover segment file. create or local cache
+            return Err(JournalServerError::SegmentMetaNotExists(
+                segment_iden.name(),
+            ));
+        };
     let mut local_segment_end_offset = segment_file_meta.end_offset;
 
     // build tokio task param
@@ -185,7 +191,7 @@ async fn start_segment_sync_write_thread(
     let raw_shard_name = shard_name.to_string();
     let raw_cache_manager = cache_manager.clone();
     let (segment_write, max_file_size) =
-        open_segment_write(cache_manager, namespace, shard_name, segment_no).await?;
+        open_segment_write(cache_manager.clone(), namespace, shard_name, segment_no).await?;
 
     tokio::spawn(async move {
         loop {
@@ -209,7 +215,7 @@ async fn start_segment_sync_write_thread(
                             &raw_cache_manager,
                             &client_pool,
                             &segment_write,
-                            local_segment_end_offset,
+                            local_segment_end_offset as u64,
                             packet.data.len() as u64,
                             max_file_size,
                         ).await{
@@ -221,13 +227,15 @@ async fn start_segment_sync_write_thread(
                                         &packet,
                                         &segment_write,
                                         &segment_file_manager,
-                                        local_segment_end_offset).await
+                                        local_segment_end_offset as u64).await
                                     {
                                         Ok(resp_data) =>{
                                             if let Some(end_offset) = resp_data.offset.last() {
-                                                local_segment_end_offset = *end_offset;
+                                                local_segment_end_offset = *end_offset as i64;
                                             }
                                             resp = resp_data;
+
+                                            try_trigger_build_index(&cache_manager, &segment_file_manager, &rocksdb_engine_handler, &segment_iden).await;
                                         },
                                         Err(e) => {
                                             resp.error = Some(e);
@@ -276,7 +284,21 @@ async fn batch_write_segment(
 
     // batch write data
     match segment_write.write(&records).await {
-        Ok(()) => {
+        Ok(positions) => {
+            if let Some(first_posi) = positions.first() {
+                if *first_posi == 0 {
+                    // update local file start offset
+                    segment_file_manager.update_start_offset(
+                        namespace,
+                        shard_name,
+                        segment_no,
+                        *first_posi as i64,
+                    )?;
+
+                    // update segment data starttime
+                }
+            }
+
             resp.offset = offsets.clone();
         }
         Err(e) => {
@@ -286,7 +308,12 @@ async fn batch_write_segment(
 
     // update local segment file end offset
     if let Some(end_offset) = offsets.last() {
-        segment_file_manager.update_end_offset(namespace, shard_name, segment_no, *end_offset)?;
+        segment_file_manager.update_end_offset(
+            namespace,
+            shard_name,
+            segment_no,
+            *end_offset as i64,
+        )?;
     }
 
     Ok(resp)
@@ -315,8 +342,12 @@ async fn is_sealup_segment(
             )));
         };
 
-    if segment_meta.end_offset > -1
-        && (local_segment_end_offset + packet_len) > segment_meta.end_offset as u64
+    // check file size
+    let file_size = (segment_write.size().await).unwrap_or_default();
+
+    if (segment_meta.end_offset > -1
+        && (local_segment_end_offset + packet_len) > segment_meta.end_offset as u64)
+        || file_size >= max_file_size
     {
         segment_status_to_sealup(
             cache_manager,
@@ -328,21 +359,6 @@ async fn is_sealup_segment(
         .await?;
         return Ok(true);
     }
-
-    // check file size
-    let file_size = (segment_write.size().await).unwrap_or_default();
-    if file_size >= max_file_size {
-        segment_status_to_sealup(
-            cache_manager,
-            client_pool,
-            namespace,
-            shard_name,
-            segment_no,
-        )
-        .await?;
-        return Ok(true);
-    }
-
     Ok(false)
 }
 
