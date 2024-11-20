@@ -36,7 +36,6 @@ mod tests {
 
         let topic = "/tests/t1".to_string();
 
-
         add_test_acl(client_pool.clone(), grpc_addr.clone(), MqttAclResourceType::ClientId, client_id.clone(), topic.clone(), MqttAclAction::All, MqttAclPermission::Deny).await;
         client_publish_test(&client_id, &addr, &topic).await;
         delete_test_acl(client_pool.clone(), grpc_addr.clone(), MqttAclResourceType::ClientId, client_id.clone(), topic.clone()).await;
@@ -51,8 +50,7 @@ mod tests {
         let topic = "/tests/t1".to_string();
 
         add_test_acl(client_pool.clone(), grpc_addr.clone(), MqttAclResourceType::User, username.clone(), topic.clone(), MqttAclAction::All, MqttAclPermission::Deny).await;
-
-        
+ 
         let request = ListAclRequest {
             cluster_name: "test".to_string(),
         };

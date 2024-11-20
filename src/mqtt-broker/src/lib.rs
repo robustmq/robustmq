@@ -20,6 +20,7 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::runtime::create_runtime;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
+use handler::acl::UpdateAclCache;
 use handler::cache::CacheManager;
 use handler::heartbreat::report_heartbeat;
 use handler::keep_alive::ClientKeepAlive;
@@ -156,6 +157,7 @@ where
         self.start_keep_alive_thread(stop_send.clone());
         self.start_cluster_heartbeat_report(stop_send.clone());
         self.start_update_user_cache_thread(stop_send.clone());
+        self.start_update_acl_cache_thread(stop_send.clone());
         self.start_push_server();
         self.start_system_topic_thread(stop_send.clone());
         self.awaiting_stop(stop_send);
@@ -308,6 +310,14 @@ where
 
         self.runtime.spawn(async move {
             update_user_cache.start_update().await;
+        });
+    }
+
+    fn start_update_acl_cache_thread(&self, stop_send: broadcast::Sender<bool>) {
+        let update_acl_cache = UpdateAclCache::new(stop_send, self.auth_driver.clone());
+
+        self.runtime.spawn(async move {
+            update_acl_cache.start_update().await;
         });
     }
 

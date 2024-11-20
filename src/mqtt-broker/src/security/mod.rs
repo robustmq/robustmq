@@ -209,7 +209,6 @@ impl AuthDriver {
         let mut user_acl = HashSet::new();
         let mut client_acl = HashSet::new();
 
-
         for acl in all_acls.clone() {
             match acl.resource_type {
                 MqttAclResourceType::User => user_acl.insert(acl.resource_name.clone()),
