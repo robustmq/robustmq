@@ -139,7 +139,7 @@ async fn build_thread(
         rocksdb_engine_handler.clone(),
         segment_iden.clone(),
         segment_write,
-        segment_file_meta.start_offset,
+        segment_file_meta.start_offset as u64,
         last_build_offset,
         stop_recv,
     );

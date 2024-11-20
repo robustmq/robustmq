@@ -43,6 +43,7 @@ pub fn delete_local_segment(
 
     tokio::spawn(async move {
         // delete index
+        //todo
         
         // delete file
         let conf = journal_server_conf();

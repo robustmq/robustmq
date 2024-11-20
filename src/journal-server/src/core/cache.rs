@@ -36,7 +36,7 @@ use rocksdb_engine::RocksDBEngine;
 use tokio::sync::broadcast;
 
 use super::cluster::JournalEngineClusterConfig;
-use crate::segment::manager::{create_local_segment, SegmentFileManager};
+use crate::segment::manager::{try_create_local_segment, SegmentFileManager};
 use crate::segment::SegmentIdentity;
 
 #[derive(Clone)]
@@ -443,8 +443,12 @@ async fn parse_segment(
                     segment.name()
                 );
 
-                match create_local_segment(segment_file_manager, rocksdb_engine_handler, &segment)
-                    .await
+                match try_create_local_segment(
+                    segment_file_manager,
+                    rocksdb_engine_handler,
+                    &segment,
+                )
+                .await
                 {
                     Ok(()) => {
                         cache_manager.set_segment(segment);
@@ -485,6 +489,11 @@ async fn parse_segment_meta(
                         "Update the cache, set segment meta, segment name:{}",
                         segment.name()
                     );
+                    let segment_iden = SegmentIdentity {
+                        namespace: segment.namespace.clone(),
+                        shard_name: segment.shard_name.clone(),
+                        segment_seq: segment.segment_seq,
+                    };
                     cache_manager.set_segment_meta(segment);
                 }
                 Err(e) => {

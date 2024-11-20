@@ -215,7 +215,7 @@ async fn start_segment_sync_write_thread(
                             &raw_cache_manager,
                             &client_pool,
                             &segment_write,
-                            local_segment_end_offset,
+                            local_segment_end_offset as u64,
                             packet.data.len() as u64,
                             max_file_size,
                         ).await{
@@ -227,11 +227,11 @@ async fn start_segment_sync_write_thread(
                                         &packet,
                                         &segment_write,
                                         &segment_file_manager,
-                                        local_segment_end_offset).await
+                                        local_segment_end_offset as u64).await
                                     {
                                         Ok(resp_data) =>{
                                             if let Some(end_offset) = resp_data.offset.last() {
-                                                local_segment_end_offset = *end_offset;
+                                                local_segment_end_offset = *end_offset as i64;
                                             }
                                             resp = resp_data;
 
@@ -294,7 +294,12 @@ async fn batch_write_segment(
 
     // update local segment file end offset
     if let Some(end_offset) = offsets.last() {
-        segment_file_manager.update_end_offset(namespace, shard_name, segment_no, *end_offset)?;
+        segment_file_manager.update_end_offset(
+            namespace,
+            shard_name,
+            segment_no,
+            *end_offset as i64,
+        )?;
     }
 
     Ok(resp)

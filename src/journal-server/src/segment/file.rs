@@ -162,7 +162,7 @@ mod tests {
             data_fold.to_string(),
         );
         assert!(segment.try_create().await.is_ok());
-        assert!(segment.try_create().await.is_err());
+        assert!(segment.try_create().await.is_ok());
     }
 
     #[tokio::test]

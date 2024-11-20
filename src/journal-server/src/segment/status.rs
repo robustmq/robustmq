@@ -142,7 +142,7 @@ impl SegmentScrollManager {
                         // update active/next segment end/start offset
                         // calc end_offset
                         let calc_offset = self.calc_end_offset().await;
-                        let end_offset = current_end_offset + calc_offset;
+                        let end_offset = current_end_offset as u64 + calc_offset;
                         if let Err(e) = segment_meta_to_pre_sealup(
                             &self.cache_manager,
                             &self.client_pool,

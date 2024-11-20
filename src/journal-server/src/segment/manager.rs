@@ -33,8 +33,8 @@ pub struct SegmentFileMetadata {
     pub namespace: String,
     pub shard_name: String,
     pub segment_no: u32,
-    pub start_offset: u64,
-    pub end_offset: u64,
+    pub start_offset: i64,
+    pub end_offset: i64,
 }
 pub struct SegmentFileManager {
     pub segment_files: DashMap<String, SegmentFileMetadata>,
@@ -76,7 +76,7 @@ impl SegmentFileManager {
         namespace: &str,
         shard_name: &str,
         segment: u32,
-    ) -> Option<u64> {
+    ) -> Option<i64> {
         let key = self.key(namespace, shard_name, segment);
         if let Some(data) = self.segment_files.get(&key) {
             return Some(data.end_offset);
@@ -89,13 +89,13 @@ impl SegmentFileManager {
         namespace: &str,
         shard_name: &str,
         segment: u32,
-        end_offset: u64,
+        end_offset: i64,
     ) -> Result<(), JournalServerError> {
         let key = self.key(namespace, shard_name, segment);
         if let Some(mut data) = self.segment_files.get_mut(&key) {
             data.end_offset = end_offset;
             let offset_index = OffsetIndexManager::new(self.rocksdb_engine_handler.clone());
-            offset_index.save_end_offset(namespace, shard_name, segment, data.end_offset)?;
+            offset_index.save_end_offset(namespace, shard_name, segment, data.end_offset as u64)?;
         }
         Ok(())
     }
@@ -167,8 +167,8 @@ pub fn load_local_segment_cache(
                 namespace: namespace.to_string(),
                 shard_name: shard_name.to_string(),
                 segment_no,
-                start_offset,
-                end_offset,
+                start_offset: start_offset as i64,
+                end_offset: end_offset as i64,
             };
             segment_file_manager.add_segment_file(metadata);
         }
@@ -180,7 +180,7 @@ pub fn metadata_and_local_segment_diff_check() {
     //todo
 }
 
-pub async fn create_local_segment(
+pub async fn try_create_local_segment(
     segment_file_manager: &Arc<SegmentFileManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment: &JournalSegment,
@@ -206,14 +206,25 @@ pub async fn create_local_segment(
     segment_file.try_create().await?;
 
     // add segment file manager
-    let segment_metadata = SegmentFileMetadata {
+    let segment_iden = SegmentIdentity {
         namespace: segment.namespace.clone(),
         shard_name: segment.shard_name.clone(),
-        segment_no: segment.segment_seq,
-        start_offset: 0,
-        end_offset: 0,
+        segment_seq: segment.segment_seq,
     };
-    segment_file_manager.add_segment_file(segment_metadata);
+    if segment_file_manager
+        .get_segment_file(&segment_iden)
+        .is_none()
+    {
+        let start_offset = if segment.segment_seq == 0 { 0 } else { -1 };
+        let segment_metadata = SegmentFileMetadata {
+            namespace: segment.namespace.clone(),
+            shard_name: segment.shard_name.clone(),
+            segment_no: segment.segment_seq,
+            start_offset,
+            end_offset: -1,
+        };
+        segment_file_manager.add_segment_file(segment_metadata);
+    }
 
     Ok(())
 }
