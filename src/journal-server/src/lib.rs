@@ -17,7 +17,6 @@
 use core::cache::{load_metadata_cache, CacheManager};
 use core::cluster::{register_journal_node, report_heartbeat, unregister_journal_node};
 use core::offset::OffsetManager;
-use core::write::WriteManager;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -32,7 +31,7 @@ use rocksdb_engine::RocksDBEngine;
 use segment::manager::{
     load_local_segment_cache, metadata_and_local_segment_diff_check, SegmentFileManager,
 };
-use segment::status::SegmentScrollManager;
+use segment::scroll::SegmentScrollManager;
 use server::connection_manager::ConnectionManager;
 use server::grpc::server::GrpcServer;
 use server::tcp::server::start_tcp_server;
@@ -40,6 +39,8 @@ use tokio::runtime::Runtime;
 use tokio::signal;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
+
+use crate::segment::write::WriteManager;
 
 mod core;
 mod handler;

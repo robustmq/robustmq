@@ -17,7 +17,7 @@ use std::num::ParseIntError;
 use common_base::error::common::CommonError;
 use thiserror::Error;
 
-use super::write::SegmentWriteData;
+use crate::segment::write::SegmentWriteData;
 
 #[derive(Error, Debug)]
 pub enum JournalServerError {

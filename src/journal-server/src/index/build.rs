@@ -33,8 +33,7 @@ use super::time::TimestampIndexManager;
 use crate::core::cache::CacheManager;
 use crate::core::consts::{BUILD_INDE_PER_RECORD_NUM, DB_COLUMN_FAMILY_INDEX};
 use crate::core::error::JournalServerError;
-use crate::core::write::open_segment_write;
-use crate::segment::file::SegmentFile;
+use crate::segment::file::{open_segment_write, SegmentFile};
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
 
@@ -76,11 +75,7 @@ pub fn delete_segment_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {
-    let prefix_key_name = segment_index_prefix(
-        &segment_iden.namespace,
-        &segment_iden.shard_name,
-        segment_iden.segment_seq,
-    );
+    let prefix_key_name = segment_index_prefix(segment_iden);
     let comlumn_family = DB_COLUMN_FAMILY_INDEX;
     let data = rocksdb_engine_prefix_map(
         rocksdb_engine_handler.clone(),
@@ -214,9 +209,7 @@ fn start_segment_build_index_thread(
                                 if (record.offset - start_offset) % BUILD_INDE_PER_RECORD_NUM == 0 {
                                     // build position index
                                     if let Err(e) = offset_index.save_position_offset(
-                                        &raw_namespace,
-                                        &raw_shard_name,
-                                        segment,
+                                        &segment_iden,
                                         record.offset,
                                         position,
                                     ) {
@@ -229,9 +222,7 @@ fn start_segment_build_index_thread(
                                     }
                                     // build timestamp index
                                     if let Err(e) = time_index.save_timestamp_offset(
-                                        &raw_namespace,
-                                        &raw_shard_name,
-                                        segment,
+                                        &segment_iden,
                                         record.create_time,
                                         position,
                                     ) {
@@ -246,10 +237,7 @@ fn start_segment_build_index_thread(
 
                                 // build key index
                                 if !record.key.is_empty() {
-                                    if let Err(e) = tag_index.save_key_position(
-                                        &raw_namespace,
-                                        &raw_shard_name,
-                                        segment,
+                                    if let Err(e) = tag_index.save_key_position( &segment_iden,
                                         record.key,
                                         position,
                                     ) {
@@ -264,10 +252,7 @@ fn start_segment_build_index_thread(
 
                                 // build tag index
                                 for tag in record.tags {
-                                    if let Err(e) = tag_index.save_tag_position(
-                                        &raw_namespace,
-                                        &raw_shard_name,
-                                        segment,
+                                    if let Err(e) = tag_index.save_tag_position( &segment_iden,
                                         tag,
                                         position,
                                     ) {
@@ -309,11 +294,7 @@ fn save_finish_build_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {
-    let key = finish_build_index(
-        &segment_iden.namespace,
-        &segment_iden.shard_name,
-        segment_iden.segment_seq,
-    );
+    let key = finish_build_index(segment_iden);
     Ok(rocksdb_engine_save(
         rocksdb_engine_handler.clone(),
         DB_COLUMN_FAMILY_INDEX,
@@ -326,11 +307,7 @@ fn is_finish_build_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
 ) -> Result<bool, JournalServerError> {
-    let key = finish_build_index(
-        &segment_iden.namespace,
-        &segment_iden.shard_name,
-        segment_iden.segment_seq,
-    );
+    let key = finish_build_index(segment_iden);
     Ok(rocksdb_engine_exists(
         rocksdb_engine_handler.clone(),
         DB_COLUMN_FAMILY_INDEX,
@@ -342,11 +319,7 @@ fn remove_last_offset_build_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {
-    let key = last_offset_build_index(
-        &segment_iden.namespace,
-        &segment_iden.shard_name,
-        segment_iden.segment_seq,
-    );
+    let key = last_offset_build_index(segment_iden);
     Ok(rocksdb_engine_delete(
         rocksdb_engine_handler.clone(),
         DB_COLUMN_FAMILY_INDEX,
@@ -358,11 +331,7 @@ fn save_last_offset_build_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {
-    let key = last_offset_build_index(
-        &segment_iden.namespace,
-        &segment_iden.shard_name,
-        segment_iden.segment_seq,
-    );
+    let key = last_offset_build_index(segment_iden);
     Ok(rocksdb_engine_save(
         rocksdb_engine_handler.clone(),
         DB_COLUMN_FAMILY_INDEX,
@@ -375,11 +344,7 @@ fn get_last_offset_build_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
 ) -> Result<Option<u64>, JournalServerError> {
-    let key = last_offset_build_index(
-        &segment_iden.namespace,
-        &segment_iden.shard_name,
-        segment_iden.segment_seq,
-    );
+    let key = last_offset_build_index(segment_iden);
     if let Some(res) =
         rocksdb_engine_get(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, key)?
     {

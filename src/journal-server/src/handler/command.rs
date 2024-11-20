@@ -31,8 +31,8 @@ use super::shard::ShardHandler;
 use crate::core::cache::CacheManager;
 use crate::core::error::get_journal_server_code;
 use crate::core::offset::OffsetManager;
-use crate::core::write::WriteManager;
 use crate::segment::manager::SegmentFileManager;
+use crate::segment::write::WriteManager;
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
 

@@ -12,83 +12,81 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub(crate) fn offset_segment_start(namespace: &str, shard_name: &str, segment: u32) -> String {
+use crate::segment::SegmentIdentity;
+
+pub(crate) fn offset_segment_start(segment_iden: &SegmentIdentity) -> String {
     format!(
         "/index/{}/{}/{}/offset/start",
-        namespace, shard_name, segment
+        segment_iden.namespace, segment_iden.shard_name, segment_iden.segment_seq,
     )
 }
 
-pub(crate) fn offset_segment_end(namespace: &str, shard_name: &str, segment: u32) -> String {
-    format!("/index/{}/{}/{}/offset/end", namespace, shard_name, segment)
+pub(crate) fn offset_segment_end(segment_iden: &SegmentIdentity) -> String {
+    format!(
+        "/index/{}/{}/{}/offset/end",
+        segment_iden.namespace, segment_iden.shard_name, segment_iden.segment_seq,
+    )
 }
 
-pub(crate) fn offset_segment_position(
-    namespace: &str,
-    shard_name: &str,
-    segment: u32,
-    offset: u64,
-) -> String {
+pub(crate) fn offset_segment_position(segment_iden: &SegmentIdentity, offset: u64) -> String {
     format!(
         "/index/{}/{}/{}/offset/position-{}",
-        namespace, shard_name, segment, offset
+        segment_iden.namespace, segment_iden.shard_name, segment_iden.segment_seq, offset
     )
 }
 
-pub(crate) fn timestamp_segment_start(namespace: &str, shard_name: &str, segment: u32) -> String {
+pub(crate) fn timestamp_segment_start(segment_iden: &SegmentIdentity) -> String {
     format!(
         "/index/{}/{}/{}/timestamp/start",
-        namespace, shard_name, segment
+        segment_iden.namespace, segment_iden.shard_name, segment_iden.segment_seq
     )
 }
 
-pub(crate) fn timestamp_segment_end(namespace: &str, shard_name: &str, segment: u32) -> String {
+pub(crate) fn timestamp_segment_end(segment_iden: &SegmentIdentity) -> String {
     format!(
         "/index/{}/{}/{}/timestamp/end",
-        namespace, shard_name, segment
+        segment_iden.namespace, segment_iden.shard_name, segment_iden.segment_seq
     )
 }
 
-pub(crate) fn timestamp_segment_time(
-    namespace: &str,
-    shard_name: &str,
-    segment: u32,
-    time_sec: u64,
-) -> String {
+pub(crate) fn timestamp_segment_time(segment_iden: &SegmentIdentity, time_sec: u64) -> String {
     format!(
         "/index/{}/{}/{}/timestamp/time-{}",
-        namespace, shard_name, segment, time_sec
+        segment_iden.namespace, segment_iden.shard_name, segment_iden.segment_seq, time_sec
     )
 }
 
-pub(crate) fn tag_segment(namespace: &str, shard_name: &str, segment: u32, tag: String) -> String {
+pub(crate) fn tag_segment(segment_iden: &SegmentIdentity, tag: String) -> String {
     format!(
         "/index/{}/{}/{}/tag/{}",
-        namespace, shard_name, segment, tag
+        segment_iden.namespace, segment_iden.shard_name, segment_iden.segment_seq, tag
     )
 }
 
-pub(crate) fn key_segment(namespace: &str, shard_name: &str, segment: u32, key: String) -> String {
+pub(crate) fn key_segment(segment_iden: &SegmentIdentity, key: String) -> String {
     format!(
         "/index/{}/{}/{}/key/{}",
-        namespace, shard_name, segment, key
+        segment_iden.namespace, segment_iden.shard_name, segment_iden.segment_seq, key
     )
 }
 
-pub(crate) fn finish_build_index(namespace: &str, shard_name: &str, segment: u32) -> String {
+pub(crate) fn finish_build_index(segment_iden: &SegmentIdentity) -> String {
     format!(
         "/index/{}/{}/{}/build/finish",
-        namespace, shard_name, segment
+        segment_iden.namespace, segment_iden.shard_name, segment_iden.segment_seq,
     )
 }
 
-pub(crate) fn last_offset_build_index(namespace: &str, shard_name: &str, segment: u32) -> String {
+pub(crate) fn last_offset_build_index(segment_iden: &SegmentIdentity) -> String {
     format!(
         "/index/{}/{}/{}/build/last/offset",
-        namespace, shard_name, segment
+        segment_iden.namespace, segment_iden.shard_name, segment_iden.segment_seq,
     )
 }
 
-pub(crate) fn segment_index_prefix(namespace: &str, shard_name: &str, segment: u32) -> String {
-    format!("/index/{}/{}/{}/", namespace, shard_name, segment)
+pub(crate) fn segment_index_prefix(segment_iden: &SegmentIdentity) -> String {
+    format!(
+        "/index/{}/{}/{}/",
+        segment_iden.namespace, segment_iden.shard_name, segment_iden.segment_seq,
+    )
 }

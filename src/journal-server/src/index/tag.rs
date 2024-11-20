@@ -20,6 +20,7 @@ use rocksdb_engine::RocksDBEngine;
 use super::keys::{key_segment, tag_segment};
 use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
 use crate::core::error::JournalServerError;
+use crate::segment::SegmentIdentity;
 
 pub struct TagIndexManager {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -34,13 +35,11 @@ impl TagIndexManager {
 
     pub fn save_tag_position(
         &self,
-        namespace: &str,
-        shard_name: &str,
-        segment: u32,
+        segment_iden: &SegmentIdentity,
         tag: String,
         position: u64,
     ) -> Result<(), JournalServerError> {
-        let key = tag_segment(namespace, shard_name, segment, tag);
+        let key = tag_segment(segment_iden, tag);
         Ok(rocksdb_engine_save(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
@@ -51,12 +50,10 @@ impl TagIndexManager {
 
     pub fn get_tag_position(
         &self,
-        namespace: &str,
-        shard_name: &str,
-        segment: u32,
+        segment_iden: &SegmentIdentity,
         tag: String,
     ) -> Result<u64, JournalServerError> {
-        let key = tag_segment(namespace, shard_name, segment, tag);
+        let key = tag_segment(segment_iden, tag);
         if let Some(res) = rocksdb_engine_get(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
@@ -70,13 +67,11 @@ impl TagIndexManager {
 
     pub fn save_key_position(
         &self,
-        namespace: &str,
-        shard_name: &str,
-        segment: u32,
+        segment_iden: &SegmentIdentity,
         key: String,
         position: u64,
     ) -> Result<(), JournalServerError> {
-        let key = key_segment(namespace, shard_name, segment, key);
+        let key = key_segment(segment_iden, key);
         Ok(rocksdb_engine_save(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
@@ -87,12 +82,10 @@ impl TagIndexManager {
 
     pub fn get_key_position(
         &self,
-        namespace: &str,
-        shard_name: &str,
-        segment: u32,
+        segment_iden: &SegmentIdentity,
         key: String,
     ) -> Result<u64, JournalServerError> {
-        let key = key_segment(namespace, shard_name, segment, key);
+        let key = key_segment(segment_iden, key);
         if let Some(res) = rocksdb_engine_get(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,

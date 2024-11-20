@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use metadata_struct::journal::segment::segment_name;
+
 pub mod file;
 pub mod fold;
 pub mod manager;
 pub mod read;
-pub mod status;
+pub mod scroll;
+pub mod write;
 
 #[derive(Clone)]
 pub struct SegmentIdentity {
@@ -27,9 +30,6 @@ pub struct SegmentIdentity {
 
 impl SegmentIdentity {
     pub fn name(&self) -> String {
-        format!(
-            "{},{},{}",
-            self.namespace, self.shard_name, self.segment_seq
-        )
+        segment_name(&self.namespace, &self.shard_name, self.segment_seq)
     }
 }

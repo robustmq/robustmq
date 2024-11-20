@@ -23,9 +23,9 @@ use protocol::journal_server::journal_engine::{
 use crate::core::cache::CacheManager;
 use crate::core::error::{get_journal_server_code, JournalServerError};
 use crate::core::offset::OffsetManager;
-use crate::core::write::{write_data, WriteManager};
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::read::read_data;
+use crate::segment::write::{write_data, WriteManager};
 
 #[derive(Clone)]
 pub struct DataHandler {

@@ -15,7 +15,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use common_base::config::journal_server::journal_server_conf;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
@@ -31,12 +30,13 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::sync::{broadcast, oneshot};
 use tokio::time::timeout;
 
-use super::cache::CacheManager;
-use super::error::{get_journal_server_code, JournalServerError};
+use crate::core::cache::CacheManager;
+use crate::core::error::{get_journal_server_code, JournalServerError};
+use crate::core::segment_meta::update_meta_start_timestamp;
 use crate::index::build::try_trigger_build_index;
-use crate::segment::file::SegmentFile;
+use crate::segment::file::{open_segment_write, SegmentFile};
 use crate::segment::manager::SegmentFileManager;
-use crate::segment::status::segment_status_to_sealup;
+use crate::segment::scroll::segment_status_to_sealup;
 use crate::segment::SegmentIdentity;
 
 #[derive(Clone)]
@@ -227,6 +227,7 @@ async fn start_segment_sync_write_thread(
                                         &packet,
                                         &segment_write,
                                         &segment_file_manager,
+                                        &client_pool,
                                         local_segment_end_offset as u64).await
                                     {
                                         Ok(resp_data) =>{
@@ -264,11 +265,14 @@ async fn batch_write_segment(
     packet: &SegmentWriteData,
     segment_write: &SegmentFile,
     segment_file_manager: &Arc<SegmentFileManager>,
+    client_pool: &Arc<ClientPool>,
     mut local_segment_end_offset: u64,
 ) -> Result<SegmentWriteResp, JournalServerError> {
-    let namespace = &segment_write.namespace;
-    let shard_name = &segment_write.shard_name;
-    let segment_no = segment_write.segment_no;
+    let segment_iden = SegmentIdentity {
+        namespace: segment_write.namespace.clone(),
+        shard_name: segment_write.shard_name.clone(),
+        segment_seq: segment_write.segment_no,
+    };
 
     let mut resp = SegmentWriteResp::default();
 
@@ -287,15 +291,15 @@ async fn batch_write_segment(
         Ok(positions) => {
             if let Some(first_posi) = positions.first() {
                 if *first_posi == 0 {
-                    // update local file start offset
-                    segment_file_manager.update_start_offset(
-                        namespace,
-                        shard_name,
-                        segment_no,
+                    let first_record = records.first().unwrap();
+                    segment_position0_ac(
+                        segment_file_manager,
+                        client_pool,
+                        &segment_iden,
                         *first_posi as i64,
-                    )?;
-
-                    // update segment data starttime
+                        first_record.create_time,
+                    )
+                    .await?;
                 }
             }
 
@@ -308,15 +312,28 @@ async fn batch_write_segment(
 
     // update local segment file end offset
     if let Some(end_offset) = offsets.last() {
-        segment_file_manager.update_end_offset(
-            namespace,
-            shard_name,
-            segment_no,
-            *end_offset as i64,
-        )?;
+        segment_file_manager.update_end_offset(&segment_iden, *end_offset as i64)?;
     }
 
     Ok(resp)
+}
+
+async fn segment_position0_ac(
+    segment_file_manager: &Arc<SegmentFileManager>,
+    client_pool: &Arc<ClientPool>,
+    segment_iden: &SegmentIdentity,
+    first_posi: i64,
+    timestamp: u64,
+) -> Result<(), JournalServerError> {
+    // update local file start offset
+    segment_file_manager.update_start_offset(segment_iden, first_posi)?;
+
+    // update local file start timestamp
+    segment_file_manager.update_start_timestamp(segment_iden, timestamp)?;
+
+    // update meta start timestamp
+    update_meta_start_timestamp(client_pool.clone(), segment_iden, timestamp).await?;
+    Ok(())
 }
 
 async fn is_sealup_segment(
@@ -360,43 +377,6 @@ async fn is_sealup_segment(
         return Ok(true);
     }
     Ok(false)
-}
-
-pub async fn open_segment_write(
-    cache_manager: Arc<CacheManager>,
-    namespace: &str,
-    shard_name: &str,
-    segment_no: u32,
-) -> Result<(SegmentFile, u64), JournalServerError> {
-    let segment =
-        if let Some(segment) = cache_manager.get_segment(namespace, shard_name, segment_no) {
-            segment
-        } else {
-            return Err(JournalServerError::SegmentNotExist(
-                shard_name.to_string(),
-                segment_no,
-            ));
-        };
-
-    let conf = journal_server_conf();
-    let fold = if let Some(fold) = segment.get_fold(conf.node_id) {
-        fold
-    } else {
-        return Err(JournalServerError::SegmentDataDirectoryNotFound(
-            format!("{}-{}", shard_name, segment_no),
-            conf.node_id,
-        ));
-    };
-
-    Ok((
-        SegmentFile::new(
-            namespace.to_string(),
-            shard_name.to_string(),
-            segment_no,
-            fold,
-        ),
-        segment.config.max_segment_size,
-    ))
 }
 
 pub async fn write_data(

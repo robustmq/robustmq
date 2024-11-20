@@ -18,22 +18,21 @@ use std::time::Duration;
 use common_base::config::journal_server::journal_server_conf;
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use grpc_clients::placement::journal::call::{
-    create_next_segment, update_segment_meta, update_segment_status,
-};
+use grpc_clients::placement::journal::call::{create_next_segment, update_segment_status};
 use grpc_clients::pool::ClientPool;
 use log::{error, warn};
 use metadata_struct::journal::segment::{segment_name, SegmentStatus};
 use protocol::placement_center::placement_center_journal::{
-    CreateNextSegmentRequest, UpdateSegmentMetaRequest, UpdateSegmentStatusRequest,
+    CreateNextSegmentRequest, UpdateSegmentStatusRequest,
 };
 use tokio::time::sleep;
 
+use super::file::open_segment_write;
 use super::manager::SegmentFileManager;
 use super::SegmentIdentity;
 use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
-use crate::core::write::open_segment_write;
+use crate::core::segment_meta::{update_meta_end_offset, update_meta_start_offset};
 
 pub struct SegmentScrollManager {
     cache_manager: Arc<CacheManager>,
@@ -118,12 +117,9 @@ impl SegmentScrollManager {
 
                 // 90%
                 if self.percentage50_cache.get(&key).is_none() && file_size / max_size > 90 {
-                    if let Some(current_end_offset) =
-                        self.segment_file_manager.get_segment_end_offset(
-                            &segment_iden.namespace,
-                            &segment_iden.shard_name,
-                            segment_iden.segment_seq,
-                        )
+                    if let Some(current_end_offset) = self
+                        .segment_file_manager
+                        .get_segment_end_offset(&segment_iden)
                     {
                         // update active/next segment status
                         if let Err(e) = segment_status_to_pre_sealup(
@@ -168,6 +164,7 @@ impl SegmentScrollManager {
     }
 
     async fn calc_end_offset(&self) -> u64 {
+        // todo
         10000
     }
 }
@@ -203,12 +200,13 @@ pub async fn segment_status_to_sealup(
             next_status: SegmentStatus::SealUp.to_string(),
         };
         update_segment_status(client_pool.clone(), conf.placement_center.clone(), request).await?;
+
+        // update meta last timestamp
+        // todo
     } else {
         warn!("Segment {} enters the sealup state, but the current Segment is not found, possibly because the Status checking thread is not running.",
         segment_name(namespace, shard_name, segment_no));
     }
-
-    // update meta end timestamp
 
     // next segment to Write
     let next_segment_no = segment_no + 1;
@@ -240,7 +238,7 @@ pub async fn segment_status_to_sealup(
     Ok(())
 }
 
-pub async fn segment_status_to_pre_sealup(
+async fn segment_status_to_pre_sealup(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     cluster_name: String,
@@ -297,7 +295,7 @@ pub async fn segment_status_to_pre_sealup(
     Ok(())
 }
 
-pub async fn segment_meta_to_pre_sealup(
+async fn segment_meta_to_pre_sealup(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     cluster_name: String,
@@ -306,30 +304,10 @@ pub async fn segment_meta_to_pre_sealup(
     end_offset: u64,
 ) -> Result<(), JournalServerError> {
     // update active segment end offset
-    let request = UpdateSegmentMetaRequest {
-        cluster_name: cluster_name.clone(),
-        namespace: segment_iden.namespace.clone(),
-        shard_name: segment_iden.shard_name.clone(),
-        segment_no: segment_iden.segment_seq,
-        start_offset: -1,
-        end_offset: end_offset as i64,
-        start_timestamp: -1,
-        end_timestamp: -1,
-    };
-    update_segment_meta(client_pool.clone(), addrs.clone(), request).await?;
+    update_meta_end_offset(client_pool.clone(), segment_iden, end_offset).await?;
 
     // update next segment start offset
     let next_segment_no = segment_iden.segment_seq + 1;
-    let request = UpdateSegmentMetaRequest {
-        cluster_name: cluster_name.clone(),
-        namespace: segment_iden.namespace.clone(),
-        shard_name: segment_iden.shard_name.clone(),
-        segment_no: next_segment_no,
-        start_offset: (end_offset + 1) as i64,
-        end_offset: -1,
-        start_timestamp: -1,
-        end_timestamp: -1,
-    };
-    update_segment_meta(client_pool.clone(), addrs.clone(), request).await?;
+    update_meta_start_offset(client_pool.clone(), segment_iden, end_offset + 1).await?;
     Ok(())
 }

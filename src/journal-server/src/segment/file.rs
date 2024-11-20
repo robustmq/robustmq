@@ -14,8 +14,10 @@
 
 use std::fs::remove_dir_all;
 use std::io::ErrorKind;
+use std::sync::Arc;
 
 use bytes::BytesMut;
+use common_base::config::journal_server::journal_server_conf;
 use common_base::tools::{file_exists, try_create_fold};
 use prost::Message;
 use protocol::journal_server::journal_record::JournalRecord;
@@ -23,12 +25,50 @@ use tokio::fs::{self, File, OpenOptions};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 use super::fold::{data_file_segment, data_fold_shard};
+use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
 
 #[derive(Debug, Clone)]
 pub struct ReadData {
     pub position: u64,
     pub record: JournalRecord,
+}
+
+pub async fn open_segment_write(
+    cache_manager: Arc<CacheManager>,
+    namespace: &str,
+    shard_name: &str,
+    segment_no: u32,
+) -> Result<(SegmentFile, u64), JournalServerError> {
+    let segment =
+        if let Some(segment) = cache_manager.get_segment(namespace, shard_name, segment_no) {
+            segment
+        } else {
+            return Err(JournalServerError::SegmentNotExist(
+                shard_name.to_string(),
+                segment_no,
+            ));
+        };
+
+    let conf = journal_server_conf();
+    let fold = if let Some(fold) = segment.get_fold(conf.node_id) {
+        fold
+    } else {
+        return Err(JournalServerError::SegmentDataDirectoryNotFound(
+            format!("{}-{}", shard_name, segment_no),
+            conf.node_id,
+        ));
+    };
+
+    Ok((
+        SegmentFile::new(
+            namespace.to_string(),
+            shard_name.to_string(),
+            segment_no,
+            fold,
+        ),
+        segment.config.max_segment_size,
+    ))
 }
 
 #[derive(Default)]

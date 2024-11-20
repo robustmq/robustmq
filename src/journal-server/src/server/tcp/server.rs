@@ -22,9 +22,9 @@ use tokio::sync::{broadcast, mpsc};
 
 use crate::core::cache::CacheManager;
 use crate::core::offset::OffsetManager;
-use crate::core::write::WriteManager;
 use crate::handler::command::Command;
 use crate::segment::manager::SegmentFileManager;
+use crate::segment::write::WriteManager;
 use crate::server::connection::NetworkConnectionType;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::{RequestPackage, ResponsePackage};

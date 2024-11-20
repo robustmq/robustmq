@@ -26,6 +26,7 @@ use super::cache::CacheManager;
 use super::error::JournalServerError;
 use crate::segment::fold::data_file_segment;
 use crate::segment::manager::SegmentFileManager;
+use crate::segment::SegmentIdentity;
 
 pub fn delete_local_segment(
     cache_manager: Arc<CacheManager>,
@@ -63,11 +64,12 @@ pub fn delete_local_segment(
         cache_manager.delete_segment(&segment);
 
         // delete segment file manager
-        segment_file_manager.remove_segment_file(
-            &segment.namespace,
-            &segment.shard_name,
-            segment.segment_seq,
-        );
+        let segment_iden = SegmentIdentity {
+            namespace: segment.namespace.clone(),
+            shard_name: segment.shard_name.clone(),
+            segment_seq: segment.segment_seq,
+        };
+        segment_file_manager.remove_segment_file(&segment_iden);
     });
     Ok(())
 }
