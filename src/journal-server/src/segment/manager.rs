@@ -84,6 +84,22 @@ impl SegmentFileManager {
         None
     }
 
+    pub fn update_start_offset(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        segment: u32,
+        start_offset: i64,
+    ) -> Result<(), JournalServerError> {
+        let key = self.key(namespace, shard_name, segment);
+        if let Some(mut data) = self.segment_files.get_mut(&key) {
+            data.start_offset = start_offset;
+            let offset_index = OffsetIndexManager::new(self.rocksdb_engine_handler.clone());
+            offset_index.save_end_offset(namespace, shard_name, segment, data.end_offset as u64)?;
+        }
+        Ok(())
+    }
+
     pub fn update_end_offset(
         &self,
         namespace: &str,
@@ -211,16 +227,16 @@ pub async fn try_create_local_segment(
         shard_name: segment.shard_name.clone(),
         segment_seq: segment.segment_seq,
     };
+
     if segment_file_manager
         .get_segment_file(&segment_iden)
         .is_none()
     {
-        let start_offset = if segment.segment_seq == 0 { 0 } else { -1 };
         let segment_metadata = SegmentFileMetadata {
             namespace: segment.namespace.clone(),
             shard_name: segment.shard_name.clone(),
             segment_no: segment.segment_seq,
-            start_offset,
+            start_offset: -1,
             end_offset: -1,
         };
         segment_file_manager.add_segment_file(segment_metadata);

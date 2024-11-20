@@ -284,7 +284,21 @@ async fn batch_write_segment(
 
     // batch write data
     match segment_write.write(&records).await {
-        Ok(()) => {
+        Ok(positions) => {
+            if let Some(first_posi) = positions.first() {
+                if *first_posi == 0 {
+                    // update local file start offset
+                    segment_file_manager.update_start_offset(
+                        namespace,
+                        shard_name,
+                        segment_no,
+                        *first_posi as i64,
+                    )?;
+
+                    // update segment data starttime
+                }
+            }
+
             resp.offset = offsets.clone();
         }
         Err(e) => {
@@ -328,8 +342,12 @@ async fn is_sealup_segment(
             )));
         };
 
-    if segment_meta.end_offset > -1
-        && (local_segment_end_offset + packet_len) > segment_meta.end_offset as u64
+    // check file size
+    let file_size = (segment_write.size().await).unwrap_or_default();
+
+    if (segment_meta.end_offset > -1
+        && (local_segment_end_offset + packet_len) > segment_meta.end_offset as u64)
+        || file_size >= max_file_size
     {
         segment_status_to_sealup(
             cache_manager,
@@ -341,21 +359,6 @@ async fn is_sealup_segment(
         .await?;
         return Ok(true);
     }
-
-    // check file size
-    let file_size = (segment_write.size().await).unwrap_or_default();
-    if file_size >= max_file_size {
-        segment_status_to_sealup(
-            cache_manager,
-            client_pool,
-            namespace,
-            shard_name,
-            segment_no,
-        )
-        .await?;
-        return Ok(true);
-    }
-
     Ok(false)
 }
 

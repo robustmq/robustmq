@@ -25,9 +25,11 @@ use protocol::journal_server::journal_inner::{
 use super::cache::CacheManager;
 use super::error::JournalServerError;
 use crate::segment::fold::data_file_segment;
+use crate::segment::manager::SegmentFileManager;
 
 pub fn delete_local_segment(
     cache_manager: Arc<CacheManager>,
+    segment_file_manager: Arc<SegmentFileManager>,
     req: DeleteSegmentFileRequest,
 ) -> Result<(), JournalServerError> {
     let segment = if let Some(segment) =
@@ -42,10 +44,7 @@ pub fn delete_local_segment(
     };
 
     tokio::spawn(async move {
-        // delete index
-        //todo
-        
-        // delete file
+        // delete local file
         let conf = journal_server_conf();
         let data_fold = if let Some(fold) = segment.get_fold(conf.node_id) {
             fold
@@ -62,6 +61,13 @@ pub fn delete_local_segment(
 
         // delete segment
         cache_manager.delete_segment(&segment);
+
+        // delete segment file manager
+        segment_file_manager.remove_segment_file(
+            &segment.namespace,
+            &segment.shard_name,
+            segment.segment_seq,
+        );
     });
     Ok(())
 }

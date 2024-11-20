@@ -68,20 +68,23 @@ impl SegmentFile {
         Ok(remove_dir_all(segment_file)?)
     }
 
-    pub async fn write(&self, records: &[JournalRecord]) -> Result<(), JournalServerError> {
+    pub async fn write(&self, records: &[JournalRecord]) -> Result<Vec<u64>, JournalServerError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = OpenOptions::new().append(true).open(segment_file).await?;
         let mut writer = tokio::io::BufWriter::new(file);
 
+        let mut results = Vec::new();
         for record in records {
+            let position = writer.stream_position().await?;
             let data = JournalRecord::encode_to_vec(record);
             writer.write_u64(record.offset).await?;
             writer.write_u32(data.len() as u32).await?;
             writer.write_all(data.as_ref()).await?;
+            results.push(position);
         }
 
         writer.flush().await?;
-        Ok(())
+        Ok(results)
     }
 
     pub async fn size(&self) -> Result<u64, JournalServerError> {
@@ -194,7 +197,7 @@ mod tests {
                 tags: vec![],
             };
             match segment.write(&[record.clone()]).await {
-                Ok(()) => {}
+                Ok(_) => {}
                 Err(e) => {
                     panic!("{:?}", e);
                 }
