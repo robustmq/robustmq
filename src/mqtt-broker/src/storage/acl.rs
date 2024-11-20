@@ -17,13 +17,12 @@ use std::sync::Arc;
 use bincode::serialize;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
-use grpc_clients::placement::mqtt::call::{create_acl, delete_acl, list_acl};
+use grpc_clients::placement::mqtt::call::{placement_create_acl, placement_delete_acl, placement_list_acl};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclRequest, DeleteAclRequest, ListAclRequest,
 };
-use tonic::Status;
 
 pub struct AclStorage {
     client_pool: Arc<ClientPool>,
@@ -39,7 +38,7 @@ impl AclStorage {
         let request = ListAclRequest {
             cluster_name: config.cluster_name.clone(),
         };
-        match list_acl(
+        match placement_list_acl(
             self.client_pool.clone(),
             config.placement_center.clone(),
             request,
@@ -65,7 +64,7 @@ impl AclStorage {
             acl: value,
         };
 
-        match create_acl(
+        match placement_create_acl(
             self.client_pool.clone(),
             config.placement_center.clone(),
             request,
@@ -85,7 +84,7 @@ impl AclStorage {
             acl: value,
         };
 
-        match delete_acl(
+        match placement_delete_acl(
             self.client_pool.clone(),
             config.placement_center.clone(),
             request,

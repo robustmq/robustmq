@@ -331,7 +331,7 @@ pub async fn placement_save_last_will_message(
     }
 }
 
-pub async fn list_acl(
+pub async fn placement_list_acl(
     client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ListAclRequest,
@@ -354,7 +354,7 @@ pub async fn list_acl(
     }
 }
 
-pub async fn create_acl(
+pub async fn placement_create_acl(
     client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: CreateAclRequest,
@@ -377,7 +377,7 @@ pub async fn create_acl(
     }
 }
 
-pub async fn delete_acl(
+pub async fn placement_delete_acl(
     client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteAclRequest,

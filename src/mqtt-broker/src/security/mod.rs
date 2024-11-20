@@ -27,7 +27,7 @@ use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use login::plaintext::Plaintext;
 use login::Authentication;
-use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclAction};
+use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclAction, MqttAclResourceType};
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::user::MqttUser;
 use mysql::MySQLAuthStorageAdapter;
@@ -154,7 +154,7 @@ impl AuthDriver {
         for entry in all_users.iter() {
             let user = entry.value().clone();
             self.cache_manager.add_user(user);
-        }
+        };
 
         let db_usernames: HashSet<String> =
             all_users.iter().map(|user| user.key().clone()).collect();
@@ -197,6 +197,28 @@ impl AuthDriver {
             }
             Err(e) => Err(e),
         }
+    }
+
+    pub async fn update_acl_cache(&self) -> Result<(), CommonError> {
+        let all_acls: Vec<MqttAcl> = self.driver.read_all_acl().await?;
+
+        for acl in all_acls.clone() {
+            self.cache_manager.add_acl(acl.clone());
+        };
+
+        let mut user_acl = HashSet::new();
+        let mut client_acl = HashSet::new();
+
+
+        for acl in all_acls.clone() {
+            match acl.resource_type {
+                MqttAclResourceType::User => user_acl.insert(acl.resource_name.clone()),
+                MqttAclResourceType::ClientId => client_acl.insert(acl.resource_name.clone()),
+            };
+        };
+        self.cache_manager.retain_acls(user_acl, client_acl);
+
+        Ok(())
     }
 
     pub async fn allow_publish(

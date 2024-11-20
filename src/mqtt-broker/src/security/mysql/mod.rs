@@ -15,7 +15,7 @@
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use metadata_struct::acl::mqtt_acl::MqttAcl;
+use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType};
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::user::MqttUser;
 use mysql::prelude::Queryable;
@@ -42,6 +42,10 @@ impl MySQLAuthStorageAdapter {
 
     fn table_user(&self) -> String {
         "mqtt_user".to_string()
+    }
+
+    fn table_acl(&self) -> String {
+        "mqtt_acl".to_string()
     }
 }
 
@@ -108,7 +112,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                     user_info.password,
                     user_info.is_superuser as i32,
                 );
-                let _data: Vec<(String, String, Option<String>, u8, Option<String>)> =
+                let _data: Vec<(String, String, Option<String>, u8)> =
                     conn.query(sql).unwrap();
                 return Ok(());
             }
@@ -137,15 +141,102 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
     }
 
     async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, CommonError> {
-        return Ok(Vec::new());
+        match self.pool.get_conn() {
+            Ok(mut conn) => {
+                let sql = format!(
+                    "select allow, ipaddr, username, clientid, access, topic from {}",
+                    self.table_acl()
+                );
+                let data: Vec<(u8, String, Option<String>, Option<String>, u8, Option<String>)> =
+                    conn.query(sql).unwrap();
+                let mut results = Vec::new();
+                for raw in data {
+                    let acl = MqttAcl {
+                        permission: match raw.0 {
+                            0 => MqttAclPermission::Deny,
+                            1 => MqttAclPermission::Allow,
+                            _ => return Err(CommonError::CommmonError("invalid acl permission".to_string())),
+                        },
+                        resource_type: match raw.2.clone() {
+                            Some(_) => MqttAclResourceType::User,
+                            None => MqttAclResourceType::ClientId,
+                        },
+                        resource_name: raw.2.clone().unwrap_or(raw.3.clone().unwrap()),
+                        topic: raw.5.clone().unwrap_or(String::new()),
+                        ip: raw.1.clone(),
+                        action: match raw.4 {
+                            0 => MqttAclAction::All,
+                            1 => MqttAclAction::Subscribe,
+                            2 => MqttAclAction::Publish,
+                            3 => MqttAclAction::PubSub,
+                            4 => MqttAclAction::Retain,
+                            5 => MqttAclAction::Qos,
+                            _ => return Err(CommonError::CommmonError("invalid acl action".to_string())),
+                        }
+                    };
+                    results.push(acl);
+                }
+                return Ok(results);
+            }
+            Err(e) => {
+                return Err(CommonError::CommmonError(e.to_string()));
+            }
+        }
     }
 
     async fn save_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
-        return Ok(());
+        let allow: u8 = match acl.permission {
+            MqttAclPermission::Allow => 1,
+            MqttAclPermission::Deny => 0,
+        };
+        let (username, clientid) = match acl.resource_type.clone() {
+            MqttAclResourceType::ClientId => (String::new(), acl.resource_name),
+            MqttAclResourceType::User => (acl.resource_name, String::new()),
+        };
+        let access: u8 = match acl.action {
+            MqttAclAction::All => 0,
+            MqttAclAction::Subscribe => 1,
+            MqttAclAction::Publish => 2,
+            MqttAclAction::PubSub => 3,
+            MqttAclAction::Retain => 4,
+            MqttAclAction::Qos => 5,
+        };
+        match self.pool.get_conn() {
+            Ok(mut conn) => {
+                let sql = format!(
+                    "insert into {} (allow, ipaddr, username, clientid, access, topic) values ('{}', '{}', '{}', '{}', '{}', '{}');",
+                    self.table_acl(),
+                    allow,
+                    acl.ip,
+                    username,
+                    clientid,
+                    access,
+                    acl.topic,
+                );
+                let _data: Vec<(u8, String, Option<String>, Option<String>, u8, Option<String>)> =
+                    conn.query(sql).unwrap();
+                return Ok(());
+            }
+            Err(e) => {
+                return Err(CommonError::CommmonError(e.to_string()));
+            }
+        }
     }
 
     async fn delete_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
-        return Ok(());
+        match self.pool.get_conn() {
+            Ok(mut conn) => {
+                let sql = match acl.resource_type.clone() {
+                    MqttAclResourceType::ClientId => format!("delete from {} where clientid = '{}';", self.table_acl(), acl.resource_name),
+                    MqttAclResourceType::User => format!("delete from {} where username = '{}';", self.table_acl(), acl.resource_name),
+                };
+                let _data: Vec<(u8, String, Option<String>, Option<String>, u8, Option<String>)> = conn.query(sql).unwrap();
+                return Ok(());
+            }
+            Err(e) => {
+                return Err(CommonError::CommmonError(e.to_string()));
+            }
+        }
     }
 
     async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, CommonError> {
