@@ -1,0 +1,23 @@
+syntax = "proto3";
+package broker.mqtt.connection;
+service MQTTBrokerConnectionService {
+
+  rpc mqtt_broker_list_connection(ListConnectionRequest) returns(ListConnectionReply){}
+
+}
+
+message ClusterStatusRequest{
+
+}
+message ClusterStatusReply{
+  string cluster_name = 1;
+  repeated string nodes = 2;
+}
+
+message ListConnectionRequest{
+
+}
+
+message ListConnectionReply{
+  repeated bytes connections = 1;
+}

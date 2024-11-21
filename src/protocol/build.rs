@@ -30,6 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &[
             "src/broker_mqtt/proto/admin.proto",
             "src/broker_mqtt/proto/placement.proto",
+            "src/broker_mqtt/proto/connection.proto",
         ],
         &["src/broker_mqtt/proto"], // specify the root location to search proto dependencies
     )?;

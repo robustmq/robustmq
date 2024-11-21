@@ -12,17 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(any(), rustfmt::skip)]
-#![allow(clippy::all)]
 
-pub mod broker_mqtt_admin {
-    tonic::include_proto!("broker.mqtt.admin");
-}
-
-pub mod broker_mqtt_placement {
-    tonic::include_proto!("broker.mqtt.placement");
-}
-
-pub mod broker_mqtt_connection {
-    tonic::include_proto!("broker.mqtt.connection");
-}

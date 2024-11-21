@@ -12,17 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(any(), rustfmt::skip)]
-#![allow(clippy::all)]
+use std::sync::Arc;
 
-pub mod broker_mqtt_admin {
-    tonic::include_proto!("broker.mqtt.admin");
+use common_base::error::common::CommonError;
+use mobc::Connection;
+
+use crate::mqtt::admin::MqttBrokerAdminServiceManager;
+use crate::pool::ClientPool;
+
+mod call;
+mod inner;
+
+async fn connection_client(
+    client_pool: Arc<ClientPool>,
+    addr: String,
+) -> Result<Connection<MqttBrokerConnectionServiceManager>, CommonError> {
+    todo!();
 }
 
-pub mod broker_mqtt_placement {
-    tonic::include_proto!("broker.mqtt.placement");
+#[derive(Clone)]
+pub struct MqttBrokerConnectionServiceManager {
+    pub addr: String,
 }
 
-pub mod broker_mqtt_connection {
-    tonic::include_proto!("broker.mqtt.connection");
+impl MqttBrokerAdminServiceManager {
+    pub fn new(addr: String) -> Self {
+        Self { addr }
+    }
 }

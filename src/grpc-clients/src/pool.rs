@@ -20,6 +20,7 @@ use mobc::{Connection, Pool};
 use crate::journal::admin::JournalAdminServiceManager;
 use crate::journal::inner::JournalInnerServiceManager;
 use crate::mqtt::admin::MqttBrokerAdminServiceManager;
+use crate::mqtt::connection::MqttBrokerConnectionServiceManager;
 use crate::mqtt::placement::MqttBrokerPlacementServiceManager;
 use crate::placement::journal::JournalServiceManager;
 use crate::placement::kv::KvServiceManager;
@@ -40,6 +41,7 @@ pub struct ClientPool {
     // mqtt broker
     mqtt_broker_placement_service_pools: DashMap<String, Pool<MqttBrokerPlacementServiceManager>>,
     mqtt_broker_admin_service_pools: DashMap<String, Pool<MqttBrokerAdminServiceManager>>,
+    mqtt_broker_connection_service_pools: DashMap<String, Pool<MqttBrokerConnectionServiceManager>>,
 
     // journal engine
     journal_admin_service_pools: DashMap<String, Pool<JournalAdminServiceManager>>,

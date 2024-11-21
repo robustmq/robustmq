@@ -22,6 +22,7 @@ use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListUserRequest,
 };
+use protocol::broker_mqtt::broker_mqtt_connection::ListConnectionRequest;
 
 use crate::{error_info, grpc_addr};
 
@@ -34,9 +35,14 @@ pub struct MqttCliCommandParam {
 #[derive(Clone)]
 pub enum MqttActionType {
     Status,
+
+    // User admin
     CreateUser(CreateUserRequest),
     DeleteUser(DeleteUserRequest),
     ListUser,
+
+    // connection
+    ListConnection,
 }
 
 pub struct MqttBrokerCommand {}
@@ -68,6 +74,10 @@ impl MqttBrokerCommand {
             }
             MqttActionType::ListUser => {
                 self.list_user(client_pool.clone(), params.clone()).await;
+            }
+            MqttActionType::ListConnection => {
+                self.list_connections(client_pool.clone(), params.clone())
+                    .await;
             }
         }
     }
@@ -142,6 +152,15 @@ impl MqttBrokerCommand {
                 println!("MQTT broker list user exception");
                 error_info(e.to_string());
             }
+        }
+    }
+
+    async fn list_connections(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
+        let request = ListConnectionRequest {};
+        match mqtt_broker_list_connection(client_pool.clone(), grpc_addr(params.server), request)
+            .await
+        {
+            _ => {}
         }
     }
 }

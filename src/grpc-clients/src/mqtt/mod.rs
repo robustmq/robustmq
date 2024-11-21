@@ -28,6 +28,7 @@ use crate::{retry_sleep_time, retry_times};
 pub enum MqttBrokerService {
     Placement,
     Admin,
+    Connection,
 }
 
 #[derive(Clone, Debug)]
@@ -42,9 +43,13 @@ pub enum MqttBrokerPlacementInterface {
     ListUser,
     CreateUser,
     DeleteUser,
+
+    // connection
+    ListConnection,
 }
 
 pub mod admin;
+pub mod connection;
 pub mod placement;
 
 async fn retry_call(
@@ -81,6 +86,9 @@ async fn retry_call(
                     request.clone(),
                 )
                 .await
+            }
+            MqttBrokerService::Connection => {
+                todo!()
             }
         };
 
