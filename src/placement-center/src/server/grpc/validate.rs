@@ -17,7 +17,7 @@ use std::net::{IpAddr, SocketAddr};
 use common_base::error::common::CommonError;
 use protocol::placement_center::placement_center_inner::{
     ClusterType, DeleteIdempotentDataRequest, RegisterNodeRequest, SetIdempotentDataRequest,
-    SetResourceConfigRequest, UnRegisterNodeRequest,
+    GetResourceConfigRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };
 use tonic::Status;
 
@@ -123,6 +123,24 @@ impl ValidateExt for SetResourceConfigRequest {
                 CommonError::ParameterCannotBeNull("cluster name".to_string()).to_string(),
             ));
         }
+        Ok(())
+    }
+}
+
+impl ValidateExt for GetResourceConfigRequest {
+    fn validate_ext(&self) -> Result<(), Status> {
+        if self.cluster_name.is_empty() {
+            return Err(Status::cancelled(
+                CommonError::ParameterCannotBeNull("cluster name".to_string()).to_string(),
+            ));
+        }
+        
+        if self.resources.is_empty() {
+            return Err(Status::cancelled(
+                CommonError::ParameterCannotBeNull("resources".to_string()).to_string(),
+            ));
+        }
+        
         Ok(())
     }
 }
