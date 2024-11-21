@@ -239,7 +239,7 @@ impl PlacementCenterService for GrpcPlacementService {
     ) -> Result<Response<GetResourceConfigReply>, Status> {
         let req = request.into_inner();
         let _ = req.validate_ext()?;
-        
+
         let storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
         match storage.get(req.cluster_name, req.resources) {
             Ok(data) => {

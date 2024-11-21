@@ -16,8 +16,8 @@ use std::net::{IpAddr, SocketAddr};
 
 use common_base::error::common::CommonError;
 use protocol::placement_center::placement_center_inner::{
-    ClusterType, DeleteIdempotentDataRequest, RegisterNodeRequest, SetIdempotentDataRequest,
-    GetResourceConfigRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
+    ClusterType, DeleteIdempotentDataRequest, GetResourceConfigRequest, RegisterNodeRequest,
+    SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };
 use tonic::Status;
 

@@ -17,11 +17,13 @@ mod tests {
     use std::sync::Arc;
 
     use grpc_clients::placement::placement::call::{
-        cluster_status, delete_idempotent_data, get_resource_config, register_node, set_resource_config, unregister_node
+        cluster_status, delete_idempotent_data, get_resource_config, register_node,
+        set_resource_config, unregister_node,
     };
     use grpc_clients::pool::ClientPool;
     use protocol::placement_center::placement_center_inner::{
-        ClusterStatusRequest, ClusterType, DeleteIdempotentDataRequest, GetResourceConfigRequest, RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest
+        ClusterStatusRequest, ClusterType, DeleteIdempotentDataRequest, GetResourceConfigRequest,
+        RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
     };
 
     use crate::common::get_placement_addr;
@@ -217,8 +219,7 @@ mod tests {
         let request = ClusterStatusRequest::default();
         assert!(cluster_status(client_pool.clone(), addrs.clone(), request)
             .await
-            .is_ok()
-        );
+            .is_ok());
 
         // Test data
         let cluster_name = "test-cluster-name".to_string();
