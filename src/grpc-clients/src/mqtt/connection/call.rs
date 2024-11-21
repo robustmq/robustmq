@@ -21,7 +21,7 @@ use protocol::broker_mqtt::broker_mqtt_connection::{ListConnectionReply, ListCon
 use crate::mqtt::{retry_call, MqttBrokerPlacementInterface, MqttBrokerService};
 use crate::pool::ClientPool;
 
-pub async fn mqtt_broker_list_user(
+pub async fn mqtt_broker_list_connection(
     client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ListConnectionRequest,

@@ -14,20 +14,58 @@
 
 use std::sync::Arc;
 
-use common_base::error::common::CommonError;
-use mobc::Connection;
 
-use crate::mqtt::admin::MqttBrokerAdminServiceManager;
+use crate::mqtt::connection::inner::inner_list_connection;
+use crate::mqtt::MqttBrokerPlacementInterface;
 use crate::pool::ClientPool;
+use common_base::error::common::CommonError;
+use mobc::{Connection, Manager};
+use protocol::broker_mqtt::broker_mqtt_connection::mqtt_broker_connection_service_client::MqttBrokerConnectionServiceClient;
+use tonic::transport::Channel;
 
-mod call;
-mod inner;
+pub mod call;
+pub mod inner;
 
 async fn connection_client(
     client_pool: Arc<ClientPool>,
     addr: String,
 ) -> Result<Connection<MqttBrokerConnectionServiceManager>, CommonError> {
-    todo!();
+    match client_pool
+        .mqtt_broker_connection_services_client(addr)
+        .await
+    {
+        Ok(client) => Ok(client),
+        Err(e) => Err(e),
+    }
+}
+
+pub(crate) async fn connection_interface_call(
+    interface: MqttBrokerPlacementInterface,
+    client_pool: Arc<ClientPool>,
+    addr: String,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, CommonError> {
+    match connection_client(client_pool.clone(), addr).await {
+        Ok(client) => {
+            let result = match interface {
+                MqttBrokerPlacementInterface::ListConnection => {
+                    inner_list_connection(client, request).await
+                }
+                _ => {
+                    return Err(CommonError::CommonError(format!(
+                        "connection service does not support service interfaces [{:?}]",
+                        interface
+                    )))
+                }
+            };
+
+            match result {
+                Ok(data) => Ok(data),
+                Err(e) => Err(e),
+            }
+        }
+        Err(e) => Err(e),
+    }
 }
 
 #[derive(Clone)]
@@ -35,8 +73,31 @@ pub struct MqttBrokerConnectionServiceManager {
     pub addr: String,
 }
 
-impl MqttBrokerAdminServiceManager {
+impl MqttBrokerConnectionServiceManager {
     pub fn new(addr: String) -> Self {
         Self { addr }
+    }
+}
+
+#[tonic::async_trait]
+impl Manager for MqttBrokerConnectionServiceManager {
+    type Connection = MqttBrokerConnectionServiceClient<Channel>;
+    type Error = CommonError;
+
+    async fn connect(&self) -> Result<Self::Connection, Self::Error> {
+        match MqttBrokerConnectionServiceClient::connect(format!("http://{}", self.addr.clone()))
+            .await
+        {
+            Ok(client) => Ok(client),
+            Err(e) => Err(CommonError::CommonError(format!(
+                "{},{}",
+                e,
+                self.addr.clone()
+            ))),
+        }
+    }
+
+    async fn check(&self, conn: Self::Connection) -> Result<Self::Connection, Self::Error> {
+        Ok(conn)
     }
 }

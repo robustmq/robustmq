@@ -12,4 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::error::common::CommonError;
+use mobc::Connection;
+use prost::Message;
+use protocol::broker_mqtt::broker_mqtt_connection::{ListConnectionReply, ListConnectionRequest};
 
+use crate::mqtt::connection::MqttBrokerConnectionServiceManager;
+
+pub(crate) async fn inner_list_connection(
+    mut client: Connection<MqttBrokerConnectionServiceManager>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, CommonError> {
+    match ListConnectionRequest::decode(request.as_ref()) {
+        Ok(request) => match client.mqtt_broker_list_connection(request).await {
+            Ok(result) => Ok(ListConnectionReply::encode_to_vec(&result.into_inner())),
+            Err(e) => Err(CommonError::GrpcServerStatus(e)),
+        },
+        Err(e) => Err(CommonError::CommonError(e.to_string())),
+    }
+}

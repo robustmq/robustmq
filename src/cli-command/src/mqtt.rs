@@ -17,6 +17,7 @@ use std::sync::Arc;
 use grpc_clients::mqtt::admin::call::{
     cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user, mqtt_broker_list_user,
 };
+use grpc_clients::mqtt::connection::call::mqtt_broker_list_connection;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -76,8 +77,7 @@ impl MqttBrokerCommand {
                 self.list_user(client_pool.clone(), params.clone()).await;
             }
             MqttActionType::ListConnection => {
-                self.list_connections(client_pool.clone(), params.clone())
-                    .await;
+                self.list_connections(client_pool.clone(), params.clone()).await;
             }
         }
     }
@@ -160,7 +160,15 @@ impl MqttBrokerCommand {
         match mqtt_broker_list_connection(client_pool.clone(), grpc_addr(params.server), request)
             .await
         {
-            _ => {}
+            Ok(data) => {
+                println!("connection list:");
+                // 缺少对应的MqttConnection结构体
+                todo!()
+            }
+            Err(e) => {
+                println!("MQTT broker list connection exception");
+                error_info(e.to_string());
+            }
         }
     }
 }

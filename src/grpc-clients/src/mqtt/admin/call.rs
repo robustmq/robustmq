@@ -21,7 +21,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteUserRequest, ListUserReply, ListUserRequest,
 };
 
-use crate::mqtt::{retry_call, MqttBrokerPlacementInterface, MqttBrokerService};
+use crate::mqtt::{retry_call, MqttBrokerInterface, MqttBrokerPlacementInterface, MqttBrokerService};
 use crate::pool::ClientPool;
 
 pub async fn cluster_status(
