@@ -20,6 +20,7 @@ use rocksdb_engine::RocksDBEngine;
 use super::keys::{timestamp_segment_end, timestamp_segment_start, timestamp_segment_time};
 use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
 use crate::core::error::JournalServerError;
+use crate::segment::SegmentIdentity;
 
 pub struct TimestampIndexManager {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -34,12 +35,10 @@ impl TimestampIndexManager {
 
     pub fn save_start_timestamp(
         &self,
-        namespace: &str,
-        shard_name: &str,
-        segment: u32,
+        segment_iden: &SegmentIdentity,
         start_timestamp: u64,
     ) -> Result<(), JournalServerError> {
-        let key = timestamp_segment_start(namespace, shard_name, segment);
+        let key = timestamp_segment_start(segment_iden);
         Ok(rocksdb_engine_save(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
@@ -50,11 +49,9 @@ impl TimestampIndexManager {
 
     pub fn get_start_timestamp(
         &self,
-        namespace: &str,
-        shard_name: &str,
-        segment: u32,
+        segment_iden: &SegmentIdentity,
     ) -> Result<u64, JournalServerError> {
-        let key = timestamp_segment_start(namespace, shard_name, segment);
+        let key = timestamp_segment_start(segment_iden);
         if let Some(res) = rocksdb_engine_get(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
@@ -68,12 +65,10 @@ impl TimestampIndexManager {
 
     pub fn save_end_timestamp(
         &self,
-        namespace: &str,
-        shard_name: &str,
-        segment: u32,
+        segment_iden: &SegmentIdentity,
         end_timestamp: u64,
     ) -> Result<(), JournalServerError> {
-        let key = timestamp_segment_end(namespace, shard_name, segment);
+        let key = timestamp_segment_end(segment_iden);
         Ok(rocksdb_engine_save(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
@@ -84,11 +79,9 @@ impl TimestampIndexManager {
 
     pub fn get_end_timestamp(
         &self,
-        namespace: &str,
-        shard_name: &str,
-        segment: u32,
+        segment_iden: &SegmentIdentity,
     ) -> Result<u64, JournalServerError> {
-        let key = timestamp_segment_end(namespace, shard_name, segment);
+        let key = timestamp_segment_end(segment_iden);
         if let Some(res) = rocksdb_engine_get(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
@@ -102,13 +95,11 @@ impl TimestampIndexManager {
 
     pub fn save_timestamp_offset(
         &self,
-        namespace: &str,
-        shard_name: &str,
-        segment: u32,
+        segment_iden: &SegmentIdentity,
         timestamp: u64,
         position: u64,
     ) -> Result<(), JournalServerError> {
-        let key = timestamp_segment_time(namespace, shard_name, segment, timestamp);
+        let key = timestamp_segment_time(segment_iden, timestamp);
         Ok(rocksdb_engine_save(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
