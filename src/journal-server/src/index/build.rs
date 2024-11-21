@@ -113,8 +113,7 @@ async fn build_thread(
 
     let last_build_offset = get_last_offset_build_index(rocksdb_engine_handler, segment_iden)?;
 
-    let (segment_write, _) =
-        open_segment_write(cache_manager.clone(), namespace, shard_name, segment).await?;
+    let (segment_write, _) = open_segment_write(cache_manager, segment_iden).await?;
 
     // Get the end offset of the local segment file
     let segment_file_meta =
@@ -127,7 +126,7 @@ async fn build_thread(
         };
 
     let (stop_sender, stop_recv) = broadcast::channel::<bool>(1);
-    cache_manager.add_build_index_thread(segment_iden.clone(), stop_sender);
+    cache_manager.add_build_index_thread(segment_iden, stop_sender);
 
     start_segment_build_index_thread(
         cache_manager.clone(),
@@ -167,7 +166,7 @@ fn start_segment_build_index_thread(
                 val = stop_recv.recv() =>{
                     if let Ok(flag) = val {
                         if flag {
-                            cache_manager.remove_build_index_thread(segment_iden);
+                            cache_manager.remove_build_index_thread(&segment_iden);
                             debug!("segment {} index build thread exited successfully.",
                                 segment_name(&raw_namespace,
                                     &raw_shard_name,
@@ -190,7 +189,7 @@ fn start_segment_build_index_thread(
                                         &raw_shard_name,
                                         segment));
 
-                                    if let Some(segment) = cache_manager.get_segment(&segment_iden.namespace, &segment_iden.shard_name, segment_iden.segment_seq){
+                                    if let Some(segment) = cache_manager.get_segment(&segment_iden){
                                         if segment.status == SegmentStatus::SealUp{
                                             if let Err(e) = save_finish_build_index(&rocksdb_engine_handler, &segment_iden){
                                                 error!("{}", e);

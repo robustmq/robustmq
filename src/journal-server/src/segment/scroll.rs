@@ -18,13 +18,10 @@ use std::time::Duration;
 use common_base::config::journal_server::journal_server_conf;
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use grpc_clients::placement::journal::call::{create_next_segment, update_segment_status};
+use grpc_clients::placement::journal::call::create_next_segment;
 use grpc_clients::pool::ClientPool;
-use log::{error, warn};
-use metadata_struct::journal::segment::{segment_name, SegmentStatus};
-use protocol::placement_center::placement_center_journal::{
-    CreateNextSegmentRequest, UpdateSegmentStatusRequest,
-};
+use log::error;
+use protocol::placement_center::placement_center_journal::CreateNextSegmentRequest;
 use tokio::time::sleep;
 
 use super::file::open_segment_write;
@@ -33,6 +30,7 @@ use super::SegmentIdentity;
 use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
 use crate::core::segment_meta::{update_meta_end_offset, update_meta_start_offset};
+use crate::core::segment_status::pre_sealup_segment;
 
 pub struct SegmentScrollManager {
     cache_manager: Arc<CacheManager>,
@@ -63,20 +61,18 @@ impl SegmentScrollManager {
         let conf = journal_server_conf();
         loop {
             for segment_iden in self.cache_manager.get_leader_segment() {
-                let (segment_write, max_size) = match open_segment_write(
-                    self.cache_manager.clone(),
-                    &segment_iden.namespace,
-                    &segment_iden.shard_name,
-                    segment_iden.segment_seq,
-                )
-                .await
-                {
-                    Ok((segment_write, max_size)) => (segment_write, max_size),
-                    Err(e) => {
-                        error!("{}", e);
-                        continue;
-                    }
-                };
+                let (segment_write, max_size) =
+                    match open_segment_write(&self.cache_manager, &segment_iden).await {
+                        Ok((segment_write, max_size)) => (segment_write, max_size),
+                        Err(e) => {
+                            error!(
+                                "Segmen {} File failed to open with error message :{}",
+                                segment_iden.name(),
+                                e
+                            );
+                            continue;
+                        }
+                    };
 
                 let key = segment_iden.name();
 
@@ -89,7 +85,11 @@ impl SegmentScrollManager {
                 let file_size = match segment_write.size().await {
                     Ok(size) => size,
                     Err(e) => {
-                        error!("{}", e);
+                        error!(
+                            "Segmen {} File size calculation failed, error message :{}",
+                            segment_iden.name(),
+                            e
+                        );
                         continue;
                     }
                 };
@@ -102,27 +102,31 @@ impl SegmentScrollManager {
                         shard_name: segment_iden.shard_name.clone(),
                     };
 
-                    if let Err(e) = create_next_segment(
+                    match create_next_segment(
                         self.client_pool.clone(),
                         conf.placement_center.clone(),
                         request,
                     )
                     .await
                     {
-                        error!("{}", e);
-                    } else {
-                        self.percentage50_cache.insert(key.clone(), now_second());
+                        Ok(_) => {
+                            self.percentage50_cache.insert(key.clone(), now_second());
+                        }
+                        Err(e) => {
+                            error!("{}", e);
+                            continue;
+                        }
                     }
                 }
 
                 // 90%
-                if self.percentage50_cache.get(&key).is_none() && file_size / max_size > 90 {
+                if self.percentage50_cache.get(&key).is_none() && file_size / max_size > 98 {
                     if let Some(current_end_offset) = self
                         .segment_file_manager
                         .get_segment_end_offset(&segment_iden)
                     {
                         // update active/next segment status
-                        if let Err(e) = segment_status_to_pre_sealup(
+                        if let Err(e) = pre_sealup_segment(
                             &self.cache_manager,
                             &self.client_pool,
                             conf.cluster_name.clone(),
@@ -139,11 +143,8 @@ impl SegmentScrollManager {
                         // calc end_offset
                         let calc_offset = self.calc_end_offset().await;
                         let end_offset = current_end_offset as u64 + calc_offset;
-                        if let Err(e) = segment_meta_to_pre_sealup(
-                            &self.cache_manager,
+                        if let Err(e) = update_end_and_start_offset(
                             &self.client_pool,
-                            conf.cluster_name.clone(),
-                            conf.placement_center.clone(),
                             &segment_iden,
                             end_offset,
                         )
@@ -169,137 +170,8 @@ impl SegmentScrollManager {
     }
 }
 
-pub async fn segment_status_to_sealup(
-    cache_manager: &Arc<CacheManager>,
+async fn update_end_and_start_offset(
     client_pool: &Arc<ClientPool>,
-    namespace: &str,
-    shard_name: &str,
-    segment_no: u32,
-) -> Result<(), JournalServerError> {
-    let conf = journal_server_conf();
-
-    if let Some(segment) = cache_manager.get_segment(namespace, shard_name, segment_no) {
-        if segment.status != SegmentStatus::PreSealUp {
-            warn!("Segment {} enters the sealup state, but the current state is not PreSealUp, possibly because the Status checking thread is not running.",
-            segment_name(namespace, shard_name, segment_no));
-        }
-
-        // active segment to sealup
-        cache_manager.update_segment_status(
-            namespace,
-            shard_name,
-            segment_no,
-            SegmentStatus::SealUp,
-        );
-        let request = UpdateSegmentStatusRequest {
-            cluster_name: conf.cluster_name.clone(),
-            namespace: namespace.to_string(),
-            shard_name: shard_name.to_string(),
-            segment_seq: segment_no,
-            cur_status: segment.status.to_string(),
-            next_status: SegmentStatus::SealUp.to_string(),
-        };
-        update_segment_status(client_pool.clone(), conf.placement_center.clone(), request).await?;
-
-        // update meta last timestamp
-        // todo
-    } else {
-        warn!("Segment {} enters the sealup state, but the current Segment is not found, possibly because the Status checking thread is not running.",
-        segment_name(namespace, shard_name, segment_no));
-    }
-
-    // next segment to Write
-    let next_segment_no = segment_no + 1;
-    if let Some(segment) = cache_manager.get_segment(namespace, shard_name, next_segment_no) {
-        if segment.status != SegmentStatus::PreWrite {
-            warn!("segment {} enters the sealup state and the next Segment is not currently in the PreWrite state, possibly because the Status checking thread is not running.",
-            segment_name(namespace, shard_name, segment_no));
-        }
-        // active segment to sealup
-        cache_manager.update_segment_status(
-            namespace,
-            shard_name,
-            next_segment_no,
-            SegmentStatus::Write,
-        );
-        let request = UpdateSegmentStatusRequest {
-            cluster_name: conf.cluster_name.clone(),
-            namespace: namespace.to_string(),
-            shard_name: shard_name.to_string(),
-            segment_seq: next_segment_no,
-            cur_status: segment.status.to_string(),
-            next_status: SegmentStatus::Write.to_string(),
-        };
-        update_segment_status(client_pool.clone(), conf.placement_center.clone(), request).await?;
-    } else {
-        warn!("segment {} enters the sealup state, but the next Segment is not found, possibly because the Status checking thread is not running.",
-        segment_name(namespace, shard_name, segment_no));
-    }
-    Ok(())
-}
-
-async fn segment_status_to_pre_sealup(
-    cache_manager: &Arc<CacheManager>,
-    client_pool: &Arc<ClientPool>,
-    cluster_name: String,
-    addrs: Vec<String>,
-    segment_iden: &SegmentIdentity,
-) -> Result<(), JournalServerError> {
-    // active segment to preSealUp
-    if let Some(segment) = cache_manager.get_segment(
-        &segment_iden.namespace,
-        &segment_iden.shard_name,
-        segment_iden.segment_seq,
-    ) {
-        if segment.status != SegmentStatus::Write {
-            warn!("Segment {} enters the presealup state, but the current state is not Write, possibly because the Status checking thread is not running.",
-            segment_name(&segment_iden.namespace, &segment_iden.shard_name, segment_iden.segment_seq));
-        }
-        let request = UpdateSegmentStatusRequest {
-            cluster_name: cluster_name.clone(),
-            namespace: segment_iden.namespace.clone(),
-            shard_name: segment_iden.shard_name.clone(),
-            segment_seq: segment_iden.segment_seq,
-            cur_status: segment.status.to_string(),
-            next_status: SegmentStatus::PreSealUp.to_string(),
-        };
-        update_segment_status(client_pool.clone(), addrs.clone(), request).await?;
-    } else {
-        warn!("Segment {} enters the presealup state, but the current Segment is not found, possibly because the Status checking thread is not running.",
-        segment_name(&segment_iden.namespace, &segment_iden.shard_name, segment_iden.segment_seq));
-    }
-    // next segment preWrite
-    let next_segment_no = segment_iden.segment_seq + 1;
-    if let Some(segment) = cache_manager.get_segment(
-        &segment_iden.namespace,
-        &segment_iden.shard_name,
-        next_segment_no,
-    ) {
-        if segment.status != SegmentStatus::Write {
-            warn!("segment {} enters the presealup state and the next Segment is not currently in the Write state, possibly because the Status checking thread is not running.",
-            segment_name(&segment_iden.namespace, &segment_iden.shard_name, segment_iden.segment_seq));
-        }
-        let request = UpdateSegmentStatusRequest {
-            cluster_name: cluster_name.clone(),
-            namespace: segment_iden.namespace.clone(),
-            shard_name: segment_iden.shard_name.clone(),
-            segment_seq: next_segment_no,
-            cur_status: segment.status.to_string(),
-            next_status: SegmentStatus::PreWrite.to_string(),
-        };
-        update_segment_status(client_pool.clone(), addrs.clone(), request).await?;
-    } else {
-        warn!("segment {} enters the presealup state, but the next Segment is not found, possibly because the Status checking thread is not running.",
-        segment_name(&segment_iden.namespace, &segment_iden.shard_name, segment_iden.segment_seq));
-    }
-    Ok(())
-}
-
-async fn segment_meta_to_pre_sealup(
-    cache_manager: &Arc<CacheManager>,
-    client_pool: &Arc<ClientPool>,
-    cluster_name: String,
-    addrs: Vec<String>,
     segment_iden: &SegmentIdentity,
     end_offset: u64,
 ) -> Result<(), JournalServerError> {

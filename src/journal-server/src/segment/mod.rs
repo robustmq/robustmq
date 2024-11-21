@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use metadata_struct::journal::segment::segment_name;
+use metadata_struct::journal::segment::{segment_name, JournalSegment};
 
 pub mod file;
-pub mod fold;
 pub mod manager;
 pub mod read;
 pub mod scroll;
@@ -31,5 +30,21 @@ pub struct SegmentIdentity {
 impl SegmentIdentity {
     pub fn name(&self) -> String {
         segment_name(&self.namespace, &self.shard_name, self.segment_seq)
+    }
+
+    pub fn new(namespace: &str, shard_name: &str, segment_seq: u32) -> Self {
+        SegmentIdentity {
+            namespace: namespace.to_string(),
+            shard_name: shard_name.to_string(),
+            segment_seq,
+        }
+    }
+
+    pub fn from_journal_segment(segment: &JournalSegment) -> Self {
+        SegmentIdentity {
+            namespace: segment.namespace.to_string(),
+            shard_name: segment.shard_name.to_string(),
+            segment_seq: segment.segment_seq,
+        }
     }
 }

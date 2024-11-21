@@ -63,8 +63,8 @@ pub enum JournalServerError {
     #[error("Shard {0} Not Active, is triggering the creation of an active Segment")]
     NotActiveSegmet(String),
 
-    #[error("Shard {0},segment {1} does not exist")]
-    SegmentNotExist(String, u32),
+    #[error("segment {0} does not exist")]
+    SegmentNotExist(String),
 
     #[error("Connection ID {0} information not found in cache.")]
     NotFoundConnectionInCache(u64),
@@ -75,8 +75,8 @@ pub enum JournalServerError {
     #[error("Segment {0} is already in the SealUp state and is not allowed to write")]
     SegmentAlreadySealUp(String),
 
-    #[error("Current node is not the Leader of Segment {1} in the shard {0}")]
-    NotLeader(String, u32),
+    #[error("Current node is not the Leader of Segment {0}")]
+    NotLeader(String),
 
     #[error("Segment file {0} already exists. We can't create Segment file again and again.")]
     SegmentFileAlreadyExists(String),
@@ -112,10 +112,10 @@ pub fn get_journal_server_code(e: &JournalServerError) -> String {
         JournalServerError::ShardNotExist(_) => "ShardNotExist".to_string(),
         JournalServerError::NotAvailableSegmets(_) => "NotAvailableSegmets".to_string(),
         JournalServerError::NotActiveSegmet(_) => "NotActiveSegmet".to_string(),
-        JournalServerError::SegmentNotExist(_, _) => "SegmentNotExist".to_string(),
+        JournalServerError::SegmentNotExist(_) => "SegmentNotExist".to_string(),
         JournalServerError::NotFoundConnectionInCache(_) => "NotFoundConnectionInCache".to_string(),
         JournalServerError::SegmentStatusError(_, _) => "SegmentStatusError".to_string(),
-        JournalServerError::NotLeader(_, _) => "NotLeader".to_string(),
+        JournalServerError::NotLeader(_) => "NotLeader".to_string(),
         JournalServerError::SegmentFileAlreadyExists(_) => "SegmentFileAlreadyExists".to_string(),
         JournalServerError::SegmentFileNotExists(_) => "SegmentFileNotExists".to_string(),
         JournalServerError::SegmentDataDirectoryNotFound(_, _) => {

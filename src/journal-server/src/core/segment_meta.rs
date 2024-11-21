@@ -84,3 +84,24 @@ pub async fn update_meta_start_timestamp(
     update_segment_meta(client_pool, conf.placement_center.clone(), request).await?;
     Ok(())
 }
+
+pub async fn update_meta_end_timestamp(
+    client_pool: Arc<ClientPool>,
+    segment_iden: &SegmentIdentity,
+    timestamp: u64,
+) -> Result<(), JournalServerError> {
+    let conf = journal_server_conf();
+    let next_segment_no = segment_iden.segment_seq + 1;
+    let request = UpdateSegmentMetaRequest {
+        cluster_name: conf.cluster_name.clone(),
+        namespace: segment_iden.namespace.clone(),
+        shard_name: segment_iden.shard_name.clone(),
+        segment_no: next_segment_no,
+        start_offset: -1,
+        end_offset: -1,
+        start_timestamp: -1,
+        end_timestamp: timestamp as i64,
+    };
+    update_segment_meta(client_pool, conf.placement_center.clone(), request).await?;
+    Ok(())
+}

@@ -23,7 +23,7 @@ use protocol::journal_server::journal_inner::{
 
 use super::cache::CacheManager;
 use super::error::JournalServerError;
-use crate::segment::fold::data_fold_shard;
+use crate::segment::file::data_fold_shard;
 
 pub fn delete_local_shard(
     cache_manager: Arc<CacheManager>,
@@ -56,7 +56,7 @@ pub fn delete_local_shard(
     Ok(())
 }
 
-pub fn get_delete_shard_status(
+pub fn shard_is_delete(
     cache_manager: &Arc<CacheManager>,
     req: &GetShardDeleteStatusRequest,
 ) -> Result<bool, JournalServerError> {
@@ -69,7 +69,7 @@ pub fn get_delete_shard_status(
     }
 
     // Does the cache exist
-    let cache_exist = cache_manager.shard_is_exists(&req.namespace, &req.shard_name);
+    let cache_exist = cache_manager.is_exist_shard(&req.namespace, &req.shard_name);
 
     Ok(!fold_exist && !cache_exist)
 }

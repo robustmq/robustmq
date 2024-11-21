@@ -20,3 +20,4 @@ cargo nextest run --workspace --exclude robustmq-test --exclude grpc-clients --e
  # grpc-clients
  # mqtt-bridge
  # mqtt-broker
+ # robustmq-test

@@ -24,6 +24,7 @@ use protocol::journal_server::journal_engine::{
     GetShardMetadataRespBody, JournalEngineError, OffsetCommitResp, OffsetCommitRespBody, ReadResp,
     ReadRespBody, RespHeader, WriteResp, WriteRespBody,
 };
+use rocksdb_engine::RocksDBEngine;
 
 use super::cluster::ClusterHandler;
 use super::data::DataHandler;
@@ -32,7 +33,6 @@ use crate::core::cache::CacheManager;
 use crate::core::error::get_journal_server_code;
 use crate::core::offset::OffsetManager;
 use crate::segment::manager::SegmentFileManager;
-use crate::segment::write::WriteManager;
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
 
@@ -49,15 +49,16 @@ impl Command {
         cache_manager: Arc<CacheManager>,
         offset_manager: Arc<OffsetManager>,
         segment_file_manager: Arc<SegmentFileManager>,
-        write_manager: Arc<WriteManager>,
+        rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
         let cluster_handler = ClusterHandler::new(cache_manager.clone());
-        let shard_handler = ShardHandler::new(cache_manager.clone(), client_pool);
+        let shard_handler = ShardHandler::new(cache_manager.clone(), client_pool.clone());
         let data_handler = DataHandler::new(
             cache_manager,
             offset_manager,
             segment_file_manager,
-            write_manager,
+            rocksdb_engine_handler,
+            client_pool,
         );
         Command {
             cluster_handler,

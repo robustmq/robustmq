@@ -19,6 +19,7 @@ use protocol::journal_server::journal_engine::{
 };
 
 use super::file::SegmentFile;
+use super::SegmentIdentity;
 use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
 
@@ -28,35 +29,42 @@ pub async fn read_data(
     node_id: u64,
 ) -> Result<Vec<ReadRespSegmentMessage>, JournalServerError> {
     let mut results = Vec::new();
-    for raw in req_body.messages.clone() {
-        let namespace = raw.namespace;
-        let shard_name = raw.shard_name;
+    for raw in req_body.messages.iter() {
         let mut shard_message = ReadRespSegmentMessage {
-            namespace: namespace.clone(),
-            shard_name: shard_name.clone(),
+            namespace: raw.namespace.to_string(),
+            shard_name: raw.shard_name.to_string(),
             ..Default::default()
         };
-        for segment_row in raw.segments {
-            let segment_no = segment_row.segment;
-            let segment = if let Some(segment) =
-                cache_manager.get_segment(&namespace, &shard_name, segment_no)
-            {
+
+        for segment_row in raw.segments.iter() {
+            let segment_iden = SegmentIdentity {
+                namespace: raw.namespace.to_string(),
+                shard_name: raw.shard_name.to_string(),
+                segment_seq: segment_row.segment,
+            };
+
+            let segment = if let Some(segment) = cache_manager.get_segment(&segment_iden) {
                 segment
             } else {
-                return Err(JournalServerError::SegmentNotExist(shard_name, segment_no));
+                return Err(JournalServerError::SegmentNotExist(segment_iden.name()));
             };
 
             let fold = if let Some(fold) = segment.get_fold(node_id) {
                 fold
             } else {
                 return Err(JournalServerError::SegmentDataDirectoryNotFound(
-                    format!("{}-{}", shard_name, segment_no),
+                    segment_iden.name(),
                     node_id,
                 ));
             };
-            let segment = SegmentFile::new(namespace.clone(), shard_name.clone(), segment_no, fold);
+            let segment = SegmentFile::new(
+                segment_iden.namespace,
+                segment_iden.shard_name,
+                segment_iden.segment_seq,
+                fold,
+            );
             let res = segment.read(Some(segment_row.offset), 5).await?;
-            shard_message.segment = segment_no;
+            shard_message.segment = segment_iden.segment_seq;
 
             let mut record_message = Vec::new();
             for read_data in res {

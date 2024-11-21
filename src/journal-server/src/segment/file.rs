@@ -14,6 +14,7 @@
 
 use std::fs::remove_dir_all;
 use std::io::ErrorKind;
+use std::path::Path;
 use std::sync::Arc;
 
 use bytes::BytesMut;
@@ -24,7 +25,7 @@ use protocol::journal_server::journal_record::JournalRecord;
 use tokio::fs::{self, File, OpenOptions};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
-use super::fold::{data_file_segment, data_fold_shard};
+use super::SegmentIdentity;
 use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
 
@@ -35,36 +36,30 @@ pub struct ReadData {
 }
 
 pub async fn open_segment_write(
-    cache_manager: Arc<CacheManager>,
-    namespace: &str,
-    shard_name: &str,
-    segment_no: u32,
+    cache_manager: &Arc<CacheManager>,
+    segment_iden: &SegmentIdentity,
 ) -> Result<(SegmentFile, u64), JournalServerError> {
-    let segment =
-        if let Some(segment) = cache_manager.get_segment(namespace, shard_name, segment_no) {
-            segment
-        } else {
-            return Err(JournalServerError::SegmentNotExist(
-                shard_name.to_string(),
-                segment_no,
-            ));
-        };
+    let segment = if let Some(segment) = cache_manager.get_segment(segment_iden) {
+        segment
+    } else {
+        return Err(JournalServerError::SegmentNotExist(segment_iden.name()));
+    };
 
     let conf = journal_server_conf();
     let fold = if let Some(fold) = segment.get_fold(conf.node_id) {
         fold
     } else {
         return Err(JournalServerError::SegmentDataDirectoryNotFound(
-            format!("{}-{}", shard_name, segment_no),
+            segment_iden.name(),
             conf.node_id,
         ));
     };
 
     Ok((
         SegmentFile::new(
-            namespace.to_string(),
-            shard_name.to_string(),
-            segment_no,
+            segment_iden.namespace.to_string(),
+            segment_iden.shard_name.to_string(),
+            segment_iden.segment_seq,
             fold,
         ),
         segment.config.max_segment_size,
@@ -183,6 +178,20 @@ impl SegmentFile {
 
         Ok(results)
     }
+
+    pub fn exists(&self) -> bool {
+        let segment_file = data_file_segment(&self.data_fold, self.segment_no);
+        Path::new(&segment_file).exists()
+    }
+}
+
+pub fn data_fold_shard(namespace: &str, shard_name: &str, data_fold: &str) -> String {
+    let file_name = format!("{}/{}", namespace, shard_name);
+    format!("{}/{}", data_fold, file_name)
+}
+
+pub fn data_file_segment(data_fold: &str, segment_no: u32) -> String {
+    format!("{}/{}.msg", data_fold, segment_no)
 }
 
 #[cfg(test)]
