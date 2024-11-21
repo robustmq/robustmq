@@ -241,13 +241,13 @@ mod test {
     use common_base::config::broker_mqtt::BrokerMqttConfig;
     use common_base::tools::{now_second, unique_id};
     use grpc_clients::pool::ClientPool;
+    use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
     use metadata_struct::mqtt::session::MqttSession;
     use tokio::sync::broadcast;
     use tokio::time::sleep;
 
     use super::keep_live_time;
     use crate::handler::cache::CacheManager;
-    use crate::handler::connection::{Connection, ConnectionConfig};
     use crate::handler::keep_alive::ClientKeepAlive;
     use crate::server::connection_manager::ConnectionManager;
     use crate::subscribe::subscribe_manager::SubscribeManager;
@@ -308,7 +308,7 @@ mod test {
             keep_alive,
             source_ip_addr: addr,
         };
-        let connection = Connection::new(config);
+        let connection = MQTTConnection::new(config);
         cache_manager.add_connection(connect_id, connection);
 
         let start = now_second();

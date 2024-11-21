@@ -21,6 +21,7 @@ use futures::SinkExt;
 use grpc_clients::pool::ClientPool;
 use log::error;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
+use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, DisconnectReasonCode, LastWill,
@@ -30,7 +31,6 @@ use protocol::mqtt::common::{
 use tokio_util::codec::FramedWrite;
 
 use super::cache::CacheManager;
-use super::connection::Connection;
 use super::flow_control::{
     is_connection_rate_exceeded, is_flow_control, is_subscribe_rate_exceeded,
 };
@@ -287,7 +287,7 @@ pub async fn publish_validator(
     protocol: &MqttProtocol,
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    connection: &Connection,
+    connection: &MQTTConnection,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
 ) -> Option<MqttPacket> {
@@ -447,7 +447,7 @@ pub async fn subscribe_validator(
     protocol: &MqttProtocol,
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    connection: &Connection,
+    connection: &MQTTConnection,
     subscribe: &Subscribe,
 ) -> Option<MqttPacket> {
     match pkid_exists(
@@ -524,7 +524,7 @@ pub async fn un_subscribe_validator(
     client_id: &str,
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    connection: &Connection,
+    connection: &MQTTConnection,
     un_subscribe: &Unsubscribe,
 ) -> Option<MqttPacket> {
     match pkid_exists(
