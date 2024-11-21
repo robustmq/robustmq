@@ -134,13 +134,7 @@ impl ValidateExt for GetResourceConfigRequest {
                 CommonError::ParameterCannotBeNull("cluster name".to_string()).to_string(),
             ));
         }
-        
-        if self.resources.is_empty() {
-            return Err(Status::cancelled(
-                CommonError::ParameterCannotBeNull("resources".to_string()).to_string(),
-            ));
-        }
-        
+
         Ok(())
     }
 }
