@@ -121,7 +121,7 @@ message GetShardMetadataReq{
 
 
 message GetShardMetadataRespBody{
-    repeated GetShardMetadataRespShard segments = 1;
+    repeated GetShardMetadataRespShard shards = 1;
 }
 
 message GetShardMetadataRespShard{

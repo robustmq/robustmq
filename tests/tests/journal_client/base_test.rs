@@ -14,6 +14,7 @@
 
 #[cfg(test)]
 mod tests {
+    use common_base::tools::now_second;
     use futures::{SinkExt, StreamExt};
     use protocol::journal_server::codec::{JournalEnginePacket, JournalServerCodec};
     use protocol::journal_server::journal_engine::{
@@ -142,7 +143,7 @@ mod tests {
                     segment: 0,
                     messages: vec![WriteReqMessages {
                         key: "k1".to_string(),
-                        value: serde_json::to_vec("dsfaerwqr").unwrap(),
+                        value: serde_json::to_vec(&now_second().to_string()).unwrap(),
                         tags: vec!["t1".to_string()],
                     }],
                 }],
