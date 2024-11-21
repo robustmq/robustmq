@@ -18,6 +18,7 @@ use std::sync::Arc;
 use common_base::tools::{get_local_ip, now_mills};
 use grpc_clients::pool::ClientPool;
 use log::error;
+use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::mqtt::session::MqttSession;
 use protocol::mqtt::common::{DisconnectReasonCode, MqttProtocol, Subscribe, Unsubscribe};
@@ -29,7 +30,6 @@ use super::{
     SYSTEM_TOPIC_BROKERS_SUBSCRIBED, SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED,
 };
 use crate::handler::cache::CacheManager;
-use crate::handler::connection::Connection;
 use crate::server::connection_manager::ConnectionManager;
 
 #[derive(Default, Serialize, Deserialize)]
@@ -95,7 +95,7 @@ pub async fn st_report_connected_event<S>(
     metadata_cache: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     session: &MqttSession,
-    connection: &Connection,
+    connection: &MQTTConnection,
     connect_id: u64,
     connection_manager: &Arc<ConnectionManager>,
 ) where
@@ -150,7 +150,7 @@ pub async fn st_report_disconnected_event<S>(
     metadata_cache: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     session: &MqttSession,
-    connection: &Connection,
+    connection: &MQTTConnection,
     connect_id: u64,
     connection_manager: &Arc<ConnectionManager>,
     reason: Option<DisconnectReasonCode>,
@@ -202,7 +202,7 @@ pub async fn st_report_subscribed_event<S>(
     message_storage_adapter: &Arc<S>,
     metadata_cache: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    connection: &Connection,
+    connection: &MQTTConnection,
     connect_id: u64,
     connection_manager: &Arc<ConnectionManager>,
     subscribe: &Subscribe,
@@ -260,7 +260,7 @@ pub async fn st_report_unsubscribed_event<S>(
     message_storage_adapter: &Arc<S>,
     metadata_cache: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    connection: &Connection,
+    connection: &MQTTConnection,
     connect_id: u64,
     connection_manager: &Arc<ConnectionManager>,
     un_subscribe: &Unsubscribe,

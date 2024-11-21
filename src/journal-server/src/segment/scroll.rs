@@ -20,7 +20,7 @@ use common_base::tools::now_second;
 use dashmap::DashMap;
 use grpc_clients::placement::journal::call::create_next_segment;
 use grpc_clients::pool::ClientPool;
-use log::error;
+use log::{error, info};
 use protocol::placement_center::placement_center_journal::CreateNextSegmentRequest;
 use tokio::time::sleep;
 
@@ -59,6 +59,7 @@ impl SegmentScrollManager {
 
     pub async fn trigger_segment_scroll(&self) {
         let conf = journal_server_conf();
+        info!("Segment scroll thread started successfully");
         loop {
             for segment_iden in self.cache_manager.get_leader_segment() {
                 let (segment_write, max_size) =
