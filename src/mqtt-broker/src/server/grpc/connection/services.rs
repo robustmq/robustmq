@@ -25,12 +25,15 @@ impl MqttBrokerConnectionService for GrpcConnectionServices {
         let mut reply = ListConnectionReply::default();
 
         let mut connection_list = Vec::new();
-        
+
         let connection_manager = ConnectionManager::new(self.cache_manager.clone());
-        let dash_map = connection_manager.list_connection().await;
-           dash_map.for_each(|(k, v)| {
-               connection_list.push(v.to_string());
-           });
+        let cache_manager = self.cache_manager.clone();
+
+        let mqtt_connection_infos = cache_manager.connection_info.clone();
+        let network_connection_infos = connection_manager.list_connect();
+        for (id, mqtt_connection_info) in mqtt_connection_infos {
+            todo!()
+        }
         reply.connections = connection_list;
         Ok(Response::new(reply))
     }

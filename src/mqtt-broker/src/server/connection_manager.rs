@@ -28,7 +28,7 @@ use tokio_util::codec::FramedWrite;
 
 use super::connection::{NetworkConnection, NetworkConnectionType};
 use crate::handler::cache::CacheManager;
-use crate::handler::connection::Connection;
+
 
 pub struct ConnectionManager {
     connections: DashMap<u64, NetworkConnection>,
@@ -66,10 +66,9 @@ impl ConnectionManager {
         connection_id
     }
 
-    pub async fn list_connection(&self) -> DashMap<u64, NetworkConnection> {
+    pub fn list_connect(&self) -> DashMap<u64, NetworkConnection> {
         self.connections.clone()
     }
-    
     pub fn add_tcp_write(
         &self,
         connection_id: u64,

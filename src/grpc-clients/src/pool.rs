@@ -70,7 +70,7 @@ impl ClientPool {
             // modules: journal_engine
             journal_admin_service_pools: DashMap::with_capacity(2),
             journal_inner_service_pools: DashMap::with_capacity(2),
-        };
+        }
     }
 
     // ----------modules: placement center -------------
