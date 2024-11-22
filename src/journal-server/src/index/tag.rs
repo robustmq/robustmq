@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use rocksdb_engine::engine::{rocksdb_engine_get, rocksdb_engine_save};
+use rocksdb_engine::engine::rocksdb_engine_save;
 use rocksdb_engine::warp::StorageDataWrap;
 use rocksdb_engine::RocksDBEngine;
 
@@ -84,7 +84,7 @@ impl TagIndexManager {
                     }
 
                     let data = serde_json::from_slice::<StorageDataWrap>(val)?;
-                    let index_data = serde_json::from_slice::<IndexData>(&data.data.as_ref())?;
+                    let index_data = serde_json::from_slice::<IndexData>(data.data.as_ref())?;
 
                     if index_data.offset < start_offset {
                         continue;
@@ -150,7 +150,7 @@ impl TagIndexManager {
                     }
 
                     let data = serde_json::from_slice::<StorageDataWrap>(val)?;
-                    let index_data = serde_json::from_slice::<IndexData>(&data.data.as_ref())?;
+                    let index_data = serde_json::from_slice::<IndexData>(data.data.as_ref())?;
 
                     if index_data.offset < start_offset {
                         continue;

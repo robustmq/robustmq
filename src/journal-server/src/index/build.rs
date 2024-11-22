@@ -151,13 +151,8 @@ async fn start_segment_build_index_thread(
     let time_index = TimestampIndexManager::new(rocksdb_engine_handler.clone());
     let tag_index = TagIndexManager::new(rocksdb_engine_handler.clone());
 
-    let mut last_build_offset = if let Some(offset) =
-        get_last_offset_build_index(&rocksdb_engine_handler, &segment_iden)?
-    {
-        offset
-    } else {
-        0
-    };
+    let mut last_build_offset =
+        (get_last_offset_build_index(&rocksdb_engine_handler, &segment_iden)?).unwrap_or(0);
 
     let offset_index = OffsetIndexManager::new(rocksdb_engine_handler.clone());
 

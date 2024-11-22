@@ -160,7 +160,7 @@ async fn read_by_offset(
 ) -> Result<Vec<ReadData>, JournalServerError> {
     let offset_index = OffsetIndexManager::new(rocksdb_engine_handler.clone());
     let start_position = offset_index
-        .get_last_nearest_position_by_offset(&segment_iden, filter.offset)
+        .get_last_nearest_position_by_offset(segment_iden, filter.offset)
         .await?;
 
     let res = segment_file
@@ -179,7 +179,7 @@ async fn read_by_timestamp(
 ) -> Result<Vec<ReadData>, JournalServerError> {
     let timestamp_index = TimestampIndexManager::new(rocksdb_engine_handler.clone());
     let start_position = timestamp_index
-        .get_last_nearest_position_by_timestamp(&segment_iden, filter.timestamp)
+        .get_last_nearest_position_by_timestamp(segment_iden, filter.timestamp)
         .await?;
 
     let res = segment_file
@@ -198,7 +198,7 @@ async fn read_by_key(
     let tag_index = TagIndexManager::new(rocksdb_engine_handler.clone());
     let index_datas = tag_index
         .get_last_positions_by_key(
-            &segment_iden,
+            segment_iden,
             filter.offset,
             filter.key.clone(),
             read_options.max_record,
@@ -222,7 +222,7 @@ async fn read_by_tag(
     let tag_index = TagIndexManager::new(rocksdb_engine_handler.clone());
     let index_datas = tag_index
         .get_last_positions_by_tag(
-            &segment_iden,
+            segment_iden,
             filter.offset,
             filter.key.clone(),
             read_options.max_record,
