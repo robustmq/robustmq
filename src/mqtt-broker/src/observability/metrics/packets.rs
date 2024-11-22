@@ -33,6 +33,103 @@ lazy_static! {
     )
     .unwrap();
 
+    // Number of packets connect received
+    static ref PACKETS_CONNECT_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
+        "packets_connect_received",
+        "Number of packets connect received",
+        &[METRICS_KEY_NETWORK_TYPE]
+    )
+    .unwrap();
+
+    // Number of packets publish received
+    static ref PACKETS_PUBLISH_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
+        "packets_publish_received",
+        "Number of packets publish received",
+        &[METRICS_KEY_NETWORK_TYPE]
+    )
+    .unwrap();
+
+    // Number of packets connack received
+    static ref PACKETS_CONNACK_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
+        "packets_connack_received",
+        "Number of packets connack received",
+        &[METRICS_KEY_NETWORK_TYPE]
+    )
+    .unwrap();
+
+    // Number of packets puback received
+    static ref PACKETS_PUBACK_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
+    "packets_puback_received",
+    "Number of packets puback received",
+    &[METRICS_KEY_NETWORK_TYPE]
+    )
+    .unwrap();
+
+    // Number of packets pubrec received
+    static ref PACKETS_PUBREC_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
+        "packets_pubrec_received",
+        "Number of packets pubrec received",
+        &[METRICS_KEY_NETWORK_TYPE]
+        )
+        .unwrap();
+
+    // Number of packets pubrel received
+    static ref PACKETS_PUBREL_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
+        "packets_pubrel_received",
+        "Number of packets pubrel received",
+        &[METRICS_KEY_NETWORK_TYPE]
+        )
+        .unwrap();
+
+    // Number of packets pubcomp received
+    static ref PACKETS_PUBCOMP_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
+        "packets_pubcomp_received",
+        "Number of packets pubcomp received",
+        &[METRICS_KEY_NETWORK_TYPE]
+        )
+        .unwrap();
+
+    // Number of packets subscrible received
+    static ref PACKETS_SUBSCRIBLE_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
+    "packets_subscrible_received",
+    "Number of packets subscrible received",
+    &[METRICS_KEY_NETWORK_TYPE]
+    )
+    .unwrap();
+
+    // Number of packets unsubscrible received
+    static ref PACKETS_UNSUBSCRIBLE_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
+    "packets_unsubscrible_received",
+    "Number of packets unsubscrible received",
+    &[METRICS_KEY_NETWORK_TYPE]
+    )
+    .unwrap();
+
+    // Number of packets pingreq received
+    static ref PACKETS_PINGREQ_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
+    "packets_pingreq_received",
+    "Number of packets pingreq received",
+    &[METRICS_KEY_NETWORK_TYPE]
+    )
+    .unwrap();
+
+    // Number of packets disconnect received
+    static ref PACKETS_DISCONNECT_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
+    "packets_disconnect_received",
+    "Number of packets disconnect received",
+    &[METRICS_KEY_NETWORK_TYPE]
+    )
+    .unwrap();
+
+    // Number of packets auth received
+    static ref PACKETS_AUTH_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
+    "packets_auth_received",
+    "Number of packets auth received",
+    &[METRICS_KEY_NETWORK_TYPE]
+    )
+    .unwrap();
+
+
     // Number of error packets received
     static ref PACKETS_RECEIVED_ERROR: IntGaugeVec = register_int_gauge_vec!(
         "packets_received_error",
@@ -79,6 +176,7 @@ lazy_static! {
         &[METRICS_KEY_QOS]
     )
     .unwrap();
+
 }
 
 // Record the packet-related metrics received by the server for failed resolution
@@ -104,13 +202,70 @@ pub fn record_received_metrics(
         0
     };
 
+    BYTES_RECEIVED
+        .with_label_values(&[&network_type.to_string()])
+        .add(payload_size as i64);
+
     PACKETS_RECEIVED
         .with_label_values(&[&network_type.to_string()])
         .inc();
 
-    BYTES_RECEIVED
-        .with_label_values(&[&network_type.to_string()])
-        .add(payload_size as i64);
+    match pkg {
+        
+        MqttPacket::Connect(_, _, _, _, _, _) => 
+            PACKETS_CONNECT_RECEIVED
+            .with_label_values(&[&network_type.to_string()])
+            .inc(),
+
+        MqttPacket::ConnAck(_, _) => PACKETS_CONNACK_RECEIVED
+            .with_label_values(&[&network_type.to_string()])
+            .inc(),
+
+        MqttPacket::Publish(_, _) => PACKETS_PUBLISH_RECEIVED
+            .with_label_values(&[&network_type.to_string()])
+            .inc(),
+        
+        MqttPacket::PubAck(_, _) => PACKETS_PUBACK_RECEIVED
+            .with_label_values(&[&network_type.to_string()])
+            .inc(),
+
+        MqttPacket::PubRec(_, _) => PACKETS_PUBREC_RECEIVED
+            .with_label_values(&[&network_type.to_string()])
+            .inc(),
+
+        MqttPacket::PubRel(_, _) => PACKETS_PUBREL_RECEIVED
+            .with_label_values(&[&network_type.to_string()])
+            .inc(),    
+
+        MqttPacket::PubComp(_, _) => PACKETS_PUBCOMP_RECEIVED
+            .with_label_values(&[&network_type.to_string()])
+            .inc(),    
+
+        MqttPacket::PingReq(_) => PACKETS_PINGREQ_RECEIVED
+            .with_label_values(&[&network_type.to_string()])
+            .inc(),  
+
+        MqttPacket::Disconnect(_, _) => PACKETS_DISCONNECT_RECEIVED
+            .with_label_values(&[&network_type.to_string()])
+            .inc(),    
+
+        MqttPacket::Auth(_, _) => PACKETS_AUTH_RECEIVED
+            .with_label_values(&[&network_type.to_string()])
+            .inc(),      
+
+        MqttPacket::Subscribe(_, _) => PACKETS_SUBSCRIBLE_RECEIVED
+            .with_label_values(&[&network_type.to_string()])
+            .inc(),
+
+        MqttPacket::Unsubscribe(_, _) => PACKETS_UNSUBSCRIBLE_RECEIVED
+            .with_label_values(&[&network_type.to_string()])
+            .inc(),       
+ 
+        //Packet::
+        _=> unreachable!(
+            "This branch only matches for packets with Properties, which is not possible in MQTT V4",
+        ),
+    }
 }
 
 // Record metrics related to messages pushed to the client
