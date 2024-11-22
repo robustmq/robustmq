@@ -88,7 +88,7 @@ pub async fn read_data(
             }
         };
 
-        let read_datas = match raw.ready_type() {
+        let read_data_list = match raw.ready_type() {
             ReadType::Offset => {
                 read_by_offset(
                     rocksdb_engine_handler,
@@ -135,7 +135,7 @@ pub async fn read_data(
         };
 
         let mut record_message = Vec::new();
-        for read_data in read_datas {
+        for read_data in read_data_list {
             let record = read_data.record;
             record_message.push(ReadRespMessage {
                 offset: record.offset,
@@ -196,7 +196,7 @@ async fn read_by_key(
     read_options: &ReadReqOptions,
 ) -> Result<Vec<ReadData>, JournalServerError> {
     let tag_index = TagIndexManager::new(rocksdb_engine_handler.clone());
-    let index_datas = tag_index
+    let index_data_list = tag_index
         .get_last_positions_by_key(
             segment_iden,
             filter.offset,
@@ -205,7 +205,7 @@ async fn read_by_key(
         )
         .await?;
 
-    let positions = index_datas.iter().map(|raw| raw.position).collect();
+    let positions = index_data_list.iter().map(|raw| raw.position).collect();
     let res = segment_file
         .read_by_positions(positions, read_options.max_size)
         .await?;
@@ -220,7 +220,7 @@ async fn read_by_tag(
     read_options: &ReadReqOptions,
 ) -> Result<Vec<ReadData>, JournalServerError> {
     let tag_index = TagIndexManager::new(rocksdb_engine_handler.clone());
-    let index_datas = tag_index
+    let index_data_list = tag_index
         .get_last_positions_by_tag(
             segment_iden,
             filter.offset,
@@ -229,7 +229,7 @@ async fn read_by_tag(
         )
         .await?;
 
-    let positions = index_datas.iter().map(|raw| raw.position).collect();
+    let positions = index_data_list.iter().map(|raw| raw.position).collect();
     let res = segment_file
         .read_by_positions(positions, read_options.max_size)
         .await?;
