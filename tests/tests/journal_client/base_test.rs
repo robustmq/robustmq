@@ -21,8 +21,8 @@ mod tests {
         ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, DeleteShardReq, DeleteShardReqBody,
         GetClusterMetadataReq, GetShardMetadataReq, GetShardMetadataReqBody,
         GetShardMetadataReqShard, OffsetCommitReq, OffsetCommitReqBody, ReadReq, ReadReqBody,
-        ReadReqMessage, ReadReqMessageOffset, ReqHeader, WriteReq, WriteReqBody, WriteReqMessages,
-        WriteReqSegmentMessages,
+        ReadReqFilter, ReadReqMessage, ReadType, ReqHeader, WriteReq, WriteReqBody,
+        WriteReqMessages, WriteReqSegmentMessages,
     };
     use tokio::net::TcpStream;
     use tokio_util::codec::Framed;
@@ -172,10 +172,13 @@ mod tests {
                 messages: vec![ReadReqMessage {
                     namespace: "b1".to_string(),
                     shard_name: "s1".to_string(),
-                    segments: vec![ReadReqMessageOffset {
-                        segment: 0,
+                    segment: 0,
+                    ready_type: ReadType::Offset.into(),
+                    filter: Some(ReadReqFilter {
                         offset: 0,
-                    }],
+                        ..Default::default()
+                    }),
+                    ..Default::default()
                 }],
             }),
         });

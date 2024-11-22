@@ -24,7 +24,7 @@ mod tests {
     use protocol::journal_server::journal_engine::{
         ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, GetClusterMetadataReq,
         GetShardMetadataReq, GetShardMetadataReqBody, GetShardMetadataReqShard, ReadReq,
-        ReadReqBody, ReadReqMessage, ReadReqMessageOffset, ReqHeader, WriteReq, WriteReqBody,
+        ReadReqBody, ReadReqFilter, ReadReqMessage, ReadType, ReqHeader, WriteReq, WriteReqBody,
         WriteReqMessages, WriteReqSegmentMessages,
     };
     use tokio::net::TcpStream;
@@ -94,7 +94,7 @@ mod tests {
         sleep(Duration::from_secs(3)).await;
 
         // get shard metadata
-        let segment_0_all_replicas = Vec::new();
+        let mut segment_0_all_replicas = Vec::new();
         let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
         let mut stream = Framed::new(socket, JournalServerCodec::new());
 
@@ -123,8 +123,9 @@ mod tests {
             assert_eq!(shards.segments.len(), 1);
             let segment_metadata = shards.segments.first().unwrap();
             assert_eq!(segment_metadata.replicas.len(), 1);
-            assert_eq!(segment_metadata.leader, 0);
+            assert_eq!(segment_metadata.leader, 1);
             assert_eq!(segment_metadata.segment_no, 0);
+            segment_0_all_replicas = segment_metadata.replicas.clone();
         } else {
             panic!();
         }
@@ -183,12 +184,15 @@ mod tests {
             }),
             body: Some(ReadReqBody {
                 messages: vec![ReadReqMessage {
-                    namespace: namespace.clone(),
-                    shard_name: shard_name.clone(),
-                    segments: vec![ReadReqMessageOffset {
-                        segment: 0,
+                    namespace: "b1".to_string(),
+                    shard_name: "s1".to_string(),
+                    segment: 0,
+                    ready_type: ReadType::Offset.into(),
+                    filter: Some(ReadReqFilter {
                         offset: 0,
-                    }],
+                        ..Default::default()
+                    }),
+                    ..Default::default()
                 }],
             }),
         });

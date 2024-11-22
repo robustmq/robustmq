@@ -249,7 +249,7 @@ async fn start_segment_sync_write_thread(
                             max_file_size,
                         ).await{
                             Ok(sealup) => {
-                                if sealup{
+                                if sealup {
                                     resp.error = Some(JournalServerError::SegmentAlreadySealUp(segment_iden.name()));
                                     is_break = true;
                                 }else{

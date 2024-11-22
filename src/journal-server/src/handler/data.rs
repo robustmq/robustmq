@@ -96,18 +96,22 @@ impl DataHandler {
         let req_body = request.body.unwrap();
         let conf = journal_server_conf();
         for row in req_body.messages.clone() {
-            for segment in row.segments {
-                let segment_iden = SegmentIdentity {
-                    namespace: row.namespace.to_string(),
-                    shard_name: row.shard_name.to_string(),
-                    segment_seq: segment.segment,
-                };
-                self.valitator(&segment_iden)?;
-            }
+            let segment_iden = SegmentIdentity {
+                namespace: row.namespace.to_string(),
+                shard_name: row.shard_name.to_string(),
+                segment_seq: row.segment,
+            };
+            self.valitator(&segment_iden)?;
         }
 
         let conf = journal_server_conf();
-        let results = read_data(&self.cache_manager, &req_body, conf.node_id).await?;
+        let results = read_data(
+            &self.cache_manager,
+            &self.rocksdb_engine_handler,
+            &req_body,
+            conf.node_id,
+        )
+        .await?;
         Ok(results)
     }
 

@@ -159,6 +159,15 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<HeartbeatRequest>,
     ) -> Result<Response<HeartbeatReply>, Status> {
         let req = request.into_inner();
+        if self
+            .cluster_cache
+            .get_broker_node(&req.cluster_name, req.node_id)
+            .is_none()
+        {
+            return Err(Status::internal(
+                PlacementCenterError::NodeDoesNotExist(req.node_id).to_string(),
+            ));
+        }
         self.cluster_cache
             .report_broker_heart(&req.cluster_name, req.node_id);
         return Ok(Response::new(HeartbeatReply::default()));
