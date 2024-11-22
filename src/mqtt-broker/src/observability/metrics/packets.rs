@@ -211,9 +211,8 @@ pub fn record_received_metrics(
         .inc();
 
     match pkg {
-        
-        MqttPacket::Connect(_, _, _, _, _, _) => 
-            PACKETS_CONNECT_RECEIVED
+
+        MqttPacket::Connect(_, _, _, _, _, _) => PACKETS_CONNECT_RECEIVED
             .with_label_values(&[&network_type.to_string()])
             .inc(),
 
@@ -224,7 +223,7 @@ pub fn record_received_metrics(
         MqttPacket::Publish(_, _) => PACKETS_PUBLISH_RECEIVED
             .with_label_values(&[&network_type.to_string()])
             .inc(),
-        
+
         MqttPacket::PubAck(_, _) => PACKETS_PUBACK_RECEIVED
             .with_label_values(&[&network_type.to_string()])
             .inc(),
@@ -235,23 +234,23 @@ pub fn record_received_metrics(
 
         MqttPacket::PubRel(_, _) => PACKETS_PUBREL_RECEIVED
             .with_label_values(&[&network_type.to_string()])
-            .inc(),    
+            .inc(),
 
         MqttPacket::PubComp(_, _) => PACKETS_PUBCOMP_RECEIVED
             .with_label_values(&[&network_type.to_string()])
-            .inc(),    
+            .inc(),
 
         MqttPacket::PingReq(_) => PACKETS_PINGREQ_RECEIVED
             .with_label_values(&[&network_type.to_string()])
-            .inc(),  
+            .inc(),
 
         MqttPacket::Disconnect(_, _) => PACKETS_DISCONNECT_RECEIVED
             .with_label_values(&[&network_type.to_string()])
-            .inc(),    
+            .inc(),
 
         MqttPacket::Auth(_, _) => PACKETS_AUTH_RECEIVED
             .with_label_values(&[&network_type.to_string()])
-            .inc(),      
+            .inc(),
 
         MqttPacket::Subscribe(_, _) => PACKETS_SUBSCRIBLE_RECEIVED
             .with_label_values(&[&network_type.to_string()])
@@ -259,9 +258,7 @@ pub fn record_received_metrics(
 
         MqttPacket::Unsubscribe(_, _) => PACKETS_UNSUBSCRIBLE_RECEIVED
             .with_label_values(&[&network_type.to_string()])
-            .inc(),       
- 
-        //Packet::
+            .inc(),
         _=> unreachable!(
             "This branch only matches for packets with Properties, which is not possible in MQTT V4",
         ),
