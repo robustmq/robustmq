@@ -94,7 +94,7 @@ mod tests {
         sleep(Duration::from_secs(3)).await;
 
         // get shard metadata
-        let mut segment_0_all_replicas = Vec::new();
+
         let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
         let mut stream = Framed::new(socket, JournalServerCodec::new());
 
@@ -113,7 +113,10 @@ mod tests {
 
         let _ = stream.send(req_packet.clone()).await;
 
-        if let Some(Ok(JournalEnginePacket::GetShardMetadataResp(data))) = stream.next().await {
+        let segment_0_all_replicas = if let Some(Ok(JournalEnginePacket::GetShardMetadataResp(
+            data,
+        ))) = stream.next().await
+        {
             println!("{:?}", data);
             assert!(resp_header_error(&data.header.unwrap()).is_ok());
             let body = data.body.unwrap();
@@ -125,10 +128,10 @@ mod tests {
             assert_eq!(segment_metadata.replicas.len(), 1);
             assert_eq!(segment_metadata.leader, 1);
             assert_eq!(segment_metadata.segment_no, 0);
-            segment_0_all_replicas = segment_metadata.replicas.clone();
+            segment_metadata.replicas.clone()
         } else {
             panic!();
-        }
+        };
 
         // write data
         let key = "k1".to_string();
