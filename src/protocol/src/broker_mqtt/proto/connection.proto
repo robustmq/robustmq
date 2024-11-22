@@ -11,8 +11,5 @@ message ListConnectionRequest{
 }
 
 message ListConnectionReply{
-  string connections = 1;
-  string connection_type = 2;
-  string protocol = 3;
-  string source_addr = 4;
+  string network_connections = 1;
 }

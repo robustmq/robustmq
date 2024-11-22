@@ -21,20 +21,27 @@ impl GrpcConnectionServices {
 }
 
 impl MqttBrokerConnectionService for GrpcConnectionServices {
-    async fn mqtt_broker_list_connection(&self, request: Request<ListConnectionRequest>) -> Result<Response<ListConnectionReply>, Status> {
+    async fn mqtt_broker_list_connection(&self, _request: Request<ListConnectionRequest>) -> Result<Response<ListConnectionReply>, Status> {
         let mut reply = ListConnectionReply::default();
 
-        let mut connection_list = Vec::new();
-
         let connection_manager = ConnectionManager::new(self.cache_manager.clone());
-        let cache_manager = self.cache_manager.clone();
+        let network_connection_info = connection_manager.list_connect();
+        // let cache_manager = self.cache_manager.clone();
 
-        let mqtt_connection_infos = cache_manager.connection_info.clone();
-        let network_connection_infos = connection_manager.list_connect();
-        for (id, mqtt_connection_info) in mqtt_connection_infos {
-            todo!()
-        }
-        reply.connections = connection_list;
+        // let mqtt_connection_infos = cache_manager.connection_info.clone();
+
+        // reply.connections = connection_list;
+
+        let network_connection_to_str = match serde_json::to_string(&network_connection_info) {
+            Ok(network_connection_infos) => {
+                network_connection_infos
+            }
+            Err(e) => {
+                format!("Failed to serialize network connection info: {}", e.to_string())
+            }
+        };
+        reply.network_connections = network_connection_to_str;
+
         Ok(Response::new(reply))
     }
 }
