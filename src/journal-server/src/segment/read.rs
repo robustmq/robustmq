@@ -182,9 +182,9 @@ async fn read_by_timestamp(
         .get_last_nearest_position_by_timestamp(segment_iden, filter.timestamp)
         .await?;
 
-    Ok(segment_file
+    segment_file
         .read_by_timestamp(start_position, filter.timestamp, read_options.max_size)
-        .await?)
+        .await
 }
 
 async fn read_by_key(
@@ -205,9 +205,9 @@ async fn read_by_key(
         .await?;
 
     let positions = index_data_list.iter().map(|raw| raw.position).collect();
-    Ok(segment_file
+    segment_file
         .read_by_positions(positions, read_options.max_size)
-        .await?)
+        .await
 }
 
 async fn read_by_tag(
@@ -228,9 +228,9 @@ async fn read_by_tag(
         .await?;
 
     let positions = index_data_list.iter().map(|raw| raw.position).collect();
-    Ok(segment_file
+    segment_file
         .read_by_positions(positions, read_options.max_size)
-        .await?)
+        .await
 }
 
 #[cfg(test)]
