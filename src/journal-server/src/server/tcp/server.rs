@@ -17,12 +17,12 @@ use std::sync::Arc;
 use common_base::config::journal_server::journal_server_conf;
 use grpc_clients::pool::ClientPool;
 use log::info;
+use rocksdb_engine::RocksDBEngine;
 use tokio::net::TcpListener;
 use tokio::sync::{broadcast, mpsc};
 
 use crate::core::cache::CacheManager;
 use crate::core::offset::OffsetManager;
-use crate::core::write::WriteManager;
 use crate::handler::command::Command;
 use crate::segment::manager::SegmentFileManager;
 use crate::server::connection::NetworkConnectionType;
@@ -39,7 +39,7 @@ pub async fn start_tcp_server(
     cache_manager: Arc<CacheManager>,
     offset_manager: Arc<OffsetManager>,
     segment_file_manager: Arc<SegmentFileManager>,
-    write_manager: Arc<WriteManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     let conf = journal_server_conf();
@@ -48,7 +48,7 @@ pub async fn start_tcp_server(
         cache_manager.clone(),
         offset_manager,
         segment_file_manager,
-        write_manager,
+        rocksdb_engine_handler,
     );
 
     let proc_config = ProcessorConfig {

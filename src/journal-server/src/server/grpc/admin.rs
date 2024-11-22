@@ -21,6 +21,7 @@ use protocol::journal_server::journal_admin::{
 use tonic::{Request, Response, Status};
 
 use crate::core::cache::CacheManager;
+use crate::segment::SegmentIdentity;
 
 pub struct GrpcJournalServerAdminService {
     cache_manager: Arc<CacheManager>,
@@ -82,7 +83,7 @@ impl JournalServerAdminService for GrpcJournalServerAdminService {
             // get all segment by shard
             for segment in self
                 .cache_manager
-                .get_segment_list_by_shard(&req.namespace, &req.shard_name)
+                .get_segments_list_by_shard(&req.namespace, &req.shard_name)
             {
                 match serde_json::to_string(&segment) {
                     Ok(data) => {
@@ -95,11 +96,12 @@ impl JournalServerAdminService for GrpcJournalServerAdminService {
             }
         } else {
             // get segment
-            if let Some(segment) = self.cache_manager.get_segment(
-                &req.namespace,
-                &req.shard_name,
-                req.segment_no as u32,
-            ) {
+            let segment_iden = SegmentIdentity {
+                namespace: req.namespace.to_string(),
+                shard_name: req.shard_name.to_string(),
+                segment_seq: req.segment_no as u32,
+            };
+            if let Some(segment) = self.cache_manager.get_segment(&segment_iden) {
                 match serde_json::to_string(&segment) {
                     Ok(data) => {
                         segments.push(data);

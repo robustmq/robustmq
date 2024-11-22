@@ -37,7 +37,7 @@ mod tests {
     use crate::common::get_placement_addr;
 
     #[tokio::test]
-    #[ignore]
+
     async fn shard_segment_metadata_test() {
         let client_pool = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
@@ -256,7 +256,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+
     pub async fn sealup_segment_test() {
         let client_pool = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
@@ -397,7 +397,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+
     pub async fn delete_segment_test() {
         let client_pool = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
@@ -506,7 +506,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+
     pub async fn delete_shard_test() {
         let client_pool = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];

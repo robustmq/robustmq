@@ -26,3 +26,4 @@ serde_json.workspace = true
 protocol.workspace = true
 bytes.workspace = true
 log.workspace = true
+dashmap.workspace = true

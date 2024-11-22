@@ -8,7 +8,6 @@ service MQTTBrokerAdminService {
     rpc mqtt_broker_delete_user(DeleteUserRequest) returns(DeleteUserReply){}
 
     rpc mqtt_broker_list_user(ListUserRequest) returns(ListUserReply){}
-    
 }
 
 message ClusterStatusRequest{

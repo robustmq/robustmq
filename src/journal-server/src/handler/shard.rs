@@ -28,6 +28,7 @@ use protocol::placement_center::placement_center_journal::{
 
 use crate::core::cache::{load_metadata_cache, CacheManager};
 use crate::core::error::JournalServerError;
+use crate::segment::SegmentIdentity;
 
 #[derive(Clone)]
 pub struct ShardHandler {
@@ -155,7 +156,7 @@ impl ShardHandler {
 
             let segments = self
                 .cache_manager
-                .get_segment_list_by_shard(&raw.namespace, &raw.shard_name);
+                .get_segments_list_by_shard(&raw.namespace, &raw.shard_name);
 
             if segments.is_empty() {
                 load_metadata_cache(&self.cache_manager, &self.client_pool).await;
@@ -164,11 +165,8 @@ impl ShardHandler {
 
             let mut resp_shard_segments = Vec::new();
             for segment in segments {
-                let meta = if let Some(meta) = self.cache_manager.get_segment_meta(
-                    &raw.namespace,
-                    &raw.shard_name,
-                    segment.segment_seq,
-                ) {
+                let segment_iden = SegmentIdentity::from_journal_segment(&segment);
+                let meta = if let Some(meta) = self.cache_manager.get_segment_meta(&segment_iden) {
                     meta
                 } else {
                     load_metadata_cache(&self.cache_manager, &self.client_pool).await;
