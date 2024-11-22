@@ -20,10 +20,10 @@ use dashmap::DashMap;
 use grpc_clients::placement::journal::call::{list_segment, list_segment_meta, list_shard};
 use grpc_clients::placement::placement::call::node_list;
 use grpc_clients::pool::ClientPool;
-use log::{error, info};
+use log::{debug, error, info};
 use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
-use metadata_struct::journal::shard::JournalShard;
+use metadata_struct::journal::shard::{shard_name_iden, JournalShard};
 use metadata_struct::placement::node::BrokerNode;
 use protocol::journal_server::journal_inner::{
     JournalUpdateCacheActionType, JournalUpdateCacheResourceType,
@@ -33,9 +33,11 @@ use protocol::placement_center::placement_center_journal::{
     ListSegmentMetaRequest, ListSegmentRequest, ListShardRequest,
 };
 use rocksdb_engine::RocksDBEngine;
+use tokio::sync::broadcast;
 
 use super::cluster::JournalEngineClusterConfig;
-use crate::segment::manager::{create_local_segment, SegmentFileManager};
+use crate::segment::manager::{try_create_local_segment, SegmentFileManager};
+use crate::segment::write::SegmentWrite;
 use crate::segment::SegmentIdentity;
 
 #[derive(Clone)]
@@ -46,6 +48,8 @@ pub struct CacheManager {
     segments: DashMap<String, DashMap<u32, JournalSegment>>,
     segment_metadatas: DashMap<String, DashMap<u32, JournalSegmentMetadata>>,
     leader_segments: DashMap<String, SegmentIdentity>,
+    segment_index_build_thread: DashMap<String, broadcast::Sender<bool>>,
+    segment_writes: DashMap<String, SegmentWrite>,
 }
 
 impl CacheManager {
@@ -56,6 +60,8 @@ impl CacheManager {
         let segments = DashMap::with_capacity(8);
         let segment_metadatas = DashMap::with_capacity(8);
         let leader_segments = DashMap::with_capacity(8);
+        let segment_index_build_thread = DashMap::with_capacity(2);
+        let segment_write = DashMap::with_capacity(2);
         CacheManager {
             cluster,
             node_list,
@@ -63,6 +69,8 @@ impl CacheManager {
             segments,
             segment_metadatas,
             leader_segments,
+            segment_index_build_thread,
+            segment_writes: segment_write,
         }
     }
 
@@ -107,12 +115,12 @@ impl CacheManager {
     }
 
     pub fn set_shard(&self, shard: JournalShard) {
-        let key = self.shard_key(&shard.namespace, &shard.shard_name);
+        let key = shard_name_iden(&shard.namespace, &shard.shard_name);
         self.shards.insert(key, shard);
     }
 
     pub fn get_shard(&self, namespace: &str, shard_name: &str) -> Option<JournalShard> {
-        let key = self.shard_key(namespace, shard_name);
+        let key = shard_name_iden(namespace, shard_name);
         if let Some(shard) = self.shards.get(&key) {
             return Some(shard.clone());
         }
@@ -120,7 +128,7 @@ impl CacheManager {
     }
 
     pub fn delete_shard(&self, namespace: &str, shard_name: &str) {
-        let key = self.shard_key(namespace, shard_name);
+        let key = shard_name_iden(namespace, shard_name);
         self.shards.remove(&key);
         self.segments.remove(&key);
         self.segment_metadatas.remove(&key);
@@ -134,16 +142,20 @@ impl CacheManager {
         results
     }
 
-    pub fn shard_is_exists(&self, namespace: &str, shard_name: &str) -> bool {
-        let key = self.shard_key(namespace, shard_name);
+    pub fn is_exist_shard(&self, namespace: &str, shard_name: &str) -> bool {
+        let key = shard_name_iden(namespace, shard_name);
         self.shards.contains_key(&key) || self.segments.contains_key(&key)
     }
 
     pub fn get_active_segment(&self, namespace: &str, shard_name: &str) -> Option<JournalSegment> {
-        let key = self.shard_key(namespace, shard_name);
+        let key = shard_name_iden(namespace, shard_name);
         if let Some(shard) = self.shards.get(&key) {
-            if let Some(segment) = self.get_segment(namespace, shard_name, shard.active_segment_seq)
-            {
+            let segment_iden = SegmentIdentity {
+                namespace: namespace.to_string(),
+                shard_name: shard_name.to_string(),
+                segment_seq: shard.active_segment_seq,
+            };
+            if let Some(segment) = self.get_segment(&segment_iden) {
                 return Some(segment);
             }
         }
@@ -152,7 +164,8 @@ impl CacheManager {
     }
 
     pub fn set_segment(&self, segment: JournalSegment) {
-        let key = self.shard_key(&segment.namespace, &segment.shard_name);
+        let key = shard_name_iden(&segment.namespace, &segment.shard_name);
+
         if let Some(segment_list) = self.segments.get(&key) {
             segment_list.insert(segment.segment_seq, segment.clone());
         } else {
@@ -164,7 +177,7 @@ impl CacheManager {
         // add to leader
         let conf = journal_server_conf();
         if segment.leader == conf.node_id {
-            self.add_leader_segment(SegmentIdentity {
+            self.add_leader_segment(&SegmentIdentity {
                 namespace: segment.namespace,
                 shard_name: segment.shard_name,
                 segment_seq: segment.segment_seq,
@@ -172,8 +185,8 @@ impl CacheManager {
         }
     }
 
-    pub fn delete_segment(&self, segment: &JournalSegment) {
-        let key = self.shard_key(&segment.namespace, &segment.shard_name);
+    pub fn delete_segment(&self, segment: &SegmentIdentity) {
+        let key = shard_name_iden(&segment.namespace, &segment.shard_name);
         if let Some(list) = self.segments.get(&key) {
             list.remove(&segment.segment_seq);
         }
@@ -182,32 +195,38 @@ impl CacheManager {
             list.remove(&segment.segment_seq);
         }
 
-        self.remove_leader_segment(&segment.namespace, &segment.shard_name, segment.segment_seq);
+        self.remove_leader_segment(segment);
+
+        if let Some(stop_send) = self.segment_index_build_thread.get(&key) {
+            if let Err(e) = stop_send.send(true) {
+                debug!("Trying to stop the index building thread for segment {} failed with error message:{}", segment.name(),e);
+            }
+        }
+
+        if let Some(write) = self.segment_writes.get(&key) {
+            if let Err(e) = write.stop_sender.send(true) {
+                debug!("Trying to stop the segment write thread for segment {} failed with error message:{}", segment.name(),e);
+            }
+        }
     }
 
-    pub fn get_segment(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        segment_no: u32,
-    ) -> Option<JournalSegment> {
-        let key = self.shard_key(namespace, shard_name);
+    pub fn get_segment(&self, segment: &SegmentIdentity) -> Option<JournalSegment> {
+        let key = shard_name_iden(&segment.namespace, &segment.shard_name);
         if let Some(sgement_list) = self.segments.get(&key) {
-            if let Some(segment) = sgement_list.get(&segment_no) {
+            if let Some(segment) = sgement_list.get(&segment.segment_seq) {
                 return Some(segment.clone());
             }
         }
         None
     }
 
-    pub fn get_segment_list_by_shard(
+    pub fn get_segments_list_by_shard(
         &self,
         namespace: &str,
         shard_name: &str,
     ) -> Vec<JournalSegment> {
         let mut results = Vec::new();
-        let key = self.shard_key(namespace, shard_name);
-        if let Some(sgement_list) = self.segments.get(&key) {
+        if let Some(sgement_list) = self.segments.get(&shard_name_iden(namespace, shard_name)) {
             for raw in sgement_list.iter() {
                 results.push(raw.value().clone());
             }
@@ -215,23 +234,19 @@ impl CacheManager {
         results
     }
 
-    pub fn update_segment_status(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        segment_no: u32,
-        status: SegmentStatus,
-    ) {
-        let key = self.shard_key(namespace, shard_name);
-        if let Some(sgement_list) = self.segments.get(&key) {
-            if let Some(mut segment) = sgement_list.get_mut(&segment_no) {
+    pub fn update_segment_status(&self, segment_iden: &SegmentIdentity, status: SegmentStatus) {
+        if let Some(sgement_list) = self.segments.get(&shard_name_iden(
+            &segment_iden.namespace,
+            &segment_iden.shard_name,
+        )) {
+            if let Some(mut segment) = sgement_list.get_mut(&segment_iden.segment_seq) {
                 segment.status = status;
             }
         }
     }
 
     pub fn set_segment_meta(&self, segment: JournalSegmentMetadata) {
-        let key = self.shard_key(&segment.namespace, &segment.shard_name);
+        let key = shard_name_iden(&segment.namespace, &segment.shard_name);
         if let Some(list) = self.segment_metadatas.get(&key) {
             list.insert(segment.segment_seq, segment);
         } else {
@@ -242,7 +257,7 @@ impl CacheManager {
     }
 
     pub fn delete_segment_meta(&self, segment: &JournalSegment) {
-        let key = self.shard_key(&segment.namespace, &segment.shard_name);
+        let key = shard_name_iden(&segment.namespace, &segment.shard_name);
         if let Some(list) = self.segment_metadatas.get(&key) {
             list.remove(&segment.segment_seq);
         }
@@ -250,15 +265,52 @@ impl CacheManager {
 
     pub fn get_segment_meta(
         &self,
-        namespace: &str,
-        shard_name: &str,
-        segment_no: u32,
+        segment_iden: &SegmentIdentity,
     ) -> Option<JournalSegmentMetadata> {
-        let key = self.shard_key(namespace, shard_name);
+        let key = shard_name_iden(&segment_iden.namespace, &segment_iden.shard_name);
         if let Some(list) = self.segment_metadatas.get(&key) {
-            if let Some(segment) = list.get(&segment_no) {
+            if let Some(segment) = list.get(&segment_iden.segment_seq) {
                 return Some(segment.clone());
             }
+        }
+        None
+    }
+
+    pub fn add_build_index_thread(
+        &self,
+        segment_iden: &SegmentIdentity,
+        stop_send: broadcast::Sender<bool>,
+    ) {
+        self.segment_index_build_thread
+            .insert(segment_iden.name(), stop_send);
+    }
+
+    pub fn remove_build_index_thread(&self, segment_iden: &SegmentIdentity) {
+        let key = segment_iden.name();
+        self.segment_index_build_thread.remove(&key);
+    }
+
+    pub fn contain_build_index_thread(&self, segment_iden: &SegmentIdentity) -> bool {
+        self.segment_index_build_thread
+            .contains_key(&segment_iden.name())
+    }
+
+    pub fn add_segment_write_thread(
+        &self,
+        segment_iden: &SegmentIdentity,
+        segment_write: SegmentWrite,
+    ) {
+        self.segment_writes
+            .insert(segment_iden.name(), segment_write);
+    }
+
+    pub fn remove_segment_write_thread(&self, segment_iden: &SegmentIdentity) {
+        self.segment_writes.remove(&segment_iden.name());
+    }
+
+    pub fn get_segment_write_thread(&self, segment_iden: &SegmentIdentity) -> Option<SegmentWrite> {
+        if let Some(write) = self.segment_writes.get(&segment_iden.name()) {
+            return Some(write.clone());
         }
         None
     }
@@ -271,26 +323,13 @@ impl CacheManager {
         results
     }
 
-    fn add_leader_segment(&self, segment_iden: SegmentIdentity) {
-        let key = self.sgement_key(
-            &segment_iden.namespace,
-            &segment_iden.shard_name,
-            segment_iden.segment_seq,
-        );
-        self.leader_segments.insert(key, segment_iden);
+    fn add_leader_segment(&self, segment_iden: &SegmentIdentity) {
+        self.leader_segments
+            .insert(segment_iden.name(), segment_iden.clone());
     }
 
-    fn remove_leader_segment(&self, namespace: &str, shard_name: &str, segment_seq: u32) {
-        let key = self.sgement_key(namespace, shard_name, segment_seq);
-        self.leader_segments.remove(&key);
-    }
-
-    fn sgement_key(&self, namespace: &str, shard_name: &str, segment_seq: u32) -> String {
-        format!("{}_{}", namespace, shard_name)
-    }
-
-    fn shard_key(&self, namespace: &str, shard_name: &str) -> String {
-        format!("{}_{}", namespace, shard_name)
+    fn remove_leader_segment(&self, segment_iden: &SegmentIdentity) {
+        self.leader_segments.remove(&segment_iden.name());
     }
 }
 
@@ -407,15 +446,13 @@ async fn parse_segment(
                     "Segment cache update, action: set, segment:{}",
                     segment.name()
                 );
-                if cache_manager
-                    .get_segment(&segment.namespace, &segment.shard_name, segment.segment_seq)
-                    .is_some()
-                {
-                    return;
-                }
 
-                match create_local_segment(segment_file_manager, rocksdb_engine_handler, &segment)
-                    .await
+                match try_create_local_segment(
+                    segment_file_manager,
+                    rocksdb_engine_handler,
+                    &segment,
+                )
+                .await
                 {
                     Ok(()) => {
                         cache_manager.set_segment(segment);
@@ -456,6 +493,11 @@ async fn parse_segment_meta(
                         "Update the cache, set segment meta, segment name:{}",
                         segment.name()
                     );
+                    let segment_iden = SegmentIdentity {
+                        namespace: segment.namespace.clone(),
+                        shard_name: segment.shard_name.clone(),
+                        segment_seq: segment.segment_seq,
+                    };
                     cache_manager.set_segment_meta(segment);
                 }
                 Err(e) => {

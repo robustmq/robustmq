@@ -24,25 +24,29 @@ use protocol::journal_server::journal_inner::{
 
 use super::cache::CacheManager;
 use super::error::JournalServerError;
-use crate::segment::fold::data_file_segment;
+use crate::segment::file::{data_file_segment, open_segment_write};
+use crate::segment::manager::SegmentFileManager;
+use crate::segment::SegmentIdentity;
 
 pub fn delete_local_segment(
     cache_manager: Arc<CacheManager>,
+    segment_file_manager: Arc<SegmentFileManager>,
     req: DeleteSegmentFileRequest,
 ) -> Result<(), JournalServerError> {
-    let segment = if let Some(segment) =
-        cache_manager.get_segment(&req.namespace, &req.shard_name, req.segment)
-    {
+    let segment_iden = SegmentIdentity {
+        namespace: req.namespace,
+        shard_name: req.shard_name,
+        segment_seq: req.segment,
+    };
+
+    let segment = if let Some(segment) = cache_manager.get_segment(&segment_iden) {
         segment
     } else {
-        return Err(JournalServerError::SegmentNotExist(
-            req.shard_name,
-            req.segment,
-        ));
+        return Err(JournalServerError::SegmentNotExist(segment_iden.name()));
     };
 
     tokio::spawn(async move {
-        // delete file
+        // delete local file
         let conf = journal_server_conf();
         let data_fold = if let Some(fold) = segment.get_fold(conf.node_id) {
             fold
@@ -58,38 +62,32 @@ pub fn delete_local_segment(
         }
 
         // delete segment
-        cache_manager.delete_segment(&segment);
+        cache_manager.delete_segment(&segment_iden);
+
+        // delete segment file manager
+        segment_file_manager.remove_segment_file(&segment_iden);
     });
     Ok(())
 }
 
-pub fn get_delete_segment_status(
+pub async fn segment_already_delete(
     cache_manager: &Arc<CacheManager>,
     req: &GetSegmentDeleteStatusRequest,
 ) -> Result<bool, JournalServerError> {
-    let segment = if let Some(segment) =
-        cache_manager.get_segment(&req.namespace, &req.shard_name, req.segment)
-    {
+    let segment_iden = SegmentIdentity {
+        namespace: req.namespace.clone(),
+        shard_name: req.shard_name.clone(),
+        segment_seq: req.segment,
+    };
+
+    let segment = if let Some(segment) = cache_manager.get_segment(&segment_iden) {
         segment
     } else {
         return Ok(false);
     };
 
     // Does the file exist
-    let conf = journal_server_conf();
-    let data_fold = if let Some(fold) = segment.get_fold(conf.node_id) {
-        fold
-    } else {
-        return Ok(false);
-    };
+    let (segment_write, _) = open_segment_write(cache_manager, &segment_iden).await?;
 
-    let segment_file = data_file_segment(&data_fold, req.segment);
-    let file_exist = Path::new(&segment_file).exists();
-
-    // Does the cache exist
-    let cache_exist = cache_manager
-        .get_segment(&req.namespace, &req.shard_name, req.segment)
-        .is_some();
-
-    Ok(!file_exist && !cache_exist)
+    Ok(!segment_write.exists())
 }

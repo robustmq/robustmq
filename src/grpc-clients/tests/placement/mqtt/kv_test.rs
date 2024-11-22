@@ -27,7 +27,7 @@ mod tests {
     use crate::common::get_placement_addr;
 
     #[tokio::test]
-    #[ignore]
+
     async fn kv_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];

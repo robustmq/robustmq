@@ -28,7 +28,7 @@ mod tests {
     use crate::common::get_mqtt_broker_addr;
 
     #[tokio::test]
-    #[ignore]
+
     async fn cluster_status_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_mqtt_broker_addr()];
@@ -45,7 +45,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+
     async fn user_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_mqtt_broker_addr()];

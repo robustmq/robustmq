@@ -2015,6 +2015,7 @@ version = "0.1.1"
 dependencies = [
  "bytes",
  "common-base",
+ "dashmap",
  "log",
  "protocol",
  "serde",
@@ -3156,6 +3157,7 @@ name = "rocksdb-engine"
 version = "0.1.1"
 dependencies = [
  "common-base",
+ "dashmap",
  "log",
  "rocksdb",
  "serde",

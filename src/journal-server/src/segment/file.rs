@@ -13,16 +13,58 @@
 // limitations under the License.
 
 use std::fs::remove_dir_all;
+use std::io::ErrorKind;
+use std::path::Path;
+use std::sync::Arc;
 
 use bytes::BytesMut;
+use common_base::config::journal_server::journal_server_conf;
 use common_base::tools::{file_exists, try_create_fold};
 use prost::Message;
 use protocol::journal_server::journal_record::JournalRecord;
 use tokio::fs::{self, File, OpenOptions};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
-use super::fold::{data_file_segment, data_fold_shard};
+use super::SegmentIdentity;
+use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
+
+#[derive(Debug, Clone)]
+pub struct ReadData {
+    pub position: u64,
+    pub record: JournalRecord,
+}
+
+pub async fn open_segment_write(
+    cache_manager: &Arc<CacheManager>,
+    segment_iden: &SegmentIdentity,
+) -> Result<(SegmentFile, u64), JournalServerError> {
+    let segment = if let Some(segment) = cache_manager.get_segment(segment_iden) {
+        segment
+    } else {
+        return Err(JournalServerError::SegmentNotExist(segment_iden.name()));
+    };
+
+    let conf = journal_server_conf();
+    let fold = if let Some(fold) = segment.get_fold(conf.node_id) {
+        fold
+    } else {
+        return Err(JournalServerError::SegmentDataDirectoryNotFound(
+            segment_iden.name(),
+            conf.node_id,
+        ));
+    };
+
+    Ok((
+        SegmentFile::new(
+            segment_iden.namespace.to_string(),
+            segment_iden.shard_name.to_string(),
+            segment_iden.segment_seq,
+            fold,
+        ),
+        segment.config.max_segment_size,
+    ))
+}
 
 #[derive(Default)]
 pub struct SegmentFile {
@@ -43,13 +85,14 @@ impl SegmentFile {
         }
     }
 
-    pub async fn create(&self) -> Result<File, JournalServerError> {
+    pub async fn try_create(&self) -> Result<(), JournalServerError> {
         try_create_fold(&self.data_fold)?;
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         if file_exists(&segment_file) {
-            return Err(JournalServerError::SegmentFileAlreadyExists(segment_file));
+            return Ok(());
         }
-        Ok(File::create(segment_file).await?)
+        File::create(segment_file).await?;
+        Ok(())
     }
 
     pub async fn delete(&self) -> Result<(), JournalServerError> {
@@ -60,20 +103,23 @@ impl SegmentFile {
         Ok(remove_dir_all(segment_file)?)
     }
 
-    pub async fn write(&self, records: &[JournalRecord]) -> Result<(), JournalServerError> {
+    pub async fn write(&self, records: &[JournalRecord]) -> Result<Vec<u64>, JournalServerError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = OpenOptions::new().append(true).open(segment_file).await?;
         let mut writer = tokio::io::BufWriter::new(file);
 
+        let mut results = Vec::new();
         for record in records {
+            let position = writer.stream_position().await?;
             let data = JournalRecord::encode_to_vec(record);
             writer.write_u64(record.offset).await?;
             writer.write_u32(data.len() as u32).await?;
             writer.write_all(data.as_ref()).await?;
+            results.push(position);
         }
 
         writer.flush().await?;
-        Ok(())
+        Ok(results)
     }
 
     pub async fn size(&self) -> Result<u64, JournalServerError> {
@@ -86,7 +132,7 @@ impl SegmentFile {
         &self,
         start_offset: Option<u64>,
         size: u64,
-    ) -> Result<Vec<JournalRecord>, JournalServerError> {
+    ) -> Result<Vec<ReadData>, JournalServerError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = File::open(segment_file).await?;
         let mut reader = tokio::io::BufReader::new(file);
@@ -99,7 +145,17 @@ impl SegmentFile {
             }
 
             // read offset
-            let record_offset = reader.read_u64().await?;
+            let position = reader.stream_position().await?;
+
+            let record_offset = match reader.read_u64().await {
+                Ok(offset) => offset,
+                Err(e) => {
+                    if e.kind() == ErrorKind::UnexpectedEof {
+                        break;
+                    }
+                    return Err(e.into());
+                }
+            };
 
             // read len
             let len = reader.read_u32().await?;
@@ -117,11 +173,25 @@ impl SegmentFile {
 
             already_size += buf.len() as u64;
             let record = JournalRecord::decode(buf)?;
-            results.push(record);
+            results.push(ReadData { position, record });
         }
 
         Ok(results)
     }
+
+    pub fn exists(&self) -> bool {
+        let segment_file = data_file_segment(&self.data_fold, self.segment_no);
+        Path::new(&segment_file).exists()
+    }
+}
+
+pub fn data_fold_shard(namespace: &str, shard_name: &str, data_fold: &str) -> String {
+    let file_name = format!("{}/{}", namespace, shard_name);
+    format!("{}/{}", data_fold, file_name)
+}
+
+pub fn data_file_segment(data_fold: &str, segment_no: u32) -> String {
+    format!("{}/{}.msg", data_fold, segment_no)
 }
 
 #[cfg(test)]
@@ -143,8 +213,8 @@ mod tests {
             segment_no,
             data_fold.to_string(),
         );
-        assert!(segment.create().await.is_ok());
-        assert!(segment.create().await.is_err());
+        assert!(segment.try_create().await.is_ok());
+        assert!(segment.try_create().await.is_ok());
     }
 
     #[tokio::test]
@@ -162,7 +232,7 @@ mod tests {
             data_fold.to_string(),
         );
 
-        segment.create().await.unwrap();
+        segment.try_create().await.unwrap();
         for i in 0..10 {
             let value = format!("data1#-{}", i);
             let record = JournalRecord {
@@ -176,14 +246,14 @@ mod tests {
                 tags: vec![],
             };
             match segment.write(&[record.clone()]).await {
-                Ok(()) => {}
+                Ok(_) => {}
                 Err(e) => {
                     panic!("{:?}", e);
                 }
             }
         }
 
-        let res = segment.read(Some(1003), 200).await.unwrap();
+        let res = segment.read(Some(1003), 20000).await.unwrap();
         for raw in res {
             println!("{:?}", raw);
         }

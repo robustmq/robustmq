@@ -132,11 +132,33 @@ cargo run --package cmd --bin mqtt-server -- --conf=example/mqtt-cluster/mqtt-se
 ```
 
 
-#### Run all test cases
-You need to install the cargo-nextes command first. Please refer to documentation[《Integration testing》](http://www.robustmq.com/docs/robustmq-tutorial-cn/%e7%b3%bb%e7%bb%9f%e6%9e%b6%e6%9e%84/%e6%b5%8b%e8%af%95%e7%94%a8%e4%be%8b/)
-```
-make test
-```
+#### Test Cases
+You need to install the cargo-nextes command first. Please refer to documentation[《Testing》](http://www.robustmq.com/docs/robustmq-tutorial-cn/%e7%b3%bb%e7%bb%9f%e6%9e%b6%e6%9e%84/%e6%b5%8b%e8%af%95%e7%94%a8%e4%be%8b/)
+
+- Unit Tests
+
+  Run all unit tests:
+  ```
+  make test
+  ```
+
+- Integration Tests
+
+  For MQTT Broker:
+  ```
+  make mqtt-ig-test
+  ```
+
+  For Placement Center:
+  ```
+  make place-ig-test
+  ```
+
+  For Journal Engine:
+  ```
+  make journal-ig-test
+  ```
+
 
 #### Packaging
 Follow the "make help" prompts to build packages for different platforms
