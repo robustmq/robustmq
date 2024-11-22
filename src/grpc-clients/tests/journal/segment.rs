@@ -27,7 +27,7 @@ mod tests {
 
     use crate::common::get_placement_addr;
     #[tokio::test]
-    #[ignore]
+
     async fn segment_test() {
         let client_pool = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];

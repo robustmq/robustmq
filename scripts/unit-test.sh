@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Run Cargo Test
-cargo nextest run --workspace --exclude robustmq-test
+# Run Cargo Test （exclude integration test modules）
+cargo nextest run --workspace --exclude robustmq-test --exclude grpc-clients --exclude cmd --exclude mqtt-bridge  --exclude mqtt-broker
 
  # Modules that are not suitable for unit testing
  # cmd
  # grpc-clients
  # mqtt-bridge
  # mqtt-broker
+ # robustmq-test

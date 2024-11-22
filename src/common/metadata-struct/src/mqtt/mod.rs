@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod cluster;
+pub mod connection;
 pub mod lastwill;
 pub mod message;
 pub mod node_extend;

@@ -17,18 +17,18 @@ mod tests {
     use std::sync::Arc;
 
     use grpc_clients::placement::placement::call::{
-        cluster_status, delete_idempotent_data, register_node, set_resource_config, unregister_node,
+        cluster_status, delete_idempotent_data, get_resource_config, register_node,
+        set_resource_config, unregister_node,
     };
     use grpc_clients::pool::ClientPool;
     use protocol::placement_center::placement_center_inner::{
-        ClusterStatusRequest, ClusterType, DeleteIdempotentDataRequest, RegisterNodeRequest,
-        SetResourceConfigRequest, UnRegisterNodeRequest,
+        ClusterStatusRequest, ClusterType, DeleteIdempotentDataRequest, GetResourceConfigRequest,
+        RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
     };
 
     use crate::common::get_placement_addr;
 
     #[tokio::test]
-    #[ignore]
     async fn register_node_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
@@ -102,7 +102,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn un_register_node_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
@@ -140,7 +139,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn delete_idempotent_data_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
@@ -174,7 +172,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn set_resource_config_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
@@ -208,6 +205,59 @@ mod tests {
             client_pool.clone(),
             addrs.clone(),
             request_cluster_name_empty
+        )
+        .await
+        .is_err());
+    }
+
+    #[tokio::test]
+    async fn get_resource_config_test() {
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
+        let addrs = vec![get_placement_addr()];
+
+        // Check if the cluster is available
+        let request = ClusterStatusRequest::default();
+        assert!(cluster_status(client_pool.clone(), addrs.clone(), request)
+            .await
+            .is_ok());
+
+        // Test data
+        let cluster_name = "test-cluster-name".to_string();
+        let config = vec![1, 2, 3];
+        let resources = vec!["1".to_string(), "2".to_string(), "3".to_string()];
+
+        // Set the resource config first
+        let set_request = SetResourceConfigRequest {
+            cluster_name: cluster_name.clone(),
+            resources: resources.clone(),
+            config: config.clone(),
+        };
+        assert!(
+            set_resource_config(client_pool.clone(), addrs.clone(), set_request)
+                .await
+                .is_ok()
+        );
+
+        // Test: Get the resource config
+        let valid_get_request = GetResourceConfigRequest {
+            cluster_name: cluster_name.clone(),
+            resources: resources.clone(),
+        };
+        assert!(
+            get_resource_config(client_pool.clone(), addrs.clone(), valid_get_request)
+                .await
+                .is_ok()
+        );
+
+        // Test: Get the resource config with empty cluster name
+        let get_request_with_empty_cluster_name = GetResourceConfigRequest {
+            cluster_name: "".to_string(),
+            resources,
+        };
+        assert!(get_resource_config(
+            client_pool.clone(),
+            addrs.clone(),
+            get_request_with_empty_cluster_name
         )
         .await
         .is_err());
