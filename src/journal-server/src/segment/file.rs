@@ -218,11 +218,12 @@ impl SegmentFile {
 
             // read len
             let len = reader.read_u32().await?;
+
             // read body
             let mut buf = BytesMut::with_capacity(len as usize);
             reader.read_buf(&mut buf).await?;
-            let buf_len = buf.len();
 
+            let buf_len = buf.len();
             let record = JournalRecord::decode(buf)?;
 
             if record.create_time < timestamp {

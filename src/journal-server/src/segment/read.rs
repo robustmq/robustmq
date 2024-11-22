@@ -182,10 +182,9 @@ async fn read_by_timestamp(
         .get_last_nearest_position_by_timestamp(segment_iden, filter.timestamp)
         .await?;
 
-    let res = segment_file
+    Ok(segment_file
         .read_by_timestamp(start_position, filter.timestamp, read_options.max_size)
-        .await?;
-    Ok(Vec::new())
+        .await?)
 }
 
 async fn read_by_key(
@@ -206,10 +205,9 @@ async fn read_by_key(
         .await?;
 
     let positions = index_data_list.iter().map(|raw| raw.position).collect();
-    let res = segment_file
+    Ok(segment_file
         .read_by_positions(positions, read_options.max_size)
-        .await?;
-    Ok(res)
+        .await?)
 }
 
 async fn read_by_tag(
@@ -230,10 +228,9 @@ async fn read_by_tag(
         .await?;
 
     let positions = index_data_list.iter().map(|raw| raw.position).collect();
-    let res = segment_file
+    Ok(segment_file
         .read_by_positions(positions, read_options.max_size)
-        .await?;
-    Ok(res)
+        .await?)
 }
 
 #[cfg(test)]
