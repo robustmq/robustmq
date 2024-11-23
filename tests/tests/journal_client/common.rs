@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::error::common::CommonError;
+use protocol::journal_server::journal_engine::JournalEngineError;
+
 pub fn journal_tcp_addr() -> String {
     "127.0.0.1:3110".to_string()
 }
