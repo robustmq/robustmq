@@ -13,5 +13,5 @@
 // limitations under the License.
 
 mod admin;
-mod placement;
+mod inner;
 pub mod server;

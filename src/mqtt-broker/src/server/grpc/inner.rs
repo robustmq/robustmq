@@ -17,8 +17,8 @@ use std::sync::Arc;
 use grpc_clients::pool::ClientPool;
 use log::debug;
 use metadata_struct::mqtt::lastwill::LastWillData;
-use protocol::broker_mqtt::broker_mqtt_placement::mqtt_broker_placement_service_server::MqttBrokerPlacementService;
-use protocol::broker_mqtt::broker_mqtt_placement::{
+use protocol::broker_mqtt::broker_mqtt_inner::mqtt_broker_inner_service_server::MqttBrokerInnerService;
+use protocol::broker_mqtt::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
     UpdateCacheReply, UpdateCacheRequest,
 };
@@ -29,21 +29,21 @@ use crate::handler::cache::{update_cache_metadata, CacheManager};
 use crate::handler::lastwill::send_last_will_message;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 
-pub struct GrpcPlacementServices<S> {
+pub struct GrpcInnerServices<S> {
     cache_manager: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
     client_pool: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
 }
 
-impl<S> GrpcPlacementServices<S> {
+impl<S> GrpcInnerServices<S> {
     pub fn new(
         metadata_cache: Arc<CacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
         client_pool: Arc<ClientPool>,
         message_storage_adapter: Arc<S>,
     ) -> Self {
-        GrpcPlacementServices {
+        GrpcInnerServices {
             cache_manager: metadata_cache,
             subscribe_manager,
             client_pool,
@@ -53,7 +53,7 @@ impl<S> GrpcPlacementServices<S> {
 }
 
 #[tonic::async_trait]
-impl<S> MqttBrokerPlacementService for GrpcPlacementServices<S>
+impl<S> MqttBrokerInnerService for GrpcInnerServices<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {

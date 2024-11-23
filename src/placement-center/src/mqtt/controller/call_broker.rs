@@ -20,7 +20,7 @@ use grpc_clients::pool::ClientPool;
 use log::{debug, error, warn};
 use metadata_struct::mqtt::lastwill::LastWillData;
 use metadata_struct::mqtt::session::MqttSession;
-use protocol::broker_mqtt::broker_mqtt_placement::{
+use protocol::broker_mqtt::broker_mqtt_inner::{
     DeleteSessionRequest, SendLastWillMessageRequest,
 };
 
