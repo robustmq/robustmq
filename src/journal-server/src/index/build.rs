@@ -33,6 +33,7 @@ use super::time::TimestampIndexManager;
 use crate::core::cache::CacheManager;
 use crate::core::consts::{BUILD_INDE_PER_RECORD_NUM, DB_COLUMN_FAMILY_INDEX};
 use crate::core::error::JournalServerError;
+use crate::index::IndexData;
 use crate::segment::file::{open_segment_write, SegmentFile};
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
@@ -111,8 +112,6 @@ async fn build_thread(
     let shard_name = &segment_iden.shard_name;
     let segment = segment_iden.segment_seq;
 
-    let last_build_offset = get_last_offset_build_index(rocksdb_engine_handler, segment_iden)?;
-
     let (segment_write, _) = open_segment_write(cache_manager, segment_iden).await?;
 
     // Get the end offset of the local segment file
@@ -134,33 +133,37 @@ async fn build_thread(
         segment_iden.clone(),
         segment_write,
         segment_file_meta.start_offset as u64,
-        last_build_offset,
         stop_recv,
-    );
+    )
+    .await?;
     Ok(())
 }
 
-fn start_segment_build_index_thread(
+async fn start_segment_build_index_thread(
     cache_manager: Arc<CacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     segment_iden: SegmentIdentity,
     segment_write: SegmentFile,
     start_offset: u64,
-    mut last_build_offset: Option<u64>,
     mut stop_recv: Receiver<bool>,
-) {
+) -> Result<(), JournalServerError> {
     let offset_index = OffsetIndexManager::new(rocksdb_engine_handler.clone());
     let time_index = TimestampIndexManager::new(rocksdb_engine_handler.clone());
     let tag_index = TagIndexManager::new(rocksdb_engine_handler.clone());
 
+    let mut last_build_offset =
+        (get_last_offset_build_index(&rocksdb_engine_handler, &segment_iden)?).unwrap_or(0);
+
+    let offset_index = OffsetIndexManager::new(rocksdb_engine_handler.clone());
+
+    let start_position = offset_index
+        .get_last_nearest_position_by_offset(&segment_iden, last_build_offset)
+        .await?;
     tokio::spawn(async move {
         let size = 10 * 1024 * 1024;
         let mut data_empty_times = 0;
         let max_data_empty_times = 10 * 60;
 
-        let raw_namespace = segment_iden.namespace.clone();
-        let raw_shard_name = segment_iden.shard_name.clone();
-        let segment = segment_iden.segment_seq;
         loop {
             select! {
                 val = stop_recv.recv() =>{
@@ -168,14 +171,12 @@ fn start_segment_build_index_thread(
                         if flag {
                             cache_manager.remove_build_index_thread(&segment_iden);
                             debug!("segment {} index build thread exited successfully.",
-                                segment_name(&raw_namespace,
-                                    &raw_shard_name,
-                                    segment));
+                               segment_iden.name());
                             break;
                         }
                     }
                 },
-                val = segment_write.read(last_build_offset, size)=>{
+                val = segment_write.read_by_offset(start_position,last_build_offset, size)=>{
                     match val {
                         Ok(data) => {
                             if data.is_empty() {
@@ -185,9 +186,7 @@ fn start_segment_build_index_thread(
                                 // the indexing thread will exit and wait for data before continuing the build. Avoid idle threads.
                                 if data_empty_times >= max_data_empty_times {
                                     debug!("segment {} No data after 10 minutes of noise, index building thread temporarily quit",
-                                        segment_name(&raw_namespace,
-                                        &raw_shard_name,
-                                        segment));
+                                        segment_iden.name());
 
                                     if let Some(segment) = cache_manager.get_segment(&segment_iden){
                                         if segment.status == SegmentStatus::SealUp{
@@ -202,32 +201,37 @@ fn start_segment_build_index_thread(
                             }
                             data_empty_times = 0;
                             for read_data in data.iter() {
-                                let position = read_data.position;
                                 let record = read_data.record.clone();
 
+                                let index_data = IndexData{
+                                    offset: record.offset,
+                                    timestamp: record.create_time,
+                                    position: read_data.position,
+                                };
                                 if (record.offset - start_offset) % BUILD_INDE_PER_RECORD_NUM == 0 {
                                     // build position index
                                     if let Err(e) = offset_index.save_position_offset(
                                         &segment_iden,
                                         record.offset,
-                                        position,
+                                        index_data.clone(),
                                     ) {
                                         error!(
                                             "Segment {} Failed to save offset index, error message :{}",
-                                            segment_name(&raw_namespace, &raw_shard_name, segment),
+                                            segment_iden.name(),
                                             e
                                         );
                                         continue;
                                     }
+
                                     // build timestamp index
                                     if let Err(e) = time_index.save_timestamp_offset(
                                         &segment_iden,
                                         record.create_time,
-                                        position,
+                                        index_data.clone(),
                                     ) {
                                         error!(
                                             "Segment {} Failed to save timestamp index, error message :{}",
-                                            segment_name(&raw_namespace, &raw_shard_name, segment),
+                                            segment_iden.name(),
                                             e
                                         );
                                         continue;
@@ -238,11 +242,11 @@ fn start_segment_build_index_thread(
                                 if !record.key.is_empty() {
                                     if let Err(e) = tag_index.save_key_position( &segment_iden,
                                         record.key,
-                                        position,
+                                        index_data.clone(),
                                     ) {
                                         error!(
                                             "Segment {} Failed to save key index, error message :{}",
-                                            segment_name(&raw_namespace, &raw_shard_name, segment),
+                                            segment_iden.name(),
                                             e
                                         );
                                         continue;
@@ -253,11 +257,11 @@ fn start_segment_build_index_thread(
                                 for tag in record.tags {
                                     if let Err(e) = tag_index.save_tag_position( &segment_iden,
                                         tag,
-                                        position,
+                                        index_data.clone(),
                                     ) {
                                         error!(
                                             "Segment {} Failed to save tag index, error message :{}",
-                                            segment_name(&raw_namespace, &raw_shard_name, segment),
+                                            segment_iden.name(),
                                             e
                                         );
                                         continue;
@@ -270,7 +274,7 @@ fn start_segment_build_index_thread(
                                     &segment_iden,
                                 ) {
                                     Ok(data) => {
-                                        last_build_offset = Some(last_read_data.record.offset);
+                                        last_build_offset = last_read_data.record.offset;
                                     }
                                     Err(e) => {
                                         error!("Failure to save last_offset_build_index information with error message :{}",e);
@@ -287,6 +291,7 @@ fn start_segment_build_index_thread(
             }
         }
     });
+    Ok(())
 }
 
 fn save_finish_build_index(

@@ -14,14 +14,15 @@
 
 #[cfg(test)]
 mod tests {
+    use common_base::tools::now_second;
     use futures::{SinkExt, StreamExt};
     use protocol::journal_server::codec::{JournalEnginePacket, JournalServerCodec};
     use protocol::journal_server::journal_engine::{
         ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, DeleteShardReq, DeleteShardReqBody,
         GetClusterMetadataReq, GetShardMetadataReq, GetShardMetadataReqBody,
         GetShardMetadataReqShard, OffsetCommitReq, OffsetCommitReqBody, ReadReq, ReadReqBody,
-        ReadReqMessage, ReadReqMessageOffset, ReqHeader, WriteReq, WriteReqBody, WriteReqMessages,
-        WriteReqSegmentMessages,
+        ReadReqFilter, ReadReqMessage, ReadType, ReqHeader, WriteReq, WriteReqBody,
+        WriteReqMessages, WriteReqSegmentMessages,
     };
     use tokio::net::TcpStream;
     use tokio_util::codec::Framed;
@@ -142,7 +143,7 @@ mod tests {
                     segment: 0,
                     messages: vec![WriteReqMessages {
                         key: "k1".to_string(),
-                        value: serde_json::to_vec("dsfaerwqr").unwrap(),
+                        value: serde_json::to_vec(&now_second().to_string()).unwrap(),
                         tags: vec!["t1".to_string()],
                     }],
                 }],
@@ -171,10 +172,13 @@ mod tests {
                 messages: vec![ReadReqMessage {
                     namespace: "b1".to_string(),
                     shard_name: "s1".to_string(),
-                    segments: vec![ReadReqMessageOffset {
-                        segment: 0,
+                    segment: 0,
+                    ready_type: ReadType::Offset.into(),
+                    filter: Some(ReadReqFilter {
                         offset: 0,
-                    }],
+                        ..Default::default()
+                    }),
+                    ..Default::default()
                 }],
             }),
         });

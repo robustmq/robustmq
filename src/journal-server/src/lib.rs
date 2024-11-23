@@ -100,11 +100,11 @@ impl JournalServer {
 
         self.start_tcp_server();
 
-        self.start_daemon_thread();
-
         self.start_prometheus();
 
         self.init_node();
+
+        self.start_daemon_thread();
 
         self.waiting_stop();
     }

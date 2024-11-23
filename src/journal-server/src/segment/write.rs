@@ -30,7 +30,7 @@ use tokio::sync::{broadcast, oneshot};
 use tokio::time::timeout;
 
 use crate::core::cache::CacheManager;
-use crate::core::error::{get_journal_server_code, JournalServerError};
+use crate::core::error::JournalServerError;
 use crate::core::segment_meta::update_meta_start_timestamp;
 use crate::core::segment_status::sealup_segment;
 use crate::index::build::try_trigger_build_index;
@@ -50,7 +50,7 @@ pub struct SegmentWriteData {
     resp_sx: oneshot::Sender<SegmentWriteResp>,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SegmentWriteResp {
     offset: Vec<u64>,
     error: Option<JournalServerError>,
@@ -79,16 +79,16 @@ pub async fn write_data_req(
         );
 
         let mut data_list = Vec::new();
-        for message in shard_data.messages {
+        for message in shard_data.messages.iter() {
             // todo data validator
             let record = JournalRecord {
-                content: message.value,
+                content: message.value.clone(),
                 create_time: now_second(),
-                key: message.key,
+                key: message.key.clone(),
                 namespace: shard_data.namespace.clone(),
                 shard_name: shard_data.shard_name.clone(),
                 segment: shard_data.segment,
-                tags: message.tags,
+                tags: message.tags.clone(),
                 ..Default::default()
             };
             data_list.push(record);
@@ -100,39 +100,37 @@ pub async fn write_data_req(
             segment_file_manager,
             client_pool,
             &segment_iden,
-            data_list,
+            data_list.clone(),
         )
         .await?;
 
-        let mut resp_message_status = Vec::new();
-        let is_error = resp.error.is_some();
-        let error = if is_error {
-            let err = resp.error.unwrap();
-            Some(
-                protocol::journal_server::journal_engine::JournalEngineError {
-                    code: get_journal_server_code(&err),
-                    error: err.to_string(),
-                },
-            )
-        } else {
-            None
-        };
+        if let Some(e) = resp.error {
+            return Err(e);
+        }
 
+        // if position = 0, update start/timestamp
+        if let Some(first_posi) = resp.offset.first() {
+            if *first_posi == 0 {
+                let first_record = data_list.first().unwrap();
+                segment_position0_ac(
+                    segment_file_manager,
+                    client_pool,
+                    &segment_iden,
+                    *first_posi as i64,
+                    first_record.create_time,
+                )
+                .await?;
+            }
+        }
+
+        let mut resp_message_status = Vec::new();
         for resp_raw in resp.offset {
-            let status = if is_error {
-                WriteRespMessageStatus {
-                    error: error.clone(),
-                    ..Default::default()
-                }
-            } else {
-                WriteRespMessageStatus {
-                    offset: resp_raw,
-                    ..Default::default()
-                }
+            let status = WriteRespMessageStatus {
+                offset: resp_raw,
+                ..Default::default()
             };
             resp_message_status.push(status);
         }
-
         resp_message.messages = resp_message_status;
         results.push(resp_message);
     }
@@ -251,7 +249,7 @@ async fn start_segment_sync_write_thread(
                             max_file_size,
                         ).await{
                             Ok(sealup) => {
-                                if sealup{
+                                if sealup {
                                     resp.error = Some(JournalServerError::SegmentAlreadySealUp(segment_iden.name()));
                                     is_break = true;
                                 }else{
@@ -280,7 +278,6 @@ async fn start_segment_sync_write_thread(
                                 resp.error = Some(e);
                             }
                         }
-
                         // resp write client
                         if packet.resp_sx.send(resp).is_err(){
                             error!("Write data to the Segment file, write success, call the oneshot channel to return the write information failed. Failure message");
@@ -326,20 +323,6 @@ async fn batch_write_segment(
     // batch write data
     match segment_write.write(&records).await {
         Ok(positions) => {
-            if let Some(first_posi) = positions.first() {
-                if *first_posi == 0 {
-                    let first_record = records.first().unwrap();
-                    segment_position0_ac(
-                        segment_file_manager,
-                        client_pool,
-                        &segment_iden,
-                        *first_posi as i64,
-                        first_record.create_time,
-                    )
-                    .await?;
-                }
-            }
-
             resp.offset = offsets.clone();
         }
         Err(e) => {
