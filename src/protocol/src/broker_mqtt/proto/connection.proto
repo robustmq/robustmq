@@ -12,4 +12,5 @@ message ListConnectionRequest{
 
 message ListConnectionReply{
   string network_connections = 1;
+  string mqtt_connections = 2;
 }

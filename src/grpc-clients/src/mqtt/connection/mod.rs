@@ -14,14 +14,14 @@
 
 use std::sync::Arc;
 
-
-use crate::mqtt::connection::inner::inner_list_connection;
-use crate::mqtt::MqttBrokerPlacementInterface;
-use crate::pool::ClientPool;
 use common_base::error::common::CommonError;
 use mobc::{Connection, Manager};
 use protocol::broker_mqtt::broker_mqtt_connection::mqtt_broker_connection_service_client::MqttBrokerConnectionServiceClient;
 use tonic::transport::Channel;
+
+use crate::mqtt::connection::inner::inner_list_connection;
+use crate::mqtt::MqttBrokerPlacementInterface;
+use crate::pool::ClientPool;
 
 pub mod call;
 pub mod inner;

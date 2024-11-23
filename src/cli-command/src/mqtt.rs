@@ -77,7 +77,8 @@ impl MqttBrokerCommand {
                 self.list_user(client_pool.clone(), params.clone()).await;
             }
             MqttActionType::ListConnection => {
-                self.list_connections(client_pool.clone(), params.clone()).await;
+                self.list_connections(client_pool.clone(), params.clone())
+                    .await;
             }
         }
     }
@@ -163,7 +164,10 @@ impl MqttBrokerCommand {
             Ok(data) => {
                 println!("connection list:");
                 // 缺少对应的MqttConnection结构体
-                println!("{:?}", data.network_connections)
+                println!(
+                    "{:?}, {:?}",
+                    data.network_connections, data.mqtt_connections
+                )
             }
             Err(e) => {
                 println!("MQTT broker list connection exception");

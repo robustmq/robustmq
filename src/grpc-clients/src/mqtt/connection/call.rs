@@ -37,7 +37,7 @@ pub async fn mqtt_broker_list_connection(
     .await
     {
         Ok(data) => match ListConnectionReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
+            Ok(data) => Ok(data),
             Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),

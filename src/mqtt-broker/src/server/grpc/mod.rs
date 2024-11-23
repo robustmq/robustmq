@@ -13,6 +13,6 @@
 // limitations under the License.
 
 mod admin;
+mod connection;
 mod placement;
 pub mod server;
-mod connection;

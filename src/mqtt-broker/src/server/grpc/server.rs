@@ -18,6 +18,7 @@ use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use log::info;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminServiceServer;
+use protocol::broker_mqtt::broker_mqtt_connection::mqtt_broker_connection_service_server::MqttBrokerConnectionServiceServer;
 use protocol::broker_mqtt::broker_mqtt_placement::mqtt_broker_placement_service_server::MqttBrokerPlacementServiceServer;
 use storage_adapter::storage::StorageAdapter;
 use tonic::transport::Server;
@@ -25,6 +26,7 @@ use tonic::transport::Server;
 use super::placement::GrpcPlacementServices;
 use crate::handler::cache::CacheManager;
 use crate::server::grpc::admin::services::GrpcAdminServices;
+use crate::server::grpc::connection::services::GrpcConnectionServices;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub struct GrpcServer<S> {
@@ -65,9 +67,12 @@ where
         );
         let admin_handler =
             GrpcAdminServices::new(self.client_pool.clone(), self.metadata_cache.clone());
+        let connection_handler =
+            GrpcConnectionServices::new(self.client_pool.clone(), self.metadata_cache.clone());
         Server::builder()
             .add_service(MqttBrokerPlacementServiceServer::new(placement_handler))
             .add_service(MqttBrokerAdminServiceServer::new(admin_handler))
+            .add_service(MqttBrokerConnectionServiceServer::new(connection_handler))
             .serve(addr)
             .await?;
         Ok(())

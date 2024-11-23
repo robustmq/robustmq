@@ -29,7 +29,6 @@ use tokio_util::codec::FramedWrite;
 use super::connection::{NetworkConnection, NetworkConnectionType};
 use crate::handler::cache::CacheManager;
 
-
 pub struct ConnectionManager {
     connections: DashMap<u64, NetworkConnection>,
     tcp_write_list:

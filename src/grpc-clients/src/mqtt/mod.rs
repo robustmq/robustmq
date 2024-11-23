@@ -28,8 +28,6 @@ use crate::{retry_sleep_time, retry_times};
 // modules(journal engine) -> service(admin) -> interface(list_user)
 // modules(journal engine) -> interface(service functions) -> service(admin)  -> functions
 
-
-
 #[derive(Clone)]
 pub enum MqttBrokerService {
     Placement,

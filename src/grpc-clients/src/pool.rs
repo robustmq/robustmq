@@ -48,15 +48,13 @@ pub struct ClientPool {
     // modules: journal engine
     journal_admin_service_pools: DashMap<String, Pool<JournalAdminServiceManager>>,
     journal_inner_service_pools: DashMap<String, Pool<JournalInnerServiceManager>>,
-
-   
 }
 
 impl ClientPool {
     pub fn new(max_open_connection: u64) -> Self {
         Self {
             max_open_connection,
-            // modules: placement_center 
+            // modules: placement_center
             placement_center_inner_pools: DashMap::with_capacity(2),
             placement_center_journal_service_pools: DashMap::with_capacity(2),
             placement_center_kv_service_pools: DashMap::with_capacity(2),
@@ -318,14 +316,14 @@ impl ClientPool {
             "connection pool is not initialized".to_string(),
         ))
     }
-    
+
     pub async fn mqtt_broker_connection_services_client(
         &self,
         addr: String,
     ) -> Result<Connection<MqttBrokerConnectionServiceManager>, CommonError> {
         let module = "BrokerConnectionServices".to_string();
         let key = format!("{}_{}_{}", "MQTTBroker", module, addr);
-        
+
         if !self.mqtt_broker_connection_service_pools.contains_key(&key) {
             let manager = MqttBrokerConnectionServiceManager::new(addr);
             let pool = Pool::builder()
@@ -335,9 +333,25 @@ impl ClientPool {
                 .insert(key.clone(), pool);
         }
 
-        todo!();
-    }
+        if let Some(pool) = self.mqtt_broker_connection_service_pools.get(&key) {
+            match pool.get().await {
+                Ok(conn) => {
+                    return Ok(conn);
+                }
+                Err(e) => {
+                    return Err(CommonError::NoAvailableGrpcConnection(
+                        module,
+                        e.to_string(),
+                    ));
+                }
+            }
+        }
 
+        Err(CommonError::NoAvailableGrpcConnection(
+            module,
+            "connection pool is not initialized".to_string(),
+        ))
+    }
 
     // ----------modules: journal engine -------------
     pub async fn journal_inner_services_client(
@@ -408,7 +422,7 @@ impl ClientPool {
         ))
     }
 
-    // other 
+    // other
     pub fn get_leader_addr(&self, addr: &str) -> Option<String> {
         if let Some(leader_addr) = self.placement_center_leader_addr_caches.get(addr) {
             return Some(leader_addr.clone());
