@@ -20,9 +20,7 @@ use grpc_clients::pool::ClientPool;
 use log::{debug, error, warn};
 use metadata_struct::mqtt::lastwill::LastWillData;
 use metadata_struct::mqtt::session::MqttSession;
-use protocol::broker_mqtt::broker_mqtt_inner::{
-    DeleteSessionRequest, SendLastWillMessageRequest,
-};
+use protocol::broker_mqtt::broker_mqtt_inner::{DeleteSessionRequest, SendLastWillMessageRequest};
 
 use super::session_expire::ExpireLastWill;
 use crate::core::cache::PlacementCacheManager;
