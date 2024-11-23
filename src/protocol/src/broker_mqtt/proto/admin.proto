@@ -1,15 +1,21 @@
 syntax = "proto3";
 package broker.mqtt.admin;
 service MQTTBrokerAdminService {
+    // cluster
     rpc cluster_status(ClusterStatusRequest) returns(ClusterStatusReply){}
 
+    // user
     rpc mqtt_broker_create_user(CreateUserRequest) returns(CreateUserReply){}
 
     rpc mqtt_broker_delete_user(DeleteUserRequest) returns(DeleteUserReply){}
 
     rpc mqtt_broker_list_user(ListUserRequest) returns(ListUserReply){}
+
+    // connection
+    rpc list_connection(ListConnectionRequest) returns(ListConnectionReply){}
 }
 
+// --------- cluster --------
 message ClusterStatusRequest{
 
 }
@@ -18,6 +24,7 @@ message ClusterStatusReply{
     repeated string nodes = 2;
 }
 
+// --------- user --------
 message ListUserRequest{
     
 }
@@ -44,4 +51,14 @@ message DeleteUserRequest{
 
 message DeleteUserReply{
 
+}
+
+// --------- connection --------
+message ListConnectionRequest{
+
+}
+
+message ListConnectionReply{
+    string network_connections = 1;
+    string mqtt_connections = 2;
 }

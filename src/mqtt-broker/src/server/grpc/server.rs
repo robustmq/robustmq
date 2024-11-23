@@ -25,6 +25,7 @@ use tonic::transport::Server;
 
 use super::placement::GrpcPlacementServices;
 use crate::handler::cache::CacheManager;
+use crate::server::connection_manager::ConnectionManager;
 use crate::server::grpc::admin::services::GrpcAdminServices;
 use crate::server::grpc::connection::services::GrpcConnectionServices;
 use crate::subscribe::subscribe_manager::SubscribeManager;
@@ -32,6 +33,7 @@ use crate::subscribe::subscribe_manager::SubscribeManager;
 pub struct GrpcServer<S> {
     port: u32,
     metadata_cache: Arc<CacheManager>,
+    connection_manager: Arc<ConnectionManager>,
     subscribe_manager: Arc<SubscribeManager>,
     client_pool: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
@@ -45,12 +47,14 @@ where
         port: u32,
         metadata_cache: Arc<CacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
+        connection_manager: Arc<ConnectionManager>,
         client_pool: Arc<ClientPool>,
         message_storage_adapter: Arc<S>,
     ) -> Self {
         Self {
             port,
             metadata_cache,
+            connection_manager,
             subscribe_manager,
             client_pool,
             message_storage_adapter,
@@ -68,7 +72,7 @@ where
         let admin_handler =
             GrpcAdminServices::new(self.client_pool.clone(), self.metadata_cache.clone());
         let connection_handler =
-            GrpcConnectionServices::new(self.client_pool.clone(), self.metadata_cache.clone());
+            GrpcConnectionServices::new(self.client_pool.clone(), self.connection_manager.clone(), self.metadata_cache.clone());
         Server::builder()
             .add_service(MqttBrokerPlacementServiceServer::new(placement_handler))
             .add_service(MqttBrokerAdminServiceServer::new(admin_handler))

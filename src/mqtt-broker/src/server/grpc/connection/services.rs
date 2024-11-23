@@ -25,13 +25,15 @@ use crate::server::connection_manager::ConnectionManager;
 pub struct GrpcConnectionServices {
     #[allow(dead_code)]
     client_pool: Arc<ClientPool>,
+    connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
 }
 
 impl GrpcConnectionServices {
-    pub fn new(client_pool: Arc<ClientPool>, cache_manager: Arc<CacheManager>) -> Self {
+    pub fn new(client_pool: Arc<ClientPool>, connection_manager: Arc<ConnectionManager>, cache_manager: Arc<CacheManager>) -> Self {
         GrpcConnectionServices {
             client_pool,
+            connection_manager,
             cache_manager,
         }
     }
@@ -45,8 +47,7 @@ impl MqttBrokerConnectionService for GrpcConnectionServices {
     ) -> Result<Response<ListConnectionReply>, Status> {
         let mut reply = ListConnectionReply::default();
 
-        let connection_manager = ConnectionManager::new(self.cache_manager.clone());
-        let network_connection_info = connection_manager.list_connect();
+        let network_connection_info = self.connection_manager.list_connect();
         let cache_manager = self.cache_manager.clone();
 
         let mqtt_connection_info_map = cache_manager.connection_info.clone();
