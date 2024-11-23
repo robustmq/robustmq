@@ -16,4 +16,8 @@ pub mod tool;
 
 pub struct JournalEngineClient {}
 
-impl JournalEngineClient {}
+impl JournalEngineClient {
+    pub fn new() -> Self {
+        JournalEngineClient {}
+    }
+}

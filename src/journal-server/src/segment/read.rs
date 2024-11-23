@@ -27,7 +27,7 @@ use crate::index::offset::OffsetIndexManager;
 use crate::index::tag::TagIndexManager;
 use crate::index::time::TimestampIndexManager;
 
-pub async fn read_data(
+pub async fn read_data_req(
     cache_manager: &Arc<CacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req_body: &ReadReqBody,

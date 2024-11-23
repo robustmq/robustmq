@@ -26,7 +26,7 @@ use crate::core::cache::CacheManager;
 use crate::core::error::{get_journal_server_code, JournalServerError};
 use crate::core::offset::OffsetManager;
 use crate::segment::manager::SegmentFileManager;
-use crate::segment::read::read_data;
+use crate::segment::read::read_data_req;
 use crate::segment::write::write_data_req;
 use crate::segment::SegmentIdentity;
 
@@ -105,7 +105,7 @@ impl DataHandler {
         }
 
         let conf = journal_server_conf();
-        let results = read_data(
+        let results = read_data_req(
             &self.cache_manager,
             &self.rocksdb_engine_handler,
             &req_body,

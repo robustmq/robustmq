@@ -16,6 +16,7 @@ pub mod cache;
 pub mod cluster;
 pub mod consts;
 pub mod error;
+pub mod notification;
 pub mod offset;
 pub mod record;
 pub mod report;

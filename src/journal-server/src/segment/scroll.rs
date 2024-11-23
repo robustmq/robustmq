@@ -124,7 +124,7 @@ impl SegmentScrollManager {
                 if self.percentage50_cache.get(&key).is_none() && file_size / max_size > 98 {
                     if let Some(current_end_offset) = self
                         .segment_file_manager
-                        .get_segment_end_offset(&segment_iden)
+                        .get_end_offset(&segment_iden)
                     {
                         // update active/next segment status
                         if let Err(e) = pre_sealup_segment(
