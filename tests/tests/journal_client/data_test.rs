@@ -24,7 +24,7 @@ mod tests {
     use protocol::journal_server::journal_engine::{
         ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, GetClusterMetadataReq,
         GetShardMetadataReq, GetShardMetadataReqBody, GetShardMetadataReqShard, ReadReq,
-        ReadReqBody, ReadReqMessage, ReadReqMessageOffset, ReqHeader, WriteReq, WriteReqBody,
+        ReadReqBody, ReadReqFilter, ReadReqMessage, ReadType, ReqHeader, WriteReq, WriteReqBody,
         WriteReqMessages, WriteReqSegmentMessages,
     };
     use tokio::net::TcpStream;
@@ -93,8 +93,8 @@ mod tests {
         }
         sleep(Duration::from_secs(3)).await;
 
-        // get active shard
-        let segment_0_all_replicas = Vec::new();
+        // get shard metadata
+
         let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
         let mut stream = Framed::new(socket, JournalServerCodec::new());
 
@@ -113,19 +113,25 @@ mod tests {
 
         let _ = stream.send(req_packet.clone()).await;
 
-        if let Some(Ok(JournalEnginePacket::GetShardMetadataResp(data))) = stream.next().await {
+        let segment_0_all_replicas = if let Some(Ok(JournalEnginePacket::GetShardMetadataResp(
+            data,
+        ))) = stream.next().await
+        {
             println!("{:?}", data);
             assert!(resp_header_error(&data.header.unwrap()).is_ok());
-            // let body = data.body.unwrap();
-            // let active_segment = body.segments.first().unwrap();
-            // let segment_metadata = active_segment.active_segment.clone().unwrap();
-            // assert_eq!(active_segment.namespace, namespace);
-            // assert_eq!(active_segment.shard, shard_name);
-            // assert_eq!(segment_metadata.replicas.len(), 1);
-            // segment_0_all_replicas = segment_metadata.replicas;
+            let body = data.body.unwrap();
+            let shards = body.shards.first().unwrap();
+            assert_eq!(shards.namespace, namespace);
+            assert_eq!(shards.shard, shard_name);
+            assert_eq!(shards.segments.len(), 1);
+            let segment_metadata = shards.segments.first().unwrap();
+            assert_eq!(segment_metadata.replicas.len(), 1);
+            assert_eq!(segment_metadata.leader, 1);
+            assert_eq!(segment_metadata.segment_no, 0);
+            segment_metadata.replicas.clone()
         } else {
             panic!();
-        }
+        };
 
         // write data
         let key = "k1".to_string();
@@ -181,12 +187,15 @@ mod tests {
             }),
             body: Some(ReadReqBody {
                 messages: vec![ReadReqMessage {
-                    namespace: namespace.clone(),
-                    shard_name: shard_name.clone(),
-                    segments: vec![ReadReqMessageOffset {
-                        segment: 0,
+                    namespace: "b1".to_string(),
+                    shard_name: "s1".to_string(),
+                    segment: 0,
+                    ready_type: ReadType::Offset.into(),
+                    filter: Some(ReadReqFilter {
                         offset: 0,
-                    }],
+                        ..Default::default()
+                    }),
+                    ..Default::default()
                 }],
             }),
         });
@@ -197,15 +206,15 @@ mod tests {
             println!("{:?}", resp);
             if let JournalEnginePacket::ReadResp(data) = resp {
                 println!("{:?}", data);
-                // assert!(resp_header_error(&data.header.unwrap()).is_ok());
-                // let body = data.body.unwrap();
-                // let msg = body.messages.first().unwrap();
-                // let raw_msg = msg.messages.first().unwrap();
-                // assert_eq!(msg.namespace, namespace);
-                // assert_eq!(msg.shard_name, shard_name);
-                // assert_eq!(raw_msg.key, key);
-                // assert_eq!(raw_msg.value, value);
-                // assert_eq!(raw_msg.tags, tags);
+                assert!(resp_header_error(&data.header.unwrap()).is_ok());
+                let body = data.body.unwrap();
+                let msg = body.messages.first().unwrap();
+                let raw_msg = msg.messages.first().unwrap();
+                assert_eq!(msg.namespace, namespace);
+                assert_eq!(msg.shard_name, shard_name);
+                assert_eq!(raw_msg.key, key);
+                assert_eq!(raw_msg.value, value);
+                assert_eq!(raw_msg.tags, tags);
             } else {
                 panic!();
             }

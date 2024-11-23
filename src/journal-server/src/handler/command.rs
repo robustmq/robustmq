@@ -155,8 +155,8 @@ impl Command {
                     ..Default::default()
                 };
                 match self.shard_handler.get_shard_metadata(request).await {
-                    Ok(segments) => {
-                        resp.body = Some(GetShardMetadataRespBody { segments });
+                    Ok(shards) => {
+                        resp.body = Some(GetShardMetadataRespBody { shards });
                     }
                     Err(e) => {
                         header.error = Some(JournalEngineError {

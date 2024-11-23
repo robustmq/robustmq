@@ -28,7 +28,7 @@ pub async fn update_meta_start_offset(
     start_offset: u64,
 ) -> Result<(), JournalServerError> {
     let conf = journal_server_conf();
-    let next_segment_no = segment_iden.segment_seq + 1;
+    let next_segment_no = segment_iden.segment_seq;
     let request = UpdateSegmentMetaRequest {
         cluster_name: conf.cluster_name.clone(),
         namespace: segment_iden.namespace.clone(),
@@ -49,7 +49,7 @@ pub async fn update_meta_end_offset(
     end_offset: u64,
 ) -> Result<(), JournalServerError> {
     let conf = journal_server_conf();
-    let next_segment_no = segment_iden.segment_seq + 1;
+    let next_segment_no = segment_iden.segment_seq;
     let request = UpdateSegmentMetaRequest {
         cluster_name: conf.cluster_name.clone(),
         namespace: segment_iden.namespace.clone(),
@@ -70,7 +70,7 @@ pub async fn update_meta_start_timestamp(
     timestamp: u64,
 ) -> Result<(), JournalServerError> {
     let conf = journal_server_conf();
-    let next_segment_no = segment_iden.segment_seq + 1;
+    let next_segment_no = segment_iden.segment_seq;
     let request = UpdateSegmentMetaRequest {
         cluster_name: conf.cluster_name.clone(),
         namespace: segment_iden.namespace.clone(),
@@ -91,7 +91,7 @@ pub async fn update_meta_end_timestamp(
     timestamp: u64,
 ) -> Result<(), JournalServerError> {
     let conf = journal_server_conf();
-    let next_segment_no = segment_iden.segment_seq + 1;
+    let next_segment_no = segment_iden.segment_seq;
     let request = UpdateSegmentMetaRequest {
         cluster_name: conf.cluster_name.clone(),
         namespace: segment_iden.namespace.clone(),
