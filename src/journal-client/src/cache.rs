@@ -12,15 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod cache;
-pub mod cluster;
-pub mod consts;
-pub mod error;
-pub mod notification;
-pub mod offset;
-pub mod record;
-pub mod report;
-pub mod segment;
-pub mod segment_meta;
-pub mod segment_status;
-pub mod shard;
+use common_base::error::common::CommonError;
+use dashmap::DashMap;
+
+pub struct MetadataCache {
+    shards: DashMap<String, String>,
+}
+
+impl MetadataCache {
+    pub fn new() -> Self {
+        let shards = DashMap::with_capacity(8);
+        MetadataCache { shards }
+    }
+}
+
+pub fn load_metadata_cache() {}
+
+fn load_shards_cache() -> Result<(), CommonError> {
+    Ok(())
+}
+
+fn load_node_cache() -> Result<(), CommonError> {
+    Ok(())
+}

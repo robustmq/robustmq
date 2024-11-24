@@ -24,7 +24,8 @@ use protocol::journal_server::journal_inner::{
 use rocksdb_engine::RocksDBEngine;
 use tonic::{Request, Response, Status};
 
-use crate::core::cache::{update_cache, CacheManager};
+use crate::core::cache::CacheManager;
+use crate::core::notification::parse_notification;
 use crate::core::segment::{delete_local_segment, segment_already_delete};
 use crate::core::shard::{delete_local_shard, shard_is_delete};
 use crate::segment::manager::SegmentFileManager;
@@ -61,7 +62,7 @@ impl JournalServerInnerService for GrpcJournalServerInnerService {
             return Ok(Response::new(UpdateJournalCacheReply::default()));
         }
 
-        update_cache(
+        parse_notification(
             &self.cache_manager,
             &self.segment_file_manager,
             &self.rocksdb_engine_handler,

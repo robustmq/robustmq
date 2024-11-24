@@ -12,8 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(dead_code, unused_variables)]
+
+use std::sync::Arc;
+
+use connection::ConnectionManager;
+use option::JournalClientOption;
+
+mod cache;
+mod connection;
+pub mod option;
 pub mod tool;
 
-pub struct JournalEngineClient {}
+pub struct JournalEngineClient {
+    connection: Arc<ConnectionManager>,
+}
 
-impl JournalEngineClient {}
+impl JournalEngineClient {
+    pub fn new(options: JournalClientOption) -> Self {
+        let connection = Arc::new(ConnectionManager::new());
+        JournalEngineClient { connection }
+    }
+
+    pub fn create_shard(&self) {}
+
+    pub fn delete_shard(&self) {}
+
+    pub fn send(&self) {}
+
+    pub fn read(&self) {}
+}

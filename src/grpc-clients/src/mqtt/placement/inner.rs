@@ -15,7 +15,7 @@
 use common_base::error::common::CommonError;
 use mobc::Connection;
 use prost::Message;
-use protocol::broker_mqtt::broker_mqtt_placement::{
+use protocol::broker_mqtt::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
     UpdateCacheReply, UpdateCacheRequest,
 };
