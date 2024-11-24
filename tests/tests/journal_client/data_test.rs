@@ -187,8 +187,8 @@ mod tests {
             }),
             body: Some(ReadReqBody {
                 messages: vec![ReadReqMessage {
-                    namespace: "b1".to_string(),
-                    shard_name: "s1".to_string(),
+                    namespace: namespace.to_string(),
+                    shard_name: shard_name.to_string(),
                     segment: 0,
                     ready_type: ReadType::Offset.into(),
                     filter: Some(ReadReqFilter {
@@ -205,7 +205,6 @@ mod tests {
         if let Some(Ok(resp)) = stream.next().await {
             println!("{:?}", resp);
             if let JournalEnginePacket::ReadResp(data) = resp {
-                println!("{:?}", data);
                 assert!(resp_header_error(&data.header.unwrap()).is_ok());
                 let body = data.body.unwrap();
                 let msg = body.messages.first().unwrap();

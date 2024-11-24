@@ -30,7 +30,11 @@ pub struct GrpcConnectionServices {
 }
 
 impl GrpcConnectionServices {
-    pub fn new(client_pool: Arc<ClientPool>, connection_manager: Arc<ConnectionManager>, cache_manager: Arc<CacheManager>) -> Self {
+    pub fn new(
+        client_pool: Arc<ClientPool>,
+        connection_manager: Arc<ConnectionManager>,
+        cache_manager: Arc<CacheManager>,
+    ) -> Self {
         GrpcConnectionServices {
             client_pool,
             connection_manager,
@@ -61,6 +65,4 @@ impl MqttBrokerConnectionService for GrpcConnectionServices {
 
         Ok(Response::new(reply))
     }
-    
-    
 }

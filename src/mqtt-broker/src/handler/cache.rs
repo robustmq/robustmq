@@ -28,7 +28,7 @@ use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::user::MqttUser;
-use protocol::broker_mqtt::broker_mqtt_placement::{
+use protocol::broker_mqtt::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateCacheRequest,
 };
 use protocol::mqtt::common::{MqttProtocol, PublishProperties, Subscribe, SubscribeProperties};

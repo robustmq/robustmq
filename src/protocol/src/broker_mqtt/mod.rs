@@ -19,10 +19,6 @@ pub mod broker_mqtt_admin {
     tonic::include_proto!("broker.mqtt.admin");
 }
 
-pub mod broker_mqtt_placement {
-    tonic::include_proto!("broker.mqtt.placement");
-}
-
-pub mod broker_mqtt_connection {
-    tonic::include_proto!("broker.mqtt.connection");
+pub mod broker_mqtt_inner {
+    tonic::include_proto!("broker.mqtt.inner");
 }

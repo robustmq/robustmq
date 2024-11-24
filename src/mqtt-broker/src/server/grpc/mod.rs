@@ -14,5 +14,5 @@
 
 mod admin;
 mod connection;
-mod placement;
+mod inner;
 pub mod server;
