@@ -18,7 +18,7 @@ mod tests {
 
     use grpc_clients::mqtt::connection::call::mqtt_broker_list_connection;
     use grpc_clients::pool::ClientPool;
-    use protocol::broker_mqtt::broker_mqtt_connection::ListConnectionRequest;
+    use protocol::broker_mqtt::broker_mqtt_admin::ListConnectionRequest;
 
     use crate::common::get_mqtt_broker_addr;
 

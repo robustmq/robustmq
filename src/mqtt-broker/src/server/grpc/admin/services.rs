@@ -14,7 +14,12 @@
 
 use std::sync::Arc;
 
+use crate::handler::cache::CacheManager;
+use crate::security::AuthDriver;
+use crate::server::connection_manager::ConnectionManager;
+use crate::storage::cluster::ClusterStorage;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
@@ -23,11 +28,6 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
 };
 use tonic::{Request, Response, Status};
-
-use crate::handler::cache::CacheManager;
-use crate::security::AuthDriver;
-use crate::server::connection_manager::ConnectionManager;
-use crate::storage::cluster::ClusterStorage;
 
 pub struct GrpcAdminServices {
     client_pool: Arc<ClientPool>,
@@ -76,27 +76,6 @@ impl MqttBrokerAdminService for GrpcAdminServices {
     }
 
     // --- user ---
-    async fn mqtt_broker_list_user(
-        &self,
-        _: Request<ListUserRequest>,
-    ) -> Result<Response<ListUserReply>, Status> {
-        let mut reply = ListUserReply::default();
-
-        let mut user_list = Vec::new();
-        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
-        match auth_driver.read_all_user().await {
-            Ok(date) => {
-                date.iter()
-                    .for_each(|user| user_list.push(user.value().encode()));
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
-        reply.users = user_list;
-        return Ok(Response::new(reply));
-    }
-
     async fn mqtt_broker_create_user(
         &self,
         request: Request<CreateUserRequest>,
@@ -134,11 +113,53 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         }
     }
 
+    
+    async fn mqtt_broker_list_user(
+        &self,
+        _: Request<ListUserRequest>,
+    ) -> Result<Response<ListUserReply>, Status> {
+        let mut reply = ListUserReply::default();
+
+        let mut user_list = Vec::new();
+        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        match auth_driver.read_all_user().await {
+            Ok(date) => {
+                date.iter()
+                    .for_each(|user| user_list.push(user.value().encode()));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+        reply.users = user_list;
+        return Ok(Response::new(reply));
+    }
+
     // --- connection ---
     async fn mqtt_broker_list_connection(
         &self,
-        request: Request<ListConnectionRequest>,
+        _: Request<ListConnectionRequest>,
     ) -> Result<Response<ListConnectionReply>, Status> {
-        todo!()
+        let mut reply = ListConnectionReply::default();
+        let network_into_dashmap = self.connection_manager.list_connect();
+        let mqtt_connection_info_dashmap = self.cache_manager.connection_info.clone();
+        reply.network_connections = match serde_json::to_string(&network_into_dashmap){
+            Ok(data) => data,
+            Err(e) => {
+                return Err(Status::cancelled(
+                    CommonError::CommonError(e.to_string()).to_string(),
+                ));
+            }
+        };
+        reply.mqtt_connections = match serde_json::to_string(&mqtt_connection_info_dashmap) {
+            Ok(data) => data,
+            Err(e) => {
+                return Err(Status::cancelled(
+                    CommonError::CommonError(e.to_string()).to_string(),
+                ));
+            }
+        };
+        
+        Ok(Response::new(reply))
     }
 }

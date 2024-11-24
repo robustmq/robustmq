@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use prost::Message;
-use protocol::broker_mqtt::broker_mqtt_connection::{ListConnectionReply, ListConnectionRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{ListConnectionReply, ListConnectionRequest};
 
 use crate::mqtt::{retry_call, MqttBrokerPlacementInterface, MqttBrokerService};
 use crate::pool::ClientPool;

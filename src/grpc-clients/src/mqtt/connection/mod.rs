@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use mobc::{Connection, Manager};
-use protocol::broker_mqtt::broker_mqtt_connection::mqtt_broker_connection_service_client::MqttBrokerConnectionServiceClient;
+use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
 use tonic::transport::Channel;
 
 use crate::mqtt::connection::inner::inner_list_connection;
@@ -81,11 +81,11 @@ impl MqttBrokerConnectionServiceManager {
 
 #[tonic::async_trait]
 impl Manager for MqttBrokerConnectionServiceManager {
-    type Connection = MqttBrokerConnectionServiceClient<Channel>;
+    type Connection = MqttBrokerAdminServiceClient<Channel>;
     type Error = CommonError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        match MqttBrokerConnectionServiceClient::connect(format!("http://{}", self.addr.clone()))
+        match MqttBrokerAdminServiceClient::connect(format!("http://{}", self.addr.clone()))
             .await
         {
             Ok(client) => Ok(client),

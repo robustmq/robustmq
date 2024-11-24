@@ -15,7 +15,7 @@
 use common_base::error::common::CommonError;
 use mobc::Connection;
 use prost::Message;
-use protocol::broker_mqtt::broker_mqtt_connection::{ListConnectionReply, ListConnectionRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{ListConnectionReply, ListConnectionRequest};
 
 use crate::mqtt::connection::MqttBrokerConnectionServiceManager;
 

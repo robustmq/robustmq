@@ -20,10 +20,7 @@ use grpc_clients::mqtt::admin::call::{
 use grpc_clients::mqtt::connection::call::mqtt_broker_list_connection;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListUserRequest,
-};
-use protocol::broker_mqtt::broker_mqtt_connection::ListConnectionRequest;
+use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListConnectionRequest, ListUserRequest};
 
 use crate::{error_info, grpc_addr};
 
