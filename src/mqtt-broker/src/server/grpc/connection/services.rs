@@ -54,21 +54,13 @@ impl MqttBrokerConnectionService for GrpcConnectionServices {
 
         // reply.connections = connection_list;
 
-        let network_connection_to_str = match serde_json::to_string(&network_connection_info) {
-            Ok(network_connection_infos) => network_connection_infos,
-            Err(e) => {
-                format!("Failed to serialize network connection info: {}", e)
-            }
-        };
-        let mqtt_connection_infos = match serde_json::to_string(&mqtt_connection_info_map) {
-            Ok(mqtt_connection_infos) => mqtt_connection_infos,
-            Err(e) => {
-                format!("Failed to serialize mqtt connection info: {}", e)
-            }
-        };
+        let network_connection_to_str = serde_json::to_string(&network_connection_info)?;
+        let mqtt_connection_infos = serde_json::to_string(&mqtt_connection_info_map)?;
         reply.network_connections = network_connection_to_str;
         reply.mqtt_connections = mqtt_connection_infos;
 
         Ok(Response::new(reply))
     }
+    
+    
 }
