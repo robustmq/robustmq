@@ -141,24 +141,19 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         _: Request<ListConnectionRequest>,
     ) -> Result<Response<ListConnectionReply>, Status> {
         let mut reply = ListConnectionReply::default();
-        let network_into_dashmap = self.connection_manager.list_connect();
-        let mqtt_connection_info_dashmap = self.cache_manager.connection_info.clone();
-        reply.network_connections = match serde_json::to_string(&network_into_dashmap){
-            Ok(data) => data,
-            Err(e) => {
-                return Err(Status::cancelled(
+        fn serialize_dash_map<T>(dash_map: &T) -> Result<String, Status>
+        where
+            T: serde::Serialize,
+        {
+            serde_json::to_string(dash_map).map_err(|e| {
+                Status::cancelled(
                     CommonError::CommonError(e.to_string()).to_string(),
-                ));
-            }
-        };
-        reply.mqtt_connections = match serde_json::to_string(&mqtt_connection_info_dashmap) {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(Status::cancelled(
-                    CommonError::CommonError(e.to_string()).to_string(),
-                ));
-            }
-        };
+                )
+            })
+        }
+        
+        reply.network_connections = serialize_dash_map(&self.connection_manager.list_connect())?;
+        reply.mqtt_connections = serialize_dash_map(&self.cache_manager.connection_info.clone())?;
         
         Ok(Response::new(reply))
     }
