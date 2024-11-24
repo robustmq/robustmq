@@ -163,8 +163,9 @@ impl MqttBrokerCommand {
         {
             Ok(data) => {
                 println!("connection list:");
-                // 缺少对应的MqttConnection结构体
-                println!("{:?}", data)
+                for raw in data.list_connection_raw {
+                    println!("{:?}", raw)
+                }
             }
             Err(e) => {
                 println!("MQTT broker list connection exception");
