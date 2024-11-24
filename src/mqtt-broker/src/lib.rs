@@ -202,11 +202,6 @@ where
         });
     }
 
-    fn test(&self){
-
-
-    }
-
     fn start_http_server(&self) {
         let http_state = HttpServerState::new();
         self.runtime.spawn(async move {
