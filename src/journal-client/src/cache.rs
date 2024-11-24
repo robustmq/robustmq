@@ -28,7 +28,7 @@ impl MetadataCache {
 
 pub fn load_metadata_cache() {}
 
-fn load_shards_cahce() -> Result<(), CommonError> {
+fn load_shards_cache() -> Result<(), CommonError> {
     Ok(())
 }
 
