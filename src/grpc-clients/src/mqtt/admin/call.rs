@@ -126,7 +126,7 @@ pub async fn mqtt_broker_list_connection(
 ) -> Result<ListConnectionReply, CommonError> {
     let request_date = ListConnectionRequest::encode_to_vec(&request);
     match retry_call(
-        MqttBrokerService::Connection,
+        MqttBrokerService::Admin,
         MqttBrokerPlacementInterface::ListConnection,
         client_pool,
         addrs,

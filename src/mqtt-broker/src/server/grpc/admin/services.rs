@@ -15,13 +15,14 @@
 use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::tools::serialize_dash_map;
+use common_base::tools::serialize_value;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
-    DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
+    DeleteUserRequest, ListConnectionRaw, ListConnectionReply, ListConnectionRequest,
+    ListUserReply, ListUserRequest,
 };
 use tonic::{Request, Response, Status};
 
@@ -140,11 +141,27 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         _: Request<ListConnectionRequest>,
     ) -> Result<Response<ListConnectionReply>, Status> {
-        let reply = ListConnectionReply {
-            network_connections: serialize_dash_map(&self.connection_manager.list_connect())?,
-            mqtt_connections: serialize_dash_map(&self.cache_manager.connection_info.clone())?,
-        };
-
+        let mut reply = ListConnectionReply::default();
+        let mut list_connection_raw: Vec<ListConnectionRaw> = Vec::new();
+        let network_connection_map = self.connection_manager.list_connect();
+        let mqtt_connection_map = self.cache_manager.connection_info.clone();
+        for (key, value) in network_connection_map {
+            if let Some(mqtt_value) = mqtt_connection_map.get(&key) {
+                let mqtt_info = serialize_value(mqtt_value.value())?;
+                let raw = ListConnectionRaw {
+                    connection_id: value.connection_id,
+                    connection_type: value.connection_type.to_string(),
+                    protocol: match value.protocol {
+                        Some(protocol) => protocol.into(),
+                        None => "None".to_string(),
+                    },
+                    source_addr: value.addr.to_string(),
+                    info: mqtt_info,
+                };
+                list_connection_raw.push(raw);
+            }
+        }
+        reply.list_connection_raw = list_connection_raw;
         Ok(Response::new(reply))
     }
 }

@@ -136,18 +136,18 @@ pub fn read_file(path: &str) -> Result<String, CommonError> {
 
 /// Serialize a DashMap object into a JSON string
 /// # parameters
-/// * ` dash_map ` - a reference to a DashMap object that implements the Serialize trait
+/// * ` value ` - a reference to a DashMap object that implements the Serialize trait
 ///
 /// # Return value
 /// Returns a result type that includes a string containing the serialized JSON data upon success and a Status object containing an error message upon failure
 ///
 /// # Error
 /// If the serialization fails, return a Status object containing an error message
-pub fn serialize_dash_map<T>(dash_map: &T) -> Result<String, Status>
+pub fn serialize_value<T>(value: &T) -> Result<String, Status>
 where
     T: serde::Serialize,
 {
-    serde_json::to_string(dash_map)
+    serde_json::to_string(value)
         .map_err(|e| Status::cancelled(CommonError::CommonError(e.to_string()).to_string()))
 }
 
