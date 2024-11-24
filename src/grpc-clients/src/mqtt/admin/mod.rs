@@ -19,7 +19,7 @@ use inner::{inner_cluster_status, inner_create_user, inner_delete_user, inner_li
 use mobc::{Connection, Manager};
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
 use tonic::transport::Channel;
-
+use crate::mqtt::admin::inner::inner_list_connection;
 use super::MqttBrokerPlacementInterface;
 use crate::pool::ClientPool;
 
@@ -54,6 +54,9 @@ pub(crate) async fn admin_interface_call(
                 }
                 MqttBrokerPlacementInterface::DeleteUser => {
                     inner_delete_user(client, request).await
+                }
+                MqttBrokerPlacementInterface::ListConnection => {
+                    inner_list_connection(client, request).await
                 }
                 _ => {
                     return Err(CommonError::CommonError(format!(

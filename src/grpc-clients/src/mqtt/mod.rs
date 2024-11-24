@@ -21,12 +21,8 @@ use log::error;
 use placement::placement_interface_call;
 use tokio::time::sleep;
 
-use crate::mqtt::connection::connection_interface_call;
 use crate::pool::ClientPool;
 use crate::{retry_sleep_time, retry_times};
-
-// modules(journal engine) -> service(admin) -> interface(list_user)
-// modules(journal engine) -> interface(service functions) -> service(admin)  -> functions
 
 #[derive(Clone)]
 pub enum MqttBrokerService {
@@ -53,7 +49,6 @@ pub enum MqttBrokerPlacementInterface {
 }
 
 pub mod admin;
-pub mod connection;
 pub mod placement;
 
 async fn retry_call(
@@ -92,7 +87,7 @@ async fn retry_call(
                 .await
             }
             MqttBrokerService::Connection => {
-                connection_interface_call(
+                admin_interface_call(
                     interface.clone(),
                     client_pool.clone(),
                     addr,

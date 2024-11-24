@@ -20,7 +20,6 @@ use mobc::{Connection, Pool};
 use crate::journal::admin::JournalAdminServiceManager;
 use crate::journal::inner::JournalInnerServiceManager;
 use crate::mqtt::admin::MqttBrokerAdminServiceManager;
-use crate::mqtt::connection::MqttBrokerConnectionServiceManager;
 use crate::mqtt::placement::MqttBrokerPlacementServiceManager;
 use crate::placement::journal::JournalServiceManager;
 use crate::placement::kv::KvServiceManager;
@@ -43,7 +42,6 @@ pub struct ClientPool {
     // modules: mqtt broker
     mqtt_broker_placement_service_pools: DashMap<String, Pool<MqttBrokerPlacementServiceManager>>,
     mqtt_broker_admin_service_pools: DashMap<String, Pool<MqttBrokerAdminServiceManager>>,
-    mqtt_broker_connection_service_pools: DashMap<String, Pool<MqttBrokerConnectionServiceManager>>,
 
     // modules: journal engine
     journal_admin_service_pools: DashMap<String, Pool<JournalAdminServiceManager>>,
@@ -64,7 +62,6 @@ impl ClientPool {
             // modules: mqtt_broker
             mqtt_broker_placement_service_pools: DashMap::with_capacity(2),
             mqtt_broker_admin_service_pools: DashMap::with_capacity(2),
-            mqtt_broker_connection_service_pools: DashMap::with_capacity(2),
             // modules: journal_engine
             journal_admin_service_pools: DashMap::with_capacity(2),
             journal_inner_service_pools: DashMap::with_capacity(2),
@@ -311,42 +308,6 @@ impl ClientPool {
                 }
             };
         }
-        Err(CommonError::NoAvailableGrpcConnection(
-            module,
-            "connection pool is not initialized".to_string(),
-        ))
-    }
-
-    pub async fn mqtt_broker_connection_services_client(
-        &self,
-        addr: String,
-    ) -> Result<Connection<MqttBrokerConnectionServiceManager>, CommonError> {
-        let module = "BrokerConnectionServices".to_string();
-        let key = format!("{}_{}_{}", "MQTTBroker", module, addr);
-
-        if !self.mqtt_broker_connection_service_pools.contains_key(&key) {
-            let manager = MqttBrokerConnectionServiceManager::new(addr);
-            let pool = Pool::builder()
-                .max_open(self.max_open_connection)
-                .build(manager);
-            self.mqtt_broker_connection_service_pools
-                .insert(key.clone(), pool);
-        }
-
-        if let Some(pool) = self.mqtt_broker_connection_service_pools.get(&key) {
-            match pool.get().await {
-                Ok(conn) => {
-                    return Ok(conn);
-                }
-                Err(e) => {
-                    return Err(CommonError::NoAvailableGrpcConnection(
-                        module,
-                        e.to_string(),
-                    ));
-                }
-            }
-        }
-
         Err(CommonError::NoAvailableGrpcConnection(
             module,
             "connection pool is not initialized".to_string(),
