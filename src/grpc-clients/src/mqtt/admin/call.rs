@@ -18,12 +18,13 @@ use common_base::error::common::CommonError;
 use prost::Message as _;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
-    DeleteUserRequest, ListUserReply, ListUserRequest,
+    DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
 };
 
 use crate::mqtt::{retry_call, MqttBrokerPlacementInterface, MqttBrokerService};
 use crate::pool::ClientPool;
 
+// ---- cluster ------
 pub async fn cluster_status(
     client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
@@ -47,6 +48,7 @@ pub async fn cluster_status(
     }
 }
 
+// ------ user -------
 pub async fn mqtt_broker_list_user(
     client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
@@ -110,6 +112,30 @@ pub async fn mqtt_broker_delete_user(
     {
         Ok(data) => match DeleteUserReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
+        },
+        Err(e) => Err(e),
+    }
+}
+
+// ------- connection  -----------
+pub async fn mqtt_broker_list_connection(
+    client_pool: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: ListConnectionRequest,
+) -> Result<ListConnectionReply, CommonError> {
+    let request_date = ListConnectionRequest::encode_to_vec(&request);
+    match retry_call(
+        MqttBrokerService::Admin,
+        MqttBrokerPlacementInterface::ListConnection,
+        client_pool,
+        addrs,
+        request_date,
+    )
+    .await
+    {
+        Ok(data) => match ListConnectionReply::decode(data.as_ref()) {
+            Ok(data) => Ok(data),
             Err(e) => Err(CommonError::CommonError(e.to_string())),
         },
         Err(e) => Err(e),

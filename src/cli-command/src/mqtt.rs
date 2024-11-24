@@ -15,12 +15,14 @@
 use std::sync::Arc;
 
 use grpc_clients::mqtt::admin::call::{
-    cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user, mqtt_broker_list_user,
+    cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user, mqtt_broker_list_connection,
+    mqtt_broker_list_user,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListUserRequest,
+    ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListConnectionRequest,
+    ListUserRequest,
 };
 
 use crate::{error_info, grpc_addr};
@@ -34,9 +36,14 @@ pub struct MqttCliCommandParam {
 #[derive(Clone)]
 pub enum MqttActionType {
     Status,
+
+    // User admin
     CreateUser(CreateUserRequest),
     DeleteUser(DeleteUserRequest),
     ListUser,
+
+    // connection
+    ListConnection,
 }
 
 pub struct MqttBrokerCommand {}
@@ -68,6 +75,10 @@ impl MqttBrokerCommand {
             }
             MqttActionType::ListUser => {
                 self.list_user(client_pool.clone(), params.clone()).await;
+            }
+            MqttActionType::ListConnection => {
+                self.list_connections(client_pool.clone(), params.clone())
+                    .await;
             }
         }
     }
@@ -140,6 +151,24 @@ impl MqttBrokerCommand {
             }
             Err(e) => {
                 println!("MQTT broker list user exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn list_connections(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
+        let request = ListConnectionRequest {};
+        match mqtt_broker_list_connection(client_pool.clone(), grpc_addr(params.server), request)
+            .await
+        {
+            Ok(data) => {
+                println!("connection list:");
+                for raw in data.list_connection_raw {
+                    println!("{:?}", raw)
+                }
+            }
+            Err(e) => {
+                println!("MQTT broker list connection exception");
                 error_info(e.to_string());
             }
         }

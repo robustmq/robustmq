@@ -18,10 +18,11 @@ use std::sync::atomic::AtomicU64;
 
 use log::error;
 use protocol::mqtt::common::MqttProtocol;
+use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 
-#[derive(Clone, PartialEq, PartialOrd)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub enum NetworkConnectionType {
     Tcp,
     Tls,
@@ -44,12 +45,13 @@ impl fmt::Display for NetworkConnectionType {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct NetworkConnection {
     pub connection_type: NetworkConnectionType,
     pub connection_id: u64,
     pub protocol: Option<MqttProtocol>,
     pub addr: SocketAddr,
+    #[serde(skip_serializing, skip_deserializing)]
     pub connection_stop_sx: Option<mpsc::Sender<bool>>,
 }
 

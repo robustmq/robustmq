@@ -24,12 +24,14 @@ use tonic::transport::Server;
 
 use super::inner::GrpcInnerServices;
 use crate::handler::cache::CacheManager;
+use crate::server::connection_manager::ConnectionManager;
 use crate::server::grpc::admin::services::GrpcAdminServices;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub struct GrpcServer<S> {
     port: u32,
     metadata_cache: Arc<CacheManager>,
+    connection_manager: Arc<ConnectionManager>,
     subscribe_manager: Arc<SubscribeManager>,
     client_pool: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
@@ -43,12 +45,14 @@ where
         port: u32,
         metadata_cache: Arc<CacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
+        connection_manager: Arc<ConnectionManager>,
         client_pool: Arc<ClientPool>,
         message_storage_adapter: Arc<S>,
     ) -> Self {
         Self {
             port,
             metadata_cache,
+            connection_manager,
             subscribe_manager,
             client_pool,
             message_storage_adapter,
@@ -63,8 +67,11 @@ where
             self.client_pool.clone(),
             self.message_storage_adapter.clone(),
         );
-        let admin_handler =
-            GrpcAdminServices::new(self.client_pool.clone(), self.metadata_cache.clone());
+        let admin_handler = GrpcAdminServices::new(
+            self.client_pool.clone(),
+            self.metadata_cache.clone(),
+            self.connection_manager.clone(),
+        );
         Server::builder()
             .add_service(MqttBrokerInnerServiceServer::new(inner_handler))
             .add_service(MqttBrokerAdminServiceServer::new(admin_handler))

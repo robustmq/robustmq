@@ -37,11 +37,14 @@ pub enum MqttBrokerPlacementInterface {
     UpdateCache,
     SendLastWillMessage,
 
-    // admin
+    // admin service  functions
     ClusterStatus,
     ListUser,
     CreateUser,
     DeleteUser,
+
+    // connection
+    ListConnection,
 }
 
 pub mod admin;

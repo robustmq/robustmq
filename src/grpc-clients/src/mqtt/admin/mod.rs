@@ -21,6 +21,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_client::
 use tonic::transport::Channel;
 
 use super::MqttBrokerPlacementInterface;
+use crate::mqtt::admin::inner::inner_list_connection;
 use crate::pool::ClientPool;
 
 pub mod call;
@@ -54,6 +55,9 @@ pub(crate) async fn admin_interface_call(
                 }
                 MqttBrokerPlacementInterface::DeleteUser => {
                     inner_delete_user(client, request).await
+                }
+                MqttBrokerPlacementInterface::ListConnection => {
+                    inner_list_connection(client, request).await
                 }
                 _ => {
                     return Err(CommonError::CommonError(format!(
