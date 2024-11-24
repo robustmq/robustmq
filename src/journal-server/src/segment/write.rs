@@ -31,7 +31,7 @@ use tokio::time::timeout;
 
 use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
-use crate::core::segment_meta::update_meta_start_timestamp;
+use crate::core::segment_meta::{update_meta_end_timestamp, update_meta_start_timestamp};
 use crate::core::segment_status::sealup_segment;
 use crate::index::build::try_trigger_build_index;
 use crate::segment::file::{open_segment_write, SegmentFile};
@@ -334,11 +334,13 @@ async fn batch_write_segment(
     if let Some(end_offset) = offsets.last() {
         let last_recrd = records.last().unwrap();
         segment_position9_ac(
+            client_pool,
             segment_file_manager,
             &segment_iden,
             *end_offset as i64,
             last_recrd.create_time,
-        )?;
+        )
+        .await?;
     }
 
     Ok(resp)
@@ -362,7 +364,8 @@ async fn segment_position0_ac(
     Ok(())
 }
 
-fn segment_position9_ac(
+async fn segment_position9_ac(
+    client_pool: &Arc<ClientPool>,
     segment_file_manager: &Arc<SegmentFileManager>,
     segment_iden: &SegmentIdentity,
     end_offset: i64,
@@ -373,6 +376,9 @@ fn segment_position9_ac(
 
     // update local file end timestamp
     segment_file_manager.update_end_timestamp(segment_iden, timestamp)?;
+
+    // update meta end timestamp
+    update_meta_end_timestamp(client_pool.clone(), segment_iden, timestamp).await?;
     Ok(())
 }
 
