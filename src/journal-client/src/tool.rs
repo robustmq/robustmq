@@ -12,11 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::journal_server::journal_engine::{JournalEngineError, RespHeader};
+use protocol::journal_server::codec::JournalEnginePacket;
+use protocol::journal_server::journal_engine::RespHeader;
 
-pub fn resp_header_error(resp: &RespHeader) -> Result<(), JournalEngineError> {
-    if let Some(err) = resp.error.clone() {
-        return Err(err);
+use crate::error::JournalClientError;
+
+pub fn resp_header_error(
+    resp_header: &Option<RespHeader>,
+    request_pkg: JournalEnginePacket,
+) -> Result<(), JournalClientError> {
+    if let Some(header) = resp_header {
+        if let Some(err) = header.error.clone() {
+            return Err(JournalClientError::JournalEngineError(err.code, err.error));
+        }
+        return Ok(());
     }
-    Ok(())
+    Err(JournalClientError::ReceivedPacketNotContainHeader(
+        request_pkg.to_string(),
+    ))
 }

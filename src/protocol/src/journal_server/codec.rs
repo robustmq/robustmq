@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt;
+
 use bytes::{BufMut, BytesMut};
 use prost::Message as _;
 use tokio_util::codec;
 
 use super::journal_engine::{
     ApiKey, CreateShardReq, CreateShardReqBody, CreateShardResp, CreateShardRespBody,
-    DeleteShardReq, DeleteShardReqBody, DeleteShardResp, DeleteShardRespBody, GetShardMetadataReq,
-    GetShardMetadataReqBody, GetShardMetadataResp, GetShardMetadataRespBody, GetClusterMetadataReq,
-    GetClusterMetadataResp, GetClusterMetadataRespBody, OffsetCommitReq, OffsetCommitReqBody,
-    OffsetCommitResp, OffsetCommitRespBody, ReadReq, ReadReqBody, ReadResp, ReadRespBody,
-    ReqHeader, RespHeader, WriteReq, WriteReqBody, WriteResp, WriteRespBody,
+    DeleteShardReq, DeleteShardReqBody, DeleteShardResp, DeleteShardRespBody,
+    GetClusterMetadataReq, GetClusterMetadataResp, GetClusterMetadataRespBody, GetShardMetadataReq,
+    GetShardMetadataReqBody, GetShardMetadataResp, GetShardMetadataRespBody, OffsetCommitReq,
+    OffsetCommitReqBody, OffsetCommitResp, OffsetCommitRespBody, ReadReq, ReadReqBody, ReadResp,
+    ReadRespBody, ReqHeader, RespHeader, WriteReq, WriteReqBody, WriteResp, WriteRespBody,
 };
 use super::Error;
 
@@ -58,6 +60,27 @@ pub enum JournalEnginePacket {
     // DeleteShard
     DeleteShardReq(DeleteShardReq),
     DeleteShardResp(DeleteShardResp),
+}
+
+impl fmt::Display for JournalEnginePacket {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            JournalEnginePacket::WriteReq(_) => write!(f, "WriteReq"),
+            JournalEnginePacket::WriteResp(_) => write!(f, "WriteResp"),
+            JournalEnginePacket::ReadReq(_) => write!(f, "ReadReq"),
+            JournalEnginePacket::ReadResp(_) => write!(f, "ReadResp"),
+            JournalEnginePacket::GetClusterMetadataReq(_) => write!(f, "GetClusterMetadataReq"),
+            JournalEnginePacket::GetClusterMetadataResp(_) => write!(f, "GetClusterMetadataResp"),
+            JournalEnginePacket::GetShardMetadataReq(_) => write!(f, "GetShardMetadataReq"),
+            JournalEnginePacket::GetShardMetadataResp(_) => write!(f, "GetShardMetadataResp"),
+            JournalEnginePacket::OffsetCommitReq(_) => write!(f, "OffsetCommitReq"),
+            JournalEnginePacket::OffsetCommitResp(_) => write!(f, "OffsetCommitResp"),
+            JournalEnginePacket::CreateShardReq(_) => write!(f, "CreateShardReq"),
+            JournalEnginePacket::CreateShardResp(_) => write!(f, "CreateShardResp"),
+            JournalEnginePacket::DeleteShardReq(_) => write!(f, "DeleteShardReq"),
+            JournalEnginePacket::DeleteShardResp(_) => write!(f, "DeleteShardResp"),
+        }
+    }
 }
 
 impl Default for JournalServerCodec {

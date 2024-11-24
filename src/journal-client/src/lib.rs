@@ -16,29 +16,46 @@
 
 use std::sync::Arc;
 
+use cache::{load_node_cache, MetadataCache};
 use connection::ConnectionManager;
+use error::JournalClientError;
 use option::JournalClientOption;
 
 mod cache;
 mod connection;
+mod connection_gc;
+mod error;
 pub mod option;
+mod service;
 pub mod tool;
 
 pub struct JournalEngineClient {
-    connection: Arc<ConnectionManager>,
+    connection_manager: Arc<ConnectionManager>,
+    metadata_cache: Arc<MetadataCache>,
 }
 
 impl JournalEngineClient {
     pub fn new(options: JournalClientOption) -> Self {
-        let connection = Arc::new(ConnectionManager::new());
-        JournalEngineClient { connection }
+        let metadata_cache = Arc::new(MetadataCache::new(options.addrs));
+        let connection_manager = Arc::new(ConnectionManager::new(metadata_cache.clone()));
+        JournalEngineClient {
+            metadata_cache,
+            connection_manager,
+        }
     }
 
-    pub fn create_shard(&self) {}
+    pub async fn connect(&self) -> Result<(), JournalClientError> {
+        load_node_cache(&self.metadata_cache, &self.connection_manager).await?;
+        Ok(())
+    }
+
+    pub async fn create_shard(&self) {}
 
     pub fn delete_shard(&self) {}
 
     pub fn send(&self) {}
 
     pub fn read(&self) {}
+
+    pub fn close(&self) {}
 }
