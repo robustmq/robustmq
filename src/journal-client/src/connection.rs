@@ -53,21 +53,21 @@ impl NodeConnection {
         &self,
         req_packet: JournalEnginePacket,
     ) -> Result<JournalEnginePacket, JournalClientError> {
-        return self.send("admin", req_packet).await;
+        self.send("admin", req_packet).await
     }
 
     pub async fn write_send(
         &self,
         req_packet: JournalEnginePacket,
     ) -> Result<JournalEnginePacket, JournalClientError> {
-        return self.send("write", req_packet).await;
+        self.send("write", req_packet).await
     }
 
     pub async fn read_send(
         &self,
         req_packet: JournalEnginePacket,
     ) -> Result<JournalEnginePacket, JournalClientError> {
-        return self.send("read", req_packet).await;
+        self.send("read", req_packet).await
     }
 
     async fn send(
@@ -210,7 +210,7 @@ impl ConnectionManager {
         }
 
         let conn = self.node_conns.get(&node_id).unwrap();
-        return conn.admin_send(req_packet).await;
+        conn.admin_send(req_packet).await
     }
 
     fn choose_admin_node(&self) -> u64 {
