@@ -27,19 +27,14 @@ mod tests {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_mqtt_broker_addr()];
 
-        match mqtt_broker_list_connection(
-            client_pool.clone(),
-            addrs.clone(),
-            ListConnectionRequest {},
-        )
-        .await
-        {
+        match mqtt_broker_list_connection(client_pool, addrs, ListConnectionRequest {}).await {
             Ok(data) => {
                 println!("{:?}", data);
             }
 
             Err(e) => {
-                panic!("{:?}", e);
+                eprintln!("Failed to list connections: {:?}", e);
+                std::process::exit(1);
             }
         };
     }

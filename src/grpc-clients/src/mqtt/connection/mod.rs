@@ -85,9 +85,7 @@ impl Manager for MqttBrokerConnectionServiceManager {
     type Error = CommonError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        match MqttBrokerAdminServiceClient::connect(format!("http://{}", self.addr.clone()))
-            .await
-        {
+        match MqttBrokerAdminServiceClient::connect(format!("http://{}", self.addr.clone())).await {
             Ok(client) => Ok(client),
             Err(e) => Err(CommonError::CommonError(format!(
                 "{},{}",

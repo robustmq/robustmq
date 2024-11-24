@@ -14,12 +14,8 @@
 
 use std::sync::Arc;
 
-use crate::handler::cache::CacheManager;
-use crate::security::AuthDriver;
-use crate::server::connection_manager::ConnectionManager;
-use crate::storage::cluster::ClusterStorage;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::error::common::CommonError;
+use common_base::tools::serialize_dash_map;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
@@ -28,6 +24,11 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
 };
 use tonic::{Request, Response, Status};
+
+use crate::handler::cache::CacheManager;
+use crate::security::AuthDriver;
+use crate::server::connection_manager::ConnectionManager;
+use crate::storage::cluster::ClusterStorage;
 
 pub struct GrpcAdminServices {
     client_pool: Arc<ClientPool>,
@@ -113,7 +114,6 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         }
     }
 
-    
     async fn mqtt_broker_list_user(
         &self,
         _: Request<ListUserRequest>,
@@ -140,21 +140,11 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         _: Request<ListConnectionRequest>,
     ) -> Result<Response<ListConnectionReply>, Status> {
-        let mut reply = ListConnectionReply::default();
-        fn serialize_dash_map<T>(dash_map: &T) -> Result<String, Status>
-        where
-            T: serde::Serialize,
-        {
-            serde_json::to_string(dash_map).map_err(|e| {
-                Status::cancelled(
-                    CommonError::CommonError(e.to_string()).to_string(),
-                )
-            })
-        }
-        
-        reply.network_connections = serialize_dash_map(&self.connection_manager.list_connect())?;
-        reply.mqtt_connections = serialize_dash_map(&self.cache_manager.connection_info.clone())?;
-        
+        let reply = ListConnectionReply {
+            network_connections: serialize_dash_map(&self.connection_manager.list_connect())?,
+            mqtt_connections: serialize_dash_map(&self.cache_manager.connection_info.clone())?,
+        };
+
         Ok(Response::new(reply))
     }
 }
