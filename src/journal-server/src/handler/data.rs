@@ -96,12 +96,12 @@ impl DataHandler {
         let req_body = request.body.unwrap();
         let conf = journal_server_conf();
         for row in req_body.messages.clone() {
-            let segment_iden = SegmentIdentity {
+            let segment_identity = SegmentIdentity {
                 namespace: row.namespace.to_string(),
                 shard_name: row.shard_name.to_string(),
                 segment_seq: row.segment,
             };
-            self.validator(&segment_iden)?;
+            self.validator(&segment_identity)?;
         }
 
         let conf = journal_server_conf();
