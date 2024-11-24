@@ -16,11 +16,13 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use prost::Message as _;
-use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
+    DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
+};
 
 use crate::mqtt::{retry_call, MqttBrokerPlacementInterface, MqttBrokerService};
 use crate::pool::ClientPool;
-
 
 // ---- cluster ------
 pub async fn cluster_status(
@@ -45,7 +47,6 @@ pub async fn cluster_status(
         Err(e) => Err(e),
     }
 }
-
 
 // ------ user -------
 pub async fn mqtt_broker_list_user(
@@ -117,7 +118,6 @@ pub async fn mqtt_broker_delete_user(
     }
 }
 
-
 // ------- connection  -----------
 pub async fn mqtt_broker_list_connection(
     client_pool: Arc<ClientPool>,
@@ -132,7 +132,7 @@ pub async fn mqtt_broker_list_connection(
         addrs,
         request_date,
     )
-        .await
+    .await
     {
         Ok(data) => match ListConnectionReply::decode(data.as_ref()) {
             Ok(data) => Ok(data),

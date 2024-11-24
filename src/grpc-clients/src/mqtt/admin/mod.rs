@@ -19,8 +19,9 @@ use inner::{inner_cluster_status, inner_create_user, inner_delete_user, inner_li
 use mobc::{Connection, Manager};
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
 use tonic::transport::Channel;
-use crate::mqtt::admin::inner::inner_list_connection;
+
 use super::MqttBrokerPlacementInterface;
+use crate::mqtt::admin::inner::inner_list_connection;
 use crate::pool::ClientPool;
 
 pub mod call;

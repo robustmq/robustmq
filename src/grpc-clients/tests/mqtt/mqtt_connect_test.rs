@@ -16,7 +16,7 @@
 mod tests {
     use std::sync::Arc;
 
-    use grpc_clients::mqtt::connection::call::mqtt_broker_list_connection;
+    use grpc_clients::mqtt::admin::call::mqtt_broker_list_connection;
     use grpc_clients::pool::ClientPool;
     use protocol::broker_mqtt::broker_mqtt_admin::ListConnectionRequest;
 

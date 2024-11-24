@@ -15,9 +15,9 @@
 use std::sync::Arc;
 
 use grpc_clients::mqtt::admin::call::{
-    cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user, mqtt_broker_list_user,
+    cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user, mqtt_broker_list_connection,
+    mqtt_broker_list_user,
 };
-use grpc_clients::mqtt::connection::call::mqtt_broker_list_connection;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::{

@@ -15,8 +15,11 @@
 use common_base::error::common::CommonError;
 use mobc::Connection;
 use prost::Message;
-use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest};
-use crate::mqtt::connection::MqttBrokerConnectionServiceManager;
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
+    DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
+};
+
 use super::MqttBrokerAdminServiceManager;
 
 // ---- cluster -------
@@ -72,7 +75,6 @@ pub(crate) async fn inner_delete_user(
         Err(e) => Err(CommonError::CommonError(e.to_string())),
     }
 }
-
 
 // ------- connection ------
 pub(crate) async fn inner_list_connection(
