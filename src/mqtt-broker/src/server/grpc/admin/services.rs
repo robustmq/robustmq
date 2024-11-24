@@ -20,30 +20,38 @@ use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
-    DeleteUserRequest, ListUserReply, ListUserRequest,
+    DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
 };
 use tonic::{Request, Response, Status};
 
 use crate::handler::cache::CacheManager;
 use crate::security::AuthDriver;
+use crate::server::connection_manager::ConnectionManager;
 use crate::storage::cluster::ClusterStorage;
 
 pub struct GrpcAdminServices {
     client_pool: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
+    connection_manager: Arc<ConnectionManager>,
 }
 
 impl GrpcAdminServices {
-    pub fn new(client_pool: Arc<ClientPool>, cache_manager: Arc<CacheManager>) -> Self {
+    pub fn new(
+        client_pool: Arc<ClientPool>,
+        cache_manager: Arc<CacheManager>,
+        connection_manager: Arc<ConnectionManager>,
+    ) -> Self {
         GrpcAdminServices {
             client_pool,
             cache_manager,
+            connection_manager,
         }
     }
 }
 
 #[tonic::async_trait]
 impl MqttBrokerAdminService for GrpcAdminServices {
+    // --- cluster ---
     async fn cluster_status(
         &self,
         _: Request<ClusterStatusRequest>,
@@ -67,6 +75,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         return Ok(Response::new(reply));
     }
 
+    // --- user ---
     async fn mqtt_broker_list_user(
         &self,
         _: Request<ListUserRequest>,
@@ -123,5 +132,13 @@ impl MqttBrokerAdminService for GrpcAdminServices {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
+    }
+
+    // --- connection ---
+    async fn mqtt_broker_list_connection(
+        &self,
+        request: Request<ListConnectionRequest>,
+    ) -> Result<Response<ListConnectionReply>, Status> {
+        todo!()
     }
 }

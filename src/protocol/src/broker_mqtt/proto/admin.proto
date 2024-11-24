@@ -12,7 +12,7 @@ service MQTTBrokerAdminService {
     rpc mqtt_broker_list_user(ListUserRequest) returns(ListUserReply){}
 
     // connection
-    rpc list_connection(ListConnectionRequest) returns(ListConnectionReply){}
+    rpc mqtt_broker_list_connection(ListConnectionRequest) returns(ListConnectionReply){}
 }
 
 // --------- cluster --------

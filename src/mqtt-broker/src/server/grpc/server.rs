@@ -69,14 +69,14 @@ where
             self.client_pool.clone(),
             self.message_storage_adapter.clone(),
         );
-        let admin_handler =
-            GrpcAdminServices::new(self.client_pool.clone(), self.metadata_cache.clone());
-        let connection_handler =
-            GrpcConnectionServices::new(self.client_pool.clone(), self.connection_manager.clone(), self.metadata_cache.clone());
+        let admin_handler = GrpcAdminServices::new(
+            self.client_pool.clone(),
+            self.metadata_cache.clone(),
+            self.connection_manager.clone(),
+        );
         Server::builder()
             .add_service(MqttBrokerPlacementServiceServer::new(placement_handler))
             .add_service(MqttBrokerAdminServiceServer::new(admin_handler))
-            .add_service(MqttBrokerConnectionServiceServer::new(connection_handler))
             .serve(addr)
             .await?;
         Ok(())
