@@ -13,6 +13,5 @@
 // limitations under the License.
 
 mod admin;
-mod connection;
 mod inner;
 pub mod server;
