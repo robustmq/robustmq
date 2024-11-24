@@ -143,10 +143,8 @@ impl MqttBrokerAdminService for GrpcAdminServices {
     ) -> Result<Response<ListConnectionReply>, Status> {
         let mut reply = ListConnectionReply::default();
         let mut list_connection_raw: Vec<ListConnectionRaw> = Vec::new();
-        let network_connection_map = self.connection_manager.list_connect();
-        let mqtt_connection_map = self.cache_manager.connection_info.clone();
-        for (key, value) in network_connection_map {
-            if let Some(mqtt_value) = mqtt_connection_map.get(&key) {
+        for (key, value) in self.connection_manager.list_connect() {
+            if let Some(mqtt_value) = self.cache_manager.connection_info.clone().get(&key) {
                 let mqtt_info = serialize_value(mqtt_value.value())?;
                 let raw = ListConnectionRaw {
                     connection_id: value.connection_id,
