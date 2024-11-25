@@ -12,17 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(test)]
-mod tests {
-    use journal_client::option::JournalClientOption;
-    use journal_client::JournalEngineClient;
+pub struct Sender {}
 
-    #[tokio::test]
-    async fn create_segment() {
-        let mut options = JournalClientOption::build();
-        options.set_addrs(Vec::new());
-        let client = JournalEngineClient::new(options);
-        client.connect().await.unwrap();
-        // client.create_shard().await;
+impl Sender {
+    pub fn new() -> Self {
+        Sender {}
     }
 }

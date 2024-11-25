@@ -65,8 +65,8 @@ impl MqttTopicStorage {
         let key: String = storage_key_mqtt_topic(cluster_name, topicname);
 
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
-            let lastwill = serde_json::from_slice::<MqttTopic>(&data.data)?;
-            return Ok(Some(lastwill));
+            let topic = serde_json::from_slice::<MqttTopic>(&data.data)?;
+            return Ok(Some(topic));
         }
         Ok(None)
     }

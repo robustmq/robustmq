@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use dashmap::DashMap;
 use log::error;
@@ -20,6 +21,9 @@ use metadata_struct::journal::shard::shard_name_iden;
 use protocol::journal_server::journal_engine::{
     GetClusterMetadataNode, GetShardMetadataReqShard, GetShardMetadataRespShard,
 };
+use tokio::select;
+use tokio::sync::broadcast::Receiver;
+use tokio::time::sleep;
 
 use crate::connection::ConnectionManager;
 use crate::error::JournalClientError;
@@ -113,40 +117,57 @@ pub async fn load_node_cache(
     Ok(())
 }
 
-pub async fn start_update_cache_thread(
+pub fn start_update_cache_thread(
     metadata_cache: Arc<MetadataCache>,
     connection_manager: Arc<ConnectionManager>,
+    mut stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(async move {
         loop {
-            // update node cache
-            if let Err(e) = load_node_cache(&metadata_cache, &connection_manager).await {
-                error!(
-                    "Failed to update node cache periodically with error message :{}",
-                    e
-                );
-            }
+            select! {
+                val = stop_recv.recv() =>{
+                    if let Err(flag) = val {
 
-            // update shard cache
-            for shard in metadata_cache.all_shards() {
-                if let Err(e) = load_shards_cache(
-                    &metadata_cache,
-                    &connection_manager,
-                    shard.namespace.clone(),
-                    shard.shard.clone(),
-                )
-                .await
-                {
-                    if e.to_string().contains("does not exist") && e.to_string().contains("Shard") {
-                        metadata_cache.remove_shard(&shard.namespace, &shard.shard);
-                    } else {
-                        error!(
-                            "Failed to update shard cache periodically with error message :{}",
-                            e
-                        );
                     }
+                },
+                val = update_cache(metadata_cache.clone(),connection_manager.clone())=>{
                 }
             }
         }
     });
+}
+
+async fn update_cache(
+    metadata_cache: Arc<MetadataCache>,
+    connection_manager: Arc<ConnectionManager>,
+) {
+    // update node cache
+    if let Err(e) = load_node_cache(&metadata_cache, &connection_manager).await {
+        error!(
+            "Failed to update node cache periodically with error message :{}",
+            e
+        );
+    }
+
+    // update shard cache
+    for shard in metadata_cache.all_shards() {
+        if let Err(e) = load_shards_cache(
+            &metadata_cache,
+            &connection_manager,
+            shard.namespace.clone(),
+            shard.shard.clone(),
+        )
+        .await
+        {
+            if e.to_string().contains("does not exist") && e.to_string().contains("Shard") {
+                metadata_cache.remove_shard(&shard.namespace, &shard.shard);
+            } else {
+                error!(
+                    "Failed to update shard cache periodically with error message :{}",
+                    e
+                );
+            }
+        }
+    }
+    sleep(Duration::from_secs(10)).await;
 }

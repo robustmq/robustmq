@@ -22,6 +22,8 @@ use futures::{SinkExt, StreamExt};
 use log::error;
 use protocol::journal_server::codec::{JournalEnginePacket, JournalServerCodec};
 use tokio::net::TcpStream;
+use tokio::select;
+use tokio::sync::broadcast::Receiver;
 use tokio::time::sleep;
 use tokio_util::codec::Framed;
 
@@ -222,4 +224,64 @@ impl ConnectionManager {
         let node_id = node_ids.get(index).unwrap();
         *node_id
     }
+
+    pub fn get_inactive_conn(&self) -> Vec<(u64, String)> {
+        let mut results = Vec::new();
+        for node in self.node_conns.iter() {
+            for conn in node.connection.iter() {
+                if (now_second() - conn.last_active_time) > 600 {
+                    results.push((node.node_id, conn.key().to_string()));
+                }
+            }
+        }
+        results
+    }
+
+    pub async fn close_conn_by_node(&self, node_id: u64, conn_type: &str) {
+        if let Some(node) = self.node_conns.get(&node_id) {
+            if let Some(mut conn) = node.connection.get_mut(conn_type) {
+                if let Err(e) = conn.stream.close().await {
+                    error!("{}", e);
+                }
+            }
+            node.connection.remove(conn_type);
+        }
+    }
+
+    pub async fn close(&self) {
+        for node in self.node_conns.iter() {
+            for mut conn in node.connection.iter_mut() {
+                if let Err(e) = conn.stream.close().await {
+                    error!("{}", e);
+                }
+            }
+        }
+    }
+}
+
+pub fn start_conn_gc_thread(
+    metadata_cache: Arc<MetadataCache>,
+    connection_manager: Arc<ConnectionManager>,
+    mut stop_recv: Receiver<bool>,
+) {
+    tokio::spawn(async move {
+        loop {
+            select! {
+                val = stop_recv.recv() =>{
+                    if let Err(flag) = val {
+
+                    }
+                },
+                val = gc_conn(metadata_cache.clone(),connection_manager.clone())=>{
+                }
+            }
+        }
+    });
+}
+
+async fn gc_conn(metadata_cache: Arc<MetadataCache>, connection_manager: Arc<ConnectionManager>) {
+    for raw in connection_manager.get_inactive_conn() {
+        connection_manager.close_conn_by_node(raw.0, &raw.1).await;
+    }
+    sleep(Duration::from_secs(10)).await;
 }
