@@ -25,6 +25,7 @@ use crate::pool::ClientPool;
 
 pub mod call;
 
+/// Enum wrapper for all possible requests to the open raft service
 #[derive(Debug, Clone)]
 pub enum OpenRaftServiceRequest {
     Vote(VoteRequest),
@@ -34,6 +35,7 @@ pub enum OpenRaftServiceRequest {
     ChangeMembership(ChangeMembershipRequest),
 }
 
+/// Enum wrapper for all possible replies from the open raft service
 #[derive(Debug, Clone)]
 pub enum OpenRaftServiceReply {
     Vote(VoteReply),

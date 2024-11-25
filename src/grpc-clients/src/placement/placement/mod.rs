@@ -30,6 +30,7 @@ use crate::pool::ClientPool;
 
 pub mod call;
 
+/// Enum wrapper for all possible requests to the placement service
 #[derive(Debug, Clone)]
 pub enum PlacementServiceRequest {
     ClusterStatus(ClusterStatusRequest),
@@ -47,6 +48,7 @@ pub enum PlacementServiceRequest {
     DeleteIdempotentData(DeleteIdempotentDataRequest),
 }
 
+/// Enum wrapper for all possible replies from the placement service
 #[derive(Debug, Clone)]
 pub enum PlacementServiceReply {
     ClusterStatus(ClusterStatusReply),

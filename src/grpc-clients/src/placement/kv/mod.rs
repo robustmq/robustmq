@@ -25,6 +25,7 @@ use crate::pool::ClientPool;
 
 pub mod call;
 
+/// Enum wrapper for all possible requests to the kv service
 #[derive(Debug, Clone)]
 pub enum KvServiceRequest {
     Set(SetRequest),
@@ -33,6 +34,7 @@ pub enum KvServiceRequest {
     Exists(ExistsRequest),
 }
 
+/// Enum wrapper for all possible replies from the kv service
 #[derive(Debug, Clone)]
 pub enum KvServiceReply {
     Set(SetReply),

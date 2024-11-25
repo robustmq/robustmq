@@ -33,6 +33,7 @@ use crate::pool::ClientPool;
 
 pub mod call;
 
+/// Enum wrapper for all possible requests to the mqtt service
 #[derive(Debug, Clone)]
 pub enum MqttServiceRequest {
     GetShareSubLeader(GetShareSubLeaderRequest),
@@ -56,6 +57,7 @@ pub enum MqttServiceRequest {
     ListBlacklist(ListBlacklistRequest),
 }
 
+/// Enum wrapper for all possible replies from the mqtt service
 #[derive(Debug, Clone)]
 pub enum MqttServiceReply {
     GetShareSubLeader(GetShareSubLeaderReply),

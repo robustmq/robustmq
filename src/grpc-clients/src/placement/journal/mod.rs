@@ -28,6 +28,7 @@ use crate::pool::ClientPool;
 
 pub mod call;
 
+/// Enum wrapper for all possible requests to the journal service
 #[derive(Debug, Clone)]
 pub enum JournalServiceRequest {
     ListShard(ListShardRequest),
@@ -41,6 +42,7 @@ pub enum JournalServiceRequest {
     UpdateSegmentMeta(UpdateSegmentMetaRequest),
 }
 
+/// Enum wrapper for all possible replies from the journal service
 #[derive(Debug, Clone)]
 pub enum JournalServiceReply {
     ListShard(ListShardReply),

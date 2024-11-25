@@ -27,26 +27,7 @@ use crate::pool::ClientPool;
 pub mod admin;
 pub mod inner;
 
-#[derive(Clone)]
-pub enum JournalEngineService {
-    Admin,
-    Inner,
-}
-
-#[derive(Clone, Debug)]
-pub enum JournalEngineInterface {
-    // inner
-    UpdateCache,
-    DeleteShardFile,
-    GetShardDeleteStatus,
-    DeleteSegmentFile,
-    GetSegmentDeleteStatus,
-
-    // admin
-    ListShard,
-    ListSegment,
-}
-
+/// Enum wrapper for all possible requests to the journal engine
 #[derive(Debug, Clone)]
 pub enum JournalEngineRequest {
     // inner
@@ -61,6 +42,7 @@ pub enum JournalEngineRequest {
     ListSegment(ListSegmentRequest),
 }
 
+/// Enum wrapper for all possible replies from the journal engine
 #[derive(Debug, Clone)]
 pub enum JournalEngineReply {
     // inner

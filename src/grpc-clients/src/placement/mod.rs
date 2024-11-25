@@ -29,15 +29,6 @@ use self::openraft::{OpenRaftServiceReply, OpenRaftServiceRequest};
 use crate::pool::ClientPool;
 use crate::{retry_sleep_time, retry_times};
 
-#[derive(Clone, Debug)]
-pub enum PlacementCenterService {
-    Journal,
-    Kv,
-    Placement,
-    Mqtt,
-    OpenRaft,
-}
-
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum PlacementCenterInterface {
     // kv interface
@@ -101,6 +92,7 @@ pub enum PlacementCenterInterface {
     ChangeMembership,
 }
 
+/// Enum wrapper for all possible requests to the placement center
 #[derive(Debug, Clone)]
 pub enum PlacementCenterRequest {
     Kv(KvServiceRequest),
@@ -110,6 +102,7 @@ pub enum PlacementCenterRequest {
     OpenRaft(OpenRaftServiceRequest),
 }
 
+/// Enum wrapper for all possible replies from the placement center
 #[derive(Debug, Clone)]
 pub enum PlacementCenterReply {
     Kv(KvServiceReply),

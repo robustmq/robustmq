@@ -24,29 +24,7 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
 
 use crate::pool::ClientPool;
 
-#[derive(Clone)]
-pub enum MqttBrokerService {
-    Placement,
-    Admin,
-}
-
-#[derive(Clone, Debug)]
-pub enum MqttBrokerPlacementInterface {
-    // inner
-    DeleteSession,
-    UpdateCache,
-    SendLastWillMessage,
-
-    // admin service  functions
-    ClusterStatus,
-    ListUser,
-    CreateUser,
-    DeleteUser,
-
-    // connection
-    ListConnection,
-}
-
+/// Enum wrapper for all possible requests to the mqtt broker
 #[derive(Debug, Clone)]
 pub enum MqttBrokerPlacementRequest {
     // inner
@@ -64,6 +42,7 @@ pub enum MqttBrokerPlacementRequest {
     ListConnection(ListConnectionRequest),
 }
 
+/// Enum wrapper for all possible replies from the mqtt broker
 #[derive(Debug, Clone)]
 pub enum MqttBrokerPlacementReply {
     // placement
