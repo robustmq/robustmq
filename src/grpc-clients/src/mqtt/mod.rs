@@ -80,6 +80,59 @@ pub enum MqttBrokerPlacementReply {
 pub mod admin;
 pub mod placement;
 
+// async fn retry_call(
+//     service: MqttBrokerService,
+//     interface: MqttBrokerPlacementInterface,
+//     client_pool: Arc<ClientPool>,
+//     addrs: Vec<String>,
+//     request: Vec<u8>,
+// ) -> Result<Vec<u8>, CommonError> {
+//     if addrs.is_empty() {
+//         return Err(CommonError::CommonError(
+//             "Call address list cannot be empty".to_string(),
+//         ));
+//     }
+//     let mut times = 1;
+//     loop {
+//         let index = times % addrs.len();
+//         let addr = addrs.get(index).unwrap().clone();
+//         let result = match service {
+//             MqttBrokerService::Placement => {
+//                 placement_interface_call(
+//                     interface.clone(),
+//                     client_pool.clone(),
+//                     addr,
+//                     request.clone(),
+//                 )
+//                 .await
+//             }
+//             MqttBrokerService::Admin => {
+//                 admin_interface_call(
+//                     interface.clone(),
+//                     client_pool.clone(),
+//                     addr,
+//                     request.clone(),
+//                 )
+//                 .await
+//             }
+//         };
+
+//         match result {
+//             Ok(data) => {
+//                 return Ok(data);
+//             }
+//             Err(e) => {
+//                 error!("{}", e);
+//                 if times > retry_times() {
+//                     return Err(e);
+//                 }
+//                 times += 1;
+//             }
+//         }
+//         sleep(Duration::from_secs(retry_sleep_time(times))).await;
+//     }
+// }
+
 async fn retry_call(
     client_pool: Arc<ClientPool>,
     addrs: Vec<String>, // TODO: &[String] or &[&str] should suffice
