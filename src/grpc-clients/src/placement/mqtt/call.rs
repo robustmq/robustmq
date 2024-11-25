@@ -19,7 +19,7 @@ use prost::Message as _;
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
-    CreateUserReply, CreateUserRequest, DeleteAclRequest, DeleteAclRequestReply,
+    CreateUserReply, CreateUserRequest, DeleteAclRequest, DeleteAclReply,
     DeleteBlacklistReply, DeleteBlacklistRequest, DeleteSessionReply, DeleteSessionRequest,
     DeleteTopicReply, DeleteTopicRequest, DeleteUserReply, DeleteUserRequest,
     GetShareSubLeaderReply, GetShareSubLeaderRequest, ListAclReply, ListAclRequest,
@@ -331,7 +331,7 @@ pub async fn placement_save_last_will_message(
     }
 }
 
-pub async fn placement_list_acl(
+pub async fn list_acl(
     client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ListAclRequest,
@@ -354,7 +354,7 @@ pub async fn placement_list_acl(
     }
 }
 
-pub async fn placement_create_acl(
+pub async fn create_acl(
     client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: CreateAclRequest,
@@ -377,11 +377,11 @@ pub async fn placement_create_acl(
     }
 }
 
-pub async fn placement_delete_acl(
+pub async fn delete_acl(
     client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteAclRequest,
-) -> Result<DeleteAclRequestReply, CommonError> {
+) -> Result<DeleteAclReply, CommonError> {
     let request_data = DeleteAclRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Mqtt,
@@ -392,7 +392,7 @@ pub async fn placement_delete_acl(
     )
     .await
     {
-        Ok(data) => match DeleteAclRequestReply::decode(data.as_ref()) {
+        Ok(data) => match DeleteAclReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
             Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },

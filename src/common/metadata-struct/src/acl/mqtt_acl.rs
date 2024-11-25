@@ -31,6 +31,10 @@ impl MqttAcl {
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
         Ok(serde_json::to_vec(&self)?)
     }
+
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        Ok(serde_json::from_slice(&data)?)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]

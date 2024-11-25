@@ -16,11 +16,11 @@ use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
-    DeleteUserRequest, ListUserReply, ListUserRequest,
+    ClusterStatusReply, ClusterStatusRequest, CreateAclRequest, CreateAclReply, CreateUserReply, CreateUserRequest, DeleteAclRequest, DeleteAclReply, DeleteUserReply, DeleteUserRequest, ListAclReply, ListAclRequest, ListUserReply, ListUserRequest
 };
 use tonic::{Request, Response, Status};
 
@@ -119,6 +119,58 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
         match auth_driver.delete_user(req.username).await {
             Ok(_) => return Ok(Response::new(DeleteUserReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn mqtt_broker_list_acl(
+        &self,
+        _: Request<ListAclRequest>,
+    ) -> Result<Response<ListAclReply>, Status> {
+        let mut reply = ListAclReply::default();
+
+        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        match auth_driver.read_all_acl().await {
+            Ok(data) => {
+                let acl_list = data.iter().map(|acl| acl.encode().unwrap()).collect::<Vec<Vec<u8>>>();
+                reply.acls = acl_list.clone();
+                return Ok(Response::new(reply));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn mqtt_broker_create_acl(
+        &self,
+        request: Request<CreateAclRequest>,
+    ) -> Result<Response<CreateAclReply>, Status> {
+        let req = request.into_inner();
+
+        let mqtt_acl = MqttAcl::decode(&req.acl).unwrap();
+
+        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        match auth_driver.save_acl(mqtt_acl).await {
+            Ok(_) => return Ok(Response::new(CreateAclReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn mqtt_broker_delete_acl(
+        &self,
+        request: Request<DeleteAclRequest>,
+    ) -> Result<Response<DeleteAclReply>, Status> {
+        let req = request.into_inner();
+        let mqtt_acl = MqttAcl::decode(&req.acl).unwrap();
+
+        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        match auth_driver.delete_acl(mqtt_acl).await {
+            Ok(_) => return Ok(Response::new(DeleteAclReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }

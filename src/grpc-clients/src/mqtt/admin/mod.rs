@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use inner::{inner_cluster_status, inner_create_user, inner_delete_user, inner_list_user};
+use inner::{inner_cluster_status, inner_create_acl, inner_create_user, inner_delete_acl, inner_delete_user, inner_list_acl, inner_list_user};
 use mobc::{Connection, Manager};
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
 use tonic::transport::Channel;
@@ -54,6 +54,13 @@ pub(crate) async fn admin_interface_call(
                 }
                 MqttBrokerPlacementInterface::DeleteUser => {
                     inner_delete_user(client, request).await
+                }
+                MqttBrokerPlacementInterface::ListAcl => inner_list_acl(client, request).await,
+                MqttBrokerPlacementInterface::CreateAcl => {
+                    inner_create_acl(client, request).await
+                }
+                MqttBrokerPlacementInterface::DeleteAcl => {
+                    inner_delete_acl(client, request).await
                 }
                 _ => {
                     return Err(CommonError::CommmonError(format!(

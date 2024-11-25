@@ -19,7 +19,7 @@ use protocol::placement_center::placement_center_mqtt::mqtt_service_server::Mqtt
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
-    CreateUserReply, CreateUserRequest, DeleteAclRequest, DeleteAclRequestReply,
+    CreateUserReply, CreateUserRequest, DeleteAclRequest, DeleteAclReply,
     DeleteBlacklistReply, DeleteBlacklistRequest, DeleteSessionReply, DeleteSessionRequest,
     DeleteTopicReply, DeleteTopicRequest, DeleteUserReply, DeleteUserRequest,
     GetShareSubLeaderReply, GetShareSubLeaderRequest, ListAclReply, ListAclRequest,
@@ -424,7 +424,7 @@ impl MqttService for GrpcMqttService {
     async fn delete_acl(
         &self,
         request: Request<DeleteAclRequest>,
-    ) -> Result<Response<DeleteAclRequestReply>, Status> {
+    ) -> Result<Response<DeleteAclReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
             StorageDataType::MqttDeleteAcl,
@@ -432,7 +432,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(DeleteAclRequestReply::default())),
+            Ok(_) => return Ok(Response::new(DeleteAclReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }

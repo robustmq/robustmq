@@ -29,6 +29,71 @@ mod tests {
     use crate::common::get_placement_addr;
 
     #[tokio::test]
+    async fn create_acl_test() {
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
+        let addrs = vec![get_placement_addr()];
+        let cluster_name: String = format!("mqtt-broker");
+
+        let acl = MqttAcl {
+            resource_type: MqttAclResourceType::User,
+            resource_name: "loboxu".to_string(),
+            topic: "tp-1".to_string(),
+            ip: "*".to_string(),
+            action: MqttAclAction::All,
+            permission: MqttAclPermission::Deny,
+        };
+
+        let request = CreateAclRequest {
+            cluster_name: cluster_name.clone(),
+            acl: acl.encode().unwrap(),
+        };
+        create_acl(client_pool.clone(), addrs.clone(), request)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn delete_acl_test() {
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
+        let addrs = vec![get_placement_addr()];
+        let cluster_name: String = format!("mqtt-broker");
+
+        let acl = MqttAcl {
+            resource_type: MqttAclResourceType::User,
+            resource_name: "acl_storage_test".to_string(),
+            topic: "tp-1".to_string(),
+            ip: "*".to_string(),
+            action: MqttAclAction::All,
+            permission: MqttAclPermission::Deny,
+        };
+
+        let request = DeleteAclRequest {
+            cluster_name: cluster_name.clone(),
+            acl: acl.encode().unwrap(),
+        };
+        delete_acl(client_pool.clone(), addrs.clone(), request).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn list_acl_test() {
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
+        let addrs = vec![get_placement_addr()];
+        let cluster_name: String = format!("test_cluster_1");
+
+        let request = ListAclRequest {
+            cluster_name: cluster_name.clone(),
+        };
+        match list_acl(client_pool.clone(), addrs.clone(), request).await {
+            Ok(data) => {
+                println!("data: {:?}", data);
+            }
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        }
+    }
+
+    #[tokio::test]
     async fn mqtt_acl_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
@@ -88,16 +153,15 @@ mod tests {
             }
         }
 
-        let request = ListBlacklistRequest {
+        let request = ListAclRequest {
             cluster_name: cluster_name.clone(),
         };
 
-        match list_blacklist(client_pool.clone(), addrs.clone(), request).await {
+        match list_acl(client_pool.clone(), addrs.clone(), request).await {
             Ok(data) => {
                 let mut flag = false;
-                for raw in data.blacklists {
-                    let tmp = serde_json::from_slice::<MqttAcl>(raw.as_slice())
-                        .unwrap_or_else(|e| panic!("{e} {:02x?}", raw.as_slice()));
+                for raw in data.acls {
+                    let tmp = serde_json::from_slice::<MqttAcl>(raw.as_slice()).unwrap();
                     if tmp.resource_type == acl.resource_type
                         && tmp.resource_name == acl.resource_name
                         && tmp.topic == acl.topic

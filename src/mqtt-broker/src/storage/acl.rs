@@ -14,10 +14,9 @@
 
 use std::sync::Arc;
 
-use bincode::serialize;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
-use grpc_clients::placement::mqtt::call::{placement_create_acl, placement_delete_acl, placement_list_acl};
+use grpc_clients::placement::mqtt::call::{create_acl, delete_acl, list_acl};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use protocol::placement_center::placement_center_mqtt::{
@@ -38,12 +37,8 @@ impl AclStorage {
         let request = ListAclRequest {
             cluster_name: config.cluster_name.clone(),
         };
-        match placement_list_acl(
-            self.client_pool.clone(),
-            config.placement_center.clone(),
-            request,
-        )
-        .await
+        match list_acl(self.client_pool.clone(), config.placement_center.clone(), request)
+            .await
         {
             Ok(reply) => {
                 let mut list = Vec::new();
@@ -58,18 +53,15 @@ impl AclStorage {
 
     pub async fn save_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
-        let value = serialize(&acl).map_err(|e| CommonError::CommmonError(e.to_string()))?;
+
+        let value = acl.encode().unwrap();
         let request = CreateAclRequest {
             cluster_name: config.cluster_name.clone(),
             acl: value,
         };
 
-        match placement_create_acl(
-            self.client_pool.clone(),
-            config.placement_center.clone(),
-            request,
-        )
-        .await
+        match create_acl(self.client_pool.clone(), config.placement_center.clone(), request)
+            .await
         {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
@@ -78,18 +70,14 @@ impl AclStorage {
 
     pub async fn delete_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
-        let value = serialize(&acl).map_err(|e| CommonError::CommmonError(e.to_string()))?;
+        let value = acl.encode().unwrap();
         let request = DeleteAclRequest {
             cluster_name: config.cluster_name.clone(),
             acl: value,
         };
 
-        match placement_delete_acl(
-            self.client_pool.clone(),
-            config.placement_center.clone(),
-            request,
-        )
-        .await
+        match delete_acl(self.client_pool.clone(), config.placement_center.clone(), request)
+            .await
         {
             Ok(_) => Ok(()),
             Err(e) => Err(e),

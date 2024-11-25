@@ -16,8 +16,7 @@ use common_base::error::common::CommonError;
 use mobc::Connection;
 use prost::Message;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
-    DeleteUserRequest, ListUserReply, ListUserRequest,
+    ClusterStatusReply, ClusterStatusRequest, CreateAclRequest, CreateAclReply, CreateUserReply, CreateUserRequest, DeleteAclRequest, DeleteAclReply, DeleteUserReply, DeleteUserRequest, ListAclReply, ListAclRequest, ListUserReply, ListUserRequest
 };
 
 use super::MqttBrokerAdminServiceManager;
@@ -68,6 +67,45 @@ pub(crate) async fn inner_delete_user(
     match DeleteUserRequest::decode(request.as_ref()) {
         Ok(request) => match client.mqtt_broker_delete_user(request).await {
             Ok(result) => Ok(DeleteUserReply::encode_to_vec(&result.into_inner())),
+            Err(e) => Err(CommonError::GrpcServerStatus(e)),
+        },
+        Err(e) => Err(CommonError::CommmonError(e.to_string())),
+    }
+}
+
+pub(crate) async fn inner_create_acl(
+    mut client: Connection<MqttBrokerAdminServiceManager>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, CommonError> {
+    match CreateAclRequest::decode(request.as_ref()) {
+        Ok(request) => match client.mqtt_broker_create_acl(request).await {
+            Ok(result) => Ok(CreateAclReply::encode_to_vec(&result.into_inner())),
+            Err(e) => Err(CommonError::GrpcServerStatus(e)),
+        },
+        Err(e) => Err(CommonError::CommmonError(e.to_string())),
+    }
+}
+
+pub(crate) async fn inner_delete_acl(
+    mut client: Connection<MqttBrokerAdminServiceManager>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, CommonError> {
+    match DeleteAclRequest::decode(request.as_ref()) {
+        Ok(request) => match client.mqtt_broker_delete_acl(request).await {
+            Ok(result) => Ok(DeleteAclReply::encode_to_vec(&result.into_inner())),
+            Err(e) => Err(CommonError::GrpcServerStatus(e)),
+        },
+        Err(e) => Err(CommonError::CommmonError(e.to_string())),
+    }
+}
+
+pub(crate) async fn inner_list_acl(
+    mut client: Connection<MqttBrokerAdminServiceManager>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, CommonError> {
+    match ListAclRequest::decode(request.as_ref()) {
+        Ok(request) => match client.mqtt_broker_list_acl(request).await {
+            Ok(result) => Ok(ListAclReply::encode_to_vec(&result.into_inner())),
             Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => Err(CommonError::CommmonError(e.to_string())),

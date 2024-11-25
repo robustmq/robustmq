@@ -42,6 +42,9 @@ pub enum MqttBrokerPlacementInterface {
     ListUser,
     CreateUser,
     DeleteUser,
+    ListAcl,
+    CreateAcl,
+    DeleteAcl,
 }
 
 pub mod admin;

@@ -37,7 +37,7 @@ use super::default_mqtt::{
     default_auth, default_grpc_port, default_http_port, default_log, default_network,
     default_network_quic_port, default_network_tcp_port, default_network_tcps_port,
     default_network_websocket_port, default_network_websockets_port, default_storage,
-    default_system, default_tcp_thread,
+    default_system, default_tcp_thread, default_placement_center,
 };
 use crate::tools::{read_file, try_create_fold};
 
@@ -49,7 +49,7 @@ pub struct BrokerMqttConfig {
     pub grpc_port: u32,
     #[serde(default = "default_http_port")]
     pub http_port: usize,
-    #[serde(default)]
+    #[serde(default = "default_placement_center")]
     pub placement_center: Vec<String>,
     #[serde(default = "default_network")]
     pub network: Network,

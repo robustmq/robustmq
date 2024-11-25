@@ -21,7 +21,7 @@ use protocol::placement_center::placement_center_mqtt::mqtt_service_client::Mqtt
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
-    CreateUserReply, CreateUserRequest, DeleteAclRequest, DeleteAclRequestReply,
+    CreateUserReply, CreateUserRequest, DeleteAclRequest, DeleteAclReply,
     DeleteBlacklistReply, DeleteBlacklistRequest, DeleteSessionReply, DeleteSessionRequest,
     DeleteTopicReply, DeleteTopicRequest, DeleteUserReply, DeleteUserRequest,
     GetShareSubLeaderReply, GetShareSubLeaderRequest, ListAclReply, ListAclRequest,
@@ -218,7 +218,7 @@ pub(crate) async fn mqtt_interface_call(
                             request.clone(),
                             |data| DeleteAclRequest::decode(data),
                             |mut client, request| async move { client.delete_acl(request).await },
-                            DeleteAclRequestReply::encode_to_vec,
+                            DeleteAclReply::encode_to_vec,
                         )
                         .await
                     }
