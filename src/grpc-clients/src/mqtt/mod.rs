@@ -17,8 +17,8 @@ use std::time::Duration;
 
 use admin::admin_interface_call;
 use common_base::error::common::CommonError;
+use inner::placement_interface_call;
 use log::error;
-use placement::placement_interface_call;
 use tokio::time::sleep;
 
 use crate::pool::ClientPool;
@@ -26,33 +26,33 @@ use crate::{retry_sleep_time, retry_times};
 
 #[derive(Clone)]
 pub enum MqttBrokerService {
-    Placement,
+    Inner,
     Admin,
 }
 
 #[derive(Clone, Debug)]
-pub enum MqttBrokerPlacementInterface {
-    // placement
+pub enum MqttBrokerInterface {
+    // inner
     DeleteSession,
     UpdateCache,
     SendLastWillMessage,
 
-    // admin service  functions
+    // admin: cluster
     ClusterStatus,
+    // admin: user
     ListUser,
     CreateUser,
     DeleteUser,
-
-    // connection
+    // admin: connection
     ListConnection,
 }
 
 pub mod admin;
-pub mod placement;
+pub mod inner;
 
 async fn retry_call(
     service: MqttBrokerService,
-    interface: MqttBrokerPlacementInterface,
+    interface: MqttBrokerInterface,
     client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: Vec<u8>,
@@ -67,7 +67,7 @@ async fn retry_call(
         let index = times % addrs.len();
         let addr = addrs.get(index).unwrap().clone();
         let result = match service {
-            MqttBrokerService::Placement => {
+            MqttBrokerService::Inner => {
                 placement_interface_call(
                     interface.clone(),
                     client_pool.clone(),

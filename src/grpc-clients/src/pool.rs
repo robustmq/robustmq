@@ -20,7 +20,7 @@ use mobc::{Connection, Pool};
 use crate::journal::admin::JournalAdminServiceManager;
 use crate::journal::inner::JournalInnerServiceManager;
 use crate::mqtt::admin::MqttBrokerAdminServiceManager;
-use crate::mqtt::placement::MqttBrokerPlacementServiceManager;
+use crate::mqtt::inner::MqttBrokerInnerServiceManager;
 use crate::placement::journal::JournalServiceManager;
 use crate::placement::kv::KvServiceManager;
 use crate::placement::mqtt::MqttServiceManager;
@@ -40,7 +40,7 @@ pub struct ClientPool {
     placement_center_leader_addr_caches: DashMap<String, String>,
 
     // modules: mqtt broker
-    mqtt_broker_placement_service_pools: DashMap<String, Pool<MqttBrokerPlacementServiceManager>>,
+    mqtt_broker_placement_service_pools: DashMap<String, Pool<MqttBrokerInnerServiceManager>>,
     mqtt_broker_admin_service_pools: DashMap<String, Pool<MqttBrokerAdminServiceManager>>,
 
     // modules: journal engine
@@ -247,12 +247,12 @@ impl ClientPool {
     pub async fn mqtt_broker_mqtt_services_client(
         &self,
         addr: String,
-    ) -> Result<Connection<MqttBrokerPlacementServiceManager>, CommonError> {
+    ) -> Result<Connection<MqttBrokerInnerServiceManager>, CommonError> {
         let module = "BrokerPlacementServices".to_string();
         let key = format!("{}_{}_{}", "MQTTBroker", module, addr);
 
         if !self.mqtt_broker_placement_service_pools.contains_key(&key) {
-            let manager = MqttBrokerPlacementServiceManager::new(addr.clone());
+            let manager = MqttBrokerInnerServiceManager::new(addr.clone());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);

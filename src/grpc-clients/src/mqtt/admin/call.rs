@@ -21,7 +21,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
 };
 
-use crate::mqtt::{retry_call, MqttBrokerPlacementInterface, MqttBrokerService};
+use crate::mqtt::{retry_call, MqttBrokerInterface, MqttBrokerService};
 use crate::pool::ClientPool;
 
 // ---- cluster ------
@@ -33,7 +33,7 @@ pub async fn cluster_status(
     let request_data = ClusterStatusRequest::encode_to_vec(&request);
     match retry_call(
         MqttBrokerService::Admin,
-        MqttBrokerPlacementInterface::ClusterStatus,
+        MqttBrokerInterface::ClusterStatus,
         client_pool,
         addrs,
         request_data,
@@ -57,7 +57,7 @@ pub async fn mqtt_broker_list_user(
     let request_date = ListUserRequest::encode_to_vec(&request);
     match retry_call(
         MqttBrokerService::Admin,
-        MqttBrokerPlacementInterface::ListUser,
+        MqttBrokerInterface::ListUser,
         client_pool,
         addrs,
         request_date,
@@ -80,7 +80,7 @@ pub async fn mqtt_broker_create_user(
     let request_date = CreateUserRequest::encode_to_vec(&request);
     match retry_call(
         MqttBrokerService::Admin,
-        MqttBrokerPlacementInterface::CreateUser,
+        MqttBrokerInterface::CreateUser,
         client_pool,
         addrs,
         request_date,
@@ -103,7 +103,7 @@ pub async fn mqtt_broker_delete_user(
     let request_date = DeleteUserRequest::encode_to_vec(&request);
     match retry_call(
         MqttBrokerService::Admin,
-        MqttBrokerPlacementInterface::DeleteUser,
+        MqttBrokerInterface::DeleteUser,
         client_pool,
         addrs,
         request_date,
@@ -127,7 +127,7 @@ pub async fn mqtt_broker_list_connection(
     let request_date = ListConnectionRequest::encode_to_vec(&request);
     match retry_call(
         MqttBrokerService::Admin,
-        MqttBrokerPlacementInterface::ListConnection,
+        MqttBrokerInterface::ListConnection,
         client_pool,
         addrs,
         request_date,
