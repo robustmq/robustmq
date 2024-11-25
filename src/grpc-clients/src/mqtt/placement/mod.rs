@@ -18,7 +18,6 @@ use protocol::broker_mqtt::broker_mqtt_inner::mqtt_broker_inner_service_client::
 use tonic::transport::Channel;
 
 pub mod call;
-pub mod inner;
 
 #[derive(Clone)]
 pub struct MqttBrokerPlacementServiceManager {
