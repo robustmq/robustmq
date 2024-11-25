@@ -12,17 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
 
 use common_base::error::common::CommonError;
-use log::error;
 use protocol::journal_server::journal_admin::{ListSegmentReply, ListSegmentRequest, ListShardReply, ListShardRequest};
 use protocol::journal_server::journal_inner::{DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest, GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply, GetShardDeleteStatusRequest, UpdateJournalCacheReply, UpdateJournalCacheRequest};
-use tokio::time::sleep;
 
 use crate::pool::ClientPool;
-use crate::{retry_sleep_time, retry_times};
 
 pub mod admin;
 pub mod inner;

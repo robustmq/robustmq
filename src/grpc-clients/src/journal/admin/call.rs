@@ -15,12 +15,11 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use prost::Message as _;
 use protocol::journal_server::journal_admin::{
     ListSegmentReply, ListSegmentRequest, ListShardReply, ListShardRequest,
 };
 
-use crate::journal::{call_once, JournalEngineInterface, JournalEngineReply, JournalEngineRequest, JournalEngineService};
+use crate::journal::{call_once, JournalEngineReply, JournalEngineRequest};
 use crate::pool::ClientPool;
 use crate::utils::retry_call;
 

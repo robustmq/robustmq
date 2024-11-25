@@ -15,14 +15,13 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use prost::Message as _;
 use protocol::placement_center::placement_center_kv::{
     DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetReply,
     SetRequest,
 };
 
-use super::{KvServiceReply, KvServiceRequest, PlacementCenterInterface};
-use crate::placement::{retry_placement_center_call, PlacementCenterReply, PlacementCenterRequest, PlacementCenterService};
+use super::{KvServiceReply, KvServiceRequest};
+use crate::placement::{retry_placement_center_call, PlacementCenterReply, PlacementCenterRequest};
 use crate::pool::ClientPool;
 
 macro_rules! generate_kv_service_call {

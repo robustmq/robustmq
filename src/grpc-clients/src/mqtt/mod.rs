@@ -12,17 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
 
 use common_base::error::common::CommonError;
-use log::error;
 use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest};
 use protocol::broker_mqtt::broker_mqtt_inner::{DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest, UpdateCacheReply, UpdateCacheRequest};
-use tokio::time::sleep;
 
 use crate::pool::ClientPool;
-use crate::{retry_sleep_time, retry_times};
 
 #[derive(Clone)]
 pub enum MqttBrokerService {

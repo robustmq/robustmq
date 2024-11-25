@@ -14,8 +14,6 @@
 
 use std::borrow::Cow;
 use std::collections::HashSet;
-use std::ops::Deref;
-use std::sync::Arc;
 use std::time::Duration;
 
 use common_base::error::common::CommonError;
@@ -24,10 +22,8 @@ use kv::{KvServiceReply, KvServiceRequest};
 use lazy_static::lazy_static;
 use log::error;
 use mqtt::{MqttServiceReply, MqttServiceRequest};
-use openraft::{OpenRaftServiceReply, OpenRaftServiceRequest};
+use self::openraft::{OpenRaftServiceReply, OpenRaftServiceRequest};
 use placement::{PlacementServiceReply, PlacementServiceRequest};
-use protocol::placement_center::placement_center_kv::SetRequest;
-use regex::Regex;
 use tokio::time::sleep;
 
 use crate::pool::ClientPool;
@@ -192,12 +188,12 @@ async fn retry_placement_center_call<'a>(
         // let addr = &addrs[index];
         let mut addr = Cow::Borrowed(&addrs[index]);
         if is_write_request(&request) {
-            if let Some(leader_addr) = client_pool.get_leader_addr(&*addr) {
+            if let Some(leader_addr) = client_pool.get_leader_addr(&addr) {
                 addr = Cow::Owned(leader_addr.value().clone());
             }
         }
 
-        let result = call_once(client_pool, &*addr, request.clone()).await;
+        let result = call_once(client_pool, &addr, request.clone()).await;
 
         match result {
             Ok(data) => {
@@ -245,47 +241,49 @@ async fn call_once(
     }
 }
 
-///Determines if the given error indicates that a request needs to be forwarded.
-///
-/// Parameters:
-/// - `err: &CommonError`: error information
-///
-/// Returns:
-/// - `Bool`: Returns 'true' if the error information indicates the request needs to be forwarded, 'false' otherwise.
-fn is_has_to_forward(err: &CommonError) -> bool {
-    let error_info = err.to_string();
-
-    error_info.contains("has to forward request to")
-}
-
-/// Extracts the forward address from given error information.
-///
-/// Parameters:
-/// - `err: &CommonError`: error information
-///
-/// Returns:
-/// - `String`: Returns the forward address if found,'None' if no address is found
-pub(crate) fn get_forward_addr(err: &CommonError) -> Option<String> {
-    let error_info = err.to_string();
-    let re = Regex::new(r"rpc_addr: ([^}]+)").unwrap();
-    if let Some(caps) = re.captures(&error_info) {
-        if let Some(rpc_addr) = caps.get(1) {
-            let mut leader_addr = rpc_addr.as_str().to_string();
-            leader_addr = leader_addr.replace("\\", "");
-            leader_addr = leader_addr.replace("\"", "");
-            leader_addr = leader_addr.replace(" ", "");
-            return Some(leader_addr);
-        }
-    }
-
-    None
-}
 
 #[cfg(test)]
 mod test {
     use common_base::error::common::CommonError;
+    use regex::Regex;
 
-    use crate::placement::{get_forward_addr, is_has_to_forward};
+    // FIXME: The two functions below don't seem to be used anywhere in the codebase right now.
+
+    ///Determines if the given error indicates that a request needs to be forwarded.
+    ///
+    /// Parameters:
+    /// - `err: &CommonError`: error information
+    ///
+    /// Returns:
+    /// - `Bool`: Returns 'true' if the error information indicates the request needs to be forwarded, 'false' otherwise.
+    fn is_has_to_forward(err: &CommonError) -> bool {
+        let error_info = err.to_string();
+
+        error_info.contains("has to forward request to")
+    }
+
+    /// Extracts the forward address from given error information.
+    ///
+    /// Parameters:
+    /// - `err: &CommonError`: error information
+    ///
+    /// Returns:
+    /// - `String`: Returns the forward address if found,'None' if no address is found
+    pub(crate) fn get_forward_addr(err: &CommonError) -> Option<String> {
+        let error_info = err.to_string();
+        let re = Regex::new(r"rpc_addr: ([^}]+)").unwrap();
+        if let Some(caps) = re.captures(&error_info) {
+            if let Some(rpc_addr) = caps.get(1) {
+                let mut leader_addr = rpc_addr.as_str().to_string();
+                leader_addr = leader_addr.replace("\\", "");
+                leader_addr = leader_addr.replace("\"", "");
+                leader_addr = leader_addr.replace(" ", "");
+                return Some(leader_addr);
+            }
+        }
+
+        None
+    }
 
     #[tokio::test]
     pub async fn is_has_to_forward_test() {

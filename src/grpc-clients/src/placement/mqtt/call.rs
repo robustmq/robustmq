@@ -15,7 +15,6 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use prost::Message as _;
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
@@ -29,8 +28,8 @@ use protocol::placement_center::placement_center_mqtt::{
     UpdateSessionReply, UpdateSessionRequest,
 };
 
-use super::{MqttServiceReply, MqttServiceRequest, PlacementCenterInterface};
-use crate::placement::{retry_placement_center_call, PlacementCenterReply, PlacementCenterRequest, PlacementCenterService};
+use super::{MqttServiceReply, MqttServiceRequest};
+use crate::placement::{retry_placement_center_call, PlacementCenterReply, PlacementCenterRequest};
 use crate::pool::ClientPool;
 
 macro_rules! generate_mqtt_service_call {

@@ -15,7 +15,6 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use prost::Message;
 use protocol::placement_center::placement_center_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, CreateShardReply, CreateShardRequest,
     DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest,
@@ -24,7 +23,7 @@ use protocol::placement_center::placement_center_journal::{
     UpdateSegmentStatusReply, UpdateSegmentStatusRequest,
 };
 
-use crate::placement::{retry_placement_center_call, PlacementCenterInterface, PlacementCenterReply, PlacementCenterRequest, PlacementCenterService};
+use crate::placement::{retry_placement_center_call, PlacementCenterReply, PlacementCenterRequest};
 use crate::pool::ClientPool;
 
 use super::{JournalServiceReply, JournalServiceRequest};

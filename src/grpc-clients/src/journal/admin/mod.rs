@@ -12,19 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use mobc::{Connection, Manager};
-use prost::Message;
+use mobc::Manager;
 use protocol::journal_server::journal_admin::journal_server_admin_service_client::JournalServerAdminServiceClient;
-use protocol::journal_server::journal_admin::{
-    ListSegmentReply, ListSegmentRequest, ListShardReply, ListShardRequest,
-};
 use tonic::transport::Channel;
 
-use super::JournalEngineInterface;
-use crate::pool::ClientPool;
 
 pub mod call;
 
@@ -62,29 +55,5 @@ impl Manager for JournalAdminServiceManager {
 
     async fn check(&self, conn: Self::Connection) -> Result<Self::Connection, Self::Error> {
         Ok(conn)
-    }
-}
-
-pub(crate) async fn client_call<R, Resp, ClientFunction, Fut, DecodeFunction, EncodeFunction>(
-    client: Connection<JournalAdminServiceManager>,
-    request: Vec<u8>,
-    decode_fn: DecodeFunction,
-    client_fn: ClientFunction,
-    encode_fn: EncodeFunction,
-) -> Result<Vec<u8>, CommonError>
-where
-    R: prost::Message + Default,
-    Resp: prost::Message,
-    DecodeFunction: FnOnce(&[u8]) -> Result<R, prost::DecodeError>,
-    ClientFunction: FnOnce(Connection<JournalAdminServiceManager>, R) -> Fut,
-    Fut: std::future::Future<Output = Result<tonic::Response<Resp>, tonic::Status>>,
-    EncodeFunction: FnOnce(&Resp) -> Vec<u8>,
-{
-    match decode_fn(request.as_ref()) {
-        Ok(decoded_request) => match client_fn(client, decoded_request).await {
-            Ok(result) => Ok(encode_fn(&result.into_inner())),
-            Err(e) => Err(CommonError::GrpcServerStatus(e)),
-        },
-        Err(e) => Err(CommonError::CommonError(e.to_string())),
     }
 }

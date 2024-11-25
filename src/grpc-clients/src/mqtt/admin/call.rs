@@ -15,13 +15,12 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use prost::Message as _;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
     DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
 };
 
-use crate::mqtt::{call_once, MqttBrokerPlacementInterface, MqttBrokerPlacementReply, MqttBrokerPlacementRequest, MqttBrokerService};
+use crate::mqtt::{call_once, MqttBrokerPlacementReply, MqttBrokerPlacementRequest};
 use crate::pool::ClientPool;
 use crate::utils::retry_call;
 

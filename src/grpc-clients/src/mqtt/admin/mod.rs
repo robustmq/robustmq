@@ -12,15 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use mobc::{Connection, Manager};
+use mobc::Manager;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
 use tonic::transport::Channel;
 
-use super::MqttBrokerPlacementInterface;
-use crate::pool::ClientPool;
 
 pub mod call;
 

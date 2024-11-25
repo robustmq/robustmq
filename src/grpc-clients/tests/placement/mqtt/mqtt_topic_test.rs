@@ -143,7 +143,7 @@ mod tests {
             cluster_name,
             topic_name,
         };
-        let data = placement_list_topic(client_pool, &addrs, request)
+        let data = placement_list_topic(client_pool, addrs, request)
             .await
             .unwrap();
 
