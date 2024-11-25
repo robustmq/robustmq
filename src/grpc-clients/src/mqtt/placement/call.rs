@@ -21,7 +21,7 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
     UpdateCacheReply, UpdateCacheRequest,
 };
 
-use crate::mqtt::{retry_call, MqttBrokerPlacementInterface, MqttBrokerService};
+use crate::mqtt::{retry_call, MqttBrokerPlacementInterface, MqttBrokerPlacementReply, MqttBrokerPlacementRequest, MqttBrokerService};
 use crate::pool::ClientPool;
 
 pub async fn broker_mqtt_delete_session(
@@ -29,21 +29,10 @@ pub async fn broker_mqtt_delete_session(
     addrs: Vec<String>,
     request: DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, CommonError> {
-    let request_data = DeleteSessionRequest::encode_to_vec(&request);
-    match retry_call(
-        MqttBrokerService::Placement,
-        MqttBrokerPlacementInterface::DeleteSession,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match DeleteSessionReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
+    let reply = retry_call(client_pool, addrs, MqttBrokerPlacementRequest::DeleteSession(request)).await?;
+    match reply {
+        MqttBrokerPlacementReply::DeleteSession(reply) => Ok(reply),
+        _ => unreachable!("Reply type mismatch"),
     }
 }
 
@@ -52,21 +41,10 @@ pub async fn broker_mqtt_update_cache(
     addrs: Vec<String>,
     request: UpdateCacheRequest,
 ) -> Result<UpdateCacheReply, CommonError> {
-    let request_data = UpdateCacheRequest::encode_to_vec(&request);
-    match retry_call(
-        MqttBrokerService::Placement,
-        MqttBrokerPlacementInterface::UpdateCache,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match UpdateCacheReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
+    let reply = retry_call(client_pool, addrs, MqttBrokerPlacementRequest::UpdateCache(request)).await?;
+    match reply {
+        MqttBrokerPlacementReply::UpdateCache(reply) => Ok(reply),
+        _ => unreachable!("Reply type mismatch"),
     }
 }
 
@@ -75,20 +53,9 @@ pub async fn send_last_will_message(
     addrs: Vec<String>,
     request: SendLastWillMessageRequest,
 ) -> Result<SendLastWillMessageReply, CommonError> {
-    let request_data = SendLastWillMessageRequest::encode_to_vec(&request);
-    match retry_call(
-        MqttBrokerService::Placement,
-        MqttBrokerPlacementInterface::SendLastWillMessage,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match SendLastWillMessageReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
+    let reply = retry_call(client_pool, addrs, MqttBrokerPlacementRequest::SendLastWillMessage(request)).await?;
+    match reply {
+        MqttBrokerPlacementReply::SendLastWillMessage(reply) => Ok(reply),
+        _ => unreachable!("Reply type mismatch"),
     }
 }
