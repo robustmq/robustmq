@@ -17,7 +17,7 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use inner::{inner_delete_session, inner_send_last_will_message, inner_update_cache};
 use mobc::{Connection, Manager};
-use protocol::broker_mqtt::broker_mqtt_placement::mqtt_broker_placement_service_client::MqttBrokerPlacementServiceClient;
+use protocol::broker_mqtt::broker_mqtt_inner::mqtt_broker_inner_service_client::MqttBrokerInnerServiceClient;
 use tonic::transport::Channel;
 
 use super::MqttBrokerPlacementInterface;
@@ -82,13 +82,11 @@ impl MqttBrokerPlacementServiceManager {
 }
 #[tonic::async_trait]
 impl Manager for MqttBrokerPlacementServiceManager {
-    type Connection = MqttBrokerPlacementServiceClient<Channel>;
+    type Connection = MqttBrokerInnerServiceClient<Channel>;
     type Error = CommonError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        match MqttBrokerPlacementServiceClient::connect(format!("http://{}", self.addr.clone()))
-            .await
-        {
+        match MqttBrokerInnerServiceClient::connect(format!("http://{}", self.addr.clone())).await {
             Ok(client) => {
                 return Ok(client);
             }

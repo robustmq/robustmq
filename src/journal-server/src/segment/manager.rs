@@ -69,7 +69,11 @@ impl SegmentFileManager {
         None
     }
 
-    pub fn get_segment_end_offset(&self, segment_iden: &SegmentIdentity) -> Option<i64> {
+    pub fn remove_segment_file(&self, segment_iden: &SegmentIdentity) {
+        self.segment_files.remove(&segment_iden.name());
+    }
+
+    pub fn get_end_offset(&self, segment_iden: &SegmentIdentity) -> Option<i64> {
         if let Some(data) = self.segment_files.get(&segment_iden.name()) {
             return Some(data.end_offset);
         }
@@ -126,10 +130,6 @@ impl SegmentFileManager {
             timestamp_index.save_end_timestamp(segment_iden, timestamp)?;
         }
         Ok(())
-    }
-
-    pub fn remove_segment_file(&self, segment_iden: &SegmentIdentity) {
-        self.segment_files.remove(&segment_iden.name());
     }
 }
 

@@ -28,7 +28,7 @@ pub async fn update_meta_start_offset(
     start_offset: u64,
 ) -> Result<(), JournalServerError> {
     let conf = journal_server_conf();
-    let next_segment_no = segment_iden.segment_seq + 1;
+    let next_segment_no = segment_iden.segment_seq;
     let request = UpdateSegmentMetaRequest {
         cluster_name: conf.cluster_name.clone(),
         namespace: segment_iden.namespace.clone(),
@@ -49,7 +49,7 @@ pub async fn update_meta_end_offset(
     end_offset: u64,
 ) -> Result<(), JournalServerError> {
     let conf = journal_server_conf();
-    let next_segment_no = segment_iden.segment_seq + 1;
+    let next_segment_no = segment_iden.segment_seq;
     let request = UpdateSegmentMetaRequest {
         cluster_name: conf.cluster_name.clone(),
         namespace: segment_iden.namespace.clone(),
@@ -67,10 +67,10 @@ pub async fn update_meta_end_offset(
 pub async fn update_meta_start_timestamp(
     client_pool: Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
-    timestamp: u64,
+    start_timestamp: u64,
 ) -> Result<(), JournalServerError> {
     let conf = journal_server_conf();
-    let next_segment_no = segment_iden.segment_seq + 1;
+    let next_segment_no = segment_iden.segment_seq;
     let request = UpdateSegmentMetaRequest {
         cluster_name: conf.cluster_name.clone(),
         namespace: segment_iden.namespace.clone(),
@@ -78,7 +78,7 @@ pub async fn update_meta_start_timestamp(
         segment_no: next_segment_no,
         start_offset: -1,
         end_offset: -1,
-        start_timestamp: timestamp as i64,
+        start_timestamp: start_timestamp as i64,
         end_timestamp: -1,
     };
     update_segment_meta(client_pool, conf.placement_center.clone(), request).await?;
@@ -88,10 +88,10 @@ pub async fn update_meta_start_timestamp(
 pub async fn update_meta_end_timestamp(
     client_pool: Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
-    timestamp: u64,
+    end_timestamp: u64,
 ) -> Result<(), JournalServerError> {
     let conf = journal_server_conf();
-    let next_segment_no = segment_iden.segment_seq + 1;
+    let next_segment_no = segment_iden.segment_seq;
     let request = UpdateSegmentMetaRequest {
         cluster_name: conf.cluster_name.clone(),
         namespace: segment_iden.namespace.clone(),
@@ -100,7 +100,7 @@ pub async fn update_meta_end_timestamp(
         start_offset: -1,
         end_offset: -1,
         start_timestamp: -1,
-        end_timestamp: timestamp as i64,
+        end_timestamp: end_timestamp as i64,
     };
     update_segment_meta(client_pool, conf.placement_center.clone(), request).await?;
     Ok(())

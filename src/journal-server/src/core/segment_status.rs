@@ -37,7 +37,6 @@ pub async fn sealup_segment(
     let mut next_segment_iden = segment_iden.clone();
     next_segment_iden.segment_seq = segment_iden.segment_seq + 1;
     update_segment_status_to_write(cache_manager, client_pool, &next_segment_iden).await?;
-
     Ok(())
 }
 
@@ -85,9 +84,6 @@ pub async fn update_segment_status_to_pre_write(
         };
         update_segment_status(client_pool.clone(), conf.placement_center.clone(), request).await?;
     }
-
-    warn!("Segment {} enters the PreWrite state, but the current Segment is not found, possibly because the Status checking thread is not running.",
-        segment_iden.name());
     Ok(())
 }
 
@@ -115,9 +111,6 @@ pub async fn update_segment_status_to_write(
             next_status: SegmentStatus::Write.to_string(),
         };
         update_segment_status(client_pool.clone(), conf.placement_center.clone(), request).await?;
-    } else {
-        warn!("segment {} enters the sealup state, but the next Segment is not found, possibly because the Status checking thread is not running.",
-        segment_iden.name());
     }
     Ok(())
 }
@@ -150,8 +143,6 @@ pub async fn update_segment_status_to_pre_seal_up(
         update_segment_status(client_pool.clone(), conf.placement_center.clone(), request).await?;
     }
 
-    warn!("Segment {} enters the PreSealup state, but the current Segment is not found, possibly because the Status checking thread is not running.",
-        segment_iden.name());
     Ok(())
 }
 
@@ -182,8 +173,5 @@ pub async fn update_segment_status_to_seal_up(
         };
         update_segment_status(client_pool.clone(), conf.placement_center.clone(), request).await?;
     }
-
-    warn!("Segment {} enters the sealup state, but the current Segment is not found, possibly because the Status checking thread is not running.",
-        segment_iden.name());
     Ok(())
 }

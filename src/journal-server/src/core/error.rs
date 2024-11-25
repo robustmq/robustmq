@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::num::ParseIntError;
+use std::string::FromUtf8Error;
 
 use common_base::error::common::CommonError;
 use thiserror::Error;
@@ -23,6 +24,9 @@ use crate::segment::write::SegmentWriteData;
 pub enum JournalServerError {
     #[error("Directory {0} No rocksdb instance available")]
     NoRocksdbInstanceAvailable(String),
+
+    #[error("{0}")]
+    FromUtf8Error(#[from] FromUtf8Error),
 
     #[error("{0}")]
     CommonError(#[from] CommonError),
@@ -102,6 +106,7 @@ pub fn get_journal_server_code(e: &JournalServerError) -> String {
             "MpscSegmentWriteDataSendError".to_string()
         }
         JournalServerError::OneshotRecvError(_) => "OneshotRecvError".to_string(),
+        JournalServerError::FromUtf8Error(_) => "FromUtf8Error".to_string(),
         JournalServerError::SegmentAlreadySealUp(_) => "SegmentAlreadySealUp".to_string(),
         JournalServerError::TokioTimeErrorElapsed(_) => "TokioTimeErrorElapsed".to_string(),
         JournalServerError::StdIoError(_) => "StdIoError".to_string(),

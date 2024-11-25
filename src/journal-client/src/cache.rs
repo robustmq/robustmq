@@ -12,18 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
+use common_base::error::common::CommonError;
+use dashmap::DashMap;
 
-pub mod build;
-pub mod engine;
-pub mod keys;
-pub mod offset;
-pub mod tag;
-pub mod time;
+pub struct MetadataCache {
+    shards: DashMap<String, String>,
+}
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct IndexData {
-    pub offset: u64,
-    pub timestamp: u64,
-    pub position: u64,
+impl MetadataCache {
+    pub fn new() -> Self {
+        let shards = DashMap::with_capacity(8);
+        MetadataCache { shards }
+    }
+}
+
+pub fn load_metadata_cache() {}
+
+fn load_shards_cache() -> Result<(), CommonError> {
+    Ok(())
+}
+
+fn load_node_cache() -> Result<(), CommonError> {
+    Ok(())
 }

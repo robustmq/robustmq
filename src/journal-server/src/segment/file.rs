@@ -128,14 +128,19 @@ impl SegmentFile {
         Ok(metadata.len())
     }
 
-    pub async fn read(
+    pub async fn read_by_offset(
         &self,
-        start_offset: Option<u64>,
+        start_position: u64,
+        start_offset: u64,
         size: u64,
     ) -> Result<Vec<ReadData>, JournalServerError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = File::open(segment_file).await?;
         let mut reader = tokio::io::BufReader::new(file);
+
+        reader
+            .seek(std::io::SeekFrom::Current(start_position as i64))
+            .await?;
 
         let mut results = Vec::new();
         let mut already_size = 0;
@@ -160,11 +165,9 @@ impl SegmentFile {
             // read len
             let len = reader.read_u32().await?;
 
-            if let Some(offset) = start_offset {
-                if record_offset < offset {
-                    reader.seek(std::io::SeekFrom::Current(len as i64)).await?;
-                    continue;
-                }
+            if record_offset < start_offset {
+                reader.seek(std::io::SeekFrom::Current(len as i64)).await?;
+                continue;
             }
 
             // read body
@@ -173,6 +176,102 @@ impl SegmentFile {
 
             already_size += buf.len() as u64;
             let record = JournalRecord::decode(buf)?;
+            results.push(ReadData { position, record });
+        }
+
+        Ok(results)
+    }
+
+    pub async fn read_by_timestamp(
+        &self,
+        start_position: u64,
+        timestamp: u64,
+        size: u64,
+    ) -> Result<Vec<ReadData>, JournalServerError> {
+        let segment_file = data_file_segment(&self.data_fold, self.segment_no);
+        let file = File::open(segment_file).await?;
+        let mut reader = tokio::io::BufReader::new(file);
+
+        reader
+            .seek(std::io::SeekFrom::Current(start_position as i64))
+            .await?;
+
+        let mut results = Vec::new();
+        let mut already_size = 0;
+        loop {
+            if already_size > size {
+                break;
+            }
+
+            // read offset
+            let position = reader.stream_position().await?;
+
+            let _ = match reader.read_u64().await {
+                Ok(offset) => offset,
+                Err(e) => {
+                    if e.kind() == ErrorKind::UnexpectedEof {
+                        break;
+                    }
+                    return Err(e.into());
+                }
+            };
+
+            // read len
+            let len = reader.read_u32().await?;
+
+            // read body
+            let mut buf = BytesMut::with_capacity(len as usize);
+            reader.read_buf(&mut buf).await?;
+
+            let buf_len = buf.len();
+            let record = JournalRecord::decode(buf)?;
+
+            if record.create_time < timestamp {
+                reader
+                    .seek(std::io::SeekFrom::Current(buf_len as i64))
+                    .await?;
+                continue;
+            }
+
+            already_size += buf_len as u64;
+            results.push(ReadData { position, record });
+        }
+
+        Ok(results)
+    }
+
+    pub async fn read_by_positions(
+        &self,
+        positions: Vec<u64>,
+        size: u64,
+    ) -> Result<Vec<ReadData>, JournalServerError> {
+        let segment_file = data_file_segment(&self.data_fold, self.segment_no);
+        let file = File::open(segment_file).await?;
+        let mut reader = tokio::io::BufReader::new(file);
+
+        let mut results = Vec::new();
+        let mut already_size = 0;
+
+        for position in positions {
+            if already_size > size {
+                break;
+            }
+
+            reader
+                .seek(std::io::SeekFrom::Current(position as i64))
+                .await?;
+
+            // read len
+            let len = reader.read_u32().await?;
+
+            // read body
+            let mut buf = BytesMut::with_capacity(len as usize);
+            reader.read_buf(&mut buf).await?;
+
+            let buf_len = buf.len();
+            let record = JournalRecord::decode(buf)?;
+
+            already_size += buf_len as u64;
             results.push(ReadData { position, record });
         }
 
@@ -253,7 +352,7 @@ mod tests {
             }
         }
 
-        let res = segment.read(Some(1003), 20000).await.unwrap();
+        let res = segment.read_by_offset(0, 0, 20000).await.unwrap();
         for raw in res {
             println!("{:?}", raw);
         }

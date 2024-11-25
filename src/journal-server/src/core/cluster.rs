@@ -113,6 +113,11 @@ async fn report(client_pool: Arc<ClientPool>) {
             );
         }
         Err(e) => {
+            if e.to_string().contains("Node") && e.to_string().contains("does not exist") {
+                if let Err(e) = register_journal_node(client_pool.clone(), config.clone()).await {
+                    error!("{}", e);
+                }
+            }
             error!("{}", e);
         }
     }

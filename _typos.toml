@@ -20,6 +20,11 @@
 # we need to ignore it.
 Identifer = "Identifer"
 
+# Ignore the unsubscribe term as it's used in the MQTT context.
+UNSUBSCRIBE = "UNSUBSCRIBE"
+unsubscrible = "unsubscrible"
+SUBSCRIBLE = "SUBSCRIBLE"
+
 
 [files]
 extend-exclude = []
