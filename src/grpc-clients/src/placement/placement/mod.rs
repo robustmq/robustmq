@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::placement_center::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
@@ -74,69 +73,103 @@ pub(super) async fn call_placement_service_once(
 
     match request {
         ClusterStatus(request) => {
-            let mut client = client_pool.placement_center_inner_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_inner_services_client(addr)
+                .await?;
             let reply = client.cluster_status(request).await?;
             Ok(PlacementServiceReply::ClusterStatus(reply.into_inner()))
         }
         ListNode(request) => {
-            let mut client = client_pool.placement_center_inner_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_inner_services_client(addr)
+                .await?;
             let reply = client.node_list(request).await?;
             Ok(PlacementServiceReply::ListNode(reply.into_inner()))
         }
         RegisterNode(request) => {
-            let mut client = client_pool.placement_center_inner_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_inner_services_client(addr)
+                .await?;
             let reply = client.register_node(request).await?;
             Ok(PlacementServiceReply::RegisterNode(reply.into_inner()))
         }
         UnRegisterNode(request) => {
-            let mut client = client_pool.placement_center_inner_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_inner_services_client(addr)
+                .await?;
             let reply = client.un_register_node(request).await?;
             Ok(PlacementServiceReply::UnRegisterNode(reply.into_inner()))
         }
         Heartbeat(request) => {
-            let mut client = client_pool.placement_center_inner_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_inner_services_client(addr)
+                .await?;
             let reply = client.heartbeat(request).await?;
             Ok(PlacementServiceReply::Heartbeat(reply.into_inner()))
         }
         SendRaftMessage(request) => {
-            let mut client = client_pool.placement_center_inner_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_inner_services_client(addr)
+                .await?;
             let reply = client.send_raft_message(request).await?;
             Ok(PlacementServiceReply::SendRaftMessage(reply.into_inner()))
         }
         SendRaftConfChange(request) => {
-            let mut client = client_pool.placement_center_inner_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_inner_services_client(addr)
+                .await?;
             let reply = client.send_raft_conf_change(request).await?;
-            Ok(PlacementServiceReply::SendRaftConfChange(reply.into_inner()))
+            Ok(PlacementServiceReply::SendRaftConfChange(
+                reply.into_inner(),
+            ))
         }
         SetResourceConfig(request) => {
-            let mut client = client_pool.placement_center_inner_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_inner_services_client(addr)
+                .await?;
             let reply = client.set_resource_config(request).await?;
             Ok(PlacementServiceReply::SetResourceConfig(reply.into_inner()))
         }
         GetResourceConfig(request) => {
-            let mut client = client_pool.placement_center_inner_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_inner_services_client(addr)
+                .await?;
             let reply = client.get_resource_config(request).await?;
             Ok(PlacementServiceReply::GetResourceConfig(reply.into_inner()))
         }
         DeleteResourceConfig(request) => {
-            let mut client = client_pool.placement_center_inner_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_inner_services_client(addr)
+                .await?;
             let reply = client.delete_resource_config(request).await?;
-            Ok(PlacementServiceReply::DeleteResourceConfig(reply.into_inner()))
+            Ok(PlacementServiceReply::DeleteResourceConfig(
+                reply.into_inner(),
+            ))
         }
         SetIdempotentData(request) => {
-            let mut client = client_pool.placement_center_inner_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_inner_services_client(addr)
+                .await?;
             let reply = client.set_idempotent_data(request).await?;
             Ok(PlacementServiceReply::SetIdempotentData(reply.into_inner()))
         }
         ExistsIdempotentData(request) => {
-            let mut client = client_pool.placement_center_inner_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_inner_services_client(addr)
+                .await?;
             let reply = client.exists_idempotent_data(request).await?;
-            Ok(PlacementServiceReply::ExistsIdempotentData(reply.into_inner()))
+            Ok(PlacementServiceReply::ExistsIdempotentData(
+                reply.into_inner(),
+            ))
         }
         DeleteIdempotentData(request) => {
-            let mut client = client_pool.placement_center_inner_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_inner_services_client(addr)
+                .await?;
             let reply = client.delete_idempotent_data(request).await?;
-            Ok(PlacementServiceReply::DeleteIdempotentData(reply.into_inner()))
+            Ok(PlacementServiceReply::DeleteIdempotentData(
+                reply.into_inner(),
+            ))
         }
     }
 }

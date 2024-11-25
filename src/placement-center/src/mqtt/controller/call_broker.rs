@@ -75,9 +75,7 @@ impl MqttBrokerCall {
                     client_id: client_ids.clone(),
                     cluster_name: self.cluster_name.clone(),
                 };
-                match broker_mqtt_delete_session(self.client_pool.clone(), &[addr], request)
-                    .await
-                {
+                match broker_mqtt_delete_session(self.client_pool.clone(), &[addr], request).await {
                     Ok(_) => {}
                     Err(e) => {
                         success = false;

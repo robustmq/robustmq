@@ -20,7 +20,8 @@ use protocol::placement_center::placement_center_openraft::{
     ChangeMembershipRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };
 
-use crate::placement::{retry_placement_center_call, PlacementCenterRequest, PlacementCenterReply, openraft::{OpenRaftServiceRequest, OpenRaftServiceReply}};
+use crate::placement::openraft::{OpenRaftServiceReply, OpenRaftServiceRequest};
+use crate::placement::{retry_placement_center_call, PlacementCenterReply, PlacementCenterRequest};
 use crate::pool::ClientPool;
 
 macro_rules! generate_openraft_service_call {
@@ -30,7 +31,8 @@ macro_rules! generate_openraft_service_call {
             addrs: &[String],
             request: $req_ty,
         ) -> Result<$rep_ty, CommonError> {
-            let request = PlacementCenterRequest::OpenRaft(OpenRaftServiceRequest::$variant(request));
+            let request =
+                PlacementCenterRequest::OpenRaft(OpenRaftServiceRequest::$variant(request));
             match retry_placement_center_call(&client_pool, addrs, request).await? {
                 PlacementCenterReply::OpenRaft(OpenRaftServiceReply::$variant(reply)) => Ok(reply),
                 _ => unreachable!("Reply type mismatch"),
@@ -40,7 +42,27 @@ macro_rules! generate_openraft_service_call {
 }
 
 generate_openraft_service_call!(placement_openraft_vote, VoteRequest, VoteReply, Vote);
-generate_openraft_service_call!(placement_openraft_append, AppendRequest, AppendReply, Append);
-generate_openraft_service_call!(placement_openraft_snapshot, SnapshotRequest, SnapshotReply, Snapshot);
-generate_openraft_service_call!(placement_openraft_add_learner, AddLearnerRequest, AddLearnerReply, AddLearner);
-generate_openraft_service_call!(placement_openraft_change_membership, ChangeMembershipRequest, ChangeMembershipReply, ChangeMembership);
+generate_openraft_service_call!(
+    placement_openraft_append,
+    AppendRequest,
+    AppendReply,
+    Append
+);
+generate_openraft_service_call!(
+    placement_openraft_snapshot,
+    SnapshotRequest,
+    SnapshotReply,
+    Snapshot
+);
+generate_openraft_service_call!(
+    placement_openraft_add_learner,
+    AddLearnerRequest,
+    AddLearnerReply,
+    AddLearner
+);
+generate_openraft_service_call!(
+    placement_openraft_change_membership,
+    ChangeMembershipRequest,
+    ChangeMembershipReply,
+    ChangeMembership
+);

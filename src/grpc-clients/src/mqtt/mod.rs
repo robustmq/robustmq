@@ -12,10 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use common_base::error::common::CommonError;
-use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest};
-use protocol::broker_mqtt::broker_mqtt_inner::{DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest, UpdateCacheReply, UpdateCacheRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
+    DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
+};
+use protocol::broker_mqtt::broker_mqtt_inner::{
+    DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
+    UpdateCacheReply, UpdateCacheRequest,
+};
 
 use crate::pool::ClientPool;
 
@@ -91,42 +96,48 @@ async fn call_once(
             let mut client = client_pool.mqtt_broker_mqtt_services_client(addr).await?;
             let reply = client.delete_session(delete_session_request).await?;
             Ok(MqttBrokerPlacementReply::DeleteSession(reply.into_inner()))
-        },
+        }
         UpdateCache(update_cache_request) => {
             let mut client = client_pool.mqtt_broker_mqtt_services_client(addr).await?;
             let reply = client.update_cache(update_cache_request).await?;
             Ok(MqttBrokerPlacementReply::UpdateCache(reply.into_inner()))
-        },
+        }
         SendLastWillMessage(send_last_will_message_request) => {
             let mut client = client_pool.mqtt_broker_mqtt_services_client(addr).await?;
-            let reply = client.send_last_will_message(send_last_will_message_request).await?;
-            Ok(MqttBrokerPlacementReply::SendLastWillMessage(reply.into_inner()))
-        },
+            let reply = client
+                .send_last_will_message(send_last_will_message_request)
+                .await?;
+            Ok(MqttBrokerPlacementReply::SendLastWillMessage(
+                reply.into_inner(),
+            ))
+        }
         ClusterStatus(cluster_status_request) => {
             let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
             let reply = client.cluster_status(cluster_status_request).await?;
             Ok(MqttBrokerPlacementReply::ClusterStatus(reply.into_inner()))
-        },
+        }
         ListUser(list_user_request) => {
             let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
             let reply = client.mqtt_broker_list_user(list_user_request).await?;
             Ok(MqttBrokerPlacementReply::ListUser(reply.into_inner()))
-        },
+        }
         CreateUser(create_user_request) => {
             let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
             let reply = client.mqtt_broker_create_user(create_user_request).await?;
             Ok(MqttBrokerPlacementReply::CreateUser(reply.into_inner()))
-        },
+        }
         DeleteUser(delete_user_request) => {
             let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
             let reply = client.mqtt_broker_delete_user(delete_user_request).await?;
             Ok(MqttBrokerPlacementReply::DeleteUser(reply.into_inner()))
-        },
+        }
         ListConnection(list_connection_request) => {
             let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
-            let reply = client.mqtt_broker_list_connection(list_connection_request).await?;
+            let reply = client
+                .mqtt_broker_list_connection(list_connection_request)
+                .await?;
             Ok(MqttBrokerPlacementReply::ListConnection(reply.into_inner()))
-        },
+        }
     }
 }
 

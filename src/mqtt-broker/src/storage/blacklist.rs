@@ -35,13 +35,7 @@ impl BlackListStorage {
         let request = ListBlacklistRequest {
             cluster_name: config.cluster_name.clone(),
         };
-        match list_blacklist(
-            self.client_pool.clone(),
-            &config.placement_center,
-            request,
-        )
-        .await
-        {
+        match list_blacklist(self.client_pool.clone(), &config.placement_center, request).await {
             Ok(reply) => {
                 let mut list = Vec::new();
                 for raw in reply.blacklists {

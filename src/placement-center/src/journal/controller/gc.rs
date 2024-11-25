@@ -98,7 +98,8 @@ pub async fn gc_shard_thread(
                 namespace: shard.namespace.clone(),
                 shard_name: shard.shard_name.clone(),
             };
-            match journal_inner_get_shard_delete_status(client_pool.clone(), &addrs, request).await {
+            match journal_inner_get_shard_delete_status(client_pool.clone(), &addrs, request).await
+            {
                 Ok(reply) => {
                     if !reply.status {
                         flag = false;

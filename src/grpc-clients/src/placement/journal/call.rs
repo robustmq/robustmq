@@ -23,11 +23,9 @@ use protocol::placement_center::placement_center_journal::{
     UpdateSegmentStatusReply, UpdateSegmentStatusRequest,
 };
 
+use super::{JournalServiceReply, JournalServiceRequest};
 use crate::placement::{retry_placement_center_call, PlacementCenterReply, PlacementCenterRequest};
 use crate::pool::ClientPool;
-
-use super::{JournalServiceReply, JournalServiceRequest};
-
 
 macro_rules! generate_journal_service_call {
     ($fn_name:ident, $req_ty:ty, $rep_ty:ty, $variant:ident) => {
@@ -46,11 +44,51 @@ macro_rules! generate_journal_service_call {
 }
 
 generate_journal_service_call!(list_shard, ListShardRequest, ListShardReply, ListShard);
-generate_journal_service_call!(create_shard, CreateShardRequest, CreateShardReply, CreateShard);
-generate_journal_service_call!(delete_shard, DeleteShardRequest, DeleteShardReply, DeleteShard);
-generate_journal_service_call!(list_segment, ListSegmentRequest, ListSegmentReply, ListSegment);
-generate_journal_service_call!(create_next_segment, CreateNextSegmentRequest, CreateNextSegmentReply, CreateSegment);
-generate_journal_service_call!(delete_segment, DeleteSegmentRequest, DeleteSegmentReply, DeleteSegment);
-generate_journal_service_call!(update_segment_status, UpdateSegmentStatusRequest, UpdateSegmentStatusReply, UpdateSegmentStatus);
-generate_journal_service_call!(list_segment_meta, ListSegmentMetaRequest, ListSegmentMetaReply, ListSegmentMeta);
-generate_journal_service_call!(update_segment_meta, UpdateSegmentMetaRequest, UpdateSegmentMetaReply, UpdateSegmentMeta);
+generate_journal_service_call!(
+    create_shard,
+    CreateShardRequest,
+    CreateShardReply,
+    CreateShard
+);
+generate_journal_service_call!(
+    delete_shard,
+    DeleteShardRequest,
+    DeleteShardReply,
+    DeleteShard
+);
+generate_journal_service_call!(
+    list_segment,
+    ListSegmentRequest,
+    ListSegmentReply,
+    ListSegment
+);
+generate_journal_service_call!(
+    create_next_segment,
+    CreateNextSegmentRequest,
+    CreateNextSegmentReply,
+    CreateSegment
+);
+generate_journal_service_call!(
+    delete_segment,
+    DeleteSegmentRequest,
+    DeleteSegmentReply,
+    DeleteSegment
+);
+generate_journal_service_call!(
+    update_segment_status,
+    UpdateSegmentStatusRequest,
+    UpdateSegmentStatusReply,
+    UpdateSegmentStatus
+);
+generate_journal_service_call!(
+    list_segment_meta,
+    ListSegmentMetaRequest,
+    ListSegmentMetaReply,
+    ListSegmentMeta
+);
+generate_journal_service_call!(
+    update_segment_meta,
+    UpdateSegmentMetaRequest,
+    UpdateSegmentMetaReply,
+    UpdateSegmentMeta
+);

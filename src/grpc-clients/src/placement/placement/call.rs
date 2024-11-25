@@ -25,7 +25,10 @@ use protocol::placement_center::placement_center_inner::{
     SetResourceConfigReply, SetResourceConfigRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
 
-use crate::placement::{PlacementCenterRequest, PlacementCenterReply, PlacementServiceRequest, PlacementServiceReply, retry_placement_center_call};
+use crate::placement::{
+    retry_placement_center_call, PlacementCenterReply, PlacementCenterRequest,
+    PlacementServiceReply, PlacementServiceRequest,
+};
 use crate::pool::ClientPool;
 
 macro_rules! generate_placement_service_call {
@@ -35,25 +38,83 @@ macro_rules! generate_placement_service_call {
             addrs: &[String],
             request: $req_ty,
         ) -> Result<$rep_ty, CommonError> {
-            let request = PlacementCenterRequest::Placement(PlacementServiceRequest::$variant(request));
+            let request =
+                PlacementCenterRequest::Placement(PlacementServiceRequest::$variant(request));
             match retry_placement_center_call(&client_pool, addrs, request).await? {
-                PlacementCenterReply::Placement(PlacementServiceReply::$variant(reply)) => Ok(reply),
+                PlacementCenterReply::Placement(PlacementServiceReply::$variant(reply)) => {
+                    Ok(reply)
+                }
                 _ => unreachable!("Reply type mismatch"),
             }
         }
     };
 }
 
-generate_placement_service_call!(cluster_status, ClusterStatusRequest, ClusterStatusReply, ClusterStatus);
+generate_placement_service_call!(
+    cluster_status,
+    ClusterStatusRequest,
+    ClusterStatusReply,
+    ClusterStatus
+);
 generate_placement_service_call!(node_list, NodeListRequest, NodeListReply, ListNode);
-generate_placement_service_call!(register_node, RegisterNodeRequest, RegisterNodeReply, RegisterNode);
-generate_placement_service_call!(unregister_node, UnRegisterNodeRequest, UnRegisterNodeReply, UnRegisterNode);
+generate_placement_service_call!(
+    register_node,
+    RegisterNodeRequest,
+    RegisterNodeReply,
+    RegisterNode
+);
+generate_placement_service_call!(
+    unregister_node,
+    UnRegisterNodeRequest,
+    UnRegisterNodeReply,
+    UnRegisterNode
+);
 generate_placement_service_call!(heartbeat, HeartbeatRequest, HeartbeatReply, Heartbeat);
-generate_placement_service_call!(send_raft_message, SendRaftMessageRequest, SendRaftMessageReply, SendRaftMessage);
-generate_placement_service_call!(send_raft_conf_change, SendRaftConfChangeRequest, SendRaftConfChangeReply, SendRaftConfChange);
-generate_placement_service_call!(set_resource_config, SetResourceConfigRequest, SetResourceConfigReply, SetResourceConfig);
-generate_placement_service_call!(delete_resource_config, DeleteResourceConfigRequest, DeleteResourceConfigReply, DeleteResourceConfig);
-generate_placement_service_call!(get_resource_config, GetResourceConfigRequest, GetResourceConfigReply, GetResourceConfig);
-generate_placement_service_call!(set_idempotent_data, SetIdempotentDataRequest, SetIdempotentDataReply, SetIdempotentData);
-generate_placement_service_call!(delete_idempotent_data, DeleteIdempotentDataRequest, DeleteIdempotentDataReply, DeleteIdempotentData);
-generate_placement_service_call!(exists_idempotent_data, ExistsIdempotentDataRequest, ExistsIdempotentDataReply, ExistsIdempotentData);
+generate_placement_service_call!(
+    send_raft_message,
+    SendRaftMessageRequest,
+    SendRaftMessageReply,
+    SendRaftMessage
+);
+generate_placement_service_call!(
+    send_raft_conf_change,
+    SendRaftConfChangeRequest,
+    SendRaftConfChangeReply,
+    SendRaftConfChange
+);
+generate_placement_service_call!(
+    set_resource_config,
+    SetResourceConfigRequest,
+    SetResourceConfigReply,
+    SetResourceConfig
+);
+generate_placement_service_call!(
+    delete_resource_config,
+    DeleteResourceConfigRequest,
+    DeleteResourceConfigReply,
+    DeleteResourceConfig
+);
+generate_placement_service_call!(
+    get_resource_config,
+    GetResourceConfigRequest,
+    GetResourceConfigReply,
+    GetResourceConfig
+);
+generate_placement_service_call!(
+    set_idempotent_data,
+    SetIdempotentDataRequest,
+    SetIdempotentDataReply,
+    SetIdempotentData
+);
+generate_placement_service_call!(
+    delete_idempotent_data,
+    DeleteIdempotentDataRequest,
+    DeleteIdempotentDataReply,
+    DeleteIdempotentData
+);
+generate_placement_service_call!(
+    exists_idempotent_data,
+    ExistsIdempotentDataRequest,
+    ExistsIdempotentDataReply,
+    ExistsIdempotentData
+);

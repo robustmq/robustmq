@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::placement_center::placement_center_kv::kv_service_client::KvServiceClient;
@@ -51,22 +50,30 @@ pub(super) async fn call_kv_service_once(
 
     match request {
         Set(request) => {
-            let mut client = client_pool.placement_center_kv_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_kv_services_client(addr)
+                .await?;
             let reply = client.set(request).await?;
             Ok(KvServiceReply::Set(reply.into_inner()))
         }
         Get(request) => {
-            let mut client = client_pool.placement_center_kv_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_kv_services_client(addr)
+                .await?;
             let reply = client.get(request).await?;
             Ok(KvServiceReply::Get(reply.into_inner()))
         }
         Delete(request) => {
-            let mut client = client_pool.placement_center_kv_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_kv_services_client(addr)
+                .await?;
             let reply = client.delete(request).await?;
             Ok(KvServiceReply::Delete(reply.into_inner()))
         }
         Exists(request) => {
-            let mut client = client_pool.placement_center_kv_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_kv_services_client(addr)
+                .await?;
             let reply = client.exists(request).await?;
             Ok(KvServiceReply::Exists(reply.into_inner()))
         }

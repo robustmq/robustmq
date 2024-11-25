@@ -45,12 +45,8 @@ impl TopicStorage {
             topic_name: topic.topic_name.clone(),
             content: topic.encode(),
         };
-        match placement_create_topic(
-            self.client_pool.clone(),
-            &config.placement_center,
-            request,
-        )
-        .await
+        match placement_create_topic(self.client_pool.clone(), &config.placement_center, request)
+            .await
         {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
@@ -63,12 +59,8 @@ impl TopicStorage {
             cluster_name: config.cluster_name.clone(),
             topic_name,
         };
-        match placement_delete_topic(
-            self.client_pool.clone(),
-            &config.placement_center,
-            request,
-        )
-        .await
+        match placement_delete_topic(self.client_pool.clone(), &config.placement_center, request)
+            .await
         {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
@@ -81,12 +73,8 @@ impl TopicStorage {
             cluster_name: config.cluster_name.clone(),
             topic_name: "".to_string(),
         };
-        match placement_list_topic(
-            self.client_pool.clone(),
-            &config.placement_center,
-            request,
-        )
-        .await
+        match placement_list_topic(self.client_pool.clone(), &config.placement_center, request)
+            .await
         {
             Ok(reply) => {
                 let results = DashMap::with_capacity(2);
@@ -112,12 +100,8 @@ impl TopicStorage {
             cluster_name: config.cluster_name.clone(),
             topic_name,
         };
-        match placement_list_topic(
-            self.client_pool.clone(),
-            &config.placement_center,
-            request,
-        )
-        .await
+        match placement_list_topic(self.client_pool.clone(), &config.placement_center, request)
+            .await
         {
             Ok(reply) => {
                 if reply.topics.is_empty() {

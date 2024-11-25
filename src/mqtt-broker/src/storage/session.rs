@@ -48,12 +48,8 @@ impl SessionStorage {
             client_id,
             session: session.encode(),
         };
-        match placement_create_session(
-            self.client_pool.clone(),
-            &config.placement_center,
-            request,
-        )
-        .await
+        match placement_create_session(self.client_pool.clone(), &config.placement_center, request)
+            .await
         {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
@@ -77,12 +73,8 @@ impl SessionStorage {
             reconnect_time,
             distinct_time,
         };
-        match placement_update_session(
-            self.client_pool.clone(),
-            &config.placement_center,
-            request,
-        )
-        .await
+        match placement_update_session(self.client_pool.clone(), &config.placement_center, request)
+            .await
         {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
@@ -95,12 +87,8 @@ impl SessionStorage {
             cluster_name: config.cluster_name.clone(),
             client_id,
         };
-        match placement_delete_session(
-            self.client_pool.clone(),
-            &config.placement_center,
-            request,
-        )
-        .await
+        match placement_delete_session(self.client_pool.clone(), &config.placement_center, request)
+            .await
         {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
@@ -113,12 +101,8 @@ impl SessionStorage {
             cluster_name: config.cluster_name.clone(),
             client_id,
         };
-        match placement_list_session(
-            self.client_pool.clone(),
-            &config.placement_center,
-            request,
-        )
-        .await
+        match placement_list_session(self.client_pool.clone(), &config.placement_center, request)
+            .await
         {
             Ok(reply) => {
                 if reply.sessions.is_empty() {
@@ -140,12 +124,8 @@ impl SessionStorage {
             cluster_name: config.cluster_name.clone(),
             client_id: "".to_string(),
         };
-        match placement_list_session(
-            self.client_pool.clone(),
-            &config.placement_center,
-            request,
-        )
-        .await
+        match placement_list_session(self.client_pool.clone(), &config.placement_center, request)
+            .await
         {
             Ok(reply) => {
                 let results = DashMap::with_capacity(2);

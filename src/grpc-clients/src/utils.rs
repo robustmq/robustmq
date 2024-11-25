@@ -1,18 +1,20 @@
-use std::{future::Future, time::Duration};
+use std::future::Future;
+use std::time::Duration;
 
 use common_base::error::common::CommonError;
 use log::error;
 use tokio::time::sleep;
 
-use crate::{pool::ClientPool, retry_sleep_time, retry_times};
+use crate::pool::ClientPool;
+use crate::{retry_sleep_time, retry_times};
 
 pub(crate) async fn retry_call<'a, F, Fut, Req, Res>(
     client_pool: &'a ClientPool,
     addrs: &'a [String],
     request: Req,
     call_once: F,
-) -> Result<Res, CommonError> 
-where 
+) -> Result<Res, CommonError>
+where
     F: Fn(&'a ClientPool, &'a str, Req) -> Fut + 'static,
     Fut: Future<Output = Result<Res, CommonError>>,
     Req: Clone,

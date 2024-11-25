@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::placement_center::placement_center_mqtt::mqtt_service_client::MqttServiceClient;
@@ -89,97 +88,135 @@ pub(super) async fn call_mqtt_service_once(
 
     match request {
         GetShareSubLeader(request) => {
-            let mut client = client_pool.placement_center_mqtt_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
             let reply = client.get_share_sub_leader(request).await?;
             Ok(MqttServiceReply::GetShareSubLeader(reply.into_inner()))
         }
         CreateUser(request) => {
-            let mut client = client_pool.placement_center_mqtt_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
             let reply = client.create_user(request).await?;
             Ok(MqttServiceReply::CreateUser(reply.into_inner()))
         }
         DeleteUser(request) => {
-            let mut client = client_pool.placement_center_mqtt_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
             let reply = client.delete_user(request).await?;
             Ok(MqttServiceReply::DeleteUser(reply.into_inner()))
         }
         ListUser(request) => {
-            let mut client = client_pool.placement_center_mqtt_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
             let reply = client.list_user(request).await?;
             Ok(MqttServiceReply::ListUser(reply.into_inner()))
         }
         CreateTopic(request) => {
-            let mut client = client_pool.placement_center_mqtt_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
             let reply = client.create_topic(request).await?;
             Ok(MqttServiceReply::CreateTopic(reply.into_inner()))
         }
         DeleteTopic(request) => {
-            let mut client = client_pool.placement_center_mqtt_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
             let reply = client.delete_topic(request).await?;
             Ok(MqttServiceReply::DeleteTopic(reply.into_inner()))
         }
         ListTopic(request) => {
-            let mut client = client_pool.placement_center_mqtt_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
             let reply = client.list_topic(request).await?;
             Ok(MqttServiceReply::ListTopic(reply.into_inner()))
         }
         SetTopicRetainMessage(request) => {
-            let mut client = client_pool.placement_center_mqtt_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
             let reply = client.set_topic_retain_message(request).await?;
             Ok(MqttServiceReply::SetTopicRetainMessage(reply.into_inner()))
         }
         CreateSession(request) => {
-            let mut client = client_pool.placement_center_mqtt_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
             let reply = client.create_session(request).await?;
             Ok(MqttServiceReply::CreateSession(reply.into_inner()))
         }
         DeleteSession(request) => {
-            let mut client = client_pool.placement_center_mqtt_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
             let reply = client.delete_session(request).await?;
             Ok(MqttServiceReply::DeleteSession(reply.into_inner()))
         }
         ListSession(request) => {
-            let mut client = client_pool.placement_center_mqtt_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
             let reply = client.list_session(request).await?;
             Ok(MqttServiceReply::ListSession(reply.into_inner()))
         }
         UpdateSession(request) => {
-            let mut client = client_pool.placement_center_mqtt_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
             let reply = client.update_session(request).await?;
             Ok(MqttServiceReply::UpdateSession(reply.into_inner()))
         }
         SaveLastWillMessage(request) => {
-            let mut client = client_pool.placement_center_mqtt_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
             let reply = client.save_last_will_message(request).await?;
             Ok(MqttServiceReply::SaveLastWillMessage(reply.into_inner()))
         }
         CreateAcl(request) => {
-            let mut client = client_pool.placement_center_mqtt_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
             let reply = client.create_acl(request).await?;
             Ok(MqttServiceReply::CreateAcl(reply.into_inner()))
         }
         DeleteAcl(request) => {
-            let mut client = client_pool.placement_center_mqtt_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
             let reply = client.delete_acl(request).await?;
             Ok(MqttServiceReply::DeleteAcl(reply.into_inner()))
         }
         ListAcl(request) => {
-            let mut client = client_pool.placement_center_mqtt_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
             let reply = client.list_acl(request).await?;
             Ok(MqttServiceReply::ListAcl(reply.into_inner()))
         }
         CreateBlacklist(request) => {
-            let mut client = client_pool.placement_center_mqtt_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
             let reply = client.create_blacklist(request).await?;
             Ok(MqttServiceReply::CreateBlacklist(reply.into_inner()))
         }
         DeleteBlacklist(request) => {
-            let mut client = client_pool.placement_center_mqtt_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
             let reply = client.delete_blacklist(request).await?;
             Ok(MqttServiceReply::DeleteBlacklist(reply.into_inner()))
         }
         ListBlacklist(request) => {
-            let mut client = client_pool.placement_center_mqtt_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
             let reply = client.list_blacklist(request).await?;
             Ok(MqttServiceReply::ListBlacklist(reply.into_inner()))
         }

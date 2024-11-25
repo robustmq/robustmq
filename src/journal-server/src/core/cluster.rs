@@ -99,13 +99,7 @@ async fn report(client_pool: Arc<ClientPool>) {
         cluster_type: ClusterType::JournalServer.into(),
         node_id: config.node_id,
     };
-    match heartbeat(
-        client_pool.clone(),
-        &config.placement_center,
-        req.clone(),
-    )
-    .await
-    {
+    match heartbeat(client_pool.clone(), &config.placement_center, req.clone()).await {
         Ok(_) => {
             debug!(
                 "Node {} successfully reports the heartbeat communication",

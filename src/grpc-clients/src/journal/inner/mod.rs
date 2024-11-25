@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::journal_server::journal_inner::journal_server_inner_service_client::JournalServerInnerServiceClient;
 use tonic::transport::Channel;
-
 
 pub mod call;
 

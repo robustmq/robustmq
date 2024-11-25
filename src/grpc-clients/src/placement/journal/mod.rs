@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::placement_center::placement_center_journal::engine_service_client::EngineServiceClient;
@@ -64,47 +63,65 @@ pub(super) async fn call_journal_service_once(
 
     match request {
         ListShard(request) => {
-            let mut client = client_pool.placement_center_journal_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_journal_services_client(addr)
+                .await?;
             let reply = client.list_shard(request).await?;
             Ok(JournalServiceReply::ListShard(reply.into_inner()))
         }
         CreateShard(request) => {
-            let mut client = client_pool.placement_center_journal_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_journal_services_client(addr)
+                .await?;
             let reply = client.create_shard(request).await?;
             Ok(JournalServiceReply::CreateShard(reply.into_inner()))
         }
         DeleteShard(request) => {
-            let mut client = client_pool.placement_center_journal_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_journal_services_client(addr)
+                .await?;
             let reply = client.delete_shard(request).await?;
             Ok(JournalServiceReply::DeleteShard(reply.into_inner()))
         }
         ListSegment(request) => {
-            let mut client = client_pool.placement_center_journal_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_journal_services_client(addr)
+                .await?;
             let reply = client.list_segment(request).await?;
             Ok(JournalServiceReply::ListSegment(reply.into_inner()))
         }
         CreateSegment(request) => {
-            let mut client = client_pool.placement_center_journal_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_journal_services_client(addr)
+                .await?;
             let reply = client.create_next_segment(request).await?;
             Ok(JournalServiceReply::CreateSegment(reply.into_inner()))
         }
         DeleteSegment(request) => {
-            let mut client = client_pool.placement_center_journal_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_journal_services_client(addr)
+                .await?;
             let reply = client.delete_segment(request).await?;
             Ok(JournalServiceReply::DeleteSegment(reply.into_inner()))
         }
         UpdateSegmentStatus(request) => {
-            let mut client = client_pool.placement_center_journal_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_journal_services_client(addr)
+                .await?;
             let reply = client.update_segment_status(request).await?;
             Ok(JournalServiceReply::UpdateSegmentStatus(reply.into_inner()))
         }
         ListSegmentMeta(request) => {
-            let mut client = client_pool.placement_center_journal_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_journal_services_client(addr)
+                .await?;
             let reply = client.list_segment_meta(request).await?;
             Ok(JournalServiceReply::ListSegmentMeta(reply.into_inner()))
         }
         UpdateSegmentMeta(request) => {
-            let mut client = client_pool.placement_center_journal_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_journal_services_client(addr)
+                .await?;
             let reply = client.update_segment_meta(request).await?;
             Ok(JournalServiceReply::UpdateSegmentMeta(reply.into_inner()))
         }

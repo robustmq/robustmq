@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::placement_center::placement_center_openraft::open_raft_service_client::OpenRaftServiceClient;
@@ -53,27 +52,37 @@ pub(super) async fn call_open_raft_service_once(
 
     match request {
         Vote(request) => {
-            let mut client = client_pool.placement_center_openraft_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_openraft_services_client(addr)
+                .await?;
             let reply = client.vote(request).await?;
             Ok(OpenRaftServiceReply::Vote(reply.into_inner()))
         }
         Append(request) => {
-            let mut client = client_pool.placement_center_openraft_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_openraft_services_client(addr)
+                .await?;
             let reply = client.append(request).await?;
             Ok(OpenRaftServiceReply::Append(reply.into_inner()))
         }
         Snapshot(request) => {
-            let mut client = client_pool.placement_center_openraft_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_openraft_services_client(addr)
+                .await?;
             let reply = client.snapshot(request).await?;
             Ok(OpenRaftServiceReply::Snapshot(reply.into_inner()))
         }
         AddLearner(request) => {
-            let mut client = client_pool.placement_center_openraft_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_openraft_services_client(addr)
+                .await?;
             let reply = client.add_learner(request).await?;
             Ok(OpenRaftServiceReply::AddLearner(reply.into_inner()))
         }
         ChangeMembership(request) => {
-            let mut client = client_pool.placement_center_openraft_services_client(addr).await?;
+            let mut client = client_pool
+                .placement_center_openraft_services_client(addr)
+                .await?;
             let reply = client.change_membership(request).await?;
             Ok(OpenRaftServiceReply::ChangeMembership(reply.into_inner()))
         }

@@ -233,8 +233,7 @@ impl ShardHandler {
                 cur_status: segment.status.to_string(),
                 next_status: SegmentStatus::PreWrite.to_string(),
             };
-            update_segment_status(client_pool.clone(), &conf.placement_center, request)
-                .await?;
+            update_segment_status(client_pool.clone(), &conf.placement_center, request).await?;
         }
 
         // When the state SealUp/PreDelete/Deleteing,

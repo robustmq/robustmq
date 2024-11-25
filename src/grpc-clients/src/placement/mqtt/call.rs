@@ -48,23 +48,107 @@ macro_rules! generate_mqtt_service_call {
     };
 }
 
-generate_mqtt_service_call!(placement_get_share_sub_leader, GetShareSubLeaderRequest, GetShareSubLeaderReply, GetShareSubLeader);
-generate_mqtt_service_call!(placement_create_user, CreateUserRequest, CreateUserReply, CreateUser);
-generate_mqtt_service_call!(placement_delete_user, DeleteUserRequest, DeleteUserReply, DeleteUser);
-generate_mqtt_service_call!(placement_list_user, ListUserRequest, ListUserReply, ListUser);
-generate_mqtt_service_call!(placement_create_topic, CreateTopicRequest, CreateTopicReply, CreateTopic);
-generate_mqtt_service_call!(placement_delete_topic, DeleteTopicRequest, DeleteTopicReply, DeleteTopic);
-generate_mqtt_service_call!(placement_list_topic, ListTopicRequest, ListTopicReply, ListTopic);
-generate_mqtt_service_call!(placement_set_topic_retain_message, SetTopicRetainMessageRequest, SetTopicRetainMessageReply, SetTopicRetainMessage);
-generate_mqtt_service_call!(placement_create_session, CreateSessionRequest, CreateSessionReply, CreateSession);
-generate_mqtt_service_call!(placement_delete_session, DeleteSessionRequest, DeleteSessionReply, DeleteSession);
-generate_mqtt_service_call!(placement_list_session, ListSessionRequest, ListSessionReply, ListSession);
-generate_mqtt_service_call!(placement_update_session, UpdateSessionRequest, UpdateSessionReply, UpdateSession);
-generate_mqtt_service_call!(placement_save_last_will_message, SaveLastWillMessageRequest, SaveLastWillMessageReply, SaveLastWillMessage);
+generate_mqtt_service_call!(
+    placement_get_share_sub_leader,
+    GetShareSubLeaderRequest,
+    GetShareSubLeaderReply,
+    GetShareSubLeader
+);
+generate_mqtt_service_call!(
+    placement_create_user,
+    CreateUserRequest,
+    CreateUserReply,
+    CreateUser
+);
+generate_mqtt_service_call!(
+    placement_delete_user,
+    DeleteUserRequest,
+    DeleteUserReply,
+    DeleteUser
+);
+generate_mqtt_service_call!(
+    placement_list_user,
+    ListUserRequest,
+    ListUserReply,
+    ListUser
+);
+generate_mqtt_service_call!(
+    placement_create_topic,
+    CreateTopicRequest,
+    CreateTopicReply,
+    CreateTopic
+);
+generate_mqtt_service_call!(
+    placement_delete_topic,
+    DeleteTopicRequest,
+    DeleteTopicReply,
+    DeleteTopic
+);
+generate_mqtt_service_call!(
+    placement_list_topic,
+    ListTopicRequest,
+    ListTopicReply,
+    ListTopic
+);
+generate_mqtt_service_call!(
+    placement_set_topic_retain_message,
+    SetTopicRetainMessageRequest,
+    SetTopicRetainMessageReply,
+    SetTopicRetainMessage
+);
+generate_mqtt_service_call!(
+    placement_create_session,
+    CreateSessionRequest,
+    CreateSessionReply,
+    CreateSession
+);
+generate_mqtt_service_call!(
+    placement_delete_session,
+    DeleteSessionRequest,
+    DeleteSessionReply,
+    DeleteSession
+);
+generate_mqtt_service_call!(
+    placement_list_session,
+    ListSessionRequest,
+    ListSessionReply,
+    ListSession
+);
+generate_mqtt_service_call!(
+    placement_update_session,
+    UpdateSessionRequest,
+    UpdateSessionReply,
+    UpdateSession
+);
+generate_mqtt_service_call!(
+    placement_save_last_will_message,
+    SaveLastWillMessageRequest,
+    SaveLastWillMessageReply,
+    SaveLastWillMessage
+);
 generate_mqtt_service_call!(create_acl, CreateAclRequest, CreateAclReply, CreateAcl);
-generate_mqtt_service_call!(delete_acl, DeleteAclRequest, DeleteAclRequestReply, DeleteAcl);
+generate_mqtt_service_call!(
+    delete_acl,
+    DeleteAclRequest,
+    DeleteAclRequestReply,
+    DeleteAcl
+);
 generate_mqtt_service_call!(list_acl, ListAclRequest, ListAclReply, ListAcl);
-generate_mqtt_service_call!(create_blacklist, CreateBlacklistRequest, CreateBlacklistReply, CreateBlacklist);
-generate_mqtt_service_call!(list_blacklist, ListBlacklistRequest, ListBlacklistReply, ListBlacklist);
-generate_mqtt_service_call!(delete_blacklist, DeleteBlacklistRequest, DeleteBlacklistReply, DeleteBlacklist);
-
+generate_mqtt_service_call!(
+    create_blacklist,
+    CreateBlacklistRequest,
+    CreateBlacklistReply,
+    CreateBlacklist
+);
+generate_mqtt_service_call!(
+    list_blacklist,
+    ListBlacklistRequest,
+    ListBlacklistReply,
+    ListBlacklist
+);
+generate_mqtt_service_call!(
+    delete_blacklist,
+    DeleteBlacklistRequest,
+    DeleteBlacklistReply,
+    DeleteBlacklist
+);

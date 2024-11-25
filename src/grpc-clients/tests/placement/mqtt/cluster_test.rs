@@ -72,13 +72,7 @@ mod tests {
             node_inner_addr: node_inner_addr.clone(),
             extend_info: extend_info.clone(),
         };
-        match register_node(
-            client_pool.clone(),
-            &addrs,
-            request_cluster_name_empty,
-        )
-        .await
-        {
+        match register_node(client_pool.clone(), &addrs, request_cluster_name_empty).await {
             Ok(_) => {
                 panic!("Should not passed because cluster_name is empty");
             }
@@ -129,13 +123,11 @@ mod tests {
             cluster_name: "".to_string(),
             node_id,
         };
-        assert!(unregister_node(
-            client_pool.clone(),
-            &addrs,
-            request_cluster_name_empty
-        )
-        .await
-        .is_err());
+        assert!(
+            unregister_node(client_pool.clone(), &addrs, request_cluster_name_empty)
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]
@@ -153,22 +145,18 @@ mod tests {
             producer_id: "2".to_string(),
             seq_num: 1235u64,
         };
-        assert!(
-            delete_idempotent_data(client_pool.clone(), &addrs, request)
-                .await
-                .is_ok()
-        );
+        assert!(delete_idempotent_data(client_pool.clone(), &addrs, request)
+            .await
+            .is_ok());
 
         let request = DeleteIdempotentDataRequest {
             cluster_name: "".to_string(),
             producer_id: "2".to_string(),
             seq_num: 1235u64,
         };
-        assert!(
-            delete_idempotent_data(client_pool.clone(), &addrs, request)
-                .await
-                .is_err()
-        );
+        assert!(delete_idempotent_data(client_pool.clone(), &addrs, request)
+            .await
+            .is_err());
     }
 
     #[tokio::test]
@@ -190,24 +178,20 @@ mod tests {
             resources: resources.clone(),
             config: config.clone(),
         };
-        assert!(
-            set_resource_config(client_pool.clone(), &addrs, request)
-                .await
-                .is_ok()
-        );
+        assert!(set_resource_config(client_pool.clone(), &addrs, request)
+            .await
+            .is_ok());
 
         let request_cluster_name_empty = SetResourceConfigRequest {
             cluster_name: "".to_string(),
             resources,
             config,
         };
-        assert!(set_resource_config(
-            client_pool.clone(),
-            &addrs,
-            request_cluster_name_empty
-        )
-        .await
-        .is_err());
+        assert!(
+            set_resource_config(client_pool.clone(), &addrs, request_cluster_name_empty)
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]

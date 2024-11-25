@@ -72,7 +72,7 @@ impl ClientPool {
     // ----------modules: placement center -------------
     pub async fn placement_center_inner_services_client(
         &self,
-        addr: &str
+        addr: &str,
     ) -> Result<Connection<PlacementServiceManager>, CommonError> {
         let module = "PlacementService".to_string();
         let key = format!("{}_{}_{}", "PlacementServer", module, addr);
@@ -102,7 +102,7 @@ impl ClientPool {
 
     pub async fn placement_center_journal_services_client(
         &self,
-        addr: &str
+        addr: &str,
     ) -> Result<Connection<JournalServiceManager>, CommonError> {
         let module = "JournalService".to_string();
         let key = format!("{}_{}_{}", "JournalServer", module, addr);
@@ -138,7 +138,7 @@ impl ClientPool {
 
     pub async fn placement_center_kv_services_client(
         &self,
-        addr: &str
+        addr: &str,
     ) -> Result<Connection<KvServiceManager>, CommonError> {
         let module = "KvServices".to_string();
         let key = format!("{}_{}_{}", "PlacementCenter", module, addr);
@@ -174,7 +174,7 @@ impl ClientPool {
 
     pub async fn placement_center_mqtt_services_client(
         &self,
-        addr: &str
+        addr: &str,
     ) -> Result<Connection<MqttServiceManager>, CommonError> {
         let module = "MqttServices".to_string();
         let key = format!("{}_{}_{}", "PlacementCenter", module, addr);
@@ -208,7 +208,7 @@ impl ClientPool {
 
     pub async fn placement_center_openraft_services_client(
         &self,
-        addr: &str
+        addr: &str,
     ) -> Result<Connection<OpenRaftServiceManager>, CommonError> {
         let module = "OpenRaftServices".to_string();
         let key = format!("{}_{}_{}", "PlacementCenter", module, addr);
@@ -318,7 +318,7 @@ impl ClientPool {
     // ----------modules: journal engine -------------
     pub async fn journal_inner_services_client(
         &self,
-        addr: &str
+        addr: &str,
     ) -> Result<Connection<JournalInnerServiceManager>, CommonError> {
         let module = "inner".to_string();
         let key = format!("{}_{}_{}", "JournalEngine", module, addr);
@@ -352,7 +352,7 @@ impl ClientPool {
 
     pub async fn journal_admin_services_client(
         &self,
-        addr: &str
+        addr: &str,
     ) -> Result<Connection<JournalAdminServiceManager>, CommonError> {
         let module = "admin".to_string();
         let key = format!("{}_{}_{}", "JournalEngine", module, addr);
