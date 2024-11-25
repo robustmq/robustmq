@@ -141,7 +141,6 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         _: Request<ListConnectionRequest>,
     ) -> Result<Response<ListConnectionReply>, Status> {
-        let mut reply = ListConnectionReply::default();
         let mut list_connection_raw: Vec<ListConnectionRaw> = Vec::new();
         for (key, value) in self.connection_manager.list_connect() {
             if let Some(mqtt_value) = self.cache_manager.connection_info.clone().get(&key) {
@@ -159,7 +158,9 @@ impl MqttBrokerAdminService for GrpcAdminServices {
                 list_connection_raw.push(raw);
             }
         }
-        reply.list_connection_raw = list_connection_raw;
-        Ok(Response::new(reply))
+
+        Ok(Response::new(ListConnectionReply {
+            list_connection_raw,
+        }))
     }
 }

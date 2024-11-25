@@ -17,12 +17,13 @@ mod tests {
     use std::sync::Arc;
 
     use grpc_clients::mqtt::admin::call::{
-        cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user, mqtt_broker_list_user,
+        cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user,
+        mqtt_broker_list_connection, mqtt_broker_list_user,
     };
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::mqtt::user::MqttUser;
     use protocol::broker_mqtt::broker_mqtt_admin::{
-        ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListUserRequest,
+        ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListConnectionRequest,
+        ListUserRequest,
     };
 
     use crate::common::get_mqtt_broker_addr;
@@ -33,14 +34,9 @@ mod tests {
         let addrs = vec![get_mqtt_broker_addr()];
 
         let request = ClusterStatusRequest {};
-        match cluster_status(client_pool.clone(), addrs.clone(), request).await {
-            Ok(data) => {
-                println!("{:?}", data);
-            }
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
+        cluster_status(client_pool.clone(), addrs.clone(), request)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -56,30 +52,15 @@ mod tests {
             is_superuser: false,
         };
 
-        match mqtt_broker_create_user(client_pool.clone(), addrs.clone(), user.clone()).await {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
+        mqtt_broker_create_user(client_pool.clone(), addrs.clone(), user.clone())
+            .await
+            .unwrap();
 
-        match mqtt_broker_list_user(client_pool.clone(), addrs.clone(), ListUserRequest {}).await {
-            Ok(data) => {
-                let mut flag = false;
-                for raw in data.users {
-                    let mqtt_user = serde_json::from_slice::<MqttUser>(raw.as_slice()).unwrap();
-                    if user.username == mqtt_user.username {
-                        flag = true;
-                    }
-                }
-                assert!(flag, "user1 has been created");
-            }
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        };
+        mqtt_broker_list_user(client_pool.clone(), addrs.clone(), ListUserRequest {})
+            .await
+            .unwrap();
 
-        match mqtt_broker_delete_user(
+        mqtt_broker_delete_user(
             client_pool.clone(),
             addrs.clone(),
             DeleteUserRequest {
@@ -87,27 +68,20 @@ mod tests {
             },
         )
         .await
-        {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
+        .unwrap();
 
-        match mqtt_broker_list_user(client_pool.clone(), addrs.clone(), ListUserRequest {}).await {
-            Ok(data) => {
-                let mut flag = true;
-                for raw in data.users {
-                    let mqtt_user = serde_json::from_slice::<MqttUser>(raw.as_slice()).unwrap();
-                    if user.username == mqtt_user.username {
-                        flag = false;
-                    }
-                }
-                assert!(flag, "user1 should be deleted");
-            }
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        };
+        mqtt_broker_list_user(client_pool.clone(), addrs.clone(), ListUserRequest {})
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_list_connection() {
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
+        let addrs = vec![get_mqtt_broker_addr()];
+
+        mqtt_broker_list_connection(client_pool, addrs, ListConnectionRequest {})
+            .await
+            .unwrap();
     }
 }

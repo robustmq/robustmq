@@ -13,4 +13,3 @@
 // limitations under the License.
 
 mod mqtt_admin_test;
-mod mqtt_connect_test;
