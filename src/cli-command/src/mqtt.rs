@@ -27,17 +27,27 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 
 use crate::{error_info, grpc_addr};
 
+/// MqttCliCommandParam: This section primarily distinguishes different server services
+/// and the related behaviors that might be invoked within their respective control plane hierarchies.
+///
+/// server: different server service, eg: journal-server, mqtt-server, placement-center-server
+///
 #[derive(Clone)]
 pub struct MqttCliCommandParam {
+    /// different server service, eg: journal-server, mqtt-server, placement-center-server
     pub server: String,
+    /// actions: You can think of it as the interactive functionalities that each service might
+    /// generate, such as user-related functions like creating a user, deleting a user
     pub action: MqttActionType,
 }
 
+/// MqttActionType: This part is mainly used to describe the types of behaviors
+/// related to the control surface.
 #[derive(Clone)]
 pub enum MqttActionType {
     Status,
 
-    // User admin
+    // User
     CreateUser(CreateUserRequest),
     DeleteUser(DeleteUserRequest),
     ListUser,
@@ -61,6 +71,7 @@ impl MqttBrokerCommand {
 
     pub async fn start(&self, params: MqttCliCommandParam) {
         let client_pool = Arc::new(ClientPool::new(100));
+        // we can match any exists action to connect server for finishing a control action
         match params.action {
             MqttActionType::Status => {
                 self.status(client_pool.clone(), params.clone()).await;
@@ -83,6 +94,7 @@ impl MqttBrokerCommand {
         }
     }
 
+    // --------- status ----------
     async fn status(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
         let request = ClusterStatusRequest {};
         match cluster_status(client_pool, grpc_addr(params.server), request).await {
@@ -101,6 +113,7 @@ impl MqttBrokerCommand {
         }
     }
 
+    // ----------- user --------------
     async fn create_user(
         &self,
         client_pool: Arc<ClientPool>,
@@ -156,6 +169,7 @@ impl MqttBrokerCommand {
         }
     }
 
+    // ---------- connection ----------
     async fn list_connections(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
         let request = ListConnectionRequest {};
         match mqtt_broker_list_connection(client_pool.clone(), grpc_addr(params.server), request)
