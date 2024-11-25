@@ -75,7 +75,7 @@ impl MqttBrokerCall {
                     client_id: client_ids.clone(),
                     cluster_name: self.cluster_name.clone(),
                 };
-                match broker_mqtt_delete_session(self.client_pool.clone(), vec![addr], request)
+                match broker_mqtt_delete_session(self.client_pool.clone(), &[addr], request)
                     .await
                 {
                     Ok(_) => {}
@@ -127,7 +127,7 @@ impl MqttBrokerCall {
             return;
         }
 
-        match send_last_will_message(self.client_pool.clone(), node_addr, request).await {
+        match send_last_will_message(self.client_pool.clone(), &node_addr, request).await {
             Ok(_) => self
                 .mqtt_cache_manager
                 .remove_expire_last_will(&self.cluster_name, &client_id),

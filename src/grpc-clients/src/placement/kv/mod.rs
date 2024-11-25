@@ -29,78 +29,50 @@ use crate::pool::ClientPool;
 
 pub mod call;
 
-async fn kv_client(
-    client_pool: Arc<ClientPool>,
-    addr: String,
-) -> Result<Connection<KvServiceManager>, CommonError> {
-    match client_pool.placement_center_kv_services_client(addr).await {
-        Ok(client) => Ok(client),
-        Err(e) => Err(e),
-    }
+#[derive(Debug, Clone)]
+pub enum KvServiceRequest {
+    Set(SetRequest),
+    Get(GetRequest),
+    Delete(DeleteRequest),
+    Exists(ExistsRequest),
 }
 
-pub(crate) async fn kv_interface_call(
-    interface: PlacementCenterInterface,
-    client_pool: Arc<ClientPool>,
-    addr: String,
-    request: Vec<u8>,
-) -> Result<Vec<u8>, CommonError> {
-    match kv_client(client_pool.clone(), addr.clone()).await {
-        Ok(client) => {
-            let result = match interface {
-                PlacementCenterInterface::Set => {
-                    client_call(
-                        client,
-                        request.clone(),
-                        |data| SetRequest::decode(data),
-                        |mut client, request| async move { client.set(request).await },
-                        SetReply::encode_to_vec,
-                    )
-                    .await
-                }
-                PlacementCenterInterface::Delete => {
-                    client_call(
-                        client,
-                        request.clone(),
-                        |data| DeleteRequest::decode(data),
-                        |mut client, request| async move { client.delete(request).await },
-                        DeleteReply::encode_to_vec,
-                    )
-                    .await
-                }
-                PlacementCenterInterface::Get => {
-                    client_call(
-                        client,
-                        request.clone(),
-                        |data| GetRequest::decode(data),
-                        |mut client, request| async move { client.get(request).await },
-                        GetReply::encode_to_vec,
-                    )
-                    .await
-                }
-                PlacementCenterInterface::Exists => {
-                    client_call(
-                        client,
-                        request.clone(),
-                        |data| ExistsRequest::decode(data),
-                        |mut client, request| async move { client.exists(request).await },
-                        ExistsReply::encode_to_vec,
-                    )
-                    .await
-                }
-                _ => {
-                    return Err(CommonError::CommonError(format!(
-                        "kv service does not support service interfaces [{:?}]",
-                        interface
-                    )))
-                }
-            };
-            match result {
-                Ok(data) => Ok(data),
-                Err(e) => Err(e),
-            }
+#[derive(Debug, Clone)]
+pub enum KvServiceReply {
+    Set(SetReply),
+    Get(GetReply),
+    Delete(DeleteReply),
+    Exists(ExistsReply),
+}
+
+pub(super) async fn call_kv_service_once(
+    client_pool: &ClientPool,
+    addr: &str,
+    request: KvServiceRequest,
+) -> Result<KvServiceReply, CommonError> {
+    use KvServiceRequest::*;
+
+    match request {
+        Set(request) => {
+            let mut client = client_pool.placement_center_kv_services_client(addr).await?;
+            let reply = client.set(request).await?;
+            Ok(KvServiceReply::Set(reply.into_inner()))
         }
-        Err(e) => Err(e),
+        Get(request) => {
+            let mut client = client_pool.placement_center_kv_services_client(addr).await?;
+            let reply = client.get(request).await?;
+            Ok(KvServiceReply::Get(reply.into_inner()))
+        }
+        Delete(request) => {
+            let mut client = client_pool.placement_center_kv_services_client(addr).await?;
+            let reply = client.delete(request).await?;
+            Ok(KvServiceReply::Delete(reply.into_inner()))
+        }
+        Exists(request) => {
+            let mut client = client_pool.placement_center_kv_services_client(addr).await?;
+            let reply = client.exists(request).await?;
+            Ok(KvServiceReply::Exists(reply.into_inner()))
+        }
     }
 }
 

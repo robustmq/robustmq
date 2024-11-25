@@ -15,12 +15,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use admin::admin_interface_call;
 use common_base::error::common::CommonError;
 use log::error;
-use placement::placement_interface_call;
-use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListUserReply, ListUserRequest};
-use protocol::broker_mqtt::broker_mqtt_placement::{DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest, UpdateCacheReply, UpdateCacheRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest};
+use protocol::broker_mqtt::broker_mqtt_inner::{DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest, UpdateCacheReply, UpdateCacheRequest};
 use tokio::time::sleep;
 
 use crate::pool::ClientPool;
@@ -34,7 +32,7 @@ pub enum MqttBrokerService {
 
 #[derive(Clone, Debug)]
 pub enum MqttBrokerPlacementInterface {
-    // placement
+    // inner
     DeleteSession,
     UpdateCache,
     SendLastWillMessage,
@@ -51,7 +49,7 @@ pub enum MqttBrokerPlacementInterface {
 
 #[derive(Debug, Clone)]
 pub enum MqttBrokerPlacementRequest {
-    // placement
+    // inner
     DeleteSession(DeleteSessionRequest),
     UpdateCache(UpdateCacheRequest),
     SendLastWillMessage(SendLastWillMessageRequest),
@@ -61,6 +59,9 @@ pub enum MqttBrokerPlacementRequest {
     ListUser(ListUserRequest),
     CreateUser(CreateUserRequest),
     DeleteUser(DeleteUserRequest),
+
+    // connection
+    ListConnection(ListConnectionRequest),
 }
 
 #[derive(Debug, Clone)]
@@ -75,48 +76,17 @@ pub enum MqttBrokerPlacementReply {
     ListUser(ListUserReply),
     CreateUser(CreateUserReply),
     DeleteUser(DeleteUserReply),
+
+    // connection
+    ListConnection(ListConnectionReply),
 }
 
 pub mod admin;
 pub mod placement;
 
-async fn retry_call(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>, // TODO: &[String] or &[&str] should suffice
-    request: MqttBrokerPlacementRequest,
-) -> Result<MqttBrokerPlacementReply, CommonError> {
-    if addrs.is_empty() {
-        return Err(CommonError::CommonError(
-            "Call address list cannot be empty".to_string(),
-        ));
-    }
-
-    let mut times = 1;
-    loop {
-        let index = times % addrs.len();
-        let addr = addrs.get(index).unwrap().clone();
-        let result = retry_call_inner(&client_pool, addr, request.clone()).await;
-
-        match result {
-            Ok(data) => {
-                return Ok(data);
-            }
-            Err(e) => {
-                error!("{}", e);
-                if times > retry_times() {
-                    return Err(e);
-                }
-                times += 1;
-            }
-        }
-
-        sleep(Duration::from_secs(retry_sleep_time(times))).await;
-    }
-}
-
-async fn retry_call_inner(
+async fn call_once(
     client_pool: &ClientPool,
-    addr: String,
+    addr: &str,
     request: MqttBrokerPlacementRequest,
 ) -> Result<MqttBrokerPlacementReply, CommonError> {
     use MqttBrokerPlacementRequest::*;
@@ -156,6 +126,11 @@ async fn retry_call_inner(
             let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
             let reply = client.mqtt_broker_delete_user(delete_user_request).await?;
             Ok(MqttBrokerPlacementReply::DeleteUser(reply.into_inner()))
+        },
+        ListConnection(list_connection_request) => {
+            let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
+            let reply = client.mqtt_broker_list_connection(list_connection_request).await?;
+            Ok(MqttBrokerPlacementReply::ListConnection(reply.into_inner()))
         },
     }
 }

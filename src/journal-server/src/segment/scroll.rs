@@ -105,7 +105,7 @@ impl SegmentScrollManager {
 
                     match create_next_segment(
                         self.client_pool.clone(),
-                        conf.placement_center.clone(),
+                        &conf.placement_center,
                         request,
                     )
                     .await

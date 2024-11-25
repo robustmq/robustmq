@@ -80,7 +80,7 @@ impl OffsetManager {
 
         match placement_set(
             self.client_pool.clone(),
-            conf.placement_center.clone(),
+            &conf.placement_center,
             request,
         )
         .await

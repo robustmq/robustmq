@@ -37,7 +37,7 @@ impl BlackListStorage {
         };
         match list_blacklist(
             self.client_pool.clone(),
-            config.placement_center.clone(),
+            &config.placement_center,
             request,
         )
         .await

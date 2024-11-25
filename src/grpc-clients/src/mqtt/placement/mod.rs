@@ -26,50 +26,6 @@ use crate::pool::ClientPool;
 pub mod call;
 pub mod inner;
 
-async fn placement_client(
-    client_pool: Arc<ClientPool>,
-    addr: String,
-) -> Result<Connection<MqttBrokerPlacementServiceManager>, CommonError> {
-    match client_pool.mqtt_broker_mqtt_services_client(addr).await {
-        Ok(client) => Ok(client),
-        Err(e) => Err(e),
-    }
-}
-
-pub(crate) async fn placement_interface_call(
-    interface: MqttBrokerPlacementInterface,
-    client_pool: Arc<ClientPool>,
-    addr: String,
-    request: Vec<u8>,
-) -> Result<Vec<u8>, CommonError> {
-    match placement_client(client_pool.clone(), addr.clone()).await {
-        Ok(client) => {
-            let result = match interface {
-                MqttBrokerPlacementInterface::DeleteSession => {
-                    inner_delete_session(client, request).await
-                }
-                MqttBrokerPlacementInterface::UpdateCache => {
-                    inner_update_cache(client, request).await
-                }
-                MqttBrokerPlacementInterface::SendLastWillMessage => {
-                    inner_send_last_will_message(client, request).await
-                }
-                _ => {
-                    return Err(CommonError::CommonError(format!(
-                        "kv service does not support service interfaces [{:?}]",
-                        interface
-                    )))
-                }
-            };
-            match result {
-                Ok(data) => Ok(data),
-                Err(e) => Err(e),
-            }
-        }
-        Err(e) => Err(e),
-    }
-}
-
 #[derive(Clone)]
 pub struct MqttBrokerPlacementServiceManager {
     pub addr: String,

@@ -21,16 +21,17 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
     UpdateCacheReply, UpdateCacheRequest,
 };
 
-use crate::mqtt::{retry_call, MqttBrokerPlacementInterface, MqttBrokerPlacementReply, MqttBrokerPlacementRequest, MqttBrokerService};
+use crate::mqtt::{call_once, MqttBrokerPlacementInterface, MqttBrokerPlacementReply, MqttBrokerPlacementRequest, MqttBrokerService};
 use crate::pool::ClientPool;
+use crate::utils::retry_call;
 
 pub async fn broker_mqtt_delete_session(
     client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
+    addrs: &[String],
     request: DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, CommonError> {
-    let reply = retry_call(client_pool, addrs, MqttBrokerPlacementRequest::DeleteSession(request)).await?;
-    match reply {
+    let request = MqttBrokerPlacementRequest::DeleteSession(request);
+    match retry_call(&client_pool, addrs, request, call_once).await? {
         MqttBrokerPlacementReply::DeleteSession(reply) => Ok(reply),
         _ => unreachable!("Reply type mismatch"),
     }
@@ -38,11 +39,11 @@ pub async fn broker_mqtt_delete_session(
 
 pub async fn broker_mqtt_update_cache(
     client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
+    addrs: &[String],
     request: UpdateCacheRequest,
 ) -> Result<UpdateCacheReply, CommonError> {
-    let reply = retry_call(client_pool, addrs, MqttBrokerPlacementRequest::UpdateCache(request)).await?;
-    match reply {
+    let request = MqttBrokerPlacementRequest::UpdateCache(request);
+    match retry_call(&client_pool, addrs, request, call_once).await? {
         MqttBrokerPlacementReply::UpdateCache(reply) => Ok(reply),
         _ => unreachable!("Reply type mismatch"),
     }
@@ -50,11 +51,11 @@ pub async fn broker_mqtt_update_cache(
 
 pub async fn send_last_will_message(
     client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
+    addrs: &[String],
     request: SendLastWillMessageRequest,
 ) -> Result<SendLastWillMessageReply, CommonError> {
-    let reply = retry_call(client_pool, addrs, MqttBrokerPlacementRequest::SendLastWillMessage(request)).await?;
-    match reply {
+    let request = MqttBrokerPlacementRequest::SendLastWillMessage(request);
+    match retry_call(&client_pool, addrs, request, call_once).await? {
         MqttBrokerPlacementReply::SendLastWillMessage(reply) => Ok(reply),
         _ => unreachable!("Reply type mismatch"),
     }

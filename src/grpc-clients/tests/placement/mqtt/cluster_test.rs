@@ -35,7 +35,7 @@ mod tests {
 
         let request = ClusterStatusRequest::default();
 
-        match cluster_status(client_pool.clone(), addrs.clone(), request).await {
+        match cluster_status(client_pool.clone(), &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -57,7 +57,7 @@ mod tests {
             node_inner_addr: node_inner_addr.clone(),
             extend_info: extend_info.clone(),
         };
-        match register_node(client_pool.clone(), addrs.clone(), request).await {
+        match register_node(client_pool.clone(), &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -74,7 +74,7 @@ mod tests {
         };
         match register_node(
             client_pool.clone(),
-            addrs.clone(),
+            &addrs,
             request_cluster_name_empty,
         )
         .await
@@ -93,7 +93,7 @@ mod tests {
             node_inner_addr: node_inner_addr.clone(),
             extend_info: extend_info.clone(),
         };
-        match register_node(client_pool.clone(), addrs.clone(), request_node_ip_empty).await {
+        match register_node(client_pool.clone(), &addrs, request_node_ip_empty).await {
             Ok(_) => {
                 panic!("Should not passed because node_ip is empty");
             }
@@ -107,7 +107,7 @@ mod tests {
         let addrs = vec![get_placement_addr()];
 
         let request = ClusterStatusRequest::default();
-        assert!(cluster_status(client_pool.clone(), addrs.clone(), request)
+        assert!(cluster_status(client_pool.clone(), &addrs, request)
             .await
             .is_ok());
 
@@ -120,7 +120,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             node_id,
         };
-        assert!(unregister_node(client_pool.clone(), addrs.clone(), request)
+        assert!(unregister_node(client_pool.clone(), &addrs, request)
             .await
             .is_ok());
 
@@ -131,7 +131,7 @@ mod tests {
         };
         assert!(unregister_node(
             client_pool.clone(),
-            addrs.clone(),
+            &addrs,
             request_cluster_name_empty
         )
         .await
@@ -144,7 +144,7 @@ mod tests {
         let addrs = vec![get_placement_addr()];
 
         let request = ClusterStatusRequest::default();
-        assert!(cluster_status(client_pool.clone(), addrs.clone(), request)
+        assert!(cluster_status(client_pool.clone(), &addrs, request)
             .await
             .is_ok());
 
@@ -154,7 +154,7 @@ mod tests {
             seq_num: 1235u64,
         };
         assert!(
-            delete_idempotent_data(client_pool.clone(), addrs.clone(), request)
+            delete_idempotent_data(client_pool.clone(), &addrs, request)
                 .await
                 .is_ok()
         );
@@ -165,7 +165,7 @@ mod tests {
             seq_num: 1235u64,
         };
         assert!(
-            delete_idempotent_data(client_pool.clone(), addrs.clone(), request)
+            delete_idempotent_data(client_pool.clone(), &addrs, request)
                 .await
                 .is_err()
         );
@@ -177,7 +177,7 @@ mod tests {
         let addrs = vec![get_placement_addr()];
 
         let request = ClusterStatusRequest::default();
-        assert!(cluster_status(client_pool.clone(), addrs.clone(), request)
+        assert!(cluster_status(client_pool.clone(), &addrs, request)
             .await
             .is_ok());
 
@@ -191,7 +191,7 @@ mod tests {
             config: config.clone(),
         };
         assert!(
-            set_resource_config(client_pool.clone(), addrs.clone(), request)
+            set_resource_config(client_pool.clone(), &addrs, request)
                 .await
                 .is_ok()
         );
@@ -203,7 +203,7 @@ mod tests {
         };
         assert!(set_resource_config(
             client_pool.clone(),
-            addrs.clone(),
+            &addrs,
             request_cluster_name_empty
         )
         .await
@@ -217,7 +217,7 @@ mod tests {
 
         // Check if the cluster is available
         let request = ClusterStatusRequest::default();
-        assert!(cluster_status(client_pool.clone(), addrs.clone(), request)
+        assert!(cluster_status(client_pool.clone(), &addrs, request)
             .await
             .is_ok());
 
@@ -233,7 +233,7 @@ mod tests {
             config: config.clone(),
         };
         assert!(
-            set_resource_config(client_pool.clone(), addrs.clone(), set_request)
+            set_resource_config(client_pool.clone(), &addrs, set_request)
                 .await
                 .is_ok()
         );
@@ -244,7 +244,7 @@ mod tests {
             resources: resources.clone(),
         };
         assert!(
-            get_resource_config(client_pool.clone(), addrs.clone(), valid_get_request)
+            get_resource_config(client_pool.clone(), &addrs, valid_get_request)
                 .await
                 .is_ok()
         );
@@ -256,7 +256,7 @@ mod tests {
         };
         assert!(get_resource_config(
             client_pool.clone(),
-            addrs.clone(),
+            &addrs,
             get_request_with_empty_cluster_name
         )
         .await

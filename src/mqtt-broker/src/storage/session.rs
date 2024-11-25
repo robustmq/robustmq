@@ -50,7 +50,7 @@ impl SessionStorage {
         };
         match placement_create_session(
             self.client_pool.clone(),
-            config.placement_center.clone(),
+            &config.placement_center,
             request,
         )
         .await
@@ -79,7 +79,7 @@ impl SessionStorage {
         };
         match placement_update_session(
             self.client_pool.clone(),
-            config.placement_center.clone(),
+            &config.placement_center,
             request,
         )
         .await
@@ -97,7 +97,7 @@ impl SessionStorage {
         };
         match placement_delete_session(
             self.client_pool.clone(),
-            config.placement_center.clone(),
+            &config.placement_center,
             request,
         )
         .await
@@ -115,7 +115,7 @@ impl SessionStorage {
         };
         match placement_list_session(
             self.client_pool.clone(),
-            config.placement_center.clone(),
+            &config.placement_center,
             request,
         )
         .await
@@ -142,7 +142,7 @@ impl SessionStorage {
         };
         match placement_list_session(
             self.client_pool.clone(),
-            config.placement_center.clone(),
+            &config.placement_center,
             request,
         )
         .await
@@ -178,7 +178,7 @@ impl SessionStorage {
         };
         match placement_save_last_will_message(
             self.client_pool.clone(),
-            config.placement_center.clone(),
+            &config.placement_center,
             request,
         )
         .await

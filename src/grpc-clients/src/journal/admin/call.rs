@@ -20,51 +20,30 @@ use protocol::journal_server::journal_admin::{
     ListSegmentReply, ListSegmentRequest, ListShardReply, ListShardRequest,
 };
 
-use crate::journal::{retry_call, JournalEngineInterface, JournalEngineService};
+use crate::journal::{call_once, JournalEngineInterface, JournalEngineReply, JournalEngineRequest, JournalEngineService};
 use crate::pool::ClientPool;
+use crate::utils::retry_call;
 
 pub async fn journal_admin_list_shard(
     client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
+    addrs: &[String],
     request: ListShardRequest,
 ) -> Result<ListShardReply, CommonError> {
-    let request_data = ListShardRequest::encode_to_vec(&request);
-    match retry_call(
-        JournalEngineService::Admin,
-        JournalEngineInterface::ListShard,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match ListShardReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
+    let request = JournalEngineRequest::ListShard(request);
+    match retry_call(&client_pool, addrs, request, call_once).await? {
+        JournalEngineReply::ListShard(reply) => Ok(reply),
+        _ => unreachable!("Reply type mismatch"),
     }
 }
 
 pub async fn journal_admin_list_segment(
     client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
+    addrs: &[String],
     request: ListSegmentRequest,
 ) -> Result<ListSegmentReply, CommonError> {
-    let request_data = ListSegmentRequest::encode_to_vec(&request);
-    match retry_call(
-        JournalEngineService::Admin,
-        JournalEngineInterface::ListSegment,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match ListSegmentReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
+    let request = JournalEngineRequest::ListSegment(request);
+    match retry_call(&client_pool, addrs, request, call_once).await? {
+        JournalEngineReply::ListSegment(reply) => Ok(reply),
+        _ => unreachable!("Reply type mismatch"),
     }
 }

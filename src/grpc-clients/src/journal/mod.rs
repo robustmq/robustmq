@@ -15,10 +15,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use admin::admin_interface_call;
 use common_base::error::common::CommonError;
-use inner::inner_interface_call;
 use log::error;
+use protocol::journal_server::journal_admin::{ListSegmentReply, ListSegmentRequest, ListShardReply, ListShardRequest};
+use protocol::journal_server::journal_inner::{DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest, GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply, GetShardDeleteStatusRequest, UpdateJournalCacheReply, UpdateJournalCacheRequest};
 use tokio::time::sleep;
 
 use crate::pool::ClientPool;
@@ -47,55 +47,77 @@ pub enum JournalEngineInterface {
     ListSegment,
 }
 
-async fn retry_call(
-    service: JournalEngineService,
-    interface: JournalEngineInterface,
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: Vec<u8>,
-) -> Result<Vec<u8>, CommonError> {
-    if addrs.is_empty() {
-        return Err(CommonError::CommonError(
-            "Call address list cannot be empty".to_string(),
-        ));
-    }
-    let mut times = 1;
-    loop {
-        let index = times % addrs.len();
-        let addr = addrs.get(index).unwrap().clone();
-        let result = match service {
-            JournalEngineService::Inner => {
-                inner_interface_call(
-                    interface.clone(),
-                    client_pool.clone(),
-                    addr,
-                    request.clone(),
-                )
-                .await
-            }
-            JournalEngineService::Admin => {
-                admin_interface_call(
-                    interface.clone(),
-                    client_pool.clone(),
-                    addr,
-                    request.clone(),
-                )
-                .await
-            }
-        };
+#[derive(Debug, Clone)]
+pub enum JournalEngineRequest {
+    // inner
+    UpdateCache(UpdateJournalCacheRequest),
+    DeleteShardFile(DeleteShardFileRequest),
+    GetShardDeleteStatus(GetShardDeleteStatusRequest),
+    DeleteSegmentFileRequest(DeleteSegmentFileRequest),
+    GetSegmentDeleteStatus(GetSegmentDeleteStatusRequest),
 
-        match result {
-            Ok(data) => {
-                return Ok(data);
-            }
-            Err(e) => {
-                error!("{}", e);
-                if times > retry_times() {
-                    return Err(e);
-                }
-                times += 1;
-            }
-        }
-        sleep(Duration::from_secs(retry_sleep_time(times))).await;
+    // admin
+    ListShard(ListShardRequest),
+    ListSegment(ListSegmentRequest),
+}
+
+#[derive(Debug, Clone)]
+pub enum JournalEngineReply {
+    // inner
+    UpdateCache(UpdateJournalCacheReply),
+    DeleteShardFile(DeleteShardFileReply),
+    GetShardDeleteStatus(GetShardDeleteStatusReply),
+    DeleteSegmentFile(DeleteSegmentFileReply),
+    GetSegmentDeleteStatus(GetSegmentDeleteStatusReply),
+
+    // admin
+    ListShard(ListShardReply),
+    ListSegment(ListSegmentReply),
+}
+
+async fn call_once(
+    client_pool: &ClientPool,
+    addr: &str,
+    request: JournalEngineRequest,
+) -> Result<JournalEngineReply, CommonError> {
+    use JournalEngineRequest::*;
+
+    match request {
+        UpdateCache(update_journal_cache_request) => {
+            let mut client = client_pool.journal_inner_services_client(addr).await?;
+            let reply = client.update_cache(update_journal_cache_request).await?;
+            Ok(JournalEngineReply::UpdateCache(reply.into_inner()))
+        },
+        DeleteShardFile(delete_shard_file_request) => {
+            let mut client = client_pool.journal_inner_services_client(addr).await?;
+            let reply = client.delete_shard_file(delete_shard_file_request).await?;
+            Ok(JournalEngineReply::DeleteShardFile(reply.into_inner()))
+        },
+        GetShardDeleteStatus(get_shard_delete_status_request) => {
+            let mut client = client_pool.journal_inner_services_client(addr).await?;
+            let reply = client.get_shard_delete_status(get_shard_delete_status_request).await?;
+            Ok(JournalEngineReply::GetShardDeleteStatus(reply.into_inner()))
+        },
+        DeleteSegmentFileRequest(delete_segment_file_request) => {
+            let mut client = client_pool.journal_inner_services_client(addr).await?;
+            let reply = client.delete_segment_file(delete_segment_file_request).await?;
+            Ok(JournalEngineReply::DeleteSegmentFile(reply.into_inner()))
+        },
+        GetSegmentDeleteStatus(get_segment_delete_status_request) => {
+            let mut client = client_pool.journal_inner_services_client(addr).await?;
+            let reply = client.get_segment_delete_status(get_segment_delete_status_request).await?;
+            Ok(JournalEngineReply::GetSegmentDeleteStatus(reply.into_inner()))
+        },
+        ListShard(list_shard_request) => {
+            let mut client = client_pool.journal_admin_services_client(addr).await?;
+            let reply = client.list_shard(list_shard_request).await?;
+            Ok(JournalEngineReply::ListShard(reply.into_inner()))
+        },
+        ListSegment(list_segment_request) => {
+            let mut client = client_pool.journal_admin_services_client(addr).await?;
+            let reply = client.list_segment(list_segment_request).await?;
+            Ok(JournalEngineReply::ListSegment(reply.into_inner()))
+        },
     }
 }
+

@@ -47,7 +47,7 @@ impl ClusterStorage {
 
         let reply = node_list(
             self.client_pool.clone(),
-            conf.placement_center.clone(),
+            &conf.placement_center,
             request,
         )
         .await?;
@@ -87,7 +87,7 @@ impl ClusterStorage {
 
         register_node(
             self.client_pool.clone(),
-            config.placement_center.clone(),
+            &config.placement_center,
             req.clone(),
         )
         .await?;
@@ -104,7 +104,7 @@ impl ClusterStorage {
 
         unregister_node(
             self.client_pool.clone(),
-            config.placement_center.clone(),
+            &config.placement_center,
             req.clone(),
         )
         .await?;
@@ -121,7 +121,7 @@ impl ClusterStorage {
 
         heartbeat(
             self.client_pool.clone(),
-            config.placement_center.clone(),
+            &config.placement_center,
             req.clone(),
         )
         .await?;
@@ -144,7 +144,7 @@ impl ClusterStorage {
 
         set_resource_config(
             self.client_pool.clone(),
-            config.placement_center.clone(),
+            &config.placement_center,
             request,
         )
         .await?;
@@ -162,7 +162,7 @@ impl ClusterStorage {
 
         delete_resource_config(
             self.client_pool.clone(),
-            config.placement_center.clone(),
+            &config.placement_center,
             request,
         )
         .await?;
@@ -182,7 +182,7 @@ impl ClusterStorage {
 
         match get_resource_config(
             self.client_pool.clone(),
-            config.placement_center.clone(),
+            &config.placement_center,
             request,
         )
         .await

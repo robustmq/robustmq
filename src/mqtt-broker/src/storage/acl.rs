@@ -37,7 +37,7 @@ impl AclStorage {
         };
         match list_acl(
             self.client_pool.clone(),
-            config.placement_center.clone(),
+            &config.placement_center,
             request,
         )
         .await

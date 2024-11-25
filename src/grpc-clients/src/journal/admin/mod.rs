@@ -28,61 +28,6 @@ use crate::pool::ClientPool;
 
 pub mod call;
 
-pub(crate) async fn admin_interface_call(
-    interface: JournalEngineInterface,
-    client_pool: Arc<ClientPool>,
-    addr: String,
-    request: Vec<u8>,
-) -> Result<Vec<u8>, CommonError> {
-    match admin_client(client_pool.clone(), addr.clone()).await {
-        Ok(client) => {
-            let result = match interface {
-                JournalEngineInterface::ListShard => {
-                    client_call(
-                        client,
-                        request.clone(),
-                        |data| ListShardRequest::decode(data),
-                        |mut client, request| async move { client.list_shard(request).await },
-                        ListShardReply::encode_to_vec,
-                    )
-                    .await
-                }
-                JournalEngineInterface::ListSegment => {
-                    client_call(
-                        client,
-                        request.clone(),
-                        |data| ListSegmentRequest::decode(data),
-                        |mut client, request| async move { client.list_segment(request).await },
-                        ListSegmentReply::encode_to_vec,
-                    )
-                    .await
-                }
-                _ => {
-                    return Err(CommonError::CommonError(format!(
-                        "admin service does not support service interfaces [{:?}]",
-                        interface
-                    )))
-                }
-            };
-            match result {
-                Ok(data) => Ok(data),
-                Err(e) => Err(e),
-            }
-        }
-        Err(e) => Err(e),
-    }
-}
-
-async fn admin_client(
-    client_pool: Arc<ClientPool>,
-    addr: String,
-) -> Result<Connection<JournalAdminServiceManager>, CommonError> {
-    match client_pool.journal_admin_services_client(addr).await {
-        Ok(client) => Ok(client),
-        Err(e) => Err(e),
-    }
-}
-
 #[derive(Clone)]
 pub struct JournalAdminServiceManager {
     pub addr: String,
