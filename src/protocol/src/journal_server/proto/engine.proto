@@ -48,7 +48,10 @@ message ClientSegmentMetadata{
     uint32 segment_no = 1;
     uint64 leader = 2;
     repeated uint64 replicas = 3;
-    string meta =4;
+    int64 start_offset =4;
+    int64 end_offset =5;
+    int64 start_timestamp =6;
+    int64 end_timestamp =7;
 }
 
 /** Get Cluster Metadata **/

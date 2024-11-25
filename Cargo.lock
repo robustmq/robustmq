@@ -1777,6 +1777,8 @@ dependencies = [
  "common-base",
  "dashmap",
  "futures",
+ "log",
+ "metadata-struct",
  "protocol",
  "serde",
  "serde_json",
@@ -2162,6 +2164,15 @@ dependencies = [
  "tokio-rustls 0.26.0",
  "tokio-util",
  "tonic",
+]
+
+[[package]]
+name = "mqtt-edge"
+version = "0.1.1"
+dependencies = [
+ "axum 0.7.4",
+ "bytes",
+ "thiserror",
 ]
 
 [[package]]

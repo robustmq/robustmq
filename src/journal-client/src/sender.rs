@@ -12,28 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::error::common::CommonError;
+pub struct Sender {}
 
-#[derive(Default, Clone)]
-pub struct JournalClientOption {
-    pub addrs: Vec<String>,
-}
-
-impl JournalClientOption {
-    pub fn build() -> Self {
-        JournalClientOption::default()
+impl Sender {
+    pub fn new() -> Self {
+        Sender {}
     }
-
-    pub fn set_addrs(&mut self, addrs: Vec<String>) {
-        self.addrs = addrs;
-    }
-}
-
-pub fn options_validator(option: &JournalClientOption) -> Result<(), CommonError> {
-    if option.addrs.is_empty() {
-        return Err(CommonError::ParameterCannotBeNull(
-            "option.addrs".to_string(),
-        ));
-    }
-    Ok(())
 }

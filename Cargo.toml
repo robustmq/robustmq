@@ -18,6 +18,7 @@ members = [
     "src/mqtt-bridge/elasticsearch",
     "src/mqtt-bridge/redis",
     "src/mqtt-broker",
+    "src/mqtt-edge",
     "src/amqp-plugins",
     "src/amqp-broker",
     "src/placement-center",
@@ -32,7 +33,7 @@ members = [
     "src/journal-server",
     "src/journal-client",
     "src/storage-adapter",
-    "tests"
+    "tests",
 ]
 
 resolver = "2"
@@ -101,6 +102,7 @@ mqtt-bridge-kafka = { path = "src/mqtt-bridge/kafka" }
 mqtt-bridge-elasticsearch = { path = "src/mqtt-bridge/elasticsearch" }
 mqtt-bridge-redis = { path = "src/mqtt-bridge/redis" }
 mqtt-broker = { path = "src/mqtt-broker" }
+mqtt-edge = { path = "src/mqtt-edge" }
 amqp-broker = { path = "src/amqp-broker" }
 amqp-plugins = { path = "src/amqp-plugins" }
 placement-center = { path = "src/placement-center" }

@@ -52,7 +52,7 @@ mod tests {
         let server_nodes = DashMap::with_capacity(2);
         if let Some(Ok(JournalEnginePacket::GetClusterMetadataResp(data))) = stream.next().await {
             println!("{:?}", data);
-            assert!(resp_header_error(&data.header.unwrap()).is_ok());
+            assert!(resp_header_error(&data.header, req_packet).is_ok());
             for node in data.body.unwrap().nodes {
                 server_nodes.insert(node.node_id, node);
             }
@@ -87,7 +87,7 @@ mod tests {
 
         if let Some(Ok(JournalEnginePacket::CreateShardResp(data))) = stream.next().await {
             println!("{:?}", data);
-            assert!(resp_header_error(&data.header.unwrap()).is_ok());
+            assert!(resp_header_error(&data.header, req_packet).is_ok());
         } else {
             panic!();
         }
@@ -118,7 +118,7 @@ mod tests {
         ))) = stream.next().await
         {
             println!("{:?}", data);
-            assert!(resp_header_error(&data.header.unwrap()).is_ok());
+            assert!(resp_header_error(&data.header, req_packet).is_ok());
             let body = data.body.unwrap();
             let shards = body.shards.first().unwrap();
             assert_eq!(shards.namespace, namespace);
@@ -167,7 +167,7 @@ mod tests {
 
             if let Some(Ok(JournalEnginePacket::WriteResp(data))) = stream.next().await {
                 println!("{:?}", data);
-                assert!(resp_header_error(&data.header.unwrap()).is_ok());
+                assert!(resp_header_error(&data.header, req_packet).is_ok());
                 let body = data.body.unwrap();
                 let first_status = body.status.first().unwrap();
                 assert_eq!(first_status.messages.first().unwrap().offset, 0);
@@ -205,7 +205,7 @@ mod tests {
         if let Some(Ok(resp)) = stream.next().await {
             println!("{:?}", resp);
             if let JournalEnginePacket::ReadResp(data) = resp {
-                assert!(resp_header_error(&data.header.unwrap()).is_ok());
+                assert!(resp_header_error(&data.header, req_packet).is_ok());
                 let body = data.body.unwrap();
                 let msg = body.messages.first().unwrap();
                 let raw_msg = msg.messages.first().unwrap();

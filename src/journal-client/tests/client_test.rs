@@ -12,28 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::error::common::CommonError;
-
-#[derive(Default, Clone)]
-pub struct JournalClientOption {
-    pub addrs: Vec<String>,
-}
-
-impl JournalClientOption {
-    pub fn build() -> Self {
-        JournalClientOption::default()
+#[cfg(test)]
+mod tests {
+    #[tokio::test]
+    async fn create_segment() {
+        // let mut options = JournalClientOption::build();
+        // options.set_addrs(Vec::new());
+        // let client = JournalEngineClient::new(options);
+        // client.connect().await.unwrap();
+        // client.create_shard().await;
     }
-
-    pub fn set_addrs(&mut self, addrs: Vec<String>) {
-        self.addrs = addrs;
-    }
-}
-
-pub fn options_validator(option: &JournalClientOption) -> Result<(), CommonError> {
-    if option.addrs.is_empty() {
-        return Err(CommonError::ParameterCannotBeNull(
-            "option.addrs".to_string(),
-        ));
-    }
-    Ok(())
 }
