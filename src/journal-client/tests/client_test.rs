@@ -14,9 +14,6 @@
 
 #[cfg(test)]
 mod tests {
-    use journal_client::option::JournalClientOption;
-    use journal_client::JournalEngineClient;
-
     #[tokio::test]
     async fn create_segment() {
         // let mut options = JournalClientOption::build();
