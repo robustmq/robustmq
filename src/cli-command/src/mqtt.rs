@@ -85,7 +85,7 @@ impl MqttBrokerCommand {
 
     async fn status(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
         let request = ClusterStatusRequest {};
-        match cluster_status(client_pool, grpc_addr(params.server), request).await {
+        match cluster_status(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
                 println!("cluster name: {}", data.cluster_name);
                 println!("node list:");
@@ -107,7 +107,7 @@ impl MqttBrokerCommand {
         params: MqttCliCommandParam,
         cli_request: CreateUserRequest,
     ) {
-        match mqtt_broker_create_user(client_pool.clone(), grpc_addr(params.server), cli_request)
+        match mqtt_broker_create_user(client_pool.clone(), &grpc_addr(params.server), cli_request)
             .await
         {
             Ok(_) => {
@@ -126,7 +126,7 @@ impl MqttBrokerCommand {
         params: MqttCliCommandParam,
         cli_request: DeleteUserRequest,
     ) {
-        match mqtt_broker_delete_user(client_pool.clone(), grpc_addr(params.server), cli_request)
+        match mqtt_broker_delete_user(client_pool.clone(), &grpc_addr(params.server), cli_request)
             .await
         {
             Ok(_) => {
@@ -141,7 +141,7 @@ impl MqttBrokerCommand {
 
     async fn list_user(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
         let request = ListUserRequest {};
-        match mqtt_broker_list_user(client_pool.clone(), grpc_addr(params.server), request).await {
+        match mqtt_broker_list_user(client_pool.clone(), &grpc_addr(params.server), request).await {
             Ok(data) => {
                 println!("user list:");
                 for user in data.users {
@@ -158,7 +158,7 @@ impl MqttBrokerCommand {
 
     async fn list_connections(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
         let request = ListConnectionRequest {};
-        match mqtt_broker_list_connection(client_pool.clone(), grpc_addr(params.server), request)
+        match mqtt_broker_list_connection(client_pool.clone(), &grpc_addr(params.server), request)
             .await
         {
             Ok(data) => {

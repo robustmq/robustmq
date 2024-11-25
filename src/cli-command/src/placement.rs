@@ -71,7 +71,7 @@ impl PlacementCenterCommand {
 
     async fn status(&self, client_pool: Arc<ClientPool>, params: PlacementCliCommandParam) {
         let request = ClusterStatusRequest {};
-        match cluster_status(client_pool, grpc_addr(params.server), request).await {
+        match cluster_status(client_pool, &grpc_addr(params.server), request).await {
             Ok(reply) => {
                 println!("{}", reply.content);
             }
@@ -88,7 +88,7 @@ impl PlacementCenterCommand {
         params: PlacementCliCommandParam,
         cli_request: AddLearnerRequest,
     ) {
-        match placement_openraft_add_learner(client_pool, grpc_addr(params.server), cli_request)
+        match placement_openraft_add_learner(client_pool, &grpc_addr(params.server), cli_request)
             .await
         {
             Ok(reply) => {
@@ -109,7 +109,7 @@ impl PlacementCenterCommand {
     ) {
         match placement_openraft_change_membership(
             client_pool,
-            grpc_addr(params.server),
+            &grpc_addr(params.server),
             cli_request,
         )
         .await

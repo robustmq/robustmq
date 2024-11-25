@@ -15,127 +15,54 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use prost::Message as _;
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, ChangeMembershipReply,
     ChangeMembershipRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };
 
-use super::PlacementCenterInterface;
-use crate::placement::{retry_call, PlacementCenterService};
+use crate::placement::openraft::{OpenRaftServiceReply, OpenRaftServiceRequest};
+use crate::placement::{retry_placement_center_call, PlacementCenterReply, PlacementCenterRequest};
 use crate::pool::ClientPool;
 
-pub async fn placement_openraft_vote(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: VoteRequest,
-) -> Result<VoteReply, CommonError> {
-    let request_data = VoteRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::OpenRaft,
-        PlacementCenterInterface::Vote,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match VoteReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
+macro_rules! generate_openraft_service_call {
+    ($fn_name:ident, $req_ty:ty, $rep_ty:ty, $variant:ident) => {
+        pub async fn $fn_name(
+            client_pool: Arc<ClientPool>,
+            addrs: &[String],
+            request: $req_ty,
+        ) -> Result<$rep_ty, CommonError> {
+            let request =
+                PlacementCenterRequest::OpenRaft(OpenRaftServiceRequest::$variant(request));
+            match retry_placement_center_call(&client_pool, addrs, request).await? {
+                PlacementCenterReply::OpenRaft(OpenRaftServiceReply::$variant(reply)) => Ok(reply),
+                _ => unreachable!("Reply type mismatch"),
+            }
+        }
+    };
 }
 
-pub async fn placement_openraft_append(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: AppendRequest,
-) -> Result<AppendReply, CommonError> {
-    let request_data = AppendRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::OpenRaft,
-        PlacementCenterInterface::Append,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match AppendReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
-}
-
-pub async fn placement_openraft_snapshot(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: SnapshotRequest,
-) -> Result<SnapshotReply, CommonError> {
-    let request_data = SnapshotRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::OpenRaft,
-        PlacementCenterInterface::Snapshot,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match SnapshotReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
-}
-
-pub async fn placement_openraft_add_learner(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: AddLearnerRequest,
-) -> Result<AddLearnerReply, CommonError> {
-    let request_data = AddLearnerRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::OpenRaft,
-        PlacementCenterInterface::AddLearner,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match AddLearnerReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
-}
-
-pub async fn placement_openraft_change_membership(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: ChangeMembershipRequest,
-) -> Result<ChangeMembershipReply, CommonError> {
-    let request_data = ChangeMembershipRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::OpenRaft,
-        PlacementCenterInterface::ChangeMembership,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match ChangeMembershipReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
-}
+generate_openraft_service_call!(placement_openraft_vote, VoteRequest, VoteReply, Vote);
+generate_openraft_service_call!(
+    placement_openraft_append,
+    AppendRequest,
+    AppendReply,
+    Append
+);
+generate_openraft_service_call!(
+    placement_openraft_snapshot,
+    SnapshotRequest,
+    SnapshotReply,
+    Snapshot
+);
+generate_openraft_service_call!(
+    placement_openraft_add_learner,
+    AddLearnerRequest,
+    AddLearnerReply,
+    AddLearner
+);
+generate_openraft_service_call!(
+    placement_openraft_change_membership,
+    ChangeMembershipRequest,
+    ChangeMembershipReply,
+    ChangeMembership
+);

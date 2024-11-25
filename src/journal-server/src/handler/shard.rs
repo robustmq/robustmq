@@ -66,7 +66,7 @@ impl ShardHandler {
             };
             let reply = grpc_clients::placement::journal::call::create_shard(
                 self.client_pool.clone(),
-                conf.placement_center.clone(),
+                &conf.placement_center,
                 request,
             )
             .await?;
@@ -100,7 +100,7 @@ impl ShardHandler {
 
         grpc_clients::placement::journal::call::delete_shard(
             self.client_pool.clone(),
-            conf.placement_center.clone(),
+            &conf.placement_center,
             request,
         )
         .await?;
@@ -208,7 +208,7 @@ impl ShardHandler {
         };
         let reply = grpc_clients::placement::journal::call::create_next_segment(
             self.client_pool.clone(),
-            conf.placement_center.clone(),
+            &conf.placement_center,
             request,
         )
         .await?;
@@ -233,8 +233,7 @@ impl ShardHandler {
                 cur_status: segment.status.to_string(),
                 next_status: SegmentStatus::PreWrite.to_string(),
             };
-            update_segment_status(client_pool.clone(), conf.placement_center.clone(), request)
-                .await?;
+            update_segment_status(client_pool.clone(), &conf.placement_center, request).await?;
         }
 
         // When the state SealUp/PreDelete/Deleteing,

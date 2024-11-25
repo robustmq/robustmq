@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
+use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
 use log::info;
 use mobc::{Connection, Pool};
@@ -71,12 +72,12 @@ impl ClientPool {
     // ----------modules: placement center -------------
     pub async fn placement_center_inner_services_client(
         &self,
-        addr: String,
+        addr: &str,
     ) -> Result<Connection<PlacementServiceManager>, CommonError> {
         let module = "PlacementService".to_string();
         let key = format!("{}_{}_{}", "PlacementServer", module, addr);
         if !self.placement_center_inner_pools.contains_key(&key) {
-            let manager = PlacementServiceManager::new(addr.clone());
+            let manager = PlacementServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
@@ -101,7 +102,7 @@ impl ClientPool {
 
     pub async fn placement_center_journal_services_client(
         &self,
-        addr: String,
+        addr: &str,
     ) -> Result<Connection<JournalServiceManager>, CommonError> {
         let module = "JournalService".to_string();
         let key = format!("{}_{}_{}", "JournalServer", module, addr);
@@ -109,7 +110,7 @@ impl ClientPool {
             .placement_center_journal_service_pools
             .contains_key(&key)
         {
-            let manager = JournalServiceManager::new(addr.clone());
+            let manager = JournalServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
@@ -137,13 +138,13 @@ impl ClientPool {
 
     pub async fn placement_center_kv_services_client(
         &self,
-        addr: String,
+        addr: &str,
     ) -> Result<Connection<KvServiceManager>, CommonError> {
         let module = "KvServices".to_string();
         let key = format!("{}_{}_{}", "PlacementCenter", module, addr);
 
         if !self.placement_center_kv_service_pools.contains_key(&key) {
-            let manager = KvServiceManager::new(addr.clone());
+            let manager = KvServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
@@ -173,13 +174,13 @@ impl ClientPool {
 
     pub async fn placement_center_mqtt_services_client(
         &self,
-        addr: String,
+        addr: &str,
     ) -> Result<Connection<MqttServiceManager>, CommonError> {
         let module = "MqttServices".to_string();
         let key = format!("{}_{}_{}", "PlacementCenter", module, addr);
 
         if !self.placement_center_mqtt_service_pools.contains_key(&key) {
-            let manager = MqttServiceManager::new(addr.clone());
+            let manager = MqttServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
@@ -207,7 +208,7 @@ impl ClientPool {
 
     pub async fn placement_center_openraft_services_client(
         &self,
-        addr: String,
+        addr: &str,
     ) -> Result<Connection<OpenRaftServiceManager>, CommonError> {
         let module = "OpenRaftServices".to_string();
         let key = format!("{}_{}_{}", "PlacementCenter", module, addr);
@@ -215,7 +216,7 @@ impl ClientPool {
             .placement_center_openraft_service_pools
             .contains_key(&key)
         {
-            let manager = OpenRaftServiceManager::new(addr.clone());
+            let manager = OpenRaftServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
@@ -246,13 +247,13 @@ impl ClientPool {
     // ----------modules: mqtt broker -------------
     pub async fn mqtt_broker_mqtt_services_client(
         &self,
-        addr: String,
+        addr: &str,
     ) -> Result<Connection<MqttBrokerPlacementServiceManager>, CommonError> {
         let module = "BrokerPlacementServices".to_string();
         let key = format!("{}_{}_{}", "MQTTBroker", module, addr);
 
         if !self.mqtt_broker_placement_service_pools.contains_key(&key) {
-            let manager = MqttBrokerPlacementServiceManager::new(addr.clone());
+            let manager = MqttBrokerPlacementServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
@@ -281,13 +282,13 @@ impl ClientPool {
 
     pub async fn mqtt_broker_admin_services_client(
         &self,
-        addr: String,
+        addr: &str,
     ) -> Result<Connection<MqttBrokerAdminServiceManager>, CommonError> {
         let module = "BrokerAdminServices".to_string();
         let key = format!("{}_{}_{}", "MQTTBroker", module, addr);
 
         if !self.mqtt_broker_admin_service_pools.contains_key(&key) {
-            let manager = MqttBrokerAdminServiceManager::new(addr.clone());
+            let manager = MqttBrokerAdminServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
@@ -317,12 +318,12 @@ impl ClientPool {
     // ----------modules: journal engine -------------
     pub async fn journal_inner_services_client(
         &self,
-        addr: String,
+        addr: &str,
     ) -> Result<Connection<JournalInnerServiceManager>, CommonError> {
         let module = "inner".to_string();
         let key = format!("{}_{}_{}", "JournalEngine", module, addr);
         if !self.journal_inner_service_pools.contains_key(&key) {
-            let manager = JournalInnerServiceManager::new(addr.clone());
+            let manager = JournalInnerServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
@@ -351,12 +352,12 @@ impl ClientPool {
 
     pub async fn journal_admin_services_client(
         &self,
-        addr: String,
+        addr: &str,
     ) -> Result<Connection<JournalAdminServiceManager>, CommonError> {
         let module = "admin".to_string();
         let key = format!("{}_{}_{}", "JournalEngine", module, addr);
         if !self.journal_admin_service_pools.contains_key(&key) {
-            let manager = JournalAdminServiceManager::new(addr.clone());
+            let manager = JournalAdminServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
@@ -384,11 +385,8 @@ impl ClientPool {
     }
 
     // other
-    pub fn get_leader_addr(&self, addr: &str) -> Option<String> {
-        if let Some(leader_addr) = self.placement_center_leader_addr_caches.get(addr) {
-            return Some(leader_addr.clone());
-        }
-        None
+    pub fn get_leader_addr(&self, addr: &str) -> Option<Ref<'_, String, String>> {
+        self.placement_center_leader_addr_caches.get(addr)
     }
 
     pub fn set_leader_addr(&self, addr: String, leader_addr: String) {

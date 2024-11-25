@@ -78,13 +78,7 @@ impl OffsetManager {
             value: serde_json::to_string(&offset)?,
         };
 
-        match placement_set(
-            self.client_pool.clone(),
-            conf.placement_center.clone(),
-            request,
-        )
-        .await
-        {
+        match placement_set(self.client_pool.clone(), &conf.placement_center, request).await {
             Ok(_) => {
                 self.offsets.insert(key, offset);
             }

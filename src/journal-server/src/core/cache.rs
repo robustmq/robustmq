@@ -347,7 +347,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
     let request = NodeListRequest {
         cluster_name: conf.cluster_name.clone(),
     };
-    match node_list(client_pool.clone(), conf.placement_center.clone(), request).await {
+    match node_list(client_pool.clone(), &conf.placement_center, request).await {
         Ok(list) => {
             info!(
                 "Load the node cache, the number of nodes is {}",
@@ -376,7 +376,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
         cluster_name: conf.cluster_name.clone(),
         ..Default::default()
     };
-    match list_shard(client_pool.clone(), conf.placement_center.clone(), request).await {
+    match list_shard(client_pool.clone(), &conf.placement_center, request).await {
         Ok(list) => match serde_json::from_slice::<Vec<JournalShard>>(&list.shards) {
             Ok(data) => {
                 info!(
@@ -405,7 +405,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
         segment_no: -1,
         ..Default::default()
     };
-    match list_segment(client_pool.clone(), conf.placement_center.clone(), request).await {
+    match list_segment(client_pool.clone(), &conf.placement_center, request).await {
         Ok(list) => match serde_json::from_slice::<Vec<JournalSegment>>(&list.segments) {
             Ok(data) => {
                 info!(
@@ -433,7 +433,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
         segment_no: -1,
         ..Default::default()
     };
-    match list_segment_meta(client_pool.clone(), conf.placement_center.clone(), request).await {
+    match list_segment_meta(client_pool.clone(), &conf.placement_center, request).await {
         Ok(list) => match serde_json::from_slice::<Vec<JournalSegmentMetadata>>(&list.segments) {
             Ok(data) => {
                 info!(

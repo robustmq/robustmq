@@ -39,7 +39,7 @@ pub async fn update_meta_start_offset(
         start_timestamp: -1,
         end_timestamp: -1,
     };
-    update_segment_meta(client_pool, conf.placement_center.clone(), request).await?;
+    update_segment_meta(client_pool, &conf.placement_center, request).await?;
     Ok(())
 }
 
@@ -60,7 +60,7 @@ pub async fn update_meta_end_offset(
         start_timestamp: -1,
         end_timestamp: -1,
     };
-    update_segment_meta(client_pool, conf.placement_center.clone(), request).await?;
+    update_segment_meta(client_pool, &conf.placement_center, request).await?;
     Ok(())
 }
 
@@ -81,7 +81,7 @@ pub async fn update_meta_start_timestamp(
         start_timestamp: start_timestamp as i64,
         end_timestamp: -1,
     };
-    update_segment_meta(client_pool, conf.placement_center.clone(), request).await?;
+    update_segment_meta(client_pool, &conf.placement_center, request).await?;
     Ok(())
 }
 
@@ -102,6 +102,6 @@ pub async fn update_meta_end_timestamp(
         start_timestamp: -1,
         end_timestamp: end_timestamp as i64,
     };
-    update_segment_meta(client_pool, conf.placement_center.clone(), request).await?;
+    update_segment_meta(client_pool, &conf.placement_center, request).await?;
     Ok(())
 }
