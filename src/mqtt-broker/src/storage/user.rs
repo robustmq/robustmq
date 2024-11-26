@@ -41,12 +41,8 @@ impl UserStorage {
             user_name: user_info.username.clone(),
             content: user_info.encode(),
         };
-        match placement_create_user(
-            self.client_pool.clone(),
-            config.placement_center.clone(),
-            request,
-        )
-        .await
+        match placement_create_user(self.client_pool.clone(), &config.placement_center, request)
+            .await
         {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
@@ -59,12 +55,8 @@ impl UserStorage {
             cluster_name: config.cluster_name.clone(),
             user_name,
         };
-        match placement_delete_user(
-            self.client_pool.clone(),
-            config.placement_center.clone(),
-            request,
-        )
-        .await
+        match placement_delete_user(self.client_pool.clone(), &config.placement_center, request)
+            .await
         {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
@@ -77,12 +69,7 @@ impl UserStorage {
             cluster_name: config.cluster_name.clone(),
             user_name: username.clone(),
         };
-        match placement_list_user(
-            self.client_pool.clone(),
-            config.placement_center.clone(),
-            request,
-        )
-        .await
+        match placement_list_user(self.client_pool.clone(), &config.placement_center, request).await
         {
             Ok(reply) => {
                 if reply.users.is_empty() {
@@ -104,12 +91,7 @@ impl UserStorage {
             cluster_name: config.cluster_name.clone(),
             user_name: "".to_string(),
         };
-        match placement_list_user(
-            self.client_pool.clone(),
-            config.placement_center.clone(),
-            request,
-        )
-        .await
+        match placement_list_user(self.client_pool.clone(), &config.placement_center, request).await
         {
             Ok(reply) => {
                 let results = DashMap::with_capacity(2);

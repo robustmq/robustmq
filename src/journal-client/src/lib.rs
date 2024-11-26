@@ -16,29 +16,96 @@
 
 use std::sync::Arc;
 
-use connection::ConnectionManager;
+use cache::{load_node_cache, start_update_cache_thread, MetadataCache};
+use connection::{start_conn_gc_thread, ConnectionManager};
+use error::JournalClientError;
+use log::error;
 use option::JournalClientOption;
+use protocol::journal_server::journal_engine::{CreateShardReqBody, DeleteShardReqBody};
+use service::{create_shard, delete_shard};
+use tokio::sync::broadcast::{self, Sender};
 
 mod cache;
 mod connection;
+mod error;
 pub mod option;
+mod reader;
+mod sender;
+mod service;
 pub mod tool;
 
 pub struct JournalEngineClient {
-    connection: Arc<ConnectionManager>,
+    connection_manager: Arc<ConnectionManager>,
+    metadata_cache: Arc<MetadataCache>,
+    stop_send: Sender<bool>,
 }
 
 impl JournalEngineClient {
     pub fn new(options: JournalClientOption) -> Self {
-        let connection = Arc::new(ConnectionManager::new());
-        JournalEngineClient { connection }
+        let metadata_cache = Arc::new(MetadataCache::new(options.addrs));
+        let connection_manager = Arc::new(ConnectionManager::new(metadata_cache.clone()));
+
+        let (stop_send, _) = broadcast::channel::<bool>(2);
+        JournalEngineClient {
+            metadata_cache,
+            connection_manager,
+            stop_send,
+        }
     }
 
-    pub fn create_shard(&self) {}
+    pub async fn connect(&self) -> Result<(), JournalClientError> {
+        load_node_cache(&self.metadata_cache, &self.connection_manager).await?;
 
-    pub fn delete_shard(&self) {}
+        start_update_cache_thread(
+            self.metadata_cache.clone(),
+            self.connection_manager.clone(),
+            self.stop_send.subscribe(),
+        );
 
-    pub fn send(&self) {}
+        start_conn_gc_thread(
+            self.metadata_cache.clone(),
+            self.connection_manager.clone(),
+            self.stop_send.subscribe(),
+        );
+        Ok(())
+    }
 
-    pub fn read(&self) {}
+    pub async fn create_shard(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        replica_num: u32,
+    ) -> Result<(), JournalClientError> {
+        let body = CreateShardReqBody {
+            namespace: namespace.to_string(),
+            shard_name: shard_name.to_string(),
+            replica_num,
+        };
+        let _ = create_shard(&self.connection_manager, body).await?;
+        Ok(())
+    }
+
+    pub async fn delete_shard(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+    ) -> Result<(), JournalClientError> {
+        let body = DeleteShardReqBody {
+            namespace: namespace.to_string(),
+            shard_name: shard_name.to_string(),
+        };
+        let _ = delete_shard(&self.connection_manager, body).await?;
+        Ok(())
+    }
+
+    pub async fn send(&self) {}
+
+    pub async fn read(&self) {}
+
+    pub async fn close(&self) {
+        if let Err(e) = self.stop_send.send(true) {
+            error!("{}", e);
+        }
+        self.connection_manager.close().await;
+    }
 }

@@ -57,7 +57,7 @@ mod tests {
             content: mqtt_topic.encode(),
         };
 
-        placement_create_topic(client_pool.clone(), addrs.clone(), request)
+        placement_create_topic(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
 
@@ -65,7 +65,7 @@ mod tests {
             cluster_name.clone(),
             topic_name.clone(),
             client_pool.clone(),
-            addrs.clone(),
+            &addrs,
             mqtt_topic.clone(),
             true,
         )
@@ -97,7 +97,7 @@ mod tests {
             retain_message_expired_at,
         };
 
-        placement_set_topic_retain_message(client_pool.clone(), addrs.clone(), request)
+        placement_set_topic_retain_message(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
 
@@ -105,7 +105,7 @@ mod tests {
             cluster_name.clone(),
             topic_name.clone(),
             client_pool.clone(),
-            addrs.clone(),
+            &addrs,
             mqtt_topic.clone(),
             true,
         )
@@ -116,7 +116,7 @@ mod tests {
             topic_name: mqtt_topic.topic_name.clone(),
         };
 
-        placement_delete_topic(client_pool.clone(), addrs.clone(), request)
+        placement_delete_topic(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
 
@@ -124,7 +124,7 @@ mod tests {
             cluster_name.clone(),
             topic_name.clone(),
             client_pool.clone(),
-            addrs.clone(),
+            &addrs,
             mqtt_topic.clone(),
             false,
         )
@@ -135,7 +135,7 @@ mod tests {
         cluster_name: String,
         topic_name: String,
         client_pool: Arc<ClientPool>,
-        addrs: Vec<String>,
+        addrs: &[String],
         mqtt_topic: MqttTopic,
         contain: bool,
     ) {

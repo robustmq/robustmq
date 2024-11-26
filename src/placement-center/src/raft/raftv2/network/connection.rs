@@ -42,7 +42,7 @@ impl NetworkConnection {
 
     async fn c(&mut self) -> Result<Connection<OpenRaftServiceManager>, CommonError> {
         self.client_pool
-            .placement_center_openraft_services_client(self.addr.clone())
+            .placement_center_openraft_services_client(&self.addr)
             .await
     }
 }

@@ -15,104 +15,32 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use prost::Message as _;
 use protocol::placement_center::placement_center_kv::{
     DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetReply,
     SetRequest,
 };
 
-use super::PlacementCenterInterface;
-use crate::placement::{retry_call, PlacementCenterService};
+use super::{KvServiceReply, KvServiceRequest};
+use crate::placement::{retry_placement_center_call, PlacementCenterReply, PlacementCenterRequest};
 use crate::pool::ClientPool;
 
-pub async fn placement_set(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: SetRequest,
-) -> Result<SetReply, CommonError> {
-    let request_data = SetRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::Kv,
-        PlacementCenterInterface::Set,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match SetReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
+macro_rules! generate_kv_service_call {
+    ($fn_name:ident, $req_ty:ty, $rep_ty:ty, $variant:ident) => {
+        pub async fn $fn_name(
+            client_pool: Arc<ClientPool>,
+            addrs: &[String],
+            request: $req_ty,
+        ) -> Result<$rep_ty, CommonError> {
+            let request = PlacementCenterRequest::Kv(KvServiceRequest::$variant(request));
+            match retry_placement_center_call(&client_pool, addrs, request).await? {
+                PlacementCenterReply::Kv(KvServiceReply::$variant(reply)) => Ok(reply),
+                _ => unreachable!("Reply type mismatch"),
+            }
+        }
+    };
 }
 
-pub async fn placement_get(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: GetRequest,
-) -> Result<GetReply, CommonError> {
-    let request_data = GetRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::Kv,
-        PlacementCenterInterface::Get,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match GetReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
-}
-
-pub async fn placement_delete(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: DeleteRequest,
-) -> Result<DeleteReply, CommonError> {
-    let request_data = DeleteRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::Kv,
-        PlacementCenterInterface::Delete,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match DeleteReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
-}
-
-pub async fn placement_exists(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: ExistsRequest,
-) -> Result<ExistsReply, CommonError> {
-    let request_data = ExistsRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::Kv,
-        PlacementCenterInterface::Exists,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match ExistsReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
-}
+generate_kv_service_call!(placement_set, SetRequest, SetReply, Set);
+generate_kv_service_call!(placement_get, GetRequest, GetReply, Get);
+generate_kv_service_call!(placement_delete, DeleteRequest, DeleteReply, Delete);
+generate_kv_service_call!(placement_exists, ExistsRequest, ExistsReply, Exists);

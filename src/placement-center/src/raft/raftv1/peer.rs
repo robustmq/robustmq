@@ -130,7 +130,7 @@ fn start_child_send_thread(
                     if let Some(data) = val {
                         let addr = data.to;
                         let request = SendRaftMessageRequest { message: data.data };
-                        match send_raft_message(client_pool.clone(), vec![addr.clone()], request).await
+                        match send_raft_message(client_pool.clone(), &[addr.clone()], request).await
                         {
                             Ok(_) => debug!("Send Raft message to node {} Successful.", addr),
                             Err(e) => error!(
