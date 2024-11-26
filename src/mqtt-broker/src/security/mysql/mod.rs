@@ -147,7 +147,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                     "select allow, ipaddr, username, clientid, access, topic from {}",
                     self.table_acl()
                 );
-                let data: Vec<(u8, String, Option<String>, Option<String>, u8, Option<String>)> =
+                let data: Vec<(u8, String, String, String, u8, Option<String>)> =
                     conn.query(sql).unwrap();
                 let mut results = Vec::new();
                 for raw in data {
@@ -157,11 +157,14 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                             1 => MqttAclPermission::Allow,
                             _ => return Err(CommonError::CommmonError("invalid acl permission".to_string())),
                         },
-                        resource_type: match raw.2.clone() {
-                            Some(_) => MqttAclResourceType::User,
-                            None => MqttAclResourceType::ClientId,
+                        resource_type: match raw.2.clone().is_empty() {
+                            true => MqttAclResourceType::ClientId,
+                            false => MqttAclResourceType::User,
                         },
-                        resource_name: raw.2.clone().unwrap_or(raw.3.clone().unwrap()),
+                        resource_name: match raw.2.clone().is_empty() {
+                            true => raw.3.clone(),
+                            false => raw.2.clone(),
+                        },
                         topic: raw.5.clone().unwrap_or(String::new()),
                         ip: raw.1.clone(),
                         action: match raw.4 {
