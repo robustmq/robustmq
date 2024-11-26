@@ -35,6 +35,19 @@ use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::RequestPackage;
 
+/// The `acceptor_process` function is responsible for accepting incoming TCP connections
+/// in an asynchronous manner. It utilizes multiple threads to handle the incoming connections
+/// concurrently, improving the server's ability to manage a high volume of connections.
+///
+/// # Parameters
+/// - `accept_thread_num`: The number of threads to spawn for accepting connections.
+/// - `connection_manager`: An `Arc`-wrapped `ConnectionManager` instance for managing all network connections.
+/// - `stop_sx`: A `broadcast::Sender` used to send stop signals to all acceptor threads.
+/// - `listener_arc`: An `Arc`-wrapped `TcpListener` for listening to and accepting TCP connections.
+/// - `request_queue_sx`: A `Sender` for sending `RequestPackage` instances to a processing queue.
+/// - `cache_manager`: An `Arc`-wrapped `CacheManager` for managing cache operations.
+/// - `network_connection_type`: An enum indicating the type of network connection.
+///
 pub(crate) async fn acceptor_process(
     accept_thread_num: usize,
     connection_manager: Arc<ConnectionManager>,
@@ -55,6 +68,7 @@ pub(crate) async fn acceptor_process(
             debug!("TCP Server acceptor thread {} start successfully.", index);
             loop {
                 select! {
+                    // listen stop signal
                     val = stop_rx.recv() =>{
                         if let Ok(flag) = val {
                             if flag {
@@ -63,6 +77,7 @@ pub(crate) async fn acceptor_process(
                             }
                         }
                     }
+                    // listen tcp connection
                     val = listener.accept()=>{
                         match val{
                             Ok((stream, addr)) => {
@@ -79,7 +94,7 @@ pub(crate) async fn acceptor_process(
 
                                 let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
                                 let connection = NetworkConnection::new(
-                                    crate::server::connection::NetworkConnectionType::Tcp,
+                                    NetworkConnectionType::Tcp,
                                     addr,
                                     Some(connection_stop_sx.clone())
                                 );
@@ -99,6 +114,21 @@ pub(crate) async fn acceptor_process(
     }
 }
 
+/// Handles the processing of frames read from a TCP connection using the MQTT protocol.
+///
+/// This function continuously listens for incoming frames from a TCP stream, decodes them,
+/// and then sends the decoded packages to a request queue. It also listens for a stop signal
+/// to gracefully terminate the frame processing.
+///
+/// # Parameters
+/// - `read_frame_stream`: A `FramedRead` object that encapsulates the read half of a TCP stream
+///                       and the MQTT codec for decoding frames.
+/// - `connection`: A `NetworkConnection` instance representing the current network connection.
+/// - `request_queue_sx`: A `Sender` used to send `RequestPackage` instances to a processing queue.
+/// - `connection_stop_rx`: A `Receiver` that listens for stop signals to terminate the connection.
+/// - `network_type`: A `NetworkConnectionType` enum indicating the type of network connection.
+/// - `cache_manager`: An `Arc<CacheManager>` instance for managing cache operations.
+///
 fn read_frame_process(
     mut read_frame_stream: FramedRead<tokio::io::ReadHalf<tokio::net::TcpStream>, MqttCodec>,
     connection: NetworkConnection,
@@ -110,6 +140,7 @@ fn read_frame_process(
     tokio::spawn(async move {
         loop {
             select! {
+                // listen stop signal
                 val = connection_stop_rx.recv() =>{
                     if let Some(flag) = val{
                         if flag {
@@ -118,13 +149,14 @@ fn read_frame_process(
                         }
                     }
                 }
+                // listen read_frame_stream
                 val = read_frame_stream.next()=>{
                     if let Some(pkg) = val {
                         match pkg {
                             Ok(pack) => {
                                 record_received_metrics(&connection, &pack, &network_type);
 
-                                debug!("revc tcp packet:{:?}", pack);
+                                debug!("Receive tcp packet:{:?}", pack);
                                 let package =
                                     RequestPackage::new(connection.connection_id, connection.addr, pack);
 

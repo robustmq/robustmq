@@ -148,13 +148,20 @@ where
     }
 
     pub fn start(&self, stop_send: broadcast::Sender<bool>) {
+        // cluster
         self.register_node();
+        self.start_cluster_heartbeat_report(stop_send.clone());
+
+        // client
+        self.start_keep_alive_thread(stop_send.clone());
+
+        // protocol server
         self.start_grpc_server();
         self.start_mqtt_server(stop_send.clone());
         self.start_http_server();
         self.start_websocket_server(stop_send.clone());
-        self.start_keep_alive_thread(stop_send.clone());
-        self.start_cluster_heartbeat_report(stop_send.clone());
+
+        // todo explain classify
         self.start_update_user_cache_thread(stop_send.clone());
         self.start_push_server();
         self.start_system_topic_thread(stop_send.clone());
