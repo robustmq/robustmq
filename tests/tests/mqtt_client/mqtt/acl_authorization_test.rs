@@ -17,52 +17,14 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::unique_id;
-    use grpc_clients::{mqtt::admin::call::{mqtt_broker_create_acl, mqtt_broker_delete_acl, mqtt_broker_list_acl}, pool::ClientPool};
-    use paho_mqtt::Message;
-    use protocol::broker_mqtt::broker_mqtt_admin::{CreateAclRequest, DeleteAclRequest, ListAclRequest};
+    use grpc_clients::{mqtt::admin::call::{mqtt_broker_create_acl, mqtt_broker_create_user, mqtt_broker_delete_acl, mqtt_broker_delete_user, mqtt_broker_list_acl}, pool::ClientPool};
+    use paho_mqtt::{Client, Message};
+    use protocol::broker_mqtt::broker_mqtt_admin::{CreateAclRequest, CreateUserRequest, DeleteAclRequest, DeleteUserRequest, ListAclRequest};
 
-    use crate::mqtt_client::mqtt::common::{broker_addr, broker_grpc_addr, connect_server34, distinct_conn};
+    use crate::mqtt_client::mqtt::common::{broker_addr, broker_grpc_addr, connect_server5_by_user_information, distinct_conn};
     use metadata_struct::acl::mqtt_acl::{
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
-
-    #[tokio::test]
-    async fn acl_publish_authorization_test() {
-        let client_id = unique_id();
-        let addr = broker_addr();
-
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let grpc_addr = vec![broker_grpc_addr()];
-
-        let cluster_name: String = format!("test_cluster_{}", unique_id());
-
-        let topic = "test-1".to_string();
-
-        let acl = MqttAcl {
-            resource_type: MqttAclResourceType::ClientId,
-            resource_name: client_id.clone(),
-            topic: topic.clone(),
-            ip: "*".to_string(),
-            action: MqttAclAction::All,
-            permission: MqttAclPermission::Deny,
-        };
-
-        let create_request = CreateAclRequest {
-            cluster_name: cluster_name.clone(),
-            acl: acl.encode().unwrap(),
-        };
-
-        mqtt_broker_create_acl(client_pool.clone(), grpc_addr.clone(), create_request).await.unwrap();
-
-        client_publish_test(&client_id, &addr, &topic).await;
-
-        let delete_request = DeleteAclRequest {
-            cluster_name: cluster_name.clone(),
-            acl: acl.encode().unwrap(),
-        };
-
-        mqtt_broker_delete_acl(client_pool.clone(), grpc_addr.clone(), delete_request).await.unwrap();
-    }
 
     #[tokio::test]
     async fn acl_storage_test() {
@@ -76,21 +38,15 @@ mod tests {
             resource_name: "acl_storage_test".to_string(),
             topic: "tp-1".to_string(),
             ip: "*".to_string(),
-            action: MqttAclAction::All,
+            action: MqttAclAction::Publish,
             permission: MqttAclPermission::Deny,
         };
 
-        let create_request = CreateAclRequest {
-            cluster_name: cluster_name.clone(),
-            acl: acl.encode().unwrap(),
-        };
-
-        mqtt_broker_create_acl(client_pool.clone(), grpc_addr.clone(), create_request).await.unwrap();
+        create_acl(client_pool.clone(), grpc_addr.clone(), cluster_name.clone(), acl.clone()).await;
 
         let list_request = ListAclRequest {
             cluster_name: cluster_name.clone(),
         };
-
         match mqtt_broker_list_acl(client_pool.clone(), grpc_addr.clone(), list_request.clone()).await {
             Ok(data) => {
                 let mut flag: bool = false;
@@ -107,17 +63,7 @@ mod tests {
             }
         };
 
-        let delete_request = DeleteAclRequest {
-            cluster_name: cluster_name.clone(),
-            acl: acl.encode().unwrap(),
-        };
-
-        match mqtt_broker_delete_acl(client_pool.clone(), grpc_addr.clone(), delete_request).await {
-            Ok(_) => {}
-            Err(e) => {
-                assert!(false, "delete acl error: {:?}", e);
-            }
-        };
+        delete_acl(client_pool.clone(), grpc_addr.clone(), cluster_name.clone(), acl.clone()).await;
 
         match mqtt_broker_list_acl(client_pool.clone(), grpc_addr.clone(), list_request.clone()).await {
             Ok(data) => {
@@ -134,14 +80,80 @@ mod tests {
                 assert!(false, "list acl error: {:?}", e);
             }
         };
-
     }
 
-    async fn client_publish_test(client_id: &str, addr: &str, topic: &str) {
-        let mqtt_version = 3;
-        let cli = connect_server34(mqtt_version, client_id, addr);
+    #[tokio::test]
+    async fn user_publish_authorization_test() {
+        let client_id = unique_id();
+        let addr = broker_addr();
 
-        let msg = Message::new(topic, format!("mqtt message"), 0);
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
+        let grpc_addr = vec![broker_grpc_addr()];
+
+        let cluster_name: String = format!("mqtt-broker");
+
+        let topic = "/tests/t1".to_string();
+
+        let username = "cacl".to_string();
+        let password = "caclpublic".to_string();
+
+        create_user(client_pool.clone(), grpc_addr.clone(), username.clone(), password.clone()).await;
+
+        let acl = MqttAcl {
+            resource_type: MqttAclResourceType::User,
+            resource_name: username.clone(),
+            topic: topic.clone(),
+            ip: "*".to_string(),
+            action: MqttAclAction::Publish,
+            permission: MqttAclPermission::Deny,
+        };
+
+        create_acl(client_pool.clone(), grpc_addr.clone(), cluster_name.clone(), acl.clone()).await;
+
+        publish_deny_test(&client_id, &addr, &topic, username.clone(), password.clone()).await;
+
+        delete_acl(client_pool.clone(), grpc_addr.clone(), cluster_name.clone(), acl.clone()).await;
+        delete_user(client_pool.clone(), grpc_addr.clone(), username.clone()).await;
+    }
+
+    #[tokio::test]
+    async fn client_publish_authorization_test() {
+        let client_id = unique_id();
+        let addr = broker_addr();
+
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
+        let grpc_addr = vec![broker_grpc_addr()];
+
+        let cluster_name: String = format!("mqtt-broker");
+
+        let topic = "/tests/t1".to_string();
+
+        let username = "cacl".to_string();
+        let password = "caclpublic".to_string();
+
+        create_user(client_pool.clone(), grpc_addr.clone(), username.clone(), password.clone()).await;
+
+        let acl = MqttAcl {
+            resource_type: MqttAclResourceType::ClientId,
+            resource_name: client_id.clone(),
+            topic: topic.clone(),
+            ip: "*".to_string(),
+            action: MqttAclAction::Publish,
+            permission: MqttAclPermission::Deny,
+        };
+
+        create_acl(client_pool.clone(), grpc_addr.clone(), cluster_name.clone(), acl.clone()).await;
+
+        publish_deny_test(&client_id, &addr, &topic, username.clone(), password.clone()).await;
+
+        delete_acl(client_pool.clone(), grpc_addr.clone(), cluster_name.clone(), acl.clone()).await;
+        delete_user(client_pool.clone(), grpc_addr.clone(), username.clone()).await;
+    }
+
+    async fn publish_deny_test(client_id: &str, addr: &str, topic: &str, username: String, password: String) {
+        let cli: Client = connect_server5_by_user_information(client_id, addr, username, password, false, false);
+
+        let msg = Message::new(topic, format!("mqtt message test"), 1);
         match cli.publish(msg) {
             Ok(_) => {
                 assert!(false, "should not publish success");
@@ -151,6 +163,48 @@ mod tests {
             }
         }
         distinct_conn(cli);
+    }
+
+    async fn create_user(client_pool: Arc<ClientPool>, grpc_addr: Vec<String>, username: String, password: String) {
+        let user = CreateUserRequest {
+            username,
+            password,
+            is_superuser: false,
+        };
+        match mqtt_broker_create_user(client_pool.clone(), grpc_addr.clone(), user.clone()).await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        }
+    }
+
+    async fn delete_user(client_pool: Arc<ClientPool>, grpc_addr: Vec<String>, username: String) {
+        let user = DeleteUserRequest { username };
+        match mqtt_broker_delete_user(client_pool.clone(), grpc_addr.clone(), user.clone()).await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        }
+    }
+
+    async fn create_acl(client_pool: Arc<ClientPool>, grpc_addr: Vec<String>, cluster_name: String, acl: MqttAcl) {
+        let create_request = CreateAclRequest {
+            cluster_name,
+            acl: acl.encode().unwrap(),
+        };
+    
+        mqtt_broker_create_acl(client_pool, grpc_addr, create_request).await.unwrap();
+    }
+
+    async fn delete_acl(client_pool: Arc<ClientPool>, grpc_addr: Vec<String>, cluster_name: String, acl: MqttAcl) {
+        let delete_request = DeleteAclRequest {
+            cluster_name: cluster_name.clone(),
+            acl: acl.encode().unwrap(),
+        };
+
+        mqtt_broker_delete_acl(client_pool.clone(), grpc_addr.clone(), delete_request).await.unwrap();
     }
 
 }

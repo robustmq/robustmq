@@ -337,10 +337,23 @@ where
             .allow_publish(&connection, &topic_name, publish.retain, publish.qos)
             .await
         {
-            return Some(response_packet_mqtt_distinct_by_reason(
-                &self.protocol,
-                Some(DisconnectReasonCode::NotAuthorized),
-            ));
+            if is_puback {
+                return Some(response_packet_mqtt_puback_fail(
+                    &self.protocol,
+                    &connection,
+                    publish.pkid,
+                    PubAckReason::NotAuthorized,
+                    None,
+                ));
+            } else {
+                return Some(response_packet_mqtt_pubrec_fail(
+                    &self.protocol,
+                    &connection,
+                    publish.pkid,
+                    PubRecReason::NotAuthorized,
+                    None,
+                ));
+            }
         }
 
         let topic = match try_init_topic(

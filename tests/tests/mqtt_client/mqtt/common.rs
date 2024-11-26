@@ -286,6 +286,45 @@ pub fn connect_server5(client_id: &str, addr: &str, ws: bool, ssl: bool) -> Clie
     cli
 }
 
+
+#[allow(dead_code)]
+pub fn connect_server5_by_user_information(client_id: &str, addr: &str, username: String, password: String, ws: bool, ssl: bool) -> Client {
+    let mqtt_version = 5;
+    let props = build_v5_pros();
+
+    let create_opts = build_create_pros(client_id, addr);
+    let cli = Client::new(create_opts).unwrap_or_else(|err| {
+        println!("Error creating the client: {:?}", err);
+        process::exit(1);
+    });
+
+    let conn_opts = build_v5_conn_pros_by_user_information(props.clone(), username, password, ws, ssl);
+    match cli.connect(conn_opts) {
+        Ok(response) => {
+            let resp = response.connect_response().unwrap();
+            if ws {
+                if ssl {
+                    assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
+                } else {
+                    assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
+                }
+            } else if ssl {
+                assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
+            } else {
+                assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+            }
+            assert_eq!(mqtt_version, resp.mqtt_version);
+            assert_eq!(response.reason_code(), ReasonCode::Success);
+        }
+        Err(e) => {
+            println!("Unable to connect:\n\t{:?}", e);
+            process::exit(1);
+        }
+    }
+    cli
+}
+
+
 #[allow(dead_code)]
 pub fn connect_server5_packet_size(
     client_id: &str,
