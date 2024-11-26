@@ -160,13 +160,13 @@ pub async fn update_cache_by_add_journal_node(
     node: BrokerNode,
 ) -> Result<(), PlacementCenterError> {
     let data = serde_json::to_string(&node)?;
-    let mesage = JournalInnerCallMessage {
+    let message = JournalInnerCallMessage {
         action_type: JournalUpdateCacheActionType::Set,
         resource_type: JournalUpdateCacheResourceType::JournalNode,
         cluster_name: cluster_name.to_string(),
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, mesage).await?;
+    add_call_message(call_manager, cluster_name, client_pool, message).await?;
     Ok(())
 }
 
@@ -177,13 +177,13 @@ pub async fn update_cache_by_delete_journal_node(
     node: BrokerNode,
 ) -> Result<(), PlacementCenterError> {
     let data = serde_json::to_string(&node)?;
-    let mesage = JournalInnerCallMessage {
+    let message = JournalInnerCallMessage {
         action_type: JournalUpdateCacheActionType::Delete,
         resource_type: JournalUpdateCacheResourceType::JournalNode,
         cluster_name: cluster_name.to_string(),
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, mesage).await?;
+    add_call_message(call_manager, cluster_name, client_pool, message).await?;
     Ok(())
 }
 
@@ -194,13 +194,13 @@ pub async fn update_cache_by_set_shard(
     shard_info: JournalShard,
 ) -> Result<(), PlacementCenterError> {
     let data = serde_json::to_string(&shard_info)?;
-    let mesage = JournalInnerCallMessage {
+    let message = JournalInnerCallMessage {
         action_type: JournalUpdateCacheActionType::Set,
         resource_type: JournalUpdateCacheResourceType::Shard,
         cluster_name: cluster_name.to_string(),
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, mesage).await?;
+    add_call_message(call_manager, cluster_name, client_pool, message).await?;
     Ok(())
 }
 
@@ -211,13 +211,13 @@ pub async fn update_cache_by_set_segment(
     segment_info: JournalSegment,
 ) -> Result<(), PlacementCenterError> {
     let data = serde_json::to_string(&segment_info)?;
-    let mesage = JournalInnerCallMessage {
+    let message = JournalInnerCallMessage {
         action_type: JournalUpdateCacheActionType::Set,
         resource_type: JournalUpdateCacheResourceType::Segment,
         cluster_name: cluster_name.to_string(),
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, mesage).await?;
+    add_call_message(call_manager, cluster_name, client_pool, message).await?;
     Ok(())
 }
 
@@ -228,13 +228,13 @@ pub async fn update_cache_by_set_segment_meta(
     segment_info: JournalSegmentMetadata,
 ) -> Result<(), PlacementCenterError> {
     let data = serde_json::to_string(&segment_info)?;
-    let mesage = JournalInnerCallMessage {
+    let message = JournalInnerCallMessage {
         action_type: JournalUpdateCacheActionType::Set,
         resource_type: JournalUpdateCacheResourceType::SegmentMeta,
         cluster_name: cluster_name.to_string(),
         data,
     };
-    add_call_message(call_manager, cluster_name, client_pool, mesage).await?;
+    add_call_message(call_manager, cluster_name, client_pool, message).await?;
     Ok(())
 }
 
@@ -283,7 +283,7 @@ async fn call_journal_update_cache(
         data: data.data.clone(),
     };
 
-    match journal_inner_update_cache(client_pool.clone(), vec![addr], request).await {
+    match journal_inner_update_cache(client_pool.clone(), &[addr], request).await {
         Ok(resp) => {
             debug!("Calling Journal Engine returns information:{:?}", resp);
         }

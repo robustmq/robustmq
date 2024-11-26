@@ -139,7 +139,7 @@ impl ConnectionManager {
                         }
                         Err(e) => {
                             if times > response_max_try_mut_times {
-                                return Err(CommonError::CommmonError(format!(
+                                return Err(CommonError::CommonError(format!(
                                     "Failed to write data to the Journal engine client, error message: {e:?}"
                                 )));
                             }
@@ -148,7 +148,7 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > response_max_try_mut_times {
-                        return Err(CommonError::CommmonError(
+                        return Err(CommonError::CommonError(
                             format!(
                                 "[write_frame]Connection management could not obtain an available tcp connection. Connection ID: {},len:{}",
                                 connection_id,
@@ -159,7 +159,7 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Locked => {
                     if times > response_max_try_mut_times {
-                        return Err(CommonError::CommmonError(
+                        return Err(CommonError::CommonError(
                             format!(
                                 "[write_frame]Connection management failed to get tcp connection variable reference, connection ID: {}",connection_id
                             )
@@ -190,7 +190,7 @@ impl ConnectionManager {
                         }
                         Err(e) => {
                             if times > response_max_try_mut_times {
-                                return Err(CommonError::CommmonError(format!(
+                                return Err(CommonError::CommonError(format!(
                                     "Failed to write data to the journal engine client, error message: {e:?}"
                                 )));
                             }
@@ -199,7 +199,7 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > response_max_try_mut_times {
-                        return Err(CommonError::CommmonError(
+                        return Err(CommonError::CommonError(
                             format!(
                                 "[write_frame]Connection management could not obtain an available tcp connection. Connection ID: {},len:{}",
                                 connection_id,
@@ -210,7 +210,7 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Locked => {
                     if times > response_max_try_mut_times {
-                        return Err(CommonError::CommmonError(
+                        return Err(CommonError::CommonError(
                             format!(
                                 "[write_frame]Connection management failed to get tcp connection variable reference, connection ID: {}",connection_id
                             )

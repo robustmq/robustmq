@@ -37,9 +37,7 @@ impl AclStorage {
         let request = ListAclRequest {
             cluster_name: config.cluster_name.clone(),
         };
-        match list_acl(self.client_pool.clone(), config.placement_center.clone(), request)
-            .await
-        {
+        match list_acl(self.client_pool.clone(), &config.placement_center, request).await {
             Ok(reply) => {
                 let mut list = Vec::new();
                 for raw in reply.acls {
@@ -60,9 +58,7 @@ impl AclStorage {
             acl: value,
         };
 
-        match create_acl(self.client_pool.clone(), config.placement_center.clone(), request)
-            .await
-        {
+        match create_acl(self.client_pool.clone(), &config.placement_center, request).await {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
         }
@@ -76,9 +72,7 @@ impl AclStorage {
             acl: value,
         };
 
-        match delete_acl(self.client_pool.clone(), config.placement_center.clone(), request)
-            .await
-        {
+        match delete_acl(self.client_pool.clone(), &config.placement_center, request).await {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
         }

@@ -15,24 +15,28 @@
 use std::sync::Arc;
 
 use common_base::config::journal_server::journal_server_conf;
+use grpc_clients::pool::ClientPool;
 use protocol::journal_server::journal_engine::{
     JournalEngineError, OffsetCommitReq, OffsetCommitShardResp, ReadReq, ReadRespSegmentMessage,
     WriteReq, WriteRespMessage,
 };
+use rocksdb_engine::RocksDBEngine;
 
 use crate::core::cache::CacheManager;
 use crate::core::error::{get_journal_server_code, JournalServerError};
 use crate::core::offset::OffsetManager;
-use crate::core::write::{write_data, WriteManager};
 use crate::segment::manager::SegmentFileManager;
-use crate::segment::read::read_data;
+use crate::segment::read::read_data_req;
+use crate::segment::write::write_data_req;
+use crate::segment::SegmentIdentity;
 
 #[derive(Clone)]
 pub struct DataHandler {
     cache_manager: Arc<CacheManager>,
     offset_manager: Arc<OffsetManager>,
     segment_file_manager: Arc<SegmentFileManager>,
-    write_manager: Arc<WriteManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    client_pool: Arc<ClientPool>,
 }
 
 impl DataHandler {
@@ -40,13 +44,15 @@ impl DataHandler {
         cache_manager: Arc<CacheManager>,
         offset_manager: Arc<OffsetManager>,
         segment_file_manager: Arc<SegmentFileManager>,
-        write_manager: Arc<WriteManager>,
+        rocksdb_engine_handler: Arc<RocksDBEngine>,
+        client_pool: Arc<ClientPool>,
     ) -> DataHandler {
         DataHandler {
             cache_manager,
             offset_manager,
             segment_file_manager,
-            write_manager,
+            rocksdb_engine_handler,
+            client_pool,
         }
     }
 
@@ -59,14 +65,20 @@ impl DataHandler {
         }
 
         let req_body = request.body.unwrap();
-        for message in req_body.data.clone() {
-            self.valitator(&message.namespace, &message.shard_name, message.segment)?;
+        for message in req_body.data.iter() {
+            let segment_identity = SegmentIdentity {
+                namespace: message.namespace.to_string(),
+                shard_name: message.shard_name.to_string(),
+                segment_seq: message.segment,
+            };
+            self.validator(&segment_identity)?;
         }
 
-        let results = write_data(
+        let results = write_data_req(
             &self.cache_manager,
+            &self.rocksdb_engine_handler,
             &self.segment_file_manager,
-            &self.write_manager,
+            &self.client_pool,
             &req_body,
         )
         .await?;
@@ -84,13 +96,22 @@ impl DataHandler {
         let req_body = request.body.unwrap();
         let conf = journal_server_conf();
         for row in req_body.messages.clone() {
-            for segment in row.segments {
-                self.valitator(&row.namespace, &row.shard_name, segment.segment)?;
-            }
+            let segment_identity = SegmentIdentity {
+                namespace: row.namespace.to_string(),
+                shard_name: row.shard_name.to_string(),
+                segment_seq: row.segment,
+            };
+            self.validator(&segment_identity)?;
         }
 
         let conf = journal_server_conf();
-        let results = read_data(&self.cache_manager, &req_body, conf.node_id).await?;
+        let results = read_data_req(
+            &self.cache_manager,
+            &self.rocksdb_engine_handler,
+            &req_body,
+            conf.node_id,
+        )
+        .await?;
         Ok(results)
     }
 
@@ -141,46 +162,35 @@ impl DataHandler {
         Ok(result)
     }
 
-    fn valitator(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        segment_no: u32,
-    ) -> Result<(), JournalServerError> {
+    fn validator(&self, segment_identity: &SegmentIdentity) -> Result<(), JournalServerError> {
         if self
             .cache_manager
-            .get_shard(namespace, shard_name)
+            .get_shard(&segment_identity.namespace, &segment_identity.shard_name)
             .is_none()
         {
-            return Err(JournalServerError::ShardNotExist(shard_name.to_string()));
+            return Err(JournalServerError::ShardNotExist(
+                segment_identity.shard_name.to_string(),
+            ));
         }
 
-        let segment = if let Some(segment) = self
-            .cache_manager
-            .get_segment(namespace, shard_name, segment_no)
-        {
+        let segment = if let Some(segment) = self.cache_manager.get_segment(segment_identity) {
             segment
         } else {
-            return Err(JournalServerError::SegmentNotExist(
-                shard_name.to_string(),
-                segment_no,
-            ));
+            return Err(JournalServerError::SegmentNotExist(segment_identity.name()));
         };
 
         if !segment.allow_read() {
             return Err(JournalServerError::SegmentStatusError(
-                shard_name.to_string(),
-                format!("{:?}", segment.status),
+                segment_identity.name(),
+                segment.status.to_string(),
             ));
         }
 
         let conf = journal_server_conf();
         if segment.leader != conf.node_id {
-            return Err(JournalServerError::NotLeader(
-                shard_name.to_string(),
-                segment_no,
-            ));
+            return Err(JournalServerError::NotLeader(segment_identity.name()));
         }
+
         Ok(())
     }
 }

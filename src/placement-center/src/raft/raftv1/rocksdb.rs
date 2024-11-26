@@ -53,7 +53,7 @@ impl RaftMachineStorage {
 }
 
 impl RaftMachineStorage {
-    pub fn append_entrys(&mut self, entries: &[Entry]) -> Result<(), CommonError> {
+    pub fn append_entries(&mut self, entries: &[Entry]) -> Result<(), CommonError> {
         if entries.is_empty() {
             return Ok(());
         }
@@ -62,7 +62,7 @@ impl RaftMachineStorage {
 
         let first_index = self.first_index();
         if first_index > entry_first_index {
-            return Err(CommonError::CommmonError(format!(
+            return Err(CommonError::CommonError(format!(
                 "overwrite compacted raft logs, compacted: {}, append: {}",
                 first_index - 1,
                 entry_first_index,
@@ -71,7 +71,7 @@ impl RaftMachineStorage {
 
         let last_index = self.last_index();
         if last_index + 1 < entry_first_index {
-            return Err(CommonError::CommmonError(format!(
+            return Err(CommonError::CommonError(format!(
                 "raft logs should be continuous, last index: {}, new appended: {}",
                 last_index, entry_first_index,
             )));
@@ -100,11 +100,11 @@ impl RaftMachineStorage {
 
 impl RaftMachineStorage {
     pub fn raft_state(&self) -> RaftState {
-        let shs = self.hard_state();
-        let scs = self.conf_state();
+        let self_hard_state = self.hard_state();
+        let self_conf_state = self.conf_state();
         RaftState {
-            hard_state: shs,
-            conf_state: scs,
+            hard_state: self_hard_state,
+            conf_state: self_conf_state,
         }
     }
 
@@ -308,7 +308,7 @@ impl RaftMachineStorage {
 }
 
 impl RaftMachineStorage {
-    pub fn commmit_index(&mut self, idx: u64) -> RaftResult<()> {
+    pub fn commit_index(&mut self, idx: u64) -> RaftResult<()> {
         let entry = self.entry_by_idx(idx);
         if entry.is_none() {
             info!("commit_to {} but the entry does not exist", idx);
@@ -353,7 +353,7 @@ impl RaftMachineStorage {
                 );
                 Ok(())
             }
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         }
     }
 

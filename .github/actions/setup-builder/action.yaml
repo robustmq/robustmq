@@ -32,7 +32,6 @@ runs:
         apt-get install -y cmake
     - uses: actions-rs/toolchain@v1
       with:
-        toolchain: nightly
-        override: true
+        toolchain: nightly-2024-11-08
     - name: Configure rust runtime env
       uses: ./.github/actions/setup-rust-runtime

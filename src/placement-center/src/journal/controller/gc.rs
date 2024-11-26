@@ -53,17 +53,17 @@ pub async fn gc_shard_thread(
             continue;
         }
 
-        // to deleteing
+        // to deleting
         if let Err(e) = update_shard_status(
             &raft_machine_apply,
             &engine_cache,
             &shard.clone(),
-            JournalShardStatus::Deleteing,
+            JournalShardStatus::Deleting,
         )
         .await
         {
             error!(
-                "Failed to convert Shard to deleteing state with error message: {}",
+                "Failed to convert Shard to deleting state with error message: {}",
                 e
             );
             continue;
@@ -80,7 +80,7 @@ pub async fn gc_shard_thread(
                 shard_name: shard.shard_name.clone(),
             };
             if let Err(e) =
-                journal_inner_delete_shard_file(client_pool.clone(), addrs, request).await
+                journal_inner_delete_shard_file(client_pool.clone(), &addrs, request).await
             {
                 error!(
                     "Calling node {} to delete the Shard file failed with error message :{}",
@@ -98,7 +98,8 @@ pub async fn gc_shard_thread(
                 namespace: shard.namespace.clone(),
                 shard_name: shard.shard_name.clone(),
             };
-            match journal_inner_get_shard_delete_status(client_pool.clone(), addrs, request).await {
+            match journal_inner_get_shard_delete_status(client_pool.clone(), &addrs, request).await
+            {
                 Ok(reply) => {
                     if !reply.status {
                         flag = false;
@@ -187,17 +188,17 @@ pub async fn gc_segment_thread(
             continue;
         };
 
-        // to deleteing
+        // to deleting
         if let Err(e) = update_segment_status(
             &engine_cache,
             &raft_machine_apply,
             &segment.clone(),
-            SegmentStatus::Deleteing,
+            SegmentStatus::Deleting,
         )
         .await
         {
             error!(
-                "Failed to convert Segment to deleteing state with error message: {}",
+                "Failed to convert Segment to deleting state with error message: {}",
                 e
             );
         }
@@ -215,7 +216,7 @@ pub async fn gc_segment_thread(
                     segment: segment.segment_seq,
                 };
                 if let Err(e) =
-                    journal_inner_delete_segment_file(client_pool.clone(), addrs, request).await
+                    journal_inner_delete_segment_file(client_pool.clone(), &addrs, request).await
                 {
                     error!(
                         "Calling node {} to delete the Segment file failed with error message :{}",
@@ -236,7 +237,7 @@ pub async fn gc_segment_thread(
                     shard_name: segment.shard_name.clone(),
                     segment: segment.segment_seq,
                 };
-                match journal_inner_get_segment_delete_status(client_pool.clone(), addrs, request)
+                match journal_inner_get_segment_delete_status(client_pool.clone(), &addrs, request)
                     .await
                 {
                     Ok(reply) => {

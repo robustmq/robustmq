@@ -15,6 +15,7 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
+use dashmap::DashMap;
 use serde::Serialize;
 
 use crate::warp::StorageDataWrap;
@@ -39,7 +40,7 @@ where
 
     let content = match serde_json::to_vec(&value) {
         Ok(data) => data,
-        Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        Err(e) => return Err(CommonError::CommonError(e.to_string())),
     };
 
     let data = StorageDataWrap::new(content);
@@ -116,6 +117,36 @@ pub fn rocksdb_engine_prefix_list(
         for (_, v) in raw {
             match serde_json::from_slice::<StorageDataWrap>(v.as_ref()) {
                 Ok(v) => results.push(v),
+                Err(_) => {
+                    continue;
+                }
+            }
+        }
+    }
+    Ok(results)
+}
+
+pub fn rocksdb_engine_prefix_map(
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    comlumn_family: &str,
+    prefix_key_name: String,
+) -> Result<DashMap<String, StorageDataWrap>, CommonError> {
+    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(comlumn_family) {
+        cf
+    } else {
+        return Err(CommonError::RocksDBFamilyNotAvailable(
+            comlumn_family.to_string(),
+        ));
+    };
+
+    let data_list = rocksdb_engine_handler.read_prefix(cf, &prefix_key_name);
+    let results = DashMap::with_capacity(2);
+    if let Ok(raw) = data_list {
+        for (key, v) in raw {
+            match serde_json::from_slice::<StorageDataWrap>(v.as_ref()) {
+                Ok(v) => {
+                    results.insert(key, v);
+                }
                 Err(_) => {
                     continue;
                 }

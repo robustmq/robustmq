@@ -16,7 +16,7 @@ use super::*;
 
 fn len(connect: &Connect, login: &Option<Login>, will: &Option<LastWill>) -> usize {
     /*
-     * len is the vairable header length which consists of four fields in the following order:
+     * len is the variable header length which consists of four fields in the following order:
      * Protocol Name, Protocol Version, Connect Flags, and Keep Alive.
      * The first 2 bytes means MSB (the 1st one 0x0) and LSB (the 2nd one 0x4 - 4bytes means the length of "MQTT").
      * The 3rd byte to the 6th one are fixed with MQTT, which illustrates the protocol is MQTT

@@ -15,7 +15,7 @@
 use super::*;
 
 pub fn len(auth: &Auth, properties: &Option<AuthProperties>) -> usize {
-    // The Reason Code and Property Length can be ommited if the Reason Code is 0x00(Success)
+    // The Reason Code and Property Length can be omitted if the Reason Code is 0x00(Success)
     // and there are no properties. In this case the AUTH packet has a remaining length of 2.
     // <https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901217>
     if auth.reason.unwrap() == AuthReason::Success && properties.is_none() {
@@ -248,7 +248,7 @@ mod tests {
 
         let authentication_method: String = "SCRAM-SHA-256".to_string();
         let authentication_data: Bytes = Bytes::from("client-first-data");
-        let user_perperties: Vec<(String, String)> = vec![
+        let user_properties: Vec<(String, String)> = vec![
             ("username".into(), "Justin".into()),
             ("tag".to_string(), "middleware".to_string()),
         ];
@@ -257,7 +257,7 @@ mod tests {
             authentication_method: Some(authentication_method),
             authentication_data: Some(authentication_data),
             reason_string: Some(String::from("Not Success")),
-            user_properties: user_perperties,
+            user_properties,
         };
 
         // test the write function of Auth in v5

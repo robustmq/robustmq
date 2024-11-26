@@ -15,7 +15,9 @@
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType};
+use metadata_struct::acl::mqtt_acl::{
+    MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
+};
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::user::MqttUser;
 use mysql::prelude::Queryable;
@@ -72,7 +74,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 return Ok(results);
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }
@@ -97,7 +99,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 return Ok(None);
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }
@@ -112,12 +114,11 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                     user_info.password,
                     user_info.is_superuser as i32,
                 );
-                let _data: Vec<(String, String, Option<String>, u8)> =
-                    conn.query(sql).unwrap();
+                let _data: Vec<(String, String, Option<String>, u8)> = conn.query(sql).unwrap();
                 return Ok(());
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }
@@ -135,7 +136,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 return Ok(());
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }
@@ -155,7 +156,11 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                         permission: match raw.0 {
                             0 => MqttAclPermission::Deny,
                             1 => MqttAclPermission::Allow,
-                            _ => return Err(CommonError::CommmonError("invalid acl permission".to_string())),
+                            _ => {
+                                return Err(CommonError::CommonError(
+                                    "invalid acl permission".to_string(),
+                                ))
+                            }
                         },
                         resource_type: match raw.2.clone().is_empty() {
                             true => MqttAclResourceType::ClientId,
@@ -174,15 +179,19 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                             3 => MqttAclAction::PubSub,
                             4 => MqttAclAction::Retain,
                             5 => MqttAclAction::Qos,
-                            _ => return Err(CommonError::CommmonError("invalid acl action".to_string())),
-                        }
+                            _ => {
+                                return Err(CommonError::CommonError(
+                                    "invalid acl action".to_string(),
+                                ))
+                            }
+                        },
                     };
                     results.push(acl);
                 }
                 return Ok(results);
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }
@@ -216,12 +225,18 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                     access,
                     acl.topic,
                 );
-                let _data: Vec<(u8, String, Option<String>, Option<String>, u8, Option<String>)> =
-                    conn.query(sql).unwrap();
+                let _data: Vec<(
+                    u8,
+                    String,
+                    Option<String>,
+                    Option<String>,
+                    u8,
+                    Option<String>,
+                )> = conn.query(sql).unwrap();
                 return Ok(());
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }
@@ -230,14 +245,29 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
         match self.pool.get_conn() {
             Ok(mut conn) => {
                 let sql = match acl.resource_type.clone() {
-                    MqttAclResourceType::ClientId => format!("delete from {} where clientid = '{}';", self.table_acl(), acl.resource_name),
-                    MqttAclResourceType::User => format!("delete from {} where username = '{}';", self.table_acl(), acl.resource_name),
+                    MqttAclResourceType::ClientId => format!(
+                        "delete from {} where clientid = '{}';",
+                        self.table_acl(),
+                        acl.resource_name
+                    ),
+                    MqttAclResourceType::User => format!(
+                        "delete from {} where username = '{}';",
+                        self.table_acl(),
+                        acl.resource_name
+                    ),
                 };
-                let _data: Vec<(u8, String, Option<String>, Option<String>, u8, Option<String>)> = conn.query(sql).unwrap();
+                let _data: Vec<(
+                    u8,
+                    String,
+                    Option<String>,
+                    Option<String>,
+                    u8,
+                    Option<String>,
+                )> = conn.query(sql).unwrap();
                 return Ok(());
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }

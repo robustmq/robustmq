@@ -37,6 +37,7 @@ mod tests {
     use crate::common::get_placement_addr;
 
     #[tokio::test]
+
     async fn shard_segment_metadata_test() {
         let client_pool = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
@@ -62,9 +63,9 @@ mod tests {
             node_inner_addr: "127.0.0.1:4531".to_string(),
             extend_info: serde_json::to_string(&extend).unwrap(),
         };
-        if let Err(e) = register_node(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+        if let Err(e) = register_node(client_pool.clone(), &addrs, request).await {
+            println!("{}", e);
+            panic!();
         }
 
         // create shard
@@ -74,9 +75,9 @@ mod tests {
             namespace: namespace.clone(),
             replica: 1,
         };
-        if let Err(e) = create_shard(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+        if let Err(e) = create_shard(client_pool.clone(), &addrs, request).await {
+            println!("{}", e);
+            panic!();
         }
 
         // list shard
@@ -85,7 +86,7 @@ mod tests {
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
         };
-        let reply = list_shard(client_pool.clone(), addrs.clone(), request)
+        let reply = list_shard(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
         let data: Vec<JournalShard> = serde_json::from_slice(&reply.shards).unwrap();
@@ -107,7 +108,7 @@ mod tests {
             namespace: namespace.clone(),
             segment_no: -1,
         };
-        let reply = list_segment(client_pool.clone(), addrs.clone(), request)
+        let reply = list_segment(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
 
@@ -134,7 +135,7 @@ mod tests {
             namespace: namespace.clone(),
             segment_no: -1,
         };
-        let reply = list_segment_meta(client_pool.clone(), addrs.clone(), request)
+        let reply = list_segment_meta(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
         let data: Vec<JournalSegmentMetadata> = serde_json::from_slice(&reply.segments).unwrap();
@@ -154,7 +155,7 @@ mod tests {
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
         };
-        create_next_segment(client_pool.clone(), addrs.clone(), request)
+        create_next_segment(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
 
@@ -165,7 +166,7 @@ mod tests {
             namespace: namespace.clone(),
             segment_no: -1,
         };
-        let reply = list_segment(client_pool.clone(), addrs.clone(), request)
+        let reply = list_segment(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
 
@@ -206,7 +207,7 @@ mod tests {
             namespace: namespace.clone(),
             segment_no: -1,
         };
-        let reply = list_segment_meta(client_pool.clone(), addrs.clone(), request)
+        let reply = list_segment_meta(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
         let data: Vec<JournalSegmentMetadata> = serde_json::from_slice(&reply.segments).unwrap();
@@ -235,7 +236,7 @@ mod tests {
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
         };
-        create_next_segment(client_pool.clone(), addrs.clone(), request)
+        create_next_segment(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
         let request = ListSegmentRequest {
@@ -244,7 +245,7 @@ mod tests {
             namespace: namespace.clone(),
             segment_no: -1,
         };
-        let reply = list_segment(client_pool.clone(), addrs.clone(), request)
+        let reply = list_segment(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
 
@@ -255,6 +256,7 @@ mod tests {
     }
 
     #[tokio::test]
+
     pub async fn sealup_segment_test() {
         let client_pool = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
@@ -280,9 +282,9 @@ mod tests {
             node_inner_addr: "127.0.0.1:4531".to_string(),
             extend_info: serde_json::to_string(&extend).unwrap(),
         };
-        if let Err(e) = register_node(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+        if let Err(e) = register_node(client_pool.clone(), &addrs, request).await {
+            println!("{}", e);
+            panic!();
         }
 
         // create shard
@@ -292,9 +294,9 @@ mod tests {
             namespace: namespace.clone(),
             replica: 1,
         };
-        if let Err(e) = create_shard(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+        if let Err(e) = create_shard(client_pool.clone(), &addrs, request).await {
+            println!("{}", e);
+            panic!();
         }
 
         // update status to PreSealUp
@@ -306,9 +308,9 @@ mod tests {
             cur_status: "Write".to_string(),
             next_status: "PreSealUp".to_string(),
         };
-        if let Err(e) = update_segment_status(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+        if let Err(e) = update_segment_status(client_pool.clone(), &addrs, request).await {
+            println!("{}", e);
+            panic!();
         }
         // List Segment
         let request = ListSegmentRequest {
@@ -317,7 +319,7 @@ mod tests {
             namespace: namespace.clone(),
             segment_no: 0,
         };
-        let reply = list_segment(client_pool.clone(), addrs.clone(), request)
+        let reply = list_segment(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
 
@@ -335,9 +337,9 @@ mod tests {
             cur_status: "PreSealUp".to_string(),
             next_status: "SealUp".to_string(),
         };
-        if let Err(e) = update_segment_status(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+        if let Err(e) = update_segment_status(client_pool.clone(), &addrs, request).await {
+            println!("{}", e);
+            panic!();
         }
 
         // List Segment
@@ -347,7 +349,7 @@ mod tests {
             namespace: namespace.clone(),
             segment_no: 0,
         };
-        let reply = list_segment(client_pool.clone(), addrs.clone(), request)
+        let reply = list_segment(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
 
@@ -367,9 +369,9 @@ mod tests {
             start_timestamp: -1,
             end_timestamp: 1731576014,
         };
-        if let Err(e) = update_segment_meta(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+        if let Err(e) = update_segment_meta(client_pool.clone(), &addrs, request).await {
+            println!("{}", e);
+            panic!();
         }
 
         // list segment meta
@@ -379,7 +381,7 @@ mod tests {
             namespace: namespace.clone(),
             segment_no: -1,
         };
-        let reply = list_segment_meta(client_pool.clone(), addrs.clone(), request)
+        let reply = list_segment_meta(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
         let data: Vec<JournalSegmentMetadata> = serde_json::from_slice(&reply.segments).unwrap();
@@ -395,6 +397,7 @@ mod tests {
     }
 
     #[tokio::test]
+
     pub async fn delete_segment_test() {
         let client_pool = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
@@ -420,9 +423,9 @@ mod tests {
             node_inner_addr: "127.0.0.1:4531".to_string(),
             extend_info: serde_json::to_string(&extend).unwrap(),
         };
-        if let Err(e) = register_node(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+        if let Err(e) = register_node(client_pool.clone(), &addrs, request).await {
+            println!("{}", e);
+            unreachable!();
         }
 
         // create shard
@@ -432,9 +435,9 @@ mod tests {
             namespace: namespace.clone(),
             replica: 1,
         };
-        if let Err(e) = create_shard(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+        if let Err(e) = create_shard(client_pool.clone(), &addrs, request).await {
+            println!("{}", e);
+            unreachable!();
         }
 
         // create next segment
@@ -443,7 +446,7 @@ mod tests {
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
         };
-        create_next_segment(client_pool.clone(), addrs.clone(), request)
+        create_next_segment(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
 
@@ -454,11 +457,10 @@ mod tests {
             namespace: namespace.clone(),
             segment_seq: 0,
         };
-        if let Err(e) = delete_segment(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(true);
+        if let Err(e) = delete_segment(client_pool.clone(), &addrs, request).await {
+            println!("{}", e);
         } else {
-            assert!(false)
+            unreachable!();
         }
 
         // update status to SealUp
@@ -470,9 +472,9 @@ mod tests {
             cur_status: "Write".to_string(),
             next_status: "SealUp".to_string(),
         };
-        if let Err(e) = update_segment_status(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+        if let Err(e) = update_segment_status(client_pool.clone(), &addrs, request).await {
+            println!("{}", e);
+            panic!();
         }
 
         // delete segment
@@ -482,7 +484,7 @@ mod tests {
             namespace: namespace.clone(),
             segment_seq: 0,
         };
-        delete_segment(client_pool.clone(), addrs.clone(), request)
+        delete_segment(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
 
@@ -493,7 +495,7 @@ mod tests {
             namespace: namespace.clone(),
             segment_no: 0,
         };
-        let reply = list_segment(client_pool.clone(), addrs.clone(), request)
+        let reply = list_segment(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
 
@@ -530,9 +532,9 @@ mod tests {
             node_inner_addr: "127.0.0.1:4531".to_string(),
             extend_info: serde_json::to_string(&extend).unwrap(),
         };
-        if let Err(e) = register_node(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+        if let Err(e) = register_node(client_pool.clone(), &addrs, request).await {
+            println!("{}", e);
+            panic!();
         }
 
         // create shard
@@ -542,9 +544,9 @@ mod tests {
             namespace: namespace.clone(),
             replica: 1,
         };
-        if let Err(e) = create_shard(client_pool.clone(), addrs.clone(), request).await {
-            println!("{}", e.to_string());
-            assert!(false);
+        if let Err(e) = create_shard(client_pool.clone(), &addrs, request).await {
+            println!("{}", e);
+            panic!();
         }
 
         // create next segment
@@ -553,7 +555,7 @@ mod tests {
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
         };
-        create_next_segment(client_pool.clone(), addrs.clone(), request)
+        create_next_segment(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
 
@@ -563,7 +565,7 @@ mod tests {
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
         };
-        delete_shard(client_pool.clone(), addrs.clone(), request)
+        delete_shard(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
 
@@ -573,7 +575,7 @@ mod tests {
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
         };
-        let reply = list_shard(client_pool.clone(), addrs.clone(), request)
+        let reply = list_shard(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
         let data: Vec<JournalShard> = serde_json::from_slice(&reply.shards).unwrap();

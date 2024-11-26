@@ -210,7 +210,7 @@ mod tests {
             password,
             is_superuser: false,
         };
-        match mqtt_broker_create_user(client_pool.clone(), addrs.clone(), user.clone()).await {
+        match mqtt_broker_create_user(client_pool.clone(), &addrs, user.clone()).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -220,7 +220,7 @@ mod tests {
 
     async fn delete_user(client_pool: Arc<ClientPool>, addrs: Vec<String>, username: String) {
         let user = DeleteUserRequest { username };
-        match mqtt_broker_delete_user(client_pool.clone(), addrs.clone(), user.clone()).await {
+        match mqtt_broker_delete_user(client_pool.clone(), &addrs, user.clone()).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);

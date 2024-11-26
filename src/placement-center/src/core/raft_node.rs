@@ -19,7 +19,7 @@ pub enum RaftNodeState {
     #[default]
     Running,
     Starting,
-    Stoping,
+    Stopping,
     Stop,
 }
 

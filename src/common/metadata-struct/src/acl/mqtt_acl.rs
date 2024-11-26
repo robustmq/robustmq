@@ -33,7 +33,7 @@ impl MqttAcl {
     }
 
     pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
-        Ok(serde_json::from_slice(&data)?)
+        Ok(serde_json::from_slice(data)?)
     }
 }
 

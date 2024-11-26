@@ -36,7 +36,7 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<PubRel, Error
 
 pub fn write(pubrel: &PubRel, buffer: &mut BytesMut) -> Result<usize, Error> {
     let len = len();
-    buffer.put_u8(0x62); // 1st byte of publish realease packet is 0b01100010
+    buffer.put_u8(0x62); // 1st byte of publish release packet is 0b01100010
     let count = write_remaining_length(buffer, len)?;
     buffer.put_u16(pubrel.pkid);
     Ok(1 + count + len)

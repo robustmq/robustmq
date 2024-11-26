@@ -29,6 +29,7 @@ use login::plaintext::Plaintext;
 use login::Authentication;
 use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclAction, MqttAclResourceType};
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::user::MqttUser;
 use mysql::MySQLAuthStorageAdapter;
 use placement::PlacementAuthStorageAdapter;
@@ -36,7 +37,6 @@ use protocol::mqtt::common::{ConnectProperties, Login, QoS, Subscribe};
 use storage_adapter::StorageType;
 
 use crate::handler::cache::CacheManager;
-use crate::handler::connection::Connection;
 use crate::subscribe::sub_common::get_sub_topic_id_list;
 
 pub mod acl;
@@ -114,8 +114,8 @@ impl AuthDriver {
             Ok(date) => {
                 let is_existed = date.iter().any(|user| *user.key() == user_info.username);
                 if is_existed {
-                    return Err(CommonError::CommmonError(
-                        "user has beed existed".to_string(),
+                    return Err(CommonError::CommonError(
+                        "user has been existed".to_string(),
                     ));
                 }
             }
@@ -132,7 +132,7 @@ impl AuthDriver {
             Ok(date) => {
                 let is_existed = date.iter().any(|user| *user.key() == username);
                 if !is_existed {
-                    return Err(CommonError::CommmonError("user does not exist".to_string()));
+                    return Err(CommonError::CommonError("user does not exist".to_string()));
                 };
             }
             Err(e) => {
@@ -154,7 +154,7 @@ impl AuthDriver {
         for entry in all_users.iter() {
             let user = entry.value().clone();
             self.cache_manager.add_user(user);
-        };
+        }
 
         let db_usernames: HashSet<String> =
             all_users.iter().map(|user| user.key().clone()).collect();
@@ -204,7 +204,7 @@ impl AuthDriver {
 
         for acl in all_acls.clone() {
             self.cache_manager.add_acl(acl.clone());
-        };
+        }
 
         let mut user_acl = HashSet::new();
         let mut client_acl = HashSet::new();
@@ -214,7 +214,7 @@ impl AuthDriver {
                 MqttAclResourceType::User => user_acl.insert(acl.resource_name.clone()),
                 MqttAclResourceType::ClientId => client_acl.insert(acl.resource_name.clone()),
             };
-        };
+        }
         self.cache_manager.retain_acls(user_acl, client_acl);
 
         Ok(())
@@ -222,7 +222,7 @@ impl AuthDriver {
 
     pub async fn allow_publish(
         &self,
-        connection: &Connection,
+        connection: &MQTTConnection,
         topic_name: &str,
         retain: bool,
         qos: QoS,
@@ -237,7 +237,11 @@ impl AuthDriver {
         )
     }
 
-    pub async fn allow_subscribe(&self, connection: &Connection, subscribe: &Subscribe) -> bool {
+    pub async fn allow_subscribe(
+        &self,
+        connection: &MQTTConnection,
+        subscribe: &Subscribe,
+    ) -> bool {
         for filter in subscribe.filters.clone() {
             let topic_list = get_sub_topic_id_list(self.cache_manager.clone(), filter.path).await;
             for topic in topic_list {

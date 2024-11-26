@@ -31,11 +31,12 @@ pub struct JournalShard {
 
 impl JournalShard {
     pub fn name(&self) -> String {
-        format!(
-            "{},{},{}",
-            self.cluster_name, self.namespace, self.shard_name
-        )
+        shard_name_iden(&self.namespace, &self.shard_name)
     }
+}
+
+pub fn shard_name_iden(namespace: &str, shard_name: &str) -> String {
+    format!("{}_{}", namespace, shard_name)
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -43,5 +44,5 @@ pub enum JournalShardStatus {
     #[default]
     Run,
     PrepareDelete,
-    Deleteing,
+    Deleting,
 }

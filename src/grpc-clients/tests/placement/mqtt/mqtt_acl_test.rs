@@ -17,81 +17,16 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::unique_id;
-    use grpc_clients::placement::mqtt::call::{create_acl, delete_acl, list_acl, list_blacklist};
+    use grpc_clients::placement::mqtt::call::{create_acl, delete_acl, list_acl};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::acl::mqtt_acl::{
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
     use protocol::placement_center::placement_center_mqtt::{
-        CreateAclRequest, DeleteAclRequest, ListAclRequest, ListBlacklistRequest,
+        CreateAclRequest, DeleteAclRequest, ListAclRequest,
     };
 
     use crate::common::get_placement_addr;
-
-    #[tokio::test]
-    async fn create_acl_test() {
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let addrs = vec![get_placement_addr()];
-        let cluster_name: String = format!("mqtt-broker");
-
-        let acl = MqttAcl {
-            resource_type: MqttAclResourceType::User,
-            resource_name: "loboxu".to_string(),
-            topic: "tp-1".to_string(),
-            ip: "*".to_string(),
-            action: MqttAclAction::All,
-            permission: MqttAclPermission::Deny,
-        };
-
-        let request = CreateAclRequest {
-            cluster_name: cluster_name.clone(),
-            acl: acl.encode().unwrap(),
-        };
-        create_acl(client_pool.clone(), addrs.clone(), request)
-            .await
-            .unwrap();
-    }
-
-    #[tokio::test]
-    async fn delete_acl_test() {
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let addrs = vec![get_placement_addr()];
-        let cluster_name: String = format!("mqtt-broker");
-
-        let acl = MqttAcl {
-            resource_type: MqttAclResourceType::User,
-            resource_name: "acl_storage_test".to_string(),
-            topic: "tp-1".to_string(),
-            ip: "*".to_string(),
-            action: MqttAclAction::All,
-            permission: MqttAclPermission::Deny,
-        };
-
-        let request = DeleteAclRequest {
-            cluster_name: cluster_name.clone(),
-            acl: acl.encode().unwrap(),
-        };
-        delete_acl(client_pool.clone(), addrs.clone(), request).await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn list_acl_test() {
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let addrs = vec![get_placement_addr()];
-        let cluster_name: String = format!("test_cluster_1");
-
-        let request = ListAclRequest {
-            cluster_name: cluster_name.clone(),
-        };
-        match list_acl(client_pool.clone(), addrs.clone(), request).await {
-            Ok(data) => {
-                println!("data: {:?}", data);
-            }
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
-    }
 
     #[tokio::test]
     async fn mqtt_acl_test() {
@@ -112,7 +47,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             acl: acl.encode().unwrap(),
         };
-        create_acl(client_pool.clone(), addrs.clone(), request)
+        create_acl(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
 
@@ -120,7 +55,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
         };
 
-        match list_acl(client_pool.clone(), addrs.clone(), request).await {
+        match list_acl(client_pool.clone(), &addrs, request).await {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.acls {
@@ -146,7 +81,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             acl: acl.encode().unwrap(),
         };
-        match delete_acl(client_pool.clone(), addrs.clone(), request).await {
+        match delete_acl(client_pool.clone(), &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -157,7 +92,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
         };
 
-        match list_acl(client_pool.clone(), addrs.clone(), request).await {
+        match list_acl(client_pool.clone(), &addrs, request).await {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.acls {

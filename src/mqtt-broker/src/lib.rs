@@ -191,6 +191,7 @@ where
             conf.grpc_port,
             self.cache_manager.clone(),
             self.subscribe_manager.clone(),
+            self.connection_manager.clone(),
             self.client_pool.clone(),
             self.message_storage_adapter.clone(),
         );

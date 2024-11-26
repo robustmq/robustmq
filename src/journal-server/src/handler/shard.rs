@@ -28,6 +28,7 @@ use protocol::placement_center::placement_center_journal::{
 
 use crate::core::cache::{load_metadata_cache, CacheManager};
 use crate::core::error::JournalServerError;
+use crate::segment::SegmentIdentity;
 
 #[derive(Clone)]
 pub struct ShardHandler {
@@ -65,7 +66,7 @@ impl ShardHandler {
             };
             let reply = grpc_clients::placement::journal::call::create_shard(
                 self.client_pool.clone(),
-                conf.placement_center.clone(),
+                &conf.placement_center,
                 request,
             )
             .await?;
@@ -99,7 +100,7 @@ impl ShardHandler {
 
         grpc_clients::placement::journal::call::delete_shard(
             self.client_pool.clone(),
-            conf.placement_center.clone(),
+            &conf.placement_center,
             request,
         )
         .await?;
@@ -155,7 +156,7 @@ impl ShardHandler {
 
             let segments = self
                 .cache_manager
-                .get_segment_list_by_shard(&raw.namespace, &raw.shard_name);
+                .get_segments_list_by_shard(&raw.namespace, &raw.shard_name);
 
             if segments.is_empty() {
                 load_metadata_cache(&self.cache_manager, &self.client_pool).await;
@@ -164,22 +165,22 @@ impl ShardHandler {
 
             let mut resp_shard_segments = Vec::new();
             for segment in segments {
-                let meta = if let Some(meta) = self.cache_manager.get_segment_meta(
-                    &raw.namespace,
-                    &raw.shard_name,
-                    segment.segment_seq,
-                ) {
+                let segment_iden = SegmentIdentity::from_journal_segment(&segment);
+                let meta = if let Some(meta) = self.cache_manager.get_segment_meta(&segment_iden) {
                     meta
                 } else {
                     load_metadata_cache(&self.cache_manager, &self.client_pool).await;
                     return Err(JournalServerError::SegmentMetaNotExists(raw.shard_name));
                 };
 
-                let meta_val = serde_json::to_vec(&meta)?;
                 let client_segment_meta = ClientSegmentMetadata {
                     segment_no: segment.segment_seq,
+                    leader: segment.leader,
                     replicas: segment.replicas.iter().map(|rep| rep.node_id).collect(),
-                    meta: meta_val,
+                    start_offset: meta.start_offset,
+                    end_offset: meta.end_offset,
+                    start_timestamp: meta.start_timestamp,
+                    end_timestamp: meta.end_timestamp,
                 };
                 resp_shard_segments.push(client_segment_meta);
             }
@@ -209,7 +210,7 @@ impl ShardHandler {
         };
         let reply = grpc_clients::placement::journal::call::create_next_segment(
             self.client_pool.clone(),
-            conf.placement_center.clone(),
+            &conf.placement_center,
             request,
         )
         .await?;
@@ -234,15 +235,14 @@ impl ShardHandler {
                 cur_status: segment.status.to_string(),
                 next_status: SegmentStatus::PreWrite.to_string(),
             };
-            update_segment_status(client_pool.clone(), conf.placement_center.clone(), request)
-                .await?;
+            update_segment_status(client_pool.clone(), &conf.placement_center, request).await?;
         }
 
         // When the state SealUp/PreDelete/Deleteing,
         // try to create a new Segment, and modify the Active Active Segment for the next Segment
         if segment.status == SegmentStatus::SealUp
             || segment.status == SegmentStatus::PreDelete
-            || segment.status == SegmentStatus::Deleteing
+            || segment.status == SegmentStatus::Deleting
         {
             self.trigger_create_next_segment(namespace, shard_name)
                 .await?;

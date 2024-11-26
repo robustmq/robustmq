@@ -117,7 +117,7 @@ impl ShareSubLeader {
                         }
                     },
                     Err(e) => {
-                        return Err(CommonError::CommmonError(e.to_string()));
+                        return Err(CommonError::CommonError(e.to_string()));
                     }
                 }
                 break;
@@ -145,7 +145,7 @@ impl ShareSubLeader {
                     }
                 },
                 Err(e) => {
-                    return Err(CommonError::CommmonError(e.to_string()));
+                    return Err(CommonError::CommonError(e.to_string()));
                 }
             }
         }
@@ -181,7 +181,7 @@ impl ShareSubLeader {
                 }
             },
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
         Ok(())
@@ -198,7 +198,7 @@ impl ShareSubLeader {
                 Ok(data) => {
                     return Ok(data);
                 }
-                Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+                Err(e) => return Err(CommonError::CommonError(e.to_string())),
             },
             Ok(None) => {}
             Err(e) => {

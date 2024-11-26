@@ -27,6 +27,7 @@ mod tests {
     use crate::common::get_placement_addr;
 
     #[tokio::test]
+
     async fn mqtt_blacklist_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
@@ -43,7 +44,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             blacklist: blacklist.encode().unwrap(),
         };
-        match create_blacklist(client_pool.clone(), addrs.clone(), request).await {
+        match create_blacklist(client_pool.clone(), &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -54,7 +55,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
         };
 
-        match list_blacklist(client_pool.clone(), addrs.clone(), request).await {
+        match list_blacklist(client_pool.clone(), &addrs, request).await {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.blacklists {
@@ -79,7 +80,7 @@ mod tests {
             blacklist_type: blacklist.blacklist_type.to_string(),
             resource_name: blacklist.resource_name.clone(),
         };
-        match delete_blacklist(client_pool.clone(), addrs.clone(), request).await {
+        match delete_blacklist(client_pool.clone(), &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -90,7 +91,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
         };
 
-        match list_blacklist(client_pool.clone(), addrs.clone(), request).await {
+        match list_blacklist(client_pool.clone(), &addrs, request).await {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.blacklists {

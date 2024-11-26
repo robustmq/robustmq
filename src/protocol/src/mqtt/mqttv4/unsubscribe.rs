@@ -18,7 +18,7 @@ pub fn write(unsubscribe: &Unsubscribe, buffer: &mut BytesMut) -> Result<usize, 
     let remaining_len = 2 + unsubscribe // 2 bytes for packet identifier
         .filters
         .iter()
-        .fold(0, |s, topic| s + topic.len() + 2); // the closure means s as accumlator with initial value zero
+        .fold(0, |s, topic| s + topic.len() + 2); // the closure means s as accumulator with initial value zero
                                                   // and then accumulate each topic filter path length to s
                                                   // The final result will be the payload's length including
                                                   // length MSB+LSB for 2 bytes

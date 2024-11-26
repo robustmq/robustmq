@@ -134,7 +134,7 @@ pub async fn create_segment_by_req(
     // try fixed segment status
     if active_segment.status == SegmentStatus::SealUp
         || active_segment.status == SegmentStatus::PreDelete
-        || active_segment.status == SegmentStatus::Deleteing
+        || active_segment.status == SegmentStatus::Deleting
     {
         shard.active_segment_seq = next_segment_no;
         shard_notice = true;
@@ -370,7 +370,7 @@ pub async fn build_segment(
         segment_seq: segment_no,
         leader: calc_leader_node(&replicas),
         replicas: replicas.clone(),
-        isr: replicas.clone(),
+        isr: replicas.iter().map(|rep| rep.node_id).collect(),
         config: SegmentConfig {
             max_segment_size: 1024 * 1024 * 1024,
         },

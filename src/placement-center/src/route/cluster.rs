@@ -186,9 +186,9 @@ mod tests {
 
         let node_storage = NodeStorage::new(rocksdb_engine.clone());
         let node = node_storage.get(&cluster_name, node_id).unwrap();
-        let nd = node.unwrap();
-        assert_eq!(nd.node_id, node_id);
-        assert_eq!(nd.node_ip, node_ip);
+        let broker_node = node.unwrap();
+        assert_eq!(broker_node.node_id, node_id);
+        assert_eq!(broker_node.node_ip, node_ip);
 
         let _ = node_storage.delete(&cluster_name, node_id);
         let res = node_storage.get(&cluster_name, node_id).unwrap();

@@ -99,7 +99,7 @@ impl SubscribeShareFollower {
                             packet_identifier: share_sub.packet_identifier,
                             filters: vec![share_sub.filter],
                         };
-                        let subscribe_poperties = SubscribeProperties {
+                        let subscribe_properties = SubscribeProperties {
                             subscription_identifier: share_sub.subscription_identifier,
                             user_properties: Vec::new(),
                         };
@@ -108,7 +108,7 @@ impl SubscribeShareFollower {
                                 share_sub.client_id,
                                 share_sub.protocol,
                                 subscribe,
-                                Some(subscribe_poperties),
+                                Some(subscribe_properties),
                             )
                             .await;
                     } else {
@@ -143,7 +143,7 @@ impl SubscribeShareFollower {
                                         da
                                     }
                                     Err(e) => {
-                                        error!("Failed to obtain the Leader of GoupName from the Placement Center with error message {}",e);
+                                        error!("Failed to obtain the Leader of GroupName from the Placement Center with error message {}",e);
                                         return;
                                     }
                                 };
@@ -208,7 +208,7 @@ async fn resub_sub_mqtt5(
     let socket = match TcpStream::connect(leader_addr.clone()).await {
         Ok(sock) => sock,
         Err(e) => {
-            return Err(CommonError::CommmonError(e.to_string()));
+            return Err(CommonError::CommonError(e.to_string()));
         }
     };
 
@@ -762,12 +762,12 @@ fn build_resub_subscribe_pkg(
         filters: vec![share_sub.filter],
     };
 
-    let subscribe_poperties = SubscribeProperties {
+    let subscribe_properties = SubscribeProperties {
         subscription_identifier: share_sub.subscription_identifier,
         user_properties: Vec::new(),
     };
 
-    MqttPacket::Subscribe(subscribe, Some(subscribe_poperties))
+    MqttPacket::Subscribe(subscribe, Some(subscribe_properties))
 }
 
 fn build_resub_unsubscribe_pkg(

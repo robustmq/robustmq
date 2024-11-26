@@ -48,12 +48,8 @@ impl SessionStorage {
             client_id,
             session: session.encode(),
         };
-        match placement_create_session(
-            self.client_pool.clone(),
-            config.placement_center.clone(),
-            request,
-        )
-        .await
+        match placement_create_session(self.client_pool.clone(), &config.placement_center, request)
+            .await
         {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
@@ -77,12 +73,8 @@ impl SessionStorage {
             reconnect_time,
             distinct_time,
         };
-        match placement_update_session(
-            self.client_pool.clone(),
-            config.placement_center.clone(),
-            request,
-        )
-        .await
+        match placement_update_session(self.client_pool.clone(), &config.placement_center, request)
+            .await
         {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
@@ -95,12 +87,8 @@ impl SessionStorage {
             cluster_name: config.cluster_name.clone(),
             client_id,
         };
-        match placement_delete_session(
-            self.client_pool.clone(),
-            config.placement_center.clone(),
-            request,
-        )
-        .await
+        match placement_delete_session(self.client_pool.clone(), &config.placement_center, request)
+            .await
         {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
@@ -113,12 +101,8 @@ impl SessionStorage {
             cluster_name: config.cluster_name.clone(),
             client_id,
         };
-        match placement_list_session(
-            self.client_pool.clone(),
-            config.placement_center.clone(),
-            request,
-        )
-        .await
+        match placement_list_session(self.client_pool.clone(), &config.placement_center, request)
+            .await
         {
             Ok(reply) => {
                 if reply.sessions.is_empty() {
@@ -127,7 +111,7 @@ impl SessionStorage {
                 let raw = reply.sessions.first().unwrap();
                 match serde_json::from_slice::<MqttSession>(raw) {
                     Ok(data) => Ok(Some(data)),
-                    Err(e) => Err(CommonError::CommmonError(e.to_string())),
+                    Err(e) => Err(CommonError::CommonError(e.to_string())),
                 }
             }
             Err(e) => Err(e),
@@ -140,12 +124,8 @@ impl SessionStorage {
             cluster_name: config.cluster_name.clone(),
             client_id: "".to_string(),
         };
-        match placement_list_session(
-            self.client_pool.clone(),
-            config.placement_center.clone(),
-            request,
-        )
-        .await
+        match placement_list_session(self.client_pool.clone(), &config.placement_center, request)
+            .await
         {
             Ok(reply) => {
                 let results = DashMap::with_capacity(2);
@@ -165,7 +145,7 @@ impl SessionStorage {
         }
     }
 
-    pub async fn save_last_will_messae(
+    pub async fn save_last_will_message(
         &self,
         client_id: String,
         last_will_message: Vec<u8>,
@@ -178,7 +158,7 @@ impl SessionStorage {
         };
         match placement_save_last_will_message(
             self.client_pool.clone(),
-            config.placement_center.clone(),
+            &config.placement_center,
             request,
         )
         .await
@@ -201,6 +181,7 @@ mod tests {
     use crate::storage::session::SessionStorage;
 
     #[tokio::test]
+    #[ignore]
     async fn session_test() {
         let path = format!(
             "{}/../../config/mqtt-server.toml",

@@ -24,26 +24,27 @@ use protocol::journal_server::journal_inner::{
 use rocksdb_engine::RocksDBEngine;
 use tonic::{Request, Response, Status};
 
-use crate::core::cache::{update_cache, CacheManager};
-use crate::core::segment::{delete_local_segment, get_delete_segment_status};
-use crate::core::shard::{delete_local_shard, get_delete_shard_status};
+use crate::core::cache::CacheManager;
+use crate::core::notification::parse_notification;
+use crate::core::segment::{delete_local_segment, segment_already_delete};
+use crate::core::shard::{delete_local_shard, shard_is_delete};
 use crate::segment::manager::SegmentFileManager;
 
 pub struct GrpcJournalServerInnerService {
     cache_manager: Arc<CacheManager>,
-    segement_file_manager: Arc<SegmentFileManager>,
+    segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl GrpcJournalServerInnerService {
     pub fn new(
         cache_manager: Arc<CacheManager>,
-        segement_file_manager: Arc<SegmentFileManager>,
+        segment_file_manager: Arc<SegmentFileManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
         GrpcJournalServerInnerService {
             cache_manager,
-            segement_file_manager,
+            segment_file_manager,
             rocksdb_engine_handler,
         }
     }
@@ -61,9 +62,9 @@ impl JournalServerInnerService for GrpcJournalServerInnerService {
             return Ok(Response::new(UpdateJournalCacheReply::default()));
         }
 
-        update_cache(
+        parse_notification(
             &self.cache_manager,
-            &self.segement_file_manager,
+            &self.segment_file_manager,
             &self.rocksdb_engine_handler,
             req.action_type(),
             req.resource_type(),
@@ -104,7 +105,7 @@ impl JournalServerInnerService for GrpcJournalServerInnerService {
             return Ok(Response::new(GetShardDeleteStatusReply::default()));
         }
 
-        match get_delete_shard_status(&self.cache_manager, &req) {
+        match shard_is_delete(&self.cache_manager, &req) {
             Ok(flag) => {
                 return Ok(Response::new(GetShardDeleteStatusReply { status: flag }));
             }
@@ -124,7 +125,11 @@ impl JournalServerInnerService for GrpcJournalServerInnerService {
             return Ok(Response::new(DeleteSegmentFileReply::default()));
         }
 
-        match delete_local_segment(self.cache_manager.clone(), req) {
+        match delete_local_segment(
+            self.cache_manager.clone(),
+            self.segment_file_manager.clone(),
+            req,
+        ) {
             Ok(()) => {
                 return Ok(Response::new(DeleteSegmentFileReply::default()));
             }
@@ -143,7 +148,7 @@ impl JournalServerInnerService for GrpcJournalServerInnerService {
         if req.cluster_name != conf.cluster_name {
             return Ok(Response::new(GetSegmentDeleteStatusReply::default()));
         }
-        match get_delete_segment_status(&self.cache_manager, &req) {
+        match segment_already_delete(&self.cache_manager, &req).await {
             Ok(flag) => {
                 return Ok(Response::new(GetSegmentDeleteStatusReply { status: flag }));
             }

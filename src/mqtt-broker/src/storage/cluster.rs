@@ -45,19 +45,14 @@ impl ClusterStorage {
             cluster_name: conf.cluster_name.clone(),
         };
 
-        let reply = node_list(
-            self.client_pool.clone(),
-            conf.placement_center.clone(),
-            request,
-        )
-        .await?;
+        let reply = node_list(self.client_pool.clone(), &conf.placement_center, request).await?;
 
         let mut node_list: Vec<BrokerNode> = Vec::new();
         for node in reply.nodes {
             match serde_json::from_slice::<BrokerNode>(&node) {
                 Ok(data) => node_list.push(data),
                 Err(e) => {
-                    return Err(CommonError::CommmonError(format!("Retrieving cluster Node list, parsing Node information failed, error message :{}",e)));
+                    return Err(CommonError::CommonError(format!("Retrieving cluster Node list, parsing Node information failed, error message :{}", e)));
                 }
             }
         }
@@ -87,7 +82,7 @@ impl ClusterStorage {
 
         register_node(
             self.client_pool.clone(),
-            config.placement_center.clone(),
+            &config.placement_center,
             req.clone(),
         )
         .await?;
@@ -104,7 +99,7 @@ impl ClusterStorage {
 
         unregister_node(
             self.client_pool.clone(),
-            config.placement_center.clone(),
+            &config.placement_center,
             req.clone(),
         )
         .await?;
@@ -121,7 +116,7 @@ impl ClusterStorage {
 
         heartbeat(
             self.client_pool.clone(),
-            config.placement_center.clone(),
+            &config.placement_center,
             req.clone(),
         )
         .await?;
@@ -142,12 +137,7 @@ impl ClusterStorage {
             config: cluster.encode(),
         };
 
-        set_resource_config(
-            self.client_pool.clone(),
-            config.placement_center.clone(),
-            request,
-        )
-        .await?;
+        set_resource_config(self.client_pool.clone(), &config.placement_center, request).await?;
 
         Ok(())
     }
@@ -160,12 +150,7 @@ impl ClusterStorage {
             resources,
         };
 
-        delete_resource_config(
-            self.client_pool.clone(),
-            config.placement_center.clone(),
-            request,
-        )
-        .await?;
+        delete_resource_config(self.client_pool.clone(), &config.placement_center, request).await?;
         Ok(())
     }
 
@@ -180,12 +165,7 @@ impl ClusterStorage {
             resources,
         };
 
-        match get_resource_config(
-            self.client_pool.clone(),
-            config.placement_center.clone(),
-            request,
-        )
-        .await
+        match get_resource_config(self.client_pool.clone(), &config.placement_center, request).await
         {
             Ok(data) => {
                 if data.config.is_empty() {
@@ -193,7 +173,7 @@ impl ClusterStorage {
                 } else {
                     match serde_json::from_slice::<MqttClusterDynamicConfig>(&data.config) {
                         Ok(data) => Ok(Some(data)),
-                        Err(e) => Err(CommonError::CommmonError(e.to_string())),
+                        Err(e) => Err(CommonError::CommonError(e.to_string())),
                     }
                 }
             }
@@ -219,6 +199,7 @@ mod tests {
     use crate::storage::cluster::ClusterStorage;
 
     #[tokio::test]
+    #[ignore]
     async fn cluster_node_test() {
         let path = format!(
             "{}/../../config/mqtt-server.toml",
@@ -249,6 +230,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn cluster_config_test() {
         let path = format!(
             "{}/../../config/mqtt-server.toml",

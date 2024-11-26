@@ -57,9 +57,13 @@ struct MqttArgs {
 #[derive(Debug, Subcommand)]
 enum MQTTAction {
     Status,
+    // User admin
     CreateUser(CreateUserArgs),
     DeleteUser(DeleteUserArgs),
     ListUser,
+
+    // Connections
+    ListConnection,
 }
 
 #[derive(clap::Args, Debug)]
@@ -157,6 +161,7 @@ async fn main() {
                         username: arg.username,
                     }),
                     MQTTAction::ListUser => MqttActionType::ListUser,
+                    MQTTAction::ListConnection => MqttActionType::ListConnection,
                 },
             };
             cmd.start(params).await;

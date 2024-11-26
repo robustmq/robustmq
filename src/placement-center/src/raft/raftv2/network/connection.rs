@@ -42,7 +42,7 @@ impl NetworkConnection {
 
     async fn c(&mut self) -> Result<Connection<OpenRaftServiceManager>, CommonError> {
         self.client_pool
-            .placement_center_openraft_services_client(self.addr.clone())
+            .placement_center_openraft_services_client(&self.addr)
             .await
     }
 }
@@ -62,19 +62,19 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
 
         let value = match serialize(&req) {
             Ok(data) => data,
-            Err(e) => return Err(to_error(CommonError::CommmonError(e.to_string()))),
+            Err(e) => return Err(to_error(CommonError::CommonError(e.to_string()))),
         };
 
         let request = AppendRequest { value };
 
         let reply = match c.append(request).await {
             Ok(reply) => reply.into_inner(),
-            Err(e) => return Err(to_error(CommonError::CommmonError(e.to_string()))),
+            Err(e) => return Err(to_error(CommonError::CommonError(e.to_string()))),
         };
 
         let result = match deserialize(&reply.value) {
             Ok(data) => data,
-            Err(e) => return Err(to_error(CommonError::CommmonError(e.to_string()))),
+            Err(e) => return Err(to_error(CommonError::CommonError(e.to_string()))),
         };
 
         Ok(result)
@@ -95,18 +95,18 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
 
         let value = match serialize(&req) {
             Ok(data) => data,
-            Err(e) => return Err(to_error(CommonError::CommmonError(e.to_string()))),
+            Err(e) => return Err(to_error(CommonError::CommonError(e.to_string()))),
         };
 
         let request = SnapshotRequest { value };
 
         let reply = match c.snapshot(request).await {
             Ok(reply) => reply.into_inner(),
-            Err(e) => return Err(to_error(CommonError::CommmonError(e.to_string()))),
+            Err(e) => return Err(to_error(CommonError::CommonError(e.to_string()))),
         };
         let result = match deserialize(&reply.value) {
             Ok(data) => data,
-            Err(e) => return Err(to_error(CommonError::CommmonError(e.to_string()))),
+            Err(e) => return Err(to_error(CommonError::CommonError(e.to_string()))),
         };
 
         Ok(result)
@@ -124,18 +124,18 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
 
         let value = match serialize(&req) {
             Ok(data) => data,
-            Err(e) => return Err(to_error(CommonError::CommmonError(e.to_string()))),
+            Err(e) => return Err(to_error(CommonError::CommonError(e.to_string()))),
         };
 
         let request = protocol::placement_center::placement_center_openraft::VoteRequest { value };
 
         let reply = match c.vote(request).await {
             Ok(reply) => reply.into_inner(),
-            Err(e) => return Err(to_error(CommonError::CommmonError(e.to_string()))),
+            Err(e) => return Err(to_error(CommonError::CommonError(e.to_string()))),
         };
         let result = match deserialize(&reply.value) {
             Ok(data) => data,
-            Err(e) => return Err(to_error(CommonError::CommmonError(e.to_string()))),
+            Err(e) => return Err(to_error(CommonError::CommonError(e.to_string()))),
         };
 
         Ok(result)

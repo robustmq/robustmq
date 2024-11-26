@@ -26,7 +26,7 @@ pub struct JournalSegment {
     pub replicas: Vec<Replica>,
     pub leader_epoch: u32,
     pub leader: u64,
-    pub isr: Vec<Replica>,
+    pub isr: Vec<u64>,
     pub status: SegmentStatus,
     pub config: SegmentConfig,
 }
@@ -73,7 +73,7 @@ pub enum SegmentStatus {
     PreSealUp,
     SealUp,
     PreDelete,
-    Deleteing,
+    Deleting,
 }
 
 impl fmt::Display for SegmentStatus {
@@ -85,7 +85,7 @@ impl fmt::Display for SegmentStatus {
             SegmentStatus::PreSealUp => write!(f, "PreSealUp"),
             SegmentStatus::SealUp => write!(f, "SealUp"),
             SegmentStatus::PreDelete => write!(f, "PreDelete"),
-            SegmentStatus::Deleteing => write!(f, "Deleteing"),
+            SegmentStatus::Deleting => write!(f, "Deleting"),
         }
     }
 }
@@ -98,8 +98,8 @@ pub fn str_to_segment_status(status: &str) -> Result<SegmentStatus, CommonError>
         "PreSealUp" => Ok(SegmentStatus::PreSealUp),
         "SealUp" => Ok(SegmentStatus::SealUp),
         "PreDelete" => Ok(SegmentStatus::PreDelete),
-        "Deleteing" => Ok(SegmentStatus::Deleteing),
-        _ => Err(CommonError::CommmonError("".to_string())),
+        "Deleting" => Ok(SegmentStatus::Deleting),
+        _ => Err(CommonError::CommonError("".to_string())),
     }
 }
 

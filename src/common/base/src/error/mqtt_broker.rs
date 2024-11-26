@@ -37,7 +37,7 @@ pub enum MqttBrokerError {
     NotFoundConnectionInCache(u64),
 
     #[error("There is a problem with the length [{0}] of the Packet. Please check the length of the request packet")]
-    PacketLenthError(usize),
+    PacketLengthError(usize),
 
     #[error("Cluster is in self-protection state, please request later")]
     ClusterIsInSelfProtection,

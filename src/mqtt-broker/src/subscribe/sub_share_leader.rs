@@ -509,7 +509,7 @@ async fn share_leader_publish_message_qos1(
     let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id) {
         id
     } else {
-        return Err(CommonError::CommmonError(format!(
+        return Err(CommonError::CommonError(format!(
             "Client [{}] failed to get connect id, no connection available.",
             client_id
         )));
@@ -517,7 +517,7 @@ async fn share_leader_publish_message_qos1(
 
     if let Some(conn) = metadata_cache.get_connection(connect_id) {
         if publish.payload.len() > (conn.max_packet_size as usize) {
-            return Err(MqttBrokerError::PacketLenthError(publish.payload.len()).into());
+            return Err(MqttBrokerError::PacketLengthError(publish.payload.len()).into());
         }
     }
 
@@ -547,12 +547,12 @@ async fn share_leader_publish_message_qos1(
                     return Ok(());
                 }
             }
-            Err(CommonError::CommmonError(
+            Err(CommonError::CommonError(
                 "QOS1 publishes a message and waits for the PubAck packet to fail to be received"
                     .to_string(),
             ))
         }
-        Err(e) => Err(CommonError::CommmonError(format!(
+        Err(e) => Err(CommonError::CommonError(format!(
             "Failed to write QOS1 Publish message to response queue, failure message: {}",
             e
         ))),

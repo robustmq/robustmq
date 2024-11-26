@@ -33,6 +33,7 @@ mod tests {
     use crate::common::get_placement_addr;
 
     #[tokio::test]
+
     async fn mqtt_topic_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
@@ -56,7 +57,7 @@ mod tests {
             content: mqtt_topic.encode(),
         };
 
-        placement_create_topic(client_pool.clone(), addrs.clone(), request)
+        placement_create_topic(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
 
@@ -64,7 +65,7 @@ mod tests {
             cluster_name.clone(),
             topic_name.clone(),
             client_pool.clone(),
-            addrs.clone(),
+            &addrs,
             mqtt_topic.clone(),
             true,
         )
@@ -93,10 +94,10 @@ mod tests {
             cluster_name: cluster_name.clone(),
             topic_name: mqtt_topic.topic_name.clone(),
             retain_message: retain_message.clone(),
-            retain_message_expired_at: retain_message_expired_at,
+            retain_message_expired_at,
         };
 
-        placement_set_topic_retain_message(client_pool.clone(), addrs.clone(), request)
+        placement_set_topic_retain_message(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
 
@@ -104,7 +105,7 @@ mod tests {
             cluster_name.clone(),
             topic_name.clone(),
             client_pool.clone(),
-            addrs.clone(),
+            &addrs,
             mqtt_topic.clone(),
             true,
         )
@@ -115,7 +116,7 @@ mod tests {
             topic_name: mqtt_topic.topic_name.clone(),
         };
 
-        placement_delete_topic(client_pool.clone(), addrs.clone(), request)
+        placement_delete_topic(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
 
@@ -123,7 +124,7 @@ mod tests {
             cluster_name.clone(),
             topic_name.clone(),
             client_pool.clone(),
-            addrs.clone(),
+            &addrs,
             mqtt_topic.clone(),
             false,
         )
@@ -134,13 +135,13 @@ mod tests {
         cluster_name: String,
         topic_name: String,
         client_pool: Arc<ClientPool>,
-        addrs: Vec<String>,
+        addrs: &[String],
         mqtt_topic: MqttTopic,
         contain: bool,
     ) {
         let request = ListTopicRequest {
-            cluster_name: cluster_name,
-            topic_name: topic_name,
+            cluster_name,
+            topic_name,
         };
         let data = placement_list_topic(client_pool, addrs, request)
             .await

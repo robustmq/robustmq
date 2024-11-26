@@ -8,9 +8,9 @@
 </h3>
 
 ##  🚀 Introduction
-RobustMQ is a next-generation high-performance cloud-native converged message queue. The goal is to implement a message queue based on Rust that can be compatible with multiple mainstream message queue protocols and has complete Serveless architecture. 
+RobustMQ is a next-generation high-performance cloud-native converged message queue. The goal is to implement a message queue based on Rust that can be compatible with multiple mainstream message queue protocols and has complete Serverless architecture.
 
-It has long wanted to support multi-protocol and have a full Serverless architecture. At the same time, we hope to keep the architecture simple while adapting to different deployment scenarios and deployment requirements. To achieve lower deployment, operation and maintenance, and use costs. 
+It has long wanted to support multi-protocol and have a full Serverless architecture. At the same time, we hope to keep the architecture simple while adapting to different deployment scenarios and deployment requirements. To achieve lower deployment, operation and maintenance, and use costs.
 
 Official documentation:
 - [《English Version》](http://www.robustmq.com/docs/robustmq-tutorial/introduction/)
@@ -45,7 +45,7 @@ RobustMQ is a typical distributed layered architecture with separate computing l
 ![image](docs/images/robustmq-architecture.png)
 
 - Placement Center
-  
+
   The metadata storage and scheduling component of the RobustMQ cluster. It is responsible for cluster-related metadata storage, distribution, scheduling, and so on. Such as cluster node uplinking, configuration storage/distribution, and so on.
 
 - Multi-protocol computing layer
@@ -53,14 +53,14 @@ RobustMQ is a typical distributed layered architecture with separate computing l
   Broker Cluster, the computing layer of RobustMQ cluster. It is responsible for the adaptation of various messaging protocols and the implementation of message-related functions. The received data is written to the Storage Layer through the Storage Adapter Layer.
 
 - Storage Adapter Layer
-  
+
   Storage adapter layer component, its role to a variety of protocols MQ Topic/Queue/Partition unified abstract Shard. It is also responsible for the adaptation of different storage components, such as local file storage, remote HDFS, object storage, self-developed storage components, and so on. Thus, Shard data can be persistently stored to different storage engines.
 
 - Standalone storage engine
   refers to a standalone storage engine, such as cloud object storage (e.g. AWS S3), HDFS Cluster, Data Lake Cluster (iceberg, hudi, etc.). The RobustMQ is similar to the RobustMQ Journal Server, Apache BookKeeper's distributed, segmented storage service. It is responsible for reliable storage of high-performance message data, and has the ability of rapid horizontal and horizontal expansion without perception.
 
 ## RobustMQ MQTT
-RobustMQ MQTT is RobustMQ's complete implementation of the MQTT protocol. The goal is to build a high-performance, full-featured message queuing MQTT product in Rust that can be deployed in clusters. The final target for the feature is EMQX Enterprise Edition.
+RobustMQ MQTT is RobustMQ's complete implementation of the MQTT protocol. The goal is to build a high-performance, full-featured message queuing MQTT product in Rust that can be deployed in clusters. The ultimate goal of this feature is to rival enterprise-grade MQTT products such as EMQX and HiveMQ.
 
 ### Features
 1. **Cluster deployment**: A single cluster supports thousands of Broker nodes, supporting unaware smooth horizontal scaling capabilities.
@@ -68,7 +68,7 @@ RobustMQ MQTT is RobustMQ's complete implementation of the MQTT protocol. The go
 3. **High performance**: A single machine supports millions of connections and high concurrent message throughput.
 4. **Multiple communication protocols**: Support TCP, TCP SSL, WebSocket, WebSocket SSL, QUIC, HTTP and other access methods.
 5. **Plug-in storage**: Support offline messages, support a variety of message persistence storage engines.
-6. **Fully functional**: It supports basic functions such as testamential messages and reserved messages, as well as all features of EMQX Broker Enterprise Edition. For the full features, see the [RobustMQ MQTT documentation](docs/en/mqtt-feature.md)
+6. **Fully functional**: It supports essential features like testament messages and retained messages, along with all the functionalities of enterprise MQTT brokers such as HiveMQ and EMQX. For the full features, see the [RobustMQ MQTT documentation](docs/en/mqtt-feature.md)
 
 ### Get Started
 To start the order, you need to start the Placement Center first, and then start the MQTT Broker.
@@ -132,11 +132,33 @@ cargo run --package cmd --bin mqtt-server -- --conf=example/mqtt-cluster/mqtt-se
 ```
 
 
-#### Run all test cases
-You need to install the cargo-nextes command first. Please refer to documentation[《Integration testing》](http://www.robustmq.com/docs/robustmq-tutorial-cn/%e7%b3%bb%e7%bb%9f%e6%9e%b6%e6%9e%84/%e6%b5%8b%e8%af%95%e7%94%a8%e4%be%8b/)
-```
-make test
-```
+#### Test Cases
+You need to install the cargo-nextes command first. Please refer to documentation[《Testing》](http://www.robustmq.com/docs/robustmq-tutorial-cn/%e7%b3%bb%e7%bb%9f%e6%9e%b6%e6%9e%84/%e6%b5%8b%e8%af%95%e7%94%a8%e4%be%8b/)
+
+- Unit Tests
+
+  Run all unit tests:
+  ```
+  make test
+  ```
+
+- Integration Tests
+
+  For MQTT Broker:
+  ```
+  make mqtt-ig-test
+  ```
+
+  For Placement Center:
+  ```
+  make place-ig-test
+  ```
+
+  For Journal Engine:
+  ```
+  make journal-ig-test
+  ```
+
 
 #### Packaging
 Follow the "make help" prompts to build packages for different platforms
@@ -163,7 +185,7 @@ Build Arm Release
   help                            Display help messages.
 ```
 
-####  MQTT functional tests 
+####  MQTT functional tests
 MQTT functionality was tested through the MQTTX tool. MQTTX quick start: https://mqttx.app/zh/docs/get-started.
 
 ## RobustMQ AMQP
@@ -194,12 +216,9 @@ Please refer to [contribution guidelines](http://www.robustmq.com/docs/robustmq-
 </div>
 
 - **Personal wechat**: Wechat group QR code will be updated regularly. If the QR code expires, the developer's personal wechat can be added.
-<div align="center"> 
+<div align="center">
   <img src="docs/images/wechat.jpg" alt="WeChat QR Code" width=200 />
 </div>
 
 ## License
 RobustMQ uses the Apache 2.0 license to strike a balance between open contributions and allowing you to use the software however you want
-
-
-

@@ -24,10 +24,11 @@ use log::warn;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
+use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::user::MqttUser;
-use protocol::broker_mqtt::broker_mqtt_placement::{
+use protocol::broker_mqtt::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateCacheRequest,
 };
 use protocol::mqtt::common::{MqttProtocol, PublishProperties, Subscribe, SubscribeProperties};
@@ -35,7 +36,6 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::Sender;
 use tokio::time::sleep;
 
-use crate::handler::connection::Connection;
 use crate::security::acl::metadata::AclMetadata;
 use crate::security::AuthDriver;
 use crate::storage::cluster::ClusterStorage;
@@ -122,7 +122,7 @@ pub struct CacheManager {
     pub publish_pkid_info: DashMap<String, Vec<u16>>,
 
     // (connect_id, Connection)
-    pub connection_info: DashMap<u64, Connection>,
+    pub connection_info: DashMap<u64, MQTTConnection>,
 
     // (topic_name, Topic)
     pub topic_info: DashMap<String, MqttTopic>,
@@ -290,7 +290,7 @@ impl CacheManager {
         self.session_info.insert(client_id, session);
     }
 
-    pub fn add_connection(&self, connect_id: u64, conn: Connection) {
+    pub fn add_connection(&self, connect_id: u64, conn: MQTTConnection) {
         if let Some(mut session) = self.session_info.get_mut(&conn.client_id) {
             session.connection_id = Some(connect_id);
             self.connection_info.insert(connect_id, conn);
@@ -406,7 +406,7 @@ impl CacheManager {
         None
     }
 
-    pub fn get_connection(&self, connect_id: u64) -> Option<Connection> {
+    pub fn get_connection(&self, connect_id: u64) -> Option<MQTTConnection> {
         if let Some(conn) = self.connection_info.get(&connect_id) {
             return Some(conn.clone());
         }
@@ -566,8 +566,12 @@ impl CacheManager {
     }
 
     pub fn retain_acls(&self, user_acl: HashSet<String>, client_acl: HashSet<String>) {
-        self.acl_metadata.acl_user.retain(|username, _| user_acl.contains(username));
-        self.acl_metadata.acl_client_id.retain(|client_id, _| client_acl.contains(client_id));
+        self.acl_metadata
+            .acl_user
+            .retain(|username, _| user_acl.contains(username));
+        self.acl_metadata
+            .acl_client_id
+            .retain(|client_id, _| client_acl.contains(client_id));
     }
 
     pub fn add_blacklist(&self, blacklist: MqttAclBlackList) {

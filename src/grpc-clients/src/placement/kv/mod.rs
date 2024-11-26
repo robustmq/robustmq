@@ -12,11 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use common_base::error::common::CommonError;
-use mobc::{Connection, Manager};
-use prost::Message;
+use mobc::Manager;
 use protocol::placement_center::placement_center_kv::kv_service_client::KvServiceClient;
 use protocol::placement_center::placement_center_kv::{
     DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetReply,
@@ -24,83 +21,64 @@ use protocol::placement_center::placement_center_kv::{
 };
 use tonic::transport::Channel;
 
-use super::PlacementCenterInterface;
 use crate::pool::ClientPool;
 
 pub mod call;
 
-async fn kv_client(
-    client_pool: Arc<ClientPool>,
-    addr: String,
-) -> Result<Connection<KvServiceManager>, CommonError> {
-    match client_pool.placement_center_kv_services_client(addr).await {
-        Ok(client) => Ok(client),
-        Err(e) => Err(e),
-    }
+/// Enum wrapper for all possible requests to the kv service
+#[derive(Debug, Clone)]
+pub enum KvServiceRequest {
+    Set(SetRequest),
+    Get(GetRequest),
+    Delete(DeleteRequest),
+    Exists(ExistsRequest),
 }
 
-pub(crate) async fn kv_interface_call(
-    interface: PlacementCenterInterface,
-    client_pool: Arc<ClientPool>,
-    addr: String,
-    request: Vec<u8>,
-) -> Result<Vec<u8>, CommonError> {
-    match kv_client(client_pool.clone(), addr.clone()).await {
-        Ok(client) => {
-            let result = match interface {
-                PlacementCenterInterface::Set => {
-                    client_call(
-                        client,
-                        request.clone(),
-                        |data| SetRequest::decode(data),
-                        |mut client, request| async move { client.set(request).await },
-                        SetReply::encode_to_vec,
-                    )
-                    .await
-                }
-                PlacementCenterInterface::Delete => {
-                    client_call(
-                        client,
-                        request.clone(),
-                        |data| DeleteRequest::decode(data),
-                        |mut client, request| async move { client.delete(request).await },
-                        DeleteReply::encode_to_vec,
-                    )
-                    .await
-                }
-                PlacementCenterInterface::Get => {
-                    client_call(
-                        client,
-                        request.clone(),
-                        |data| GetRequest::decode(data),
-                        |mut client, request| async move { client.get(request).await },
-                        GetReply::encode_to_vec,
-                    )
-                    .await
-                }
-                PlacementCenterInterface::Exists => {
-                    client_call(
-                        client,
-                        request.clone(),
-                        |data| ExistsRequest::decode(data),
-                        |mut client, request| async move { client.exists(request).await },
-                        ExistsReply::encode_to_vec,
-                    )
-                    .await
-                }
-                _ => {
-                    return Err(CommonError::CommmonError(format!(
-                        "kv service does not support service interfaces [{:?}]",
-                        interface
-                    )))
-                }
-            };
-            match result {
-                Ok(data) => Ok(data),
-                Err(e) => Err(e),
-            }
+/// Enum wrapper for all possible replies from the kv service
+#[derive(Debug, Clone)]
+pub enum KvServiceReply {
+    Set(SetReply),
+    Get(GetReply),
+    Delete(DeleteReply),
+    Exists(ExistsReply),
+}
+
+pub(super) async fn call_kv_service_once(
+    client_pool: &ClientPool,
+    addr: &str,
+    request: KvServiceRequest,
+) -> Result<KvServiceReply, CommonError> {
+    use KvServiceRequest::*;
+
+    match request {
+        Set(request) => {
+            let mut client = client_pool
+                .placement_center_kv_services_client(addr)
+                .await?;
+            let reply = client.set(request).await?;
+            Ok(KvServiceReply::Set(reply.into_inner()))
         }
-        Err(e) => Err(e),
+        Get(request) => {
+            let mut client = client_pool
+                .placement_center_kv_services_client(addr)
+                .await?;
+            let reply = client.get(request).await?;
+            Ok(KvServiceReply::Get(reply.into_inner()))
+        }
+        Delete(request) => {
+            let mut client = client_pool
+                .placement_center_kv_services_client(addr)
+                .await?;
+            let reply = client.delete(request).await?;
+            Ok(KvServiceReply::Delete(reply.into_inner()))
+        }
+        Exists(request) => {
+            let mut client = client_pool
+                .placement_center_kv_services_client(addr)
+                .await?;
+            let reply = client.exists(request).await?;
+            Ok(KvServiceReply::Exists(reply.into_inner()))
+        }
     }
 }
 
@@ -126,7 +104,7 @@ impl Manager for KvServiceManager {
                 return Ok(client);
             }
             Err(err) => {
-                return Err(CommonError::CommmonError(format!(
+                return Err(CommonError::CommonError(format!(
                     "{},{}",
                     err,
                     self.addr.clone()
@@ -137,30 +115,6 @@ impl Manager for KvServiceManager {
 
     async fn check(&self, conn: Self::Connection) -> Result<Self::Connection, Self::Error> {
         Ok(conn)
-    }
-}
-
-pub(crate) async fn client_call<R, Resp, ClientFunction, Fut, DecodeFunction, EncodeFunction>(
-    client: Connection<KvServiceManager>,
-    request: Vec<u8>,
-    decode_fn: DecodeFunction,
-    client_fn: ClientFunction,
-    encode_fn: EncodeFunction,
-) -> Result<Vec<u8>, CommonError>
-where
-    R: prost::Message + Default,
-    Resp: prost::Message,
-    DecodeFunction: FnOnce(&[u8]) -> Result<R, prost::DecodeError>,
-    ClientFunction: FnOnce(Connection<KvServiceManager>, R) -> Fut,
-    Fut: std::future::Future<Output = Result<tonic::Response<Resp>, tonic::Status>>,
-    EncodeFunction: FnOnce(&Resp) -> Vec<u8>,
-{
-    match decode_fn(request.as_ref()) {
-        Ok(decoded_request) => match client_fn(client, decoded_request).await {
-            Ok(result) => Ok(encode_fn(&result.into_inner())),
-            Err(e) => Err(CommonError::GrpcServerStatus(e)),
-        },
-        Err(e) => Err(CommonError::CommmonError(e.to_string())),
     }
 }
 

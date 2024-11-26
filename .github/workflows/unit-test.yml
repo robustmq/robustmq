@@ -16,14 +16,12 @@ name: Unit Test
 
 on:
   push:
-    branches: [ "main" ]
     paths-ignore:
       - "docs/**"
       - "**.md"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/pull_request_template.md"
   pull_request:
-    branches: [ "main" ]
     paths-ignore:
       - "docs/**"
       - "**.md"
@@ -75,4 +73,4 @@ jobs:
           locked: true
       - uses: actions/checkout@v3
       - name: Run tests
-        run: make unit-test
+        run: make test

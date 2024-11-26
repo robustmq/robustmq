@@ -15,127 +15,72 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use prost::Message as _;
 use protocol::journal_server::journal_inner::{
     DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
     GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply,
     GetShardDeleteStatusRequest, UpdateJournalCacheReply, UpdateJournalCacheRequest,
 };
 
-use crate::journal::{retry_call, JournalEngineInterface, JournalEngineService};
+use crate::journal::{call_once, JournalEngineReply, JournalEngineRequest};
 use crate::pool::ClientPool;
+use crate::utils::retry_call;
 
 pub async fn journal_inner_update_cache(
     client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
+    addrs: &[String],
     request: UpdateJournalCacheRequest,
 ) -> Result<UpdateJournalCacheReply, CommonError> {
-    let request_data = UpdateJournalCacheRequest::encode_to_vec(&request);
-    match retry_call(
-        JournalEngineService::Inner,
-        JournalEngineInterface::UpdateCache,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match UpdateJournalCacheReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
-        },
-        Err(e) => Err(e),
+    let request = JournalEngineRequest::UpdateCache(request);
+    match retry_call(&client_pool, addrs, request, call_once).await? {
+        JournalEngineReply::UpdateCache(reply) => Ok(reply),
+        _ => unreachable!("Reply type mismatch"),
     }
 }
 
 pub async fn journal_inner_delete_shard_file(
     client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
+    addrs: &[String],
     request: DeleteShardFileRequest,
 ) -> Result<DeleteShardFileReply, CommonError> {
-    let request_data = DeleteShardFileRequest::encode_to_vec(&request);
-    match retry_call(
-        JournalEngineService::Inner,
-        JournalEngineInterface::DeleteShardFile,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match DeleteShardFileReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
-        },
-        Err(e) => Err(e),
+    let request = JournalEngineRequest::DeleteShardFile(request);
+    match retry_call(&client_pool, addrs, request, call_once).await? {
+        JournalEngineReply::DeleteShardFile(reply) => Ok(reply),
+        _ => unreachable!("Reply type mismatch"),
     }
 }
 
 pub async fn journal_inner_get_shard_delete_status(
     client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
+    addrs: &[String],
     request: GetShardDeleteStatusRequest,
 ) -> Result<GetShardDeleteStatusReply, CommonError> {
-    let request_data = GetShardDeleteStatusRequest::encode_to_vec(&request);
-    match retry_call(
-        JournalEngineService::Inner,
-        JournalEngineInterface::GetShardDeleteStatus,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match GetShardDeleteStatusReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
-        },
-        Err(e) => Err(e),
+    let request = JournalEngineRequest::GetShardDeleteStatus(request);
+    match retry_call(&client_pool, addrs, request, call_once).await? {
+        JournalEngineReply::GetShardDeleteStatus(reply) => Ok(reply),
+        _ => unreachable!("Reply type mismatch"),
     }
 }
 
 pub async fn journal_inner_delete_segment_file(
     client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
+    addrs: &[String],
     request: DeleteSegmentFileRequest,
 ) -> Result<DeleteSegmentFileReply, CommonError> {
-    let request_data = DeleteSegmentFileRequest::encode_to_vec(&request);
-    match retry_call(
-        JournalEngineService::Inner,
-        JournalEngineInterface::DeleteSegmentFile,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match DeleteSegmentFileReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
-        },
-        Err(e) => Err(e),
+    let request = JournalEngineRequest::DeleteSegmentFileRequest(request);
+    match retry_call(&client_pool, addrs, request, call_once).await? {
+        JournalEngineReply::DeleteSegmentFile(reply) => Ok(reply),
+        _ => unreachable!("Reply type mismatch"),
     }
 }
 
 pub async fn journal_inner_get_segment_delete_status(
     client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
+    addrs: &[String],
     request: GetSegmentDeleteStatusRequest,
 ) -> Result<GetSegmentDeleteStatusReply, CommonError> {
-    let request_data = GetSegmentDeleteStatusRequest::encode_to_vec(&request);
-    match retry_call(
-        JournalEngineService::Inner,
-        JournalEngineInterface::GetSegmentDeleteStatus,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match GetSegmentDeleteStatusReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
-        },
-        Err(e) => Err(e),
+    let request = JournalEngineRequest::GetSegmentDeleteStatus(request);
+    match retry_call(&client_pool, addrs, request, call_once).await? {
+        JournalEngineReply::GetSegmentDeleteStatus(reply) => Ok(reply),
+        _ => unreachable!("Reply type mismatch"),
     }
 }

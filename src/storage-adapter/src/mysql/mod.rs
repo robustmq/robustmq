@@ -68,10 +68,10 @@ impl MySQLStorageAdapter {
                 ";
                 match conn.query_drop(show_table_sql) {
                     Ok(()) => Ok(()),
-                    Err(e) => Err(CommonError::CommmonError(e.to_string())),
+                    Err(e) => Err(CommonError::CommonError(e.to_string())),
                 }
             }
-            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         }
     }
 }
@@ -95,11 +95,11 @@ impl StorageAdapter for MySQLStorageAdapter {
                 );
                 match conn.query_drop(show_table_sql) {
                     Ok(()) => return Ok(()),
-                    Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+                    Err(e) => return Err(CommonError::CommonError(e.to_string())),
                 }
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }
@@ -113,11 +113,11 @@ impl StorageAdapter for MySQLStorageAdapter {
                 );
                 match conn.query_drop(show_table_sql) {
                     Ok(()) => return Ok(()),
-                    Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+                    Err(e) => return Err(CommonError::CommonError(e.to_string())),
                 }
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }
@@ -146,12 +146,12 @@ impl StorageAdapter for MySQLStorageAdapter {
                         return Ok(());
                     }
                     Err(e) => {
-                        return Err(CommonError::CommmonError(e.to_string()));
+                        return Err(CommonError::CommonError(e.to_string()));
                     }
                 }
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }
@@ -171,7 +171,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                 return Ok(None);
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }
@@ -186,11 +186,11 @@ impl StorageAdapter for MySQLStorageAdapter {
                 );
                 match conn.query_drop(sql) {
                     Ok(()) => return Ok(()),
-                    Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+                    Err(e) => return Err(CommonError::CommonError(e.to_string())),
                 }
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }
@@ -210,7 +210,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                 return Ok(false);
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }
@@ -262,12 +262,12 @@ impl StorageAdapter for MySQLStorageAdapter {
                         return Ok(data);
                     }
                     Err(e) => {
-                        return Err(CommonError::CommmonError(e.to_string()));
+                        return Err(CommonError::CommonError(e.to_string()));
                     }
                 }
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }
@@ -286,7 +286,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                 offset_str.parse::<usize>().unwrap()
             }
             Ok(None) => 0,
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommonError(e.to_string())),
         };
         let rn = record_num.unwrap_or(10);
         match self.pool.get_conn() {
@@ -314,7 +314,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                 return Ok(Some(result));
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }
@@ -339,11 +339,11 @@ impl StorageAdapter for MySQLStorageAdapter {
 
                 match conn.query_drop(update_sql) {
                     Ok(()) => return Ok(true),
-                    Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+                    Err(e) => return Err(CommonError::CommonError(e.to_string())),
                 }
             }
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(CommonError::CommonError(e.to_string()));
             }
         }
     }

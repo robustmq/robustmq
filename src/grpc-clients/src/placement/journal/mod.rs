@@ -12,11 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use common_base::error::common::CommonError;
-use mobc::{Connection, Manager};
-use prost::Message;
+use mobc::Manager;
 use protocol::placement_center::placement_center_journal::engine_service_client::EngineServiceClient;
 use protocol::placement_center::placement_center_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, CreateShardReply, CreateShardRequest,
@@ -27,151 +24,109 @@ use protocol::placement_center::placement_center_journal::{
 };
 use tonic::transport::Channel;
 
-use super::PlacementCenterInterface;
 use crate::pool::ClientPool;
 
 pub mod call;
 
-pub async fn journal_interface_call(
-    interface: PlacementCenterInterface,
-    client_pool: Arc<ClientPool>,
-    addr: String,
-    request: Vec<u8>,
-) -> Result<Vec<u8>, CommonError> {
-    match journal_client(client_pool.clone(), addr.clone()).await {
-        Ok(client) => {
-            let result =
-                match interface {
-                    PlacementCenterInterface::ListShard => {
-                        client_call(
-                            client,
-                            request.clone(),
-                            |data| ListShardRequest::decode(data),
-                            |mut client, request| async move { client.list_shard(request).await },
-                            ListShardReply::encode_to_vec,
-                        )
-                        .await
-                    }
-                    PlacementCenterInterface::CreateShard => {
-                        client_call(
-                            client,
-                            request.clone(),
-                            |data| CreateShardRequest::decode(data),
-                            |mut client, request| async move { client.create_shard(request).await },
-                            CreateShardReply::encode_to_vec,
-                        )
-                        .await
-                    }
-                    PlacementCenterInterface::DeleteShard => {
-                        client_call(
-                            client,
-                            request.clone(),
-                            |data| DeleteShardRequest::decode(data),
-                            |mut client, request| async move { client.delete_shard(request).await },
-                            DeleteShardReply::encode_to_vec,
-                        )
-                        .await
-                    }
-
-                    PlacementCenterInterface::ListSegment => {
-                        client_call(
-                            client,
-                            request.clone(),
-                            |data| ListSegmentRequest::decode(data),
-                            |mut client, request| async move { client.list_segment(request).await },
-                            ListSegmentReply::encode_to_vec,
-                        )
-                        .await
-                    }
-
-                    PlacementCenterInterface::CreateSegment => {
-                        client_call(
-                            client,
-                            request.clone(),
-                            |data| CreateNextSegmentRequest::decode(data),
-                            |mut client, request| async move {
-                                client.create_next_segment(request).await
-                            },
-                            CreateNextSegmentReply::encode_to_vec,
-                        )
-                        .await
-                    }
-
-                    PlacementCenterInterface::DeleteSegment => client_call(
-                        client,
-                        request.clone(),
-                        |data| DeleteSegmentRequest::decode(data),
-                        |mut client, request| async move { client.delete_segment(request).await },
-                        DeleteSegmentReply::encode_to_vec,
-                    )
-                    .await,
-
-                    PlacementCenterInterface::UpdateSegmentStatus => {
-                        client_call(
-                            client,
-                            request.clone(),
-                            |data| UpdateSegmentStatusRequest::decode(data),
-                            |mut client, request| async move {
-                                client.update_segment_status(request).await
-                            },
-                            UpdateSegmentStatusReply::encode_to_vec,
-                        )
-                        .await
-                    }
-
-
-                    PlacementCenterInterface::ListSegmentMeta => {
-                        client_call(
-                            client,
-                            request.clone(),
-                            |data| ListSegmentMetaRequest::decode(data),
-                            |mut client, request| async move {
-                                client.list_segment_meta(request).await
-                            },
-                            ListSegmentMetaReply::encode_to_vec,
-                        )
-                        .await
-                    }
-
-                    PlacementCenterInterface::UpdateSegmentMeta => {
-                        client_call(
-                            client,
-                            request.clone(),
-                            |data| UpdateSegmentMetaRequest::decode(data),
-                            |mut client, request| async move {
-                                client.update_segment_meta(request).await
-                            },
-                            UpdateSegmentMetaReply::encode_to_vec,
-                        )
-                        .await
-                    }
-
-                    _ => {
-                        return Err(CommonError::CommmonError(format!(
-                            "journal service does not support service interfaces [{:?}]",
-                            interface
-                        )))
-                    }
-                };
-            match result {
-                Ok(data) => Ok(data),
-                Err(e) => Err(e),
-            }
-        }
-        Err(e) => Err(e),
-    }
+/// Enum wrapper for all possible requests to the journal service
+#[derive(Debug, Clone)]
+pub enum JournalServiceRequest {
+    ListShard(ListShardRequest),
+    CreateShard(CreateShardRequest),
+    DeleteShard(DeleteShardRequest),
+    ListSegment(ListSegmentRequest),
+    CreateSegment(CreateNextSegmentRequest),
+    DeleteSegment(DeleteSegmentRequest),
+    UpdateSegmentStatus(UpdateSegmentStatusRequest),
+    ListSegmentMeta(ListSegmentMetaRequest),
+    UpdateSegmentMeta(UpdateSegmentMetaRequest),
 }
 
-pub async fn journal_client(
-    client_pool: Arc<ClientPool>,
-    addr: String,
-) -> Result<Connection<JournalServiceManager>, CommonError> {
-    match client_pool
-        .placement_center_journal_services_client(addr)
-        .await
-    {
-        Ok(client) => Ok(client),
-        Err(e) => Err(e),
+/// Enum wrapper for all possible replies from the journal service
+#[derive(Debug, Clone)]
+pub enum JournalServiceReply {
+    ListShard(ListShardReply),
+    CreateShard(CreateShardReply),
+    DeleteShard(DeleteShardReply),
+    ListSegment(ListSegmentReply),
+    CreateSegment(CreateNextSegmentReply),
+    DeleteSegment(DeleteSegmentReply),
+    UpdateSegmentStatus(UpdateSegmentStatusReply),
+    ListSegmentMeta(ListSegmentMetaReply),
+    UpdateSegmentMeta(UpdateSegmentMetaReply),
+}
+
+pub(super) async fn call_journal_service_once(
+    client_pool: &ClientPool,
+    addr: &str,
+    request: JournalServiceRequest,
+) -> Result<JournalServiceReply, CommonError> {
+    use JournalServiceRequest::*;
+
+    match request {
+        ListShard(request) => {
+            let mut client = client_pool
+                .placement_center_journal_services_client(addr)
+                .await?;
+            let reply = client.list_shard(request).await?;
+            Ok(JournalServiceReply::ListShard(reply.into_inner()))
+        }
+        CreateShard(request) => {
+            let mut client = client_pool
+                .placement_center_journal_services_client(addr)
+                .await?;
+            let reply = client.create_shard(request).await?;
+            Ok(JournalServiceReply::CreateShard(reply.into_inner()))
+        }
+        DeleteShard(request) => {
+            let mut client = client_pool
+                .placement_center_journal_services_client(addr)
+                .await?;
+            let reply = client.delete_shard(request).await?;
+            Ok(JournalServiceReply::DeleteShard(reply.into_inner()))
+        }
+        ListSegment(request) => {
+            let mut client = client_pool
+                .placement_center_journal_services_client(addr)
+                .await?;
+            let reply = client.list_segment(request).await?;
+            Ok(JournalServiceReply::ListSegment(reply.into_inner()))
+        }
+        CreateSegment(request) => {
+            let mut client = client_pool
+                .placement_center_journal_services_client(addr)
+                .await?;
+            let reply = client.create_next_segment(request).await?;
+            Ok(JournalServiceReply::CreateSegment(reply.into_inner()))
+        }
+        DeleteSegment(request) => {
+            let mut client = client_pool
+                .placement_center_journal_services_client(addr)
+                .await?;
+            let reply = client.delete_segment(request).await?;
+            Ok(JournalServiceReply::DeleteSegment(reply.into_inner()))
+        }
+        UpdateSegmentStatus(request) => {
+            let mut client = client_pool
+                .placement_center_journal_services_client(addr)
+                .await?;
+            let reply = client.update_segment_status(request).await?;
+            Ok(JournalServiceReply::UpdateSegmentStatus(reply.into_inner()))
+        }
+        ListSegmentMeta(request) => {
+            let mut client = client_pool
+                .placement_center_journal_services_client(addr)
+                .await?;
+            let reply = client.list_segment_meta(request).await?;
+            Ok(JournalServiceReply::ListSegmentMeta(reply.into_inner()))
+        }
+        UpdateSegmentMeta(request) => {
+            let mut client = client_pool
+                .placement_center_journal_services_client(addr)
+                .await?;
+            let reply = client.update_segment_meta(request).await?;
+            Ok(JournalServiceReply::UpdateSegmentMeta(reply.into_inner()))
+        }
     }
 }
 
@@ -197,7 +152,7 @@ impl Manager for JournalServiceManager {
                 return Ok(client);
             }
             Err(err) => {
-                return Err(CommonError::CommmonError(format!(
+                return Err(CommonError::CommonError(format!(
                     "{},{}",
                     err,
                     self.addr.clone()
@@ -208,29 +163,5 @@ impl Manager for JournalServiceManager {
 
     async fn check(&self, conn: Self::Connection) -> Result<Self::Connection, Self::Error> {
         Ok(conn)
-    }
-}
-
-pub(crate) async fn client_call<R, Resp, ClientFunction, Fut, DecodeFunction, EncodeFunction>(
-    client: Connection<JournalServiceManager>,
-    request: Vec<u8>,
-    decode_fn: DecodeFunction,
-    client_fn: ClientFunction,
-    encode_fn: EncodeFunction,
-) -> Result<Vec<u8>, CommonError>
-where
-    R: prost::Message + Default,
-    Resp: prost::Message,
-    DecodeFunction: FnOnce(&[u8]) -> Result<R, prost::DecodeError>,
-    ClientFunction: FnOnce(Connection<JournalServiceManager>, R) -> Fut,
-    Fut: std::future::Future<Output = Result<tonic::Response<Resp>, tonic::Status>>,
-    EncodeFunction: FnOnce(&Resp) -> Vec<u8>,
-{
-    match decode_fn(request.as_ref()) {
-        Ok(decoded_request) => match client_fn(client, decoded_request).await {
-            Ok(result) => Ok(encode_fn(&result.into_inner())),
-            Err(e) => Err(CommonError::GrpcServerStatus(e)),
-        },
-        Err(e) => Err(CommonError::CommmonError(e.to_string())),
     }
 }

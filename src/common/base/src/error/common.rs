@@ -67,10 +67,10 @@ pub enum CommonError {
     AddrParseError(#[from] AddrParseError),
 
     #[error("{0}")]
-    CommmonError(String),
+    CommonError(String),
 
     #[error("Grpc call of the node failed,Grpc status was {0}")]
-    GrpcServerStatus(Status),
+    GrpcServerStatus(#[from] Status),
 
     #[error("{0} connection pool has no connection information available. {1}")]
     NoAvailableGrpcConnection(String, String),

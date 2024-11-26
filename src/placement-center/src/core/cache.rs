@@ -161,13 +161,13 @@ impl PlacementCacheManager {
         self.placement_cluster = placement_cluster;
     }
 
-    pub fn add_raft_memner(&self, node: RaftNode) {
+    pub fn add_raft_member(&self, node: RaftNode) {
         if let Some(mut cluster) = self.placement_cluster.get_mut(&self.cluster_key()) {
             cluster.add_member(node.node_id, node);
         }
     }
 
-    pub fn remove_raft_memner(&self, id: u64) {
+    pub fn remove_raft_member(&self, id: u64) {
         if let Some(mut cluster) = self.placement_cluster.get_mut(&self.cluster_key()) {
             cluster.remove_member(id);
         }

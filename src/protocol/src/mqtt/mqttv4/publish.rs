@@ -67,7 +67,7 @@ pub fn write(publish: &Publish, buffer: &mut BytesMut) -> Result<usize, Error> {
 
     Ok(1 + count + len) // 1st byte for packet type and connect flag,
                         // count means how many bytes (1~4) to express the length of remaining length,
-                        // len menas the value/number of the remaining length.
+                        // len means the value/number of the remaining length.
 }
 
 #[cfg(test)]

@@ -61,7 +61,7 @@ pub enum PlacementCenterError {
     RaftLogCommitTimeout(String),
 
     #[error("{0}")]
-    CommmonError(String),
+    CommonError(String),
 
     #[error("Cluster {0} does not exist")]
     ClusterDoesNotExist(String),

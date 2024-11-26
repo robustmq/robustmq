@@ -19,18 +19,18 @@ use std::sync::Arc;
 use common_base::tools::now_second;
 use ipnet::IpNet;
 use metadata_struct::acl::mqtt_acl::{MqttAclAction, MqttAclPermission};
+use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::QoS;
 use regex::Regex;
 
 use crate::handler::cache::CacheManager;
-use crate::handler::connection::Connection;
 use crate::handler::constant::WILDCARD_RESOURCE;
 
 pub mod metadata;
 
 pub fn is_allow_acl(
     cache_mamanger: &Arc<CacheManager>,
-    connection: &Connection,
+    connection: &MQTTConnection,
     topic_name: &str,
     action: MqttAclAction,
     retain: bool,
@@ -76,7 +76,7 @@ fn is_super_user(cache_manager: &Arc<CacheManager>, username: &str) -> bool {
     false
 }
 
-fn is_blacklist(cache_manager: &Arc<CacheManager>, connection: &Connection) -> bool {
+fn is_blacklist(cache_manager: &Arc<CacheManager>, connection: &MQTTConnection) -> bool {
     // check user blacklist
     if let Some(data) = cache_manager
         .acl_metadata
@@ -143,7 +143,7 @@ fn is_blacklist(cache_manager: &Arc<CacheManager>, connection: &Connection) -> b
 
 fn is_acl_deny(
     cache_mamanger: &Arc<CacheManager>,
-    connection: &Connection,
+    connection: &MQTTConnection,
     topic_name: &str,
     action: MqttAclAction,
 ) -> bool {
@@ -214,11 +214,11 @@ mod test {
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
     use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
+    use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
     use metadata_struct::mqtt::user::MqttUser;
 
     use super::{ip_match, is_acl_deny, is_blacklist, is_super_user, topic_match};
     use crate::handler::cache::CacheManager;
-    use crate::handler::connection::{Connection, ConnectionConfig};
     use crate::handler::constant::WILDCARD_RESOURCE;
 
     #[tokio::test]
@@ -273,7 +273,7 @@ mod test {
             keep_alive: 2,
             source_ip_addr: "127.0.0.1".to_string(),
         };
-        let mut connection = Connection::new(config);
+        let mut connection = MQTTConnection::new(config);
         connection.login_success(user.username.clone());
 
         // not black list
@@ -360,7 +360,7 @@ mod test {
             keep_alive: 2,
             source_ip_addr: "127.0.0.1".to_string(),
         };
-        let mut connection = Connection::new(config);
+        let mut connection = MQTTConnection::new(config);
         connection.login_success(user.username.clone());
 
         assert!(!is_acl_deny(
@@ -401,7 +401,7 @@ mod test {
             keep_alive: 2,
             source_ip_addr: "127.0.0.1".to_string(),
         };
-        let mut connection = Connection::new(config);
+        let mut connection = MQTTConnection::new(config);
         connection.login_success(user.username.clone());
 
         let acl = MqttAcl {
@@ -467,7 +467,7 @@ mod test {
             keep_alive: 2,
             source_ip_addr: "127.0.0.1".to_string(),
         };
-        let mut connection = Connection::new(config);
+        let mut connection = MQTTConnection::new(config);
         connection.login_success(user.username.clone());
 
         let acl = MqttAcl {
@@ -533,7 +533,7 @@ mod test {
             keep_alive: 2,
             source_ip_addr: "127.0.0.1".to_string(),
         };
-        let mut connection = Connection::new(config);
+        let mut connection = MQTTConnection::new(config);
         connection.login_success(user.username.clone());
 
         let acl = MqttAcl {
@@ -599,7 +599,7 @@ mod test {
             keep_alive: 2,
             source_ip_addr: "127.0.0.1".to_string(),
         };
-        let mut connection = Connection::new(config);
+        let mut connection = MQTTConnection::new(config);
         connection.login_success(user.username.clone());
 
         let acl = MqttAcl {

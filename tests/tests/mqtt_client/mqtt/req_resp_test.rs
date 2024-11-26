@@ -26,10 +26,10 @@ mod tests {
         let sub_qos = &[0, 0];
 
         let topic = unique_id();
-        let requset_topic = format!("/request/{}", topic);
+        let request_topic = format!("/request/{}", topic);
         let response_topic = format!("/response/{}", topic);
         simple_test(
-            requset_topic,
+            request_topic,
             response_topic,
             sub_qos,
             "2".to_string(),
@@ -40,11 +40,11 @@ mod tests {
 
         // correlation data
         let topic = unique_id();
-        let requset_topic = format!("/request/{}", topic);
+        let request_topic = format!("/request/{}", topic);
         let response_topic = format!("/response/{}", topic);
         let data = "123456".to_string();
         simple_test(
-            requset_topic,
+            request_topic,
             response_topic,
             sub_qos,
             "2".to_string(),
@@ -55,10 +55,10 @@ mod tests {
 
         // connect response information
         let topic = unique_id();
-        let requset_topic = format!("/request/{}", topic);
+        let request_topic = format!("/request/{}", topic);
         let response_topic = format!("/response/{}", topic);
         simple_test(
-            requset_topic,
+            request_topic,
             response_topic,
             sub_qos,
             "2".to_string(),
@@ -69,11 +69,11 @@ mod tests {
 
         // connect response information correlation data
         let topic = unique_id();
-        let requset_topic = format!("/request/{}", topic);
+        let request_topic = format!("/request/{}", topic);
         let response_topic = format!("/response/{}", topic);
         let data = "123456".to_string();
         simple_test(
-            requset_topic,
+            request_topic,
             response_topic,
             sub_qos,
             "2".to_string(),
@@ -84,7 +84,7 @@ mod tests {
     }
 
     async fn simple_test(
-        requset_topic: String,
+        request_topic: String,
         response_topic: String,
         sub_qos: &[i32],
         payload_flag: String,
@@ -93,7 +93,7 @@ mod tests {
     ) {
         let client_id = unique_id();
         let addr = broker_addr();
-        let sub_topics = &[requset_topic.clone(), response_topic.clone()];
+        let sub_topics = &[request_topic.clone(), response_topic.clone()];
 
         let (cli, response_topic) = match connect_response_information {
             true => {
@@ -124,7 +124,7 @@ mod tests {
         }
         let msg = MessageBuilder::new()
             .properties(props)
-            .topic(requset_topic.clone())
+            .topic(request_topic.clone())
             .payload(message_content.clone())
             .qos(QOS_1)
             .finalize();
@@ -138,7 +138,7 @@ mod tests {
 
         // subscribe
         let rx = cli.start_consuming();
-        match cli.subscribe(requset_topic.as_str(), sub_qos[0]) {
+        match cli.subscribe(request_topic.as_str(), sub_qos[0]) {
             Ok(_) => {}
             Err(e) => {
                 panic!("{}", e)

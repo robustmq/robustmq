@@ -286,9 +286,15 @@ pub fn connect_server5(client_id: &str, addr: &str, ws: bool, ssl: bool) -> Clie
     cli
 }
 
-
 #[allow(dead_code)]
-pub fn connect_server5_by_user_information(client_id: &str, addr: &str, username: String, password: String, ws: bool, ssl: bool) -> Client {
+pub fn connect_server5_by_user_information(
+    client_id: &str,
+    addr: &str,
+    username: String,
+    password: String,
+    ws: bool,
+    ssl: bool,
+) -> Client {
     let mqtt_version = 5;
     let props = build_v5_pros();
 
@@ -298,7 +304,8 @@ pub fn connect_server5_by_user_information(client_id: &str, addr: &str, username
         process::exit(1);
     });
 
-    let conn_opts = build_v5_conn_pros_by_user_information(props.clone(), username, password, ws, ssl);
+    let conn_opts =
+        build_v5_conn_pros_by_user_information(props.clone(), username, password, ws, ssl);
     match cli.connect(conn_opts) {
         Ok(response) => {
             let resp = response.connect_response().unwrap();
@@ -323,7 +330,6 @@ pub fn connect_server5_by_user_information(client_id: &str, addr: &str, username
     }
     cli
 }
-
 
 #[allow(dead_code)]
 pub fn connect_server5_packet_size(
