@@ -159,6 +159,15 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<HeartbeatRequest>,
     ) -> Result<Response<HeartbeatReply>, Status> {
         let req = request.into_inner();
+        if self
+            .cluster_cache
+            .get_broker_node(&req.cluster_name, req.node_id)
+            .is_none()
+        {
+            return Err(Status::internal(
+                PlacementCenterError::NodeDoesNotExist(req.node_id).to_string(),
+            ));
+        }
         self.cluster_cache
             .report_broker_heart(&req.cluster_name, req.node_id);
         return Ok(Response::new(HeartbeatReply::default()));
@@ -238,6 +247,8 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<GetResourceConfigRequest>,
     ) -> Result<Response<GetResourceConfigReply>, Status> {
         let req = request.into_inner();
+        let _ = req.validate_ext()?;
+
         let storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
         match storage.get(req.cluster_name, req.resources) {
             Ok(data) => {

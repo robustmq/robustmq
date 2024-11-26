@@ -29,6 +29,7 @@ use login::plaintext::Plaintext;
 use login::Authentication;
 use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclAction};
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::user::MqttUser;
 use mysql::MySQLAuthStorageAdapter;
 use placement::PlacementAuthStorageAdapter;
@@ -36,7 +37,6 @@ use protocol::mqtt::common::{ConnectProperties, Login, QoS, Subscribe};
 use storage_adapter::StorageType;
 
 use crate::handler::cache::CacheManager;
-use crate::handler::connection::Connection;
 use crate::subscribe::sub_common::get_sub_topic_id_list;
 
 pub mod acl;
@@ -182,7 +182,7 @@ impl AuthDriver {
 
     pub async fn allow_publish(
         &self,
-        connection: &Connection,
+        connection: &MQTTConnection,
         topic_name: &str,
         retain: bool,
         qos: QoS,
@@ -197,7 +197,11 @@ impl AuthDriver {
         )
     }
 
-    pub async fn allow_subscribe(&self, connection: &Connection, subscribe: &Subscribe) -> bool {
+    pub async fn allow_subscribe(
+        &self,
+        connection: &MQTTConnection,
+        subscribe: &Subscribe,
+    ) -> bool {
         for filter in subscribe.filters.clone() {
             let topic_list = get_sub_topic_id_list(self.cache_manager.clone(), filter.path).await;
             for topic in topic_list {

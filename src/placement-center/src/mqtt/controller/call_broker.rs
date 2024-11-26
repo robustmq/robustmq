@@ -20,9 +20,7 @@ use grpc_clients::pool::ClientPool;
 use log::{debug, error, warn};
 use metadata_struct::mqtt::lastwill::LastWillData;
 use metadata_struct::mqtt::session::MqttSession;
-use protocol::broker_mqtt::broker_mqtt_placement::{
-    DeleteSessionRequest, SendLastWillMessageRequest,
-};
+use protocol::broker_mqtt::broker_mqtt_inner::{DeleteSessionRequest, SendLastWillMessageRequest};
 
 use super::session_expire::ExpireLastWill;
 use crate::core::cache::PlacementCacheManager;
@@ -77,9 +75,7 @@ impl MqttBrokerCall {
                     client_id: client_ids.clone(),
                     cluster_name: self.cluster_name.clone(),
                 };
-                match broker_mqtt_delete_session(self.client_pool.clone(), vec![addr], request)
-                    .await
-                {
+                match broker_mqtt_delete_session(self.client_pool.clone(), &[addr], request).await {
                     Ok(_) => {}
                     Err(e) => {
                         success = false;
@@ -129,7 +125,7 @@ impl MqttBrokerCall {
             return;
         }
 
-        match send_last_will_message(self.client_pool.clone(), node_addr, request).await {
+        match send_last_will_message(self.client_pool.clone(), &node_addr, request).await {
             Ok(_) => self
                 .mqtt_cache_manager
                 .remove_expire_last_will(&self.cluster_name, &client_id),

@@ -14,6 +14,7 @@
 
 use log::{error, warn};
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
+use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
     ConnAck, ConnAckProperties, ConnectProperties, ConnectReturnCode, Disconnect,
     DisconnectProperties, DisconnectReasonCode, MqttPacket, MqttProtocol, PingResp, PubAck,
@@ -22,7 +23,7 @@ use protocol::mqtt::common::{
     SubAckProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
 };
 
-use super::connection::{response_information, Connection};
+use super::connection::response_information;
 use super::keep_alive::keep_live_time;
 use super::validator::is_request_problem_info;
 
@@ -128,7 +129,7 @@ pub fn response_packet_mqtt_connect_fail(
 pub fn response_packet_mqtt_distinct(
     protocol: &MqttProtocol,
     code: Option<DisconnectReasonCode>,
-    connection: &Connection,
+    connection: &MQTTConnection,
     reason_string: Option<String>,
 ) -> MqttPacket {
     if !protocol.is_mqtt5() {
@@ -180,7 +181,7 @@ pub fn response_packet_mqtt_puback_success(
 
 pub fn response_packet_mqtt_puback_fail(
     protocol: &MqttProtocol,
-    connection: &Connection,
+    connection: &MQTTConnection,
     pkid: u16,
     reason: PubAckReason,
     reason_string: Option<String>,
@@ -224,7 +225,7 @@ pub fn response_packet_mqtt_pubrec_success(
 
 pub fn response_packet_mqtt_pubrec_fail(
     protocol: &MqttProtocol,
-    connection: &Connection,
+    connection: &MQTTConnection,
     pkid: u16,
     reason: PubRecReason,
     reason_string: Option<String>,
@@ -275,7 +276,7 @@ pub fn response_packet_mqtt_pubcomp_success(protocol: &MqttProtocol, pkid: u16) 
 
 pub fn response_packet_mqtt_pubcomp_fail(
     protocol: &MqttProtocol,
-    connection: &Connection,
+    connection: &MQTTConnection,
     pkid: u16,
     reason: PubCompReason,
     reason_string: Option<String>,
@@ -296,7 +297,7 @@ pub fn response_packet_mqtt_pubcomp_fail(
 
 pub fn response_packet_mqtt_suback(
     protocol: &MqttProtocol,
-    connection: &Connection,
+    connection: &MQTTConnection,
     pkid: u16,
     return_codes: Vec<SubscribeReasonCode>,
     reason_string: Option<String>,
@@ -318,7 +319,7 @@ pub fn response_packet_mqtt_ping_resp() -> MqttPacket {
 }
 
 pub fn response_packet_mqtt_unsuback(
-    connection: &Connection,
+    connection: &MQTTConnection,
     pkid: u16,
     reasons: Vec<UnsubAckReason>,
     reason_string: Option<String>,

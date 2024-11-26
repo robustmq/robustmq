@@ -15,35 +15,45 @@
 use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::tools::serialize_value;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
-    DeleteUserRequest, ListUserReply, ListUserRequest,
+    DeleteUserRequest, ListConnectionRaw, ListConnectionReply, ListConnectionRequest,
+    ListUserReply, ListUserRequest,
 };
 use tonic::{Request, Response, Status};
 
 use crate::handler::cache::CacheManager;
 use crate::security::AuthDriver;
+use crate::server::connection_manager::ConnectionManager;
 use crate::storage::cluster::ClusterStorage;
 
 pub struct GrpcAdminServices {
     client_pool: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
+    connection_manager: Arc<ConnectionManager>,
 }
 
 impl GrpcAdminServices {
-    pub fn new(client_pool: Arc<ClientPool>, cache_manager: Arc<CacheManager>) -> Self {
+    pub fn new(
+        client_pool: Arc<ClientPool>,
+        cache_manager: Arc<CacheManager>,
+        connection_manager: Arc<ConnectionManager>,
+    ) -> Self {
         GrpcAdminServices {
             client_pool,
             cache_manager,
+            connection_manager,
         }
     }
 }
 
 #[tonic::async_trait]
 impl MqttBrokerAdminService for GrpcAdminServices {
+    // --- cluster ---
     async fn cluster_status(
         &self,
         _: Request<ClusterStatusRequest>,
@@ -67,27 +77,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         return Ok(Response::new(reply));
     }
 
-    async fn mqtt_broker_list_user(
-        &self,
-        _: Request<ListUserRequest>,
-    ) -> Result<Response<ListUserReply>, Status> {
-        let mut reply = ListUserReply::default();
-
-        let mut user_list = Vec::new();
-        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
-        match auth_driver.read_all_user().await {
-            Ok(date) => {
-                date.iter()
-                    .for_each(|user| user_list.push(user.value().encode()));
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
-        reply.users = user_list;
-        return Ok(Response::new(reply));
-    }
-
+    // --- user ---
     async fn mqtt_broker_create_user(
         &self,
         request: Request<CreateUserRequest>,
@@ -123,5 +113,53 @@ impl MqttBrokerAdminService for GrpcAdminServices {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
+    }
+
+    async fn mqtt_broker_list_user(
+        &self,
+        _: Request<ListUserRequest>,
+    ) -> Result<Response<ListUserReply>, Status> {
+        let mut reply = ListUserReply::default();
+
+        let mut user_list = Vec::new();
+        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        match auth_driver.read_all_user().await {
+            Ok(date) => {
+                date.iter()
+                    .for_each(|user| user_list.push(user.value().encode()));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+        reply.users = user_list;
+        return Ok(Response::new(reply));
+    }
+
+    // --- connection ---
+    async fn mqtt_broker_list_connection(
+        &self,
+        _: Request<ListConnectionRequest>,
+    ) -> Result<Response<ListConnectionReply>, Status> {
+        let mut reply = ListConnectionReply::default();
+        let mut list_connection_raw: Vec<ListConnectionRaw> = Vec::new();
+        for (key, value) in self.connection_manager.list_connect() {
+            if let Some(mqtt_value) = self.cache_manager.connection_info.clone().get(&key) {
+                let mqtt_info = serialize_value(mqtt_value.value())?;
+                let raw = ListConnectionRaw {
+                    connection_id: value.connection_id,
+                    connection_type: value.connection_type.to_string(),
+                    protocol: match value.protocol {
+                        Some(protocol) => protocol.into(),
+                        None => "None".to_string(),
+                    },
+                    source_addr: value.addr.to_string(),
+                    info: mqtt_info,
+                };
+                list_connection_raw.push(raw);
+            }
+        }
+        reply.list_connection_raw = list_connection_raw;
+        Ok(Response::new(reply))
     }
 }

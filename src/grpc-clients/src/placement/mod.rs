@@ -12,32 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::Cow;
 use std::collections::HashSet;
-use std::sync::Arc;
 use std::time::Duration;
 
 use common_base::error::common::CommonError;
+use journal::{JournalServiceReply, JournalServiceRequest};
+use kv::{KvServiceReply, KvServiceRequest};
 use lazy_static::lazy_static;
 use log::error;
-use openraft::openraft_interface_call;
-use regex::Regex;
+use mqtt::{MqttServiceReply, MqttServiceRequest};
+use placement::{PlacementServiceReply, PlacementServiceRequest};
 use tokio::time::sleep;
 
-use self::journal::journal_interface_call;
-use self::kv::kv_interface_call;
-use self::mqtt::mqtt_interface_call;
-use self::placement::placement_interface_call;
+use self::openraft::{OpenRaftServiceReply, OpenRaftServiceRequest};
 use crate::pool::ClientPool;
 use crate::{retry_sleep_time, retry_times};
-
-#[derive(Clone, Debug)]
-pub enum PlacementCenterService {
-    Journal,
-    Kv,
-    Placement,
-    Mqtt,
-    OpenRaft,
-}
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum PlacementCenterInterface {
@@ -102,6 +92,26 @@ pub enum PlacementCenterInterface {
     ChangeMembership,
 }
 
+/// Enum wrapper for all possible requests to the placement center
+#[derive(Debug, Clone)]
+pub enum PlacementCenterRequest {
+    Kv(KvServiceRequest),
+    Placement(PlacementServiceRequest),
+    Journal(JournalServiceRequest),
+    Mqtt(MqttServiceRequest),
+    OpenRaft(OpenRaftServiceRequest),
+}
+
+/// Enum wrapper for all possible replies from the placement center
+#[derive(Debug, Clone)]
+pub enum PlacementCenterReply {
+    Kv(KvServiceReply),
+    Placement(PlacementServiceReply),
+    Journal(JournalServiceReply),
+    Mqtt(MqttServiceReply),
+    OpenRaft(OpenRaftServiceReply),
+}
+
 impl PlacementCenterInterface {
     pub fn should_forward_to_leader(&self) -> bool {
         lazy_static! {
@@ -145,161 +155,125 @@ pub mod openraft;
 #[allow(clippy::module_inception)]
 pub mod placement;
 
-async fn retry_call(
-    service: PlacementCenterService,
-    interface: PlacementCenterInterface,
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: Vec<u8>,
-) -> Result<Vec<u8>, CommonError> {
+fn is_write_request(_req: &PlacementCenterRequest) -> bool {
+    true
+}
+
+// NOTE: This is mostly similar to the `retry_call` function in the `utils.rs` file.
+// However, it's hard to work around the lifetime issue if we were to return the leader addr
+// as well. So we ended up duplicating the function here.
+async fn retry_placement_center_call<'a>(
+    client_pool: &'a ClientPool,
+    addrs: &'a [String],
+    request: PlacementCenterRequest,
+) -> Result<PlacementCenterReply, CommonError> {
+    if addrs.is_empty() {
+        return Err(CommonError::CommonError(
+            "Call address list cannot be empty".to_string(),
+        ));
+    }
+
     let mut times = 1;
     loop {
-        let (addr, new_times) = calc_addr(&client_pool, &addrs, times, &service, &interface);
-        times = new_times;
+        let index = times % addrs.len();
+        // let addr = &addrs[index];
+        let mut addr = Cow::Borrowed(&addrs[index]);
+        if is_write_request(&request) {
+            if let Some(leader_addr) = client_pool.get_leader_addr(&addr) {
+                addr = Cow::Owned(leader_addr.value().clone());
+            }
+        }
 
-        let result = match service {
-            PlacementCenterService::Journal => {
-                journal_interface_call(
-                    interface.clone(),
-                    client_pool.clone(),
-                    addr.clone(),
-                    request.clone(),
-                )
-                .await
-            }
-
-            PlacementCenterService::Kv => {
-                kv_interface_call(
-                    interface.clone(),
-                    client_pool.clone(),
-                    addr.clone(),
-                    request.clone(),
-                )
-                .await
-            }
-
-            PlacementCenterService::Placement => {
-                placement_interface_call(
-                    interface.clone(),
-                    client_pool.clone(),
-                    addr.clone(),
-                    request.clone(),
-                )
-                .await
-            }
-
-            PlacementCenterService::Mqtt => {
-                mqtt_interface_call(
-                    interface.clone(),
-                    client_pool.clone(),
-                    addr.clone(),
-                    request.clone(),
-                )
-                .await
-            }
-            PlacementCenterService::OpenRaft => {
-                openraft_interface_call(
-                    interface.clone(),
-                    client_pool.clone(),
-                    addr.clone(),
-                    request.clone(),
-                )
-                .await
-            }
-        };
+        let result = call_once(client_pool, &addr, request.clone()).await;
 
         match result {
             Ok(data) => {
                 return Ok(data);
             }
             Err(e) => {
-                if is_has_to_forward(&e) {
-                    if let Some(leader_addr) = get_forward_addr(&e) {
-                        client_pool.set_leader_addr(addr, leader_addr);
-                    }
-                } else {
-                    error!(
-                        "{:?}@{:?}@{},{},",
-                        service.clone(),
-                        interface.clone(),
-                        addr.clone(),
-                        e
-                    );
-                    sleep(Duration::from_secs(retry_sleep_time(times))).await;
-                }
+                error!("{}", e);
                 if times > retry_times() {
                     return Err(e);
                 }
+                times += 1;
             }
         }
+
+        sleep(Duration::from_secs(retry_sleep_time(times))).await;
     }
 }
 
-fn calc_addr(
-    client_pool: &Arc<ClientPool>,
-    addrs: &[String],
-    times: usize,
-    service: &PlacementCenterService,
-    interface: &PlacementCenterInterface,
-) -> (String, usize) {
-    let index = times % addrs.len();
-    let addr = addrs.get(index).unwrap().clone();
-    if is_write_request(service, interface) {
-        if let Some(leader_addr) = client_pool.get_leader_addr(&addr) {
-            return (leader_addr, times + 1);
+async fn call_once(
+    client_pool: &ClientPool,
+    addr: &str,
+    request: PlacementCenterRequest,
+) -> Result<PlacementCenterReply, CommonError> {
+    match request {
+        PlacementCenterRequest::Kv(request) => {
+            let reply = kv::call_kv_service_once(client_pool, addr, request).await?;
+            Ok(PlacementCenterReply::Kv(reply))
+        }
+        PlacementCenterRequest::Placement(request) => {
+            let reply = placement::call_placement_service_once(client_pool, addr, request).await?;
+            Ok(PlacementCenterReply::Placement(reply))
+        }
+        PlacementCenterRequest::Journal(request) => {
+            let reply = journal::call_journal_service_once(client_pool, addr, request).await?;
+            Ok(PlacementCenterReply::Journal(reply))
+        }
+        PlacementCenterRequest::Mqtt(request) => {
+            let reply = mqtt::call_mqtt_service_once(client_pool, addr, request).await?;
+            Ok(PlacementCenterReply::Mqtt(reply))
+        }
+        PlacementCenterRequest::OpenRaft(request) => {
+            let reply = openraft::call_open_raft_service_once(client_pool, addr, request).await?;
+            Ok(PlacementCenterReply::OpenRaft(reply))
         }
     }
-    (addr, times + 1)
-}
-
-fn is_write_request(
-    _service: &PlacementCenterService,
-    _interface: &PlacementCenterInterface,
-) -> bool {
-    true
-}
-
-///Determines if the given error indicates that a request needs to be forwarded.
-///
-/// Parameters:
-/// - `err: &CommonError`: error information
-///
-/// Returns:
-/// - `Bool`: Returns 'true' if the error information indicates the request needs to be forwarded, 'false' otherwise.
-fn is_has_to_forward(err: &CommonError) -> bool {
-    let error_info = err.to_string();
-
-    error_info.contains("has to forward request to")
-}
-
-/// Extracts the forward address from given error information.
-///
-/// Parameters:
-/// - `err: &CommonError`: error information
-///
-/// Returns:
-/// - `String`: Returns the forward address if found,'None' if no address is found
-pub(crate) fn get_forward_addr(err: &CommonError) -> Option<String> {
-    let error_info = err.to_string();
-    let re = Regex::new(r"rpc_addr: ([^}]+)").unwrap();
-    if let Some(caps) = re.captures(&error_info) {
-        if let Some(rpc_addr) = caps.get(1) {
-            let mut leader_addr = rpc_addr.as_str().to_string();
-            leader_addr = leader_addr.replace("\\", "");
-            leader_addr = leader_addr.replace("\"", "");
-            leader_addr = leader_addr.replace(" ", "");
-            return Some(leader_addr);
-        }
-    }
-
-    None
 }
 
 #[cfg(test)]
 mod test {
     use common_base::error::common::CommonError;
+    use regex::Regex;
 
-    use crate::placement::{get_forward_addr, is_has_to_forward};
+    // FIXME: The two functions below don't seem to be used anywhere in the codebase right now.
+
+    ///Determines if the given error indicates that a request needs to be forwarded.
+    ///
+    /// Parameters:
+    /// - `err: &CommonError`: error information
+    ///
+    /// Returns:
+    /// - `Bool`: Returns 'true' if the error information indicates the request needs to be forwarded, 'false' otherwise.
+    fn is_has_to_forward(err: &CommonError) -> bool {
+        let error_info = err.to_string();
+
+        error_info.contains("has to forward request to")
+    }
+
+    /// Extracts the forward address from given error information.
+    ///
+    /// Parameters:
+    /// - `err: &CommonError`: error information
+    ///
+    /// Returns:
+    /// - `String`: Returns the forward address if found,'None' if no address is found
+    pub(crate) fn get_forward_addr(err: &CommonError) -> Option<String> {
+        let error_info = err.to_string();
+        let re = Regex::new(r"rpc_addr: ([^}]+)").unwrap();
+        if let Some(caps) = re.captures(&error_info) {
+            if let Some(rpc_addr) = caps.get(1) {
+                let mut leader_addr = rpc_addr.as_str().to_string();
+                leader_addr = leader_addr.replace("\\", "");
+                leader_addr = leader_addr.replace("\"", "");
+                leader_addr = leader_addr.replace(" ", "");
+                return Some(leader_addr);
+            }
+        }
+
+        None
+    }
 
     #[tokio::test]
     pub async fn is_has_to_forward_test() {

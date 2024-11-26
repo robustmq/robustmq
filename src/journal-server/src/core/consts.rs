@@ -12,11 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub fn data_fold_shard(namespace: &str, shard_name: &str, data_fold: &str) -> String {
-    let file_name = format!("{}/{}", namespace, shard_name);
-    format!("{}/{}", data_fold, file_name)
-}
+pub const DB_COLUMN_FAMILY_INDEX: &str = "index";
 
-pub fn data_file_segment(data_fold: &str, segment_no: u32) -> String {
-    format!("{}/{}.msg", data_fold, segment_no)
-}
+pub const BUILD_INDE_PER_RECORD_NUM: u64 = 10000;

@@ -54,7 +54,7 @@ impl StorageAdapter for PlacementStorageAdapter {
             key,
             value: String::from_utf8(value.data).unwrap(),
         };
-        match placement_set(self.client_pool.clone(), self.addrs.clone(), request).await {
+        match placement_set(self.client_pool.clone(), &self.addrs, request).await {
             Ok(_) => {
                 return Ok(());
             }
@@ -66,7 +66,7 @@ impl StorageAdapter for PlacementStorageAdapter {
 
     async fn get(&self, key: String) -> Result<Option<Record>, CommonError> {
         let request = GetRequest { key };
-        match placement_get(self.client_pool.clone(), self.addrs.clone(), request).await {
+        match placement_get(self.client_pool.clone(), &self.addrs, request).await {
             Ok(reply) => {
                 if reply.value.is_empty() {
                     return Ok(None);
@@ -81,7 +81,7 @@ impl StorageAdapter for PlacementStorageAdapter {
     }
     async fn delete(&self, key: String) -> Result<(), CommonError> {
         let request = DeleteRequest { key };
-        match placement_delete(self.client_pool.clone(), self.addrs.clone(), request).await {
+        match placement_delete(self.client_pool.clone(), &self.addrs, request).await {
             Ok(_) => return Ok(()),
             Err(e) => {
                 return Err(e);
@@ -90,7 +90,7 @@ impl StorageAdapter for PlacementStorageAdapter {
     }
     async fn exists(&self, key: String) -> Result<bool, CommonError> {
         let request = ExistsRequest { key };
-        match placement_exists(self.client_pool.clone(), self.addrs.clone(), request).await {
+        match placement_exists(self.client_pool.clone(), &self.addrs, request).await {
             Ok(reply) => return Ok(reply.flag),
             Err(e) => {
                 return Err(e);

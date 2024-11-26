@@ -15,7 +15,6 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use prost::Message;
 use protocol::placement_center::placement_center_inner::{
     ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataReply,
     DeleteIdempotentDataRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
@@ -26,304 +25,96 @@ use protocol::placement_center::placement_center_inner::{
     SetResourceConfigReply, SetResourceConfigRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
 
-use crate::placement::{retry_call, PlacementCenterInterface, PlacementCenterService};
+use crate::placement::{
+    retry_placement_center_call, PlacementCenterReply, PlacementCenterRequest,
+    PlacementServiceReply, PlacementServiceRequest,
+};
 use crate::pool::ClientPool;
 
-pub async fn cluster_status(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: ClusterStatusRequest,
-) -> Result<ClusterStatusReply, CommonError> {
-    let request_data = ClusterStatusRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::Placement,
-        PlacementCenterInterface::ClusterStatus,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match ClusterStatusReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
+macro_rules! generate_placement_service_call {
+    ($fn_name:ident, $req_ty:ty, $rep_ty:ty, $variant:ident) => {
+        pub async fn $fn_name(
+            client_pool: Arc<ClientPool>,
+            addrs: &[String],
+            request: $req_ty,
+        ) -> Result<$rep_ty, CommonError> {
+            let request =
+                PlacementCenterRequest::Placement(PlacementServiceRequest::$variant(request));
+            match retry_placement_center_call(&client_pool, addrs, request).await? {
+                PlacementCenterReply::Placement(PlacementServiceReply::$variant(reply)) => {
+                    Ok(reply)
+                }
+                _ => unreachable!("Reply type mismatch"),
+            }
+        }
+    };
 }
 
-pub async fn node_list(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: NodeListRequest,
-) -> Result<NodeListReply, CommonError> {
-    let request_data = NodeListRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::Placement,
-        PlacementCenterInterface::ListNode,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match NodeListReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
-}
-
-pub async fn register_node(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: RegisterNodeRequest,
-) -> Result<RegisterNodeReply, CommonError> {
-    let request_data = RegisterNodeRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::Placement,
-        PlacementCenterInterface::RegisterNode,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match RegisterNodeReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
-}
-
-pub async fn unregister_node(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: UnRegisterNodeRequest,
-) -> Result<UnRegisterNodeReply, CommonError> {
-    let request_data = UnRegisterNodeRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::Placement,
-        PlacementCenterInterface::UnRegisterNode,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match UnRegisterNodeReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
-}
-
-pub async fn heartbeat(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: HeartbeatRequest,
-) -> Result<HeartbeatReply, CommonError> {
-    let request_data = HeartbeatRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::Placement,
-        PlacementCenterInterface::Heartbeat,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match HeartbeatReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
-}
-
-pub async fn send_raft_message(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: SendRaftMessageRequest,
-) -> Result<SendRaftMessageReply, CommonError> {
-    let request_data = SendRaftMessageRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::Placement,
-        PlacementCenterInterface::SendRaftMessage,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match SendRaftMessageReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
-}
-
-pub async fn send_raft_conf_change(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: SendRaftConfChangeRequest,
-) -> Result<SendRaftConfChangeReply, CommonError> {
-    let request_data = SendRaftConfChangeRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::Placement,
-        PlacementCenterInterface::SendRaftConfChange,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match SendRaftConfChangeReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
-}
-
-pub async fn set_resource_config(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: SetResourceConfigRequest,
-) -> Result<SetResourceConfigReply, CommonError> {
-    let request_data = SetResourceConfigRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::Placement,
-        PlacementCenterInterface::SetResourceConfig,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match SetResourceConfigReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
-}
-
-pub async fn delete_resource_config(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: DeleteResourceConfigRequest,
-) -> Result<DeleteResourceConfigReply, CommonError> {
-    let request_data = DeleteResourceConfigRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::Placement,
-        PlacementCenterInterface::DeleteResourceConfig,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match DeleteResourceConfigReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
-}
-
-pub async fn get_resource_config(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: GetResourceConfigRequest,
-) -> Result<GetResourceConfigReply, CommonError> {
-    let request_data = GetResourceConfigRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::Placement,
-        PlacementCenterInterface::GetResourceConfig,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match GetResourceConfigReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
-}
-
-pub async fn set_idempotent_data(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: SetIdempotentDataRequest,
-) -> Result<SetIdempotentDataReply, CommonError> {
-    let request_data = SetIdempotentDataRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::Placement,
-        PlacementCenterInterface::SetIdempotentData,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match SetIdempotentDataReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
-}
-
-pub async fn delete_idempotent_data(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: DeleteIdempotentDataRequest,
-) -> Result<DeleteIdempotentDataReply, CommonError> {
-    let request_data = DeleteIdempotentDataRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::Placement,
-        PlacementCenterInterface::DeleteIdempotentData,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match DeleteIdempotentDataReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
-}
-
-pub async fn exists_idempotent_data(
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: ExistsIdempotentDataRequest,
-) -> Result<ExistsIdempotentDataReply, CommonError> {
-    let request_data = ExistsIdempotentDataRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::Placement,
-        PlacementCenterInterface::ExistsIdempotentData,
-        client_pool,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match ExistsIdempotentDataReply::decode(data.as_ref()) {
-            Ok(da) => Ok(da),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        },
-        Err(e) => Err(e),
-    }
-}
+generate_placement_service_call!(
+    cluster_status,
+    ClusterStatusRequest,
+    ClusterStatusReply,
+    ClusterStatus
+);
+generate_placement_service_call!(node_list, NodeListRequest, NodeListReply, ListNode);
+generate_placement_service_call!(
+    register_node,
+    RegisterNodeRequest,
+    RegisterNodeReply,
+    RegisterNode
+);
+generate_placement_service_call!(
+    unregister_node,
+    UnRegisterNodeRequest,
+    UnRegisterNodeReply,
+    UnRegisterNode
+);
+generate_placement_service_call!(heartbeat, HeartbeatRequest, HeartbeatReply, Heartbeat);
+generate_placement_service_call!(
+    send_raft_message,
+    SendRaftMessageRequest,
+    SendRaftMessageReply,
+    SendRaftMessage
+);
+generate_placement_service_call!(
+    send_raft_conf_change,
+    SendRaftConfChangeRequest,
+    SendRaftConfChangeReply,
+    SendRaftConfChange
+);
+generate_placement_service_call!(
+    set_resource_config,
+    SetResourceConfigRequest,
+    SetResourceConfigReply,
+    SetResourceConfig
+);
+generate_placement_service_call!(
+    delete_resource_config,
+    DeleteResourceConfigRequest,
+    DeleteResourceConfigReply,
+    DeleteResourceConfig
+);
+generate_placement_service_call!(
+    get_resource_config,
+    GetResourceConfigRequest,
+    GetResourceConfigReply,
+    GetResourceConfig
+);
+generate_placement_service_call!(
+    set_idempotent_data,
+    SetIdempotentDataRequest,
+    SetIdempotentDataReply,
+    SetIdempotentData
+);
+generate_placement_service_call!(
+    delete_idempotent_data,
+    DeleteIdempotentDataRequest,
+    DeleteIdempotentDataReply,
+    DeleteIdempotentData
+);
+generate_placement_service_call!(
+    exists_idempotent_data,
+    ExistsIdempotentDataRequest,
+    ExistsIdempotentDataReply,
+    ExistsIdempotentData
+);

@@ -19,21 +19,25 @@ use std::sync::Arc;
 use common_base::config::journal_server::journal_server_conf;
 use dashmap::DashMap;
 use log::error;
-use metadata_struct::journal::segment::JournalSegment;
+use metadata_struct::journal::segment::{segment_name, JournalSegment};
 use rocksdb_engine::RocksDBEngine;
 
 use super::file::SegmentFile;
+use super::SegmentIdentity;
 use crate::core::error::JournalServerError;
 use crate::index::engine::storage_data_fold;
 use crate::index::offset::OffsetIndexManager;
+use crate::index::time::TimestampIndexManager;
 
 #[derive(Clone)]
 pub struct SegmentFileMetadata {
     pub namespace: String,
     pub shard_name: String,
     pub segment_no: u32,
-    pub start_offset: u64,
-    pub end_offset: u64,
+    pub start_offset: i64,
+    pub end_offset: i64,
+    pub start_timestamp: i64,
+    pub end_timestamp: i64,
 }
 pub struct SegmentFileManager {
     pub segment_files: DashMap<String, SegmentFileMetadata>,
@@ -50,7 +54,7 @@ impl SegmentFileManager {
     }
 
     pub fn add_segment_file(&self, segment_file: SegmentFileMetadata) {
-        let key = self.key(
+        let key = segment_name(
             &segment_file.namespace,
             &segment_file.shard_name,
             segment_file.segment_no,
@@ -58,55 +62,74 @@ impl SegmentFileManager {
         self.segment_files.insert(key, segment_file);
     }
 
-    pub fn get_segment_file(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        segment: u32,
-    ) -> Option<SegmentFileMetadata> {
-        let key = self.key(namespace, shard_name, segment);
-        if let Some(data) = self.segment_files.get(&key) {
+    pub fn get_segment_file(&self, segment_iden: &SegmentIdentity) -> Option<SegmentFileMetadata> {
+        if let Some(data) = self.segment_files.get(&segment_iden.name()) {
             return Some(data.clone());
         }
         None
     }
 
-    pub fn get_segment_end_offset(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        segment: u32,
-    ) -> Option<u64> {
-        let key = self.key(namespace, shard_name, segment);
-        if let Some(data) = self.segment_files.get(&key) {
+    pub fn remove_segment_file(&self, segment_iden: &SegmentIdentity) {
+        self.segment_files.remove(&segment_iden.name());
+    }
+
+    pub fn get_end_offset(&self, segment_iden: &SegmentIdentity) -> Option<i64> {
+        if let Some(data) = self.segment_files.get(&segment_iden.name()) {
             return Some(data.end_offset);
         }
         None
     }
 
-    pub fn update_end_offset(
+    pub fn update_start_offset(
         &self,
-        namespace: &str,
-        shard_name: &str,
-        segment: u32,
-        end_offset: u64,
+        segment_iden: &SegmentIdentity,
+        start_offset: i64,
     ) -> Result<(), JournalServerError> {
-        let key = self.key(namespace, shard_name, segment);
-        if let Some(mut data) = self.segment_files.get_mut(&key) {
-            data.end_offset = end_offset;
+        if let Some(mut data) = self.segment_files.get_mut(&segment_iden.name()) {
+            data.start_offset = start_offset;
             let offset_index = OffsetIndexManager::new(self.rocksdb_engine_handler.clone());
-            offset_index.save_end_offset(namespace, shard_name, segment, data.end_offset)?;
+            offset_index.save_end_offset(segment_iden, data.end_offset as u64)?;
         }
         Ok(())
     }
 
-    pub fn remove_segment_file(&self, namespace: &str, shard_name: &str, segment: u32) {
-        let key = self.key(namespace, shard_name, segment);
-        self.segment_files.remove(&key);
+    pub fn update_end_offset(
+        &self,
+        segment_iden: &SegmentIdentity,
+        end_offset: i64,
+    ) -> Result<(), JournalServerError> {
+        if let Some(mut data) = self.segment_files.get_mut(&segment_iden.name()) {
+            data.end_offset = end_offset;
+            let offset_index = OffsetIndexManager::new(self.rocksdb_engine_handler.clone());
+            offset_index.save_end_offset(segment_iden, data.end_offset as u64)?;
+        }
+        Ok(())
     }
 
-    fn key(&self, namespace: &str, shard_name: &str, segment: u32) -> String {
-        format!("{}_{}_{}", namespace, shard_name, segment)
+    pub fn update_start_timestamp(
+        &self,
+        segment_iden: &SegmentIdentity,
+        timestamp: u64,
+    ) -> Result<(), JournalServerError> {
+        if let Some(mut data) = self.segment_files.get_mut(&segment_iden.name()) {
+            data.start_timestamp = timestamp as i64;
+            let timestamp_index = TimestampIndexManager::new(self.rocksdb_engine_handler.clone());
+            timestamp_index.save_start_timestamp(segment_iden, timestamp)?;
+        }
+        Ok(())
+    }
+
+    pub fn update_end_timestamp(
+        &self,
+        segment_iden: &SegmentIdentity,
+        timestamp: u64,
+    ) -> Result<(), JournalServerError> {
+        if let Some(mut data) = self.segment_files.get_mut(&segment_iden.name()) {
+            data.end_timestamp = timestamp as i64;
+            let timestamp_index = TimestampIndexManager::new(self.rocksdb_engine_handler.clone());
+            timestamp_index.save_end_timestamp(segment_iden, timestamp)?;
+        }
+        Ok(())
     }
 }
 
@@ -123,6 +146,7 @@ pub fn load_local_segment_cache(
     }
 
     let offset_manager = OffsetIndexManager::new(rocksdb_engine_handler.clone());
+    let timestamp_manager = TimestampIndexManager::new(rocksdb_engine_handler.clone());
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -159,17 +183,27 @@ pub fn load_local_segment_cache(
             let segment = segment_file.replace(".msg", "");
             let segment_no = segment.parse::<u32>()?;
 
-            let start_offset =
-                offset_manager.get_start_offset(namespace, shard_name, segment_no)?;
-            let end_offset = offset_manager.get_end_offset(namespace, shard_name, segment_no)?;
+            let segment_iden = SegmentIdentity {
+                namespace: namespace.to_string(),
+                shard_name: shard_name.to_string(),
+                segment_seq: segment_no,
+            };
+
+            let start_offset = offset_manager.get_start_offset(&segment_iden)?;
+            let end_offset = offset_manager.get_end_offset(&segment_iden)?;
+            let start_timestamp = timestamp_manager.get_start_timestamp(&segment_iden)?;
+            let end_timestamp = timestamp_manager.get_end_timestamp(&segment_iden)?;
 
             let metadata = SegmentFileMetadata {
                 namespace: namespace.to_string(),
                 shard_name: shard_name.to_string(),
                 segment_no,
-                start_offset,
-                end_offset,
+                start_offset: start_offset as i64,
+                end_offset: end_offset as i64,
+                start_timestamp: start_timestamp as i64,
+                end_timestamp: end_timestamp as i64,
             };
+
             segment_file_manager.add_segment_file(metadata);
         }
     }
@@ -180,7 +214,7 @@ pub fn metadata_and_local_segment_diff_check() {
     //todo
 }
 
-pub async fn create_local_segment(
+pub async fn try_create_local_segment(
     segment_file_manager: &Arc<SegmentFileManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment: &JournalSegment,
@@ -202,23 +236,32 @@ pub async fn create_local_segment(
         segment.segment_seq,
         fold,
     );
-    segment_file.create().await?;
+
+    segment_file.try_create().await?;
 
     // add segment file manager
-    let segment_metadata = SegmentFileMetadata {
+    let segment_iden = SegmentIdentity {
         namespace: segment.namespace.clone(),
         shard_name: segment.shard_name.clone(),
-        segment_no: segment.segment_seq,
-        start_offset: 0,
-        end_offset: 0,
+        segment_seq: segment.segment_seq,
     };
-    segment_file_manager.add_segment_file(segment_metadata);
 
-    Ok(())
-}
+    if segment_file_manager
+        .get_segment_file(&segment_iden)
+        .is_none()
+    {
+        let segment_metadata = SegmentFileMetadata {
+            namespace: segment.namespace.clone(),
+            shard_name: segment.shard_name.clone(),
+            segment_no: segment.segment_seq,
+            start_offset: -1,
+            end_offset: -1,
+            start_timestamp: -1,
+            end_timestamp: -1,
+        };
+        segment_file_manager.add_segment_file(segment_metadata);
+    }
 
-pub async fn delete_local_segment(segment: &JournalSegment) -> Result<(), JournalServerError> {
-    //todo
     Ok(())
 }
 

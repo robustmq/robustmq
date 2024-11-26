@@ -17,7 +17,6 @@
 use core::cache::{load_metadata_cache, CacheManager};
 use core::cluster::{register_journal_node, report_heartbeat, unregister_journal_node};
 use core::offset::OffsetManager;
-use core::write::WriteManager;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -32,7 +31,7 @@ use rocksdb_engine::RocksDBEngine;
 use segment::manager::{
     load_local_segment_cache, metadata_and_local_segment_diff_check, SegmentFileManager,
 };
-use segment::status::SegmentScrollManager;
+use segment::scroll::SegmentScrollManager;
 use server::connection_manager::ConnectionManager;
 use server::grpc::server::GrpcServer;
 use server::tcp::server::start_tcp_server;
@@ -59,7 +58,6 @@ pub struct JournalServer {
     offset_manager: Arc<OffsetManager>,
     segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    write_manager: Arc<WriteManager>,
 }
 
 impl JournalServer {
@@ -83,12 +81,6 @@ impl JournalServer {
         ));
         let segment_file_manager =
             Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
-
-        let write_manager = Arc::new(WriteManager::new(
-            segment_file_manager.clone(),
-            cache_manager.clone(),
-            client_pool.clone(),
-        ));
         JournalServer {
             config,
             stop_send,
@@ -100,7 +92,6 @@ impl JournalServer {
             offset_manager,
             segment_file_manager,
             rocksdb_engine_handler,
-            write_manager,
         }
     }
 
@@ -109,11 +100,11 @@ impl JournalServer {
 
         self.start_tcp_server();
 
-        self.start_daemon_thread();
-
         self.start_prometheus();
 
         self.init_node();
+
+        self.start_daemon_thread();
 
         self.waiting_stop();
     }
@@ -143,7 +134,7 @@ impl JournalServer {
         let stop_sx = self.stop_send.clone();
         let offset_manager = self.offset_manager.clone();
         let segment_file_manager = self.segment_file_manager.clone();
-        let write_manager = self.write_manager.clone();
+        let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
         self.server_runtime.spawn(async {
             start_tcp_server(
                 client_pool,
@@ -151,7 +142,7 @@ impl JournalServer {
                 cache_manager,
                 offset_manager,
                 segment_file_manager,
-                write_manager,
+                rocksdb_engine_handler,
                 stop_sx,
             )
             .await;
@@ -201,6 +192,7 @@ impl JournalServer {
 
     fn init_node(&self) {
         self.daemon_runtime.block_on(async move {
+            // todo
             self.cache_manager.init_cluster();
 
             load_metadata_cache(&self.cache_manager, &self.client_pool).await;

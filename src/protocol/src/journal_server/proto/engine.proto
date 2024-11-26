@@ -26,6 +26,13 @@ enum ApiVersion{
      V0 = 0;
 }
 
+enum ReadType{
+    Offset = 0;
+    Timestamp = 1;
+    Key = 2;
+    Tag = 3;
+}
+
 message ReqHeader{
     ApiKey api_key = 1;
     ApiVersion api_version = 2;
@@ -41,7 +48,10 @@ message ClientSegmentMetadata{
     uint32 segment_no = 1;
     uint64 leader = 2;
     repeated uint64 replicas = 3;
-    string meta =4;
+    int64 start_offset =4;
+    int64 end_offset =5;
+    int64 start_timestamp =6;
+    int64 end_timestamp =7;
 }
 
 /** Get Cluster Metadata **/
@@ -121,7 +131,7 @@ message GetShardMetadataReq{
 
 
 message GetShardMetadataRespBody{
-    repeated GetShardMetadataRespShard segments = 1;
+    repeated GetShardMetadataRespShard shards = 1;
 }
 
 message GetShardMetadataRespShard{
@@ -187,13 +197,24 @@ message ReadReqBody{
 message ReadReqMessage{
     string namespace = 1;
     string shard_name = 2;
-    repeated ReadReqMessageOffset segments = 3;
+    uint32 segment = 3;
+    ReadType ready_type = 4;
+    ReadReqFilter filter = 5;
+    ReadReqOptions options = 6;
 }
 
-message ReadReqMessageOffset{
-    uint32 segment = 1;
+message ReadReqFilter{
+    uint64 timestamp = 1;
     uint64 offset = 2;
+    string key = 3;
+    string tag = 4;
 }
+
+message ReadReqOptions{
+    uint64 max_size = 1;
+    uint64 max_record = 2;
+}
+
 
 message ReadRespBody{
     repeated ReadRespSegmentMessage messages = 1;
