@@ -1,3 +1,17 @@
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -7,15 +21,11 @@ mod tests {
     use metadata_struct::mqtt::cluster::{
         MqttClusterDynamicConfig, MqttClusterDynamicConfigProtocol,
     };
-
-    use crate::storage::cluster::ClusterStorage;
+    use mqtt_broker::storage::cluster::ClusterStorage;
 
     #[tokio::test]
     async fn cluster_node_test() {
-        let path = format!(
-            "{}/../../config/mqtt-server.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
+        let path = format!("{}/../config/mqtt-server.toml", env!("CARGO_MANIFEST_DIR"));
         init_broker_mqtt_conf_by_path(&path);
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
@@ -42,10 +52,7 @@ mod tests {
 
     #[tokio::test]
     async fn cluster_config_test() {
-        let path = format!(
-            "{}/../../config/mqtt-server.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
+        let path = format!("{}/../config/mqtt-server.toml", env!("CARGO_MANIFEST_DIR"));
         init_broker_mqtt_conf_by_path(&path);
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
