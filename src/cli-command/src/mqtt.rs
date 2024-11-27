@@ -47,6 +47,7 @@ pub enum MqttActionType {
 
     // observability: slow-ub
     EnableSlowSubscribe(EnableSlowSubscribeRequest),
+    ListTopic
 }
 
 pub struct MqttBrokerCommand {}
@@ -85,6 +86,8 @@ impl MqttBrokerCommand {
             }
             MqttActionType::EnableSlowSubscribe(ref request) => {
                 self.enable_slow_subscribe(client_pool.clone(), params.clone(), request.clone())
+            MqttActionType::ListTopic => {
+                self.list_topic(client_pool.clone(), params.clone())
                     .await;
             }
         }

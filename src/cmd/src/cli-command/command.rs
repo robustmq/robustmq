@@ -69,6 +69,7 @@ enum MQTTAction {
 
     // Connections
     ListConnection,
+    ListTopic,
 
     // observability: slow-sub feat
     #[clap(name = "slow-sub")]
