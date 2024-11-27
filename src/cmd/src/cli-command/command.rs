@@ -162,6 +162,7 @@ async fn main() {
                     }),
                     MQTTAction::ListUser => MqttActionType::ListUser,
                     MQTTAction::ListConnection => MqttActionType::ListConnection,
+                    MQTTAction::ListTopic => MqttActionType::ListTopic,
                 },
             };
             cmd.start(params).await;
