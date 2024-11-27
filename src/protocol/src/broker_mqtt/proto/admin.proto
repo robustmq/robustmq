@@ -13,6 +13,8 @@ service MQTTBrokerAdminService {
 
     // connection
     rpc mqtt_broker_list_connection(ListConnectionRequest) returns(ListConnectionReply){}
+
+    rpc mqtt_broker_list_topic(ListTopicRequest) returns(ListTopicReply){}
 }
 
 // --------- cluster --------
@@ -68,4 +70,9 @@ message ListConnectionRaw {
     string protocol = 3;
     string source_addr = 4;
     string info = 5;
+}
+
+message ListTopicRequest{}
+message ListTopicReply{
+    repeated ListTopicRaw list_topic_raw = 1;
 }
