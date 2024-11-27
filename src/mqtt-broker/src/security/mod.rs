@@ -110,19 +110,12 @@ impl AuthDriver {
     }
 
     pub async fn save_user(&self, user_info: MqttUser) -> Result<(), CommonError> {
-        match self.driver.read_all_user().await {
-            Ok(date) => {
-                let is_existed = date.iter().any(|user| *user.key() == user_info.username);
-                if is_existed {
-                    return Err(CommonError::CommonError(
-                        "user has been existed".to_string(),
-                    ));
-                }
-            }
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        let username = user_info.username.clone();
+        if let Some(_user) = self.cache_manager.user_info.get(&username) {
+            return Err(CommonError::CommonError(
+                "user has been existed".to_string(),
+            ));
+        }
         self.cache_manager.add_user(user_info.clone());
         self.driver.save_user(user_info).await
     }

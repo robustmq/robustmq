@@ -52,7 +52,7 @@ impl AclStorage {
     pub async fn save_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
 
-        let value = acl.encode().unwrap();
+        let value = acl.encode()?;
         let request = CreateAclRequest {
             cluster_name: config.cluster_name.clone(),
             acl: value,
@@ -66,7 +66,7 @@ impl AclStorage {
 
     pub async fn delete_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
-        let value = acl.encode().unwrap();
+        let value = acl.encode()?;
         let request = DeleteAclRequest {
             cluster_name: config.cluster_name.clone(),
             acl: value,

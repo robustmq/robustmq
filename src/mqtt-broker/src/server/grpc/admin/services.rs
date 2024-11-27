@@ -149,9 +149,9 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             Ok(data) => {
                 let acl_list = data
                     .iter()
-                    .map(|acl| acl.encode().unwrap())
-                    .collect::<Vec<Vec<u8>>>();
-                reply.acls = acl_list.clone();
+                    .map(|acl| acl.encode().map_err(|e| Status::cancelled(e.to_string())))
+                    .collect::<Result<Vec<Vec<u8>>, Status>>()?;
+                reply.acls = acl_list;
                 return Ok(Response::new(reply));
             }
             Err(e) => {
