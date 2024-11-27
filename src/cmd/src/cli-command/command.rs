@@ -149,6 +149,7 @@ async fn main() {
                     }),
                     MQTTAction::ListUser => MqttActionType::ListUser,
                     MQTTAction::ListConnection => MqttActionType::ListConnection,
+                    MQTTAction::ListTopic => MqttActionType::ListTopic,
                     _ => unreachable!("UnSupport command"),
                 },
             };
