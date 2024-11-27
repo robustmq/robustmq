@@ -19,6 +19,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
     DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
 };
+use protocol::placement_center::placement_center_mqtt::ListTopicReply;
 
 use crate::mqtt::{call_once, MqttBrokerPlacementReply, MqttBrokerPlacementRequest};
 use crate::pool::ClientPool;
@@ -84,6 +85,19 @@ pub async fn mqtt_broker_list_connection(
     let request = MqttBrokerPlacementRequest::ListConnection(request);
     match retry_call(&client_pool, addrs, request, call_once).await? {
         MqttBrokerPlacementReply::ListConnection(reply) => Ok(reply),
+        _ => unreachable!("Reply type mismatch"),
+    }
+}
+
+pub async fn mqtt_broker_list_user(
+    client_pool: Arc<ClientPool>,
+    addrs: &[String],
+    request: ListTopicReply,
+) -> Result<ListUserReply, CommonError> {
+    // let reply = retry_call(client_pool, addrs, MqttBrokerPlacementRequest::ListUser(request)).await?;
+    let request = MqttBrokerPlacementRequest::ListTopic(request);
+    match retry_call(&client_pool, addrs, request, call_once).await? {
+        MqttBrokerPlacementReply::ListTopic(reply) => Ok(reply),
         _ => unreachable!("Reply type mismatch"),
     }
 }
