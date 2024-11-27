@@ -16,6 +16,7 @@ use common_base::error::common::CommonError;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
     DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
+    ListTopicRequest, ListTopicReply
 };
 use protocol::broker_mqtt::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
@@ -40,6 +41,8 @@ pub enum MqttBrokerPlacementRequest {
 
     // connection
     ListConnection(ListConnectionRequest),
+
+    ListTopic(ListTopicRequest)
 }
 
 /// Enum wrapper for all possible replies from the mqtt broker
@@ -58,6 +61,7 @@ pub enum MqttBrokerPlacementReply {
 
     // connection
     ListConnection(ListConnectionReply),
+    ListTopic(ListTopicReply)
 }
 
 pub mod admin;
@@ -116,6 +120,11 @@ async fn call_once(
                 .mqtt_broker_list_connection(list_connection_request)
                 .await?;
             Ok(MqttBrokerPlacementReply::ListConnection(reply.into_inner()))
+        }
+        ListTopic(list_topic_request) => {
+            let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
+            let reply = client.mqtt_broker_list_topic(list_topic_request).await?;
+            Ok(MqttBrokerPlacementReply::ListTopic(reply.into_inner()))
         }
     }
 }
