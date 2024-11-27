@@ -22,7 +22,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, EnableSlowSubscribeRequest,
-    ListConnectionRequest, ListUserRequest,
+    ListConnectionRequest, ListUserRequest, ListUserRequest
 };
 
 use crate::{error_info, grpc_addr};
@@ -209,6 +209,23 @@ impl MqttBrokerCommand {
 
             Err(e) => {
                 println!("The slow subscription feature failed to enable, with the specific reason being:");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn list_topic(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
+        let request = ListTopicRequest {};
+        match mqtt_broker_list_topic(client_pool.clone(), &grpc_addr(params.server), request).await {
+            Ok(data) => {
+                println!("topic list:");
+                for topic in data.topics {
+                    let mqtt_topic = serde_json::from_slice::<MqttTopic>(topic.as_slice()).unwrap();
+                    println!("{},", mqtt_topic.topic);
+                }
+            }
+            Err(e) => {
+                println!("MQTT broker list topic exception");
                 error_info(e.to_string());
             }
         }
