@@ -137,7 +137,9 @@ message GetShardMetadataRespBody{
 message GetShardMetadataRespShard{
     string namespace = 1;
     string shard = 2;
-    repeated ClientSegmentMetadata segments = 3;
+    int32 active_segment = 3; 
+    int64 active_segment_leader = 4;
+    repeated ClientSegmentMetadata segments = 5;
 }
 
 message GetShardMetadataResp{
@@ -158,9 +160,10 @@ message WriteReqSegmentMessages{
 }
 
 message WriteReqMessages {
-    string key = 1;
-    bytes value=2;
-    repeated string tags=3;
+    uint64 pkid= 1;
+    string key = 2;
+    bytes value= 3;
+    repeated string tags=4;
 }
 
 message WriteRespBody{
@@ -176,7 +179,8 @@ message WriteRespMessage{
 
 message WriteRespMessageStatus{
     uint64 offset = 1;
-    JournalEngineError error = 2;
+    uint64 pkid = 2;
+    JournalEngineError error = 3;
 }
 
 message WriteReq{
