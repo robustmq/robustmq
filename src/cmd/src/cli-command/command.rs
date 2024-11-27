@@ -64,6 +64,7 @@ enum MQTTAction {
 
     // Connections
     ListConnection,
+    ListTopic
 }
 
 #[derive(clap::Args, Debug)]

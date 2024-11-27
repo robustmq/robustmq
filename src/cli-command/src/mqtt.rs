@@ -44,6 +44,7 @@ pub enum MqttActionType {
 
     // connection
     ListConnection,
+    ListTopic
 }
 
 pub struct MqttBrokerCommand {}
@@ -78,6 +79,10 @@ impl MqttBrokerCommand {
             }
             MqttActionType::ListConnection => {
                 self.list_connections(client_pool.clone(), params.clone())
+                    .await;
+            }
+            MqttActionType::ListTopic => {
+                self.list_topic(client_pool.clone(), params.clone())
                     .await;
             }
         }
