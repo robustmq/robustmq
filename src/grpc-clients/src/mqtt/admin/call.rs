@@ -183,8 +183,7 @@ pub async fn mqtt_broker_list_user(
     client_pool: Arc<ClientPool>,
     addrs: &[String],
     request: ListTopicReply,
-) -> Result<ListUserReply, CommonError> {
-    // let reply = retry_call(client_pool, addrs, MqttBrokerPlacementRequest::ListUser(request)).await?;
+) -> Result<ListTopicReply, CommonError> {
     let request = MqttBrokerPlacementRequest::ListTopic(request);
     match retry_call(&client_pool, addrs, request, call_once).await? {
         MqttBrokerPlacementReply::ListTopic(reply) => Ok(reply),
