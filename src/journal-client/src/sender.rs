@@ -320,7 +320,7 @@ async fn get_batch_message(recv: &mut Receiver<DataSenderPkg>, line_ms: u64) -> 
         if (now_mills() - start_ms) > line_ms as u128 {
             break;
         }
-        
+
         let data = timeout(Duration::from_millis(2), recv.recv()).await;
         if let Ok(Ok(data_1)) = data {
             results.push(data_1);
