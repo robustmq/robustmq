@@ -126,9 +126,8 @@ impl OffsetManager {
         if strategy == AutoOffsetReset::Latest {
             return self.get_latest_offset_by_shard(namespace, shard_name).await;
         }
-        return self
-            .get_earliest_offset_by_shard(namespace, shard_name)
-            .await;
+        self.get_earliest_offset_by_shard(namespace, shard_name)
+            .await
     }
 
     async fn get_earliest_offset_by_shard(
