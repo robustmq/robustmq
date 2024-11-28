@@ -20,10 +20,7 @@ use grpc_clients::mqtt::admin::call::{
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListConnectionRequest,
-    ListUserRequest,
-};
+use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, EnableSlowSubscribeRequest, ListConnectionRequest, ListUserRequest};
 
 use crate::{error_info, grpc_addr};
 
@@ -44,6 +41,7 @@ pub enum MqttActionType {
 
     // connection
     ListConnection,
+    EnableSlowSubscribe(EnableSlowSubscribeRequest),
 }
 
 pub struct MqttBrokerCommand {}
@@ -80,8 +78,11 @@ impl MqttBrokerCommand {
                 self.list_connections(client_pool.clone(), params.clone())
                     .await;
             }
+            MqttActionType::EnableSlowSubscribe(_) => {}
         }
     }
+
+    // -------- cluster ---------------
 
     async fn status(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
         let request = ClusterStatusRequest {};
@@ -101,6 +102,7 @@ impl MqttBrokerCommand {
         }
     }
 
+    // ------------- acl ------------
     async fn create_user(
         &self,
         client_pool: Arc<ClientPool>,
@@ -156,6 +158,7 @@ impl MqttBrokerCommand {
         }
     }
 
+    // ---------------- server -----------------
     async fn list_connections(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
         let request = ListConnectionRequest {};
         match mqtt_broker_list_connection(client_pool.clone(), &grpc_addr(params.server), request)
@@ -172,5 +175,11 @@ impl MqttBrokerCommand {
                 error_info(e.to_string());
             }
         }
+    }
+
+    // ---------------- observability ----------------
+    // ------------ slow subscribe features ----------
+    async fn enable_slow_subscribe(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam, cli_request: EnableSlowSubscribeRequest) {
+        todo!();
     }
 }

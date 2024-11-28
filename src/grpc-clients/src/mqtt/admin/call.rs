@@ -37,6 +37,7 @@ pub async fn cluster_status(
     }
 }
 
+// ------ acl --------
 // ------ user -------
 pub async fn mqtt_broker_list_user(
     client_pool: Arc<ClientPool>,
@@ -86,4 +87,10 @@ pub async fn mqtt_broker_list_connection(
         MqttBrokerPlacementReply::ListConnection(reply) => Ok(reply),
         _ => unreachable!("Reply type mismatch"),
     }
+}
+
+// --------- observability --------
+// --------- slow subscribe features ------
+pub async fn mqtt_broker_enable_slow_subscribe() {
+    todo!();
 }

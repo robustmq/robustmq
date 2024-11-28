@@ -17,7 +17,7 @@ use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
 use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
-use protocol::broker_mqtt::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequest, EnableSlowSubscribeRequest};
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
 };
@@ -188,9 +188,11 @@ async fn main() {
                     }),
                     MQTTAction::ListUser => MqttActionType::ListUser,
                     MQTTAction::ListConnection => MqttActionType::ListConnection,
-                    MQTTAction::EnableSlowSubscribe(_) => {
-                        todo!()
-                    }
+                    MQTTAction::EnableSlowSubscribe(arg) => MqttActionType::EnableSlowSubscribe(
+                        EnableSlowSubscribeRequest {
+                            is_enable: arg.is_enable,
+                        }
+                    )
                 },
             };
             cmd.start(params).await;
