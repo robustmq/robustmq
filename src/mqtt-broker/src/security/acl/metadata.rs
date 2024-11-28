@@ -72,6 +72,18 @@ impl AclMetadata {
         }
     }
 
+    pub fn remove_mqtt_acl(&self, acl: MqttAcl) {
+        let resource_name = acl.resource_name.clone();
+        match acl.resource_type {
+            MqttAclResourceType::ClientId => {
+                self.acl_client_id.remove(&resource_name);
+            }
+            MqttAclResourceType::User => {
+                self.acl_user.remove(&resource_name);
+            }
+        }
+    }
+
     pub fn parse_mqtt_blacklist(&self, blacklist: MqttAclBlackList) {
         match blacklist.blacklist_type {
             MqttAclBlackListType::ClientId => {
