@@ -26,7 +26,8 @@ use protocol::placement_center::placement_center_openraft::{
 #[command(name = "robust-ctl")]
 #[command(bin_name = "robust-ctl")]
 #[command(styles = CLAP_STYLING)]
-#[command(author="RobustMQ", version="0.0.1", about="Command line tool for RobustMQ", long_about = None)]
+#[command(author="RobustMQ", version="0.0.1", about="Command line tool for RobustMQ", long_about = None
+)]
 #[command(next_line_help = true)]
 enum RobustMQCli {
     Mqtt(MqttArgs),
@@ -43,6 +44,7 @@ pub const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling:
     .valid(clap_cargo::style::VALID)
     .invalid(clap_cargo::style::INVALID);
 
+// ------ mqtt -----------
 #[derive(clap::Args, Debug)]
 #[command(author="RobustMQ", about="Command line tool for mqtt broker", long_about = None)]
 #[command(next_line_help = true)]
@@ -56,7 +58,9 @@ struct MqttArgs {
 
 #[derive(Debug, Subcommand)]
 enum MQTTAction {
+    // cluster
     Status,
+
     // User admin
     CreateUser(CreateUserArgs),
     DeleteUser(DeleteUserArgs),
@@ -64,8 +68,13 @@ enum MQTTAction {
 
     // Connections
     ListConnection,
+
+    // observability
+    EnableSlowSubscribe(EnableSlowSubscribeArgs),
 }
 
+
+// ------ mqtt user ------
 #[derive(clap::Args, Debug)]
 #[command(author="RobustMQ", about="action: create user", long_about = None)]
 #[command(next_line_help = true)]
@@ -88,6 +97,20 @@ struct DeleteUserArgs {
     username: String,
 }
 
+// ----- mqtt observability -----
+#[derive(clap::Args, Debug)]
+#[command(
+    author = "RobustMQ",
+    about = "action: enable the slow subscribe service",
+    long_about = "enable the slow subscribe to record instances of slow subscribe"
+)]
+#[command(next_line_help = true)]
+struct EnableSlowSubscribeArgs {
+    #[arg(show, long, required = true)]
+    is_enable: bool,
+}
+
+// ------ placement -------
 #[derive(clap::Args, Debug)]
 #[command(author="RobustMQ",  about="Command line tool for placement center", long_about = None)]
 #[command(next_line_help = true)]
@@ -131,6 +154,9 @@ struct ChangeMembershipArgs {
     retain: bool,
 }
 
+
+// ------- journal ------
+
 #[derive(clap::Args, Debug)]
 #[command(author="RobustMQ", about="Command line tool for journal engine", long_about = None)]
 #[command(next_line_help = true)]
@@ -162,6 +188,9 @@ async fn main() {
                     }),
                     MQTTAction::ListUser => MqttActionType::ListUser,
                     MQTTAction::ListConnection => MqttActionType::ListConnection,
+                    MQTTAction::EnableSlowSubscribe(_) => {
+                        todo!()
+                    }
                 },
             };
             cmd.start(params).await;

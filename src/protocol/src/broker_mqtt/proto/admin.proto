@@ -11,8 +11,11 @@ service MQTTBrokerAdminService {
 
     rpc mqtt_broker_list_user(ListUserRequest) returns(ListUserReply){}
 
-    // connection
+    // server
     rpc mqtt_broker_list_connection(ListConnectionRequest) returns(ListConnectionReply){}
+
+    // observability
+
 }
 
 // --------- cluster --------
@@ -53,7 +56,8 @@ message DeleteUserReply{
 
 }
 
-// --------- connection --------
+// --------- server  --------------
+// --------- server connection --------
 message ListConnectionRequest{
 
 }
@@ -69,3 +73,7 @@ message ListConnectionRaw {
     string source_addr = 4;
     string info = 5;
 }
+
+
+// --------- observability service --------
+// --------- slow subscribe feature -------
