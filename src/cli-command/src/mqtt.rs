@@ -41,6 +41,8 @@ pub enum MqttActionType {
 
     // connection
     ListConnection,
+
+    // observability: slow subscribe features
     EnableSlowSubscribe(EnableSlowSubscribeRequest),
 }
 
@@ -60,9 +62,11 @@ impl MqttBrokerCommand {
     pub async fn start(&self, params: MqttCliCommandParam) {
         let client_pool = Arc::new(ClientPool::new(100));
         match params.action {
+            // cluster
             MqttActionType::Status => {
                 self.status(client_pool.clone(), params.clone()).await;
             }
+            // acl: user
             MqttActionType::CreateUser(ref request) => {
                 self.create_user(client_pool.clone(), params.clone(), request.clone())
                     .await;
@@ -78,7 +82,11 @@ impl MqttBrokerCommand {
                 self.list_connections(client_pool.clone(), params.clone())
                     .await;
             }
-            MqttActionType::EnableSlowSubscribe(_) => {}
+            // observability: slow subscribe features
+            MqttActionType::EnableSlowSubscribe(ref request) => {
+                self.enable_slow_subscribe(client_pool.clone(), params.clone(), request.clone())
+                    .await;
+            }
         }
     }
 

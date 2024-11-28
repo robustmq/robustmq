@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::tools::now_second;
-use grpc_clients::mqtt::placement::call::{broker_mqtt_delete_session, send_last_will_message};
+use grpc_clients::mqtt::inner::call::{broker_mqtt_delete_session, send_last_will_message};
 use grpc_clients::pool::ClientPool;
 use log::{debug, error, warn};
 use metadata_struct::mqtt::lastwill::LastWillData;

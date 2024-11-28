@@ -24,9 +24,9 @@ start_server(){
     tar -xzvf robustmq-local.tar.gz
     cd ..
 
-    build/robustmq-local/bin/robust-server place start example/mqtt-cluster/placement-center/node-1.toml
+    build/robustmq-local/bin/robust-server place start example/mqtt-cluster/inner-center/node-1.toml
     sleep 3
-    no1=`ps -ef | grep example/mqtt-cluster/placement-center/node-1.toml | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep example/mqtt-cluster/inner-center/node-1.toml | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
         echo "placement-center node 1 started successfully. process no: $no1"
@@ -52,7 +52,7 @@ start_server(){
 }
 
 stop_server(){
-    no1=`ps -ef | grep example/mqtt-cluster/placement-center/node-1.toml | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep example/mqtt-cluster/inner-center/node-1.toml | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
         kill $no1
