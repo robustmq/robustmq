@@ -21,9 +21,8 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
     DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
     ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
-    ListConnectionRequest, ListUserReply, ListUserRequest,
+    ListConnectionRequest, ListUserReply, ListUserRequest, ListTopicReply, ListTopicRequest,
 };
-use protocol::placement_center::placement_center_mqtt::ListTopicReply;
 
 use crate::mqtt::{call_once, MqttBrokerPlacementReply, MqttBrokerPlacementRequest};
 use crate::pool::ClientPool;
@@ -182,7 +181,7 @@ pub async fn mqtt_broker_enable_slow_subscribe(
 pub async fn mqtt_broker_list_user(
     client_pool: Arc<ClientPool>,
     addrs: &[String],
-    request: ListTopicReply,
+    request: ListTopicRequest,
 ) -> Result<ListTopicReply, CommonError> {
     let request = MqttBrokerPlacementRequest::ListTopic(request);
     match retry_call(&client_pool, addrs, request, call_once).await? {

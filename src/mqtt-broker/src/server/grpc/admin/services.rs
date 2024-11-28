@@ -28,6 +28,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
     ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionRaw,
     ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
+    ListTopicRequest, ListTopicReply
 };
 use tonic::{Request, Response, Status};
 
@@ -311,5 +312,26 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             })),
             Err(e) => Err(Status::cancelled(e.to_string())),
         }
+    }
+
+    async fn mqtt_broker_list_topic(
+        &self,
+        _: Request<ListTopicRequest>,
+    ) -> Result<Response<ListTopicReply>, Status> {
+        let mut reply = ListUserReply::default();
+
+        let mut topic_list = Vec::new();
+        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        match auth_driver.read_all_user().await {
+            Ok(date) => {
+                date.iter()
+                    .for_each(|user| user_list.push(user.value().encode()));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+        reply.users = user_list;
+        return Ok(Response::new(reply));
     }
 }
