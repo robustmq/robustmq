@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, EnableSlowSubscribeRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest};
 
 use crate::mqtt::{call_once, MqttBrokerPlacementReply, MqttBrokerPlacementRequest};
 use crate::pool::ClientPool;
@@ -92,9 +92,10 @@ pub async fn mqtt_broker_enable_slow_subscribe(
     client_pool: Arc<ClientPool>,
     addrs: &[String],
     request: EnableSlowSubscribeRequest,
-) {
+) -> Result<EnableSlowSubScribeReply, CommonError> 
+{
     let request = MqttBrokerPlacementRequest::EnableSlowSubscribe(request);
-    match retry_call(&client_pool, addrs, request, call_once).await {
+    match retry_call(&client_pool, addrs, request, call_once).await? {
         MqttBrokerPlacementReply::EnableSlowSubscribe(reply) => Ok(reply),
         _ => unreachable!("Reply type mismatch"),
     }
