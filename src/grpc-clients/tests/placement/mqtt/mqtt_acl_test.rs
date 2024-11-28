@@ -17,19 +17,18 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::unique_id;
-    use grpc_clients::placement::mqtt::call::{create_acl, delete_acl, list_acl, list_blacklist};
+    use grpc_clients::placement::mqtt::call::{create_acl, delete_acl, list_acl};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::acl::mqtt_acl::{
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
     use protocol::placement_center::placement_center_mqtt::{
-        CreateAclRequest, DeleteAclRequest, ListAclRequest, ListBlacklistRequest,
+        CreateAclRequest, DeleteAclRequest, ListAclRequest,
     };
 
     use crate::common::get_placement_addr;
 
     #[tokio::test]
-
     async fn mqtt_acl_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
@@ -89,16 +88,15 @@ mod tests {
             }
         }
 
-        let request = ListBlacklistRequest {
+        let request = ListAclRequest {
             cluster_name: cluster_name.clone(),
         };
 
-        match list_blacklist(client_pool.clone(), &addrs, request).await {
+        match list_acl(client_pool.clone(), &addrs, request).await {
             Ok(data) => {
                 let mut flag = false;
-                for raw in data.blacklists {
-                    let tmp = serde_json::from_slice::<MqttAcl>(raw.as_slice())
-                        .unwrap_or_else(|e| panic!("{e} {:02x?}", raw.as_slice()));
+                for raw in data.acls {
+                    let tmp = serde_json::from_slice::<MqttAcl>(raw.as_slice()).unwrap();
                     if tmp.resource_type == acl.resource_type
                         && tmp.resource_name == acl.resource_name
                         && tmp.topic == acl.topic

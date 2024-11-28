@@ -17,11 +17,13 @@ use std::sync::Arc;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::serialize_value;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
-    DeleteUserRequest, ListConnectionRaw, ListConnectionReply, ListConnectionRequest,
+    ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest, CreateUserReply,
+    CreateUserRequest, DeleteAclReply, DeleteAclRequest, DeleteUserReply, DeleteUserRequest,
+    ListAclReply, ListAclRequest, ListConnectionRaw, ListConnectionReply, ListConnectionRequest,
     ListUserReply, ListUserRequest,
 };
 use tonic::{Request, Response, Status};
@@ -120,20 +122,78 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         _: Request<ListUserRequest>,
     ) -> Result<Response<ListUserReply>, Status> {
         let mut reply = ListUserReply::default();
-
-        let mut user_list = Vec::new();
         let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
         match auth_driver.read_all_user().await {
-            Ok(date) => {
-                date.iter()
-                    .for_each(|user| user_list.push(user.value().encode()));
+            Ok(data) => {
+                let mut users = Vec::new();
+                for ele in data {
+                    users.push(ele.1.encode());
+                }
+                reply.users = users;
+                return Ok(Response::new(reply));
             }
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
-        reply.users = user_list;
-        return Ok(Response::new(reply));
+    }
+
+    async fn mqtt_broker_list_acl(
+        &self,
+        _: Request<ListAclRequest>,
+    ) -> Result<Response<ListAclReply>, Status> {
+        let mut reply = ListAclReply::default();
+
+        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        match auth_driver.read_all_acl().await {
+            Ok(data) => {
+                let mut acls_list = Vec::new();
+                for ele in data {
+                    match ele.encode() {
+                        Ok(acl) => acls_list.push(acl),
+                        Err(e) => return Err(Status::cancelled(e.to_string())),
+                    }
+                }
+                reply.acls = acls_list;
+                return Ok(Response::new(reply));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn mqtt_broker_create_acl(
+        &self,
+        request: Request<CreateAclRequest>,
+    ) -> Result<Response<CreateAclReply>, Status> {
+        let req = request.into_inner();
+
+        let mqtt_acl = MqttAcl::decode(&req.acl).unwrap();
+
+        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        match auth_driver.save_acl(mqtt_acl).await {
+            Ok(_) => return Ok(Response::new(CreateAclReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn mqtt_broker_delete_acl(
+        &self,
+        request: Request<DeleteAclRequest>,
+    ) -> Result<Response<DeleteAclReply>, Status> {
+        let req = request.into_inner();
+        let mqtt_acl = MqttAcl::decode(&req.acl).unwrap();
+
+        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        match auth_driver.delete_acl(mqtt_acl).await {
+            Ok(_) => return Ok(Response::new(DeleteAclReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
     }
 
     // --- connection ---
