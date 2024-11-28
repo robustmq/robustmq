@@ -20,6 +20,7 @@ enum ApiKey{
     DeleteShard = 6;
     
     GetShardMetadata = 7;
+    FetchOffset = 8;
 }
 
 enum ApiVersion{
@@ -31,6 +32,12 @@ enum ReadType{
     Timestamp = 1;
     Key = 2;
     Tag = 3;
+}
+
+enum AutoOffsetReset{
+    Earliest = 0;
+    Latest = 1;
+    None = 2;
 }
 
 message ReqHeader{
@@ -277,4 +284,37 @@ message OffsetCommitReq{
 message OffsetCommitResp{
     RespHeader header = 1;
     OffsetCommitRespBody body = 2;
+}
+
+/** Fetch Offset **/
+message FetchOffsetReqBody{
+    string group_name = 1;
+    repeated FetchOffsetShard shards = 2;
+    AutoOffsetReset auto_offset_reste = 3;
+}
+
+message FetchOffsetShard{
+    string namespace = 1;
+    string shard_name = 2;
+}
+
+message FetchOffsetReq{
+    ReqHeader header = 1;
+    FetchOffsetReqBody body = 2;
+}
+
+message FetchOffsetRespBody{
+    string group_name = 1;
+    repeated FetchOffsetShardMeta shard_offsets = 2;
+}
+
+message FetchOffsetShardMeta{
+    string namespace = 1;
+    string shard_name = 2;
+    uint64 offset = 3;
+}
+
+message FetchOffsetResp{
+    RespHeader header = 1;
+    FetchOffsetRespBody body = 2;
 }

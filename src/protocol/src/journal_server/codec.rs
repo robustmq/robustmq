@@ -20,8 +20,9 @@ use tokio_util::codec;
 
 use super::journal_engine::{
     ApiKey, CreateShardReq, CreateShardReqBody, CreateShardResp, CreateShardRespBody,
-    DeleteShardReq, DeleteShardReqBody, DeleteShardResp, DeleteShardRespBody,
-    GetClusterMetadataReq, GetClusterMetadataResp, GetClusterMetadataRespBody, GetShardMetadataReq,
+    DeleteShardReq, DeleteShardReqBody, DeleteShardResp, DeleteShardRespBody, FetchOffsetReq,
+    FetchOffsetReqBody, FetchOffsetResp, FetchOffsetRespBody, GetClusterMetadataReq,
+    GetClusterMetadataResp, GetClusterMetadataRespBody, GetShardMetadataReq,
     GetShardMetadataReqBody, GetShardMetadataResp, GetShardMetadataRespBody, OffsetCommitReq,
     OffsetCommitReqBody, OffsetCommitResp, OffsetCommitRespBody, ReadReq, ReadReqBody, ReadResp,
     ReadRespBody, ReqHeader, RespHeader, WriteReq, WriteReqBody, WriteResp, WriteRespBody,
@@ -53,6 +54,10 @@ pub enum JournalEnginePacket {
     OffsetCommitReq(OffsetCommitReq),
     OffsetCommitResp(OffsetCommitResp),
 
+    // FetchOffset
+    FetchOffsetReq(FetchOffsetReq),
+    FetchOffsetResp(FetchOffsetResp),
+
     // CreateShard
     CreateShardReq(CreateShardReq),
     CreateShardResp(CreateShardResp),
@@ -75,6 +80,8 @@ impl fmt::Display for JournalEnginePacket {
             JournalEnginePacket::GetShardMetadataResp(_) => write!(f, "GetShardMetadataResp"),
             JournalEnginePacket::OffsetCommitReq(_) => write!(f, "OffsetCommitReq"),
             JournalEnginePacket::OffsetCommitResp(_) => write!(f, "OffsetCommitResp"),
+            JournalEnginePacket::FetchOffsetReq(_) => write!(f, "FetchOffsetReq"),
+            JournalEnginePacket::FetchOffsetResp(_) => write!(f, "FetchOffsetResp"),
             JournalEnginePacket::CreateShardReq(_) => write!(f, "CreateShardReq"),
             JournalEnginePacket::CreateShardResp(_) => write!(f, "CreateShardResp"),
             JournalEnginePacket::DeleteShardReq(_) => write!(f, "DeleteShardReq"),
@@ -181,6 +188,21 @@ impl codec::Encoder<JournalEnginePacket> for JournalServerCodec {
                 let body = data.body.unwrap();
                 header_byte = RespHeader::encode_to_vec(&header);
                 body_byte = OffsetCommitRespBody::encode_to_vec(&body);
+            }
+
+            // FetchOffset
+            JournalEnginePacket::FetchOffsetReq(data) => {
+                let header = data.header.unwrap();
+                let body = data.body.unwrap();
+                header_byte = ReqHeader::encode_to_vec(&header);
+                body_byte = FetchOffsetReqBody::encode_to_vec(&body);
+                req_type = 1;
+            }
+            JournalEnginePacket::FetchOffsetResp(data) => {
+                let header = data.header.unwrap();
+                let body = data.body.unwrap();
+                header_byte = RespHeader::encode_to_vec(&header);
+                body_byte = FetchOffsetRespBody::encode_to_vec(&body);
             }
 
             // CreateShard
@@ -334,6 +356,8 @@ impl codec::Decoder for JournalServerCodec {
 
                         ApiKey::OffsetCommit => offset_commit_req(body_bytes, header),
 
+                        ApiKey::FetchOffset => fetch_offset_req(body_bytes, header),
+
                         ApiKey::CreateShard => create_shard_req(body_bytes, header),
 
                         ApiKey::DeleteShard => delete_shard_req(body_bytes, header),
@@ -354,6 +378,8 @@ impl codec::Decoder for JournalServerCodec {
                     ApiKey::GetShardMetadata => get_shard_metadata_resp(body_bytes, header),
 
                     ApiKey::OffsetCommit => offset_commit_resp(body_bytes, header),
+
+                    ApiKey::FetchOffset => fetch_offset_resp(body_bytes, header),
 
                     ApiKey::CreateShard => create_shard_resp(body_bytes, header),
 
@@ -602,6 +628,25 @@ fn offset_commit_req(
     }
 }
 
+fn fetch_offset_req(
+    body_bytes: BytesMut,
+    header: ReqHeader,
+) -> Result<Option<JournalEnginePacket>, Error> {
+    match FetchOffsetReqBody::decode(body_bytes.as_ref()) {
+        Ok(body) => {
+            let item = JournalEnginePacket::FetchOffsetReq(FetchOffsetReq {
+                header: Some(header),
+                body: Some(body),
+            });
+            Ok(Some(item))
+        }
+        Err(e) => Err(Error::DecodeBodyError(
+            "fetch_offset_resp".to_string(),
+            e.to_string(),
+        )),
+    }
+}
+
 fn offset_commit_resp(
     body_bytes: BytesMut,
     header: RespHeader,
@@ -616,6 +661,25 @@ fn offset_commit_resp(
         }
         Err(e) => Err(Error::DecodeBodyError(
             "offset_commit_resp".to_string(),
+            e.to_string(),
+        )),
+    }
+}
+
+fn fetch_offset_resp(
+    body_bytes: BytesMut,
+    header: RespHeader,
+) -> Result<Option<JournalEnginePacket>, Error> {
+    match FetchOffsetRespBody::decode(body_bytes.as_ref()) {
+        Ok(body) => {
+            let item = JournalEnginePacket::FetchOffsetResp(FetchOffsetResp {
+                header: Some(header),
+                body: Some(body),
+            });
+            Ok(Some(item))
+        }
+        Err(e) => Err(Error::DecodeBodyError(
+            "fetch_offset_resp".to_string(),
             e.to_string(),
         )),
     }

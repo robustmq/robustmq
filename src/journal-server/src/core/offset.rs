@@ -19,10 +19,15 @@ use dashmap::DashMap;
 use grpc_clients::placement::kv::call::placement_set;
 use grpc_clients::pool::ClientPool;
 use log::{info, warn};
+use metadata_struct::journal::shard::shard_name_iden;
+use protocol::journal_server::journal_engine::AutoOffsetReset;
 use protocol::placement_center::placement_center_kv::SetRequest;
 use serde::{Deserialize, Serialize};
 
+use super::cache::CacheManager;
 use super::error::JournalServerError;
+use crate::segment::manager::SegmentFileManager;
+use crate::segment::SegmentIdentity;
 
 fn key_name(cluster_name: &str, namespace: &str, shard_name: &str) -> String {
     format!("{}/{}/{}", cluster_name, namespace, shard_name)
@@ -37,14 +42,22 @@ pub struct Offset {
 
 pub struct OffsetManager {
     client_pool: Arc<ClientPool>,
+    cache_manager: Arc<CacheManager>,
+    segment_file_manager: Arc<SegmentFileManager>,
     offsets: DashMap<String, Offset>,
 }
 
 impl OffsetManager {
-    pub fn new(client_pool: Arc<ClientPool>) -> Self {
+    pub fn new(
+        client_pool: Arc<ClientPool>,
+        cache_manager: Arc<CacheManager>,
+        segment_file_manager: Arc<SegmentFileManager>,
+    ) -> Self {
         let offsets = DashMap::new();
         OffsetManager {
             client_pool,
+            cache_manager,
+            segment_file_manager,
             offsets,
         }
     }
@@ -101,5 +114,83 @@ impl OffsetManager {
             return Some(offset.clone());
         }
         None
+    }
+
+    pub async fn get_offset_by_strategy(
+        &self,
+        cluster_name: &str,
+        namespace: &str,
+        shard_name: &str,
+        strategy: AutoOffsetReset,
+    ) -> Result<u64, JournalServerError> {
+        if strategy == AutoOffsetReset::Latest {
+            return self.get_latest_offset_by_shard(namespace, shard_name).await;
+        }
+        return self
+            .get_earliest_offset_by_shard(namespace, shard_name)
+            .await;
+    }
+
+    async fn get_earliest_offset_by_shard(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+    ) -> Result<u64, JournalServerError> {
+        let shard = if let Some(shard) = self.cache_manager.get_shard(namespace, shard_name) {
+            shard
+        } else {
+            return Err(JournalServerError::ShardNotExist(shard_name_iden(
+                namespace, shard_name,
+            )));
+        };
+
+        let start_segment = shard.start_segment_seq;
+        let segment_iden = SegmentIdentity {
+            namespace: namespace.to_owned(),
+            shard_name: shard_name.to_owned(),
+            segment_seq: start_segment,
+        };
+        let segment_meta = if let Some(meta) = self.cache_manager.get_segment_meta(&segment_iden) {
+            meta
+        } else {
+            return Err(JournalServerError::SegmentMetaNotExists(
+                segment_iden.name(),
+            ));
+        };
+
+        Ok(segment_meta.start_offset as u64)
+    }
+
+    async fn get_latest_offset_by_shard(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+    ) -> Result<u64, JournalServerError> {
+        let shard = if let Some(shard) = self.cache_manager.get_shard(namespace, shard_name) {
+            shard
+        } else {
+            return Err(JournalServerError::ShardNotExist(shard_name_iden(
+                namespace, shard_name,
+            )));
+        };
+
+        let last_segment = shard.last_segment_seq;
+
+        let segment_iden = SegmentIdentity {
+            namespace: namespace.to_owned(),
+            shard_name: shard_name.to_owned(),
+            segment_seq: last_segment,
+        };
+
+        let end_offset =
+            if let Some(file_meta) = self.segment_file_manager.get_end_offset(&segment_iden) {
+                file_meta
+            } else {
+                return Err(JournalServerError::SegmentFileMetaNotExists(
+                    segment_iden.name(),
+                ));
+            };
+
+        Ok(end_offset as u64)
     }
 }

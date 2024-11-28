@@ -87,19 +87,19 @@ pub struct DataSenderPkg {
 }
 
 // Data Sender
-pub struct DataSender {
+pub struct Writer {
     node_senders: DashMap<u64, NodeSenderThread>,
     connection_manager: Arc<ConnectionManager>,
     metadata_cache: Arc<MetadataCache>,
 }
 
-impl DataSender {
+impl Writer {
     pub fn new(
         connection_manager: Arc<ConnectionManager>,
         metadata_cache: Arc<MetadataCache>,
     ) -> Self {
         let node_senders = DashMap::with_capacity(2);
-        DataSender {
+        Writer {
             node_senders,
             connection_manager,
             metadata_cache,
@@ -181,6 +181,13 @@ impl DataSender {
         let rs = sender.send(data);
         let resp_data = timeout(Duration::from_secs(30), callback_rx.recv()).await?;
         Ok(resp_data?)
+    }
+
+    pub async fn close(&self) -> Result<(), JournalClientError> {
+        for raw in self.node_senders.iter() {
+            raw.value().stop_send.send(true)?;
+        }
+        Ok(())
     }
 }
 

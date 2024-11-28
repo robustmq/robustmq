@@ -25,6 +25,9 @@ pub enum JournalClientError {
     #[error("{0}")]
     OneshotRecvError(#[from] tokio::sync::broadcast::error::RecvError),
 
+    #[error("{0}")]
+    BroadcastSendErrorBool(#[from] tokio::sync::broadcast::error::SendError<bool>),
+
     #[error("Node {0} has no available access address, may be cache data inconsistency, ready to trigger update node cache.")]
     NodeNoAvailableAddr(u64),
 

@@ -24,25 +24,26 @@ use log::error;
 use metadata_struct::journal::shard::shard_name_iden;
 use option::JournalClientOption;
 use protocol::journal_server::journal_engine::{CreateShardReqBody, DeleteShardReqBody};
-use sender::{DataSender, SenderMessage, SenderMessageResp};
 use service::{create_shard, delete_shard};
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::sleep;
+use writer::{SenderMessage, SenderMessageResp, Writer};
 
 mod cache;
 mod connection;
 mod error;
+mod group;
 pub mod option;
 mod reader;
-mod sender;
 mod service;
 pub mod tool;
+mod writer;
 
 #[derive(Clone)]
 pub struct JournalEngineClient {
     connection_manager: Arc<ConnectionManager>,
     metadata_cache: Arc<MetadataCache>,
-    sender: Arc<DataSender>,
+    writer: Arc<Writer>,
     stop_send: Sender<bool>,
 }
 
@@ -50,7 +51,7 @@ impl JournalEngineClient {
     pub fn new(options: JournalClientOption) -> Self {
         let metadata_cache = Arc::new(MetadataCache::new(options.addrs));
         let connection_manager = Arc::new(ConnectionManager::new(metadata_cache.clone()));
-        let sender = Arc::new(DataSender::new(
+        let sender = Arc::new(Writer::new(
             connection_manager.clone(),
             metadata_cache.clone(),
         ));
@@ -58,7 +59,7 @@ impl JournalEngineClient {
         JournalEngineClient {
             metadata_cache,
             connection_manager,
-            sender,
+            writer: sender,
             stop_send,
         }
     }
@@ -156,7 +157,7 @@ impl JournalEngineClient {
                 &content,
                 &tags,
             );
-            match self.sender.send(&message).await {
+            match self.writer.send(&message).await {
                 Ok(resp) => {
                     return Ok(resp);
                 }
@@ -172,12 +173,21 @@ impl JournalEngineClient {
         }
     }
 
-    pub async fn read(&self) {}
+    pub async fn read_by_offset(&self, group_name: &str, namespace: &str, shard_name: &str) {}
+
+    pub async fn read_by_timestamp(&self) {}
+
+    pub async fn read_by_key(&self) {}
+
+    pub async fn read_by_tag(&self) {}
 
     pub async fn close(&self) {
         if let Err(e) = self.stop_send.send(true) {
             error!("{}", e);
         }
         self.connection_manager.close().await;
+        if let Err(e) = self.writer.close().await {
+            error!("{}", e);
+        }
     }
 }

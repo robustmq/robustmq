@@ -17,10 +17,11 @@ use std::sync::Arc;
 use protocol::journal_server::codec::JournalEnginePacket;
 use protocol::journal_server::journal_engine::{
     ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, CreateShardRespBody, DeleteShardReq,
-    DeleteShardReqBody, DeleteShardRespBody, GetClusterMetadataReq, GetClusterMetadataRespBody,
-    GetShardMetadataReq, GetShardMetadataReqBody, GetShardMetadataReqShard,
-    GetShardMetadataRespBody, OffsetCommitReq, OffsetCommitReqBody, OffsetCommitRespBody, ReadReq,
-    ReadReqBody, ReadRespBody, ReqHeader, WriteReq, WriteReqBody, WriteRespBody,
+    DeleteShardReqBody, DeleteShardRespBody, FetchOffsetReq, FetchOffsetReqBody,
+    FetchOffsetRespBody, GetClusterMetadataReq, GetClusterMetadataRespBody, GetShardMetadataReq,
+    GetShardMetadataReqBody, GetShardMetadataReqShard, GetShardMetadataRespBody, OffsetCommitReq,
+    OffsetCommitReqBody, OffsetCommitRespBody, ReadReq, ReadReqBody, ReadRespBody, ReqHeader,
+    WriteReq, WriteReqBody, WriteRespBody,
 };
 
 use crate::connection::ConnectionManager;
@@ -196,6 +197,39 @@ pub(crate) async fn batch_read(
         .await?;
 
     if let JournalEnginePacket::ReadResp(data) = resp_packet {
+        resp_header_error(&data.header, req_packet.clone())?;
+        if let Some(body) = data.body {
+            return Ok(body);
+        }
+        return Err(JournalClientError::ReceivedPacketNotContainBody(
+            req_packet.to_string(),
+        ));
+    }
+
+    Err(JournalClientError::ReceivedPacketTypeError(
+        req_packet.to_string(),
+        resp_packet.to_string(),
+    ))
+}
+
+pub(crate) async fn fetch_offset(
+    connection_manager: &Arc<ConnectionManager>,
+    node_id: u64,
+    body: FetchOffsetReqBody,
+) -> Result<FetchOffsetRespBody, JournalClientError> {
+    let req_packet = JournalEnginePacket::FetchOffsetReq(FetchOffsetReq {
+        header: Some(ReqHeader {
+            api_key: ApiKey::FetchOffset.into(),
+            api_version: ApiVersion::V0.into(),
+        }),
+        body: Some(body),
+    });
+
+    let resp_packet = connection_manager
+        .read_send(node_id, req_packet.clone())
+        .await?;
+
+    if let JournalEnginePacket::FetchOffsetResp(data) = resp_packet {
         resp_header_error(&data.header, req_packet.clone())?;
         if let Some(body) = data.body {
             return Ok(body);
