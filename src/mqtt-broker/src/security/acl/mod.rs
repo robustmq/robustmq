@@ -156,7 +156,7 @@ fn is_acl_deny(
         for raw in acl_list.clone() {
             if topic_match(topic_name, &raw.topic)
                 && ip_match(&connection.source_ip_addr, &raw.ip)
-                && raw.action == action
+                && (raw.action == action || raw.action == MqttAclAction::All)
                 && raw.permission == MqttAclPermission::Deny
             {
                 return true;
@@ -172,7 +172,7 @@ fn is_acl_deny(
         for raw in client_id_list.clone() {
             if topic_match(topic_name, &raw.topic)
                 && ip_match(&connection.source_ip_addr, &raw.ip)
-                && raw.action == action
+                && (raw.action == action || raw.action == MqttAclAction::All)
                 && raw.permission == MqttAclPermission::Deny
             {
                 return true;

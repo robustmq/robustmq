@@ -14,8 +14,10 @@
 
 use common_base::error::common::CommonError;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
-    DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
+    ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest, CreateUserReply,
+    CreateUserRequest, DeleteAclReply, DeleteAclRequest, DeleteUserReply, DeleteUserRequest,
+    ListAclReply, ListAclRequest, ListConnectionReply, ListConnectionRequest, ListUserReply,
+    ListUserRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
@@ -37,6 +39,9 @@ pub enum MqttBrokerPlacementRequest {
     ListUser(ListUserRequest),
     CreateUser(CreateUserRequest),
     DeleteUser(DeleteUserRequest),
+    ListAcl(ListAclRequest),
+    CreateAcl(CreateAclRequest),
+    DeleteAcl(DeleteAclRequest),
 
     // connection
     ListConnection(ListConnectionRequest),
@@ -55,6 +60,9 @@ pub enum MqttBrokerPlacementReply {
     ListUser(ListUserReply),
     CreateUser(CreateUserReply),
     DeleteUser(DeleteUserReply),
+    ListAcl(ListAclReply),
+    CreateAcl(CreateAclReply),
+    DeleteAcl(DeleteAclReply),
 
     // connection
     ListConnection(ListConnectionReply),
@@ -109,6 +117,21 @@ async fn call_once(
             let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
             let reply = client.mqtt_broker_delete_user(delete_user_request).await?;
             Ok(MqttBrokerPlacementReply::DeleteUser(reply.into_inner()))
+        }
+        ListAcl(list_acl_request) => {
+            let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
+            let reply = client.mqtt_broker_list_acl(list_acl_request).await?;
+            Ok(MqttBrokerPlacementReply::ListAcl(reply.into_inner()))
+        }
+        CreateAcl(create_acl_request) => {
+            let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
+            let reply = client.mqtt_broker_create_acl(create_acl_request).await?;
+            Ok(MqttBrokerPlacementReply::CreateAcl(reply.into_inner()))
+        }
+        DeleteAcl(delete_acl_request) => {
+            let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
+            let reply = client.mqtt_broker_delete_acl(delete_acl_request).await?;
+            Ok(MqttBrokerPlacementReply::DeleteAcl(reply.into_inner()))
         }
         ListConnection(list_connection_request) => {
             let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;

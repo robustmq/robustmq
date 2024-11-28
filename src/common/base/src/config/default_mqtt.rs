@@ -23,6 +23,10 @@ pub fn default_http_port() -> usize {
     9982
 }
 
+pub fn default_placement_center() -> Vec<String> {
+    vec!["127.0.0.1:1228".to_string()]
+}
+
 pub fn default_network() -> Network {
     Network {
         tcp_port: default_network_tcp_port(),

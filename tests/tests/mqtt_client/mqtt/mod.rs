@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod acl_authorization_test;
 pub mod common;
 pub mod connect34_test;
 pub mod connect5_test;

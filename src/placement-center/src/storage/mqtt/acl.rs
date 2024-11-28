@@ -110,10 +110,10 @@ impl AclStorage {
 
     fn acl_exists(&self, acl_list: &[MqttAcl], acl: &MqttAcl) -> bool {
         for raw in acl_list {
-            if !(raw.permission == acl.permission
+            if raw.permission == acl.permission
                 && raw.action == acl.action
                 && raw.topic == acl.topic
-                && raw.ip == acl.ip)
+                && raw.ip == acl.ip
             {
                 return true;
             }

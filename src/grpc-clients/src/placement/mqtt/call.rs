@@ -18,14 +18,14 @@ use common_base::error::common::CommonError;
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
-    CreateUserReply, CreateUserRequest, DeleteAclRequest, DeleteAclRequestReply,
-    DeleteBlacklistReply, DeleteBlacklistRequest, DeleteSessionReply, DeleteSessionRequest,
-    DeleteTopicReply, DeleteTopicRequest, DeleteUserReply, DeleteUserRequest,
-    GetShareSubLeaderReply, GetShareSubLeaderRequest, ListAclReply, ListAclRequest,
-    ListBlacklistReply, ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListTopicReply,
-    ListTopicRequest, ListUserReply, ListUserRequest, SaveLastWillMessageReply,
-    SaveLastWillMessageRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
-    UpdateSessionReply, UpdateSessionRequest,
+    CreateUserReply, CreateUserRequest, DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply,
+    DeleteBlacklistRequest, DeleteSessionReply, DeleteSessionRequest, DeleteTopicReply,
+    DeleteTopicRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
+    GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
+    ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest,
+    ListUserReply, ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest,
+    SetTopicRetainMessageReply, SetTopicRetainMessageRequest, UpdateSessionReply,
+    UpdateSessionRequest,
 };
 
 use super::{MqttServiceReply, MqttServiceRequest};
@@ -127,12 +127,7 @@ generate_mqtt_service_call!(
     SaveLastWillMessage
 );
 generate_mqtt_service_call!(create_acl, CreateAclRequest, CreateAclReply, CreateAcl);
-generate_mqtt_service_call!(
-    delete_acl,
-    DeleteAclRequest,
-    DeleteAclRequestReply,
-    DeleteAcl
-);
+generate_mqtt_service_call!(delete_acl, DeleteAclRequest, DeleteAclReply, DeleteAcl);
 generate_mqtt_service_call!(list_acl, ListAclRequest, ListAclReply, ListAcl);
 generate_mqtt_service_call!(
     create_blacklist,

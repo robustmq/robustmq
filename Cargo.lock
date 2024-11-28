@@ -2137,6 +2137,7 @@ dependencies = [
  "axum 0.7.4",
  "axum-extra",
  "axum-server",
+ "bincode",
  "bytes",
  "common-base",
  "dashmap",
