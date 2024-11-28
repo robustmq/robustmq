@@ -121,8 +121,12 @@ async fn call_once(
                 .await?;
             Ok(MqttBrokerPlacementReply::ListConnection(reply.into_inner()))
         }
-        EnableSlowSubscribe(_) => {
-            todo!();
+        EnableSlowSubscribe(enable_slow_subscribe_request) => {
+            let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
+            let reply = client
+                .mqtt_broker_enable_slow_subscribe(enable_slow_subscribe_request)
+                .await?;
+            Ok(MqttBrokerPlacementReply::EnableSlowSubscribe(reply.into_inner()))
         }
     }
 }

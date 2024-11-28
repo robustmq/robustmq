@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::future::Future;
 use std::sync::Arc;
 
-use grpc_clients::mqtt::admin::call::{
-    cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user, mqtt_broker_list_connection,
-    mqtt_broker_list_user,
-};
+use grpc_clients::mqtt::admin::call::{cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user, mqtt_broker_enable_slow_subscribe, mqtt_broker_list_connection, mqtt_broker_list_user};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, EnableSlowSubscribeRequest, ListConnectionRequest, ListUserRequest};
@@ -188,6 +186,17 @@ impl MqttBrokerCommand {
     // ---------------- observability ----------------
     // ------------ slow subscribe features ----------
     async fn enable_slow_subscribe(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam, cli_request: EnableSlowSubscribeRequest) {
-        todo!();
+        match mqtt_broker_enable_slow_subscribe(client_pool.clone(), &grpc_addr(params.server), cli_request) 
+            .await
+        {
+            Ok(_) => {
+                println!("MQTT broker enable slow subscribe successfully!");
+            }
+            
+            Err(e) => {
+                println!("MQTT broker enable slow subscribe exception");
+                error_info(e.to_string());
+            }
+        }
     }
 }
