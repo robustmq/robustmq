@@ -21,8 +21,8 @@ use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
-    DeleteUserRequest, ListConnectionRaw, ListConnectionReply, ListConnectionRequest,
-    ListUserReply, ListUserRequest,
+    DeleteUserRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest, ListConnectionRaw,
+    ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
 };
 use tonic::{Request, Response, Status};
 
@@ -161,5 +161,13 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         }
         reply.list_connection_raw = list_connection_raw;
         Ok(Response::new(reply))
+    }
+
+    // observability: slow_subscribe
+    async fn mqtt_broker_enable_slow_subscribe(
+        &self,
+        request: Request<EnableSlowSubscribeRequest>,
+    ) -> Result<Response<EnableSlowSubScribeReply>, Status> {
+        todo!()
     }
 }

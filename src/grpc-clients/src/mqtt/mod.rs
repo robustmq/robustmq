@@ -13,7 +13,11 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
+    DeleteUserRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest, ListConnectionReply,
+    ListConnectionRequest, ListUserReply, ListUserRequest,
+};
 use protocol::broker_mqtt::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
     UpdateCacheReply, UpdateCacheRequest,
@@ -59,9 +63,8 @@ pub enum MqttBrokerPlacementReply {
     // connection
     ListConnection(ListConnectionReply),
 
-
     // slow subscribe
-    EnableSlowSubscribe(EnableSlowSubScribeReply)
+    EnableSlowSubscribe(EnableSlowSubScribeReply),
 }
 
 pub mod admin;
@@ -126,7 +129,9 @@ async fn call_once(
             let reply = client
                 .mqtt_broker_enable_slow_subscribe(enable_slow_subscribe_request)
                 .await?;
-            Ok(MqttBrokerPlacementReply::EnableSlowSubscribe(reply.into_inner()))
+            Ok(MqttBrokerPlacementReply::EnableSlowSubscribe(
+                reply.into_inner(),
+            ))
         }
     }
 }

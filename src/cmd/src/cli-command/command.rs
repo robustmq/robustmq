@@ -17,7 +17,9 @@ use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
 use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
-use protocol::broker_mqtt::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequest, EnableSlowSubscribeRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    CreateUserRequest, DeleteUserRequest, EnableSlowSubscribeRequest,
+};
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
 };
@@ -72,7 +74,6 @@ enum MQTTAction {
     // observability
     EnableSlowSubscribe(EnableSlowSubscribeArgs),
 }
-
 
 // ------ mqtt user ------
 #[derive(clap::Args, Debug)]
@@ -154,7 +155,6 @@ struct ChangeMembershipArgs {
     retain: bool,
 }
 
-
 // ------- journal ------
 
 #[derive(clap::Args, Debug)]
@@ -188,11 +188,11 @@ async fn main() {
                     }),
                     MQTTAction::ListUser => MqttActionType::ListUser,
                     MQTTAction::ListConnection => MqttActionType::ListConnection,
-                    MQTTAction::EnableSlowSubscribe(arg) => MqttActionType::EnableSlowSubscribe(
-                        EnableSlowSubscribeRequest {
+                    MQTTAction::EnableSlowSubscribe(arg) => {
+                        MqttActionType::EnableSlowSubscribe(EnableSlowSubscribeRequest {
                             is_enable: arg.is_enable,
-                        }
-                    )
+                        })
+                    }
                 },
             };
             cmd.start(params).await;
