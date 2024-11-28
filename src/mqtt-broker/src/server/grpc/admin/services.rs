@@ -147,11 +147,14 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
         match auth_driver.read_all_acl().await {
             Ok(data) => {
-                let acl_list = data
-                    .iter()
-                    .map(|acl| acl.encode().map_err(|e| Status::cancelled(e.to_string())))
-                    .collect::<Result<Vec<Vec<u8>>, Status>>()?;
-                reply.acls = acl_list;
+                let mut acls_list = Vec::new();
+                for ele in data {
+                    match ele.encode() {
+                        Ok(acl) => acls_list.push(acl),
+                        Err(e) => return Err(Status::cancelled(e.to_string())),
+                    }
+                }
+                reply.acls = acls_list;
                 return Ok(Response::new(reply));
             }
             Err(e) => {

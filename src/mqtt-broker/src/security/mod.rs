@@ -121,17 +121,9 @@ impl AuthDriver {
     }
 
     pub async fn delete_user(&self, username: String) -> Result<(), CommonError> {
-        match self.driver.read_all_user().await {
-            Ok(date) => {
-                let is_existed = date.iter().any(|user| *user.key() == username);
-                if !is_existed {
-                    return Err(CommonError::CommonError("user does not exist".to_string()));
-                };
-            }
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        if let None = self.cache_manager.user_info.get(&username) {
+            return Err(CommonError::CommonError("user does not exist".to_string()));
+        }
         match self.driver.delete_user(username.clone()).await {
             Ok(()) => {
                 self.cache_manager.del_user(username.clone());
