@@ -22,7 +22,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
     DeleteUserRequest, ListConnectionRaw, ListConnectionReply, ListConnectionRequest,
-    ListUserReply, ListUserRequest,
+    ListUserReply, ListUserRequest, ListTopicRequest, ListTopicReply
 };
 use tonic::{Request, Response, Status};
 
@@ -161,5 +161,26 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         }
         reply.list_connection_raw = list_connection_raw;
         Ok(Response::new(reply))
+    }
+
+    async fn mqtt_broker_list_topic(
+        &self,
+        _: Request<ListTopicRequest>,
+    ) -> Result<Response<ListTopicReply>, Status> {
+        let mut reply = ListUserReply::default();
+
+        let mut topic_list = Vec::new();
+        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        match auth_driver.read_all_user().await {
+            Ok(date) => {
+                date.iter()
+                    .for_each(|user| user_list.push(user.value().encode()));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+        reply.users = user_list;
+        return Ok(Response::new(reply));
     }
 }

@@ -16,10 +16,8 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
-    DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
+    ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest
 };
-use protocol::placement_center::placement_center_mqtt::ListTopicReply;
 
 use crate::mqtt::{call_once, MqttBrokerPlacementReply, MqttBrokerPlacementRequest};
 use crate::pool::ClientPool;
@@ -89,10 +87,10 @@ pub async fn mqtt_broker_list_connection(
     }
 }
 
-pub async fn mqtt_broker_list_user(
+pub async fn mqtt_broker_list_topic(
     client_pool: Arc<ClientPool>,
     addrs: &[String],
-    request: ListTopicReply,
+    request: ListTopicRequest,
 ) -> Result<ListTopicReply, CommonError> {
     let request = MqttBrokerPlacementRequest::ListTopic(request);
     match retry_call(&client_pool, addrs, request, call_once).await? {

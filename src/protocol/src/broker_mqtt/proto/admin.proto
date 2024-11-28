@@ -74,5 +74,5 @@ message ListConnectionRaw {
 
 message ListTopicRequest{}
 message ListTopicReply{
-    repeated ListTopicRaw list_topic_raw = 1;
+    repeated string topic_names = 1;
 }
