@@ -138,7 +138,7 @@ impl PlacementCenter {
         let placement_center_storage = Arc::new(RaftMachineApply::new(
             raft_message_send,
             openraft_node.clone(),
-            crate::route::apply::ClusterRaftModel::V2,
+            ClusterRaftModel::V2,
         ));
 
         self.start_controller(placement_center_storage.clone(), stop_send.clone());
