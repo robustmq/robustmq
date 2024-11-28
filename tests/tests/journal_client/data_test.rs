@@ -155,6 +155,7 @@ mod tests {
                         shard_name: shard_name.clone(),
                         segment: 0,
                         messages: vec![WriteReqMessages {
+                            pkid: 1,
                             key: key.clone(),
                             value: value.clone(),
                             tags: tags.clone(),

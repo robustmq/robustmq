@@ -17,8 +17,8 @@ use std::sync::Arc;
 use common_base::config::journal_server::journal_server_conf;
 use grpc_clients::pool::ClientPool;
 use protocol::journal_server::journal_engine::{
-    JournalEngineError, OffsetCommitReq, OffsetCommitShardResp, ReadReq, ReadRespSegmentMessage,
-    WriteReq, WriteRespMessage,
+    FetchOffsetReq, FetchOffsetRespBody, FetchOffsetShardMeta, JournalEngineError, OffsetCommitReq,
+    OffsetCommitShardResp, ReadReq, ReadRespSegmentMessage, WriteReq, WriteRespMessage,
 };
 use rocksdb_engine::RocksDBEngine;
 
@@ -127,6 +127,7 @@ impl DataHandler {
 
         let req_body = request.body.unwrap();
         let mut result = Vec::new();
+        let conf = journal_server_conf();
         for shard in req_body.shard {
             if self
                 .cache_manager
@@ -143,7 +144,6 @@ impl DataHandler {
                 });
                 continue;
             }
-            let conf = journal_server_conf();
 
             self.offset_manager
                 .commit_offset(
@@ -160,6 +160,52 @@ impl DataHandler {
             });
         }
         Ok(result)
+    }
+
+    pub async fn fetch_offset(
+        &self,
+        request: FetchOffsetReq,
+    ) -> Result<FetchOffsetRespBody, JournalServerError> {
+        if request.body.is_none() {
+            return Err(JournalServerError::RequestBodyNotEmpty(
+                "fetch_offset".to_string(),
+            ));
+        }
+        let req_body = request.body.unwrap();
+        let group_name = req_body.group_name.clone();
+        let strategy = req_body.auto_offset_reste();
+        let conf = journal_server_conf();
+        let mut meta_list = Vec::new();
+        for shard in req_body.shards {
+            let offset = if let Some(offset) = self
+                .offset_manager
+                .get_offset(&conf.cluster_name, &shard.namespace, &shard.shard_name)
+                .await
+            {
+                offset.offset
+            } else {
+                self.offset_manager
+                    .get_offset_by_strategy(
+                        &conf.cluster_name,
+                        &shard.namespace,
+                        &shard.shard_name,
+                        strategy,
+                    )
+                    .await?
+            };
+
+            let meta = FetchOffsetShardMeta {
+                namespace: shard.namespace,
+                shard_name: shard.shard_name,
+                offset,
+            };
+            meta_list.push(meta);
+        }
+
+        Ok(FetchOffsetRespBody {
+            group_name,
+            shard_offsets: meta_list,
+        })
     }
 
     fn validator(&self, segment_identity: &SegmentIdentity) -> Result<(), JournalServerError> {

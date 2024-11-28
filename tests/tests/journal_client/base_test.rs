@@ -142,6 +142,7 @@ mod tests {
                     shard_name: "s1".to_string(),
                     segment: 0,
                     messages: vec![WriteReqMessages {
+                        pkid: 1,
                         key: "k1".to_string(),
                         value: serde_json::to_vec(&now_second().to_string()).unwrap(),
                         tags: vec!["t1".to_string()],

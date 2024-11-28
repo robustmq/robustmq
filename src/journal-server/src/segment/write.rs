@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -52,7 +53,8 @@ pub struct SegmentWriteData {
 
 #[derive(Default, Debug)]
 pub struct SegmentWriteResp {
-    offset: Vec<u64>,
+    offsets: HashMap<u64, u64>,
+    positions: HashMap<u64, u64>,
     error: Option<JournalServerError>,
 }
 
@@ -89,6 +91,7 @@ pub async fn write_data_req(
                 shard_name: shard_data.shard_name.clone(),
                 segment: shard_data.segment,
                 tags: message.tags.clone(),
+                pkid: message.pkid,
                 ..Default::default()
             };
             data_list.push(record);
@@ -109,14 +112,14 @@ pub async fn write_data_req(
         }
 
         // if position = 0, update start/timestamp
-        if let Some(first_posi) = resp.offset.first() {
-            if *first_posi == 0 {
+        for (_, position) in resp.positions.iter() {
+            if *position == 0 {
                 let first_record = data_list.first().unwrap();
                 segment_position0_ac(
                     segment_file_manager,
                     client_pool,
                     &segment_iden,
-                    *first_posi as i64,
+                    *position as i64,
                     first_record.create_time,
                 )
                 .await?;
@@ -124,9 +127,10 @@ pub async fn write_data_req(
         }
 
         let mut resp_message_status = Vec::new();
-        for resp_raw in resp.offset {
+        for (pkid, offset) in resp.offsets {
             let status = WriteRespMessageStatus {
-                offset: resp_raw,
+                pkid,
+                offset,
                 ..Default::default()
             };
             resp_message_status.push(status);
@@ -161,7 +165,8 @@ async fn write(
     };
     write.data_sender.send(data).await?;
 
-    let time_res = timeout(Duration::from_secs(30), rx).await?;
+    let time_res: Result<SegmentWriteResp, oneshot::error::RecvError> =
+        timeout(Duration::from_secs(30), rx).await?;
     Ok(time_res?)
 }
 
@@ -260,9 +265,9 @@ async fn start_segment_sync_write_thread(
                                         &client_pool,
                                         local_segment_end_offset as u64).await
                                     {
-                                        Ok(resp_data) =>{
-                                            if let Some(end_offset) = resp_data.offset.last() {
-                                                local_segment_end_offset = *end_offset as i64;
+                                        Ok((resp_data,last_offset)) =>{
+                                            if let Some(end_offset) = last_offset {
+                                                local_segment_end_offset = end_offset as i64;
                                             }
                                             resp = resp_data;
 
@@ -301,7 +306,7 @@ async fn batch_write_segment(
     segment_file_manager: &Arc<SegmentFileManager>,
     client_pool: &Arc<ClientPool>,
     mut local_segment_end_offset: u64,
-) -> Result<SegmentWriteResp, JournalServerError> {
+) -> Result<(SegmentWriteResp, Option<u64>), JournalServerError> {
     let segment_iden = SegmentIdentity {
         namespace: segment_write.namespace.clone(),
         shard_name: segment_write.shard_name.clone(),
@@ -311,19 +316,24 @@ async fn batch_write_segment(
     let mut resp = SegmentWriteResp::default();
 
     // build write data
-    let mut offsets = Vec::new();
+    let mut last_offset = None;
+    let mut offsets = HashMap::new();
     let mut records = Vec::new();
     for mut record in packet.data.clone() {
         record.offset = local_segment_end_offset + 1;
         local_segment_end_offset = record.offset;
-        offsets.push(record.offset);
+
+        offsets.insert(record.pkid, record.offset);
+        last_offset = Some(record.offset);
+
         records.push(record);
     }
 
     // batch write data
     match segment_write.write(&records).await {
         Ok(positions) => {
-            resp.offset = offsets.clone();
+            resp.offsets = offsets.clone();
+            resp.positions = positions;
         }
         Err(e) => {
             resp.error = Some(e);
@@ -331,19 +341,19 @@ async fn batch_write_segment(
     }
 
     // update local segment file end offset/Timestamp
-    if let Some(end_offset) = offsets.last() {
+    if let Some(end_offset) = last_offset {
         let last_recrd = records.last().unwrap();
         segment_position9_ac(
             client_pool,
             segment_file_manager,
             &segment_iden,
-            *end_offset as i64,
+            end_offset as i64,
             last_recrd.create_time,
         )
         .await?;
     }
 
-    Ok(resp)
+    Ok((resp, last_offset))
 }
 
 async fn segment_position0_ac(

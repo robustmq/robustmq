@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
 use std::fs::remove_dir_all;
 use std::io::ErrorKind;
 use std::path::Path;
@@ -103,19 +104,24 @@ impl SegmentFile {
         Ok(remove_dir_all(segment_file)?)
     }
 
-    pub async fn write(&self, records: &[JournalRecord]) -> Result<Vec<u64>, JournalServerError> {
+    pub async fn write(
+        &self,
+        records: &[JournalRecord],
+    ) -> Result<HashMap<u64, u64>, JournalServerError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = OpenOptions::new().append(true).open(segment_file).await?;
         let mut writer = tokio::io::BufWriter::new(file);
 
-        let mut results = Vec::new();
+        let mut results = HashMap::new();
         for record in records {
             let position = writer.stream_position().await?;
+
             let data = JournalRecord::encode_to_vec(record);
             writer.write_u64(record.offset).await?;
             writer.write_u32(data.len() as u32).await?;
             writer.write_all(data.as_ref()).await?;
-            results.push(position);
+
+            results.insert(record.pkid, position);
         }
 
         writer.flush().await?;
@@ -343,6 +349,7 @@ mod tests {
                 offset: 1000 + i,
                 segment: 1,
                 tags: vec![],
+                ..Default::default()
             };
             match segment.write(&[record.clone()]).await {
                 Ok(_) => {}
