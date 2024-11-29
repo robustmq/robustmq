@@ -109,7 +109,7 @@ impl PlacementCenter {
 
     pub async fn start(&mut self, stop_send: broadcast::Sender<bool>) {
         self.init_cache();
-        // TODO 这个通道的作用什么？  在删除raftV1 相关代码后，接收端没有使用的地方，但是发送端好多地方使用
+       
         let (raft_message_send, _raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
 
         let data_route = Arc::new(DataRoute::new(
