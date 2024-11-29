@@ -291,6 +291,7 @@ pub fn record_sent_metrics(packet_wrapper: &MqttPacketWrapper, network_type: Str
         MqttPacket::Auth(_, _) => PACKETS_CONNACK_SENT
             .with_label_values(&[&network_type, &qos_str])
             .inc(),
+            
         _ => {}
     }
 }
