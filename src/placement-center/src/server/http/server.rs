@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::net::SocketAddr;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use axum::routing::get;
 use axum::Router;
@@ -23,7 +23,6 @@ use log::info;
 use super::index::metrics;
 use crate::core::cache::PlacementCacheManager;
 use crate::journal::cache::JournalCacheManager;
-use crate::raft::raftv1::rocksdb::RaftMachineStorage;
 use crate::route::apply::RaftMachineApply;
 
 pub const ROUTE_METRICS: &str = "/metrics";
@@ -32,7 +31,6 @@ pub const ROUTE_METRICS: &str = "/metrics";
 #[allow(dead_code)]
 pub struct HttpServerState {
     pub placement_cache: Arc<PlacementCacheManager>,
-    pub raft_storage: Arc<RwLock<RaftMachineStorage>>,
     pub cluster_cache: Arc<PlacementCacheManager>,
     pub engine_cache: Arc<JournalCacheManager>,
     pub placement_center_storage: Arc<RaftMachineApply>,
@@ -41,14 +39,12 @@ pub struct HttpServerState {
 impl HttpServerState {
     pub fn new(
         placement_cache: Arc<PlacementCacheManager>,
-        raft_storage: Arc<RwLock<RaftMachineStorage>>,
         cluster_cache: Arc<PlacementCacheManager>,
         engine_cache: Arc<JournalCacheManager>,
         placement_center_storage: Arc<RaftMachineApply>,
     ) -> Self {
         Self {
             placement_cache,
-            raft_storage,
             cluster_cache,
             engine_cache,
             placement_center_storage,

@@ -12,35 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/** ===========Raft========== */
-pub fn key_name_by_first_index() -> String {
-    "/raft/first_index".to_string()
-}
-
-pub fn key_name_by_last_index() -> String {
-    "/raft/last_index".to_string()
-}
-
-pub fn key_name_by_hard_state() -> String {
-    "/raft/hard_state".to_string()
-}
-
-pub fn key_name_by_conf_state() -> String {
-    "/raft/conf_state".to_string()
-}
-
-pub fn key_name_by_entry(idx: u64) -> String {
-    format!("/raft/entry/{}", idx)
-}
-
-pub fn key_name_uncommit(idx: u64) -> String {
-    format!("/raft/uncommit_index/{}", idx)
-}
-
-pub fn key_name_uncommit_prefix() -> String {
-    "/raft/uncommit_index".to_string()
-}
-
 /** ===========Cluster========== */
 pub fn key_cluster(cluster_type: &str, cluster_name: &str) -> String {
     format!("/clusters/{}/{}", cluster_type, cluster_name)

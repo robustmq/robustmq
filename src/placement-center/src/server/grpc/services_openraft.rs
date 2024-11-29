@@ -21,8 +21,8 @@ use protocol::placement_center::placement_center_openraft::{
 };
 use tonic::{Request, Response, Status};
 
-use crate::raft::raftv2::raft_node::Node;
-use crate::raft::raftv2::typeconfig::TypeConfig;
+use crate::raft::raft_node::Node;
+use crate::raft::typeconfig::TypeConfig;
 
 pub struct GrpcOpenRaftServices {
     raft_node: Raft<TypeConfig>,

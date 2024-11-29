@@ -14,20 +14,16 @@
 
 use std::sync::Arc;
 
-use common_base::tools::now_second;
-use dashmap::DashMap;
-use log::error;
-use metadata_struct::placement::cluster::ClusterInfo;
-use metadata_struct::placement::node::BrokerNode;
-use raft::StateRole;
-use serde::{Deserialize, Serialize};
-
 use super::heartbeat::NodeHeartbeatData;
 use crate::core::cluster::ClusterMetadata;
-use crate::core::raft_node::RaftNode;
 use crate::storage::placement::cluster::ClusterStorage;
 use crate::storage::placement::node::NodeStorage;
 use crate::storage::rocksdb::RocksDBEngine;
+use common_base::tools::now_second;
+use dashmap::DashMap;
+use metadata_struct::placement::cluster::ClusterInfo;
+use metadata_struct::placement::node::BrokerNode;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct PlacementCacheManager {
@@ -159,62 +155,6 @@ impl PlacementCacheManager {
         let placement_cluster = DashMap::with_capacity(2);
         placement_cluster.insert(self.cluster_key(), ClusterMetadata::new());
         self.placement_cluster = placement_cluster;
-    }
-
-    pub fn add_raft_member(&self, node: RaftNode) {
-        if let Some(mut cluster) = self.placement_cluster.get_mut(&self.cluster_key()) {
-            cluster.add_member(node.node_id, node);
-        }
-    }
-
-    pub fn remove_raft_member(&self, id: u64) {
-        if let Some(mut cluster) = self.placement_cluster.get_mut(&self.cluster_key()) {
-            cluster.remove_member(id);
-        }
-    }
-
-    pub fn get_raft_votes(&self) -> Vec<RaftNode> {
-        if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
-            return cluster.votes.iter().map(|v| v.clone()).collect();
-        }
-        Vec::new()
-    }
-
-    pub fn get_votes_node_by_id(&self, node_id: u64) -> Option<RaftNode> {
-        if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
-            if let Some(node) = cluster.get_node_by_id(node_id) {
-                return Some(node.clone());
-            }
-        }
-        None
-    }
-
-    pub fn is_raft_role_change(&self, new_role: StateRole) -> bool {
-        if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
-            return cluster.is_raft_role_change(new_role);
-        }
-        false
-    }
-
-    pub fn get_current_raft_role(&self) -> String {
-        if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
-            return cluster.raft_role.clone();
-        }
-        "".to_string()
-    }
-
-    pub fn update_raft_role(&self, local_new_role: StateRole, leader_id: u64) {
-        if let Some(mut cluster) = self.placement_cluster.get_mut(&self.cluster_key()) {
-            cluster.update_node_raft_role(local_new_role);
-
-            if leader_id > 0 {
-                if let Some(leader) = cluster.votes.clone().get(&leader_id) {
-                    cluster.set_leader(Some(leader.clone()));
-                } else {
-                    error!("Invalid leader id, the node corresponding to the leader id cannot be found in votes.");
-                }
-            }
-        }
     }
 
     fn node_key(&self, cluster_name: &str, node_id: u64) -> String {
