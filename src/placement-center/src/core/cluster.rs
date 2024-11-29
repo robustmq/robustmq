@@ -97,34 +97,6 @@ impl ClusterMetadata {
             members: DashMap::with_capacity(2),
         }
     }
-
-    pub fn add_member(&mut self, id: u64, node: RaftNode) {
-        self.members.insert(id, node);
-    }
-
-    pub fn remove_member(&mut self, id: u64) {
-        self.members.remove(&id);
-    }
-
-    pub fn update_node_raft_role(&mut self, local_new_role: StateRole) {
-        self.raft_role = role_to_string(local_new_role);
-    }
-
-    pub fn set_leader(&mut self, new_leader: Option<RaftNode>) {
-        self.leader = new_leader;
-    }
-
-    pub fn get_node_by_id(&self, id: u64) -> Option<RaftNode> {
-        if let Some(node) = self.votes.get(&id) {
-            return Some(node.clone());
-        }
-        None
-    }
-
-    pub fn is_raft_role_change(&self, new_role: StateRole) -> bool {
-        let n_role = role_to_string(new_role);
-        n_role != self.raft_role
-    }
 }
 
 fn role_to_string(role: StateRole) -> String {

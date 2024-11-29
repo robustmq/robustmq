@@ -65,11 +65,6 @@ impl DataRoute {
         }
     }
 
-    pub async fn route_vec(&self, data: Vec<u8>) -> Result<Option<Vec<u8>>, PlacementCenterError> {
-        let storage_data: StorageData = deserialize(data.as_ref()).unwrap();
-        self.route(storage_data).await
-    }
-
     //Receive write operations performed by the Raft state machine and write subsequent service data after Raft state machine synchronization is complete.
     pub async fn route(
         &self,

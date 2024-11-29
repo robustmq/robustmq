@@ -28,8 +28,8 @@ use openraft::raft::{
 use openraft::RaftNetwork;
 use protocol::placement_center::placement_center_openraft::{AppendRequest, SnapshotRequest};
 
-use crate::raft::raftv2::error::to_error;
-use crate::raft::raftv2::typeconfig::TypeConfig;
+use crate::raft::error::to_error;
+use crate::raft::typeconfig::TypeConfig;
 
 pub struct NetworkConnection {
     addr: String,

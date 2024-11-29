@@ -48,7 +48,7 @@ impl Display for Node {
 pub mod typ {
     // use openraft::error::Infallible;
 
-    use crate::raft::raftv2::typeconfig::TypeConfig;
+    use crate::raft::typeconfig::TypeConfig;
 
     pub type Entry = openraft::Entry<TypeConfig>;
 

@@ -14,7 +14,6 @@
 
 use std::time::Duration;
 
-use bincode::serialize;
 use openraft::raft::ClientWriteResponse;
 use openraft::Raft;
 use raft::eraftpb::{ConfChange, Message as RaftPreludeMessage};
@@ -23,7 +22,7 @@ use tokio::sync::oneshot::{Receiver, Sender};
 use tokio::time::timeout;
 
 use crate::core::error::PlacementCenterError;
-use crate::raft::raftv2::typeconfig::TypeConfig;
+use crate::raft::typeconfig::TypeConfig;
 use crate::route::data::StorageData;
 
 pub enum RaftResponseMessage {
@@ -55,28 +54,19 @@ pub enum RaftMessage {
     },
 }
 
-#[derive(PartialEq, Eq)]
-pub enum ClusterRaftModel {
-    V1,
-    V2,
-}
-
 pub struct RaftMachineApply {
     raft_status_machine_sender: tokio::sync::mpsc::Sender<RaftMessage>,
     pub openraft_node: Raft<TypeConfig>,
-    pub model: ClusterRaftModel,
 }
 
 impl RaftMachineApply {
     pub fn new(
         raft_sender: tokio::sync::mpsc::Sender<RaftMessage>,
         openraft_node: Raft<TypeConfig>,
-        model: ClusterRaftModel,
     ) -> Self {
         RaftMachineApply {
             raft_status_machine_sender: raft_sender,
             openraft_node,
-            model,
         }
     }
 
@@ -84,42 +74,13 @@ impl RaftMachineApply {
         &self,
         data: StorageData,
     ) -> Result<Option<ClientWriteResponse<TypeConfig>>, PlacementCenterError> {
-        if self.model == ClusterRaftModel::V1 {
-            let action = format!("{:?}", data.data_type);
-            match self.raftv1_write(data, action).await {
-                Ok(()) => return Ok(None),
-                Err(e) => return Err(e),
-            }
+        match self.raft_write(data).await {
+            Ok(data) => Ok(Some(data)),
+            Err(e) => Err(e),
         }
-
-        if self.model == ClusterRaftModel::V2 {
-            match self.raftv2_write(data).await {
-                Ok(data) => return Ok(Some(data)),
-                Err(e) => return Err(e),
-            }
-        }
-
-        panic!("raft cluster mode is not available, optional :V1,V2");
     }
 
-    async fn raftv1_write(
-        &self,
-        data: StorageData,
-        action: String,
-    ) -> Result<(), PlacementCenterError> {
-        let (sx, rx) = oneshot::channel::<RaftResponseMessage>();
-        self.apply_raft_status_machine_message(
-            RaftMessage::Propose {
-                data: serialize(&data).unwrap(),
-                chan: sx,
-            },
-            action,
-            rx,
-        )
-        .await
-    }
-
-    async fn raftv2_write(
+    async fn raft_write(
         &self,
         data: StorageData,
     ) -> Result<ClientWriteResponse<TypeConfig>, PlacementCenterError> {
@@ -187,10 +148,7 @@ impl RaftMachineApply {
 
     async fn wait_recv_chan_resp(&self, rx: Receiver<RaftResponseMessage>) -> bool {
         let res = timeout(Duration::from_secs(30), async {
-            match rx.await {
-                Ok(val) => val,
-                Err(_) => RaftResponseMessage::Fail,
-            }
+            rx.await.unwrap_or(RaftResponseMessage::Fail)
         });
         res.await.is_ok()
     }
