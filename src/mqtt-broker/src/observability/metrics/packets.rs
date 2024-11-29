@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use lazy_static::lazy_static;
 use prometheus::{register_int_gauge_vec, IntGaugeVec};
 use protocol::mqtt::codec::{calc_mqtt_packet_size, MqttPacketWrapper};
@@ -21,8 +19,6 @@ use protocol::mqtt::common::{MqttPacket, QoS};
 
 use crate::handler::constant::{METRICS_KEY_NETWORK_TYPE, METRICS_KEY_QOS};
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};
-use crate::server::connection_manager::ConnectionManager;
-use crate::server::packet::ResponsePackage;
 
 lazy_static! {
     // Number of packets received
@@ -271,30 +267,14 @@ pub fn record_received_metrics(
 }
 
 // Record metrics related to messages pushed to the client
-pub fn record_sent_metrics(resp: &ResponsePackage, connection_manager: &Arc<ConnectionManager>) {
-    let qos_str = if let MqttPacket::Publish(publish, _) = resp.packet.clone() {
+pub fn record_sent_metrics(packet_wrapper: &MqttPacketWrapper, network_type: String) {
+    let qos_str = if let MqttPacket::Publish(publish, _) = packet_wrapper.packet.clone() {
         format!("{}", publish.qos as u8)
     } else {
         "-1".to_string()
     };
 
-    let (payload_size, network_type) =
-        if let Some(connection) = connection_manager.get_connect(resp.connection_id) {
-            if let Some(protocol) = connection.protocol.clone() {
-                let wrapper = MqttPacketWrapper {
-                    protocol_version: protocol.into(),
-                    packet: resp.packet.clone(),
-                };
-                (
-                    calc_mqtt_packet_size(wrapper),
-                    connection.connection_type.to_string(),
-                )
-            } else {
-                (0, "".to_string())
-            }
-        } else {
-            (0, "".to_string())
-        };
+    let payload_size = calc_mqtt_packet_size(packet_wrapper.to_owned());
 
     PACKETS_SENT
         .with_label_values(&[&network_type, &qos_str])
@@ -304,12 +284,14 @@ pub fn record_sent_metrics(resp: &ResponsePackage, connection_manager: &Arc<Conn
         .with_label_values(&[&network_type, &qos_str])
         .add(payload_size as i64);
 
-    match resp.packet {
+    match packet_wrapper.packet {
         MqttPacket::ConnAck(_, _) => PACKETS_CONNACK_SENT
             .with_label_values(&[&network_type, &qos_str])
             .inc(),
-
-        _ => {},
+        MqttPacket::Auth(_, _) => PACKETS_CONNACK_SENT
+            .with_label_values(&[&network_type, &qos_str])
+            .inc(),
+        _ => {}
     }
 }
 

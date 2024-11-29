@@ -28,6 +28,7 @@ use tokio_util::codec::FramedWrite;
 
 use super::connection::{NetworkConnection, NetworkConnectionType};
 use crate::handler::cache::CacheManager;
+use crate::observability::metrics::packets::record_sent_metrics;
 
 pub struct ConnectionManager {
     connections: DashMap<u64, NetworkConnection>,
@@ -142,6 +143,7 @@ impl ConnectionManager {
     pub async fn write_websocket_frame(
         &self,
         connection_id: u64,
+        packet_wrapper: MqttPacketWrapper,
         resp: Message,
     ) -> Result<(), CommonError> {
         let mut times = 0;
@@ -151,6 +153,14 @@ impl ConnectionManager {
                 dashmap::try_result::TryResult::Present(mut da) => {
                     match da.send(resp.clone()).await {
                         Ok(_) => {
+                            let network_type =
+                                if let Some(connection) = self.get_connect(connection_id) {
+                                    connection.connection_type.to_string()
+                                } else {
+                                    "".to_string()
+                                };
+
+                            record_sent_metrics(&packet_wrapper, network_type);
                             break;
                         }
                         Err(e) => {
@@ -197,7 +207,6 @@ impl ConnectionManager {
     ) -> Result<(), CommonError> {
         debug!("response packet:{resp:?},connection_id:{connection_id}");
 
-        // write tls stream
         if let Some(connection) = self.get_connect(connection_id) {
             if connection.connection_type == NetworkConnectionType::Tls {
                 return self.write_tcp_tls_frame(connection_id, resp).await;
@@ -211,6 +220,15 @@ impl ConnectionManager {
                 dashmap::try_result::TryResult::Present(mut da) => {
                     match da.send(resp.clone()).await {
                         Ok(_) => {
+                            // write tls stream
+                            let network_type =
+                                if let Some(connection) = self.get_connect(connection_id) {
+                                    connection.connection_type.to_string()
+                                } else {
+                                    "".to_string()
+                                };
+
+                            record_sent_metrics(&resp, network_type);
                             break;
                         }
                         Err(e) => {
@@ -264,6 +282,14 @@ impl ConnectionManager {
                 dashmap::try_result::TryResult::Present(mut da) => {
                     match da.send(resp.clone()).await {
                         Ok(_) => {
+                            let network_type =
+                                if let Some(connection) = self.get_connect(connection_id) {
+                                    connection.connection_type.to_string()
+                                } else {
+                                    "".to_string()
+                                };
+
+                            record_sent_metrics(&resp, network_type);
                             break;
                         }
                         Err(e) => {

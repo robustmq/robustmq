@@ -35,7 +35,6 @@ use tokio::sync::broadcast::{self, Sender};
 use tokio::time::{sleep, timeout};
 
 use crate::handler::cache::{CacheManager, QosAckPackageData};
-use crate::observability::metrics::packets::record_sent_metrics;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
 use crate::storage::message::MessageStorage;
@@ -159,8 +158,6 @@ pub async fn publish_message_to_client(
     connection_manager: &Arc<ConnectionManager>,
 ) -> Result<(), CommonError> {
     if let Some(protocol) = connection_manager.get_connect_protocol(resp.connection_id) {
-        record_sent_metrics(&resp, connection_manager);
-
         let response: MqttPacketWrapper = MqttPacketWrapper {
             protocol_version: protocol.clone().into(),
             packet: resp.packet,
@@ -169,14 +166,14 @@ pub async fn publish_message_to_client(
         if connection_manager.is_websocket(resp.connection_id) {
             let mut codec = MqttCodec::new(Some(protocol.into()));
             let mut buff = BytesMut::new();
-            match codec.encode_data(response, &mut buff) {
+            match codec.encode_data(response.clone(), &mut buff) {
                 Ok(()) => {}
                 Err(e) => {
                     error!("Websocket encode back packet failed with error message: {e:?}");
                 }
             }
             return connection_manager
-                .write_websocket_frame(resp.connection_id, Message::Binary(buff.to_vec()))
+                .write_websocket_frame(resp.connection_id, response, Message::Binary(buff.to_vec()))
                 .await;
         }
         return connection_manager

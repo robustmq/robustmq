@@ -19,6 +19,15 @@ pub enum JournalClientError {
     #[error("{0}")]
     IoError(#[from] std::io::Error),
 
+    #[error("{0}")]
+    TokioTimeErrorElapsed(#[from] tokio::time::error::Elapsed),
+
+    #[error("{0}")]
+    OneshotRecvError(#[from] tokio::sync::broadcast::error::RecvError),
+
+    #[error("{0}")]
+    BroadcastSendErrorBool(#[from] tokio::sync::broadcast::error::SendError<bool>),
+
     #[error("Node {0} has no available access address, may be cache data inconsistency, ready to trigger update node cache.")]
     NodeNoAvailableAddr(u64),
 
@@ -48,4 +57,7 @@ pub enum JournalClientError {
 
     #[error("Request {0}, received return packet does not contain body information and is an invalid packet")]
     ReceivedPacketNotContainBody(String),
+
+    #[error("Shard {0} has no active segments")]
+    NotActiveSegmentLeader(String),
 }

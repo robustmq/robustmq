@@ -2,12 +2,14 @@ syntax = "proto3";
 package journal.record;
 
 message JournalRecord{
-    string key = 1;
-    bytes content = 2;
-    uint64 create_time = 3;
-    repeated string tags=4;
-    uint64 offset = 5;
-    string namespace = 6;
-    string shard_name = 7;
-    uint32 segment = 8;
+    string producer_id = 1;
+    uint64 pkid = 2;
+    string key = 3;
+    bytes content = 4;
+    uint64 create_time = 5;
+    repeated string tags=6;
+    uint64 offset = 7;
+    string namespace = 8;
+    string shard_name = 9;
+    uint32 segment = 10;
 }
