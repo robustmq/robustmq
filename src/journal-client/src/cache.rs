@@ -62,6 +62,22 @@ impl MetadataCache {
             .insert(shard_name_iden(&shard.namespace, &shard.shard), shard);
     }
 
+    pub fn get_active_segment(&self, namespace: &str, shard: &str) -> Option<u32> {
+        let key = shard_name_iden(namespace, shard);
+        if let Some(shard) = self.shards.get(&key) {
+            return Some(shard.active_segment as u32);
+        }
+        None
+    }
+
+    pub fn get_segment_leader(&self, namespace: &str, shard: &str) -> Option<u64> {
+        let key = shard_name_iden(namespace, shard);
+        if let Some(shard) = self.shards.get(&key) {
+            return Some(shard.active_segment_leader as u64);
+        }
+        None
+    }
+
     pub fn remove_shard(&self, namespace: &str, shard: &str) {
         self.shards.remove(&shard_name_iden(namespace, shard));
     }
@@ -92,12 +108,12 @@ impl MetadataCache {
 pub async fn load_shards_cache(
     metadata_cache: &Arc<MetadataCache>,
     connection_manager: &Arc<ConnectionManager>,
-    namespace: String,
-    shard_name: String,
+    namespace: &str,
+    shard_name: &str,
 ) -> Result<(), JournalClientError> {
     let shards = vec![GetShardMetadataReqShard {
-        namespace,
-        shard_name,
+        namespace: namespace.to_owned(),
+        shard_name: shard_name.to_owned(),
     }];
     let resp = get_shard_metadata(connection_manager, shards).await?;
     for node in resp.shards {
@@ -154,8 +170,8 @@ async fn update_cache(
         if let Err(e) = load_shards_cache(
             &metadata_cache,
             &connection_manager,
-            shard.namespace.clone(),
-            shard.shard.clone(),
+            &shard.namespace,
+            &shard.shard,
         )
         .await
         {

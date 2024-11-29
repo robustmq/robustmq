@@ -246,13 +246,13 @@ async fn handle_socket<S>(
                                             packet: resp_pkg,
                                         };
 
-                                        match codec.encode_data(packet_wrapper, &mut response_buff){
+                                        match codec.encode_data(packet_wrapper.clone(), &mut response_buff){
                                             Ok(()) => {},
                                             Err(e) => {
                                                 error!("Websocket encode back packet failed with error message: {e:?}");
                                             }
                                         }
-                                        match connection_manager.write_websocket_frame(tcp_connection.connection_id, Message::Binary(response_buff.to_vec())).await{
+                                        match connection_manager.write_websocket_frame(tcp_connection.connection_id, packet_wrapper, Message::Binary(response_buff.to_vec())).await{
                                             Ok(()) => {},
                                             Err(e) => {
                                                 error!("websocket returns failure to write the packet to the client with error message {e:?}");

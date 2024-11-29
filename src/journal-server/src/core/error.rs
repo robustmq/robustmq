@@ -93,6 +93,9 @@ pub enum JournalServerError {
 
     #[error("Segment meta {0} does not exist, maybe it hasn't been initialized yet.")]
     SegmentMetaNotExists(String),
+
+    #[error("Segment file meta {0} does not exist, maybe it hasn't been initialized yet.")]
+    SegmentFileMetaNotExists(String),
 }
 
 pub fn get_journal_server_code(e: &JournalServerError) -> String {
@@ -127,6 +130,7 @@ pub fn get_journal_server_code(e: &JournalServerError) -> String {
             "SegmentDataDirectoryNotFound".to_string()
         }
         JournalServerError::SegmentMetaNotExists(_) => "SegmentMetaNotExists".to_string(),
+        JournalServerError::SegmentFileMetaNotExists(_) => "SegmentFileMetaNotExists".to_string(),
     }
 }
 #[cfg(test)]

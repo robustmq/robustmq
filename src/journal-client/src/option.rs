@@ -17,11 +17,15 @@ use common_base::error::common::CommonError;
 #[derive(Default, Clone)]
 pub struct JournalClientOption {
     pub addrs: Vec<String>,
+    pub line_ms: u64,
 }
 
 impl JournalClientOption {
     pub fn build() -> Self {
-        JournalClientOption::default()
+        JournalClientOption {
+            line_ms: 10,
+            ..Default::default()
+        }
     }
 
     pub fn set_addrs(&mut self, addrs: Vec<String>) {

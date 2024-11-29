@@ -215,6 +215,36 @@ impl ConnectionManager {
         conn.admin_send(req_packet).await
     }
 
+    pub async fn write_send(
+        &self,
+        node_id: u64,
+        req_packet: JournalEnginePacket,
+    ) -> Result<JournalEnginePacket, JournalClientError> {
+        if !self.node_conns.contains_key(&node_id) {
+            let conn = NodeConnection::new(node_id, self.metadata_cache.clone());
+            conn.init_conn().await?;
+            self.node_conns.insert(node_id, conn);
+        }
+
+        let conn = self.node_conns.get(&node_id).unwrap();
+        conn.write_send(req_packet).await
+    }
+
+    pub async fn read_send(
+        &self,
+        node_id: u64,
+        req_packet: JournalEnginePacket,
+    ) -> Result<JournalEnginePacket, JournalClientError> {
+        if !self.node_conns.contains_key(&node_id) {
+            let conn = NodeConnection::new(node_id, self.metadata_cache.clone());
+            conn.init_conn().await?;
+            self.node_conns.insert(node_id, conn);
+        }
+
+        let conn = self.node_conns.get(&node_id).unwrap();
+        conn.read_send(req_packet).await
+    }
+
     fn choose_admin_node(&self) -> u64 {
         let node_ids = self.metadata_cache.all_node_ids();
         let posi = self
