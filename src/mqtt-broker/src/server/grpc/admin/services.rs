@@ -28,7 +28,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
     ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionRaw,
     ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
-    ListTopicRequest, ListTopicReply
+    ListTopicRequest, ListTopicReply, MqttTopic
 };
 use tonic::{Request, Response, Status};
 
@@ -316,22 +316,28 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
     async fn mqtt_broker_list_topic(
         &self,
-        _: Request<ListTopicRequest>,
+        request: Request<ListTopicRequest>,
     ) -> Result<Response<ListTopicReply>, Status> {
-        let mut reply = ListUserReply::default();
+        let topic_query_result = self
+            .cache_manager
+            .topic_info
+            .iter()
+            .find(|entry| *entry.value().topic_name == request.into_inner().topic_name)
+            .map(|entry| MqttTopic {
+                topic_id: entry.value().topic_id.clone(),
+                topic_name: entry.value().topic_name.clone(),
+                cluster_name: entry.value().cluster_name.clone(),
+                is_contain_retain_message: if entry.value().retain_message.is_some() {
+                    true
+                } else {
+                    false
+                },
+            });
 
-        let mut topic_list = Vec::new();
-        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
-        match auth_driver.read_all_user().await {
-            Ok(date) => {
-                date.iter()
-                    .for_each(|user| user_list.push(user.value().encode()));
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
-        reply.users = user_list;
+        let reply = ListTopicReply {
+            topics: topic_query_result.into_iter().collect(),
+        };
+
         return Ok(Response::new(reply));
     }
 }
