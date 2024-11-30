@@ -38,24 +38,3 @@ impl MqttTopic {
         serde_json::to_vec(&self).unwrap()
     }
 }
-
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
-pub struct MqttTopicShort {
-    pub topic_id: String,
-    pub cluster_name: String,
-    pub topic_name: String,
-}
-
-impl MqttTopicShort {
-    pub fn new(topic_id: String, cluster_name: String, topic_name: String) -> Self {
-        MqttTopicShort {
-            topic_id,
-            cluster_name,
-            topic_name,
-        }
-    }
-
-    pub fn encode(&self) -> Vec<u8> {
-        serde_json::to_vec(&self).unwrap()
-    }
-}

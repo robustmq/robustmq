@@ -19,7 +19,6 @@ use grpc_clients::mqtt::admin::call::{
     mqtt_broker_list_topic, mqtt_broker_list_user,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::topic::MqttTopicShort;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListConnectionRequest,
@@ -179,16 +178,25 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn list_topic(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
+    async fn list_topic(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam, cli_request: ) {
         let request = ListTopicRequest {};
         match mqtt_broker_list_topic(client_pool.clone(), &grpc_addr(params.server), request).await
         {
             Ok(data) => {
-                println!("topic list:");
-                for topic in data.topics {
-                    let mqtt_topic =
-                        serde_json::from_slice::<MqttTopicShort>(topic.as_slice()).unwrap();
-                    println!("{},", mqtt_topic.topic);
+                println!("topic list result:");
+                for mqtt_topic in data.topics {
+                    println!(
+                        concat!(
+                            "topic id: {}\n",
+                            "topic name: {}\n",
+                            "cluster name: {}\n",
+                            "is contain retain message: {}\n"
+                        ),
+                        mqtt_topic.topic_id,
+                        mqtt_topic.topic_name,
+                        mqtt_topic.cluster_name,
+                        mqtt_topic.is_contain_retain_message
+                    );
                 }
             }
             Err(e) => {
