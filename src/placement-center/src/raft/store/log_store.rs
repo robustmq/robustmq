@@ -24,9 +24,9 @@ use openraft::{
 use rocksdb::{ColumnFamily, Direction, DB};
 
 use super::{cf_raft_logs, cf_raft_store, id_to_bin, StorageResult};
-use crate::raft::raftv2::raft_node::NodeId;
-use crate::raft::raftv2::store::bin_to_id;
-use crate::raft::raftv2::typeconfig::TypeConfig;
+use crate::raft::raft_node::NodeId;
+use crate::raft::store::bin_to_id;
+use crate::raft::typeconfig::TypeConfig;
 
 #[derive(Debug, Clone)]
 pub struct LogStore {
