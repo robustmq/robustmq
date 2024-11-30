@@ -72,7 +72,14 @@ message ListConnectionRaw {
     string info = 5;
 }
 
+// --------- mqtt topic --------
 message ListTopicRequest{}
 message ListTopicReply{
-    repeated string topic_names = 1;
+    MqttTopic topics = 1;
+}
+message MqttTopic{
+    string topic_id = 1;
+    string cluster_name = 2;
+    string topic_name = 3;
+    bool is_contain_retain_message = 4;
 }

@@ -16,12 +16,14 @@ use std::sync::Arc;
 
 use grpc_clients::mqtt::admin::call::{
     cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user, mqtt_broker_list_connection,
-    mqtt_broker_list_user
+    mqtt_broker_list_topic, mqtt_broker_list_user,
 };
 use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::topic::MqttTopicShort;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListConnectionRequest, ListTopicRequest, ListUserRequest
+    ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListConnectionRequest,
+    ListTopicRequest, ListUserRequest,
 };
 
 use crate::{error_info, grpc_addr};
@@ -43,7 +45,7 @@ pub enum MqttActionType {
 
     // connection
     ListConnection,
-    ListTopic
+    ListTopic,
 }
 
 pub struct MqttBrokerCommand {}
@@ -81,8 +83,7 @@ impl MqttBrokerCommand {
                     .await;
             }
             MqttActionType::ListTopic => {
-                self.list_topic(client_pool.clone(), params.clone())
-                    .await;
+                self.list_topic(client_pool.clone(), params.clone()).await;
             }
         }
     }
@@ -180,11 +181,13 @@ impl MqttBrokerCommand {
 
     async fn list_topic(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
         let request = ListTopicRequest {};
-        match mqtt_broker_list_topic(client_pool.clone(), &grpc_addr(params.server), request).await {
+        match mqtt_broker_list_topic(client_pool.clone(), &grpc_addr(params.server), request).await
+        {
             Ok(data) => {
                 println!("topic list:");
                 for topic in data.topics {
-                    let mqtt_topic = serde_json::from_slice::<MqttTopic>(topic.as_slice()).unwrap();
+                    let mqtt_topic =
+                        serde_json::from_slice::<MqttTopicShort>(topic.as_slice()).unwrap();
                     println!("{},", mqtt_topic.topic);
                 }
             }
