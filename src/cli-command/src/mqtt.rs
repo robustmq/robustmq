@@ -17,12 +17,14 @@ use std::sync::Arc;
 use grpc_clients::mqtt::admin::call::{
     cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user,
     mqtt_broker_enable_slow_subscribe, mqtt_broker_list_connection, mqtt_broker_list_user,
+    mqtt_broker_list_topic
 };
 use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::topic::MqttTopicShort;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, EnableSlowSubscribeRequest,
-    ListConnectionRequest, ListUserRequest, ListUserRequest
+    ListConnectionRequest, ListUserRequest, ListUserRequest, ListTopicRequest
 };
 
 use crate::{error_info, grpc_addr};
@@ -87,8 +89,7 @@ impl MqttBrokerCommand {
             MqttActionType::EnableSlowSubscribe(ref request) => {
                 self.enable_slow_subscribe(client_pool.clone(), params.clone(), request.clone())
             MqttActionType::ListTopic => {
-                self.list_topic(client_pool.clone(), params.clone())
-                    .await;
+                self.list_topic(client_pool.clone(), params.clone()).await;
             }
         }
     }
@@ -216,11 +217,13 @@ impl MqttBrokerCommand {
 
     async fn list_topic(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
         let request = ListTopicRequest {};
-        match mqtt_broker_list_topic(client_pool.clone(), &grpc_addr(params.server), request).await {
+        match mqtt_broker_list_topic(client_pool.clone(), &grpc_addr(params.server), request).await
+        {
             Ok(data) => {
                 println!("topic list:");
                 for topic in data.topics {
-                    let mqtt_topic = serde_json::from_slice::<MqttTopic>(topic.as_slice()).unwrap();
+                    let mqtt_topic =
+                        serde_json::from_slice::<MqttTopicShort>(topic.as_slice()).unwrap();
                     println!("{},", mqtt_topic.topic);
                 }
             }
