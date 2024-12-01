@@ -15,7 +15,6 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
-use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use log::error;
@@ -25,6 +24,7 @@ use tokio::sync::broadcast::{self};
 
 use super::cache::{CacheManager, QosAckPacketInfo};
 use super::constant::{SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE};
+use super::error::MqttBrokerError;
 use super::message::build_message_expire;
 use crate::observability::metrics::packets::{
     record_retain_recv_metrics, record_retain_sent_metrics,
@@ -36,6 +36,7 @@ use crate::subscribe::sub_exclusive::{
     exclusive_publish_message_qos1, exclusive_publish_message_qos2,
 };
 use crate::subscribe::subscriber::Subscriber;
+use crate::subscribe::SubPublishParam;
 
 pub async fn save_topic_retain_message(
     cache_manager: &Arc<CacheManager>,
@@ -44,7 +45,7 @@ pub async fn save_topic_retain_message(
     client_id: &str,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
-) -> Result<(), CommonError> {
+) -> Result<(), MqttBrokerError> {
     if !publish.retain {
         return Ok(());
     }
@@ -52,34 +53,20 @@ pub async fn save_topic_retain_message(
     let topic_storage = TopicStorage::new(client_pool.clone());
 
     if publish.payload.is_empty() {
-        match topic_storage
+        topic_storage
             .delete_retain_message(topic_name.clone())
-            .await
-        {
-            Ok(_) => {
-                cache_manager.update_topic_retain_message(&topic_name, Some(Vec::new()));
-            }
-            Err(e) => {
-                return Err(e);
-            }
-        }
+            .await?;
+        cache_manager.update_topic_retain_message(&topic_name, Some(Vec::new()));
     } else {
         record_retain_recv_metrics(publish.qos);
         let message_expire = build_message_expire(cache_manager, publish_properties);
         let retain_message =
             MqttMessage::build_message(client_id, publish, publish_properties, message_expire);
-        match topic_storage
+        topic_storage
             .set_retain_message(topic_name.clone(), &retain_message, message_expire)
-            .await
-        {
-            Ok(_) => {
-                cache_manager
-                    .update_topic_retain_message(&topic_name, Some(retain_message.encode()));
-            }
-            Err(e) => {
-                return Err(e);
-            }
-        }
+            .await?;
+
+        cache_manager.update_topic_retain_message(&topic_name, Some(retain_message.encode()));
     }
 
     Ok(())
@@ -105,7 +92,8 @@ pub async fn try_send_retain_message(
     }
 
     tokio::spawn(async move {
-        let topic_id_list = get_sub_topic_id_list(cache_manager.clone(), subscriber.sub_path).await;
+        let topic_id_list =
+            get_sub_topic_id_list(cache_manager.clone(), subscriber.sub_path.clone()).await;
         let topic_storage = TopicStorage::new(client_pool.clone());
         let cluster = cache_manager.get_cluster_info();
         for topic_id in topic_id_list {
@@ -124,7 +112,7 @@ pub async fn try_send_retain_message(
 
                         let qos = min_qos(cluster.protocol.max_qos, subscriber.qos);
                         let pkid = 1;
-                        let mut publish = Publish {
+                        let publish = Publish {
                             dup: false,
                             qos,
                             pkid,
@@ -155,14 +143,21 @@ pub async fn try_send_retain_message(
                         };
 
                         record_retain_sent_metrics(publish.qos);
+
+                        let mut sub_pub_param = SubPublishParam::new(
+                            subscriber.clone(),
+                            publish,
+                            Some(properties),
+                            Some(msg.create_time as u128),
+                            "".to_string(),
+                        );
+
                         match qos {
                             QoS::AtMostOnce => {
                                 publish_message_qos0(
                                     &cache_manager,
-                                    &client_id,
-                                    &publish,
-                                    &Some(properties),
                                     &connection_manager,
+                                    &sub_pub_param,
                                     &stop_sx,
                                 )
                                 .await;
@@ -170,7 +165,7 @@ pub async fn try_send_retain_message(
 
                             QoS::AtLeastOnce => {
                                 let pkid: u16 = cache_manager.get_pkid(&client_id).await;
-                                publish.pkid = pkid;
+                                sub_pub_param.pkid = pkid;
 
                                 let (wait_puback_sx, _) = broadcast::channel(1);
                                 cache_manager.add_ack_packet(
@@ -184,11 +179,8 @@ pub async fn try_send_retain_message(
 
                                 match exclusive_publish_message_qos1(
                                     &cache_manager,
-                                    &client_id,
-                                    publish,
-                                    &properties,
-                                    pkid,
                                     &connection_manager,
+                                    &sub_pub_param,
                                     &stop_sx,
                                     &wait_puback_sx,
                                 )
@@ -206,7 +198,7 @@ pub async fn try_send_retain_message(
 
                             QoS::ExactlyOnce => {
                                 let pkid: u16 = cache_manager.get_pkid(&client_id).await;
-                                publish.pkid = pkid;
+                                sub_pub_param.pkid = pkid;
 
                                 let (wait_ack_sx, _) = broadcast::channel(1);
                                 cache_manager.add_ack_packet(
@@ -219,11 +211,8 @@ pub async fn try_send_retain_message(
                                 );
                                 match exclusive_publish_message_qos2(
                                     &cache_manager,
-                                    &client_id,
-                                    &publish,
-                                    &properties,
-                                    pkid,
                                     &connection_manager,
+                                    &sub_pub_param,
                                     &stop_sx,
                                     &wait_ack_sx,
                                 )

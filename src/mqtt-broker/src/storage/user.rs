@@ -15,7 +15,6 @@
 use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use grpc_clients::placement::mqtt::call::{
     placement_create_user, placement_delete_user, placement_list_user,
@@ -26,6 +25,8 @@ use protocol::placement_center::placement_center_mqtt::{
     CreateUserRequest, DeleteUserRequest, ListUserRequest,
 };
 
+use crate::handler::error::MqttBrokerError;
+
 pub struct UserStorage {
     client_pool: Arc<ClientPool>,
 }
@@ -34,80 +35,62 @@ impl UserStorage {
         UserStorage { client_pool }
     }
 
-    pub async fn save_user(&self, user_info: MqttUser) -> Result<(), CommonError> {
+    pub async fn save_user(&self, user_info: MqttUser) -> Result<(), MqttBrokerError> {
         let config = broker_mqtt_conf();
         let request = CreateUserRequest {
             cluster_name: config.cluster_name.clone(),
             user_name: user_info.username.clone(),
             content: user_info.encode(),
         };
-        match placement_create_user(self.client_pool.clone(), &config.placement_center, request)
-            .await
-        {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e),
-        }
+        placement_create_user(self.client_pool.clone(), &config.placement_center, request).await?;
+        Ok(())
     }
 
-    pub async fn delete_user(&self, user_name: String) -> Result<(), CommonError> {
+    pub async fn delete_user(&self, user_name: String) -> Result<(), MqttBrokerError> {
         let config = broker_mqtt_conf();
         let request = DeleteUserRequest {
             cluster_name: config.cluster_name.clone(),
             user_name,
         };
-        match placement_delete_user(self.client_pool.clone(), &config.placement_center, request)
-            .await
-        {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e),
-        }
+        placement_delete_user(self.client_pool.clone(), &config.placement_center, request).await?;
+        Ok(())
     }
 
-    pub async fn get_user(&self, username: String) -> Result<Option<MqttUser>, CommonError> {
+    pub async fn get_user(&self, username: String) -> Result<Option<MqttUser>, MqttBrokerError> {
         let config = broker_mqtt_conf();
+
         let request = ListUserRequest {
             cluster_name: config.cluster_name.clone(),
             user_name: username.clone(),
         };
-        match placement_list_user(self.client_pool.clone(), &config.placement_center, request).await
-        {
-            Ok(reply) => {
-                if reply.users.is_empty() {
-                    return Ok(None);
-                }
-                let raw = reply.users.first().unwrap();
-                match serde_json::from_slice::<MqttUser>(raw) {
-                    Ok(data) => Ok(Some(data)),
-                    Err(e) => Err(CommonError::CommonError(e.to_string())),
-                }
-            }
-            Err(e) => Err(e),
+
+        let reply =
+            placement_list_user(self.client_pool.clone(), &config.placement_center, request)
+                .await?;
+
+        if let Some(raw) = reply.users.first() {
+            return Ok(Some(serde_json::from_slice::<MqttUser>(raw)?));
         }
+
+        Ok(None)
     }
 
-    pub async fn user_list(&self) -> Result<DashMap<String, MqttUser>, CommonError> {
+    pub async fn user_list(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError> {
         let config = broker_mqtt_conf();
         let request = ListUserRequest {
             cluster_name: config.cluster_name.clone(),
-            user_name: "".to_string(),
+            ..Default::default()
         };
-        match placement_list_user(self.client_pool.clone(), &config.placement_center, request).await
-        {
-            Ok(reply) => {
-                let results = DashMap::with_capacity(2);
-                for raw in reply.users {
-                    match serde_json::from_slice::<MqttUser>(&raw) {
-                        Ok(data) => {
-                            results.insert(data.username.clone(), data);
-                        }
-                        Err(_) => {
-                            continue;
-                        }
-                    }
-                }
-                Ok(results)
-            }
-            Err(e) => Err(e),
+
+        let reply =
+            placement_list_user(self.client_pool.clone(), &config.placement_center, request)
+                .await?;
+
+        let results = DashMap::with_capacity(2);
+        for raw in reply.users {
+            let data = serde_json::from_slice::<MqttUser>(&raw)?;
+            results.insert(data.username.clone(), data);
         }
+        Ok(results)
     }
 }

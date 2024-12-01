@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use axum::async_trait;
-use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::{
     MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
@@ -25,6 +24,7 @@ use mysql::Pool;
 use third_driver::mysql::build_mysql_conn_pool;
 
 use super::AuthStorageAdapter;
+use crate::handler::error::MqttBrokerError;
 
 mod schema;
 pub struct MySQLAuthStorageAdapter {
@@ -53,150 +53,108 @@ impl MySQLAuthStorageAdapter {
 
 #[async_trait]
 impl AuthStorageAdapter for MySQLAuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, CommonError> {
-        match self.pool.get_conn() {
-            Ok(mut conn) => {
-                let sql = format!(
-                    "select username,password,salt,is_superuser,created from {}",
-                    self.table_user()
-                );
-                let data: Vec<(String, String, Option<String>, u8, Option<String>)> =
-                    conn.query(sql).unwrap();
-                let results = DashMap::with_capacity(2);
-                for raw in data {
-                    let user = MqttUser {
-                        username: raw.0.clone(),
-                        password: raw.1.clone(),
-                        is_superuser: raw.3 == 1,
-                    };
-                    results.insert(raw.0.clone(), user);
-                }
-                return Ok(results);
-            }
-            Err(e) => {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
+    async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError> {
+        let mut conn = self.pool.get_conn()?;
+        let sql = format!(
+            "select username,password,salt,is_superuser,created from {}",
+            self.table_user()
+        );
+        let data: Vec<(String, String, Option<String>, u8, Option<String>)> = conn.query(sql)?;
+        let results = DashMap::with_capacity(2);
+        for raw in data {
+            let user = MqttUser {
+                username: raw.0.clone(),
+                password: raw.1.clone(),
+                is_superuser: raw.3 == 1,
+            };
+            results.insert(raw.0.clone(), user);
         }
+        return Ok(results);
     }
 
-    async fn get_user(&self, username: String) -> Result<Option<MqttUser>, CommonError> {
-        match self.pool.get_conn() {
-            Ok(mut conn) => {
-                let sql = format!(
-                    "select username,password,salt,is_superuser,created from {} where username='{}'",
-                    self.table_user(),
-                    username
-                );
-                let data: Vec<(String, String, Option<String>, u8, Option<String>)> =
-                    conn.query(sql).unwrap();
-                if let Some(value) = data.first() {
-                    return Ok(Some(MqttUser {
-                        username: value.0.clone(),
-                        password: value.1.clone(),
-                        is_superuser: value.3 == 1,
-                    }));
-                }
-                return Ok(None);
-            }
-            Err(e) => {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
+    async fn get_user(&self, username: String) -> Result<Option<MqttUser>, MqttBrokerError> {
+        let mut conn = self.pool.get_conn()?;
+        let sql = format!(
+            "select username,password,salt,is_superuser,created from {} where username='{}'",
+            self.table_user(),
+            username
+        );
+        let data: Vec<(String, String, Option<String>, u8, Option<String>)> = conn.query(sql)?;
+        if let Some(value) = data.first() {
+            return Ok(Some(MqttUser {
+                username: value.0.clone(),
+                password: value.1.clone(),
+                is_superuser: value.3 == 1,
+            }));
         }
+        return Ok(None);
     }
 
-    async fn save_user(&self, user_info: MqttUser) -> Result<(), CommonError> {
-        match self.pool.get_conn() {
-            Ok(mut conn) => {
-                let sql = format!(
-                    "insert into {} ( `username`, `password`, `is_superuser`, `salt`) values ('{}', '{}', '{}', null);",
-                    self.table_user(),
-                    user_info.username,
-                    user_info.password,
-                    user_info.is_superuser as i32,
-                );
-                let _data: Vec<(String, String, Option<String>, u8)> = conn.query(sql).unwrap();
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
-        }
+    async fn save_user(&self, user_info: MqttUser) -> Result<(), MqttBrokerError> {
+        let mut conn = self.pool.get_conn()?;
+        let sql = format!(
+            "insert into {} ( `username`, `password`, `is_superuser`, `salt`) values ('{}', '{}', '{}', null);",
+            self.table_user(),
+            user_info.username,
+            user_info.password,
+            user_info.is_superuser as i32,
+        );
+        let _data: Vec<(String, String, Option<String>, u8)> = conn.query(sql)?;
+        return Ok(());
     }
 
-    async fn delete_user(&self, username: String) -> Result<(), CommonError> {
-        match self.pool.get_conn() {
-            Ok(mut conn) => {
-                let sql = format!(
-                    "delete from {} where username = '{}';",
-                    self.table_user(),
-                    username
-                );
-                let _data: Vec<(String, String, Option<String>, u8, Option<String>)> =
-                    conn.query(sql).unwrap();
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
-        }
+    async fn delete_user(&self, username: String) -> Result<(), MqttBrokerError> {
+        let mut conn = self.pool.get_conn()?;
+        let sql = format!(
+            "delete from {} where username = '{}';",
+            self.table_user(),
+            username
+        );
+        let _data: Vec<(String, String, Option<String>, u8, Option<String>)> = conn.query(sql)?;
+        return Ok(());
     }
 
-    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, CommonError> {
-        match self.pool.get_conn() {
-            Ok(mut conn) => {
-                let sql = format!(
-                    "select allow, ipaddr, username, clientid, access, topic from {}",
-                    self.table_acl()
-                );
-                let data: Vec<(u8, String, String, String, u8, Option<String>)> =
-                    conn.query(sql).unwrap();
-                let mut results = Vec::new();
-                for raw in data {
-                    let acl = MqttAcl {
-                        permission: match raw.0 {
-                            0 => MqttAclPermission::Deny,
-                            1 => MqttAclPermission::Allow,
-                            _ => {
-                                return Err(CommonError::CommonError(
-                                    "invalid acl permission".to_string(),
-                                ))
-                            }
-                        },
-                        resource_type: match raw.2.clone().is_empty() {
-                            true => MqttAclResourceType::ClientId,
-                            false => MqttAclResourceType::User,
-                        },
-                        resource_name: match raw.2.clone().is_empty() {
-                            true => raw.3.clone(),
-                            false => raw.2.clone(),
-                        },
-                        topic: raw.5.clone().unwrap_or(String::new()),
-                        ip: raw.1.clone(),
-                        action: match raw.4 {
-                            0 => MqttAclAction::All,
-                            1 => MqttAclAction::Subscribe,
-                            2 => MqttAclAction::Publish,
-                            3 => MqttAclAction::PubSub,
-                            4 => MqttAclAction::Retain,
-                            5 => MqttAclAction::Qos,
-                            _ => {
-                                return Err(CommonError::CommonError(
-                                    "invalid acl action".to_string(),
-                                ))
-                            }
-                        },
-                    };
-                    results.push(acl);
-                }
-                return Ok(results);
-            }
-            Err(e) => {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
+    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
+        let mut conn = self.pool.get_conn()?;
+        let sql = format!(
+            "select allow, ipaddr, username, clientid, access, topic from {}",
+            self.table_acl()
+        );
+        let data: Vec<(u8, String, String, String, u8, Option<String>)> = conn.query(sql)?;
+        let mut results = Vec::new();
+        for raw in data {
+            let acl = MqttAcl {
+                permission: match raw.0 {
+                    0 => MqttAclPermission::Deny,
+                    1 => MqttAclPermission::Allow,
+                    _ => return Err(MqttBrokerError::InvalidAclPermission),
+                },
+                resource_type: match raw.2.clone().is_empty() {
+                    true => MqttAclResourceType::ClientId,
+                    false => MqttAclResourceType::User,
+                },
+                resource_name: match raw.2.clone().is_empty() {
+                    true => raw.3.clone(),
+                    false => raw.2.clone(),
+                },
+                topic: raw.5.clone().unwrap_or(String::new()),
+                ip: raw.1.clone(),
+                action: match raw.4 {
+                    0 => MqttAclAction::All,
+                    1 => MqttAclAction::Subscribe,
+                    2 => MqttAclAction::Publish,
+                    3 => MqttAclAction::PubSub,
+                    4 => MqttAclAction::Retain,
+                    5 => MqttAclAction::Qos,
+                    _ => return Err(MqttBrokerError::InvalidAclAction),
+                },
+            };
+            results.push(acl);
         }
+        return Ok(results);
     }
 
-    async fn save_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
+    async fn save_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError> {
         let allow: u8 = match acl.permission {
             MqttAclPermission::Allow => 1,
             MqttAclPermission::Deny => 0,
@@ -213,66 +171,57 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
             MqttAclAction::Retain => 4,
             MqttAclAction::Qos => 5,
         };
-        match self.pool.get_conn() {
-            Ok(mut conn) => {
-                let sql = format!(
-                    "insert into {} (allow, ipaddr, username, clientid, access, topic) values ('{}', '{}', '{}', '{}', '{}', '{}');",
-                    self.table_acl(),
-                    allow,
-                    acl.ip,
-                    username,
-                    clientid,
-                    access,
-                    acl.topic,
-                );
-                let _data: Vec<(
-                    u8,
-                    String,
-                    Option<String>,
-                    Option<String>,
-                    u8,
-                    Option<String>,
-                )> = conn.query(sql).unwrap();
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
-        }
+
+        let mut conn = self.pool.get_conn()?;
+        let sql = format!(
+            "insert into {} (allow, ipaddr, username, clientid, access, topic) values ('{}', '{}', '{}', '{}', '{}', '{}');",
+            self.table_acl(),
+            allow,
+            acl.ip,
+            username,
+            clientid,
+            access,
+            acl.topic,
+        );
+
+        let _: Vec<(
+            u8,
+            String,
+            Option<String>,
+            Option<String>,
+            u8,
+            Option<String>,
+        )> = conn.query(sql)?;
+
+        return Ok(());
     }
 
-    async fn delete_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
-        match self.pool.get_conn() {
-            Ok(mut conn) => {
-                let sql = match acl.resource_type.clone() {
-                    MqttAclResourceType::ClientId => format!(
-                        "delete from {} where clientid = '{}';",
-                        self.table_acl(),
-                        acl.resource_name
-                    ),
-                    MqttAclResourceType::User => format!(
-                        "delete from {} where username = '{}';",
-                        self.table_acl(),
-                        acl.resource_name
-                    ),
-                };
-                let _data: Vec<(
-                    u8,
-                    String,
-                    Option<String>,
-                    Option<String>,
-                    u8,
-                    Option<String>,
-                )> = conn.query(sql).unwrap();
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
-        }
+    async fn delete_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError> {
+        let mut conn = self.pool.get_conn()?;
+        let sql = match acl.resource_type.clone() {
+            MqttAclResourceType::ClientId => format!(
+                "delete from {} where clientid = '{}';",
+                self.table_acl(),
+                acl.resource_name
+            ),
+            MqttAclResourceType::User => format!(
+                "delete from {} where username = '{}';",
+                self.table_acl(),
+                acl.resource_name
+            ),
+        };
+        let _: Vec<(
+            u8,
+            String,
+            Option<String>,
+            Option<String>,
+            u8,
+            Option<String>,
+        )> = conn.query(sql)?;
+        return Ok(());
     }
 
-    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, CommonError> {
+    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
         return Ok(Vec::new());
     }
 }

@@ -42,7 +42,6 @@ use crate::journal::controller::call_node::{call_thread_manager, JournalInnerCal
 use crate::journal::controller::StorageEngineController;
 use crate::mqtt::cache::MqttCacheManager;
 use crate::mqtt::controller::MqttController;
-
 use crate::raft::raft_node::{create_raft_node, start_openraft_node};
 use crate::raft::typeconfig::TypeConfig;
 use crate::route::apply::{RaftMachineApply, RaftMessage};

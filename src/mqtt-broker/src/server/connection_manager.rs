@@ -16,7 +16,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::extract::ws::{Message, WebSocket};
-use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use futures::stream::SplitSink;
 use futures::SinkExt;
@@ -28,6 +27,7 @@ use tokio_util::codec::FramedWrite;
 
 use super::connection::{NetworkConnection, NetworkConnectionType};
 use crate::handler::cache::CacheManager;
+use crate::handler::error::MqttBrokerError;
 use crate::observability::metrics::packets::record_sent_metrics;
 
 pub struct ConnectionManager {
@@ -145,7 +145,7 @@ impl ConnectionManager {
         connection_id: u64,
         packet_wrapper: MqttPacketWrapper,
         resp: Message,
-    ) -> Result<(), CommonError> {
+    ) -> Result<(), MqttBrokerError> {
         let mut times = 0;
         let cluster = self.cache_manager.get_cluster_info();
         loop {
@@ -165,7 +165,7 @@ impl ConnectionManager {
                         }
                         Err(e) => {
                             if times > cluster.network.response_max_try_mut_times {
-                                return Err(CommonError::CommonError(format!(
+                                return Err(MqttBrokerError::CommonError(format!(
                                     "Failed to write data to the mqtt websocket client, error message: {:?}",
                                     e
                                 )));
@@ -175,7 +175,7 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > cluster.network.response_max_try_mut_times {
-                        return Err(CommonError::CommonError(format!(
+                        return Err(MqttBrokerError::CommonError(format!(
                             "[write_frame]Connection management could not obtain an available websocket connection. Connection ID: {},len:{}",
                             connection_id,
                             self.tcp_write_list.len()
@@ -185,7 +185,7 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Locked => {
                     if times > cluster.network.response_max_try_mut_times {
-                        return Err(CommonError::CommonError(
+                        return Err(MqttBrokerError::CommonError(
                             format!("[write_frame]Connection management failed to get websocket connection variable reference, connection ID: {connection_id}")
                         ));
                     }
@@ -204,7 +204,7 @@ impl ConnectionManager {
         &self,
         connection_id: u64,
         resp: MqttPacketWrapper,
-    ) -> Result<(), CommonError> {
+    ) -> Result<(), MqttBrokerError> {
         debug!("response packet:{resp:?},connection_id:{connection_id}");
 
         if let Some(connection) = self.get_connect(connection_id) {
@@ -233,7 +233,7 @@ impl ConnectionManager {
                         }
                         Err(e) => {
                             if times > cluster.network.response_max_try_mut_times {
-                                return Err(CommonError::CommonError(format!(
+                                return Err(MqttBrokerError::CommonError(format!(
                                     "Failed to write data to the mqtt tcp client, error message: {e:?}"
                                 )));
                             }
@@ -242,7 +242,7 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > cluster.network.response_max_try_mut_times {
-                        return Err(CommonError::CommonError(
+                        return Err(MqttBrokerError::CommonError(
                             format!(
                                 "[write_frame]Connection management could not obtain an available tcp connection. Connection ID: {},len:{}",
                                 connection_id,
@@ -253,7 +253,7 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Locked => {
                     if times > cluster.network.response_max_try_mut_times {
-                        return Err(CommonError::CommonError(
+                        return Err(MqttBrokerError::CommonError(
                             format!(
                                 "[write_frame]Connection management failed to get tcp connection variable reference, connection ID: {}",connection_id
                             )
@@ -274,7 +274,7 @@ impl ConnectionManager {
         &self,
         connection_id: u64,
         resp: MqttPacketWrapper,
-    ) -> Result<(), CommonError> {
+    ) -> Result<(), MqttBrokerError> {
         let mut times = 0;
         let cluster = self.cache_manager.get_cluster_info();
         loop {
@@ -294,7 +294,7 @@ impl ConnectionManager {
                         }
                         Err(e) => {
                             if times > cluster.network.response_max_try_mut_times {
-                                return Err(CommonError::CommonError(format!(
+                                return Err(MqttBrokerError::CommonError(format!(
                                     "Failed to write data to the mqtt tcp client, error message: {e:?}"
                                 )));
                             }
@@ -303,7 +303,7 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > cluster.network.response_max_try_mut_times {
-                        return Err(CommonError::CommonError(
+                        return Err(MqttBrokerError::CommonError(
                             format!(
                                 "[write_frame]Connection management could not obtain an available tcp connection. Connection ID: {},len:{}",
                                 connection_id,
@@ -314,7 +314,7 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Locked => {
                     if times > cluster.network.response_max_try_mut_times {
-                        return Err(CommonError::CommonError(
+                        return Err(MqttBrokerError::CommonError(
                             format!(
                                 "[write_frame]Connection management failed to get tcp connection variable reference, connection ID: {}",connection_id
                             )

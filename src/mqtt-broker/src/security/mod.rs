@@ -21,8 +21,6 @@ use acl::is_allow_acl;
 use axum::async_trait;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::config::common::Auth;
-use common_base::error::common::CommonError;
-use common_base::error::mqtt_broker::MqttBrokerError;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use login::plaintext::Plaintext;
@@ -37,6 +35,7 @@ use protocol::mqtt::common::{ConnectProperties, Login, QoS, Subscribe};
 use storage_adapter::StorageType;
 
 use crate::handler::cache::CacheManager;
+use crate::handler::error::MqttBrokerError;
 use crate::subscribe::sub_common::get_sub_topic_id_list;
 
 pub mod acl;
@@ -47,21 +46,21 @@ pub mod redis;
 
 #[async_trait]
 pub trait AuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, CommonError>;
+    async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError>;
 
-    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, CommonError>;
+    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError>;
 
-    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, CommonError>;
+    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError>;
 
-    async fn get_user(&self, username: String) -> Result<Option<MqttUser>, CommonError>;
+    async fn get_user(&self, username: String) -> Result<Option<MqttUser>, MqttBrokerError>;
 
-    async fn save_user(&self, user_info: MqttUser) -> Result<(), CommonError>;
+    async fn save_user(&self, user_info: MqttUser) -> Result<(), MqttBrokerError>;
 
-    async fn delete_user(&self, username: String) -> Result<(), CommonError>;
+    async fn delete_user(&self, username: String) -> Result<(), MqttBrokerError>;
 
-    async fn save_acl(&self, acl: MqttAcl) -> Result<(), CommonError>;
+    async fn save_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError>;
 
-    async fn delete_acl(&self, acl: MqttAcl) -> Result<(), CommonError>;
+    async fn delete_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError>;
 }
 
 pub struct AuthDriver {
@@ -86,54 +85,43 @@ impl AuthDriver {
         }
     }
 
-    pub fn update_driver(&mut self, auth: Auth) -> Result<(), CommonError> {
-        let driver = match build_driver(self.client_pool.clone(), auth) {
-            Ok(driver) => driver,
-            Err(e) => {
-                return Err(e);
-            }
-        };
+    pub fn update_driver(&mut self, auth: Auth) -> Result<(), MqttBrokerError> {
+        let driver = build_driver(self.client_pool.clone(), auth)?;
         self.driver = driver;
         Ok(())
     }
 
-    pub async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, CommonError> {
+    pub async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError> {
         self.driver.read_all_user().await
     }
 
-    pub async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, CommonError> {
+    pub async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
         self.driver.read_all_acl().await
     }
 
-    pub async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, CommonError> {
+    pub async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
         self.driver.read_all_blacklist().await
     }
 
-    pub async fn save_user(&self, user_info: MqttUser) -> Result<(), CommonError> {
+    pub async fn save_user(&self, user_info: MqttUser) -> Result<(), MqttBrokerError> {
         let username = user_info.username.clone();
         if let Some(_user) = self.cache_manager.user_info.get(&username) {
-            return Err(CommonError::CommonError(
-                "user has been existed".to_string(),
-            ));
+            return Err(MqttBrokerError::UserAlreadyExist);
         }
         self.cache_manager.add_user(user_info.clone());
         self.driver.save_user(user_info).await
     }
 
-    pub async fn delete_user(&self, username: String) -> Result<(), CommonError> {
+    pub async fn delete_user(&self, username: String) -> Result<(), MqttBrokerError> {
         if self.cache_manager.user_info.get(&username).is_none() {
-            return Err(CommonError::CommonError("user does not exist".to_string()));
+            return Err(MqttBrokerError::UserDoesNotExist);
         }
-        match self.driver.delete_user(username.clone()).await {
-            Ok(()) => {
-                self.cache_manager.del_user(username.clone());
-                Ok(())
-            }
-            Err(e) => Err(e),
-        }
+        self.driver.delete_user(username.clone()).await?;
+        self.cache_manager.del_user(username.clone());
+        Ok(())
     }
 
-    pub async fn update_user_cache(&self) -> Result<(), CommonError> {
+    pub async fn update_user_cache(&self) -> Result<(), MqttBrokerError> {
         let all_users: DashMap<String, MqttUser> = self.driver.read_all_user().await?;
 
         for entry in all_users.iter() {
@@ -153,7 +141,7 @@ impl AuthDriver {
         login: &Option<Login>,
         _: &Option<ConnectProperties>,
         _: &SocketAddr,
-    ) -> Result<bool, CommonError> {
+    ) -> Result<bool, MqttBrokerError> {
         let cluster = self.cache_manager.get_cluster_info();
 
         if cluster.security.secret_free_login {
@@ -169,26 +157,22 @@ impl AuthDriver {
         Ok(false)
     }
 
-    pub async fn save_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
+    pub async fn save_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError> {
         self.cache_manager.add_acl(acl.clone());
         self.driver.save_acl(acl).await
     }
 
-    pub async fn delete_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
-        match self.driver.delete_acl(acl.clone()).await {
-            Ok(()) => {
-                self.cache_manager.remove_acl(acl.clone());
-                Ok(())
-            }
-            Err(e) => Err(e),
-        }
+    pub async fn delete_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError> {
+        self.driver.delete_acl(acl.clone()).await?;
+        self.cache_manager.remove_acl(acl.clone());
+        Ok(())
     }
 
-    pub async fn update_acl_cache(&self) -> Result<(), CommonError> {
+    pub async fn update_acl_cache(&self) -> Result<(), MqttBrokerError> {
         let all_acls: Vec<MqttAcl> = self.driver.read_all_acl().await?;
 
-        for acl in all_acls.clone() {
-            self.cache_manager.add_acl(acl.clone());
+        for acl in all_acls.iter() {
+            self.cache_manager.add_acl(acl.to_owned());
         }
 
         let mut user_acl = HashSet::new();
@@ -249,7 +233,7 @@ impl AuthDriver {
         &self,
         username: &str,
         password: &str,
-    ) -> Result<bool, CommonError> {
+    ) -> Result<bool, MqttBrokerError> {
         let plaintext = Plaintext::new(
             username.to_owned(),
             password.to_owned(),
@@ -266,39 +250,27 @@ impl AuthDriver {
                 if e.to_string() == MqttBrokerError::UserDoesNotExist.to_string() {
                     return self.try_get_check_user_by_driver(username).await;
                 }
-                return Err(e.into());
+                return Err(e);
             }
         }
         Ok(false)
     }
 
-    async fn try_get_check_user_by_driver(&self, username: &str) -> Result<bool, CommonError> {
-        match self.driver.get_user(username.to_owned()).await {
-            Ok(Some(user)) => {
-                self.cache_manager.add_user(user.clone());
-                let plaintext = Plaintext::new(
-                    user.username.clone(),
-                    user.password.clone(),
-                    self.cache_manager.clone(),
-                );
-                match plaintext.apply().await {
-                    Ok(flag) => {
-                        if flag {
-                            return Ok(true);
-                        }
-                    }
-                    Err(e) => {
-                        return Err(e.into());
-                    }
-                }
-            }
-            Ok(None) => {
-                return Ok(false);
-            }
-            Err(e) => {
-                return Err(e);
+    async fn try_get_check_user_by_driver(&self, username: &str) -> Result<bool, MqttBrokerError> {
+        if let Some(user) = self.driver.get_user(username.to_owned()).await? {
+            self.cache_manager.add_user(user.clone());
+
+            let plaintext = Plaintext::new(
+                user.username.clone(),
+                user.password.clone(),
+                self.cache_manager.clone(),
+            );
+
+            if plaintext.apply().await? {
+                return Ok(true);
             }
         }
+
         Ok(false)
     }
 }
@@ -306,9 +278,9 @@ impl AuthDriver {
 pub fn build_driver(
     client_pool: Arc<ClientPool>,
     auth: Auth,
-) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, CommonError> {
+) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, MqttBrokerError> {
     let storage_type = StorageType::from_str(&auth.storage_type)
-        .map_err(|_| CommonError::UnavailableStorageType)?;
+        .map_err(|_| MqttBrokerError::UnavailableStorageType)?;
     if matches!(storage_type, StorageType::Placement) {
         let driver = PlacementAuthStorageAdapter::new(client_pool);
         return Ok(Arc::new(driver));
@@ -319,7 +291,7 @@ pub fn build_driver(
         return Ok(Arc::new(driver));
     }
 
-    Err(CommonError::UnavailableStorageType)
+    Err(MqttBrokerError::UnavailableStorageType)
 }
 
 pub fn authentication_acl() -> bool {

@@ -14,12 +14,25 @@
 
 use std::string::FromUtf8Error;
 
+use common_base::error::common::CommonError;
 use thiserror::Error;
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug)]
 pub enum MqttBrokerError {
     #[error("{0}")]
+    FromIoError(#[from] std::io::Error),
+
+    #[error("{0}")]
     FromUtf8Error(#[from] FromUtf8Error),
+
+    #[error("{0}")]
+    FromCommonError(#[from] CommonError),
+
+    #[error("{0}")]
+    SerdeJsonError(#[from] serde_json::Error),
+
+    #[error("{0}")]
+    FromMysqlError(#[from] mysql::Error),
 
     #[error("Topic alias is too long. alias is {0}")]
     TopicAliasTooLong(u16),
@@ -53,9 +66,24 @@ pub enum MqttBrokerError {
     #[error("User does not exist")]
     UserDoesNotExist,
 
+    #[error("user has been existed")]
+    UserAlreadyExist,
+
     #[error("Session does not exist")]
     SessionDoesNotExist,
 
     #[error("Topic [{0}] does not exist")]
     TopicDoesNotExist(String),
+
+    #[error("Unavailable storage type")]
+    UnavailableStorageType,
+
+    #[error("{0}")]
+    CommonError(String),
+
+    #[error("Invalid acl action")]
+    InvalidAclAction,
+
+    #[error("invalid acl permission")]
+    InvalidAclPermission,
 }

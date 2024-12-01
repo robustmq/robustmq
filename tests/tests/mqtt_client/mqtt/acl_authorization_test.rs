@@ -17,12 +17,13 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::unique_id;
-    use grpc_clients::{
-        mqtt::admin::call::{
-            mqtt_broker_create_acl, mqtt_broker_create_user, mqtt_broker_delete_acl,
-            mqtt_broker_delete_user, mqtt_broker_list_acl,
-        },
-        pool::ClientPool,
+    use grpc_clients::mqtt::admin::call::{
+        mqtt_broker_create_acl, mqtt_broker_create_user, mqtt_broker_delete_acl,
+        mqtt_broker_delete_user, mqtt_broker_list_acl,
+    };
+    use grpc_clients::pool::ClientPool;
+    use metadata_struct::acl::mqtt_acl::{
+        MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
     use paho_mqtt::{Client, Message};
     use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -31,9 +32,6 @@ mod tests {
 
     use crate::mqtt_client::mqtt::common::{
         broker_addr, broker_grpc_addr, connect_server5_by_user_information, distinct_conn,
-    };
-    use metadata_struct::acl::mqtt_acl::{
-        MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
 
     #[tokio::test]

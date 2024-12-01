@@ -17,6 +17,7 @@ pub mod cache;
 pub mod command;
 pub mod connection;
 pub mod constant;
+pub mod error;
 pub mod flow_control;
 pub mod heartbreat;
 pub mod keep_alive;
