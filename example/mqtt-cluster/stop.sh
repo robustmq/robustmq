@@ -13,7 +13,7 @@
 # limitations under the License.
 
 stop_pc_cluster(){
-    no1=`ps -ef | grep inner-center  | grep node-1 | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
         echo "kill placement center $no1"
@@ -37,7 +37,7 @@ stop_pc_cluster(){
 
     sleep 3
 
-    rm -rf  /tmp/robust/inner-center-1/data
+    rm -rf  /tmp/robust/placement-center-1/data
     # rm -rf  /tmp/robust/placement-center-2/data
     # rm -rf  /tmp/robust/placement-center-3/data
 }
