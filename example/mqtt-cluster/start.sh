@@ -22,7 +22,7 @@ start_pc_cluster(){
     # nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-3.toml 2>/tmp/3.log &
     sleep 3
 
-    no1=`ps -ef | grep inner-center  | grep node-1 | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
         echo "placement-center node 1 started successfully. process no: $no1"
