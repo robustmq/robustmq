@@ -30,3 +30,4 @@ pub mod session;
 pub mod topic;
 pub mod user;
 pub mod validator;
+pub mod cluster_config;

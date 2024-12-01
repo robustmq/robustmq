@@ -261,11 +261,6 @@ impl CacheManager {
             },
         }
     }
-
-    pub fn set_cluster_info(&self, cluster: MqttClusterDynamicConfig) {
-        self.cluster_info.insert(self.cluster_name.clone(), cluster);
-    }
-
     pub fn get_cluster_info(&self) -> MqttClusterDynamicConfig {
         if let Some(cluster) = self.cluster_info.get(&self.cluster_name) {
             return cluster.clone();
