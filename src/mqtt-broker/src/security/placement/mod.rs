@@ -59,6 +59,16 @@ impl AuthStorageAdapter for PlacementAuthStorageAdapter {
         return user_storage.delete_user(username).await;
     }
 
+    async fn save_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
+        let acl_storage = AclStorage::new(self.client_pool.clone());
+        return acl_storage.save_acl(acl).await;
+    }
+
+    async fn delete_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
+        let acl_storage = AclStorage::new(self.client_pool.clone());
+        return acl_storage.delete_acl(acl).await;
+    }
+
     async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, CommonError> {
         let acl_storage = AclStorage::new(self.client_pool.clone());
         return acl_storage.list_acl().await;

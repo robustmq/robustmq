@@ -146,6 +146,14 @@ lazy_static! {
     )
     .unwrap();
 
+    // Number of packets connack sent
+    static ref PACKETS_CONNACK_SENT: IntGaugeVec = register_int_gauge_vec!(
+        "packets_connack_sent",
+        "Number of packets connack sent",
+        &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
+    )
+    .unwrap();
+
     // Number of bytes received
     static ref BYTES_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
         "bytes_received",
@@ -211,7 +219,6 @@ pub fn record_received_metrics(
         .inc();
 
     match pkg {
-
         MqttPacket::Connect(_, _, _, _, _, _) => PACKETS_CONNECT_RECEIVED
             .with_label_values(&[&network_type.to_string()])
             .inc(),
@@ -259,9 +266,7 @@ pub fn record_received_metrics(
         MqttPacket::Unsubscribe(_, _) => PACKETS_UNSUBSCRIBLE_RECEIVED
             .with_label_values(&[&network_type.to_string()])
             .inc(),
-        _=> unreachable!(
-            "This branch only matches for packets with Properties, which is not possible in MQTT V4",
-        ),
+        _ => unreachable!("This branch only matches for packets could not be received",),
     }
 }
 
@@ -298,6 +303,14 @@ pub fn record_sent_metrics(resp: &ResponsePackage, connection_manager: &Arc<Conn
     BYTES_SENT
         .with_label_values(&[&network_type, &qos_str])
         .add(payload_size as i64);
+
+    match resp.packet {
+        MqttPacket::ConnAck(_, _) => PACKETS_CONNACK_SENT
+            .with_label_values(&[&network_type, &qos_str])
+            .inc(),
+
+        _ => {}
+    }
 }
 
 pub fn record_retain_recv_metrics(qos: QoS) {

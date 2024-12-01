@@ -16,10 +16,12 @@ use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
-use grpc_clients::placement::mqtt::call::list_acl;
+use grpc_clients::placement::mqtt::call::{create_acl, delete_acl, list_acl};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
-use protocol::placement_center::placement_center_mqtt::ListAclRequest;
+use protocol::placement_center::placement_center_mqtt::{
+    CreateAclRequest, DeleteAclRequest, ListAclRequest,
+};
 
 pub struct AclStorage {
     client_pool: Arc<ClientPool>,
@@ -43,6 +45,35 @@ impl AclStorage {
                 }
                 Ok(list)
             }
+            Err(e) => Err(e),
+        }
+    }
+
+    pub async fn save_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
+        let config = broker_mqtt_conf();
+
+        let value = acl.encode()?;
+        let request = CreateAclRequest {
+            cluster_name: config.cluster_name.clone(),
+            acl: value,
+        };
+
+        match create_acl(self.client_pool.clone(), &config.placement_center, request).await {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
+    }
+
+    pub async fn delete_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
+        let config = broker_mqtt_conf();
+        let value = acl.encode()?;
+        let request = DeleteAclRequest {
+            cluster_name: config.cluster_name.clone(),
+            acl: value,
+        };
+
+        match delete_acl(self.client_pool.clone(), &config.placement_center, request).await {
+            Ok(_) => Ok(()),
             Err(e) => Err(e),
         }
     }

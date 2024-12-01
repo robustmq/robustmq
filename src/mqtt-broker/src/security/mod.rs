@@ -27,7 +27,7 @@ use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use login::plaintext::Plaintext;
 use login::Authentication;
-use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclAction};
+use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclAction, MqttAclResourceType};
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::user::MqttUser;
@@ -58,6 +58,10 @@ pub trait AuthStorageAdapter {
     async fn save_user(&self, user_info: MqttUser) -> Result<(), CommonError>;
 
     async fn delete_user(&self, username: String) -> Result<(), CommonError>;
+
+    async fn save_acl(&self, acl: MqttAcl) -> Result<(), CommonError>;
+
+    async fn delete_acl(&self, acl: MqttAcl) -> Result<(), CommonError>;
 }
 
 pub struct AuthDriver {
@@ -106,35 +110,20 @@ impl AuthDriver {
     }
 
     pub async fn save_user(&self, user_info: MqttUser) -> Result<(), CommonError> {
-        match self.driver.read_all_user().await {
-            Ok(date) => {
-                let is_existed = date.iter().any(|user| *user.key() == user_info.username);
-                if is_existed {
-                    return Err(CommonError::CommonError(
-                        "user has been existed".to_string(),
-                    ));
-                }
-            }
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        let username = user_info.username.clone();
+        if let Some(_user) = self.cache_manager.user_info.get(&username) {
+            return Err(CommonError::CommonError(
+                "user has been existed".to_string(),
+            ));
+        }
         self.cache_manager.add_user(user_info.clone());
         self.driver.save_user(user_info).await
     }
 
     pub async fn delete_user(&self, username: String) -> Result<(), CommonError> {
-        match self.driver.read_all_user().await {
-            Ok(date) => {
-                let is_existed = date.iter().any(|user| *user.key() == username);
-                if !is_existed {
-                    return Err(CommonError::CommonError("user does not exist".to_string()));
-                };
-            }
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        if self.cache_manager.user_info.get(&username).is_none() {
+            return Err(CommonError::CommonError("user does not exist".to_string()));
+        }
         match self.driver.delete_user(username.clone()).await {
             Ok(()) => {
                 self.cache_manager.del_user(username.clone());
@@ -178,6 +167,42 @@ impl AuthDriver {
         }
 
         Ok(false)
+    }
+
+    pub async fn save_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
+        self.cache_manager.add_acl(acl.clone());
+        self.driver.save_acl(acl).await
+    }
+
+    pub async fn delete_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
+        match self.driver.delete_acl(acl.clone()).await {
+            Ok(()) => {
+                self.cache_manager.remove_acl(acl.clone());
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    pub async fn update_acl_cache(&self) -> Result<(), CommonError> {
+        let all_acls: Vec<MqttAcl> = self.driver.read_all_acl().await?;
+
+        for acl in all_acls.clone() {
+            self.cache_manager.add_acl(acl.clone());
+        }
+
+        let mut user_acl = HashSet::new();
+        let mut client_acl = HashSet::new();
+
+        for acl in all_acls.clone() {
+            match acl.resource_type {
+                MqttAclResourceType::User => user_acl.insert(acl.resource_name.clone()),
+                MqttAclResourceType::ClientId => client_acl.insert(acl.resource_name.clone()),
+            };
+        }
+        self.cache_manager.retain_acls(user_acl, client_acl);
+
+        Ok(())
     }
 
     pub async fn allow_publish(

@@ -16,9 +16,10 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
-    DeleteUserRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest, ListConnectionReply,
-    ListConnectionRequest, ListUserReply, ListUserRequest,
+    ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest, CreateUserReply,
+    CreateUserRequest, DeleteAclReply, DeleteAclRequest, DeleteUserReply, DeleteUserRequest,
+    EnableSlowSubScribeReply, EnableSlowSubscribeRequest, ListAclReply, ListAclRequest,
+    ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
 };
 
 use crate::mqtt::{call_once, MqttBrokerPlacementReply, MqttBrokerPlacementRequest};
@@ -73,6 +74,42 @@ pub async fn mqtt_broker_delete_user(
     let request = MqttBrokerPlacementRequest::DeleteUser(request);
     match retry_call(&client_pool, addrs, request, call_once).await? {
         MqttBrokerPlacementReply::DeleteUser(reply) => Ok(reply),
+        _ => unreachable!("Reply type mismatch"),
+    }
+}
+
+pub async fn mqtt_broker_list_acl(
+    client_pool: Arc<ClientPool>,
+    addrs: &[String],
+    request: ListAclRequest,
+) -> Result<ListAclReply, CommonError> {
+    let request = MqttBrokerPlacementRequest::ListAcl(request);
+    match retry_call(&client_pool, addrs, request, call_once).await? {
+        MqttBrokerPlacementReply::ListAcl(reply) => Ok(reply),
+        _ => unreachable!("Reply type mismatch"),
+    }
+}
+
+pub async fn mqtt_broker_create_acl(
+    client_pool: Arc<ClientPool>,
+    addrs: &[String],
+    request: CreateAclRequest,
+) -> Result<CreateAclReply, CommonError> {
+    let request = MqttBrokerPlacementRequest::CreateAcl(request);
+    match retry_call(&client_pool, addrs, request, call_once).await? {
+        MqttBrokerPlacementReply::CreateAcl(reply) => Ok(reply),
+        _ => unreachable!("Reply type mismatch"),
+    }
+}
+
+pub async fn mqtt_broker_delete_acl(
+    client_pool: Arc<ClientPool>,
+    addrs: &[String],
+    request: DeleteAclRequest,
+) -> Result<DeleteAclReply, CommonError> {
+    let request = MqttBrokerPlacementRequest::DeleteAcl(request);
+    match retry_call(&client_pool, addrs, request, call_once).await? {
+        MqttBrokerPlacementReply::DeleteAcl(reply) => Ok(reply),
         _ => unreachable!("Reply type mismatch"),
     }
 }

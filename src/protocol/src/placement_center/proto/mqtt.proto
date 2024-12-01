@@ -168,7 +168,7 @@ service MqttService {
   // - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
   //
   //Returns: An empty struct.
-  rpc DeleteAcl(DeleteAclRequest) returns(DeleteAclRequestReply) {}
+  rpc DeleteAcl(DeleteAclRequest) returns(DeleteAclReply) {}
 
   //Creates the corresponding ACL based on the request
   //
@@ -424,7 +424,7 @@ message DeleteAclRequest{
     bytes acl = 2;
 }
 
-message DeleteAclRequestReply{
+message DeleteAclReply{
 
 }
 
