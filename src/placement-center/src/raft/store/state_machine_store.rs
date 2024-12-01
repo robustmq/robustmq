@@ -24,9 +24,9 @@ use openraft::{
 use rocksdb::{ColumnFamily, DB};
 
 use super::{cf_raft_store, StorageResult, StoredSnapshot};
-use crate::raft::raftv2::raft_node::{typ, NodeId};
-use crate::raft::raftv2::route::AppResponseData;
-use crate::raft::raftv2::typeconfig::{SnapshotData, TypeConfig};
+use crate::raft::raft_node::{typ, NodeId};
+use crate::raft::route::AppResponseData;
+use crate::raft::typeconfig::{SnapshotData, TypeConfig};
 use crate::route::DataRoute;
 
 #[derive(Clone)]

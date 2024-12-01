@@ -129,7 +129,7 @@ impl ClientKeepAlive {
                     } else {
                         let mut codec = MqttCodec::new(Some(protocol.into()));
                         let mut buff = BytesMut::new();
-                        match codec.encode_data(wrap, &mut buff) {
+                        match codec.encode_data(wrap.clone(), &mut buff) {
                             Ok(()) => {}
                             Err(e) => {
                                 error!(
@@ -142,6 +142,7 @@ impl ClientKeepAlive {
                             .connection_manager
                             .write_websocket_frame(
                                 connection.connect_id,
+                                wrap,
                                 Message::Binary(buff.to_vec()),
                             )
                             .await

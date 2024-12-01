@@ -15,28 +15,35 @@
 #![allow(dead_code, unused_variables)]
 
 use std::sync::Arc;
+use std::time::Duration;
 
-use cache::{load_node_cache, start_update_cache_thread, MetadataCache};
+use cache::{load_node_cache, load_shards_cache, start_update_cache_thread, MetadataCache};
 use connection::{start_conn_gc_thread, ConnectionManager};
 use error::JournalClientError;
 use log::error;
+use metadata_struct::journal::shard::shard_name_iden;
 use option::JournalClientOption;
 use protocol::journal_server::journal_engine::{CreateShardReqBody, DeleteShardReqBody};
 use service::{create_shard, delete_shard};
 use tokio::sync::broadcast::{self, Sender};
+use tokio::time::sleep;
+use writer::{SenderMessage, SenderMessageResp, Writer};
 
 mod cache;
 mod connection;
 mod error;
+mod group;
 pub mod option;
 mod reader;
-mod sender;
 mod service;
 pub mod tool;
+mod writer;
 
+#[derive(Clone)]
 pub struct JournalEngineClient {
     connection_manager: Arc<ConnectionManager>,
     metadata_cache: Arc<MetadataCache>,
+    writer: Arc<Writer>,
     stop_send: Sender<bool>,
 }
 
@@ -44,11 +51,15 @@ impl JournalEngineClient {
     pub fn new(options: JournalClientOption) -> Self {
         let metadata_cache = Arc::new(MetadataCache::new(options.addrs));
         let connection_manager = Arc::new(ConnectionManager::new(metadata_cache.clone()));
-
+        let sender = Arc::new(Writer::new(
+            connection_manager.clone(),
+            metadata_cache.clone(),
+        ));
         let (stop_send, _) = broadcast::channel::<bool>(2);
         JournalEngineClient {
             metadata_cache,
             connection_manager,
+            writer: sender,
             stop_send,
         }
     }
@@ -98,14 +109,85 @@ impl JournalEngineClient {
         Ok(())
     }
 
-    pub async fn send(&self) {}
+    pub async fn send(
+        &self,
+        namespace: String,
+        shard_name: String,
+        key: String,
+        content: Vec<u8>,
+        tags: Vec<String>,
+    ) -> Result<SenderMessageResp, JournalClientError> {
+        loop {
+            let active_segment = if let Some(segment) = self
+                .metadata_cache
+                .get_active_segment(&namespace, &shard_name)
+            {
+                segment
+            } else {
+                if let Err(e) = load_shards_cache(
+                    &self.metadata_cache,
+                    &self.connection_manager,
+                    &namespace,
+                    &shard_name,
+                )
+                .await
+                {
+                    error!(
+                        "Loading Shard {} Metadata info failed, error message :{}",
+                        shard_name_iden(&namespace, &shard_name,),
+                        e
+                    );
+                }
+                error!(
+                    "{}",
+                    JournalClientError::NotActiveSegmentLeader(shard_name_iden(
+                        &namespace,
+                        &shard_name,
+                    ))
+                );
+                sleep(Duration::from_millis(100)).await;
+                continue;
+            };
 
-    pub async fn read(&self) {}
+            let message = SenderMessage::build(
+                &namespace,
+                &shard_name,
+                active_segment,
+                &key,
+                &content,
+                &tags,
+            );
+            match self.writer.send(&message).await {
+                Ok(resp) => {
+                    return Ok(resp);
+                }
+                Err(e) => {
+                    if let JournalClientError::NotActiveSegmentLeader(_) = e {
+                        error!("Message failed to send. Reason :{} Next attempt.", e);
+                        sleep(Duration::from_millis(100)).await;
+                        continue;
+                    }
+                    return Err(e);
+                }
+            }
+        }
+    }
+
+    pub async fn read_by_offset(&self, group_name: &str, namespace: &str, shard_name: &str) {}
+
+    pub async fn read_by_timestamp(&self) {}
+
+    pub async fn read_by_key(&self) {}
+
+    pub async fn read_by_tag(&self) {}
 
     pub async fn close(&self) {
         if let Err(e) = self.stop_send.send(true) {
             error!("{}", e);
         }
         self.connection_manager.close().await;
+        if let Err(e) = self.writer.close().await {
+            error!("{}", e);
+        }
     }
 }

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use lazy_static::lazy_static;
 use prometheus::{register_int_gauge_vec, IntGaugeVec};
 use protocol::mqtt::codec::{calc_mqtt_packet_size, MqttPacketWrapper};
@@ -21,8 +19,6 @@ use protocol::mqtt::common::{MqttPacket, QoS};
 
 use crate::handler::constant::{METRICS_KEY_NETWORK_TYPE, METRICS_KEY_QOS};
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};
-use crate::server::connection_manager::ConnectionManager;
-use crate::server::packet::ResponsePackage;
 
 lazy_static! {
     // Number of packets received
@@ -154,6 +150,86 @@ lazy_static! {
     )
     .unwrap();
 
+    // Number of packets publish sent
+    static ref PACKETS_PUBLISH_SENT: IntGaugeVec = register_int_gauge_vec!(
+        "packets_publish_sent",
+        "Number of packets publish sent",
+        &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
+    )
+    .unwrap();
+
+    // Number of packets puback sent
+    static ref PACKETS_PUBACK_SENT: IntGaugeVec = register_int_gauge_vec!(
+        "packets_puback_sent",
+        "Number of packets puback sent",
+        &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
+    )
+    .unwrap();
+
+    // Number of packets pubrec sent
+    static ref PACKETS_PUBREC_SENT: IntGaugeVec = register_int_gauge_vec!(
+        "packets_pubrec_sent",
+        "Number of packets pubrec sent",
+        &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
+    )
+    .unwrap();
+
+   // Number of packets pubrel sent
+   static ref PACKETS_PUBREL_SENT: IntGaugeVec = register_int_gauge_vec!(
+    "packets_pubrel_sent",
+    "Number of packets pubrel sent",
+    &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
+    )
+    .unwrap();
+
+   // Number of packets pubcomp sent
+   static ref PACKETS_PUBCOMP_SENT: IntGaugeVec = register_int_gauge_vec!(
+    "packets_pubcomp_sent",
+    "Number of packets pubcomp sent",
+    &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
+    )
+    .unwrap();
+
+   // Number of packets suback sent
+   static ref PACKETS_SUBACK_SENT: IntGaugeVec = register_int_gauge_vec!(
+    "packets_suback_sent",
+    "Number of packets suback sent",
+    &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
+    )
+    .unwrap();
+
+   // Number of packets unsuback sent
+   static ref PACKETS_UNSUBACK_SENT: IntGaugeVec = register_int_gauge_vec!(
+    "packets_unsuback_sent",
+    "Number of packets unsuback sent",
+    &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
+    )
+    .unwrap();
+
+   // Number of packets pingresp sent
+   static ref PACKETS_PINGRESP_SENT: IntGaugeVec = register_int_gauge_vec!(
+    "packets_pingresp_sent",
+    "Number of packets pingresp sent",
+    &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
+    )
+    .unwrap();
+
+   // Number of packets disconnect sent
+   static ref PACKETS_DISCONNECT_SENT: IntGaugeVec = register_int_gauge_vec!(
+    "packets_disconnect_sent",
+    "Number of packets disconnect sent",
+    &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
+    )
+    .unwrap();
+
+   // Number of packets auth sent
+   static ref PACKETS_AUTH_SENT: IntGaugeVec = register_int_gauge_vec!(
+    "packets_auth_sent",
+    "Number of packets auth sent",
+    &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
+    )
+    .unwrap();
+
     // Number of bytes received
     static ref BYTES_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
         "bytes_received",
@@ -266,35 +342,19 @@ pub fn record_received_metrics(
         MqttPacket::Unsubscribe(_, _) => PACKETS_UNSUBSCRIBLE_RECEIVED
             .with_label_values(&[&network_type.to_string()])
             .inc(),
-        _ => unreachable!("This branch only matches for packets could not be received",),
+        _ => unreachable!("This branch only matches for packets could not be received"),
     }
 }
 
 // Record metrics related to messages pushed to the client
-pub fn record_sent_metrics(resp: &ResponsePackage, connection_manager: &Arc<ConnectionManager>) {
-    let qos_str = if let MqttPacket::Publish(publish, _) = resp.packet.clone() {
+pub fn record_sent_metrics(packet_wrapper: &MqttPacketWrapper, network_type: String) {
+    let qos_str = if let MqttPacket::Publish(publish, _) = packet_wrapper.packet.clone() {
         format!("{}", publish.qos as u8)
     } else {
         "-1".to_string()
     };
 
-    let (payload_size, network_type) =
-        if let Some(connection) = connection_manager.get_connect(resp.connection_id) {
-            if let Some(protocol) = connection.protocol.clone() {
-                let wrapper = MqttPacketWrapper {
-                    protocol_version: protocol.into(),
-                    packet: resp.packet.clone(),
-                };
-                (
-                    calc_mqtt_packet_size(wrapper),
-                    connection.connection_type.to_string(),
-                )
-            } else {
-                (0, "".to_string())
-            }
-        } else {
-            (0, "".to_string())
-        };
+    let payload_size = calc_mqtt_packet_size(packet_wrapper.to_owned());
 
     PACKETS_SENT
         .with_label_values(&[&network_type, &qos_str])
@@ -304,12 +364,41 @@ pub fn record_sent_metrics(resp: &ResponsePackage, connection_manager: &Arc<Conn
         .with_label_values(&[&network_type, &qos_str])
         .add(payload_size as i64);
 
-    match resp.packet {
+    match packet_wrapper.packet {
         MqttPacket::ConnAck(_, _) => PACKETS_CONNACK_SENT
             .with_label_values(&[&network_type, &qos_str])
             .inc(),
-
-        _ => {}
+        MqttPacket::Publish(_, _) => PACKETS_PUBLISH_SENT
+            .with_label_values(&[&network_type, &qos_str])
+            .inc(),
+        MqttPacket::PubAck(_, _) => PACKETS_PUBACK_SENT
+            .with_label_values(&[&network_type, &qos_str])
+            .inc(),
+        MqttPacket::PubRec(_, _) => PACKETS_PUBREC_SENT
+            .with_label_values(&[&network_type, &qos_str])
+            .inc(),
+        MqttPacket::PubRel(_, _) => PACKETS_PUBREL_SENT
+            .with_label_values(&[&network_type, &qos_str])
+            .inc(),
+        MqttPacket::PubComp(_, _) => PACKETS_PUBCOMP_SENT
+            .with_label_values(&[&network_type, &qos_str])
+            .inc(),
+        MqttPacket::SubAck(_, _) => PACKETS_SUBACK_SENT
+            .with_label_values(&[&network_type, &qos_str])
+            .inc(),
+        MqttPacket::UnsubAck(_, _) => PACKETS_UNSUBACK_SENT
+            .with_label_values(&[&network_type, &qos_str])
+            .inc(),
+        MqttPacket::PingResp(_) => PACKETS_PINGRESP_SENT
+            .with_label_values(&[&network_type, &qos_str])
+            .inc(),
+        MqttPacket::Disconnect(_, _) => PACKETS_DISCONNECT_SENT
+            .with_label_values(&[&network_type, &qos_str])
+            .inc(),
+        MqttPacket::Auth(_, _) => PACKETS_CONNACK_SENT
+            .with_label_values(&[&network_type, &qos_str])
+            .inc(),
+        _ => unreachable!("This branch only matches for packets could not be sent"),
     }
 }
 

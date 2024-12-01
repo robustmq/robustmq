@@ -164,6 +164,7 @@ impl ShardHandler {
             };
 
             let mut resp_shard_segments = Vec::new();
+            let mut active_segment_leader = -1;
             for segment in segments {
                 let segment_iden = SegmentIdentity::from_journal_segment(&segment);
                 let meta = if let Some(meta) = self.cache_manager.get_segment_meta(&segment_iden) {
@@ -182,12 +183,18 @@ impl ShardHandler {
                     start_timestamp: meta.start_timestamp,
                     end_timestamp: meta.end_timestamp,
                 };
+
+                if segment.segment_seq == shard.active_segment_seq {
+                    active_segment_leader = segment.leader as i64;
+                }
                 resp_shard_segments.push(client_segment_meta);
             }
 
             let resp_shard = GetShardMetadataRespShard {
                 namespace: raw.namespace,
                 shard: raw.shard_name,
+                active_segment: shard.active_segment_seq as i32,
+                active_segment_leader,
                 segments: resp_shard_segments,
             };
 
