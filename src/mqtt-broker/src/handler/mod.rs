@@ -14,6 +14,7 @@
 
 pub mod acl;
 pub mod cache;
+pub mod cluster_config;
 pub mod command;
 pub mod connection;
 pub mod constant;
@@ -30,4 +31,3 @@ pub mod session;
 pub mod topic;
 pub mod user;
 pub mod validator;
-pub mod cluster_config;

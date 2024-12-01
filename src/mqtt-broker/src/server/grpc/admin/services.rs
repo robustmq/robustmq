@@ -27,7 +27,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     ListConnectionRaw, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
 };
 use tonic::{Request, Response, Status};
-use common_base::error::common::CommonError;
+
 use crate::handler::cache::CacheManager;
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
@@ -230,13 +230,15 @@ impl MqttBrokerAdminService for GrpcAdminServices {
     ) -> Result<Response<EnableSlowSubScribeReply>, Status> {
         let subscribe_request = request.into_inner();
 
-        match self.cache_manager.enable_slow_sub(subscribe_request.is_enable) {
-            Ok(_) => Ok(Response::new(EnableSlowSubScribeReply{
+        match self
+            .cache_manager
+            .enable_slow_sub(subscribe_request.is_enable)
+            .await
+        {
+            Ok(_) => Ok(Response::new(EnableSlowSubScribeReply {
                 message: String::from("update slow subscribe successfully"),
             })),
-            Err(e) => {
-                Err(Status::cancelled(e.to_string()))
-            }
+            Err(e) => Err(Status::cancelled(e.to_string())),
         }
     }
 }

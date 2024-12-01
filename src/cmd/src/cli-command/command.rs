@@ -107,7 +107,7 @@ struct DeleteUserArgs {
 )]
 #[command(next_line_help = true)]
 struct EnableSlowSubscribeArgs {
-    #[arg(show, long, required = true)]
+    #[arg(long, required = true)]
     is_enable: bool,
 }
 
