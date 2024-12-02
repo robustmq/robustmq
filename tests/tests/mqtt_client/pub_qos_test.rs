@@ -15,9 +15,7 @@
 use common_base::tools::unique_id;
 use paho_mqtt::{Message, MessageBuilder, Properties, PropertyCode};
 
-use crate::mqtt_client::common::{
-    broker_addr, connect_server34, connect_server5, distinct_conn,
-};
+use crate::mqtt_client::common::{broker_addr, connect_server34, connect_server5, distinct_conn};
 
 async fn publish34_qos(num: i32, qos: i32) {
     let mqtt_version = 3;
