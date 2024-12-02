@@ -122,11 +122,11 @@ mod tests {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let grpc_addr = vec![broker_grpc_addr()];
 
-        let cluster_name: String = "mqtt-broker".to_string();
+        let cluster_name: String = unique_id();
 
         let topic = "/tests/t1".to_string();
 
-        let username = "client_acl".to_string();
+        let username = unique_id();
         let password = "caclpublic".to_string();
 
         create_user(
@@ -181,11 +181,11 @@ mod tests {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let grpc_addr = vec![broker_grpc_addr()];
 
-        let cluster_name: String = "mqtt-broker".to_string();
+        let cluster_name: String = unique_id();
 
         let topic = "/tests/t1".to_string();
 
-        let username = "client_acl".to_string();
+        let username = unique_id();
         let password = "caclpublic".to_string();
 
         create_user(
