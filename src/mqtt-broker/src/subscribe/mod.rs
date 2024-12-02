@@ -39,13 +39,14 @@ impl SubPublishParam {
         properties: Option<PublishProperties>,
         create_time: Option<u128>,
         group_id: String,
+        pkid: u16,
     ) -> Self {
         SubPublishParam {
             subscribe,
             publish,
             properties,
             create_time,
-            pkid: 0,
+            pkid,
             group_id,
         }
     }

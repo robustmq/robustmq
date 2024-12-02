@@ -112,7 +112,7 @@ pub async fn try_send_retain_message(
 
                         let qos = min_qos(cluster.protocol.max_qos, subscriber.qos);
                         let pkid = 1;
-                        let publish = Publish {
+                        let mut publish = Publish {
                             dup: false,
                             qos,
                             pkid,
@@ -144,12 +144,20 @@ pub async fn try_send_retain_message(
 
                         record_retain_sent_metrics(publish.qos);
 
-                        let mut sub_pub_param = SubPublishParam::new(
+                        let pkid = if qos != QoS::AtMostOnce {
+                            cache_manager.get_pkid(&client_id).await
+                        } else {
+                            0
+                        };
+                        publish.pkid = pkid;
+
+                        let sub_pub_param = SubPublishParam::new(
                             subscriber.clone(),
                             publish,
                             Some(properties),
                             Some(msg.create_time as u128),
                             "".to_string(),
+                            pkid,
                         );
 
                         match qos {
@@ -164,9 +172,6 @@ pub async fn try_send_retain_message(
                             }
 
                             QoS::AtLeastOnce => {
-                                let pkid: u16 = cache_manager.get_pkid(&client_id).await;
-                                sub_pub_param.pkid = pkid;
-
                                 let (wait_puback_sx, _) = broadcast::channel(1);
                                 cache_manager.add_ack_packet(
                                     &client_id,
@@ -197,9 +202,6 @@ pub async fn try_send_retain_message(
                             }
 
                             QoS::ExactlyOnce => {
-                                let pkid: u16 = cache_manager.get_pkid(&client_id).await;
-                                sub_pub_param.pkid = pkid;
-
                                 let (wait_ack_sx, _) = broadcast::channel(1);
                                 cache_manager.add_ack_packet(
                                     &client_id,
