@@ -280,7 +280,6 @@ pub fn record_received_error_metrics(network_type: NetworkConnectionType) {
     PACKETS_CONNACK_AUTH_ERROR
         .with_label_values(&[&network_type.to_string()])
         .inc();
-
 }
 
 // Record metrics related to packets received by the server
