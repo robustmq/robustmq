@@ -62,7 +62,7 @@ start_mqtt_server
 
 cargo nextest run --package grpc-clients --test mod -- mqtt
 cargo nextest run --package robustmq-test --test mod -- mqtt_server
-cargo nextest run --package robustmq-test --test mod -- mqtt_client
+cargo nextest run --package robustmq-test --test mod -- mqtt_protocol
 
 # Stop Server
 stop_placement_server
