@@ -15,8 +15,6 @@
 use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::error::common::CommonError;
-use common_base::error::mqtt_broker::MqttBrokerError;
 use dashmap::DashMap;
 use grpc_clients::placement::mqtt::call::{
     placement_create_topic, placement_delete_topic, placement_list_topic,
@@ -29,6 +27,8 @@ use protocol::placement_center::placement_center_mqtt::{
     CreateTopicRequest, DeleteTopicRequest, ListTopicRequest, SetTopicRetainMessageRequest,
 };
 
+use crate::handler::error::MqttBrokerError;
+
 pub struct TopicStorage {
     client_pool: Arc<ClientPool>,
 }
@@ -38,83 +38,63 @@ impl TopicStorage {
         TopicStorage { client_pool }
     }
 
-    pub async fn save_topic(&self, topic: MqttTopic) -> Result<(), CommonError> {
+    pub async fn save_topic(&self, topic: MqttTopic) -> Result<(), MqttBrokerError> {
         let config = broker_mqtt_conf();
         let request = CreateTopicRequest {
             cluster_name: config.cluster_name.clone(),
             topic_name: topic.topic_name.clone(),
             content: topic.encode(),
         };
-        match placement_create_topic(self.client_pool.clone(), &config.placement_center, request)
-            .await
-        {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e),
-        }
+        placement_create_topic(self.client_pool.clone(), &config.placement_center, request).await?;
+        Ok(())
     }
 
-    pub async fn delete_topic(&self, topic_name: String) -> Result<(), CommonError> {
+    pub async fn delete_topic(&self, topic_name: String) -> Result<(), MqttBrokerError> {
         let config = broker_mqtt_conf();
         let request = DeleteTopicRequest {
             cluster_name: config.cluster_name.clone(),
             topic_name,
         };
-        match placement_delete_topic(self.client_pool.clone(), &config.placement_center, request)
-            .await
-        {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e),
-        }
+        placement_delete_topic(self.client_pool.clone(), &config.placement_center, request).await?;
+        Ok(())
     }
 
-    pub async fn topic_list(&self) -> Result<DashMap<String, MqttTopic>, CommonError> {
+    pub async fn topic_list(&self) -> Result<DashMap<String, MqttTopic>, MqttBrokerError> {
         let config = broker_mqtt_conf();
         let request = ListTopicRequest {
             cluster_name: config.cluster_name.clone(),
             topic_name: "".to_string(),
         };
-        match placement_list_topic(self.client_pool.clone(), &config.placement_center, request)
-            .await
-        {
-            Ok(reply) => {
-                let results = DashMap::with_capacity(2);
-                for raw in reply.topics {
-                    match serde_json::from_slice::<MqttTopic>(&raw) {
-                        Ok(data) => {
-                            results.insert(data.topic_name.clone(), data);
-                        }
-                        Err(_) => {
-                            continue;
-                        }
-                    }
-                }
-                Ok(results)
-            }
-            Err(e) => Err(e),
+        let reply =
+            placement_list_topic(self.client_pool.clone(), &config.placement_center, request)
+                .await?;
+        let results = DashMap::with_capacity(2);
+        for raw in reply.topics {
+            let data = serde_json::from_slice::<MqttTopic>(&raw)?;
+            results.insert(data.topic_name.clone(), data);
         }
+        Ok(results)
     }
 
-    pub async fn get_topic(&self, topic_name: String) -> Result<Option<MqttTopic>, CommonError> {
+    pub async fn get_topic(
+        &self,
+        topic_name: String,
+    ) -> Result<Option<MqttTopic>, MqttBrokerError> {
         let config = broker_mqtt_conf();
         let request = ListTopicRequest {
             cluster_name: config.cluster_name.clone(),
             topic_name,
         };
-        match placement_list_topic(self.client_pool.clone(), &config.placement_center, request)
-            .await
-        {
-            Ok(reply) => {
-                if reply.topics.is_empty() {
-                    return Ok(None);
-                }
-                let raw = reply.topics.first().unwrap();
-                match serde_json::from_slice::<MqttTopic>(raw) {
-                    Ok(data) => Ok(Some(data)),
-                    Err(e) => Err(CommonError::CommonError(e.to_string())),
-                }
-            }
-            Err(e) => Err(e),
+
+        let reply =
+            placement_list_topic(self.client_pool.clone(), &config.placement_center, request)
+                .await?;
+
+        if let Some(raw) = reply.topics.first() {
+            return Ok(Some(serde_json::from_slice::<MqttTopic>(raw)?));
         }
+
+        Ok(None)
     }
 
     pub async fn set_retain_message(
@@ -122,7 +102,7 @@ impl TopicStorage {
         topic_name: String,
         retain_message: &MqttMessage,
         retain_message_expired_at: u64,
-    ) -> Result<(), CommonError> {
+    ) -> Result<(), MqttBrokerError> {
         let config = broker_mqtt_conf();
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
@@ -130,19 +110,16 @@ impl TopicStorage {
             retain_message: retain_message.encode(),
             retain_message_expired_at,
         };
-        match placement_set_topic_retain_message(
+        placement_set_topic_retain_message(
             self.client_pool.clone(),
             &config.placement_center,
             request,
         )
-        .await
-        {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e),
-        }
+        .await?;
+        Ok(())
     }
 
-    pub async fn delete_retain_message(&self, topic_name: String) -> Result<(), CommonError> {
+    pub async fn delete_retain_message(&self, topic_name: String) -> Result<(), MqttBrokerError> {
         let config = broker_mqtt_conf();
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
@@ -150,46 +127,31 @@ impl TopicStorage {
             retain_message: Vec::new(),
             retain_message_expired_at: 0,
         };
-        match placement_set_topic_retain_message(
+        placement_set_topic_retain_message(
             self.client_pool.clone(),
             &config.placement_center,
             request,
         )
-        .await
-        {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e),
-        }
+        .await?;
+        Ok(())
     }
 
     // Get the latest reserved message for the Topic dimension
     pub async fn get_retain_message(
         &self,
         topic_name: String,
-    ) -> Result<Option<MqttMessage>, CommonError> {
-        let topic = match self.get_topic(topic_name.clone()).await {
-            Ok(Some(data)) => data,
-            Ok(None) => {
-                return Err(MqttBrokerError::TopicDoesNotExist(topic_name.clone()).into());
-            }
-            Err(e) => {
-                return Err(e);
-            }
-        };
-
-        if let Some(retain_message) = topic.retain_message {
-            if retain_message.is_empty() {
-                return Ok(None);
-            }
-            let message = match serde_json::from_slice::<MqttMessage>(retain_message.as_slice()) {
-                Ok(data) => data,
-                Err(e) => {
-                    return Err(CommonError::CommonError(e.to_string()));
+    ) -> Result<Option<MqttMessage>, MqttBrokerError> {
+        if let Some(topic) = self.get_topic(topic_name.clone()).await? {
+            if let Some(retain_message) = topic.retain_message {
+                if retain_message.is_empty() {
+                    return Ok(None);
                 }
-            };
-            return Ok(Some(message));
+                return Ok(Some(serde_json::from_slice::<MqttMessage>(
+                    retain_message.as_slice(),
+                )?));
+            }
         }
 
-        Ok(None)
+        Err(MqttBrokerError::TopicDoesNotExist(topic_name.clone()))
     }
 }

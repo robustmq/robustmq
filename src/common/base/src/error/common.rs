@@ -35,8 +35,6 @@ use std::string::FromUtf8Error;
 use thiserror::Error;
 use tonic::Status;
 
-use crate::error::mqtt_broker::MqttBrokerError;
-
 #[derive(Error, Debug)]
 pub enum CommonError {
     #[error("{0}")]
@@ -56,9 +54,6 @@ pub enum CommonError {
 
     #[error("{0}")]
     IoError(#[from] io::Error),
-
-    #[error("{0}")]
-    MqttBrokerError(#[from] MqttBrokerError),
 
     #[error("{0}")]
     FromUtf8Error(#[from] FromUtf8Error),
@@ -86,9 +81,6 @@ pub enum CommonError {
 
     #[error("Unavailable cluster type")]
     UnavailableClusterType,
-
-    #[error("Unavailable storage type")]
-    UnavailableStorageType,
 
     #[error("No available nodes in the cluster")]
     ClusterNoAvailableNode,

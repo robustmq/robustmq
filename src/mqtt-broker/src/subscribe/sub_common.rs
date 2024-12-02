@@ -18,13 +18,12 @@ use std::time::Duration;
 use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::error::common::CommonError;
-use common_base::error::mqtt_broker::MqttBrokerError;
+use common_base::tools::now_mills;
 use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
 use grpc_clients::pool::ClientPool;
 use log::error;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
-use protocol::mqtt::common::{MqttPacket, MqttProtocol, PubRel, Publish, PublishProperties, QoS};
+use protocol::mqtt::common::{MqttPacket, MqttProtocol, PubRel, QoS};
 use protocol::placement_center::placement_center_mqtt::{
     GetShareSubLeaderReply, GetShareSubLeaderRequest,
 };
@@ -34,7 +33,10 @@ use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::{sleep, timeout};
 
+use super::SubPublishParam;
 use crate::handler::cache::{CacheManager, QosAckPackageData};
+use crate::handler::error::MqttBrokerError;
+use crate::observability::slow::sub::{record_slow_sub_data, SlowSubData};
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
 use crate::storage::message::MessageStorage;
@@ -130,16 +132,13 @@ pub fn decode_share_info(sub_name: String) -> (String, String) {
 pub async fn get_share_sub_leader(
     client_pool: Arc<ClientPool>,
     group_name: String,
-) -> Result<GetShareSubLeaderReply, CommonError> {
+) -> Result<GetShareSubLeaderReply, MqttBrokerError> {
     let conf = broker_mqtt_conf();
     let req = GetShareSubLeaderRequest {
         cluster_name: conf.cluster_name.clone(),
         group_name,
     };
-    match placement_get_share_sub_leader(client_pool, &conf.placement_center, req).await {
-        Ok(reply) => Ok(reply),
-        Err(e) => Err(e),
-    }
+    Ok(placement_get_share_sub_leader(client_pool, &conf.placement_center, req).await?)
 }
 
 pub async fn wait_packet_ack(sx: &Sender<QosAckPackageData>) -> Option<QosAckPackageData> {
@@ -155,8 +154,9 @@ pub async fn wait_packet_ack(sx: &Sender<QosAckPackageData>) -> Option<QosAckPac
 
 pub async fn publish_message_to_client(
     resp: ResponsePackage,
+    sub_pub_param: &SubPublishParam,
     connection_manager: &Arc<ConnectionManager>,
-) -> Result<(), CommonError> {
+) -> Result<(), MqttBrokerError> {
     if let Some(protocol) = connection_manager.get_connect_protocol(resp.connection_id) {
         let response: MqttPacketWrapper = MqttPacketWrapper {
             protocol_version: protocol.clone().into(),
@@ -172,34 +172,48 @@ pub async fn publish_message_to_client(
                     error!("Websocket encode back packet failed with error message: {e:?}");
                 }
             }
-            return connection_manager
+            connection_manager
                 .write_websocket_frame(resp.connection_id, response, Message::Binary(buff.to_vec()))
-                .await;
+                .await?;
+        } else {
+            connection_manager
+                .write_tcp_frame(resp.connection_id, response)
+                .await?
         }
-        return connection_manager
-            .write_tcp_frame(resp.connection_id, response)
-            .await;
+
+        // record slow sub data
+        if let Some(ct) = sub_pub_param.create_time {
+            let slow_data = SlowSubData::build(
+                sub_pub_param.subscribe.sub_path.clone(),
+                sub_pub_param.subscribe.client_id.clone(),
+                sub_pub_param.subscribe.topic_name.clone(),
+                now_mills() - ct,
+            );
+            record_slow_sub_data(slow_data)?;
+        }
     }
+
     Ok(())
 }
 
 pub async fn qos2_send_publish(
     connection_manager: &Arc<ConnectionManager>,
     metadata_cache: &Arc<CacheManager>,
-    client_id: &str,
-    publish: &Publish,
-    publish_properties: &Option<PublishProperties>,
+    sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
 ) -> Result<(), MqttBrokerError> {
     let mut retry_times = 0;
     let mut stop_rx = stop_sx.subscribe();
+    let mut publish = sub_pub_param.publish.clone();
+
     loop {
-        let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id) {
-            id
-        } else {
-            sleep(Duration::from_secs(1)).await;
-            continue;
-        };
+        let connect_id =
+            if let Some(id) = metadata_cache.get_connect_id(&sub_pub_param.subscribe.client_id) {
+                id
+            } else {
+                sleep(Duration::from_secs(1)).await;
+                continue;
+            };
 
         if let Some(conn) = metadata_cache.get_connection(connect_id) {
             if publish.payload.len() > (conn.max_packet_size as usize) {
@@ -208,7 +222,6 @@ pub async fn qos2_send_publish(
         }
 
         retry_times += 1;
-        let mut publish = publish.clone();
         publish.dup = retry_times >= 2;
 
         let mut contain_properties = false;
@@ -221,7 +234,7 @@ pub async fn qos2_send_publish(
         let resp = if contain_properties {
             ResponsePackage {
                 connection_id: connect_id,
-                packet: MqttPacket::Publish(publish.clone(), publish_properties.clone()),
+                packet: MqttPacket::Publish(publish.clone(), sub_pub_param.properties.clone()),
             }
         } else {
             ResponsePackage {
@@ -240,6 +253,7 @@ pub async fn qos2_send_publish(
             }
             val = publish_message_to_client(
                 resp.clone(),
+                sub_pub_param,
                 connection_manager,
             ) =>{
                 match val{
@@ -262,23 +276,23 @@ pub async fn qos2_send_publish(
 
 pub async fn qos2_send_pubrel(
     metadata_cache: &Arc<CacheManager>,
-    client_id: &str,
-    pkid: u16,
+    sub_pub_param: &SubPublishParam,
     connection_manager: &Arc<ConnectionManager>,
     stop_sx: &broadcast::Sender<bool>,
 ) {
     let mut stop_rx = stop_sx.subscribe();
 
     loop {
-        let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id) {
-            id
-        } else {
-            sleep(Duration::from_secs(1)).await;
-            continue;
-        };
+        let connect_id =
+            if let Some(id) = metadata_cache.get_connect_id(&sub_pub_param.subscribe.client_id) {
+                id
+            } else {
+                sleep(Duration::from_secs(1)).await;
+                continue;
+            };
 
         let pubrel = PubRel {
-            pkid,
+            pkid: sub_pub_param.pkid,
             reason: Some(protocol::mqtt::common::PubRelReason::Success),
         };
 
@@ -298,6 +312,7 @@ pub async fn qos2_send_pubrel(
 
             val = publish_message_to_client(
                 pubrel_resp.clone(),
+                sub_pub_param,
                 connection_manager,
             ) =>{
                 match val{
@@ -344,10 +359,8 @@ pub async fn loop_commit_offset<S>(
 // the message can be pushed directly to the request return queue without the need for a retry mechanism.
 pub async fn publish_message_qos0(
     metadata_cache: &Arc<CacheManager>,
-    mqtt_client_id: &str,
-    publish: &Publish,
-    properties: &Option<PublishProperties>,
     connection_manager: &Arc<ConnectionManager>,
+    sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
 ) {
     let connect_id;
@@ -358,7 +371,7 @@ pub async fn publish_message_qos0(
             }
         }
 
-        if let Some(id) = metadata_cache.get_connect_id(mqtt_client_id) {
+        if let Some(id) = metadata_cache.get_connect_id(&sub_pub_param.subscribe.client_id) {
             connect_id = id;
             break;
         } else {
@@ -368,7 +381,7 @@ pub async fn publish_message_qos0(
     }
 
     if let Some(conn) = metadata_cache.get_connection(connect_id) {
-        if publish.payload.len() > (conn.max_packet_size as usize) {
+        if sub_pub_param.publish.payload.len() > (conn.max_packet_size as usize) {
             return;
         }
     }
@@ -383,17 +396,20 @@ pub async fn publish_message_qos0(
     let resp = if contain_properties {
         ResponsePackage {
             connection_id: connect_id,
-            packet: MqttPacket::Publish(publish.clone(), properties.clone()),
+            packet: MqttPacket::Publish(
+                sub_pub_param.publish.clone(),
+                sub_pub_param.properties.clone(),
+            ),
         }
     } else {
         ResponsePackage {
             connection_id: connect_id,
-            packet: MqttPacket::Publish(publish.clone(), None),
+            packet: MqttPacket::Publish(sub_pub_param.publish.clone(), None),
         }
     };
 
     // 2. publish to mqtt client
-    match publish_message_to_client(resp.clone(), connection_manager).await {
+    match publish_message_to_client(resp.clone(), sub_pub_param, connection_manager).await {
         Ok(_) => {}
         Err(e) => {
             error!(

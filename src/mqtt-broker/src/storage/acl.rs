@@ -15,13 +15,14 @@
 use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::error::common::CommonError;
 use grpc_clients::placement::mqtt::call::{create_acl, delete_acl, list_acl};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclRequest, DeleteAclRequest, ListAclRequest,
 };
+
+use crate::handler::error::MqttBrokerError;
 
 pub struct AclStorage {
     client_pool: Arc<ClientPool>,
@@ -32,24 +33,20 @@ impl AclStorage {
         AclStorage { client_pool }
     }
 
-    pub async fn list_acl(&self) -> Result<Vec<MqttAcl>, CommonError> {
+    pub async fn list_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
         let config = broker_mqtt_conf();
         let request = ListAclRequest {
             cluster_name: config.cluster_name.clone(),
         };
-        match list_acl(self.client_pool.clone(), &config.placement_center, request).await {
-            Ok(reply) => {
-                let mut list = Vec::new();
-                for raw in reply.acls {
-                    list.push(serde_json::from_slice::<MqttAcl>(raw.as_slice())?);
-                }
-                Ok(list)
-            }
-            Err(e) => Err(e),
+        let reply = list_acl(self.client_pool.clone(), &config.placement_center, request).await?;
+        let mut list = Vec::new();
+        for raw in reply.acls {
+            list.push(serde_json::from_slice::<MqttAcl>(raw.as_slice())?);
         }
+        Ok(list)
     }
 
-    pub async fn save_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
+    pub async fn save_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError> {
         let config = broker_mqtt_conf();
 
         let value = acl.encode()?;
@@ -57,24 +54,18 @@ impl AclStorage {
             cluster_name: config.cluster_name.clone(),
             acl: value,
         };
-
-        match create_acl(self.client_pool.clone(), &config.placement_center, request).await {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e),
-        }
+        create_acl(self.client_pool.clone(), &config.placement_center, request).await?;
+        Ok(())
     }
 
-    pub async fn delete_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
+    pub async fn delete_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError> {
         let config = broker_mqtt_conf();
         let value = acl.encode()?;
         let request = DeleteAclRequest {
             cluster_name: config.cluster_name.clone(),
             acl: value,
         };
-
-        match delete_acl(self.client_pool.clone(), &config.placement_center, request).await {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e),
-        }
+        delete_acl(self.client_pool.clone(), &config.placement_center, request).await?;
+        Ok(())
     }
 }

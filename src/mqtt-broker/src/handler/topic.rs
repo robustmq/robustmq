@@ -16,8 +16,6 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::error::common::CommonError;
-use common_base::error::mqtt_broker::MqttBrokerError;
 use common_base::tools::unique_id;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MqttTopic;
@@ -25,6 +23,7 @@ use protocol::mqtt::common::{Publish, PublishProperties};
 use regex::Regex;
 use storage_adapter::storage::{ShardConfig, StorageAdapter};
 
+use super::error::MqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::storage::topic::TopicStorage;
 
@@ -112,7 +111,7 @@ pub async fn try_init_topic<S>(
     metadata_cache: &Arc<CacheManager>,
     message_storage_adapter: &Arc<S>,
     client_pool: &Arc<ClientPool>,
-) -> Result<MqttTopic, CommonError>
+) -> Result<MqttTopic, MqttBrokerError>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
@@ -140,16 +139,15 @@ where
 #[cfg(test)]
 mod test {
 
-    use common_base::error::mqtt_broker::MqttBrokerError;
-
     use super::topic_name_validator;
+    use crate::handler::error::MqttBrokerError;
 
     #[test]
     pub fn topic_name_validator_test() {
         let topic_name = "".to_string();
         if let Err(e) = topic_name_validator(&topic_name) {
             // assert!(e.to_string() == MqttBrokerError::TopicNameIsEmpty.to_string())
-            assert_eq!(e, MqttBrokerError::TopicNameIsEmpty);
+            assert_eq!(e.to_string(), MqttBrokerError::TopicNameIsEmpty.to_string());
         }
 
         let topic_name = "/test/test".to_string();

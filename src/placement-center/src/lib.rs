@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time::Duration;
 
 use common_base::config::placement_center::placement_center_conf;
@@ -31,12 +31,10 @@ use server::grpc::service_placement::GrpcPlacementService;
 use server::grpc::services_openraft::GrpcOpenRaftServices;
 use storage::rocksdb::{column_family_list, storage_data_fold, RocksDBEngine};
 use tokio::signal;
-use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{broadcast, mpsc};
 use tokio::time::sleep;
 use tonic::transport::Server;
 
-use self::raft::raftv1::peer::PeerMessage;
 use crate::core::cache::PlacementCacheManager;
 use crate::core::controller::ClusterController;
 use crate::journal::cache::{load_journal_cache, JournalCacheManager};
@@ -44,12 +42,9 @@ use crate::journal::controller::call_node::{call_thread_manager, JournalInnerCal
 use crate::journal::controller::StorageEngineController;
 use crate::mqtt::cache::MqttCacheManager;
 use crate::mqtt::controller::MqttController;
-use crate::raft::raftv1::machine::RaftMachine;
-use crate::raft::raftv1::peer::RaftPeersManager;
-use crate::raft::raftv1::rocksdb::RaftMachineStorage;
-use crate::raft::raftv2::raft_node::{create_raft_node, start_openraft_node};
-use crate::raft::raftv2::typeconfig::TypeConfig;
-use crate::route::apply::{ClusterRaftModel, RaftMachineApply, RaftMessage};
+use crate::raft::raft_node::{create_raft_node, start_openraft_node};
+use crate::raft::typeconfig::TypeConfig;
+use crate::route::apply::{RaftMachineApply, RaftMessage};
 use crate::route::DataRoute;
 use crate::server::http::server::{start_http_server, HttpServerState};
 
@@ -67,8 +62,6 @@ pub struct PlacementCenter {
     // Cache metadata information for the Broker Server cluster
     engine_cache: Arc<JournalCacheManager>,
     mqtt_cache: Arc<MqttCacheManager>,
-    // Global implementation of Raft state machine data storage
-    raft_machine_storage: Arc<RwLock<RaftMachineStorage>>,
     // Raft Global read and write pointer
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     // Global GRPC client connection pool
@@ -101,17 +94,12 @@ impl PlacementCenter {
             cluster_cache.clone(),
         ));
 
-        let raft_machine_storage = Arc::new(RwLock::new(RaftMachineStorage::new(
-            rocksdb_engine_handler.clone(),
-        )));
-
         let call_manager = Arc::new(JournalInnerCallManager::new(cluster_cache.clone()));
 
         PlacementCenter {
             cluster_cache,
             engine_cache,
             mqtt_cache,
-            raft_machine_storage,
             rocksdb_engine_handler,
             client_pool,
             call_manager,
@@ -120,8 +108,8 @@ impl PlacementCenter {
 
     pub async fn start(&mut self, stop_send: broadcast::Sender<bool>) {
         self.init_cache();
-        let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
-        let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
+
+        let (raft_message_send, _raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
 
         let data_route = Arc::new(DataRoute::new(
             self.rocksdb_engine_handler.clone(),
@@ -138,19 +126,11 @@ impl PlacementCenter {
         let placement_center_storage = Arc::new(RaftMachineApply::new(
             raft_message_send,
             openraft_node.clone(),
-            ClusterRaftModel::V2,
         ));
 
         self.start_controller(placement_center_storage.clone(), stop_send.clone());
 
-        self.start_raft_machine(
-            ClusterRaftModel::V2,
-            peer_message_send,
-            peer_message_recv,
-            raft_message_recv,
-            stop_send.clone(),
-            openraft_node.clone(),
-        );
+        self.start_raft_machine(openraft_node.clone());
 
         self.start_http_server(placement_center_storage.clone());
 
@@ -163,7 +143,6 @@ impl PlacementCenter {
     pub fn start_http_server(&self, raft_machine_apply: Arc<RaftMachineApply>) {
         let state: HttpServerState = HttpServerState::new(
             self.cluster_cache.clone(),
-            self.raft_machine_storage.clone(),
             self.cluster_cache.clone(),
             self.engine_cache.clone(),
             raft_machine_apply.clone(),
@@ -262,73 +241,8 @@ impl PlacementCenter {
         });
     }
 
-    pub fn start_raft_machine(
-        &self,
-        mode: ClusterRaftModel,
-        peer_message_send: Sender<PeerMessage>,
-        peer_message_recv: Receiver<PeerMessage>,
-        raft_message_recv: Receiver<RaftMessage>,
-        stop_send: broadcast::Sender<bool>,
-        openraft_node: Raft<TypeConfig>,
-    ) {
-        if mode == ClusterRaftModel::V1 {
-            self.start_raftv1_machine(
-                peer_message_send,
-                peer_message_recv,
-                raft_message_recv,
-                stop_send,
-            );
-        }
-
-        if mode == ClusterRaftModel::V2 {
-            self.start_raftv2_machine(openraft_node);
-        }
-    }
-
     // Start Raft Status Machine
-    fn start_raftv1_machine(
-        &self,
-        peer_message_send: Sender<PeerMessage>,
-        peer_message_recv: Receiver<PeerMessage>,
-        raft_message_recv: Receiver<RaftMessage>,
-        stop_send: broadcast::Sender<bool>,
-    ) {
-        let data_route = Arc::new(DataRoute::new(
-            self.rocksdb_engine_handler.clone(),
-            self.cluster_cache.clone(),
-            self.engine_cache.clone(),
-        ));
-
-        let stop_recv = stop_send.subscribe();
-        let mut raft: RaftMachine = RaftMachine::new(
-            self.cluster_cache.clone(),
-            data_route,
-            peer_message_send,
-            raft_message_recv,
-            stop_recv,
-            self.raft_machine_storage.clone(),
-        );
-        tokio::spawn(async move {
-            match raft.run().await {
-                Ok(()) => {}
-                Err(e) => {
-                    panic!("{}", e.to_string());
-                }
-            }
-        });
-
-        let mut peers_manager =
-            RaftPeersManager::new(peer_message_recv, self.client_pool.clone(), 5, stop_send);
-
-        tokio::spawn(async move {
-            peers_manager.start().await;
-        });
-
-        info!("Raft Node inter-node communication management thread started successfully");
-    }
-
-    // Start Raft Status Machine
-    fn start_raftv2_machine(&self, openraft_node: Raft<TypeConfig>) {
+    fn start_raft_machine(&self, openraft_node: Raft<TypeConfig>) {
         tokio::spawn(async move {
             start_openraft_node(openraft_node).await;
         });

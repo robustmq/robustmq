@@ -16,8 +16,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::Bytes;
-use common_base::error::common::CommonError;
-use common_base::error::mqtt_broker::MqttBrokerError;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use log::{debug, error, info};
@@ -34,12 +32,14 @@ use super::sub_common::{
 };
 use super::subscribe_manager::{ShareLeaderSubscribeData, SubscribeManager};
 use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
+use crate::handler::error::MqttBrokerError;
 use crate::handler::message::is_message_expire;
 use crate::handler::retain::try_send_retain_message;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
 use crate::storage::message::MessageStorage;
 use crate::subscribe::subscriber::Subscriber;
+use crate::subscribe::SubPublishParam;
 
 #[derive(Clone)]
 pub struct SubscribeShareLeader<S> {
@@ -141,13 +141,9 @@ where
         sub_data: ShareLeaderSubscribeData,
         subscribe_manager: Arc<SubscribeManager>,
     ) {
-        let group_name = sub_data.group_name;
-        let sub_name = sub_data.sub_name;
-        let topic_id = sub_data.topic_id;
-        let topic_name = sub_data.topic_name;
         let (sub_thread_stop_sx, mut sub_thread_stop_rx) = broadcast::channel(1);
 
-        for (_, subscriber) in sub_data.sub_list {
+        for (_, subscriber) in sub_data.sub_list.clone() {
             try_send_retain_message(
                 subscriber.client_id.clone(),
                 subscriber.clone(),
@@ -170,11 +166,10 @@ where
         tokio::spawn(async move {
             info!(
                 "Share leader push data thread for GroupName {}/{},Topic [{}] was started successfully",
-                group_name, sub_name, topic_name
+                sub_data.group_name, sub_data.sub_name, sub_data.topic_name
             );
 
             let message_storage: MessageStorage<S> = MessageStorage::new(message_storage);
-            let group_id = format!("system_sub_{}_{}_{}", group_name, sub_name, topic_id);
 
             let mut cursor_point = 0;
             let mut sub_list: Vec<Subscriber> =
@@ -188,21 +183,19 @@ where
                             if flag {
                                 info!(
                                     "Share sub push data thread for GroupName {},Topic [{}] was stopped successfully",
-                                    group_name, topic_name
+                                    sub_data.group_name, sub_data.topic_name
                                 );
                                 break;
                             }
                         }
                     }
                     cursor = read_message_process(
-                        &topic_id,
-                        &topic_name,
-                        &message_storage,
-                        &sub_list,
-                        &group_id,
-                        cursor_point,
                         &connection_manager,
                         &cache_manager,
+                        &message_storage,
+                        &sub_data,
+                        &sub_list,
+                        cursor_point,
                         &sub_thread_stop_sx
                     ) =>{
                         cursor_point = cursor;
@@ -223,16 +216,13 @@ where
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn read_message_process<S>(
-    topic_id: &str,
-    topic_name: &str,
-    message_storage: &MessageStorage<S>,
-    sub_list: &[Subscriber],
-    group_id: &str,
-    mut cursor_point: usize,
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<CacheManager>,
+    message_storage: &MessageStorage<S>,
+    sub_data: &ShareLeaderSubscribeData,
+    sub_list: &[Subscriber],
+    mut cursor_point: usize,
     stop_sx: &Sender<bool>,
 ) -> usize
 where
@@ -240,9 +230,16 @@ where
 {
     let max_wait_ms: u64 = 500;
     let record_num = calc_record_num(sub_list.len());
-
+    let group_id = format!(
+        "system_sub_{}_{}_{}",
+        sub_data.group_name, sub_data.sub_name, sub_data.topic_id
+    );
     match message_storage
-        .read_topic_message(topic_id.to_owned(), group_id.to_owned(), record_num as u128)
+        .read_topic_message(
+            sub_data.topic_id.to_owned(),
+            group_id.to_owned(),
+            record_num as u128,
+        )
         .await
     {
         Ok(results) => {
@@ -259,15 +256,26 @@ where
                             "Storage layer message Decord failed with error message :{}",
                             e
                         );
-                        loop_commit_offset(message_storage, topic_id, group_id, record.offset)
-                            .await;
+                        loop_commit_offset(
+                            message_storage,
+                            &sub_data.topic_id,
+                            &group_id,
+                            record.offset,
+                        )
+                        .await;
                         return cursor_point;
                     }
                 };
 
                 if is_message_expire(&msg) {
                     debug!("message expires, is not pushed to the client, and is discarded");
-                    loop_commit_offset(message_storage, topic_id, group_id, record.offset).await;
+                    loop_commit_offset(
+                        message_storage,
+                        &sub_data.topic_id,
+                        &group_id,
+                        record.offset,
+                    )
+                    .await;
                     continue;
                 }
 
@@ -279,23 +287,25 @@ where
                     }
 
                     cursor_point = choose_available_sub(cursor_point, sub_list);
-                    println!("cursor_point:{}", cursor_point);
                     let subscribe = sub_list.get(cursor_point).unwrap();
 
                     if let Some((publish, properties)) =
-                        build_publish(cache_manager, subscribe, topic_name, &msg)
+                        build_publish(cache_manager, subscribe, &sub_data.topic_name, &msg)
                     {
-                        if qos_publish(
+                        let sub_pub_param = SubPublishParam::new(
+                            subscribe.clone(),
                             publish,
-                            properties,
-                            subscribe,
-                            topic_id,
-                            group_id,
+                            Some(properties),
+                            record.create_time,
+                            group_id.to_owned(),
+                        );
+                        if qos_publish(
                             connection_manager,
                             cache_manager,
-                            stop_sx,
-                            record.offset,
                             message_storage,
+                            sub_pub_param,
+                            record.offset,
+                            stop_sx,
                         )
                         .await
                         {
@@ -306,7 +316,13 @@ where
                 }
 
                 // commit offset
-                loop_commit_offset(message_storage, topic_id, group_id, record.offset).await;
+                loop_commit_offset(
+                    message_storage,
+                    &sub_data.topic_id,
+                    &group_id,
+                    record.offset,
+                )
+                .await;
             }
             cursor_point
         }
@@ -314,7 +330,7 @@ where
             error!(
                 "Failed to read message from storage, failure message: {},topic:{},group{}",
                 e.to_string(),
-                topic_id,
+                &sub_data.topic_id,
                 group_id
             );
             sleep(Duration::from_millis(max_wait_ms)).await;
@@ -336,43 +352,32 @@ fn choose_available_sub(cursor_point: usize, sub_list: &[Subscriber]) -> usize {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn qos_publish<S>(
-    mut publish: Publish,
-    properties: PublishProperties,
-    subscribe: &Subscriber,
-    topic_id: &str,
-    group_id: &str,
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<CacheManager>,
-    stop_sx: &Sender<bool>,
-    offset: u128,
     message_storage: &MessageStorage<S>,
+    mut sub_pub_param: SubPublishParam,
+    offset: u128,
+    stop_sx: &Sender<bool>,
 ) -> bool
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
-    match publish.qos {
+    match sub_pub_param.publish.qos {
         QoS::AtMostOnce => {
-            publish_message_qos0(
-                cache_manager,
-                &subscribe.client_id,
-                &publish,
-                &Some(properties.clone()),
-                connection_manager,
-                stop_sx,
-            )
-            .await;
+            publish_message_qos0(cache_manager, connection_manager, &sub_pub_param, stop_sx).await;
             true
         }
 
         QoS::AtLeastOnce => {
-            let pkid: u16 = cache_manager.get_pkid(&subscribe.client_id).await;
-            publish.pkid = pkid;
+            let pkid: u16 = cache_manager
+                .get_pkid(&sub_pub_param.subscribe.client_id)
+                .await;
+            sub_pub_param.pkid = pkid;
 
             let (wait_puback_sx, _) = broadcast::channel(1);
             cache_manager.add_ack_packet(
-                &subscribe.client_id,
+                &sub_pub_param.subscribe.client_id,
                 pkid,
                 QosAckPacketInfo {
                     sx: wait_puback_sx.clone(),
@@ -382,26 +387,23 @@ where
 
             match share_leader_publish_message_qos1(
                 cache_manager,
-                &subscribe.client_id,
-                &publish,
-                &properties,
-                pkid,
                 connection_manager,
+                &sub_pub_param,
                 &wait_puback_sx,
             )
             .await
             {
                 Ok(()) => {
                     // remove data
-                    cache_manager.remove_pkid_info(&subscribe.client_id, pkid);
-                    cache_manager.remove_ack_packet(&subscribe.client_id, pkid);
+                    cache_manager.remove_pkid_info(&sub_pub_param.subscribe.client_id, pkid);
+                    cache_manager.remove_ack_packet(&sub_pub_param.subscribe.client_id, pkid);
                     true
                 }
                 Err(e) => {
                     error!(
                         "SharSub Leader failed to send QOS1 message to {}, error message :{},
                      trying to deliver the message to another client.",
-                        subscribe.client_id.clone(),
+                        sub_pub_param.subscribe.client_id.clone(),
                         e.to_string()
                     );
                     false
@@ -410,12 +412,14 @@ where
         }
 
         QoS::ExactlyOnce => {
-            let pkid: u16 = cache_manager.get_pkid(&subscribe.client_id).await;
-            publish.pkid = pkid;
+            let pkid: u16 = cache_manager
+                .get_pkid(&sub_pub_param.subscribe.client_id)
+                .await;
+            sub_pub_param.pkid = pkid;
 
             let (wait_ack_sx, _) = broadcast::channel(1);
             cache_manager.add_ack_packet(
-                &subscribe.client_id,
+                &sub_pub_param.subscribe.client_id,
                 pkid,
                 QosAckPacketInfo {
                     sx: wait_ack_sx.clone(),
@@ -425,17 +429,12 @@ where
 
             match share_leader_publish_message_qos2(
                 cache_manager,
-                &subscribe.client_id,
-                &publish,
-                &properties,
-                pkid,
                 connection_manager,
+                message_storage,
+                &sub_pub_param,
+                offset,
                 stop_sx,
                 &wait_ack_sx,
-                topic_id,
-                group_id,
-                offset,
-                message_storage,
             )
             .await
             {
@@ -499,25 +498,25 @@ fn build_publish(
 // the push thread will exit automatically and will not attempt to push again.
 async fn share_leader_publish_message_qos1(
     metadata_cache: &Arc<CacheManager>,
-    client_id: &str,
-    publish: &Publish,
-    publish_properties: &PublishProperties,
-    pkid: u16,
     connection_manager: &Arc<ConnectionManager>,
+    sub_pub_param: &SubPublishParam,
     wait_puback_sx: &broadcast::Sender<QosAckPackageData>,
-) -> Result<(), CommonError> {
-    let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id) {
-        id
-    } else {
-        return Err(CommonError::CommonError(format!(
-            "Client [{}] failed to get connect id, no connection available.",
-            client_id
-        )));
-    };
+) -> Result<(), MqttBrokerError> {
+    let connect_id =
+        if let Some(id) = metadata_cache.get_connect_id(&sub_pub_param.subscribe.client_id) {
+            id
+        } else {
+            return Err(MqttBrokerError::CommonError(format!(
+                "Client [{}] failed to get connect id, no connection available.",
+                sub_pub_param.subscribe.client_id
+            )));
+        };
 
     if let Some(conn) = metadata_cache.get_connection(connect_id) {
-        if publish.payload.len() > (conn.max_packet_size as usize) {
-            return Err(MqttBrokerError::PacketLengthError(publish.payload.len()).into());
+        if sub_pub_param.publish.payload.len() > (conn.max_packet_size as usize) {
+            return Err(MqttBrokerError::PacketLengthError(
+                sub_pub_param.publish.payload.len(),
+            ));
         }
     }
 
@@ -531,28 +530,31 @@ async fn share_leader_publish_message_qos1(
     let resp = if contain_properties {
         ResponsePackage {
             connection_id: connect_id,
-            packet: MqttPacket::Publish(publish.clone(), Some(publish_properties.clone())),
+            packet: MqttPacket::Publish(
+                sub_pub_param.publish.clone(),
+                sub_pub_param.properties.clone(),
+            ),
         }
     } else {
         ResponsePackage {
             connection_id: connect_id,
-            packet: MqttPacket::Publish(publish.clone(), None),
+            packet: MqttPacket::Publish(sub_pub_param.publish.clone(), None),
         }
     };
 
-    match publish_message_to_client(resp.clone(), connection_manager).await {
+    match publish_message_to_client(resp.clone(), sub_pub_param, connection_manager).await {
         Ok(_) => {
             if let Some(data) = wait_packet_ack(wait_puback_sx).await {
-                if data.ack_type == QosAckPackageType::PubAck && data.pkid == pkid {
+                if data.ack_type == QosAckPackageType::PubAck && data.pkid == sub_pub_param.pkid {
                     return Ok(());
                 }
             }
-            Err(CommonError::CommonError(
+            Err(MqttBrokerError::CommonError(
                 "QOS1 publishes a message and waits for the PubAck packet to fail to be received"
                     .to_string(),
             ))
         }
-        Err(e) => Err(CommonError::CommonError(format!(
+        Err(e) => Err(MqttBrokerError::CommonError(format!(
             "Failed to write QOS1 Publish message to response queue, failure message: {}",
             e
         ))),
@@ -563,34 +565,21 @@ async fn share_leader_publish_message_qos1(
 // wait pubrec message
 // send pubrel message
 // wait pubcomp message
-#[allow(clippy::too_many_arguments)]
+
 async fn share_leader_publish_message_qos2<S>(
     cache_manager: &Arc<CacheManager>,
-    client_id: &str,
-    publish: &Publish,
-    publish_properties: &PublishProperties,
-    pkid: u16,
     connection_manager: &Arc<ConnectionManager>,
+    message_storage: &MessageStorage<S>,
+    sub_pub_param: &SubPublishParam,
+    offset: u128,
     stop_sx: &broadcast::Sender<bool>,
     wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
-    topic_id: &str,
-    group_id: &str,
-    offset: u128,
-    message_storage: &MessageStorage<S>,
-) -> Result<(), CommonError>
+) -> Result<(), MqttBrokerError>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     // 1. send Publish to Client
-    qos2_send_publish(
-        connection_manager,
-        cache_manager,
-        client_id,
-        publish,
-        &Some(publish_properties.clone()),
-        stop_sx,
-    )
-    .await?;
+    qos2_send_publish(connection_manager, cache_manager, sub_pub_param, stop_sx).await?;
 
     // 2. wait pub rec
     loop {
@@ -600,20 +589,28 @@ where
             }
         }
         if let Some(data) = wait_packet_ack(wait_ack_sx).await {
-            if data.ack_type == QosAckPackageType::PubRec && data.pkid == pkid {
+            if data.ack_type == QosAckPackageType::PubRec && data.pkid == sub_pub_param.pkid {
                 // When sending a QOS2 message, as long as the pubrec is received, the offset can be submitted,
                 // the pubrel is sent asynchronously, and the pubcomp is waited for. Push the next message at the same time.
-                loop_commit_offset(message_storage, topic_id, group_id, offset).await;
+                loop_commit_offset(
+                    message_storage,
+                    &sub_pub_param.subscribe.topic_id,
+                    &sub_pub_param.group_id,
+                    offset,
+                )
+                .await;
                 break;
             }
         } else {
-            return Err(MqttBrokerError::SubPublishWaitPubRecTimeout(client_id.to_owned()).into());
+            return Err(MqttBrokerError::SubPublishWaitPubRecTimeout(
+                sub_pub_param.subscribe.client_id.to_owned(),
+            ));
         }
     }
 
     // async wait
     // 3. send pub rel
-    qos2_send_pubrel(cache_manager, client_id, pkid, connection_manager, stop_sx).await;
+    qos2_send_pubrel(cache_manager, sub_pub_param, connection_manager, stop_sx).await;
 
     // 4. wait pub comp
     loop {
@@ -623,13 +620,15 @@ where
             }
         }
         if let Some(data) = wait_packet_ack(wait_ack_sx).await {
-            if data.ack_type == QosAckPackageType::PubComp && data.pkid == pkid {
-                cache_manager.remove_pkid_info(client_id, pkid);
-                cache_manager.remove_ack_packet(client_id, pkid);
+            if data.ack_type == QosAckPackageType::PubComp && data.pkid == sub_pub_param.pkid {
+                cache_manager
+                    .remove_pkid_info(&sub_pub_param.subscribe.client_id, sub_pub_param.pkid);
+                cache_manager
+                    .remove_ack_packet(&sub_pub_param.subscribe.client_id, sub_pub_param.pkid);
                 break;
             }
         } else {
-            qos2_send_pubrel(cache_manager, client_id, pkid, connection_manager, stop_sx).await;
+            qos2_send_pubrel(cache_manager, sub_pub_param, connection_manager, stop_sx).await;
         }
     }
 
