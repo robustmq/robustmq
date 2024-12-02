@@ -81,7 +81,7 @@ mod tests {
         });
 
         let conn_opts = build_v3_conn_pros(mqtt_version, true, ws, ssl);
-        println!("{:?}",conn_opts);
+        println!("{:?}", conn_opts);
         let err = cli.connect(conn_opts).unwrap_err();
         println!("Unable to connect:\n\t{:?}", err);
     }
@@ -94,7 +94,7 @@ mod tests {
         ssl: bool,
     ) {
         let create_opts = build_create_pros(client_id, addr);
-        println!("{:?}",create_opts);
+        println!("{:?}", create_opts);
         let cli = Client::new(create_opts).unwrap();
         let conn_opts = build_v3_conn_pros(mqtt_version, false, ws, ssl);
         println!("{:?}", conn_opts);
