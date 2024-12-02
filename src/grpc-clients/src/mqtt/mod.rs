@@ -15,8 +15,8 @@
 use common_base::error::common::CommonError;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
-    DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
-    ListTopicRequest, ListTopicReply
+    DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListTopicReply,
+    ListTopicRequest, ListUserReply, ListUserRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
@@ -42,7 +42,7 @@ pub enum MqttBrokerPlacementRequest {
     // connection
     ListConnection(ListConnectionRequest),
 
-    ListTopic(ListTopicRequest)
+    ListTopic(ListTopicRequest),
 }
 
 /// Enum wrapper for all possible replies from the mqtt broker
@@ -61,7 +61,7 @@ pub enum MqttBrokerPlacementReply {
 
     // connection
     ListConnection(ListConnectionReply),
-    ListTopic(ListTopicReply)
+    ListTopic(ListTopicReply),
 }
 
 pub mod admin;

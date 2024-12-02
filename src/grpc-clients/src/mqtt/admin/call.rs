@@ -16,7 +16,9 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest
+    ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
+    DeleteUserRequest, ListConnectionReply, ListConnectionRequest, ListTopicReply,
+    ListTopicRequest, ListUserReply, ListUserRequest,
 };
 
 use crate::mqtt::{call_once, MqttBrokerPlacementReply, MqttBrokerPlacementRequest};
