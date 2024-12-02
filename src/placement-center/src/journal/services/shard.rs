@@ -100,6 +100,7 @@ pub async fn create_shard_by_req(
         sync_save_segment_metadata_info(raft_machine_apply, &metadata).await?;
         update_cache_by_set_segment_meta(&req.cluster_name, call_manager, client_pool, metadata)
             .await?;
+
         segment
     };
 

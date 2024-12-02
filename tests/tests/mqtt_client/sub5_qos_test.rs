@@ -17,24 +17,21 @@ mod tests {
     use common_base::tools::unique_id;
     use paho_mqtt::{Message, QOS_1};
 
-    use crate::mqtt_client::mqtt::common::{broker_addr, connect_server5, distinct_conn};
+    use crate::mqtt_client::common::{broker_addr, connect_server5, distinct_conn};
 
     #[tokio::test]
     async fn client5_subscribe_test() {
         let sub_qos = &[0];
         let topic = format!("/tests/{}", unique_id());
-        let sub_topic = format!("$share/{}", topic);
-        simple_test(topic.clone(), sub_topic.clone(), sub_qos, "2".to_string()).await;
+        simple_test(topic.clone(), topic.clone(), sub_qos, "2".to_string()).await;
 
         let sub_qos = &[1];
         let topic = format!("/tests/{}", unique_id());
-        let sub_topic = format!("$share/{}", topic);
-        simple_test(topic.clone(), sub_topic.clone(), sub_qos, "1".to_string()).await;
+        simple_test(topic.clone(), topic.clone(), sub_qos, "1".to_string()).await;
 
         let sub_qos = &[2];
         let topic = format!("/tests/{}", unique_id());
-        let sub_topic = format!("$share/{}", topic);
-        simple_test(topic.clone(), sub_topic.clone(), sub_qos, "3".to_string()).await;
+        simple_test(topic.clone(), topic.clone(), sub_qos, "3".to_string()).await;
     }
 
     async fn simple_test(
@@ -67,6 +64,7 @@ mod tests {
                 panic!("{}", e)
             }
         }
+
         if let Some(msg) = rx.iter().next() {
             let msg = msg.unwrap();
             let payload = String::from_utf8(msg.payload().to_vec()).unwrap();

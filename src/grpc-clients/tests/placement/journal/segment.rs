@@ -20,6 +20,7 @@ mod tests {
     use grpc_clients::placement::journal::call::{create_next_segment, create_shard};
     use grpc_clients::placement::placement::call::register_node;
     use grpc_clients::pool::ClientPool;
+    use metadata_struct::journal::node_extend::JournalNodeExtend;
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
     use protocol::placement_center::placement_center_journal::{
         CreateNextSegmentRequest, CreateShardRequest,
@@ -27,7 +28,6 @@ mod tests {
 
     use crate::common::get_placement_addr;
     #[tokio::test]
-
     async fn segment_test() {
         let client_pool = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
@@ -37,13 +37,18 @@ mod tests {
         let shard_name = "s1".to_string();
 
         // register_node
+        let extend = JournalNodeExtend {
+            tcp_addr: "".to_string(),
+            tcps_addr: "".to_string(),
+            data_fold: vec!["/data".to_string()],
+        };
         let request = RegisterNodeRequest {
             cluster_type: ClusterType::JournalServer.into(),
             cluster_name: cluster.clone(),
             node_id: 1,
             node_ip: "127.0.0.1".to_string(),
             node_inner_addr: "127.0.0.1:3228".to_string(),
-            ..Default::default()
+            extend_info: serde_json::to_string(&extend).unwrap(),
         };
         register_node(client_pool.clone(), &addrs, request)
             .await
