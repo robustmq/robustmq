@@ -17,7 +17,9 @@ use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
 use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
-use protocol::broker_mqtt::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    CreateUserRequest, DeleteUserRequest, ListTopicRequest,
+};
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
 };
@@ -64,7 +66,7 @@ enum MQTTAction {
 
     // Connections
     ListConnection,
-    ListTopic
+    ListTopic(ListTopicArgs),
 }
 
 #[derive(clap::Args, Debug)]
@@ -87,6 +89,14 @@ struct CreateUserArgs {
 struct DeleteUserArgs {
     #[arg(short, long, required = true)]
     username: String,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="action: list topics", long_about = None)]
+#[command(next_line_help = true)]
+struct ListTopicArgs {
+    #[arg(short, long, required = true)]
+    topic_name: String,
 }
 
 #[derive(clap::Args, Debug)]
@@ -163,7 +173,9 @@ async fn main() {
                     }),
                     MQTTAction::ListUser => MqttActionType::ListUser,
                     MQTTAction::ListConnection => MqttActionType::ListConnection,
-                    MQTTAction::ListTopic => MqttActionType::ListTopic,
+                    MQTTAction::ListTopic(args) => MqttActionType::ListTopic(ListTopicRequest {
+                        topic_name: args.topic_name,
+                    }),
                 },
             };
             cmd.start(params).await;

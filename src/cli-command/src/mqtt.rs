@@ -44,7 +44,7 @@ pub enum MqttActionType {
 
     // connection
     ListConnection,
-    ListTopic,
+    ListTopic(ListTopicRequest),
 }
 
 pub struct MqttBrokerCommand {}
@@ -81,8 +81,9 @@ impl MqttBrokerCommand {
                 self.list_connections(client_pool.clone(), params.clone())
                     .await;
             }
-            MqttActionType::ListTopic => {
-                self.list_topic(client_pool.clone(), params.clone()).await;
+            MqttActionType::ListTopic(ref request) => {
+                self.list_topic(client_pool.clone(), params.clone(), request.clone())
+                    .await;
             }
         }
     }
@@ -178,9 +179,14 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn list_topic(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam, cli_request: ) {
-        let request = ListTopicRequest {};
-        match mqtt_broker_list_topic(client_pool.clone(), &grpc_addr(params.server), request).await
+    async fn list_topic(
+        &self,
+        client_pool: Arc<ClientPool>,
+        params: MqttCliCommandParam,
+        cli_request: ListTopicRequest,
+    ) {
+        match mqtt_broker_list_topic(client_pool.clone(), &grpc_addr(params.server), cli_request)
+            .await
         {
             Ok(data) => {
                 println!("topic list result:");
