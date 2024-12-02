@@ -328,11 +328,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
                 topic_id: entry.value().topic_id.clone(),
                 topic_name: entry.value().topic_name.clone(),
                 cluster_name: entry.value().cluster_name.clone(),
-                is_contain_retain_message: if entry.value().retain_message.is_some() {
-                    true
-                } else {
-                    false
-                },
+                is_contain_retain_message: entry.value().retain_message.is_some(),
             });
 
         let reply = ListTopicReply {
