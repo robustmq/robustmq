@@ -134,6 +134,14 @@ lazy_static! {
     )
     .unwrap();
 
+    // Number of error packets.connack.auth_error received
+    static ref PACKETS_CONNACK_AUTH_ERROR: IntGaugeVec = register_int_gauge_vec!(
+        "packets_connack_auth_error",
+        "Number of error packets received",
+        &[METRICS_KEY_NETWORK_TYPE]
+    )
+    .unwrap();
+
     // Number of packets sent
     static ref PACKETS_SENT: IntGaugeVec = register_int_gauge_vec!(
         "packets_sent",
@@ -268,6 +276,11 @@ pub fn record_received_error_metrics(network_type: NetworkConnectionType) {
     PACKETS_RECEIVED_ERROR
         .with_label_values(&[&network_type.to_string()])
         .inc();
+
+    PACKETS_CONNACK_AUTH_ERROR
+        .with_label_values(&[&network_type.to_string()])
+        .inc();
+
 }
 
 // Record metrics related to packets received by the server
