@@ -318,11 +318,12 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         request: Request<ListTopicRequest>,
     ) -> Result<Response<ListTopicReply>, Status> {
+        let req = request.into_inner();
         let topic_query_result = self
             .cache_manager
             .topic_info
             .iter()
-            .find(|entry| *entry.value().topic_name == request.into_inner().topic_name)
+            .find(|entry| *entry.value().topic_name == req.topic_name)
             .map(|entry| MqttTopic {
                 topic_id: entry.value().topic_id.clone(),
                 topic_name: entry.value().topic_name.clone(),

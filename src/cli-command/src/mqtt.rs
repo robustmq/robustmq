@@ -48,7 +48,8 @@ pub enum MqttActionType {
 
     // observability: slow-ub
     EnableSlowSubscribe(EnableSlowSubscribeRequest),
-    ListTopic
+
+    ListTopic(ListTopicRequest),
 }
 
 pub struct MqttBrokerCommand {}
@@ -87,8 +88,9 @@ impl MqttBrokerCommand {
             }
             MqttActionType::EnableSlowSubscribe(ref request) => {
                 self.enable_slow_subscribe(client_pool.clone(), params.clone(), request.clone())
-            MqttActionType::ListTopic => {
-                self.list_topic(client_pool.clone(), params.clone()).await;
+            MqttActionType::ListTopic(ref request) => {
+                self.list_topic(client_pool.clone(), params.clone(), request.clone())
+                    .await;
             }
         }
     }
@@ -214,9 +216,14 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn list_topic(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam, cli_request: ) {
-        let request = ListTopicRequest {};
-        match mqtt_broker_list_topic(client_pool.clone(), &grpc_addr(params.server), request).await
+    async fn list_topic(
+        &self,
+        client_pool: Arc<ClientPool>,
+        params: MqttCliCommandParam,
+        cli_request: ListTopicRequest,
+    ) {
+        match mqtt_broker_list_topic(client_pool.clone(), &grpc_addr(params.server), cli_request)
+            .await
         {
             Ok(data) => {
                 println!("topic list result:");

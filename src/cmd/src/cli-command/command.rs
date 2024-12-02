@@ -20,7 +20,9 @@ use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
 use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
-use protocol::broker_mqtt::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    CreateUserRequest, DeleteUserRequest, ListTopicRequest,
+};
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
 };
@@ -69,11 +71,20 @@ enum MQTTAction {
 
     // Connections
     ListConnection,
-    ListTopic,
+
+    ListTopic(ListTopicArgs),
 
     // observability: slow-sub feat
     #[clap(name = "slow-sub")]
     SlowSub(SlowSubArgs),
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="action: list topics", long_about = None)]
+#[command(next_line_help = true)]
+struct ListTopicArgs {
+    #[arg(short, long, required = true)]
+    topic_name: String,
 }
 
 #[derive(clap::Args, Debug)]
@@ -150,7 +161,9 @@ async fn main() {
                     }),
                     MQTTAction::ListUser => MqttActionType::ListUser,
                     MQTTAction::ListConnection => MqttActionType::ListConnection,
-                    MQTTAction::ListTopic => MqttActionType::ListTopic,
+                    MQTTAction::ListTopic(args) => MqttActionType::ListTopic(ListTopicRequest {
+                        topic_name: args.topic_name,
+                    }),
                     _ => unreachable!("UnSupport command"),
                 },
             };
