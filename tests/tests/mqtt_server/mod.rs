@@ -12,4 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod storage;
+pub mod cluster_storage_test;
+pub mod session_storage_test;
+pub mod topic_storage_test;
+pub mod user_storage_test;

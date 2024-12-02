@@ -1,4 +1,3 @@
-#!/bin/sh
 # Copyright 2023 RobustMQ Team
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,75 +12,58 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-rm -rf /tmp/robust-test
-rm -rf build/
-make build
-du -sh
-rm -rf target
-du -sh
-start_server(){
-    cd build
-    tar -xzvf robustmq-local.tar.gz
-    cd ..
-
-    build/robustmq-local/bin/robust-server place start example/mqtt-cluster/placement-center/node-1.toml
+start_placement_server(){
+    nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-1.toml 2>/tmp/pc-1.log &
     sleep 3
-    no1=`ps -ef | grep example/mqtt-cluster/placement-center/node-1.toml | grep -v grep | awk '{print $2}'`
+
+    no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
         echo "placement-center node 1 started successfully. process no: $no1"
     fi
-
-    build/robustmq-local/bin/robust-server journal start example/mqtt-cluster/journal-server/node-1.toml
-    sleep 3
-    no1=`ps -ef | grep example/mqtt-cluster/journal-server/node-1.toml | grep -v grep | awk '{print $2}'`
-    if [ -n "$no1" ]
-    then
-        echo "journal-engine node 1 started successfully. process no: $no1"
-    fi
-
-    build/robustmq-local/bin/robust-server mqtt start example/mqtt-cluster/mqtt-server/node-1.toml
-    sleep 3
-    no1=`ps -ef | grep example/mqtt-cluster/mqtt-server/node-1.toml | grep -v grep | awk '{print $2}'`
-    if [ -n "$no1" ]
-    then
-        echo "mqtt-server node 1 started successfully. process no: $no1"
-    fi
-
-    sleep 3
 }
 
-stop_server(){
-    no1=`ps -ef | grep example/mqtt-cluster/placement-center/node-1.toml | grep -v grep | awk '{print $2}'`
+stop_placement_server(){
+    no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
-        kill $no1
-    fi
-
-    no1=`ps -ef | grep example/mqtt-cluster/journal-server/node-1.toml | grep -v grep | awk '{print $2}'`
-    if [ -n "$no1" ]
-    then
-        kill $no1
-    fi
-
-
-    no1=`ps -ef | grep example/mqtt-cluster/mqtt-server/node-1.toml | grep -v grep | awk '{print $2}'`
-    if [ -n "$no1" ]
-    then
+        echo "kill placement center $no1"
         kill $no1
     fi
 }
 
-start_server
+start_mqtt_server(){
+    nohup cargo run --package cmd --bin journal-server -- --conf=example/mqtt-cluster/journal-server/node-1.toml 2>/tmp/jn-1.log &
+    sleep 3
 
-# Run Cargo Test
-cargo nextest run
+    no1=`ps -ef | grep journal-server  | grep node-1 | grep -v grep | awk '{print $2}'`
+    if [ -n "$no1" ]
+    then
+        echo "journal-server node 1 started successfully. process no: $no1"
+    fi
+}
 
-if [ $? -ne 0 ]; then
-    echo "Test case failed to run"
-    exit 1
-else
-    echo "Test case runs successfully"
-fi
+stop_mqtt_server(){
+    no1=`ps -ef | grep journal-server  | grep node-1 | grep -v grep | awk '{print $2}'`
+    if [ -n "$no1" ]
+    then
+        echo "kill journal server $no1"
+        kill $no1
+    fi
+}
 
-stop_server
+# Clean up
+rm -rf /tmp/robust-test/placement-center*
+rm -rf /tmp/robust-test/journal-server*
+
+# Start Server
+start_placement_server
+start_journal_server
+
+
+cargo nextest run --package robustmq-test --test mod -- journal_client
+cargo nextest run --package robustmq-test --test mod -- journal_server
+
+# Stop Server
+stop_placement_server
+stop_journal_server

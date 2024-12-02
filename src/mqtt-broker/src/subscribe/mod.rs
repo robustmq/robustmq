@@ -12,9 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use protocol::mqtt::common::{Publish, PublishProperties};
+use subscriber::Subscriber;
+
 pub mod sub_common;
 pub mod sub_exclusive;
 pub mod sub_share_follower;
 pub mod sub_share_leader;
 pub mod subscribe_manager;
 pub mod subscriber;
+
+#[derive(Clone, Default)]
+pub(crate) struct SubPublishParam {
+    pub subscribe: Subscriber,
+    pub publish: Publish,
+    pub properties: Option<PublishProperties>,
+    pub create_time: Option<u128>,
+    pub pkid: u16,
+    pub group_id: String,
+}
+
+impl SubPublishParam {
+    pub fn new(
+        subscribe: Subscriber,
+        publish: Publish,
+        properties: Option<PublishProperties>,
+        create_time: Option<u128>,
+        group_id: String,
+    ) -> Self {
+        SubPublishParam {
+            subscribe,
+            publish,
+            properties,
+            create_time,
+            pkid: 0,
+            group_id,
+        }
+    }
+}

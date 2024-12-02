@@ -12,10 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub struct Reader {}
+use dashmap::DashMap;
+
+pub struct Reader {
+    group_local_cache_channel: DashMap<String, String>,
+}
 
 impl Reader {
     pub fn new() -> Self {
-        Reader {}
+        let group_local_cache_channel = DashMap::with_capacity(2);
+        Reader {
+            group_local_cache_channel,
+        }
     }
+
+    pub fn read() {}
 }

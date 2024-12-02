@@ -16,7 +16,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::Bytes;
-use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use log::{debug, error, info};
@@ -32,11 +31,13 @@ use super::sub_common::{
 };
 use super::subscribe_manager::SubscribeManager;
 use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
+use crate::handler::error::MqttBrokerError;
 use crate::handler::message::is_message_expire;
 use crate::handler::retain::try_send_retain_message;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
 use crate::storage::message::MessageStorage;
+use crate::subscribe::SubPublishParam;
 
 pub struct SubscribeExclusive<S> {
     cache_manager: Arc<CacheManager>,
@@ -219,7 +220,7 @@ where
                                     false
                                 };
 
-                                let mut publish = Publish {
+                                let publish = Publish {
                                     dup: false,
                                     qos,
                                     pkid: 0,
@@ -239,14 +240,20 @@ where
                                     content_type: msg.content_type,
                                 };
 
+                                let mut sub_pub_param = SubPublishParam::new(
+                                    subscriber.clone(),
+                                    publish,
+                                    Some(properties),
+                                    record.create_time,
+                                    group_id.clone(),
+                                );
+
                                 match qos {
                                     QoS::AtMostOnce => {
                                         publish_message_qos0(
                                             &cache_manager,
-                                            &client_id,
-                                            &publish,
-                                            &Some(properties),
                                             &connection_manager,
+                                            &sub_pub_param,
                                             &sub_thread_stop_sx,
                                         )
                                         .await;
@@ -254,9 +261,10 @@ where
 
                                     QoS::AtLeastOnce => {
                                         let pkid: u16 = cache_manager.get_pkid(&client_id).await;
-                                        publish.pkid = pkid;
+                                        sub_pub_param.pkid = pkid;
 
                                         let (wait_puback_sx, _) = broadcast::channel(1);
+
                                         cache_manager.add_ack_packet(
                                             &client_id,
                                             pkid,
@@ -268,11 +276,8 @@ where
 
                                         match exclusive_publish_message_qos1(
                                             &cache_manager,
-                                            &client_id,
-                                            publish,
-                                            &properties,
-                                            pkid,
                                             &connection_manager,
+                                            &sub_pub_param,
                                             &sub_thread_stop_sx,
                                             &wait_puback_sx,
                                         )
@@ -290,7 +295,7 @@ where
 
                                     QoS::ExactlyOnce => {
                                         let pkid: u16 = cache_manager.get_pkid(&client_id).await;
-                                        publish.pkid = pkid;
+                                        sub_pub_param.pkid = pkid;
 
                                         let (wait_ack_sx, _) = broadcast::channel(1);
                                         cache_manager.add_ack_packet(
@@ -303,11 +308,8 @@ where
                                         );
                                         match exclusive_publish_message_qos2(
                                             &cache_manager,
-                                            &client_id,
-                                            &publish,
-                                            &properties,
-                                            pkid,
                                             &connection_manager,
+                                            &sub_pub_param,
                                             &sub_thread_stop_sx,
                                             &wait_ack_sx,
                                         )
@@ -358,18 +360,15 @@ where
 // When the subscribed QOS is 1, we need to keep retrying to send the message to the client.
 // To avoid messages that are not successfully pushed to the client. When the client Session expires,
 // the push thread will exit automatically and will not attempt to push again.
-#[allow(clippy::too_many_arguments)]
 pub async fn exclusive_publish_message_qos1(
     metadata_cache: &Arc<CacheManager>,
-    client_id: &str,
-    mut publish: Publish,
-    publish_properties: &PublishProperties,
-    pkid: u16,
     connection_manager: &Arc<ConnectionManager>,
+    sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
     wait_puback_sx: &broadcast::Sender<QosAckPackageData>,
-) -> Result<(), CommonError> {
+) -> Result<(), MqttBrokerError> {
     let mut retry_times = 0;
+    let mut publish = sub_pub_param.publish.clone();
     loop {
         if let Ok(flag) = stop_sx.subscribe().try_recv() {
             if flag {
@@ -377,12 +376,13 @@ pub async fn exclusive_publish_message_qos1(
             }
         }
 
-        let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id) {
-            id
-        } else {
-            sleep(Duration::from_secs(1)).await;
-            continue;
-        };
+        let connect_id =
+            if let Some(id) = metadata_cache.get_connect_id(&sub_pub_param.subscribe.client_id) {
+                id
+            } else {
+                sleep(Duration::from_secs(1)).await;
+                continue;
+            };
 
         if let Some(conn) = metadata_cache.get_connection(connect_id) {
             if publish.payload.len() > (conn.max_packet_size as usize) {
@@ -403,7 +403,7 @@ pub async fn exclusive_publish_message_qos1(
         let resp = if contain_properties {
             ResponsePackage {
                 connection_id: connect_id,
-                packet: MqttPacket::Publish(publish.clone(), Some(publish_properties.clone())),
+                packet: MqttPacket::Publish(publish.clone(), sub_pub_param.properties.clone()),
             }
         } else {
             ResponsePackage {
@@ -412,10 +412,11 @@ pub async fn exclusive_publish_message_qos1(
             }
         };
 
-        match publish_message_to_client(resp.clone(), connection_manager).await {
+        match publish_message_to_client(resp.clone(), sub_pub_param, connection_manager).await {
             Ok(_) => {
                 if let Some(data) = wait_packet_ack(wait_puback_sx).await {
-                    if data.ack_type == QosAckPackageType::PubAck && data.pkid == pkid {
+                    if data.ack_type == QosAckPackageType::PubAck && data.pkid == sub_pub_param.pkid
+                    {
                         return Ok(());
                     }
                 }
@@ -435,27 +436,15 @@ pub async fn exclusive_publish_message_qos1(
 // wait pubrec message
 // send pubrel message
 // wait pubcomp message
-#[allow(clippy::too_many_arguments)]
 pub async fn exclusive_publish_message_qos2(
     metadata_cache: &Arc<CacheManager>,
-    client_id: &str,
-    publish: &Publish,
-    publish_properties: &PublishProperties,
-    pkid: u16,
     connection_manager: &Arc<ConnectionManager>,
+    sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
     wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
-) -> Result<(), CommonError> {
+) -> Result<(), MqttBrokerError> {
     // 1. send Publish to Client
-    qos2_send_publish(
-        connection_manager,
-        metadata_cache,
-        client_id,
-        publish,
-        &Some(publish_properties.clone()),
-        stop_sx,
-    )
-    .await?;
+    qos2_send_publish(connection_manager, metadata_cache, sub_pub_param, stop_sx).await?;
 
     // 2. wait PubRec ack
     loop {
@@ -465,25 +454,17 @@ pub async fn exclusive_publish_message_qos2(
             }
         }
         if let Some(data) = wait_packet_ack(wait_ack_sx).await {
-            if data.ack_type == QosAckPackageType::PubRec && data.pkid == pkid {
+            if data.ack_type == QosAckPackageType::PubRec && data.pkid == sub_pub_param.pkid {
                 break;
             }
         } else {
-            qos2_send_publish(
-                connection_manager,
-                metadata_cache,
-                client_id,
-                publish,
-                &Some(publish_properties.clone()),
-                stop_sx,
-            )
-            .await?;
+            qos2_send_publish(connection_manager, metadata_cache, sub_pub_param, stop_sx).await?;
         }
         sleep(Duration::from_millis(1)).await;
     }
 
     // 3. send PubRel to Client
-    qos2_send_pubrel(metadata_cache, client_id, pkid, connection_manager, stop_sx).await;
+    qos2_send_pubrel(metadata_cache, sub_pub_param, connection_manager, stop_sx).await;
 
     // 4. wait pub comp
     loop {
@@ -493,15 +474,16 @@ pub async fn exclusive_publish_message_qos2(
             }
         }
         if let Some(data) = wait_packet_ack(wait_ack_sx).await {
-            if data.ack_type == QosAckPackageType::PubComp && data.pkid == pkid {
+            if data.ack_type == QosAckPackageType::PubComp && data.pkid == sub_pub_param.pkid {
                 break;
             }
         } else {
-            qos2_send_pubrel(metadata_cache, client_id, pkid, connection_manager, stop_sx).await;
+            qos2_send_pubrel(metadata_cache, sub_pub_param, connection_manager, stop_sx).await;
         }
         sleep(Duration::from_millis(1)).await;
     }
     Ok(())
 }
+
 #[cfg(test)]
 mod test {}

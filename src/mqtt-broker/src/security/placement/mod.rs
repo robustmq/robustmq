@@ -15,7 +15,6 @@
 use std::sync::Arc;
 
 use axum::async_trait;
-use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
@@ -23,6 +22,7 @@ use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::user::MqttUser;
 
 use super::AuthStorageAdapter;
+use crate::handler::error::MqttBrokerError;
 use crate::storage::acl::AclStorage;
 use crate::storage::blacklist::BlackListStorage;
 use crate::storage::user::UserStorage;
@@ -39,42 +39,42 @@ impl PlacementAuthStorageAdapter {
 
 #[async_trait]
 impl AuthStorageAdapter for PlacementAuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, CommonError> {
+    async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError> {
         let user_storage = UserStorage::new(self.client_pool.clone());
         return user_storage.user_list().await;
     }
 
-    async fn get_user(&self, username: String) -> Result<Option<MqttUser>, CommonError> {
+    async fn get_user(&self, username: String) -> Result<Option<MqttUser>, MqttBrokerError> {
         let user_storage = UserStorage::new(self.client_pool.clone());
         return user_storage.get_user(username).await;
     }
 
-    async fn save_user(&self, user_info: MqttUser) -> Result<(), CommonError> {
+    async fn save_user(&self, user_info: MqttUser) -> Result<(), MqttBrokerError> {
         let user_storage = UserStorage::new(self.client_pool.clone());
         return user_storage.save_user(user_info).await;
     }
 
-    async fn delete_user(&self, username: String) -> Result<(), CommonError> {
+    async fn delete_user(&self, username: String) -> Result<(), MqttBrokerError> {
         let user_storage = UserStorage::new(self.client_pool.clone());
         return user_storage.delete_user(username).await;
     }
 
-    async fn save_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
+    async fn save_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError> {
         let acl_storage = AclStorage::new(self.client_pool.clone());
         return acl_storage.save_acl(acl).await;
     }
 
-    async fn delete_acl(&self, acl: MqttAcl) -> Result<(), CommonError> {
+    async fn delete_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError> {
         let acl_storage = AclStorage::new(self.client_pool.clone());
         return acl_storage.delete_acl(acl).await;
     }
 
-    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, CommonError> {
+    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
         let acl_storage = AclStorage::new(self.client_pool.clone());
         return acl_storage.list_acl().await;
     }
 
-    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, CommonError> {
+    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
         let blacklist_storage = BlackListStorage::new(self.client_pool.clone());
         return blacklist_storage.list_blacklist().await;
     }

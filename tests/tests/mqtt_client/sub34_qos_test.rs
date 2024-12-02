@@ -17,7 +17,7 @@ mod tests {
     use common_base::tools::unique_id;
     use paho_mqtt::{Message, QOS_1};
 
-    use crate::mqtt_client::mqtt::common::{broker_addr, connect_server34, distinct_conn};
+    use crate::mqtt_client::common::{broker_addr, connect_server34, distinct_conn};
 
     #[tokio::test]
     async fn client34_simple_subscribe_test() {

@@ -16,7 +16,6 @@ use std::cmp::min;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use common_base::error::mqtt_broker::MqttBrokerError;
 use futures::SinkExt;
 use grpc_clients::pool::ClientPool;
 use log::error;
@@ -31,6 +30,7 @@ use protocol::mqtt::common::{
 use tokio_util::codec::FramedWrite;
 
 use super::cache::CacheManager;
+use super::error::MqttBrokerError;
 use super::flow_control::{
     is_connection_rate_exceeded, is_flow_control, is_subscribe_rate_exceeded,
 };

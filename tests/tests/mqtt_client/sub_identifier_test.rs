@@ -20,7 +20,7 @@ mod tests {
     use paho_mqtt::{MessageBuilder, Properties, PropertyCode, SubscribeOptions, QOS_1};
     use tokio::time::{sleep, timeout};
 
-    use crate::mqtt_client::mqtt::common::{
+    use crate::mqtt_client::common::{
         broker_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr, connect_server5,
         distinct_conn,
     };

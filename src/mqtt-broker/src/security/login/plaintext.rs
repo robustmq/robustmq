@@ -15,10 +15,10 @@
 use std::sync::Arc;
 
 use axum::async_trait;
-use common_base::error::mqtt_broker::MqttBrokerError;
 
 use super::Authentication;
 use crate::handler::cache::CacheManager;
+use crate::handler::error::MqttBrokerError;
 
 pub struct Plaintext {
     username: String,

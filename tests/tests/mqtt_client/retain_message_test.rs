@@ -20,7 +20,7 @@ mod tests {
     };
     use paho_mqtt::{MessageBuilder, PropertyCode, QOS_1};
 
-    use crate::mqtt_client::mqtt::common::{broker_addr, connect_server5, distinct_conn};
+    use crate::mqtt_client::common::{broker_addr, connect_server5, distinct_conn};
 
     #[tokio::test]
     async fn retain_message_test() {

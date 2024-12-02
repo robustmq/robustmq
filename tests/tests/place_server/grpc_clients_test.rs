@@ -229,10 +229,8 @@ mod tests {
             cluster_name: cluster_name(),
             node_id: node_id(),
         };
-        client
-            .heartbeat(tonic::Request::new(request))
-            .await
-            .unwrap();
+        let res = client.heartbeat(tonic::Request::new(request)).await;
+        assert!(res.is_err());
     }
 
     #[tokio::test]

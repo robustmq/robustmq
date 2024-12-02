@@ -15,7 +15,8 @@
 use std::net::SocketAddr;
 
 use axum::async_trait;
-use common_base::error::mqtt_broker::MqttBrokerError;
+
+use crate::handler::error::MqttBrokerError;
 
 pub mod http;
 pub mod jwt;

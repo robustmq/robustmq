@@ -22,7 +22,7 @@ mod tests {
         Client, ConnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, QOS_1,
     };
 
-    use crate::mqtt_client::mqtt::common::{
+    use crate::mqtt_client::common::{
         broker_addr, build_create_pros, build_v5_pros, connect_server5, distinct_conn, password,
         username,
     };

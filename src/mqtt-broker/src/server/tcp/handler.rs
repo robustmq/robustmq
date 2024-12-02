@@ -15,7 +15,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use common_base::error::mqtt_broker::MqttBrokerError;
 use log::{debug, error, info};
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
@@ -23,6 +22,7 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use crate::handler::command::Command;
+use crate::handler::error::MqttBrokerError;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::{RequestPackage, ResponsePackage};
 

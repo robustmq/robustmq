@@ -15,7 +15,6 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
-use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use metadata_struct::mqtt::message::MqttMessage;
@@ -23,6 +22,7 @@ use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishPrope
 use storage_adapter::storage::StorageAdapter;
 
 use super::cache::CacheManager;
+use super::error::MqttBrokerError;
 use super::message::build_message_expire;
 use super::retain::save_topic_retain_message;
 use super::topic::try_init_topic;
@@ -36,83 +36,62 @@ pub async fn send_last_will_message<S>(
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
     message_storage_adapter: Arc<S>,
-) -> Result<(), CommonError>
+) -> Result<(), MqttBrokerError>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
-    match build_publish_message_by_lastwill(last_will, last_will_properties) {
-        Ok((topic_name, publish_res, publish_properties)) => {
-            if publish_res.is_none() || topic_name.is_empty() {
-                // If building a publish message from lastwill fails, the message is ignored without throwing an error.
-                return Ok(());
-            }
+    let (topic_name, publish_res, publish_properties) =
+        build_publish_message_by_lastwill(last_will, last_will_properties)?;
 
-            let publish = publish_res.unwrap();
-
-            let topic = try_init_topic(
-                &topic_name,
-                cache_manager,
-                &message_storage_adapter,
-                client_pool,
-            )
-            .await?;
-
-            match save_topic_retain_message(
-                cache_manager,
-                client_pool,
-                topic_name,
-                client_id,
-                &publish,
-                &publish_properties,
-            )
-            .await
-            {
-                Ok(()) => {}
-                Err(e) => {
-                    return Err(e);
-                }
-            }
-
-            // Persisting stores message data
-            let message_storage = MessageStorage::new(message_storage_adapter.clone());
-
-            let message_expire = build_message_expire(cache_manager, &publish_properties);
-            if let Some(record) =
-                MqttMessage::build_record(client_id, &publish, &publish_properties, message_expire)
-            {
-                match message_storage
-                    .append_topic_message(topic.topic_id.clone(), vec![record])
-                    .await
-                {
-                    Ok(_) => {
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        return Err(e);
-                    }
-                }
-            }
-            Ok(())
-        }
-        Err(e) => Err(e),
+    if publish_res.is_none() || topic_name.is_empty() {
+        // If building a publish message from lastwill fails, the message is ignored without throwing an error.
+        return Ok(());
     }
+
+    let publish = publish_res.unwrap();
+
+    let topic = try_init_topic(
+        &topic_name,
+        cache_manager,
+        &message_storage_adapter,
+        client_pool,
+    )
+    .await?;
+
+    save_topic_retain_message(
+        cache_manager,
+        client_pool,
+        topic_name,
+        client_id,
+        &publish,
+        &publish_properties,
+    )
+    .await?;
+
+    // Persisting stores message data
+    let message_storage = MessageStorage::new(message_storage_adapter.clone());
+
+    let message_expire = build_message_expire(cache_manager, &publish_properties);
+    if let Some(record) =
+        MqttMessage::build_record(client_id, &publish, &publish_properties, message_expire)
+    {
+        message_storage
+            .append_topic_message(topic.topic_id.clone(), vec![record])
+            .await?;
+    }
+    Ok(())
 }
 
 fn build_publish_message_by_lastwill(
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
-) -> Result<(String, Option<Publish>, Option<PublishProperties>), CommonError> {
+) -> Result<(String, Option<Publish>, Option<PublishProperties>), MqttBrokerError> {
     if let Some(will) = last_will {
         if will.topic.is_empty() || will.message.is_empty() {
             return Ok(("".to_string(), None, None));
         }
 
-        let topic_name = match String::from_utf8(will.topic.to_vec()) {
-            Ok(da) => da,
-            Err(e) => {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
-        };
+        let topic_name = String::from_utf8(will.topic.to_vec())?;
 
         let publish = Publish {
             dup: false,
@@ -137,6 +116,7 @@ fn build_publish_message_by_lastwill(
             });
         return Ok((topic_name, Some(publish), properties));
     }
+
     Ok(("".to_string(), None, None))
 }
 
@@ -145,7 +125,7 @@ pub async fn save_last_will_message(
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
     client_pool: &Arc<ClientPool>,
-) -> Result<(), CommonError> {
+) -> Result<(), MqttBrokerError> {
     if last_will.is_none() {
         return Ok(());
     }
@@ -156,9 +136,12 @@ pub async fn save_last_will_message(
         last_will: last_will.clone(),
         last_will_properties: last_will_properties.clone(),
     };
+
     session_storage
         .save_last_will_message(client_id, lastwill.encode())
-        .await
+        .await?;
+
+    Ok(())
 }
 
 pub fn last_will_delay_interval(last_will_properties: &Option<LastWillProperties>) -> Option<u64> {
