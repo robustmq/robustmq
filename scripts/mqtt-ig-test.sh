@@ -33,37 +33,37 @@ stop_placement_server(){
 }
 
 start_mqtt_server(){
-    nohup cargo run --package cmd --bin journal-server -- --conf=example/mqtt-cluster/journal-server/node-1.toml 2>/tmp/jn-1.log &
+    nohup cargo run --package cmd --bin mqtt-server -- --conf=example/mqtt-cluster/mqtt-server/node-1.toml 2>/tmp/jn-1.log &
     sleep 3
 
-    no1=`ps -ef | grep journal-server  | grep node-1 | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep mqtt-server  | grep node-1 | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
-        echo "journal-server node 1 started successfully. process no: $no1"
+        echo "mqtt-server node 1 started successfully. process no: $no1"
     fi
 }
 
 stop_mqtt_server(){
-    no1=`ps -ef | grep journal-server  | grep node-1 | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep mqtt-server  | grep node-1 | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
-        echo "kill journal server $no1"
+        echo "kill mqtt server $no1"
         kill $no1
     fi
 }
 
 # Clean up
 rm -rf /tmp/robust-test/placement-center*
-rm -rf /tmp/robust-test/journal-server*
+rm -rf /tmp/robust-test/mqtt-server*
 
 # Start Server
 start_placement_server
-start_journal_server
+start_mqtt_server
 
-
-cargo nextest run --package robustmq-test --test mod -- journal_client
-cargo nextest run --package robustmq-test --test mod -- journal_server
+cargo nextest run --package grpc-clients --test mod -- mqtt
+cargo nextest run --package robustmq-test --test mod -- mqtt_server
+cargo nextest run --package robustmq-test --test mod -- mqtt_client
 
 # Stop Server
 stop_placement_server
-stop_journal_server
+stop_mqtt_server
