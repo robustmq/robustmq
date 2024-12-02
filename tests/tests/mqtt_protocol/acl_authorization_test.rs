@@ -30,7 +30,7 @@ mod tests {
         CreateAclRequest, CreateUserRequest, DeleteAclRequest, DeleteUserRequest, ListAclRequest,
     };
 
-    use crate::mqtt_client::common::{
+    use crate::mqtt_protocol::common::{
         broker_addr, broker_grpc_addr, connect_server5_by_user_information, distinct_conn,
     };
 

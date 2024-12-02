@@ -14,6 +14,6 @@
 
 pub mod journal_client;
 pub mod journal_server;
-pub mod mqtt_client;
+pub mod mqtt_protocol;
 pub mod mqtt_server;
 pub mod place_server;
