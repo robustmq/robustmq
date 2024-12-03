@@ -29,18 +29,6 @@ pub trait StorageAdapter {
 
     async fn delete_shard(&self, shard_name: String) -> Result<(), CommonError>;
 
-    // kv storage model: Set data
-    async fn set(&self, key: String, value: Record) -> Result<(), CommonError>;
-
-    // kv storage model: Get data
-    async fn get(&self, key: String) -> Result<Option<Record>, CommonError>;
-
-    // kv storage model: Delete data
-    async fn delete(&self, key: String) -> Result<(), CommonError>;
-
-    // kv storage model: Determines whether the key exists
-    async fn exists(&self, key: String) -> Result<bool, CommonError>;
-
     // Streaming storage model: Append data in a Shard dimension, returning a unique self-incrementing ID for the Shard dimension
     async fn stream_write(
         &self,

@@ -70,24 +70,6 @@ impl StorageAdapter for MemoryStorageAdapter {
         return Ok(());
     }
 
-    async fn set(&self, key: String, value: Record) -> Result<(), CommonError> {
-        self.memory_data.insert(key, value);
-        return Ok(());
-    }
-    async fn get(&self, key: String) -> Result<Option<Record>, CommonError> {
-        if let Some(data) = self.memory_data.get(&key) {
-            return Ok(Some(data.clone()));
-        }
-        return Ok(None);
-    }
-    async fn delete(&self, key: String) -> Result<(), CommonError> {
-        self.memory_data.remove(&key);
-        return Ok(());
-    }
-    async fn exists(&self, key: String) -> Result<bool, CommonError> {
-        return Ok(self.memory_data.contains_key(&key));
-    }
-
     async fn stream_write(
         &self,
         shard_name: String,

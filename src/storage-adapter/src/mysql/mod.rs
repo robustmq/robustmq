@@ -74,53 +74,6 @@ impl MySQLStorageAdapter {
             Err(e) => Err(CommonError::CommonError(e.to_string())),
         }
     }
-}
-
-#[async_trait]
-impl StorageAdapter for MySQLStorageAdapter {
-    async fn create_shard(&self, shard_name: String, _: ShardConfig) -> Result<(), CommonError> {
-        match self.pool.get_conn() {
-            Ok(mut conn) => {
-                let show_table_sql = format!(
-                    "CREATE TABLE IF NOT EXISTS `{}` (
-                    `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-                    `msgid` varchar(64) DEFAULT NULL,
-                    `header` text DEFAULT NULL,
-                    `msg_key` varchar(128) DEFAULT NULL,
-                    `payload` blob,
-                    `create_time` int(11) NOT NULL,
-                    PRIMARY KEY (`id`)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;",
-                    self.storage_record_table(shard_name)
-                );
-                match conn.query_drop(show_table_sql) {
-                    Ok(()) => return Ok(()),
-                    Err(e) => return Err(CommonError::CommonError(e.to_string())),
-                }
-            }
-            Err(e) => {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
-        }
-    }
-
-    async fn delete_shard(&self, shard_name: String) -> Result<(), CommonError> {
-        match self.pool.get_conn() {
-            Ok(mut conn) => {
-                let show_table_sql = format!(
-                    "DROP TABLE IF EXISTS `{}`",
-                    self.storage_record_table(shard_name)
-                );
-                match conn.query_drop(show_table_sql) {
-                    Ok(()) => return Ok(()),
-                    Err(e) => return Err(CommonError::CommonError(e.to_string())),
-                }
-            }
-            Err(e) => {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
-        }
-    }
 
     async fn set(&self, key: String, value: Record) -> Result<(), CommonError> {
         match self.pool.get_conn() {
@@ -208,6 +161,53 @@ impl StorageAdapter for MySQLStorageAdapter {
                     return Ok(*value > 0);
                 }
                 return Ok(false);
+            }
+            Err(e) => {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
+        }
+    }
+}
+
+#[async_trait]
+impl StorageAdapter for MySQLStorageAdapter {
+    async fn create_shard(&self, shard_name: String, _: ShardConfig) -> Result<(), CommonError> {
+        match self.pool.get_conn() {
+            Ok(mut conn) => {
+                let show_table_sql = format!(
+                    "CREATE TABLE IF NOT EXISTS `{}` (
+                    `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+                    `msgid` varchar(64) DEFAULT NULL,
+                    `header` text DEFAULT NULL,
+                    `msg_key` varchar(128) DEFAULT NULL,
+                    `payload` blob,
+                    `create_time` int(11) NOT NULL,
+                    PRIMARY KEY (`id`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;",
+                    self.storage_record_table(shard_name)
+                );
+                match conn.query_drop(show_table_sql) {
+                    Ok(()) => return Ok(()),
+                    Err(e) => return Err(CommonError::CommonError(e.to_string())),
+                }
+            }
+            Err(e) => {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
+        }
+    }
+
+    async fn delete_shard(&self, shard_name: String) -> Result<(), CommonError> {
+        match self.pool.get_conn() {
+            Ok(mut conn) => {
+                let show_table_sql = format!(
+                    "DROP TABLE IF EXISTS `{}`",
+                    self.storage_record_table(shard_name)
+                );
+                match conn.query_drop(show_table_sql) {
+                    Ok(()) => return Ok(()),
+                    Err(e) => return Err(CommonError::CommonError(e.to_string())),
+                }
             }
             Err(e) => {
                 return Err(CommonError::CommonError(e.to_string()));

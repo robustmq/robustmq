@@ -16,14 +16,8 @@ use std::sync::Arc;
 
 use axum::async_trait;
 use common_base::error::common::CommonError;
-use grpc_clients::placement::kv::call::{
-    placement_delete, placement_exists, placement_get, placement_set,
-};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::record::Record;
-use protocol::placement_center::placement_center_kv::{
-    DeleteRequest, ExistsRequest, GetRequest, SetRequest,
-};
 
 use crate::storage::{ShardConfig, StorageAdapter};
 
@@ -42,60 +36,13 @@ impl PlacementStorageAdapter {
 #[async_trait]
 impl StorageAdapter for PlacementStorageAdapter {
     async fn create_shard(&self, _: String, _: ShardConfig) -> Result<(), CommonError> {
+        let _ = self.client_pool.clone();
+        let _ = self.addrs.clone();
         return Ok(());
     }
 
     async fn delete_shard(&self, _: String) -> Result<(), CommonError> {
         return Ok(());
-    }
-
-    async fn set(&self, key: String, value: Record) -> Result<(), CommonError> {
-        let request = SetRequest {
-            key,
-            value: String::from_utf8(value.data).unwrap(),
-        };
-        match placement_set(self.client_pool.clone(), &self.addrs, request).await {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(e);
-            }
-        }
-    }
-
-    async fn get(&self, key: String) -> Result<Option<Record>, CommonError> {
-        let request = GetRequest { key };
-        match placement_get(self.client_pool.clone(), &self.addrs, request).await {
-            Ok(reply) => {
-                if reply.value.is_empty() {
-                    return Ok(None);
-                } else {
-                    return Ok(Some(Record::build_e(reply.value)));
-                }
-            }
-            Err(e) => {
-                return Err(e);
-            }
-        }
-    }
-    async fn delete(&self, key: String) -> Result<(), CommonError> {
-        let request = DeleteRequest { key };
-        match placement_delete(self.client_pool.clone(), &self.addrs, request).await {
-            Ok(_) => return Ok(()),
-            Err(e) => {
-                return Err(e);
-            }
-        }
-    }
-    async fn exists(&self, key: String) -> Result<bool, CommonError> {
-        let request = ExistsRequest { key };
-        match placement_exists(self.client_pool.clone(), &self.addrs, request).await {
-            Ok(reply) => return Ok(reply.flag),
-            Err(e) => {
-                return Err(e);
-            }
-        }
     }
 
     async fn stream_write(&self, _: String, _: Vec<Record>) -> Result<Vec<usize>, CommonError> {

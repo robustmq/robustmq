@@ -90,23 +90,6 @@ impl StorageAdapter for RocksDBStorageAdapter {
         self.db.delete_prefix(cf, shard_name.as_str())
     }
 
-    async fn set(&self, key: String, value: Record) -> Result<(), CommonError> {
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_KV).unwrap();
-        self.db.write(cf, key.as_str(), &value)
-    }
-    async fn get(&self, key: String) -> Result<Option<Record>, CommonError> {
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_KV).unwrap();
-        self.db.read(cf, &key)
-    }
-    async fn delete(&self, key: String) -> Result<(), CommonError> {
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_KV).unwrap();
-        self.db.delete(cf, key.as_str())
-    }
-    async fn exists(&self, key: String) -> Result<bool, CommonError> {
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_KV).unwrap();
-        Ok(self.db.exist(cf, key.as_str()))
-    }
-
     async fn stream_write(
         &self,
         shard_name: String,

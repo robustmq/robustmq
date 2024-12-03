@@ -94,10 +94,8 @@ mod tests {
         ssl: bool,
     ) {
         let create_opts = build_create_pros(client_id, addr);
-        println!("{:?}", create_opts);
         let cli = Client::new(create_opts).unwrap();
         let conn_opts = build_v3_conn_pros(mqtt_version, false, ws, ssl);
-        println!("{:?}", conn_opts);
         let response = cli.connect(conn_opts).unwrap();
         let resp = response.connect_response().unwrap();
         if ws {
