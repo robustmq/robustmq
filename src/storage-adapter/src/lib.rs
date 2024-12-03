@@ -17,7 +17,6 @@ use std::str::FromStr;
 pub mod journal;
 pub mod memory;
 pub mod mysql;
-pub mod placement;
 pub mod rocksdb;
 pub mod storage;
 

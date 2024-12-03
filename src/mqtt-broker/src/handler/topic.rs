@@ -25,6 +25,7 @@ use storage_adapter::storage::{ShardConfig, StorageAdapter};
 
 use super::error::MqttBrokerError;
 use crate::handler::cache::CacheManager;
+use crate::storage::message::cluster_name;
 use crate::storage::topic::TopicStorage;
 
 pub fn is_system_topic(_: String) -> bool {
@@ -128,8 +129,9 @@ where
         // Create the resource object of the storage layer
         let shard_name = topic.topic_id.clone();
         let shard_config = ShardConfig::default();
+        let namespace = cluster_name();
         message_storage_adapter
-            .create_shard(shard_name, shard_config)
+            .create_shard(namespace, shard_name, shard_config)
             .await?;
         return Ok(topic);
     };

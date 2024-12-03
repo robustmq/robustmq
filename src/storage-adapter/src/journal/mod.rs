@@ -36,17 +36,35 @@ impl JournalStorageAdapter {
 
 #[async_trait]
 impl StorageAdapter for JournalStorageAdapter {
-    async fn create_shard(&self, _: String, _: ShardConfig) -> Result<(), CommonError> {
-        // self.client.create_shard(namespace, shard_name, replica_num);
-        self.client.close().await;
+    async fn create_shard(
+        &self,
+        namespace: String,
+        shard_name: String,
+        shard_config: ShardConfig,
+    ) -> Result<(), CommonError> {
+        if let Err(e) = self
+            .client
+            .create_shard(&namespace, &shard_name, shard_config.replica_num)
+            .await
+        {
+            return Err(CommonError::CommonError(e.to_string()));
+        }
         return Ok(());
     }
 
-    async fn delete_shard(&self, _: String) -> Result<(), CommonError> {
-        return Ok(());
+    async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
+        if let Err(e) = self.client.delete_shard(&namespace, &shard_name).await {
+            return Err(CommonError::CommonError(e.to_string()));
+        }
+        Ok(())
     }
 
-    async fn stream_write(&self, _: String, _: Vec<Record>) -> Result<Vec<usize>, CommonError> {
+    async fn stream_write(
+        &self,
+        _: String,
+        _: String,
+        _: Vec<Record>,
+    ) -> Result<Vec<usize>, CommonError> {
         return Err(CommonError::NotSupportFeature(
             "JournalStorageAdapter".to_string(),
             "stream_write".to_string(),
@@ -55,6 +73,7 @@ impl StorageAdapter for JournalStorageAdapter {
 
     async fn stream_read(
         &self,
+        _: String,
         _: String,
         _: String,
         _: Option<u128>,
@@ -70,6 +89,7 @@ impl StorageAdapter for JournalStorageAdapter {
         &self,
         _: String,
         _: String,
+        _: String,
         _: u128,
     ) -> Result<bool, CommonError> {
         return Err(CommonError::NotSupportFeature(
@@ -81,6 +101,7 @@ impl StorageAdapter for JournalStorageAdapter {
     async fn stream_read_by_offset(
         &self,
         _: String,
+        _: String,
         _: usize,
     ) -> Result<Option<Record>, CommonError> {
         return Err(CommonError::NotSupportFeature(
@@ -91,6 +112,7 @@ impl StorageAdapter for JournalStorageAdapter {
 
     async fn stream_read_by_timestamp(
         &self,
+        _: String,
         _: String,
         _: u128,
         _: u128,
@@ -107,10 +129,18 @@ impl StorageAdapter for JournalStorageAdapter {
         &self,
         _: String,
         _: String,
+        _: String,
     ) -> Result<Option<Record>, CommonError> {
         return Err(CommonError::NotSupportFeature(
             "JournalStorageAdapter".to_string(),
             "stream_write".to_string(),
         ));
+    }
+
+    async fn close(&self) -> Result<(), CommonError> {
+        if let Err(e) = self.client.close().await {
+            return Err(CommonError::CommonError(e.to_string()));
+        }
+        Ok(())
     }
 }

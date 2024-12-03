@@ -37,16 +37,21 @@ impl MySQLStorageAdapter {
         adapter
     }
 
-    pub fn storage_record_table(&self, shard_name: String) -> String {
-        format!("storage_record_{}", shard_name)
+    pub fn storage_record_table(&self, namespace: String, shard_name: String) -> String {
+        format!("storage_record_{}_{}", namespace, shard_name)
     }
 
     pub fn storage_kv_table(&self) -> String {
         "storage_kv".to_string()
     }
 
-    pub fn group_offset_key(&self, shard_name: String, group_name: String) -> String {
-        format!("__group_offset_{}_{}", group_name, shard_name)
+    pub fn group_offset_key(
+        &self,
+        namespace: String,
+        shard_name: String,
+        group_name: String,
+    ) -> String {
+        format!("__group_offset_{}_{}_{}", namespace, group_name, shard_name)
     }
 
     pub fn init_table(&self) -> Result<(), CommonError> {
@@ -135,7 +140,12 @@ impl MySQLStorageAdapter {
 
 #[async_trait]
 impl StorageAdapter for MySQLStorageAdapter {
-    async fn create_shard(&self, shard_name: String, _: ShardConfig) -> Result<(), CommonError> {
+    async fn create_shard(
+        &self,
+        namespace: String,
+        shard_name: String,
+        _: ShardConfig,
+    ) -> Result<(), CommonError> {
         let mut conn = self.pool.get_conn()?;
         let show_table_sql = format!(
             "CREATE TABLE IF NOT EXISTS `{}` (
@@ -147,17 +157,17 @@ impl StorageAdapter for MySQLStorageAdapter {
                     `create_time` int(11) NOT NULL,
                     PRIMARY KEY (`id`)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;",
-            self.storage_record_table(shard_name)
+            self.storage_record_table(namespace, shard_name)
         );
         conn.query_drop(show_table_sql)?;
         Ok(())
     }
 
-    async fn delete_shard(&self, shard_name: String) -> Result<(), CommonError> {
+    async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
         let mut conn = self.pool.get_conn()?;
         let show_table_sql = format!(
             "DROP TABLE IF EXISTS `{}`",
-            self.storage_record_table(shard_name)
+            self.storage_record_table(namespace, shard_name)
         );
         conn.query_drop(show_table_sql)?;
         Ok(())
@@ -165,6 +175,7 @@ impl StorageAdapter for MySQLStorageAdapter {
 
     async fn stream_write(
         &self,
+        namespace: String,
         shard_name: String,
         data: Vec<Record>,
     ) -> Result<Vec<usize>, CommonError> {
@@ -192,7 +203,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         }
 
         conn.exec_batch(
-            format!("INSERT INTO {}(msgid,header,msg_key,payload,create_time) VALUES (:msgid,:header,:msg_key,:payload,:create_time)",self.storage_record_table(shard_name)),
+            format!("INSERT INTO {}(msgid,header,msg_key,payload,create_time) VALUES (:msgid,:header,:msg_key,:payload,:create_time)",self.storage_record_table(namespace,shard_name)),
             values.iter().map(|p| {
                 params! {
                     "msgid" => p.msgid.clone(),
@@ -210,12 +221,13 @@ impl StorageAdapter for MySQLStorageAdapter {
 
     async fn stream_read(
         &self,
+        namespace: String,
         shard_name: String,
         group_id: String,
         record_num: Option<u128>,
         _: Option<usize>,
     ) -> Result<Option<Vec<Record>>, CommonError> {
-        let offset_key = self.group_offset_key(shard_name.clone(), group_id);
+        let offset_key = self.group_offset_key(namespace.clone(), shard_name.clone(), group_id);
         let offset = if let Some(record) = self.get(offset_key).await? {
             let offset_str = String::from_utf8(record.data)?;
             offset_str.parse::<usize>()?
@@ -226,7 +238,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         let mut conn = self.pool.get_conn()?;
         let sql = format!(
             "select id,msgid,header,msg_key,payload,create_time from {} where id > {} limit {}",
-            self.storage_record_table(shard_name),
+            self.storage_record_table(namespace.clone(), shard_name),
             offset,
             rn
         );
@@ -248,6 +260,7 @@ impl StorageAdapter for MySQLStorageAdapter {
 
     async fn stream_commit_offset(
         &self,
+        namespace: String,
         shard_name: String,
         group_id: String,
         offset: u128,
@@ -256,7 +269,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         let update_sql = format!(
                     "REPLACE INTO {}(data_key,data_value,create_time,update_time) VALUES ('{}','{:?}',{},{})",
                     self.storage_kv_table(),
-                    self.group_offset_key(shard_name, group_id),
+                    self.group_offset_key(namespace,shard_name, group_id),
                     offset,
                     now_second(),
                     now_second(),
@@ -269,6 +282,7 @@ impl StorageAdapter for MySQLStorageAdapter {
     async fn stream_read_by_offset(
         &self,
         _: String,
+        _: String,
         _: usize,
     ) -> Result<Option<Record>, CommonError> {
         return Err(CommonError::NotSupportFeature(
@@ -279,6 +293,7 @@ impl StorageAdapter for MySQLStorageAdapter {
 
     async fn stream_read_by_timestamp(
         &self,
+        _: String,
         _: String,
         _: u128,
         _: u128,
@@ -295,17 +310,24 @@ impl StorageAdapter for MySQLStorageAdapter {
         &self,
         _: String,
         _: String,
+        _: String,
     ) -> Result<Option<Record>, CommonError> {
         return Err(CommonError::NotSupportFeature(
             "PlacementStorageAdapter".to_string(),
             "stream_write".to_string(),
         ));
     }
+
+    async fn close(&self) -> Result<(), CommonError> {
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use common_base::tools::unique_id;
     use metadata_struct::adapter::record::{Header, Record};
+    use metadata_struct::journal::namespace;
     use third_driver::mysql::build_mysql_conn_pool;
 
     use super::MySQLStorageAdapter;
@@ -342,8 +364,9 @@ mod tests {
         let mysql_adapter = MySQLStorageAdapter::new(pool);
         let shard_name = String::from("test");
         let shard_config = ShardConfig::default();
+        let namespace = unique_id();
         mysql_adapter
-            .create_shard(shard_name, shard_config)
+            .create_shard(namespace, shard_name, shard_config)
             .await
             .unwrap();
     }
@@ -355,7 +378,11 @@ mod tests {
         let pool = build_mysql_conn_pool(addr).unwrap();
         let mysql_adapter = MySQLStorageAdapter::new(pool);
         let shard_name = String::from("test");
-        mysql_adapter.delete_shard(shard_name).await.unwrap();
+        let namespace = unique_id();
+        mysql_adapter
+            .delete_shard(namespace, shard_name)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -366,8 +393,9 @@ mod tests {
         let mysql_adapter = MySQLStorageAdapter::new(pool);
         let shard_name = String::from("test");
         let shard_config = ShardConfig::default();
+        let namespace = unique_id();
         mysql_adapter
-            .create_shard(shard_name.clone(), shard_config)
+            .create_shard(namespace.clone(), shard_name.clone(), shard_config)
             .await
             .unwrap();
         let mut data = Vec::new();
@@ -385,7 +413,10 @@ mod tests {
             header,
             "test2".to_string().as_bytes().to_vec(),
         ));
-        let result = mysql_adapter.stream_write(shard_name, data).await.unwrap();
+        let result = mysql_adapter
+            .stream_write(namespace, shard_name, data)
+            .await
+            .unwrap();
         println!("{:?}", result);
     }
 
@@ -399,8 +430,10 @@ mod tests {
         let group_id = String::from("test-group");
         let record_num = 2;
         let record_size = 1024;
+        let namespace = unique_id();
         let result = mysql_adapter
             .stream_read(
+                namespace.clone(),
                 shard_name.clone(),
                 group_id.clone(),
                 Some(record_num),
@@ -412,7 +445,7 @@ mod tests {
         if !result.is_empty() {
             let offset = result.last().unwrap().offset;
             mysql_adapter
-                .stream_commit_offset(shard_name, group_id, offset)
+                .stream_commit_offset(namespace, shard_name, group_id, offset)
                 .await
                 .unwrap();
         }
