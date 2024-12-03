@@ -14,25 +14,31 @@
 
 use axum::async_trait;
 use common_base::error::common::CommonError;
+use journal_client::option::JournalClientOption;
+use journal_client::JournalEngineClient;
 use metadata_struct::adapter::record::Record;
 
 use crate::storage::{ShardConfig, StorageAdapter};
 
 #[derive(Clone)]
 pub struct JournalStorageAdapter {
-    addrs: Vec<String>,
+    client: JournalEngineClient,
 }
 
 impl JournalStorageAdapter {
     pub fn new(addrs: Vec<String>) -> Self {
-        JournalStorageAdapter { addrs }
+        let mut options = JournalClientOption::build();
+        options.set_addrs(addrs);
+        let client = JournalEngineClient::new(options);
+        JournalStorageAdapter { client }
     }
 }
 
 #[async_trait]
 impl StorageAdapter for JournalStorageAdapter {
     async fn create_shard(&self, _: String, _: ShardConfig) -> Result<(), CommonError> {
-        let _ = self.addrs.clone();
+        // self.client.create_shard(namespace, shard_name, replica_num);
+        self.client.close().await;
         return Ok(());
     }
 

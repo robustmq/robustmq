@@ -3583,6 +3583,7 @@ dependencies = [
  "common-base",
  "dashmap",
  "grpc-clients",
+ "journal-client",
  "metadata-struct",
  "mysql",
  "protocol",
