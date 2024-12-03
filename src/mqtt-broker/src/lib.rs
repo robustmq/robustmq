@@ -35,7 +35,7 @@ use server::http::server::{start_http_server, HttpServerState};
 use server::tcp::server::start_tcp_server;
 use server::websocket::server::{websocket_server, websockets_server, WebSocketServerState};
 use storage::cluster::ClusterStorage;
-use storage_adapter::local_rocksdb::RocksDBStorageAdapter;
+use storage_adapter::rocksdb::RocksDBStorageAdapter;
 use storage_adapter::memory::MemoryStorageAdapter;
 use storage_adapter::mysql::MySQLStorageAdapter;
 use storage_adapter::storage::StorageAdapter;
