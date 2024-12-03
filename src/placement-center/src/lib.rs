@@ -117,8 +117,6 @@ impl PlacementCenter {
             self.engine_cache.clone(),
         ));
 
-        self.init_cache();
-
         self.start_call_thread();
 
         let openraft_node = create_raft_node(self.client_pool.clone(), data_route).await;
