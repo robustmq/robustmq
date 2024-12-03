@@ -64,8 +64,13 @@ enum MQTTAction {
 
     // Connections
     ListConnection,
+
+    // observability: slow-sub feat
+    #[clap(name = "slow-sub")]
+    SlowSub(SlowSubArgs),
 }
 
+// security: user feat
 #[derive(clap::Args, Debug)]
 #[command(author="RobustMQ", about="action: create user", long_about = None)]
 #[command(next_line_help = true)]
@@ -86,6 +91,25 @@ struct CreateUserArgs {
 struct DeleteUserArgs {
     #[arg(short, long, required = true)]
     username: String,
+}
+
+// observability: slow-sub feat
+#[derive(Debug, Parser)]
+#[command(author="RobustMQ", about="", long_about = None)]
+#[command(next_line_help = true)]
+struct SlowSubArgs {
+    #[arg(long, default_value = "false",help="Enable or disable the feature", conflicts_with_all = ["list", "sort", "topic", "sub_name", "client_id"] )]
+    is_enable: String,
+    #[arg(long, default_value_t = 10)]
+    list: u8,
+    #[arg(long, help = "Sort the results", requires = "list")]
+    sort: String,
+    #[arg(long, default_value = "", requires = "list")]
+    topic: String,
+    #[arg(long, default_value = "", requires = "list")]
+    sub_name: String,
+    #[arg(long, default_value = "", requires = "list")]
+    client_id: String,
 }
 
 #[derive(clap::Args, Debug)]
@@ -162,6 +186,7 @@ async fn main() {
                     }),
                     MQTTAction::ListUser => MqttActionType::ListUser,
                     MQTTAction::ListConnection => MqttActionType::ListConnection,
+                    MQTTAction::SlowSub(arg) => MqttActionType::ListConnection,
                 },
             };
             cmd.start(params).await;
