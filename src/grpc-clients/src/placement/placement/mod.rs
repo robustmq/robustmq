@@ -20,8 +20,7 @@ use protocol::placement_center::placement_center_inner::{
     DeleteIdempotentDataRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
     ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetResourceConfigReply,
     GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, NodeListReply, NodeListRequest,
-    RegisterNodeReply, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
-    SendRaftMessageReply, SendRaftMessageRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
+    RegisterNodeReply, RegisterNodeRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
     SetResourceConfigReply, SetResourceConfigRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
 use tonic::transport::Channel;
@@ -38,8 +37,6 @@ pub enum PlacementServiceRequest {
     RegisterNode(RegisterNodeRequest),
     UnRegisterNode(UnRegisterNodeRequest),
     Heartbeat(HeartbeatRequest),
-    SendRaftMessage(SendRaftMessageRequest),
-    SendRaftConfChange(SendRaftConfChangeRequest),
     SetResourceConfig(SetResourceConfigRequest),
     GetResourceConfig(GetResourceConfigRequest),
     DeleteResourceConfig(DeleteResourceConfigRequest),
@@ -56,8 +53,6 @@ pub enum PlacementServiceReply {
     RegisterNode(RegisterNodeReply),
     UnRegisterNode(UnRegisterNodeReply),
     Heartbeat(HeartbeatReply),
-    SendRaftMessage(SendRaftMessageReply),
-    SendRaftConfChange(SendRaftConfChangeReply),
     SetResourceConfig(SetResourceConfigReply),
     GetResourceConfig(GetResourceConfigReply),
     DeleteResourceConfig(DeleteResourceConfigReply),
@@ -109,22 +104,7 @@ pub(super) async fn call_placement_service_once(
             let reply = client.heartbeat(request).await?;
             Ok(PlacementServiceReply::Heartbeat(reply.into_inner()))
         }
-        SendRaftMessage(request) => {
-            let mut client = client_pool
-                .placement_center_inner_services_client(addr)
-                .await?;
-            let reply = client.send_raft_message(request).await?;
-            Ok(PlacementServiceReply::SendRaftMessage(reply.into_inner()))
-        }
-        SendRaftConfChange(request) => {
-            let mut client = client_pool
-                .placement_center_inner_services_client(addr)
-                .await?;
-            let reply = client.send_raft_conf_change(request).await?;
-            Ok(PlacementServiceReply::SendRaftConfChange(
-                reply.into_inner(),
-            ))
-        }
+
         SetResourceConfig(request) => {
             let mut client = client_pool
                 .placement_center_inner_services_client(addr)
