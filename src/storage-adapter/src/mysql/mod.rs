@@ -327,7 +327,6 @@ impl StorageAdapter for MySQLStorageAdapter {
 mod tests {
     use common_base::tools::unique_id;
     use metadata_struct::adapter::record::{Header, Record};
-    use metadata_struct::journal::namespace;
     use third_driver::mysql::build_mysql_conn_pool;
 
     use super::MySQLStorageAdapter;
