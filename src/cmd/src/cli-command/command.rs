@@ -98,18 +98,18 @@ struct DeleteUserArgs {
 #[command(author="RobustMQ", about="", long_about = None)]
 #[command(next_line_help = true)]
 struct SlowSubArgs {
-    #[arg(long, default_value = "false",help="Enable or disable the feature", conflicts_with_all = ["list", "sort", "topic", "sub_name", "client_id"] )]
-    is_enable: String,
-    #[arg(long, default_value_t = 10)]
+    #[arg(long,help="Enable or disable the feature", conflicts_with_all = ["list", "sort", "topic", "sub_name", "client_id"] )]
+    is_enable: Option<String>,
+    #[arg(long, default_value_t = 100)]
     list: u8,
     #[arg(long, help = "Sort the results", requires = "list")]
-    sort: String,
-    #[arg(long, default_value = "", requires = "list")]
-    topic: String,
-    #[arg(long, default_value = "", requires = "list")]
-    sub_name: String,
-    #[arg(long, default_value = "", requires = "list")]
-    client_id: String,
+    sort: Option<String>,
+    #[arg(long, requires = "list")]
+    topic: Option<String>,
+    #[arg(long, requires = "list")]
+    sub_name: Option<String>,
+    #[arg(long, requires = "list")]
+    client_id: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
