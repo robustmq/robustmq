@@ -36,7 +36,7 @@ name = "cli-command"
 path = "src/cli-command/command.rs"
 
 [dependencies]
-clap = { version = "4.4.7", features = ["derive"] }
+clap.workspace = true
 common-base.workspace = true
 lazy_static.workspace = true
 tokio.workspace = true
@@ -44,5 +44,5 @@ mqtt-broker.workspace = true
 placement-center.workspace = true
 journal-server.workspace = true
 cli-command.workspace = true
-clap-cargo = "0.14.1"
+clap-cargo.workspace = true
 protocol.workspace = true

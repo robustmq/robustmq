@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clap::{Parser, Subcommand};
+pub(crate) mod mqtt;
+mod utils;
+
+use clap::{arg, Parser, Subcommand};
 use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
 use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
@@ -21,6 +24,8 @@ use protocol::broker_mqtt::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequ
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
 };
+
+use crate::mqtt::admin::{CreateUserArgs, DeleteUserArgs, SlowSubArgs};
 
 #[derive(Parser)] // requires `derive` feature
 #[command(name = "robust-ctl")]
@@ -64,28 +69,10 @@ enum MQTTAction {
 
     // Connections
     ListConnection,
-}
 
-#[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="action: create user", long_about = None)]
-#[command(next_line_help = true)]
-struct CreateUserArgs {
-    #[arg(short, long, required = true)]
-    username: String,
-
-    #[arg(short, long, required = true)]
-    password: String,
-
-    #[arg(short, long, default_value_t = false)]
-    is_superuser: bool,
-}
-
-#[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="action: delete user", long_about = None)]
-#[command(next_line_help = true)]
-struct DeleteUserArgs {
-    #[arg(short, long, required = true)]
-    username: String,
+    // observability: slow-sub feat
+    #[clap(name = "slow-sub")]
+    SlowSub(SlowSubArgs),
 }
 
 #[derive(clap::Args, Debug)]
@@ -162,6 +149,7 @@ async fn main() {
                     }),
                     MQTTAction::ListUser => MqttActionType::ListUser,
                     MQTTAction::ListConnection => MqttActionType::ListConnection,
+                    _ => unreachable!("UnSupport command"),
                 },
             };
             cmd.start(params).await;
