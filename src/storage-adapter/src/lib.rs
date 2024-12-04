@@ -15,10 +15,9 @@
 use std::str::FromStr;
 
 pub mod journal;
-pub mod local_rocksdb;
 pub mod memory;
 pub mod mysql;
-pub mod placement;
+pub mod rocksdb;
 pub mod storage;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

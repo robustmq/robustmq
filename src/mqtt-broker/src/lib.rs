@@ -22,7 +22,7 @@ use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use handler::acl::UpdateAclCache;
 use handler::cache::CacheManager;
-use handler::heartbreat::report_heartbeat;
+use handler::heartbreat::{register_node, report_heartbeat};
 use handler::keep_alive::ClientKeepAlive;
 use handler::user::UpdateUserCache;
 use lazy_static::lazy_static;
@@ -35,9 +35,9 @@ use server::http::server::{start_http_server, HttpServerState};
 use server::tcp::server::start_tcp_server;
 use server::websocket::server::{websocket_server, websockets_server, WebSocketServerState};
 use storage::cluster::ClusterStorage;
-use storage_adapter::local_rocksdb::RocksDBStorageAdapter;
 use storage_adapter::memory::MemoryStorageAdapter;
 use storage_adapter::mysql::MySQLStorageAdapter;
+use storage_adapter::rocksdb::RocksDBStorageAdapter;
 use storage_adapter::storage::StorageAdapter;
 use storage_adapter::StorageType;
 use subscribe::sub_exclusive::SubscribeExclusive;
@@ -371,14 +371,13 @@ where
             metadata_cache.init_system_user().await;
             metadata_cache.load_metadata_cache(auth_driver).await;
 
-            let cluster_storage = ClusterStorage::new(client_pool.clone());
             let config = broker_mqtt_conf();
-            match cluster_storage.register_node(config).await {
-                Ok(_) => {
+            match register_node(client_pool.clone()).await {
+                Ok(()) => {
                     info!("Node {} has been successfully registered", config.broker_id);
                 }
                 Err(e) => {
-                    panic!("{}", e.to_string());
+                    panic!("{}", e);
                 }
             }
         });

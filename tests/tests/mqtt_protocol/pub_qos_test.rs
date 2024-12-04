@@ -15,7 +15,7 @@
 use common_base::tools::unique_id;
 use paho_mqtt::{Message, MessageBuilder, Properties, PropertyCode};
 
-use crate::mqtt_client::common::{broker_addr, connect_server34, connect_server5, distinct_conn};
+use crate::mqtt_protocol::common::{broker_addr, connect_server34, connect_server5, distinct_conn};
 
 async fn publish34_qos(num: i32, qos: i32) {
     let mqtt_version = 3;
@@ -85,7 +85,7 @@ mod tests {
 
     use paho_mqtt::{QOS_0, QOS_1, QOS_2};
 
-    use crate::mqtt_client::pub_qos_test::{publish34_qos, publish5_qos};
+    use crate::mqtt_protocol::pub_qos_test::{publish34_qos, publish5_qos};
 
     #[tokio::test]
     async fn client34_publish_test() {

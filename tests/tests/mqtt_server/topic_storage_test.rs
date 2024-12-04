@@ -57,7 +57,7 @@ mod tests {
         assert_eq!(result.topic_name, topic_name);
         assert!(!result.topic_id.is_empty());
 
-        let result = topic_storage.topic_list().await.unwrap();
+        let result = topic_storage.all().await.unwrap();
         assert!(!result.is_empty());
 
         topic_storage
@@ -68,7 +68,7 @@ mod tests {
         let result = topic_storage.get_topic(topic_name.clone()).await.unwrap();
         assert!(result.is_none());
 
-        topic_storage.topic_list().await.unwrap();
+        topic_storage.all().await.unwrap();
     }
 
     #[tokio::test]
@@ -97,6 +97,13 @@ mod tests {
             topic_name.clone(),
         );
         topic_storage.save_topic(topic).await.unwrap();
+
+        let result = topic_storage
+            .get_topic(topic_name.clone())
+            .await
+            .unwrap()
+            .unwrap();
+        println!("{:?}", result);
 
         let result_message = topic_storage
             .get_retain_message(topic_name.clone())

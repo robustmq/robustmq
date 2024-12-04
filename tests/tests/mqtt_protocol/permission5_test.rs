@@ -15,62 +15,95 @@
 #[cfg(test)]
 mod tests {
     use std::process;
+    use std::sync::Arc;
 
     use common_base::tools::unique_id;
+    use grpc_clients::mqtt::admin::call::{mqtt_broker_create_user, mqtt_broker_delete_user};
+    use grpc_clients::pool::ClientPool;
     use mqtt_broker::handler::connection::REQUEST_RESPONSE_PREFIX_NAME;
     use paho_mqtt::{Client, PropertyCode, ReasonCode};
+    use protocol::broker_mqtt::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequest};
 
-    use crate::mqtt_client::common::{
-        broker_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr, build_create_pros,
-        build_v5_conn_pros, build_v5_pros, distinct_conn,
+    use crate::mqtt_protocol::common::{
+        broker_addr, broker_grpc_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr,
+        build_create_pros, build_v5_conn_pros_by_user_information, build_v5_pros, distinct_conn,
     };
 
     #[tokio::test]
-    async fn client5_connect_test() {
+    async fn client5_permission_test() {
         let client_id = unique_id();
         let addr = broker_addr();
-        v5_wrong_password_test(&client_id, &addr, false, false);
-        v5_session_present_test(&client_id, &addr, false, false);
-        v5_response_test(&client_id, &addr, false, false);
-        v5_assigned_client_id_test(&addr, false, false);
-        v5_request_response_test(&client_id, &addr, false, false);
+
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
+        let grpc_addr = vec![broker_grpc_addr()];
+
+        let username = "puser5".to_string();
+        let password = "permission".to_string();
+
+        //unregistered users are not allowed to create connections.
+        v5_permission_wrong_test(
+            &client_id,
+            &addr,
+            username.clone(),
+            password.clone(),
+            false,
+            false,
+        );
+
+        //registered users are allowed to create connections.
+        create_user(
+            client_pool.clone(),
+            grpc_addr.clone(),
+            username.clone(),
+            password.clone(),
+        )
+        .await;
+        v5_permission_success_test(
+            &client_id,
+            &addr,
+            username.clone(),
+            password.clone(),
+            false,
+            false,
+        );
+        v5_response_test(
+            &client_id,
+            &addr,
+            username.clone(),
+            password.clone(),
+            false,
+            false,
+        );
+        v5_assigned_client_id_test(&addr, username.clone(), password.clone(), false, false);
+        v5_request_response_test(
+            &client_id,
+            &addr,
+            username.clone(),
+            password.clone(),
+            false,
+            false,
+        );
+
+        //unregistered users are not allowed to create connections.
+        delete_user(client_pool.clone(), grpc_addr.clone(), username.clone()).await;
+        v5_permission_wrong_test(
+            &client_id,
+            &addr,
+            username.clone(),
+            password.clone(),
+            false,
+            false,
+        );
     }
 
-    #[tokio::test]
-    async fn client5_connect_ssl_test() {
-        let client_id = unique_id();
-        let addr = broker_ssl_addr();
-        v5_wrong_password_test(&client_id, &addr, false, true);
-        v5_session_present_test(&client_id, &addr, false, true);
-        v5_response_test(&client_id, &addr, false, true);
-        v5_assigned_client_id_test(&addr, false, true);
-        v5_request_response_test(&client_id, &addr, false, true);
-    }
-
-    #[tokio::test]
-    async fn client5_connect_ws_test() {
-        let client_id = unique_id();
-        let addr = broker_ws_addr();
-        v5_wrong_password_test(&client_id, &addr, true, false);
-        v5_session_present_test(&client_id, &addr, true, false);
-        v5_response_test(&client_id, &addr, true, false);
-        v5_assigned_client_id_test(&addr, true, false);
-        v5_request_response_test(&client_id, &addr, true, false);
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn client5_connect_wss_test() {
-        let client_id = unique_id();
-        let addr = broker_wss_addr();
-        v5_wrong_password_test(&client_id, &addr, true, true);
-        v5_session_present_test(&client_id, &addr, true, true);
-        v5_response_test(&client_id, &addr, true, true);
-        v5_assigned_client_id_test(&addr, true, true);
-        v5_request_response_test(&client_id, &addr, true, true);
-    }
-
-    fn v5_wrong_password_test(client_id: &str, addr: &str, ws: bool, ssl: bool) {
+    fn v5_permission_wrong_test(
+        client_id: &str,
+        addr: &str,
+        username: String,
+        password: String,
+        ws: bool,
+        ssl: bool,
+    ) {
         let create_opts = build_create_pros(client_id, addr);
 
         let cli = Client::new(create_opts).unwrap_or_else(|err| {
@@ -79,12 +112,25 @@ mod tests {
         });
 
         let props = build_v5_pros();
-        let conn_opts = build_v5_conn_pros(props, true, ws, ssl);
+        let conn_opts = build_v5_conn_pros_by_user_information(
+            props,
+            username.clone(),
+            password.clone(),
+            ws,
+            ssl,
+        );
         let err = cli.connect(conn_opts).unwrap_err();
         println!("Unable to connect:\n\t{:?}", err);
     }
 
-    fn v5_session_present_test(client_id: &str, addr: &str, ws: bool, ssl: bool) {
+    fn v5_permission_success_test(
+        client_id: &str,
+        addr: &str,
+        username: String,
+        password: String,
+        ws: bool,
+        ssl: bool,
+    ) {
         let mqtt_version = 5;
         let props = build_v5_pros();
 
@@ -94,40 +140,13 @@ mod tests {
             process::exit(1);
         });
 
-        let conn_opts = build_v5_conn_pros(props.clone(), false, ws, ssl);
-        match cli.connect(conn_opts) {
-            Ok(response) => {
-                let resp = response.connect_response().unwrap();
-                if ws {
-                    if ssl {
-                        assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
-                    } else {
-                        assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
-                    }
-                } else if ssl {
-                    assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-                } else {
-                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-                }
-                assert_eq!(mqtt_version, resp.mqtt_version);
-                // assert!(!resp.session_present);
-                assert_eq!(response.reason_code(), ReasonCode::Success);
-            }
-            Err(e) => {
-                println!("Unable to connect:\n\t{:?}", e);
-                process::exit(1);
-            }
-        }
-        distinct_conn(cli);
-
-        let create_opts = build_create_pros(client_id, addr);
-        let cli = Client::new(create_opts).unwrap_or_else(|err| {
-            println!("Error creating the client: {:?}", err);
-            process::exit(1);
-        });
-
-        let conn_opts = build_v5_conn_pros(props.clone(), false, ws, ssl);
-
+        let conn_opts = build_v5_conn_pros_by_user_information(
+            props.clone(),
+            username.clone(),
+            password.clone(),
+            ws,
+            ssl,
+        );
         match cli.connect(conn_opts) {
             Ok(response) => {
                 let resp = response.connect_response().unwrap();
@@ -154,7 +173,13 @@ mod tests {
         distinct_conn(cli);
     }
 
-    fn v5_assigned_client_id_test(addr: &str, ws: bool, ssl: bool) {
+    fn v5_assigned_client_id_test(
+        addr: &str,
+        username: String,
+        password: String,
+        ws: bool,
+        ssl: bool,
+    ) {
         let mqtt_version = 5;
         let client_id = "".to_string();
         let props = build_v5_pros();
@@ -165,7 +190,13 @@ mod tests {
             process::exit(1);
         });
 
-        let conn_opts = build_v5_conn_pros(props.clone(), false, ws, ssl);
+        let conn_opts = build_v5_conn_pros_by_user_information(
+            props.clone(),
+            username.clone(),
+            password.clone(),
+            ws,
+            ssl,
+        );
         match cli.connect(conn_opts) {
             Ok(response) => {
                 let resp = response.connect_response().unwrap();
@@ -201,7 +232,14 @@ mod tests {
         distinct_conn(cli);
     }
 
-    fn v5_request_response_test(client_id: &str, addr: &str, ws: bool, ssl: bool) {
+    fn v5_request_response_test(
+        client_id: &str,
+        addr: &str,
+        username: String,
+        password: String,
+        ws: bool,
+        ssl: bool,
+    ) {
         let mqtt_version = 5;
 
         let pros = build_v5_pros();
@@ -213,7 +251,13 @@ mod tests {
             process::exit(1);
         });
 
-        let conn_opts = build_v5_conn_pros(pros.clone(), false, ws, ssl);
+        let conn_opts = build_v5_conn_pros_by_user_information(
+            pros.clone(),
+            username.clone(),
+            password.clone(),
+            ws,
+            ssl,
+        );
 
         match cli.connect(conn_opts) {
             Ok(response) => {
@@ -247,7 +291,14 @@ mod tests {
         distinct_conn(cli);
     }
 
-    fn v5_response_test(client_id: &str, addr: &str, ws: bool, ssl: bool) {
+    fn v5_response_test(
+        client_id: &str,
+        addr: &str,
+        username: String,
+        password: String,
+        ws: bool,
+        ssl: bool,
+    ) {
         let mqtt_version = 5;
 
         let mut pros = build_v5_pros();
@@ -261,7 +312,13 @@ mod tests {
             process::exit(1);
         });
 
-        let conn_opts = build_v5_conn_pros(pros.clone(), false, ws, ssl);
+        let conn_opts = build_v5_conn_pros_by_user_information(
+            pros.clone(),
+            username.clone(),
+            password.clone(),
+            ws,
+            ssl,
+        );
 
         match cli.connect(conn_opts) {
             Ok(response) => {
@@ -401,5 +458,34 @@ mod tests {
             }
         }
         distinct_conn(cli);
+    }
+
+    async fn create_user(
+        client_pool: Arc<ClientPool>,
+        addrs: Vec<String>,
+        username: String,
+        password: String,
+    ) {
+        let user = CreateUserRequest {
+            username,
+            password,
+            is_superuser: false,
+        };
+        match mqtt_broker_create_user(client_pool.clone(), &addrs, user.clone()).await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        }
+    }
+
+    async fn delete_user(client_pool: Arc<ClientPool>, addrs: Vec<String>, username: String) {
+        let user = DeleteUserRequest { username };
+        match mqtt_broker_delete_user(client_pool.clone(), &addrs, user.clone()).await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        }
     }
 }

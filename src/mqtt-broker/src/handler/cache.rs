@@ -479,7 +479,7 @@ impl CacheManager {
 
         // load all topic
         let topic_storage = TopicStorage::new(self.client_pool.clone());
-        let topic_list = match topic_storage.topic_list().await {
+        let topic_list = match topic_storage.all().await {
             Ok(list) => list,
             Err(e) => {
                 panic!("Failed to load the topic list with error message:{}", e);

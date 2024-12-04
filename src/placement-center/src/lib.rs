@@ -31,7 +31,7 @@ use server::grpc::service_placement::GrpcPlacementService;
 use server::grpc::services_openraft::GrpcOpenRaftServices;
 use storage::rocksdb::{column_family_list, storage_data_fold, RocksDBEngine};
 use tokio::signal;
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::broadcast;
 use tokio::time::sleep;
 use tonic::transport::Server;
 
@@ -44,7 +44,7 @@ use crate::mqtt::cache::MqttCacheManager;
 use crate::mqtt::controller::MqttController;
 use crate::raft::raft_node::{create_raft_node, start_openraft_node};
 use crate::raft::typeconfig::TypeConfig;
-use crate::route::apply::{RaftMachineApply, RaftMessage};
+use crate::route::apply::RaftMachineApply;
 use crate::route::DataRoute;
 use crate::server::http::server::{start_http_server, HttpServerState};
 
@@ -109,8 +109,6 @@ impl PlacementCenter {
     pub async fn start(&mut self, stop_send: broadcast::Sender<bool>) {
         self.init_cache();
 
-        let (raft_message_send, _raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
-
         let data_route = Arc::new(DataRoute::new(
             self.rocksdb_engine_handler.clone(),
             self.cluster_cache.clone(),
@@ -121,10 +119,7 @@ impl PlacementCenter {
 
         let openraft_node = create_raft_node(self.client_pool.clone(), data_route).await;
 
-        let placement_center_storage = Arc::new(RaftMachineApply::new(
-            raft_message_send,
-            openraft_node.clone(),
-        ));
+        let placement_center_storage = Arc::new(RaftMachineApply::new(openraft_node.clone()));
 
         self.start_controller(placement_center_storage.clone(), stop_send.clone());
 

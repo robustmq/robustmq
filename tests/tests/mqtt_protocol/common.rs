@@ -98,7 +98,7 @@ pub fn build_v5_conn_pros(props: Properties, err_pwd: bool, ws: bool, ssl: bool)
     if ssl {
         let ssl_opts = SslOptionsBuilder::new()
             .trust_store(format!(
-                "{}/../../config/example/certs/ca.pem",
+                "{}/../config/example/certs/ca.pem",
                 env!("CARGO_MANIFEST_DIR")
             ))
             .unwrap()
@@ -163,7 +163,7 @@ pub fn build_v3_conn_pros(mqtt_version: u32, err_pwd: bool, ws: bool, ssl: bool)
     if ssl {
         let ssl_opts = SslOptionsBuilder::new()
             .trust_store(format!(
-                "{}/../../config/example/certs/ca.pem",
+                "{}/../config/example/certs/ca.pem",
                 env!("CARGO_MANIFEST_DIR")
             ))
             .unwrap()
