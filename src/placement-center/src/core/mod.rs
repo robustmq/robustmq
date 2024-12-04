@@ -17,4 +17,3 @@ pub mod cluster;
 pub mod controller;
 pub mod error;
 pub mod heartbeat;
-pub mod raft_node;
