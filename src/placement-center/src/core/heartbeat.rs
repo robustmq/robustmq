@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use std::sync::Arc;
-use std::thread::sleep;
 use std::time::Duration;
+use tokio::time::sleep;
 
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
@@ -107,6 +107,6 @@ impl BrokerHeartbeat {
                 }
             }
         }
-        sleep(Duration::from_millis(self.check_time_ms));
+        sleep(Duration::from_millis(self.check_time_ms)).await;
     }
 }
