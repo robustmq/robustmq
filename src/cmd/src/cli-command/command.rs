@@ -100,8 +100,8 @@ struct DeleteUserArgs {
 struct SlowSubArgs {
     #[arg(long,help="Enable or disable the feature", conflicts_with_all = ["list", "sort", "topic", "sub_name", "client_id"] )]
     is_enable: Option<String>,
-    #[arg(long, default_value_t = 100)]
-    list: u8,
+    #[arg(long, default_missing_value = "100", num_args = 0..=1, require_equals = true)]
+    list: Option<String>,
     #[arg(long, help = "Sort the results", requires = "list")]
     sort: Option<String>,
     #[arg(long, requires = "list")]
