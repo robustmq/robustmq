@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use lazy_static::lazy_static;
-use log::debug;
 use prometheus::{register_int_gauge_vec, IntGaugeVec};
 use protocol::mqtt::codec::{calc_mqtt_packet_size, MqttPacketWrapper};
 use protocol::mqtt::common::{ConnectReturnCode, MqttPacket, QoS};
