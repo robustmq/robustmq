@@ -83,6 +83,7 @@ pub(crate) struct SlowSubArgs {
     client_id: Option<String>,
 }
 
+#[allow(dead_code)]
 impl SlowSubArgs {
     pub fn get_is_enable(&self) -> Option<bool> {
         self.is_enable

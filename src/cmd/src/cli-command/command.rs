@@ -15,8 +15,6 @@
 pub(crate) mod mqtt;
 mod utils;
 
-use std::env::args;
-
 use clap::{arg, Parser, Subcommand};
 use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
 use cli_command::placement::{
@@ -151,19 +149,6 @@ async fn main() {
                     }),
                     MQTTAction::ListUser => MqttActionType::ListUser,
                     MQTTAction::ListConnection => MqttActionType::ListConnection,
-                    MQTTAction::SlowSub(args) => {
-                        if args.get_is_enable().is_some() {
-                            if let Some(is_enable) = args.get_is_enable() {}
-                        } else {
-                        }
-                        println!("{:?}", args.get_is_enable());
-                        println!("{:?}", args.get_list());
-                        println!("{:?}", args.get_sort());
-                        println!("{:?}", args.get_client_id());
-                        println!("{:?}", args.get_sub_name());
-                        println!("{:?}", args.get_topic());
-                        MqttActionType::ListConnection
-                    }
                     _ => unreachable!("UnSupport command"),
                 },
             };
