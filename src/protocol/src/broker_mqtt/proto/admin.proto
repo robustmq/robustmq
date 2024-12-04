@@ -157,8 +157,15 @@ message EnableSlowSubScribeReply {
 }
 
 // --------- mqtt topic --------
+enum MatchOption {
+    E = 0;
+    P = 1;
+    S = 2;
+}
+
 message ListTopicRequest {
     string topic_name = 1;
+    MatchOption match_option = 2;
 }
 message ListTopicReply {
     repeated MqttTopic topics = 1;

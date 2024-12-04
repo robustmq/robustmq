@@ -79,12 +79,22 @@ enum MQTTAction {
     SlowSub(SlowSubArgs),
 }
 
+#[derive(ValueEnum, Clone, Debug)]
+enum MatchOption {
+    E,
+    P,
+    S,
+}
+
 #[derive(clap::Args, Debug)]
 #[command(author="RobustMQ", about="action: list topics", long_about = None)]
 #[command(next_line_help = true)]
 struct ListTopicArgs {
     #[arg(short, long, required = true)]
     topic_name: String,
+
+    #[arg(short, long, default_value = "e")]
+    match_option: MatchOption,
 }
 
 #[derive(clap::Args, Debug)]
@@ -163,6 +173,11 @@ async fn main() {
                     MQTTAction::ListConnection => MqttActionType::ListConnection,
                     MQTTAction::ListTopic(args) => MqttActionType::ListTopic(ListTopicRequest {
                         topic_name: args.topic_name,
+                        match_option: match args.match_option {
+                            MatchOption::E => 0,
+                            MatchOption::P => 1,
+                            MatchOption::S => 2,
+                        },
                     }),
                     _ => unreachable!("UnSupport command"),
                 },
