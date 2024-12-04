@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod config;
+pub mod enum_type;
 pub mod error;
 pub mod http_error;
 pub mod http_response;

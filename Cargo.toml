@@ -95,6 +95,8 @@ tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.0", features = ["env-filter"] }
 validator = { version = "0.18", features = ["derive"] }
 rand = "0.8.5"
+clap-cargo = "0.14.1"
+clap = { version = "4.4.7", features = ["derive"] }
 
 
 ## workspaces members

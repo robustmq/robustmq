@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub(crate) mod mqtt;
+mod utils;
+
+use crate::mqtt::admin::{CreateUserArgs, DeleteUserArgs, SlowSubArgs};
 use clap::{Parser, Subcommand};
 use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
 use cli_command::placement::{
@@ -68,48 +72,6 @@ enum MQTTAction {
     // observability: slow-sub feat
     #[clap(name = "slow-sub")]
     SlowSub(SlowSubArgs),
-}
-
-// security: user feat
-#[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="action: create user", long_about = None)]
-#[command(next_line_help = true)]
-struct CreateUserArgs {
-    #[arg(short, long, required = true)]
-    username: String,
-
-    #[arg(short, long, required = true)]
-    password: String,
-
-    #[arg(short, long, default_value_t = false)]
-    is_superuser: bool,
-}
-
-#[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="action: delete user", long_about = None)]
-#[command(next_line_help = true)]
-struct DeleteUserArgs {
-    #[arg(short, long, required = true)]
-    username: String,
-}
-
-// observability: slow-sub feat
-#[derive(Debug, Parser)]
-#[command(author="RobustMQ", about="", long_about = None)]
-#[command(next_line_help = true)]
-struct SlowSubArgs {
-    #[arg(long,help="Enable or disable the feature", conflicts_with_all = ["list", "sort", "topic", "sub_name", "client_id"] )]
-    is_enable: Option<String>,
-    #[arg(long, default_missing_value = "100", num_args = 0..=1, require_equals = true)]
-    list: Option<String>,
-    #[arg(long, help = "Sort the results", requires = "list")]
-    sort: Option<String>,
-    #[arg(long, requires = "list")]
-    topic: Option<String>,
-    #[arg(long, requires = "list")]
-    sub_name: Option<String>,
-    #[arg(long, requires = "list")]
-    client_id: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -186,7 +148,11 @@ async fn main() {
                     }),
                     MQTTAction::ListUser => MqttActionType::ListUser,
                     MQTTAction::ListConnection => MqttActionType::ListConnection,
-                    MQTTAction::SlowSub(arg) => MqttActionType::ListConnection,
+                    MQTTAction::SlowSub(arg) => {
+                        println!("{:?}", arg);
+                        MqttActionType::ListConnection
+                    }
+                    _ => unreachable!("UnSupport command"),
                 },
             };
             cmd.start(params).await;
