@@ -15,8 +15,9 @@
 pub(crate) mod mqtt;
 mod utils;
 
-use crate::mqtt::admin::{CreateUserArgs, DeleteUserArgs, SlowSubArgs};
-use clap::{Parser, Subcommand};
+use std::env::args;
+
+use clap::{arg, Parser, Subcommand};
 use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
 use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
@@ -25,6 +26,8 @@ use protocol::broker_mqtt::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequ
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
 };
+
+use crate::mqtt::admin::{CreateUserArgs, DeleteUserArgs, SlowSubArgs};
 
 #[derive(Parser)] // requires `derive` feature
 #[command(name = "robust-ctl")]
@@ -148,8 +151,17 @@ async fn main() {
                     }),
                     MQTTAction::ListUser => MqttActionType::ListUser,
                     MQTTAction::ListConnection => MqttActionType::ListConnection,
-                    MQTTAction::SlowSub(arg) => {
-                        println!("{:?}", arg);
+                    MQTTAction::SlowSub(args) => {
+                        if args.get_is_enable().is_some() {
+                            if let Some(is_enable) = args.get_is_enable() {}
+                        } else {
+                        }
+                        println!("{:?}", args.get_is_enable());
+                        println!("{:?}", args.get_list());
+                        println!("{:?}", args.get_sort());
+                        println!("{:?}", args.get_client_id());
+                        println!("{:?}", args.get_sub_name());
+                        println!("{:?}", args.get_topic());
                         MqttActionType::ListConnection
                     }
                     _ => unreachable!("UnSupport command"),
