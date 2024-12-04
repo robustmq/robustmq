@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Unit Test
+name: MQTT Server Ig Test
 
 on:
   push:
@@ -32,9 +32,30 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # Check crate compiles
+  # linux-build-lib:
+  #   name: cargo check
+  #   runs-on: ubuntu-latest
+  #   container:
+  #     image: amd64/rust
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Setup Rust toolchain
+  #       uses: ./.github/actions/setup-builder
+
+  #     - name: Cache Cargo
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           ~/.cargo/bin/
+  #           ~/.cargo/registry/index/
+  #           ~/.cargo/registry/cache/
+  #           ~/.cargo/git/db/
+  #           ./target/
+  #         key: cargo-cache-${{ hashFiles('**/Cargo.toml', '**/Cargo.lock') }}  # Run tests
 
   linux-tests:
-    name: unit test
+    name: cargo test
     needs: [ linux-build-lib ]
     runs-on: ubuntu-latest
     container:
@@ -52,4 +73,4 @@ jobs:
           locked: true
       - uses: actions/checkout@v3
       - name: Run tests
-        run: make test
+        run: make mqtt-ig-test

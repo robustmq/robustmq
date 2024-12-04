@@ -220,7 +220,7 @@ where
                                     false
                                 };
 
-                                let publish = Publish {
+                                let mut publish = Publish {
                                     dup: false,
                                     qos,
                                     pkid: 0,
@@ -240,12 +240,20 @@ where
                                     content_type: msg.content_type,
                                 };
 
-                                let mut sub_pub_param = SubPublishParam::new(
+                                let pkid = if qos != QoS::AtMostOnce {
+                                    cache_manager.get_pkid(&client_id).await
+                                } else {
+                                    0
+                                };
+                                publish.pkid = pkid;
+
+                                let sub_pub_param = SubPublishParam::new(
                                     subscriber.clone(),
                                     publish,
                                     Some(properties),
                                     record.create_time,
                                     group_id.clone(),
+                                    pkid,
                                 );
 
                                 match qos {
@@ -260,9 +268,6 @@ where
                                     }
 
                                     QoS::AtLeastOnce => {
-                                        let pkid: u16 = cache_manager.get_pkid(&client_id).await;
-                                        sub_pub_param.pkid = pkid;
-
                                         let (wait_puback_sx, _) = broadcast::channel(1);
 
                                         cache_manager.add_ack_packet(
@@ -294,9 +299,6 @@ where
                                     }
 
                                     QoS::ExactlyOnce => {
-                                        let pkid: u16 = cache_manager.get_pkid(&client_id).await;
-                                        sub_pub_param.pkid = pkid;
-
                                         let (wait_ack_sx, _) = broadcast::channel(1);
                                         cache_manager.add_ack_packet(
                                             &client_id,

@@ -181,13 +181,10 @@ impl JournalEngineClient {
 
     pub async fn read_by_tag(&self) {}
 
-    pub async fn close(&self) {
-        if let Err(e) = self.stop_send.send(true) {
-            error!("{}", e);
-        }
+    pub async fn close(&self) -> Result<(), JournalClientError> {
+        self.stop_send.send(true)?;
         self.connection_manager.close().await;
-        if let Err(e) = self.writer.close().await {
-            error!("{}", e);
-        }
+        self.writer.close().await?;
+        Ok(())
     }
 }

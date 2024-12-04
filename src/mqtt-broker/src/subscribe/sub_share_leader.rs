@@ -289,16 +289,25 @@ where
                     cursor_point = choose_available_sub(cursor_point, sub_list);
                     let subscribe = sub_list.get(cursor_point).unwrap();
 
-                    if let Some((publish, properties)) =
+                    if let Some((mut publish, properties)) =
                         build_publish(cache_manager, subscribe, &sub_data.topic_name, &msg)
                     {
+                        let pkid = if publish.qos != QoS::AtMostOnce {
+                            cache_manager.get_pkid(&subscribe.client_id).await
+                        } else {
+                            0
+                        };
+                        publish.pkid = pkid;
+
                         let sub_pub_param = SubPublishParam::new(
                             subscribe.clone(),
                             publish,
                             Some(properties),
                             record.create_time,
                             group_id.to_owned(),
+                            pkid,
                         );
+
                         if qos_publish(
                             connection_manager,
                             cache_manager,
@@ -356,7 +365,7 @@ async fn qos_publish<S>(
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<CacheManager>,
     message_storage: &MessageStorage<S>,
-    mut sub_pub_param: SubPublishParam,
+    sub_pub_param: SubPublishParam,
     offset: u128,
     stop_sx: &Sender<bool>,
 ) -> bool
@@ -370,15 +379,10 @@ where
         }
 
         QoS::AtLeastOnce => {
-            let pkid: u16 = cache_manager
-                .get_pkid(&sub_pub_param.subscribe.client_id)
-                .await;
-            sub_pub_param.pkid = pkid;
-
             let (wait_puback_sx, _) = broadcast::channel(1);
             cache_manager.add_ack_packet(
                 &sub_pub_param.subscribe.client_id,
-                pkid,
+                sub_pub_param.pkid,
                 QosAckPacketInfo {
                     sx: wait_puback_sx.clone(),
                     create_time: now_second(),
@@ -395,8 +399,10 @@ where
             {
                 Ok(()) => {
                     // remove data
-                    cache_manager.remove_pkid_info(&sub_pub_param.subscribe.client_id, pkid);
-                    cache_manager.remove_ack_packet(&sub_pub_param.subscribe.client_id, pkid);
+                    cache_manager
+                        .remove_pkid_info(&sub_pub_param.subscribe.client_id, sub_pub_param.pkid);
+                    cache_manager
+                        .remove_ack_packet(&sub_pub_param.subscribe.client_id, sub_pub_param.pkid);
                     true
                 }
                 Err(e) => {
@@ -412,15 +418,10 @@ where
         }
 
         QoS::ExactlyOnce => {
-            let pkid: u16 = cache_manager
-                .get_pkid(&sub_pub_param.subscribe.client_id)
-                .await;
-            sub_pub_param.pkid = pkid;
-
             let (wait_ack_sx, _) = broadcast::channel(1);
             cache_manager.add_ack_packet(
                 &sub_pub_param.subscribe.client_id,
-                pkid,
+                sub_pub_param.pkid,
                 QosAckPacketInfo {
                     sx: wait_ack_sx.clone(),
                     create_time: now_second(),

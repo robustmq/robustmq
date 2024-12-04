@@ -345,12 +345,16 @@ async fn process_packet(
                     ..Default::default()
                 };
 
-                let mut sub_pub_param = SubPublishParam::new(
+                let publish_to_client_pkid: u16 = cache_manager.get_pkid(&mqtt_client_id).await;
+                publish.pkid = publish_to_client_pkid;
+
+                let sub_pub_param = SubPublishParam::new(
                     subscriber.clone(),
                     publish.clone(),
                     publish_properties,
                     None,
                     "".to_string(),
+                    publish_to_client_pkid,
                 );
 
                 match publish.qos {
@@ -367,10 +371,6 @@ async fn process_packet(
                     }
 
                     protocol::mqtt::common::QoS::AtLeastOnce => {
-                        let publish_to_client_pkid: u16 =
-                            cache_manager.get_pkid(&mqtt_client_id).await;
-                        sub_pub_param.pkid = publish_to_client_pkid;
-
                         let (wait_puback_sx, _) = broadcast::channel(1);
                         cache_manager.add_ack_packet(
                             &mqtt_client_id,
@@ -404,10 +404,6 @@ async fn process_packet(
                     }
 
                     protocol::mqtt::common::QoS::ExactlyOnce => {
-                        let publish_to_client_pkid: u16 =
-                            cache_manager.get_pkid(&mqtt_client_id).await;
-                        sub_pub_param.pkid = publish_to_client_pkid;
-
                         let (wait_client_ack_sx, _) = broadcast::channel(1);
 
                         cache_manager.add_ack_packet(

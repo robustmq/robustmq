@@ -19,7 +19,7 @@ mod tests {
     use common_base::tools::unique_id;
     use paho_mqtt::{Client, ReasonCode};
 
-    use crate::mqtt_client::common::{
+    use crate::mqtt_protocol::common::{
         broker_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr, build_create_pros,
         build_v3_conn_pros, distinct_conn,
     };
@@ -61,11 +61,10 @@ mod tests {
         let addr = broker_ws_addr();
 
         v3_wrong_password_test(mqtt_version, &client_id, &addr, true, false);
-        // v3_session_present_test(mqtt_version, &client_id, &addr, true, false);
+        v3_session_present_test(mqtt_version, &client_id, &addr, true, false);
     }
 
     #[tokio::test]
-    #[ignore]
     async fn client4_connect_wss_test() {
         let mqtt_version = 4;
         let client_id = unique_id();
@@ -82,7 +81,7 @@ mod tests {
         });
 
         let conn_opts = build_v3_conn_pros(mqtt_version, true, ws, ssl);
-
+        println!("{:?}", conn_opts);
         let err = cli.connect(conn_opts).unwrap_err();
         println!("Unable to connect:\n\t{:?}", err);
     }
@@ -96,9 +95,7 @@ mod tests {
     ) {
         let create_opts = build_create_pros(client_id, addr);
         let cli = Client::new(create_opts).unwrap();
-
         let conn_opts = build_v3_conn_pros(mqtt_version, false, ws, ssl);
-        println!("{:?}", conn_opts);
         let response = cli.connect(conn_opts).unwrap();
         let resp = response.connect_response().unwrap();
         if ws {

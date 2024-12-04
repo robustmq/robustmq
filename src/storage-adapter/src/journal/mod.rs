@@ -11,3 +11,136 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+use axum::async_trait;
+use common_base::error::common::CommonError;
+use journal_client::option::JournalClientOption;
+use journal_client::JournalEngineClient;
+use metadata_struct::adapter::record::Record;
+
+use crate::storage::{ShardConfig, StorageAdapter};
+
+#[derive(Clone)]
+pub struct JournalStorageAdapter {
+    client: JournalEngineClient,
+}
+
+impl JournalStorageAdapter {
+    pub fn new(addrs: Vec<String>) -> Self {
+        let mut options = JournalClientOption::build();
+        options.set_addrs(addrs);
+        let client = JournalEngineClient::new(options);
+        JournalStorageAdapter { client }
+    }
+}
+
+#[async_trait]
+impl StorageAdapter for JournalStorageAdapter {
+    async fn create_shard(
+        &self,
+        namespace: String,
+        shard_name: String,
+        shard_config: ShardConfig,
+    ) -> Result<(), CommonError> {
+        if let Err(e) = self
+            .client
+            .create_shard(&namespace, &shard_name, shard_config.replica_num)
+            .await
+        {
+            return Err(CommonError::CommonError(e.to_string()));
+        }
+        return Ok(());
+    }
+
+    async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
+        if let Err(e) = self.client.delete_shard(&namespace, &shard_name).await {
+            return Err(CommonError::CommonError(e.to_string()));
+        }
+        Ok(())
+    }
+
+    async fn stream_write(
+        &self,
+        _: String,
+        _: String,
+        _: Vec<Record>,
+    ) -> Result<Vec<usize>, CommonError> {
+        return Err(CommonError::NotSupportFeature(
+            "JournalStorageAdapter".to_string(),
+            "stream_write".to_string(),
+        ));
+    }
+
+    async fn stream_read(
+        &self,
+        _: String,
+        _: String,
+        _: String,
+        _: Option<u128>,
+        _: Option<usize>,
+    ) -> Result<Option<Vec<Record>>, CommonError> {
+        return Err(CommonError::NotSupportFeature(
+            "JournalStorageAdapter".to_string(),
+            "stream_write".to_string(),
+        ));
+    }
+
+    async fn stream_commit_offset(
+        &self,
+        _: String,
+        _: String,
+        _: String,
+        _: u128,
+    ) -> Result<bool, CommonError> {
+        return Err(CommonError::NotSupportFeature(
+            "JournalStorageAdapter".to_string(),
+            "stream_write".to_string(),
+        ));
+    }
+
+    async fn stream_read_by_offset(
+        &self,
+        _: String,
+        _: String,
+        _: usize,
+    ) -> Result<Option<Record>, CommonError> {
+        return Err(CommonError::NotSupportFeature(
+            "JournalStorageAdapter".to_string(),
+            "stream_write".to_string(),
+        ));
+    }
+
+    async fn stream_read_by_timestamp(
+        &self,
+        _: String,
+        _: String,
+        _: u128,
+        _: u128,
+        _: Option<usize>,
+        _: Option<usize>,
+    ) -> Result<Option<Vec<Record>>, CommonError> {
+        return Err(CommonError::NotSupportFeature(
+            "JournalStorageAdapter".to_string(),
+            "stream_write".to_string(),
+        ));
+    }
+
+    async fn stream_read_by_key(
+        &self,
+        _: String,
+        _: String,
+        _: String,
+    ) -> Result<Option<Record>, CommonError> {
+        return Err(CommonError::NotSupportFeature(
+            "JournalStorageAdapter".to_string(),
+            "stream_write".to_string(),
+        ));
+    }
+
+    async fn close(&self) -> Result<(), CommonError> {
+        if let Err(e) = self.client.close().await {
+            return Err(CommonError::CommonError(e.to_string()));
+        }
+        Ok(())
+    }
+}

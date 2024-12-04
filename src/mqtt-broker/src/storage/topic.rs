@@ -59,7 +59,7 @@ impl TopicStorage {
         Ok(())
     }
 
-    pub async fn topic_list(&self) -> Result<DashMap<String, MqttTopic>, MqttBrokerError> {
+    pub async fn all(&self) -> Result<DashMap<String, MqttTopic>, MqttBrokerError> {
         let config = broker_mqtt_conf();
         let request = ListTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -150,8 +150,8 @@ impl TopicStorage {
                     retain_message.as_slice(),
                 )?));
             }
+            return Ok(None);
         }
-
         Err(MqttBrokerError::TopicDoesNotExist(topic_name.clone()))
     }
 }
