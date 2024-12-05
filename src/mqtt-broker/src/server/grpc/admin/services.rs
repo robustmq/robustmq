@@ -18,12 +18,15 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::serialize_value;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
+use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest, CreateUserReply,
-    CreateUserRequest, DeleteAclReply, DeleteAclRequest, DeleteUserReply, DeleteUserRequest,
-    ListAclReply, ListAclRequest, ListConnectionRaw, ListConnectionReply, ListConnectionRequest,
+    ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
+    CreateBlacklistReply, CreateBlacklistRequest, CreateUserReply, CreateUserRequest,
+    DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
+    DeleteUserReply, DeleteUserRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
+    ListBlacklistRequest, ListConnectionRaw, ListConnectionReply, ListConnectionRequest,
     ListUserReply, ListUserRequest,
 };
 use tonic::{Request, Response, Status};
@@ -190,6 +193,75 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
         match auth_driver.delete_acl(mqtt_acl).await {
             Ok(_) => return Ok(Response::new(DeleteAclReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn mqtt_broker_list_blacklist(
+        &self,
+        _: Request<ListBlacklistRequest>,
+    ) -> Result<Response<ListBlacklistReply>, Status> {
+        let mut reply = ListBlacklistReply::default();
+        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        match auth_driver.read_all_blacklist().await {
+            Ok(data) => {
+                let mut blacklists = Vec::new();
+                for ele in data {
+                    match ele.encode() {
+                        Ok(blacklist) => blacklists.push(blacklist),
+                        Err(e) => return Err(Status::cancelled(e.to_string())),
+                    }
+                }
+                reply.blacklists = blacklists;
+                return Ok(Response::new(reply));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn mqtt_broker_create_blacklist(
+        &self,
+        request: Request<CreateBlacklistRequest>,
+    ) -> Result<Response<CreateBlacklistReply>, Status> {
+        let req = request.into_inner();
+        let mqtt_blacklist = MqttAclBlackList::decode(&req.blacklist).unwrap();
+
+        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        match auth_driver.save_blacklist(mqtt_blacklist).await {
+            Ok(_) => return Ok(Response::new(CreateBlacklistReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn mqtt_broker_delete_blacklist(
+        &self,
+        request: Request<DeleteBlacklistRequest>,
+    ) -> Result<Response<DeleteBlacklistReply>, Status> {
+        let req = request.into_inner();
+        let mqtt_blacklist = MqttAclBlackList {
+            blacklist_type: match req.blacklist_type.as_str() {
+                "ClientId" => MqttAclBlackListType::ClientId,
+                "User" => MqttAclBlackListType::User,
+                "Ip" => MqttAclBlackListType::Ip,
+                "ClientIdMatch" => MqttAclBlackListType::ClientIdMatch,
+                "UserMatch" => MqttAclBlackListType::UserMatch,
+                "IPCIDR" => MqttAclBlackListType::IPCIDR,
+                _ => return Err(Status::cancelled("invalid blacklist type".to_string())),
+            },
+            resource_name: req.resource_name,
+            end_time: 0,
+            desc: "".to_string(),
+        };
+
+        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        match auth_driver.delete_blacklist(mqtt_blacklist).await {
+            Ok(_) => return Ok(Response::new(DeleteBlacklistReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }

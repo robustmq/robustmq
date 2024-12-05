@@ -78,4 +78,14 @@ impl AuthStorageAdapter for PlacementAuthStorageAdapter {
         let blacklist_storage = BlackListStorage::new(self.client_pool.clone());
         return blacklist_storage.list_blacklist().await;
     }
+
+    async fn save_blacklist(&self, blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError> {
+        let blacklist_storage = BlackListStorage::new(self.client_pool.clone());
+        return blacklist_storage.save_blacklist(blacklist).await;
+    }
+
+    async fn delete_blacklist(&self, blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError> {
+        let blacklist_storage = BlackListStorage::new(self.client_pool.clone());
+        return blacklist_storage.delete_blacklist(blacklist).await;
+    }
 }
