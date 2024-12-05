@@ -352,7 +352,7 @@ async fn process_packet(
                     subscriber.clone(),
                     publish.clone(),
                     publish_properties,
-                    None,
+                    0,
                     "".to_string(),
                     publish_to_client_pkid,
                 );

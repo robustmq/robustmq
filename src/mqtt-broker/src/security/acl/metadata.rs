@@ -125,6 +125,32 @@ impl AclMetadata {
         }
     }
 
+    pub fn remove_mqtt_blacklist(&self, blacklist: MqttAclBlackList) {
+        match blacklist.blacklist_type {
+            MqttAclBlackListType::ClientId => {
+                self.blacklist_client_id.remove(&blacklist.resource_name);
+            }
+            MqttAclBlackListType::User => {
+                self.blacklist_user.remove(&blacklist.resource_name);
+            }
+            MqttAclBlackListType::Ip => {
+                self.blacklist_ip.remove(&blacklist.resource_name);
+            }
+            MqttAclBlackListType::ClientIdMatch => {
+                let key = self.get_client_id_match_key();
+                self.blacklist_client_id_match.remove(&key);
+            }
+            MqttAclBlackListType::UserMatch => {
+                let key = self.get_user_match_key();
+                self.blacklist_user_match.remove(&key);
+            }
+            MqttAclBlackListType::IPCIDR => {
+                let key = self.get_ip_cidr_key();
+                self.blacklist_ip_match.remove(&key);
+            }
+        }
+    }
+
     pub fn get_blacklist_user_match(&self) -> Option<Vec<MqttAclBlackList>> {
         let key = self.get_user_match_key();
         if let Some(data) = self.blacklist_user_match.get(&key) {

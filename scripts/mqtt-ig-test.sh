@@ -33,7 +33,7 @@ stop_placement_server(){
 }
 
 start_mqtt_server(){
-    nohup cargo run --package cmd --bin mqtt-server -- --conf=example/mqtt-cluster/mqtt-server/node-1.toml 2>/tmp/jn-1.log &
+    nohup cargo run --package cmd --bin mqtt-server -- --conf=example/mqtt-cluster/mqtt-server/node-1.toml 2>/tmp/mqtt-1.log &
     sleep 3
 
     no1=`ps -ef | grep mqtt-server  | grep node-1 | grep -v grep | awk '{print $2}'`

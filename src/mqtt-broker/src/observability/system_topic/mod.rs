@@ -165,7 +165,7 @@ pub(crate) async fn write_topic_data<S>(
         Ok(topic) => {
             let message_storage = MessageStorage::new(message_storage_adapter.clone());
             match message_storage
-                .append_topic_message(topic.topic_id, vec![record])
+                .append_topic_message(&topic.topic_id, vec![record])
                 .await
             {
                 Ok(_) => {}

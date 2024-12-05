@@ -14,10 +14,12 @@
 
 use common_base::error::common::CommonError;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest, CreateUserReply,
-    CreateUserRequest, DeleteAclReply, DeleteAclRequest, DeleteUserReply, DeleteUserRequest,
-    EnableSlowSubScribeReply, EnableSlowSubscribeRequest, ListAclReply, ListAclRequest,
-    ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
+    ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
+    CreateBlacklistReply, CreateBlacklistRequest, CreateUserReply, CreateUserRequest,
+    DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
+    DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
+    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
+    ListConnectionRequest, ListUserReply, ListUserRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
@@ -42,6 +44,9 @@ pub enum MqttBrokerPlacementRequest {
     ListAcl(ListAclRequest),
     CreateAcl(CreateAclRequest),
     DeleteAcl(DeleteAclRequest),
+    ListBlacklist(ListBlacklistRequest),
+    CreateBlacklist(CreateBlacklistRequest),
+    DeleteBlacklist(DeleteBlacklistRequest),
 
     // connection
     ListConnection(ListConnectionRequest),
@@ -66,6 +71,9 @@ pub enum MqttBrokerPlacementReply {
     ListAcl(ListAclReply),
     CreateAcl(CreateAclReply),
     DeleteAcl(DeleteAclReply),
+    ListBlacklist(ListBlacklistReply),
+    CreateBlacklist(CreateBlacklistReply),
+    DeleteBlacklist(DeleteBlacklistReply),
 
     // connection
     ListConnection(ListConnectionReply),
@@ -138,6 +146,31 @@ async fn call_once(
             let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
             let reply = client.mqtt_broker_delete_acl(delete_acl_request).await?;
             Ok(MqttBrokerPlacementReply::DeleteAcl(reply.into_inner()))
+        }
+        ListBlacklist(list_blacklist_request) => {
+            let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
+            let reply = client
+                .mqtt_broker_list_blacklist(list_blacklist_request)
+                .await?;
+            Ok(MqttBrokerPlacementReply::ListBlacklist(reply.into_inner()))
+        }
+        CreateBlacklist(create_blacklist_request) => {
+            let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
+            let reply = client
+                .mqtt_broker_create_blacklist(create_blacklist_request)
+                .await?;
+            Ok(MqttBrokerPlacementReply::CreateBlacklist(
+                reply.into_inner(),
+            ))
+        }
+        DeleteBlacklist(delete_blacklist_request) => {
+            let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
+            let reply = client
+                .mqtt_broker_delete_blacklist(delete_blacklist_request)
+                .await?;
+            Ok(MqttBrokerPlacementReply::DeleteBlacklist(
+                reply.into_inner(),
+            ))
         }
         ListConnection(list_connection_request) => {
             let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;

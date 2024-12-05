@@ -155,7 +155,7 @@ pub async fn try_send_retain_message(
                             subscriber.clone(),
                             publish,
                             Some(properties),
-                            Some(msg.create_time as u128),
+                            msg.create_time as u128,
                             "".to_string(),
                             pkid,
                         );

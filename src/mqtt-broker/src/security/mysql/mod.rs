@@ -224,6 +224,12 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
     async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
         return Ok(Vec::new());
     }
+    async fn save_blacklist(&self, _blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError> {
+        return Ok(());
+    }
+    async fn delete_blacklist(&self, _blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError> {
+        return Ok(());
+    }
 }
 
 #[cfg(test)]

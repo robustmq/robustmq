@@ -48,8 +48,9 @@ pub struct ClusterMetadata {
 impl ClusterMetadata {
     pub fn new() -> ClusterMetadata {
         let config = placement_center_conf();
-        if config.node.node_id == 0 {
-            panic!("node ids can range from 0 to 65536");
+
+        if !(1..=65536).contains(&config.node.node_id) {
+            panic!("node ids can range from 1 to 65536");
         }
 
         let node_addr = if let Some(addr) =
