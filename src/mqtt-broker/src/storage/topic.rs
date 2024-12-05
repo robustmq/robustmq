@@ -76,14 +76,11 @@ impl TopicStorage {
         Ok(results)
     }
 
-    pub async fn get_topic(
-        &self,
-        topic_name: String,
-    ) -> Result<Option<MqttTopic>, MqttBrokerError> {
+    pub async fn get_topic(&self, topic_name: &str) -> Result<Option<MqttTopic>, MqttBrokerError> {
         let config = broker_mqtt_conf();
         let request = ListTopicRequest {
             cluster_name: config.cluster_name.clone(),
-            topic_name,
+            topic_name: topic_name.to_owned(),
         };
 
         let reply =
@@ -139,9 +136,9 @@ impl TopicStorage {
     // Get the latest reserved message for the Topic dimension
     pub async fn get_retain_message(
         &self,
-        topic_name: String,
+        topic_name: &str,
     ) -> Result<Option<MqttMessage>, MqttBrokerError> {
-        if let Some(topic) = self.get_topic(topic_name.clone()).await? {
+        if let Some(topic) = self.get_topic(topic_name).await? {
             if let Some(retain_message) = topic.retain_message {
                 if retain_message.is_empty() {
                     return Ok(None);
@@ -152,6 +149,6 @@ impl TopicStorage {
             }
             return Ok(None);
         }
-        Err(MqttBrokerError::TopicDoesNotExist(topic_name.clone()))
+        Err(MqttBrokerError::TopicDoesNotExist(topic_name.to_owned()))
     }
 }

@@ -17,9 +17,10 @@ use std::sync::Arc;
 use bytes::Bytes;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
-use log::error;
 use metadata_struct::mqtt::message::MqttMessage;
-use protocol::mqtt::common::{Publish, PublishProperties, QoS, RetainForwardRule};
+use protocol::mqtt::common::{
+    Publish, PublishProperties, QoS, RetainForwardRule, Subscribe, SubscribeProperties,
+};
 use tokio::sync::broadcast::{self};
 
 use super::cache::{CacheManager, QosAckPacketInfo};
@@ -38,7 +39,7 @@ use crate::subscribe::sub_exclusive::{
 use crate::subscribe::subscriber::Subscriber;
 use crate::subscribe::SubPublishParam;
 
-pub async fn save_topic_retain_message(
+pub async fn save_retain_message(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     topic_name: String,
@@ -72,171 +73,168 @@ pub async fn save_topic_retain_message(
     Ok(())
 }
 
-// Reservation messages are processed when a subscription is created
-pub async fn try_send_retain_message(
-    client_id: String,
-    subscriber: Subscriber,
-    client_pool: Arc<ClientPool>,
-    cache_manager: Arc<CacheManager>,
-    connection_manager: Arc<ConnectionManager>,
-    stop_sx: broadcast::Sender<bool>,
-) {
-    if subscriber.retain_forward_rule == RetainForwardRule::Never {
-        return;
+pub async fn send_retain_message(
+    client_id: &String,
+    subscribe: &Subscribe,
+    subscribe_properties: &Option<SubscribeProperties>,
+    client_pool: &Arc<ClientPool>,
+    cache_manager: &Arc<CacheManager>,
+    connection_manager: &Arc<ConnectionManager>,
+    stop_sx: &broadcast::Sender<bool>,
+) -> Result<(), MqttBrokerError> {
+    let mut sub_ids = Vec::new();
+    if let Some(properties) = subscribe_properties {
+        if let Some(id) = properties.subscription_identifier {
+            sub_ids.push(id);
+        }
     }
 
-    let is_new_sub = cache_manager.is_new_sub(&client_id, &subscriber.sub_path);
+    for filter in subscribe.filters.iter() {
+        if filter.retain_forward_rule == RetainForwardRule::Never {
+            return Ok(());
+        }
 
-    if subscriber.retain_forward_rule == RetainForwardRule::OnNewSubscribe && !is_new_sub {
-        return;
-    }
+        let is_new_sub = cache_manager.is_new_sub(client_id, &filter.path);
 
-    tokio::spawn(async move {
-        let topic_id_list =
-            get_sub_topic_id_list(cache_manager.clone(), subscriber.sub_path.clone()).await;
+        if filter.retain_forward_rule == RetainForwardRule::OnNewSubscribe && !is_new_sub {
+            return Ok(());
+        }
+
+        let topic_id_list = get_sub_topic_id_list(cache_manager, &filter.path).await;
         let topic_storage = TopicStorage::new(client_pool.clone());
         let cluster = cache_manager.get_cluster_info();
-        for topic_id in topic_id_list {
-            if let Some(topic_name) = cache_manager.topic_name_by_id(topic_id) {
-                match topic_storage.get_retain_message(topic_name.clone()).await {
-                    Ok(Some(msg)) => {
-                        if subscriber.nolocal && client_id == msg.client_id {
-                            continue;
-                        }
+        for topic_id in topic_id_list.iter() {
+            let topic_name = if let Some(topic_name) = cache_manager.topic_name_by_id(topic_id) {
+                topic_name
+            } else {
+                continue;
+            };
 
-                        let retain = if subscriber.preserve_retain {
-                            msg.retain
-                        } else {
-                            false
-                        };
+            let msg = if let Some(message) = topic_storage.get_retain_message(&topic_name).await? {
+                message
+            } else {
+                continue;
+            };
 
-                        let qos = min_qos(cluster.protocol.max_qos, subscriber.qos);
-                        let pkid = 1;
-                        let mut publish = Publish {
-                            dup: false,
-                            qos,
-                            pkid,
-                            retain,
-                            topic: Bytes::from(topic_name),
-                            payload: msg.payload.clone(),
-                        };
-                        let mut user_properties = msg.user_properties.clone();
-                        user_properties.push((
-                            SUB_RETAIN_MESSAGE_PUSH_FLAG.to_string(),
-                            SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE.to_string(),
-                        ));
-
-                        let mut sub_ids = Vec::new();
-                        if let Some(id) = subscriber.subscription_identifier {
-                            sub_ids.push(id);
-                        }
-
-                        let properties = PublishProperties {
-                            payload_format_indicator: msg.format_indicator,
-                            message_expiry_interval: Some(msg.expiry_interval as u32),
-                            topic_alias: None,
-                            response_topic: msg.response_topic,
-                            correlation_data: msg.correlation_data,
-                            user_properties,
-                            subscription_identifiers: sub_ids,
-                            content_type: msg.content_type,
-                        };
-
-                        record_retain_sent_metrics(publish.qos);
-
-                        let pkid = if qos != QoS::AtMostOnce {
-                            cache_manager.get_pkid(&client_id).await
-                        } else {
-                            0
-                        };
-                        publish.pkid = pkid;
-
-                        let sub_pub_param = SubPublishParam::new(
-                            subscriber.clone(),
-                            publish,
-                            Some(properties),
-                            msg.create_time as u128,
-                            "".to_string(),
-                            pkid,
-                        );
-
-                        match qos {
-                            QoS::AtMostOnce => {
-                                publish_message_qos0(
-                                    &cache_manager,
-                                    &connection_manager,
-                                    &sub_pub_param,
-                                    &stop_sx,
-                                )
-                                .await;
-                            }
-
-                            QoS::AtLeastOnce => {
-                                let (wait_puback_sx, _) = broadcast::channel(1);
-                                cache_manager.add_ack_packet(
-                                    &client_id,
-                                    pkid,
-                                    QosAckPacketInfo {
-                                        sx: wait_puback_sx.clone(),
-                                        create_time: now_second(),
-                                    },
-                                );
-
-                                match exclusive_publish_message_qos1(
-                                    &cache_manager,
-                                    &connection_manager,
-                                    &sub_pub_param,
-                                    &stop_sx,
-                                    &wait_puback_sx,
-                                )
-                                .await
-                                {
-                                    Ok(()) => {
-                                        cache_manager.remove_pkid_info(&client_id, pkid);
-                                        cache_manager.remove_ack_packet(&client_id, pkid);
-                                    }
-                                    Err(e) => {
-                                        error!("{}", e);
-                                    }
-                                }
-                            }
-
-                            QoS::ExactlyOnce => {
-                                let (wait_ack_sx, _) = broadcast::channel(1);
-                                cache_manager.add_ack_packet(
-                                    &client_id,
-                                    pkid,
-                                    QosAckPacketInfo {
-                                        sx: wait_ack_sx.clone(),
-                                        create_time: now_second(),
-                                    },
-                                );
-                                match exclusive_publish_message_qos2(
-                                    &cache_manager,
-                                    &connection_manager,
-                                    &sub_pub_param,
-                                    &stop_sx,
-                                    &wait_ack_sx,
-                                )
-                                .await
-                                {
-                                    Ok(()) => {
-                                        cache_manager.remove_pkid_info(&client_id, pkid);
-                                        cache_manager.remove_ack_packet(&client_id, pkid);
-                                    }
-                                    Err(e) => {
-                                        error!("{}", e);
-                                    }
-                                }
-                            }
-                        };
-                    }
-                    Ok(None) => {
-                        continue;
-                    }
-                    Err(e) => error!("get retain message error, error message:{}", e),
-                }
+            if filter.nolocal && *client_id == msg.client_id {
+                continue;
             }
+
+            let retain = if filter.preserve_retain {
+                msg.retain
+            } else {
+                false
+            };
+
+            let qos = min_qos(cluster.protocol.max_qos, filter.qos);
+
+            let mut user_properties = msg.user_properties;
+            user_properties.push((
+                SUB_RETAIN_MESSAGE_PUSH_FLAG.to_string(),
+                SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE.to_string(),
+            ));
+
+            let properties = PublishProperties {
+                payload_format_indicator: msg.format_indicator,
+                message_expiry_interval: Some(msg.expiry_interval as u32),
+                topic_alias: None,
+                response_topic: msg.response_topic,
+                correlation_data: msg.correlation_data,
+                user_properties,
+                subscription_identifiers: sub_ids.clone(),
+                content_type: msg.content_type,
+            };
+
+            let pkid = if qos != QoS::AtMostOnce {
+                cache_manager.get_pkid(client_id).await
+            } else {
+                0
+            };
+
+            let publish = Publish {
+                dup: false,
+                qos,
+                pkid,
+                retain,
+                topic: Bytes::from(topic_name.clone()),
+                payload: msg.payload,
+            };
+
+            let subscriber = Subscriber {
+                client_id: client_id.clone(),
+                ..Default::default()
+            };
+            let sub_pub_param = SubPublishParam::new(
+                subscriber,
+                publish,
+                Some(properties),
+                msg.create_time as u128,
+                "".to_string(),
+                pkid,
+            );
+
+            match qos {
+                QoS::AtMostOnce => {
+                    publish_message_qos0(
+                        cache_manager,
+                        connection_manager,
+                        &sub_pub_param,
+                        stop_sx,
+                    )
+                    .await;
+                }
+
+                QoS::AtLeastOnce => {
+                    let (wait_puback_sx, _) = broadcast::channel(1);
+                    cache_manager.add_ack_packet(
+                        client_id,
+                        pkid,
+                        QosAckPacketInfo {
+                            sx: wait_puback_sx.clone(),
+                            create_time: now_second(),
+                        },
+                    );
+
+                    exclusive_publish_message_qos1(
+                        cache_manager,
+                        connection_manager,
+                        &sub_pub_param,
+                        stop_sx,
+                        &wait_puback_sx,
+                    )
+                    .await?;
+
+                    cache_manager.remove_pkid_info(client_id, pkid);
+                    cache_manager.remove_ack_packet(client_id, pkid);
+                }
+
+                QoS::ExactlyOnce => {
+                    let (wait_ack_sx, _) = broadcast::channel(1);
+                    cache_manager.add_ack_packet(
+                        client_id,
+                        pkid,
+                        QosAckPacketInfo {
+                            sx: wait_ack_sx.clone(),
+                            create_time: now_second(),
+                        },
+                    );
+
+                    exclusive_publish_message_qos2(
+                        cache_manager,
+                        connection_manager,
+                        &sub_pub_param,
+                        stop_sx,
+                        &wait_ack_sx,
+                    )
+                    .await?;
+
+                    cache_manager.remove_pkid_info(client_id, pkid);
+                    cache_manager.remove_ack_packet(client_id, pkid);
+                }
+            };
+
+            record_retain_sent_metrics(qos);
         }
-    });
+    }
+    Ok(())
 }

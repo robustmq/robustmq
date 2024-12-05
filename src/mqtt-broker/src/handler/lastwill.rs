@@ -24,7 +24,7 @@ use storage_adapter::storage::StorageAdapter;
 use super::cache::CacheManager;
 use super::error::MqttBrokerError;
 use super::message::build_message_expire;
-use super::retain::save_topic_retain_message;
+use super::retain::save_retain_message;
 use super::topic::try_init_topic;
 use crate::storage::message::MessageStorage;
 use crate::storage::session::SessionStorage;
@@ -58,7 +58,7 @@ where
     )
     .await?;
 
-    save_topic_retain_message(
+    save_retain_message(
         cache_manager,
         client_pool,
         topic_name,
