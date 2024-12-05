@@ -16,8 +16,8 @@ use common_base::error::common::CommonError;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest, CreateUserReply,
     CreateUserRequest, DeleteAclReply, DeleteAclRequest, DeleteUserReply, DeleteUserRequest,
-    ListAclReply, ListAclRequest, ListConnectionReply, ListConnectionRequest, ListUserReply,
-    ListUserRequest,
+    EnableSlowSubScribeReply, EnableSlowSubscribeRequest, ListAclReply, ListAclRequest,
+    ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
@@ -45,6 +45,9 @@ pub enum MqttBrokerPlacementRequest {
 
     // connection
     ListConnection(ListConnectionRequest),
+
+    // slow subscribe
+    EnableSlowSubscribe(EnableSlowSubscribeRequest),
 }
 
 /// Enum wrapper for all possible replies from the mqtt broker
@@ -66,6 +69,9 @@ pub enum MqttBrokerPlacementReply {
 
     // connection
     ListConnection(ListConnectionReply),
+
+    // slow subscribe
+    EnableSlowSubscribe(EnableSlowSubScribeReply),
 }
 
 pub mod admin;
@@ -139,6 +145,15 @@ async fn call_once(
                 .mqtt_broker_list_connection(list_connection_request)
                 .await?;
             Ok(MqttBrokerPlacementReply::ListConnection(reply.into_inner()))
+        }
+        EnableSlowSubscribe(enable_slow_subscribe_request) => {
+            let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
+            let reply = client
+                .mqtt_broker_enable_slow_subscribe(enable_slow_subscribe_request)
+                .await?;
+            Ok(MqttBrokerPlacementReply::EnableSlowSubscribe(
+                reply.into_inner(),
+            ))
         }
     }
 }

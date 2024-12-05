@@ -23,8 +23,8 @@ use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest, CreateUserReply,
     CreateUserRequest, DeleteAclReply, DeleteAclRequest, DeleteUserReply, DeleteUserRequest,
-    ListAclReply, ListAclRequest, ListConnectionRaw, ListConnectionReply, ListConnectionRequest,
-    ListUserReply, ListUserRequest,
+    EnableSlowSubScribeReply, EnableSlowSubscribeRequest, ListAclReply, ListAclRequest,
+    ListConnectionRaw, ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
 };
 use tonic::{Request, Response, Status};
 
@@ -221,5 +221,23 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         }
         reply.list_connection_raw = list_connection_raw;
         Ok(Response::new(reply))
+    }
+
+    async fn mqtt_broker_enable_slow_subscribe(
+        &self,
+        request: Request<EnableSlowSubscribeRequest>,
+    ) -> Result<Response<EnableSlowSubScribeReply>, Status> {
+        let subscribe_request = request.into_inner();
+
+        match self
+            .cache_manager
+            .enable_slow_sub(subscribe_request.is_enable)
+            .await
+        {
+            Ok(_) => Ok(Response::new(EnableSlowSubScribeReply {
+                is_enable: subscribe_request.is_enable,
+            })),
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
     }
 }
