@@ -39,6 +39,6 @@ impl RaftNetworkFactory<TypeConfig> for Network {
     #[tracing::instrument(level = "debug", skip_all)]
     async fn new_client(&mut self, _: NodeId, node: &Node) -> Self::Network {
         let addr = node.rpc_addr.to_string();
-        return NetworkConnection::new(addr, self.client_pool.clone());
+        NetworkConnection::new(addr, self.client_pool.clone())
     }
 }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clap::{command, Parser};
+use clap::Parser;
 use common_base::config::placement_center::init_placement_center_conf_by_path;
 use common_base::config::DEFAULT_PLACEMENT_CENTER_CONFIG;
 use common_base::logs::init_placement_center_log;
