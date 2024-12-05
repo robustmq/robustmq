@@ -17,8 +17,7 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use common_base::tools::now_second;
-use grpc_clients::pool::ClientPool;
-use log::{debug, error, info};
+use log::{error, info};
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{MqttPacket, MqttProtocol, Publish, PublishProperties, QoS};
 use storage_adapter::storage::StorageAdapter;
@@ -34,7 +33,6 @@ use super::subscribe_manager::{ShareLeaderSubscribeData, SubscribeManager};
 use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
 use crate::handler::error::MqttBrokerError;
 use crate::handler::message::is_message_expire;
-use crate::handler::retain::try_send_retain_message;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
 use crate::storage::message::MessageStorage;
@@ -47,7 +45,6 @@ pub struct SubscribeShareLeader<S> {
     message_storage: Arc<S>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
-    client_pool: Arc<ClientPool>,
 }
 
 impl<S> SubscribeShareLeader<S>
@@ -59,14 +56,12 @@ where
         message_storage: Arc<S>,
         connection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<CacheManager>,
-        client_pool: Arc<ClientPool>,
     ) -> Self {
         SubscribeShareLeader {
             subscribe_manager,
             message_storage,
             connection_manager,
             cache_manager,
-            client_pool,
         }
     }
 
@@ -119,16 +114,15 @@ where
             }
 
             // start push data thread
-            let subscribe_manager = self.subscribe_manager.clone();
             if !self
                 .subscribe_manager
                 .share_leader_push_thread
                 .contains_key(&share_leader_key)
             {
                 self.push_by_round_robin(
-                    share_leader_key.clone(),
-                    sub_data.clone(),
-                    subscribe_manager,
+                    share_leader_key,
+                    sub_data,
+                    self.subscribe_manager.clone(),
                 )
                 .await;
             }
@@ -143,25 +137,33 @@ where
     ) {
         let (sub_thread_stop_sx, mut sub_thread_stop_rx) = broadcast::channel(1);
 
-        for (_, subscriber) in sub_data.sub_list.clone() {
-            try_send_retain_message(
-                subscriber.client_id.clone(),
-                subscriber.clone(),
-                self.client_pool.clone(),
-                self.cache_manager.clone(),
-                self.connection_manager.clone(),
-                sub_thread_stop_sx.clone(),
-            )
-            .await;
-        }
+        let group_id = format!(
+            "system_sub_{}_{}_{}",
+            sub_data.group_name, sub_data.sub_name, sub_data.topic_id
+        );
+        let cursor_point = 0;
 
+        let message_storage = MessageStorage::new(self.message_storage.clone());
+
+        // get current offset by group
+        let mut offset = match message_storage
+            .get_group_offset(&sub_data.topic_id, &group_id)
+            .await
+        {
+            Ok(offset) => offset,
+            Err(e) => {
+                error!("{}", e);
+                return;
+            }
+        };
+
+        // save push thread
         self.subscribe_manager
             .share_leader_push_thread
             .insert(share_leader_key.clone(), sub_thread_stop_sx.clone());
 
         let connection_manager = self.connection_manager.clone();
         let cache_manager = self.cache_manager.clone();
-        let message_storage = self.message_storage.clone();
 
         tokio::spawn(async move {
             info!(
@@ -169,13 +171,9 @@ where
                 sub_data.group_name, sub_data.sub_name, sub_data.topic_name
             );
 
-            let message_storage: MessageStorage<S> = MessageStorage::new(message_storage);
-
-            let mut cursor_point = 0;
             let mut sub_list: Vec<Subscriber> =
                 build_share_leader_sub_list(&subscribe_manager, &share_leader_key);
             let mut pre_times = now_second();
-
             loop {
                 select! {
                     val = sub_thread_stop_rx.recv() =>{
@@ -189,16 +187,34 @@ where
                             }
                         }
                     }
-                    cursor = read_message_process(
+                    res = read_message_process(
                         &connection_manager,
                         &cache_manager,
                         &message_storage,
                         &sub_data,
                         &sub_list,
+                        &group_id,
                         cursor_point,
+                        offset,
                         &sub_thread_stop_sx
                     ) =>{
-                        cursor_point = cursor;
+                        match res {
+                            Ok(data) => {
+                                if let Some(offset_cur) = data{
+                                    offset = offset_cur + 1;
+                                }
+                            },
+
+                            Err(e) => {
+                                error!(
+                                    "Failed to read message from storage, failure message: {},topic:{},group{}",
+                                    e.to_string(),
+                                    &sub_data.topic_id,
+                                    group_id
+                                );
+                                sleep(Duration::from_millis(100)).await;
+                            }
+                        }
 
                         // Refresh the subscriber list of shared subscriptions every second to ensure that new subscribers can get messages in time.
                         if now_second() - pre_times >= 1{
@@ -216,136 +232,94 @@ where
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn read_message_process<S>(
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<CacheManager>,
     message_storage: &MessageStorage<S>,
     sub_data: &ShareLeaderSubscribeData,
     sub_list: &[Subscriber],
+    group_id: &str,
     mut cursor_point: usize,
+    offset: u64,
     stop_sx: &Sender<bool>,
-) -> usize
+) -> Result<Option<u64>, MqttBrokerError>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
-    let max_wait_ms: u64 = 500;
     let record_num = calc_record_num(sub_list.len());
-    let group_id = format!(
-        "system_sub_{}_{}_{}",
-        sub_data.group_name, sub_data.sub_name, sub_data.topic_id
-    );
-    match message_storage
-        .read_topic_message(
-            sub_data.topic_id.to_owned(),
-            group_id.to_owned(),
-            record_num as u128,
-        )
-        .await
-    {
-        Ok(results) => {
-            if results.is_empty() {
-                sleep(Duration::from_millis(max_wait_ms)).await;
-                return cursor_point;
+
+    let results = message_storage
+        .read_topic_message(&sub_data.topic_id, offset, record_num as u64)
+        .await?;
+
+    if results.is_empty() {
+        return Ok(None);
+    }
+
+    for record in results.iter() {
+        let msg = MqttMessage::decode_record(record.clone())?;
+
+        if is_message_expire(&msg) {
+            continue;
+        }
+
+        let mut loop_times = 0;
+        loop {
+            if loop_times > try_loop_times(sub_list.len()) {
+                error!("Share subscription push message fails, dropping the message, possibly because no subscriber is available");
+                break;
             }
 
-            for record in results {
-                let msg: MqttMessage = match MqttMessage::decode_record(record.clone()) {
-                    Ok(msg) => msg,
-                    Err(e) => {
-                        error!(
-                            "Storage layer message Decord failed with error message :{}",
-                            e
-                        );
-                        loop_commit_offset(
-                            message_storage,
-                            &sub_data.topic_id,
-                            &group_id,
-                            record.offset,
-                        )
-                        .await;
-                        return cursor_point;
-                    }
+            cursor_point = choose_available_sub(cursor_point, sub_list);
+            let subscribe = sub_list.get(cursor_point).unwrap();
+
+            if let Some((mut publish, properties)) =
+                build_publish(cache_manager, subscribe, &sub_data.topic_name, &msg)
+            {
+                let pkid = if publish.qos != QoS::AtMostOnce {
+                    cache_manager.get_pkid(&subscribe.client_id).await
+                } else {
+                    0
                 };
 
-                if is_message_expire(&msg) {
-                    debug!("message expires, is not pushed to the client, and is discarded");
-                    loop_commit_offset(
-                        message_storage,
-                        &sub_data.topic_id,
-                        &group_id,
-                        record.offset,
-                    )
-                    .await;
-                    continue;
-                }
+                publish.pkid = pkid;
 
-                let mut loop_times = 0;
-                loop {
-                    if loop_times > try_loop_times(sub_list.len()) {
-                        error!("Share subscription push message fails, dropping the message, possibly because no subscriber is available");
-                        break;
-                    }
+                let sub_pub_param = SubPublishParam::new(
+                    subscribe.clone(),
+                    publish,
+                    Some(properties),
+                    record.timestamp,
+                    group_id.to_owned(),
+                    pkid,
+                );
 
-                    cursor_point = choose_available_sub(cursor_point, sub_list);
-                    let subscribe = sub_list.get(cursor_point).unwrap();
-
-                    if let Some((mut publish, properties)) =
-                        build_publish(cache_manager, subscribe, &sub_data.topic_name, &msg)
-                    {
-                        let pkid = if publish.qos != QoS::AtMostOnce {
-                            cache_manager.get_pkid(&subscribe.client_id).await
-                        } else {
-                            0
-                        };
-                        publish.pkid = pkid;
-
-                        let sub_pub_param = SubPublishParam::new(
-                            subscribe.clone(),
-                            publish,
-                            Some(properties),
-                            record.create_time,
-                            group_id.to_owned(),
-                            pkid,
-                        );
-
-                        if qos_publish(
-                            connection_manager,
-                            cache_manager,
-                            message_storage,
-                            sub_pub_param,
-                            record.offset,
-                            stop_sx,
-                        )
-                        .await
-                        {
-                            break;
-                        }
-                    }
-                    loop_times += 1;
-                }
-
-                // commit offset
-                loop_commit_offset(
+                if qos_publish(
+                    connection_manager,
+                    cache_manager,
                     message_storage,
-                    &sub_data.topic_id,
-                    &group_id,
-                    record.offset,
+                    sub_pub_param,
+                    record.offset.unwrap(),
+                    stop_sx,
                 )
-                .await;
+                .await
+                {
+                    break;
+                }
             }
-            cursor_point
+            loop_times += 1;
         }
-        Err(e) => {
-            error!(
-                "Failed to read message from storage, failure message: {},topic:{},group{}",
-                e.to_string(),
-                &sub_data.topic_id,
-                group_id
-            );
-            sleep(Duration::from_millis(max_wait_ms)).await;
-            cursor_point
-        }
+
+        // commit offset
+        loop_commit_offset(
+            message_storage,
+            &sub_data.topic_id,
+            group_id,
+            record.offset.unwrap(),
+        )
+        .await;
     }
+    Ok(results.last().unwrap().offset)
 }
 
 fn try_loop_times(sub_len: usize) -> usize {
@@ -366,7 +340,7 @@ async fn qos_publish<S>(
     cache_manager: &Arc<CacheManager>,
     message_storage: &MessageStorage<S>,
     sub_pub_param: SubPublishParam,
-    offset: u128,
+    offset: u64,
     stop_sx: &Sender<bool>,
 ) -> bool
 where
@@ -572,7 +546,7 @@ async fn share_leader_publish_message_qos2<S>(
     connection_manager: &Arc<ConnectionManager>,
     message_storage: &MessageStorage<S>,
     sub_pub_param: &SubPublishParam,
-    offset: u128,
+    offset: u64,
     stop_sx: &broadcast::Sender<bool>,
     wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
 ) -> Result<(), MqttBrokerError>

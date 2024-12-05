@@ -17,14 +17,12 @@ use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use metadata_struct::adapter::record::Record;
 
-use crate::storage::{ShardConfig, StorageAdapter};
+use crate::storage::{ReadConfig, ShardConfig, StorageAdapter};
 
 #[derive(Clone)]
 pub struct MemoryStorageAdapter {
-    pub memory_data: DashMap<String, Record>,
     pub shard_data: DashMap<String, Vec<Record>>,
-    pub group_data: DashMap<String, u128>,
-    pub key_index: DashMap<String, DashMap<String, u128>>,
+    pub group_data: DashMap<String, u64>,
 }
 
 impl Default for MemoryStorageAdapter {
@@ -36,10 +34,8 @@ impl Default for MemoryStorageAdapter {
 impl MemoryStorageAdapter {
     pub fn new() -> Self {
         MemoryStorageAdapter {
-            memory_data: DashMap::with_capacity(256),
             shard_data: DashMap::with_capacity(256),
             group_data: DashMap::with_capacity(256),
-            key_index: DashMap::with_capacity(256),
         }
     }
 
@@ -47,21 +43,8 @@ impl MemoryStorageAdapter {
         format!("{}_{}", namespace, shard_name)
     }
 
-    pub fn offset_key(&self, namespace: String, group_id: String, shard_name: String) -> String {
+    pub fn group_key(&self, namespace: String, group_id: String, shard_name: String) -> String {
         format!("{}_{}_{}", namespace, group_id, shard_name)
-    }
-
-    pub fn get_offset(
-        &self,
-        namespace: String,
-        group_id: String,
-        shard_name: String,
-    ) -> Option<u128> {
-        let key = self.offset_key(namespace, group_id, shard_name);
-        if let Some(offset) = self.group_data.get(&key) {
-            return Some(*offset);
-        }
-        None
     }
 }
 
@@ -86,115 +69,141 @@ impl StorageAdapter for MemoryStorageAdapter {
         return Ok(());
     }
 
-    async fn stream_write(
+    async fn batch_write(
         &self,
         namespace: String,
         shard_name: String,
-        message: Vec<Record>,
+        messages: Vec<Record>,
     ) -> Result<Vec<usize>, CommonError> {
         let shard_key = self.shard_key(namespace, shard_name);
-        let mut shard = if let Some((_, da)) = self.shard_data.remove(&shard_key) {
-            da
-        } else {
-            Vec::new()
-        };
-        let mut start_offset = shard.len();
-        let mut record_list = Vec::new();
         let mut offset_res = Vec::new();
-        for mut msg in message {
-            offset_res.push(start_offset);
-            msg.offset = start_offset as u128;
-            start_offset += 1;
-            record_list.push(msg);
-            // todo build timestamp index
-            // todo build key index
+
+        if let Some(mut data_list) = self.shard_data.get_mut(&shard_key) {
+            let mut start_offset = data_list.len();
+            for mut msg in messages {
+                offset_res.push(start_offset);
+                msg.offset = Some(start_offset as u64);
+                data_list.push(msg);
+                start_offset += 1;
+            }
+        } else {
+            let mut data_list = Vec::new();
+            for (offset, mut msg) in messages.into_iter().enumerate() {
+                offset_res.push(offset);
+
+                msg.offset = Some(offset as u64);
+                data_list.push(msg);
+            }
+            self.shard_data.insert(shard_key, data_list);
         }
 
-        shard.append(&mut record_list);
-        self.shard_data.insert(shard_key, shard);
         return Ok(offset_res);
     }
 
-    async fn stream_read(
+    async fn write(
         &self,
         namespace: String,
         shard_name: String,
-        group_id: String,
-        record_num: Option<u128>,
-        _: Option<usize>,
-    ) -> Result<Option<Vec<Record>>, CommonError> {
-        let offset = if let Some(da) = self.get_offset(namespace, group_id, shard_name.clone()) {
-            da + 1
+        mut data: Record,
+    ) -> Result<usize, CommonError> {
+        let shard_key = self.shard_key(namespace, shard_name);
+
+        let offset = if let Some(mut data_list) = self.shard_data.get_mut(&shard_key) {
+            let start_offset = data_list.len();
+
+            data.offset = Some(start_offset as u64);
+            data_list.push(data);
+
+            start_offset
         } else {
+            data.offset = Some(0);
+            self.shard_data.insert(shard_key, vec![data]);
             0
         };
 
-        let num = record_num.unwrap_or(10);
-        if let Some(da) = self.shard_data.get(&shard_name) {
-            let mut cur_offset = 0;
+        return Ok(offset);
+    }
+
+    async fn read_by_offset(
+        &self,
+        namespace: String,
+        shard_name: String,
+        offset: u64,
+        read_config: ReadConfig,
+    ) -> Result<Vec<Record>, CommonError> {
+        let shard_key = self.shard_key(namespace, shard_name);
+
+        if let Some(data_list) = self.shard_data.get(&shard_key) {
+            if data_list.len() < offset as usize {
+                return Ok(Vec::new());
+            }
+
             let mut result = Vec::new();
-            for i in offset..(offset + num) {
-                if let Some(value) = da.get(i as usize) {
+            for i in offset..(offset + read_config.max_record_num) {
+                if let Some(value) = data_list.get(i as usize) {
                     result.push(value.clone());
-                    cur_offset += 1;
                 } else {
                     break;
                 }
             }
-            if cur_offset > 0 {
-                self.group_data.insert(shard_name, offset + cur_offset);
-            }
-            return Ok(Some(result));
+            return Ok(result);
         }
-        return Ok(None);
+
+        Ok(Vec::new())
     }
 
-    async fn stream_commit_offset(
+    async fn read_by_tag(
         &self,
+        _namespace: String,
+        _shard_name: String,
+        _tag: String,
+        _read_config: ReadConfig,
+    ) -> Result<Vec<Record>, CommonError> {
+        return Ok(Vec::new());
+    }
+
+    async fn read_by_key(
+        &self,
+        _namespace: String,
+        _shard_name: String,
+        _key: String,
+        _read_config: ReadConfig,
+    ) -> Result<Vec<Record>, CommonError> {
+        return Ok(Vec::new());
+    }
+
+    async fn get_offset_by_timestamp(
+        &self,
+        _namespace: String,
+        _shard_name: String,
+        _timestamp: u64,
+    ) -> Result<u64, CommonError> {
+        Ok(0)
+    }
+
+    async fn get_offset_by_group(
+        &self,
+        group_name: String,
         namespace: String,
         shard_name: String,
-        group_id: String,
-        offset: u128,
-    ) -> Result<bool, CommonError> {
-        let key = self.offset_key(namespace, group_id, shard_name);
-        self.group_data.insert(key, offset);
-        return Ok(true);
+    ) -> Result<u64, CommonError> {
+        let group_key = self.group_key(namespace, group_name, shard_name);
+        if let Some(offset) = self.group_data.get(&group_key) {
+            return Ok(*offset);
+        }
+        Ok(0)
     }
 
-    async fn stream_read_by_offset(
+    async fn commit_offset(
         &self,
+        group_name: String,
         namespace: String,
         shard_name: String,
-        offset: usize,
-    ) -> Result<Option<Record>, CommonError> {
-        let shard_key = self.shard_key(namespace, shard_name);
-        if let Some(da) = self.shard_data.get(&shard_key) {
-            if let Some(value) = da.get(offset) {
-                return Ok(Some(value.clone()));
-            }
-        }
-        return Ok(None);
-    }
-
-    async fn stream_read_by_timestamp(
-        &self,
-        _: String,
-        _: String,
-        _: u128,
-        _: u128,
-        _: Option<usize>,
-        _: Option<usize>,
-    ) -> Result<Option<Vec<Record>>, CommonError> {
-        return Ok(None);
-    }
-
-    async fn stream_read_by_key(
-        &self,
-        _: String,
-        _: String,
-        _: String,
-    ) -> Result<Option<Record>, CommonError> {
-        return Ok(None);
+        offset: u64,
+    ) -> Result<(), CommonError> {
+        let group_key = self.group_key(namespace, group_name, shard_name);
+        self.group_data.insert(group_key, offset);
+        Ok(())
     }
 
     async fn close(&self) -> Result<(), CommonError> {
@@ -208,7 +217,7 @@ mod tests {
     use metadata_struct::adapter::record::Record;
 
     use super::MemoryStorageAdapter;
-    use crate::storage::StorageAdapter;
+    use crate::storage::{ReadConfig, StorageAdapter};
 
     #[tokio::test]
     async fn stream_read_write() {
@@ -217,141 +226,152 @@ mod tests {
         let ms1 = "test1".to_string();
         let ms2 = "test2".to_string();
         let data = vec![
-            Record::build_b(ms1.clone().as_bytes().to_vec()),
-            Record::build_b(ms2.clone().as_bytes().to_vec()),
+            Record::build_byte(ms1.clone().as_bytes().to_vec()),
+            Record::build_byte(ms2.clone().as_bytes().to_vec()),
         ];
         let namespace = unique_id();
+        let shard_key = storage_adapter.shard_key(namespace.clone(), shard_name.clone());
 
         let result = storage_adapter
-            .stream_write(namespace.clone(), shard_name.clone(), data)
+            .batch_write(namespace.clone(), shard_name.clone(), data)
             .await
             .unwrap();
         assert_eq!(result.first().unwrap().clone(), 0);
         assert_eq!(result.get(1).unwrap().clone(), 1);
-        assert!(storage_adapter.shard_data.contains_key(&shard_name));
-        assert_eq!(
-            storage_adapter.shard_data.get(&shard_name).unwrap().len(),
-            2
-        );
+        assert!(storage_adapter.shard_data.contains_key(&shard_key));
+        assert_eq!(storage_adapter.shard_data.get(&shard_key).unwrap().len(), 2);
 
         let ms3 = "test3".to_string();
         let ms4 = "test4".to_string();
         let data = vec![
-            Record::build_b(ms3.clone().as_bytes().to_vec()),
-            Record::build_b(ms4.clone().as_bytes().to_vec()),
+            Record::build_byte(ms3.clone().as_bytes().to_vec()),
+            Record::build_byte(ms4.clone().as_bytes().to_vec()),
         ];
 
         let result = storage_adapter
-            .stream_write(namespace.clone(), shard_name.clone(), data)
+            .batch_write(namespace.clone(), shard_name.clone(), data)
             .await
             .unwrap();
         assert_eq!(result.first().unwrap().clone(), 2);
         assert_eq!(result.get(1).unwrap().clone(), 3);
-        assert!(storage_adapter.shard_data.contains_key(&shard_name));
-        assert_eq!(
-            storage_adapter.shard_data.get(&shard_name).unwrap().len(),
-            4
-        );
+        assert!(storage_adapter.shard_data.contains_key(&shard_key));
+        assert_eq!(storage_adapter.shard_data.get(&shard_key).unwrap().len(), 4);
 
         let group_id = "test_group_id".to_string();
-        let record_num = Some(1);
-        let record_size = None;
+        let mut read_config = ReadConfig::new();
+        read_config.max_record_num = 1;
+
+        // read m1
+        let offset = 0;
         let res = storage_adapter
-            .stream_read(
+            .read_by_offset(
                 namespace.clone(),
                 shard_name.clone(),
-                group_id.clone(),
-                record_num,
-                record_size,
+                offset,
+                read_config.clone(),
             )
             .await
-            .unwrap()
             .unwrap();
+
         assert_eq!(
             String::from_utf8(res.first().unwrap().clone().data).unwrap(),
             ms1
         );
+
         storage_adapter
-            .stream_commit_offset(
+            .commit_offset(
+                group_id.clone(),
                 namespace.clone(),
                 shard_name.clone(),
-                group_id.clone(),
-                res.first().unwrap().clone().offset,
+                res.first().unwrap().clone().offset.unwrap(),
             )
             .await
             .unwrap();
 
+        // read m2
+        let offset = storage_adapter
+            .get_offset_by_group(group_id.clone(), namespace.clone(), shard_name.clone())
+            .await
+            .unwrap();
+
         let res = storage_adapter
-            .stream_read(
+            .read_by_offset(
                 namespace.clone(),
                 shard_name.clone(),
-                group_id.clone(),
-                record_num,
-                record_size,
+                offset + 1,
+                read_config.clone(),
             )
             .await
-            .unwrap()
             .unwrap();
         assert_eq!(
             String::from_utf8(res.first().unwrap().clone().data).unwrap(),
             ms2
         );
+
         storage_adapter
-            .stream_commit_offset(
+            .commit_offset(
+                group_id.clone(),
                 namespace.clone(),
                 shard_name.clone(),
-                group_id.clone(),
-                res.first().unwrap().clone().offset,
+                res.first().unwrap().clone().offset.unwrap(),
             )
             .await
             .unwrap();
 
+        // read m3
+        let offset = storage_adapter
+            .get_offset_by_group(group_id.clone(), namespace.clone(), shard_name.clone())
+            .await
+            .unwrap();
+
         let res = storage_adapter
-            .stream_read(
+            .read_by_offset(
                 namespace.clone(),
                 shard_name.clone(),
-                group_id.clone(),
-                record_num,
-                record_size,
+                offset + 1,
+                read_config.clone(),
             )
             .await
-            .unwrap()
             .unwrap();
         assert_eq!(
             String::from_utf8(res.first().unwrap().clone().data).unwrap(),
             ms3
         );
         storage_adapter
-            .stream_commit_offset(
+            .commit_offset(
+                group_id.clone(),
                 namespace.clone(),
                 shard_name.clone(),
-                group_id.clone(),
-                res.first().unwrap().clone().offset,
+                res.first().unwrap().clone().offset.unwrap(),
             )
             .await
             .unwrap();
 
+        // read m4
+        let offset = storage_adapter
+            .get_offset_by_group(group_id.clone(), namespace.clone(), shard_name.clone())
+            .await
+            .unwrap();
+
         let res = storage_adapter
-            .stream_read(
+            .read_by_offset(
                 namespace.clone(),
                 shard_name.clone(),
-                group_id.clone(),
-                record_num,
-                record_size,
+                offset + 1,
+                read_config.clone(),
             )
             .await
-            .unwrap()
             .unwrap();
         assert_eq!(
             String::from_utf8(res.first().unwrap().clone().data).unwrap(),
             ms4
         );
         storage_adapter
-            .stream_commit_offset(
+            .commit_offset(
+                group_id.clone(),
                 namespace.clone(),
                 shard_name.clone(),
-                group_id.clone(),
-                res.first().unwrap().clone().offset,
+                res.first().unwrap().clone().offset.unwrap(),
             )
             .await
             .unwrap();

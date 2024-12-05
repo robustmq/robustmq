@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::tools::now_mills;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -22,66 +23,46 @@ pub struct Header {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Record {
-    pub offset: u128,
-    pub header: Option<Vec<Header>>,
-    pub key: Option<String>,
+    pub offset: Option<u64>,
+    pub header: Vec<Header>,
+    pub key: String,
     pub data: Vec<u8>,
-    pub create_time: Option<u128>,
+    pub tags: Vec<String>,
+    pub timestamp: u128,
 }
 
 impl Record {
-    pub fn build_a(
-        key: Option<String>,
-        data: Vec<u8>,
-        header: Option<Vec<Header>>,
-        create_time: Option<u128>,
-    ) -> Self {
+    pub fn build_byte(data: Vec<u8>) -> Self {
         Record {
-            offset: 0,
-            key,
+            offset: None,
+            key: "".to_string(),
             data,
-            create_time,
-            header,
+            tags: Vec::new(),
+            timestamp: now_mills(),
+            header: Vec::new(),
         }
     }
 
-    pub fn build_b(data: Vec<u8>) -> Self {
+    pub fn build_str(data: String) -> Self {
         Record {
-            offset: 0,
-            key: None,
-            data,
-            create_time: None,
-            header: None,
-        }
-    }
-
-    pub fn build_c(key: String, data: Vec<u8>) -> Self {
-        Record {
-            offset: 0,
-            key: Some(key),
-            data,
-            create_time: None,
-            header: None,
-        }
-    }
-
-    pub fn build_d(key: String, header: Vec<Header>, data: Vec<u8>) -> Self {
-        Record {
-            offset: 0,
-            key: Some(key),
-            data,
-            create_time: None,
-            header: Some(header),
-        }
-    }
-
-    pub fn build_e(data: String) -> Self {
-        Record {
-            offset: 0,
-            key: None,
+            offset: None,
+            key: "".to_string(),
             data: data.as_bytes().to_vec(),
-            create_time: None,
-            header: None,
+            tags: Vec::new(),
+            timestamp: now_mills(),
+            header: Vec::new(),
         }
+    }
+
+    pub fn set_tags(&mut self, tags: Vec<String>) {
+        self.tags = tags;
+    }
+
+    pub fn set_header(&mut self, headers: Vec<Header>) {
+        self.header = headers;
+    }
+
+    pub fn set_key(&mut self, key: String) {
+        self.key = key;
     }
 }

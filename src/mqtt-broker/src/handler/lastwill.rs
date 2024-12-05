@@ -76,7 +76,7 @@ where
         MqttMessage::build_record(client_id, &publish, &publish_properties, message_expire)
     {
         message_storage
-            .append_topic_message(topic.topic_id.clone(), vec![record])
+            .append_topic_message(&topic.topic_id, vec![record])
             .await?;
     }
     Ok(())

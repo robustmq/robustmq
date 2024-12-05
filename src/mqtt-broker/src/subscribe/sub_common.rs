@@ -182,12 +182,12 @@ pub async fn publish_message_to_client(
         }
 
         // record slow sub data
-        if let Some(ct) = sub_pub_param.create_time {
+        if sub_pub_param.create_time > 0 {
             let slow_data = SlowSubData::build(
                 sub_pub_param.subscribe.sub_path.clone(),
                 sub_pub_param.subscribe.client_id.clone(),
                 sub_pub_param.subscribe.topic_name.clone(),
-                now_mills() - ct,
+                now_mills() - sub_pub_param.create_time,
             );
             record_slow_sub_data(slow_data)?;
         }
@@ -336,13 +336,13 @@ pub async fn loop_commit_offset<S>(
     message_storage: &MessageStorage<S>,
     topic_id: &str,
     group_id: &str,
-    offset: u128,
+    offset: u64,
 ) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     loop {
         match message_storage
-            .commit_group_offset(topic_id.to_owned(), group_id.to_owned(), offset)
+            .commit_group_offset(group_id, topic_id, offset)
             .await
         {
             Ok(_) => {

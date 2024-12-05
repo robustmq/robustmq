@@ -17,11 +17,12 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use common_base::tools::now_second;
-use grpc_clients::pool::ClientPool;
 use log::{debug, error, info};
+use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{MqttPacket, MqttProtocol, Publish, PublishProperties, QoS};
 use storage_adapter::storage::StorageAdapter;
+use tokio::select;
 use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
 
@@ -30,10 +31,10 @@ use super::sub_common::{
     qos2_send_publish, qos2_send_pubrel, wait_packet_ack,
 };
 use super::subscribe_manager::SubscribeManager;
+use super::subscriber::Subscriber;
 use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
 use crate::handler::error::MqttBrokerError;
 use crate::handler::message::is_message_expire;
-use crate::handler::retain::try_send_retain_message;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
 use crate::storage::message::MessageStorage;
@@ -43,7 +44,6 @@ pub struct SubscribeExclusive<S> {
     cache_manager: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
-    client_pool: Arc<ClientPool>,
     message_storage: Arc<S>,
 }
 
@@ -56,14 +56,12 @@ where
         cache_manager: Arc<CacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
-        client_pool: Arc<ClientPool>,
     ) -> Self {
         SubscribeExclusive {
             message_storage,
             cache_manager,
             subscribe_manager,
             connection_manager,
-            client_pool,
         }
     }
 
@@ -96,8 +94,6 @@ where
     // Exclusively subscribed messages are pushed directly to the consuming client
     async fn start_push_thread(&self) {
         for (exclusive_key, subscriber) in self.subscribe_manager.exclusive_subscribe.clone() {
-            let client_id = subscriber.client_id.clone();
-
             if self
                 .subscribe_manager
                 .exclusive_push_thread
@@ -107,11 +103,11 @@ where
             }
 
             let (sub_thread_stop_sx, mut sub_thread_stop_rx) = broadcast::channel(1);
-            let message_storage = self.message_storage.clone();
+
+            let message_storage = MessageStorage::new(self.message_storage.clone());
             let cache_manager = self.cache_manager.clone();
             let connection_manager = self.connection_manager.clone();
             let subscribe_manager = self.subscribe_manager.clone();
-            let client_pool = self.client_pool.clone();
 
             // Subscribe to the data push thread
             self.subscribe_manager
@@ -119,244 +115,261 @@ where
                 .insert(exclusive_key.clone(), sub_thread_stop_sx.clone());
 
             tokio::spawn(async move {
-                info!(
-                        "Exclusive push thread for client_id [{}], sub_path: [{}], topic_id [{}] was started successfully",
-                        client_id, subscriber.sub_path, subscriber.topic_id
-                    );
-                let message_storage = MessageStorage::new(message_storage);
-                let group_id = format!(
-                    "system_sub_{}_{}_{}",
-                    client_id, subscriber.sub_path, subscriber.topic_id
-                );
-                let record_num = 5;
-                let max_wait_ms = 100;
+                info!("Exclusive push thread for client_id [{}], sub_path: [{}], topic_id [{}] was started successfully",
+                        subscriber.client_id, subscriber.sub_path, subscriber.topic_id);
 
-                let cluster_qos = cache_manager.get_cluster_info().protocol.max_qos;
-                let qos = min_qos(cluster_qos, subscriber.qos);
+                let group_id = build_group_name(&subscriber);
+                let qos = build_pub_qos(&cache_manager, &subscriber);
+                let sub_ids = build_sub_ids(&subscriber);
 
-                try_send_retain_message(
-                    client_id.clone(),
-                    subscriber.clone(),
-                    client_pool.clone(),
-                    cache_manager.clone(),
-                    connection_manager.clone(),
-                    sub_thread_stop_sx.clone(),
-                )
-                .await;
-
-                let mut sub_ids = Vec::new();
-                if let Some(id) = subscriber.subscription_identifier {
-                    sub_ids.push(id);
-                }
+                let mut offset = match message_storage
+                    .get_group_offset(&subscriber.topic_id, &group_id)
+                    .await
+                {
+                    Ok(offset) => offset,
+                    Err(e) => {
+                        error!("{}", e);
+                        subscribe_manager
+                            .exclusive_push_thread
+                            .remove(&exclusive_key);
+                        return;
+                    }
+                };
 
                 loop {
-                    if let Ok(flag) = sub_thread_stop_rx.try_recv() {
-                        if flag {
-                            info!(
-                                    "Exclusive Push thread for client_id [{}], sub_path: [{}], topic_id [{}] was stopped successfully",
-                                    client_id,
-                                    subscriber.sub_path,
-                                    subscriber.topic_id
-                                );
-                            break;
-                        }
-                    }
-                    match message_storage
-                        .read_topic_message(
-                            subscriber.topic_id.clone(),
-                            group_id.clone(),
-                            record_num,
-                        )
-                        .await
-                    {
-                        Ok(result) => {
-                            if result.is_empty() {
-                                sleep(Duration::from_millis(max_wait_ms)).await;
-                                continue;
-                            }
+                    select! {
+                        val = sub_thread_stop_rx.recv() =>{
+                            if let Ok(flag) = val {
+                                if flag {
+                                    info!(
+                                        "Exclusive Push thread for client_id [{}], sub_path: [{}], topic_id [{}] was stopped successfully",
+                                        subscriber.client_id,
+                                        subscriber.sub_path,
+                                        subscriber.topic_id
+                                    );
 
-                            for record in result.clone() {
-                                let msg = match MqttMessage::decode_record(record.clone()) {
-                                    Ok(msg) => msg,
+                                    subscribe_manager.exclusive_push_thread.remove(&exclusive_key);
+                                    break;
+                                }
+                            }
+                        },
+                        val = pub_message(
+                                &connection_manager,
+                                &message_storage,
+                                &cache_manager,
+                                &subscriber,
+                                &group_id,
+                                &qos,
+                                &sub_ids,
+                                offset,
+                                &sub_thread_stop_sx
+                            ) => {
+                                match val{
+                                    Ok(offset_op) => {
+                                        if let Some(off) = offset_op{
+                                            offset = off + 1;
+                                        }else{
+                                            sleep(Duration::from_millis(100)).await;
+                                        }
+                                    }
                                     Err(e) => {
-                                        error!("Storage layer message Decord failed with error message :{}",e);
-                                        loop_commit_offset(
-                                            &message_storage,
-                                            &subscriber.topic_id,
-                                            &group_id,
-                                            record.offset,
-                                        )
-                                        .await;
-                                        continue;
-                                    }
-                                };
-
-                                if is_message_expire(&msg) {
-                                    debug!("message expires, is not pushed to the client, and is discarded");
-                                    loop_commit_offset(
-                                        &message_storage,
-                                        &subscriber.topic_id,
-                                        &group_id,
-                                        record.offset,
-                                    )
-                                    .await;
-                                    continue;
-                                }
-
-                                if subscriber.nolocal && (subscriber.client_id == msg.client_id) {
-                                    loop_commit_offset(
-                                        &message_storage,
-                                        &subscriber.topic_id,
-                                        &group_id,
-                                        record.offset,
-                                    )
-                                    .await;
-                                    continue;
-                                }
-
-                                let retain = if subscriber.preserve_retain {
-                                    msg.retain
-                                } else {
-                                    false
-                                };
-
-                                let mut publish = Publish {
-                                    dup: false,
-                                    qos,
-                                    pkid: 0,
-                                    retain,
-                                    topic: Bytes::from(subscriber.topic_name.clone()),
-                                    payload: msg.payload,
-                                };
-
-                                let properties = PublishProperties {
-                                    payload_format_indicator: msg.format_indicator,
-                                    message_expiry_interval: Some(msg.expiry_interval as u32),
-                                    topic_alias: None,
-                                    response_topic: msg.response_topic,
-                                    correlation_data: msg.correlation_data,
-                                    user_properties: msg.user_properties,
-                                    subscription_identifiers: sub_ids.clone(),
-                                    content_type: msg.content_type,
-                                };
-
-                                let pkid = if qos != QoS::AtMostOnce {
-                                    cache_manager.get_pkid(&client_id).await
-                                } else {
-                                    0
-                                };
-                                publish.pkid = pkid;
-
-                                let sub_pub_param = SubPublishParam::new(
-                                    subscriber.clone(),
-                                    publish,
-                                    Some(properties),
-                                    record.create_time,
-                                    group_id.clone(),
-                                    pkid,
-                                );
-
-                                match qos {
-                                    QoS::AtMostOnce => {
-                                        publish_message_qos0(
-                                            &cache_manager,
-                                            &connection_manager,
-                                            &sub_pub_param,
-                                            &sub_thread_stop_sx,
-                                        )
-                                        .await;
-                                    }
-
-                                    QoS::AtLeastOnce => {
-                                        let (wait_puback_sx, _) = broadcast::channel(1);
-
-                                        cache_manager.add_ack_packet(
-                                            &client_id,
-                                            pkid,
-                                            QosAckPacketInfo {
-                                                sx: wait_puback_sx.clone(),
-                                                create_time: now_second(),
-                                            },
+                                        error!(
+                                            "Push message to client failed, failure message: {},topic:{},group{}",
+                                            e.to_string(),
+                                            subscriber.topic_id.clone(),
+                                            group_id.clone()
                                         );
-
-                                        match exclusive_publish_message_qos1(
-                                            &cache_manager,
-                                            &connection_manager,
-                                            &sub_pub_param,
-                                            &sub_thread_stop_sx,
-                                            &wait_puback_sx,
-                                        )
-                                        .await
-                                        {
-                                            Ok(()) => {
-                                                cache_manager.remove_pkid_info(&client_id, pkid);
-                                                cache_manager.remove_ack_packet(&client_id, pkid);
-                                            }
-                                            Err(e) => {
-                                                error!("{}", e);
-                                            }
-                                        }
+                                        sleep(Duration::from_millis(100)).await;
                                     }
-
-                                    QoS::ExactlyOnce => {
-                                        let (wait_ack_sx, _) = broadcast::channel(1);
-                                        cache_manager.add_ack_packet(
-                                            &client_id,
-                                            pkid,
-                                            QosAckPacketInfo {
-                                                sx: wait_ack_sx.clone(),
-                                                create_time: now_second(),
-                                            },
-                                        );
-                                        match exclusive_publish_message_qos2(
-                                            &cache_manager,
-                                            &connection_manager,
-                                            &sub_pub_param,
-                                            &sub_thread_stop_sx,
-                                            &wait_ack_sx,
-                                        )
-                                        .await
-                                        {
-                                            Ok(()) => {
-                                                cache_manager.remove_pkid_info(&client_id, pkid);
-                                                cache_manager.remove_ack_packet(&client_id, pkid);
-                                            }
-                                            Err(e) => {
-                                                error!("{}", e);
-                                            }
-                                        }
-                                    }
-                                };
-
-                                // commit offset
-                                loop_commit_offset(
-                                    &message_storage,
-                                    &subscriber.topic_id,
-                                    &group_id,
-                                    record.offset,
-                                )
-                                .await;
-                                continue;
+                                }
                             }
-                        }
-                        Err(e) => {
-                            error!(
-                                    "Failed to read message from storage, failure message: {},topic:{},group{}",
-                                    e.to_string(),
-                                    subscriber.topic_id.clone(),
-                                    group_id.clone()
-                                );
-                            sleep(Duration::from_millis(max_wait_ms)).await;
-                        }
                     }
                 }
-
-                subscribe_manager
-                    .exclusive_push_thread
-                    .remove(&exclusive_key);
             });
         }
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn pub_message<S>(
+    connection_manager: &Arc<ConnectionManager>,
+    message_storage: &MessageStorage<S>,
+    cache_manager: &Arc<CacheManager>,
+    subscriber: &Subscriber,
+    group_id: &str,
+    qos: &QoS,
+    sub_ids: &[usize],
+    offset: u64,
+    sub_thread_stop_sx: &broadcast::Sender<bool>,
+) -> Result<Option<u64>, MqttBrokerError>
+where
+    S: StorageAdapter + Sync + Send + 'static + Clone,
+{
+    let record_num = 5;
+    let client_id = subscriber.client_id.clone();
+
+    let results = message_storage
+        .read_topic_message(&subscriber.topic_id, offset, record_num)
+        .await?;
+
+    if results.is_empty() {
+        return Ok(None);
+    }
+
+    for record in results.iter() {
+        let record_offset = record.offset.unwrap();
+
+        // build publish params
+        let sub_pub_param = if let Some(params) = buile_pub_message(
+            record.to_owned(),
+            group_id,
+            qos,
+            subscriber,
+            cache_manager,
+            sub_ids,
+        )
+        .await?
+        {
+            params
+        } else {
+            continue;
+        };
+
+        let pkid = sub_pub_param.pkid;
+        match qos {
+            QoS::AtMostOnce => {
+                publish_message_qos0(
+                    cache_manager,
+                    connection_manager,
+                    &sub_pub_param,
+                    sub_thread_stop_sx,
+                )
+                .await;
+            }
+
+            QoS::AtLeastOnce => {
+                let (wait_puback_sx, _) = broadcast::channel(1);
+                cache_manager.add_ack_packet(
+                    &client_id,
+                    pkid,
+                    QosAckPacketInfo {
+                        sx: wait_puback_sx.clone(),
+                        create_time: now_second(),
+                    },
+                );
+
+                exclusive_publish_message_qos1(
+                    cache_manager,
+                    connection_manager,
+                    &sub_pub_param,
+                    sub_thread_stop_sx,
+                    &wait_puback_sx,
+                )
+                .await?;
+
+                cache_manager.remove_pkid_info(&client_id, pkid);
+                cache_manager.remove_ack_packet(&client_id, pkid);
+            }
+
+            QoS::ExactlyOnce => {
+                let (wait_ack_sx, _) = broadcast::channel(1);
+                cache_manager.add_ack_packet(
+                    &client_id,
+                    pkid,
+                    QosAckPacketInfo {
+                        sx: wait_ack_sx.clone(),
+                        create_time: now_second(),
+                    },
+                );
+
+                exclusive_publish_message_qos2(
+                    cache_manager,
+                    connection_manager,
+                    &sub_pub_param,
+                    sub_thread_stop_sx,
+                    &wait_ack_sx,
+                )
+                .await?;
+
+                cache_manager.remove_pkid_info(&client_id, pkid);
+                cache_manager.remove_ack_packet(&client_id, pkid);
+            }
+        }
+
+        // commit offset
+        loop_commit_offset(
+            message_storage,
+            &subscriber.topic_id,
+            group_id,
+            record_offset,
+        )
+        .await;
+    }
+
+    Ok(Some(results.last().unwrap().offset.unwrap()))
+}
+
+async fn buile_pub_message(
+    record: Record,
+    group_id: &str,
+    qos: &QoS,
+    subscriber: &Subscriber,
+    cache_manager: &Arc<CacheManager>,
+    sub_ids: &[usize],
+) -> Result<Option<SubPublishParam>, MqttBrokerError> {
+    let msg = MqttMessage::decode_record(record.clone())?;
+
+    if is_message_expire(&msg) {
+        debug!("message expires, is not pushed to the client, and is discarded");
+        return Ok(None);
+    }
+
+    if subscriber.nolocal && (subscriber.client_id == msg.client_id) {
+        return Ok(None);
+    }
+
+    let retain = if subscriber.preserve_retain {
+        msg.retain
+    } else {
+        false
+    };
+
+    let mut publish = Publish {
+        dup: false,
+        qos: qos.to_owned(),
+        pkid: 0,
+        retain,
+        topic: Bytes::from(subscriber.topic_name.clone()),
+        payload: msg.payload,
+    };
+
+    let properties = PublishProperties {
+        payload_format_indicator: msg.format_indicator,
+        message_expiry_interval: Some(msg.expiry_interval as u32),
+        topic_alias: None,
+        response_topic: msg.response_topic,
+        correlation_data: msg.correlation_data,
+        user_properties: msg.user_properties,
+        subscription_identifiers: sub_ids.into(),
+        content_type: msg.content_type,
+    };
+
+    let pkid = if *qos != QoS::AtMostOnce {
+        cache_manager.get_pkid(&subscriber.client_id).await
+    } else {
+        0
+    };
+    publish.pkid = pkid;
+
+    let sub_pub_param = SubPublishParam::new(
+        subscriber.clone(),
+        publish,
+        Some(properties),
+        record.timestamp,
+        group_id.to_string(),
+        pkid,
+    );
+    Ok(Some(sub_pub_param))
 }
 
 // When the subscribed QOS is 1, we need to keep retrying to send the message to the client.
@@ -485,6 +498,26 @@ pub async fn exclusive_publish_message_qos2(
         sleep(Duration::from_millis(1)).await;
     }
     Ok(())
+}
+
+fn build_group_name(subscriber: &Subscriber) -> String {
+    format!(
+        "system_sub_{}_{}_{}",
+        subscriber.client_id, subscriber.sub_path, subscriber.topic_id
+    )
+}
+
+fn build_pub_qos(cache_manager: &Arc<CacheManager>, subscriber: &Subscriber) -> QoS {
+    let cluster_qos = cache_manager.get_cluster_info().protocol.max_qos;
+    min_qos(cluster_qos, subscriber.qos)
+}
+
+fn build_sub_ids(subscriber: &Subscriber) -> Vec<usize> {
+    let mut sub_ids = Vec::new();
+    if let Some(id) = subscriber.subscription_identifier {
+        sub_ids.push(id);
+    }
+    sub_ids
 }
 
 #[cfg(test)]
