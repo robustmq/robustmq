@@ -32,7 +32,6 @@ use storage_adapter::storage::StorageAdapter;
 use super::connection::disconnect_connection;
 use super::flow_control::is_flow_control;
 use super::message::build_message_expire;
-use super::retain::try_send_retain_message;
 use crate::handler::cache::{
     CacheManager, ConnectionLiveTime, QosAckPackageData, QosAckPackageType,
 };
