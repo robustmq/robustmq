@@ -33,9 +33,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Check crate compiles
   linux-build-lib:
-    name: cargo check
+    name: cargo cache
     runs-on: ubuntu-latest
     container:
       image: amd64/rust
@@ -53,7 +52,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             ./target/
-          key: cargo-cache-${{ hashFiles('**/Cargo.toml', '**/Cargo.lock') }}  # Run tests
+          key: cargo-cache-${{ hashFiles('**/Cargo.toml', '**/Cargo.lock') }} 
 
   rustfmt:
     runs-on: ubuntu-latest

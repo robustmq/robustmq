@@ -127,7 +127,7 @@ pub async fn create_raft_node(
 
     let network = Network::new(client_pool);
 
-    match openraft::Raft::new(
+    match Raft::new(
         conf.node.node_id,
         config.clone(),
         network,

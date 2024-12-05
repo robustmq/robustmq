@@ -185,7 +185,7 @@ mod tests {
         assert_eq!(config.network.tcp_port, 1883);
         assert_eq!(config.network.tcps_port, 8883);
         assert_eq!(config.network.websocket_port, 8093);
-        assert_eq!(config.network.websockets_port, 8043);
+        assert_eq!(config.network.websockets_port, 8094);
         assert_eq!(config.network.quic_port, 9083);
         assert!(!config.network.tls_cert.is_empty());
         assert!(!config.network.tls_key.is_empty());
@@ -236,7 +236,7 @@ mod tests {
         assert_eq!(config.network.tcp_port, 1883);
         assert_eq!(config.network.tcps_port, 8883);
         assert_eq!(config.network.websocket_port, 8093);
-        assert_eq!(config.network.websockets_port, 8043);
+        assert_eq!(config.network.websockets_port, 8094);
         assert_eq!(config.network.quic_port, 9083);
         assert!(!config.network.tls_cert.is_empty());
         assert!(!config.network.tls_key.is_empty());

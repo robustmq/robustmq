@@ -30,6 +30,7 @@
 
 use std::io;
 use std::net::AddrParseError;
+use std::num::ParseIntError;
 use std::string::FromUtf8Error;
 
 use thiserror::Error;
@@ -38,28 +39,34 @@ use tonic::Status;
 #[derive(Error, Debug)]
 pub enum CommonError {
     #[error("{0}")]
-    TonicTransport(#[from] tonic::transport::Error),
+    FromTonicTransport(#[from] tonic::transport::Error),
 
     #[error("{0}")]
-    ErrorKind(#[from] Box<bincode::ErrorKind>),
+    FromErrorKind(#[from] Box<bincode::ErrorKind>),
 
     #[error("{0}")]
-    DecodeError(#[from] prost::DecodeError),
+    FromDecodeError(#[from] prost::DecodeError),
 
     #[error("{0}")]
-    SerdeJsonError(#[from] serde_json::Error),
+    FromSerdeJsonError(#[from] serde_json::Error),
 
     #[error("{0}")]
-    RocksdbError(#[from] rocksdb::Error),
+    FromRocksdbError(#[from] rocksdb::Error),
 
     #[error("{0}")]
-    IoError(#[from] io::Error),
+    FromIoError(#[from] io::Error),
 
     #[error("{0}")]
     FromUtf8Error(#[from] FromUtf8Error),
 
     #[error("{0}")]
-    AddrParseError(#[from] AddrParseError),
+    FromAddrParseError(#[from] AddrParseError),
+
+    #[error("{0}")]
+    FromMysqlError(#[from] mysql::Error),
+
+    #[error("{0}")]
+    FromParseIntError(#[from] ParseIntError),
 
     #[error("{0}")]
     CommonError(String),

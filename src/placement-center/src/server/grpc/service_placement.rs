@@ -24,11 +24,9 @@ use protocol::placement_center::placement_center_inner::{
     ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetResourceConfigReply,
     GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, NodeListReply, NodeListRequest,
     RegisterNodeReply, RegisterNodeRequest, ReportMonitorReply, ReportMonitorRequest,
-    SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply,
-    SendRaftMessageRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
-    SetResourceConfigReply, SetResourceConfigRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
+    SetIdempotentDataReply, SetIdempotentDataRequest, SetResourceConfigReply,
+    SetResourceConfigRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
-use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 use tonic::{Request, Response, Status};
 
 use super::validate::ValidateExt;
@@ -178,48 +176,6 @@ impl PlacementCenterService for GrpcPlacementService {
         _: Request<ReportMonitorRequest>,
     ) -> Result<Response<ReportMonitorReply>, Status> {
         return Ok(Response::new(ReportMonitorReply::default()));
-    }
-
-    async fn send_raft_message(
-        &self,
-        request: Request<SendRaftMessageRequest>,
-    ) -> Result<Response<SendRaftMessageReply>, Status> {
-        let message = raftPreludeMessage::decode(request.into_inner().message.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))?;
-
-        match self
-            .raft_machine_apply
-            .apply_raft_message(message, "send_raft_message".to_string())
-            .await
-        {
-            Ok(_) => return Ok(Response::new(SendRaftMessageReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(
-                    PlacementCenterError::RaftLogCommitTimeout(e.to_string()).to_string(),
-                ));
-            }
-        }
-    }
-
-    async fn send_raft_conf_change(
-        &self,
-        request: Request<SendRaftConfChangeRequest>,
-    ) -> Result<Response<SendRaftConfChangeReply>, Status> {
-        let change = ConfChange::decode(request.into_inner().message.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))?;
-
-        match self
-            .raft_machine_apply
-            .apply_conf_raft_message(change, "send_conf_raft_message".to_string())
-            .await
-        {
-            Ok(_) => return Ok(Response::new(SendRaftConfChangeReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(
-                    PlacementCenterError::RaftLogCommitTimeout(e.to_string()).to_string(),
-                ));
-            }
-        }
     }
 
     async fn set_resource_config(

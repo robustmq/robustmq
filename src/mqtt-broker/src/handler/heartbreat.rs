@@ -15,13 +15,22 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use log::{debug, error};
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
 
+use super::error::MqttBrokerError;
 use crate::storage::cluster::ClusterStorage;
+
+pub async fn register_node(client_pool: Arc<ClientPool>) -> Result<(), MqttBrokerError> {
+    let cluster_storage = ClusterStorage::new(client_pool.clone());
+    let config = broker_mqtt_conf();
+    cluster_storage.register_node(config).await?;
+    Ok(())
+}
 
 pub async fn report_heartbeat(client_pool: Arc<ClientPool>, stop_send: broadcast::Sender<bool>) {
     loop {
@@ -43,11 +52,16 @@ pub async fn report_heartbeat(client_pool: Arc<ClientPool>, stop_send: broadcast
 }
 
 async fn report(client_pool: Arc<ClientPool>) {
-    let cluster_storage = ClusterStorage::new(client_pool);
+    let cluster_storage = ClusterStorage::new(client_pool.clone());
     match cluster_storage.heartbeat().await {
         Ok(()) => {}
         Err(e) => {
-            error!("{}", e.to_string());
+            if e.to_string().contains("Node") && e.to_string().contains("does not exist") {
+                if let Err(e) = register_node(client_pool.clone()).await {
+                    error!("{}", e);
+                }
+            }
+            error!("{}", e);
         }
     }
     sleep(Duration::from_secs(3)).await;

@@ -14,9 +14,16 @@
 
 use std::sync::Arc;
 
+use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use metadata_struct::adapter::record::Record;
 use storage_adapter::storage::StorageAdapter;
+
+pub fn cluster_name() -> String {
+    let conf = broker_mqtt_conf();
+    conf.cluster_name.clone()
+}
+
 #[derive(Clone)]
 pub struct MessageStorage<T> {
     storage_adapter: Arc<T>,
@@ -37,7 +44,12 @@ where
         record: Vec<Record>,
     ) -> Result<Vec<usize>, CommonError> {
         let shard_name = topic_id;
-        match self.storage_adapter.stream_write(shard_name, record).await {
+        let namespace = cluster_name();
+        match self
+            .storage_adapter
+            .stream_write(namespace, shard_name, record)
+            .await
+        {
             Ok(id) => Ok(id),
             Err(e) => Err(e),
         }
@@ -51,9 +63,10 @@ where
         record_num: u128,
     ) -> Result<Vec<Record>, CommonError> {
         let shard_name = topic_id;
+        let namespace = cluster_name();
         match self
             .storage_adapter
-            .stream_read(shard_name, group_id, Some(record_num), None)
+            .stream_read(namespace, shard_name, group_id, Some(record_num), None)
             .await
         {
             Ok(Some(data)) => Ok(data),
@@ -70,9 +83,10 @@ where
         offset: u128,
     ) -> Result<bool, CommonError> {
         let shard_name = topic_id;
+        let namespace = cluster_name();
         match self
             .storage_adapter
-            .stream_commit_offset(shard_name, group_id, offset)
+            .stream_commit_offset(namespace, shard_name, group_id, offset)
             .await
         {
             Ok(flag) => Ok(flag),

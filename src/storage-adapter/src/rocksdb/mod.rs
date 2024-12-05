@@ -49,26 +49,32 @@ impl RocksDBStorageAdapter {
     }
 
     #[inline(always)]
-    pub fn record_key<S1: Display>(&self, shard_name: S1, index: u128) -> String {
-        format!("{}_record_{}", shard_name, index)
+    pub fn record_key<S1: Display>(&self, namespace: S1, shard_name: S1, index: u128) -> String {
+        format!("{}_{}_record_{}", namespace, shard_name, index)
     }
 
     #[inline(always)]
-    pub fn offset_shard_key<S1: Display>(&self, shard_name: S1) -> String {
-        format!("{}_{}", shard_name, "shard_offset")
+    pub fn offset_shard_key<S1: Display>(&self, namespace: S1, shard_name: S1) -> String {
+        format!("{}_{}_{}", namespace, shard_name, "shard_offset")
     }
 
     #[inline(always)]
-    pub fn offset_key<S1: Display, S2: Display>(&self, shard_name: S1, group_id: S2) -> String {
-        format!("{}_{}", shard_name, group_id)
+    pub fn offset_key<S1: Display, S2: Display>(
+        &self,
+        namespace: S1,
+        shard_name: S1,
+        group_id: S2,
+    ) -> String {
+        format!("{}_{}_{}", namespace, shard_name, group_id)
     }
 
     pub fn get_offset<S1: Display, S2: Display>(
         &self,
+        namespace: S1,
         shard_name: S1,
         group_id: S2,
     ) -> Option<u128> {
-        let key = self.offset_key(shard_name, group_id);
+        let key = self.offset_key(namespace, shard_name, group_id);
         self.db
             .cf_handle(DB_COLUMN_FAMILY_KV)
             .and_then(|cf| self.db.read(cf, &key).ok()?)
@@ -79,41 +85,31 @@ impl RocksDBStorageAdapter {}
 
 #[async_trait]
 impl StorageAdapter for RocksDBStorageAdapter {
-    async fn create_shard(&self, shard_name: String, _: ShardConfig) -> Result<(), CommonError> {
+    async fn create_shard(
+        &self,
+        namespace: String,
+        shard_name: String,
+        _: ShardConfig,
+    ) -> Result<(), CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY_RECORD).unwrap();
-        let key = self.offset_shard_key(shard_name);
+        let key = self.offset_shard_key(namespace, shard_name);
         self.db.write(cf, key.as_str(), &0_u128)
     }
 
-    async fn delete_shard(&self, shard_name: String) -> Result<(), CommonError> {
+    async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY_RECORD).unwrap();
-        self.db.delete_prefix(cf, shard_name.as_str())
-    }
-
-    async fn set(&self, key: String, value: Record) -> Result<(), CommonError> {
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_KV).unwrap();
-        self.db.write(cf, key.as_str(), &value)
-    }
-    async fn get(&self, key: String) -> Result<Option<Record>, CommonError> {
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_KV).unwrap();
-        self.db.read(cf, &key)
-    }
-    async fn delete(&self, key: String) -> Result<(), CommonError> {
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_KV).unwrap();
-        self.db.delete(cf, key.as_str())
-    }
-    async fn exists(&self, key: String) -> Result<bool, CommonError> {
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_KV).unwrap();
-        Ok(self.db.exist(cf, key.as_str()))
+        let key = self.offset_shard_key(namespace, shard_name);
+        self.db.delete_prefix(cf, &key)
     }
 
     async fn stream_write(
         &self,
+        namespace: String,
         shard_name: String,
         message: Vec<Record>,
     ) -> Result<Vec<usize>, CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY_RECORD).unwrap();
-        let key_shard_offset = self.offset_shard_key(&shard_name);
+        let key_shard_offset = self.offset_shard_key(namespace.clone(), shard_name.clone());
         let offset = self
             .db
             .read::<u128>(cf, key_shard_offset.as_str())?
@@ -126,29 +122,27 @@ impl StorageAdapter for RocksDBStorageAdapter {
             offset_res.push(start_offset as usize);
             msg.offset = start_offset;
 
-            self.db.write(
-                cf,
-                format!("{}_record_{}", shard_name, start_offset).as_str(),
-                &msg,
-            )?;
+            let record_key = self.record_key(namespace.clone(), shard_name.clone(), start_offset);
+            self.db.write(cf, &record_key, &msg)?;
             start_offset += 1;
         }
 
         self.db
             .write(cf, key_shard_offset.as_str(), &start_offset)?;
 
-        return Ok(offset_res);
+        Ok(offset_res)
     }
 
     async fn stream_read(
         &self,
+        namespace: String,
         shard_name: String,
         group_id: String,
         record_num: Option<u128>,
         _: Option<usize>,
     ) -> Result<Option<Vec<Record>>, CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY_RECORD).unwrap();
-        let group_offset_key = self.offset_key(shard_name.clone(), group_id);
+        let group_offset_key = self.offset_key(namespace.clone(), shard_name.clone(), group_id);
         let offset = self
             .db
             .read::<u128>(cf, group_offset_key.as_str())?
@@ -159,9 +153,8 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let mut cur_offset = 0;
         let mut result = Vec::new();
         for i in offset..(offset + num) {
-            let value = self
-                .db
-                .read::<Record>(cf, self.record_key(&shard_name, i).as_str())?;
+            let record_key = self.record_key(namespace.clone(), shard_name.clone(), i);
+            let value = self.db.read::<Record>(cf, &record_key)?;
 
             if let Some(value) = value {
                 result.push(value.clone());
@@ -175,48 +168,58 @@ impl StorageAdapter for RocksDBStorageAdapter {
             self.db
                 .write(cf, group_offset_key.as_str(), &(offset + cur_offset))?;
         }
-        return Ok(Some(result));
+        Ok(Some(result))
     }
 
     async fn stream_commit_offset(
         &self,
+        namespace: String,
         shard_name: String,
         group_id: String,
         offset: u128,
     ) -> Result<bool, CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY_RECORD).unwrap();
-        let key = self.offset_key(group_id, shard_name);
+        let key = self.offset_key(namespace, group_id, shard_name);
         self.db.write(cf, key.as_str(), &offset)?;
-        return Ok(true);
+        Ok(true)
     }
 
     async fn stream_read_by_offset(
         &self,
+        namespace: String,
         shard_name: String,
         offset: usize,
     ) -> Result<Option<Record>, CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY_RECORD).unwrap();
-        self.db
-            .read::<Record>(cf, self.record_key(shard_name, offset as u128).as_str())
+        self.db.read::<Record>(
+            cf,
+            self.record_key(namespace, shard_name, offset as u128)
+                .as_str(),
+        )
     }
 
     async fn stream_read_by_timestamp(
         &self,
+        _: String,
         _: String,
         _: u128,
         _: u128,
         _: Option<usize>,
         _: Option<usize>,
     ) -> Result<Option<Vec<Record>>, CommonError> {
-        return Ok(None);
+        Ok(None)
     }
 
     async fn stream_read_by_key(
         &self,
         _: String,
         _: String,
+        _: String,
     ) -> Result<Option<Record>, CommonError> {
-        return Ok(None);
+        Ok(None)
+    }
+    async fn close(&self) -> Result<(), CommonError> {
+        Ok(())
     }
 }
 
@@ -232,6 +235,7 @@ mod tests {
         let db_path = format!("/tmp/robustmq_{}", unique_id());
 
         let storage_adapter = RocksDBStorageAdapter::new(db_path.as_str(), 100);
+        let namespace = unique_id();
         let shard_name = "test-11".to_string();
         let ms1 = "test1".to_string();
         let ms2 = "test2".to_string();
@@ -241,7 +245,7 @@ mod tests {
         ];
 
         let result = storage_adapter
-            .stream_write(shard_name.clone(), data)
+            .stream_write(namespace.clone(), shard_name.clone(), data)
             .await
             .unwrap();
 
@@ -249,7 +253,13 @@ mod tests {
         assert_eq!(result.get(1).unwrap().clone(), 1);
         assert_eq!(
             storage_adapter
-                .stream_read(shard_name.clone(), "test_".to_string(), Some(10), None)
+                .stream_read(
+                    namespace.clone(),
+                    shard_name.clone(),
+                    "test_".to_string(),
+                    Some(10),
+                    None
+                )
                 .await
                 .unwrap()
                 .unwrap()
@@ -265,11 +275,17 @@ mod tests {
         ];
 
         let result = storage_adapter
-            .stream_write(shard_name.clone(), data)
+            .stream_write(namespace.clone(), shard_name.clone(), data)
             .await
             .unwrap();
         let result_read = storage_adapter
-            .stream_read(shard_name.clone(), "test_".to_string(), Some(10), None)
+            .stream_read(
+                namespace.clone(),
+                shard_name.clone(),
+                "test_".to_string(),
+                Some(10),
+                None,
+            )
             .await
             .unwrap();
         println!("{:?}", result_read);
@@ -283,6 +299,7 @@ mod tests {
         let record_size = None;
         let res = storage_adapter
             .stream_read(
+                namespace.clone(),
                 shard_name.clone(),
                 group_id.clone(),
                 record_num,
@@ -297,6 +314,7 @@ mod tests {
         );
         storage_adapter
             .stream_commit_offset(
+                namespace.clone(),
                 shard_name.clone(),
                 group_id.clone(),
                 res.first().unwrap().clone().offset,
@@ -306,6 +324,7 @@ mod tests {
 
         let res = storage_adapter
             .stream_read(
+                namespace.clone(),
                 shard_name.clone(),
                 group_id.clone(),
                 record_num,
@@ -320,6 +339,7 @@ mod tests {
         );
         storage_adapter
             .stream_commit_offset(
+                namespace.clone(),
                 shard_name.clone(),
                 group_id.clone(),
                 res.first().unwrap().clone().offset,
@@ -329,6 +349,7 @@ mod tests {
 
         let res = storage_adapter
             .stream_read(
+                namespace.clone(),
                 shard_name.clone(),
                 group_id.clone(),
                 record_num,
@@ -343,6 +364,7 @@ mod tests {
         );
         storage_adapter
             .stream_commit_offset(
+                namespace.clone(),
                 shard_name.clone(),
                 group_id.clone(),
                 res.first().unwrap().clone().offset,
@@ -352,6 +374,7 @@ mod tests {
 
         let res = storage_adapter
             .stream_read(
+                namespace.clone(),
                 shard_name.clone(),
                 group_id.clone(),
                 record_num,
@@ -366,6 +389,7 @@ mod tests {
         );
         storage_adapter
             .stream_commit_offset(
+                namespace.clone(),
                 shard_name.clone(),
                 group_id.clone(),
                 res.first().unwrap().clone().offset,

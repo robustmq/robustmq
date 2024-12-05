@@ -29,20 +29,20 @@ use serde::{Deserialize, Serialize};
 
 use super::cache::PlacementCacheManager;
 use super::error::PlacementCenterError;
-use super::raft_node::RaftNode;
 use crate::journal::controller::call_node::{
     update_cache_by_add_journal_node, update_cache_by_delete_journal_node, JournalInnerCallManager,
 };
+use crate::raft::raft_node::Node;
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct ClusterMetadata {
-    pub local: RaftNode,
-    pub leader: Option<RaftNode>,
+    pub local: Node,
+    pub leader: Option<Node>,
     pub raft_role: String,
-    pub votes: DashMap<u64, RaftNode>,
-    pub members: DashMap<u64, RaftNode>,
+    pub votes: DashMap<u64, Node>,
+    pub members: DashMap<u64, Node>,
 }
 
 impl ClusterMetadata {
@@ -60,9 +60,9 @@ impl ClusterMetadata {
             panic!("node id {} There is no corresponding service address, check the nodes configuration",config.node.node_id);
         };
 
-        let local = RaftNode {
+        let local = Node {
             node_id: config.node.node_id,
-            node_addr,
+            rpc_addr: node_addr,
         };
 
         let votes = DashMap::with_capacity(2);
@@ -81,9 +81,9 @@ impl ClusterMetadata {
                 );
             }
 
-            let node = RaftNode {
+            let node = Node {
                 node_id: id,
-                node_addr: addr.to_string(),
+                rpc_addr: addr.to_string(),
             };
 
             votes.insert(id, node);

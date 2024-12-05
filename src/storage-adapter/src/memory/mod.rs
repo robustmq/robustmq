@@ -43,12 +43,21 @@ impl MemoryStorageAdapter {
         }
     }
 
-    pub fn offset_key(&self, group_id: String, shard_name: String) -> String {
-        format!("{}_{}", group_id, shard_name)
+    pub fn shard_key(&self, namespace: String, shard_name: String) -> String {
+        format!("{}_{}", namespace, shard_name)
     }
 
-    pub fn get_offset(&self, group_id: String, shard_name: String) -> Option<u128> {
-        let key = self.offset_key(group_id, shard_name);
+    pub fn offset_key(&self, namespace: String, group_id: String, shard_name: String) -> String {
+        format!("{}_{}_{}", namespace, group_id, shard_name)
+    }
+
+    pub fn get_offset(
+        &self,
+        namespace: String,
+        group_id: String,
+        shard_name: String,
+    ) -> Option<u128> {
+        let key = self.offset_key(namespace, group_id, shard_name);
         if let Some(offset) = self.group_data.get(&key) {
             return Some(*offset);
         }
@@ -60,40 +69,31 @@ impl MemoryStorageAdapter {}
 
 #[async_trait]
 impl StorageAdapter for MemoryStorageAdapter {
-    async fn create_shard(&self, shard_name: String, _: ShardConfig) -> Result<(), CommonError> {
-        self.shard_data.insert(shard_name, Vec::new());
+    async fn create_shard(
+        &self,
+        namespace: String,
+        shard_name: String,
+        _: ShardConfig,
+    ) -> Result<(), CommonError> {
+        self.shard_data
+            .insert(self.shard_key(namespace, shard_name), Vec::new());
         return Ok(());
     }
 
-    async fn delete_shard(&self, shard_name: String) -> Result<(), CommonError> {
-        self.shard_data.remove(&shard_name);
+    async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
+        self.shard_data
+            .remove(&self.shard_key(namespace, shard_name));
         return Ok(());
-    }
-
-    async fn set(&self, key: String, value: Record) -> Result<(), CommonError> {
-        self.memory_data.insert(key, value);
-        return Ok(());
-    }
-    async fn get(&self, key: String) -> Result<Option<Record>, CommonError> {
-        if let Some(data) = self.memory_data.get(&key) {
-            return Ok(Some(data.clone()));
-        }
-        return Ok(None);
-    }
-    async fn delete(&self, key: String) -> Result<(), CommonError> {
-        self.memory_data.remove(&key);
-        return Ok(());
-    }
-    async fn exists(&self, key: String) -> Result<bool, CommonError> {
-        return Ok(self.memory_data.contains_key(&key));
     }
 
     async fn stream_write(
         &self,
+        namespace: String,
         shard_name: String,
         message: Vec<Record>,
     ) -> Result<Vec<usize>, CommonError> {
-        let mut shard = if let Some((_, da)) = self.shard_data.remove(&shard_name) {
+        let shard_key = self.shard_key(namespace, shard_name);
+        let mut shard = if let Some((_, da)) = self.shard_data.remove(&shard_key) {
             da
         } else {
             Vec::new()
@@ -111,18 +111,19 @@ impl StorageAdapter for MemoryStorageAdapter {
         }
 
         shard.append(&mut record_list);
-        self.shard_data.insert(shard_name, shard);
+        self.shard_data.insert(shard_key, shard);
         return Ok(offset_res);
     }
 
     async fn stream_read(
         &self,
+        namespace: String,
         shard_name: String,
         group_id: String,
         record_num: Option<u128>,
         _: Option<usize>,
     ) -> Result<Option<Vec<Record>>, CommonError> {
-        let offset = if let Some(da) = self.get_offset(group_id, shard_name.clone()) {
+        let offset = if let Some(da) = self.get_offset(namespace, group_id, shard_name.clone()) {
             da + 1
         } else {
             0
@@ -150,21 +151,24 @@ impl StorageAdapter for MemoryStorageAdapter {
 
     async fn stream_commit_offset(
         &self,
+        namespace: String,
         shard_name: String,
         group_id: String,
         offset: u128,
     ) -> Result<bool, CommonError> {
-        let key = self.offset_key(group_id, shard_name);
+        let key = self.offset_key(namespace, group_id, shard_name);
         self.group_data.insert(key, offset);
         return Ok(true);
     }
 
     async fn stream_read_by_offset(
         &self,
+        namespace: String,
         shard_name: String,
         offset: usize,
     ) -> Result<Option<Record>, CommonError> {
-        if let Some(da) = self.shard_data.get(&shard_name) {
+        let shard_key = self.shard_key(namespace, shard_name);
+        if let Some(da) = self.shard_data.get(&shard_key) {
             if let Some(value) = da.get(offset) {
                 return Ok(Some(value.clone()));
             }
@@ -174,6 +178,7 @@ impl StorageAdapter for MemoryStorageAdapter {
 
     async fn stream_read_by_timestamp(
         &self,
+        _: String,
         _: String,
         _: u128,
         _: u128,
@@ -187,17 +192,24 @@ impl StorageAdapter for MemoryStorageAdapter {
         &self,
         _: String,
         _: String,
+        _: String,
     ) -> Result<Option<Record>, CommonError> {
         return Ok(None);
+    }
+
+    async fn close(&self) -> Result<(), CommonError> {
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use common_base::tools::unique_id;
     use metadata_struct::adapter::record::Record;
 
     use super::MemoryStorageAdapter;
     use crate::storage::StorageAdapter;
+
     #[tokio::test]
     async fn stream_read_write() {
         let storage_adapter = MemoryStorageAdapter::new();
@@ -208,9 +220,10 @@ mod tests {
             Record::build_b(ms1.clone().as_bytes().to_vec()),
             Record::build_b(ms2.clone().as_bytes().to_vec()),
         ];
+        let namespace = unique_id();
 
         let result = storage_adapter
-            .stream_write(shard_name.clone(), data)
+            .stream_write(namespace.clone(), shard_name.clone(), data)
             .await
             .unwrap();
         assert_eq!(result.first().unwrap().clone(), 0);
@@ -229,7 +242,7 @@ mod tests {
         ];
 
         let result = storage_adapter
-            .stream_write(shard_name.clone(), data)
+            .stream_write(namespace.clone(), shard_name.clone(), data)
             .await
             .unwrap();
         assert_eq!(result.first().unwrap().clone(), 2);
@@ -245,6 +258,7 @@ mod tests {
         let record_size = None;
         let res = storage_adapter
             .stream_read(
+                namespace.clone(),
                 shard_name.clone(),
                 group_id.clone(),
                 record_num,
@@ -259,6 +273,7 @@ mod tests {
         );
         storage_adapter
             .stream_commit_offset(
+                namespace.clone(),
                 shard_name.clone(),
                 group_id.clone(),
                 res.first().unwrap().clone().offset,
@@ -268,6 +283,7 @@ mod tests {
 
         let res = storage_adapter
             .stream_read(
+                namespace.clone(),
                 shard_name.clone(),
                 group_id.clone(),
                 record_num,
@@ -282,6 +298,7 @@ mod tests {
         );
         storage_adapter
             .stream_commit_offset(
+                namespace.clone(),
                 shard_name.clone(),
                 group_id.clone(),
                 res.first().unwrap().clone().offset,
@@ -291,6 +308,7 @@ mod tests {
 
         let res = storage_adapter
             .stream_read(
+                namespace.clone(),
                 shard_name.clone(),
                 group_id.clone(),
                 record_num,
@@ -305,6 +323,7 @@ mod tests {
         );
         storage_adapter
             .stream_commit_offset(
+                namespace.clone(),
                 shard_name.clone(),
                 group_id.clone(),
                 res.first().unwrap().clone().offset,
@@ -314,6 +333,7 @@ mod tests {
 
         let res = storage_adapter
             .stream_read(
+                namespace.clone(),
                 shard_name.clone(),
                 group_id.clone(),
                 record_num,
@@ -328,6 +348,7 @@ mod tests {
         );
         storage_adapter
             .stream_commit_offset(
+                namespace.clone(),
                 shard_name.clone(),
                 group_id.clone(),
                 res.first().unwrap().clone().offset,

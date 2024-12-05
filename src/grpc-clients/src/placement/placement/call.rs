@@ -20,8 +20,7 @@ use protocol::placement_center::placement_center_inner::{
     DeleteIdempotentDataRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
     ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetResourceConfigReply,
     GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, NodeListReply, NodeListRequest,
-    RegisterNodeReply, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
-    SendRaftMessageReply, SendRaftMessageRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
+    RegisterNodeReply, RegisterNodeRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
     SetResourceConfigReply, SetResourceConfigRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
 
@@ -70,18 +69,7 @@ generate_placement_service_call!(
     UnRegisterNode
 );
 generate_placement_service_call!(heartbeat, HeartbeatRequest, HeartbeatReply, Heartbeat);
-generate_placement_service_call!(
-    send_raft_message,
-    SendRaftMessageRequest,
-    SendRaftMessageReply,
-    SendRaftMessage
-);
-generate_placement_service_call!(
-    send_raft_conf_change,
-    SendRaftConfChangeRequest,
-    SendRaftConfChangeReply,
-    SendRaftConfChange
-);
+
 generate_placement_service_call!(
     set_resource_config,
     SetResourceConfigRequest,

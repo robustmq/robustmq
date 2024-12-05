@@ -39,3 +39,5 @@ serde_yaml.workspace = true
 log4rs.workspace = true
 log.workspace = true
 bincode.workspace = true
+mysql.workspace = true
+clap.workspace = true

@@ -15,7 +15,7 @@
 use lazy_static::lazy_static;
 use prometheus::{register_int_gauge_vec, IntGaugeVec};
 use protocol::mqtt::codec::{calc_mqtt_packet_size, MqttPacketWrapper};
-use protocol::mqtt::common::{MqttPacket, QoS};
+use protocol::mqtt::common::{ConnectReturnCode, MqttPacket, QoS};
 
 use crate::handler::constant::{METRICS_KEY_NETWORK_TYPE, METRICS_KEY_QOS};
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};
@@ -129,6 +129,14 @@ lazy_static! {
     // Number of error packets received
     static ref PACKETS_RECEIVED_ERROR: IntGaugeVec = register_int_gauge_vec!(
         "packets_received_error",
+        "Number of error packets received",
+        &[METRICS_KEY_NETWORK_TYPE]
+    )
+    .unwrap();
+
+    // Number of error packets.connack.auth_error received
+    static ref PACKETS_CONNACK_AUTH_ERROR: IntGaugeVec = register_int_gauge_vec!(
+        "packets_connack_auth_error",
         "Number of error packets received",
         &[METRICS_KEY_NETWORK_TYPE]
     )
@@ -364,10 +372,18 @@ pub fn record_sent_metrics(packet_wrapper: &MqttPacketWrapper, network_type: Str
         .with_label_values(&[&network_type, &qos_str])
         .add(payload_size as i64);
 
-    match packet_wrapper.packet {
-        MqttPacket::ConnAck(_, _) => PACKETS_CONNACK_SENT
-            .with_label_values(&[&network_type, &qos_str])
-            .inc(),
+    match &packet_wrapper.packet {
+        MqttPacket::ConnAck(conn_ack, _) => {
+            PACKETS_CONNACK_SENT
+                .with_label_values(&[&network_type, &qos_str])
+                .inc();
+            // 判断是否为 NotAuthorized
+            if conn_ack.code == ConnectReturnCode::NotAuthorized {
+                PACKETS_CONNACK_AUTH_ERROR
+                    .with_label_values(&[&network_type.to_string()])
+                    .inc();
+            }
+        }
         MqttPacket::Publish(_, _) => PACKETS_PUBLISH_SENT
             .with_label_values(&[&network_type, &qos_str])
             .inc(),

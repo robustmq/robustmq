@@ -12,19 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
-
-#[derive(PartialEq, Default, Debug, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
-pub enum RaftNodeState {
-    #[default]
-    Running,
-    Starting,
-    Stopping,
-    Stop,
-}
-
-#[derive(PartialEq, Default, Debug, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
-pub struct RaftNode {
-    pub node_id: u64,
-    pub node_addr: String,
-}
+pub mod common_enum;

@@ -43,10 +43,6 @@ service PlacementCenterService {
 
   rpc ReportMonitor(ReportMonitorRequest) returns(ReportMonitorReply){}
 
-  rpc SendRaftMessage(SendRaftMessageRequest) returns(SendRaftMessageReply) {}
-
-  rpc SendRaftConfChange(SendRaftConfChangeRequest) returns(SendRaftConfChangeReply){}
-
   rpc SetResourceConfig(SetResourceConfigRequest) returns(SetResourceConfigReply) {}
 
   rpc GetResourceConfig(GetResourceConfigRequest) returns(GetResourceConfigReply) {}

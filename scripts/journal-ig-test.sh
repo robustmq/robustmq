@@ -60,7 +60,7 @@ rm -rf /tmp/robust-test/journal-server*
 start_placement_server
 start_journal_server
 
-
+cargo nextest run --package grpc-clients --test mod -- journal
 cargo nextest run --package robustmq-test --test mod -- journal_client
 cargo nextest run --package robustmq-test --test mod -- journal_server
 
