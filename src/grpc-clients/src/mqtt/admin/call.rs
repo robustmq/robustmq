@@ -16,9 +16,11 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest, CreateUserReply,
-    CreateUserRequest, DeleteAclReply, DeleteAclRequest, DeleteUserReply, DeleteUserRequest,
-    ListAclReply, ListAclRequest, ListConnectionReply, ListConnectionRequest, ListUserReply,
+    ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
+    CreateBlacklistReply, CreateBlacklistRequest, CreateUserReply, CreateUserRequest,
+    DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
+    DeleteUserReply, DeleteUserRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
+    ListBlacklistRequest, ListConnectionReply, ListConnectionRequest, ListUserReply,
     ListUserRequest,
 };
 
@@ -109,6 +111,42 @@ pub async fn mqtt_broker_delete_acl(
     let request = MqttBrokerPlacementRequest::DeleteAcl(request);
     match retry_call(&client_pool, addrs, request, call_once).await? {
         MqttBrokerPlacementReply::DeleteAcl(reply) => Ok(reply),
+        _ => unreachable!("Reply type mismatch"),
+    }
+}
+
+pub async fn mqtt_broker_list_blacklist(
+    client_pool: Arc<ClientPool>,
+    addrs: &[String],
+    request: ListBlacklistRequest,
+) -> Result<ListBlacklistReply, CommonError> {
+    let request = MqttBrokerPlacementRequest::ListBlacklist(request);
+    match retry_call(&client_pool, addrs, request, call_once).await? {
+        MqttBrokerPlacementReply::ListBlacklist(reply) => Ok(reply),
+        _ => unreachable!("Reply type mismatch"),
+    }
+}
+
+pub async fn mqtt_broker_create_blacklist(
+    client_pool: Arc<ClientPool>,
+    addrs: &[String],
+    request: CreateBlacklistRequest,
+) -> Result<CreateBlacklistReply, CommonError> {
+    let request = MqttBrokerPlacementRequest::CreateBlacklist(request);
+    match retry_call(&client_pool, addrs, request, call_once).await? {
+        MqttBrokerPlacementReply::CreateBlacklist(reply) => Ok(reply),
+        _ => unreachable!("Reply type mismatch"),
+    }
+}
+
+pub async fn mqtt_broker_delete_blacklist(
+    client_pool: Arc<ClientPool>,
+    addrs: &[String],
+    request: DeleteBlacklistRequest,
+) -> Result<DeleteBlacklistReply, CommonError> {
+    let request = MqttBrokerPlacementRequest::DeleteBlacklist(request);
+    match retry_call(&client_pool, addrs, request, call_once).await? {
+        MqttBrokerPlacementReply::DeleteBlacklist(reply) => Ok(reply),
         _ => unreachable!("Reply type mismatch"),
     }
 }

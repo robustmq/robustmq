@@ -61,6 +61,10 @@ pub trait AuthStorageAdapter {
     async fn save_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError>;
 
     async fn delete_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError>;
+
+    async fn save_blacklist(&self, blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError>;
+
+    async fn delete_blacklist(&self, blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError>;
 }
 
 pub struct AuthDriver {
@@ -186,6 +190,20 @@ impl AuthDriver {
         }
         self.cache_manager.retain_acls(user_acl, client_acl);
 
+        Ok(())
+    }
+
+    pub async fn save_blacklist(&self, blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError> {
+        self.cache_manager.add_blacklist(blacklist.clone());
+        self.driver.save_blacklist(blacklist).await
+    }
+
+    pub async fn delete_blacklist(
+        &self,
+        blacklist: MqttAclBlackList,
+    ) -> Result<(), MqttBrokerError> {
+        self.driver.delete_blacklist(blacklist.clone()).await?;
+        self.cache_manager.remove_blacklist(blacklist.clone());
         Ok(())
     }
 

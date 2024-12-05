@@ -578,6 +578,10 @@ impl CacheManager {
         self.acl_metadata.parse_mqtt_blacklist(blacklist);
     }
 
+    pub fn remove_blacklist(&self, blacklist: MqttAclBlackList) {
+        self.acl_metadata.remove_mqtt_blacklist(blacklist);
+    }
+
     pub fn remove_ack_packet(&self, client_id: &str, pkid: u16) {
         let key = self.key(client_id, pkid);
         self.qos_ack_packet.remove(&key);
