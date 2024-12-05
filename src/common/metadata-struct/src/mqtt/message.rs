@@ -55,7 +55,7 @@ impl MqttMessage {
         };
 
         match serde_json::to_vec(&message) {
-            Ok(data) => Some(Record::build_b(data)),
+            Ok(data) => Some(Record::build_byte(data)),
 
             Err(e) => {
                 error!("Message encoding failed, error message :{}", e.to_string());
@@ -110,7 +110,7 @@ impl MqttMessage {
         let msg =
             MqttMessage::build_message(client_id, publish, publish_properties, expiry_interval);
         match serde_json::to_vec(&msg) {
-            Ok(data) => Some(Record::build_b(data)),
+            Ok(data) => Some(Record::build_byte(data)),
 
             Err(e) => {
                 error!("Message encoding failed, error message :{}", e.to_string());

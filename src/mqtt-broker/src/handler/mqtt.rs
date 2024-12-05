@@ -437,7 +437,7 @@ where
             MqttMessage::build_record(&client_id, &publish, &publish_properties, message_expire)
         {
             match message_storage
-                .append_topic_message(topic.topic_id.clone(), vec![record])
+                .append_topic_message(&topic.topic_id, vec![record])
                 .await
             {
                 Ok(da) => {
@@ -798,6 +798,7 @@ where
             .await;
 
         let pkid = subscribe.packet_identifier;
+
         st_report_subscribed_event(
             &self.message_storage_adapter,
             &self.cache_manager,
@@ -808,6 +809,17 @@ where
             &subscribe,
         )
         .await;
+
+        // try_send_retain_message(
+        //     &subscriber.client_id,
+        //     &subscriber,
+        //     &client_pool,
+        //     &cache_manager,
+        //     &connection_manager,
+        //     &sub_thread_stop_sx,
+        // )
+        // .await;
+
         response_packet_mqtt_suback(&self.protocol, &connection, pkid, return_codes, None)
     }
 

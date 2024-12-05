@@ -18,7 +18,7 @@ use journal_client::option::JournalClientOption;
 use journal_client::JournalEngineClient;
 use metadata_struct::adapter::record::Record;
 
-use crate::storage::{ShardConfig, StorageAdapter};
+use crate::storage::{ReadConfig, ShardConfig, StorageAdapter};
 
 #[derive(Clone)]
 pub struct JournalStorageAdapter {
@@ -59,7 +59,14 @@ impl StorageAdapter for JournalStorageAdapter {
         Ok(())
     }
 
-    async fn stream_write(
+    async fn write(&self, _: String, _: String, _: Record) -> Result<usize, CommonError> {
+        return Err(CommonError::NotSupportFeature(
+            "JournalStorageAdapter".to_string(),
+            "stream_write".to_string(),
+        ));
+    }
+
+    async fn batch_write(
         &self,
         _: String,
         _: String,
@@ -71,66 +78,73 @@ impl StorageAdapter for JournalStorageAdapter {
         ));
     }
 
-    async fn stream_read(
+    async fn read_by_offset(
         &self,
         _: String,
         _: String,
-        _: String,
-        _: Option<u128>,
-        _: Option<usize>,
-    ) -> Result<Option<Vec<Record>>, CommonError> {
+        _offset: u64,
+        _: ReadConfig,
+    ) -> Result<Vec<Record>, CommonError> {
         return Err(CommonError::NotSupportFeature(
             "JournalStorageAdapter".to_string(),
             "stream_write".to_string(),
         ));
     }
 
-    async fn stream_commit_offset(
+    async fn read_by_tag(
         &self,
         _: String,
         _: String,
-        _: String,
-        _: u128,
-    ) -> Result<bool, CommonError> {
+        _tag: String,
+        _: ReadConfig,
+    ) -> Result<Vec<Record>, CommonError> {
         return Err(CommonError::NotSupportFeature(
             "JournalStorageAdapter".to_string(),
             "stream_write".to_string(),
         ));
     }
 
-    async fn stream_read_by_offset(
+    async fn read_by_key(
         &self,
         _: String,
         _: String,
-        _: usize,
-    ) -> Result<Option<Record>, CommonError> {
+        _key: String,
+        _: ReadConfig,
+    ) -> Result<Vec<Record>, CommonError> {
         return Err(CommonError::NotSupportFeature(
             "JournalStorageAdapter".to_string(),
             "stream_write".to_string(),
         ));
     }
 
-    async fn stream_read_by_timestamp(
+    async fn get_offset_by_timestamp(
         &self,
         _: String,
         _: String,
-        _: u128,
-        _: u128,
-        _: Option<usize>,
-        _: Option<usize>,
-    ) -> Result<Option<Vec<Record>>, CommonError> {
+        _timestamp: u64,
+    ) -> Result<u64, CommonError> {
         return Err(CommonError::NotSupportFeature(
             "JournalStorageAdapter".to_string(),
             "stream_write".to_string(),
         ));
     }
 
-    async fn stream_read_by_key(
+    async fn get_offset_by_group(
+        &self,
+        _group_name: String,
+        _namespace: String,
+        _shard_name: String,
+    ) -> Result<u64, CommonError> {
+        Ok(0)
+    }
+
+    async fn commit_offset(
         &self,
         _: String,
         _: String,
         _: String,
-    ) -> Result<Option<Record>, CommonError> {
+        _: u64,
+    ) -> Result<(), CommonError> {
         return Err(CommonError::NotSupportFeature(
             "JournalStorageAdapter".to_string(),
             "stream_write".to_string(),
