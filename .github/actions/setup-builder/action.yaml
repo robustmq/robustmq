@@ -34,6 +34,5 @@ runs:
       with:
         toolchain: nightly-2024-11-08
         default: true
-        override: true
     - name: Configure rust runtime env
       uses: ./.github/actions/setup-rust-runtime
