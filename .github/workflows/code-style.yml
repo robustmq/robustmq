@@ -63,6 +63,8 @@ jobs:
       - uses: actions/checkout@v2
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-builder
+      - name: install rustfmt
+        run:  rustup component add rustfmt
       - name: cargo rust-fmt
         run: cargo fmt --all -- --check
 
@@ -118,5 +120,5 @@ jobs:
         uses: ./.github/actions/setup-builder
       - name: Install clippy
         run:  rustup component add clippy
-      - name: rust-clippy
-        run: cargo clipyy --all-targets --all-features --tests --benches -- -D warnings
+      - name: cargo clippy check
+        run: cargo clippy --all-targets --all-features --tests --benches -- -D warnings
