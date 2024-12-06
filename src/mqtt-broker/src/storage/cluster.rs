@@ -126,7 +126,7 @@ impl ClusterStorage {
 
     pub async fn set_cluster_config(
         &self,
-        cluster_name: String,
+        cluster_name: &String,
         cluster: MqttClusterDynamicConfig,
     ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();

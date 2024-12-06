@@ -31,10 +31,9 @@ impl CacheManager {
 
         // save in storage
         let client_pool = self.client_pool.clone();
-        let cluster_name = self.cluster_name.clone();
         let cluster_storage = ClusterStorage::new(client_pool);
         cluster_storage
-            .set_cluster_config(cluster_name, dynamic_config.clone())
+            .set_cluster_config(&self.cluster_name, dynamic_config)
             .await?;
         Ok(())
     }
