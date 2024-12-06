@@ -33,5 +33,6 @@ runs:
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: nightly-2024-11-08
+        default: true
     - name: Configure rust runtime env
       uses: ./.github/actions/setup-rust-runtime
