@@ -126,13 +126,13 @@ impl ClusterStorage {
 
     pub async fn set_cluster_config(
         &self,
-        cluster_name: String,
+        cluster_name: &str,
         cluster: MqttClusterDynamicConfig,
     ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
-        let resources = self.cluster_config_resources(cluster_name.clone());
+        let resources = self.cluster_config_resources(cluster_name.to_string());
         let request = SetResourceConfigRequest {
-            cluster_name: cluster_name.clone(),
+            cluster_name: cluster_name.to_string(),
             resources,
             config: cluster.encode(),
         };
@@ -142,11 +142,11 @@ impl ClusterStorage {
         Ok(())
     }
 
-    pub async fn delete_cluster_config(&self, cluster_name: String) -> Result<(), CommonError> {
+    pub async fn delete_cluster_config(&self, cluster_name: &str) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
-        let resources = self.cluster_config_resources(cluster_name.clone());
+        let resources = self.cluster_config_resources(cluster_name.to_string());
         let request = DeleteResourceConfigRequest {
-            cluster_name: cluster_name.clone(),
+            cluster_name: cluster_name.to_string(),
             resources,
         };
 
@@ -156,12 +156,12 @@ impl ClusterStorage {
 
     pub async fn get_cluster_config(
         &self,
-        cluster_name: String,
+        cluster_name: &str,
     ) -> Result<Option<MqttClusterDynamicConfig>, CommonError> {
         let config = broker_mqtt_conf();
-        let resources = self.cluster_config_resources(cluster_name.clone());
+        let resources = self.cluster_config_resources(cluster_name.to_string());
         let request = GetResourceConfigRequest {
-            cluster_name: cluster_name.clone(),
+            cluster_name: cluster_name.to_string(),
             resources,
         };
 

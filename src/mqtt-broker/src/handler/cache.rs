@@ -262,10 +262,6 @@ impl CacheManager {
         }
     }
 
-    pub fn set_cluster_info(&self, cluster: MqttClusterDynamicConfig) {
-        self.cluster_info.insert(self.cluster_name.clone(), cluster);
-    }
-
     pub fn get_cluster_info(&self) -> MqttClusterDynamicConfig {
         if let Some(cluster) = self.cluster_info.get(&self.cluster_name) {
             return cluster.clone();
@@ -462,10 +458,7 @@ impl CacheManager {
         let conf = broker_mqtt_conf();
         // load cluster config
         let cluster_storage = ClusterStorage::new(self.client_pool.clone());
-        let cluster = match cluster_storage
-            .get_cluster_config(conf.cluster_name.clone())
-            .await
-        {
+        let cluster = match cluster_storage.get_cluster_config(&conf.cluster_name).await {
             Ok(Some(cluster)) => cluster,
             Ok(None) => MqttClusterDynamicConfig::new(),
             Err(e) => {

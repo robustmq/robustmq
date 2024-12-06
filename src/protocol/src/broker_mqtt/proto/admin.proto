@@ -27,6 +27,9 @@ service MQTTBrokerAdminService {
 
     // connection
     rpc mqtt_broker_list_connection(ListConnectionRequest) returns(ListConnectionReply){}
+
+    // observability: slow-sub
+    rpc mqtt_broker_enable_slow_subscribe(EnableSlowSubscribeRequest) returns(EnableSlowSubScribeReply) {}
 }
 
 // --------- cluster --------
@@ -110,7 +113,7 @@ message CreateBlacklistRequest{
 }
 
 message CreateBlacklistReply{
-    
+
 }
 
 message DeleteBlacklistRequest{
@@ -140,4 +143,15 @@ message ListConnectionRaw {
     string protocol = 3;
     string source_addr = 4;
     string info = 5;
+}
+
+
+// --------- observability service --------
+// --------- slow subscribe feature -------
+message EnableSlowSubscribeRequest {
+    bool is_enable = 1;
+}
+
+message EnableSlowSubScribeReply {
+    bool is_enable = 1;
 }

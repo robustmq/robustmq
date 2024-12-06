@@ -14,7 +14,6 @@
 
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::time::sleep;
 
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
@@ -22,6 +21,7 @@ use log::{error, info};
 use metadata_struct::placement::node::str_to_cluster_type;
 use protocol::placement_center::placement_center_inner::UnRegisterNodeRequest;
 use serde::{Deserialize, Serialize};
+use tokio::time::sleep;
 
 use super::cluster::un_register_node_by_req;
 use crate::core::cache::PlacementCacheManager;

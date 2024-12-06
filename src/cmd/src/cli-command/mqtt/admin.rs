@@ -46,7 +46,7 @@ pub(crate) struct DeleteUserArgs {
 #[command(author="RobustMQ", about="", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct SlowSubArgs {
-    #[arg(long)]
+    #[arg(long = "enable")]
     #[arg(value_parser =  BoolishValueParser::new())]
     #[arg(action = ArgAction::Set, num_args = 0..=1)]
     #[arg(required = false, require_equals = true, exclusive = true)]

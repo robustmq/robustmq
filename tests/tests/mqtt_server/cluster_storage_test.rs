@@ -67,24 +67,24 @@ mod tests {
             ..Default::default()
         };
         cluster_storage
-            .set_cluster_config(cluster_name.clone(), cluster)
+            .set_cluster_config(&cluster_name, cluster)
             .await
             .unwrap();
 
         let result = cluster_storage
-            .get_cluster_config(cluster_name.clone())
+            .get_cluster_config(&cluster_name)
             .await
             .unwrap()
             .unwrap();
         assert_eq!(result.protocol.topic_alias_max, 999);
 
         cluster_storage
-            .delete_cluster_config(cluster_name.clone())
+            .delete_cluster_config(&cluster_name)
             .await
             .unwrap();
 
         let result = cluster_storage
-            .get_cluster_config(cluster_name.clone())
+            .get_cluster_config(&cluster_name)
             .await
             .unwrap();
         assert!(result.is_none());
