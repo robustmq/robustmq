@@ -459,7 +459,7 @@ impl CacheManager {
         // load cluster config
         let cluster_storage = ClusterStorage::new(self.client_pool.clone());
         let cluster = match cluster_storage
-            .get_cluster_config(conf.cluster_name.clone())
+            .get_cluster_config(&conf.cluster_name)
             .await
         {
             Ok(Some(cluster)) => cluster,
