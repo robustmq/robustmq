@@ -99,7 +99,7 @@ impl StorageAdapter for JournalStorageAdapter {
         &self,
         _namespace: String,
         _shard_name: String,
-        _datas: Vec<Record>,
+        _data: Vec<Record>,
     ) -> Result<Vec<u64>, CommonError> {
         Ok(Vec::new())
     }
