@@ -19,7 +19,8 @@ use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{
-    Publish, PublishProperties, QoS, RetainForwardRule, Subscribe, SubscribeProperties,
+    MqttProtocol, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe,
+    SubscribeProperties,
 };
 use tokio::sync::broadcast::{self};
 
@@ -74,6 +75,7 @@ pub async fn save_retain_message(
 }
 
 pub async fn send_retain_message(
+    protocol: &MqttProtocol,
     client_id: &String,
     subscribe: &Subscribe,
     subscribe_properties: &Option<SubscribeProperties>,
@@ -161,6 +163,7 @@ pub async fn send_retain_message(
             };
 
             let subscriber = Subscriber {
+                protocol: protocol.to_owned(),
                 client_id: client_id.clone(),
                 ..Default::default()
             };

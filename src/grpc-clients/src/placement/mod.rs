@@ -20,7 +20,7 @@ use common_base::error::common::CommonError;
 use journal::{JournalServiceReply, JournalServiceRequest};
 use kv::{KvServiceReply, KvServiceRequest};
 use lazy_static::lazy_static;
-use log::error;
+use log::debug;
 use mqtt::{MqttServiceReply, MqttServiceRequest};
 use placement::{PlacementServiceReply, PlacementServiceRequest};
 use tokio::time::sleep;
@@ -191,7 +191,7 @@ async fn retry_placement_center_call<'a>(
                 return Ok(data);
             }
             Err(e) => {
-                error!("{}", e);
+                debug!("{}", e);
                 if times > retry_times() {
                     return Err(e);
                 }

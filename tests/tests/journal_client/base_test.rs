@@ -203,7 +203,6 @@ mod tests {
                 api_version: ApiVersion::V0.into(),
             }),
             body: Some(OffsetCommitReqBody {
-                namespace: "n1".to_string(),
                 group: "g1".to_string(),
                 ..Default::default()
             }),

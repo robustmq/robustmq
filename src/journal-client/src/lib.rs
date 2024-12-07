@@ -21,6 +21,8 @@ use cache::{load_node_cache, load_shards_cache, start_update_cache_thread, Metad
 use connection::{start_conn_gc_thread, ConnectionManager};
 use error::JournalClientError;
 use log::error;
+use metadata_struct::adapter::read_config::ReadConfig;
+use metadata_struct::adapter::record::Record;
 use metadata_struct::journal::shard::shard_name_iden;
 use option::JournalClientOption;
 use protocol::journal_server::journal_engine::{CreateShardReqBody, DeleteShardReqBody};
@@ -32,7 +34,7 @@ use writer::{SenderMessage, SenderMessageResp, Writer};
 mod cache;
 mod connection;
 mod error;
-mod group;
+mod offset;
 pub mod option;
 mod reader;
 mod service;
@@ -109,7 +111,7 @@ impl JournalEngineClient {
         Ok(())
     }
 
-    pub async fn send(
+    pub async fn write(
         &self,
         namespace: String,
         shard_name: String,
@@ -173,13 +175,45 @@ impl JournalEngineClient {
         }
     }
 
-    pub async fn read_by_offset(&self, group_name: &str, namespace: &str, shard_name: &str) {}
+    pub async fn read_by_offset(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        offset: u64,
+        read_config: &ReadConfig,
+    ) -> Result<Vec<Record>, JournalClientError> {
+        Ok(Vec::new())
+    }
 
-    pub async fn read_by_timestamp(&self) {}
+    pub async fn read_by_key(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        key: &str,
+        read_config: &ReadConfig,
+    ) -> Result<Vec<Record>, JournalClientError> {
+        Ok(Vec::new())
+    }
 
-    pub async fn read_by_key(&self) {}
+    pub async fn read_by_tag(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        offset: u64,
+        tag: &str,
+        read_config: &ReadConfig,
+    ) -> Result<Vec<Record>, JournalClientError> {
+        Ok(Vec::new())
+    }
 
-    pub async fn read_by_tag(&self) {}
+    pub async fn get_offset_by_timestamp(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        timestamp: u64,
+    ) -> Result<(u32, u64), JournalClientError> {
+        Ok((0, 0))
+    }
 
     pub async fn close(&self) -> Result<(), JournalClientError> {
         self.stop_send.send(true)?;

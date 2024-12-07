@@ -178,10 +178,14 @@ async fn read_by_timestamp(
     read_options: &ReadReqOptions,
 ) -> Result<Vec<ReadData>, JournalServerError> {
     let timestamp_index = TimestampIndexManager::new(rocksdb_engine_handler.clone());
-    let start_position = timestamp_index
+    let index_data = timestamp_index
         .get_last_nearest_position_by_timestamp(segment_iden, filter.timestamp)
         .await?;
-
+    let start_position = if let Some(index_data) = index_data {
+        index_data.position
+    } else {
+        0
+    };
     segment_file
         .read_by_timestamp(start_position, filter.timestamp, read_options.max_size)
         .await

@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use metadata_struct::journal::shard::shard_name_iden;
-use protocol::journal_server::journal_engine::{AutoOffsetReset, FetchOffsetReqBody};
+use protocol::journal_server::journal_engine::{AutoOffsetStrategy, FetchOffsetReqBody};
 
 use crate::connection::ConnectionManager;
 use crate::error::JournalClientError;
@@ -76,14 +76,9 @@ impl GroupManager {
         group_name: &str,
         namespace: &str,
         shard_name: &str,
-        auto_offset_reset: AutoOffsetReset,
+        auto_offset_reset: AutoOffsetStrategy,
     ) -> Result<(), JournalClientError> {
-        let shards = Vec::new();
-        let body = FetchOffsetReqBody {
-            group_name: group_name.to_owned(),
-            shards,
-            auto_offset_reste: auto_offset_reset.into(),
-        };
+        let body = FetchOffsetReqBody::default();
 
         let node_id = 1;
         let resp = fetch_offset(&self.connection_manager, node_id, body).await?;

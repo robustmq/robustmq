@@ -22,7 +22,7 @@ pub mod sub_share_leader;
 pub mod subscribe_manager;
 pub mod subscriber;
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub(crate) struct SubPublishParam {
     pub subscribe: Subscriber,
     pub publish: Publish,

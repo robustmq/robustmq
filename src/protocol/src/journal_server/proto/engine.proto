@@ -13,14 +13,18 @@ enum ApiKey{
     Unimplemented = 0;
     Read = 1;
     Write = 2;
-    OffsetCommit = 3;
 
-    GetClusterMetadata = 4;
-    CreateShard = 5;
-    DeleteShard = 6;
+    // shard
+    CreateShard = 3;
+    DeleteShard = 4;
     
-    GetShardMetadata = 7;
-    FetchOffset = 8;
+    // metadata
+    GetShardMetadata = 5;
+    GetClusterMetadata = 6;
+
+    // Offset
+    FetchOffset = 7;
+    OffsetCommit = 8;
 }
 
 enum ApiVersion{
@@ -34,7 +38,7 @@ enum ReadType{
     Tag = 3;
 }
 
-enum AutoOffsetReset{
+enum AutoOffsetStrategy{
     Earliest = 0;
     Latest = 1;
     None = 2;
@@ -257,14 +261,15 @@ message ReadResp{
 
 /** Offset Commit **/
 message OffsetCommitReqBody{
-    string namespace = 1;
-    string group = 2;
-    repeated OffsetCommitShard shard = 3;
+    string group = 1;
+    repeated OffsetCommitShard shard = 2;
 }
 
 message OffsetCommitShard{
-    string shard_name = 1;
-    uint64 offset =2;
+    string namespace = 1;
+    string shard_name = 2;
+    string segment_no = 3;
+    uint64 offset =4;
 }
 
 message OffsetCommitRespBody{
@@ -290,12 +295,14 @@ message OffsetCommitResp{
 message FetchOffsetReqBody{
     string group_name = 1;
     repeated FetchOffsetShard shards = 2;
-    AutoOffsetReset auto_offset_reste = 3;
+    AutoOffsetStrategy auto_offset_strategy = 3;
 }
 
 message FetchOffsetShard{
     string namespace = 1;
     string shard_name = 2;
+    uint32 segment_no = 3;
+    uint64 timestamp = 4;
 }
 
 message FetchOffsetReq{

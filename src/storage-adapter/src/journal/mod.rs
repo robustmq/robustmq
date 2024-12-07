@@ -12,25 +12,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use axum::async_trait;
 use common_base::error::common::CommonError;
+use grpc_clients::pool::ClientPool;
 use journal_client::option::JournalClientOption;
 use journal_client::JournalEngineClient;
+use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
+use offset::PlaceOffsetManager;
 
-use crate::storage::{ReadConfig, ShardConfig, StorageAdapter};
+use crate::storage::{ShardConfig, ShardOffset, StorageAdapter};
+
+pub mod offset;
 
 #[derive(Clone)]
 pub struct JournalStorageAdapter {
     client: JournalEngineClient,
+    offset_manager: PlaceOffsetManager,
 }
 
 impl JournalStorageAdapter {
-    pub fn new(addrs: Vec<String>) -> Self {
+    pub fn new(journal_addrs: Vec<String>, client_pool: Arc<ClientPool>) -> Self {
         let mut options = JournalClientOption::build();
-        options.set_addrs(addrs);
+        options.set_addrs(journal_addrs);
         let client = JournalEngineClient::new(options);
-        JournalStorageAdapter { client }
+        let offset_manager = PlaceOffsetManager::new(client_pool);
+        JournalStorageAdapter {
+            client,
+            offset_manager,
+        }
     }
 }
 
@@ -59,96 +72,140 @@ impl StorageAdapter for JournalStorageAdapter {
         Ok(())
     }
 
-    async fn write(&self, _: String, _: String, _: Record) -> Result<usize, CommonError> {
-        return Err(CommonError::NotSupportFeature(
-            "JournalStorageAdapter".to_string(),
-            "stream_write".to_string(),
-        ));
+    async fn write(
+        &self,
+        namespace: String,
+        shard_name: String,
+        record: Record,
+    ) -> Result<u64, CommonError> {
+        match self
+            .client
+            .write(namespace, shard_name, record.key, record.data, record.tags)
+            .await
+        {
+            Ok(resp) => {
+                if let Some(err) = resp.error {
+                    return Err(CommonError::CommonError(err));
+                }
+                return Ok(resp.offset);
+            }
+            Err(e) => {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
+        }
     }
 
     async fn batch_write(
         &self,
-        _: String,
-        _: String,
-        _: Vec<Record>,
-    ) -> Result<Vec<usize>, CommonError> {
-        return Err(CommonError::NotSupportFeature(
-            "JournalStorageAdapter".to_string(),
-            "stream_write".to_string(),
-        ));
+        _namespace: String,
+        _shard_name: String,
+        _datas: Vec<Record>,
+    ) -> Result<Vec<u64>, CommonError> {
+        Ok(Vec::new())
     }
 
     async fn read_by_offset(
         &self,
-        _: String,
-        _: String,
-        _offset: u64,
-        _: ReadConfig,
+        namespace: String,
+        shard_name: String,
+        offset: u64,
+        read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        return Err(CommonError::NotSupportFeature(
-            "JournalStorageAdapter".to_string(),
-            "stream_write".to_string(),
-        ));
+        match self
+            .client
+            .read_by_offset(&namespace, &shard_name, offset, &read_config)
+            .await
+        {
+            Ok(results) => Ok(results),
+            Err(e) => {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
+        }
     }
 
     async fn read_by_tag(
         &self,
-        _: String,
-        _: String,
-        _tag: String,
-        _: ReadConfig,
+        namespace: String,
+        shard_name: String,
+        offset: u64,
+        tag: String,
+        read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        return Err(CommonError::NotSupportFeature(
-            "JournalStorageAdapter".to_string(),
-            "stream_write".to_string(),
-        ));
+        match self
+            .client
+            .read_by_tag(&namespace, &shard_name, offset, &tag, &read_config)
+            .await
+        {
+            Ok(results) => Ok(results),
+            Err(e) => {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
+        }
     }
 
     async fn read_by_key(
         &self,
-        _: String,
-        _: String,
-        _key: String,
-        _: ReadConfig,
+        namespace: String,
+        shard_name: String,
+        key: String,
+        read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        return Err(CommonError::NotSupportFeature(
-            "JournalStorageAdapter".to_string(),
-            "stream_write".to_string(),
-        ));
-    }
-
-    async fn get_offset_by_timestamp(
-        &self,
-        _: String,
-        _: String,
-        _timestamp: u64,
-    ) -> Result<u64, CommonError> {
-        return Err(CommonError::NotSupportFeature(
-            "JournalStorageAdapter".to_string(),
-            "stream_write".to_string(),
-        ));
+        match self
+            .client
+            .read_by_key(&namespace, &shard_name, &key, &read_config)
+            .await
+        {
+            Ok(results) => Ok(results),
+            Err(e) => {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
+        }
     }
 
     async fn get_offset_by_group(
         &self,
-        _group_name: String,
-        _namespace: String,
-        _shard_name: String,
-    ) -> Result<u64, CommonError> {
-        Ok(0)
+        group: String,
+        namespace: String,
+        shard_names: Vec<String>,
+    ) -> Result<Vec<ShardOffset>, CommonError> {
+        self.offset_manager
+            .get_shard_offset(&group, &namespace, &shard_names)
+            .await
+    }
+
+    async fn get_offset_by_timestamp(
+        &self,
+        namespace: String,
+        shard_name: String,
+        timestamp: u64,
+    ) -> Result<Option<ShardOffset>, CommonError> {
+        match self
+            .client
+            .get_offset_by_timestamp(&namespace, &shard_name, timestamp)
+            .await
+        {
+            Ok(result) => {
+                return Ok(Some(ShardOffset {
+                    shard_name: shard_name.clone(),
+                    segment_no: result.0,
+                    offset: result.1,
+                }));
+            }
+            Err(e) => {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
+        }
     }
 
     async fn commit_offset(
         &self,
-        _: String,
-        _: String,
-        _: String,
-        _: u64,
+        group_name: String,
+        namespace: String,
+        offset: HashMap<String, u64>,
     ) -> Result<(), CommonError> {
-        return Err(CommonError::NotSupportFeature(
-            "JournalStorageAdapter".to_string(),
-            "stream_write".to_string(),
-        ));
+        self.offset_manager
+            .commit_offset(&group_name, &namespace, offset)
+            .await
     }
 
     async fn close(&self) -> Result<(), CommonError> {

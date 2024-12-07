@@ -814,6 +814,7 @@ where
 
         let (stop_sx, _) = broadcast::channel(1);
         send_retain_message(
+            &self.protocol,
             &client_id,
             &subscribe,
             &subscribe_properties,

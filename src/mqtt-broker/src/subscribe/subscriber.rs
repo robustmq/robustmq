@@ -15,7 +15,7 @@
 use protocol::mqtt::common::{Filter, MqttProtocol, QoS, RetainForwardRule, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 
-#[derive(Default, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Subscriber {
     pub protocol: MqttProtocol,
     pub client_id: String,
@@ -30,7 +30,7 @@ pub struct Subscriber {
     pub subscription_identifier: Option<usize>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SubscribeData {
     pub protocol: MqttProtocol,
     pub filter: Filter,
