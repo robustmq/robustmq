@@ -36,6 +36,7 @@ impl PlaceOffsetManager {
         _namespace: &str,
         _shard_names: &[String],
     ) -> Result<Vec<ShardOffset>, CommonError> {
+        let _ = self.client_pool.clone();
         Ok(Vec::new())
     }
 

@@ -18,13 +18,12 @@ use common_base::config::journal_server::journal_server_conf;
 use grpc_clients::pool::ClientPool;
 use protocol::journal_server::journal_engine::{
     AutoOffsetStrategy, FetchOffsetReq, FetchOffsetRespBody, FetchOffsetShard,
-    FetchOffsetShardMeta, JournalEngineError, OffsetCommitReq, OffsetCommitShardResp, ReadReq,
-    ReadRespSegmentMessage, WriteReq, WriteRespMessage,
+    FetchOffsetShardMeta, ReadReq, ReadRespSegmentMessage, WriteReq, WriteRespMessage,
 };
 use rocksdb_engine::RocksDBEngine;
 
 use crate::core::cache::CacheManager;
-use crate::core::error::{get_journal_server_code, JournalServerError};
+use crate::core::error::JournalServerError;
 use crate::core::offset::OffsetManager;
 use crate::index::time::TimestampIndexManager;
 use crate::segment::manager::SegmentFileManager;
@@ -117,54 +116,6 @@ impl DataHandler {
         Ok(results)
     }
 
-    pub async fn offset_commit(
-        &self,
-        request: OffsetCommitReq,
-    ) -> Result<Vec<OffsetCommitShardResp>, JournalServerError> {
-        if request.body.is_none() {
-            return Err(JournalServerError::RequestBodyNotEmpty(
-                "offset_commit".to_string(),
-            ));
-        }
-
-        let req_body = request.body.unwrap();
-        let mut result = Vec::new();
-        let conf = journal_server_conf();
-        for shard in req_body.shard {
-            if self
-                .cache_manager
-                .get_shard(&shard.namespace, &shard.shard_name)
-                .is_none()
-            {
-                let e = JournalServerError::ShardNotExist(shard.shard_name.clone());
-                result.push(OffsetCommitShardResp {
-                    shard_name: shard.shard_name.clone(),
-                    error: Some(JournalEngineError {
-                        code: get_journal_server_code(&e),
-                        error: e.to_string(),
-                    }),
-                });
-                continue;
-            }
-
-            self.offset_manager
-                .commit_offset(
-                    &conf.cluster_name,
-                    &shard.namespace,
-                    &req_body.group,
-                    &shard.shard_name,
-                    shard.offset,
-                )
-                .await?;
-
-            result.push(OffsetCommitShardResp {
-                shard_name: shard.shard_name.clone(),
-                ..Default::default()
-            });
-        }
-        Ok(result)
-    }
-
     pub async fn fetch_offset(
         &self,
         request: FetchOffsetReq,
@@ -179,12 +130,7 @@ impl DataHandler {
         let strategy = req_body.auto_offset_strategy();
         let mut meta_list = Vec::new();
         for shard in req_body.shards {
-            let offset = if shard.timestamp > 0 {
-                self.get_offset_by_timestamp(&shard, strategy).await?
-            } else {
-                self.get_offset_by_group(&shard, strategy).await?
-            };
-
+            let offset = self.get_offset_by_timestamp(&shard, strategy).await?;
             let meta = FetchOffsetShardMeta {
                 namespace: shard.namespace,
                 shard_name: shard.shard_name,
@@ -217,31 +163,6 @@ impl DataHandler {
             .await?
         {
             index_data.offset
-        } else {
-            self.offset_manager
-                .get_offset_by_strategy(
-                    &conf.cluster_name,
-                    &shard.namespace,
-                    &shard.shard_name,
-                    strategy,
-                )
-                .await?
-        };
-        Ok(offset)
-    }
-
-    async fn get_offset_by_group(
-        &self,
-        shard: &FetchOffsetShard,
-        strategy: AutoOffsetStrategy,
-    ) -> Result<u64, JournalServerError> {
-        let conf = journal_server_conf();
-        let offset = if let Some(offset) = self
-            .offset_manager
-            .get_offset(&conf.cluster_name, &shard.namespace, &shard.shard_name)
-            .await
-        {
-            offset.offset
         } else {
             self.offset_manager
                 .get_offset_by_strategy(
