@@ -84,7 +84,7 @@ pub async fn start_openraft_node(raft_node: Raft<TypeConfig>) {
     if init_node_id == conf.node.node_id {
         match raft_node.is_initialized().await {
             Ok(flag) => {
-                info!("Whether nodes should be initialized, flag={}", flag);
+                info!("Whether the node has been initialized, flag={}", flag);
                 if !flag {
                     match raft_node.initialize(nodes.clone()).await {
                         Ok(_) => {
