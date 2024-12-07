@@ -34,7 +34,6 @@ use writer::{SenderMessage, SenderMessageResp, Writer};
 mod cache;
 mod connection;
 mod error;
-mod offset;
 pub mod option;
 mod reader;
 mod service;

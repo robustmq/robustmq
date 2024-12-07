@@ -21,9 +21,10 @@ use protocol::placement_center::placement_center_inner::placement_center_service
 use protocol::placement_center::placement_center_inner::{
     ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataReply,
     DeleteIdempotentDataRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
-    ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetResourceConfigReply,
-    GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, NodeListReply, NodeListRequest,
-    RegisterNodeReply, RegisterNodeRequest, ReportMonitorReply, ReportMonitorRequest,
+    ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetOffsetDataReply,
+    GetOffsetDataRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply,
+    HeartbeatRequest, NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest,
+    ReportMonitorReply, ReportMonitorRequest, SaveOffsetDataReply, SaveOffsetDataRequest,
     SetIdempotentDataReply, SetIdempotentDataRequest, SetResourceConfigReply,
     SetResourceConfigRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
@@ -290,5 +291,21 @@ impl PlacementCenterService for GrpcPlacementService {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
+    }
+
+    async fn save_offset_data(
+        &self,
+        request: Request<SaveOffsetDataRequest>,
+    ) -> Result<Response<SaveOffsetDataReply>, Status> {
+        let _ = request.into_inner();
+        Ok(Response::new(SaveOffsetDataReply::default()))
+    }
+
+    async fn get_offset_data(
+        &self,
+        request: Request<GetOffsetDataRequest>,
+    ) -> Result<Response<GetOffsetDataReply>, Status> {
+        let _ = request.into_inner();
+        Ok(Response::new(GetOffsetDataReply::default()))
     }
 }

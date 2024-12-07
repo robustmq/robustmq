@@ -74,6 +74,7 @@ pub async fn save_retain_message(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn send_retain_message(
     protocol: &MqttProtocol,
     client_id: &String,

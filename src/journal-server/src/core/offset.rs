@@ -14,7 +14,6 @@
 
 use std::sync::Arc;
 
-use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::shard::shard_name_iden;
 use protocol::journal_server::journal_engine::AutoOffsetStrategy;
@@ -24,10 +23,6 @@ use super::cache::CacheManager;
 use super::error::JournalServerError;
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
-
-fn group_key_name(namespace: &str, group: &str, shard_name: &str) -> String {
-    format!("{}/{}/{}", namespace, group, shard_name)
-}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Offset {
@@ -40,8 +35,6 @@ pub struct OffsetManager {
     client_pool: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
     segment_file_manager: Arc<SegmentFileManager>,
-    // group,(namespace_shard_name,offset)
-    offsets_data: DashMap<String, DashMap<String, Offset>>,
 }
 
 impl OffsetManager {
@@ -50,12 +43,10 @@ impl OffsetManager {
         cache_manager: Arc<CacheManager>,
         segment_file_manager: Arc<SegmentFileManager>,
     ) -> Self {
-        let offsets = DashMap::new();
         OffsetManager {
             client_pool,
             cache_manager,
             segment_file_manager,
-            offsets_data: offsets,
         }
     }
 
