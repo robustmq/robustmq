@@ -82,7 +82,7 @@ where
         if let Some(offset) = offset_data.first() {
             return Ok(offset.offset);
         }
-        return Ok(0);
+        Ok(0)
     }
 
     pub async fn commit_group_offset(
