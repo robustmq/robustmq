@@ -68,8 +68,8 @@ impl SenderMessage {
 // Send Message Resp Struct
 #[derive(Clone)]
 pub struct SenderMessageResp {
-    offset: u64,
-    error: Option<String>,
+    pub offset: u64,
+    pub error: Option<String>,
 }
 
 // Node Sender Threade Struct

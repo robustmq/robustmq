@@ -122,10 +122,7 @@ where
                 let qos = build_pub_qos(&cache_manager, &subscriber);
                 let sub_ids = build_sub_ids(&subscriber);
 
-                let mut offset = match message_storage
-                    .get_group_offset(&subscriber.topic_id, &group_id)
-                    .await
-                {
+                let mut offset = match message_storage.get_group_offset(&group_id).await {
                     Ok(offset) => offset,
                     Err(e) => {
                         error!("{}", e);
@@ -427,7 +424,7 @@ pub async fn exclusive_publish_message_qos1(
             }
         };
 
-        match publish_message_to_client(resp.clone(), sub_pub_param, connection_manager).await {
+        match publish_message_to_client(resp, sub_pub_param, connection_manager).await {
             Ok(_) => {
                 if let Some(data) = wait_packet_ack(wait_puback_sx).await {
                     if data.ack_type == QosAckPackageType::PubAck && data.pkid == sub_pub_param.pkid

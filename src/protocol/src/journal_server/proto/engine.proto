@@ -2,7 +2,6 @@ syntax = "proto3";
 package journal.engine;
 
 /** Error **/
-
 message JournalEngineError{
     string code = 1;
     string error = 2;
@@ -13,14 +12,17 @@ enum ApiKey{
     Unimplemented = 0;
     Read = 1;
     Write = 2;
-    OffsetCommit = 3;
 
-    GetClusterMetadata = 4;
-    CreateShard = 5;
-    DeleteShard = 6;
+    // shard
+    CreateShard = 3;
+    DeleteShard = 4;
     
-    GetShardMetadata = 7;
-    FetchOffset = 8;
+    // metadata
+    GetShardMetadata = 5;
+    GetClusterMetadata = 6;
+
+    // Offset
+    FetchOffset = 7;
 }
 
 enum ApiVersion{
@@ -34,7 +36,7 @@ enum ReadType{
     Tag = 3;
 }
 
-enum AutoOffsetReset{
+enum AutoOffsetStrategy{
     Earliest = 0;
     Latest = 1;
     None = 2;
@@ -255,47 +257,18 @@ message ReadResp{
     ReadRespBody body = 2;
 }
 
-/** Offset Commit **/
-message OffsetCommitReqBody{
-    string namespace = 1;
-    string group = 2;
-    repeated OffsetCommitShard shard = 3;
-}
-
-message OffsetCommitShard{
-    string shard_name = 1;
-    uint64 offset =2;
-}
-
-message OffsetCommitRespBody{
-    repeated OffsetCommitShardResp resp = 1;
-}
-
-message OffsetCommitShardResp{
-    string shard_name = 1;
-    JournalEngineError error = 2;
-}
-
-message OffsetCommitReq{
-    ReqHeader header = 1;
-    OffsetCommitReqBody body = 2;
-}
-
-message OffsetCommitResp{
-    RespHeader header = 1;
-    OffsetCommitRespBody body = 2;
-}
-
 /** Fetch Offset **/
 message FetchOffsetReqBody{
     string group_name = 1;
     repeated FetchOffsetShard shards = 2;
-    AutoOffsetReset auto_offset_reste = 3;
+    AutoOffsetStrategy auto_offset_strategy = 3;
 }
 
 message FetchOffsetShard{
     string namespace = 1;
     string shard_name = 2;
+    uint32 segment_no = 3;
+    uint64 timestamp = 4;
 }
 
 message FetchOffsetReq{

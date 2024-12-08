@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
+
 use axum::async_trait;
 use common_base::error::common::CommonError;
+use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 
 #[derive(Default, Clone)]
@@ -22,18 +25,11 @@ pub struct ShardConfig {
 }
 
 #[derive(Default, Clone)]
-pub struct ReadConfig {
-    pub max_record_num: u64,
-    pub max_size: u64,
-}
-
-impl ReadConfig {
-    pub fn new() -> Self {
-        ReadConfig {
-            max_record_num: 10,
-            max_size: 1024 * 1024 * 1024,
-        }
-    }
+pub struct ShardOffset {
+    pub namespace: String,
+    pub shard_name: String,
+    pub segment_no: u32,
+    pub offset: u64,
 }
 
 #[async_trait]
@@ -52,14 +48,14 @@ pub trait StorageAdapter {
         namespace: String,
         shard_name: String,
         data: Record,
-    ) -> Result<usize, CommonError>;
+    ) -> Result<u64, CommonError>;
 
     async fn batch_write(
         &self,
         namespace: String,
         shard_name: String,
         data: Vec<Record>,
-    ) -> Result<Vec<usize>, CommonError>;
+    ) -> Result<Vec<u64>, CommonError>;
 
     async fn read_by_offset(
         &self,
@@ -73,6 +69,7 @@ pub trait StorageAdapter {
         &self,
         namespace: String,
         shard_name: String,
+        offset: u64,
         tag: String,
         read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError>;
@@ -90,21 +87,18 @@ pub trait StorageAdapter {
         namespace: String,
         shard_name: String,
         timestamp: u64,
-    ) -> Result<u64, CommonError>;
+    ) -> Result<Option<ShardOffset>, CommonError>;
 
     async fn get_offset_by_group(
         &self,
         group_name: String,
-        namespace: String,
-        shard_name: String,
-    ) -> Result<u64, CommonError>;
+    ) -> Result<Vec<ShardOffset>, CommonError>;
 
     async fn commit_offset(
         &self,
         group_name: String,
         namespace: String,
-        shard_name: String,
-        offset: u64,
+        offset: HashMap<String, u64>,
     ) -> Result<(), CommonError>;
 
     async fn close(&self) -> Result<(), CommonError>;

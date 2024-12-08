@@ -17,14 +17,15 @@ use std::sync::Arc;
 use common_base::config::journal_server::journal_server_conf;
 use grpc_clients::pool::ClientPool;
 use protocol::journal_server::journal_engine::{
-    FetchOffsetReq, FetchOffsetRespBody, FetchOffsetShardMeta, JournalEngineError, OffsetCommitReq,
-    OffsetCommitShardResp, ReadReq, ReadRespSegmentMessage, WriteReq, WriteRespMessage,
+    AutoOffsetStrategy, FetchOffsetReq, FetchOffsetRespBody, FetchOffsetShard,
+    FetchOffsetShardMeta, ReadReq, ReadRespSegmentMessage, WriteReq, WriteRespMessage,
 };
 use rocksdb_engine::RocksDBEngine;
 
 use crate::core::cache::CacheManager;
-use crate::core::error::{get_journal_server_code, JournalServerError};
+use crate::core::error::JournalServerError;
 use crate::core::offset::OffsetManager;
+use crate::index::time::TimestampIndexManager;
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::read::read_data_req;
 use crate::segment::write::write_data_req;
@@ -115,53 +116,6 @@ impl DataHandler {
         Ok(results)
     }
 
-    pub async fn offset_commit(
-        &self,
-        request: OffsetCommitReq,
-    ) -> Result<Vec<OffsetCommitShardResp>, JournalServerError> {
-        if request.body.is_none() {
-            return Err(JournalServerError::RequestBodyNotEmpty(
-                "offset_commit".to_string(),
-            ));
-        }
-
-        let req_body = request.body.unwrap();
-        let mut result = Vec::new();
-        let conf = journal_server_conf();
-        for shard in req_body.shard {
-            if self
-                .cache_manager
-                .get_shard(&req_body.namespace, &shard.shard_name)
-                .is_none()
-            {
-                let e = JournalServerError::ShardNotExist(shard.shard_name.clone());
-                result.push(OffsetCommitShardResp {
-                    shard_name: shard.shard_name.clone(),
-                    error: Some(JournalEngineError {
-                        code: get_journal_server_code(&e),
-                        error: e.to_string(),
-                    }),
-                });
-                continue;
-            }
-
-            self.offset_manager
-                .commit_offset(
-                    &conf.cluster_name,
-                    &req_body.namespace,
-                    &shard.shard_name,
-                    shard.offset,
-                )
-                .await?;
-
-            result.push(OffsetCommitShardResp {
-                shard_name: shard.shard_name.clone(),
-                ..Default::default()
-            });
-        }
-        Ok(result)
-    }
-
     pub async fn fetch_offset(
         &self,
         request: FetchOffsetReq,
@@ -173,32 +127,16 @@ impl DataHandler {
         }
         let req_body = request.body.unwrap();
         let group_name = req_body.group_name.clone();
-        let strategy = req_body.auto_offset_reste();
-        let conf = journal_server_conf();
+        let strategy = req_body.auto_offset_strategy();
         let mut meta_list = Vec::new();
         for shard in req_body.shards {
-            let offset = if let Some(offset) = self
-                .offset_manager
-                .get_offset(&conf.cluster_name, &shard.namespace, &shard.shard_name)
-                .await
-            {
-                offset.offset
-            } else {
-                self.offset_manager
-                    .get_offset_by_strategy(
-                        &conf.cluster_name,
-                        &shard.namespace,
-                        &shard.shard_name,
-                        strategy,
-                    )
-                    .await?
-            };
-
+            let offset = self.get_offset_by_timestamp(&shard, strategy).await?;
             let meta = FetchOffsetShardMeta {
                 namespace: shard.namespace,
                 shard_name: shard.shard_name,
                 offset,
             };
+
             meta_list.push(meta);
         }
 
@@ -206,6 +144,36 @@ impl DataHandler {
             group_name,
             shard_offsets: meta_list,
         })
+    }
+
+    async fn get_offset_by_timestamp(
+        &self,
+        shard: &FetchOffsetShard,
+        strategy: AutoOffsetStrategy,
+    ) -> Result<u64, JournalServerError> {
+        let conf = journal_server_conf();
+        let segment_iden = SegmentIdentity {
+            namespace: shard.namespace.to_owned(),
+            shard_name: shard.shard_name.to_owned(),
+            segment_seq: shard.segment_no,
+        };
+        let timestamp_index = TimestampIndexManager::new(self.rocksdb_engine_handler.clone());
+        let offset = if let Some(index_data) = timestamp_index
+            .get_last_nearest_position_by_timestamp(&segment_iden, shard.timestamp)
+            .await?
+        {
+            index_data.offset
+        } else {
+            self.offset_manager
+                .get_offset_by_strategy(
+                    &conf.cluster_name,
+                    &shard.namespace,
+                    &shard.shard_name,
+                    strategy,
+                )
+                .await?
+        };
+        Ok(offset)
     }
 
     fn validator(&self, segment_identity: &SegmentIdentity) -> Result<(), JournalServerError> {

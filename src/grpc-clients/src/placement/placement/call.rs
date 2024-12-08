@@ -18,9 +18,10 @@ use common_base::error::common::CommonError;
 use protocol::placement_center::placement_center_inner::{
     ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataReply,
     DeleteIdempotentDataRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
-    ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetResourceConfigReply,
-    GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, NodeListReply, NodeListRequest,
-    RegisterNodeReply, RegisterNodeRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
+    ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetOffsetDataReply,
+    GetOffsetDataRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply,
+    HeartbeatRequest, NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest,
+    SaveOffsetDataReply, SaveOffsetDataRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
     SetResourceConfigReply, SetResourceConfigRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
 
@@ -105,4 +106,18 @@ generate_placement_service_call!(
     ExistsIdempotentDataRequest,
     ExistsIdempotentDataReply,
     ExistsIdempotentData
+);
+
+generate_placement_service_call!(
+    save_offset_data,
+    SaveOffsetDataRequest,
+    SaveOffsetDataReply,
+    SaveOffsetData
+);
+
+generate_placement_service_call!(
+    get_offset_data,
+    GetOffsetDataRequest,
+    GetOffsetDataReply,
+    GetOffsetData
 );

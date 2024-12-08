@@ -119,7 +119,7 @@ impl TimestampIndexManager {
         &self,
         segment_iden: &SegmentIdentity,
         start_timestamp: u64,
-    ) -> Result<u64, JournalServerError> {
+    ) -> Result<Option<IndexData>, JournalServerError> {
         let prefix_key = timestamp_segment_time_prefix(segment_iden);
 
         let cf = if let Some(cf) = self
@@ -151,13 +151,13 @@ impl TimestampIndexManager {
                         continue;
                     }
 
-                    return Ok(index_data.position);
+                    return Ok(Some(index_data));
                 }
             }
             iter.next();
         }
 
-        Ok(0)
+        Ok(None)
     }
 }
 

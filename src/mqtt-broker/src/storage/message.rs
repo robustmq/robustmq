@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
+use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
-use storage_adapter::storage::{ReadConfig, StorageAdapter};
+use storage_adapter::storage::StorageAdapter;
 
 pub fn cluster_name() -> String {
     let conf = broker_mqtt_conf();
@@ -41,7 +43,7 @@ where
         &self,
         topic_id: &str,
         record: Vec<Record>,
-    ) -> Result<Vec<usize>, CommonError> {
+    ) -> Result<Vec<u64>, CommonError> {
         let shard_name = topic_id;
         let namespace = cluster_name();
         self.storage_adapter
@@ -65,16 +67,16 @@ where
             .await
     }
 
-    pub async fn get_group_offset(
-        &self,
-        topic_id: &str,
-        group_id: &str,
-    ) -> Result<u64, CommonError> {
-        let shard_name = topic_id;
-        let namespace = cluster_name();
-        self.storage_adapter
-            .get_offset_by_group(group_id.to_owned(), namespace, shard_name.to_owned())
-            .await
+    pub async fn get_group_offset(&self, group_id: &str) -> Result<u64, CommonError> {
+        let offset_data = self
+            .storage_adapter
+            .get_offset_by_group(group_id.to_owned())
+            .await?;
+
+        if let Some(offset) = offset_data.first() {
+            return Ok(offset.offset);
+        }
+        Ok(0)
     }
 
     pub async fn commit_group_offset(
@@ -85,13 +87,12 @@ where
     ) -> Result<(), CommonError> {
         let shard_name = topic_id;
         let namespace = cluster_name();
+
+        let mut offset_data = HashMap::new();
+        offset_data.insert(shard_name.to_owned(), offset);
+
         self.storage_adapter
-            .commit_offset(
-                group_id.to_owned(),
-                namespace,
-                shard_name.to_owned(),
-                offset,
-            )
+            .commit_offset(group_id.to_owned(), namespace, offset_data)
             .await
     }
 }

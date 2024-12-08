@@ -20,8 +20,8 @@ use metadata_struct::placement::cluster::ClusterInfo;
 use metadata_struct::placement::node::BrokerNode;
 use prost::Message as _;
 use protocol::placement_center::placement_center_inner::{
-    DeleteIdempotentDataRequest, DeleteResourceConfigRequest, SetIdempotentDataRequest,
-    SetResourceConfigRequest, UnRegisterNodeRequest,
+    DeleteIdempotentDataRequest, DeleteResourceConfigRequest, SaveOffsetDataRequest,
+    SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclRequest, CreateBlacklistRequest, DeleteAclRequest, DeleteBlacklistRequest,
@@ -35,6 +35,7 @@ use crate::storage::placement::cluster::ClusterStorage;
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::placement::node::NodeStorage;
+use crate::storage::placement::offset::OffsetStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 
 #[derive(Clone)]
@@ -109,6 +110,25 @@ impl DataRouteCluster {
         let req = DeleteIdempotentDataRequest::decode(value.as_ref())?;
         let idempotent_storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
         idempotent_storage.delete(&req.cluster_name, &req.producer_id, req.seq_num)?;
+        Ok(())
+    }
+
+    pub fn save_offset_data(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+        let req = SaveOffsetDataRequest::decode(value.as_ref())?;
+        let offset_storage = OffsetStorage::new(self.rocksdb_engine_handler.clone());
+        for raw in req.offsets {
+            offset_storage.save(
+                &req.cluster_name,
+                &req.group,
+                &raw.namespace,
+                &raw.shard_name,
+                raw.offset,
+            )?;
+        }
+        Ok(())
+    }
+
+    pub fn delete_offset_data(&self, _: Vec<u8>) -> Result<(), PlacementCenterError> {
         Ok(())
     }
 

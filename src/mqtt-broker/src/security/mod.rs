@@ -230,7 +230,7 @@ impl AuthDriver {
         subscribe: &Subscribe,
     ) -> bool {
         for filter in subscribe.filters.clone() {
-            let topic_list = get_sub_topic_id_list(self.cache_manager.clone(), filter.path).await;
+            let topic_list = get_sub_topic_id_list(&self.cache_manager, &filter.path).await;
             for topic in topic_list {
                 if !is_allow_acl(
                     &self.cache_manager,

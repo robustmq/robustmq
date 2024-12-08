@@ -24,10 +24,10 @@ use protocol::placement_center::placement_center_journal::engine_service_server:
 use protocol::placement_center::placement_center_kv::kv_service_server::KvServiceServer;
 use protocol::placement_center::placement_center_mqtt::mqtt_service_server::MqttServiceServer;
 use protocol::placement_center::placement_center_openraft::open_raft_service_server::OpenRaftServiceServer;
+use server::grpc::service_inner::GrpcPlacementService;
 use server::grpc::service_journal::GrpcEngineService;
 use server::grpc::service_kv::GrpcKvService;
 use server::grpc::service_mqtt::GrpcMqttService;
-use server::grpc::service_placement::GrpcPlacementService;
 use server::grpc::services_openraft::GrpcOpenRaftServices;
 use storage::rocksdb::{column_family_list, storage_data_fold, RocksDBEngine};
 use tokio::signal;

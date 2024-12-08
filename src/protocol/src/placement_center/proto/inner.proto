@@ -54,6 +54,10 @@ service PlacementCenterService {
   rpc ExistsIdempotentData(ExistsIdempotentDataRequest) returns(ExistsIdempotentDataReply) {}
 
   rpc DeleteIdempotentData(DeleteIdempotentDataRequest) returns(DeleteIdempotentDataReply) {}
+
+  rpc SaveOffsetData(SaveOffsetDataRequest) returns(SaveOffsetDataReply) {}
+
+  rpc GetOffsetData(GetOffsetDataRequest) returns(GetOffsetDataReply) {}
 }
 
 message ClusterStatusRequest{
@@ -190,4 +194,36 @@ message DeleteIdempotentDataRequest{
 
 message DeleteIdempotentDataReply{
 
+}
+
+message SaveOffsetDataRequest{
+    string cluster_name = 1;
+    string group = 2;
+    repeated SaveOffsetDataRequestOffset offsets = 3;
+}
+
+message SaveOffsetDataRequestOffset{
+    string namespace = 1;
+    string shard_name = 2;
+    uint64 offset = 3;
+}
+
+message SaveOffsetDataReply{
+
+}
+
+message GetOffsetDataRequest{
+    string cluster_name = 1;
+    string group = 2;
+}
+
+
+message GetOffsetDataReply{
+    repeated GetOffsetDataReplyOffset offsets = 1;
+}
+
+message GetOffsetDataReplyOffset{
+    string namespace = 1;
+    string shard_name = 2;
+    uint64 offset = 3;
 }

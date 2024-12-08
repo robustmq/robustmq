@@ -18,9 +18,10 @@ use protocol::placement_center::placement_center_inner::placement_center_service
 use protocol::placement_center::placement_center_inner::{
     ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataReply,
     DeleteIdempotentDataRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
-    ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetResourceConfigReply,
-    GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, NodeListReply, NodeListRequest,
-    RegisterNodeReply, RegisterNodeRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
+    ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetOffsetDataReply,
+    GetOffsetDataRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply,
+    HeartbeatRequest, NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest,
+    SaveOffsetDataReply, SaveOffsetDataRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
     SetResourceConfigReply, SetResourceConfigRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
 use tonic::transport::Channel;
@@ -43,6 +44,8 @@ pub enum PlacementServiceRequest {
     SetIdempotentData(SetIdempotentDataRequest),
     ExistsIdempotentData(ExistsIdempotentDataRequest),
     DeleteIdempotentData(DeleteIdempotentDataRequest),
+    SaveOffsetData(SaveOffsetDataRequest),
+    GetOffsetData(GetOffsetDataRequest),
 }
 
 /// Enum wrapper for all possible replies from the placement service
@@ -59,6 +62,8 @@ pub enum PlacementServiceReply {
     SetIdempotentData(SetIdempotentDataReply),
     ExistsIdempotentData(ExistsIdempotentDataReply),
     DeleteIdempotentData(DeleteIdempotentDataReply),
+    SaveOffsetData(SaveOffsetDataReply),
+    GetOffsetData(GetOffsetDataReply),
 }
 
 pub(super) async fn call_placement_service_once(
@@ -152,6 +157,20 @@ pub(super) async fn call_placement_service_once(
             Ok(PlacementServiceReply::DeleteIdempotentData(
                 reply.into_inner(),
             ))
+        }
+        SaveOffsetData(request) => {
+            let mut client = client_pool
+                .placement_center_inner_services_client(addr)
+                .await?;
+            let reply = client.save_offset_data(request).await?;
+            Ok(PlacementServiceReply::SaveOffsetData(reply.into_inner()))
+        }
+        GetOffsetData(request) => {
+            let mut client = client_pool
+                .placement_center_inner_services_client(addr)
+                .await?;
+            let reply = client.get_offset_data(request).await?;
+            Ok(PlacementServiceReply::GetOffsetData(reply.into_inner()))
         }
     }
 }

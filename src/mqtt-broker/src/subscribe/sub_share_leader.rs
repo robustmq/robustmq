@@ -146,10 +146,7 @@ where
         let message_storage = MessageStorage::new(self.message_storage.clone());
 
         // get current offset by group
-        let mut offset = match message_storage
-            .get_group_offset(&sub_data.topic_id, &group_id)
-            .await
-        {
+        let mut offset = match message_storage.get_group_offset(&group_id).await {
             Ok(offset) => offset,
             Err(e) => {
                 error!("{}", e);

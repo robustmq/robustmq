@@ -12,17 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
+
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
+use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 
-use crate::storage::{ReadConfig, ShardConfig, StorageAdapter};
+use crate::storage::{ShardConfig, ShardOffset, StorageAdapter};
 
 #[derive(Clone)]
 pub struct MemoryStorageAdapter {
     pub shard_data: DashMap<String, Vec<Record>>,
-    pub group_data: DashMap<String, u64>,
+    //group, (namespace_shard_name,offset)
+    pub group_data: DashMap<String, DashMap<String, u64>>,
 }
 
 impl Default for MemoryStorageAdapter {
@@ -39,12 +43,8 @@ impl MemoryStorageAdapter {
         }
     }
 
-    pub fn shard_key(&self, namespace: String, shard_name: String) -> String {
+    pub fn shard_key(&self, namespace: &str, shard_name: &str) -> String {
         format!("{}_{}", namespace, shard_name)
-    }
-
-    pub fn group_key(&self, namespace: String, group_id: String, shard_name: String) -> String {
-        format!("{}_{}_{}", namespace, group_id, shard_name)
     }
 }
 
@@ -59,13 +59,13 @@ impl StorageAdapter for MemoryStorageAdapter {
         _: ShardConfig,
     ) -> Result<(), CommonError> {
         self.shard_data
-            .insert(self.shard_key(namespace, shard_name), Vec::new());
+            .insert(self.shard_key(&namespace, &shard_name), Vec::new());
         return Ok(());
     }
 
     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
         self.shard_data
-            .remove(&self.shard_key(namespace, shard_name));
+            .remove(&self.shard_key(&namespace, &shard_name));
         return Ok(());
     }
 
@@ -74,14 +74,14 @@ impl StorageAdapter for MemoryStorageAdapter {
         namespace: String,
         shard_name: String,
         messages: Vec<Record>,
-    ) -> Result<Vec<usize>, CommonError> {
-        let shard_key = self.shard_key(namespace, shard_name);
+    ) -> Result<Vec<u64>, CommonError> {
+        let shard_key = self.shard_key(&namespace, &shard_name);
         let mut offset_res = Vec::new();
 
         if let Some(mut data_list) = self.shard_data.get_mut(&shard_key) {
             let mut start_offset = data_list.len();
             for mut msg in messages {
-                offset_res.push(start_offset);
+                offset_res.push(start_offset as u64);
                 msg.offset = Some(start_offset as u64);
                 data_list.push(msg);
                 start_offset += 1;
@@ -89,7 +89,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         } else {
             let mut data_list = Vec::new();
             for (offset, mut msg) in messages.into_iter().enumerate() {
-                offset_res.push(offset);
+                offset_res.push(offset as u64);
 
                 msg.offset = Some(offset as u64);
                 data_list.push(msg);
@@ -105,8 +105,8 @@ impl StorageAdapter for MemoryStorageAdapter {
         namespace: String,
         shard_name: String,
         mut data: Record,
-    ) -> Result<usize, CommonError> {
-        let shard_key = self.shard_key(namespace, shard_name);
+    ) -> Result<u64, CommonError> {
+        let shard_key = self.shard_key(&namespace, &shard_name);
 
         let offset = if let Some(mut data_list) = self.shard_data.get_mut(&shard_key) {
             let start_offset = data_list.len();
@@ -121,7 +121,7 @@ impl StorageAdapter for MemoryStorageAdapter {
             0
         };
 
-        return Ok(offset);
+        return Ok(offset as u64);
     }
 
     async fn read_by_offset(
@@ -131,7 +131,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         offset: u64,
         read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        let shard_key = self.shard_key(namespace, shard_name);
+        let shard_key = self.shard_key(&namespace, &shard_name);
 
         if let Some(data_list) = self.shard_data.get(&shard_key) {
             if data_list.len() < offset as usize {
@@ -156,6 +156,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         &self,
         _namespace: String,
         _shard_name: String,
+        _offset: u64,
         _tag: String,
         _read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
@@ -177,32 +178,46 @@ impl StorageAdapter for MemoryStorageAdapter {
         _namespace: String,
         _shard_name: String,
         _timestamp: u64,
-    ) -> Result<u64, CommonError> {
-        Ok(0)
+    ) -> Result<Option<ShardOffset>, CommonError> {
+        Ok(None)
     }
 
     async fn get_offset_by_group(
         &self,
         group_name: String,
-        namespace: String,
-        shard_name: String,
-    ) -> Result<u64, CommonError> {
-        let group_key = self.group_key(namespace, group_name, shard_name);
-        if let Some(offset) = self.group_data.get(&group_key) {
-            return Ok(*offset);
+    ) -> Result<Vec<ShardOffset>, CommonError> {
+        let mut results = Vec::new();
+        if let Some(data) = self.group_data.get(&group_name) {
+            for raw in data.iter() {
+                results.push(ShardOffset {
+                    offset: *raw.value(),
+                    ..Default::default()
+                });
+            }
         }
-        Ok(0)
+
+        Ok(results)
     }
 
     async fn commit_offset(
         &self,
         group_name: String,
         namespace: String,
-        shard_name: String,
-        offset: u64,
+        offset: HashMap<String, u64>,
     ) -> Result<(), CommonError> {
-        let group_key = self.group_key(namespace, group_name, shard_name);
-        self.group_data.insert(group_key, offset);
+        if let Some(data) = self.group_data.get_mut(&group_name) {
+            for (shard_name, offset) in offset.iter() {
+                let group_key = self.shard_key(&namespace, shard_name);
+                data.insert(group_key, *offset);
+            }
+        } else {
+            let data = DashMap::with_capacity(2);
+            for (shard_name, offset) in offset.iter() {
+                let group_key = self.shard_key(&namespace, shard_name);
+                data.insert(group_key, *offset);
+            }
+            self.group_data.insert(group_name, data);
+        }
         Ok(())
     }
 
@@ -213,11 +228,14 @@ impl StorageAdapter for MemoryStorageAdapter {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use common_base::tools::unique_id;
+    use metadata_struct::adapter::read_config::ReadConfig;
     use metadata_struct::adapter::record::Record;
 
     use super::MemoryStorageAdapter;
-    use crate::storage::{ReadConfig, StorageAdapter};
+    use crate::storage::StorageAdapter;
 
     #[tokio::test]
     async fn stream_read_write() {
@@ -230,7 +248,7 @@ mod tests {
             Record::build_byte(ms2.clone().as_bytes().to_vec()),
         ];
         let namespace = unique_id();
-        let shard_key = storage_adapter.shard_key(namespace.clone(), shard_name.clone());
+        let shard_key = storage_adapter.shard_key(&namespace, &shard_name);
 
         let result = storage_adapter
             .batch_write(namespace.clone(), shard_name.clone(), data)
@@ -278,19 +296,20 @@ mod tests {
             ms1
         );
 
+        let mut offset_data = HashMap::new();
+        offset_data.insert(
+            shard_name.clone(),
+            res.first().unwrap().clone().offset.unwrap(),
+        );
+
         storage_adapter
-            .commit_offset(
-                group_id.clone(),
-                namespace.clone(),
-                shard_name.clone(),
-                res.first().unwrap().clone().offset.unwrap(),
-            )
+            .commit_offset(group_id.clone(), namespace.clone(), offset_data)
             .await
             .unwrap();
 
         // read m2
         let offset = storage_adapter
-            .get_offset_by_group(group_id.clone(), namespace.clone(), shard_name.clone())
+            .get_offset_by_group(group_id.clone())
             .await
             .unwrap();
 
@@ -298,7 +317,7 @@ mod tests {
             .read_by_offset(
                 namespace.clone(),
                 shard_name.clone(),
-                offset + 1,
+                offset.first().unwrap().offset + 1,
                 read_config.clone(),
             )
             .await
@@ -308,19 +327,19 @@ mod tests {
             ms2
         );
 
+        let mut offset_data = HashMap::new();
+        offset_data.insert(
+            shard_name.clone(),
+            res.first().unwrap().clone().offset.unwrap(),
+        );
         storage_adapter
-            .commit_offset(
-                group_id.clone(),
-                namespace.clone(),
-                shard_name.clone(),
-                res.first().unwrap().clone().offset.unwrap(),
-            )
+            .commit_offset(group_id.clone(), namespace.clone(), offset_data)
             .await
             .unwrap();
 
         // read m3
-        let offset = storage_adapter
-            .get_offset_by_group(group_id.clone(), namespace.clone(), shard_name.clone())
+        let offset: Vec<crate::storage::ShardOffset> = storage_adapter
+            .get_offset_by_group(group_id.clone())
             .await
             .unwrap();
 
@@ -328,7 +347,7 @@ mod tests {
             .read_by_offset(
                 namespace.clone(),
                 shard_name.clone(),
-                offset + 1,
+                offset.first().unwrap().offset + 1,
                 read_config.clone(),
             )
             .await
@@ -337,19 +356,20 @@ mod tests {
             String::from_utf8(res.first().unwrap().clone().data).unwrap(),
             ms3
         );
+
+        let mut offset_data = HashMap::new();
+        offset_data.insert(
+            shard_name.clone(),
+            res.first().unwrap().clone().offset.unwrap(),
+        );
         storage_adapter
-            .commit_offset(
-                group_id.clone(),
-                namespace.clone(),
-                shard_name.clone(),
-                res.first().unwrap().clone().offset.unwrap(),
-            )
+            .commit_offset(group_id.clone(), namespace.clone(), offset_data)
             .await
             .unwrap();
 
         // read m4
         let offset = storage_adapter
-            .get_offset_by_group(group_id.clone(), namespace.clone(), shard_name.clone())
+            .get_offset_by_group(group_id.clone())
             .await
             .unwrap();
 
@@ -357,7 +377,7 @@ mod tests {
             .read_by_offset(
                 namespace.clone(),
                 shard_name.clone(),
-                offset + 1,
+                offset.first().unwrap().offset + 1,
                 read_config.clone(),
             )
             .await
@@ -366,13 +386,11 @@ mod tests {
             String::from_utf8(res.first().unwrap().clone().data).unwrap(),
             ms4
         );
+
+        let mut offset_data = HashMap::new();
+        offset_data.insert(shard_name, res.first().unwrap().clone().offset.unwrap());
         storage_adapter
-            .commit_offset(
-                group_id.clone(),
-                namespace.clone(),
-                shard_name.clone(),
-                res.first().unwrap().clone().offset.unwrap(),
-            )
+            .commit_offset(group_id.clone(), namespace.clone(), offset_data)
             .await
             .unwrap();
     }

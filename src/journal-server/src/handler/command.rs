@@ -21,8 +21,8 @@ use protocol::journal_server::codec::JournalEnginePacket;
 use protocol::journal_server::journal_engine::{
     ApiKey, ApiVersion, CreateShardResp, CreateShardRespBody, DeleteShardResp, DeleteShardRespBody,
     FetchOffsetResp, FetchOffsetRespBody, GetClusterMetadataResp, GetClusterMetadataRespBody,
-    GetShardMetadataResp, GetShardMetadataRespBody, JournalEngineError, OffsetCommitResp,
-    OffsetCommitRespBody, ReadResp, ReadRespBody, RespHeader, WriteResp, WriteRespBody,
+    GetShardMetadataResp, GetShardMetadataRespBody, JournalEngineError, ReadResp, ReadRespBody,
+    RespHeader, WriteResp, WriteRespBody,
 };
 use rocksdb_engine::RocksDBEngine;
 
@@ -215,29 +215,6 @@ impl Command {
                 }
                 resp.header = Some(header);
                 return Some(JournalEnginePacket::ReadResp(resp));
-            }
-
-            JournalEnginePacket::OffsetCommitReq(request) => {
-                let mut resp = OffsetCommitResp::default();
-                let mut header = RespHeader {
-                    api_key: ApiKey::OffsetCommit.into(),
-                    api_version: ApiVersion::V0.into(),
-                    ..Default::default()
-                };
-                match self.data_handler.offset_commit(request).await {
-                    Ok(data) => {
-                        resp.body = Some(OffsetCommitRespBody { resp: data });
-                    }
-                    Err(e) => {
-                        header.error = Some(JournalEngineError {
-                            code: get_journal_server_code(&e),
-                            error: e.to_string(),
-                        });
-                        resp.body = Some(OffsetCommitRespBody::default());
-                    }
-                }
-                resp.header = Some(header);
-                return Some(JournalEnginePacket::OffsetCommitResp(resp));
             }
 
             JournalEnginePacket::FetchOffsetReq(request) => {

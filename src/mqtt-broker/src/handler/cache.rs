@@ -322,8 +322,8 @@ impl CacheManager {
         self.topic_info.contains_key(topic)
     }
 
-    pub fn topic_name_by_id(&self, topic_id: String) -> Option<String> {
-        if let Some(data) = self.topic_id_name.get(&topic_id) {
+    pub fn topic_name_by_id(&self, topic_id: &str) -> Option<String> {
+        if let Some(data) = self.topic_id_name.get(topic_id) {
             return Some(data.clone());
         }
         None

@@ -105,12 +105,12 @@ pub fn min_qos(qos: QoS, sub_qos: QoS) -> QoS {
 }
 
 pub async fn get_sub_topic_id_list(
-    metadata_cache: Arc<CacheManager>,
-    sub_path: String,
+    metadata_cache: &Arc<CacheManager>,
+    sub_path: &str,
 ) -> Vec<String> {
     let mut result = Vec::new();
     for (topic_id, topic_name) in metadata_cache.topic_id_name.clone() {
-        if path_regex_match(topic_name.clone(), sub_path.clone()) {
+        if path_regex_match(topic_name.clone(), sub_path.to_string()) {
             result.push(topic_id);
         }
     }
@@ -553,7 +553,7 @@ mod tests {
         metadata_cache.add_topic(&topic_name, &topic);
 
         let sub_path = "/test/topic".to_string();
-        let result = get_sub_topic_id_list(metadata_cache.clone(), sub_path).await;
+        let result = get_sub_topic_id_list(&metadata_cache, &sub_path).await;
         assert!(result.len() == 1);
         assert_eq!(result.first().unwrap().clone(), topic.topic_id);
     }

@@ -28,10 +28,12 @@ use protocol::mqtt::common::{
     Unsubscribe, UnsubscribeProperties,
 };
 use storage_adapter::storage::StorageAdapter;
+use tokio::sync::broadcast;
 
 use super::connection::disconnect_connection;
 use super::flow_control::is_flow_control;
 use super::message::build_message_expire;
+use super::retain::send_retain_message;
 use crate::handler::cache::{
     CacheManager, ConnectionLiveTime, QosAckPackageData, QosAckPackageType,
 };
@@ -47,7 +49,7 @@ use crate::handler::response::{
     response_packet_mqtt_pubrel_success, response_packet_mqtt_suback,
     response_packet_mqtt_unsuback,
 };
-use crate::handler::retain::save_topic_retain_message;
+use crate::handler::retain::save_retain_message;
 use crate::handler::session::{build_session, save_session};
 use crate::handler::topic::{get_topic_name, try_init_topic};
 use crate::handler::validator::{
@@ -393,7 +395,7 @@ where
         let client_id = connection.client_id.clone();
 
         // Persisting retain message data
-        match save_topic_retain_message(
+        match save_retain_message(
             &self.cache_manager,
             &self.client_pool,
             topic_name.clone(),
@@ -810,15 +812,19 @@ where
         )
         .await;
 
-        // try_send_retain_message(
-        //     &subscriber.client_id,
-        //     &subscriber,
-        //     &client_pool,
-        //     &cache_manager,
-        //     &connection_manager,
-        //     &sub_thread_stop_sx,
-        // )
-        // .await;
+        let (stop_sx, _) = broadcast::channel(1);
+        send_retain_message(
+            &self.protocol,
+            &client_id,
+            &subscribe,
+            &subscribe_properties,
+            &self.client_pool,
+            &self.cache_manager,
+            &self.connection_manager,
+            &stop_sx,
+        )
+        .await
+        .unwrap();
 
         response_packet_mqtt_suback(&self.protocol, &connection, pkid, return_codes, None)
     }

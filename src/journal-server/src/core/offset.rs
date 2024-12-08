@@ -14,24 +14,15 @@
 
 use std::sync::Arc;
 
-use common_base::config::journal_server::journal_server_conf;
-use dashmap::DashMap;
-use grpc_clients::placement::kv::call::placement_set;
 use grpc_clients::pool::ClientPool;
-use log::{info, warn};
 use metadata_struct::journal::shard::shard_name_iden;
-use protocol::journal_server::journal_engine::AutoOffsetReset;
-use protocol::placement_center::placement_center_kv::SetRequest;
+use protocol::journal_server::journal_engine::AutoOffsetStrategy;
 use serde::{Deserialize, Serialize};
 
 use super::cache::CacheManager;
 use super::error::JournalServerError;
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
-
-fn key_name(cluster_name: &str, namespace: &str, shard_name: &str) -> String {
-    format!("{}/{}/{}", cluster_name, namespace, shard_name)
-}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Offset {
@@ -44,7 +35,6 @@ pub struct OffsetManager {
     client_pool: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
     segment_file_manager: Arc<SegmentFileManager>,
-    offsets: DashMap<String, Offset>,
 }
 
 impl OffsetManager {
@@ -53,67 +43,21 @@ impl OffsetManager {
         cache_manager: Arc<CacheManager>,
         segment_file_manager: Arc<SegmentFileManager>,
     ) -> Self {
-        let offsets = DashMap::new();
         OffsetManager {
             client_pool,
             cache_manager,
             segment_file_manager,
-            offsets,
         }
     }
 
-    pub async fn commit_offset(
+    pub async fn get_offset_by_timestamp(
         &self,
         cluster_name: &str,
         namespace: &str,
         shard_name: &str,
-        offset: u64,
-    ) -> Result<(), JournalServerError> {
-        let key = key_name(cluster_name, namespace, shard_name);
-
-        if let Some(current_offset) = self.offsets.get(&key) {
-            if current_offset.offset < offset {
-                warn!("Submitted Offset is x, which is less than the current offset y. namespace: {}, shard_name:{}",namespace,shard_name);
-            }
-        } else {
-            info!("No Offset information in the cache, it could be the first commit offset, namespace: {}, shard_name:{}",namespace,shard_name);
-        }
-
-        let conf = journal_server_conf();
-        let offset = Offset {
-            namespace: namespace.to_string(),
-            shard_name: shard_name.to_string(),
-            offset,
-        };
-
-        let request = SetRequest {
-            key: key.clone(),
-            value: serde_json::to_string(&offset)?,
-        };
-
-        match placement_set(self.client_pool.clone(), &conf.placement_center, request).await {
-            Ok(_) => {
-                self.offsets.insert(key, offset);
-            }
-            Err(e) => {
-                return Err(e.into());
-            }
-        }
-
-        Ok(())
-    }
-
-    pub async fn get_offset(
-        &self,
-        cluster_name: &str,
-        namespace: &str,
-        shard_name: &str,
-    ) -> Option<Offset> {
-        let key = key_name(cluster_name, namespace, shard_name);
-        if let Some(offset) = self.offsets.get(&key) {
-            return Some(offset.clone());
-        }
-        None
+        timestamp: u64,
+    ) -> Result<u64, JournalServerError> {
+        Ok(0)
     }
 
     pub async fn get_offset_by_strategy(
@@ -121,9 +65,9 @@ impl OffsetManager {
         cluster_name: &str,
         namespace: &str,
         shard_name: &str,
-        strategy: AutoOffsetReset,
+        strategy: AutoOffsetStrategy,
     ) -> Result<u64, JournalServerError> {
-        if strategy == AutoOffsetReset::Latest {
+        if strategy == AutoOffsetStrategy::Latest {
             return self.get_latest_offset_by_shard(namespace, shard_name).await;
         }
         self.get_earliest_offset_by_shard(namespace, shard_name)

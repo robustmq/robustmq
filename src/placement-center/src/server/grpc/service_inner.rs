@@ -21,11 +21,12 @@ use protocol::placement_center::placement_center_inner::placement_center_service
 use protocol::placement_center::placement_center_inner::{
     ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataReply,
     DeleteIdempotentDataRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
-    ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetResourceConfigReply,
+    ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetOffsetDataReply,
+    GetOffsetDataReplyOffset, GetOffsetDataRequest, GetResourceConfigReply,
     GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, NodeListReply, NodeListRequest,
     RegisterNodeReply, RegisterNodeRequest, ReportMonitorReply, ReportMonitorRequest,
-    SetIdempotentDataReply, SetIdempotentDataRequest, SetResourceConfigReply,
-    SetResourceConfigRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
+    SaveOffsetDataReply, SaveOffsetDataRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
+    SetResourceConfigReply, SetResourceConfigRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
 use tonic::{Request, Response, Status};
 
@@ -38,6 +39,7 @@ use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
+use crate::storage::placement::offset::OffsetStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct GrpcPlacementService {
@@ -290,5 +292,46 @@ impl PlacementCenterService for GrpcPlacementService {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
+    }
+
+    async fn save_offset_data(
+        &self,
+        request: Request<SaveOffsetDataRequest>,
+    ) -> Result<Response<SaveOffsetDataReply>, Status> {
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::ClusterSaveOffset,
+            SaveOffsetDataRequest::encode_to_vec(&req),
+        );
+
+        match self.raft_machine_apply.client_write(data).await {
+            Ok(_) => return Ok(Response::new(SaveOffsetDataReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn get_offset_data(
+        &self,
+        request: Request<GetOffsetDataRequest>,
+    ) -> Result<Response<GetOffsetDataReply>, Status> {
+        let req = request.into_inner();
+        let offset_storage = OffsetStorage::new(self.rocksdb_engine_handler.clone());
+        let offset_data = match offset_storage.group_offset(&req.cluster_name, &req.group) {
+            Ok(data) => data,
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        };
+        let mut results = Vec::new();
+        for raw in offset_data {
+            results.push(GetOffsetDataReplyOffset {
+                namespace: raw.namespace,
+                shard_name: raw.shard_name,
+                offset: raw.offset,
+            });
+        }
+        return Ok(Response::new(GetOffsetDataReply { offsets: results }));
     }
 }
