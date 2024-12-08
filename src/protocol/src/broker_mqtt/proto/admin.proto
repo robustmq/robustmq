@@ -30,6 +30,7 @@ service MQTTBrokerAdminService {
 
     // observability: slow-sub
     rpc mqtt_broker_enable_slow_subscribe(EnableSlowSubscribeRequest) returns(EnableSlowSubScribeReply) {}
+    rpc mqtt_broker_list_slow_subscribe(ListSlowSubscribeRequest) returns(ListSlowSubscribeReply){}
     rpc mqtt_broker_list_topic(ListTopicRequest) returns(ListTopicReply){}
 }
 
@@ -175,4 +176,20 @@ message MqttTopic {
     string cluster_name = 2;
     string topic_name = 3;
     bool is_contain_retain_message = 4;
+}
+
+message ListSlowSubscribeRequest {
+
+}
+
+message ListSlowSubscribeReply {
+    repeated ListSlowSubScribeRaw list_slow_subscribe_raw = 1;
+}
+
+message ListSlowSubScribeRaw {
+    string client_id = 1;
+    string topic = 2;
+    uint32 time_ms = 3;
+    string node_info = 4;
+    uint64 create_time = 5;
 }

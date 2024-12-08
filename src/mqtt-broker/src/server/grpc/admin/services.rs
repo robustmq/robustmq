@@ -27,8 +27,9 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
     DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
     ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionRaw,
-    ListConnectionReply, ListConnectionRequest, ListTopicReply, ListTopicRequest, ListUserReply,
-    ListUserRequest, MqttTopic,
+    ListConnectionReply, ListConnectionRequest, ListSlowSubScribeRaw, ListSlowSubscribeReply,
+    ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+    MqttTopic,
 };
 use tonic::{Request, Response, Status};
 
@@ -224,22 +225,6 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         }
     }
 
-    async fn mqtt_broker_create_blacklist(
-        &self,
-        request: Request<CreateBlacklistRequest>,
-    ) -> Result<Response<CreateBlacklistReply>, Status> {
-        let req = request.into_inner();
-        let mqtt_blacklist = MqttAclBlackList::decode(&req.blacklist).unwrap();
-
-        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
-        match auth_driver.save_blacklist(mqtt_blacklist).await {
-            Ok(_) => return Ok(Response::new(CreateBlacklistReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
-    }
-
     async fn mqtt_broker_delete_blacklist(
         &self,
         request: Request<DeleteBlacklistRequest>,
@@ -263,6 +248,22 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
         match auth_driver.delete_blacklist(mqtt_blacklist).await {
             Ok(_) => return Ok(Response::new(DeleteBlacklistReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn mqtt_broker_create_blacklist(
+        &self,
+        request: Request<CreateBlacklistRequest>,
+    ) -> Result<Response<CreateBlacklistReply>, Status> {
+        let req = request.into_inner();
+        let mqtt_blacklist = MqttAclBlackList::decode(&req.blacklist).unwrap();
+
+        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        match auth_driver.save_blacklist(mqtt_blacklist).await {
+            Ok(_) => return Ok(Response::new(CreateBlacklistReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -312,6 +313,17 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             })),
             Err(e) => Err(Status::cancelled(e.to_string())),
         }
+    }
+
+    async fn mqtt_broker_list_slow_subscribe(
+        &self,
+        request: Request<ListSlowSubscribeRequest>,
+    ) -> Result<Response<ListSlowSubscribeReply>, Status> {
+        let _list_slow_subscribe_request = request.into_inner();
+        let list_slow_subscribe_raw: Vec<ListSlowSubScribeRaw> = Vec::new();
+        Ok(Response::new(ListSlowSubscribeReply {
+            list_slow_subscribe_raw,
+        }))
     }
 
     async fn mqtt_broker_list_topic(

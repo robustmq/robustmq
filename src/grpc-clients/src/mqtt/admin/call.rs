@@ -21,7 +21,8 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
     DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
     ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
-    ListConnectionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+    ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
+    ListTopicRequest, ListUserReply, ListUserRequest,
 };
 
 use crate::mqtt::{call_once, MqttBrokerPlacementReply, MqttBrokerPlacementRequest};
@@ -174,6 +175,18 @@ pub async fn mqtt_broker_enable_slow_subscribe(
     let request = MqttBrokerPlacementRequest::EnableSlowSubscribe(request);
     match retry_call(&client_pool, addrs, request, call_once).await? {
         MqttBrokerPlacementReply::EnableSlowSubscribe(reply) => Ok(reply),
+        _ => unreachable!("Reply type mismatch"),
+    }
+}
+
+pub async fn mqtt_broker_list_slow_subscribe(
+    client_pool: Arc<ClientPool>,
+    addrs: &[String],
+    request: ListSlowSubscribeRequest,
+) -> Result<ListSlowSubscribeReply, CommonError> {
+    let request = MqttBrokerPlacementRequest::ListSlowSubscribe(request);
+    match retry_call(&client_pool, addrs, request, call_once).await? {
+        MqttBrokerPlacementReply::ListSlowSubscribe(reply) => Ok(reply),
         _ => unreachable!("Reply type mismatch"),
     }
 }

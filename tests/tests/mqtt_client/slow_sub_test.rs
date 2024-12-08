@@ -16,9 +16,13 @@
 mod tests {
     use std::sync::Arc;
 
-    use grpc_clients::mqtt::admin::call::mqtt_broker_enable_slow_subscribe;
+    use grpc_clients::mqtt::admin::call::{
+        mqtt_broker_enable_slow_subscribe, mqtt_broker_list_slow_subscribe,
+    };
     use grpc_clients::pool::ClientPool;
-    use protocol::broker_mqtt::broker_mqtt_admin::EnableSlowSubscribeRequest;
+    use protocol::broker_mqtt::broker_mqtt_admin::{
+        EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
+    };
 
     use crate::mqtt_protocol::common::broker_grpc_addr;
 
@@ -36,6 +40,24 @@ mod tests {
 
             Err(e) => {
                 eprintln!("Failed enable_slow_subscribe: {:?}", e);
+                std::process::exit(1);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_list_slow_subscribe() {
+        let client_pool = Arc::new(ClientPool::new(3));
+        let grpc_addr = vec![broker_grpc_addr()];
+        let request = ListSlowSubscribeRequest {};
+
+        match mqtt_broker_list_slow_subscribe(client_pool, &grpc_addr, request).await {
+            Ok(data) => {
+                println!("{:?}", data);
+            }
+
+            Err(e) => {
+                eprintln!("Failed list slow subscribe: {:?}", e);
                 std::process::exit(1);
             }
         }
