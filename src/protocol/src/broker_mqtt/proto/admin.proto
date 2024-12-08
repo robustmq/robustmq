@@ -30,27 +30,28 @@ service MQTTBrokerAdminService {
 
     // observability: slow-sub
     rpc mqtt_broker_enable_slow_subscribe(EnableSlowSubscribeRequest) returns(EnableSlowSubScribeReply) {}
+    rpc mqtt_broker_list_topic(ListTopicRequest) returns(ListTopicReply){}
 }
 
 // --------- cluster --------
-message ClusterStatusRequest{
+message ClusterStatusRequest {
 
 }
-message ClusterStatusReply{
+message ClusterStatusReply {
     string cluster_name = 1;
     repeated string nodes = 2;
 }
 
 // --------- user --------
-message ListUserRequest{
+message ListUserRequest {
 
 }
 
-message ListUserReply{
+message ListUserReply {
     repeated bytes users = 1;
 }
 
-message CreateUserRequest{
+message CreateUserRequest {
     string username = 1;
 
     string password = 2;
@@ -58,15 +59,15 @@ message CreateUserRequest{
     bool is_superuser = 3;
 }
 
-message CreateUserReply{
+message CreateUserReply {
 
 }
 
-message DeleteUserRequest{
+message DeleteUserRequest {
     string username = 1;
 }
 
-message DeleteUserReply{
+message DeleteUserReply {
 
 }
 
@@ -129,11 +130,11 @@ message DeleteBlacklistReply{
 }
 
 // --------- connection --------
-message ListConnectionRequest{
+message ListConnectionRequest {
 
 }
 
-message ListConnectionReply{
+message ListConnectionReply {
     repeated ListConnectionRaw list_connection_raw = 1;
 }
 
@@ -145,7 +146,6 @@ message ListConnectionRaw {
     string info = 5;
 }
 
-
 // --------- observability service --------
 // --------- slow subscribe feature -------
 message EnableSlowSubscribeRequest {
@@ -154,4 +154,25 @@ message EnableSlowSubscribeRequest {
 
 message EnableSlowSubScribeReply {
     bool is_enable = 1;
+}
+
+// --------- mqtt topic --------
+enum MatchOption {
+    E = 0;
+    P = 1;
+    S = 2;
+}
+
+message ListTopicRequest {
+    string topic_name = 1;
+    MatchOption match_option = 2;
+}
+message ListTopicReply {
+    repeated MqttTopic topics = 1;
+}
+message MqttTopic {
+    string topic_id = 1;
+    string cluster_name = 2;
+    string topic_name = 3;
+    bool is_contain_retain_message = 4;
 }

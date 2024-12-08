@@ -16,13 +16,14 @@ use std::sync::Arc;
 
 use grpc_clients::mqtt::admin::call::{
     cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user,
-    mqtt_broker_enable_slow_subscribe, mqtt_broker_list_connection, mqtt_broker_list_user,
+    mqtt_broker_enable_slow_subscribe, mqtt_broker_list_connection, mqtt_broker_list_topic,
+    mqtt_broker_list_user,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, EnableSlowSubscribeRequest,
-    ListConnectionRequest, ListUserRequest,
+    ListConnectionRequest, ListTopicRequest, ListUserRequest,
 };
 
 use crate::{error_info, grpc_addr};
@@ -47,6 +48,8 @@ pub enum MqttActionType {
 
     // observability: slow-ub
     EnableSlowSubscribe(EnableSlowSubscribeRequest),
+
+    ListTopic(ListTopicRequest),
 }
 
 pub struct MqttBrokerCommand {}
@@ -85,6 +88,10 @@ impl MqttBrokerCommand {
             }
             MqttActionType::EnableSlowSubscribe(ref request) => {
                 self.enable_slow_subscribe(client_pool.clone(), params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::ListTopic(ref request) => {
+                self.list_topic(client_pool.clone(), params.clone(), request.clone())
                     .await;
             }
         }
@@ -206,6 +213,39 @@ impl MqttBrokerCommand {
 
             Err(e) => {
                 println!("The slow subscription feature failed to enable, with the specific reason being:");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn list_topic(
+        &self,
+        client_pool: Arc<ClientPool>,
+        params: MqttCliCommandParam,
+        cli_request: ListTopicRequest,
+    ) {
+        match mqtt_broker_list_topic(client_pool.clone(), &grpc_addr(params.server), cli_request)
+            .await
+        {
+            Ok(data) => {
+                println!("topic list result:");
+                for mqtt_topic in data.topics {
+                    println!(
+                        concat!(
+                            "topic id: {}\n",
+                            "topic name: {}\n",
+                            "cluster name: {}\n",
+                            "is contain retain message: {}\n"
+                        ),
+                        mqtt_topic.topic_id,
+                        mqtt_topic.topic_name,
+                        mqtt_topic.cluster_name,
+                        mqtt_topic.is_contain_retain_message
+                    );
+                }
+            }
+            Err(e) => {
+                println!("MQTT broker list topic exception");
                 error_info(e.to_string());
             }
         }
