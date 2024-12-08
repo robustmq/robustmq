@@ -19,7 +19,7 @@ use axum::extract::ws::{Message, WebSocket};
 use dashmap::DashMap;
 use futures::stream::SplitSink;
 use futures::SinkExt;
-use log::{debug, error, info};
+use log::{error, info};
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::MqttProtocol;
 use tokio::time::sleep;
@@ -205,7 +205,7 @@ impl ConnectionManager {
         connection_id: u64,
         resp: MqttPacketWrapper,
     ) -> Result<(), MqttBrokerError> {
-        debug!("response packet:{resp:?},connection_id:{connection_id}");
+        info!("response packet:{resp:?},connection_id:{connection_id}");
 
         if let Some(connection) = self.get_connect(connection_id) {
             if connection.connection_type == NetworkConnectionType::Tls {
