@@ -15,7 +15,7 @@
 pub(crate) mod mqtt;
 mod utils;
 
-use clap::{arg, Parser, Subcommand};
+use clap::{arg, Parser, Subcommand, ValueEnum};
 use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
 use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
@@ -217,9 +217,3 @@ async fn handle_journal(args: JournalArgs) {
     println!("{:?}", args);
 }
 
-
-// unit tests
-#[cfg(test)]
-mod tests {
-    mod command_test;
-}

@@ -178,7 +178,7 @@ pub async fn mqtt_broker_enable_slow_subscribe(
     }
 }
 
-pub async fn mqtt_broker_list_user(
+pub async fn mqtt_broker_list_topic(
     client_pool: Arc<ClientPool>,
     addrs: &[String],
     request: ListTopicRequest,

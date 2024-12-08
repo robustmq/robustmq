@@ -23,7 +23,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, EnableSlowSubscribeRequest,
-    ListConnectionRequest, ListUserRequest, ListUserRequest, ListTopicRequest
+    ListConnectionRequest, ListUserRequest, ListTopicRequest
 };
 
 use crate::{error_info, grpc_addr};
@@ -88,6 +88,8 @@ impl MqttBrokerCommand {
             }
             MqttActionType::EnableSlowSubscribe(ref request) => {
                 self.enable_slow_subscribe(client_pool.clone(), params.clone(), request.clone())
+                    .await;
+            }
             MqttActionType::ListTopic(ref request) => {
                 self.list_topic(client_pool.clone(), params.clone(), request.clone())
                     .await;
