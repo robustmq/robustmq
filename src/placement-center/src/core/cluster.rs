@@ -14,9 +14,7 @@
 
 use std::sync::Arc;
 
-use common_base::config::placement_center::placement_center_conf;
 use common_base::tools::now_mills;
-use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::placement::cluster::ClusterInfo;
 use metadata_struct::placement::node::BrokerNode;
@@ -24,90 +22,14 @@ use prost::Message as _;
 use protocol::placement_center::placement_center_inner::{
     ClusterType, RegisterNodeRequest, UnRegisterNodeRequest,
 };
-use raft::StateRole;
-use serde::{Deserialize, Serialize};
 
 use super::cache::PlacementCacheManager;
 use super::error::PlacementCenterError;
 use crate::journal::controller::call_node::{
     update_cache_by_add_journal_node, update_cache_by_delete_journal_node, JournalInnerCallManager,
 };
-use crate::raft::raft_node::Node;
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
-
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
-pub struct ClusterMetadata {
-    pub local: Node,
-    pub leader: Option<Node>,
-    pub raft_role: String,
-    pub votes: DashMap<u64, Node>,
-    pub members: DashMap<u64, Node>,
-}
-
-impl ClusterMetadata {
-    pub fn new() -> ClusterMetadata {
-        let config = placement_center_conf();
-
-        if !(1..=65536).contains(&config.node.node_id) {
-            panic!("node ids can range from 1 to 65536");
-        }
-
-        let node_addr = if let Some(addr) =
-            config.node.nodes.get(&format!("{}", config.node.node_id))
-        {
-            addr.to_string()
-        } else {
-            panic!("node id {} There is no corresponding service address, check the nodes configuration",config.node.node_id);
-        };
-
-        let local = Node {
-            node_id: config.node.node_id,
-            rpc_addr: node_addr,
-        };
-
-        let votes = DashMap::with_capacity(2);
-        for (node_id, addr) in config.node.nodes.clone() {
-            let id: u64 = match node_id.to_string().trim().parse() {
-                Ok(id) => id,
-                Err(_) => {
-                    panic!("Node id must be u64");
-                }
-            };
-
-            if addr.to_string().is_empty() {
-                panic!(
-                    "Address corresponding to the node id {} cannot be empty",
-                    id
-                );
-            }
-
-            let node = Node {
-                node_id: id,
-                rpc_addr: addr.to_string(),
-            };
-
-            votes.insert(id, node);
-        }
-
-        ClusterMetadata {
-            local,
-            leader: None,
-            raft_role: role_to_string(StateRole::Candidate),
-            votes,
-            members: DashMap::with_capacity(2),
-        }
-    }
-}
-
-fn role_to_string(role: StateRole) -> String {
-    match role {
-        StateRole::Leader => "Leader".to_string(),
-        StateRole::Follower => "Follower".to_string(),
-        StateRole::Candidate => "Candidate".to_string(),
-        StateRole::PreCandidate => "PreCandidate".to_string(),
-    }
-}
 
 pub async fn register_node_by_req(
     cluster_cache: &Arc<PlacementCacheManager>,
@@ -171,7 +93,7 @@ async fn sync_save_node(
     node: &BrokerNode,
 ) -> Result<(), PlacementCenterError> {
     let data = StorageData::new(StorageDataType::ClusterAddNode, serde_json::to_vec(&node)?);
-    if (raft_machine_apply.client_write(data).await?).is_some() {
+    if raft_machine_apply.client_write(data).await?.is_some() {
         return Ok(());
     }
     Err(PlacementCenterError::ExecutionResultIsEmpty)
@@ -185,7 +107,7 @@ pub async fn sync_delete_node(
         StorageDataType::ClusterDeleteNode,
         UnRegisterNodeRequest::encode_to_vec(req),
     );
-    if (raft_machine_apply.client_write(data).await?).is_some() {
+    if raft_machine_apply.client_write(data).await?.is_some() {
         return Ok(());
     }
     Err(PlacementCenterError::ExecutionResultIsEmpty)
@@ -199,7 +121,7 @@ async fn sync_save_cluster(
         StorageDataType::ClusterAddCluster,
         serde_json::to_vec(&node)?,
     );
-    if (raft_machine_apply.client_write(data).await?).is_some() {
+    if raft_machine_apply.client_write(data).await?.is_some() {
         return Ok(());
     }
     Err(PlacementCenterError::ExecutionResultIsEmpty)

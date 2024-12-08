@@ -66,14 +66,11 @@ impl ClusterController {
                 val = stop_recv.recv() =>{
                     if let Ok(flag) = val {
                         if flag {
-
                             break;
                         }
                     }
                 }
-                _ = heartbeat.start()=>{
-
-                }
+                _ = heartbeat.start()=>{}
             }
         }
     }

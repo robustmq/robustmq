@@ -21,16 +21,12 @@ use metadata_struct::placement::node::BrokerNode;
 use serde::{Deserialize, Serialize};
 
 use super::heartbeat::NodeHeartbeatData;
-use crate::core::cluster::ClusterMetadata;
 use crate::storage::placement::cluster::ClusterStorage;
 use crate::storage::placement::node::NodeStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct PlacementCacheManager {
-    // placement raft cluster
-    pub placement_cluster: DashMap<String, ClusterMetadata>,
-
     // broker cluster & node
     pub cluster_list: DashMap<String, ClusterInfo>,
     pub node_list: DashMap<String, DashMap<u64, BrokerNode>>,
@@ -43,7 +39,6 @@ impl PlacementCacheManager {
             cluster_list: DashMap::with_capacity(2),
             node_heartbeat: DashMap::with_capacity(2),
             node_list: DashMap::with_capacity(2),
-            placement_cluster: DashMap::with_capacity(2),
         };
         cache.load_cache(rocksdb_engine_handler);
         cache
@@ -152,16 +147,9 @@ impl PlacementCacheManager {
                 self.add_broker_node(bn);
             }
         }
-
-        let placement_cluster = DashMap::with_capacity(2);
-        placement_cluster.insert(self.cluster_key(), ClusterMetadata::new());
-        self.placement_cluster = placement_cluster;
     }
 
     fn node_key(&self, cluster_name: &str, node_id: u64) -> String {
         format!("{}_{}", cluster_name, node_id)
-    }
-    fn cluster_key(&self) -> String {
-        "cluster".to_string()
     }
 }
