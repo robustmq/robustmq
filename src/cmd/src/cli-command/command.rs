@@ -155,63 +155,71 @@ struct JournalArgs {
 async fn main() {
     let args = RobustMQCli::parse();
     match args {
-        RobustMQCli::Mqtt(args) => {
-            let cmd = MqttBrokerCommand::new();
-            let params = MqttCliCommandParam {
-                server: args.server,
-                action: match args.action {
-                    MQTTAction::Status => MqttActionType::Status,
-                    MQTTAction::CreateUser(arg) => MqttActionType::CreateUser(CreateUserRequest {
-                        username: arg.username,
-                        password: arg.password,
-                        is_superuser: arg.is_superuser,
-                    }),
-                    MQTTAction::DeleteUser(arg) => MqttActionType::DeleteUser(DeleteUserRequest {
-                        username: arg.username,
-                    }),
-                    MQTTAction::ListUser => MqttActionType::ListUser,
-                    MQTTAction::ListConnection => MqttActionType::ListConnection,
-                    MQTTAction::ListTopic(args) => MqttActionType::ListTopic(ListTopicRequest {
-                        topic_name: args.topic_name,
-                        match_option: match args.match_option {
-                            MatchOption::E => 0,
-                            MatchOption::P => 1,
-                            MatchOption::S => 2,
-                        },
-                    }),
-                    _ => unreachable!("UnSupport command"),
-                },
-            };
-            cmd.start(params).await;
-        }
-        RobustMQCli::Place(args) => {
-            let cmd = PlacementCenterCommand::new();
-            let params = PlacementCliCommandParam {
-                server: args.server,
-                action: match args.action {
-                    PlacementAction::Status => PlacementActionType::Status,
-                    PlacementAction::AddLearner(arg) => {
-                        PlacementActionType::AddLearner(AddLearnerRequest {
-                            node_id: arg.node_id,
-                            node: Some(Node {
-                                node_id: arg.node_id,
-                                rpc_addr: arg.rpc_addr,
-                            }),
-                            blocking: arg.blocking,
-                        })
-                    }
-                    PlacementAction::ChangeMembership(arg) => {
-                        PlacementActionType::ChangeMembership(ChangeMembershipRequest {
-                            members: arg.members,
-                            retain: arg.retain,
-                        })
-                    }
-                },
-            };
-            cmd.start(params).await;
-        }
-        RobustMQCli::Journal(args) => {
-            println!("{:?}", args);
-        }
+        RobustMQCli::Mqtt(args) => handle_mqtt(args, MqttBrokerCommand::new()).await,
+        RobustMQCli::Place(args) => handle_placement(args, PlacementCenterCommand::new()).await,
+        RobustMQCli::Journal(args) => handle_journal(args).await,
     }
+}
+
+async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
+    let params = MqttCliCommandParam {
+        server: args.server,
+        action: match args.action {
+            MQTTAction::Status => MqttActionType::Status,
+            MQTTAction::CreateUser(arg) => MqttActionType::CreateUser(CreateUserRequest {
+                username: arg.username,
+                password: arg.password,
+                is_superuser: arg.is_superuser,
+            }),
+            MQTTAction::DeleteUser(arg) => MqttActionType::DeleteUser(DeleteUserRequest {
+                username: arg.username,
+            }),
+            MQTTAction::ListUser => MqttActionType::ListUser,
+            MQTTAction::ListConnection => MqttActionType::ListConnection,
+            MQTTAction::ListTopic(args) => MqttActionType::ListTopic(ListTopicRequest {
+                topic_name: args.topic_name,
+                match_option: match args.match_option {
+                    MatchOption::E => 0,
+                    MatchOption::P => 1,
+                    MatchOption::S => 2,
+                },
+            }),
+            _ => unreachable!("UnSupport command"),
+        },
+    };
+    cmd.start(params).await;
+}
+
+async fn handle_placement(args: PlacementArgs, cmd: PlacementCenterCommand) {
+    let params = PlacementCliCommandParam {
+        server: args.server,
+        action: match args.action {
+            PlacementAction::Status => PlacementActionType::Status,
+            PlacementAction::AddLearner(arg) => PlacementActionType::AddLearner(AddLearnerRequest {
+                node_id: arg.node_id,
+                node: Some(Node {
+                    node_id: arg.node_id,
+                    rpc_addr: arg.rpc_addr,
+                }),
+                blocking: arg.blocking,
+            }),
+            PlacementAction::ChangeMembership(arg) => PlacementActionType::ChangeMembership(ChangeMembershipRequest {
+                members: arg.members,
+                retain: arg.retain,
+            }),
+        },
+    };
+    cmd.start(params).await;
+}
+
+// TODO: implement journal engine
+async fn handle_journal(args: JournalArgs) {
+    println!("{:?}", args);
+}
+
+
+// unit tests
+#[cfg(test)]
+mod tests {
+    mod command_test;
 }
