@@ -14,16 +14,14 @@
 
 #[cfg(test)]
 mod tests {
-    use std::future::Future;
     use std::sync::Arc;
 
-    use common_base::error::common::CommonError;
     use grpc_clients::mqtt::admin::call::{
         mqtt_broker_enable_slow_subscribe, mqtt_broker_list_slow_subscribe,
     };
     use grpc_clients::pool::ClientPool;
     use protocol::broker_mqtt::broker_mqtt_admin::{
-        EnableSlowSubscribeRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest,
+        EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
     };
 
     use crate::mqtt_protocol::common::broker_grpc_addr;
@@ -53,7 +51,7 @@ mod tests {
         let grpc_addr = vec![broker_grpc_addr()];
         let request = ListSlowSubscribeRequest {};
 
-        match mqtt_broker_list_slow_subscribe(client_pool, &grpc_addr, request) {
+        match mqtt_broker_list_slow_subscribe(client_pool, &grpc_addr, request).await {
             Ok(data) => {
                 println!("{:?}", data);
             }

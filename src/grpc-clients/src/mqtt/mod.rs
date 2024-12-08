@@ -19,8 +19,8 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
     DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
     ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
-    ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListUserReply,
-    ListUserRequest,
+    ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
+    ListTopicRequest, ListUserReply, ListUserRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
@@ -55,6 +55,8 @@ pub enum MqttBrokerPlacementRequest {
     // slow subscribe
     EnableSlowSubscribe(EnableSlowSubscribeRequest),
     ListSlowSubscribe(ListSlowSubscribeRequest),
+
+    ListTopic(ListTopicRequest),
 }
 
 /// Enum wrapper for all possible replies from the mqtt broker
@@ -82,6 +84,8 @@ pub enum MqttBrokerPlacementReply {
 
     // slow subscribe
     EnableSlowSubscribe(EnableSlowSubScribeReply),
+
+    ListTopic(ListTopicReply),
     ListSlowSubscribe(ListSlowSubscribeReply),
 }
 
@@ -182,6 +186,7 @@ async fn call_once(
                 .await?;
             Ok(MqttBrokerPlacementReply::ListConnection(reply.into_inner()))
         }
+
         EnableSlowSubscribe(enable_slow_subscribe_request) => {
             let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
             let reply = client
@@ -199,6 +204,12 @@ async fn call_once(
             Ok(MqttBrokerPlacementReply::ListSlowSubscribe(
                 reply.into_inner(),
             ))
+        }
+
+        ListTopic(list_topic_request) => {
+            let mut client = client_pool.mqtt_broker_admin_services_client(addr).await?;
+            let reply = client.mqtt_broker_list_topic(list_topic_request).await?;
+            Ok(MqttBrokerPlacementReply::ListTopic(reply.into_inner()))
         }
     }
 }

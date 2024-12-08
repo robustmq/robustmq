@@ -17,6 +17,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
+use log::info;
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{
     MqttProtocol, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe,
@@ -74,8 +75,36 @@ pub async fn save_retain_message(
     Ok(())
 }
 
+pub async fn try_send_retain_message(
+    protocol: MqttProtocol,
+    client_id: String,
+    subscribe: Subscribe,
+    subscribe_properties: Option<SubscribeProperties>,
+    client_pool: Arc<ClientPool>,
+    cache_manager: Arc<CacheManager>,
+    connection_manager: Arc<ConnectionManager>,
+) {
+    tokio::spawn(async move {
+        let (stop_sx, _) = broadcast::channel(1);
+        if let Err(e) = send_retain_message(
+            &protocol,
+            &client_id,
+            &subscribe,
+            &subscribe_properties,
+            &client_pool,
+            &cache_manager,
+            &connection_manager,
+            &stop_sx,
+        )
+        .await
+        {
+            info!("Sending retain message failed with error message :{}", e);
+        }
+    });
+}
+
 #[allow(clippy::too_many_arguments)]
-pub async fn send_retain_message(
+async fn send_retain_message(
     protocol: &MqttProtocol,
     client_id: &String,
     subscribe: &Subscribe,
@@ -98,7 +127,6 @@ pub async fn send_retain_message(
         }
 
         let is_new_sub = cache_manager.is_new_sub(client_id, &filter.path);
-
         if filter.retain_forward_rule == RetainForwardRule::OnNewSubscribe && !is_new_sub {
             return Ok(());
         }

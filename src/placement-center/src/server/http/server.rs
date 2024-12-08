@@ -20,12 +20,13 @@ use axum::Router;
 use common_base::config::placement_center::placement_center_conf;
 use log::info;
 
-use super::index::metrics;
+use super::index::{metrics, raft_metrics};
 use crate::core::cache::PlacementCacheManager;
 use crate::journal::cache::JournalCacheManager;
 use crate::route::apply::RaftMachineApply;
 
 pub const ROUTE_METRICS: &str = "/metrics";
+pub const RAFT_METRICS: &str = "/raft_metrics";
 
 #[derive(Clone)]
 #[allow(dead_code)]
@@ -67,7 +68,9 @@ pub async fn start_http_server(state: HttpServerState) {
 }
 
 fn routes(state: HttpServerState) -> Router {
-    let common = Router::new().route(ROUTE_METRICS, get(metrics));
+    let common = Router::new()
+        .route(ROUTE_METRICS, get(metrics))
+        .route(RAFT_METRICS, get(raft_metrics));
 
     let app = Router::new().merge(common);
     app.with_state(state)
