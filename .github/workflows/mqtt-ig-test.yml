@@ -32,7 +32,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  Check crate compiles
+  # Check crate compiles
   linux-build-lib:
     name: cargo check
     runs-on: ubuntu-latest
