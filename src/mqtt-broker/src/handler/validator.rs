@@ -445,40 +445,40 @@ pub async fn publish_validator(
 
 pub async fn subscribe_validator(
     protocol: &MqttProtocol,
-    cache_manager: &Arc<CacheManager>,
-    client_pool: &Arc<ClientPool>,
+    _cache_manager: &Arc<CacheManager>,
+    _client_pool: &Arc<ClientPool>,
     connection: &MQTTConnection,
     subscribe: &Subscribe,
 ) -> Option<MqttPacket> {
-    match pkid_exists(
-        cache_manager,
-        client_pool,
-        &connection.client_id,
-        subscribe.packet_identifier,
-    )
-    .await
-    {
-        Ok(res) => {
-            if res {
-                return Some(response_packet_mqtt_suback(
-                    protocol,
-                    connection,
-                    subscribe.packet_identifier,
-                    vec![SubscribeReasonCode::PkidInUse],
-                    None,
-                ));
-            }
-        }
-        Err(e) => {
-            return Some(response_packet_mqtt_suback(
-                protocol,
-                connection,
-                subscribe.packet_identifier,
-                vec![SubscribeReasonCode::Unspecified],
-                Some(e.to_string()),
-            ));
-        }
-    };
+    // match pkid_exists(
+    //     cache_manager,
+    //     client_pool,
+    //     &connection.client_id,
+    //     subscribe.packet_identifier,
+    // )
+    // .await
+    // {
+    //     Ok(res) => {
+    //         if res {
+    //             return Some(response_packet_mqtt_suback(
+    //                 protocol,
+    //                 connection,
+    //                 subscribe.packet_identifier,
+    //                 vec![SubscribeReasonCode::PkidInUse],
+    //                 None,
+    //             ));
+    //         }
+    //     }
+    //     Err(e) => {
+    //         return Some(response_packet_mqtt_suback(
+    //             protocol,
+    //             connection,
+    //             subscribe.packet_identifier,
+    //             vec![SubscribeReasonCode::Unspecified],
+    //             Some(e.to_string()),
+    //         ));
+    //     }
+    // };
 
     let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
     for filter in subscribe.filters.clone() {

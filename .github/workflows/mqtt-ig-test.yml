@@ -33,26 +33,26 @@ env:
 
 jobs:
   # Check crate compiles
-  # linux-build-lib:
-  #   name: cargo check
-  #   runs-on: ubuntu-latest
-  #   container:
-  #     image: amd64/rust
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Setup Rust toolchain
-  #       uses: ./.github/actions/setup-builder
+  linux-build-lib:
+    name: cargo check
+    runs-on: ubuntu-latest
+    container:
+      image: amd64/rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-builder
 
-  #     - name: Cache Cargo
-  #       uses: actions/cache@v4
-  #       with:
-  #         path: |
-  #           ~/.cargo/bin/
-  #           ~/.cargo/registry/index/
-  #           ~/.cargo/registry/cache/
-  #           ~/.cargo/git/db/
-  #           ./target/
-  #         key: cargo-cache-${{ hashFiles('**/Cargo.toml', '**/Cargo.lock') }}  # Run tests
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            ./target/
+          key: cargo-cache-${{ hashFiles('**/Cargo.toml', '**/Cargo.lock') }}  # Run tests
 
   linux-tests:
     name: cargo test
