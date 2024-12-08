@@ -113,6 +113,14 @@ impl DataRoute {
                     .delete_idempotent_data(storage_data.value)?;
                 Ok(None)
             }
+            StorageDataType::ClusterSaveOffset => {
+                self.route_cluster.save_offset_data(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::ClusterDeleteOffset => {
+                self.route_cluster.delete_offset_data(storage_data.value)?;
+                Ok(None)
+            }
 
             // Journal Engine
             StorageDataType::JournalSetShard => Ok(Some(

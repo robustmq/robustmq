@@ -25,7 +25,8 @@ use crate::storage::{ShardConfig, ShardOffset, StorageAdapter};
 #[derive(Clone)]
 pub struct MemoryStorageAdapter {
     pub shard_data: DashMap<String, Vec<Record>>,
-    pub group_data: DashMap<String, u64>,
+    //group, (namespace_shard_name,offset)
+    pub group_data: DashMap<String, DashMap<String, u64>>,
 }
 
 impl Default for MemoryStorageAdapter {
@@ -44,10 +45,6 @@ impl MemoryStorageAdapter {
 
     pub fn shard_key(&self, namespace: &str, shard_name: &str) -> String {
         format!("{}_{}", namespace, shard_name)
-    }
-
-    pub fn group_key(&self, namespace: &str, group_id: &str, shard_name: &str) -> String {
-        format!("{}_{}_{}", namespace, group_id, shard_name)
     }
 }
 
@@ -188,23 +185,13 @@ impl StorageAdapter for MemoryStorageAdapter {
     async fn get_offset_by_group(
         &self,
         group_name: String,
-        namespace: String,
-        shard_names: Vec<String>,
     ) -> Result<Vec<ShardOffset>, CommonError> {
         let mut results = Vec::new();
-        for shard_name in shard_names.iter() {
-            let group_key = self.group_key(&namespace, &group_name, shard_name);
-            if let Some(offset) = self.group_data.get(&group_key) {
+        if let Some(data) = self.group_data.get(&group_name) {
+            for raw in data.iter() {
                 results.push(ShardOffset {
-                    shard_name: shard_name.clone(),
-                    segment_no: 0,
-                    offset: *offset,
-                });
-            } else {
-                results.push(ShardOffset {
-                    shard_name: shard_name.clone(),
-                    segment_no: 0,
-                    offset: 0,
+                    offset: *raw.value(),
+                    ..Default::default()
                 });
             }
         }
@@ -218,9 +205,18 @@ impl StorageAdapter for MemoryStorageAdapter {
         namespace: String,
         offset: HashMap<String, u64>,
     ) -> Result<(), CommonError> {
-        for (shard_name, offset) in offset.iter() {
-            let group_key = self.group_key(&namespace, &group_name, shard_name);
-            self.group_data.insert(group_key, *offset);
+        if let Some(data) = self.group_data.get_mut(&group_name) {
+            for (shard_name, offset) in offset.iter() {
+                let group_key = self.shard_key(&namespace, shard_name);
+                data.insert(group_key, *offset);
+            }
+        } else {
+            let data = DashMap::with_capacity(2);
+            for (shard_name, offset) in offset.iter() {
+                let group_key = self.shard_key(&namespace, shard_name);
+                data.insert(group_key, *offset);
+            }
+            self.group_data.insert(group_name, data);
         }
         Ok(())
     }
@@ -313,11 +309,7 @@ mod tests {
 
         // read m2
         let offset = storage_adapter
-            .get_offset_by_group(
-                group_id.clone(),
-                namespace.clone(),
-                vec![shard_name.clone()],
-            )
+            .get_offset_by_group(group_id.clone())
             .await
             .unwrap();
 
@@ -347,11 +339,7 @@ mod tests {
 
         // read m3
         let offset: Vec<crate::storage::ShardOffset> = storage_adapter
-            .get_offset_by_group(
-                group_id.clone(),
-                namespace.clone(),
-                vec![shard_name.clone()],
-            )
+            .get_offset_by_group(group_id.clone())
             .await
             .unwrap();
 
@@ -381,11 +369,7 @@ mod tests {
 
         // read m4
         let offset = storage_adapter
-            .get_offset_by_group(
-                group_id.clone(),
-                namespace.clone(),
-                vec![shard_name.clone()],
-            )
+            .get_offset_by_group(group_id.clone())
             .await
             .unwrap();
 

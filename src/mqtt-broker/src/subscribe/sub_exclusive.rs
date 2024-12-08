@@ -122,10 +122,7 @@ where
                 let qos = build_pub_qos(&cache_manager, &subscriber);
                 let sub_ids = build_sub_ids(&subscriber);
 
-                let mut offset = match message_storage
-                    .get_group_offset(&subscriber.topic_id, &group_id)
-                    .await
-                {
+                let mut offset = match message_storage.get_group_offset(&group_id).await {
                     Ok(offset) => offset,
                     Err(e) => {
                         error!("{}", e);

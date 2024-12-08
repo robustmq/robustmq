@@ -16,28 +16,42 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
+use grpc_clients::placement::placement::call::get_offset_data;
 use grpc_clients::pool::ClientPool;
+use protocol::placement_center::placement_center_inner::GetOffsetDataRequest;
 
 use crate::storage::ShardOffset;
 
 #[derive(Clone)]
 pub(crate) struct PlaceOffsetManager {
     client_pool: Arc<ClientPool>,
+    addrs: Vec<String>,
 }
 
 impl PlaceOffsetManager {
-    pub fn new(client_pool: Arc<ClientPool>) -> Self {
-        PlaceOffsetManager { client_pool }
+    pub fn new(client_pool: Arc<ClientPool>, addrs: Vec<String>) -> Self {
+        PlaceOffsetManager { client_pool, addrs }
     }
 
     pub async fn get_shard_offset(
         &self,
-        _group: &str,
-        _namespace: &str,
-        _shard_names: &[String],
+        cluster_name: &str,
+        group: &str,
     ) -> Result<Vec<ShardOffset>, CommonError> {
-        let _ = self.client_pool.clone();
-        Ok(Vec::new())
+        let request = GetOffsetDataRequest {
+            cluster_name: cluster_name.to_owned(),
+            group: group.to_owned(),
+        };
+        let reply = get_offset_data(self.client_pool.clone(), &self.addrs.clone(), request).await?;
+        let mut results = Vec::new();
+        for raw in reply.offsets {
+            results.push(ShardOffset {
+                shard_name: raw.shard_name,
+                offset: raw.offset,
+                ..Default::default()
+            });
+        }
+        Ok(results)
     }
 
     pub async fn commit_offset(

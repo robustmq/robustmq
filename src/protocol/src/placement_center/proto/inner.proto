@@ -215,13 +215,8 @@ message SaveOffsetDataReply{
 message GetOffsetDataRequest{
     string cluster_name = 1;
     string group = 2;
-    repeated GetOffsetDataRequestOffset shards = 3;
 }
 
-message GetOffsetDataRequestOffset{
-    string namespace = 1;
-    string shard_name = 2;
-}
 
 message GetOffsetDataReply{
     repeated GetOffsetDataReplyOffset offsets = 1;

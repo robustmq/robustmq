@@ -30,19 +30,26 @@ pub mod offset;
 
 #[derive(Clone)]
 pub struct JournalStorageAdapter {
+    cluster_name: String,
     client: JournalEngineClient,
     offset_manager: PlaceOffsetManager,
 }
 
 impl JournalStorageAdapter {
-    pub fn new(journal_addrs: Vec<String>, client_pool: Arc<ClientPool>) -> Self {
+    pub fn new(
+        client_pool: Arc<ClientPool>,
+        cluster_name: String,
+        journal_addrs: Vec<String>,
+        place_addrs: Vec<String>,
+    ) -> Self {
         let mut options = JournalClientOption::build();
         options.set_addrs(journal_addrs);
         let client = JournalEngineClient::new(options);
-        let offset_manager = PlaceOffsetManager::new(client_pool);
+        let offset_manager = PlaceOffsetManager::new(client_pool, place_addrs);
         JournalStorageAdapter {
             client,
             offset_manager,
+            cluster_name,
         }
     }
 }
@@ -162,14 +169,9 @@ impl StorageAdapter for JournalStorageAdapter {
         }
     }
 
-    async fn get_offset_by_group(
-        &self,
-        group: String,
-        namespace: String,
-        shard_names: Vec<String>,
-    ) -> Result<Vec<ShardOffset>, CommonError> {
+    async fn get_offset_by_group(&self, group: String) -> Result<Vec<ShardOffset>, CommonError> {
         self.offset_manager
-            .get_shard_offset(&group, &namespace, &shard_names)
+            .get_shard_offset(&self.cluster_name, &group)
             .await
     }
 
@@ -189,6 +191,7 @@ impl StorageAdapter for JournalStorageAdapter {
                     shard_name: shard_name.clone(),
                     segment_no: result.0,
                     offset: result.1,
+                    ..Default::default()
                 }));
             }
             Err(e) => {

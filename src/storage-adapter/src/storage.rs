@@ -26,6 +26,7 @@ pub struct ShardConfig {
 
 #[derive(Default, Clone)]
 pub struct ShardOffset {
+    pub namespace: String,
     pub shard_name: String,
     pub segment_no: u32,
     pub offset: u64,
@@ -91,8 +92,6 @@ pub trait StorageAdapter {
     async fn get_offset_by_group(
         &self,
         group_name: String,
-        namespace: String,
-        shard_name: Vec<String>,
     ) -> Result<Vec<ShardOffset>, CommonError>;
 
     async fn commit_offset(

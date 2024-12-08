@@ -67,16 +67,10 @@ where
             .await
     }
 
-    pub async fn get_group_offset(
-        &self,
-        topic_id: &str,
-        group_id: &str,
-    ) -> Result<u64, CommonError> {
-        let shard_name = topic_id;
-        let namespace = cluster_name();
+    pub async fn get_group_offset(&self, group_id: &str) -> Result<u64, CommonError> {
         let offset_data = self
             .storage_adapter
-            .get_offset_by_group(group_id.to_owned(), namespace, vec![shard_name.to_owned()])
+            .get_offset_by_group(group_id.to_owned())
             .await?;
 
         if let Some(offset) = offset_data.first() {
