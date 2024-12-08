@@ -27,8 +27,8 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
     DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
     ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionRaw,
-    ListConnectionReply, ListConnectionRequest, ListUserReply, ListUserRequest,
-    ListTopicRequest, ListTopicReply, MqttTopic
+    ListConnectionReply, ListConnectionRequest, ListTopicReply, ListTopicRequest, ListUserReply,
+    ListUserRequest, MqttTopic,
 };
 use tonic::{Request, Response, Status};
 
@@ -320,34 +320,39 @@ impl MqttBrokerAdminService for GrpcAdminServices {
     ) -> Result<Response<ListTopicReply>, Status> {
         let req = request.into_inner();
         let topic_query_result: Vec<MqttTopic> = match req.match_option {
-            0 => self.cache_manager.get_topic_by_name(&req.topic_name).into_iter()
+            0 => self
+                .cache_manager
+                .get_topic_by_name(&req.topic_name)
+                .into_iter()
                 .take(10)
                 .map(|entry| MqttTopic {
                     topic_id: entry.topic_id.clone(),
                     topic_name: entry.topic_name.clone(),
                     cluster_name: entry.cluster_name.clone(),
-                    is_contain_retain_message: entry.retain_message.is_some()
+                    is_contain_retain_message: entry.retain_message.is_some(),
                 })
                 .collect(),
-            option => self.cache_manager.topic_info.iter()
+            option => self
+                .cache_manager
+                .topic_info
+                .iter()
                 .filter(|entry| match option {
                     1 => entry.value().topic_name.starts_with(&req.topic_name),
                     2 => entry.value().topic_name.contains(&req.topic_name),
-                    _ => false
+                    _ => false,
                 })
                 .take(10)
                 .map(|entry| MqttTopic {
                     topic_id: entry.value().topic_id.clone(),
                     topic_name: entry.value().topic_name.clone(),
                     cluster_name: entry.value().cluster_name.clone(),
-                    is_contain_retain_message: entry.value().retain_message.is_some()
+                    is_contain_retain_message: entry.value().retain_message.is_some(),
                 })
                 .collect(),
         };
-        
-        
+
         let reply = ListTopicReply {
-            topics: topic_query_result
+            topics: topic_query_result,
         };
 
         return Ok(Response::new(reply));

@@ -195,18 +195,22 @@ async fn handle_placement(args: PlacementArgs, cmd: PlacementCenterCommand) {
         server: args.server,
         action: match args.action {
             PlacementAction::Status => PlacementActionType::Status,
-            PlacementAction::AddLearner(arg) => PlacementActionType::AddLearner(AddLearnerRequest {
-                node_id: arg.node_id,
-                node: Some(Node {
+            PlacementAction::AddLearner(arg) => {
+                PlacementActionType::AddLearner(AddLearnerRequest {
                     node_id: arg.node_id,
-                    rpc_addr: arg.rpc_addr,
-                }),
-                blocking: arg.blocking,
-            }),
-            PlacementAction::ChangeMembership(arg) => PlacementActionType::ChangeMembership(ChangeMembershipRequest {
-                members: arg.members,
-                retain: arg.retain,
-            }),
+                    node: Some(Node {
+                        node_id: arg.node_id,
+                        rpc_addr: arg.rpc_addr,
+                    }),
+                    blocking: arg.blocking,
+                })
+            }
+            PlacementAction::ChangeMembership(arg) => {
+                PlacementActionType::ChangeMembership(ChangeMembershipRequest {
+                    members: arg.members,
+                    retain: arg.retain,
+                })
+            }
         },
     };
     cmd.start(params).await;
@@ -216,4 +220,3 @@ async fn handle_placement(args: PlacementArgs, cmd: PlacementCenterCommand) {
 async fn handle_journal(args: JournalArgs) {
     println!("{:?}", args);
 }
-

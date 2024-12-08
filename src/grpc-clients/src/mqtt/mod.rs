@@ -19,7 +19,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
     DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
     ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
-    ListConnectionRequest, ListUserReply, ListUserRequest, ListTopicRequest, ListTopicReply
+    ListConnectionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
@@ -54,7 +54,7 @@ pub enum MqttBrokerPlacementRequest {
     // slow subscribe
     EnableSlowSubscribe(EnableSlowSubscribeRequest),
 
-    ListTopic(ListTopicRequest)
+    ListTopic(ListTopicRequest),
 }
 
 /// Enum wrapper for all possible replies from the mqtt broker
@@ -83,7 +83,7 @@ pub enum MqttBrokerPlacementReply {
     // slow subscribe
     EnableSlowSubscribe(EnableSlowSubScribeReply),
 
-    ListTopic(ListTopicReply)
+    ListTopic(ListTopicReply),
 }
 
 pub mod admin;
