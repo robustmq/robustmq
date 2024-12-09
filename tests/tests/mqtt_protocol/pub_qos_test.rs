@@ -21,7 +21,7 @@ async fn publish34_qos(num: i32, qos: i32) {
     let mqtt_version = 3;
     let client_id = unique_id();
     let addr = broker_addr();
-    let cli = connect_server34(mqtt_version, &client_id, &addr);
+    let cli = connect_server34(mqtt_version, &client_id, &addr, false, false);
     let topic = "/tests/t1".to_string();
     for i in 0..num {
         let msg = Message::new(topic.clone(), format!("mqtt {i} message"), qos);
@@ -37,7 +37,7 @@ async fn publish34_qos(num: i32, qos: i32) {
     let mqtt_version = 4;
     let client_id = unique_id();
     let addr = broker_addr();
-    let cli = connect_server34(mqtt_version, &client_id, &addr);
+    let cli = connect_server34(mqtt_version, &client_id, &addr, false, false);
     let topic = "/tests/t1".to_string();
     for i in 0..num {
         let msg = Message::new(topic.clone(), format!("mqtt {i} message"), qos);

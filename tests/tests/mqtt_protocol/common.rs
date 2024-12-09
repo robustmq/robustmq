@@ -236,16 +236,43 @@ pub fn distinct_conn(cli: Client) {
 }
 
 #[allow(dead_code)]
-pub fn connect_server34(mqtt_version: u32, client_id: &str, addr: &str) -> Client {
+pub fn connect_server34(
+    mqtt_version: u32,
+    client_id: &str,
+    addr: &str,
+    ws: bool,
+    ssl: bool,
+) -> Client {
     let create_opts = build_create_pros(client_id, addr);
     let cli = Client::new(create_opts).unwrap_or_else(|err| {
         println!("Error creating the client: {:?}", err);
         process::exit(1);
     });
 
-    let conn_opts = build_v3_conn_pros(mqtt_version, false, false, false);
-
-    cli.connect(conn_opts).unwrap();
+    let conn_opts = build_v3_conn_pros(mqtt_version, false, ws, ssl);
+    println!("{:?}", conn_opts);
+    match cli.connect(conn_opts) {
+        Ok(response) => {
+            let resp = response.connect_response().unwrap();
+            if ws {
+                if ssl {
+                    assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
+                } else {
+                    assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
+                }
+            } else if ssl {
+                assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
+            } else {
+                assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+            }
+            assert_eq!(mqtt_version, resp.mqtt_version);
+            assert_eq!(response.reason_code(), ReasonCode::Success);
+        }
+        Err(e) => {
+            println!("Unable to connect:\n\t{:?}", e);
+            process::exit(1);
+        }
+    }
     cli
 }
 
