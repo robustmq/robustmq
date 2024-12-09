@@ -253,8 +253,7 @@ impl SubscribeManager {
             {
                 return Ok(Some(SubscribeReasonCode::ExclusiveSubscriptionDisabled));
             }
-            let topic_name =
-                topic_util::decode_exclusive_sub_path_to_topic_name(&filter.path);
+            let topic_name = topic_util::decode_exclusive_sub_path_to_topic_name(&filter.path);
             if !set_nx_exclusive_topic(self.client_pool.clone(), topic_name.to_owned())
                 .await?
                 .success

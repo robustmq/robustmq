@@ -55,8 +55,6 @@ mod tests {
         let res = register_node(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
-        info!("{:?}", res);
-
         let topic_name = format!("/tests/{}", unique_id());
         let req = SetExclusiveTopicRequest {
             cluster_name: cluster_name.clone(),
@@ -66,11 +64,11 @@ mod tests {
         let resp = placement_set_nx_exclusive_topic(client_pool.clone(), &addrs, req.clone())
             .await
             .unwrap();
-        assert_eq!(resp.success, true);
+        assert!(resp.success);
         let resp = placement_set_nx_exclusive_topic(client_pool.clone(), &addrs, req.clone())
             .await
             .unwrap();
-        assert_eq!(resp.success, false);
+        assert!(!resp.success);
         let delete_req = DeleteExclusiveTopicRequest {
             cluster_name: cluster_name.clone(),
             topic_name: topic_name.clone(),
@@ -81,6 +79,6 @@ mod tests {
         let resp = placement_set_nx_exclusive_topic(client_pool.clone(), &addrs, req.clone())
             .await
             .unwrap();
-        assert_eq!(resp.success, true);
+        assert!(resp.success, true);
     }
 }

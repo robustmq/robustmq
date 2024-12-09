@@ -19,7 +19,9 @@ pub fn is_exclusive_sub(sub_path: &str) -> bool {
 }
 pub fn decode_exclusive_sub_path_to_topic_name(sub_path: &str) -> &str {
     if is_exclusive_sub(sub_path) {
-        sub_path.trim_start_matches(EXCLUSIVE_SUB_PREFIX).trim_start_matches('/')
+        sub_path
+            .trim_start_matches(EXCLUSIVE_SUB_PREFIX)
+            .trim_start_matches('/')
     } else {
         sub_path
     }
