@@ -447,11 +447,11 @@ dependencies = [
  "bitflags 2.4.2",
  "cexpr",
  "clang-sys",
-    "itertools",
+ "itertools",
  "lazy_static",
  "lazycell",
  "log",
-    "prettyplease",
+ "prettyplease",
  "proc-macro2",
  "quote",
  "regex",
@@ -765,7 +765,7 @@ dependencies = [
  "log4rs",
  "mysql",
  "prometheus",
-    "prost",
+ "prost",
  "rocksdb",
  "serde",
  "serde_json",
@@ -1327,7 +1327,7 @@ dependencies = [
  "log",
  "metadata-struct",
  "mobc",
-    "prost",
+ "prost",
  "protocol",
  "regex",
  "serde_json",
@@ -1674,7 +1674,7 @@ version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0bad00257d07be169d870ab665980b06cdb366d792ad690bf2e76876dc503455"
 dependencies = [
-    "hermit-abi",
+ "hermit-abi",
  "rustix",
  "windows-sys 0.52.0",
 ]
@@ -1735,7 +1735,7 @@ dependencies = [
  "grpc-clients",
  "log",
  "metadata-struct",
-    "prost",
+ "prost",
  "protocol",
  "rocksdb-engine",
  "rustls-pemfile",
@@ -2319,7 +2319,7 @@ version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4161fcb6d602d4d2081af7c3a45852d875a03dd337a6bfdd6e06407b61342a43"
 dependencies = [
-    "hermit-abi",
+ "hermit-abi",
  "libc",
 ]
 
@@ -2585,7 +2585,7 @@ dependencies = [
  "metadata-struct",
  "mobc",
  "openraft",
-    "prost",
+ "prost",
  "protocol",
  "rand",
  "rocksdb",
@@ -2710,7 +2710,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "146c289cda302b98a28d40c8b3b90498d6e526dd24ac2ecea73e4e491685b94a"
 dependencies = [
  "bytes",
-    "prost-derive",
+ "prost-derive",
 ]
 
 [[package]]
@@ -2721,14 +2721,14 @@ checksum = "c55e02e35260070b6f716a2423c2ff1c3bb1642ddca6f99e1f26d06268a0e2d2"
 dependencies = [
  "bytes",
  "heck",
-    "itertools",
+ "itertools",
  "log",
  "multimap",
  "once_cell",
  "petgraph",
-    "prettyplease",
-    "prost",
-    "prost-types",
+ "prettyplease",
+ "prost",
+ "prost-types",
  "regex",
  "syn 2.0.48",
  "tempfile",
@@ -2742,7 +2742,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "efb6c9a1dd1def8e2124d17e83a20af56f1570d6c2d2bd9e266ccb768df3840e"
 dependencies = [
  "anyhow",
-    "itertools",
+ "itertools",
  "proc-macro2",
  "quote",
  "syn 2.0.48",
@@ -2754,7 +2754,7 @@ version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "193898f59edcf43c26227dcd4c8427f00d99d61e95dcde58dabd49fa291d470e"
 dependencies = [
-    "prost",
+ "prost",
 ]
 
 [[package]]
@@ -2772,7 +2772,7 @@ dependencies = [
  "bytes",
  "common-base",
  "futures",
-    "prost",
+ "prost",
  "serde",
  "thiserror",
  "tokio",
@@ -2864,8 +2864,8 @@ checksum = "c117dbdfde9c8308975b6a18d71f3f385c89461f7b3fb054288ecf2a2058ba4c"
 dependencies = [
  "aho-corasick",
  "memchr",
-    "regex-automata",
-    "regex-syntax",
+ "regex-automata",
+ "regex-syntax",
 ]
 
 [[package]]
@@ -2876,7 +2876,7 @@ checksum = "5bb987efffd3c6d0d8f5f89510bb458559eab11e4f869acb20bf845e016259cd"
 dependencies = [
  "aho-corasick",
  "memchr",
-    "regex-syntax",
+ "regex-syntax",
 ]
 
 [[package]]
@@ -3711,7 +3711,7 @@ dependencies = [
  "hyper-timeout",
  "percent-encoding",
  "pin-project",
-    "prost",
+ "prost",
  "tokio",
  "tokio-stream",
  "tower",
@@ -3726,9 +3726,9 @@ version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be4ef6dd70a610078cb4e338a0f79d06bc759ff1b22d2120c2ff02ae264ba9c2"
 dependencies = [
-    "prettyplease",
+ "prettyplease",
  "proc-macro2",
-    "prost-build",
+ "prost-build",
  "quote",
  "syn 2.0.48",
 ]
