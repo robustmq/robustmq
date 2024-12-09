@@ -782,6 +782,32 @@ where
         //     }
         // }
 
+        match self
+            .sucscribe_manager
+            .save_exclusive_subscribe(subscribe.clone())
+            .await
+        {
+            Ok(None) => {}
+            Ok(Some(code)) => {
+                return response_packet_mqtt_suback(
+                    &self.protocol,
+                    &connection,
+                    subscribe.packet_identifier,
+                    vec![code],
+                    None,
+                );
+            }
+            Err(e) => {
+                return response_packet_mqtt_suback(
+                    &self.protocol,
+                    &connection,
+                    subscribe.packet_identifier,
+                    vec![SubscribeReasonCode::Unspecified],
+                    Some(e.to_string()),
+                );
+            }
+        }
+
         self.cache_manager.add_client_subscribe(
             client_id.clone(),
             self.protocol.clone(),
@@ -890,6 +916,23 @@ where
         //         );
         //     }
         // }
+
+        match self
+            .sucscribe_manager
+            .remove_exclusive_subscribe(un_subscribe.clone())
+            .await
+        {
+            Ok(_) => {}
+            Err(e) => {
+                return response_packet_mqtt_suback(
+                    &self.protocol,
+                    &connection,
+                    un_subscribe.pkid,
+                    vec![SubscribeReasonCode::Unspecified],
+                    Some(e.to_string()),
+                );
+            }
+        }
 
         self.subscribe_manager
             .remove_subscribe(&connection.client_id, &un_subscribe.filters);

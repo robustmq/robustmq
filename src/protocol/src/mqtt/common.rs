@@ -943,6 +943,8 @@ pub enum SubscribeReasonCode {
     SharedSubscriptionsNotSupported,
     SubscriptionIdNotSupported,
     WildcardSubscriptionsNotSupported,
+    ExclusiveSubscriptionDisabled,
+    TopicSubscribed,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]

@@ -66,6 +66,8 @@ pub enum PlacementCenterInterface {
     DeleteTopic,
     ListTopic,
     SetTopicRetainMessage,
+    SetNXExclusiveTopic,
+    DeleteExclusiveTopic,
     CreateSession,
     DeleteSession,
     ListSession,

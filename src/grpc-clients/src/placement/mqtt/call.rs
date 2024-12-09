@@ -18,14 +18,15 @@ use common_base::error::common::CommonError;
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
-    CreateUserReply, CreateUserRequest, DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply,
-    DeleteBlacklistRequest, DeleteSessionReply, DeleteSessionRequest, DeleteTopicReply,
+    CreateUserReply, CreateUserRequest, DeleteAclRequest, DeleteAclRequestReply,
+    DeleteBlacklistReply, DeleteBlacklistRequest, DeleteExclusiveTopicReply,
+    DeleteExclusiveTopicRequest, DeleteSessionReply, DeleteSessionRequest, DeleteTopicReply,
     DeleteTopicRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
     GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
     ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest,
     ListUserReply, ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest,
-    SetTopicRetainMessageReply, SetTopicRetainMessageRequest, UpdateSessionReply,
-    UpdateSessionRequest,
+    SetExclusiveTopicReply, SetExclusiveTopicRequest, SetTopicRetainMessageReply,
+    SetTopicRetainMessageRequest, UpdateSessionReply, UpdateSessionRequest,
 };
 
 use super::{MqttServiceReply, MqttServiceRequest};
@@ -92,6 +93,12 @@ generate_mqtt_service_call!(
 );
 generate_mqtt_service_call!(
     placement_set_topic_retain_message,
+    SetTopicRetainMessageRequest,
+    SetTopicRetainMessageReply,
+    SetTopicRetainMessage
+);
+generate_mqtt_service_call!(
+    SetExclusiveTopicRequest,
     SetTopicRetainMessageRequest,
     SetTopicRetainMessageReply,
     SetTopicRetainMessage

@@ -18,14 +18,15 @@ use protocol::placement_center::placement_center_mqtt::mqtt_service_client::Mqtt
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
-    CreateUserReply, CreateUserRequest, DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply,
-    DeleteBlacklistRequest, DeleteSessionReply, DeleteSessionRequest, DeleteTopicReply,
+    CreateUserReply, CreateUserRequest, DeleteAclRequest, DeleteAclRequestReply,
+    DeleteBlacklistReply, DeleteBlacklistRequest, DeleteExclusiveTopicReply,
+    DeleteExclusiveTopicRequest, DeleteSessionReply, DeleteSessionRequest, DeleteTopicReply,
     DeleteTopicRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
     GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
     ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest,
     ListUserReply, ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest,
-    SetTopicRetainMessageReply, SetTopicRetainMessageRequest, UpdateSessionReply,
-    UpdateSessionRequest,
+    SetExclusiveTopicReply, SetExclusiveTopicRequest, SetTopicRetainMessageReply,
+    SetTopicRetainMessageRequest, UpdateSessionReply, UpdateSessionRequest,
 };
 use tonic::transport::Channel;
 
@@ -44,6 +45,8 @@ pub enum MqttServiceRequest {
     DeleteTopic(DeleteTopicRequest),
     ListTopic(ListTopicRequest),
     SetTopicRetainMessage(SetTopicRetainMessageRequest),
+    SetNxExclusiveTopic(SetNxExclusiveTopicRequest),
+    DeleteExclusiveTopic(DeleteExclusiveTopicRequest),
     CreateSession(CreateSessionRequest),
     DeleteSession(DeleteSessionRequest),
     ListSession(ListSessionRequest),
@@ -68,6 +71,8 @@ pub enum MqttServiceReply {
     DeleteTopic(DeleteTopicReply),
     ListTopic(ListTopicReply),
     SetTopicRetainMessage(SetTopicRetainMessageReply),
+    SetNxExclusiveTopic(SetExclusiveTopicReply),
+    DeleteExclusiveTopic(DeleteExclusiveTopicReply),
     CreateSession(CreateSessionReply),
     DeleteSession(DeleteSessionReply),
     ListSession(ListSessionReply),

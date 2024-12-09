@@ -23,6 +23,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use bincode::{deserialize, serialize};
+use common_base::utils::vec_util;
 use data::{StorageData, StorageDataType};
 use log::{error, info};
 
@@ -199,6 +200,14 @@ impl DataRoute {
             }
             StorageDataType::MqttSaveLastWillMessage => {
                 self.route_mqtt.save_last_will_message(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::MqttSetNxExclusiveTopic => {
+                let is_set = self.route_mqtt.set_nx_exclusive_topic(storage_data.value)?;
+                Ok(Some(vec_util::bool_to_vec(is_set)))
+            }
+            StorageDataType::MqttDeleteExclusiveTopic => {
+                self.route_mqtt.delete_exclusive_topic(storage_data.value)?;
                 Ok(None)
             }
         }

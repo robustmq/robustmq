@@ -14,24 +14,27 @@
 
 use std::sync::Arc;
 
+use common_base::utils::vec_util;
 use prost::Message;
 use protocol::placement_center::placement_center_mqtt::mqtt_service_server::MqttService;
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
-    CreateUserReply, CreateUserRequest, DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply,
-    DeleteBlacklistRequest, DeleteSessionReply, DeleteSessionRequest, DeleteTopicReply,
+    CreateUserReply, CreateUserRequest, DeleteAclRequest, DeleteAclRequestReply,
+    DeleteBlacklistReply, DeleteBlacklistRequest, DeleteExclusiveTopicReply,
+    DeleteExclusiveTopicRequest, DeleteSessionReply, DeleteSessionRequest, DeleteTopicReply,
     DeleteTopicRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
     GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
     ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest,
     ListUserReply, ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest,
-    SetTopicRetainMessageReply, SetTopicRetainMessageRequest, UpdateSessionReply,
-    UpdateSessionRequest,
+    SetExclusiveTopicReply, SetExclusiveTopicRequest, SetTopicRetainMessageReply,
+    SetTopicRetainMessageRequest, UpdateSessionReply, UpdateSessionRequest,
 };
 use tonic::{Request, Response, Status};
 
-use crate::core::cache::PlacementCacheManager;
-use crate::mqtt::services::share_sub::ShareSubLeader;
+use crate::cache::placement::PlacementCacheManager;
+use crate::core::error::PlacementCenterError;
+use crate::core::mqtt::share_sub::ShareSubLeader;
 use crate::mqtt::services::topic::{create_topic_req, set_topic_retain_message_req};
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
@@ -94,6 +97,54 @@ impl MqttService for GrpcMqttService {
         }
 
         return Ok(Response::new(reply));
+    }
+
+    async fn set_nx_exclusive_topic(
+        &self,
+        request: Request<SetExclusiveTopicRequest>,
+    ) -> Result<Response<SetExclusiveTopicReply>, Status> {
+        let mut reply = SetExclusiveTopicReply::default();
+        let data = StorageData::new(
+            StorageDataType::MqttSetNxExclusiveTopic,
+            SetExclusiveTopicRequest::encode_to_vec(request.get_ref()),
+        );
+
+        match self.raft_machine_apply.client_write(data).await {
+            Ok(Some(resp)) => {
+                reply.success = false;
+                if let Some(value) = resp.data.value {
+                    reply.success = vec_util::vec_to_bool(&value);
+                }
+                return Ok(Response::new(reply));
+            }
+            Ok(None) => {
+                return Err(Status::cancelled(
+                    PlacementCenterError::ExecutionResultIsEmpty.to_string(),
+                ));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn delete_exclusive_topic(
+        &self,
+        request: Request<DeleteExclusiveTopicRequest>,
+    ) -> Result<Response<DeleteExclusiveTopicReply>, Status> {
+        let reply = DeleteExclusiveTopicReply::default();
+        let data = StorageData::new(
+            StorageDataType::MqttDeleteExclusiveTopic,
+            DeleteExclusiveTopicRequest::encode_to_vec(request.get_ref()),
+        );
+        match self.raft_machine_apply.client_write(data).await {
+            Ok(_) => {
+                return Ok(Response::new(reply));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
     }
 
     async fn list_user(
