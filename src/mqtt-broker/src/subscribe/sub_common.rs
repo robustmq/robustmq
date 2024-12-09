@@ -193,6 +193,7 @@ pub async fn publish_message_to_client(
     resp: ResponsePackage,
     sub_pub_param: &SubPublishParam,
     connection_manager: &Arc<ConnectionManager>,
+    metadata_cache: &Arc<CacheManager>,
 ) -> Result<(), MqttBrokerError> {
     if let Some(protocol) = connection_manager.get_connect_protocol(resp.connection_id) {
         let response: MqttPacketWrapper = MqttPacketWrapper {
@@ -217,16 +218,15 @@ pub async fn publish_message_to_client(
                 .write_tcp_frame(resp.connection_id, response)
                 .await?
         }
-
         // record slow sub data
-        if sub_pub_param.create_time > 0 {
+        if metadata_cache.get_slow_sub_config().enable && sub_pub_param.create_time > 0 {
             let slow_data = SlowSubData::build(
                 sub_pub_param.subscribe.sub_path.clone(),
                 sub_pub_param.subscribe.client_id.clone(),
                 sub_pub_param.subscribe.topic_name.clone(),
                 now_mills() - sub_pub_param.create_time,
             );
-            record_slow_sub_data(slow_data)?;
+            record_slow_sub_data(slow_data, metadata_cache.get_slow_sub_config().whole_ms)?;
         }
     }
 
@@ -292,6 +292,7 @@ pub async fn qos2_send_publish(
                 resp.clone(),
                 sub_pub_param,
                 connection_manager,
+                metadata_cache
             ) =>{
                 match val{
                     Ok(_) => {
@@ -351,6 +352,7 @@ pub async fn qos2_send_pubrel(
                 pubrel_resp.clone(),
                 sub_pub_param,
                 connection_manager,
+                metadata_cache
             ) =>{
                 match val{
                     Ok(_) => {
@@ -446,7 +448,14 @@ pub async fn publish_message_qos0(
     };
 
     // 2. publish to mqtt client
-    match publish_message_to_client(resp.clone(), sub_pub_param, connection_manager).await {
+    match publish_message_to_client(
+        resp.clone(),
+        sub_pub_param,
+        connection_manager,
+        metadata_cache,
+    )
+    .await
+    {
         Ok(_) => {}
         Err(e) => {
             error!(

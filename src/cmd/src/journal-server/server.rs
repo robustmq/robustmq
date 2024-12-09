@@ -29,6 +29,7 @@ struct ArgsParams {
 
 fn main() {
     let args = ArgsParams::parse();
+    eprintln!("{:?}", args.conf.clone());
     init_journal_server_conf_by_path(&args.conf);
     init_journal_server_log();
 

@@ -35,4 +35,4 @@ max_open_files = 10000
 
 [log]
 log_config = "./config/log4rs.yaml"
-log_path = "/tmp/robust/placement-center-2/logs"
+log_path = "./logs/placement-center-2/logs"

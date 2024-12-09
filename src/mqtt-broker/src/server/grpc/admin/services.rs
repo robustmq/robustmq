@@ -319,8 +319,9 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         request: Request<ListSlowSubscribeRequest>,
     ) -> Result<Response<ListSlowSubscribeReply>, Status> {
-        let _list_slow_subscribe_request = request.into_inner();
+        let list_slow_subscribe_request = request.into_inner();
         let list_slow_subscribe_raw: Vec<ListSlowSubScribeRaw> = Vec::new();
+
         Ok(Response::new(ListSlowSubscribeReply {
             list_slow_subscribe_raw,
         }))

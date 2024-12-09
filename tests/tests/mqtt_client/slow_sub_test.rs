@@ -49,7 +49,12 @@ mod tests {
     async fn test_list_slow_subscribe() {
         let client_pool = Arc::new(ClientPool::new(3));
         let grpc_addr = vec![broker_grpc_addr()];
-        let request = ListSlowSubscribeRequest {};
+        let request = ListSlowSubscribeRequest {
+            list: 100,
+            sub_name: "".to_string(),
+            topic: "".to_string(),
+            client_id: "".to_string()
+        };
 
         match mqtt_broker_list_slow_subscribe(client_pool, &grpc_addr, request).await {
             Ok(data) => {

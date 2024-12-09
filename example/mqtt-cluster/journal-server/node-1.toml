@@ -51,4 +51,4 @@ header = ""
 
 [log]
 log_config = "./config/log4rs.yaml"
-log_path = "/tmp/robust-test/journal-server/logs/journal-server"
+log_path = "./logs/journal-server/node1"

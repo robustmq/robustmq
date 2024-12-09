@@ -567,7 +567,9 @@ async fn resub_publish_message_qos1(
         };
 
         // 2. publish to mqtt client
-        match publish_message_to_client(resp, sub_pub_param, connection_manager).await {
+        match publish_message_to_client(resp, sub_pub_param, connection_manager, metadata_cache)
+            .await
+        {
             Ok(_) => {
                 // 3. wait mqtt client puback
                 if let Some(data) = wait_packet_ack(wait_puback_sx).await {

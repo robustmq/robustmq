@@ -34,7 +34,7 @@ pub struct MqttCliCommandParam {
     pub action: MqttActionType,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MqttActionType {
     Status,
 
@@ -48,7 +48,7 @@ pub enum MqttActionType {
 
     // observability: slow-ub
     EnableSlowSubscribe(EnableSlowSubscribeRequest),
-    ListSlowSubscribe,
+    ListSlowSubscribe(ListSlowSubscribeRequest),
 
     ListTopic(ListTopicRequest),
 }
@@ -95,8 +95,8 @@ impl MqttBrokerCommand {
                 self.list_topic(client_pool.clone(), params.clone(), request.clone())
                     .await;
             }
-            MqttActionType::ListSlowSubscribe => {
-                self.list_slow_subscribe(client_pool.clone(), params.clone())
+            MqttActionType::ListSlowSubscribe(ref request) => {
+                self.list_slow_subscribe(client_pool.clone(), params.clone(), request.clone())
                     .await;
             }
         }
@@ -130,7 +130,7 @@ impl MqttBrokerCommand {
             .await
         {
             Ok(_) => {
-                println!("Created successfully!",)
+                println!("Created successfully!", )
             }
             Err(e) => {
                 println!("MQTT broker create user normal exception");
@@ -206,7 +206,7 @@ impl MqttBrokerCommand {
             &grpc_addr(params.server),
             cli_request,
         )
-        .await
+            .await
         {
             Ok(reply) => {
                 if reply.is_enable {
@@ -223,14 +223,13 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn list_slow_subscribe(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
-        let request = ListSlowSubscribeRequest {};
+    async fn list_slow_subscribe(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam, cli_request: ListSlowSubscribeRequest) {
         match mqtt_broker_list_slow_subscribe(
             client_pool.clone(),
             &grpc_addr(params.server),
-            request,
+            cli_request,
         )
-        .await
+            .await
         {
             Ok(data) => {
                 println!("{:?}", data)
@@ -256,10 +255,10 @@ impl MqttBrokerCommand {
                 for mqtt_topic in data.topics {
                     println!(
                         concat!(
-                            "topic id: {}\n",
-                            "topic name: {}\n",
-                            "cluster name: {}\n",
-                            "is contain retain message: {}\n"
+                        "topic id: {}\n",
+                        "topic name: {}\n",
+                        "cluster name: {}\n",
+                        "is contain retain message: {}\n"
                         ),
                         mqtt_topic.topic_id,
                         mqtt_topic.topic_name,

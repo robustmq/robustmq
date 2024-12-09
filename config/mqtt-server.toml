@@ -55,5 +55,5 @@ default_password = "pwd123"
 storage_type = "memory"
 
 [log]
-log_config = "./config/log4rs.yaml"
-log_path = "/tmp/robust/mqtt-broker/logs"
+log_config = "./config/log-config/mqtt-log4rs.yaml"
+log_path = "./logs/mqtt-broker"

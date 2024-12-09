@@ -16,7 +16,9 @@ use clap::builder::{
     ArgAction, BoolishValueParser, EnumValueParser, NonEmptyStringValueParser, RangedU64ValueParser,
 };
 use clap::Parser;
+use cli_command::mqtt::MqttActionType;
 use common_base::enum_type::common_enum::SortType;
+use protocol::broker_mqtt::broker_mqtt_admin::{EnableSlowSubscribeRequest, ListSlowSubscribeRequest};
 
 // security: user feat
 #[derive(clap::Args, Debug)]
@@ -83,29 +85,87 @@ pub(crate) struct SlowSubArgs {
     client_id: Option<String>,
 }
 
-#[allow(dead_code)]
-impl SlowSubArgs {
-    pub fn get_is_enable(&self) -> Option<bool> {
-        self.is_enable
+
+pub fn process_slow_sub_args(args: SlowSubArgs) -> MqttActionType {
+    if args.is_enable.is_none() {
+        MqttActionType::ListSlowSubscribe(ListSlowSubscribeRequest {
+            list: args.list.unwrap_or(100),
+            sub_name: args.sub_name.unwrap_or("".to_string()),
+            topic: args.topic.unwrap_or("".to_string()),
+            client_id: args.client_id.unwrap_or("".to_string()),
+        })
+    } else {
+        MqttActionType::EnableSlowSubscribe(EnableSlowSubscribeRequest {
+            is_enable: args.is_enable.unwrap(),
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_process_slow_sub_args_function_field_is_enable_not_none() {
+        let args = SlowSubArgs {
+            is_enable: Some(true),
+            list: None,
+            sort: None,
+            topic: None,
+            sub_name: None,
+            client_id: None,
+        };
+
+        let action_type = process_slow_sub_args(args);
+        assert_eq!(
+            MqttActionType::EnableSlowSubscribe(EnableSlowSubscribeRequest { is_enable: true }),
+            action_type
+        )
     }
 
-    pub fn get_list(&self) -> Option<u64> {
-        self.list
+    #[tokio::test]
+    async fn test_process_slow_sub_args_function_filed_is_enable_none() {
+        let args = SlowSubArgs {
+            is_enable: None,
+            list: None,
+            sort: None,
+            topic: None,
+            sub_name: None,
+            client_id: None,
+        };
+
+        let action_type = process_slow_sub_args(args);
+        assert_eq!(
+            MqttActionType::ListSlowSubscribe(ListSlowSubscribeRequest {
+                list: 100,
+                sub_name: "".to_string(),
+                topic: "".to_string(),
+                client_id: "".to_string()
+            }),
+            action_type
+        )
     }
 
-    pub fn get_sort(&self) -> Option<SortType> {
-        self.sort
-    }
+    #[tokio::test]
+    async fn test_process_slow_sub_args_function_filed_is_enable_none_1() {
+        let args = SlowSubArgs {
+            is_enable: None,
+            list: None,
+            sort: Some(SortType::ASC),
+            topic: Some("topic_name".to_string()),
+            sub_name: Some("sub_name".to_string()),
+            client_id: Some("client_id".to_string()),
+        };
 
-    pub fn get_topic(&self) -> Option<String> {
-        self.topic.clone()
-    }
-
-    pub fn get_sub_name(&self) -> Option<String> {
-        self.sub_name.clone()
-    }
-
-    pub fn get_client_id(&self) -> Option<String> {
-        self.client_id.clone()
+        let action_type = process_slow_sub_args(args);
+        assert_eq!(
+            MqttActionType::ListSlowSubscribe(ListSlowSubscribeRequest {
+                list: 100,
+                sub_name: "sub_name".to_string(),
+                topic: "topic_name".to_string(),
+                client_id: "client_id".to_string()
+            }),
+            action_type
+        )
     }
 }

@@ -33,6 +33,9 @@ pub enum MqttBrokerError {
     SerdeJsonError(#[from] serde_json::Error),
 
     #[error("{0}")]
+    GrepError(#[from] grep::regex::Error),
+
+    #[error("{0}")]
     FromMysqlError(#[from] mysql::Error),
 
     #[error("Topic alias is too long. alias is {0}")]

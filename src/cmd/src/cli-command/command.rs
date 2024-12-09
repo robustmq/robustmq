@@ -13,7 +13,6 @@
 // limitations under the License.
 
 pub(crate) mod mqtt;
-mod utils;
 
 use clap::{arg, Parser, Subcommand, ValueEnum};
 use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
@@ -27,7 +26,7 @@ use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
 };
 
-use crate::mqtt::admin::{CreateUserArgs, DeleteUserArgs, SlowSubArgs};
+use crate::mqtt::admin::{process_slow_sub_args, CreateUserArgs, DeleteUserArgs, SlowSubArgs};
 
 #[derive(Parser)] // requires `derive` feature
 #[command(name = "robust-ctl")]
@@ -184,7 +183,7 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
                     MatchOption::S => 2,
                 },
             }),
-            _ => unreachable!("UnSupport command"),
+            MQTTAction::SlowSub(args) => process_slow_sub_args(args), // _ => unreachable!("UnSupport command"),
         },
     };
     cmd.start(params).await;

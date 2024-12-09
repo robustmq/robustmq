@@ -209,7 +209,7 @@ mod tests {
         assert_eq!(
             config.log,
             Log {
-                log_path: "/tmp/robust/placement-center/logs".to_string(),
+                log_path: "./logs/placement-center".to_string(),
                 log_config: "./config/log4rs.yaml".to_string(),
             }
         );

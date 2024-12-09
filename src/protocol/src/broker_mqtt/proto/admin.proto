@@ -157,6 +157,26 @@ message EnableSlowSubScribeReply {
     bool is_enable = 1;
 }
 
+message ListSlowSubscribeRequest {
+    uint64 list = 1;
+    string sub_name = 3;
+    string topic = 2;
+    string client_id = 4;
+}
+
+message ListSlowSubscribeReply {
+    repeated ListSlowSubScribeRaw list_slow_subscribe_raw = 1;
+}
+
+message ListSlowSubScribeRaw {
+    string client_id = 1;
+    string topic = 2;
+    uint32 time_ms = 3;
+    string node_info = 4;
+    uint64 create_time = 5;
+}
+
+
 // --------- mqtt topic --------
 enum MatchOption {
     E = 0;
@@ -178,18 +198,3 @@ message MqttTopic {
     bool is_contain_retain_message = 4;
 }
 
-message ListSlowSubscribeRequest {
-
-}
-
-message ListSlowSubscribeReply {
-    repeated ListSlowSubScribeRaw list_slow_subscribe_raw = 1;
-}
-
-message ListSlowSubScribeRaw {
-    string client_id = 1;
-    string topic = 2;
-    uint32 time_ms = 3;
-    string node_info = 4;
-    uint64 create_time = 5;
-}

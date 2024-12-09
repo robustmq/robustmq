@@ -73,6 +73,7 @@ pub struct MqttClusterDynamicSlowSub {
     pub whole_ms: u128,
     pub internal_ms: u32,
     pub response_ms: u32,
+    pub path_addr: String,
 }
 
 impl MqttClusterDynamicConfig {
@@ -113,6 +114,7 @@ impl MqttClusterDynamicConfig {
                 whole_ms: 0,
                 internal_ms: 0,
                 response_ms: 0,
+                path_addr: "./log/test".to_string(),
             },
         }
     }
