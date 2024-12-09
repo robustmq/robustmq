@@ -14,37 +14,30 @@
 
 use regex::Regex;
 const EXCLUSIVE_SUB_PREFIX: &str = "$exclusive";
-pub fn is_exclusive_sub(sub_path: String) -> bool {
+pub fn is_exclusive_sub(sub_path: &str) -> bool {
     sub_path.starts_with(EXCLUSIVE_SUB_PREFIX)
 }
-pub fn decode_exclusive_sub_path_to_topic_name(sub_path: String) -> String {
-    let mut str_slice: Vec<&str> = sub_path.split("/").collect();
-    str_slice.remove(0);
-    format!("/{}", str_slice.join("/"))
+pub fn decode_exclusive_sub_path_to_topic_name(sub_path: &str) -> &str {
+    if is_exclusive_sub(sub_path) {
+        sub_path.trim_start_matches(EXCLUSIVE_SUB_PREFIX).trim_start_matches('/')
+    } else {
+        sub_path
+    }
 }
 
-pub fn exclusive_sub_path_regex_match(sub_path1: String, sub_path2: String) -> bool {
-    let sub_topic_name1 = if is_exclusive_sub(sub_path1.clone()) {
-        decode_exclusive_sub_path_to_topic_name(sub_path1)
-    } else {
-        sub_path1
-    };
+pub fn exclusive_sub_path_regex_match(sub_path1: &str, sub_path2: &str) -> bool {
+    let sub_topic_name1 = decode_exclusive_sub_path_to_topic_name(sub_path1);
+    let sub_topic_name2 = decode_exclusive_sub_path_to_topic_name(sub_path2);
 
-    let sub_topic_name2 = if is_exclusive_sub(sub_path2.clone()) {
-        decode_exclusive_sub_path_to_topic_name(sub_path2)
-    } else {
-        sub_path2
-    };
-
-    topic_name_regex_match(sub_topic_name1.clone(), sub_topic_name2.clone())
+    topic_name_regex_match(&sub_topic_name1, &sub_topic_name2)
 }
 
-pub fn topic_name_regex_match(topic_name1: String, topic_name2: String) -> bool {
-    base_topic_name_regex_match(topic_name1.clone(), topic_name2.clone())
+pub fn topic_name_regex_match(topic_name1: &str, topic_name2: &str) -> bool {
+    base_topic_name_regex_match(topic_name1, topic_name2)
         || base_topic_name_regex_match(topic_name2, topic_name1)
 }
 
-pub fn base_topic_name_regex_match(topic_name: String, regex_topic_name: String) -> bool {
+pub fn base_topic_name_regex_match(topic_name: &str, regex_topic_name: &str) -> bool {
     // Topic name perfect matching
     if topic_name == regex_topic_name {
         return true;

@@ -241,7 +241,7 @@ impl SubscribeManager {
         subscribe: Subscribe,
     ) -> Result<Option<SubscribeReasonCode>, CommonError> {
         for filter in subscribe.filters.clone() {
-            if !topic_util::is_exclusive_sub(filter.path.clone()) {
+            if !topic_util::is_exclusive_sub(&filter.path) {
                 continue;
             }
             if self
@@ -254,8 +254,8 @@ impl SubscribeManager {
                 return Ok(Some(SubscribeReasonCode::ExclusiveSubscriptionDisabled));
             }
             let topic_name =
-                topic_util::decode_exclusive_sub_path_to_topic_name(filter.path.clone());
-            if !set_nx_exclusive_topic(self.client_pool.clone(), topic_name.clone())
+                topic_util::decode_exclusive_sub_path_to_topic_name(&filter.path);
+            if !set_nx_exclusive_topic(self.client_pool.clone(), topic_name.to_owned())
                 .await?
                 .success
             {
@@ -293,7 +293,7 @@ impl SubscribeManager {
         &self,
         un_sub_path: String,
     ) -> Result<(), CommonError> {
-        if !topic_util::is_exclusive_sub(un_sub_path.clone()) {
+        if !topic_util::is_exclusive_sub(&un_sub_path) {
             return Ok(());
         }
         if self
@@ -305,8 +305,8 @@ impl SubscribeManager {
         {
             return Ok(());
         }
-        let topic_name = topic_util::decode_exclusive_sub_path_to_topic_name(un_sub_path.clone());
-        delete_exclusive_topic(self.client_pool.clone(), topic_name.clone()).await?;
+        let topic_name = topic_util::decode_exclusive_sub_path_to_topic_name(&un_sub_path);
+        delete_exclusive_topic(self.client_pool.clone(), topic_name.to_owned()).await?;
         Ok(())
     }
 
