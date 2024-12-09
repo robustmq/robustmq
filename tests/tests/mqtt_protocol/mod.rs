@@ -31,3 +31,5 @@ pub mod sub_identifier_test;
 pub mod sub_options_test;
 pub mod topic_alias_test;
 pub mod user_properties_test;
+pub mod ws_sub_pub_test;
+pub mod wss_sub_pub_test;
