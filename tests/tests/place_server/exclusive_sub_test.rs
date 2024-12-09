@@ -20,8 +20,7 @@ mod tests {
 
     use common_base::tools::unique_id;
     use grpc_clients::placement::mqtt::call::{
-        placement_delete_exclusive_topic,
-        placement_set_nx_exclusive_topic,
+        placement_delete_exclusive_topic, placement_set_nx_exclusive_topic,
     };
     use grpc_clients::placement::placement::call::register_node;
     use grpc_clients::pool::ClientPool;
@@ -64,15 +63,13 @@ mod tests {
             topic_name: topic_name.clone(),
         };
 
-        let resp =
-            placement_set_nx_exclusive_topic(client_pool.clone(), &addrs, req.clone())
-                .await
-                .unwrap();
+        let resp = placement_set_nx_exclusive_topic(client_pool.clone(), &addrs, req.clone())
+            .await
+            .unwrap();
         assert_eq!(resp.success, true);
-        let resp =
-            placement_set_nx_exclusive_topic(client_pool.clone(), &addrs, req.clone())
-                .await
-                .unwrap();
+        let resp = placement_set_nx_exclusive_topic(client_pool.clone(), &addrs, req.clone())
+            .await
+            .unwrap();
         assert_eq!(resp.success, false);
         let delete_req = DeleteExclusiveTopicRequest {
             cluster_name: cluster_name.clone(),
@@ -81,10 +78,9 @@ mod tests {
         placement_delete_exclusive_topic(client_pool.clone(), &addrs, delete_req.clone())
             .await
             .unwrap();
-        let resp =
-            placement_set_nx_exclusive_topic(client_pool.clone(), &addrs, req.clone())
-                .await
-                .unwrap();
+        let resp = placement_set_nx_exclusive_topic(client_pool.clone(), &addrs, req.clone())
+            .await
+            .unwrap();
         assert_eq!(resp.success, true);
     }
 }

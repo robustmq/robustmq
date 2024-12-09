@@ -83,31 +83,6 @@ impl MqttTopicStorage {
         Ok(())
     }
 
-    pub fn set_topic_retain_message(
-        &self,
-        cluster_name: &str,
-        topic_name: &str,
-        retain_message: Vec<u8>,
-        retain_message_expired_at: u64,
-    ) -> Result<(), PlacementCenterError> {
-        let mut topic = if let Some(tp) = self.get(cluster_name, topic_name)? {
-            tp
-        } else {
-            return Err(PlacementCenterError::TopicDoesNotExist(
-                topic_name.to_string(),
-            ));
-        };
-
-        if retain_message.is_empty() {
-            topic.retain_message = None;
-            topic.retain_message_expired_at = None;
-        } else {
-            topic.retain_message = Some(retain_message);
-            topic.retain_message_expired_at = Some(retain_message_expired_at);
-        }
-        self.save(cluster_name, topic_name, topic)
-    }
-
     pub fn set_nx_exclisve_topic(
         &self,
         cluster_name: &str,

@@ -18,8 +18,8 @@ use std::time::Duration;
 use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::tools::now_mills;
 use common_base::error::common::CommonError;
+use common_base::tools::now_mills;
 use grpc_clients::placement::mqtt::call::{
     placement_delete_exclusive_topic, placement_get_share_sub_leader,
     placement_set_nx_exclusive_topic,

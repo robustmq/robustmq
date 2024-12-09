@@ -765,7 +765,7 @@ dependencies = [
  "log4rs",
  "mysql",
  "prometheus",
- "prost 0.12.3",
+ "prost",
  "regex",
  "rocksdb",
  "serde",
