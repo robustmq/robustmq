@@ -783,7 +783,7 @@ where
         // }
 
         match self
-            .sucscribe_manager
+            .subscribe_manager
             .save_exclusive_subscribe(subscribe.clone())
             .await
         {
@@ -918,7 +918,7 @@ where
         // }
 
         match self
-            .sucscribe_manager
+            .subscribe_manager
             .remove_exclusive_subscribe(un_subscribe.clone())
             .await
         {

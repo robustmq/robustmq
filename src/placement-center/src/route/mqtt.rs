@@ -18,9 +18,9 @@ use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::MqttTopic;
 use prost::Message as _;
 use protocol::placement_center::placement_center_mqtt::{
-    CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteExclusiveTopicRequest,
+    CreateSessionRequest, CreateUserRequest, DeleteExclusiveTopicRequest,
     DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest, SaveLastWillMessageRequest,
-    SetExclusiveTopicRequest, SetTopicRetainMessageRequest, UpdateSessionRequest,
+    SetExclusiveTopicRequest, UpdateSessionRequest,
 };
 
 use crate::core::error::PlacementCenterError;

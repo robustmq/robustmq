@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod common;
-
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -22,7 +20,7 @@ mod tests {
 
     use common_base::tools::unique_id;
     use grpc_clients::placement::mqtt::call::{
-        placement_delete_exclusive_topic, placement_get_share_sub_leader,
+        placement_delete_exclusive_topic,
         placement_set_nx_exclusive_topic,
     };
     use grpc_clients::placement::placement::call::register_node;
@@ -30,7 +28,7 @@ mod tests {
     use log::info;
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
     use protocol::placement_center::placement_center_mqtt::{
-        DeleteExclusiveTopicRequest, GetShareSubLeaderRequest, SetExclusiveTopicRequest,
+        DeleteExclusiveTopicRequest, SetExclusiveTopicRequest,
     };
 
     #[tokio::test]
@@ -55,7 +53,7 @@ mod tests {
 
         sleep(Duration::from_secs(2));
 
-        let res = register_node(client_pool.clone(), addrs.clone(), request)
+        let res = register_node(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
         info!("{:?}", res);
@@ -67,12 +65,12 @@ mod tests {
         };
 
         let resp =
-            placement_set_nx_exclusive_topic(client_pool.clone(), addrs.clone(), req.clone())
+            placement_set_nx_exclusive_topic(client_pool.clone(), &addrs, req.clone())
                 .await
                 .unwrap();
         assert_eq!(resp.success, true);
         let resp =
-            placement_set_nx_exclusive_topic(client_pool.clone(), addrs.clone(), req.clone())
+            placement_set_nx_exclusive_topic(client_pool.clone(), &addrs, req.clone())
                 .await
                 .unwrap();
         assert_eq!(resp.success, false);
@@ -80,11 +78,11 @@ mod tests {
             cluster_name: cluster_name.clone(),
             topic_name: topic_name.clone(),
         };
-        placement_delete_exclusive_topic(client_pool.clone(), addrs.clone(), delete_req.clone())
+        placement_delete_exclusive_topic(client_pool.clone(), &addrs, delete_req.clone())
             .await
             .unwrap();
         let resp =
-            placement_set_nx_exclusive_topic(client_pool.clone(), addrs.clone(), req.clone())
+            placement_set_nx_exclusive_topic(client_pool.clone(), &addrs, req.clone())
                 .await
                 .unwrap();
         assert_eq!(resp.success, true);

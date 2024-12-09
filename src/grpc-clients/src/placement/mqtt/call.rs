@@ -18,7 +18,7 @@ use common_base::error::common::CommonError;
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
-    CreateUserReply, CreateUserRequest, DeleteAclRequest, DeleteAclRequestReply,
+    CreateUserReply, CreateUserRequest, DeleteAclRequest, DeleteAclReply,
     DeleteBlacklistReply, DeleteBlacklistRequest, DeleteExclusiveTopicReply,
     DeleteExclusiveTopicRequest, DeleteSessionReply, DeleteSessionRequest, DeleteTopicReply,
     DeleteTopicRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
@@ -98,10 +98,16 @@ generate_mqtt_service_call!(
     SetTopicRetainMessage
 );
 generate_mqtt_service_call!(
+    placement_set_nx_exclusive_topic,
     SetExclusiveTopicRequest,
-    SetTopicRetainMessageRequest,
-    SetTopicRetainMessageReply,
-    SetTopicRetainMessage
+    SetExclusiveTopicReply,
+    SetNxExclusiveTopic
+);
+generate_mqtt_service_call!(
+    placement_delete_exclusive_topic,
+    DeleteExclusiveTopicRequest,
+    DeleteExclusiveTopicReply,
+    DeleteExclusiveTopic
 );
 generate_mqtt_service_call!(
     placement_create_session,
