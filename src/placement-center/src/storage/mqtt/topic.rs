@@ -116,7 +116,7 @@ impl MqttTopicStorage {
             engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key_name)?;
         for wrap in &exclusive_topic_name_list {
             let req = SetExclusiveTopicRequest::decode(wrap.data.as_ref())?;
-            if topic_name_regex_match(&req.topic_name, &topic_name) {
+            if topic_name_regex_match(&req.topic_name, topic_name) {
                 return Ok(false);
             }
         }

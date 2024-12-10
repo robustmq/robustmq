@@ -31,7 +31,7 @@ pub fn exclusive_sub_path_regex_match(sub_path1: &str, sub_path2: &str) -> bool 
     let sub_topic_name1 = decode_exclusive_sub_path_to_topic_name(sub_path1);
     let sub_topic_name2 = decode_exclusive_sub_path_to_topic_name(sub_path2);
 
-    topic_name_regex_match(&sub_topic_name1, &sub_topic_name2)
+    topic_name_regex_match(sub_topic_name1, sub_topic_name2)
 }
 
 pub fn topic_name_regex_match(topic_name1: &str, topic_name2: &str) -> bool {
@@ -48,7 +48,7 @@ pub fn base_topic_name_regex_match(topic_name: &str, regex_topic_name: &str) -> 
     if regex_topic_name.contains("+") {
         let regex_str = regex_topic_name.replace("+", "[^+*/]+");
         let regex = Regex::new(&regex_str.to_string()).unwrap();
-        return regex.is_match(&topic_name);
+        return regex.is_match(topic_name);
     }
 
     if regex_topic_name.contains("#") {
@@ -57,7 +57,7 @@ pub fn base_topic_name_regex_match(topic_name: &str, regex_topic_name: &str) -> 
         }
         let regex_str = regex_topic_name.replace("#", "[^+#]+");
         let regex = Regex::new(&regex_str.to_string()).unwrap();
-        return regex.is_match(&topic_name);
+        return regex.is_match(topic_name);
     }
 
     false
