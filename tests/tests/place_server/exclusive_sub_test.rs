@@ -51,7 +51,7 @@ mod tests {
 
         sleep(Duration::from_secs(2));
 
-        let res = register_node(client_pool.clone(), &addrs, request)
+        let _res = register_node(client_pool.clone(), &addrs, request)
             .await
             .unwrap();
         let topic_name = format!("/tests/{}", unique_id());
