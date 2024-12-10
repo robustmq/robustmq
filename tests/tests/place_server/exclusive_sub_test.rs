@@ -24,7 +24,6 @@ mod tests {
     };
     use grpc_clients::placement::placement::call::register_node;
     use grpc_clients::pool::ClientPool;
-    use log::info;
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
     use protocol::placement_center::placement_center_mqtt::{
         DeleteExclusiveTopicRequest, SetExclusiveTopicRequest,
@@ -79,6 +78,6 @@ mod tests {
         let resp = placement_set_nx_exclusive_topic(client_pool.clone(), &addrs, req.clone())
             .await
             .unwrap();
-        assert!(resp.success, true);
+        assert!(resp.success);
     }
 }
