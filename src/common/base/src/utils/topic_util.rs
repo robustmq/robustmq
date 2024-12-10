@@ -19,19 +19,10 @@ pub fn is_exclusive_sub(sub_path: &str) -> bool {
 }
 pub fn decode_exclusive_sub_path_to_topic_name(sub_path: &str) -> &str {
     if is_exclusive_sub(sub_path) {
-        sub_path
-            .trim_start_matches(EXCLUSIVE_SUB_PREFIX)
-            .trim_start_matches('/')
+        sub_path.trim_start_matches(EXCLUSIVE_SUB_PREFIX)
     } else {
         sub_path
     }
-}
-
-pub fn exclusive_sub_path_regex_match(sub_path1: &str, sub_path2: &str) -> bool {
-    let sub_topic_name1 = decode_exclusive_sub_path_to_topic_name(sub_path1);
-    let sub_topic_name2 = decode_exclusive_sub_path_to_topic_name(sub_path2);
-
-    topic_name_regex_match(sub_topic_name1, sub_topic_name2)
 }
 
 pub fn topic_name_regex_match(topic_name1: &str, topic_name2: &str) -> bool {
@@ -61,4 +52,62 @@ pub fn base_topic_name_regex_match(topic_name: &str, regex_topic_name: &str) -> 
     }
 
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_exclusive_sub() {
+        assert!(is_exclusive_sub("$exclusive/topic"));
+        assert!(is_exclusive_sub("$exclusive/another/topic"));
+        assert!(!is_exclusive_sub("/exclusive/topic"));
+        assert!(!is_exclusive_sub("/topic"));
+    }
+
+    #[test]
+    fn test_decode_exclusive_sub_path_to_topic_name() {
+        assert_eq!(
+            decode_exclusive_sub_path_to_topic_name("$exclusive/topic"),
+            "/topic"
+        );
+        assert_eq!(
+            decode_exclusive_sub_path_to_topic_name("$exclusive/another/topic"),
+            "/another/topic"
+        );
+        assert_eq!(decode_exclusive_sub_path_to_topic_name("topic"), "topic");
+        assert_eq!(
+            decode_exclusive_sub_path_to_topic_name("/exclusive/topic"),
+            "/exclusive/topic"
+        );
+    }
+
+    #[test]
+    fn test_topic_name_regex_match() {
+        assert!(topic_name_regex_match("topic", "topic"));
+        assert!(topic_name_regex_match("/topic/sub", "/topic/+"));
+        assert!(topic_name_regex_match("/topic/+/topic", "/topic/sub/topic"));
+        assert!(topic_name_regex_match("/topic/#", "/topic/sub"));
+        assert!(topic_name_regex_match("/topic/sub/topic", "/topic/#"));
+        assert!(!topic_name_regex_match("/topic/sub/topic", "/topic/+/sub"));
+        assert!(!topic_name_regex_match("topic/sub/topic", "another/#"));
+    }
+
+    #[test]
+    fn test_base_topic_name_regex_match() {
+        assert!(base_topic_name_regex_match("topic", "topic"));
+        assert!(base_topic_name_regex_match("/topic/sub", "/topic/+"));
+        assert!(base_topic_name_regex_match(
+            "/topic/sub/topic",
+            "/topic/+/topic"
+        ));
+        assert!(base_topic_name_regex_match("/topic/sub", "/topic/#"));
+        assert!(base_topic_name_regex_match("/topic/sub/topic", "/topic/#"));
+        assert!(!base_topic_name_regex_match(
+            "/topic/sub/topic",
+            "/topic/+/sub"
+        ));
+        assert!(!base_topic_name_regex_match("topic/sub/topic", "another/#"));
+    }
 }
