@@ -19,9 +19,10 @@ mod tests {
     use protocol::journal_server::codec::{JournalEnginePacket, JournalServerCodec};
     use protocol::journal_server::journal_engine::{
         ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, DeleteShardReq, DeleteShardReqBody,
-        GetClusterMetadataReq, GetShardMetadataReq, GetShardMetadataReqBody,
-        GetShardMetadataReqShard, ReadReq, ReadReqBody, ReadReqFilter, ReadReqMessage, ReadType,
-        ReqHeader, WriteReq, WriteReqBody, WriteReqMessages, WriteReqSegmentMessages,
+        FetchOffsetReq, FetchOffsetReqBody, GetClusterMetadataReq, GetShardMetadataReq,
+        GetShardMetadataReqBody, GetShardMetadataReqShard, ReadReq, ReadReqBody, ReadReqFilter,
+        ReadReqMessage, ReadType, ReqHeader, WriteReq, WriteReqBody, WriteReqMessages,
+        WriteReqSegmentMessages,
     };
     use tokio::net::TcpStream;
     use tokio_util::codec::Framed;
@@ -180,6 +181,30 @@ mod tests {
                     }),
                     ..Default::default()
                 }],
+            }),
+        });
+
+        let _ = stream.send(req_packet.clone()).await;
+
+        if let Some(data) = stream.next().await {
+            let resp = data.unwrap();
+            println!("{:?}", resp);
+        }
+    }
+
+    #[tokio::test]
+    async fn fetch_offset_test() {
+        let socket = TcpStream::connect(&journal_tcp_addr()).await.unwrap();
+        let mut stream = Framed::new(socket, JournalServerCodec::new());
+
+        let req_packet = JournalEnginePacket::FetchOffsetReq(FetchOffsetReq {
+            header: Some(ReqHeader {
+                api_key: ApiKey::Read.into(),
+                api_version: ApiVersion::V0.into(),
+            }),
+            body: Some(FetchOffsetReqBody {
+                group_name: "g1".to_string(),
+                ..Default::default()
             }),
         });
 

@@ -60,4 +60,7 @@ pub enum JournalClientError {
 
     #[error("Shard {0} has no active segments")]
     NotActiveSegmentLeader(String),
+
+    #[error("The write request returns empty")]
+    WriteReqReturnTmpty,
 }
