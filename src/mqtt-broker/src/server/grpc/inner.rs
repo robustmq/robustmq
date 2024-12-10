@@ -80,6 +80,9 @@ where
             return Err(Status::cancelled("Client ID cannot be empty".to_string()));
         }
         for client_id in req.client_id {
+            self.subscribe_manager
+                .remove_exclusive_subscribe_by_client_id(&client_id)
+                .await?;
             self.cache_manager.remove_session(&client_id);
             self.subscribe_manager.stop_push_by_client_id(&client_id);
         }

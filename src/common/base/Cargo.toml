@@ -41,3 +41,4 @@ log.workspace = true
 bincode.workspace = true
 mysql.workspace = true
 clap.workspace = true
+regex.workspace = true

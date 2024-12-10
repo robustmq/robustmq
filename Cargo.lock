@@ -766,6 +766,7 @@ dependencies = [
  "mysql",
  "prometheus",
  "prost",
+ "regex",
  "rocksdb",
  "serde",
  "serde_json",

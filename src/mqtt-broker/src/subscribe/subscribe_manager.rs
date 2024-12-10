@@ -16,15 +16,23 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::error::common::CommonError;
+use common_base::utils::topic_util;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use log::{error, info};
-use protocol::mqtt::common::{Filter, MqttProtocol, Subscribe, SubscribeProperties};
+use metadata_struct::mqtt::cluster::AvailableFlag;
+use protocol::mqtt::common::{
+    Filter, MqttProtocol, Subscribe, SubscribeProperties, SubscribeReasonCode, Unsubscribe,
+};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::Sender;
 use tokio::time::sleep;
 
-use super::sub_common::{decode_share_info, get_share_sub_leader, is_share_sub, path_regex_match};
+use super::sub_common::{
+    decode_share_info, delete_exclusive_topic, get_share_sub_leader, is_share_sub,
+    path_regex_match, set_nx_exclusive_topic,
+};
 use crate::handler::cache::CacheManager;
 use crate::subscribe::subscriber::Subscriber;
 
@@ -226,6 +234,79 @@ impl SubscribeManager {
                 }
             }
         }
+    }
+
+    pub async fn save_exclusive_subscribe(
+        &self,
+        subscribe: Subscribe,
+    ) -> Result<Option<SubscribeReasonCode>, CommonError> {
+        for filter in subscribe.filters.clone() {
+            if !topic_util::is_exclusive_sub(&filter.path) {
+                continue;
+            }
+            if self
+                .metadata_cache
+                .get_cluster_info()
+                .feature
+                .exclusive_subscription_available
+                == AvailableFlag::Disable
+            {
+                return Ok(Some(SubscribeReasonCode::ExclusiveSubscriptionDisabled));
+            }
+            let topic_name = topic_util::decode_exclusive_sub_path_to_topic_name(&filter.path);
+            if !set_nx_exclusive_topic(self.client_pool.clone(), topic_name.to_owned())
+                .await?
+                .success
+            {
+                return Ok(Some(SubscribeReasonCode::TopicSubscribed));
+            }
+        }
+        Ok(None)
+    }
+
+    pub async fn remove_exclusive_subscribe(
+        &self,
+        un_subscribe: Unsubscribe,
+    ) -> Result<(), CommonError> {
+        for filter in un_subscribe.filters.clone() {
+            self.remove_exclusive_subscribe_by_sub_path(filter.clone())
+                .await?;
+        }
+        Ok(())
+    }
+
+    pub async fn remove_exclusive_subscribe_by_client_id(
+        &self,
+        client_id: &str,
+    ) -> Result<(), CommonError> {
+        for (_, subscriber) in self.exclusive_subscribe.clone() {
+            if subscriber.client_id == *client_id {
+                self.remove_exclusive_subscribe_by_sub_path(subscriber.sub_path)
+                    .await?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn remove_exclusive_subscribe_by_sub_path(
+        &self,
+        un_sub_path: String,
+    ) -> Result<(), CommonError> {
+        if !topic_util::is_exclusive_sub(&un_sub_path) {
+            return Ok(());
+        }
+        if self
+            .metadata_cache
+            .get_cluster_info()
+            .feature
+            .exclusive_subscription_available
+            == AvailableFlag::Disable
+        {
+            return Ok(());
+        }
+        let topic_name = topic_util::decode_exclusive_sub_path_to_topic_name(&un_sub_path);
+        delete_exclusive_topic(self.client_pool.clone(), topic_name.to_owned()).await?;
+        Ok(())
     }
 
     async fn parse_subscribe(

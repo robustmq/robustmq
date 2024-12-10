@@ -18,8 +18,9 @@ use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::MqttTopic;
 use prost::Message as _;
 use protocol::placement_center::placement_center_mqtt::{
-    CreateSessionRequest, CreateUserRequest, DeleteSessionRequest, DeleteTopicRequest,
-    DeleteUserRequest, SaveLastWillMessageRequest, UpdateSessionRequest,
+    CreateSessionRequest, CreateUserRequest, DeleteExclusiveTopicRequest, DeleteSessionRequest,
+    DeleteTopicRequest, DeleteUserRequest, SaveLastWillMessageRequest, SetExclusiveTopicRequest,
+    UpdateSessionRequest,
 };
 
 use crate::core::error::PlacementCenterError;
@@ -123,5 +124,16 @@ impl DataRouteMqtt {
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&req.cluster_name, &req.client_id)?;
         Ok(())
+    }
+
+    pub fn set_nx_exclusive_topic(&self, value: Vec<u8>) -> Result<bool, PlacementCenterError> {
+        let req = SetExclusiveTopicRequest::decode(value.as_ref())?;
+        let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
+        storage.set_nx_exclisve_topic(&req.cluster_name, &req.topic_name, value.clone())
+    }
+    pub fn delete_exclusive_topic(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+        let req = DeleteExclusiveTopicRequest::decode(value.as_ref())?;
+        let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
+        storage.delete_exclisve_topic(&req.cluster_name, &req.topic_name)
     }
 }

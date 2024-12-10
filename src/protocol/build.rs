@@ -35,15 +35,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     // Placement Center
-    tonic_build::configure().build_server(true).compile(
-        &[
-            "src/placement_center/proto/journal.proto",
-            "src/placement_center/proto/kv.proto",
-            "src/placement_center/proto/mqtt.proto",
-            "src/placement_center/proto/inner.proto",
-            "src/placement_center/proto/openraft.proto",
-        ],
-        &["src/placement_center/proto"], // specify the root location to search proto dependencies
-    )?;
+    tonic_build::configure()
+        .build_server(true)
+        .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
+        .compile(
+            &[
+                "src/placement_center/proto/journal.proto",
+                "src/placement_center/proto/kv.proto",
+                "src/placement_center/proto/mqtt.proto",
+                "src/placement_center/proto/inner.proto",
+                "src/placement_center/proto/openraft.proto",
+            ],
+            &["src/placement_center/proto"], // specify the root location to search proto dependencies
+        )?;
     Ok(())
 }

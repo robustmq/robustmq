@@ -95,3 +95,9 @@ pub enum CommonError {
     #[error("RocksDB Family {0} not available")]
     RocksDBFamilyNotAvailable(String),
 }
+
+impl From<CommonError> for Status {
+    fn from(e: CommonError) -> Self {
+        Status::cancelled(e.to_string())
+    }
+}

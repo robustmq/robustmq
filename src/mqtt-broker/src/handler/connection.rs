@@ -117,6 +117,9 @@ pub async fn disconnect_connection(
     connection_manager: &Arc<ConnectionManager>,
     subscribe_manager: &Arc<SubscribeManager>,
 ) -> Result<(), CommonError> {
+    subscribe_manager
+        .remove_exclusive_subscribe_by_client_id(client_id)
+        .await?;
     // Remove the connection cache
     cache_manager.remove_connection(connect_id);
     // Remove the client id bound connection information

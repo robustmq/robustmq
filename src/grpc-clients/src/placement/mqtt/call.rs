@@ -19,13 +19,14 @@ use protocol::placement_center::placement_center_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
     CreateUserReply, CreateUserRequest, DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply,
-    DeleteBlacklistRequest, DeleteSessionReply, DeleteSessionRequest, DeleteTopicReply,
-    DeleteTopicRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
-    GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
-    ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest,
-    ListUserReply, ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest,
-    SetTopicRetainMessageReply, SetTopicRetainMessageRequest, UpdateSessionReply,
-    UpdateSessionRequest,
+    DeleteBlacklistRequest, DeleteExclusiveTopicReply, DeleteExclusiveTopicRequest,
+    DeleteSessionReply, DeleteSessionRequest, DeleteTopicReply, DeleteTopicRequest,
+    DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
+    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply,
+    ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+    SaveLastWillMessageReply, SaveLastWillMessageRequest, SetExclusiveTopicReply,
+    SetExclusiveTopicRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
+    UpdateSessionReply, UpdateSessionRequest,
 };
 
 use super::{MqttServiceReply, MqttServiceRequest};
@@ -95,6 +96,18 @@ generate_mqtt_service_call!(
     SetTopicRetainMessageRequest,
     SetTopicRetainMessageReply,
     SetTopicRetainMessage
+);
+generate_mqtt_service_call!(
+    placement_set_nx_exclusive_topic,
+    SetExclusiveTopicRequest,
+    SetExclusiveTopicReply,
+    SetNxExclusiveTopic
+);
+generate_mqtt_service_call!(
+    placement_delete_exclusive_topic,
+    DeleteExclusiveTopicRequest,
+    DeleteExclusiveTopicReply,
+    DeleteExclusiveTopic
 );
 generate_mqtt_service_call!(
     placement_create_session,
