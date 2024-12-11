@@ -40,6 +40,13 @@ mod service;
 pub mod tool;
 mod writer;
 
+#[derive(Default, Clone)]
+pub struct JournalClientWriteData {
+    pub key: String,
+    pub content: Vec<u8>,
+    pub tags: Vec<String>,
+}
+
 #[derive(Clone)]
 pub struct JournalEngineClient {
     connection_manager: Arc<ConnectionManager>,
@@ -110,14 +117,12 @@ impl JournalEngineClient {
         Ok(())
     }
 
-    pub async fn write(
+    pub async fn batch_write(
         &self,
         namespace: String,
         shard_name: String,
-        key: String,
-        content: Vec<u8>,
-        tags: Vec<String>,
-    ) -> Result<SenderMessageResp, JournalClientError> {
+        data: Vec<JournalClientWriteData>,
+    ) -> Result<Vec<SenderMessageResp>, JournalClientError> {
         loop {
             let active_segment = if let Some(segment) = self
                 .metadata_cache
@@ -150,14 +155,8 @@ impl JournalEngineClient {
                 continue;
             };
 
-            let message = SenderMessage::build(
-                &namespace,
-                &shard_name,
-                active_segment,
-                &key,
-                &content,
-                &tags,
-            );
+            let message =
+                SenderMessage::build(&namespace, &shard_name, active_segment, data.clone());
             match self.writer.send(&message).await {
                 Ok(resp) => {
                     return Ok(resp);
@@ -172,6 +171,19 @@ impl JournalEngineClient {
                 }
             }
         }
+    }
+
+    pub async fn write(
+        &self,
+        namespace: String,
+        shard_name: String,
+        data: JournalClientWriteData,
+    ) -> Result<SenderMessageResp, JournalClientError> {
+        let resp_vec = self.batch_write(namespace, shard_name, vec![data]).await?;
+        if let Some(resp) = resp_vec.first() {
+            return Ok(resp.to_owned());
+        }
+        Err(JournalClientError::WriteReqReturnTmpty)
     }
 
     pub async fn read_by_offset(

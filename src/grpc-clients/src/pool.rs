@@ -21,12 +21,12 @@ use mobc::{Connection, Pool};
 use crate::journal::admin::JournalAdminServiceManager;
 use crate::journal::inner::JournalInnerServiceManager;
 use crate::mqtt::admin::MqttBrokerAdminServiceManager;
-use crate::mqtt::placement::MqttBrokerPlacementServiceManager;
+use crate::mqtt::inner::MqttBrokerPlacementServiceManager;
+use crate::placement::inner::PlacementServiceManager;
 use crate::placement::journal::JournalServiceManager;
 use crate::placement::kv::KvServiceManager;
 use crate::placement::mqtt::MqttServiceManager;
 use crate::placement::openraft::OpenRaftServiceManager;
-use crate::placement::placement::PlacementServiceManager;
 
 #[derive(Clone)]
 pub struct ClientPool {

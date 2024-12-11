@@ -16,7 +16,7 @@
 mod tests {
     use std::sync::Arc;
 
-    use grpc_clients::placement::placement::call::{
+    use grpc_clients::placement::inner::call::{
         cluster_status, delete_idempotent_data, get_resource_config, register_node,
         set_resource_config, unregister_node,
     };

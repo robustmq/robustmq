@@ -17,7 +17,7 @@ use std::sync::Arc;
 use common_base::config::broker_mqtt::{broker_mqtt_conf, BrokerMqttConfig};
 use common_base::error::common::CommonError;
 use common_base::tools::get_local_ip;
-use grpc_clients::placement::placement::call::{
+use grpc_clients::placement::inner::call::{
     delete_resource_config, get_resource_config, heartbeat, node_list, register_node,
     set_resource_config, unregister_node,
 };

@@ -19,8 +19,8 @@ mod tests {
     use std::time::Duration;
 
     use common_base::tools::unique_id;
+    use grpc_clients::placement::inner::call::register_node;
     use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
-    use grpc_clients::placement::placement::call::register_node;
     use grpc_clients::pool::ClientPool;
     use log::info;
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};

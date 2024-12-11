@@ -19,7 +19,7 @@ use axum::async_trait;
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use journal_client::option::JournalClientOption;
-use journal_client::JournalEngineClient;
+use journal_client::{JournalClientWriteData, JournalEngineClient};
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 use offset::PlaceOffsetManager;
@@ -85,11 +85,12 @@ impl StorageAdapter for JournalStorageAdapter {
         shard_name: String,
         record: Record,
     ) -> Result<u64, CommonError> {
-        match self
-            .client
-            .write(namespace, shard_name, record.key, record.data, record.tags)
-            .await
-        {
+        let data = JournalClientWriteData {
+            key: record.key,
+            content: record.data,
+            tags: record.tags,
+        };
+        match self.client.write(namespace, shard_name, data).await {
             Ok(resp) => {
                 if let Some(err) = resp.error {
                     return Err(CommonError::CommonError(err));

@@ -90,7 +90,7 @@ pub enum MqttBrokerPlacementReply {
 }
 
 pub mod admin;
-pub mod placement;
+pub mod inner;
 
 async fn call_once(
     client_pool: &ClientPool,
