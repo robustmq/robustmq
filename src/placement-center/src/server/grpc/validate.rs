@@ -19,6 +19,7 @@ use protocol::placement_center::placement_center_inner::{
     ClusterType, DeleteIdempotentDataRequest, GetResourceConfigRequest, RegisterNodeRequest,
     SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };
+use protocol::placement_center::placement_center_mqtt::GetShareSubLeaderRequest;
 use tonic::Status;
 
 pub trait ValidateExt {
@@ -143,6 +144,15 @@ impl ValidateExt for SetIdempotentDataRequest {
     fn validate_ext(&self) -> Result<(), Status> {
         ensure_param_not_empty("cluster_name", &self.cluster_name)?;
         ensure_param_not_empty("producer_id", &self.producer_id)?;
+
+        Ok(())
+    }
+}
+
+impl ValidateExt for GetShareSubLeaderRequest {
+    fn validate_ext(&self) -> Result<(), Status> {
+        ensure_param_not_empty("group_name", &self.group_name)?;
+        ensure_param_not_empty("cluster_name", &self.cluster_name)?;
 
         Ok(())
     }

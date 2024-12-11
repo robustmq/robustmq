@@ -10,6 +10,7 @@ src/rlog/log/server.log
 .idea/modules.xml
 .idea/robustmq.iml
 .idea/vcs.xml
+.idea/workspace.xml
 logs
 nohup.out
 .idea/checkstyle-idea.xml

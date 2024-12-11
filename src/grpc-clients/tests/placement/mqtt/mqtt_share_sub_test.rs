@@ -68,5 +68,25 @@ mod tests {
                 panic!("{:?}", e);
             }
         }
+
+        let request = GetShareSubLeaderRequest {
+            group_name: group_name.clone(),
+            cluster_name: "".to_string(),
+        };
+        assert!(
+            placement_get_share_sub_leader(client_pool.clone(), &addrs, request)
+                .await
+                .is_err()
+        );
+
+        let request = GetShareSubLeaderRequest {
+            group_name: "".to_string(),
+            cluster_name: cluster_name.clone(),
+        };
+        assert!(
+            placement_get_share_sub_leader(client_pool.clone(), &addrs, request)
+                .await
+                .is_err()
+        );
     }
 }

@@ -38,6 +38,7 @@ use crate::mqtt::services::share_sub::ShareSubLeader;
 use crate::mqtt::services::topic::{create_topic_req, set_topic_retain_message_req};
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
+use crate::server::grpc::validate::ValidateExt;
 use crate::storage::mqtt::acl::AclStorage;
 use crate::storage::mqtt::blacklist::MqttBlackListStorage;
 use crate::storage::mqtt::session::MqttSessionStorage;
@@ -72,6 +73,7 @@ impl MqttService for GrpcMqttService {
         request: Request<GetShareSubLeaderRequest>,
     ) -> Result<Response<GetShareSubLeaderReply>, Status> {
         let req = request.into_inner();
+        let _ = req.validate_ext()?;
         let cluster_name = req.cluster_name;
         let group_name = req.group_name;
         let mut reply = GetShareSubLeaderReply::default();
