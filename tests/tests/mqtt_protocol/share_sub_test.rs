@@ -23,17 +23,17 @@ mod tests {
     async fn client5_subscribe_test() {
         let sub_qos = &[0];
         let topic = format!("/tests/{}", unique_id());
-        let sub_topic = format!("$share/{}", topic);
+        let sub_topic = format!("$share/g1{}", topic);
         simple_test(topic.clone(), sub_topic.clone(), sub_qos, "2".to_string()).await;
 
         let sub_qos = &[1];
         let topic = format!("/tests/{}", unique_id());
-        let sub_topic = format!("$share/{}", topic);
+        let sub_topic = format!("$share/g1{}", topic);
         simple_test(topic.clone(), sub_topic.clone(), sub_qos, "1".to_string()).await;
 
         let sub_qos = &[2];
         let topic = format!("/tests/{}", unique_id());
-        let sub_topic = format!("$share/{}", topic);
+        let sub_topic = format!("$share/g1{}", topic);
         simple_test(topic.clone(), sub_topic.clone(), sub_qos, "3".to_string()).await;
     }
 
