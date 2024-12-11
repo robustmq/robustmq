@@ -328,7 +328,6 @@ impl SubscribeManager {
             if is_share_sub(filter.path.clone()) {
                 let conf = broker_mqtt_conf();
                 let (group_name, sub_name) = decode_share_info(filter.path.clone());
-
                 if path_regex_match(topic_name.clone(), sub_name.clone()) {
                     match get_share_sub_leader(self.client_pool.clone(), group_name.clone()).await {
                         Ok(reply) => {
