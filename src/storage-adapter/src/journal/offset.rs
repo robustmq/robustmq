@@ -16,9 +16,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use grpc_clients::placement::inner::call::get_offset_data;
+use grpc_clients::placement::inner::call::{get_offset_data, save_offset_data};
 use grpc_clients::pool::ClientPool;
-use protocol::placement_center::placement_center_inner::GetOffsetDataRequest;
+use protocol::placement_center::placement_center_inner::{
+    GetOffsetDataRequest, SaveOffsetDataRequest, SaveOffsetDataRequestOffset,
+};
 
 use crate::storage::ShardOffset;
 
@@ -56,10 +58,25 @@ impl PlaceOffsetManager {
 
     pub async fn commit_offset(
         &self,
-        _group_name: &str,
-        _namespace: &str,
-        _offset: HashMap<String, u64>,
+        cluster_name: &str,
+        group_name: &str,
+        namespace: &str,
+        offset: HashMap<String, u64>,
     ) -> Result<(), CommonError> {
+        let mut offset_data = Vec::new();
+        for (shard_name, offset) in offset {
+            offset_data.push(SaveOffsetDataRequestOffset {
+                namespace: namespace.to_owned(),
+                shard_name,
+                offset,
+            });
+        }
+        let request = SaveOffsetDataRequest {
+            cluster_name: cluster_name.to_owned(),
+            group: group_name.to_owned(),
+            offsets: offset_data,
+        };
+        save_offset_data(self.client_pool.clone(), &self.addrs.clone(), request).await?;
         Ok(())
     }
 }

@@ -26,7 +26,7 @@ use protocol::journal_server::journal_engine::{
     WriteReqBody, WriteReqMessages, WriteReqSegmentMessages,
 };
 use tokio::select;
-use tokio::sync::broadcast::{self, Receiver, Sender};
+use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::time::{sleep, timeout};
 
 use crate::cache::{load_shards_cache, MetadataCache};
@@ -71,7 +71,7 @@ pub struct SenderMessageResp {
 #[derive(Clone)]
 struct NodeSenderThread {
     node_send: Sender<DataSenderPkg>,
-    stop_send: broadcast::Sender<bool>,
+    stop_send: mpsc::Sender<bool>,
 }
 
 // Data Sender Pkg
@@ -106,8 +106,8 @@ impl Writer {
     }
 
     fn add_node_sender(&self, node_id: u64) -> Sender<DataSenderPkg> {
-        let (data_sender, _) = broadcast::channel::<DataSenderPkg>(1000);
-        let (stop_send, _) = broadcast::channel::<bool>(1);
+        let (data_sender, data_recv) = mpsc::channel::<DataSenderPkg>(1000);
+        let (stop_send, stop_recv) = mpsc::channel::<bool>(1);
 
         let node_sender_thread = NodeSenderThread {
             node_send: data_sender.clone(),
@@ -120,16 +120,16 @@ impl Writer {
             node_id,
             self.connection_manager.clone(),
             self.metadata_cache.clone(),
-            data_sender.clone(),
-            stop_send,
+            data_recv,
+            stop_recv,
         );
 
         data_sender
     }
 
-    pub fn remove_node_sender(&self, node_id: u64) {
+    pub async fn remove_node_sender(&self, node_id: u64) {
         if let Some(node) = self.node_senders.get(&node_id) {
-            if let Ok(e) = node.stop_send.send(true) {
+            if let Ok(e) = node.stop_send.send(true).await {
                 self.node_senders.remove(&node_id);
             }
         }
@@ -171,7 +171,7 @@ impl Writer {
             self.add_node_sender(active_segment_leader)
         };
 
-        let (callback_sx, mut callback_rx) = broadcast::channel::<Vec<SenderMessageResp>>(2);
+        let (callback_sx, mut callback_rx) = mpsc::channel::<Vec<SenderMessageResp>>(2);
         let data = DataSenderPkg {
             sender_pkg_id: self
                 .send_pkid_generator
@@ -180,14 +180,14 @@ impl Writer {
             message: message.to_owned(),
         };
 
-        let rs = sender.send(data);
+        let rs = sender.send(data).await;
         let resp_data = timeout(Duration::from_secs(30), callback_rx.recv()).await?;
-        Ok(resp_data?)
+        Ok(resp_data.unwrap())
     }
 
     pub async fn close(&self) -> Result<(), JournalClientError> {
         for raw in self.node_senders.iter() {
-            raw.value().stop_send.send(true)?;
+            raw.value().stop_send.send(true).await?;
         }
         Ok(())
     }
@@ -197,18 +197,16 @@ pub fn start_sender_thread(
     node_id: u64,
     connection_manager: Arc<ConnectionManager>,
     metadata_cache: Arc<MetadataCache>,
-    node_send: Sender<DataSenderPkg>,
-    stop_send: broadcast::Sender<bool>,
+    mut node_recv: Receiver<DataSenderPkg>,
+    mut stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(async move {
-        let mut stop_recv = stop_send.subscribe();
-        let mut node_recv = node_send.subscribe();
         let pkid_generator = AtomicU64::new(0);
 
         loop {
             select! {
                 val = stop_recv.recv()=>{
-                    if let Err(flag) = val {
+                    if let Some(flag) = val {
 
                     }
                 },
@@ -265,7 +263,7 @@ async fn batch_sender_message(
                 }
 
                 if let Some(sx) = callback_sx.get(&id) {
-                    if let Err(e) = sx.send(results) {
+                    if let Err(e) = sx.send(results).await {
                         error!("{}", e);
                     }
                 }
@@ -283,7 +281,7 @@ async fn batch_sender_message(
                 }
 
                 if let Some(sx) = callback_sx.get(&id) {
-                    if let Err(e) = sx.send(results) {
+                    if let Err(e) = sx.send(results).await {
                         error!("{}", e);
                     }
                 }
@@ -371,7 +369,7 @@ async fn get_batch_message(recv: &mut Receiver<DataSenderPkg>, line_ms: u64) -> 
         }
 
         let data = timeout(Duration::from_millis(2), recv.recv()).await;
-        if let Ok(Ok(data_1)) = data {
+        if let Ok(Some(data_1)) = data {
             results.push(data_1);
             continue;
         }

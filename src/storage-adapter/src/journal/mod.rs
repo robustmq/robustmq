@@ -105,11 +105,34 @@ impl StorageAdapter for JournalStorageAdapter {
 
     async fn batch_write(
         &self,
-        _namespace: String,
-        _shard_name: String,
-        _data: Vec<Record>,
+        namespace: String,
+        shard_name: String,
+        records: Vec<Record>,
     ) -> Result<Vec<u64>, CommonError> {
-        Ok(Vec::new())
+        let mut data = Vec::new();
+        for record in records {
+            data.push(JournalClientWriteData {
+                key: record.key,
+                content: record.data,
+                tags: record.tags,
+            });
+        }
+
+        match self.client.batch_write(namespace, shard_name, data).await {
+            Ok(resp) => {
+                let mut resp_offsets = Vec::new();
+                for raw in resp {
+                    if let Some(err) = raw.error {
+                        return Err(CommonError::CommonError(err));
+                    }
+                    resp_offsets.push(raw.offset);
+                }
+                return Ok(resp_offsets);
+            }
+            Err(e) => {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
+        }
     }
 
     async fn read_by_offset(
@@ -208,7 +231,7 @@ impl StorageAdapter for JournalStorageAdapter {
         offset: HashMap<String, u64>,
     ) -> Result<(), CommonError> {
         self.offset_manager
-            .commit_offset(&group_name, &namespace, offset)
+            .commit_offset(&self.cluster_name, &group_name, &namespace, offset)
             .await
     }
 
