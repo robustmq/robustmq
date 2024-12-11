@@ -22,7 +22,7 @@ use kv::{KvServiceReply, KvServiceRequest};
 use lazy_static::lazy_static;
 use log::debug;
 use mqtt::{MqttServiceReply, MqttServiceRequest};
-use placement::{PlacementServiceReply, PlacementServiceRequest};
+use inner::{PlacementServiceReply, PlacementServiceRequest};
 use tokio::time::sleep;
 
 use self::openraft::{OpenRaftServiceReply, OpenRaftServiceRequest};
@@ -153,7 +153,7 @@ pub mod kv;
 pub mod mqtt;
 pub mod openraft;
 #[allow(clippy::module_inception)]
-pub mod placement;
+pub mod inner;
 
 fn is_write_request(_req: &PlacementCenterRequest) -> bool {
     true
@@ -214,7 +214,7 @@ async fn call_once(
             Ok(PlacementCenterReply::Kv(reply))
         }
         PlacementCenterRequest::Placement(request) => {
-            let reply = placement::call_placement_service_once(client_pool, addr, request).await?;
+            let reply = inner::call_placement_service_once(client_pool, addr, request).await?;
             Ok(PlacementCenterReply::Placement(reply))
         }
         PlacementCenterRequest::Journal(request) => {

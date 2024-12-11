@@ -12,19 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use dashmap::DashMap;
 
-pub struct Reader {
-    group_local_cache_channel: DashMap<String, String>,
-}
+use crate::error::JournalClientError;
+
+pub struct Reader {}
 
 impl Reader {
     pub fn new() -> Self {
-        let group_local_cache_channel = DashMap::with_capacity(2);
-        Reader {
-            group_local_cache_channel,
-        }
+        Reader {}
     }
 
-    pub fn read() {}
+    pub fn start_read(&self) {
+
+    }
+
+    pub async fn recv(&self) -> Result<(), JournalClientError> {
+        Ok(())
+    }
 }

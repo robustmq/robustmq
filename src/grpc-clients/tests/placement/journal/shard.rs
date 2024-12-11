@@ -21,7 +21,7 @@ mod tests {
         create_next_segment, create_shard, delete_segment, delete_shard, list_segment,
         list_segment_meta, list_shard, update_segment_meta, update_segment_status,
     };
-    use grpc_clients::placement::placement::call::register_node;
+    use grpc_clients::placement::inner::call::register_node;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::journal::node_extend::JournalNodeExtend;
     use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};

@@ -18,7 +18,7 @@ use common_base::config::journal_server::journal_server_conf;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use grpc_clients::placement::journal::call::{list_segment, list_segment_meta, list_shard};
-use grpc_clients::placement::placement::call::node_list;
+use grpc_clients::placement::inner::call::node_list;
 use grpc_clients::pool::ClientPool;
 use log::{debug, info};
 use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
