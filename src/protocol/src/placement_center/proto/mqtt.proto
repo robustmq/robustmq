@@ -130,6 +130,25 @@ service MqttService {
   //Returns: An empty struct.
   rpc SetTopicRetainMessage(SetTopicRetainMessageRequest) returns(SetTopicRetainMessageReply){}
 
+  //Add the exclusive topic if the topic is not exist
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `topic_name: String`: The name of the topic.
+  //
+  //Returns: 
+  // - `success: bool`: Is set the exclusive topic successfully.
+  rpc SetNXExclusiveTopic(SetExclusiveTopicRequest) returns(SetExclusiveTopicReply){}
+
+   //Delete the exclusive topic
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `topic_name: String`: The name of the topic.
+  //
+  //Returns: An empty struct. 
+  rpc DeleteExclusiveTopic(DeleteExclusiveTopicRequest) returns(DeleteExclusiveTopicReply){}
+
   //Gets the share sub leader based on the request
   //
   //Parameters:
@@ -225,6 +244,30 @@ message GetShareSubLeaderReply{
 
     //The parameter for the extended information of the broker node.
     string extend_info = 3;
+}
+
+message SetExclusiveTopicRequest{
+    //The name of the cluster.
+    string cluster_name = 1;
+
+    //The name of the topic.
+    string topic_name = 3;
+}
+
+message SetExclusiveTopicReply{
+    //Is set the exclusive topic successfully.
+    bool success = 1;
+}
+
+message DeleteExclusiveTopicRequest{
+    //The name of the cluster.
+    string cluster_name = 1;
+
+    //The name of the topic.
+    string topic_name = 3;
+}
+
+message DeleteExclusiveTopicReply{
 }
 
 message ListUserRequest{

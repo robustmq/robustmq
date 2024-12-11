@@ -14,14 +14,20 @@
 
 use std::sync::Arc;
 
+use common_base::utils::topic_util::topic_name_regex_match;
 use metadata_struct::mqtt::topic::MqttTopic;
+use prost::Message;
+use protocol::placement_center::placement_center_mqtt::SetExclusiveTopicRequest;
 
 use crate::core::error::PlacementCenterError;
 use crate::storage::engine::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
     engine_save_by_cluster,
 };
-use crate::storage::keys::{storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix};
+use crate::storage::keys::{
+    storage_key_mqtt_exclusive_topic_name, storage_key_mqtt_exclusive_topic_prefix,
+    storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix,
+};
 use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct MqttTopicStorage {
@@ -74,6 +80,57 @@ impl MqttTopicStorage {
     pub fn delete(&self, cluster_name: &str, topic_name: &str) -> Result<(), PlacementCenterError> {
         let key: String = storage_key_mqtt_topic(cluster_name, topic_name);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
+        Ok(())
+    }
+
+    pub fn set_nx_exclisve_topic(
+        &self,
+        cluster_name: &str,
+        topic_name: &str,
+        value: Vec<u8>,
+    ) -> Result<bool, PlacementCenterError> {
+        if !self.can_add_exclisve_topic(cluster_name, topic_name)? {
+            return Ok(false);
+        }
+        self.set_exclisve_topic(cluster_name, topic_name, value)?;
+        Ok(true)
+    }
+
+    pub fn delete_exclisve_topic(
+        &self,
+        cluster_name: &str,
+        topic_name: &str,
+    ) -> Result<(), PlacementCenterError> {
+        let key_name = storage_key_mqtt_exclusive_topic_name(cluster_name, topic_name);
+        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key_name)?;
+        Ok(())
+    }
+
+    fn can_add_exclisve_topic(
+        &self,
+        cluster_name: &str,
+        topic_name: &str,
+    ) -> Result<bool, PlacementCenterError> {
+        let prefix_key_name = storage_key_mqtt_exclusive_topic_prefix(cluster_name);
+        let exclusive_topic_name_list =
+            engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key_name)?;
+        for wrap in &exclusive_topic_name_list {
+            let req = SetExclusiveTopicRequest::decode(wrap.data.as_ref())?;
+            if topic_name_regex_match(&req.topic_name, topic_name) {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    fn set_exclisve_topic(
+        &self,
+        cluster_name: &str,
+        topic_name: &str,
+        value: Vec<u8>,
+    ) -> Result<(), PlacementCenterError> {
+        let key_name = storage_key_mqtt_exclusive_topic_name(cluster_name, topic_name);
+        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key_name, value)?;
         Ok(())
     }
 }

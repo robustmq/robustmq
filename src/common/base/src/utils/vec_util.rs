@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod config;
-pub mod enum_type;
-pub mod error;
-pub mod http_error;
-pub mod http_response;
-pub mod logs;
-pub mod metrics;
-pub mod runtime;
-pub mod tools;
-pub mod utils;
-pub mod version;
+pub fn bool_to_vec(b: bool) -> Vec<u8> {
+    if b {
+        vec![0x01]
+    } else {
+        vec![0x00]
+    }
+}
+
+pub fn vec_to_bool(v: &Vec<u8>) -> bool {
+    matches!(v.as_slice(), [0x01])
+}

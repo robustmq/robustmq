@@ -64,6 +64,7 @@ pub struct MqttClusterDynamicConfigFeature {
     pub wildcard_subscription_available: AvailableFlag,
     pub subscription_identifiers_available: AvailableFlag,
     pub shared_subscription_available: AvailableFlag,
+    pub exclusive_subscription_available: AvailableFlag,
 }
 
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -93,6 +94,7 @@ impl MqttClusterDynamicConfig {
                 wildcard_subscription_available: AvailableFlag::Enable,
                 subscription_identifiers_available: AvailableFlag::Enable,
                 shared_subscription_available: AvailableFlag::Enable,
+                exclusive_subscription_available: AvailableFlag::Enable,
             },
             security: MqttClusterDynamicConfigSecurity {
                 secret_free_login: false,
@@ -120,7 +122,7 @@ impl MqttClusterDynamicConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, Default, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Default, Clone)]
 pub enum AvailableFlag {
     #[default]
     Disable,

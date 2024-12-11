@@ -191,5 +191,7 @@ fn code(value: SubscribeReasonCode) -> u8 {
         SubscribeReasonCode::SharedSubscriptionsNotSupported => 158,
         SubscribeReasonCode::SubscriptionIdNotSupported => 161,
         SubscribeReasonCode::WildcardSubscriptionsNotSupported => 162,
+        SubscribeReasonCode::ExclusiveSubscriptionDisabled => 143,
+        SubscribeReasonCode::TopicSubscribed => 151,
     }
 }

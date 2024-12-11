@@ -19,13 +19,14 @@ use protocol::placement_center::placement_center_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
     CreateUserReply, CreateUserRequest, DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply,
-    DeleteBlacklistRequest, DeleteSessionReply, DeleteSessionRequest, DeleteTopicReply,
-    DeleteTopicRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
-    GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
-    ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest,
-    ListUserReply, ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest,
-    SetTopicRetainMessageReply, SetTopicRetainMessageRequest, UpdateSessionReply,
-    UpdateSessionRequest,
+    DeleteBlacklistRequest, DeleteExclusiveTopicReply, DeleteExclusiveTopicRequest,
+    DeleteSessionReply, DeleteSessionRequest, DeleteTopicReply, DeleteTopicRequest,
+    DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
+    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply,
+    ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+    SaveLastWillMessageReply, SaveLastWillMessageRequest, SetExclusiveTopicReply,
+    SetExclusiveTopicRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
+    UpdateSessionReply, UpdateSessionRequest,
 };
 use tonic::transport::Channel;
 
@@ -44,6 +45,8 @@ pub enum MqttServiceRequest {
     DeleteTopic(DeleteTopicRequest),
     ListTopic(ListTopicRequest),
     SetTopicRetainMessage(SetTopicRetainMessageRequest),
+    SetNxExclusiveTopic(SetExclusiveTopicRequest),
+    DeleteExclusiveTopic(DeleteExclusiveTopicRequest),
     CreateSession(CreateSessionRequest),
     DeleteSession(DeleteSessionRequest),
     ListSession(ListSessionRequest),
@@ -68,6 +71,8 @@ pub enum MqttServiceReply {
     DeleteTopic(DeleteTopicReply),
     ListTopic(ListTopicReply),
     SetTopicRetainMessage(SetTopicRetainMessageReply),
+    SetNxExclusiveTopic(SetExclusiveTopicReply),
+    DeleteExclusiveTopic(DeleteExclusiveTopicReply),
     CreateSession(CreateSessionReply),
     DeleteSession(DeleteSessionReply),
     ListSession(ListSessionReply),
@@ -144,6 +149,20 @@ pub(super) async fn call_mqtt_service_once(
                 .await?;
             let reply = client.set_topic_retain_message(request).await?;
             Ok(MqttServiceReply::SetTopicRetainMessage(reply.into_inner()))
+        }
+        SetNxExclusiveTopic(request) => {
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
+            let reply = client.set_nx_exclusive_topic(request).await?;
+            Ok(MqttServiceReply::SetNxExclusiveTopic(reply.into_inner()))
+        }
+        DeleteExclusiveTopic(request) => {
+            let mut client = client_pool
+                .placement_center_mqtt_services_client(addr)
+                .await?;
+            let reply = client.delete_exclusive_topic(request).await?;
+            Ok(MqttServiceReply::DeleteExclusiveTopic(reply.into_inner()))
         }
         CreateSession(request) => {
             let mut client = client_pool
