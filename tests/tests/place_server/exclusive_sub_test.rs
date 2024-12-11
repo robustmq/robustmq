@@ -22,7 +22,7 @@ mod tests {
     use grpc_clients::placement::mqtt::call::{
         placement_delete_exclusive_topic, placement_set_nx_exclusive_topic,
     };
-    use grpc_clients::placement::placement::call::register_node;
+    use grpc_clients::placement::inner::call::register_node;
     use grpc_clients::pool::ClientPool;
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
     use protocol::placement_center::placement_center_mqtt::{
