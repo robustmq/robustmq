@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::error::JournalClientError;
 
 pub struct Reader {}
@@ -22,9 +21,7 @@ impl Reader {
         Reader {}
     }
 
-    pub fn start_read(&self) {
-
-    }
+    pub fn start_read(&self) {}
 
     pub async fn recv(&self) -> Result<(), JournalClientError> {
         Ok(())

@@ -17,12 +17,12 @@ use std::collections::HashSet;
 use std::time::Duration;
 
 use common_base::error::common::CommonError;
+use inner::{PlacementServiceReply, PlacementServiceRequest};
 use journal::{JournalServiceReply, JournalServiceRequest};
 use kv::{KvServiceReply, KvServiceRequest};
 use lazy_static::lazy_static;
 use log::debug;
 use mqtt::{MqttServiceReply, MqttServiceRequest};
-use inner::{PlacementServiceReply, PlacementServiceRequest};
 use tokio::time::sleep;
 
 use self::openraft::{OpenRaftServiceReply, OpenRaftServiceRequest};
@@ -148,12 +148,12 @@ impl PlacementCenterInterface {
     }
 }
 
+#[allow(clippy::module_inception)]
+pub mod inner;
 pub mod journal;
 pub mod kv;
 pub mod mqtt;
 pub mod openraft;
-#[allow(clippy::module_inception)]
-pub mod inner;
 
 fn is_write_request(_req: &PlacementCenterRequest) -> bool {
     true
