@@ -12,6 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// Helper macro to implement the `RetriableRequest` trait for a given request type.
+/// This macro is used to reduce boilerplate code when implementing the `RetriableRequest` trait.
+///
+/// # Example
+///
+/// Generate the implementation with default `IS_WRITE_REQUEST` value (false):
+///
+/// ```rust,ignore
+/// impl_retriable_request!(Request, Client, Response, get_client, op);
+/// ```
+///
+/// Generate the implementation with custom `IS_WRITE_REQUEST` value:
+///
+/// ```rust,ignore
+/// impl_retriable_request!(Request, Client, Response, get_client, op, true);
+/// ```
 macro_rules! impl_retriable_request {
     ($req:ty, $client:ty, $res:ty, $getter:ident, $op:ident) => {
         impl $crate::utils::RetriableRequest for $req {
