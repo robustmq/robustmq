@@ -48,7 +48,7 @@ mod tests {
 
         sleep(Duration::from_secs(2));
 
-        let res = register_node(client_pool.clone(), &addrs, request)
+        let res = register_node(&client_pool, &addrs, request)
             .await
             .unwrap();
         info!("{:?}", res);
@@ -59,7 +59,7 @@ mod tests {
             group_name,
         };
 
-        let resp = placement_get_share_sub_leader(client_pool.clone(), &addrs, req)
+        let resp = placement_get_share_sub_leader(&client_pool, &addrs, req)
             .await
             .unwrap();
         println!("resp broker_id:{}", resp.broker_id);

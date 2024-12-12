@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
@@ -44,7 +45,7 @@ impl PlaceOffsetManager {
             cluster_name: cluster_name.to_owned(),
             group: group.to_owned(),
         };
-        let reply = get_offset_data(self.client_pool.clone(), &self.addrs.clone(), request).await?;
+        let reply = get_offset_data(&self.client_pool, &self.addrs, request).await?;
         let mut results = Vec::new();
         for raw in reply.offsets {
             results.push(ShardOffset {
@@ -76,7 +77,7 @@ impl PlaceOffsetManager {
             group: group_name.to_owned(),
             offsets: offset_data,
         };
-        save_offset_data(self.client_pool.clone(), &self.addrs.clone(), request).await?;
+        save_offset_data(&self.client_pool, &self.addrs, request).await?;
         Ok(())
     }
 }

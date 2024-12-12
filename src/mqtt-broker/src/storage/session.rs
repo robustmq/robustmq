@@ -48,7 +48,7 @@ impl SessionStorage {
             client_id,
             session: session.encode(),
         };
-        match placement_create_session(self.client_pool.clone(), &config.placement_center, request)
+        match placement_create_session(&self.client_pool, &config.placement_center, request)
             .await
         {
             Ok(_) => Ok(()),
@@ -73,7 +73,7 @@ impl SessionStorage {
             reconnect_time,
             distinct_time,
         };
-        match placement_update_session(self.client_pool.clone(), &config.placement_center, request)
+        match placement_update_session(&self.client_pool, &config.placement_center, request)
             .await
         {
             Ok(_) => Ok(()),
@@ -87,7 +87,7 @@ impl SessionStorage {
             cluster_name: config.cluster_name.clone(),
             client_id,
         };
-        match placement_delete_session(self.client_pool.clone(), &config.placement_center, request)
+        match placement_delete_session(&self.client_pool, &config.placement_center, request)
             .await
         {
             Ok(_) => Ok(()),
@@ -101,7 +101,7 @@ impl SessionStorage {
             cluster_name: config.cluster_name.clone(),
             client_id,
         };
-        match placement_list_session(self.client_pool.clone(), &config.placement_center, request)
+        match placement_list_session(&self.client_pool, &config.placement_center, request)
             .await
         {
             Ok(reply) => {
@@ -124,7 +124,7 @@ impl SessionStorage {
             cluster_name: config.cluster_name.clone(),
             client_id: "".to_string(),
         };
-        match placement_list_session(self.client_pool.clone(), &config.placement_center, request)
+        match placement_list_session(&self.client_pool, &config.placement_center, request)
             .await
         {
             Ok(reply) => {
@@ -157,7 +157,7 @@ impl SessionStorage {
             last_will_message,
         };
         match placement_save_last_will_message(
-            self.client_pool.clone(),
+            &self.client_pool,
             &config.placement_center,
             request,
         )

@@ -45,7 +45,7 @@ impl ClusterStorage {
             cluster_name: conf.cluster_name.clone(),
         };
 
-        let reply = node_list(self.client_pool.clone(), &conf.placement_center, request).await?;
+        let reply = node_list(&self.client_pool, &conf.placement_center, request).await?;
 
         let mut node_list: Vec<BrokerNode> = Vec::new();
         for node in reply.nodes {
@@ -81,7 +81,7 @@ impl ClusterStorage {
         };
 
         register_node(
-            self.client_pool.clone(),
+            &self.client_pool,
             &config.placement_center,
             req.clone(),
         )
@@ -98,7 +98,7 @@ impl ClusterStorage {
         };
 
         unregister_node(
-            self.client_pool.clone(),
+            &self.client_pool,
             &config.placement_center,
             req.clone(),
         )
@@ -115,7 +115,7 @@ impl ClusterStorage {
         };
 
         heartbeat(
-            self.client_pool.clone(),
+            &self.client_pool,
             &config.placement_center,
             req.clone(),
         )
@@ -137,7 +137,7 @@ impl ClusterStorage {
             config: cluster.encode(),
         };
 
-        set_resource_config(self.client_pool.clone(), &config.placement_center, request).await?;
+        set_resource_config(&self.client_pool, &config.placement_center, request).await?;
 
         Ok(())
     }
@@ -150,7 +150,7 @@ impl ClusterStorage {
             resources,
         };
 
-        delete_resource_config(self.client_pool.clone(), &config.placement_center, request).await?;
+        delete_resource_config(&self.client_pool, &config.placement_center, request).await?;
         Ok(())
     }
 
@@ -165,7 +165,7 @@ impl ClusterStorage {
             resources,
         };
 
-        match get_resource_config(self.client_pool.clone(), &config.placement_center, request).await
+        match get_resource_config(&self.client_pool, &config.placement_center, request).await
         {
             Ok(data) => {
                 if data.config.is_empty() {

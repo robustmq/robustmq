@@ -64,7 +64,7 @@ mod tests {
         let list_request = ListAclRequest {
             cluster_name: cluster_name.clone(),
         };
-        match mqtt_broker_list_acl(client_pool.clone(), &grpc_addr, list_request.clone()).await {
+        match mqtt_broker_list_acl(&client_pool, &grpc_addr, list_request.clone()).await {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.acls {
@@ -94,7 +94,7 @@ mod tests {
         )
         .await;
 
-        match mqtt_broker_list_acl(client_pool.clone(), &grpc_addr, list_request.clone()).await {
+        match mqtt_broker_list_acl(&client_pool, &grpc_addr, list_request.clone()).await {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.acls {
@@ -260,7 +260,7 @@ mod tests {
         let list_request = ListBlacklistRequest {
             cluster_name: cluster_name.clone(),
         };
-        match mqtt_broker_list_blacklist(client_pool.clone(), &grpc_addr, list_request.clone())
+        match mqtt_broker_list_blacklist(&client_pool, &grpc_addr, list_request.clone())
             .await
         {
             Ok(data) => {
@@ -290,7 +290,7 @@ mod tests {
         )
         .await;
 
-        match mqtt_broker_list_blacklist(client_pool.clone(), &grpc_addr, list_request.clone())
+        match mqtt_broker_list_blacklist(&client_pool, &grpc_addr, list_request.clone())
             .await
         {
             Ok(data) => {
@@ -346,7 +346,7 @@ mod tests {
             password,
             is_superuser: false,
         };
-        match mqtt_broker_create_user(client_pool.clone(), &grpc_addr, user.clone()).await {
+        match mqtt_broker_create_user(&client_pool, &grpc_addr, user.clone()).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -356,7 +356,7 @@ mod tests {
 
     async fn delete_user(client_pool: Arc<ClientPool>, grpc_addr: Vec<String>, username: String) {
         let user = DeleteUserRequest { username };
-        match mqtt_broker_delete_user(client_pool.clone(), &grpc_addr, user.clone()).await {
+        match mqtt_broker_delete_user(&client_pool, &grpc_addr, user.clone()).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -375,7 +375,7 @@ mod tests {
             acl: acl.encode().unwrap(),
         };
 
-        mqtt_broker_create_acl(client_pool, &grpc_addr, create_request)
+        mqtt_broker_create_acl(&client_pool, &grpc_addr, create_request)
             .await
             .unwrap();
     }
@@ -391,7 +391,7 @@ mod tests {
             acl: acl.encode().unwrap(),
         };
 
-        mqtt_broker_delete_acl(client_pool, &grpc_addr, delete_request)
+        mqtt_broker_delete_acl(&client_pool, &grpc_addr, delete_request)
             .await
             .unwrap();
     }
@@ -407,7 +407,7 @@ mod tests {
             blacklist: blacklist.encode().unwrap(),
         };
 
-        mqtt_broker_create_blacklist(client_pool, &grpc_addr, create_request)
+        mqtt_broker_create_blacklist(&client_pool, &grpc_addr, create_request)
             .await
             .unwrap();
     }
@@ -424,7 +424,7 @@ mod tests {
             resource_name: blacklist.resource_name,
         };
 
-        mqtt_broker_delete_blacklist(client_pool, &grpc_addr, delete_request)
+        mqtt_broker_delete_blacklist(&client_pool, &grpc_addr, delete_request)
             .await
             .unwrap();
     }

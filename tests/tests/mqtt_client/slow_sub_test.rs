@@ -33,7 +33,7 @@ mod tests {
 
         let request = EnableSlowSubscribeRequest { is_enable: true };
 
-        match mqtt_broker_enable_slow_subscribe(client_pool, &grpc_addr, request).await {
+        match mqtt_broker_enable_slow_subscribe(&client_pool, &grpc_addr, request).await {
             Ok(data) => {
                 println!("{:?}", data);
             }
@@ -51,7 +51,7 @@ mod tests {
         let grpc_addr = vec![broker_grpc_addr()];
         let request = ListSlowSubscribeRequest {};
 
-        match mqtt_broker_list_slow_subscribe(client_pool, &grpc_addr, request).await {
+        match mqtt_broker_list_slow_subscribe(&client_pool, &grpc_addr, request).await {
             Ok(data) => {
                 println!("{:?}", data);
             }

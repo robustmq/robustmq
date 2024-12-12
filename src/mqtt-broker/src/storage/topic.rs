@@ -45,7 +45,7 @@ impl TopicStorage {
             topic_name: topic.topic_name.clone(),
             content: topic.encode(),
         };
-        placement_create_topic(self.client_pool.clone(), &config.placement_center, request).await?;
+        placement_create_topic(&self.client_pool, &config.placement_center, request).await?;
         Ok(())
     }
 
@@ -55,7 +55,7 @@ impl TopicStorage {
             cluster_name: config.cluster_name.clone(),
             topic_name,
         };
-        placement_delete_topic(self.client_pool.clone(), &config.placement_center, request).await?;
+        placement_delete_topic(&self.client_pool, &config.placement_center, request).await?;
         Ok(())
     }
 
@@ -66,7 +66,7 @@ impl TopicStorage {
             topic_name: "".to_string(),
         };
         let reply =
-            placement_list_topic(self.client_pool.clone(), &config.placement_center, request)
+            placement_list_topic(&self.client_pool, &config.placement_center, request)
                 .await?;
         let results = DashMap::with_capacity(2);
         for raw in reply.topics {
@@ -84,7 +84,7 @@ impl TopicStorage {
         };
 
         let reply =
-            placement_list_topic(self.client_pool.clone(), &config.placement_center, request)
+            placement_list_topic(&self.client_pool, &config.placement_center, request)
                 .await?;
 
         if let Some(raw) = reply.topics.first() {
@@ -108,7 +108,7 @@ impl TopicStorage {
             retain_message_expired_at,
         };
         placement_set_topic_retain_message(
-            self.client_pool.clone(),
+            &self.client_pool,
             &config.placement_center,
             request,
         )
@@ -125,7 +125,7 @@ impl TopicStorage {
             retain_message_expired_at: 0,
         };
         placement_set_topic_retain_message(
-            self.client_pool.clone(),
+            &self.client_pool,
             &config.placement_center,
             request,
         )

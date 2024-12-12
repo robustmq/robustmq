@@ -42,7 +42,7 @@ impl UserStorage {
             user_name: user_info.username.clone(),
             content: user_info.encode(),
         };
-        placement_create_user(self.client_pool.clone(), &config.placement_center, request).await?;
+        placement_create_user(&self.client_pool, &config.placement_center, request).await?;
         Ok(())
     }
 
@@ -52,7 +52,7 @@ impl UserStorage {
             cluster_name: config.cluster_name.clone(),
             user_name,
         };
-        placement_delete_user(self.client_pool.clone(), &config.placement_center, request).await?;
+        placement_delete_user(&self.client_pool, &config.placement_center, request).await?;
         Ok(())
     }
 
@@ -65,7 +65,7 @@ impl UserStorage {
         };
 
         let reply =
-            placement_list_user(self.client_pool.clone(), &config.placement_center, request)
+            placement_list_user(&self.client_pool, &config.placement_center, request)
                 .await?;
 
         if let Some(raw) = reply.users.first() {
@@ -83,7 +83,7 @@ impl UserStorage {
         };
 
         let reply =
-            placement_list_user(self.client_pool.clone(), &config.placement_center, request)
+            placement_list_user(&self.client_pool, &config.placement_center, request)
                 .await?;
 
         let results = DashMap::with_capacity(2);

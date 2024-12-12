@@ -38,7 +38,7 @@ impl AclStorage {
         let request = ListAclRequest {
             cluster_name: config.cluster_name.clone(),
         };
-        let reply = list_acl(self.client_pool.clone(), &config.placement_center, request).await?;
+        let reply = list_acl(&self.client_pool, &config.placement_center, request).await?;
         let mut list = Vec::new();
         for raw in reply.acls {
             list.push(serde_json::from_slice::<MqttAcl>(raw.as_slice())?);
@@ -54,7 +54,7 @@ impl AclStorage {
             cluster_name: config.cluster_name.clone(),
             acl: value,
         };
-        create_acl(self.client_pool.clone(), &config.placement_center, request).await?;
+        create_acl(&self.client_pool, &config.placement_center, request).await?;
         Ok(())
     }
 
@@ -65,7 +65,7 @@ impl AclStorage {
             cluster_name: config.cluster_name.clone(),
             acl: value,
         };
-        delete_acl(self.client_pool.clone(), &config.placement_center, request).await?;
+        delete_acl(&self.client_pool, &config.placement_center, request).await?;
         Ok(())
     }
 }

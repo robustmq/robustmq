@@ -51,7 +51,7 @@ mod tests {
 
         sleep(Duration::from_secs(2));
 
-        let _res = register_node(client_pool.clone(), &addrs, request)
+        let _res = register_node(&client_pool, &addrs, request)
             .await
             .unwrap();
         let topic_name = format!("/tests/{}", unique_id());
@@ -60,11 +60,11 @@ mod tests {
             topic_name: topic_name.clone(),
         };
 
-        let resp = placement_set_nx_exclusive_topic(client_pool.clone(), &addrs, req.clone())
+        let resp = placement_set_nx_exclusive_topic(&client_pool, &addrs, req.clone())
             .await
             .unwrap();
         assert!(resp.success);
-        let resp = placement_set_nx_exclusive_topic(client_pool.clone(), &addrs, req.clone())
+        let resp = placement_set_nx_exclusive_topic(&client_pool, &addrs, req.clone())
             .await
             .unwrap();
         assert!(!resp.success);
@@ -72,10 +72,10 @@ mod tests {
             cluster_name: cluster_name.clone(),
             topic_name: topic_name.clone(),
         };
-        placement_delete_exclusive_topic(client_pool.clone(), &addrs, delete_req.clone())
+        placement_delete_exclusive_topic(&client_pool, &addrs, delete_req.clone())
             .await
             .unwrap();
-        let resp = placement_set_nx_exclusive_topic(client_pool.clone(), &addrs, req.clone())
+        let resp = placement_set_nx_exclusive_topic(&client_pool, &addrs, req.clone())
             .await
             .unwrap();
         assert!(resp.success);
