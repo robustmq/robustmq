@@ -35,9 +35,9 @@ macro_rules! impl_retriable_request {
             type Response = $res;
             type Error = common_base::error::common::CommonError;
 
-            async fn get_client<'a, 'b>(
+            async fn get_client<'a>(
                 pool: &'a $crate::pool::ClientPool,
-                addr: &'b str,
+                addr: &str,
             ) -> Result<impl std::ops::DerefMut<Target = Self::Client> + 'a, Self::Error> {
                 pool.$getter(addr).await
             }
