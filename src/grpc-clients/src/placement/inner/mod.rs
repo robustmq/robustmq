@@ -28,16 +28,17 @@ use protocol::placement_center::placement_center_inner::{
 };
 use tonic::transport::Channel;
 
+use crate::macros::impl_retriable_request;
 use crate::pool::ClientPool;
 
 pub mod call;
 
 pub struct PlacementServiceManager {
-    pub addr: SocketAddr,
+    pub addr: String,
 }
 
 impl PlacementServiceManager {
-    pub fn new(addr: std::net::SocketAddr) -> Self {
+    pub fn new(addr: String) -> Self {
         Self { addr }
     }
 }

@@ -5,7 +5,7 @@ macro_rules! impl_retriable_request {
             type Response = $res;
             type Error = common_base::error::common::CommonError;
 
-            async fn get_client(pool: &$crate::pool::ClientPool, addr: std::net::SocketAddr) -> Result<impl std::ops::DerefMut<Target = Self::Client>, Self::Error> {
+            async fn get_client<'a, 'b>(pool: &'a $crate::pool::ClientPool, addr: &'b str) -> Result<impl std::ops::DerefMut<Target = Self::Client> + 'a, Self::Error> {
                 pool.$getter(addr).await
             }
 
@@ -24,7 +24,7 @@ macro_rules! impl_retriable_request {
 
             const IS_WRITE_REQUEST: bool = $is_write_request;
 
-            async fn get_client(pool: &$crate::pool::ClientPool, addr: std::net::SocketAddr) -> Result<impl std::ops::DerefMut<Target = Self::Client>, Self::Error> {
+            async fn get_client<'a, 'b>(pool: &'a $crate::pool::ClientPool, addr: &'b str) -> Result<impl std::ops::DerefMut<Target = Self::Client> + 'a, Self::Error> {
                 pool.$getter(addr).await
             }
 
@@ -35,3 +35,5 @@ macro_rules! impl_retriable_request {
         }
     }
 }
+
+pub(crate) use impl_retriable_request;

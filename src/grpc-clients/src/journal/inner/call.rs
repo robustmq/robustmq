@@ -26,7 +26,7 @@ use crate::utils::retry_call;
 
 pub async fn journal_inner_update_cache(
     client_pool: &ClientPool,
-    addrs: &[std::net::SocketAddr],
+    addrs: &[impl AsRef<str>],
     request: UpdateJournalCacheRequest,
 ) -> Result<UpdateJournalCacheReply, CommonError> {
     retry_call(&client_pool, addrs, request).await
@@ -34,7 +34,7 @@ pub async fn journal_inner_update_cache(
 
 pub async fn journal_inner_delete_shard_file(
     client_pool: &ClientPool,
-    addrs: &[std::net::SocketAddr],
+    addrs: &[impl AsRef<str>],
     request: DeleteShardFileRequest,
 ) -> Result<DeleteShardFileReply, CommonError> {
     retry_call(&client_pool, addrs, request).await
@@ -42,7 +42,7 @@ pub async fn journal_inner_delete_shard_file(
 
 pub async fn journal_inner_get_shard_delete_status(
     client_pool: &ClientPool,
-    addrs: &[std::net::SocketAddr],
+    addrs: &[impl AsRef<str>],
     request: GetShardDeleteStatusRequest,
 ) -> Result<GetShardDeleteStatusReply, CommonError> {
     retry_call(&client_pool, addrs, request).await
@@ -50,7 +50,7 @@ pub async fn journal_inner_get_shard_delete_status(
 
 pub async fn journal_inner_delete_segment_file(
     client_pool: &ClientPool,
-    addrs: &[std::net::SocketAddr],
+    addrs: &[impl AsRef<str>],
     request: DeleteSegmentFileRequest,
 ) -> Result<DeleteSegmentFileReply, CommonError> {
     retry_call(&client_pool, addrs, request).await
@@ -58,7 +58,7 @@ pub async fn journal_inner_delete_segment_file(
 
 pub async fn journal_inner_get_segment_delete_status(
     client_pool: &ClientPool,
-    addrs: &[std::net::SocketAddr],
+    addrs: &[impl AsRef<str>],
     request: GetSegmentDeleteStatusRequest,
 ) -> Result<GetSegmentDeleteStatusReply, CommonError> {
     retry_call(&client_pool, addrs, request).await

@@ -25,6 +25,7 @@ use protocol::journal_server::journal_inner::{
 };
 use tonic::transport::Channel;
 
+use crate::macros::impl_retriable_request;
 use crate::pool::ClientPool;
 use crate::utils::RetriableRequest;
 

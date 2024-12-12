@@ -25,7 +25,7 @@ use crate::utils::retry_call;
 
 pub async fn broker_mqtt_delete_session(
     client_pool: &ClientPool,
-    addrs: &[std::net::SocketAddr],
+    addrs: &[impl AsRef<str>],
     request: DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, CommonError> {
     retry_call(client_pool, addrs, request).await
@@ -33,7 +33,7 @@ pub async fn broker_mqtt_delete_session(
 
 pub async fn broker_mqtt_update_cache(
     client_pool: &ClientPool,
-    addrs: &[std::net::SocketAddr],
+    addrs: &[impl AsRef<str>],
     request: UpdateCacheRequest,
 ) -> Result<UpdateCacheReply, CommonError> {
     retry_call(client_pool, addrs, request).await
@@ -41,7 +41,7 @@ pub async fn broker_mqtt_update_cache(
 
 pub async fn send_last_will_message(
     client_pool: &ClientPool,
-    addrs: &[std::net::SocketAddr],
+    addrs: &[impl AsRef<str>],
     request: SendLastWillMessageRequest,
 ) -> Result<SendLastWillMessageReply, CommonError> {
     retry_call(client_pool, addrs, request).await

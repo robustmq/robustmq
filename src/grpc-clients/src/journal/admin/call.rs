@@ -24,7 +24,7 @@ use crate::utils::retry_call;
 
 pub async fn journal_admin_list_shard(
     client_pool: &ClientPool,
-    addrs: &[std::net::SocketAddr],
+    addrs: &[impl AsRef<str>],
     request: ListShardRequest,
 ) -> Result<ListShardReply, CommonError> {
     retry_call(&client_pool, addrs, request).await
@@ -32,7 +32,7 @@ pub async fn journal_admin_list_shard(
 
 pub async fn journal_admin_list_segment(
     client_pool: &ClientPool,
-    addrs: &[std::net::SocketAddr],
+    addrs: &[impl AsRef<str>],
     request: ListSegmentRequest,
 ) -> Result<ListSegmentReply, CommonError> {
     retry_call(&client_pool, addrs, request).await

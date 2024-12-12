@@ -29,6 +29,8 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
 };
 use tonic::transport::Channel;
 
+use crate::macros::impl_retriable_request;
+
 pub mod admin;
 pub mod inner;
 

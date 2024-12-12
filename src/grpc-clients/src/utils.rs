@@ -31,14 +31,14 @@ pub(crate) trait RetriableRequest: Clone {
 
     const IS_WRITE_REQUEST: bool = false;
     
-    async fn get_client(pool: &ClientPool, addr: SocketAddr) -> Result<impl DerefMut<Target = Self::Client>, Self::Error>;
+    async fn get_client<'a, 'b>(pool: &'a ClientPool, addr: &'b str) -> Result<impl DerefMut<Target = Self::Client> + 'a, Self::Error>;
 
     async fn call_once(client: &mut Self::Client, request: Self) -> Result<Self::Response, Self::Error>;
 }
 
-pub(crate) async fn retry_call<'a, Req>(
-    client_pool: &'a ClientPool,
-    addrs: &'a [SocketAddr],
+pub(crate) async fn retry_call<Req>(
+    client_pool: &ClientPool,
+    addrs: &[impl AsRef<str>],
     request: Req,
 ) -> Result<Req::Response, CommonError>
 where
@@ -54,14 +54,24 @@ where
     let mut times = 1;
     loop {
         let index = times % addrs.len();
-        let mut addr = addrs[index];
-        if Req::IS_WRITE_REQUEST {
-            if let Some(leader_addr) = client_pool.get_leader_addr(addr) {
-                addr = *leader_addr.value();
+        let addr = addrs[index].as_ref();
+        
+        let mut client = match Req::IS_WRITE_REQUEST {
+            true => match client_pool.get_leader_addr(addr) {
+                Some(leader_addr) => {
+                    let addr = leader_addr.value();
+                    let res = Req::get_client(client_pool, &addr).await
+                        .map_err(Into::into)?;
+                    res
+                }
+                None => Req::get_client(client_pool, addr).await
+                    .map_err(Into::into)?
+            },
+            false => {
+                Req::get_client(client_pool, addr).await
+                    .map_err(Into::into)?
             }
-        }
-        let mut client = Req::get_client(client_pool, addr).await
-            .map_err(Into::into)?;
+        };
         let result = Req::call_once(client.deref_mut(), request.clone()).await;
 
         match result {

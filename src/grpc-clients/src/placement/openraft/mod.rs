@@ -21,17 +21,18 @@ use protocol::placement_center::placement_center_openraft::{
 };
 use tonic::transport::Channel;
 
+use crate::macros::impl_retriable_request;
 use crate::pool::ClientPool;
 
 pub mod call;
 
 #[derive(Clone)]
 pub struct OpenRaftServiceManager {
-    pub addr: std::net::SocketAddr,
+    pub addr: String,
 }
 
 impl OpenRaftServiceManager {
-    pub fn new(addr: std::net::SocketAddr) -> Self {
+    pub fn new(addr: String) -> Self {
         Self { addr }
     }
 }

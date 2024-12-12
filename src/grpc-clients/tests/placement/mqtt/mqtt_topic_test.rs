@@ -135,7 +135,7 @@ mod tests {
         cluster_name: String,
         topic_name: String,
         client_pool: &ClientPool,
-        addrs: &[std::net::SocketAddr],
+        addrs: &[impl AsRef<str>],
         mqtt_topic: MqttTopic,
         contain: bool,
     ) {
