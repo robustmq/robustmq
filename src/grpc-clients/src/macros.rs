@@ -63,9 +63,9 @@ macro_rules! impl_retriable_request {
 
             const IS_WRITE_REQUEST: bool = $is_write_request;
 
-            async fn get_client<'a, 'b>(
+            async fn get_client<'a>(
                 pool: &'a $crate::pool::ClientPool,
-                addr: &'b str,
+                addr: &str,
             ) -> Result<impl std::ops::DerefMut<Target = Self::Client> + 'a, Self::Error> {
                 pool.$getter(addr).await
             }
