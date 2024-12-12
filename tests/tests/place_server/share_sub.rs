@@ -48,9 +48,7 @@ mod tests {
 
         sleep(Duration::from_secs(2));
 
-        let res = register_node(&client_pool, &addrs, request)
-            .await
-            .unwrap();
+        let res = register_node(&client_pool, &addrs, request).await.unwrap();
         info!("{:?}", res);
 
         let group_name = "test".to_string();

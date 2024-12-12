@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::net::SocketAddr;
-
 use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::placement_center::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
@@ -29,7 +27,6 @@ use protocol::placement_center::placement_center_inner::{
 use tonic::transport::Channel;
 
 use crate::macros::impl_retriable_request;
-use crate::pool::ClientPool;
 
 pub mod call;
 

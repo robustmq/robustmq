@@ -79,9 +79,7 @@ pub async fn gc_shard_thread(
                 namespace: shard.namespace.clone(),
                 shard_name: shard.shard_name.clone(),
             };
-            if let Err(e) =
-                journal_inner_delete_shard_file(&client_pool, &addrs, request).await
-            {
+            if let Err(e) = journal_inner_delete_shard_file(&client_pool, &addrs, request).await {
                 error!(
                     "Calling node {} to delete the Shard file failed with error message :{}",
                     node_addr, e
@@ -98,8 +96,7 @@ pub async fn gc_shard_thread(
                 namespace: shard.namespace.clone(),
                 shard_name: shard.shard_name.clone(),
             };
-            match journal_inner_get_shard_delete_status(&client_pool, &addrs, request).await
-            {
+            match journal_inner_get_shard_delete_status(&client_pool, &addrs, request).await {
                 Ok(reply) => {
                     if !reply.status {
                         flag = false;
@@ -237,9 +234,7 @@ pub async fn gc_segment_thread(
                     shard_name: segment.shard_name.clone(),
                     segment: segment.segment_seq,
                 };
-                match journal_inner_get_segment_delete_status(&client_pool, &addrs, request)
-                    .await
-                {
+                match journal_inner_get_segment_delete_status(&client_pool, &addrs, request).await {
                     Ok(reply) => {
                         if !reply.status {
                             flag = false;

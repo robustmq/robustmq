@@ -65,8 +65,7 @@ impl UserStorage {
         };
 
         let reply =
-            placement_list_user(&self.client_pool, &config.placement_center, request)
-                .await?;
+            placement_list_user(&self.client_pool, &config.placement_center, request).await?;
 
         if let Some(raw) = reply.users.first() {
             return Ok(Some(serde_json::from_slice::<MqttUser>(raw)?));
@@ -83,8 +82,7 @@ impl UserStorage {
         };
 
         let reply =
-            placement_list_user(&self.client_pool, &config.placement_center, request)
-                .await?;
+            placement_list_user(&self.client_pool, &config.placement_center, request).await?;
 
         let results = DashMap::with_capacity(2);
         for raw in reply.users {

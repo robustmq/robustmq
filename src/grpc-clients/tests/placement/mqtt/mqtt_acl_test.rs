@@ -47,9 +47,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             acl: acl.encode().unwrap(),
         };
-        create_acl(&client_pool, &addrs, request)
-            .await
-            .unwrap();
+        create_acl(&client_pool, &addrs, request).await.unwrap();
 
         let request = ListAclRequest {
             cluster_name: cluster_name.clone(),

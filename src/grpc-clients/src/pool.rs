@@ -79,7 +79,8 @@ impl ClientPool {
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
-            self.placement_center_inner_pools.insert(addr.to_owned(), pool);
+            self.placement_center_inner_pools
+                .insert(addr.to_owned(), pool);
         }
         if let Some(pool) = self.placement_center_inner_pools.get(addr) {
             match pool.get().await {
@@ -100,7 +101,7 @@ impl ClientPool {
 
     pub async fn placement_center_journal_services_client(
         &self,
-        addr: &str
+        addr: &str,
     ) -> Result<Connection<JournalServiceManager>, CommonError> {
         if !self
             .placement_center_journal_service_pools
@@ -134,7 +135,7 @@ impl ClientPool {
 
     pub async fn placement_center_kv_services_client(
         &self,
-        addr: &str
+        addr: &str,
     ) -> Result<Connection<KvServiceManager>, CommonError> {
         if !self.placement_center_kv_service_pools.contains_key(addr) {
             let manager = KvServiceManager::new(addr.to_owned());
@@ -167,7 +168,7 @@ impl ClientPool {
 
     pub async fn placement_center_mqtt_services_client(
         &self,
-        addr: &str
+        addr: &str,
     ) -> Result<Connection<MqttServiceManager>, CommonError> {
         if !self.placement_center_mqtt_service_pools.contains_key(addr) {
             let manager = MqttServiceManager::new(addr.to_owned());
@@ -198,7 +199,7 @@ impl ClientPool {
 
     pub async fn placement_center_openraft_services_client(
         &self,
-        addr: &str
+        addr: &str,
     ) -> Result<Connection<OpenRaftServiceManager>, CommonError> {
         if !self
             .placement_center_openraft_service_pools
@@ -235,7 +236,7 @@ impl ClientPool {
     // ----------modules: mqtt broker -------------
     pub async fn mqtt_broker_mqtt_services_client(
         &self,
-        addr: &str
+        addr: &str,
     ) -> Result<Connection<MqttBrokerPlacementServiceManager>, CommonError> {
         if !self.mqtt_broker_placement_service_pools.contains_key(addr) {
             let manager = MqttBrokerPlacementServiceManager::new(addr.to_owned());
@@ -267,7 +268,7 @@ impl ClientPool {
 
     pub async fn mqtt_broker_admin_services_client(
         &self,
-        addr: &str
+        addr: &str,
     ) -> Result<Connection<MqttBrokerAdminServiceManager>, CommonError> {
         if !self.mqtt_broker_admin_service_pools.contains_key(addr) {
             let manager = MqttBrokerAdminServiceManager::new(addr.to_owned());
@@ -300,14 +301,15 @@ impl ClientPool {
     // ----------modules: journal engine -------------
     pub async fn journal_inner_services_client(
         &self,
-        addr: &str
+        addr: &str,
     ) -> Result<Connection<JournalInnerServiceManager>, CommonError> {
         if !self.journal_inner_service_pools.contains_key(addr) {
             let manager = JournalInnerServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
-            self.journal_inner_service_pools.insert(addr.to_owned(), pool);
+            self.journal_inner_service_pools
+                .insert(addr.to_owned(), pool);
         }
 
         if let Some(pool) = self.journal_inner_service_pools.get(addr) {
@@ -332,14 +334,15 @@ impl ClientPool {
 
     pub async fn journal_admin_services_client(
         &self,
-        addr: &str
+        addr: &str,
     ) -> Result<Connection<JournalAdminServiceManager>, CommonError> {
         if !self.journal_admin_service_pools.contains_key(addr) {
             let manager = JournalAdminServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
-            self.journal_admin_service_pools.insert(addr.to_owned().to_owned(), pool);
+            self.journal_admin_service_pools
+                .insert(addr.to_owned().to_owned(), pool);
         }
 
         if let Some(pool) = self.journal_admin_service_pools.get(addr) {

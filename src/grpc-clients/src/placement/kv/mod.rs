@@ -22,7 +22,6 @@ use protocol::placement_center::placement_center_kv::{
 use tonic::transport::Channel;
 
 use crate::macros::impl_retriable_request;
-use crate::pool::ClientPool;
 
 pub mod call;
 

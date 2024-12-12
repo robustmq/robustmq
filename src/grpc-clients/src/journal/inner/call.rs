@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use common_base::error::common::CommonError;
 use protocol::journal_server::journal_inner::{
     DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
@@ -29,7 +27,7 @@ pub async fn journal_inner_update_cache(
     addrs: &[impl AsRef<str>],
     request: UpdateJournalCacheRequest,
 ) -> Result<UpdateJournalCacheReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }
 
 pub async fn journal_inner_delete_shard_file(
@@ -37,7 +35,7 @@ pub async fn journal_inner_delete_shard_file(
     addrs: &[impl AsRef<str>],
     request: DeleteShardFileRequest,
 ) -> Result<DeleteShardFileReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }
 
 pub async fn journal_inner_get_shard_delete_status(
@@ -45,7 +43,7 @@ pub async fn journal_inner_get_shard_delete_status(
     addrs: &[impl AsRef<str>],
     request: GetShardDeleteStatusRequest,
 ) -> Result<GetShardDeleteStatusReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }
 
 pub async fn journal_inner_delete_segment_file(
@@ -53,7 +51,7 @@ pub async fn journal_inner_delete_segment_file(
     addrs: &[impl AsRef<str>],
     request: DeleteSegmentFileRequest,
 ) -> Result<DeleteSegmentFileReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }
 
 pub async fn journal_inner_get_segment_delete_status(
@@ -61,5 +59,5 @@ pub async fn journal_inner_get_segment_delete_status(
     addrs: &[impl AsRef<str>],
     request: GetSegmentDeleteStatusRequest,
 ) -> Result<GetSegmentDeleteStatusReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }

@@ -14,7 +14,6 @@
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
 
     use common_base::tools::unique_id;
     use grpc_clients::placement::inner::call::register_node;
@@ -50,9 +49,7 @@ mod tests {
             node_inner_addr: "127.0.0.1:3228".to_string(),
             extend_info: serde_json::to_string(&extend).unwrap(),
         };
-        register_node(&client_pool, &addrs, request)
-            .await
-            .unwrap();
+        register_node(&client_pool, &addrs, request).await.unwrap();
 
         //  create shard
         let request = CreateShardRequest {
@@ -61,9 +58,7 @@ mod tests {
             shard_name: shard_name.clone(),
             replica: 1,
         };
-        let res = create_shard(&client_pool, &addrs, request)
-            .await
-            .unwrap();
+        let res = create_shard(&client_pool, &addrs, request).await.unwrap();
         assert_eq!(res.replica.len(), 1);
         assert_eq!(res.segment_no, 0);
 

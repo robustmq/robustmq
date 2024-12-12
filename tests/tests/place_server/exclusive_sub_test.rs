@@ -51,9 +51,7 @@ mod tests {
 
         sleep(Duration::from_secs(2));
 
-        let _res = register_node(&client_pool, &addrs, request)
-            .await
-            .unwrap();
+        let _res = register_node(&client_pool, &addrs, request).await.unwrap();
         let topic_name = format!("/tests/{}", unique_id());
         let req = SetExclusiveTopicRequest {
             cluster_name: cluster_name.clone(),

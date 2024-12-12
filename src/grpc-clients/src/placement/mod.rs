@@ -12,17 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::borrow::Cow;
 use std::collections::HashSet;
-use std::time::Duration;
 
-use common_base::error::common::CommonError;
 use lazy_static::lazy_static;
-use log::debug;
-use tokio::time::sleep;
-
-use crate::pool::ClientPool;
-use crate::{retry_sleep_time, retry_times};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum PlacementCenterInterface {

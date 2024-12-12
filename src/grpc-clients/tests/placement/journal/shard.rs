@@ -86,9 +86,7 @@ mod tests {
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
         };
-        let reply = list_shard(&client_pool, &addrs, request)
-            .await
-            .unwrap();
+        let reply = list_shard(&client_pool, &addrs, request).await.unwrap();
         let data: Vec<JournalShard> = serde_json::from_slice(&reply.shards).unwrap();
         assert_eq!(data.len(), 1);
         let shard_raw = data.first().unwrap();
@@ -108,9 +106,7 @@ mod tests {
             namespace: namespace.clone(),
             segment_no: -1,
         };
-        let reply = list_segment(&client_pool, &addrs, request)
-            .await
-            .unwrap();
+        let reply = list_segment(&client_pool, &addrs, request).await.unwrap();
 
         let data: Vec<JournalSegment> = serde_json::from_slice(&reply.segments).unwrap();
         assert_eq!(data.len(), 1);
@@ -166,9 +162,7 @@ mod tests {
             namespace: namespace.clone(),
             segment_no: -1,
         };
-        let reply = list_segment(&client_pool, &addrs, request)
-            .await
-            .unwrap();
+        let reply = list_segment(&client_pool, &addrs, request).await.unwrap();
 
         let data: Vec<JournalSegment> = serde_json::from_slice(&reply.segments).unwrap();
         assert_eq!(data.len(), 2);
@@ -245,9 +239,7 @@ mod tests {
             namespace: namespace.clone(),
             segment_no: -1,
         };
-        let reply = list_segment(&client_pool, &addrs, request)
-            .await
-            .unwrap();
+        let reply = list_segment(&client_pool, &addrs, request).await.unwrap();
 
         let data: Vec<JournalSegment> = serde_json::from_slice(&reply.segments).unwrap();
         assert_eq!(data.len(), 2);
@@ -319,9 +311,7 @@ mod tests {
             namespace: namespace.clone(),
             segment_no: 0,
         };
-        let reply = list_segment(&client_pool, &addrs, request)
-            .await
-            .unwrap();
+        let reply = list_segment(&client_pool, &addrs, request).await.unwrap();
 
         let data: Vec<JournalSegment> = serde_json::from_slice(&reply.segments).unwrap();
         assert_eq!(data.len(), 1);
@@ -349,9 +339,7 @@ mod tests {
             namespace: namespace.clone(),
             segment_no: 0,
         };
-        let reply = list_segment(&client_pool, &addrs, request)
-            .await
-            .unwrap();
+        let reply = list_segment(&client_pool, &addrs, request).await.unwrap();
 
         let data: Vec<JournalSegment> = serde_json::from_slice(&reply.segments).unwrap();
         assert_eq!(data.len(), 1);
@@ -484,9 +472,7 @@ mod tests {
             namespace: namespace.clone(),
             segment_seq: 0,
         };
-        delete_segment(&client_pool, &addrs, request)
-            .await
-            .unwrap();
+        delete_segment(&client_pool, &addrs, request).await.unwrap();
 
         // List Segment
         let request = ListSegmentRequest {
@@ -495,9 +481,7 @@ mod tests {
             namespace: namespace.clone(),
             segment_no: 0,
         };
-        let reply = list_segment(&client_pool, &addrs, request)
-            .await
-            .unwrap();
+        let reply = list_segment(&client_pool, &addrs, request).await.unwrap();
 
         let data: Vec<JournalSegment> = serde_json::from_slice(&reply.segments).unwrap();
         assert_eq!(data.len(), 1);
@@ -565,9 +549,7 @@ mod tests {
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
         };
-        delete_shard(&client_pool, &addrs, request)
-            .await
-            .unwrap();
+        delete_shard(&client_pool, &addrs, request).await.unwrap();
 
         // list shard
         let request = ListShardRequest {
@@ -575,9 +557,7 @@ mod tests {
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
         };
-        let reply = list_shard(&client_pool, &addrs, request)
-            .await
-            .unwrap();
+        let reply = list_shard(&client_pool, &addrs, request).await.unwrap();
         let data: Vec<JournalShard> = serde_json::from_slice(&reply.shards).unwrap();
         assert_eq!(data.len(), 1);
         let shard_raw = data.first().unwrap();

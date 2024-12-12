@@ -101,9 +101,7 @@ mod tests {
         let addrs = vec![get_placement_addr()];
 
         let request = ClusterStatusRequest::default();
-        assert!(cluster_status(&client_pool, &addrs, request)
-            .await
-            .is_ok());
+        assert!(cluster_status(&client_pool, &addrs, request).await.is_ok());
 
         let cluster_type = ClusterType::PlacementCenter as i32;
         let cluster_name = "test-cluster-name".to_string();
@@ -114,9 +112,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             node_id,
         };
-        assert!(unregister_node(&client_pool, &addrs, request)
-            .await
-            .is_ok());
+        assert!(unregister_node(&client_pool, &addrs, request).await.is_ok());
 
         let request_cluster_name_empty = UnRegisterNodeRequest {
             cluster_type,
@@ -136,9 +132,7 @@ mod tests {
         let addrs = vec![get_placement_addr()];
 
         let request = ClusterStatusRequest::default();
-        assert!(cluster_status(&client_pool, &addrs, request)
-            .await
-            .is_ok());
+        assert!(cluster_status(&client_pool, &addrs, request).await.is_ok());
 
         let request = DeleteIdempotentDataRequest {
             cluster_name: "test-cluster-name".to_string(),
@@ -165,9 +159,7 @@ mod tests {
         let addrs = vec![get_placement_addr()];
 
         let request = ClusterStatusRequest::default();
-        assert!(cluster_status(&client_pool, &addrs, request)
-            .await
-            .is_ok());
+        assert!(cluster_status(&client_pool, &addrs, request).await.is_ok());
 
         let cluster_name = "test-cluster-name".to_string();
         let config = vec![1, 2, 3];
@@ -201,9 +193,7 @@ mod tests {
 
         // Check if the cluster is available
         let request = ClusterStatusRequest::default();
-        assert!(cluster_status(&client_pool, &addrs, request)
-            .await
-            .is_ok());
+        assert!(cluster_status(&client_pool, &addrs, request).await.is_ok());
 
         // Test data
         let cluster_name = "test-cluster-name".to_string();
@@ -216,34 +206,28 @@ mod tests {
             resources: resources.clone(),
             config: config.clone(),
         };
-        assert!(
-            set_resource_config(&client_pool, &addrs, set_request)
-                .await
-                .is_ok()
-        );
+        assert!(set_resource_config(&client_pool, &addrs, set_request)
+            .await
+            .is_ok());
 
         // Test: Get the resource config
         let valid_get_request = GetResourceConfigRequest {
             cluster_name: cluster_name.clone(),
             resources: resources.clone(),
         };
-        assert!(
-            get_resource_config(&client_pool, &addrs, valid_get_request)
-                .await
-                .is_ok()
-        );
+        assert!(get_resource_config(&client_pool, &addrs, valid_get_request)
+            .await
+            .is_ok());
 
         // Test: Get the resource config with empty cluster name
         let get_request_with_empty_cluster_name = GetResourceConfigRequest {
             cluster_name: "".to_string(),
             resources,
         };
-        assert!(get_resource_config(
-            &client_pool,
-            &addrs,
-            get_request_with_empty_cluster_name
-        )
-        .await
-        .is_err());
+        assert!(
+            get_resource_config(&client_pool, &addrs, get_request_with_empty_cluster_name)
+                .await
+                .is_err()
+        );
     }
 }

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use common_base::error::common::CommonError;
 use protocol::journal_server::journal_admin::{
     ListSegmentReply, ListSegmentRequest, ListShardReply, ListShardRequest,
@@ -27,7 +25,7 @@ pub async fn journal_admin_list_shard(
     addrs: &[impl AsRef<str>],
     request: ListShardRequest,
 ) -> Result<ListShardReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }
 
 pub async fn journal_admin_list_segment(
@@ -35,5 +33,5 @@ pub async fn journal_admin_list_segment(
     addrs: &[impl AsRef<str>],
     request: ListSegmentRequest,
 ) -> Result<ListSegmentReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }

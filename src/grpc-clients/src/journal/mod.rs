@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::error::common::CommonError;
 use protocol::journal_server::journal_admin::journal_server_admin_service_client::JournalServerAdminServiceClient;
 use protocol::journal_server::journal_admin::{
     ListSegmentReply, ListSegmentRequest, ListShardReply, ListShardRequest,
@@ -26,8 +25,6 @@ use protocol::journal_server::journal_inner::{
 use tonic::transport::Channel;
 
 use crate::macros::impl_retriable_request;
-use crate::pool::ClientPool;
-use crate::utils::RetriableRequest;
 
 pub mod admin;
 pub mod inner;

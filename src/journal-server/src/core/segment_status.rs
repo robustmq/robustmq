@@ -82,7 +82,7 @@ pub async fn update_segment_status_to_pre_write(
             cur_status: segment.status.to_string(),
             next_status: SegmentStatus::PreWrite.to_string(),
         };
-        update_segment_status(&client_pool, &conf.placement_center, request).await?;
+        update_segment_status(client_pool, &conf.placement_center, request).await?;
     }
     Ok(())
 }
@@ -110,7 +110,7 @@ pub async fn update_segment_status_to_write(
             cur_status: segment.status.to_string(),
             next_status: SegmentStatus::Write.to_string(),
         };
-        update_segment_status(&client_pool, &conf.placement_center, request).await?;
+        update_segment_status(client_pool, &conf.placement_center, request).await?;
     }
     Ok(())
 }
@@ -140,7 +140,7 @@ pub async fn update_segment_status_to_pre_seal_up(
             cur_status: segment.status.to_string(),
             next_status: SegmentStatus::PreSealUp.to_string(),
         };
-        update_segment_status(&client_pool, &conf.placement_center, request).await?;
+        update_segment_status(client_pool, &conf.placement_center, request).await?;
     }
 
     Ok(())
@@ -171,7 +171,7 @@ pub async fn update_segment_status_to_seal_up(
             cur_status: segment.status.to_string(),
             next_status: SegmentStatus::SealUp.to_string(),
         };
-        update_segment_status(&client_pool, &conf.placement_center, request).await?;
+        update_segment_status(client_pool, &conf.placement_center, request).await?;
     }
     Ok(())
 }

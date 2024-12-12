@@ -80,12 +80,7 @@ impl ClusterStorage {
             extend_info: serde_json::to_string(&node).unwrap(),
         };
 
-        register_node(
-            &self.client_pool,
-            &config.placement_center,
-            req.clone(),
-        )
-        .await?;
+        register_node(&self.client_pool, &config.placement_center, req.clone()).await?;
 
         Ok(())
     }
@@ -97,12 +92,7 @@ impl ClusterStorage {
             node_id: config.broker_id,
         };
 
-        unregister_node(
-            &self.client_pool,
-            &config.placement_center,
-            req.clone(),
-        )
-        .await?;
+        unregister_node(&self.client_pool, &config.placement_center, req.clone()).await?;
         Ok(())
     }
 
@@ -114,12 +104,7 @@ impl ClusterStorage {
             node_id: config.broker_id,
         };
 
-        heartbeat(
-            &self.client_pool,
-            &config.placement_center,
-            req.clone(),
-        )
-        .await?;
+        heartbeat(&self.client_pool, &config.placement_center, req.clone()).await?;
 
         Ok(())
     }
@@ -165,8 +150,7 @@ impl ClusterStorage {
             resources,
         };
 
-        match get_resource_config(&self.client_pool, &config.placement_center, request).await
-        {
+        match get_resource_config(&self.client_pool, &config.placement_center, request).await {
             Ok(data) => {
                 if data.config.is_empty() {
                     Ok(None)

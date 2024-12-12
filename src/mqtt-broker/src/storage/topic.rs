@@ -66,8 +66,7 @@ impl TopicStorage {
             topic_name: "".to_string(),
         };
         let reply =
-            placement_list_topic(&self.client_pool, &config.placement_center, request)
-                .await?;
+            placement_list_topic(&self.client_pool, &config.placement_center, request).await?;
         let results = DashMap::with_capacity(2);
         for raw in reply.topics {
             let data = serde_json::from_slice::<MqttTopic>(&raw)?;
@@ -84,8 +83,7 @@ impl TopicStorage {
         };
 
         let reply =
-            placement_list_topic(&self.client_pool, &config.placement_center, request)
-                .await?;
+            placement_list_topic(&self.client_pool, &config.placement_center, request).await?;
 
         if let Some(raw) = reply.topics.first() {
             return Ok(Some(serde_json::from_slice::<MqttTopic>(raw)?));
@@ -107,12 +105,8 @@ impl TopicStorage {
             retain_message: retain_message.encode(),
             retain_message_expired_at,
         };
-        placement_set_topic_retain_message(
-            &self.client_pool,
-            &config.placement_center,
-            request,
-        )
-        .await?;
+        placement_set_topic_retain_message(&self.client_pool, &config.placement_center, request)
+            .await?;
         Ok(())
     }
 
@@ -124,12 +118,8 @@ impl TopicStorage {
             retain_message: Vec::new(),
             retain_message_expired_at: 0,
         };
-        placement_set_topic_retain_message(
-            &self.client_pool,
-            &config.placement_center,
-            request,
-        )
-        .await?;
+        placement_set_topic_retain_message(&self.client_pool, &config.placement_center, request)
+            .await?;
         Ok(())
     }
 

@@ -84,8 +84,7 @@ impl MqttBrokerCommand {
                 self.list_user(&client_pool, params.clone()).await;
             }
             MqttActionType::ListConnection => {
-                self.list_connections(&client_pool, params.clone())
-                    .await;
+                self.list_connections(&client_pool, params.clone()).await;
             }
             MqttActionType::EnableSlowSubscribe(ref request) => {
                 self.enable_slow_subscribe(&client_pool, params.clone(), request.clone())
@@ -96,15 +95,14 @@ impl MqttBrokerCommand {
                     .await;
             }
             MqttActionType::ListSlowSubscribe => {
-                self.list_slow_subscribe(&client_pool, params.clone())
-                    .await;
+                self.list_slow_subscribe(&client_pool, params.clone()).await;
             }
         }
     }
 
     async fn status(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
         let request = ClusterStatusRequest {};
-        match cluster_status(&client_pool, &grpc_addr(params.server), request).await {
+        match cluster_status(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
                 println!("cluster name: {}", data.cluster_name);
                 println!("node list:");
@@ -126,9 +124,7 @@ impl MqttBrokerCommand {
         params: MqttCliCommandParam,
         cli_request: CreateUserRequest,
     ) {
-        match mqtt_broker_create_user(&client_pool, &grpc_addr(params.server), cli_request)
-            .await
-        {
+        match mqtt_broker_create_user(client_pool, &grpc_addr(params.server), cli_request).await {
             Ok(_) => {
                 println!("Created successfully!",)
             }
@@ -145,9 +141,7 @@ impl MqttBrokerCommand {
         params: MqttCliCommandParam,
         cli_request: DeleteUserRequest,
     ) {
-        match mqtt_broker_delete_user(&client_pool, &grpc_addr(params.server), cli_request)
-            .await
-        {
+        match mqtt_broker_delete_user(client_pool, &grpc_addr(params.server), cli_request).await {
             Ok(_) => {
                 println!("Deleted successfully!");
             }
@@ -160,7 +154,7 @@ impl MqttBrokerCommand {
 
     async fn list_user(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
         let request = ListUserRequest {};
-        match mqtt_broker_list_user(&client_pool, &grpc_addr(params.server), request).await {
+        match mqtt_broker_list_user(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
                 println!("user list:");
                 for user in data.users {
@@ -177,9 +171,7 @@ impl MqttBrokerCommand {
 
     async fn list_connections(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
         let request = ListConnectionRequest {};
-        match mqtt_broker_list_connection(&client_pool, &grpc_addr(params.server), request)
-            .await
-        {
+        match mqtt_broker_list_connection(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
                 println!("connection list:");
                 for raw in data.list_connection_raw {
@@ -201,12 +193,8 @@ impl MqttBrokerCommand {
         params: MqttCliCommandParam,
         cli_request: EnableSlowSubscribeRequest,
     ) {
-        match mqtt_broker_enable_slow_subscribe(
-            &client_pool,
-            &grpc_addr(params.server),
-            cli_request,
-        )
-        .await
+        match mqtt_broker_enable_slow_subscribe(client_pool, &grpc_addr(params.server), cli_request)
+            .await
         {
             Ok(reply) => {
                 if reply.is_enable {
@@ -225,12 +213,7 @@ impl MqttBrokerCommand {
 
     async fn list_slow_subscribe(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
         let request = ListSlowSubscribeRequest {};
-        match mqtt_broker_list_slow_subscribe(
-            &client_pool,
-            &grpc_addr(params.server),
-            request,
-        )
-        .await
+        match mqtt_broker_list_slow_subscribe(client_pool, &grpc_addr(params.server), request).await
         {
             Ok(data) => {
                 println!("{:?}", data)
@@ -248,9 +231,7 @@ impl MqttBrokerCommand {
         params: MqttCliCommandParam,
         cli_request: ListTopicRequest,
     ) {
-        match mqtt_broker_list_topic(&client_pool, &grpc_addr(params.server), cli_request)
-            .await
-        {
+        match mqtt_broker_list_topic(client_pool, &grpc_addr(params.server), cli_request).await {
             Ok(data) => {
                 println!("topic list result:");
                 for mqtt_topic in data.topics {

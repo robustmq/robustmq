@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::future::Future;
-use std::net::SocketAddr;
-use std::ops::{Deref, DerefMut};
+use std::ops::DerefMut;
 use std::time::Duration;
 
 use common_base::error::common::CommonError;
@@ -30,10 +28,16 @@ pub(crate) trait RetriableRequest: Clone {
     type Error: std::error::Error;
 
     const IS_WRITE_REQUEST: bool = false;
-    
-    async fn get_client<'a, 'b>(pool: &'a ClientPool, addr: &'b str) -> Result<impl DerefMut<Target = Self::Client> + 'a, Self::Error>;
 
-    async fn call_once(client: &mut Self::Client, request: Self) -> Result<Self::Response, Self::Error>;
+    async fn get_client<'a, 'b>(
+        pool: &'a ClientPool,
+        addr: &'b str,
+    ) -> Result<impl DerefMut<Target = Self::Client> + 'a, Self::Error>;
+
+    async fn call_once(
+        client: &mut Self::Client,
+        request: Self,
+    ) -> Result<Self::Response, Self::Error>;
 }
 
 pub(crate) async fn retry_call<Req>(
@@ -55,22 +59,23 @@ where
     loop {
         let index = times % addrs.len();
         let addr = addrs[index].as_ref();
-        
+
         let mut client = match Req::IS_WRITE_REQUEST {
             true => match client_pool.get_leader_addr(addr) {
                 Some(leader_addr) => {
                     let addr = leader_addr.value();
-                    let res = Req::get_client(client_pool, &addr).await
-                        .map_err(Into::into)?;
-                    res
+
+                    Req::get_client(client_pool, addr)
+                        .await
+                        .map_err(Into::into)?
                 }
-                None => Req::get_client(client_pool, addr).await
-                    .map_err(Into::into)?
+                None => Req::get_client(client_pool, addr)
+                    .await
+                    .map_err(Into::into)?,
             },
-            false => {
-                Req::get_client(client_pool, addr).await
-                    .map_err(Into::into)?
-            }
+            false => Req::get_client(client_pool, addr)
+                .await
+                .map_err(Into::into)?,
         };
         let result = Req::call_once(client.deref_mut(), request.clone()).await;
 

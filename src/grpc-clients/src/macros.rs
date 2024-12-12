@@ -5,12 +5,21 @@ macro_rules! impl_retriable_request {
             type Response = $res;
             type Error = common_base::error::common::CommonError;
 
-            async fn get_client<'a, 'b>(pool: &'a $crate::pool::ClientPool, addr: &'b str) -> Result<impl std::ops::DerefMut<Target = Self::Client> + 'a, Self::Error> {
+            async fn get_client<'a, 'b>(
+                pool: &'a $crate::pool::ClientPool,
+                addr: &'b str,
+            ) -> Result<impl std::ops::DerefMut<Target = Self::Client> + 'a, Self::Error> {
                 pool.$getter(addr).await
             }
 
-            async fn call_once(client: &mut Self::Client, request: Self) -> Result<Self::Response, Self::Error> {
-                client.$op(request).await.map(|reply| reply.into_inner())
+            async fn call_once(
+                client: &mut Self::Client,
+                request: Self,
+            ) -> Result<Self::Response, Self::Error> {
+                client
+                    .$op(request)
+                    .await
+                    .map(|reply| reply.into_inner())
                     .map_err(Into::into)
             }
         }
@@ -24,16 +33,25 @@ macro_rules! impl_retriable_request {
 
             const IS_WRITE_REQUEST: bool = $is_write_request;
 
-            async fn get_client<'a, 'b>(pool: &'a $crate::pool::ClientPool, addr: &'b str) -> Result<impl std::ops::DerefMut<Target = Self::Client> + 'a, Self::Error> {
+            async fn get_client<'a, 'b>(
+                pool: &'a $crate::pool::ClientPool,
+                addr: &'b str,
+            ) -> Result<impl std::ops::DerefMut<Target = Self::Client> + 'a, Self::Error> {
                 pool.$getter(addr).await
             }
 
-            async fn call_once(client: &mut Self::Client, request: Self) -> Result<Self::Response, Self::Error> {
-                client.$op(request).await.map(|reply| reply.into_inner())
+            async fn call_once(
+                client: &mut Self::Client,
+                request: Self,
+            ) -> Result<Self::Response, Self::Error> {
+                client
+                    .$op(request)
+                    .await
+                    .map(|reply| reply.into_inner())
                     .map_err(Into::into)
             }
         }
-    }
+    };
 }
 
 pub(crate) use impl_retriable_request;

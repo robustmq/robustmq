@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use common_base::error::common::CommonError;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
@@ -34,7 +32,7 @@ pub async fn cluster_status(
     addrs: &[impl AsRef<str>],
     request: ClusterStatusRequest,
 ) -> Result<ClusterStatusReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }
 
 // ------ user -------
@@ -44,7 +42,7 @@ pub async fn mqtt_broker_list_user(
     request: ListUserRequest,
 ) -> Result<ListUserReply, CommonError> {
     // let reply = retry_call(client_pool, addrs, MqttBrokerPlacementRequest::ListUser(request)).await?;
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }
 
 pub async fn mqtt_broker_create_user(
@@ -52,7 +50,7 @@ pub async fn mqtt_broker_create_user(
     addrs: &[impl AsRef<str>],
     request: CreateUserRequest,
 ) -> Result<CreateUserReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }
 
 pub async fn mqtt_broker_delete_user(
@@ -60,7 +58,7 @@ pub async fn mqtt_broker_delete_user(
     addrs: &[impl AsRef<str>],
     request: DeleteUserRequest,
 ) -> Result<DeleteUserReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }
 
 pub async fn mqtt_broker_list_acl(
@@ -68,7 +66,7 @@ pub async fn mqtt_broker_list_acl(
     addrs: &[impl AsRef<str>],
     request: ListAclRequest,
 ) -> Result<ListAclReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }
 
 pub async fn mqtt_broker_create_acl(
@@ -76,7 +74,7 @@ pub async fn mqtt_broker_create_acl(
     addrs: &[impl AsRef<str>],
     request: CreateAclRequest,
 ) -> Result<CreateAclReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }
 
 pub async fn mqtt_broker_delete_acl(
@@ -84,7 +82,7 @@ pub async fn mqtt_broker_delete_acl(
     addrs: &[impl AsRef<str>],
     request: DeleteAclRequest,
 ) -> Result<DeleteAclReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }
 
 pub async fn mqtt_broker_list_blacklist(
@@ -92,7 +90,7 @@ pub async fn mqtt_broker_list_blacklist(
     addrs: &[impl AsRef<str>],
     request: ListBlacklistRequest,
 ) -> Result<ListBlacklistReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }
 
 pub async fn mqtt_broker_create_blacklist(
@@ -100,7 +98,7 @@ pub async fn mqtt_broker_create_blacklist(
     addrs: &[impl AsRef<str>],
     request: CreateBlacklistRequest,
 ) -> Result<CreateBlacklistReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }
 
 pub async fn mqtt_broker_delete_blacklist(
@@ -108,7 +106,7 @@ pub async fn mqtt_broker_delete_blacklist(
     addrs: &[impl AsRef<str>],
     request: DeleteBlacklistRequest,
 ) -> Result<DeleteBlacklistReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }
 
 // ------- connection  -----------
@@ -117,7 +115,7 @@ pub async fn mqtt_broker_list_connection(
     addrs: &[impl AsRef<str>],
     request: ListConnectionRequest,
 ) -> Result<ListConnectionReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }
 
 // --------- observability --------
@@ -127,7 +125,7 @@ pub async fn mqtt_broker_enable_slow_subscribe(
     addrs: &[impl AsRef<str>],
     request: EnableSlowSubscribeRequest,
 ) -> Result<EnableSlowSubScribeReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }
 
 pub async fn mqtt_broker_list_slow_subscribe(
@@ -135,7 +133,7 @@ pub async fn mqtt_broker_list_slow_subscribe(
     addrs: &[impl AsRef<str>],
     request: ListSlowSubscribeRequest,
 ) -> Result<ListSlowSubscribeReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }
 
 pub async fn mqtt_broker_list_topic(
@@ -143,5 +141,5 @@ pub async fn mqtt_broker_list_topic(
     addrs: &[impl AsRef<str>],
     request: ListTopicRequest,
 ) -> Result<ListTopicReply, CommonError> {
-    retry_call(&client_pool, addrs, request).await
+    retry_call(client_pool, addrs, request).await
 }
