@@ -29,9 +29,9 @@ pub(crate) trait RetriableRequest: Clone {
 
     const IS_WRITE_REQUEST: bool = false;
 
-    async fn get_client<'a, 'b>(
+    async fn get_client<'a>(
         pool: &'a ClientPool,
-        addr: &'b str,
+        addr: &str,
     ) -> Result<impl DerefMut<Target = Self::Client> + 'a, Self::Error>;
 
     async fn call_once(
