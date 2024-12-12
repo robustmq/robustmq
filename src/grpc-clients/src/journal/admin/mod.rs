@@ -21,11 +21,11 @@ pub mod call;
 
 #[derive(Clone)]
 pub struct JournalAdminServiceManager {
-    pub addr: String,
+    pub addr: std::net::SocketAddr,
 }
 
 impl JournalAdminServiceManager {
-    pub fn new(addr: String) -> Self {
+    pub fn new(addr: std::net::SocketAddr) -> Self {
         Self { addr }
     }
 }

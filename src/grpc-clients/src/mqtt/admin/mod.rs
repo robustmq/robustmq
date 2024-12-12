@@ -21,11 +21,11 @@ pub mod call;
 
 #[derive(Clone)]
 pub struct MqttBrokerAdminServiceManager {
-    pub addr: String,
+    pub addr: std::net::SocketAddr,
 }
 
 impl MqttBrokerAdminServiceManager {
-    pub fn new(addr: String) -> Self {
+    pub fn new(addr: std::net::SocketAddr) -> Self {
         Self { addr }
     }
 }

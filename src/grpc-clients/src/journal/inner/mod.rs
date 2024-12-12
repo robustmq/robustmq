@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::net::SocketAddr;
+
 use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::journal_server::journal_inner::journal_server_inner_service_client::JournalServerInnerServiceClient;
@@ -21,11 +23,11 @@ pub mod call;
 
 #[derive(Clone)]
 pub struct JournalInnerServiceManager {
-    pub addr: String,
+    pub addr: std::net::SocketAddr,
 }
 
 impl JournalInnerServiceManager {
-    pub fn new(addr: String) -> Self {
+    pub fn new(addr: std::net::SocketAddr) -> Self {
         Self { addr }
     }
 }

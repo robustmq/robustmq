@@ -34,8 +34,8 @@ use crate::pool::ClientPool;
 macro_rules! generate_placement_service_call {
     ($fn_name:ident, $req_ty:ty, $rep_ty:ty, $variant:ident) => {
         pub async fn $fn_name(
-            client_pool: Arc<ClientPool>,
-            addrs: &[String],
+            client_pool: &ClientPool,
+            addrs: &[std::net::SocketAddr],
             request: $req_ty,
         ) -> Result<$rep_ty, CommonError> {
             let request =

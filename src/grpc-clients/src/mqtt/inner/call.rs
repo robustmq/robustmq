@@ -25,8 +25,8 @@ use crate::pool::ClientPool;
 use crate::utils::retry_call;
 
 pub async fn broker_mqtt_delete_session(
-    client_pool: Arc<ClientPool>,
-    addrs: &[String],
+    client_pool: &ClientPool,
+    addrs: &[std::net::SocketAddr],
     request: DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, CommonError> {
     let request = MqttBrokerPlacementRequest::DeleteSession(request);
@@ -37,8 +37,8 @@ pub async fn broker_mqtt_delete_session(
 }
 
 pub async fn broker_mqtt_update_cache(
-    client_pool: Arc<ClientPool>,
-    addrs: &[String],
+    client_pool: &ClientPool,
+    addrs: &[std::net::SocketAddr],
     request: UpdateCacheRequest,
 ) -> Result<UpdateCacheReply, CommonError> {
     let request = MqttBrokerPlacementRequest::UpdateCache(request);
@@ -49,8 +49,8 @@ pub async fn broker_mqtt_update_cache(
 }
 
 pub async fn send_last_will_message(
-    client_pool: Arc<ClientPool>,
-    addrs: &[String],
+    client_pool: &ClientPool,
+    addrs: &[std::net::SocketAddr],
     request: SendLastWillMessageRequest,
 ) -> Result<SendLastWillMessageReply, CommonError> {
     let request = MqttBrokerPlacementRequest::SendLastWillMessage(request);

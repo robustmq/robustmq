@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::net::SocketAddr;
+
 use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::placement_center::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
@@ -68,7 +70,7 @@ pub enum PlacementServiceReply {
 
 pub(super) async fn call_placement_service_once(
     client_pool: &ClientPool,
-    addr: &str,
+    addr: SocketAddr,
     request: PlacementServiceRequest,
 ) -> Result<PlacementServiceReply, CommonError> {
     use PlacementServiceRequest::*;
@@ -176,11 +178,11 @@ pub(super) async fn call_placement_service_once(
 }
 
 pub struct PlacementServiceManager {
-    pub addr: String,
+    pub addr: SocketAddr,
 }
 
 impl PlacementServiceManager {
-    pub fn new(addr: String) -> Self {
+    pub fn new(addr: std::net::SocketAddr) -> Self {
         Self { addr }
     }
 }

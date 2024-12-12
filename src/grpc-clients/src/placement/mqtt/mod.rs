@@ -246,11 +246,11 @@ pub(super) async fn call_mqtt_service_once(
 
 #[derive(Clone)]
 pub struct MqttServiceManager {
-    pub addr: String,
+    pub addr: std::net::SocketAddr,
 }
 
 impl MqttServiceManager {
-    pub fn new(addr: String) -> Self {
+    pub fn new(addr: std::net::SocketAddr) -> Self {
         Self { addr }
     }
 }

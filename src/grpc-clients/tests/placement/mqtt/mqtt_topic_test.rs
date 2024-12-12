@@ -134,8 +134,8 @@ mod tests {
     async fn contain_topic(
         cluster_name: String,
         topic_name: String,
-        client_pool: Arc<ClientPool>,
-        addrs: &[String],
+        client_pool: &ClientPool,
+        addrs: &[std::net::SocketAddr],
         mqtt_topic: MqttTopic,
         contain: bool,
     ) {

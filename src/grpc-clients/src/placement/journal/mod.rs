@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::net::SocketAddr;
+
 use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::placement_center::placement_center_journal::engine_service_client::EngineServiceClient;
@@ -132,11 +134,11 @@ pub(super) async fn call_journal_service_once(
 
 #[derive(Clone)]
 pub struct JournalServiceManager {
-    pub addr: String,
+    pub addr: std::net::SocketAddr,
 }
 
 impl JournalServiceManager {
-    pub fn new(addr: String) -> Self {
+    pub fn new(addr: std::net::SocketAddr) -> Self {
         Self { addr }
     }
 }

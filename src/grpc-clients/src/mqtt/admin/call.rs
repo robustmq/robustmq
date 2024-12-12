@@ -31,8 +31,8 @@ use crate::utils::retry_call;
 
 // ---- cluster ------
 pub async fn cluster_status(
-    client_pool: Arc<ClientPool>,
-    addrs: &[String],
+    client_pool: &ClientPool,
+    addrs: &[std::net::SocketAddr],
     request: ClusterStatusRequest,
 ) -> Result<ClusterStatusReply, CommonError> {
     let request = MqttBrokerPlacementRequest::ClusterStatus(request);
@@ -44,8 +44,8 @@ pub async fn cluster_status(
 
 // ------ user -------
 pub async fn mqtt_broker_list_user(
-    client_pool: Arc<ClientPool>,
-    addrs: &[String],
+    client_pool: &ClientPool,
+    addrs: &[std::net::SocketAddr],
     request: ListUserRequest,
 ) -> Result<ListUserReply, CommonError> {
     // let reply = retry_call(client_pool, addrs, MqttBrokerPlacementRequest::ListUser(request)).await?;
@@ -57,8 +57,8 @@ pub async fn mqtt_broker_list_user(
 }
 
 pub async fn mqtt_broker_create_user(
-    client_pool: Arc<ClientPool>,
-    addrs: &[String],
+    client_pool: &ClientPool,
+    addrs: &[std::net::SocketAddr],
     request: CreateUserRequest,
 ) -> Result<CreateUserReply, CommonError> {
     let request = MqttBrokerPlacementRequest::CreateUser(request);
@@ -69,8 +69,8 @@ pub async fn mqtt_broker_create_user(
 }
 
 pub async fn mqtt_broker_delete_user(
-    client_pool: Arc<ClientPool>,
-    addrs: &[String],
+    client_pool: &ClientPool,
+    addrs: &[std::net::SocketAddr],
     request: DeleteUserRequest,
 ) -> Result<DeleteUserReply, CommonError> {
     let request = MqttBrokerPlacementRequest::DeleteUser(request);
@@ -81,8 +81,8 @@ pub async fn mqtt_broker_delete_user(
 }
 
 pub async fn mqtt_broker_list_acl(
-    client_pool: Arc<ClientPool>,
-    addrs: &[String],
+    client_pool: &ClientPool,
+    addrs: &[std::net::SocketAddr],
     request: ListAclRequest,
 ) -> Result<ListAclReply, CommonError> {
     let request = MqttBrokerPlacementRequest::ListAcl(request);
@@ -93,8 +93,8 @@ pub async fn mqtt_broker_list_acl(
 }
 
 pub async fn mqtt_broker_create_acl(
-    client_pool: Arc<ClientPool>,
-    addrs: &[String],
+    client_pool: &ClientPool,
+    addrs: &[std::net::SocketAddr],
     request: CreateAclRequest,
 ) -> Result<CreateAclReply, CommonError> {
     let request = MqttBrokerPlacementRequest::CreateAcl(request);
@@ -105,8 +105,8 @@ pub async fn mqtt_broker_create_acl(
 }
 
 pub async fn mqtt_broker_delete_acl(
-    client_pool: Arc<ClientPool>,
-    addrs: &[String],
+    client_pool: &ClientPool,
+    addrs: &[std::net::SocketAddr],
     request: DeleteAclRequest,
 ) -> Result<DeleteAclReply, CommonError> {
     let request = MqttBrokerPlacementRequest::DeleteAcl(request);
@@ -117,8 +117,8 @@ pub async fn mqtt_broker_delete_acl(
 }
 
 pub async fn mqtt_broker_list_blacklist(
-    client_pool: Arc<ClientPool>,
-    addrs: &[String],
+    client_pool: &ClientPool,
+    addrs: &[std::net::SocketAddr],
     request: ListBlacklistRequest,
 ) -> Result<ListBlacklistReply, CommonError> {
     let request = MqttBrokerPlacementRequest::ListBlacklist(request);
@@ -129,8 +129,8 @@ pub async fn mqtt_broker_list_blacklist(
 }
 
 pub async fn mqtt_broker_create_blacklist(
-    client_pool: Arc<ClientPool>,
-    addrs: &[String],
+    client_pool: &ClientPool,
+    addrs: &[std::net::SocketAddr],
     request: CreateBlacklistRequest,
 ) -> Result<CreateBlacklistReply, CommonError> {
     let request = MqttBrokerPlacementRequest::CreateBlacklist(request);
@@ -141,8 +141,8 @@ pub async fn mqtt_broker_create_blacklist(
 }
 
 pub async fn mqtt_broker_delete_blacklist(
-    client_pool: Arc<ClientPool>,
-    addrs: &[String],
+    client_pool: &ClientPool,
+    addrs: &[std::net::SocketAddr],
     request: DeleteBlacklistRequest,
 ) -> Result<DeleteBlacklistReply, CommonError> {
     let request = MqttBrokerPlacementRequest::DeleteBlacklist(request);
@@ -154,8 +154,8 @@ pub async fn mqtt_broker_delete_blacklist(
 
 // ------- connection  -----------
 pub async fn mqtt_broker_list_connection(
-    client_pool: Arc<ClientPool>,
-    addrs: &[String],
+    client_pool: &ClientPool,
+    addrs: &[std::net::SocketAddr],
     request: ListConnectionRequest,
 ) -> Result<ListConnectionReply, CommonError> {
     let request = MqttBrokerPlacementRequest::ListConnection(request);
@@ -168,8 +168,8 @@ pub async fn mqtt_broker_list_connection(
 // --------- observability --------
 // --------- slow subscribe features ------
 pub async fn mqtt_broker_enable_slow_subscribe(
-    client_pool: Arc<ClientPool>,
-    addrs: &[String],
+    client_pool: &ClientPool,
+    addrs: &[std::net::SocketAddr],
     request: EnableSlowSubscribeRequest,
 ) -> Result<EnableSlowSubScribeReply, CommonError> {
     let request = MqttBrokerPlacementRequest::EnableSlowSubscribe(request);
@@ -180,8 +180,8 @@ pub async fn mqtt_broker_enable_slow_subscribe(
 }
 
 pub async fn mqtt_broker_list_slow_subscribe(
-    client_pool: Arc<ClientPool>,
-    addrs: &[String],
+    client_pool: &ClientPool,
+    addrs: &[std::net::SocketAddr],
     request: ListSlowSubscribeRequest,
 ) -> Result<ListSlowSubscribeReply, CommonError> {
     let request = MqttBrokerPlacementRequest::ListSlowSubscribe(request);
@@ -192,8 +192,8 @@ pub async fn mqtt_broker_list_slow_subscribe(
 }
 
 pub async fn mqtt_broker_list_topic(
-    client_pool: Arc<ClientPool>,
-    addrs: &[String],
+    client_pool: &ClientPool,
+    addrs: &[std::net::SocketAddr],
     request: ListTopicRequest,
 ) -> Result<ListTopicReply, CommonError> {
     let request = MqttBrokerPlacementRequest::ListTopic(request);
