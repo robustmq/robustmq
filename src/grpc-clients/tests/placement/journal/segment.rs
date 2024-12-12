@@ -29,7 +29,7 @@ mod tests {
     use crate::common::get_placement_addr;
     #[tokio::test]
     async fn segment_test() {
-        let client_pool = Arc::new(ClientPool::new(1));
+        let client_pool = ClientPool::new(1);
         let addrs = vec![get_placement_addr()];
 
         let cluster = unique_id();
@@ -50,7 +50,7 @@ mod tests {
             node_inner_addr: "127.0.0.1:3228".to_string(),
             extend_info: serde_json::to_string(&extend).unwrap(),
         };
-        register_node(client_pool.clone(), &addrs, request)
+        register_node(&client_pool, &addrs, request)
             .await
             .unwrap();
 
@@ -61,7 +61,7 @@ mod tests {
             shard_name: shard_name.clone(),
             replica: 1,
         };
-        let res = create_shard(client_pool.clone(), &addrs, request)
+        let res = create_shard(&client_pool, &addrs, request)
             .await
             .unwrap();
         assert_eq!(res.replica.len(), 1);
@@ -72,7 +72,7 @@ mod tests {
             namespace: namespace.clone(),
             shard_name: shard_name.clone(),
         };
-        create_next_segment(client_pool, &addrs, request)
+        create_next_segment(&client_pool, &addrs, request)
             .await
             .unwrap();
     }

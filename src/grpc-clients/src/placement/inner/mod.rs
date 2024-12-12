@@ -32,151 +32,6 @@ use crate::pool::ClientPool;
 
 pub mod call;
 
-/// Enum wrapper for all possible requests to the placement service
-#[derive(Debug, Clone)]
-pub enum PlacementServiceRequest {
-    ClusterStatus(ClusterStatusRequest),
-    ListNode(NodeListRequest),
-    RegisterNode(RegisterNodeRequest),
-    UnRegisterNode(UnRegisterNodeRequest),
-    Heartbeat(HeartbeatRequest),
-    SetResourceConfig(SetResourceConfigRequest),
-    GetResourceConfig(GetResourceConfigRequest),
-    DeleteResourceConfig(DeleteResourceConfigRequest),
-    SetIdempotentData(SetIdempotentDataRequest),
-    ExistsIdempotentData(ExistsIdempotentDataRequest),
-    DeleteIdempotentData(DeleteIdempotentDataRequest),
-    SaveOffsetData(SaveOffsetDataRequest),
-    GetOffsetData(GetOffsetDataRequest),
-}
-
-/// Enum wrapper for all possible replies from the placement service
-#[derive(Debug, Clone)]
-pub enum PlacementServiceReply {
-    ClusterStatus(ClusterStatusReply),
-    ListNode(NodeListReply),
-    RegisterNode(RegisterNodeReply),
-    UnRegisterNode(UnRegisterNodeReply),
-    Heartbeat(HeartbeatReply),
-    SetResourceConfig(SetResourceConfigReply),
-    GetResourceConfig(GetResourceConfigReply),
-    DeleteResourceConfig(DeleteResourceConfigReply),
-    SetIdempotentData(SetIdempotentDataReply),
-    ExistsIdempotentData(ExistsIdempotentDataReply),
-    DeleteIdempotentData(DeleteIdempotentDataReply),
-    SaveOffsetData(SaveOffsetDataReply),
-    GetOffsetData(GetOffsetDataReply),
-}
-
-pub(super) async fn call_placement_service_once(
-    client_pool: &ClientPool,
-    addr: SocketAddr,
-    request: PlacementServiceRequest,
-) -> Result<PlacementServiceReply, CommonError> {
-    use PlacementServiceRequest::*;
-
-    match request {
-        ClusterStatus(request) => {
-            let mut client = client_pool
-                .placement_center_inner_services_client(addr)
-                .await?;
-            let reply = client.cluster_status(request).await?;
-            Ok(PlacementServiceReply::ClusterStatus(reply.into_inner()))
-        }
-        ListNode(request) => {
-            let mut client = client_pool
-                .placement_center_inner_services_client(addr)
-                .await?;
-            let reply = client.node_list(request).await?;
-            Ok(PlacementServiceReply::ListNode(reply.into_inner()))
-        }
-        RegisterNode(request) => {
-            let mut client = client_pool
-                .placement_center_inner_services_client(addr)
-                .await?;
-            let reply = client.register_node(request).await?;
-            Ok(PlacementServiceReply::RegisterNode(reply.into_inner()))
-        }
-        UnRegisterNode(request) => {
-            let mut client = client_pool
-                .placement_center_inner_services_client(addr)
-                .await?;
-            let reply = client.un_register_node(request).await?;
-            Ok(PlacementServiceReply::UnRegisterNode(reply.into_inner()))
-        }
-        Heartbeat(request) => {
-            let mut client = client_pool
-                .placement_center_inner_services_client(addr)
-                .await?;
-            let reply = client.heartbeat(request).await?;
-            Ok(PlacementServiceReply::Heartbeat(reply.into_inner()))
-        }
-
-        SetResourceConfig(request) => {
-            let mut client = client_pool
-                .placement_center_inner_services_client(addr)
-                .await?;
-            let reply = client.set_resource_config(request).await?;
-            Ok(PlacementServiceReply::SetResourceConfig(reply.into_inner()))
-        }
-        GetResourceConfig(request) => {
-            let mut client = client_pool
-                .placement_center_inner_services_client(addr)
-                .await?;
-            let reply = client.get_resource_config(request).await?;
-            Ok(PlacementServiceReply::GetResourceConfig(reply.into_inner()))
-        }
-        DeleteResourceConfig(request) => {
-            let mut client = client_pool
-                .placement_center_inner_services_client(addr)
-                .await?;
-            let reply = client.delete_resource_config(request).await?;
-            Ok(PlacementServiceReply::DeleteResourceConfig(
-                reply.into_inner(),
-            ))
-        }
-        SetIdempotentData(request) => {
-            let mut client = client_pool
-                .placement_center_inner_services_client(addr)
-                .await?;
-            let reply = client.set_idempotent_data(request).await?;
-            Ok(PlacementServiceReply::SetIdempotentData(reply.into_inner()))
-        }
-        ExistsIdempotentData(request) => {
-            let mut client = client_pool
-                .placement_center_inner_services_client(addr)
-                .await?;
-            let reply = client.exists_idempotent_data(request).await?;
-            Ok(PlacementServiceReply::ExistsIdempotentData(
-                reply.into_inner(),
-            ))
-        }
-        DeleteIdempotentData(request) => {
-            let mut client = client_pool
-                .placement_center_inner_services_client(addr)
-                .await?;
-            let reply = client.delete_idempotent_data(request).await?;
-            Ok(PlacementServiceReply::DeleteIdempotentData(
-                reply.into_inner(),
-            ))
-        }
-        SaveOffsetData(request) => {
-            let mut client = client_pool
-                .placement_center_inner_services_client(addr)
-                .await?;
-            let reply = client.save_offset_data(request).await?;
-            Ok(PlacementServiceReply::SaveOffsetData(reply.into_inner()))
-        }
-        GetOffsetData(request) => {
-            let mut client = client_pool
-                .placement_center_inner_services_client(addr)
-                .await?;
-            let reply = client.get_offset_data(request).await?;
-            Ok(PlacementServiceReply::GetOffsetData(reply.into_inner()))
-        }
-    }
-}
-
 pub struct PlacementServiceManager {
     pub addr: SocketAddr,
 }
@@ -211,3 +66,120 @@ impl Manager for PlacementServiceManager {
         Ok(conn)
     }
 }
+
+impl_retriable_request!(
+    ClusterStatusRequest,
+    PlacementCenterServiceClient<Channel>,
+    ClusterStatusReply,
+    placement_center_inner_services_client,
+    cluster_status,
+    true
+);
+
+impl_retriable_request!(
+    NodeListRequest,
+    PlacementCenterServiceClient<Channel>,
+    NodeListReply,
+    placement_center_inner_services_client,
+    node_list,
+    true
+);
+
+impl_retriable_request!(
+    RegisterNodeRequest,
+    PlacementCenterServiceClient<Channel>,
+    RegisterNodeReply,
+    placement_center_inner_services_client,
+    register_node,
+    true
+);
+
+impl_retriable_request!(
+    UnRegisterNodeRequest,
+    PlacementCenterServiceClient<Channel>,
+    UnRegisterNodeReply,
+    placement_center_inner_services_client,
+    un_register_node,
+    true
+);
+
+impl_retriable_request!(
+    HeartbeatRequest,
+    PlacementCenterServiceClient<Channel>,
+    HeartbeatReply,
+    placement_center_inner_services_client,
+    heartbeat,
+    true
+);
+
+impl_retriable_request!(
+    SetResourceConfigRequest,
+    PlacementCenterServiceClient<Channel>,
+    SetResourceConfigReply,
+    placement_center_inner_services_client,
+    set_resource_config,
+    true
+);
+
+impl_retriable_request!(
+    GetResourceConfigRequest,
+    PlacementCenterServiceClient<Channel>,
+    GetResourceConfigReply,
+    placement_center_inner_services_client,
+    get_resource_config,
+    true
+);
+
+impl_retriable_request!(
+    DeleteResourceConfigRequest,
+    PlacementCenterServiceClient<Channel>,
+    DeleteResourceConfigReply,
+    placement_center_inner_services_client,
+    delete_resource_config,
+    true
+);
+
+impl_retriable_request!(
+    SetIdempotentDataRequest,
+    PlacementCenterServiceClient<Channel>,
+    SetIdempotentDataReply,
+    placement_center_inner_services_client,
+    set_idempotent_data,
+    true
+);
+
+impl_retriable_request!(
+    ExistsIdempotentDataRequest,
+    PlacementCenterServiceClient<Channel>,
+    ExistsIdempotentDataReply,
+    placement_center_inner_services_client,
+    exists_idempotent_data,
+    true
+);
+
+impl_retriable_request!(
+    DeleteIdempotentDataRequest,
+    PlacementCenterServiceClient<Channel>,
+    DeleteIdempotentDataReply,
+    placement_center_inner_services_client,
+    delete_idempotent_data,
+    true
+);
+
+impl_retriable_request!(
+    SaveOffsetDataRequest,
+    PlacementCenterServiceClient<Channel>,
+    SaveOffsetDataReply,
+    placement_center_inner_services_client,
+    save_offset_data,
+    true
+);
+
+impl_retriable_request!(
+    GetOffsetDataRequest,
+    PlacementCenterServiceClient<Channel>,
+    GetOffsetDataReply,
+    placement_center_inner_services_client,
+    get_offset_data,
+    true
+);

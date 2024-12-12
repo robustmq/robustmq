@@ -42,7 +42,7 @@ mod tests {
             node_inner_addr: node_ip.clone(),
             extend_info: "".to_string(),
         };
-        match register_node(client_pool.clone(), &addrs, request).await {
+        match register_node(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -53,7 +53,7 @@ mod tests {
             group_name: group_name.clone(),
             cluster_name: cluster_name.clone(),
         };
-        match placement_get_share_sub_leader(client_pool.clone(), &addrs, request).await {
+        match placement_get_share_sub_leader(&client_pool, &addrs, request).await {
             Ok(data) => {
                 let mut flag = false;
                 if data.broker_id == node_id
@@ -74,7 +74,7 @@ mod tests {
             cluster_name: "".to_string(),
         };
         assert!(
-            placement_get_share_sub_leader(client_pool.clone(), &addrs, request)
+            placement_get_share_sub_leader(&client_pool, &addrs, request)
                 .await
                 .is_err()
         );
@@ -84,7 +84,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
         };
         assert!(
-            placement_get_share_sub_leader(client_pool.clone(), &addrs, request)
+            placement_get_share_sub_leader(&client_pool, &addrs, request)
                 .await
                 .is_err()
         );

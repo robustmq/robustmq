@@ -25,63 +25,6 @@ use crate::pool::ClientPool;
 
 pub mod call;
 
-/// Enum wrapper for all possible requests to the kv service
-#[derive(Debug, Clone)]
-pub enum KvServiceRequest {
-    Set(SetRequest),
-    Get(GetRequest),
-    Delete(DeleteRequest),
-    Exists(ExistsRequest),
-}
-
-/// Enum wrapper for all possible replies from the kv service
-#[derive(Debug, Clone)]
-pub enum KvServiceReply {
-    Set(SetReply),
-    Get(GetReply),
-    Delete(DeleteReply),
-    Exists(ExistsReply),
-}
-
-pub(super) async fn call_kv_service_once(
-    client_pool: &ClientPool,
-    addr: &str,
-    request: KvServiceRequest,
-) -> Result<KvServiceReply, CommonError> {
-    use KvServiceRequest::*;
-
-    match request {
-        Set(request) => {
-            let mut client = client_pool
-                .placement_center_kv_services_client(addr)
-                .await?;
-            let reply = client.set(request).await?;
-            Ok(KvServiceReply::Set(reply.into_inner()))
-        }
-        Get(request) => {
-            let mut client = client_pool
-                .placement_center_kv_services_client(addr)
-                .await?;
-            let reply = client.get(request).await?;
-            Ok(KvServiceReply::Get(reply.into_inner()))
-        }
-        Delete(request) => {
-            let mut client = client_pool
-                .placement_center_kv_services_client(addr)
-                .await?;
-            let reply = client.delete(request).await?;
-            Ok(KvServiceReply::Delete(reply.into_inner()))
-        }
-        Exists(request) => {
-            let mut client = client_pool
-                .placement_center_kv_services_client(addr)
-                .await?;
-            let reply = client.exists(request).await?;
-            Ok(KvServiceReply::Exists(reply.into_inner()))
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct KvServiceManager {
     pub addr: std::net::SocketAddr,
@@ -117,6 +60,42 @@ impl Manager for KvServiceManager {
         Ok(conn)
     }
 }
+
+impl_retriable_request!(
+    SetRequest,
+    KvServiceClient<Channel>,
+    SetReply,
+    placement_center_kv_services_client,
+    set,
+    true
+);
+
+impl_retriable_request!(
+    GetRequest,
+    KvServiceClient<Channel>,
+    GetReply,
+    placement_center_kv_services_client,
+    get,
+    true
+);
+
+impl_retriable_request!(
+    DeleteRequest,
+    KvServiceClient<Channel>,
+    DeleteReply,
+    placement_center_kv_services_client,
+    delete,
+    true
+);
+
+impl_retriable_request!(
+    ExistsRequest,
+    KvServiceClient<Channel>,
+    ExistsReply,
+    placement_center_kv_services_client,
+    exists,
+    true
+);
 
 #[cfg(test)]
 mod tests {}

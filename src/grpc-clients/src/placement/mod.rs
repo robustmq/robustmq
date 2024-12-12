@@ -17,15 +17,10 @@ use std::collections::HashSet;
 use std::time::Duration;
 
 use common_base::error::common::CommonError;
-use inner::{PlacementServiceReply, PlacementServiceRequest};
-use journal::{JournalServiceReply, JournalServiceRequest};
-use kv::{KvServiceReply, KvServiceRequest};
 use lazy_static::lazy_static;
 use log::debug;
-use mqtt::{MqttServiceReply, MqttServiceRequest};
 use tokio::time::sleep;
 
-use self::openraft::{OpenRaftServiceReply, OpenRaftServiceRequest};
 use crate::pool::ClientPool;
 use crate::{retry_sleep_time, retry_times};
 
@@ -94,26 +89,6 @@ pub enum PlacementCenterInterface {
     ChangeMembership,
 }
 
-/// Enum wrapper for all possible requests to the placement center
-#[derive(Debug, Clone)]
-pub enum PlacementCenterRequest {
-    Kv(KvServiceRequest),
-    Placement(PlacementServiceRequest),
-    Journal(JournalServiceRequest),
-    Mqtt(MqttServiceRequest),
-    OpenRaft(OpenRaftServiceRequest),
-}
-
-/// Enum wrapper for all possible replies from the placement center
-#[derive(Debug, Clone)]
-pub enum PlacementCenterReply {
-    Kv(KvServiceReply),
-    Placement(PlacementServiceReply),
-    Journal(JournalServiceReply),
-    Mqtt(MqttServiceReply),
-    OpenRaft(OpenRaftServiceReply),
-}
-
 impl PlacementCenterInterface {
     pub fn should_forward_to_leader(&self) -> bool {
         lazy_static! {
@@ -156,83 +131,6 @@ pub mod journal;
 pub mod kv;
 pub mod mqtt;
 pub mod openraft;
-
-fn is_write_request(_req: &PlacementCenterRequest) -> bool {
-    true
-}
-
-// NOTE: This is mostly similar to the `retry_call` function in the `utils.rs` file.
-// However, it's hard to work around the lifetime issue if we were to return the leader addr
-// as well. So we ended up duplicating the function here.
-async fn retry_placement_center_call<'a>(
-    client_pool: &'a ClientPool,
-    addrs: &'a [String],
-    request: PlacementCenterRequest,
-) -> Result<PlacementCenterReply, CommonError> {
-    if addrs.is_empty() {
-        return Err(CommonError::CommonError(
-            "Call address list cannot be empty".to_string(),
-        ));
-    }
-
-    let mut times = 1;
-    loop {
-        let index = times % addrs.len();
-        // let addr = &addrs[index];
-        let mut addr = Cow::Borrowed(&addrs[index]);
-        if is_write_request(&request) {
-            if let Some(leader_addr) = client_pool.get_leader_addr(&addr) {
-                addr = Cow::Owned(leader_addr.value().clone());
-            }
-        }
-
-        let result = call_once(client_pool, &addr, request.clone()).await;
-
-        match result {
-            Ok(data) => {
-                return Ok(data);
-            }
-            Err(e) => {
-                debug!("{}", e);
-                if times > retry_times() {
-                    return Err(e);
-                }
-                times += 1;
-            }
-        }
-
-        sleep(Duration::from_secs(retry_sleep_time(times))).await;
-    }
-}
-
-async fn call_once(
-    client_pool: &ClientPool,
-    addr: &str,
-    request: PlacementCenterRequest,
-) -> Result<PlacementCenterReply, CommonError> {
-    match request {
-        PlacementCenterRequest::Kv(request) => {
-            let reply = kv::call_kv_service_once(client_pool, addr, request).await?;
-            Ok(PlacementCenterReply::Kv(reply))
-        }
-        PlacementCenterRequest::Placement(request) => {
-            let reply = inner::call_placement_service_once(client_pool, addr, request).await?;
-            Ok(PlacementCenterReply::Placement(reply))
-        }
-        PlacementCenterRequest::Journal(request) => {
-            let reply = journal::call_journal_service_once(client_pool, addr, request).await?;
-            Ok(PlacementCenterReply::Journal(reply))
-        }
-        PlacementCenterRequest::Mqtt(request) => {
-            let reply = mqtt::call_mqtt_service_once(client_pool, addr, request).await?;
-            Ok(PlacementCenterReply::Mqtt(reply))
-        }
-        PlacementCenterRequest::OpenRaft(request) => {
-            let reply = openraft::call_open_raft_service_once(client_pool, addr, request).await?;
-            Ok(PlacementCenterReply::OpenRaft(reply))
-        }
-    }
-}
 
 #[cfg(test)]
 mod test {

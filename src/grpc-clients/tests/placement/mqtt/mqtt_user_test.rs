@@ -47,7 +47,7 @@ mod tests {
             user_name: mqtt_user.username.clone(),
             content: mqtt_user.encode(),
         };
-        match placement_create_user(client_pool.clone(), &addrs, request).await {
+        match placement_create_user(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -59,7 +59,7 @@ mod tests {
             user_name: mqtt_user.username.clone(),
         };
 
-        match placement_list_user(client_pool.clone(), &addrs, request).await {
+        match placement_list_user(&client_pool, &addrs, request).await {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.users {
@@ -80,7 +80,7 @@ mod tests {
             user_name: mqtt_user.username.clone(),
         };
 
-        match placement_delete_user(client_pool.clone(), &addrs, request).await {
+        match placement_delete_user(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -92,7 +92,7 @@ mod tests {
             user_name: mqtt_user.username.clone(),
         };
 
-        match placement_list_user(client_pool.clone(), &addrs, request).await {
+        match placement_list_user(&client_pool, &addrs, request).await {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.users {

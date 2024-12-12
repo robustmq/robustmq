@@ -20,8 +20,6 @@ use protocol::placement_center::placement_center_kv::{
     SetRequest,
 };
 
-use super::{KvServiceReply, KvServiceRequest};
-use crate::placement::{retry_placement_center_call, PlacementCenterReply, PlacementCenterRequest};
 use crate::pool::ClientPool;
 
 macro_rules! generate_kv_service_call {
@@ -31,11 +29,7 @@ macro_rules! generate_kv_service_call {
             addrs: &[std::net::SocketAddr],
             request: $req_ty,
         ) -> Result<$rep_ty, CommonError> {
-            let request = PlacementCenterRequest::Kv(KvServiceRequest::$variant(request));
-            match retry_placement_center_call(&client_pool, addrs, request).await? {
-                PlacementCenterReply::Kv(KvServiceReply::$variant(reply)) => Ok(reply),
-                _ => unreachable!("Reply type mismatch"),
-            }
+            $crate::utils::retry_call(client_pool, addrs, request).await
         }
     };
 }

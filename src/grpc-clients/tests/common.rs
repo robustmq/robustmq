@@ -14,10 +14,12 @@
 
 #![allow(dead_code)]
 
-pub fn get_placement_addr() -> String {
-    "127.0.0.1:1228".to_string()
+use std::net::SocketAddr;
+
+pub fn get_placement_addr() -> SocketAddr {
+    "127.0.0.1:1228".parse().unwrap()
 }
 
-pub fn get_mqtt_broker_addr() -> String {
-    "127.0.0.1:9981".to_string()
+pub fn get_mqtt_broker_addr() -> SocketAddr {
+    "127.0.0.1:9981".parse().unwrap()
 }

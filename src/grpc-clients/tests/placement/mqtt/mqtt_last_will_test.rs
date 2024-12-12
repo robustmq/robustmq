@@ -43,7 +43,7 @@ mod tests {
             client_id: client_id.clone(),
             last_will_message: last_will_message.encode(),
         };
-        match placement_save_last_will_message(client_pool.clone(), &addrs, request).await {
+        match placement_save_last_will_message(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);

@@ -28,6 +28,8 @@ pub(crate) trait RetriableRequest: Clone {
     type Client;
     type Response;
     type Error: std::error::Error;
+
+    const IS_WRITE_REQUEST: bool = false;
     
     async fn get_client(pool: &ClientPool, addr: SocketAddr) -> Result<impl DerefMut<Target = Self::Client>, Self::Error>;
 
@@ -52,7 +54,12 @@ where
     let mut times = 1;
     loop {
         let index = times % addrs.len();
-        let addr = addrs[index];
+        let mut addr = addrs[index];
+        if Req::IS_WRITE_REQUEST {
+            if let Some(leader_addr) = client_pool.get_leader_addr(addr) {
+                addr = *leader_addr.value();
+            }
+        }
         let mut client = Req::get_client(client_pool, addr).await
             .map_err(Into::into)?;
         let result = Req::call_once(client.deref_mut(), request.clone()).await;

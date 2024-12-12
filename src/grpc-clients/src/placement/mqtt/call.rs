@@ -29,8 +29,6 @@ use protocol::placement_center::placement_center_mqtt::{
     UpdateSessionReply, UpdateSessionRequest,
 };
 
-use super::{MqttServiceReply, MqttServiceRequest};
-use crate::placement::{retry_placement_center_call, PlacementCenterReply, PlacementCenterRequest};
 use crate::pool::ClientPool;
 
 macro_rules! generate_mqtt_service_call {
@@ -40,11 +38,7 @@ macro_rules! generate_mqtt_service_call {
             addrs: &[std::net::SocketAddr],
             request: $req_ty,
         ) -> Result<$rep_ty, CommonError> {
-            let request = PlacementCenterRequest::Mqtt(MqttServiceRequest::$variant(request));
-            match retry_placement_center_call(&client_pool, addrs, request).await? {
-                PlacementCenterReply::Mqtt(MqttServiceReply::$variant(reply)) => Ok(reply),
-                _ => unreachable!("Reply type mismatch"),
-            }
+            $crate::utils::retry_call(client_pool, addrs, request).await
         }
     };
 }

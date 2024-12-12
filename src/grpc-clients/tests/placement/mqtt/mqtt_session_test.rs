@@ -56,7 +56,7 @@ mod tests {
             session: MqttSession::encode(&mqtt_session),
         };
 
-        match placement_create_session(client_pool.clone(), &addrs, request).await {
+        match placement_create_session(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -68,7 +68,7 @@ mod tests {
             client_id: mqtt_session.client_id.clone(),
         };
 
-        match placement_list_session(client_pool.clone(), &addrs, request).await {
+        match placement_list_session(&client_pool, &addrs, request).await {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.sessions {
@@ -97,7 +97,7 @@ mod tests {
             distinct_time: mqtt_session.distinct_time.unwrap(),
         };
 
-        match placement_update_session(client_pool.clone(), &addrs, request).await {
+        match placement_update_session(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -109,7 +109,7 @@ mod tests {
             client_id: mqtt_session.client_id.clone(),
         };
 
-        match placement_list_session(client_pool.clone(), &addrs, request).await {
+        match placement_list_session(&client_pool, &addrs, request).await {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.sessions {
@@ -130,7 +130,7 @@ mod tests {
             client_id: mqtt_session.client_id.clone(),
         };
 
-        match placement_delete_session(client_pool.clone(), &addrs, request).await {
+        match placement_delete_session(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -142,7 +142,7 @@ mod tests {
             client_id: mqtt_session.client_id.clone(),
         };
 
-        match placement_list_session(client_pool.clone(), &addrs, request).await {
+        match placement_list_session(&client_pool, &addrs, request).await {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.sessions {

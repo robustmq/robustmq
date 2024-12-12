@@ -30,108 +30,6 @@ use crate::pool::ClientPool;
 
 pub mod call;
 
-/// Enum wrapper for all possible requests to the journal service
-#[derive(Debug, Clone)]
-pub enum JournalServiceRequest {
-    ListShard(ListShardRequest),
-    CreateShard(CreateShardRequest),
-    DeleteShard(DeleteShardRequest),
-    ListSegment(ListSegmentRequest),
-    CreateSegment(CreateNextSegmentRequest),
-    DeleteSegment(DeleteSegmentRequest),
-    UpdateSegmentStatus(UpdateSegmentStatusRequest),
-    ListSegmentMeta(ListSegmentMetaRequest),
-    UpdateSegmentMeta(UpdateSegmentMetaRequest),
-}
-
-/// Enum wrapper for all possible replies from the journal service
-#[derive(Debug, Clone)]
-pub enum JournalServiceReply {
-    ListShard(ListShardReply),
-    CreateShard(CreateShardReply),
-    DeleteShard(DeleteShardReply),
-    ListSegment(ListSegmentReply),
-    CreateSegment(CreateNextSegmentReply),
-    DeleteSegment(DeleteSegmentReply),
-    UpdateSegmentStatus(UpdateSegmentStatusReply),
-    ListSegmentMeta(ListSegmentMetaReply),
-    UpdateSegmentMeta(UpdateSegmentMetaReply),
-}
-
-pub(super) async fn call_journal_service_once(
-    client_pool: &ClientPool,
-    addr: &str,
-    request: JournalServiceRequest,
-) -> Result<JournalServiceReply, CommonError> {
-    use JournalServiceRequest::*;
-
-    match request {
-        ListShard(request) => {
-            let mut client = client_pool
-                .placement_center_journal_services_client(addr)
-                .await?;
-            let reply = client.list_shard(request).await?;
-            Ok(JournalServiceReply::ListShard(reply.into_inner()))
-        }
-        CreateShard(request) => {
-            let mut client = client_pool
-                .placement_center_journal_services_client(addr)
-                .await?;
-            let reply = client.create_shard(request).await?;
-            Ok(JournalServiceReply::CreateShard(reply.into_inner()))
-        }
-        DeleteShard(request) => {
-            let mut client = client_pool
-                .placement_center_journal_services_client(addr)
-                .await?;
-            let reply = client.delete_shard(request).await?;
-            Ok(JournalServiceReply::DeleteShard(reply.into_inner()))
-        }
-        ListSegment(request) => {
-            let mut client = client_pool
-                .placement_center_journal_services_client(addr)
-                .await?;
-            let reply = client.list_segment(request).await?;
-            Ok(JournalServiceReply::ListSegment(reply.into_inner()))
-        }
-        CreateSegment(request) => {
-            let mut client = client_pool
-                .placement_center_journal_services_client(addr)
-                .await?;
-            let reply = client.create_next_segment(request).await?;
-            Ok(JournalServiceReply::CreateSegment(reply.into_inner()))
-        }
-        DeleteSegment(request) => {
-            let mut client = client_pool
-                .placement_center_journal_services_client(addr)
-                .await?;
-            let reply = client.delete_segment(request).await?;
-            Ok(JournalServiceReply::DeleteSegment(reply.into_inner()))
-        }
-        UpdateSegmentStatus(request) => {
-            let mut client = client_pool
-                .placement_center_journal_services_client(addr)
-                .await?;
-            let reply = client.update_segment_status(request).await?;
-            Ok(JournalServiceReply::UpdateSegmentStatus(reply.into_inner()))
-        }
-        ListSegmentMeta(request) => {
-            let mut client = client_pool
-                .placement_center_journal_services_client(addr)
-                .await?;
-            let reply = client.list_segment_meta(request).await?;
-            Ok(JournalServiceReply::ListSegmentMeta(reply.into_inner()))
-        }
-        UpdateSegmentMeta(request) => {
-            let mut client = client_pool
-                .placement_center_journal_services_client(addr)
-                .await?;
-            let reply = client.update_segment_meta(request).await?;
-            Ok(JournalServiceReply::UpdateSegmentMeta(reply.into_inner()))
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct JournalServiceManager {
     pub addr: std::net::SocketAddr,
@@ -167,3 +65,84 @@ impl Manager for JournalServiceManager {
         Ok(conn)
     }
 }
+
+impl_retriable_request!(
+    ListShardRequest,
+    EngineServiceClient<Channel>,
+    ListShardReply,
+    placement_center_journal_services_client,
+    list_shard,
+    true
+);
+
+impl_retriable_request!(
+    CreateShardRequest,
+    EngineServiceClient<Channel>,
+    CreateShardReply,
+    placement_center_journal_services_client,
+    create_shard,
+    true
+);
+
+impl_retriable_request!(
+    DeleteShardRequest,
+    EngineServiceClient<Channel>,
+    DeleteShardReply,
+    placement_center_journal_services_client,
+    delete_shard,
+    true
+);
+
+impl_retriable_request!(
+    ListSegmentRequest,
+    EngineServiceClient<Channel>,
+    ListSegmentReply,
+    placement_center_journal_services_client,
+    list_segment,
+    true
+);
+
+impl_retriable_request!(
+    CreateNextSegmentRequest,
+    EngineServiceClient<Channel>,
+    CreateNextSegmentReply,
+    placement_center_journal_services_client,
+    create_next_segment,
+    true
+);
+
+impl_retriable_request!(
+    DeleteSegmentRequest,
+    EngineServiceClient<Channel>,
+    DeleteSegmentReply,
+    placement_center_journal_services_client,
+    delete_segment,
+    true
+);
+
+impl_retriable_request!(
+    UpdateSegmentStatusRequest,
+    EngineServiceClient<Channel>,
+    UpdateSegmentStatusReply,
+    placement_center_journal_services_client,
+    update_segment_status,
+    true
+);
+
+impl_retriable_request!(
+    ListSegmentMetaRequest,
+    EngineServiceClient<Channel>,
+    ListSegmentMetaReply,
+    placement_center_journal_services_client,
+    list_segment_meta,
+    true
+);
+
+impl_retriable_request!(
+    UpdateSegmentMetaRequest,
+    EngineServiceClient<Channel>,
+    UpdateSegmentMetaReply,
+    placement_center_journal_services_client,
+    update_segment_meta,
+    true
+);
