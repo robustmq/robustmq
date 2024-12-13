@@ -13,14 +13,25 @@
 // limitations under the License.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use common_base::tools::now_mills;
+use dashmap::DashMap;
+use log::error;
 use metadata_struct::adapter::read_config::ReadConfig;
+use protocol::journal_server::journal_engine::{
+    ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
+};
+use tokio::select;
 use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::time::sleep;
 
+use crate::cache::{get_active_segment, get_segment_leader, MetadataCache};
 use crate::connection::ConnectionManager;
 use crate::error::JournalClientError;
+use crate::service::batch_read;
 
+#[derive(Clone)]
 pub struct ReadShardByOffset {
     pub namespace: String,
     pub shard_name: String,
@@ -34,24 +45,32 @@ pub struct ReadMessageData {
     pub offset: u64,
     pub key: String,
     pub value: Vec<u8>,
-    pub tads: Vec<String>,
+    pub tags: Vec<String>,
 }
 
 pub struct Reader {
+    metadata_cache: Arc<MetadataCache>,
     connection_manager: Arc<ConnectionManager>,
     data_sender: Sender<ReadMessageData>,
     data_recv: Receiver<ReadMessageData>,
     group_name: String,
+    stop_send: Option<Sender<bool>>,
 }
 
 impl Reader {
-    pub fn new(connection_manager: Arc<ConnectionManager>, group_name: String) -> Self {
-        let (data_sender, data_recv) = mpsc::channel::<ReadMessageData>(1000);
+    pub fn new(
+        metadata_cache: Arc<MetadataCache>,
+        connection_manager: Arc<ConnectionManager>,
+        group_name: String,
+    ) -> Self {
+        let (data_sender, data_recv) = mpsc::channel::<ReadMessageData>(500);
         Reader {
+            metadata_cache,
             connection_manager,
             data_sender,
             data_recv,
             group_name,
+            stop_send: None,
         }
     }
 
@@ -60,10 +79,18 @@ impl Reader {
         shards: Vec<ReadShardByOffset>,
         read_config: ReadConfig,
     ) {
-        start_read_thread_by_group(self.connection_manager.clone(), self.data_sender.clone());
+        let (stop_send, stop_recv) = mpsc::channel::<bool>(1);
+        start_read_thread_by_group(
+            self.connection_manager.clone(),
+            self.metadata_cache.clone(),
+            self.data_sender.clone(),
+            shards,
+            read_config,
+            stop_recv,
+        );
     }
 
-    pub async fn read(&mut self, group: &str) -> Result<Vec<ReadMessageData>, JournalClientError> {
+    pub async fn read(&mut self) -> Result<Vec<ReadMessageData>, JournalClientError> {
         let mut results: Vec<ReadMessageData> = Vec::new();
         let start_time = now_mills();
         loop {
@@ -76,11 +103,130 @@ impl Reader {
         }
         Ok(results)
     }
+
+    pub async fn close(&self) {
+        if let Some(stop) = self.stop_send.clone() {
+            if let Err(e) = stop.send(true).await {
+                error!("{}", e);
+            }
+        }
+    }
 }
 
-pub fn start_read_thread_by_group(
+fn start_read_thread_by_group(
     connection_manager: Arc<ConnectionManager>,
+    metadata_cache: Arc<MetadataCache>,
     data_sender: Sender<ReadMessageData>,
+    shards: Vec<ReadShardByOffset>,
+    read_config: ReadConfig,
+    mut stop_recv: Receiver<bool>,
 ) {
-    tokio::spawn(async move {});
+    tokio::spawn(async move {
+        loop {
+            select! {
+                val = stop_recv.recv()=>{
+                    if let Some(flag) = val {
+
+                    }
+                },
+                val = async_read_data(&connection_manager, &metadata_cache, &shards, &read_config)=>{
+                    match val{
+                        Ok(messages) => {
+                            if messages.is_empty() {
+                                sleep(Duration::from_millis(100)).await;
+                                continue;
+                            }
+                            for raw in messages{
+                                if let Err(e) = data_sender.send(raw).await{
+                                    error!("{}",e);
+                                }
+                            }
+                        },
+                        Err(e) =>{
+                            sleep(Duration::from_millis(100)).await;
+                            error!("{}",e);
+                        }
+                    }
+
+                }
+            }
+        }
+    });
+}
+
+async fn async_read_data(
+    connection_manager: &Arc<ConnectionManager>,
+    metadata_cache: &Arc<MetadataCache>,
+    shards: &Vec<ReadShardByOffset>,
+    read_config: &ReadConfig,
+) -> Result<Vec<ReadMessageData>, JournalClientError> {
+    let leader_shards = group_by_reader_leader(&connection_manager, &metadata_cache, &shards).await;
+    let mut results = Vec::new();
+    for (leader_id, shards) in leader_shards {
+        let mut messages = Vec::new();
+        for raw in shards {
+            messages.push(ReadReqMessage {
+                namespace: raw.1.namespace,
+                shard_name: raw.1.shard_name,
+                segment: raw.0,
+                ready_type: ReadType::Offset.into(),
+                filter: Some(ReadReqFilter {
+                    offset: raw.1.offset,
+                    ..Default::default()
+                }),
+                options: Some(ReadReqOptions {
+                    max_size: read_config.max_size,
+                    max_record: read_config.max_record_num,
+                }),
+            });
+        }
+
+        let body = ReadReqBody { messages };
+        let result = batch_read(&connection_manager, leader_id, body).await?;
+        for shard_data in result.messages {
+            for message in shard_data.messages {
+                let val = ReadMessageData {
+                    namespace: shard_data.namespace.clone(),
+                    shard_name: shard_data.shard_name.clone(),
+                    segment: shard_data.segment,
+                    offset: message.offset,
+                    key: message.key,
+                    value: message.value,
+                    tags: message.tags,
+                };
+                results.push(val);
+            }
+        }
+    }
+    Ok(results)
+}
+
+async fn group_by_reader_leader(
+    connection_manager: &Arc<ConnectionManager>,
+    metadata_cache: &Arc<MetadataCache>,
+    shards: &Vec<ReadShardByOffset>,
+) -> DashMap<u64, Vec<(u32, ReadShardByOffset)>> {
+    let result: DashMap<u64, Vec<(u32, ReadShardByOffset)>> = DashMap::with_capacity(2);
+    for shard in shards {
+        let segment = get_active_segment(
+            metadata_cache,
+            connection_manager,
+            &shard.namespace,
+            &shard.shard_name,
+        )
+        .await;
+        let leader = get_segment_leader(
+            metadata_cache,
+            connection_manager,
+            &shard.namespace,
+            &shard.shard_name,
+        )
+        .await;
+        if let Some(mut node) = result.get_mut(&leader) {
+            node.push((segment, shard.to_owned()));
+        } else {
+            result.insert(leader, vec![(segment, shard.to_owned())]);
+        }
+    }
+    result
 }
