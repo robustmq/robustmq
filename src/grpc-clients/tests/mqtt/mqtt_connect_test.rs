@@ -27,7 +27,7 @@ mod tests {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_mqtt_broker_addr()];
 
-        match mqtt_broker_list_connection(client_pool, &addrs, ListConnectionRequest {}).await {
+        match mqtt_broker_list_connection(&client_pool, &addrs, ListConnectionRequest {}).await {
             Ok(data) => {
                 println!("{:?}", data);
             }

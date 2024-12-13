@@ -12,37 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use common_base::error::common::CommonError;
 use protocol::journal_server::journal_admin::{
     ListSegmentReply, ListSegmentRequest, ListShardReply, ListShardRequest,
 };
 
-use crate::journal::{call_once, JournalEngineReply, JournalEngineRequest};
 use crate::pool::ClientPool;
 use crate::utils::retry_call;
 
 pub async fn journal_admin_list_shard(
-    client_pool: Arc<ClientPool>,
-    addrs: &[String],
+    client_pool: &ClientPool,
+    addrs: &[impl AsRef<str>],
     request: ListShardRequest,
 ) -> Result<ListShardReply, CommonError> {
-    let request = JournalEngineRequest::ListShard(request);
-    match retry_call(&client_pool, addrs, request, call_once).await? {
-        JournalEngineReply::ListShard(reply) => Ok(reply),
-        _ => unreachable!("Reply type mismatch"),
-    }
+    retry_call(client_pool, addrs, request).await
 }
 
 pub async fn journal_admin_list_segment(
-    client_pool: Arc<ClientPool>,
-    addrs: &[String],
+    client_pool: &ClientPool,
+    addrs: &[impl AsRef<str>],
     request: ListSegmentRequest,
 ) -> Result<ListSegmentReply, CommonError> {
-    let request = JournalEngineRequest::ListSegment(request);
-    match retry_call(&client_pool, addrs, request, call_once).await? {
-        JournalEngineReply::ListSegment(reply) => Ok(reply),
-        _ => unreachable!("Reply type mismatch"),
-    }
+    retry_call(client_pool, addrs, request).await
 }

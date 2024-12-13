@@ -57,14 +57,14 @@ mod tests {
             content: mqtt_topic.encode(),
         };
 
-        placement_create_topic(client_pool.clone(), &addrs, request)
+        placement_create_topic(&client_pool, &addrs, request)
             .await
             .unwrap();
 
         contain_topic(
             cluster_name.clone(),
             topic_name.clone(),
-            client_pool.clone(),
+            &client_pool,
             &addrs,
             mqtt_topic.clone(),
             true,
@@ -97,14 +97,14 @@ mod tests {
             retain_message_expired_at,
         };
 
-        placement_set_topic_retain_message(client_pool.clone(), &addrs, request)
+        placement_set_topic_retain_message(&client_pool, &addrs, request)
             .await
             .unwrap();
 
         contain_topic(
             cluster_name.clone(),
             topic_name.clone(),
-            client_pool.clone(),
+            &client_pool,
             &addrs,
             mqtt_topic.clone(),
             true,
@@ -116,14 +116,14 @@ mod tests {
             topic_name: mqtt_topic.topic_name.clone(),
         };
 
-        placement_delete_topic(client_pool.clone(), &addrs, request)
+        placement_delete_topic(&client_pool, &addrs, request)
             .await
             .unwrap();
 
         contain_topic(
             cluster_name.clone(),
             topic_name.clone(),
-            client_pool.clone(),
+            &client_pool,
             &addrs,
             mqtt_topic.clone(),
             false,
@@ -134,8 +134,8 @@ mod tests {
     async fn contain_topic(
         cluster_name: String,
         topic_name: String,
-        client_pool: Arc<ClientPool>,
-        addrs: &[String],
+        client_pool: &ClientPool,
+        addrs: &[impl AsRef<str>],
         mqtt_topic: MqttTopic,
         contain: bool,
     ) {

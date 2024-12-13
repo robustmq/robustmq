@@ -283,7 +283,7 @@ async fn call_journal_update_cache(
         data: data.data.clone(),
     };
 
-    match journal_inner_update_cache(client_pool.clone(), &[addr], request).await {
+    match journal_inner_update_cache(&client_pool, &[addr], request).await {
         Ok(resp) => {
             debug!("Calling Journal Engine returns information:{:?}", resp);
         }

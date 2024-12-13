@@ -30,219 +30,9 @@ use protocol::placement_center::placement_center_mqtt::{
 };
 use tonic::transport::Channel;
 
-use crate::pool::ClientPool;
+use crate::macros::impl_retriable_request;
 
 pub mod call;
-
-/// Enum wrapper for all possible requests to the mqtt service
-#[derive(Debug, Clone)]
-pub enum MqttServiceRequest {
-    GetShareSubLeader(GetShareSubLeaderRequest),
-    CreateUser(CreateUserRequest),
-    DeleteUser(DeleteUserRequest),
-    ListUser(ListUserRequest),
-    CreateTopic(CreateTopicRequest),
-    DeleteTopic(DeleteTopicRequest),
-    ListTopic(ListTopicRequest),
-    SetTopicRetainMessage(SetTopicRetainMessageRequest),
-    SetNxExclusiveTopic(SetExclusiveTopicRequest),
-    DeleteExclusiveTopic(DeleteExclusiveTopicRequest),
-    CreateSession(CreateSessionRequest),
-    DeleteSession(DeleteSessionRequest),
-    ListSession(ListSessionRequest),
-    UpdateSession(UpdateSessionRequest),
-    SaveLastWillMessage(SaveLastWillMessageRequest),
-    CreateAcl(CreateAclRequest),
-    DeleteAcl(DeleteAclRequest),
-    ListAcl(ListAclRequest),
-    CreateBlacklist(CreateBlacklistRequest),
-    DeleteBlacklist(DeleteBlacklistRequest),
-    ListBlacklist(ListBlacklistRequest),
-}
-
-/// Enum wrapper for all possible replies from the mqtt service
-#[derive(Debug, Clone)]
-pub enum MqttServiceReply {
-    GetShareSubLeader(GetShareSubLeaderReply),
-    CreateUser(CreateUserReply),
-    DeleteUser(DeleteUserReply),
-    ListUser(ListUserReply),
-    CreateTopic(CreateTopicReply),
-    DeleteTopic(DeleteTopicReply),
-    ListTopic(ListTopicReply),
-    SetTopicRetainMessage(SetTopicRetainMessageReply),
-    SetNxExclusiveTopic(SetExclusiveTopicReply),
-    DeleteExclusiveTopic(DeleteExclusiveTopicReply),
-    CreateSession(CreateSessionReply),
-    DeleteSession(DeleteSessionReply),
-    ListSession(ListSessionReply),
-    UpdateSession(UpdateSessionReply),
-    SaveLastWillMessage(SaveLastWillMessageReply),
-    CreateAcl(CreateAclReply),
-    DeleteAcl(DeleteAclReply),
-    ListAcl(ListAclReply),
-    CreateBlacklist(CreateBlacklistReply),
-    DeleteBlacklist(DeleteBlacklistReply),
-    ListBlacklist(ListBlacklistReply),
-}
-
-pub(super) async fn call_mqtt_service_once(
-    client_pool: &ClientPool,
-    addr: &str,
-    request: MqttServiceRequest,
-) -> Result<MqttServiceReply, CommonError> {
-    use MqttServiceRequest::*;
-
-    match request {
-        GetShareSubLeader(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.get_share_sub_leader(request).await?;
-            Ok(MqttServiceReply::GetShareSubLeader(reply.into_inner()))
-        }
-        CreateUser(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.create_user(request).await?;
-            Ok(MqttServiceReply::CreateUser(reply.into_inner()))
-        }
-        DeleteUser(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.delete_user(request).await?;
-            Ok(MqttServiceReply::DeleteUser(reply.into_inner()))
-        }
-        ListUser(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.list_user(request).await?;
-            Ok(MqttServiceReply::ListUser(reply.into_inner()))
-        }
-        CreateTopic(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.create_topic(request).await?;
-            Ok(MqttServiceReply::CreateTopic(reply.into_inner()))
-        }
-        DeleteTopic(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.delete_topic(request).await?;
-            Ok(MqttServiceReply::DeleteTopic(reply.into_inner()))
-        }
-        ListTopic(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.list_topic(request).await?;
-            Ok(MqttServiceReply::ListTopic(reply.into_inner()))
-        }
-        SetTopicRetainMessage(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.set_topic_retain_message(request).await?;
-            Ok(MqttServiceReply::SetTopicRetainMessage(reply.into_inner()))
-        }
-        SetNxExclusiveTopic(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.set_nx_exclusive_topic(request).await?;
-            Ok(MqttServiceReply::SetNxExclusiveTopic(reply.into_inner()))
-        }
-        DeleteExclusiveTopic(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.delete_exclusive_topic(request).await?;
-            Ok(MqttServiceReply::DeleteExclusiveTopic(reply.into_inner()))
-        }
-        CreateSession(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.create_session(request).await?;
-            Ok(MqttServiceReply::CreateSession(reply.into_inner()))
-        }
-        DeleteSession(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.delete_session(request).await?;
-            Ok(MqttServiceReply::DeleteSession(reply.into_inner()))
-        }
-        ListSession(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.list_session(request).await?;
-            Ok(MqttServiceReply::ListSession(reply.into_inner()))
-        }
-        UpdateSession(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.update_session(request).await?;
-            Ok(MqttServiceReply::UpdateSession(reply.into_inner()))
-        }
-        SaveLastWillMessage(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.save_last_will_message(request).await?;
-            Ok(MqttServiceReply::SaveLastWillMessage(reply.into_inner()))
-        }
-        CreateAcl(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.create_acl(request).await?;
-            Ok(MqttServiceReply::CreateAcl(reply.into_inner()))
-        }
-        DeleteAcl(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.delete_acl(request).await?;
-            Ok(MqttServiceReply::DeleteAcl(reply.into_inner()))
-        }
-        ListAcl(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.list_acl(request).await?;
-            Ok(MqttServiceReply::ListAcl(reply.into_inner()))
-        }
-        CreateBlacklist(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.create_blacklist(request).await?;
-            Ok(MqttServiceReply::CreateBlacklist(reply.into_inner()))
-        }
-        DeleteBlacklist(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.delete_blacklist(request).await?;
-            Ok(MqttServiceReply::DeleteBlacklist(reply.into_inner()))
-        }
-        ListBlacklist(request) => {
-            let mut client = client_pool
-                .placement_center_mqtt_services_client(addr)
-                .await?;
-            let reply = client.list_blacklist(request).await?;
-            Ok(MqttServiceReply::ListBlacklist(reply.into_inner()))
-        }
-    }
-}
 
 #[derive(Clone)]
 pub struct MqttServiceManager {
@@ -279,3 +69,192 @@ impl Manager for MqttServiceManager {
         Ok(conn)
     }
 }
+
+impl_retriable_request!(
+    GetShareSubLeaderRequest,
+    MqttServiceClient<Channel>,
+    GetShareSubLeaderReply,
+    placement_center_mqtt_services_client,
+    get_share_sub_leader,
+    true
+);
+
+impl_retriable_request!(
+    CreateUserRequest,
+    MqttServiceClient<Channel>,
+    CreateUserReply,
+    placement_center_mqtt_services_client,
+    create_user,
+    true
+);
+
+impl_retriable_request!(
+    DeleteUserRequest,
+    MqttServiceClient<Channel>,
+    DeleteUserReply,
+    placement_center_mqtt_services_client,
+    delete_user,
+    true
+);
+
+impl_retriable_request!(
+    ListUserRequest,
+    MqttServiceClient<Channel>,
+    ListUserReply,
+    placement_center_mqtt_services_client,
+    list_user,
+    true
+);
+
+impl_retriable_request!(
+    CreateTopicRequest,
+    MqttServiceClient<Channel>,
+    CreateTopicReply,
+    placement_center_mqtt_services_client,
+    create_topic,
+    true
+);
+
+impl_retriable_request!(
+    DeleteTopicRequest,
+    MqttServiceClient<Channel>,
+    DeleteTopicReply,
+    placement_center_mqtt_services_client,
+    delete_topic,
+    true
+);
+
+impl_retriable_request!(
+    ListTopicRequest,
+    MqttServiceClient<Channel>,
+    ListTopicReply,
+    placement_center_mqtt_services_client,
+    list_topic,
+    true
+);
+
+impl_retriable_request!(
+    SetTopicRetainMessageRequest,
+    MqttServiceClient<Channel>,
+    SetTopicRetainMessageReply,
+    placement_center_mqtt_services_client,
+    set_topic_retain_message,
+    true
+);
+
+impl_retriable_request!(
+    SetExclusiveTopicRequest,
+    MqttServiceClient<Channel>,
+    SetExclusiveTopicReply,
+    placement_center_mqtt_services_client,
+    set_nx_exclusive_topic,
+    true
+);
+
+impl_retriable_request!(
+    DeleteExclusiveTopicRequest,
+    MqttServiceClient<Channel>,
+    DeleteExclusiveTopicReply,
+    placement_center_mqtt_services_client,
+    delete_exclusive_topic,
+    true
+);
+
+impl_retriable_request!(
+    CreateSessionRequest,
+    MqttServiceClient<Channel>,
+    CreateSessionReply,
+    placement_center_mqtt_services_client,
+    create_session,
+    true
+);
+
+impl_retriable_request!(
+    DeleteSessionRequest,
+    MqttServiceClient<Channel>,
+    DeleteSessionReply,
+    placement_center_mqtt_services_client,
+    delete_session,
+    true
+);
+
+impl_retriable_request!(
+    ListSessionRequest,
+    MqttServiceClient<Channel>,
+    ListSessionReply,
+    placement_center_mqtt_services_client,
+    list_session,
+    true
+);
+
+impl_retriable_request!(
+    UpdateSessionRequest,
+    MqttServiceClient<Channel>,
+    UpdateSessionReply,
+    placement_center_mqtt_services_client,
+    update_session,
+    true
+);
+
+impl_retriable_request!(
+    SaveLastWillMessageRequest,
+    MqttServiceClient<Channel>,
+    SaveLastWillMessageReply,
+    placement_center_mqtt_services_client,
+    save_last_will_message,
+    true
+);
+
+impl_retriable_request!(
+    CreateAclRequest,
+    MqttServiceClient<Channel>,
+    CreateAclReply,
+    placement_center_mqtt_services_client,
+    create_acl,
+    true
+);
+
+impl_retriable_request!(
+    DeleteAclRequest,
+    MqttServiceClient<Channel>,
+    DeleteAclReply,
+    placement_center_mqtt_services_client,
+    delete_acl,
+    true
+);
+
+impl_retriable_request!(
+    ListAclRequest,
+    MqttServiceClient<Channel>,
+    ListAclReply,
+    placement_center_mqtt_services_client,
+    list_acl,
+    true
+);
+
+impl_retriable_request!(
+    CreateBlacklistRequest,
+    MqttServiceClient<Channel>,
+    CreateBlacklistReply,
+    placement_center_mqtt_services_client,
+    create_blacklist,
+    true
+);
+
+impl_retriable_request!(
+    DeleteBlacklistRequest,
+    MqttServiceClient<Channel>,
+    DeleteBlacklistReply,
+    placement_center_mqtt_services_client,
+    delete_blacklist,
+    true
+);
+
+impl_retriable_request!(
+    ListBlacklistRequest,
+    MqttServiceClient<Channel>,
+    ListBlacklistReply,
+    placement_center_mqtt_services_client,
+    list_blacklist,
+    true
+);

@@ -70,39 +70,37 @@ impl MqttBrokerCommand {
         let client_pool = Arc::new(ClientPool::new(100));
         match params.action {
             MqttActionType::Status => {
-                self.status(client_pool.clone(), params.clone()).await;
+                self.status(&client_pool, params.clone()).await;
             }
             MqttActionType::CreateUser(ref request) => {
-                self.create_user(client_pool.clone(), params.clone(), request.clone())
+                self.create_user(&client_pool, params.clone(), request.clone())
                     .await;
             }
             MqttActionType::DeleteUser(ref request) => {
-                self.delete_user(client_pool.clone(), params.clone(), request.clone())
+                self.delete_user(&client_pool, params.clone(), request.clone())
                     .await;
             }
             MqttActionType::ListUser => {
-                self.list_user(client_pool.clone(), params.clone()).await;
+                self.list_user(&client_pool, params.clone()).await;
             }
             MqttActionType::ListConnection => {
-                self.list_connections(client_pool.clone(), params.clone())
-                    .await;
+                self.list_connections(&client_pool, params.clone()).await;
             }
             MqttActionType::EnableSlowSubscribe(ref request) => {
-                self.enable_slow_subscribe(client_pool.clone(), params.clone(), request.clone())
+                self.enable_slow_subscribe(&client_pool, params.clone(), request.clone())
                     .await;
             }
             MqttActionType::ListTopic(ref request) => {
-                self.list_topic(client_pool.clone(), params.clone(), request.clone())
+                self.list_topic(&client_pool, params.clone(), request.clone())
                     .await;
             }
             MqttActionType::ListSlowSubscribe => {
-                self.list_slow_subscribe(client_pool.clone(), params.clone())
-                    .await;
+                self.list_slow_subscribe(&client_pool, params.clone()).await;
             }
         }
     }
 
-    async fn status(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
+    async fn status(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
         let request = ClusterStatusRequest {};
         match cluster_status(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
@@ -122,13 +120,11 @@ impl MqttBrokerCommand {
 
     async fn create_user(
         &self,
-        client_pool: Arc<ClientPool>,
+        client_pool: &ClientPool,
         params: MqttCliCommandParam,
         cli_request: CreateUserRequest,
     ) {
-        match mqtt_broker_create_user(client_pool.clone(), &grpc_addr(params.server), cli_request)
-            .await
-        {
+        match mqtt_broker_create_user(client_pool, &grpc_addr(params.server), cli_request).await {
             Ok(_) => {
                 println!("Created successfully!",)
             }
@@ -141,13 +137,11 @@ impl MqttBrokerCommand {
 
     async fn delete_user(
         &self,
-        client_pool: Arc<ClientPool>,
+        client_pool: &ClientPool,
         params: MqttCliCommandParam,
         cli_request: DeleteUserRequest,
     ) {
-        match mqtt_broker_delete_user(client_pool.clone(), &grpc_addr(params.server), cli_request)
-            .await
-        {
+        match mqtt_broker_delete_user(client_pool, &grpc_addr(params.server), cli_request).await {
             Ok(_) => {
                 println!("Deleted successfully!");
             }
@@ -158,9 +152,9 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn list_user(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
+    async fn list_user(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
         let request = ListUserRequest {};
-        match mqtt_broker_list_user(client_pool.clone(), &grpc_addr(params.server), request).await {
+        match mqtt_broker_list_user(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
                 println!("user list:");
                 for user in data.users {
@@ -175,11 +169,9 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn list_connections(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
+    async fn list_connections(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
         let request = ListConnectionRequest {};
-        match mqtt_broker_list_connection(client_pool.clone(), &grpc_addr(params.server), request)
-            .await
-        {
+        match mqtt_broker_list_connection(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
                 println!("connection list:");
                 for raw in data.list_connection_raw {
@@ -197,16 +189,12 @@ impl MqttBrokerCommand {
     // ------------ slow subscribe features ----------
     async fn enable_slow_subscribe(
         &self,
-        client_pool: Arc<ClientPool>,
+        client_pool: &ClientPool,
         params: MqttCliCommandParam,
         cli_request: EnableSlowSubscribeRequest,
     ) {
-        match mqtt_broker_enable_slow_subscribe(
-            client_pool.clone(),
-            &grpc_addr(params.server),
-            cli_request,
-        )
-        .await
+        match mqtt_broker_enable_slow_subscribe(client_pool, &grpc_addr(params.server), cli_request)
+            .await
         {
             Ok(reply) => {
                 if reply.is_enable {
@@ -223,14 +211,9 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn list_slow_subscribe(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
+    async fn list_slow_subscribe(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
         let request = ListSlowSubscribeRequest {};
-        match mqtt_broker_list_slow_subscribe(
-            client_pool.clone(),
-            &grpc_addr(params.server),
-            request,
-        )
-        .await
+        match mqtt_broker_list_slow_subscribe(client_pool, &grpc_addr(params.server), request).await
         {
             Ok(data) => {
                 println!("{:?}", data)
@@ -244,13 +227,11 @@ impl MqttBrokerCommand {
 
     async fn list_topic(
         &self,
-        client_pool: Arc<ClientPool>,
+        client_pool: &ClientPool,
         params: MqttCliCommandParam,
         cli_request: ListTopicRequest,
     ) {
-        match mqtt_broker_list_topic(client_pool.clone(), &grpc_addr(params.server), cli_request)
-            .await
-        {
+        match mqtt_broker_list_topic(client_pool, &grpc_addr(params.server), cli_request).await {
             Ok(data) => {
                 println!("topic list result:");
                 for mqtt_topic in data.topics {
