@@ -48,6 +48,8 @@ use crate::storage::message::MessageStorage;
 
 const SHARE_SUB_PREFIX: &str = "$share";
 
+const QUEUE_SUB_PREFIX: &str = "$queue";
+
 pub fn path_contain_sub(_: &str) -> bool {
     true
 }
@@ -126,12 +128,22 @@ pub fn is_share_sub(sub_name: String) -> bool {
     sub_name.starts_with(SHARE_SUB_PREFIX)
 }
 
+pub fn is_queue_sub(sub_name: String) -> bool {
+    sub_name.starts_with(QUEUE_SUB_PREFIX)
+}
+
 pub fn decode_share_info(sub_name: String) -> (String, String) {
     let mut str_slice: Vec<&str> = sub_name.split("/").collect();
     str_slice.remove(0);
     let group_name = str_slice.remove(0).to_string();
     let sub_name = format!("/{}", str_slice.join("/"));
     (group_name, sub_name)
+}
+
+pub fn decode_queue_info(sub_name: String) -> String {
+    let mut str_slice: Vec<&str> = sub_name.split("/").collect();
+    str_slice.remove(0);
+    str_slice.remove(0).to_string()
 }
 
 pub async fn get_share_sub_leader(
