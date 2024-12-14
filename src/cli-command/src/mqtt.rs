@@ -94,8 +94,9 @@ impl MqttBrokerCommand {
                 self.list_topic(&client_pool, params.clone(), request.clone())
                     .await;
             }
-            MqttActionType::ListSlowSubscribe(rep request) => {
-                self.list_slow_subscribe(&client_pool, params.clone(), request.clone()).await;
+            MqttActionType::ListSlowSubscribe(ref request) => {
+                self.list_slow_subscribe(&client_pool, params.clone(), request.clone())
+                    .await;
             }
         }
     }
@@ -211,8 +212,14 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn list_slow_subscribe(&self, client_pool: &ClientPool, params: MqttCliCommandParam, cli_request: ListSlowSubscribeRequest) {
-        match mqtt_broker_list_slow_subscribe(client_pool, &grpc_addr(params.server), cli_request).await
+    async fn list_slow_subscribe(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: ListSlowSubscribeRequest,
+    ) {
+        match mqtt_broker_list_slow_subscribe(client_pool, &grpc_addr(params.server), cli_request)
+            .await
         {
             Ok(data) => {
                 println!("{:?}", data)
