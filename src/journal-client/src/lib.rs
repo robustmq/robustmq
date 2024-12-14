@@ -130,14 +130,12 @@ impl JournalEngineClient {
 
         let message = SenderMessage::build(&namespace, &shard_name, active_segment, data.clone());
         match self.writer.send(&message).await {
-            Ok(resp) => {
-                return Ok(resp);
-            }
+            Ok(resp) => Ok(resp),
             Err(e) => {
                 if let JournalClientError::NotActiveSegmentLeader(_) = e {
                     error!("Message failed to send. Reason :{} Next attempt.", e);
                 }
-                return Err(e);
+                Err(e)
             }
         }
     }

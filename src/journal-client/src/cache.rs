@@ -197,7 +197,7 @@ pub async fn get_active_segment(
 ) -> u32 {
     loop {
         let active_segment = if let Some(segment) =
-            metadata_cache.get_active_segment(&namespace, &shard_name)
+            metadata_cache.get_active_segment(namespace, shard_name)
         {
             segment
         } else {
@@ -206,7 +206,7 @@ pub async fn get_active_segment(
             {
                 error!(
                     "Loading Shard {} Metadata info failed, error message :{}",
-                    shard_name_iden(&namespace, &shard_name,),
+                    shard_name_iden(namespace, shard_name,),
                     e
                 );
             }

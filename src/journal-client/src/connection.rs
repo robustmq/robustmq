@@ -153,7 +153,7 @@ impl NodeConnection {
         Ok(Framed::new(socket, JournalServerCodec::new()))
     }
 
-pub async fn init_conn(&self) -> Result<(), JournalClientError> {
+    pub async fn init_conn(&self) -> Result<(), JournalClientError> {
         self.connection.insert(
             "admin".to_string(),
             ClientConnection {

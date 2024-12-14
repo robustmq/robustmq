@@ -160,7 +160,7 @@ async fn async_read_data(
     shards: &Vec<ReadShardByOffset>,
     read_config: &ReadConfig,
 ) -> Result<Vec<ReadMessageData>, JournalClientError> {
-    let leader_shards = group_by_reader_leader(&connection_manager, &metadata_cache, &shards).await;
+    let leader_shards = group_by_reader_leader(connection_manager, metadata_cache, shards).await;
     let mut results = Vec::new();
     for (leader_id, shards) in leader_shards {
         let mut messages = Vec::new();
@@ -182,7 +182,7 @@ async fn async_read_data(
         }
 
         let body = ReadReqBody { messages };
-        let result = batch_read(&connection_manager, leader_id, body).await?;
+        let result = batch_read(connection_manager, leader_id, body).await?;
         for shard_data in result.messages {
             for message in shard_data.messages {
                 let val = ReadMessageData {
