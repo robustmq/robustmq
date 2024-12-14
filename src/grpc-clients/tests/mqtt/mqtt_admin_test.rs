@@ -33,7 +33,7 @@ mod tests {
         let addrs = vec![get_mqtt_broker_addr()];
 
         let request = ClusterStatusRequest {};
-        match cluster_status(client_pool.clone(), &addrs, request).await {
+        match cluster_status(&client_pool, &addrs, request).await {
             Ok(data) => {
                 println!("{:?}", data);
             }
@@ -56,14 +56,14 @@ mod tests {
             is_superuser: false,
         };
 
-        match mqtt_broker_create_user(client_pool.clone(), &addrs, user.clone()).await {
+        match mqtt_broker_create_user(&client_pool, &addrs, user.clone()).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
             }
         }
 
-        match mqtt_broker_list_user(client_pool.clone(), &addrs, ListUserRequest {}).await {
+        match mqtt_broker_list_user(&client_pool, &addrs, ListUserRequest {}).await {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.users {
@@ -80,7 +80,7 @@ mod tests {
         };
 
         match mqtt_broker_delete_user(
-            client_pool.clone(),
+            &client_pool,
             &addrs,
             DeleteUserRequest {
                 username: user.username.clone(),
@@ -94,7 +94,7 @@ mod tests {
             }
         }
 
-        match mqtt_broker_list_user(client_pool.clone(), &addrs, ListUserRequest {}).await {
+        match mqtt_broker_list_user(&client_pool, &addrs, ListUserRequest {}).await {
             Ok(data) => {
                 let mut flag = true;
                 for raw in data.users {

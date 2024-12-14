@@ -74,28 +74,27 @@ impl ClientPool {
         &self,
         addr: &str,
     ) -> Result<Connection<PlacementServiceManager>, CommonError> {
-        let module = "PlacementService".to_string();
-        let key = format!("{}_{}_{}", "PlacementServer", module, addr);
-        if !self.placement_center_inner_pools.contains_key(&key) {
+        if !self.placement_center_inner_pools.contains_key(addr) {
             let manager = PlacementServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
-            self.placement_center_inner_pools.insert(key.clone(), pool);
+            self.placement_center_inner_pools
+                .insert(addr.to_owned(), pool);
         }
-        if let Some(pool) = self.placement_center_inner_pools.get(&key) {
+        if let Some(pool) = self.placement_center_inner_pools.get(addr) {
             match pool.get().await {
                 Ok(conn) => return Ok(conn),
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
-                        module,
+                        "PlacementService".to_string(),
                         e.to_string(),
                     ));
                 }
             };
         }
         Err(CommonError::NoAvailableGrpcConnection(
-            module,
+            "PlacementService".to_string(),
             "connection pool is not initialized".to_string(),
         ))
     }
@@ -104,34 +103,32 @@ impl ClientPool {
         &self,
         addr: &str,
     ) -> Result<Connection<JournalServiceManager>, CommonError> {
-        let module = "JournalService".to_string();
-        let key = format!("{}_{}_{}", "JournalServer", module, addr);
         if !self
             .placement_center_journal_service_pools
-            .contains_key(&key)
+            .contains_key(addr)
         {
             let manager = JournalServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
             self.placement_center_journal_service_pools
-                .insert(key.clone(), pool);
+                .insert(addr.to_owned(), pool);
         }
-        if let Some(pool) = self.placement_center_journal_service_pools.get(&key) {
+        if let Some(pool) = self.placement_center_journal_service_pools.get(addr) {
             match pool.get().await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
-                        module,
+                        "JournalService".to_string(),
                         e.to_string(),
                     ));
                 }
             };
         }
         Err(CommonError::NoAvailableGrpcConnection(
-            module,
+            "JournalService".to_string(),
             "connection pool is not initialized".to_string(),
         ))
     }
@@ -140,26 +137,23 @@ impl ClientPool {
         &self,
         addr: &str,
     ) -> Result<Connection<KvServiceManager>, CommonError> {
-        let module = "KvServices".to_string();
-        let key = format!("{}_{}_{}", "PlacementCenter", module, addr);
-
-        if !self.placement_center_kv_service_pools.contains_key(&key) {
+        if !self.placement_center_kv_service_pools.contains_key(addr) {
             let manager = KvServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
             self.placement_center_kv_service_pools
-                .insert(key.clone(), pool);
+                .insert(addr.to_owned(), pool);
         }
 
-        if let Some(pool) = self.placement_center_kv_service_pools.get(&key) {
+        if let Some(pool) = self.placement_center_kv_service_pools.get(addr) {
             match pool.get().await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
-                        module,
+                        "KvServices".to_string(),
                         e.to_string(),
                     ));
                 }
@@ -167,7 +161,7 @@ impl ClientPool {
         }
 
         Err(CommonError::NoAvailableGrpcConnection(
-            module,
+            "KvServices".to_string(),
             "connection pool is not initialized".to_string(),
         ))
     }
@@ -176,32 +170,29 @@ impl ClientPool {
         &self,
         addr: &str,
     ) -> Result<Connection<MqttServiceManager>, CommonError> {
-        let module = "MqttServices".to_string();
-        let key = format!("{}_{}_{}", "PlacementCenter", module, addr);
-
-        if !self.placement_center_mqtt_service_pools.contains_key(&key) {
+        if !self.placement_center_mqtt_service_pools.contains_key(addr) {
             let manager = MqttServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
             self.placement_center_mqtt_service_pools
-                .insert(key.clone(), pool);
+                .insert(addr.to_owned(), pool);
         }
-        if let Some(pool) = self.placement_center_mqtt_service_pools.get(&key) {
+        if let Some(pool) = self.placement_center_mqtt_service_pools.get(addr) {
             match pool.get().await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
-                        module,
+                        "MqttServices".to_string(),
                         e.to_string(),
                     ));
                 }
             };
         }
         Err(CommonError::NoAvailableGrpcConnection(
-            module,
+            "MqttServices".to_string(),
             "connection pool is not initialized".to_string(),
         ))
     }
@@ -210,28 +201,26 @@ impl ClientPool {
         &self,
         addr: &str,
     ) -> Result<Connection<OpenRaftServiceManager>, CommonError> {
-        let module = "OpenRaftServices".to_string();
-        let key = format!("{}_{}_{}", "PlacementCenter", module, addr);
         if !self
             .placement_center_openraft_service_pools
-            .contains_key(&key)
+            .contains_key(addr)
         {
             let manager = OpenRaftServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
             self.placement_center_openraft_service_pools
-                .insert(key.clone(), pool);
+                .insert(addr.to_owned(), pool);
         }
 
-        if let Some(pool) = self.placement_center_openraft_service_pools.get(&key) {
+        if let Some(pool) = self.placement_center_openraft_service_pools.get(addr) {
             match pool.get().await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
-                        module,
+                        "OpenRaftServices".to_string(),
                         e.to_string(),
                     ));
                 }
@@ -239,7 +228,7 @@ impl ClientPool {
         }
 
         Err(CommonError::NoAvailableGrpcConnection(
-            module,
+            "OpenRaftServices".to_string(),
             "connection pool is not initialized".to_string(),
         ))
     }
@@ -249,33 +238,30 @@ impl ClientPool {
         &self,
         addr: &str,
     ) -> Result<Connection<MqttBrokerPlacementServiceManager>, CommonError> {
-        let module = "BrokerPlacementServices".to_string();
-        let key = format!("{}_{}_{}", "MQTTBroker", module, addr);
-
-        if !self.mqtt_broker_placement_service_pools.contains_key(&key) {
+        if !self.mqtt_broker_placement_service_pools.contains_key(addr) {
             let manager = MqttBrokerPlacementServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
             self.mqtt_broker_placement_service_pools
-                .insert(key.clone(), pool);
+                .insert(addr.to_owned(), pool);
         }
 
-        if let Some(pool) = self.mqtt_broker_placement_service_pools.get(&key) {
+        if let Some(pool) = self.mqtt_broker_placement_service_pools.get(addr) {
             match pool.get().await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
-                        module,
+                        "BrokerPlacementServices".to_string(),
                         e.to_string(),
                     ));
                 }
             };
         }
         Err(CommonError::NoAvailableGrpcConnection(
-            module,
+            "BrokerPlacementServices".to_string(),
             "connection pool is not initialized".to_string(),
         ))
     }
@@ -284,33 +270,30 @@ impl ClientPool {
         &self,
         addr: &str,
     ) -> Result<Connection<MqttBrokerAdminServiceManager>, CommonError> {
-        let module = "BrokerAdminServices".to_string();
-        let key = format!("{}_{}_{}", "MQTTBroker", module, addr);
-
-        if !self.mqtt_broker_admin_service_pools.contains_key(&key) {
+        if !self.mqtt_broker_admin_service_pools.contains_key(addr) {
             let manager = MqttBrokerAdminServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
             self.mqtt_broker_admin_service_pools
-                .insert(key.clone(), pool);
+                .insert(addr.to_owned(), pool);
         }
 
-        if let Some(pool) = self.mqtt_broker_admin_service_pools.get(&key) {
+        if let Some(pool) = self.mqtt_broker_admin_service_pools.get(addr) {
             match pool.get().await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
-                        module,
+                        "BrokerAdminServices".to_string(),
                         e.to_string(),
                     ));
                 }
             };
         }
         Err(CommonError::NoAvailableGrpcConnection(
-            module,
+            "BrokerAdminServices".to_string(),
             "connection pool is not initialized".to_string(),
         ))
     }
@@ -320,24 +303,23 @@ impl ClientPool {
         &self,
         addr: &str,
     ) -> Result<Connection<JournalInnerServiceManager>, CommonError> {
-        let module = "inner".to_string();
-        let key = format!("{}_{}_{}", "JournalEngine", module, addr);
-        if !self.journal_inner_service_pools.contains_key(&key) {
+        if !self.journal_inner_service_pools.contains_key(addr) {
             let manager = JournalInnerServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
-            self.journal_inner_service_pools.insert(key.clone(), pool);
+            self.journal_inner_service_pools
+                .insert(addr.to_owned(), pool);
         }
 
-        if let Some(pool) = self.journal_inner_service_pools.get(&key) {
+        if let Some(pool) = self.journal_inner_service_pools.get(addr) {
             match pool.get().await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
-                        module,
+                        "JournalEngine".to_string(),
                         e.to_string(),
                     ));
                 }
@@ -345,7 +327,7 @@ impl ClientPool {
         }
 
         Err(CommonError::NoAvailableGrpcConnection(
-            module,
+            "JournalEngine".to_string(),
             "connection pool is not initialized".to_string(),
         ))
     }
@@ -354,24 +336,23 @@ impl ClientPool {
         &self,
         addr: &str,
     ) -> Result<Connection<JournalAdminServiceManager>, CommonError> {
-        let module = "admin".to_string();
-        let key = format!("{}_{}_{}", "JournalEngine", module, addr);
-        if !self.journal_admin_service_pools.contains_key(&key) {
+        if !self.journal_admin_service_pools.contains_key(addr) {
             let manager = JournalAdminServiceManager::new(addr.to_owned());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
-            self.journal_admin_service_pools.insert(key.clone(), pool);
+            self.journal_admin_service_pools
+                .insert(addr.to_owned().to_owned(), pool);
         }
 
-        if let Some(pool) = self.journal_admin_service_pools.get(&key) {
+        if let Some(pool) = self.journal_admin_service_pools.get(addr) {
             match pool.get().await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
-                        module,
+                        "JournalEngine".to_string(),
                         e.to_string(),
                     ));
                 }
@@ -379,7 +360,7 @@ impl ClientPool {
         }
 
         Err(CommonError::NoAvailableGrpcConnection(
-            module,
+            "JournalEngine".to_string(),
             "connection pool is not initialized".to_string(),
         ))
     }
@@ -395,6 +376,6 @@ impl ClientPool {
             leader_addr
         );
         self.placement_center_leader_addr_caches
-            .insert(addr, leader_addr);
+            .insert(addr.to_owned(), leader_addr);
     }
 }

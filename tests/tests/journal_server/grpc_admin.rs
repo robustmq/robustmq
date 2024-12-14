@@ -30,7 +30,7 @@ mod tests {
         let client_pool = Arc::new(ClientPool::new(10));
         let addrs = vec![addr];
         let request = ListShardRequest::default();
-        let data = journal_admin_list_shard(client_pool, &addrs, request)
+        let data = journal_admin_list_shard(&client_pool, &addrs, request)
             .await
             .unwrap();
         println!("{:?}", data.shards);
@@ -46,7 +46,7 @@ mod tests {
             shard_name: "s1".to_string(),
             segment_no: -1,
         };
-        let data = journal_admin_list_segment(client_pool, &addrs, request)
+        let data = journal_admin_list_segment(&client_pool, &addrs, request)
             .await
             .unwrap();
         println!("{:?}", data.segments);

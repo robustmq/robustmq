@@ -103,12 +103,8 @@ impl SegmentScrollManager {
                         shard_name: segment_iden.shard_name.clone(),
                     };
 
-                    match create_next_segment(
-                        self.client_pool.clone(),
-                        &conf.placement_center,
-                        request,
-                    )
-                    .await
+                    match create_next_segment(&self.client_pool, &conf.placement_center, request)
+                        .await
                     {
                         Ok(_) => {
                             self.percentage50_cache.insert(key.clone(), now_second());

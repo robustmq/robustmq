@@ -44,7 +44,7 @@ mod tests {
             node: node.clone(),
             blocking,
         };
-        match placement_openraft_add_learner(client_pool.clone(), &addrs, request).await {
+        match placement_openraft_add_learner(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -62,7 +62,7 @@ mod tests {
         let retain = false;
 
         let request = ChangeMembershipRequest { members, retain };
-        match placement_openraft_change_membership(client_pool.clone(), &addrs, request).await {
+        match placement_openraft_change_membership(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);

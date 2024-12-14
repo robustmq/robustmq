@@ -12,101 +12,75 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::error::common::CommonError;
+use protocol::journal_server::journal_admin::journal_server_admin_service_client::JournalServerAdminServiceClient;
 use protocol::journal_server::journal_admin::{
     ListSegmentReply, ListSegmentRequest, ListShardReply, ListShardRequest,
 };
+use protocol::journal_server::journal_inner::journal_server_inner_service_client::JournalServerInnerServiceClient;
 use protocol::journal_server::journal_inner::{
     DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
     GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply,
     GetShardDeleteStatusRequest, UpdateJournalCacheReply, UpdateJournalCacheRequest,
 };
+use tonic::transport::Channel;
 
-use crate::pool::ClientPool;
+use crate::macros::impl_retriable_request;
 
 pub mod admin;
 pub mod inner;
 
-/// Enum wrapper for all possible requests to the journal engine
-#[derive(Debug, Clone)]
-pub enum JournalEngineRequest {
-    // inner
-    UpdateCache(UpdateJournalCacheRequest),
-    DeleteShardFile(DeleteShardFileRequest),
-    GetShardDeleteStatus(GetShardDeleteStatusRequest),
-    DeleteSegmentFileRequest(DeleteSegmentFileRequest),
-    GetSegmentDeleteStatus(GetSegmentDeleteStatusRequest),
+impl_retriable_request!(
+    UpdateJournalCacheRequest,
+    JournalServerInnerServiceClient<Channel>,
+    UpdateJournalCacheReply,
+    journal_inner_services_client,
+    update_cache
+);
 
-    // admin
-    ListShard(ListShardRequest),
-    ListSegment(ListSegmentRequest),
-}
+impl_retriable_request!(
+    DeleteShardFileRequest,
+    JournalServerInnerServiceClient<Channel>,
+    DeleteShardFileReply,
+    journal_inner_services_client,
+    delete_shard_file
+);
 
-/// Enum wrapper for all possible replies from the journal engine
-#[derive(Debug, Clone)]
-pub enum JournalEngineReply {
-    // inner
-    UpdateCache(UpdateJournalCacheReply),
-    DeleteShardFile(DeleteShardFileReply),
-    GetShardDeleteStatus(GetShardDeleteStatusReply),
-    DeleteSegmentFile(DeleteSegmentFileReply),
-    GetSegmentDeleteStatus(GetSegmentDeleteStatusReply),
+impl_retriable_request!(
+    GetShardDeleteStatusRequest,
+    JournalServerInnerServiceClient<Channel>,
+    GetShardDeleteStatusReply,
+    journal_inner_services_client,
+    get_shard_delete_status
+);
 
-    // admin
-    ListShard(ListShardReply),
-    ListSegment(ListSegmentReply),
-}
+impl_retriable_request!(
+    DeleteSegmentFileRequest,
+    JournalServerInnerServiceClient<Channel>,
+    DeleteSegmentFileReply,
+    journal_inner_services_client,
+    delete_segment_file
+);
 
-async fn call_once(
-    client_pool: &ClientPool,
-    addr: &str,
-    request: JournalEngineRequest,
-) -> Result<JournalEngineReply, CommonError> {
-    use JournalEngineRequest::*;
+impl_retriable_request!(
+    GetSegmentDeleteStatusRequest,
+    JournalServerInnerServiceClient<Channel>,
+    GetSegmentDeleteStatusReply,
+    journal_inner_services_client,
+    get_segment_delete_status
+);
 
-    match request {
-        UpdateCache(update_journal_cache_request) => {
-            let mut client = client_pool.journal_inner_services_client(addr).await?;
-            let reply = client.update_cache(update_journal_cache_request).await?;
-            Ok(JournalEngineReply::UpdateCache(reply.into_inner()))
-        }
-        DeleteShardFile(delete_shard_file_request) => {
-            let mut client = client_pool.journal_inner_services_client(addr).await?;
-            let reply = client.delete_shard_file(delete_shard_file_request).await?;
-            Ok(JournalEngineReply::DeleteShardFile(reply.into_inner()))
-        }
-        GetShardDeleteStatus(get_shard_delete_status_request) => {
-            let mut client = client_pool.journal_inner_services_client(addr).await?;
-            let reply = client
-                .get_shard_delete_status(get_shard_delete_status_request)
-                .await?;
-            Ok(JournalEngineReply::GetShardDeleteStatus(reply.into_inner()))
-        }
-        DeleteSegmentFileRequest(delete_segment_file_request) => {
-            let mut client = client_pool.journal_inner_services_client(addr).await?;
-            let reply = client
-                .delete_segment_file(delete_segment_file_request)
-                .await?;
-            Ok(JournalEngineReply::DeleteSegmentFile(reply.into_inner()))
-        }
-        GetSegmentDeleteStatus(get_segment_delete_status_request) => {
-            let mut client = client_pool.journal_inner_services_client(addr).await?;
-            let reply = client
-                .get_segment_delete_status(get_segment_delete_status_request)
-                .await?;
-            Ok(JournalEngineReply::GetSegmentDeleteStatus(
-                reply.into_inner(),
-            ))
-        }
-        ListShard(list_shard_request) => {
-            let mut client = client_pool.journal_admin_services_client(addr).await?;
-            let reply = client.list_shard(list_shard_request).await?;
-            Ok(JournalEngineReply::ListShard(reply.into_inner()))
-        }
-        ListSegment(list_segment_request) => {
-            let mut client = client_pool.journal_admin_services_client(addr).await?;
-            let reply = client.list_segment(list_segment_request).await?;
-            Ok(JournalEngineReply::ListSegment(reply.into_inner()))
-        }
-    }
-}
+impl_retriable_request!(
+    ListShardRequest,
+    JournalServerAdminServiceClient<Channel>,
+    ListShardReply,
+    journal_admin_services_client,
+    list_shard
+);
+
+impl_retriable_request!(
+    ListSegmentRequest,
+    JournalServerAdminServiceClient<Channel>,
+    ListSegmentReply,
+    journal_admin_services_client,
+    list_segment
+);

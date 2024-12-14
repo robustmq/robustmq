@@ -54,7 +54,7 @@ pub async fn register_journal_node(
         node_inner_addr: format!("{}:{}", get_local_ip(), conf.network.grpc_port),
         extend_info: serde_json::to_string(&extend)?,
     };
-    register_node(client_pool.clone(), &config.placement_center, req.clone()).await?;
+    register_node(&client_pool, &config.placement_center, req.clone()).await?;
     info!("Node {} register successfully", config.node_id);
     Ok(())
 }
@@ -68,7 +68,7 @@ pub async fn unregister_journal_node(
         cluster_name: config.cluster_name,
         node_id: config.node_id,
     };
-    unregister_node(client_pool.clone(), &config.placement_center, req.clone()).await?;
+    unregister_node(&client_pool, &config.placement_center, req.clone()).await?;
     info!("Node {} exits successfully", config.node_id);
     Ok(())
 }
@@ -99,7 +99,7 @@ async fn report(client_pool: Arc<ClientPool>) {
         cluster_type: ClusterType::JournalServer.into(),
         node_id: config.node_id,
     };
-    match heartbeat(client_pool.clone(), &config.placement_center, req.clone()).await {
+    match heartbeat(&client_pool, &config.placement_center, req.clone()).await {
         Ok(_) => {
             debug!(
                 "Node {} successfully reports the heartbeat communication",

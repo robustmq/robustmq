@@ -121,8 +121,6 @@ pub fn read_slow_sub_record(
         )?;
     }
 
-
-
     Ok(matches_queue)
 }
 

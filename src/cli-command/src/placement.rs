@@ -56,20 +56,20 @@ impl PlacementCenterCommand {
 
         match params.action {
             PlacementActionType::Status => {
-                self.status(client_pool.clone(), params).await;
+                self.status(&client_pool, params).await;
             }
             PlacementActionType::AddLearner(ref request) => {
-                self.add_learner(client_pool.clone(), params.clone(), request.clone())
+                self.add_learner(&client_pool, params.clone(), request.clone())
                     .await;
             }
             PlacementActionType::ChangeMembership(ref request) => {
-                self.change_membership(client_pool.clone(), params.clone(), request.clone())
+                self.change_membership(&client_pool, params.clone(), request.clone())
                     .await;
             }
         }
     }
 
-    async fn status(&self, client_pool: Arc<ClientPool>, params: PlacementCliCommandParam) {
+    async fn status(&self, client_pool: &ClientPool, params: PlacementCliCommandParam) {
         let request = ClusterStatusRequest {};
         match cluster_status(client_pool, &grpc_addr(params.server), request).await {
             Ok(reply) => {
@@ -84,7 +84,7 @@ impl PlacementCenterCommand {
 
     async fn add_learner(
         &self,
-        client_pool: Arc<ClientPool>,
+        client_pool: &ClientPool,
         params: PlacementCliCommandParam,
         cli_request: AddLearnerRequest,
     ) {
@@ -103,7 +103,7 @@ impl PlacementCenterCommand {
 
     async fn change_membership(
         &self,
-        client_pool: Arc<ClientPool>,
+        client_pool: &ClientPool,
         params: PlacementCliCommandParam,
         cli_request: ChangeMembershipRequest,
     ) {

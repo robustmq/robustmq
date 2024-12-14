@@ -21,75 +21,9 @@ use protocol::placement_center::placement_center_openraft::{
 };
 use tonic::transport::Channel;
 
-use crate::pool::ClientPool;
+use crate::macros::impl_retriable_request;
 
 pub mod call;
-
-/// Enum wrapper for all possible requests to the open raft service
-#[derive(Debug, Clone)]
-pub enum OpenRaftServiceRequest {
-    Vote(VoteRequest),
-    Append(AppendRequest),
-    Snapshot(SnapshotRequest),
-    AddLearner(AddLearnerRequest),
-    ChangeMembership(ChangeMembershipRequest),
-}
-
-/// Enum wrapper for all possible replies from the open raft service
-#[derive(Debug, Clone)]
-pub enum OpenRaftServiceReply {
-    Vote(VoteReply),
-    Append(AppendReply),
-    Snapshot(SnapshotReply),
-    AddLearner(AddLearnerReply),
-    ChangeMembership(ChangeMembershipReply),
-}
-
-pub(super) async fn call_open_raft_service_once(
-    client_pool: &ClientPool,
-    addr: &str,
-    request: OpenRaftServiceRequest,
-) -> Result<OpenRaftServiceReply, CommonError> {
-    use OpenRaftServiceRequest::*;
-
-    match request {
-        Vote(request) => {
-            let mut client = client_pool
-                .placement_center_openraft_services_client(addr)
-                .await?;
-            let reply = client.vote(request).await?;
-            Ok(OpenRaftServiceReply::Vote(reply.into_inner()))
-        }
-        Append(request) => {
-            let mut client = client_pool
-                .placement_center_openraft_services_client(addr)
-                .await?;
-            let reply = client.append(request).await?;
-            Ok(OpenRaftServiceReply::Append(reply.into_inner()))
-        }
-        Snapshot(request) => {
-            let mut client = client_pool
-                .placement_center_openraft_services_client(addr)
-                .await?;
-            let reply = client.snapshot(request).await?;
-            Ok(OpenRaftServiceReply::Snapshot(reply.into_inner()))
-        }
-        AddLearner(request) => {
-            let mut client = client_pool
-                .placement_center_openraft_services_client(addr)
-                .await?;
-            let reply = client.add_learner(request).await?;
-            Ok(OpenRaftServiceReply::AddLearner(reply.into_inner()))
-        }
-        ChangeMembership(request) => {
-            let mut client = client_pool
-                .placement_center_openraft_services_client(addr)
-                .await?;
-            let reply = client.change_membership(request).await?;
-            Ok(OpenRaftServiceReply::ChangeMembership(reply.into_inner()))
-        }
-    }
-}
 
 #[derive(Clone)]
 pub struct OpenRaftServiceManager {
@@ -122,3 +56,48 @@ impl Manager for OpenRaftServiceManager {
         Ok(conn)
     }
 }
+
+impl_retriable_request!(
+    VoteRequest,
+    OpenRaftServiceClient<Channel>,
+    VoteReply,
+    placement_center_openraft_services_client,
+    vote,
+    true
+);
+
+impl_retriable_request!(
+    AppendRequest,
+    OpenRaftServiceClient<Channel>,
+    AppendReply,
+    placement_center_openraft_services_client,
+    append,
+    true
+);
+
+impl_retriable_request!(
+    SnapshotRequest,
+    OpenRaftServiceClient<Channel>,
+    SnapshotReply,
+    placement_center_openraft_services_client,
+    snapshot,
+    true
+);
+
+impl_retriable_request!(
+    AddLearnerRequest,
+    OpenRaftServiceClient<Channel>,
+    AddLearnerReply,
+    placement_center_openraft_services_client,
+    add_learner,
+    true
+);
+
+impl_retriable_request!(
+    ChangeMembershipRequest,
+    OpenRaftServiceClient<Channel>,
+    ChangeMembershipReply,
+    placement_center_openraft_services_client,
+    change_membership,
+    true
+);

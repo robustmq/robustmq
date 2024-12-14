@@ -143,7 +143,7 @@ pub async fn get_share_sub_leader(
         cluster_name: conf.cluster_name.clone(),
         group_name,
     };
-    match placement_get_share_sub_leader(client_pool, &conf.placement_center, req).await {
+    match placement_get_share_sub_leader(&client_pool, &conf.placement_center, req).await {
         Ok(reply) => Ok(reply),
         Err(e) => Err(e),
     }
@@ -157,7 +157,7 @@ pub async fn set_nx_exclusive_topic(
         cluster_name: conf.cluster_name.clone(),
         topic_name,
     };
-    match placement_set_nx_exclusive_topic(client_pool, &conf.placement_center, req).await {
+    match placement_set_nx_exclusive_topic(&client_pool, &conf.placement_center, req).await {
         Ok(reply) => Ok(reply),
         Err(e) => Err(e),
     }
@@ -172,7 +172,7 @@ pub async fn delete_exclusive_topic(
         cluster_name: conf.cluster_name.clone(),
         topic_name,
     };
-    match placement_delete_exclusive_topic(client_pool, &conf.placement_center, req).await {
+    match placement_delete_exclusive_topic(&client_pool, &conf.placement_center, req).await {
         Ok(reply) => Ok(reply),
         Err(e) => Err(e),
     }

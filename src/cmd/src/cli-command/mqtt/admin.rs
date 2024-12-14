@@ -18,7 +18,9 @@ use clap::builder::{
 use clap::Parser;
 use cli_command::mqtt::MqttActionType;
 use common_base::enum_type::common_enum::SortType;
-use protocol::broker_mqtt::broker_mqtt_admin::{EnableSlowSubscribeRequest, ListSlowSubscribeRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
+};
 
 // security: user feat
 #[derive(clap::Args, Debug)]
@@ -84,7 +86,6 @@ pub(crate) struct SlowSubArgs {
     #[arg(value_parser = NonEmptyStringValueParser::new())]
     client_id: Option<String>,
 }
-
 
 pub fn process_slow_sub_args(args: SlowSubArgs) -> MqttActionType {
     if args.is_enable.is_none() {

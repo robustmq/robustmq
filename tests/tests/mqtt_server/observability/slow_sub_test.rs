@@ -30,11 +30,26 @@ mod tests {
         let result = read_slow_sub_record(record, path.to_string()).unwrap();
 
         assert_eq!(5, result.clone().len());
-        assert_eq!(result.clone()[0], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","time_ms":13,"node_info":"RobustMQ-MQTT@182.22.194.185","create_time":1733488597}"#);
-        assert_eq!(result.clone()[1], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","time_ms":3,"node_info":"RobustMQ-MQTT@172.22.111.185","create_time":1733398597}"#);
-        assert_eq!(result.clone()[2], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":143,"node_info":"RobustMQ-MQTT@172.22.111.85","create_time":1733864597}"#);
-        assert_eq!(result.clone()[3], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"","topic":"","time_ms":543,"node_info":"RobustMQ-MQTT@172.22.194.185","create_time":1733898597}"#);
-        assert_eq!(result.clone()[4], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":543,"node_info":"RobustMQ-MQTT@192.32.194.185","create_time":1733858597}"#);
+        assert_eq!(
+            result.clone()[0],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","time_ms":13,"node_info":"RobustMQ-MQTT@182.22.194.185","create_time":1733488597}"#
+        );
+        assert_eq!(
+            result.clone()[1],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","time_ms":3,"node_info":"RobustMQ-MQTT@172.22.111.185","create_time":1733398597}"#
+        );
+        assert_eq!(
+            result.clone()[2],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":143,"node_info":"RobustMQ-MQTT@172.22.111.85","create_time":1733864597}"#
+        );
+        assert_eq!(
+            result.clone()[3],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"","topic":"","time_ms":543,"node_info":"RobustMQ-MQTT@172.22.194.185","create_time":1733898597}"#
+        );
+        assert_eq!(
+            result.clone()[4],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":543,"node_info":"RobustMQ-MQTT@192.32.194.185","create_time":1733858597}"#
+        );
     }
 
     #[test]
@@ -51,11 +66,26 @@ mod tests {
         let result = read_slow_sub_record(record, path.to_string()).unwrap();
 
         assert_eq!(5, result.clone().len());
-        assert_eq!(result.clone()[0], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":543,"node_info":"RobustMQ-MQTT@172.22.194.185","create_time":1733898597}"#);
-        assert_eq!(result.clone()[1], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","time_ms":13,"node_info":"RobustMQ-MQTT@182.22.194.185","create_time":1733488597}"#);
-        assert_eq!(result.clone()[2], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","time_ms":3,"node_info":"RobustMQ-MQTT@172.22.111.185","create_time":1733398597}"#);
-        assert_eq!(result.clone()[3], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":143,"node_info":"RobustMQ-MQTT@172.22.111.85","create_time":1733864597}"#);
-        assert_eq!(result.clone()[4], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":543,"node_info":"RobustMQ-MQTT@192.32.194.185","create_time":1733858597}"#);
+        assert_eq!(
+            result.clone()[0],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":543,"node_info":"RobustMQ-MQTT@172.22.194.185","create_time":1733898597}"#
+        );
+        assert_eq!(
+            result.clone()[1],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","time_ms":13,"node_info":"RobustMQ-MQTT@182.22.194.185","create_time":1733488597}"#
+        );
+        assert_eq!(
+            result.clone()[2],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","time_ms":3,"node_info":"RobustMQ-MQTT@172.22.111.185","create_time":1733398597}"#
+        );
+        assert_eq!(
+            result.clone()[3],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":143,"node_info":"RobustMQ-MQTT@172.22.111.85","create_time":1733864597}"#
+        );
+        assert_eq!(
+            result.clone()[4],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":543,"node_info":"RobustMQ-MQTT@192.32.194.185","create_time":1733858597}"#
+        );
     }
 
     #[test]
@@ -72,12 +102,23 @@ mod tests {
         let result = read_slow_sub_record(record, path.to_string()).unwrap();
 
         assert_eq!(4, result.clone().len());
-        assert_eq!(result.clone()[0], r#"{"sub_name":"/request/131edb8526804e80b32b387fa2340d35","client_id":"49e10a8d8a494cefa904a00dcf0b30af","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":273,"node_info":"RobustMQ-MQTT@172.22.194.185","create_time":1733898601}"#);
-        assert_eq!(result.clone()[1], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":543,"node_info":"RobustMQ-MQTT@172.22.194.185","create_time":1733898597}"#);
-        assert_eq!(result.clone()[2], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":143,"node_info":"RobustMQ-MQTT@172.22.111.85","create_time":1733864597}"#);
-        assert_eq!(result.clone()[3], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":543,"node_info":"RobustMQ-MQTT@192.32.194.185","create_time":1733858597}"#);
+        assert_eq!(
+            result.clone()[0],
+            r#"{"sub_name":"/request/131edb8526804e80b32b387fa2340d35","client_id":"49e10a8d8a494cefa904a00dcf0b30af","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":273,"node_info":"RobustMQ-MQTT@172.22.194.185","create_time":1733898601}"#
+        );
+        assert_eq!(
+            result.clone()[1],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":543,"node_info":"RobustMQ-MQTT@172.22.194.185","create_time":1733898597}"#
+        );
+        assert_eq!(
+            result.clone()[2],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":143,"node_info":"RobustMQ-MQTT@172.22.111.85","create_time":1733864597}"#
+        );
+        assert_eq!(
+            result.clone()[3],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":543,"node_info":"RobustMQ-MQTT@192.32.194.185","create_time":1733858597}"#
+        );
     }
-
 
     #[test]
     fn test_read_slow_record_param_is_two() {
@@ -93,11 +134,26 @@ mod tests {
         let result = read_slow_sub_record(record, path.to_string()).unwrap();
 
         assert_eq!(5, result.clone().len());
-        assert_eq!(result.clone()[0], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":543,"node_info":"RobustMQ-MQTT@172.22.194.185","create_time":1733898597}"#);
-        assert_eq!(result.clone()[1], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","time_ms":13,"node_info":"RobustMQ-MQTT@182.22.194.185","create_time":1733488597}"#);
-        assert_eq!(result.clone()[2], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","time_ms":3,"node_info":"RobustMQ-MQTT@172.22.111.185","create_time":1733398597}"#);
-        assert_eq!(result.clone()[3], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":143,"node_info":"RobustMQ-MQTT@172.22.111.85","create_time":1733864597}"#);
-        assert_eq!(result.clone()[4], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":543,"node_info":"RobustMQ-MQTT@192.32.194.185","create_time":1733858597}"#);
+        assert_eq!(
+            result.clone()[0],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":543,"node_info":"RobustMQ-MQTT@172.22.194.185","create_time":1733898597}"#
+        );
+        assert_eq!(
+            result.clone()[1],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","time_ms":13,"node_info":"RobustMQ-MQTT@182.22.194.185","create_time":1733488597}"#
+        );
+        assert_eq!(
+            result.clone()[2],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","time_ms":3,"node_info":"RobustMQ-MQTT@172.22.111.185","create_time":1733398597}"#
+        );
+        assert_eq!(
+            result.clone()[3],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":143,"node_info":"RobustMQ-MQTT@172.22.111.85","create_time":1733864597}"#
+        );
+        assert_eq!(
+            result.clone()[4],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/request/131edb8526804e80b32b387fa2340d35","time_ms":543,"node_info":"RobustMQ-MQTT@192.32.194.185","create_time":1733858597}"#
+        );
     }
 
     #[test]
@@ -114,8 +170,17 @@ mod tests {
         let result = read_slow_sub_record(record, path.to_string()).unwrap();
 
         assert_eq!(3, result.clone().len());
-        assert_eq!(result.clone()[0], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","time_ms":543,"node_info":"RobustMQ-MQTT@172.22.194.185","create_time":1733898597}"#);
-        assert_eq!(result.clone()[1], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","time_ms":13,"node_info":"RobustMQ-MQTT@182.22.194.185","create_time":1733488597}"#);
-        assert_eq!(result.clone()[2], r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","time_ms":3,"node_info":"RobustMQ-MQTT@172.22.111.185","create_time":1733398597}"#);
+        assert_eq!(
+            result.clone()[0],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","time_ms":543,"node_info":"RobustMQ-MQTT@172.22.194.185","create_time":1733898597}"#
+        );
+        assert_eq!(
+            result.clone()[1],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","time_ms":13,"node_info":"RobustMQ-MQTT@182.22.194.185","create_time":1733488597}"#
+        );
+        assert_eq!(
+            result.clone()[2],
+            r#"{"sub_name":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","client_id":"ed280344fec44aad8a78b00ff1dec99a","topic":"/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e","time_ms":3,"node_info":"RobustMQ-MQTT@172.22.111.185","create_time":1733398597}"#
+        );
     }
 }

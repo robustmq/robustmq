@@ -38,8 +38,7 @@ impl BlackListStorage {
         let request = ListBlacklistRequest {
             cluster_name: config.cluster_name.clone(),
         };
-        let reply =
-            list_blacklist(self.client_pool.clone(), &config.placement_center, request).await?;
+        let reply = list_blacklist(&self.client_pool, &config.placement_center, request).await?;
         let mut list = Vec::new();
         for raw in reply.blacklists {
             list.push(serde_json::from_slice::<MqttAclBlackList>(raw.as_slice())?);
@@ -53,7 +52,7 @@ impl BlackListStorage {
             cluster_name: config.cluster_name.clone(),
             blacklist: blacklist.encode()?,
         };
-        create_blacklist(self.client_pool.clone(), &config.placement_center, request).await?;
+        create_blacklist(&self.client_pool, &config.placement_center, request).await?;
         Ok(())
     }
 
@@ -67,7 +66,7 @@ impl BlackListStorage {
             blacklist_type: blacklist.blacklist_type.to_string(),
             resource_name: blacklist.resource_name,
         };
-        delete_blacklist(self.client_pool.clone(), &config.placement_center, request).await?;
+        delete_blacklist(&self.client_pool, &config.placement_center, request).await?;
         Ok(())
     }
 }
