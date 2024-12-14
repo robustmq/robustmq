@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::collections::VecDeque;
-use std::env;
 use std::fs::File;
 
 use common_base::tools::{get_local_ip, now_second};
@@ -22,22 +21,23 @@ use grep::regex::RegexMatcher;
 use grep::searcher::sinks::UTF8;
 use grep::searcher::Searcher;
 use log::info;
+use protocol::broker_mqtt::broker_mqtt_admin::ListSlowSubscribeRequest;
 use serde::{Deserialize, Serialize};
 
 use crate::handler::error::MqttBrokerError;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct SlowSubData {
-    sub_name: String,
-    client_id: String,
-    topic: String,
-    time_ms: u128,
-    node_info: String,
-    create_time: u64,
+    pub(crate) sub_name: String,
+    pub(crate) client_id: String,
+    pub(crate) topic: String,
+    pub(crate) time_ms: u64,
+    pub(crate) node_info: String,
+    pub(crate) create_time: u64,
 }
 
 impl SlowSubData {
-    pub fn build(sub_name: String, client_id: String, topic_name: String, time_ms: u128) -> Self {
+    pub fn build(sub_name: String, client_id: String, topic_name: String, time_ms: u64) -> Self {
         let ip = get_local_ip();
         let node_info = format!("RobustMQ-MQTT@{}", ip);
         SlowSubData {
@@ -51,7 +51,7 @@ impl SlowSubData {
     }
 }
 
-pub fn record_slow_sub_data(slow_data: SlowSubData, whole_ms: u128) -> Result<(), MqttBrokerError> {
+pub fn record_slow_sub_data(slow_data: SlowSubData, whole_ms: u64) -> Result<(), MqttBrokerError> {
     let data = serde_json::to_string(&slow_data)?;
 
     if slow_data.time_ms > whole_ms {
@@ -81,36 +81,25 @@ pub fn connect_regex_pattern(sub_name: String, client_id: String, topic: String)
     pattern
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
-pub struct SlowSubRecord {
-    pub sub_name: String,
-    pub client_id: String,
-    pub topic: String,
-    pub sort: String,
-    pub line: u8,
-}
-
 pub fn read_slow_sub_record(
-    slow_sub_record: SlowSubRecord,
+    search_options: ListSlowSubscribeRequest,
     path: String,
 ) -> Result<VecDeque<String>, MqttBrokerError> {
     let regex_pattern = connect_regex_pattern(
-        slow_sub_record.sub_name,
-        slow_sub_record.client_id,
-        slow_sub_record.topic,
+        search_options.sub_name,
+        search_options.client_id,
+        search_options.topic,
     );
-    if File::open(path).is_ok() {
+    let file = File::open(path);
+    let mut matches_queue: VecDeque<String> = VecDeque::new();
+    if file.is_ok() {
         let matcher = RegexMatcher::new(regex_pattern.as_str())?;
-        let mut matches_queue: VecDeque<String> = VecDeque::new();
-        let current_dir = env::current_dir()?;
-        println!("{:?}", current_dir.display());
-        let file = File::open(path)?;
         Searcher::new().search_file(
             &matcher,
-            &file,
+            &file.unwrap(),
             UTF8(|_lnum, line| {
                 let match_byte = matcher.find(line.as_bytes())?.unwrap();
-                if matches_queue.len() == slow_sub_record.line as usize {
+                if matches_queue.len() == search_options.list as usize {
                     matches_queue.pop_front();
                     matches_queue.push_back(line[match_byte].to_string())
                 } else {

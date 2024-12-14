@@ -224,7 +224,7 @@ pub async fn publish_message_to_client(
                 sub_pub_param.subscribe.sub_path.clone(),
                 sub_pub_param.subscribe.client_id.clone(),
                 sub_pub_param.subscribe.topic_name.clone(),
-                now_mills() - sub_pub_param.create_time,
+                (now_mills() - sub_pub_param.create_time) as u64,
             );
             record_slow_sub_data(slow_data, metadata_cache.get_slow_sub_config().whole_ms)?;
         }

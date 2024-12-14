@@ -14,17 +14,30 @@
 
 #[cfg(test)]
 mod tests {
-    use mqtt_broker::observability::slow::sub::{read_slow_sub_record, SlowSubRecord};
+    use mqtt_broker::observability::slow::sub::read_slow_sub_record;
+    use protocol::broker_mqtt::broker_mqtt_admin::ListSlowSubscribeRequest;
+
+    #[test]
+    fn test_read_slow_record_path_is_empty() {
+        let path = "";
+        let record = ListSlowSubscribeRequest {
+            sub_name: "/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e".to_string(),
+            client_id: "".to_string(),
+            topic: "".to_string(),
+            list: 5,
+        };
+        let result = read_slow_sub_record(record, path.to_string()).unwrap();
+        assert_eq!(0, result.clone().len())
+    }
 
     #[test]
     fn test_read_slow_record_param_is_one_1() {
         let path = "./tests/mqtt_server/example/slow_sub.log";
-        let record = SlowSubRecord {
+        let record = ListSlowSubscribeRequest {
             sub_name: "/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e".to_string(),
             client_id: "".to_string(),
             topic: "".to_string(),
-            sort: "ASC".to_string(),
-            line: 5,
+            list: 5,
         };
 
         let result = read_slow_sub_record(record, path.to_string()).unwrap();
@@ -55,12 +68,11 @@ mod tests {
     #[test]
     fn test_read_slow_record_param_is_one_2() {
         let path = "./tests/mqtt_server/example/slow_sub.log";
-        let record = SlowSubRecord {
+        let record = ListSlowSubscribeRequest {
             sub_name: "".to_string(),
             client_id: "ed280344fec44aad8a78b00ff1dec99a".to_string(),
             topic: "".to_string(),
-            sort: "ASC".to_string(),
-            line: 5,
+            list: 5,
         };
 
         let result = read_slow_sub_record(record, path.to_string()).unwrap();
@@ -91,12 +103,11 @@ mod tests {
     #[test]
     fn test_read_slow_record_param_is_one_3() {
         let path = "./tests/mqtt_server/example/slow_sub.log";
-        let record = SlowSubRecord {
+        let record = ListSlowSubscribeRequest {
             sub_name: "".to_string(),
             client_id: "".to_string(),
             topic: "/request/131edb8526804e80b32b387fa2340d35".to_string(),
-            sort: "ASC".to_string(),
-            line: 5,
+            list: 5,
         };
 
         let result = read_slow_sub_record(record, path.to_string()).unwrap();
@@ -123,12 +134,11 @@ mod tests {
     #[test]
     fn test_read_slow_record_param_is_two() {
         let path = "./tests/mqtt_server/example/slow_sub.log";
-        let record = SlowSubRecord {
+        let record = ListSlowSubscribeRequest {
             sub_name: "/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e".to_string(),
             client_id: "ed280344fec44aad8a78b00ff1dec99a".to_string(),
             topic: "".to_string(),
-            sort: "ASC".to_string(),
-            line: 5,
+            list: 5,
         };
 
         let result = read_slow_sub_record(record, path.to_string()).unwrap();
@@ -159,12 +169,11 @@ mod tests {
     #[test]
     fn test_read_slow_record_param_is_three() {
         let path = "./tests/mqtt_server/example/slow_sub.log";
-        let record = SlowSubRecord {
+        let record = ListSlowSubscribeRequest {
             sub_name: "/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e".to_string(),
             client_id: "ed280344fec44aad8a78b00ff1dec99a".to_string(),
             topic: "/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e".to_string(),
-            sort: "ASC".to_string(),
-            line: 5,
+            list: 5,
         };
 
         let result = read_slow_sub_record(record, path.to_string()).unwrap();

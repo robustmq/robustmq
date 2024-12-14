@@ -34,6 +34,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 use tonic::{Request, Response, Status};
 
 use crate::handler::cache::CacheManager;
+use crate::observability::slow::sub::{read_slow_sub_record, SlowSubData};
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::cluster::ClusterStorage;
@@ -81,7 +82,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             }
         }
         reply.nodes = broker_node_list;
-        return Ok(Response::new(reply));
+        Ok(Response::new(reply))
     }
 
     // --- user ---
@@ -98,12 +99,8 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
         let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
         match auth_driver.save_user(mqtt_user).await {
-            Ok(_) => {
-                return Ok(Response::new(CreateUserReply::default()));
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
+            Ok(_) => Ok(Response::new(CreateUserReply::default())),
+            Err(e) => Err(Status::cancelled(e.to_string())),
         }
     }
 
@@ -115,10 +112,8 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
         let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
         match auth_driver.delete_user(req.username).await {
-            Ok(_) => return Ok(Response::new(DeleteUserReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
+            Ok(_) => Ok(Response::new(DeleteUserReply::default())),
+            Err(e) => Err(Status::cancelled(e.to_string())),
         }
     }
 
@@ -135,11 +130,9 @@ impl MqttBrokerAdminService for GrpcAdminServices {
                     users.push(ele.1.encode());
                 }
                 reply.users = users;
-                return Ok(Response::new(reply));
+                Ok(Response::new(reply))
             }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
+            Err(e) => Err(Status::cancelled(e.to_string())),
         }
     }
 
@@ -153,6 +146,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         match auth_driver.read_all_acl().await {
             Ok(data) => {
                 let mut acls_list = Vec::new();
+                // todo finish get_items
                 for ele in data {
                     match ele.encode() {
                         Ok(acl) => acls_list.push(acl),
@@ -160,11 +154,9 @@ impl MqttBrokerAdminService for GrpcAdminServices {
                     }
                 }
                 reply.acls = acls_list;
-                return Ok(Response::new(reply));
+                Ok(Response::new(reply))
             }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
+            Err(e) => Err(Status::cancelled(e.to_string())),
         }
     }
 
@@ -178,10 +170,8 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
         let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
         match auth_driver.save_acl(mqtt_acl).await {
-            Ok(_) => return Ok(Response::new(CreateAclReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
+            Ok(_) => Ok(Response::new(CreateAclReply::default())),
+            Err(e) => Err(Status::cancelled(e.to_string())),
         }
     }
 
@@ -194,10 +184,8 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
         let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
         match auth_driver.delete_acl(mqtt_acl).await {
-            Ok(_) => return Ok(Response::new(DeleteAclReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
+            Ok(_) => Ok(Response::new(DeleteAclReply::default())),
+            Err(e) => Err(Status::cancelled(e.to_string())),
         }
     }
 
@@ -217,11 +205,9 @@ impl MqttBrokerAdminService for GrpcAdminServices {
                     }
                 }
                 reply.blacklists = blacklists;
-                return Ok(Response::new(reply));
+                Ok(Response::new(reply))
             }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
+            Err(e) => Err(Status::cancelled(e.to_string())),
         }
     }
 
@@ -247,10 +233,8 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
         let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
         match auth_driver.delete_blacklist(mqtt_blacklist).await {
-            Ok(_) => return Ok(Response::new(DeleteBlacklistReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
+            Ok(_) => Ok(Response::new(DeleteBlacklistReply::default())),
+            Err(e) => Err(Status::cancelled(e.to_string())),
         }
     }
 
@@ -263,10 +247,8 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
         let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
         match auth_driver.save_blacklist(mqtt_blacklist).await {
-            Ok(_) => return Ok(Response::new(CreateBlacklistReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
+            Ok(_) => Ok(Response::new(CreateBlacklistReply::default())),
+            Err(e) => Err(Status::cancelled(e.to_string())),
         }
     }
 
@@ -320,8 +302,26 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         request: Request<ListSlowSubscribeRequest>,
     ) -> Result<Response<ListSlowSubscribeReply>, Status> {
         let list_slow_subscribe_request = request.into_inner();
-        let list_slow_subscribe_raw: Vec<ListSlowSubScribeRaw> = Vec::new();
-
+        let mut list_slow_subscribe_raw: Vec<ListSlowSubScribeRaw> = Vec::new();
+        let path = self.cache_manager.get_slow_sub_config().path_addr;
+        let deque = read_slow_sub_record(list_slow_subscribe_request, path)?;
+        for slow_sub_data in deque {
+            match serde_json::from_str::<SlowSubData>(slow_sub_data.as_str()) {
+                Ok(data) => {
+                    let raw = ListSlowSubScribeRaw {
+                        client_id: data.client_id,
+                        topic: data.topic,
+                        time_ms: data.time_ms,
+                        node_info: data.node_info,
+                        create_time: data.create_time,
+                    };
+                    list_slow_subscribe_raw.push(raw);
+                }
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
+            }
+        }
         Ok(Response::new(ListSlowSubscribeReply {
             list_slow_subscribe_raw,
         }))
@@ -368,6 +368,6 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             topics: topic_query_result,
         };
 
-        return Ok(Response::new(reply));
+        Ok(Response::new(reply))
     }
 }
