@@ -21,7 +21,6 @@ use common_base::tools::now_mills;
 use dashmap::DashMap;
 use log::error;
 use metadata_struct::journal::segment::segment_name;
-use metadata_struct::journal::shard::shard_name_iden;
 use protocol::journal_server::journal_engine::{
     WriteReqBody, WriteReqMessages, WriteReqSegmentMessages,
 };
@@ -29,7 +28,7 @@ use tokio::select;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::time::{sleep, timeout};
 
-use crate::cache::{load_shards_cache, MetadataCache};
+use crate::cache::{get_segment_leader, MetadataCache};
 use crate::connection::ConnectionManager;
 use crate::error::JournalClientError;
 use crate::service::batch_write;
@@ -139,36 +138,18 @@ impl Writer {
         &self,
         message: &SenderMessage,
     ) -> Result<Vec<SenderMessageResp>, JournalClientError> {
-        let active_segment_leader = if let Some(segment) = self
-            .metadata_cache
-            .get_segment_leader(&message.namespace, &message.shard_name)
-        {
-            segment
-        } else {
-            if let Err(e) = load_shards_cache(
-                &self.metadata_cache,
-                &self.connection_manager,
-                &message.namespace,
-                &message.shard_name,
-            )
-            .await
-            {
-                error!(
-                    "Loading Shard {} Metadata info failed, error message :{}",
-                    shard_name_iden(&message.namespace, &message.shard_name,),
-                    e
-                );
-            }
-            return Err(JournalClientError::NotActiveSegmentLeader(shard_name_iden(
-                &message.namespace,
-                &message.shard_name,
-            )));
-        };
+        let leader = get_segment_leader(
+            &self.metadata_cache,
+            &self.connection_manager,
+            &message.namespace,
+            &message.shard_name,
+        )
+        .await;
 
-        let sender = if let Some(sender) = self.node_senders.get(&active_segment_leader) {
+        let sender = if let Some(sender) = self.node_senders.get(&leader) {
             sender.node_send.clone()
         } else {
-            self.add_node_sender(active_segment_leader)
+            self.add_node_sender(leader)
         };
 
         let (callback_sx, mut callback_rx) = mpsc::channel::<Vec<SenderMessageResp>>(2);
