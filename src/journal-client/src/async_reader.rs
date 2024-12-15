@@ -46,6 +46,7 @@ pub struct ReadMessageData {
     pub key: String,
     pub value: Vec<u8>,
     pub tags: Vec<String>,
+    pub timestamp: u64,
 }
 
 pub struct AsyncReader {
@@ -53,7 +54,6 @@ pub struct AsyncReader {
     connection_manager: Arc<ConnectionManager>,
     data_sender: Sender<ReadMessageData>,
     data_recv: Receiver<ReadMessageData>,
-    group_name: String,
     stop_send: Option<Sender<bool>>,
 }
 
@@ -61,7 +61,6 @@ impl AsyncReader {
     pub fn new(
         metadata_cache: Arc<MetadataCache>,
         connection_manager: Arc<ConnectionManager>,
-        group_name: String,
     ) -> Self {
         let (data_sender, data_recv) = mpsc::channel::<ReadMessageData>(500);
         AsyncReader {
@@ -69,7 +68,6 @@ impl AsyncReader {
             connection_manager,
             data_sender,
             data_recv,
-            group_name,
             stop_send: None,
         }
     }
@@ -193,6 +191,7 @@ async fn async_read_data(
                     key: message.key,
                     value: message.value,
                     tags: message.tags,
+                    timestamp: message.timestamp,
                 };
                 results.push(val);
             }

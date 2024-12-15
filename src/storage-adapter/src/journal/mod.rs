@@ -18,8 +18,9 @@ use std::sync::Arc;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
-use journal_client::option::JournalClientOption;
-use journal_client::{JournalClientWriteData, JournalEngineClient};
+use journal_client::admin::JournalAdmin;
+use journal_client::read::JournalRead;
+use journal_client::write::{JournalClientWriteData, JournalWrite};
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 use offset::PlaceOffsetManager;
@@ -28,11 +29,12 @@ use crate::storage::{ShardConfig, ShardOffset, StorageAdapter};
 
 pub mod offset;
 
-#[derive(Clone)]
 pub struct JournalStorageAdapter {
     cluster_name: String,
-    client: JournalEngineClient,
+    write_client: JournalWrite,
+    read_client: JournalRead,
     offset_manager: PlaceOffsetManager,
+    journal_addrs: Vec<String>,
 }
 
 impl JournalStorageAdapter {
@@ -42,14 +44,15 @@ impl JournalStorageAdapter {
         journal_addrs: Vec<String>,
         place_addrs: Vec<String>,
     ) -> Self {
-        let mut options = JournalClientOption::build();
-        options.set_addrs(journal_addrs);
-        let client = JournalEngineClient::new(options);
-        let offset_manager = PlaceOffsetManager::new(client_pool, place_addrs);
+        let offset_manager = PlaceOffsetManager::new(client_pool, place_addrs.clone());
+        let write_client = JournalWrite::new(journal_addrs.clone());
+        let read_client = JournalRead::new(journal_addrs.clone());
         JournalStorageAdapter {
-            client,
             offset_manager,
             cluster_name,
+            journal_addrs,
+            write_client,
+            read_client,
         }
     }
 }
@@ -62,8 +65,8 @@ impl StorageAdapter for JournalStorageAdapter {
         shard_name: String,
         shard_config: ShardConfig,
     ) -> Result<(), CommonError> {
-        if let Err(e) = self
-            .client
+        let client = JournalAdmin::new(self.journal_addrs.clone());
+        if let Err(e) = client
             .create_shard(&namespace, &shard_name, shard_config.replica_num)
             .await
         {
@@ -73,7 +76,8 @@ impl StorageAdapter for JournalStorageAdapter {
     }
 
     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
-        if let Err(e) = self.client.delete_shard(&namespace, &shard_name).await {
+        let client = JournalAdmin::new(self.journal_addrs.clone());
+        if let Err(e) = client.delete_shard(&namespace, &shard_name).await {
             return Err(CommonError::CommonError(e.to_string()));
         }
         Ok(())
@@ -90,7 +94,8 @@ impl StorageAdapter for JournalStorageAdapter {
             content: record.data,
             tags: record.tags,
         };
-        match self.client.write(namespace, shard_name, data).await {
+
+        match self.write_client.write(namespace, shard_name, data).await {
             Ok(resp) => {
                 if let Some(err) = resp.error {
                     return Err(CommonError::CommonError(err));
@@ -118,7 +123,11 @@ impl StorageAdapter for JournalStorageAdapter {
             });
         }
 
-        match self.client.batch_write(namespace, shard_name, data).await {
+        match self
+            .write_client
+            .batch_write(namespace, shard_name, data)
+            .await
+        {
             Ok(resp) => {
                 let mut resp_offsets = Vec::new();
                 for raw in resp {
@@ -143,7 +152,7 @@ impl StorageAdapter for JournalStorageAdapter {
         read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
         match self
-            .client
+            .read_client
             .read_by_offset(&namespace, &shard_name, offset, &read_config)
             .await
         {
@@ -163,7 +172,7 @@ impl StorageAdapter for JournalStorageAdapter {
         read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
         match self
-            .client
+            .read_client
             .read_by_tag(&namespace, &shard_name, offset, &tag, &read_config)
             .await
         {
@@ -182,7 +191,7 @@ impl StorageAdapter for JournalStorageAdapter {
         read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
         match self
-            .client
+            .read_client
             .read_by_key(&namespace, &shard_name, &key, &read_config)
             .await
         {
@@ -206,7 +215,7 @@ impl StorageAdapter for JournalStorageAdapter {
         timestamp: u64,
     ) -> Result<Option<ShardOffset>, CommonError> {
         match self
-            .client
+            .read_client
             .get_offset_by_timestamp(&namespace, &shard_name, timestamp)
             .await
         {
@@ -236,7 +245,10 @@ impl StorageAdapter for JournalStorageAdapter {
     }
 
     async fn close(&self) -> Result<(), CommonError> {
-        if let Err(e) = self.client.close().await {
+        if let Err(e) = self.write_client.close().await {
+            return Err(CommonError::CommonError(e.to_string()));
+        }
+        if let Err(e) = self.read_client.close().await {
             return Err(CommonError::CommonError(e.to_string()));
         }
         Ok(())

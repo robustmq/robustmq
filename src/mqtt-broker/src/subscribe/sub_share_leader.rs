@@ -286,7 +286,7 @@ where
                     subscribe.clone(),
                     publish,
                     Some(properties),
-                    record.timestamp,
+                    record.timestamp as u128,
                     group_id.to_owned(),
                     pkid,
                 );
