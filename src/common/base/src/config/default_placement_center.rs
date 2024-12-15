@@ -58,7 +58,7 @@ pub fn default_runtime_work_threads() -> usize {
 }
 
 pub fn default_data_path() -> String {
-    "/tmp/robust/placement-center/data".to_string()
+    "./robust-data/placement-center/data".to_string()
 }
 
 pub fn default_log() -> Log {

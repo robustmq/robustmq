@@ -10,3 +10,4 @@ logs
 nohup.out
 .idea
 /precommit_venv/
+robust-data*

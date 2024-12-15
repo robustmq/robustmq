@@ -28,8 +28,8 @@ runtime_work_threads = 100
 
 [storage]
 data_path = [
-    "/tmp/robust/journal-server/storage/data1",
-    "/tmp/robust/journal-server/storage/data2",
+    "./robust-data/journal-server/storage/data1",
+    "./robust-data/journal-server/storage/data2",
 ]
 rocksdb_max_open_files = 10000
 
