@@ -60,9 +60,9 @@ rm -rf ./robust-data-test/mqtt-server*
 start_placement_server
 start_mqtt_server
 
-cargo nextest run --package grpc-clients --test mod -- mqtt
-cargo nextest run --package robustmq-test --test mod -- mqtt_server
-cargo nextest run --package robustmq-test --test mod -- mqtt_protocol
+cargo nextest run --profile ci --package grpc-clients --test mod -- mqtt
+cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt_server
+cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt_protocol
 
 # Stop Server
 stop_placement_server
