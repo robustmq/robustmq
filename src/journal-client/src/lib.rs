@@ -26,16 +26,16 @@ use option::JournalClientOption;
 use protocol::journal_server::journal_engine::{CreateShardReqBody, DeleteShardReqBody};
 use service::{create_shard, delete_shard};
 use tokio::sync::broadcast::{self, Sender};
-use writer::{SenderMessage, SenderMessageResp, Writer};
+use async_writer::{SenderMessage, SenderMessageResp, AsyncWriter};
 
+mod async_reader;
+mod async_writer;
 mod cache;
 mod connection;
 mod error;
 pub mod option;
-mod reader;
 mod service;
 pub mod tool;
-mod writer;
 
 #[derive(Default, Clone)]
 pub struct JournalClientWriteData {
@@ -48,7 +48,7 @@ pub struct JournalClientWriteData {
 pub struct JournalEngineClient {
     connection_manager: Arc<ConnectionManager>,
     metadata_cache: Arc<MetadataCache>,
-    writer: Arc<Writer>,
+    writer: Arc<AsyncWriter>,
     stop_send: Sender<bool>,
 }
 
@@ -56,7 +56,7 @@ impl JournalEngineClient {
     pub fn new(options: JournalClientOption) -> Self {
         let metadata_cache = Arc::new(MetadataCache::new(options.addrs));
         let connection_manager = Arc::new(ConnectionManager::new(metadata_cache.clone()));
-        let sender = Arc::new(Writer::new(
+        let sender = Arc::new(AsyncWriter::new(
             connection_manager.clone(),
             metadata_cache.clone(),
         ));
