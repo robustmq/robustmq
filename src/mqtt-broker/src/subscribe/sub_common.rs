@@ -143,7 +143,7 @@ pub fn decode_share_info(sub_name: String) -> (String, String) {
 pub fn decode_queue_info(sub_name: String) -> String {
     let mut str_slice: Vec<&str> = sub_name.split("/").collect();
     str_slice.remove(0);
-    str_slice.remove(0).to_string()
+    format!("/{}", str_slice.join("/"))
 }
 
 pub async fn get_share_sub_leader(

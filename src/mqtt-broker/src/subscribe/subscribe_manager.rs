@@ -324,7 +324,7 @@ impl SubscribeManager {
 
     async fn parse_share_subscribe(&self, req: &mut ParseShareQueueSubscribeRequest) {
         let (group_name, sub_name) = decode_share_info(req.filter.path.clone());
-        req.group_name = group_name;
+        req.group_name = format!("{}{}", group_name, sub_name);
         req.sub_name = sub_name;
         self.parse_share_queue_subscribe_common(req).await;
     }
@@ -332,7 +332,7 @@ impl SubscribeManager {
     async fn parse_queue_subscribe(&self, req: &mut ParseShareQueueSubscribeRequest) {
         let sub_name = decode_queue_info(req.filter.path.clone());
         // queueSub is a special shareSub
-        let group_name = format!("$queue/{}", req.topic_name);
+        let group_name = format!("$queue{}", sub_name);
         req.group_name = group_name;
         req.sub_name = sub_name;
         self.parse_share_queue_subscribe_common(req).await;
