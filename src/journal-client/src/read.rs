@@ -46,19 +46,19 @@ impl JournalRead {
         offset: u64,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, JournalClientError> {
-        // let messages = self.reader.read().await?;
-        let results = Vec::new();
-        // for raw in messages {
-        //     let record = Record {
-        //         offset: Some(raw.offset),
-        //         key: raw.key,
-        //         data: raw.value,
-        //         tags: raw.tags,
-        //         header: Vec::new(),
-        //         timestamp: raw.timestamp,
-        //     };
-        //     results.push(record);
-        // }
+        let messages = self.reader.read().await?;
+        let mut results = Vec::new();
+        for raw in messages {
+            let record = Record {
+                offset: Some(raw.offset),
+                key: raw.key,
+                data: raw.value,
+                tags: raw.tags,
+                header: Vec::new(),
+                timestamp: raw.timestamp,
+            };
+            results.push(record);
+        }
         Ok(results)
     }
 
