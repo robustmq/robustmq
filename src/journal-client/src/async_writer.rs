@@ -29,10 +29,10 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::time::{sleep, timeout};
 
 use crate::cache::{get_segment_leader, MetadataCache};
+use crate::client::JournalClientWriteData;
 use crate::connection::ConnectionManager;
 use crate::error::JournalClientError;
 use crate::service::batch_write;
-use crate::write::JournalClientWriteData;
 
 // Send Message Struct
 #[derive(Clone)]
