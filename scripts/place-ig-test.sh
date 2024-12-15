@@ -33,7 +33,7 @@ stop_server(){
     fi
 }
 # Clean up
-rm -rf /tmp/robust-test/placement-center*
+rm -rf ./robust-data-test/placement-center*
 
 # Start Server
 start_server

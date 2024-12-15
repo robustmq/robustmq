@@ -64,4 +64,43 @@ mod tests {
         println!("node_id:{}", node_id);
         assert_eq!(resp.broker_id, node_id);
     }
+
+    #[tokio::test]
+    async fn test_queue_sub() {
+        let client_pool = Arc::new(ClientPool::new(3));
+        let addrs = vec!["127.0.0.1:1228".to_string()];
+
+        let cluster_type = ClusterType::MqttBrokerServer.into();
+        let cluster_name = unique_id();
+        let node_ip = "127.0.0.1".to_string();
+        let node_id = 7;
+        let node_inner_addr = "127.0.0.1:8228".to_string();
+        let extend_info = "".to_string();
+        let request = RegisterNodeRequest {
+            cluster_type,
+            cluster_name: cluster_name.clone(),
+            node_ip,
+            node_id,
+            node_inner_addr,
+            extend_info,
+        };
+
+        sleep(Duration::from_secs(2));
+
+        let res = register_node(&client_pool, &addrs, request).await.unwrap();
+        info!("{:?}", res);
+
+        let group_name = "$queue/topic1".to_string();
+        let req = GetShareSubLeaderRequest {
+            cluster_name: cluster_name.clone(),
+            group_name,
+        };
+
+        let resp = placement_get_share_sub_leader(&client_pool, &addrs, req)
+            .await
+            .unwrap();
+        println!("resp broker_id:{}", resp.broker_id);
+        println!("node_id:{}", node_id);
+        assert_eq!(resp.broker_id, node_id);
+    }
 }

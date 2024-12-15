@@ -30,9 +30,9 @@ heartbeat_timeout_ms = 5000
 heartbeat_check_time_ms = 1000
 
 [rocksdb]
-data_path = "/tmp/robust/placement-center-3/data"
+data_path = "./robust-data/placement-center-3/data"
 max_open_files = 10000
 
 [log]
 log_config = "./config/log4rs.yaml"
-log_path = "/tmp/robust/placement-center-3/logs"
+log_path = "./robust-data/placement-center-3/logs"

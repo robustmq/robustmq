@@ -30,8 +30,8 @@ use tokio::sync::broadcast::Sender;
 use tokio::time::sleep;
 
 use super::sub_common::{
-    decode_share_info, delete_exclusive_topic, get_share_sub_leader, is_share_sub,
-    path_regex_match, set_nx_exclusive_topic,
+    decode_queue_info, decode_share_info, delete_exclusive_topic, get_share_sub_leader,
+    is_queue_sub, is_share_sub, path_regex_match, set_nx_exclusive_topic,
 };
 use crate::handler::cache::CacheManager;
 use crate::subscribe::subscriber::Subscriber;
@@ -55,6 +55,19 @@ pub struct ShareLeaderSubscribeData {
     pub sub_name: String,
     // (client_id_sub_path, subscriber)
     pub sub_list: DashMap<String, Subscriber>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+struct ParseShareQueueSubscribeRequest {
+    topic_name: String,
+    topic_id: String,
+    client_id: String,
+    protocol: MqttProtocol,
+    subscribe: Subscribe,
+    sub_identifier: Option<usize>,
+    filter: Filter,
+    sub_name: String,
+    group_name: String,
 }
 
 #[derive(Clone)]
@@ -309,6 +322,63 @@ impl SubscribeManager {
         Ok(())
     }
 
+    async fn parse_share_subscribe(&self, req: &mut ParseShareQueueSubscribeRequest) {
+        let (group_name, sub_name) = decode_share_info(req.filter.path.clone());
+        req.group_name = format!("{}{}", group_name, sub_name);
+        req.sub_name = sub_name;
+        self.parse_share_queue_subscribe_common(req).await;
+    }
+
+    async fn parse_queue_subscribe(&self, req: &mut ParseShareQueueSubscribeRequest) {
+        let sub_name = decode_queue_info(req.filter.path.clone());
+        // queueSub is a special shareSub
+        let group_name = format!("$queue{}", sub_name);
+        req.group_name = group_name;
+        req.sub_name = sub_name;
+        self.parse_share_queue_subscribe_common(req).await;
+    }
+
+    async fn parse_share_queue_subscribe_common(&self, req: &ParseShareQueueSubscribeRequest) {
+        let conf = broker_mqtt_conf();
+        if path_regex_match(req.topic_name.clone(), req.sub_name.clone()) {
+            match get_share_sub_leader(self.client_pool.clone(), req.group_name.clone()).await {
+                Ok(reply) => {
+                    if reply.broker_id == conf.broker_id {
+                        self.parse_share_subscribe_leader(
+                            req.topic_name.clone(),
+                            req.topic_id.clone(),
+                            req.client_id.clone(),
+                            req.protocol.clone(),
+                            req.sub_identifier,
+                            req.filter.clone(),
+                            req.group_name.clone(),
+                            req.sub_name.clone(),
+                        )
+                        .await;
+                    } else {
+                        self.parse_share_subscribe_follower(
+                            req.topic_id.clone(),
+                            req.client_id.clone(),
+                            req.protocol.clone(),
+                            req.sub_identifier,
+                            req.filter.clone(),
+                            req.group_name.clone(),
+                            req.sub_name.clone(),
+                            req.subscribe.clone(),
+                        )
+                        .await;
+                    }
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to get Leader for shared subscription, error message: {}",
+                        e
+                    );
+                }
+            }
+        }
+    }
+
     async fn parse_subscribe(
         &self,
         topic_name: String,
@@ -326,45 +396,31 @@ impl SubscribeManager {
 
         for filter in subscribe.filters.clone() {
             if is_share_sub(filter.path.clone()) {
-                let conf = broker_mqtt_conf();
-                let (group_name, sub_name) = decode_share_info(filter.path.clone());
-                if path_regex_match(topic_name.clone(), sub_name.clone()) {
-                    match get_share_sub_leader(self.client_pool.clone(), group_name.clone()).await {
-                        Ok(reply) => {
-                            if reply.broker_id == conf.broker_id {
-                                self.parse_share_subscribe_leader(
-                                    topic_name.clone(),
-                                    topic_id.clone(),
-                                    client_id.clone(),
-                                    protocol.clone(),
-                                    sub_identifier,
-                                    filter,
-                                    group_name.clone(),
-                                    sub_name.clone(),
-                                )
-                                .await;
-                            } else {
-                                self.parse_share_subscribe_follower(
-                                    topic_id.clone(),
-                                    client_id.clone(),
-                                    protocol.clone(),
-                                    sub_identifier,
-                                    filter,
-                                    group_name.clone(),
-                                    sub_name.clone(),
-                                    subscribe.clone(),
-                                )
-                                .await;
-                            }
-                        }
-                        Err(e) => {
-                            error!(
-                                "Failed to get Leader for shared subscription, error message: {}",
-                                e
-                            );
-                        }
-                    }
-                }
+                self.parse_share_subscribe(&mut ParseShareQueueSubscribeRequest {
+                    topic_name: topic_name.clone(),
+                    topic_id: topic_id.clone(),
+                    client_id: client_id.clone(),
+                    protocol: protocol.clone(),
+                    subscribe: subscribe.clone(),
+                    sub_identifier,
+                    filter,
+                    sub_name: "".to_string(),
+                    group_name: "".to_string(),
+                })
+                .await;
+            } else if is_queue_sub(filter.path.clone()) {
+                self.parse_queue_subscribe(&mut ParseShareQueueSubscribeRequest {
+                    topic_name: topic_name.clone(),
+                    topic_id: topic_id.clone(),
+                    client_id: client_id.clone(),
+                    protocol: protocol.clone(),
+                    subscribe: subscribe.clone(),
+                    sub_identifier,
+                    filter,
+                    sub_name: "".to_string(),
+                    group_name: "".to_string(),
+                })
+                .await;
             } else {
                 self.parse_exclusive_subscribe(
                     topic_name.clone(),
@@ -393,36 +449,22 @@ impl SubscribeManager {
         let share_leader_key = self.share_leader_key(&group_name, &sub_name, &topic_id);
         let leader_sub_key = self.share_leader_sub_key(client_id.clone(), filter.path.clone());
 
+        let sub = Subscriber {
+            protocol: protocol.clone(),
+            client_id: client_id.clone(),
+            topic_name: topic_name.clone(),
+            group_name: Some(group_name.clone()),
+            topic_id: topic_id.clone(),
+            qos: filter.qos,
+            nolocal: filter.nolocal,
+            preserve_retain: filter.preserve_retain,
+            retain_forward_rule: filter.retain_forward_rule.clone(),
+            subscription_identifier: sub_identifier,
+            sub_path: filter.path.clone(),
+        };
         if let Some(share_sub) = self.share_leader_subscribe.get_mut(&share_leader_key) {
-            let sub = Subscriber {
-                protocol: protocol.clone(),
-                client_id: client_id.clone(),
-                topic_name: topic_name.clone(),
-                group_name: Some(group_name.clone()),
-                topic_id: topic_id.clone(),
-                qos: filter.qos,
-                nolocal: filter.nolocal,
-                preserve_retain: filter.preserve_retain,
-                retain_forward_rule: filter.retain_forward_rule.clone(),
-                subscription_identifier: sub_identifier,
-                sub_path: filter.path.clone(),
-            };
             share_sub.sub_list.insert(leader_sub_key, sub);
         } else {
-            let sub = Subscriber {
-                protocol: protocol.clone(),
-                client_id: client_id.clone(),
-                topic_name: topic_name.clone(),
-                group_name: Some(group_name.clone()),
-                topic_id: topic_id.clone(),
-                qos: filter.qos,
-                nolocal: filter.nolocal,
-                preserve_retain: filter.preserve_retain,
-                retain_forward_rule: filter.retain_forward_rule.clone(),
-                subscription_identifier: sub_identifier,
-                sub_path: filter.path.clone(),
-            };
-
             let sub_list = DashMap::with_capacity(8);
             sub_list.insert(leader_sub_key, sub);
 

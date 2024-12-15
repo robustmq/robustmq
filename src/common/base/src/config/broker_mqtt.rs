@@ -209,7 +209,7 @@ mod tests {
 
         assert_eq!(
             config.log.log_path,
-            "/tmp/robust/mqtt-broker/logs".to_string()
+            "./robust-data/mqtt-broker/logs".to_string()
         );
         assert_eq!(config.log.log_config, "./config/log4rs.yaml");
 
@@ -260,7 +260,7 @@ mod tests {
 
         assert_eq!(
             config.log.log_path,
-            "/tmp/robust/mqtt-broker/logs".to_string()
+            "./robust-data/mqtt-broker/logs".to_string()
         );
         assert_eq!(config.log.log_config, "./config/log4rs.yaml");
 

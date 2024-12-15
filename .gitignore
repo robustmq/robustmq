@@ -6,15 +6,8 @@ build
 .DS_Store
 log/*
 src/rlog/log/server.log
-.idea/.gitignore
-.idea/modules.xml
-.idea/robustmq.iml
-.idea/vcs.xml
-.idea/workspace.xml
 logs
 nohup.out
-.idea/checkstyle-idea.xml
-.idea/misc.xml
-.idea/codeStyles/Project.xml
-.idea/codeStyles/codeStyleConfig.xml
+.idea
 /precommit_venv/
+robust-data*

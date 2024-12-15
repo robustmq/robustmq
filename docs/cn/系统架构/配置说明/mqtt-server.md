@@ -99,5 +99,5 @@ mysql_addr = ""
 # 日志配置文件路径, 默认./config/log4rs.yaml
 log_config = "./config/log4rs.yaml"
 # 日志文件保存路径, 当前./logs目录
-log_path = "/tmp/robust/mqtt-broker/logs"
+log_path = "./robust-data/mqtt-broker/logs"
 ```

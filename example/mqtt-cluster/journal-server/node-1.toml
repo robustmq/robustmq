@@ -28,8 +28,8 @@ runtime_work_threads = 100
 
 [storage]
 data_path = [
-    "/tmp/robust-test/journal-server/storage/data1",
-    "/tmp/robust-test/journal-server/storage/data2",
+    "./robust-data-test/journal-server/storage/data1",
+    "./robust-data-test/journal-server/storage/data2",
 ]
 rocksdb_max_open_files = 10000
 
@@ -51,4 +51,4 @@ header = ""
 
 [log]
 log_config = "./config/log4rs.yaml"
-log_path = "/tmp/robust-test/journal-server/logs/journal-server"
+log_path = "./robust-data-test/journal-server/logs/journal-server"
