@@ -309,8 +309,6 @@ mod tests {
     use common_base::error::common::CommonError;
     use protocol::broker_mqtt::broker_mqtt_admin::{ListSlowSubScribeRaw, ListSlowSubscribeReply};
 
-    use super::*;
-
     fn set_up_slow_sub_config() -> Result<ListSlowSubscribeReply, CommonError> {
         let mut list_slow_sub_raw: Vec<ListSlowSubScribeRaw> = Vec::new();
         let raw1 = ListSlowSubScribeRaw {

@@ -54,6 +54,7 @@ mod tests {
             sub_name: "".to_string(),
             topic: "".to_string(),
             client_id: "".to_string(),
+            sort: "asc".to_string(),
         };
 
         match mqtt_broker_list_slow_subscribe(&client_pool, &grpc_addr, request).await {

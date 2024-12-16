@@ -90,8 +90,7 @@ pub(crate) struct SlowSubArgs {
 pub fn process_slow_sub_args(args: SlowSubArgs) -> MqttActionType {
     if args.is_enable.is_none() {
         if args.list.is_none() {
-            println!("Please provide at least one argument. Use --help for more information.");
-            std::process::exit(1);
+            panic!("Please provide at least one argument(--is-enable | --list). Use --help for more information.")
         } else {
             MqttActionType::ListSlowSubscribe(ListSlowSubscribeRequest {
                 list: args.list.unwrap_or(100),
@@ -131,6 +130,9 @@ mod tests {
     }
 
     #[tokio::test]
+    #[should_panic(
+        expected = "Please provide at least one argument(--is-enable | --list). Use --help for more information."
+    )]
     async fn test_process_slow_sub_args_function_filed_is_enable_none() {
         let args = SlowSubArgs {
             is_enable: None,
@@ -141,24 +143,31 @@ mod tests {
             client_id: None,
         };
 
-        let action_type = process_slow_sub_args(args);
-        assert_eq!(
-            MqttActionType::ListSlowSubscribe(ListSlowSubscribeRequest {
-                list: 100,
-                sub_name: "".to_string(),
-                topic: "".to_string(),
-                client_id: "".to_string(),
-                sort: "".to_string(),
-            }),
-            action_type
-        )
+        process_slow_sub_args(args);
     }
 
     #[tokio::test]
+    #[should_panic(
+        expected = "Please provide at least one argument(--is-enable | --list). Use --help for more information."
+    )]
     async fn test_process_slow_sub_args_function_filed_is_enable_none_1() {
         let args = SlowSubArgs {
             is_enable: None,
             list: None,
+            sort: Some(SortType::ASC),
+            topic: Some("topic_name".to_string()),
+            sub_name: Some("sub_name".to_string()),
+            client_id: Some("client_id".to_string()),
+        };
+
+        process_slow_sub_args(args);
+    }
+
+    #[tokio::test]
+    async fn test_process_slow_sub_args_function_filed_is_enable_none_2() {
+        let args = SlowSubArgs {
+            is_enable: None,
+            list: Some(100),
             sort: Some(SortType::ASC),
             topic: Some("topic_name".to_string()),
             sub_name: Some("sub_name".to_string()),

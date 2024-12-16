@@ -14,12 +14,15 @@
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use mqtt_broker::observability::slow::sub::read_slow_sub_record;
     use protocol::broker_mqtt::broker_mqtt_admin::ListSlowSubscribeRequest;
 
     #[test]
     fn test_read_slow_record_path_is_empty() {
         let path = "";
+        let path_buf = PathBuf::new().join(path);
         let record = ListSlowSubscribeRequest {
             sub_name: "/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e".to_string(),
             client_id: "".to_string(),
@@ -27,13 +30,14 @@ mod tests {
             list: 5,
             sort: "asc".to_string(),
         };
-        let result = read_slow_sub_record(record, path.to_string()).unwrap();
+        let result = read_slow_sub_record(record, path_buf).unwrap();
         assert_eq!(0, result.clone().len())
     }
 
     #[test]
     fn test_read_slow_record_param_is_one_1() {
         let path = "./tests/mqtt_server/example/slow_sub.log";
+        let path_buf = PathBuf::new().join(path);
         let record = ListSlowSubscribeRequest {
             sub_name: "/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e".to_string(),
             client_id: "".to_string(),
@@ -42,7 +46,7 @@ mod tests {
             sort: "asc".to_string(),
         };
 
-        let result = read_slow_sub_record(record, path.to_string()).unwrap();
+        let result = read_slow_sub_record(record, path_buf).unwrap();
 
         assert_eq!(5, result.clone().len());
         assert_eq!(
@@ -70,6 +74,7 @@ mod tests {
     #[test]
     fn test_read_slow_record_param_is_one_2() {
         let path = "./tests/mqtt_server/example/slow_sub.log";
+        let path_buf = PathBuf::new().join(path);
         let record = ListSlowSubscribeRequest {
             sub_name: "".to_string(),
             client_id: "ed280344fec44aad8a78b00ff1dec99a".to_string(),
@@ -78,7 +83,7 @@ mod tests {
             sort: "asc".to_string(),
         };
 
-        let result = read_slow_sub_record(record, path.to_string()).unwrap();
+        let result = read_slow_sub_record(record, path_buf).unwrap();
 
         assert_eq!(5, result.clone().len());
         assert_eq!(
@@ -106,6 +111,7 @@ mod tests {
     #[test]
     fn test_read_slow_record_param_is_one_3() {
         let path = "./tests/mqtt_server/example/slow_sub.log";
+        let path_buf = PathBuf::new().join(path);
         let record = ListSlowSubscribeRequest {
             sub_name: "".to_string(),
             client_id: "".to_string(),
@@ -114,7 +120,7 @@ mod tests {
             sort: "asc".to_string(),
         };
 
-        let result = read_slow_sub_record(record, path.to_string()).unwrap();
+        let result = read_slow_sub_record(record, path_buf).unwrap();
 
         assert_eq!(4, result.clone().len());
         assert_eq!(
@@ -138,6 +144,7 @@ mod tests {
     #[test]
     fn test_read_slow_record_param_is_two() {
         let path = "./tests/mqtt_server/example/slow_sub.log";
+        let path_buf = PathBuf::new().join(path);
         let record = ListSlowSubscribeRequest {
             sub_name: "/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e".to_string(),
             client_id: "ed280344fec44aad8a78b00ff1dec99a".to_string(),
@@ -146,7 +153,7 @@ mod tests {
             sort: "asc".to_string(),
         };
 
-        let result = read_slow_sub_record(record, path.to_string()).unwrap();
+        let result = read_slow_sub_record(record, path_buf).unwrap();
 
         assert_eq!(5, result.clone().len());
         assert_eq!(
@@ -174,6 +181,7 @@ mod tests {
     #[test]
     fn test_read_slow_record_param_is_three() {
         let path = "./tests/mqtt_server/example/slow_sub.log";
+        let path_buf = PathBuf::new().join(path);
         let record = ListSlowSubscribeRequest {
             sub_name: "/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e".to_string(),
             client_id: "ed280344fec44aad8a78b00ff1dec99a".to_string(),
@@ -182,7 +190,7 @@ mod tests {
             sort: "asc".to_string(),
         };
 
-        let result = read_slow_sub_record(record, path.to_string()).unwrap();
+        let result = read_slow_sub_record(record, path_buf).unwrap();
 
         assert_eq!(3, result.clone().len());
         assert_eq!(
