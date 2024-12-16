@@ -142,6 +142,7 @@ pub async fn read_data_req(
                 key: record.key,
                 value: record.content,
                 tags: record.tags,
+                timestamp: record.create_time,
             });
         }
         shard_message.messages = record_message;
