@@ -28,20 +28,35 @@ build-arm-release: ## Build arm version robustmq.
 
 .PHONY: test
 test:  ## Unit testing for Robustmq
-	cargo clean
-	sh ./scripts/unit-test.sh
+	sh ./scripts/unit-test.sh dev
+
+.PHONY: test-ci
+test-ci:  ## Unit testing for Robustmq
+	sh ./scripts/unit-test.sh ci
 
 .PHONY: mqtt-ig-test
 mqtt-ig-test:  ## Integration testing for MQTT Broker
-	sh ./scripts/mqtt-ig-test.sh
+	sh ./scripts/mqtt-ig-test.sh dev
+
+.PHONY: mqtt-ig-test-ci
+mqtt-ig-test-ci:  ## Integration testing for MQTT Broker
+	sh ./scripts/mqtt-ig-test.sh ci
 
 .PHONY: place-ig-test
 place-ig-test:  ## Integration testing for Placement Center
-	sh ./scripts/place-ig-test.sh
+	sh ./scripts/place-ig-test.sh dev
+
+.PHONY: place-ig-test-ci
+place-ig-test-ci:  ## Integration testing for Placement Center
+	sh ./scripts/place-ig-test.sh ci
 
 .PHONY: journal-ig-test
 journal-ig-test:  ## Integration testing for Journal Engine
-	sh ./scripts/journal-ig-test.sh
+	sh ./scripts/journal-ig-test.sh dev
+
+.PHONY: journal-ig-test
+journal-ig-test-ci:  ## Integration testing for Journal Engine
+	sh ./scripts/journal-ig-test.sh ci
 
 .PHONY: clean
 clean:  ## Clean the project.

@@ -48,7 +48,7 @@ jobs:
           crate: cargo-nextest
           args: --locked
       - name: Run tests
-        run: make test
+        run: make test-ci
 
       - name: Upload JUnit report
         # Run this step even if the test step fails. Upload it right now because
