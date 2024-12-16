@@ -70,7 +70,7 @@ pub struct MqttClusterDynamicConfigFeature {
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct MqttClusterDynamicSlowSub {
     pub enable: bool,
-    pub whole_ms: u128,
+    pub whole_ms: u64,
     pub internal_ms: u32,
     pub response_ms: u32,
 }

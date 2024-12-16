@@ -93,7 +93,7 @@ repos:
       - id: cargo-test
         name: cargo test
         description: unit test for the project
-        entry: bash -c 'cargo nextest run --workspace --exclude robustmq-test'
+        entry: bash -c 'make test'
         language: system
         files: \.rs$
         pass_filenames: false

@@ -424,7 +424,9 @@ pub async fn exclusive_publish_message_qos1(
             }
         };
 
-        match publish_message_to_client(resp, sub_pub_param, connection_manager).await {
+        match publish_message_to_client(resp, sub_pub_param, connection_manager, metadata_cache)
+            .await
+        {
             Ok(_) => {
                 if let Some(data) = wait_packet_ack(wait_puback_sx).await {
                     if data.ack_type == QosAckPackageType::PubAck && data.pkid == sub_pub_param.pkid
