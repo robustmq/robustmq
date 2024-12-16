@@ -18,8 +18,7 @@ use std::sync::Arc;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
-use journal_client::option::JournalClientOption;
-use journal_client::{JournalClientWriteData, JournalEngineClient};
+use journal_client::client::{JournalClient, JournalClientWriteData};
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 use offset::PlaceOffsetManager;
@@ -28,10 +27,9 @@ use crate::storage::{ShardConfig, ShardOffset, StorageAdapter};
 
 pub mod offset;
 
-#[derive(Clone)]
 pub struct JournalStorageAdapter {
     cluster_name: String,
-    client: JournalEngineClient,
+    client: JournalClient,
     offset_manager: PlaceOffsetManager,
 }
 
@@ -42,14 +40,12 @@ impl JournalStorageAdapter {
         journal_addrs: Vec<String>,
         place_addrs: Vec<String>,
     ) -> Self {
-        let mut options = JournalClientOption::build();
-        options.set_addrs(journal_addrs);
-        let client = JournalEngineClient::new(options);
-        let offset_manager = PlaceOffsetManager::new(client_pool, place_addrs);
+        let offset_manager = PlaceOffsetManager::new(client_pool, place_addrs.clone());
+        let client = JournalClient::new(journal_addrs.clone());
         JournalStorageAdapter {
-            client,
             offset_manager,
             cluster_name,
+            client,
         }
     }
 }
@@ -90,6 +86,7 @@ impl StorageAdapter for JournalStorageAdapter {
             content: record.data,
             tags: record.tags,
         };
+
         match self.client.write(namespace, shard_name, data).await {
             Ok(resp) => {
                 if let Some(err) = resp.error {

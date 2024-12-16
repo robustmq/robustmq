@@ -362,7 +362,7 @@ async fn buile_pub_message(
         subscriber.clone(),
         publish,
         Some(properties),
-        record.timestamp,
+        record.timestamp as u128,
         group_id.to_string(),
         pkid,
     );

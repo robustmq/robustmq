@@ -23,7 +23,7 @@ use protocol::journal_server::journal_engine::{
     ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
 };
 use tokio::select;
-use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::broadcast::{self, Receiver, Sender};
 use tokio::time::sleep;
 
 use crate::cache::{get_active_segment, get_segment_leader, MetadataCache};
@@ -38,6 +38,7 @@ pub struct ReadShardByOffset {
     pub offset: u64,
 }
 
+#[derive(Clone)]
 pub struct ReadMessageData {
     pub namespace: String,
     pub shard_name: String,
@@ -46,30 +47,27 @@ pub struct ReadMessageData {
     pub key: String,
     pub value: Vec<u8>,
     pub tags: Vec<String>,
+    pub timestamp: u64,
 }
 
-pub struct Reader {
+#[derive(Clone)]
+pub struct AsyncReader {
     metadata_cache: Arc<MetadataCache>,
     connection_manager: Arc<ConnectionManager>,
     data_sender: Sender<ReadMessageData>,
-    data_recv: Receiver<ReadMessageData>,
-    group_name: String,
     stop_send: Option<Sender<bool>>,
 }
 
-impl Reader {
+impl AsyncReader {
     pub fn new(
         metadata_cache: Arc<MetadataCache>,
         connection_manager: Arc<ConnectionManager>,
-        group_name: String,
     ) -> Self {
-        let (data_sender, data_recv) = mpsc::channel::<ReadMessageData>(500);
-        Reader {
+        let (data_sender, data_recv) = broadcast::channel::<ReadMessageData>(500);
+        AsyncReader {
             metadata_cache,
             connection_manager,
             data_sender,
-            data_recv,
-            group_name,
             stop_send: None,
         }
     }
@@ -79,7 +77,7 @@ impl Reader {
         shards: Vec<ReadShardByOffset>,
         read_config: ReadConfig,
     ) {
-        let (stop_send, stop_recv) = mpsc::channel::<bool>(1);
+        let (stop_send, stop_recv) = broadcast::channel::<bool>(1);
         start_read_thread_by_group(
             self.connection_manager.clone(),
             self.metadata_cache.clone(),
@@ -90,26 +88,25 @@ impl Reader {
         );
     }
 
-    pub async fn read(&mut self) -> Result<Vec<ReadMessageData>, JournalClientError> {
+    pub async fn read(&self) -> Result<Vec<ReadMessageData>, JournalClientError> {
         let mut results: Vec<ReadMessageData> = Vec::new();
         let start_time = now_mills();
+        let mut recv = self.data_sender.subscribe();
         loop {
             if (now_mills() - start_time) >= 100 {
                 break;
             }
-            if let Some(data) = self.data_recv.recv().await {
-                results.push(data);
-            }
+            let data = recv.recv().await?;
+            results.push(data);
         }
         Ok(results)
     }
 
-    pub async fn close(&self) {
+    pub async fn close(&self) -> Result<(), JournalClientError> {
         if let Some(stop) = self.stop_send.clone() {
-            if let Err(e) = stop.send(true).await {
-                error!("{}", e);
-            }
+            stop.send(true)?;
         }
+        Ok(())
     }
 }
 
@@ -125,7 +122,7 @@ fn start_read_thread_by_group(
         loop {
             select! {
                 val = stop_recv.recv()=>{
-                    if let Some(flag) = val {
+                    if let Ok(flag) = val {
 
                     }
                 },
@@ -137,7 +134,7 @@ fn start_read_thread_by_group(
                                 continue;
                             }
                             for raw in messages{
-                                if let Err(e) = data_sender.send(raw).await{
+                                if let Err(e) = data_sender.send(raw){
                                     error!("{}",e);
                                 }
                             }
@@ -193,6 +190,7 @@ async fn async_read_data(
                     key: message.key,
                     value: message.value,
                     tags: message.tags,
+                    timestamp: message.timestamp,
                 };
                 results.push(val);
             }
