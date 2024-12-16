@@ -55,7 +55,7 @@ pub fn record_slow_sub_data(slow_data: SlowSubData, whole_ms: u64) -> Result<(),
     let data = serde_json::to_string(&slow_data)?;
 
     if slow_data.time_ms > whole_ms {
-        info!(target: "mqtt-broker::observability", "{}", data);
+        info!("{}", data);
     }
 
     Ok(())

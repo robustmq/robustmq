@@ -56,7 +56,7 @@ root:
 
 
 loggers:
-  mqtt-broker::observability:
+  mqtt-broker::observability::slow:
     level: info
     appenders:
       - slow_sub

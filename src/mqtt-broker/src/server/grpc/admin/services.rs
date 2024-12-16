@@ -303,7 +303,8 @@ impl MqttBrokerAdminService for GrpcAdminServices {
     ) -> Result<Response<ListSlowSubscribeReply>, Status> {
         let list_slow_subscribe_request = request.into_inner();
         let mut list_slow_subscribe_raw: Vec<ListSlowSubScribeRaw> = Vec::new();
-        let path = self.cache_manager.get_slow_sub_config().path_addr;
+        let mqtt_config = broker_mqtt_conf();
+        let path = mqtt_config.log.log_path.clone();
         let deque = read_slow_sub_record(list_slow_subscribe_request, path)?;
         for slow_sub_data in deque {
             match serde_json::from_str::<SlowSubData>(slow_sub_data.as_str()) {

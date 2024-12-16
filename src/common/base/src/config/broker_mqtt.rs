@@ -210,6 +210,9 @@ mod tests {
         assert_eq!(
             config.log.log_config,
             "./config/log-config/mqtt-log4rs.yaml"
+        );
+
+        assert_eq!(
             config.log.log_path,
             "./robust-data/mqtt-broker/logs".to_string()
         );

@@ -28,7 +28,6 @@ build-arm-release: ## Build arm version robustmq.
 
 .PHONY: test
 test:  ## Unit testing for Robustmq
-	cargo clean
 	sh ./scripts/unit-test.sh
 
 .PHONY: mqtt-ig-test

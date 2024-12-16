@@ -30,7 +30,6 @@ struct ArgsParams {
 
 fn main() {
     let args = ArgsParams::parse();
-    eprintln!("{:?}", args.conf.clone());
     init_broker_mqtt_conf_by_path(&args.conf);
     init_broker_mqtt_log();
     let (stop_send, _) = broadcast::channel(2);
