@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Run Cargo Test （exclude integration test modules）
-cargo nextest run --workspace --exclude robustmq-test --exclude grpc-clients
+cargo nextest run --profile=ci --workspace --exclude=robustmq-test --exclude=grpc-clients
 
  # Modules that are not suitable for unit testing
  # grpc-clients
