@@ -12,9 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Run Cargo Test （exclude integration test modules）
-cargo nextest run --profile=ci --workspace --exclude=robustmq-test --exclude=grpc-clients
 
- # Modules that are not suitable for unit testing
- # grpc-clients
- # robustmq-test
+
+if [ "$1" == "dev" ]; then
+
+ # Run Cargo Test （exclude integration test modules）
+ cargo nextest run  --workspace --exclude=robustmq-test --exclude=grpc-clients
+
+else
+
+  # Run Cargo Test （exclude integration test modules）
+ cargo nextest run  --profile=ci --workspace --exclude=robustmq-test --exclude=grpc-clients
+
+fi
