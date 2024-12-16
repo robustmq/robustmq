@@ -25,6 +25,7 @@ mod tests {
             client_id: "".to_string(),
             topic: "".to_string(),
             list: 5,
+            sort: "asc".to_string(),
         };
         let result = read_slow_sub_record(record, path.to_string()).unwrap();
         assert_eq!(0, result.clone().len())
@@ -38,6 +39,7 @@ mod tests {
             client_id: "".to_string(),
             topic: "".to_string(),
             list: 5,
+            sort: "asc".to_string(),
         };
 
         let result = read_slow_sub_record(record, path.to_string()).unwrap();
@@ -73,6 +75,7 @@ mod tests {
             client_id: "ed280344fec44aad8a78b00ff1dec99a".to_string(),
             topic: "".to_string(),
             list: 5,
+            sort: "asc".to_string(),
         };
 
         let result = read_slow_sub_record(record, path.to_string()).unwrap();
@@ -108,6 +111,7 @@ mod tests {
             client_id: "".to_string(),
             topic: "/request/131edb8526804e80b32b387fa2340d35".to_string(),
             list: 5,
+            sort: "asc".to_string(),
         };
 
         let result = read_slow_sub_record(record, path.to_string()).unwrap();
@@ -139,6 +143,7 @@ mod tests {
             client_id: "ed280344fec44aad8a78b00ff1dec99a".to_string(),
             topic: "".to_string(),
             list: 5,
+            sort: "asc".to_string(),
         };
 
         let result = read_slow_sub_record(record, path.to_string()).unwrap();
@@ -174,6 +179,7 @@ mod tests {
             client_id: "ed280344fec44aad8a78b00ff1dec99a".to_string(),
             topic: "/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e".to_string(),
             list: 5,
+            sort: "asc".to_string(),
         };
 
         let result = read_slow_sub_record(record, path.to_string()).unwrap();

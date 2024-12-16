@@ -14,6 +14,7 @@
 
 use std::collections::VecDeque;
 use std::fs::File;
+use std::path::PathBuf;
 
 use common_base::tools::{get_local_ip, now_second};
 use grep::matcher::Matcher;
@@ -83,7 +84,7 @@ pub fn connect_regex_pattern(sub_name: String, client_id: String, topic: String)
 
 pub fn read_slow_sub_record(
     search_options: ListSlowSubscribeRequest,
-    path: String,
+    path: PathBuf,
 ) -> Result<VecDeque<String>, MqttBrokerError> {
     let regex_pattern = connect_regex_pattern(
         search_options.sub_name,

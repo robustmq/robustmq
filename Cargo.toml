@@ -13,6 +13,7 @@
 # limitations under the License.
 
 [workspace]
+name = "robustmq"
 members = [
     "src/mqtt-bridge/kafka",
     "src/mqtt-bridge/elasticsearch",
@@ -108,6 +109,8 @@ openraft = { git = "https://github.com/databendlabs/openraft.git", features = [
 ] }
 validator = { version = "0.18", features = ["derive"] }
 rand = "0.8.5"
+#format
+prettytable-rs = "^0.10"
 
 
 

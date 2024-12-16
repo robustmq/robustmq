@@ -162,6 +162,7 @@ message ListSlowSubscribeRequest {
     string sub_name = 3;
     string topic = 2;
     string client_id = 4;
+    string sort = 5;
 }
 
 message ListSlowSubscribeReply {
@@ -174,6 +175,7 @@ message ListSlowSubScribeRaw {
     uint64 time_ms = 3;
     string node_info = 4;
     uint64 create_time = 5;
+    string sub_name = 6;
 }
 
 

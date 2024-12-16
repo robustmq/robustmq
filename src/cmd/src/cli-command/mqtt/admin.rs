@@ -89,12 +89,18 @@ pub(crate) struct SlowSubArgs {
 
 pub fn process_slow_sub_args(args: SlowSubArgs) -> MqttActionType {
     if args.is_enable.is_none() {
-        MqttActionType::ListSlowSubscribe(ListSlowSubscribeRequest {
-            list: args.list.unwrap_or(100),
-            sub_name: args.sub_name.unwrap_or("".to_string()),
-            topic: args.topic.unwrap_or("".to_string()),
-            client_id: args.client_id.unwrap_or("".to_string()),
-        })
+        if args.list.is_none() {
+            println!("Please provide at least one argument. Use --help for more information.");
+            std::process::exit(1);
+        } else {
+            MqttActionType::ListSlowSubscribe(ListSlowSubscribeRequest {
+                list: args.list.unwrap_or(100),
+                sub_name: args.sub_name.unwrap_or("".to_string()),
+                topic: args.topic.unwrap_or("".to_string()),
+                client_id: args.client_id.unwrap_or("".to_string()),
+                sort: args.sort.unwrap_or(SortType::DESC).to_string(),
+            })
+        }
     } else {
         MqttActionType::EnableSlowSubscribe(EnableSlowSubscribeRequest {
             is_enable: args.is_enable.unwrap(),
@@ -141,7 +147,8 @@ mod tests {
                 list: 100,
                 sub_name: "".to_string(),
                 topic: "".to_string(),
-                client_id: "".to_string()
+                client_id: "".to_string(),
+                sort: "".to_string(),
             }),
             action_type
         )
@@ -164,7 +171,8 @@ mod tests {
                 list: 100,
                 sub_name: "sub_name".to_string(),
                 topic: "topic_name".to_string(),
-                client_id: "client_id".to_string()
+                client_id: "client_id".to_string(),
+                sort: "asc".to_string(),
             }),
             action_type
         )

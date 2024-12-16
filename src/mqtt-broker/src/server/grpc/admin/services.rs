@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::serialize_value;
+use common_base::utils::file_utils::get_project_root;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
@@ -304,22 +305,26 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         let list_slow_subscribe_request = request.into_inner();
         let mut list_slow_subscribe_raw: Vec<ListSlowSubScribeRaw> = Vec::new();
         let mqtt_config = broker_mqtt_conf();
-        let path = mqtt_config.log.log_path.clone();
-        let deque = read_slow_sub_record(list_slow_subscribe_request, path)?;
-        for slow_sub_data in deque {
-            match serde_json::from_str::<SlowSubData>(slow_sub_data.as_str()) {
-                Ok(data) => {
-                    let raw = ListSlowSubScribeRaw {
-                        client_id: data.client_id,
-                        topic: data.topic,
-                        time_ms: data.time_ms,
-                        node_info: data.node_info,
-                        create_time: data.create_time,
-                    };
-                    list_slow_subscribe_raw.push(raw);
-                }
-                Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
+        if self.cache_manager.get_slow_sub_config().enable {
+            let path = mqtt_config.log.log_path.clone();
+            let path_buf = get_project_root()?.join(path.replace("./", "") + "/slow_sub.log");
+            let deque = read_slow_sub_record(list_slow_subscribe_request, path_buf)?;
+            for slow_sub_data in deque {
+                match serde_json::from_str::<SlowSubData>(slow_sub_data.as_str()) {
+                    Ok(data) => {
+                        let raw = ListSlowSubScribeRaw {
+                            client_id: data.client_id,
+                            topic: data.topic,
+                            time_ms: data.time_ms,
+                            node_info: data.node_info,
+                            create_time: data.create_time,
+                            sub_name: data.sub_name,
+                        };
+                        list_slow_subscribe_raw.push(raw);
+                    }
+                    Err(e) => {
+                        return Err(Status::cancelled(e.to_string()));
+                    }
                 }
             }
         }
