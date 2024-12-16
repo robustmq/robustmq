@@ -46,7 +46,7 @@ heartbeat_check_time_ms = 1000
 ```
 [rocksdb]
 # 定义数据存储路径，rocksdb
-data_path = "/tmp/robust/placement-center/data"
+data_path = "./robust-data/placement-center/data"
 
 # 配置RocksDB数据库的最大打开文件数,支持大量并发读取操作，默认10000
 max_open_files = 10000
@@ -59,5 +59,5 @@ max_open_files = 10000
 log_config = "./config/log4rs.yaml"
 
 # 日志文件存储目录，默认目录./logs/placement-center
-log_path = "/tmp/robust/placement-center/logs"
+log_path = "./robust-data/placement-center/logs"
 ```

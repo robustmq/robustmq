@@ -8,5 +8,6 @@ log/*
 src/rlog/log/server.log
 logs
 nohup.out
+.idea
 /precommit_venv/
-/.idea/
+robust-data*

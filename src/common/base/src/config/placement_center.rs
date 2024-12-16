@@ -201,15 +201,15 @@ mod tests {
         assert_eq!(config.network.http_port, 1227);
         assert_eq!(config.system.runtime_work_threads, 100);
         println!("{}", config.rocksdb.data_path);
-        println!("/tmp/robust/placement-center/data");
+        println!("./robust-data/placement-center/data");
         assert_eq!(
             config.rocksdb.data_path,
-            "/tmp/robust/placement-center/data".to_string()
+            "./robust-data/placement-center/data".to_string()
         );
         assert_eq!(
             config.log,
             Log {
-                log_path: "./logs/placement-center".to_string(),
+                log_path: "./robust-data/placement-center/logs".to_string(),
                 log_config: "./config/log4rs.yaml".to_string(),
             }
         );

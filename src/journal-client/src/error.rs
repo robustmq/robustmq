@@ -61,8 +61,11 @@ pub enum JournalClientError {
     #[error("Request {0}, received return packet does not contain body information and is an invalid packet")]
     ReceivedPacketNotContainBody(String),
 
-    #[error("Shard {0} has no active segments")]
+    #[error("{0} has no Leader available")]
     NotActiveSegmentLeader(String),
+
+    #[error("Shard {0} has no active segment")]
+    NotActiveSegment(String),
 
     #[error("The write request returns empty")]
     WriteReqReturnTmpty,

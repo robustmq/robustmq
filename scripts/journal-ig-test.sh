@@ -53,8 +53,8 @@ stop_journal_server(){
 }
 
 # Clean up
-rm -rf /tmp/robust-test/placement-center*
-rm -rf /tmp/robust-test/journal-server*
+rm -rf ./robust-data-test/placement-center*
+rm -rf ./robust-data-test/journal-server*
 
 # Start Server
 start_placement_server

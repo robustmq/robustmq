@@ -37,9 +37,9 @@ port = 3306
 # header = ""
 
 [rocksdb]
-data_path = "/tmp/robust/placement-center/data"
+data_path = "./robust-data/placement-center/data"
 max_open_files = 10000
 
 [log]
 log_config = "./config/log4rs.yaml"
-log_path = "./logs/placement-center"
+log_path = "./robust-data/placement-center/logs"

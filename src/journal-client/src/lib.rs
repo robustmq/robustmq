@@ -15,20 +15,17 @@
 #![allow(dead_code, unused_variables)]
 
 use std::sync::Arc;
-use std::time::Duration;
 
-use cache::{load_node_cache, load_shards_cache, start_update_cache_thread, MetadataCache};
+use cache::{get_active_segment, load_node_cache, start_update_cache_thread, MetadataCache};
 use connection::{start_conn_gc_thread, ConnectionManager};
 use error::JournalClientError;
 use log::error;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
-use metadata_struct::journal::shard::shard_name_iden;
 use option::JournalClientOption;
 use protocol::journal_server::journal_engine::{CreateShardReqBody, DeleteShardReqBody};
 use service::{create_shard, delete_shard};
 use tokio::sync::broadcast::{self, Sender};
-use tokio::time::sleep;
 use writer::{SenderMessage, SenderMessageResp, Writer};
 
 mod cache;
@@ -123,52 +120,22 @@ impl JournalEngineClient {
         shard_name: String,
         data: Vec<JournalClientWriteData>,
     ) -> Result<Vec<SenderMessageResp>, JournalClientError> {
-        loop {
-            let active_segment = if let Some(segment) = self
-                .metadata_cache
-                .get_active_segment(&namespace, &shard_name)
-            {
-                segment
-            } else {
-                if let Err(e) = load_shards_cache(
-                    &self.metadata_cache,
-                    &self.connection_manager,
-                    &namespace,
-                    &shard_name,
-                )
-                .await
-                {
-                    error!(
-                        "Loading Shard {} Metadata info failed, error message :{}",
-                        shard_name_iden(&namespace, &shard_name,),
-                        e
-                    );
-                }
-                error!(
-                    "{}",
-                    JournalClientError::NotActiveSegmentLeader(shard_name_iden(
-                        &namespace,
-                        &shard_name,
-                    ))
-                );
-                sleep(Duration::from_millis(100)).await;
-                continue;
-            };
+        let active_segment = get_active_segment(
+            &self.metadata_cache,
+            &self.connection_manager,
+            &namespace,
+            &shard_name,
+        )
+        .await;
 
-            let message =
-                SenderMessage::build(&namespace, &shard_name, active_segment, data.clone());
-            match self.writer.send(&message).await {
-                Ok(resp) => {
-                    return Ok(resp);
+        let message = SenderMessage::build(&namespace, &shard_name, active_segment, data.clone());
+        match self.writer.send(&message).await {
+            Ok(resp) => Ok(resp),
+            Err(e) => {
+                if let JournalClientError::NotActiveSegmentLeader(_) = e {
+                    error!("Message failed to send. Reason :{} Next attempt.", e);
                 }
-                Err(e) => {
-                    if let JournalClientError::NotActiveSegmentLeader(_) = e {
-                        error!("Message failed to send. Reason :{} Next attempt.", e);
-                        sleep(Duration::from_millis(100)).await;
-                        continue;
-                    }
-                    return Err(e);
-                }
+                Err(e)
             }
         }
     }

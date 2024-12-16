@@ -207,10 +207,11 @@ mod tests {
         assert_eq!(config.storage.journal_addr, "".to_string());
         assert_eq!(config.storage.mysql_addr, "".to_string());
 
-        assert_eq!(config.log.log_path, "./logs/mqtt-broker".to_string());
         assert_eq!(
             config.log.log_config,
             "./config/log-config/mqtt-log4rs.yaml"
+            config.log.log_path,
+            "./robust-data/mqtt-broker/logs".to_string()
         );
 
         assert_eq!(config.auth.storage_type, "placement".to_string());
@@ -258,7 +259,10 @@ mod tests {
         assert_eq!(config.storage.journal_addr, "".to_string());
         assert_eq!(config.storage.mysql_addr, "".to_string());
 
-        assert_eq!(config.log.log_path, "./logs/mqtt-broker".to_string());
+        assert_eq!(
+            config.log.log_path,
+            "./robust-data/mqtt-broker/logs".to_string()
+        );
         assert_eq!(
             config.log.log_config,
             "./config/log-config/mqtt-log4rs.yaml"

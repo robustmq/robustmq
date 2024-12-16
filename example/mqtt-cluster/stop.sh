@@ -37,9 +37,9 @@ stop_pc_cluster(){
 
     sleep 3
 
-    rm -rf  /tmp/robust/placement-center-1/data
-    # rm -rf  /tmp/robust/placement-center-2/data
-    # rm -rf  /tmp/robust/placement-center-3/data
+    rm -rf  ./robust-data/placement-center-1/data
+    # rm -rf  ./robust-data/placement-center-2/data
+    # rm -rf  ./robust-data/placement-center-3/data
 }
 
 stop_mqtt_cluster(){

@@ -17,6 +17,7 @@ use std::time::Duration;
 
 use dashmap::DashMap;
 use log::error;
+use metadata_struct::journal::segment::segment_name;
 use metadata_struct::journal::shard::shard_name_iden;
 use protocol::journal_server::journal_engine::{
     GetClusterMetadataNode, GetShardMetadataReqShard, GetShardMetadataRespShard,
@@ -186,4 +187,76 @@ async fn update_cache(
         }
     }
     sleep(Duration::from_secs(10)).await;
+}
+
+pub async fn get_active_segment(
+    metadata_cache: &Arc<MetadataCache>,
+    connection_manager: &Arc<ConnectionManager>,
+    namespace: &str,
+    shard_name: &str,
+) -> u32 {
+    loop {
+        let active_segment = if let Some(segment) =
+            metadata_cache.get_active_segment(namespace, shard_name)
+        {
+            segment
+        } else {
+            if let Err(e) =
+                load_shards_cache(metadata_cache, connection_manager, namespace, shard_name).await
+            {
+                error!(
+                    "Loading Shard {} Metadata info failed, error message :{}",
+                    shard_name_iden(namespace, shard_name,),
+                    e
+                );
+            }
+            error!(
+                "{}",
+                JournalClientError::NotActiveSegment(shard_name_iden(namespace, shard_name))
+                    .to_string()
+            );
+            sleep(Duration::from_millis(100)).await;
+            continue;
+        };
+        return active_segment;
+    }
+}
+
+pub async fn get_segment_leader(
+    metadata_cache: &Arc<MetadataCache>,
+    connection_manager: &Arc<ConnectionManager>,
+    namespace: &str,
+    shard_name: &str,
+) -> u64 {
+    let active_segment =
+        get_active_segment(metadata_cache, connection_manager, namespace, shard_name).await;
+
+    loop {
+        let leader = if let Some(leader) = metadata_cache.get_segment_leader(namespace, shard_name)
+        {
+            leader
+        } else {
+            if let Err(e) =
+                load_shards_cache(metadata_cache, connection_manager, namespace, shard_name).await
+            {
+                error!(
+                    "Loading Shard {} Metadata info failed, error message :{}",
+                    shard_name_iden(namespace, shard_name),
+                    e
+                );
+            }
+            error!(
+                "{}",
+                JournalClientError::NotActiveSegmentLeader(segment_name(
+                    namespace,
+                    shard_name,
+                    active_segment
+                ))
+                .to_string()
+            );
+            sleep(Duration::from_millis(100)).await;
+            continue;
+        };
+        return leader;
+    }
 }
