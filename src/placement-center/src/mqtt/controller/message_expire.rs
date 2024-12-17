@@ -47,7 +47,7 @@ impl MessageExpire {
         let search_key = storage_key_mqtt_topic_cluster_prefix(&self.cluster_name);
         let topic_storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
 
-        let cf = if let Some(cf) = self
+        let cf: std::sync::Arc<rocksdb::BoundColumnFamily<'_>> = if let Some(cf) = self
             .rocksdb_engine_handler
             .cf_handle(DB_COLUMN_FAMILY_CLUSTER)
         {
@@ -60,7 +60,7 @@ impl MessageExpire {
             return;
         };
 
-        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
+        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
         iter.seek(search_key.clone());
         while iter.valid() {
             let key = iter.key();
@@ -105,14 +105,14 @@ impl MessageExpire {
             }
             iter.next();
         }
-        sleep(Duration::from_secs(1)).await;
+        // sleep(Duration::from_secs(1)).await;
     }
 
     pub async fn last_will_message_expire(&self) {
         let search_key = storage_key_mqtt_last_will_prefix(&self.cluster_name);
         let lastwill_storage = MqttLastWillStorage::new(self.rocksdb_engine_handler.clone());
 
-        let cf = if let Some(cf) = self
+        let cf: std::sync::Arc<rocksdb::BoundColumnFamily<'_>> = if let Some(cf) = self
             .rocksdb_engine_handler
             .cf_handle(DB_COLUMN_FAMILY_CLUSTER)
         {
@@ -124,7 +124,7 @@ impl MessageExpire {
             );
             return;
         };
-        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
+        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
         iter.seek(search_key.clone());
         while iter.valid() {
             let key = iter.key();
@@ -169,7 +169,7 @@ impl MessageExpire {
 
             iter.next();
         }
-        sleep(Duration::from_secs(1)).await;
+        // sleep(Duration::from_secs(1)).await;
     }
 }
 
@@ -216,10 +216,12 @@ mod tests {
         topic_storage
             .save(&cluster_name, &topic.topic_name.clone(), topic.clone())
             .unwrap();
-
+        let rs = rocksdb_engine_handler.clone();
         tokio::spawn(async move {
             loop {
-                message_expire.retain_message_expire().await;
+                let cf : std::sync::Arc<rocksdb::BoundColumnFamily<'_>> = rs.cf_handle("cluster").unwrap(); 
+             
+                //message_expire.retain_message_expire().await;
             }
         });
 

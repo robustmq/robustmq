@@ -21,7 +21,7 @@ use openraft::{
     AnyError, EntryPayload, ErrorSubject, ErrorVerb, LogId, OptionalSend, RaftSnapshotBuilder,
     Snapshot, SnapshotMeta, StorageError, StoredMembership,
 };
-use rocksdb::{ColumnFamily, DB};
+use rocksdb::{BoundColumnFamily, ColumnFamily, DB};
 
 use super::{cf_raft_store, StorageResult, StoredSnapshot};
 use crate::raft::raft_node::{typ, NodeId};
@@ -126,7 +126,7 @@ impl StateMachineStore {
     fn get_current_snapshot_(&self) -> StorageResult<Option<StoredSnapshot>> {
         Ok(self
             .db
-            .get_cf(self.store(), b"snapshot")
+            .get_cf(&self.store(), b"snapshot")
             .map_err(|e| StorageError::read(&e))?
             .and_then(|v| serde_json::from_slice(&v).ok()))
     }
@@ -134,7 +134,7 @@ impl StateMachineStore {
     fn set_current_snapshot_(&self, snap: StoredSnapshot) -> StorageResult<()> {
         self.db
             .put_cf(
-                self.store(),
+                &self.store(),
                 b"snapshot",
                 serde_json::to_vec(&snap).unwrap().as_slice(),
             )
@@ -157,7 +157,7 @@ impl StateMachineStore {
         Ok(())
     }
 
-    fn store(&self) -> &ColumnFamily {
+    fn store(&self) -> Arc<BoundColumnFamily> {
         self.db.cf_handle(&cf_raft_store()).unwrap()
     }
 }

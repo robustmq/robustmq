@@ -14,18 +14,19 @@
 
 use common_base::error::common::CommonError;
 use rocksdb::{
-    ColumnFamily, ColumnFamilyDescriptor, DBCompactionStyle, Options, SliceTransform, DB,
+    BoundColumnFamily, ColumnFamily, ColumnFamilyDescriptor, DBCompactionStyle, Options, SliceTransform, DB
 };
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-
+use std::sync::Arc;
 pub mod engine;
 pub mod warp;
 
 #[derive(Debug)]
 pub struct RocksDBEngine {
-    pub db: DB,
+    pub db: Arc<DB>,
 }
+
 
 impl RocksDBEngine {
     /// Create a rocksdb instance
@@ -43,18 +44,18 @@ impl RocksDBEngine {
             }
         };
 
-        RocksDBEngine { db: instance }
+        RocksDBEngine { db: Arc::new(instance) }
     }
 
     /// Write the data serialization to RocksDB
     pub fn write<T: Serialize + std::fmt::Debug>(
         &self,
-        cf: &ColumnFamily,
+        cf: Arc<BoundColumnFamily>,
         key: &str,
         value: &T,
     ) -> Result<(), CommonError> {
         match serde_json::to_vec(&value) {
-            Ok(serialized) => match self.db.put_cf(cf, key, serialized) {
+            Ok(serialized) => match self.db.put_cf(&cf.clone(), key, serialized) {
                 Ok(()) => {}
                 Err(e) => {
                     return Err(CommonError::CommonError(format!(
@@ -75,7 +76,7 @@ impl RocksDBEngine {
 
     pub fn write_str(
         &self,
-        cf: &ColumnFamily,
+        cf: Arc<BoundColumnFamily>,
         key: &str,
         value: String,
     ) -> Result<(), CommonError> {
@@ -85,10 +86,10 @@ impl RocksDBEngine {
     // Read data from the RocksDB
     pub fn read<T: DeserializeOwned>(
         &self,
-        cf: &ColumnFamily,
+        cf: Arc<BoundColumnFamily>,
         key: &str,
     ) -> Result<Option<T>, CommonError> {
-        match self.db.get_cf(cf, key) {
+        match self.db.get_cf(&cf, key) {
             Ok(opt) => match opt {
                 Some(found) => match serde_json::from_slice::<T>(&found) {
                     Ok(t) => Ok(Some(t)),
@@ -109,10 +110,10 @@ impl RocksDBEngine {
     // Search data by prefix
     pub fn read_prefix(
         &self,
-        cf: &ColumnFamily,
+        cf: Arc<BoundColumnFamily>,
         search_key: &str,
     ) -> Result<Vec<(String, Vec<u8>)>, CommonError> {
-        let mut iter = self.db.raw_iterator_cf(cf);
+        let mut iter = self.db.raw_iterator_cf(&cf);
         iter.seek(search_key);
 
         let mut result = Vec::new();
@@ -133,8 +134,8 @@ impl RocksDBEngine {
     }
 
     // Read all data in a ColumnFamily
-    pub fn read_all_by_cf(&self, cf: &ColumnFamily) -> Result<Vec<(String, Vec<u8>)>, CommonError> {
-        let mut iter = self.db.raw_iterator_cf(cf);
+    pub fn read_all_by_cf(&self, cf: Arc<BoundColumnFamily>) -> Result<Vec<(String, Vec<u8>)>, CommonError> {
+        let mut iter = self.db.raw_iterator_cf(&cf);
         iter.seek_to_first();
 
         let mut result: Vec<(String, Vec<u8>)> = Vec::new();
@@ -150,28 +151,28 @@ impl RocksDBEngine {
         Ok(result)
     }
 
-    pub fn delete(&self, cf: &ColumnFamily, key: &str) -> Result<(), CommonError> {
-        Ok(self.db.delete_cf(cf, key)?)
+    pub fn delete(&self, cf: Arc<BoundColumnFamily>, key: &str) -> Result<(), CommonError> {
+        Ok(self.db.delete_cf(&cf, key)?)
     }
 
-    pub fn delete_prefix(&self, cf: &ColumnFamily, search_key: &str) -> Result<(), CommonError> {
-        let mut iter = self.db.raw_iterator_cf(cf);
+    pub fn delete_prefix(&self, cf: Arc<BoundColumnFamily>, search_key: &str) -> Result<(), CommonError> {
+        let mut iter = self.db.raw_iterator_cf(&cf);
         iter.seek(search_key);
 
         while iter.valid() {
             if let Some(key) = iter.key() {
-                self.db.delete_cf(cf, key)?
+                self.db.delete_cf(&cf, key)?
             }
             iter.next();
         }
         Ok(())
     }
 
-    pub fn exist(&self, cf: &ColumnFamily, key: &str) -> bool {
-        self.db.key_may_exist_cf(cf, key)
+    pub fn exist(&self, cf: Arc<BoundColumnFamily>, key: &str) -> bool {
+        self.db.key_may_exist_cf(&cf, key)
     }
 
-    pub fn cf_handle(&self, name: &str) -> Option<&ColumnFamily> {
+    pub fn cf_handle(&self, name: &str) -> Option<Arc<BoundColumnFamily>> {
         if let Some(cf) = self.db.cf_handle(name) {
             return Some(cf);
         }
@@ -207,12 +208,13 @@ impl RocksDBEngine {
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
-    use std::time::Duration;
-
+    // use std::time::Duration;
+    // use rocksdb::{BoundColumnFamily,WriteBatchWithTransaction};
     use common_base::config::placement_center::placement_center_test_conf;
     use serde::{Deserialize, Serialize};
     use tokio::fs::{remove_dir, remove_dir_all};
-    use tokio::time::sleep;
+    // use tokio::time::sleep;
+    use futures::future;
 
     use super::RocksDBEngine;
 
@@ -228,6 +230,8 @@ mod tests {
 
     #[tokio::test]
     async fn multi_rocksdb_instance() {
+
+       
         let config = placement_center_test_conf();
 
         let rs_handler = Arc::new(RocksDBEngine::new(
@@ -235,36 +239,36 @@ mod tests {
             config.rocksdb.max_open_files.unwrap(),
             vec![cf_name()],
         ));
-
+        let mut tasks = Vec::new();
         for i in 1..100 {
             let rs = rs_handler.clone();
-            tokio::spawn(async move {
+            let task =  tokio::spawn(async move {
                 let key = format!("name2{}", i);
-
                 let name = format!("lobo{}", i);
                 let user = User {
                     name: name.clone(),
                     age: 18,
                 };
-                let cf = rs.cf_handle(&cf_name()).unwrap();
-                let res4 = rs.write(cf, &key, &user);
+                let cf : std::sync::Arc<rocksdb::BoundColumnFamily<'_>> = rs.cf_handle("cluster").unwrap(); 
+                let res4 = rs.write(cf.clone(), &key, &user);
                 assert!(res4.is_ok());
-
-                let res1 = rs.read::<User>(cf, &key);
+                let res1 = rs.read::<User>( cf.clone(),&key);
                 let r = res1.unwrap();
                 assert!(r.is_some());
                 assert_eq!(r.unwrap().name, name);
                 println!("spawn {}, key:{}", i, key);
-                sleep(Duration::from_secs(5)).await;
+                // sleep(Duration::from_secs(5)).await;
             });
+            tasks.push(task);
         }
 
-        sleep(Duration::from_secs(10)).await;
+        // 等待所有任务完成
+        let _ = future::join_all(tasks).await;
 
         remove_dir_all(config.rocksdb.data_path).await.unwrap();
     }
 
-    #[tokio::test]
+     #[tokio::test]
     async fn init_family() {
         let config = placement_center_test_conf();
 
@@ -276,22 +280,22 @@ mod tests {
         let cf = rs.cf_handle(&cf_name()).unwrap();
 
         let key = "name2";
-        let res1 = rs.read::<User>(cf, key);
+        let res1 = rs.read::<User>(cf.clone(), key);
         assert!(res1.unwrap().is_none());
 
         let user = User {
             name: "lobo".to_string(),
             age: 18,
         };
-        let res4 = rs.write(cf, key, &user);
+        let res4 = rs.write(cf.clone(), key, &user);
         assert!(res4.is_ok());
 
-        let res5 = rs.read::<User>(cf, key);
+        let res5 = rs.read::<User>(cf.clone(), key);
         let res5_rs = res5.unwrap().unwrap();
         assert!(res5_rs.name == user.name);
         assert!(res5_rs.age == user.age);
 
-        let res6 = rs.delete(cf, key);
+        let res6 = rs.delete(cf.clone(), key);
         assert!(res6.is_ok());
 
         match remove_dir(config.rocksdb.data_path).await {
@@ -313,14 +317,14 @@ mod tests {
         );
 
         let index = 66u64;
-        let cf: &rocksdb::ColumnFamily = rs.cf_handle(&cf_name()).unwrap();
+        let cf= rs.cf_handle(&cf_name()).unwrap();
 
         let key = "/raft/last_index".to_string();
-        let _ = rs.write(cf, &key, &index);
-        let res1 = rs.read::<u64>(cf, &key).unwrap().unwrap();
+        let _ = rs.write(cf.clone(), &key, &index);
+        let res1 = rs.read::<u64>(cf.clone(), &key).unwrap().unwrap();
         assert_eq!(index, res1);
 
-        let result = rs.read_all_by_cf(cf).unwrap();
+        let result = rs.read_all_by_cf(cf.clone()).unwrap();
         assert!(!result.is_empty());
         for raw in result.clone() {
             let raw_key = raw.0;
@@ -330,8 +334,8 @@ mod tests {
             let val = String::from_utf8(raw_val).unwrap();
             assert_eq!(index.to_string(), val);
 
-            let _ = rs.write_str(cf, &key, val);
-            let res1 = rs.read::<String>(cf, &key).unwrap().unwrap();
+            let _ = rs.write_str(cf.clone(), &key, val);
+            let res1 = rs.read::<String>(cf.clone(), &key).unwrap().unwrap();
             assert_eq!(index.to_string(), res1);
         }
 
@@ -350,32 +354,32 @@ mod tests {
 
         let cf = rs.cf_handle(&cf_name()).unwrap();
 
-        rs.write_str(cf, "/v1/v1", "v11".to_string()).unwrap();
-        rs.write_str(cf, "/v1/v2", "v12".to_string()).unwrap();
-        rs.write_str(cf, "/v1/v3", "v13".to_string()).unwrap();
-        rs.write_str(cf, "/v2/tmp_test/s1", "1".to_string())
+        rs.write_str(cf.clone(), "/v1/v1", "v11".to_string()).unwrap();
+        rs.write_str(cf.clone(), "/v1/v2", "v12".to_string()).unwrap();
+        rs.write_str(cf.clone(), "/v1/v3", "v13".to_string()).unwrap();
+        rs.write_str(cf.clone(), "/v2/tmp_test/s1", "1".to_string())
             .unwrap();
-        rs.write_str(cf, "/v2/tmp_test/s3", "2".to_string())
+        rs.write_str(cf.clone(), "/v2/tmp_test/s3", "2".to_string())
             .unwrap();
-        rs.write_str(cf, "/v2/tmp_test/s2", "3".to_string())
+        rs.write_str(cf.clone(), "/v2/tmp_test/s2", "3".to_string())
             .unwrap();
-        rs.write_str(cf, "/v3/tmp_test/s1", "1".to_string())
+        rs.write_str(cf.clone(), "/v3/tmp_test/s1", "1".to_string())
             .unwrap();
-        rs.write_str(cf, "/v3/tmp_test/s3", "2".to_string())
+        rs.write_str(cf.clone().clone(), "/v3/tmp_test/s3", "2".to_string())
             .unwrap();
-        rs.write_str(cf, "/v4/tmp_test/s2", "3".to_string())
+        rs.write_str(cf.clone(), "/v4/tmp_test/s2", "3".to_string())
             .unwrap();
 
-        let result = rs.read_prefix(cf, "/v1").unwrap();
+        let result = rs.read_prefix(cf.clone(), "/v1").unwrap();
         assert_eq!(result.len(), 3);
 
-        let result = rs.read_prefix(cf, "/v2").unwrap();
+        let result = rs.read_prefix(cf.clone(), "/v2").unwrap();
         assert_eq!(result.len(), 3);
 
-        let result = rs.read_prefix(cf, "/v3").unwrap();
+        let result = rs.read_prefix(cf.clone(), "/v3").unwrap();
         assert_eq!(result.len(), 2);
 
-        let result = rs.read_prefix(cf, "/v4").unwrap();
+        let result = rs.read_prefix(cf.clone(), "/v4").unwrap();
         assert_eq!(result.len(), 1);
 
         remove_dir_all(config.rocksdb.data_path).await.unwrap();
