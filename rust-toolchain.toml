@@ -12,16 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-
-if [ "$1" == "dev" ]; then
-
- # Run Cargo Test （exclude integration test modules）
- cargo nextest run  --workspace --exclude=robustmq-test --exclude=grpc-clients
-
-else
-
-  # Run Cargo Test （exclude integration test modules）
- cargo nextest run  --profile=ci --workspace --exclude=robustmq-test --exclude=grpc-clients
-
-fi
+[toolchain]
+channel = "nightly-2024-11-08"
+components = [ "rustfmt", "rust-src", "miri", "rust-analyzer"]

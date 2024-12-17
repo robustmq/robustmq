@@ -34,7 +34,7 @@ use crate::server::tcp::tls_server::acceptor_tls_process;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub async fn start_tcp_server<S>(
-    sucscribe_manager: Arc<SubscribeManager>,
+    subscribe_manager: Arc<SubscribeManager>,
     cache_manager: Arc<CacheManager>,
     connection_manager: Arc<ConnectionManager>,
     message_storage_adapter: Arc<S>,
@@ -48,7 +48,7 @@ pub async fn start_tcp_server<S>(
     let command = Command::new(
         cache_manager.clone(),
         message_storage_adapter.clone(),
-        sucscribe_manager.clone(),
+        subscribe_manager.clone(),
         client_pool.clone(),
         connection_manager.clone(),
         auth_driver.clone(),
@@ -65,7 +65,7 @@ pub async fn start_tcp_server<S>(
         proc_config,
         stop_sx.clone(),
         connection_manager.clone(),
-        sucscribe_manager.clone(),
+        subscribe_manager.clone(),
         cache_manager.clone(),
         client_pool.clone(),
     );
@@ -76,7 +76,7 @@ pub async fn start_tcp_server<S>(
         proc_config,
         stop_sx.clone(),
         connection_manager,
-        sucscribe_manager.clone(),
+        subscribe_manager.clone(),
         cache_manager,
         client_pool,
     );

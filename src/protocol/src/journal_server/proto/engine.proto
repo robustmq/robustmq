@@ -245,6 +245,7 @@ message ReadRespMessage{
     string key = 2;
     bytes value=3;
     repeated string tags=4;
+    uint64 timestamp = 5;
 }
 
 message ReadReq{

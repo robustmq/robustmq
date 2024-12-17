@@ -34,5 +34,15 @@ runs:
       with:
         toolchain: nightly-2024-11-08
         default: true
+    - name: configure cargo cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          ./target/
+        key: cargo-cache-${{ hashFiles('**/Cargo.toml', '**/Cargo.lock') }}  # Run tests
     - name: Configure rust runtime env
       uses: ./.github/actions/setup-rust-runtime

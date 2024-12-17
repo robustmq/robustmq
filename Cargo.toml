@@ -13,6 +13,7 @@
 # limitations under the License.
 
 [workspace]
+name = "robustmq"
 members = [
     "src/mqtt-bridge/kafka",
     "src/mqtt-bridge/elasticsearch",
@@ -44,17 +45,41 @@ edition = "2021"
 license = "Apache-2.0"
 
 [workspace.dependencies]
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-signal-hook = "0.3.17"
+## async lib
+futures = "0.3"
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7.9", features = ["codec"] }
+tokio-rustls = "0.26"
+## web lib
 axum = { version = "0.7.2", features = ["ws"] }
 axum-server = { version = "0.6.0", features = ["tls-rustls"] }
+axum-extra = { version = "0.9.3", features = ["typed-header"] }
+## storage lib
+rocksdb = "0.22.0"
+mysql = "*"
+## serde lib
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+humantime-serde = "1.1.1"
+## log lib
+log4rs = "1.2.0"
+log = "0.4.0"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.0", features = ["env-filter"] }
+## cmd lib
+clap-cargo = "0.14.1"
+clap = { version = "4.4.7", features = ["derive"] }
+## unit test lib
+mockall = "0.13.1"
+## text handle lib
+regex = "1.10.4"
+grep = "0.3.2"
+## other
+signal-hook = "0.3.17"
 prometheus = "0.13.3"
 prometheus_exporter = "0.8"
 lazy_static = "^1.4"
-futures = "0.3"
 thiserror = "1"
 bytes = { version = "1", features = ["serde"] }
 futures-util = "0.3.30"
@@ -70,20 +95,12 @@ uuid = { version = "1.7.0", features = ["v4"] }
 mobc = "0.8.3"
 dashmap = { version = "6.0.1", features = ["serde"] }
 snowflake = "1.3.0"
-regex = "1.10.4"
 rumqttc = "0.24.0"
-axum-extra = { version = "0.9.3", features = ["typed-header"] }
 rustls-pemfile = "2"
-tokio-rustls = "0.26"
-humantime-serde = "1.1.1"
-mysql = "*"
 paho-mqtt = { version = "0.12.5", default-features = false, features = [
     "bundled",
     "vendored-ssl",
 ] }
-serde_yaml = "0.9"
-log4rs = "1.2.0"
-log = "0.4.0"
 ipnet = "2.3.0"
 os_info = "3.8.2"
 openraft = { git = "https://github.com/databendlabs/openraft.git", features = [
@@ -91,15 +108,11 @@ openraft = { git = "https://github.com/databendlabs/openraft.git", features = [
     "type-alias",
     "loosen-follower-log-revert",
 ] }
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.0", features = ["env-filter"] }
 validator = { version = "0.18", features = ["derive"] }
 rand = "0.8.5"
-clap-cargo = "0.14.1"
-clap = { version = "4.4.7", features = ["derive"] }
+#format
+prettytable-rs = "^0.10"
 
-## unit test framework
-mockall = "0.13.1"
 
 
 ## workspaces members
