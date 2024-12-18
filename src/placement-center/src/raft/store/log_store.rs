@@ -21,7 +21,7 @@ use openraft::{
     AnyError, Entry, ErrorSubject, ErrorVerb, LogId, LogState, OptionalSend, RaftLogReader,
     StorageError, Vote,
 };
-use rocksdb::{BoundColumnFamily, ColumnFamily, Direction, DB};
+use rocksdb::{BoundColumnFamily, Direction, DB};
 
 use super::{cf_raft_logs, cf_raft_store, id_to_bin, StorageResult};
 use crate::raft::raft_node::NodeId;

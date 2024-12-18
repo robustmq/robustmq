@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
@@ -21,7 +20,6 @@ use log::error;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use metadata_struct::mqtt::topic::MqttTopic;
 use rocksdb_engine::warp::StorageDataWrap;
-use tokio::time::sleep;
 
 use crate::storage::keys::{
     storage_key_mqtt_last_will_prefix, storage_key_mqtt_topic_cluster_prefix,
@@ -216,13 +214,10 @@ mod tests {
         topic_storage
             .save(&cluster_name, &topic.topic_name.clone(), topic.clone())
             .unwrap();
-        let rs = rocksdb_engine_handler.clone();
         tokio::spawn(async move {
-            loop {
-                let cf : std::sync::Arc<rocksdb::BoundColumnFamily<'_>> = rs.cf_handle("cluster").unwrap(); 
-             
-                //message_expire.retain_message_expire().await;
-            }
+            // loop {
+            message_expire.retain_message_expire().await;
+            // }
         });
 
         let start = now_second();

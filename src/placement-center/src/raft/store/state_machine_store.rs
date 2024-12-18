@@ -21,7 +21,7 @@ use openraft::{
     AnyError, EntryPayload, ErrorSubject, ErrorVerb, LogId, OptionalSend, RaftSnapshotBuilder,
     Snapshot, SnapshotMeta, StorageError, StoredMembership,
 };
-use rocksdb::{BoundColumnFamily, ColumnFamily, DB};
+use rocksdb::{BoundColumnFamily, DB};
 
 use super::{cf_raft_store, StorageResult, StoredSnapshot};
 use crate::raft::raft_node::{typ, NodeId};
