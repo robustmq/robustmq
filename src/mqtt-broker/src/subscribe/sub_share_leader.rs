@@ -286,7 +286,7 @@ where
                     subscribe.clone(),
                     publish,
                     Some(properties),
-                    record.timestamp,
+                    record.timestamp as u128,
                     group_id.to_owned(),
                     pkid,
                 );
@@ -514,7 +514,14 @@ async fn share_leader_publish_message_qos1(
         }
     };
 
-    match publish_message_to_client(resp.clone(), sub_pub_param, connection_manager).await {
+    match publish_message_to_client(
+        resp.clone(),
+        sub_pub_param,
+        connection_manager,
+        metadata_cache,
+    )
+    .await
+    {
         Ok(_) => {
             if let Some(data) = wait_packet_ack(wait_puback_sx).await {
                 if data.ack_type == QosAckPackageType::PubAck && data.pkid == sub_pub_param.pkid {

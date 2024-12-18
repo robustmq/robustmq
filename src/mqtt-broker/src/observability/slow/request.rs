@@ -37,7 +37,7 @@ pub fn try_record_total_request_ms(cache_manager: Arc<CacheManager>, package: Re
 
     let whole = cluster_config.slow.whole_ms;
     let time_ms = now_mills() - package.receive_ms;
-    if time_ms < whole {
+    if time_ms < whole.into() {
         return;
     }
 

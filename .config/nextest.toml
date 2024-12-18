@@ -12,16 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+[profile.default]
+slow-timeout="1m"
 
+[profile.ci]
+slow-timeout = { period = "60s", terminate-after = 3, grace-period = "10s" }
 
-if [ "$1" == "dev" ]; then
-
- # Run Cargo Test （exclude integration test modules）
- cargo nextest run  --workspace --exclude=robustmq-test --exclude=grpc-clients
-
-else
-
-  # Run Cargo Test （exclude integration test modules）
- cargo nextest run  --profile=ci --workspace --exclude=robustmq-test --exclude=grpc-clients
-
-fi
+[profile.ci.junit]
+path = 'junit.xml'

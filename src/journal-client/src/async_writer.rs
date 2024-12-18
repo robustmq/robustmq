@@ -29,10 +29,10 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::time::{sleep, timeout};
 
 use crate::cache::{get_segment_leader, MetadataCache};
+use crate::client::JournalClientWriteData;
 use crate::connection::ConnectionManager;
 use crate::error::JournalClientError;
 use crate::service::batch_write;
-use crate::JournalClientWriteData;
 
 // Send Message Struct
 #[derive(Clone)]
@@ -82,21 +82,21 @@ pub struct DataSenderPkg {
 }
 
 // Data Sender
-pub struct Writer {
+pub struct AsyncWriter {
     node_senders: DashMap<u64, NodeSenderThread>,
     connection_manager: Arc<ConnectionManager>,
     metadata_cache: Arc<MetadataCache>,
     send_pkid_generator: AtomicU64,
 }
 
-impl Writer {
+impl AsyncWriter {
     pub fn new(
         connection_manager: Arc<ConnectionManager>,
         metadata_cache: Arc<MetadataCache>,
     ) -> Self {
         let node_senders = DashMap::with_capacity(2);
         let send_pkid_generator = AtomicU64::new(0);
-        Writer {
+        AsyncWriter {
             node_senders,
             connection_manager,
             metadata_cache,
