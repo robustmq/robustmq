@@ -90,6 +90,9 @@ pub enum MqttBrokerError {
 
     #[error("invalid acl permission")]
     InvalidAclPermission,
+
+    #[error("topicRewriteRule has been existed")]
+    TopicRewriteRuleAlreadyExist,
 }
 
 impl From<MqttBrokerError> for Status {

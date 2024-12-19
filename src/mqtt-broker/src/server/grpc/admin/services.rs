@@ -20,17 +20,19 @@ use common_base::utils::file_utils::get_project_root;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
+use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
-    CreateBlacklistReply, CreateBlacklistRequest, CreateUserReply, CreateUserRequest,
-    DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
-    DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
-    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionRaw,
-    ListConnectionReply, ListConnectionRequest, ListSlowSubScribeRaw, ListSlowSubscribeReply,
-    ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-    MqttTopic,
+    CreateBlacklistReply, CreateBlacklistRequest, CreateTopicRewriteRuleReply,
+    CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
+    DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply,
+    EnableSlowSubscribeRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
+    ListBlacklistRequest, ListConnectionRaw, ListConnectionReply, ListConnectionRequest,
+    ListSlowSubScribeRaw, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
+    ListTopicRequest, ListUserReply, ListUserRequest, MqttTopic,
 };
 use tonic::{Request, Response, Status};
 
@@ -375,5 +377,33 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         };
 
         Ok(Response::new(reply))
+    }
+
+    async fn mqtt_broker_delete_topic_rewrite_rule(
+        &self,
+        request: Request<DeleteTopicRewriteRuleRequest>,
+    ) -> Result<Response<DeleteTopicRewriteRuleReply>, Status> {
+        let req = request.into_inner();
+        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        match auth_driver
+            .delete_topic_rewrite_rule(&req.action, &req.source_topic)
+            .await
+        {
+            Ok(_) => Ok(Response::new(DeleteTopicRewriteRuleReply::default())),
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn mqtt_broker_create_topic_rewrite_rule(
+        &self,
+        request: Request<CreateTopicRewriteRuleRequest>,
+    ) -> Result<Response<CreateTopicRewriteRuleReply>, Status> {
+        let req = request.into_inner();
+        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        let data = serde_json::from_slice::<MqttTopicRewriteRule>(&req.content);
+        match auth_driver.create_topic_rewrite_rule(data.unwrap()).await {
+            Ok(_) => Ok(Response::new(CreateTopicRewriteRuleReply::default())),
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
     }
 }

@@ -27,6 +27,7 @@ use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateCacheRequest,
@@ -141,6 +142,9 @@ pub struct CacheManager {
 
     // acl metadata
     pub acl_metadata: AclMetadata,
+
+    // all topic rewrite rule
+    pub topic_rewrite_rule: DashMap<String, MqttTopicRewriteRule>,
 }
 
 impl CacheManager {
@@ -161,6 +165,7 @@ impl CacheManager {
             qos_ack_packet: DashMap::with_capacity(8),
             client_pkid_data: DashMap::with_capacity(8),
             acl_metadata: AclMetadata::new(),
+            topic_rewrite_rule: DashMap::with_capacity(8),
         }
     }
 
@@ -285,6 +290,20 @@ impl CacheManager {
         let t = topic.clone();
         self.topic_info.insert(topic_name.to_owned(), t.clone());
         self.topic_id_name.insert(t.topic_id, topic_name.to_owned());
+    }
+
+    pub fn add_topic_rewrite_rule(&self, topic_rewrite_rule: MqttTopicRewriteRule) {
+        let key = self.topic_rewrite_rule_key(
+            &topic_rewrite_rule.cluster,
+            &topic_rewrite_rule.action,
+            &topic_rewrite_rule.source_topic,
+        );
+        self.topic_rewrite_rule.insert(key, topic_rewrite_rule);
+    }
+
+    pub fn delete_topic_rewrite_rule(&self, cluster: &str, action: &str, source_topic: &str) {
+        let key = self.topic_rewrite_rule_key(cluster, action, source_topic);
+        self.topic_rewrite_rule.remove(&key);
     }
 
     pub fn update_topic_retain_message(&self, topic_name: &str, retain_message: Option<Vec<u8>>) {
@@ -504,6 +523,22 @@ impl CacheManager {
         for blacklist in blacklist_list {
             self.add_blacklist(blacklist);
         }
+
+        // load all topic_rewrite rule
+        let topic_storage = TopicStorage::new(self.client_pool.clone());
+        let topic_rewrite_rules = match topic_storage.all_topic_rewrite_rule().await {
+            Ok(list) => list,
+            Err(e) => {
+                panic!(
+                    "Failed to load the topic_rewrite_rule list with error message:{}",
+                    e
+                );
+            }
+        };
+
+        for topic_rewrite_rule in topic_rewrite_rules {
+            self.add_topic_rewrite_rule(topic_rewrite_rule);
+        }
     }
 
     pub async fn init_system_user(&self) {
@@ -602,6 +637,15 @@ impl CacheManager {
 
     fn key(&self, client_id: &str, pkid: u16) -> String {
         format!("{}_{}", client_id, pkid)
+    }
+
+    pub fn topic_rewrite_rule_key(
+        &self,
+        cluster: &str,
+        action: &str,
+        source_topic: &str,
+    ) -> String {
+        format!("{}_{}_{}", cluster, action, source_topic)
     }
 }
 

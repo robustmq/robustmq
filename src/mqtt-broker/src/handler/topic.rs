@@ -25,6 +25,7 @@ use storage_adapter::storage::{ShardConfig, StorageAdapter};
 
 use super::error::MqttBrokerError;
 use crate::handler::cache::CacheManager;
+use crate::handler::mqtt::path_regex_match;
 use crate::storage::message::cluster_name;
 use crate::storage::topic::TopicStorage;
 
@@ -104,6 +105,12 @@ pub fn get_topic_name(
         topic
     };
     topic_name_validator(&topic_name)?;
+    // topic rewrite
+    for rule in metadata_cache.topic_rewrite_rule.clone() {
+        if path_regex_match(topic_name.clone(), rule.1.source_topic) {
+            replace_with_captures(&rule.1.re, &topic_name, &rule.1.dest_topic);
+        }
+    }
     Ok(topic_name)
 }
 
@@ -136,6 +143,24 @@ where
         return Ok(topic);
     };
     Ok(topic)
+}
+
+fn replace_with_captures(pattern: &str, input: &str, template: &str) -> Option<String> {
+    // 编译正则表达式
+    let re = Regex::new(pattern).ok()?;
+    let mut new_ret = template.to_string();
+    // 尝试匹配输入字符串
+    if let Some(captures) = re.captures(input) {
+        // 遍历所有捕获组
+        for (i, capture) in captures.iter().enumerate() {
+            let owned_str = (i + 1).to_string();
+            let prefix = format!("${}", owned_str);
+            new_ret = new_ret.replace(&prefix, capture.unwrap().as_str()).clone();
+        }
+        Some(new_ret)
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]

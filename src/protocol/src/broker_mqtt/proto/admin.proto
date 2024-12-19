@@ -32,6 +32,10 @@ service MQTTBrokerAdminService {
     rpc mqtt_broker_enable_slow_subscribe(EnableSlowSubscribeRequest) returns(EnableSlowSubScribeReply) {}
     rpc mqtt_broker_list_slow_subscribe(ListSlowSubscribeRequest) returns(ListSlowSubscribeReply){}
     rpc mqtt_broker_list_topic(ListTopicRequest) returns(ListTopicReply){}
+
+    // topic rewrite rule
+    rpc mqtt_broker_delete_topic_rewrite_rule(DeleteTopicRewriteRuleRequest) returns(DeleteTopicRewriteRuleReply) {}
+    rpc mqtt_broker_create_topic_rewrite_rule(CreateTopicRewriteRuleRequest) returns(CreateTopicRewriteRuleReply) {}
 }
 
 // --------- cluster --------
@@ -198,4 +202,31 @@ message MqttTopic {
     string cluster_name = 2;
     string topic_name = 3;
     bool is_contain_retain_message = 4;
+}
+
+message DeleteTopicRewriteRuleRequest{
+    //The action of the rewrite rule, one of the publish|subscribe|all.
+    string action = 1;
+    //The source topic of the rewrite rule.
+    string source_topic = 2;
+}
+
+message DeleteTopicRewriteRuleReply{
+
+}
+
+message CreateTopicRewriteRuleRequest{
+
+    //The action of the rewrite rule, one of the publish|subscribe|all.
+    string action = 1;
+
+    //The source topic of the rewrite rule.
+    string source_topic = 2;
+
+    //The parameter contains user information, encoded from a `MqttTopicRewriteRule` object into a binary format.
+    bytes content = 3;
+}
+
+message CreateTopicRewriteRuleReply{
+
 }

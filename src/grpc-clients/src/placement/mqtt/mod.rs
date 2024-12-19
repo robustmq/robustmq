@@ -18,12 +18,14 @@ use protocol::placement_center::placement_center_mqtt::mqtt_service_client::Mqtt
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
-    CreateUserReply, CreateUserRequest, DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply,
-    DeleteBlacklistRequest, DeleteExclusiveTopicReply, DeleteExclusiveTopicRequest,
-    DeleteSessionReply, DeleteSessionRequest, DeleteTopicReply, DeleteTopicRequest,
-    DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
-    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply,
-    ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+    CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest,
+    DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
+    DeleteExclusiveTopicReply, DeleteExclusiveTopicRequest, DeleteSessionReply,
+    DeleteSessionRequest, DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
+    GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
+    ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest,
+    ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
     SaveLastWillMessageReply, SaveLastWillMessageRequest, SetExclusiveTopicReply,
     SetExclusiveTopicRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
     UpdateSessionReply, UpdateSessionRequest,
@@ -256,5 +258,32 @@ impl_retriable_request!(
     ListBlacklistReply,
     placement_center_mqtt_services_client,
     list_blacklist,
+    true
+);
+
+impl_retriable_request!(
+    ListTopicRewriteRuleRequest,
+    MqttServiceClient<Channel>,
+    ListTopicRewriteRuleReply,
+    placement_center_mqtt_services_client,
+    list_topic_rewrite_rule,
+    true
+);
+
+impl_retriable_request!(
+    CreateTopicRewriteRuleRequest,
+    MqttServiceClient<Channel>,
+    CreateTopicRewriteRuleReply,
+    placement_center_mqtt_services_client,
+    create_topic_rewrite_rule,
+    true
+);
+
+impl_retriable_request!(
+    DeleteTopicRewriteRuleRequest,
+    MqttServiceClient<Channel>,
+    DeleteTopicRewriteRuleReply,
+    placement_center_mqtt_services_client,
+    delete_topic_rewrite_rule,
     true
 );

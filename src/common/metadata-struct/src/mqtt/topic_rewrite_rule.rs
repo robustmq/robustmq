@@ -12,11 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod broker_heartbeat_test;
-pub mod cluster_node_test;
-pub mod common;
-pub mod exclusive_sub_test;
-pub mod grpc_clients_test;
-pub mod kv_storage_test;
-pub mod share_sub;
-mod topic_rewrite_rule;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub struct MqttTopicRewriteRule {
+    pub cluster: String,
+    pub action: String,
+    pub source_topic: String,
+    pub dest_topic: String,
+    pub re: String,
+}
+
+impl MqttTopicRewriteRule {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
+    }
+}

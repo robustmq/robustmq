@@ -27,6 +27,7 @@ use protocol::mqtt::common::{
     PublishProperties, QoS, Subscribe, SubscribeProperties, SubscribeReasonCode, UnsubAckReason,
     Unsubscribe, UnsubscribeProperties,
 };
+use regex::Regex;
 use storage_adapter::storage::StorageAdapter;
 
 use super::connection::disconnect_connection;
@@ -61,7 +62,7 @@ use crate::observability::system_topic::event::{
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
-use crate::subscribe::sub_common::{min_qos, path_contain_sub};
+use crate::subscribe::sub_common::{decode_share_info, is_share_sub, min_qos, path_contain_sub};
 use crate::subscribe::subscribe_manager::SubscribeManager;
 
 #[derive(Clone)]
@@ -717,6 +718,13 @@ where
                 Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
+        for rule in self.cache_manager.topic_rewrite_rule.clone() {
+            for filter in subscribe.filters.clone() {
+                if path_regex_match(filter.path.clone(), rule.1.source_topic.clone()) {
+                    replace_with_captures(&rule.1.re, &filter.path, &rule.1.dest_topic);
+                }
+            }
+        }
 
         let client_id = connection.client_id.clone();
 
@@ -885,6 +893,13 @@ where
                 Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
+        for rule in self.cache_manager.topic_rewrite_rule.clone() {
+            for filter in un_subscribe.filters.clone() {
+                if path_regex_match(filter.clone(), rule.1.source_topic.clone()) {
+                    replace_with_captures(&rule.1.re, &filter.clone(), &rule.1.dest_topic);
+                }
+            }
+        }
 
         if let Some(packet) = un_subscribe_validator(
             &connection.client_id,
@@ -1003,4 +1018,52 @@ where
 
         None
     }
+}
+
+fn replace_with_captures(pattern: &str, input: &str, template: &str) -> Option<String> {
+    // 编译正则表达式
+    let re = Regex::new(pattern).ok()?;
+    let mut new_ret = template.to_string();
+    // 尝试匹配输入字符串
+    if let Some(captures) = re.captures(input) {
+        // 遍历所有捕获组
+        for (i, capture) in captures.iter().enumerate() {
+            let temp_str = format!("${}", i + 1);
+            new_ret = new_ret.replace(&temp_str, capture.unwrap().as_str());
+        }
+        Some(new_ret)
+    } else {
+        None
+    }
+}
+
+pub fn path_regex_match(topic_name: String, sub_path: String) -> bool {
+    let path = if is_share_sub(sub_path.clone()) {
+        let (_, group_path) = decode_share_info(sub_path);
+        group_path
+    } else {
+        sub_path
+    };
+
+    // Path perfect matching
+    if topic_name == path {
+        return true;
+    }
+
+    if path.contains("+") {
+        let sub_regex = path.replace("+", "[^+*/]+");
+        let re = Regex::new(&sub_regex.to_string()).unwrap();
+        return re.is_match(&topic_name);
+    }
+
+    if path.contains("#") {
+        if path.split("/").last().unwrap() != "#" {
+            return false;
+        }
+        let sub_regex = path.replace("#", "[^+#]+");
+        let re = Regex::new(&sub_regex.to_string()).unwrap();
+        return re.is_match(&topic_name);
+    }
+
+    false
 }

@@ -17,14 +17,18 @@ use std::sync::Arc;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use dashmap::DashMap;
 use grpc_clients::placement::mqtt::call::{
-    placement_create_topic, placement_delete_topic, placement_list_topic,
+    placement_create_topic, placement_create_topic_rewrite_rule, placement_delete_topic,
+    placement_delete_topic_rewrite_rule, placement_list_topic, placement_list_topic_rewrite_rule,
     placement_set_topic_retain_message,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use protocol::placement_center::placement_center_mqtt::{
-    CreateTopicRequest, DeleteTopicRequest, ListTopicRequest, SetTopicRetainMessageRequest,
+    CreateTopicRequest, CreateTopicRewriteRuleRequest, DeleteTopicRequest,
+    DeleteTopicRewriteRuleRequest, ListTopicRequest, ListTopicRewriteRuleRequest,
+    SetTopicRetainMessageRequest,
 };
 
 use crate::handler::error::MqttBrokerError;
@@ -140,5 +144,55 @@ impl TopicStorage {
             return Ok(None);
         }
         Err(MqttBrokerError::TopicDoesNotExist(topic_name.to_owned()))
+    }
+
+    pub async fn all_topic_rewrite_rule(
+        &self,
+    ) -> Result<Vec<MqttTopicRewriteRule>, MqttBrokerError> {
+        let config = broker_mqtt_conf();
+        let request = ListTopicRewriteRuleRequest {
+            cluster_name: config.cluster_name.clone(),
+        };
+        let reply =
+            placement_list_topic_rewrite_rule(&self.client_pool, &config.placement_center, request)
+                .await?;
+        let mut results = Vec::with_capacity(8);
+        for raw in reply.topic_rewrite_rules {
+            let data = serde_json::from_slice::<MqttTopicRewriteRule>(&raw)?;
+            results.push(data);
+        }
+        Ok(results)
+    }
+
+    pub async fn create_topic_rewrite_rule(
+        &self,
+        req: MqttTopicRewriteRule,
+    ) -> Result<(), MqttBrokerError> {
+        let config = broker_mqtt_conf();
+        let request = CreateTopicRewriteRuleRequest {
+            cluster_name: config.cluster_name.clone(),
+            action: req.action.clone(),
+            source_topic: req.source_topic.clone(),
+            content: req.encode(),
+        };
+        placement_create_topic_rewrite_rule(&self.client_pool, &config.placement_center, request)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn delete_topic_rewrite_rule(
+        &self,
+        action: String,
+        source_topic: String,
+    ) -> Result<(), MqttBrokerError> {
+        let config = broker_mqtt_conf();
+        let request = DeleteTopicRewriteRuleRequest {
+            cluster_name: config.cluster_name.clone(),
+            action,
+            source_topic,
+        };
+        placement_delete_topic_rewrite_rule(&self.client_pool, &config.placement_center, request)
+            .await?;
+        Ok(())
     }
 }
