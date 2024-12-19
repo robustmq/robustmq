@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
 use rocksdb::{
     BoundColumnFamily, ColumnFamilyDescriptor, DBCompactionStyle, Options, SliceTransform, DB,
 };
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::sync::Arc;
 pub mod engine;
 pub mod warp;
 
@@ -216,13 +217,14 @@ impl RocksDBEngine {
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
+
     // use std::time::Duration;
     // use rocksdb::{BoundColumnFamily,WriteBatchWithTransaction};
     use common_base::config::placement_center::placement_center_test_conf;
-    use serde::{Deserialize, Serialize};
-    use tokio::fs::{remove_dir, remove_dir_all};
     // use tokio::time::sleep;
     use futures::future;
+    use serde::{Deserialize, Serialize};
+    use tokio::fs::{remove_dir, remove_dir_all};
 
     use super::RocksDBEngine;
 
