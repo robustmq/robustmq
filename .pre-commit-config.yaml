@@ -15,7 +15,7 @@
 fail_fast: false
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.3.0
+    rev: v5.0.0
     hooks:
       - id: check-byte-order-marker
       - id: check-case-conflict
@@ -26,9 +26,23 @@ repos:
       - id: mixed-line-ending
       - id: trailing-whitespace
   - repo: https://github.com/psf/black
-    rev: 22.10.0
+    rev: 24.10.0
     hooks:
       - id: black
+# todo: we can use online github repo
+#  - repo: https://github.com/crate-ci/typos
+#    rev: v1.28.4
+#    hooks:
+#      - id: typos
+#        language: system
+#        files: \.*$
+#        pass_filenames: false
+#  - repo: https://github.com/EmbarkStudios/cargo-deny
+#    rev: 0.14.16 # choose your preferred tag
+#    hooks:
+#      - id: cargo-deny
+#        # optionally modify the arguments for cargo-deny (default arguments shown here)
+#        args: [ "--licenses", "check" ]
   - repo: local
     hooks:
       - id: cargo-fmt-auto

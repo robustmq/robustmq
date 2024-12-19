@@ -13,4 +13,3 @@ $ bin/robust-server placement-center start
 ```
 $ bin/robust-server broker-mqtt start
 ```
-

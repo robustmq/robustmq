@@ -56,4 +56,3 @@ curl -LsSf https://get.nexte.st/latest/windows-tar | tar zxf - -C ${CARGO_HOME:-
   ```
   make journal-ig-test
   ```
-
