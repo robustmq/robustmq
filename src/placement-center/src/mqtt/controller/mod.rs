@@ -135,7 +135,7 @@ impl MqttController {
             });
 
             // Whether the timed message expires
-            let message =
+            let mut message =
                 MessageExpire::new(cluster_name.clone(), self.rocksdb_engine_handler.clone());
             // let  rs =  self.rocksdb_engine_handler.clone();
             let mut stop_recv = self.stop_send.subscribe();
@@ -158,7 +158,7 @@ impl MqttController {
             });
 
             // Periodically detects whether a will message is sent
-            let message =
+            let mut message =
                 MessageExpire::new(cluster_name.clone(), self.rocksdb_engine_handler.clone());
             let mut stop_recv = self.stop_send.subscribe();
             tokio::spawn(async move {
