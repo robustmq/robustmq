@@ -133,7 +133,7 @@ impl TimestampIndexManager {
             );
         };
 
-        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
+        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
         iter.seek(prefix_key.clone());
 
         while iter.valid() {
