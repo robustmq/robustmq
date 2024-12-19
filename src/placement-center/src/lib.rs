@@ -129,7 +129,37 @@ impl PlacementCenter {
 
         self.start_grpc_server(placement_center_storage.clone());
 
+        self.monitoring_leader_transition(openraft_node.clone());
+
         self.awaiting_stop(stop_send).await;
+    }
+
+    pub fn monitoring_leader_transition(&self, raft: Raft<TypeConfig>) {
+        info!("Initiate Monitoring of Raft Leader Transitions");
+        let mut metrics_rx = raft.metrics();
+        tokio::spawn(async move {
+            let mut last_leader: Option<u64> = None;
+            loop {
+                let changed = metrics_rx.changed().await;
+                if let Err(changed_err) = changed {
+                    info!(
+                        "{}; when:(watching metrics_rx); quit subscribe_metrics() loop",
+                        changed_err
+                    );
+                    break;
+                }
+
+                let mm = metrics_rx.borrow().clone();
+                if mm.current_leader.is_some() && mm.current_leader != last_leader {
+                    info!(
+                        "The leader transition has occurred. The current leader is Node {}. ",
+                        mm.current_leader.unwrap()
+                    );
+                }
+
+                last_leader = mm.current_leader;
+            }
+        });
     }
 
     // Start HTTP Server
