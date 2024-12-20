@@ -218,10 +218,7 @@ impl RocksDBEngine {
 mod tests {
     use std::sync::Arc;
 
-    // use std::time::Duration;
-    // use rocksdb::{BoundColumnFamily,WriteBatchWithTransaction};
     use common_base::config::placement_center::placement_center_test_conf;
-    // use tokio::time::sleep;
     use futures::future;
     use serde::{Deserialize, Serialize};
     use tokio::fs::{remove_dir, remove_dir_all};
