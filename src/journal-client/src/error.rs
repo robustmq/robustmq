@@ -62,10 +62,13 @@ pub enum JournalClientError {
     ReceivedPacketNotContainBody(String),
 
     #[error("{0} has no Leader available")]
-    NotActiveSegmentLeader(String),
+    NotLeader(String),
 
     #[error("Shard {0} has no active segment")]
     NotActiveSegment(String),
+
+    #[error("Shard {0} metadata no exists")]
+    NotShardMetadata(String),
 
     #[error("The write request returns empty")]
     WriteReqReturnTmpty,

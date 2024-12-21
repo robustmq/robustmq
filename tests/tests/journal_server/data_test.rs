@@ -16,16 +16,16 @@
 mod tests {
     use std::time::Duration;
 
-    use common_base::tools::unique_id;
+    use common_base::tools::{now_second, unique_id};
     use dashmap::DashMap;
     use futures::{SinkExt, StreamExt};
     use journal_client::tool::resp_header_error;
     use protocol::journal_server::codec::{JournalEnginePacket, JournalServerCodec};
     use protocol::journal_server::journal_engine::{
-        ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, GetClusterMetadataReq,
-        GetShardMetadataReq, GetShardMetadataReqBody, GetShardMetadataReqShard, ReadReq,
-        ReadReqBody, ReadReqFilter, ReadReqMessage, ReadType, ReqHeader, WriteReq, WriteReqBody,
-        WriteReqMessages, WriteReqSegmentMessages,
+        ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, FetchOffsetReq, FetchOffsetReqBody,
+        FetchOffsetShard, GetClusterMetadataReq, GetShardMetadataReq, GetShardMetadataReqBody,
+        GetShardMetadataReqShard, ReadReq, ReadReqBody, ReadReqFilter, ReadReqMessage, ReadType,
+        ReqHeader, WriteReq, WriteReqBody, WriteReqMessages, WriteReqSegmentMessages,
     };
     use tokio::net::TcpStream;
     use tokio::time::sleep;
@@ -35,11 +35,10 @@ mod tests {
     async fn base_rw_test() {
         let server_addr = "127.0.0.1:3110";
 
-        // get cluster node metadata
         let socket = TcpStream::connect(server_addr).await.unwrap();
-
         let mut stream = Framed::new(socket, JournalServerCodec::new());
 
+        // get cluster node metadata
         let req_packet = JournalEnginePacket::GetClusterMetadataReq(GetClusterMetadataReq {
             header: Some(ReqHeader {
                 api_key: ApiKey::GetClusterMetadata.into(),
@@ -62,15 +61,11 @@ mod tests {
 
         println!("{:?}", server_nodes);
 
-        let socket = TcpStream::connect(server_addr).await.unwrap();
         let namespace = unique_id();
         let shard_name = "s1".to_string();
 
         // create_shard
         let replica_num = 1;
-
-        let mut stream = Framed::new(socket, JournalServerCodec::new());
-
         let req_packet = JournalEnginePacket::CreateShardReq(CreateShardReq {
             header: Some(ReqHeader {
                 api_key: ApiKey::CreateShard.into(),
@@ -94,10 +89,6 @@ mod tests {
         sleep(Duration::from_secs(3)).await;
 
         // get shard metadata
-
-        let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
-        let mut stream = Framed::new(socket, JournalServerCodec::new());
-
         let req_packet = JournalEnginePacket::GetShardMetadataReq(GetShardMetadataReq {
             header: Some(ReqHeader {
                 api_key: ApiKey::GetShardMetadata.into(),
@@ -138,12 +129,10 @@ mod tests {
         let value = serde_json::to_vec("dsfaerwqrsf").unwrap();
         let tags = vec!["t1".to_string()];
 
+        let search_time = now_second();
         for rep in segment_0_all_replicas {
             let rep_addr = server_nodes.get(&rep).unwrap();
             println!("{:?}", rep_addr.tcp_addr);
-            let socket = TcpStream::connect(&rep_addr.tcp_addr).await.unwrap();
-            let mut stream = Framed::new(socket, JournalServerCodec::new());
-
             let req_packet = JournalEnginePacket::WriteReq(WriteReq {
                 header: Some(ReqHeader {
                     api_key: ApiKey::Write.into(),
@@ -178,9 +167,6 @@ mod tests {
         }
 
         // read data
-        let socket = TcpStream::connect(server_addr).await.unwrap();
-        let mut stream = Framed::new(socket, JournalServerCodec::new());
-
         let req_packet = JournalEnginePacket::ReadReq(ReadReq {
             header: Some(ReqHeader {
                 api_key: ApiKey::Read.into(),
@@ -218,6 +204,30 @@ mod tests {
             } else {
                 panic!();
             }
+        } else {
+            panic!();
+        }
+
+        // fetch Offset
+        let req_packet = JournalEnginePacket::FetchOffsetReq(FetchOffsetReq {
+            header: Some(ReqHeader {
+                api_key: ApiKey::FetchOffset.into(),
+                api_version: ApiVersion::V0.into(),
+            }),
+            body: Some(FetchOffsetReqBody {
+                shards: vec![FetchOffsetShard {
+                    namespace: namespace.to_string(),
+                    shard_name: shard_name.to_string(),
+                    segment_no: 0,
+                    timestamp: search_time,
+                }],
+            }),
+        });
+
+        let _ = stream.send(req_packet.clone()).await;
+
+        if let Some(Ok(resp)) = stream.next().await {
+            println!("{:?}", resp);
         } else {
             panic!();
         }

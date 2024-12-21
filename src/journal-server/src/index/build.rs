@@ -189,7 +189,7 @@ async fn start_segment_build_index_thread(
                                         segment_iden.name());
 
                                     if let Some(segment) = cache_manager.get_segment(&segment_iden){
-                                        if segment.status == SegmentStatus::SealUp{
+                                        if segment.status == SegmentStatus::SealUp {
                                             if let Err(e) = save_finish_build_index(&rocksdb_engine_handler, &segment_iden){
                                                 error!("{}", e);
                                             }

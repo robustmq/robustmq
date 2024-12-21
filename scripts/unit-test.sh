@@ -14,7 +14,7 @@
 
 
 
-if [ "$1" == "dev" ]; then
+if [ "$1" = "dev" ]; then
 
  # Run Cargo Test （exclude integration test modules）
  cargo nextest run  --workspace --exclude=robustmq-test --exclude=grpc-clients
