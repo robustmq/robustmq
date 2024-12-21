@@ -46,7 +46,10 @@ mod tests {
             mqtt_conf.cluster_name.clone(),
             topic_name.clone(),
         );
-        topic_storage.save_topic(topic).await.unwrap();
+        match topic_storage.save_topic(topic).await {
+            Ok(_) => {}
+            Err(e) => panic!("{}", e),
+        }
 
         let result = topic_storage.get_topic(&topic_name).await.unwrap().unwrap();
         assert!(result.retain_message.is_none());
