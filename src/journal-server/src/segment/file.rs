@@ -188,64 +188,6 @@ impl SegmentFile {
         Ok(results)
     }
 
-    pub async fn read_by_timestamp(
-        &self,
-        start_position: u64,
-        timestamp: u64,
-        size: u64,
-    ) -> Result<Vec<ReadData>, JournalServerError> {
-        let segment_file = data_file_segment(&self.data_fold, self.segment_no);
-        let file = File::open(segment_file).await?;
-        let mut reader = tokio::io::BufReader::new(file);
-
-        reader
-            .seek(std::io::SeekFrom::Current(start_position as i64))
-            .await?;
-
-        let mut results = Vec::new();
-        let mut already_size = 0;
-        loop {
-            if already_size > size {
-                break;
-            }
-
-            // read offset
-            let position = reader.stream_position().await?;
-
-            let _ = match reader.read_u64().await {
-                Ok(offset) => offset,
-                Err(e) => {
-                    if e.kind() == ErrorKind::UnexpectedEof {
-                        break;
-                    }
-                    return Err(e.into());
-                }
-            };
-
-            // read len
-            let len = reader.read_u32().await?;
-
-            // read body
-            let mut buf = BytesMut::with_capacity(len as usize);
-            reader.read_buf(&mut buf).await?;
-
-            let buf_len = buf.len();
-            let record = JournalRecord::decode(buf)?;
-
-            if record.create_time < timestamp {
-                reader
-                    .seek(std::io::SeekFrom::Current(buf_len as i64))
-                    .await?;
-                continue;
-            }
-
-            already_size += buf_len as u64;
-            results.push(ReadData { position, record });
-        }
-
-        Ok(results)
-    }
-
     pub async fn read_by_positions(
         &self,
         positions: Vec<u64>,
@@ -301,10 +243,60 @@ pub fn data_file_segment(data_fold: &str, segment_no: u32) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use common_base::config::journal_server::{
+        init_journal_server_conf_by_config, JournalServerConfig,
+    };
     use common_base::tools::{now_second, unique_id};
+    use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
     use protocol::journal_server::journal_record::JournalRecord;
 
-    use super::SegmentFile;
+    use super::{open_segment_write, SegmentFile};
+    use crate::core::cache::CacheManager;
+    use crate::segment::SegmentIdentity;
+
+    #[tokio::test]
+    async fn open_segment_write_test() {
+        init_journal_server_conf_by_config(JournalServerConfig {
+            node_id: 1,
+            ..Default::default()
+        });
+        let cluster_name = "c1".to_string();
+        let namespace = unique_id();
+        let shard_name = "s1".to_string();
+        let segment_no = 10;
+        let segment_iden = SegmentIdentity {
+            namespace: namespace.clone(),
+            shard_name: shard_name.clone(),
+            segment_seq: segment_no,
+        };
+        let segment = JournalSegment {
+            cluster_name,
+            namespace,
+            shard_name,
+            segment_seq: segment_no,
+            replicas: vec![Replica {
+                replica_seq: 0,
+                node_id: 1,
+                fold: "/tmp/jl/tests".to_string(),
+            }],
+            config: SegmentConfig {
+                max_segment_size: 1000,
+            },
+            ..Default::default()
+        };
+        let cache_manager = Arc::new(CacheManager::new());
+
+        let res = open_segment_write(&cache_manager, &segment_iden).await;
+        assert!(res.is_err());
+
+        cache_manager.set_segment(segment);
+        let res = open_segment_write(&cache_manager, &segment_iden).await;
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap().1, 1000);
+    }
+
     #[tokio::test]
     async fn segment_create() {
         let data_fold = "/tmp/jl/tests";
@@ -320,6 +312,7 @@ mod tests {
         );
         assert!(segment.try_create().await.is_ok());
         assert!(segment.try_create().await.is_ok());
+        assert!(segment.exists())
     }
 
     #[tokio::test]
@@ -360,6 +353,7 @@ mod tests {
         }
 
         let res = segment.read_by_offset(0, 0, 20000).await.unwrap();
+        assert_eq!(res.len(), 10);
         for raw in res {
             println!("{:?}", raw);
         }

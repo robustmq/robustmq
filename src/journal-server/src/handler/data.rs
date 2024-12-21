@@ -16,14 +16,16 @@ use std::sync::Arc;
 
 use common_base::config::journal_server::journal_server_conf;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::journal::shard::shard_name_iden;
 use protocol::journal_server::journal_engine::{
     AutoOffsetStrategy, FetchOffsetReq, FetchOffsetRespBody, FetchOffsetShard,
-    FetchOffsetShardMeta, ReadReq, ReadRespSegmentMessage, WriteReq, WriteRespMessage,
+    FetchOffsetShardMeta, JournalEngineError, ReadReq, ReadRespSegmentMessage, WriteReq,
+    WriteRespMessage,
 };
 use rocksdb_engine::RocksDBEngine;
 
 use crate::core::cache::CacheManager;
-use crate::core::error::JournalServerError;
+use crate::core::error::{get_journal_server_code, JournalServerError};
 use crate::core::offset::OffsetManager;
 use crate::index::time::TimestampIndexManager;
 use crate::segment::manager::SegmentFileManager;
@@ -125,23 +127,129 @@ impl DataHandler {
                 "fetch_offset".to_string(),
             ));
         }
+
         let req_body = request.body.unwrap();
-        let group_name = req_body.group_name.clone();
-        let strategy = req_body.auto_offset_strategy();
-        let mut meta_list = Vec::new();
+        let mut meta_list: Vec<FetchOffsetShardMeta> = Vec::new();
+
         for shard in req_body.shards {
-            let offset = self.get_offset_by_timestamp(&shard, strategy).await?;
+            let segment_iden = SegmentIdentity {
+                namespace: shard.namespace.clone(),
+                shard_name: shard.shard_name.clone(),
+                segment_seq: shard.segment_no,
+            };
+
+            let shard_iden = shard_name_iden(&shard.namespace, &shard.shard_name);
+
+            let file_metadata = self.cache_manager.get_segment_meta(&segment_iden);
+            let segment_meta = if let Some(meta) = file_metadata {
+                meta
+            } else {
+                let e = &JournalServerError::SegmentMetaNotExists(segment_iden.name());
+                meta_list.push(FetchOffsetShardMeta {
+                    error: Some(JournalEngineError {
+                        code: get_journal_server_code(e),
+                        error: e.to_string(),
+                    }),
+                    ..Default::default()
+                });
+                continue;
+            };
+
+            let active_segment = if let Some(segment) = self
+                .cache_manager
+                .get_active_segment(&shard.namespace, &shard.shard_name)
+            {
+                segment.segment_seq
+            } else {
+                let e = &JournalServerError::NotActiveSegmet(shard_iden);
+                meta_list.push(FetchOffsetShardMeta {
+                    error: Some(JournalEngineError {
+                        code: get_journal_server_code(e),
+                        error: e.to_string(),
+                    }),
+                    ..Default::default()
+                });
+                continue;
+            };
+
+            let is_active_segment = active_segment == shard.segment_no;
+
+            if shard.timestamp < segment_meta.start_timestamp as u64 {
+                let e = &JournalServerError::TimestampBelongToPreviousSegment(
+                    shard.timestamp,
+                    segment_meta.start_offset,
+                    shard_iden,
+                );
+                meta_list.push(FetchOffsetShardMeta {
+                    error: Some(JournalEngineError {
+                        code: get_journal_server_code(e),
+                        error: e.to_string(),
+                    }),
+                    ..Default::default()
+                });
+                continue;
+            };
+
+            if shard.timestamp > segment_meta.end_timestamp as u64 {
+                if is_active_segment {
+                    let meta = FetchOffsetShardMeta {
+                        namespace: shard.namespace,
+                        shard_name: shard.shard_name,
+                        segment_no: shard.segment_no,
+                        offset: segment_meta.end_offset,
+                        ..Default::default()
+                    };
+
+                    meta_list.push(meta);
+                    continue;
+                } else {
+                    let e = &JournalServerError::TimestampBelongToNextSegment(
+                        shard.timestamp,
+                        segment_meta.start_offset,
+                        shard_iden,
+                    );
+                    meta_list.push(FetchOffsetShardMeta {
+                        error: Some(JournalEngineError {
+                            code: get_journal_server_code(e),
+                            error: e.to_string(),
+                        }),
+                        ..Default::default()
+                    });
+                    continue;
+                }
+            }
+
+            let timestamp_index = TimestampIndexManager::new(self.rocksdb_engine_handler.clone());
+            let offset = if let Some(index_data) = timestamp_index
+                .get_last_nearest_position_by_timestamp(&segment_iden, shard.timestamp)
+                .await?
+            {
+                index_data.offset
+            } else {
+                let e =
+                    &JournalServerError::NotAvailableOffsetByTimestamp(shard.timestamp, shard_iden);
+                meta_list.push(FetchOffsetShardMeta {
+                    error: Some(JournalEngineError {
+                        code: get_journal_server_code(e),
+                        error: e.to_string(),
+                    }),
+                    ..Default::default()
+                });
+                continue;
+            };
+
             let meta = FetchOffsetShardMeta {
                 namespace: shard.namespace,
                 shard_name: shard.shard_name,
-                offset,
+                segment_no: shard.segment_no,
+                offset: offset as i64,
+                ..Default::default()
             };
 
             meta_list.push(meta);
         }
 
         Ok(FetchOffsetRespBody {
-            group_name,
             shard_offsets: meta_list,
         })
     }

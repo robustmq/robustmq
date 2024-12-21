@@ -96,6 +96,15 @@ pub enum JournalServerError {
 
     #[error("Segment file meta {0} does not exist, maybe it hasn't been initialized yet.")]
     SegmentFileMetaNotExists(String),
+
+    #[error("Timestamp {0} is less than the start timestamp {1} of Segment {2}, which should belong to the previous segment")]
+    TimestampBelongToPreviousSegment(u64, i64, String),
+
+    #[error("Timestamp {0} is greater than the start timestamp {1} of Segment {2}, which should belong to the next Segment")]
+    TimestampBelongToNextSegment(u64, i64, String),
+
+    #[error("Offset for timestamp {0} is not available in Segment {1}.")]
+    NotAvailableOffsetByTimestamp(u64, String),
 }
 
 pub fn get_journal_server_code(e: &JournalServerError) -> String {
@@ -131,6 +140,15 @@ pub fn get_journal_server_code(e: &JournalServerError) -> String {
         }
         JournalServerError::SegmentMetaNotExists(_) => "SegmentMetaNotExists".to_string(),
         JournalServerError::SegmentFileMetaNotExists(_) => "SegmentFileMetaNotExists".to_string(),
+        JournalServerError::TimestampBelongToPreviousSegment(_, _, _) => {
+            "TimestampBelongToPreviousSegment".to_string()
+        }
+        JournalServerError::TimestampBelongToNextSegment(_, _, _) => {
+            "TimestampBelongToNextSegment".to_string()
+        }
+        JournalServerError::NotAvailableOffsetByTimestamp(_, _) => {
+            "NotAvailableOffsetByTimestamp".to_string()
+        }
     }
 }
 #[cfg(test)]

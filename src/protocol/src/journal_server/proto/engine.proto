@@ -31,9 +31,8 @@ enum ApiVersion{
 
 enum ReadType{
     Offset = 0;
-    Timestamp = 1;
-    Key = 2;
-    Tag = 3;
+    Key = 1;
+    Tag = 2;
 }
 
 enum AutoOffsetStrategy{
@@ -260,9 +259,7 @@ message ReadResp{
 
 /** Fetch Offset **/
 message FetchOffsetReqBody{
-    string group_name = 1;
     repeated FetchOffsetShard shards = 2;
-    AutoOffsetStrategy auto_offset_strategy = 3;
 }
 
 message FetchOffsetShard{
@@ -278,14 +275,16 @@ message FetchOffsetReq{
 }
 
 message FetchOffsetRespBody{
-    string group_name = 1;
     repeated FetchOffsetShardMeta shard_offsets = 2;
 }
 
 message FetchOffsetShardMeta{
     string namespace = 1;
     string shard_name = 2;
-    uint64 offset = 3;
+    uint32 segment_no = 3;
+    int64 offset = 4;
+    JournalEngineError error = 5;
+
 }
 
 message FetchOffsetResp{

@@ -56,7 +56,7 @@ stop_journal_server(){
 rm -rf ./robust-data-test/placement-center*
 rm -rf ./robust-data-test/journal-server*
 
-if [ "$1" == "dev" ]; then
+if [ "$1" = "dev" ]; then
 
 # Start Server
 start_placement_server

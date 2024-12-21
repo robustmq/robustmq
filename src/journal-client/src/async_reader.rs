@@ -19,17 +19,20 @@ use common_base::tools::now_mills;
 use dashmap::DashMap;
 use log::error;
 use metadata_struct::adapter::read_config::ReadConfig;
+use metadata_struct::journal::segment::segment_name;
+use metadata_struct::journal::shard::shard_name_iden;
 use protocol::journal_server::journal_engine::{
-    ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
+    FetchOffsetReqBody, FetchOffsetShard, ReadReqBody, ReadReqFilter, ReadReqMessage,
+    ReadReqOptions, ReadType,
 };
 use tokio::select;
 use tokio::sync::broadcast::{self, Receiver, Sender};
 use tokio::time::sleep;
 
-use crate::cache::{get_active_segment, get_segment_leader, MetadataCache};
+use crate::cache::{get_active_segment, get_metadata_by_shard, get_segment_leader, MetadataCache};
 use crate::connection::ConnectionManager;
 use crate::error::JournalClientError;
-use crate::service::batch_read;
+use crate::service::{batch_read, fetch_offset};
 
 #[derive(Clone)]
 pub struct ReadShardByOffset {
@@ -126,7 +129,7 @@ fn start_read_thread_by_group(
 
                     }
                 },
-                val = async_read_data(&connection_manager, &metadata_cache, &shards, &read_config)=>{
+                val = async_read_data_by_offset(&connection_manager, &metadata_cache, &shards, &read_config)=>{
                     match val{
                         Ok(messages) => {
                             if messages.is_empty() {
@@ -151,7 +154,7 @@ fn start_read_thread_by_group(
     });
 }
 
-async fn async_read_data(
+pub async fn async_read_data_by_offset(
     connection_manager: &Arc<ConnectionManager>,
     metadata_cache: &Arc<MetadataCache>,
     shards: &Vec<ReadShardByOffset>,
@@ -169,6 +172,106 @@ async fn async_read_data(
                 ready_type: ReadType::Offset.into(),
                 filter: Some(ReadReqFilter {
                     offset: raw.1.offset,
+                    ..Default::default()
+                }),
+                options: Some(ReadReqOptions {
+                    max_size: read_config.max_size,
+                    max_record: read_config.max_record_num,
+                }),
+            });
+        }
+
+        let body = ReadReqBody { messages };
+        let result = batch_read(connection_manager, leader_id, body).await?;
+        for shard_data in result.messages {
+            for message in shard_data.messages {
+                let val = ReadMessageData {
+                    namespace: shard_data.namespace.clone(),
+                    shard_name: shard_data.shard_name.clone(),
+                    segment: shard_data.segment,
+                    offset: message.offset,
+                    key: message.key,
+                    value: message.value,
+                    tags: message.tags,
+                    timestamp: message.timestamp,
+                };
+                results.push(val);
+            }
+        }
+    }
+    Ok(results)
+}
+
+pub async fn async_read_data_by_key(
+    connection_manager: &Arc<ConnectionManager>,
+    metadata_cache: &Arc<MetadataCache>,
+    shards: &Vec<ReadShardByOffset>,
+    key: &str,
+    read_config: &ReadConfig,
+) -> Result<Vec<ReadMessageData>, JournalClientError> {
+    let leader_shards = group_by_reader_leader(connection_manager, metadata_cache, shards).await;
+    let mut results = Vec::new();
+    for (leader_id, shards) in leader_shards {
+        let mut messages = Vec::new();
+        for raw in shards {
+            messages.push(ReadReqMessage {
+                namespace: raw.1.namespace,
+                shard_name: raw.1.shard_name,
+                segment: raw.0,
+                ready_type: ReadType::Key.into(),
+                filter: Some(ReadReqFilter {
+                    offset: raw.1.offset,
+                    key: key.to_owned(),
+                    ..Default::default()
+                }),
+                options: Some(ReadReqOptions {
+                    max_size: read_config.max_size,
+                    max_record: read_config.max_record_num,
+                }),
+            });
+        }
+
+        let body = ReadReqBody { messages };
+        let result = batch_read(connection_manager, leader_id, body).await?;
+        for shard_data in result.messages {
+            for message in shard_data.messages {
+                let val = ReadMessageData {
+                    namespace: shard_data.namespace.clone(),
+                    shard_name: shard_data.shard_name.clone(),
+                    segment: shard_data.segment,
+                    offset: message.offset,
+                    key: message.key,
+                    value: message.value,
+                    tags: message.tags,
+                    timestamp: message.timestamp,
+                };
+                results.push(val);
+            }
+        }
+    }
+    Ok(results)
+}
+
+pub async fn async_read_data_by_tag(
+    connection_manager: &Arc<ConnectionManager>,
+    metadata_cache: &Arc<MetadataCache>,
+    shards: &Vec<ReadShardByOffset>,
+    tag: &str,
+    read_config: &ReadConfig,
+) -> Result<Vec<ReadMessageData>, JournalClientError> {
+    let leader_shards = group_by_reader_leader(connection_manager, metadata_cache, shards).await;
+    let mut results = Vec::new();
+    for (leader_id, shards) in leader_shards {
+        let mut messages = Vec::new();
+        for raw in shards {
+            messages.push(ReadReqMessage {
+                namespace: raw.1.namespace,
+                shard_name: raw.1.shard_name,
+                segment: raw.0,
+                ready_type: ReadType::Tag.into(),
+                filter: Some(ReadReqFilter {
+                    offset: raw.1.offset,
+                    tag: tag.to_owned(),
                     ..Default::default()
                 }),
                 options: Some(ReadReqOptions {
@@ -227,4 +330,66 @@ async fn group_by_reader_leader(
         }
     }
     result
+}
+
+pub async fn fetch_offset_by_timestamp(
+    connection_manager: &Arc<ConnectionManager>,
+    metadata_cache: &Arc<MetadataCache>,
+    namespace: &str,
+    shard_name: &str,
+    timestamp: u64,
+) -> Result<(u32, u64), JournalClientError> {
+    let metadatas =
+        get_metadata_by_shard(metadata_cache, connection_manager, namespace, shard_name).await;
+
+    if metadatas.is_empty() {
+        return Err(JournalClientError::NotShardMetadata(shard_name_iden(
+            namespace, shard_name,
+        )));
+    }
+
+    let first = metadatas.first().unwrap();
+    let end = metadatas.last().unwrap();
+
+    let segment = if timestamp < first.start_offset as u64 {
+        first.segment_no
+    } else if timestamp > end.end_offset as u64 {
+        end.segment_no
+    } else {
+        let mut segment_opt: Option<u32> = None;
+        for meta in metadatas.iter() {
+            if timestamp >= meta.start_offset as u64 && timestamp <= meta.end_offset as u64 {
+                segment_opt = Some(meta.segment_no);
+            }
+        }
+        if let Some(segment) = segment_opt {
+            segment
+        } else {
+            first.segment_no
+        }
+    };
+
+    let node_id = if let Some(node_id) =
+        metadata_cache.get_leader_by_segment(namespace, shard_name, segment)
+    {
+        node_id
+    } else {
+        return Err(JournalClientError::NotLeader(segment_name(
+            namespace, shard_name, segment,
+        )));
+    };
+
+    let body = FetchOffsetReqBody {
+        shards: vec![FetchOffsetShard {
+            namespace: namespace.to_owned(),
+            shard_name: shard_name.to_owned(),
+            segment_no: segment,
+            timestamp,
+        }],
+    };
+    let resp = fetch_offset(connection_manager, node_id, body).await?;
+    if let Some(resp_shard) = resp.shard_offsets.first() {
+        return Ok((segment, resp_shard.offset as u64));
+    }
+    Ok((first.segment_no, first.start_offset as u64))
 }

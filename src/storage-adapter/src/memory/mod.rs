@@ -167,6 +167,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         &self,
         _namespace: String,
         _shard_name: String,
+        _offset: u64,
         _key: String,
         _read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
