@@ -68,4 +68,4 @@ if [ "$1" = "dev" ]; then
   # Stop Server
   stop_placement_server
   stop_mqtt_server
-end
+fi

@@ -44,4 +44,4 @@ rm -rf ./robust-data-test/placement-center*
 if [ "$1" = "dev" ]; then
  # Stop Server
  stop_server
-end
+fi

@@ -68,5 +68,4 @@ if [ "$1" = "dev" ]; then
 # Stop Server
 stop_placement_server
 stop_journal_server
-
-end
+fi
