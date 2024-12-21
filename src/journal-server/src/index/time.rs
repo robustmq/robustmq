@@ -175,7 +175,7 @@ mod tests {
         let data_fold = vec![format!("/tmp/tests/{}", unique_id())];
 
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &&storage_data_fold(&data_fold),
+            &storage_data_fold(&data_fold),
             10000,
             column_family_list(),
         ));
