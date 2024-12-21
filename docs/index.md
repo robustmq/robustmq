@@ -5,7 +5,7 @@ layout: home
 hero:
   name: "RobustMQ"
   text: "下一代高性能云原生融合消息队列"
-  tagline: RobustMQ 是一个 100% 用 Rust 实现的中间件消息队列领域的开源项目。它的的目标是基于Rust 打造兼容多种主流消息队列协议、具备完整 Serveless 能力的下一代高性能云原生融合型消息队列。
+  tagline: RobustMQ 是一个 100% 用 Rust 实现的中间件消息队列领域的开源项目。它的的目标是基于Rust 打造兼容多种主流消息队列协议、具备完整 Serverless 能力的下一代高性能云原生融合型消息队列。
   actions:
     - theme: brand
       text: Get Started
