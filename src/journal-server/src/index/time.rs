@@ -163,6 +163,23 @@ impl TimestampIndexManager {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use common_base::tools::unique_id;
+    use rocksdb_engine::RocksDBEngine;
+
+    use crate::index::engine::{column_family_list, storage_data_fold};
+
     #[test]
-    fn timestamp_index_test() {}
+    fn timestamp_index_test() {
+        let data_fold = vec![format!("/tmp/tests/{}", unique_id())];
+
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
+            &&storage_data_fold(&data_fold),
+            10000,
+            column_family_list(),
+        ));
+    }
+
+    fn get_last_nearest_position_by_timestamp_test() {}
 }

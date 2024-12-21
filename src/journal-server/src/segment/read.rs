@@ -177,9 +177,7 @@ async fn read_by_key(
         .await?;
 
     let positions = index_data_list.iter().map(|raw| raw.position).collect();
-    segment_file
-        .read_by_positions(positions, read_options.max_size)
-        .await
+    segment_file.read_by_positions(positions).await
 }
 
 async fn read_by_tag(
@@ -200,9 +198,7 @@ async fn read_by_tag(
         .await?;
 
     let positions = index_data_list.iter().map(|raw| raw.position).collect();
-    segment_file
-        .read_by_positions(positions, read_options.max_size)
-        .await
+    segment_file.read_by_positions(positions).await
 }
 
 #[cfg(test)]
