@@ -56,7 +56,7 @@ stop_mqtt_server(){
 rm -rf ./robust-data-test/placement-center*
 rm -rf ./robust-data-test/mqtt-server*
 
-if [ "$1" == "dev" ]; then
+if [ "$1" = "dev" ]; then
 
   # Start Server
   start_placement_server
