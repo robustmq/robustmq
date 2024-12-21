@@ -203,7 +203,6 @@ mod tests {
                 api_version: ApiVersion::V0.into(),
             }),
             body: Some(FetchOffsetReqBody {
-                group_name: "g1".to_string(),
                 ..Default::default()
             }),
         });

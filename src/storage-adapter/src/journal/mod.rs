@@ -180,7 +180,7 @@ impl StorageAdapter for JournalStorageAdapter {
     ) -> Result<Vec<Record>, CommonError> {
         match self
             .client
-            .read_by_key(&namespace, &shard_name, &key, &read_config)
+            .read_by_key(&namespace, &shard_name, 0, &key, &read_config)
             .await
         {
             Ok(results) => Ok(results),

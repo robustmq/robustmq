@@ -23,7 +23,10 @@ use tokio::sync::broadcast::{self, Sender};
 use super::cache::{load_node_cache, start_update_cache_thread, MetadataCache};
 use super::connection::{start_conn_gc_thread, ConnectionManager};
 use super::error::JournalClientError;
-use crate::async_reader::AsyncReader;
+use crate::async_reader::{
+    async_read_data_by_key, async_read_data_by_offset, async_read_data_by_tag,
+    fetch_offset_by_timestamp, AsyncReader, ReadShardByOffset,
+};
 use crate::async_writer::{AsyncWriter, SenderMessage, SenderMessageResp};
 use crate::cache::get_active_segment;
 use crate::service::{create_shard, delete_shard};
@@ -151,9 +154,21 @@ impl JournalClient {
         offset: u64,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, JournalClientError> {
-        let messages = self.reader.read().await?;
+        let shards = vec![ReadShardByOffset {
+            namespace: namespace.to_owned(),
+            shard_name: shard_name.to_owned(),
+            offset,
+        }];
+        let data_list = async_read_data_by_offset(
+            &self.connection_manager,
+            &self.metadata_cache,
+            &shards,
+            read_config,
+        )
+        .await?;
+
         let mut results = Vec::new();
-        for raw in messages {
+        for raw in data_list {
             let record = Record {
                 offset: Some(raw.offset),
                 key: raw.key,
@@ -167,14 +182,59 @@ impl JournalClient {
         Ok(results)
     }
 
+    pub async fn get_offset_by_timestamp(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        timestamp: u64,
+    ) -> Result<(u32, u64), JournalClientError> {
+        let (segment, offset) = fetch_offset_by_timestamp(
+            &self.connection_manager,
+            &self.metadata_cache,
+            namespace,
+            shard_name,
+            timestamp,
+        )
+        .await?;
+
+        Ok((segment, offset))
+    }
+
     pub async fn read_by_key(
         &self,
         namespace: &str,
         shard_name: &str,
+        offset: u64,
         key: &str,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, JournalClientError> {
-        Ok(Vec::new())
+        let shards = vec![ReadShardByOffset {
+            namespace: namespace.to_owned(),
+            shard_name: shard_name.to_owned(),
+            offset,
+        }];
+        let data_list = async_read_data_by_key(
+            &self.connection_manager,
+            &self.metadata_cache,
+            &shards,
+            key,
+            read_config,
+        )
+        .await?;
+
+        let mut results = Vec::new();
+        for raw in data_list {
+            let record = Record {
+                offset: Some(raw.offset),
+                key: raw.key,
+                data: raw.value,
+                tags: raw.tags,
+                header: Vec::new(),
+                timestamp: raw.timestamp,
+            };
+            results.push(record);
+        }
+        Ok(results)
     }
 
     pub async fn read_by_tag(
@@ -185,16 +245,33 @@ impl JournalClient {
         tag: &str,
         read_config: &ReadConfig,
     ) -> Result<Vec<Record>, JournalClientError> {
-        Ok(Vec::new())
-    }
+        let shards = vec![ReadShardByOffset {
+            namespace: namespace.to_owned(),
+            shard_name: shard_name.to_owned(),
+            offset,
+        }];
+        let data_list = async_read_data_by_tag(
+            &self.connection_manager,
+            &self.metadata_cache,
+            &shards,
+            tag,
+            read_config,
+        )
+        .await?;
 
-    pub async fn get_offset_by_timestamp(
-        &self,
-        namespace: &str,
-        shard_name: &str,
-        timestamp: u64,
-    ) -> Result<(u32, u64), JournalClientError> {
-        Ok((0, 0))
+        let mut results = Vec::new();
+        for raw in data_list {
+            let record = Record {
+                offset: Some(raw.offset),
+                key: raw.key,
+                data: raw.value,
+                tags: raw.tags,
+                header: Vec::new(),
+                timestamp: raw.timestamp,
+            };
+            results.push(record);
+        }
+        Ok(results)
     }
 
     pub async fn close(&self) -> Result<(), CommonError> {
