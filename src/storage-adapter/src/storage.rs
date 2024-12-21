@@ -78,6 +78,7 @@ pub trait StorageAdapter {
         &self,
         namespace: String,
         shard_name: String,
+        offset: u64,
         key: String,
         read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError>;

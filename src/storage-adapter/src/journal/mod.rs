@@ -175,12 +175,13 @@ impl StorageAdapter for JournalStorageAdapter {
         &self,
         namespace: String,
         shard_name: String,
+        offset: u64,
         key: String,
         read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
         match self
             .client
-            .read_by_key(&namespace, &shard_name, 0, &key, &read_config)
+            .read_by_key(&namespace, &shard_name, offset, &key, &read_config)
             .await
         {
             Ok(results) => Ok(results),
