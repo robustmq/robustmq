@@ -25,7 +25,6 @@ use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
 use crate::index::offset::OffsetIndexManager;
 use crate::index::tag::TagIndexManager;
-use crate::index::time::TimestampIndexManager;
 
 pub async fn read_data_req(
     cache_manager: &Arc<CacheManager>,
@@ -100,17 +99,6 @@ pub async fn read_data_req(
                 .await?
             }
 
-            ReadType::Timestamp => {
-                read_by_timestamp(
-                    rocksdb_engine_handler,
-                    &segment_file,
-                    &segment_iden,
-                    &filter,
-                    &read_options,
-                )
-                .await?
-            }
-
             ReadType::Key => {
                 read_by_key(
                     rocksdb_engine_handler,
@@ -169,27 +157,6 @@ async fn read_by_offset(
         .await?;
 
     Ok(res)
-}
-
-async fn read_by_timestamp(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_file: &SegmentFile,
-    segment_iden: &SegmentIdentity,
-    filter: &ReadReqFilter,
-    read_options: &ReadReqOptions,
-) -> Result<Vec<ReadData>, JournalServerError> {
-    let timestamp_index = TimestampIndexManager::new(rocksdb_engine_handler.clone());
-    let index_data = timestamp_index
-        .get_last_nearest_position_by_timestamp(segment_iden, filter.timestamp)
-        .await?;
-    let start_position = if let Some(index_data) = index_data {
-        index_data.position
-    } else {
-        0
-    };
-    segment_file
-        .read_by_timestamp(start_position, filter.timestamp, read_options.max_size)
-        .await
 }
 
 async fn read_by_key(
