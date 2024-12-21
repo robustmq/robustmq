@@ -98,7 +98,7 @@ impl SessionExpire {
             return Vec::new();
         };
 
-        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
+        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
         iter.seek(search_key.clone());
         let mut sessions = Vec::new();
         while iter.valid() {
