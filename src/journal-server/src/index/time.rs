@@ -168,6 +168,7 @@ mod tests {
     use common_base::tools::unique_id;
     use rocksdb_engine::RocksDBEngine;
 
+    use super::TimestampIndexManager;
     use crate::index::engine::{column_family_list, storage_data_fold};
 
     #[test]
@@ -179,6 +180,9 @@ mod tests {
             10000,
             column_family_list(),
         ));
+
+        let time_inex = TimestampIndexManager::new(rocksdb_engine_handler);
+        
     }
 
     fn get_last_nearest_position_by_timestamp_test() {}
