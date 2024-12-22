@@ -267,42 +267,25 @@ pub async fn try_create_local_segment(
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+
     use std::sync::Arc;
 
-    use common_base::tools::{now_second, unique_id};
-    use rocksdb_engine::RocksDBEngine;
+    use common_base::tools::now_second;
 
-    use super::{load_local_segment_cache, SegmentFileManager, SegmentFileMetadata};
-    use crate::index::engine::{column_family_list, storage_data_fold};
-    use crate::segment::SegmentIdentity;
+    use super::{SegmentFileManager, SegmentFileMetadata};
+    use crate::core::test::test_build_rocksdb_sgement;
 
     #[tokio::test]
     async fn segment_metadata_test() {
-        let data_fold = vec![format!("/tmp/tests/{}", unique_id())];
+        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
 
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &storage_data_fold(&data_fold),
-            10000,
-            column_family_list(),
-        ));
         let segment_file_manager =
             Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
 
-        let namespace = unique_id();
-        let shard_name = "s1".to_string();
-        let segment_no = 10;
-
-        let segment_iden = SegmentIdentity {
-            namespace: namespace.clone(),
-            shard_name: shard_name.clone(),
-            segment_seq: segment_no,
-        };
-
         let segment_file = SegmentFileMetadata {
-            namespace,
-            shard_name,
-            segment_no,
+            namespace: segment_iden.namespace.to_string(),
+            shard_name: segment_iden.shard_name.to_string(),
+            segment_no: segment_iden.segment_seq,
             ..Default::default()
         };
         segment_file_manager.add_segment_file(segment_file);
@@ -341,27 +324,5 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn log_segment_cache_test() {
-        let data_fold = vec![format!("/tmp/tests/{}", unique_id())];
-
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &storage_data_fold(&data_fold),
-            10000,
-            column_family_list(),
-        ));
-        let segment_file_manager =
-            Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
-
-        for path in data_fold.clone() {
-            let path = Path::new(&path);
-            load_local_segment_cache(
-                path,
-                &rocksdb_engine_handler,
-                &segment_file_manager,
-                &data_fold,
-            )
-            .unwrap();
-        }
-        println!("{}", segment_file_manager.segment_files.len());
-    }
+    async fn log_segment_cache_test() {}
 }

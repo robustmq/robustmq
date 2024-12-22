@@ -168,12 +168,12 @@ mod tests {
     use common_base::tools::now_second;
 
     use super::OffsetIndexManager;
-    use crate::core::test::build_rs_sg;
+    use crate::core::test::test_build_rocksdb_sgement;
     use crate::index::IndexData;
 
     #[test]
     fn start_end_index_test() {
-        let (rocksdb_engine_handler, segment_iden) = build_rs_sg();
+        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
 
         let offset_index = OffsetIndexManager::new(rocksdb_engine_handler);
 
@@ -196,7 +196,7 @@ mod tests {
 
     #[tokio::test]
     async fn timestamp_index_test() {
-        let (rocksdb_engine_handler, segment_iden) = build_rs_sg();
+        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
 
         let offset_index = OffsetIndexManager::new(rocksdb_engine_handler);
 

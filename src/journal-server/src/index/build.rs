@@ -39,6 +39,8 @@ use crate::segment::file::{open_segment_write, SegmentFile};
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
 
+pub struct IndexBuildThreadData {}
+
 pub async fn try_trigger_build_index(
     cache_manager: &Arc<CacheManager>,
     segment_file_manager: &Arc<SegmentFileManager>,
@@ -354,12 +356,12 @@ pub fn delete_segment_index(
 
 #[cfg(test)]
 mod tests {
-    use common_base::tools::{now_second, unique_id};
+    use common_base::tools::now_second;
     use rocksdb_engine::engine::rocksdb_engine_prefix_map;
 
     use super::{save_finish_build_index, save_last_offset_build_index};
     use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
-    use crate::core::test::build_rs_sg;
+    use crate::core::test::test_build_rocksdb_sgement;
     use crate::index::build::{
         delete_segment_index, get_last_offset_build_index, is_finish_build_index,
         remove_last_offset_build_index,
@@ -369,7 +371,7 @@ mod tests {
     use crate::index::IndexData;
     #[test]
     fn last_offset_build_index_test() {
-        let (rocksdb_engine_handler, segment_iden) = build_rs_sg();
+        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
         let res = save_last_offset_build_index(&rocksdb_engine_handler, &segment_iden);
         assert!(res.is_ok());
 
@@ -387,7 +389,7 @@ mod tests {
 
     #[test]
     fn finish_build_index_test() {
-        let (rocksdb_engine_handler, segment_iden) = build_rs_sg();
+        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
 
         let res = save_finish_build_index(&rocksdb_engine_handler, &segment_iden);
         assert!(res.is_ok());
@@ -399,7 +401,7 @@ mod tests {
 
     #[test]
     fn delete_segment_index_test() {
-        let (rocksdb_engine_handler, segment_iden) = build_rs_sg();
+        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
 
         // build index
         let offset_index = OffsetIndexManager::new(rocksdb_engine_handler.clone());
@@ -443,7 +445,5 @@ mod tests {
     }
 
     #[test]
-    fn build_thread_test() {
-        
-    }
+    fn build_thread_test() {}
 }
