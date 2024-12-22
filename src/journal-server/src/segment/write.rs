@@ -439,3 +439,10 @@ async fn is_sealup_segment(
     }
     Ok(false)
 }
+
+#[cfg(test)]
+mod tests {
+
+    #[tokio::test]
+    async fn data_fold_shard_test() {}
+}

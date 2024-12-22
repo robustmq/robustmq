@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::collections::HashMap;
-use std::fs::remove_dir_all;
+use std::fs::remove_file;
 use std::io::ErrorKind;
 use std::path::Path;
 use std::sync::Arc;
@@ -101,7 +101,8 @@ impl SegmentFile {
         if !file_exists(&segment_file) {
             return Err(JournalServerError::SegmentFileNotExists(segment_file));
         }
-        Ok(remove_dir_all(segment_file)?)
+
+        Ok(remove_file(segment_file)?)
     }
 
     pub async fn write(
@@ -138,7 +139,7 @@ impl SegmentFile {
         &self,
         start_position: u64,
         start_offset: u64,
-        size: u64,
+        max_size: u64,
     ) -> Result<Vec<ReadData>, JournalServerError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = File::open(segment_file).await?;
@@ -151,7 +152,7 @@ impl SegmentFile {
         let mut results = Vec::new();
         let mut already_size = 0;
         loop {
-            if already_size > size {
+            if already_size > max_size {
                 break;
             }
 
@@ -191,23 +192,28 @@ impl SegmentFile {
     pub async fn read_by_positions(
         &self,
         positions: Vec<u64>,
-        size: u64,
     ) -> Result<Vec<ReadData>, JournalServerError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = File::open(segment_file).await?;
         let mut reader = tokio::io::BufReader::new(file);
 
         let mut results = Vec::new();
-        let mut already_size = 0;
 
         for position in positions {
-            if already_size > size {
-                break;
-            }
-
             reader
                 .seek(std::io::SeekFrom::Current(position as i64))
                 .await?;
+
+            // read offset
+            let record_offset = match reader.read_u64().await {
+                Ok(offset) => offset,
+                Err(e) => {
+                    if e.kind() == ErrorKind::UnexpectedEof {
+                        break;
+                    }
+                    return Err(e.into());
+                }
+            };
 
             // read len
             let len = reader.read_u32().await?;
@@ -219,7 +225,6 @@ impl SegmentFile {
             let buf_len = buf.len();
             let record = JournalRecord::decode(buf)?;
 
-            already_size += buf_len as u64;
             results.push(ReadData { position, record });
         }
 
@@ -252,9 +257,21 @@ mod tests {
     use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
     use protocol::journal_server::journal_record::JournalRecord;
 
-    use super::{open_segment_write, SegmentFile};
+    use super::{data_file_segment, data_fold_shard, open_segment_write, SegmentFile};
     use crate::core::cache::CacheManager;
     use crate::segment::SegmentIdentity;
+
+    #[tokio::test]
+    async fn data_fold_shard_test() {
+        let namespace = unique_id();
+        let shard_name = "s1".to_string();
+        let data_fold = "/tmp/d1".to_string();
+        let segment_no = 10;
+        let fold = data_fold_shard(&namespace, &shard_name, &data_fold);
+        assert_eq!(fold, format!("{}/{}/{}", data_fold, namespace, shard_name));
+        let file = data_file_segment(&fold, segment_no);
+        assert_eq!(file, format!("{}/{}.msg", fold, segment_no));
+    }
 
     #[tokio::test]
     async fn open_segment_write_test() {
@@ -312,11 +329,14 @@ mod tests {
         );
         assert!(segment.try_create().await.is_ok());
         assert!(segment.try_create().await.is_ok());
-        assert!(segment.exists())
+        assert!(segment.exists());
+        let res = segment.delete().await;
+        assert!(res.is_ok());
+        assert!(!segment.exists());
     }
 
     #[tokio::test]
-    async fn segment_rw_test() {
+    async fn segment_read_offset_test() {
         let data_fold = "/tmp/jl/tests";
 
         let namespace = unique_id();
@@ -354,8 +374,58 @@ mod tests {
 
         let res = segment.read_by_offset(0, 0, 20000).await.unwrap();
         assert_eq!(res.len(), 10);
-        for raw in res {
-            println!("{:?}", raw);
+
+        let res = segment.read_by_offset(0, 1005, 20000).await.unwrap();
+        assert_eq!(res.len(), 5);
+    }
+
+    #[tokio::test]
+    async fn segment_read_position_test() {
+        let data_fold = "/tmp/jl/tests";
+
+        let namespace = unique_id();
+        let shard_name = "s1";
+        let segment_no = 10;
+
+        let segment = SegmentFile::new(
+            namespace.to_string(),
+            shard_name.to_string(),
+            segment_no,
+            data_fold.to_string(),
+        );
+
+        segment.try_create().await.unwrap();
+        for i in 0..10 {
+            let value = format!("data1#-{}", i);
+            let record = JournalRecord {
+                content: value.as_bytes().to_vec(),
+                create_time: now_second(),
+                key: format!("k{}", i),
+                namespace: "n1".to_string(),
+                shard_name: "s1".to_string(),
+                offset: 1000 + i,
+                segment: 1,
+                tags: vec![],
+                ..Default::default()
+            };
+            match segment.write(&[record.clone()]).await {
+                Ok(_) => {}
+                Err(e) => {
+                    panic!("{:?}", e);
+                }
+            }
         }
+
+        let res = segment.read_by_positions(vec![0]).await.unwrap();
+        assert_eq!(res.len(), 1);
+
+        let res = segment.read_by_positions(vec![45]).await.unwrap();
+        assert_eq!(res.len(), 1);
+
+        let res = segment.read_by_positions(vec![0, 45, 90]).await.unwrap();
+        assert_eq!(res.len(), 3);
+
+        let size = segment.size().await.unwrap();
+        assert!(size > 0);
     }
 }

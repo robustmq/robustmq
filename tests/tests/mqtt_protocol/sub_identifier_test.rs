@@ -80,7 +80,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn client5_sub_identifier_test_wss() {
         let topic = unique_id();
 
