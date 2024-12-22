@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use common_base::config::placement_center::placement_center_conf;
 use grpc_clients::pool::ClientPool;
-use log::info;
+use log::{error, info};
 use openraft::Raft;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterServiceServer;
 use protocol::placement_center::placement_center_journal::engine_service_server::EngineServiceServer;
@@ -31,7 +31,7 @@ use server::grpc::service_mqtt::GrpcMqttService;
 use server::grpc::services_openraft::GrpcOpenRaftServices;
 use storage::rocksdb::{column_family_list, storage_data_fold, RocksDBEngine};
 use tokio::signal;
-use tokio::sync::broadcast;
+use tokio::sync::broadcast::Sender;
 use tokio::time::sleep;
 use tonic::transport::Server;
 
@@ -106,7 +106,7 @@ impl PlacementCenter {
         }
     }
 
-    pub async fn start(&mut self, stop_send: broadcast::Sender<bool>) {
+    pub async fn start(&mut self, stop_send: Sender<bool>) {
         self.init_cache();
 
         let data_route = Arc::new(DataRoute::new(
@@ -140,24 +140,36 @@ impl PlacementCenter {
         tokio::spawn(async move {
             let mut last_leader: Option<u64> = None;
             loop {
-                let changed = metrics_rx.changed().await;
-                if let Err(changed_err) = changed {
-                    info!(
-                        "{}; when:(watching metrics_rx); quit subscribe_metrics() loop",
+                match metrics_rx.changed().await {
+                    Ok(_) => {
+                        let mm = metrics_rx.borrow().clone();
+
+                        if let Some(current_leader) = mm.current_leader {
+                            if last_leader != Some(current_leader) {
+                                info!(
+                                    "The leader transition has occurred. The current leader is Node {}. Previous leader was Node {:?}.",
+                                    current_leader, last_leader
+                                );
+                                if mm.id == current_leader {
+                                    info!(
+                                        "Node {} switches to the Leader and starts the controller thread.", mm.id
+                                    );
+                                    // TODO Start the control thread
+                                }
+                            }
+                            last_leader = Some(current_leader);
+                        } else {
+                            info!("Current leader is None, skipping leader transition check.");
+                        }
+                    }
+                    Err(changed_err) => {
+                        error!(
+                        "Error while watching metrics_rx: {}; quitting monitoring_leader_transition() loop",
                         changed_err
                     );
-                    break;
+                        break; // Terminate the task on fatal error
+                    }
                 }
-
-                let mm = metrics_rx.borrow().clone();
-                if mm.current_leader.is_some() && mm.current_leader != last_leader {
-                    info!(
-                        "The leader transition has occurred. The current leader is Node {}. ",
-                        mm.current_leader.unwrap()
-                    );
-                }
-
-                last_leader = mm.current_leader;
             }
         });
     }
@@ -229,7 +241,7 @@ impl PlacementCenter {
     pub fn start_controller(
         &self,
         raft_machine_apply: Arc<RaftMachineApply>,
-        stop_send: broadcast::Sender<bool>,
+        stop_send: Sender<bool>,
     ) {
         let ctrl = ClusterController::new(
             self.cluster_cache.clone(),
@@ -280,7 +292,7 @@ impl PlacementCenter {
     }
 
     // Wait Stop Signal
-    pub async fn awaiting_stop(&self, stop_send: broadcast::Sender<bool>) {
+    pub async fn awaiting_stop(&self, stop_send: Sender<bool>) {
         tokio::spawn(async move {
             sleep(Duration::from_millis(5)).await;
             info!("Placement Center service started successfully...");
