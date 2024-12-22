@@ -119,7 +119,7 @@ impl OffsetIndexManager {
         &self,
         segment_iden: &SegmentIdentity,
         start_offset: u64,
-    ) -> Result<u64, JournalServerError> {
+    ) -> Result<Option<IndexData>, JournalServerError> {
         let prefix_key = offset_segment_position_prefix(segment_iden);
 
         let cf = if let Some(cf) = self
@@ -148,21 +148,99 @@ impl OffsetIndexManager {
                     let index_data = serde_json::from_slice::<IndexData>(data.data.as_ref())?;
 
                     if index_data.offset < start_offset {
+                        iter.next();
                         continue;
                     }
 
-                    return Ok(index_data.position);
+                    return Ok(Some(index_data));
                 }
             }
             iter.next();
         }
 
-        Ok(0)
+        Ok(None)
     }
 }
 
 #[cfg(test)]
 mod tests {
+
+    use common_base::tools::now_second;
+
+    use super::OffsetIndexManager;
+    use crate::core::test::build_rs_sg;
+    use crate::index::IndexData;
+
     #[test]
-    fn offset_index_test() {}
+    fn start_end_index_test() {
+        let (rocksdb_engine_handler, segment_iden) = build_rs_sg();
+
+        let offset_index = OffsetIndexManager::new(rocksdb_engine_handler);
+
+        let start_offset = 100;
+        let res = offset_index.save_start_offset(&segment_iden, start_offset);
+        assert!(res.is_ok());
+
+        let res = offset_index.get_start_offset(&segment_iden);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), start_offset);
+
+        let end_offset = 1000;
+        let res = offset_index.save_end_offset(&segment_iden, end_offset);
+        assert!(res.is_ok());
+
+        let res = offset_index.get_end_offset(&segment_iden);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), end_offset);
+    }
+
+    #[tokio::test]
+    async fn timestamp_index_test() {
+        let (rocksdb_engine_handler, segment_iden) = build_rs_sg();
+
+        let offset_index = OffsetIndexManager::new(rocksdb_engine_handler);
+
+        let timestamp = now_second();
+
+        for i in 0..10 {
+            let cur_timestamp = timestamp + i * 10;
+            let index_data = IndexData {
+                offset: i,
+                timestamp: cur_timestamp,
+                position: i * 5,
+            };
+            let res = offset_index.save_position_offset(&segment_iden, i, index_data);
+            assert!(res.is_ok());
+        }
+
+        // offset 0
+        let res = offset_index
+            .get_last_nearest_position_by_offset(&segment_iden, 0)
+            .await;
+
+        assert!(res.is_ok());
+        let res_op = res.unwrap();
+        assert!(res_op.is_some());
+        assert_eq!(res_op.unwrap().offset, 0);
+
+        // offset 6
+        let res = offset_index
+            .get_last_nearest_position_by_offset(&segment_iden, 6)
+            .await;
+
+        assert!(res.is_ok());
+        let res_op = res.unwrap();
+        assert!(res_op.is_some());
+        assert_eq!(res_op.unwrap().offset, 6);
+
+        // offset 9
+        let res = offset_index
+            .get_last_nearest_position_by_offset(&segment_iden, 9)
+            .await;
+
+        assert!(res.is_ok());
+        let res_op = res.unwrap();
+        assert!(res_op.is_some());
+        assert_eq!(res_op.unwrap().offset, 9);
+    }
 }

@@ -24,3 +24,4 @@ pub mod segment;
 pub mod segment_meta;
 pub mod segment_status;
 pub mod shard;
+pub mod test;

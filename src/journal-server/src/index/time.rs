@@ -164,37 +164,17 @@ impl TimestampIndexManager {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use common_base::tools::{now_second, unique_id};
-    use rocksdb_engine::RocksDBEngine;
+    use common_base::tools::now_second;
 
     use super::TimestampIndexManager;
-    use crate::index::engine::{column_family_list, storage_data_fold};
+    use crate::core::test::build_rs_sg;
     use crate::index::IndexData;
-    use crate::segment::SegmentIdentity;
 
     #[test]
     fn start_end_index_test() {
-        let data_fold = vec![format!("/tmp/tests/{}", unique_id())];
-
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &storage_data_fold(&data_fold),
-            10000,
-            column_family_list(),
-        ));
+        let (rocksdb_engine_handler, segment_iden) = build_rs_sg();
 
         let time_index = TimestampIndexManager::new(rocksdb_engine_handler);
-
-        let namespace = unique_id();
-        let shard_name = "s1".to_string();
-        let segment_no = 10;
-
-        let segment_iden = SegmentIdentity {
-            namespace: namespace.clone(),
-            shard_name: shard_name.clone(),
-            segment_seq: segment_no,
-        };
 
         let start_timestamp = now_second();
         let res = time_index.save_start_timestamp(&segment_iden, start_timestamp);
@@ -215,25 +195,9 @@ mod tests {
 
     #[tokio::test]
     async fn timestamp_index_test() {
-        let data_fold = vec![format!("/tmp/tests/{}", unique_id())];
-
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &storage_data_fold(&data_fold),
-            10000,
-            column_family_list(),
-        ));
+        let (rocksdb_engine_handler, segment_iden) = build_rs_sg();
 
         let time_index = TimestampIndexManager::new(rocksdb_engine_handler);
-
-        let namespace = unique_id();
-        let shard_name = "s1".to_string();
-        let segment_no = 10;
-
-        let segment_iden = SegmentIdentity {
-            namespace: namespace.clone(),
-            shard_name: shard_name.clone(),
-            segment_seq: segment_no,
-        };
 
         let timestamp = now_second();
 

@@ -15,6 +15,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use common_base::tools::now_second;
 use log::{debug, error, warn};
 use metadata_struct::journal::segment::{segment_name, SegmentStatus};
 use rocksdb_engine::engine::{
@@ -44,12 +45,6 @@ pub async fn try_trigger_build_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
 ) {
-    let key = segment_name(
-        &segment_iden.namespace,
-        &segment_iden.shard_name,
-        segment_iden.segment_seq,
-    );
-
     if !cache_manager.contain_build_index_thread(segment_iden) {
         if let Err(e) = build_thread(
             cache_manager,
@@ -61,36 +56,11 @@ pub async fn try_trigger_build_index(
         {
             error!(
                 "segment {} index building thread failed to start with error message :{}",
-                segment_name(
-                    &segment_iden.namespace,
-                    &segment_iden.shard_name,
-                    segment_iden.segment_seq
-                ),
+                segment_iden.name(),
                 e
             );
         }
     }
-}
-
-pub fn delete_segment_index(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_iden: &SegmentIdentity,
-) -> Result<(), JournalServerError> {
-    let prefix_key_name = segment_index_prefix(segment_iden);
-    let comlumn_family = DB_COLUMN_FAMILY_INDEX;
-    let data = rocksdb_engine_prefix_map(
-        rocksdb_engine_handler.clone(),
-        comlumn_family,
-        prefix_key_name,
-    )?;
-    for raw in data.iter() {
-        rocksdb_engine_delete(
-            rocksdb_engine_handler.clone(),
-            comlumn_family,
-            raw.key().to_string(),
-        )?;
-    }
-    Ok(())
 }
 
 async fn build_thread(
@@ -158,7 +128,10 @@ async fn start_segment_build_index_thread(
 
     let start_position = offset_index
         .get_last_nearest_position_by_offset(&segment_iden, last_build_offset)
-        .await?;
+        .await?
+        .unwrap()
+        .position;
+
     tokio::spawn(async move {
         let size = 10 * 1024 * 1024;
         let mut data_empty_times = 0;
@@ -340,7 +313,7 @@ fn save_last_offset_build_index(
         rocksdb_engine_handler.clone(),
         DB_COLUMN_FAMILY_INDEX,
         key,
-        true,
+        now_second(),
     )?)
 }
 
@@ -356,4 +329,121 @@ fn get_last_offset_build_index(
     }
 
     Ok(None)
+}
+
+pub fn delete_segment_index(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    segment_iden: &SegmentIdentity,
+) -> Result<(), JournalServerError> {
+    let prefix_key_name = segment_index_prefix(segment_iden);
+    let comlumn_family = DB_COLUMN_FAMILY_INDEX;
+    let data = rocksdb_engine_prefix_map(
+        rocksdb_engine_handler.clone(),
+        comlumn_family,
+        prefix_key_name,
+    )?;
+    for raw in data.iter() {
+        rocksdb_engine_delete(
+            rocksdb_engine_handler.clone(),
+            comlumn_family,
+            raw.key().to_string(),
+        )?;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use common_base::tools::{now_second, unique_id};
+    use rocksdb_engine::engine::rocksdb_engine_prefix_map;
+
+    use super::{save_finish_build_index, save_last_offset_build_index};
+    use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
+    use crate::core::test::build_rs_sg;
+    use crate::index::build::{
+        delete_segment_index, get_last_offset_build_index, is_finish_build_index,
+        remove_last_offset_build_index,
+    };
+    use crate::index::keys::segment_index_prefix;
+    use crate::index::offset::OffsetIndexManager;
+    use crate::index::IndexData;
+    #[test]
+    fn last_offset_build_index_test() {
+        let (rocksdb_engine_handler, segment_iden) = build_rs_sg();
+        let res = save_last_offset_build_index(&rocksdb_engine_handler, &segment_iden);
+        assert!(res.is_ok());
+
+        let res = get_last_offset_build_index(&rocksdb_engine_handler, &segment_iden);
+        println!("{:?}", res);
+        assert!(res.is_ok());
+        assert!(res.unwrap().is_some());
+
+        let res = remove_last_offset_build_index(&rocksdb_engine_handler, &segment_iden);
+
+        let res = get_last_offset_build_index(&rocksdb_engine_handler, &segment_iden);
+        assert!(res.is_ok());
+        assert!(res.unwrap().is_none());
+    }
+
+    #[test]
+    fn finish_build_index_test() {
+        let (rocksdb_engine_handler, segment_iden) = build_rs_sg();
+
+        let res = save_finish_build_index(&rocksdb_engine_handler, &segment_iden);
+        assert!(res.is_ok());
+
+        let res = is_finish_build_index(&rocksdb_engine_handler, &segment_iden);
+        assert!(res.is_ok());
+        assert!(res.unwrap());
+    }
+
+    #[test]
+    fn delete_segment_index_test() {
+        let (rocksdb_engine_handler, segment_iden) = build_rs_sg();
+
+        // build index
+        let offset_index = OffsetIndexManager::new(rocksdb_engine_handler.clone());
+        let timestamp = now_second();
+        for i in 0..10 {
+            let cur_timestamp = timestamp + i * 10;
+            let index_data = IndexData {
+                offset: i,
+                timestamp: cur_timestamp,
+                position: i * 5,
+            };
+            let res = offset_index.save_position_offset(&segment_iden, i, index_data);
+            assert!(res.is_ok());
+        }
+
+        // check data
+        let prefix_key_name = segment_index_prefix(&segment_iden);
+        let comlumn_family = DB_COLUMN_FAMILY_INDEX;
+        let data = rocksdb_engine_prefix_map(
+            rocksdb_engine_handler.clone(),
+            comlumn_family,
+            prefix_key_name,
+        )
+        .unwrap();
+        assert!(!data.is_empty());
+
+        // delete segment_index
+        let res = delete_segment_index(&rocksdb_engine_handler, &segment_iden);
+        assert!(res.is_ok());
+
+        // check data
+        let prefix_key_name = segment_index_prefix(&segment_iden);
+        let comlumn_family = DB_COLUMN_FAMILY_INDEX;
+        let data = rocksdb_engine_prefix_map(
+            rocksdb_engine_handler.clone(),
+            comlumn_family,
+            prefix_key_name,
+        )
+        .unwrap();
+        assert!(data.is_empty());
+    }
+
+    #[test]
+    fn build_thread_test() {
+        
+    }
 }

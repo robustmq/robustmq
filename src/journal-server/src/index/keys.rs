@@ -90,6 +90,13 @@ pub(crate) fn key_segment(segment_iden: &SegmentIdentity, key: String, offset: u
     )
 }
 
+pub(crate) fn key_segment_prefix(segment_iden: &SegmentIdentity, key: String) -> String {
+    format!(
+        "/index/{}/{}/{}/key/{}",
+        segment_iden.namespace, segment_iden.shard_name, segment_iden.segment_seq, key
+    )
+}
+
 pub(crate) fn finish_build_index(segment_iden: &SegmentIdentity) -> String {
     format!(
         "/index/{}/{}/{}/build/finish",

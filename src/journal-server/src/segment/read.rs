@@ -150,7 +150,9 @@ async fn read_by_offset(
     let offset_index = OffsetIndexManager::new(rocksdb_engine_handler.clone());
     let start_position = offset_index
         .get_last_nearest_position_by_offset(segment_iden, filter.offset)
-        .await?;
+        .await?
+        .unwrap()
+        .position;
 
     let res = segment_file
         .read_by_offset(start_position, filter.offset, read_options.max_size)
