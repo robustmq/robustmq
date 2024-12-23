@@ -340,12 +340,13 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::now_second;
+    use metadata_struct::journal::segment::{JournalSegment, Replica};
     use rocksdb_engine::engine::rocksdb_engine_prefix_map;
 
     use super::{save_finish_build_index, save_last_offset_build_index, try_trigger_build_index};
     use crate::core::cache::CacheManager;
     use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
-    use crate::core::test::{test_build_data_fold, test_build_rocksdb_sgement};
+    use crate::core::test::{test_build_data_fold, test_build_rocksdb_sgement, test_init_conf};
     use crate::index::build::{
         delete_segment_index, get_last_offset_build_index, is_finish_build_index,
         remove_last_offset_build_index,
@@ -433,8 +434,10 @@ mod tests {
 
     #[tokio::test]
     async fn build_thread_test() {
+        test_init_conf();
+
         let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
-        let data_fold = test_build_data_fold();
+        let data_fold = test_build_data_fold().first().unwrap().to_string();
 
         let cache_manager = Arc::new(CacheManager::new());
         let segment_file_manager =
@@ -448,15 +451,29 @@ mod tests {
         };
         segment_file_manager.add_segment_file(segment_file);
 
-        // creaet segment file
+        // create segment file
         let segment_file = SegmentFile::new(
             segment_iden.namespace.clone(),
             segment_iden.shard_name.clone(),
             segment_iden.segment_seq,
-            data_fold.first().unwrap().to_string(),
+            data_fold.clone(),
         );
         let res = segment_file.try_create().await;
         assert!(res.is_ok());
+
+        // add cache
+        let segment = JournalSegment {
+            namespace: segment_iden.namespace.clone(),
+            shard_name: segment_iden.shard_name.clone(),
+            segment_seq: segment_iden.segment_seq,
+            replicas: vec![Replica {
+                replica_seq: 0,
+                node_id: 1,
+                fold: data_fold.clone(),
+            }],
+            ..Default::default()
+        };
+        cache_manager.set_segment(segment);
 
         // start build thread
         let res = try_trigger_build_index(
@@ -466,7 +483,15 @@ mod tests {
             &segment_iden,
         )
         .await;
+        println!("{:?}", res);
         assert!(res.is_ok());
+
+        // check
+        assert!(segment_file.exists());
+        assert!(cache_manager.get_segment(&segment_iden).is_some());
+        assert!(segment_file_manager
+            .get_segment_file(&segment_iden)
+            .is_some());
 
         // write data
 
