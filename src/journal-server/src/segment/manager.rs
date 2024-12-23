@@ -198,10 +198,10 @@ pub fn load_local_segment_cache(
                 namespace: namespace.to_string(),
                 shard_name: shard_name.to_string(),
                 segment_no,
-                start_offset: start_offset as i64,
-                end_offset: end_offset as i64,
-                start_timestamp: start_timestamp as i64,
-                end_timestamp: end_timestamp as i64,
+                start_offset,
+                end_offset,
+                start_timestamp,
+                end_timestamp,
             };
 
             segment_file_manager.add_segment_file(metadata);
@@ -342,6 +342,7 @@ mod tests {
         let res =
             try_create_local_segment(&segment_file_manager, &rocksdb_engine_handler, &segment)
                 .await;
+
         println!("{:?}", res);
         assert!(res.is_ok());
 
@@ -362,9 +363,6 @@ mod tests {
         assert!(segment_write.exists());
     }
 
-
     #[tokio::test]
-    async fn load_local_segment_cache_test() {
-
-    }
+    async fn load_local_segment_cache_test() {}
 }

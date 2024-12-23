@@ -191,7 +191,7 @@ mod tests {
 
         let res = offset_index.get_end_offset(&segment_iden);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap(), end_offset  as i64);
+        assert_eq!(res.unwrap(), end_offset as i64);
     }
 
     #[tokio::test]
