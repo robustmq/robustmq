@@ -29,9 +29,9 @@ use protocol::placement_center::placement_center_inner::NodeListRequest;
 use protocol::placement_center::placement_center_journal::{
     ListSegmentMetaRequest, ListSegmentRequest, ListShardRequest,
 };
-use tokio::sync::broadcast;
 
 use super::cluster::JournalEngineClusterConfig;
+use crate::index::build::IndexBuildThreadData;
 use crate::segment::write::SegmentWrite;
 use crate::segment::SegmentIdentity;
 
@@ -43,7 +43,7 @@ pub struct CacheManager {
     segments: DashMap<String, DashMap<u32, JournalSegment>>,
     segment_metadatas: DashMap<String, DashMap<u32, JournalSegmentMetadata>>,
     leader_segments: DashMap<String, SegmentIdentity>,
-    segment_index_build_thread: DashMap<String, broadcast::Sender<bool>>,
+    segment_index_build_thread: DashMap<String, IndexBuildThreadData>,
     segment_writes: DashMap<String, SegmentWrite>,
 }
 
@@ -186,8 +186,8 @@ impl CacheManager {
 
         self.remove_leader_segment(segment);
 
-        if let Some(stop_send) = self.segment_index_build_thread.get(&key) {
-            if let Err(e) = stop_send.send(true) {
+        if let Some(data) = self.segment_index_build_thread.get(&key) {
+            if let Err(e) = data.stop_send.send(true) {
                 debug!("Trying to stop the index building thread for segment {} failed with error message:{}", segment.name(),e);
             }
         }
@@ -270,15 +270,14 @@ impl CacheManager {
     pub fn add_build_index_thread(
         &self,
         segment_iden: &SegmentIdentity,
-        stop_send: broadcast::Sender<bool>,
+        index_build_thread_data: IndexBuildThreadData,
     ) {
         self.segment_index_build_thread
-            .insert(segment_iden.name(), stop_send);
+            .insert(segment_iden.name(), index_build_thread_data);
     }
 
     pub fn remove_build_index_thread(&self, segment_iden: &SegmentIdentity) {
-        let key = segment_iden.name();
-        self.segment_index_build_thread.remove(&key);
+        self.segment_index_build_thread.remove(&segment_iden.name());
     }
 
     pub fn contain_build_index_thread(&self, segment_iden: &SegmentIdentity) -> bool {

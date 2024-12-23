@@ -56,17 +56,17 @@ impl TimestampIndexManager {
     pub fn get_start_timestamp(
         &self,
         segment_iden: &SegmentIdentity,
-    ) -> Result<u64, JournalServerError> {
+    ) -> Result<i64, JournalServerError> {
         let key = timestamp_segment_start(segment_iden);
         if let Some(res) = rocksdb_engine_get(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
             key,
         )? {
-            return Ok(serde_json::from_slice::<u64>(&res.data)?);
+            return Ok(serde_json::from_slice::<i64>(&res.data)?);
         }
 
-        Ok(0)
+        Ok(-1)
     }
 
     pub fn save_end_timestamp(
@@ -86,17 +86,17 @@ impl TimestampIndexManager {
     pub fn get_end_timestamp(
         &self,
         segment_iden: &SegmentIdentity,
-    ) -> Result<u64, JournalServerError> {
+    ) -> Result<i64, JournalServerError> {
         let key = timestamp_segment_end(segment_iden);
         if let Some(res) = rocksdb_engine_get(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
             key,
         )? {
-            return Ok(serde_json::from_slice::<u64>(&res.data)?);
+            return Ok(serde_json::from_slice::<i64>(&res.data)?);
         }
 
-        Ok(0)
+        Ok(-1)
     }
 
     pub fn save_timestamp_offset(
@@ -182,7 +182,7 @@ mod tests {
 
         let res = time_index.get_start_timestamp(&segment_iden);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap(), start_timestamp);
+        assert_eq!(res.unwrap(), start_timestamp as i64);
 
         let end_timestamp = now_second();
         let res = time_index.save_end_timestamp(&segment_iden, end_timestamp);
@@ -190,7 +190,7 @@ mod tests {
 
         let res = time_index.get_end_timestamp(&segment_iden);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap(), end_timestamp);
+        assert_eq!(res.unwrap(), end_timestamp as i64);
     }
 
     #[tokio::test]

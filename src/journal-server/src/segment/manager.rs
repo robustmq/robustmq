@@ -219,12 +219,18 @@ pub async fn try_create_local_segment(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment: &JournalSegment,
 ) -> Result<(), JournalServerError> {
+    let segment_iden = SegmentIdentity {
+        namespace: segment.namespace.clone(),
+        shard_name: segment.shard_name.clone(),
+        segment_seq: segment.segment_seq,
+    };
+
     let conf = journal_server_conf();
     let fold = if let Some(fold) = segment.get_fold(conf.node_id) {
         fold
     } else {
         return Err(JournalServerError::SegmentDataDirectoryNotFound(
-            format!("{}-{}", segment.shard_name, segment.segment_seq),
+            segment_iden.name(),
             conf.node_id,
         ));
     };
@@ -236,31 +242,19 @@ pub async fn try_create_local_segment(
         segment.segment_seq,
         fold,
     );
-
     segment_file.try_create().await?;
 
     // add segment file manager
-    let segment_iden = SegmentIdentity {
+    let segment_metadata = SegmentFileMetadata {
         namespace: segment.namespace.clone(),
         shard_name: segment.shard_name.clone(),
-        segment_seq: segment.segment_seq,
+        segment_no: segment.segment_seq,
+        start_offset: -1,
+        end_offset: -1,
+        start_timestamp: -1,
+        end_timestamp: -1,
     };
-
-    if segment_file_manager
-        .get_segment_file(&segment_iden)
-        .is_none()
-    {
-        let segment_metadata = SegmentFileMetadata {
-            namespace: segment.namespace.clone(),
-            shard_name: segment.shard_name.clone(),
-            segment_no: segment.segment_seq,
-            start_offset: -1,
-            end_offset: -1,
-            start_timestamp: -1,
-            end_timestamp: -1,
-        };
-        segment_file_manager.add_segment_file(segment_metadata);
-    }
+    segment_file_manager.add_segment_file(segment_metadata);
 
     Ok(())
 }
@@ -271,9 +265,11 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::now_second;
+    use metadata_struct::journal::segment::{JournalSegment, Replica};
 
-    use super::{SegmentFileManager, SegmentFileMetadata};
-    use crate::core::test::test_build_rocksdb_sgement;
+    use super::{try_create_local_segment, SegmentFileManager, SegmentFileMetadata};
+    use crate::core::test::{test_build_data_fold, test_build_rocksdb_sgement, test_init_conf};
+    use crate::segment::file::SegmentFile;
 
     #[tokio::test]
     async fn segment_metadata_test() {
@@ -324,5 +320,51 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn log_segment_cache_test() {}
+    async fn try_create_local_segment_test() {
+        test_init_conf();
+        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
+        let fold = test_build_data_fold().first().unwrap().to_string();
+        let segment_file_manager =
+            Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
+
+        let segment = JournalSegment {
+            namespace: segment_iden.namespace.clone(),
+            shard_name: segment_iden.shard_name.clone(),
+            segment_seq: segment_iden.segment_seq,
+            replicas: vec![Replica {
+                replica_seq: 0,
+                node_id: 1,
+                fold: fold.clone(),
+            }],
+            ..Default::default()
+        };
+
+        let res =
+            try_create_local_segment(&segment_file_manager, &rocksdb_engine_handler, &segment)
+                .await;
+        println!("{:?}", res);
+        assert!(res.is_ok());
+
+        let res = segment_file_manager.get_segment_file(&segment_iden);
+        assert!(res.is_some());
+        let data = res.unwrap();
+        assert_eq!(data.start_offset, -1);
+        assert_eq!(data.end_offset, -1);
+        assert_eq!(data.start_timestamp, -1);
+        assert_eq!(data.end_timestamp, -1);
+
+        let segment_write = SegmentFile::new(
+            segment_iden.namespace.clone(),
+            segment_iden.shard_name.clone(),
+            segment_iden.segment_seq,
+            fold,
+        );
+        assert!(segment_write.exists());
+    }
+
+
+    #[tokio::test]
+    async fn load_local_segment_cache_test() {
+
+    }
 }

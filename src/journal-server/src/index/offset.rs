@@ -56,17 +56,17 @@ impl OffsetIndexManager {
     pub fn get_start_offset(
         &self,
         segment_iden: &SegmentIdentity,
-    ) -> Result<u64, JournalServerError> {
+    ) -> Result<i64, JournalServerError> {
         let key = offset_segment_start(segment_iden);
         if let Some(res) = rocksdb_engine_get(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
             key,
         )? {
-            return Ok(serde_json::from_slice::<u64>(&res.data)?);
+            return Ok(serde_json::from_slice::<i64>(&res.data)?);
         }
 
-        Ok(0)
+        Ok(-1)
     }
 
     pub fn save_end_offset(
@@ -86,17 +86,17 @@ impl OffsetIndexManager {
     pub fn get_end_offset(
         &self,
         segment_iden: &SegmentIdentity,
-    ) -> Result<u64, JournalServerError> {
+    ) -> Result<i64, JournalServerError> {
         let key = offset_segment_end(segment_iden);
         if let Some(res) = rocksdb_engine_get(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
             key,
         )? {
-            return Ok(serde_json::from_slice::<u64>(&res.data)?);
+            return Ok(serde_json::from_slice::<i64>(&res.data)?);
         }
 
-        Ok(0)
+        Ok(-1)
     }
 
     pub fn save_position_offset(
@@ -183,7 +183,7 @@ mod tests {
 
         let res = offset_index.get_start_offset(&segment_iden);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap(), start_offset);
+        assert_eq!(res.unwrap(), start_offset as i64);
 
         let end_offset = 1000;
         let res = offset_index.save_end_offset(&segment_iden, end_offset);
@@ -191,7 +191,7 @@ mod tests {
 
         let res = offset_index.get_end_offset(&segment_iden);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap(), end_offset);
+        assert_eq!(res.unwrap(), end_offset  as i64);
     }
 
     #[tokio::test]

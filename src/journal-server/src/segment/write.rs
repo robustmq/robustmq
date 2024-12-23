@@ -271,7 +271,9 @@ async fn start_segment_sync_write_thread(
                                             }
                                             resp = resp_data;
 
-                                            try_trigger_build_index(&cache_manager, &segment_file_manager, &rocksdb_engine_handler, &segment_iden).await;
+                                            if let Err(e) = try_trigger_build_index(&cache_manager, &segment_file_manager, &rocksdb_engine_handler, &segment_iden).await{
+                                                resp.error = Some(e);
+                                            }
                                         },
                                         Err(e) => {
                                             resp.error = Some(e);

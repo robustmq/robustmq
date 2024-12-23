@@ -14,6 +14,9 @@
 
 use std::sync::Arc;
 
+use common_base::config::journal_server::{
+    init_journal_server_conf_by_config, JournalServerConfig,
+};
 use common_base::tools::unique_id;
 use rocksdb_engine::RocksDBEngine;
 
@@ -47,4 +50,11 @@ pub fn test_build_segment() -> SegmentIdentity {
 pub fn test_build_data_fold() -> Vec<String> {
     let data_fold = vec![format!("/tmp/tests/{}", unique_id())];
     data_fold
+}
+
+pub fn test_init_conf() {
+    init_journal_server_conf_by_config(JournalServerConfig {
+        node_id: 1,
+        ..Default::default()
+    });
 }
