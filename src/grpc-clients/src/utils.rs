@@ -6,6 +6,7 @@
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
+
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,9 +17,9 @@ use std::ops::DerefMut;
 use std::time::Duration;
 
 use common_base::error::common::CommonError;
-use log::error;
 use tokio::time::sleep;
-
+use std::collections::HashSet;
+use regex::Regex;
 use crate::pool::ClientPool;
 use crate::{retry_sleep_time, retry_times};
 
@@ -56,42 +57,83 @@ where
     }
 
     let mut times = 1;
+    let mut tried_addrs = HashSet::new();
     loop {
         let index = times % addrs.len();
         let addr = addrs[index].as_ref();
-
-        let mut client = match Req::IS_WRITE_REQUEST {
-            true => match client_pool.get_leader_addr(addr) {
-                Some(leader_addr) => {
-                    let addr = leader_addr.value();
-
-                    Req::get_client(client_pool, addr)
-                        .await
-                        .map_err(Into::into)?
-                }
-                None => Req::get_client(client_pool, addr)
-                    .await
-                    .map_err(Into::into)?,
-            },
-            false => Req::get_client(client_pool, addr)
-                .await
-                .map_err(Into::into)?,
+        let target_addr = if Req::IS_WRITE_REQUEST {
+            client_pool.get_leader_addr(addr)
+                .map(|leader| leader.value().to_string())
+                .unwrap_or_else(|| addr.to_string())
+        } else {
+            addr.to_string()
         };
-        let result = Req::call_once(client.deref_mut(), request.clone()).await;
-
-        match result {
-            Ok(data) => {
-                return Ok(data);
+        
+        if tried_addrs.contains(&target_addr) {
+            if times > retry_times() {
+                return Err(CommonError::CommonError("Not found leader".to_string()));
             }
-            Err(e) => {
-                error!("{}", e);
-                if times > retry_times() {
-                    return Err(e.into());
-                }
-                times += 1;
-            }
+            times += 1;
+            continue;
         }
 
-        sleep(Duration::from_secs(retry_sleep_time(times))).await;
+        let mut client = Req::get_client(client_pool, &target_addr)
+            .await
+            .map_err(Into::into)?;
+        
+        match Req::call_once(client.deref_mut(), request.clone()).await {
+            Ok(data) => return Ok(data),
+            Err(e) => {
+                let err: CommonError = e.into();
+                
+
+                if err.to_string().contains("forward request to") {
+                    tried_addrs.insert(target_addr);
+                    
+                    if let Some(leader_addr) = get_forward_addr(&err) {
+                        client_pool.set_leader_addr(addr.to_string(), leader_addr.clone());
+                        
+                        if !tried_addrs.contains(&leader_addr) {
+                            let mut leader_client = match Req::get_client(client_pool, &leader_addr).await {
+                                Ok(client) => client,
+                                Err(_) => {
+                                    tried_addrs.insert(leader_addr);
+                                    continue;
+                                }
+                            };
+
+                            match Req::call_once(leader_client.deref_mut(), request.clone()).await {
+                                Ok(data) => return Ok(data),
+                                Err(_) => {
+                                    tried_addrs.insert(leader_addr);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if times > retry_times() {
+                    return Err(CommonError::CommonError("Not found leader".to_string()));
+                }
+                times += 1;
+                sleep(Duration::from_secs(retry_sleep_time(times))).await;
+            }
+        }
     }
+}
+
+
+pub fn get_forward_addr(err: &CommonError) -> Option<String> {
+    let error_info = err.to_string();
+    let re = Regex::new(r"rpc_addr: ([^}]+)").unwrap();
+    if let Some(caps) = re.captures(&error_info) {
+        if let Some(rpc_addr) = caps.get(1) {
+            let mut leader_addr = rpc_addr.as_str().to_string();
+            leader_addr = leader_addr.replace("\\", "");
+            leader_addr = leader_addr.replace("\"", "");
+            leader_addr = leader_addr.replace(" ", "");
+            return Some(leader_addr);
+        }
+    }
+    None
 }
