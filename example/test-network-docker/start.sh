@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+cd ../../
+docker build --target builder -t builder-test:0.1 .
+docker build --target placement-center -t placement-center-test:0.1 .
+docker build --target mqtt-server -t mqtt-server-test:0.1 .
+docker build --target journal-server -t journal-server-test:0.1 .
 
-# docker build --target builder -t builder-test:0.1 .
-# docker build --target placement-center -t placement-center-test:0.1 .
-# docker build --target mqtt-server -t mqtt-server-test:0.1 .
-# docker build --target journal-server -t journal-server-test:0.1 .
+cd ./example/test-network-docker
 
-docker-compose -f compose/compose-bft-test-net.yaml up
-
-# /robustmq/libs/mqtt-server --conf config/cluster/mqtt-server/node.toml
+docker-compose -f compose/compose-test-net.yaml up
