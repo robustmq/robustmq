@@ -179,7 +179,7 @@ async fn start_segment_build_index_thread(
                                 continue;
                             }
 
-                            last_build_offset = data.last().unwrap().record.offset;
+                            last_build_offset = data.last().unwrap().record.offset as u64;
 
                         }
                         Err(e) => {
@@ -220,14 +220,18 @@ fn save_record_index(
         let record = read_data.record.clone();
 
         let index_data = IndexData {
-            offset: record.offset,
+            offset: record.offset as u64,
             timestamp: record.create_time,
             position: read_data.position,
         };
 
-        if (record.offset - start_offset) % BUILD_INDE_PER_RECORD_NUM == 0 {
+        if (record.offset - start_offset as i64) % BUILD_INDE_PER_RECORD_NUM as i64 == 0 {
             // build position index
-            offset_index.save_position_offset(segment_iden, record.offset, index_data.clone())?;
+            offset_index.save_position_offset(
+                segment_iden,
+                record.offset as u64,
+                index_data.clone(),
+            )?;
 
             // build timestamp index
             time_index.save_timestamp_offset(

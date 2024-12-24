@@ -118,7 +118,7 @@ impl SegmentFile {
             let position = writer.stream_position().await?;
 
             let data = JournalRecord::encode_to_vec(record);
-            writer.write_u64(record.offset).await?;
+            writer.write_u64(record.offset as u64).await?;
             writer.write_u32(data.len() as u32).await?;
             writer.write_all(data.as_ref()).await?;
 

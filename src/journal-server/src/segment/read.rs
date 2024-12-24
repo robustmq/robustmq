@@ -126,7 +126,7 @@ pub async fn read_data_req(
         for read_data in read_data_list {
             let record = read_data.record;
             record_message.push(ReadRespMessage {
-                offset: record.offset,
+                offset: record.offset as u64,
                 key: record.key,
                 value: record.content,
                 tags: record.tags,
