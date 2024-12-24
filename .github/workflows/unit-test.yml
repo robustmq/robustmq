@@ -34,6 +34,7 @@ jobs:
   linux-tests:
     name: unit test
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     container:
       image: amd64/rust
     steps:
