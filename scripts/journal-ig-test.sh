@@ -59,13 +59,24 @@ rm -rf ./robust-data-test/journal-server*
 start_placement_server
 start_journal_server
 
-cargo nextest run --profile ci --package grpc-clients --test mod -- journal
-cargo nextest run --profile ci --package robustmq-test --test mod -- journal_client
-cargo nextest run --profile ci --package robustmq-test --test mod -- journal_server
+
 
 
 if [ "$1" = "dev" ]; then
+
+  cargo nextest run  --package grpc-clients --test mod -- journal
+  cargo nextest run  --package robustmq-test --test mod -- journal_client
+  cargo nextest run  --package robustmq-test --test mod -- journal_server
+
+
 # Stop Server
 stop_placement_server
 stop_journal_server
+
+else
+
+  cargo nextest run --profile ci --package grpc-clients --test mod -- journal
+  cargo nextest run --profile ci --package robustmq-test --test mod -- journal_client
+  cargo nextest run --profile ci --package robustmq-test --test mod -- journal_server
+
 fi
