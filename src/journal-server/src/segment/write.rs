@@ -647,10 +647,8 @@ mod tests {
         let resp = res.unwrap();
         assert_eq!(resp.len(), 20);
 
-        let mut i = 0;
-        for row in resp {
-            assert_eq!(i, row.record.offset);
-            i += 1;
+        for (i, row) in resp.into_iter().enumerate() {
+            assert_eq!(i, row.record.offset as usize);
         }
     }
 }
