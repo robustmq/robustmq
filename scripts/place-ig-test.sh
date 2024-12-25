@@ -38,10 +38,19 @@ rm -rf ./robust-data-test/placement-center*
  start_server
 
  # Run Placement integration Test
- cargo nextest run --profile ci --package grpc-clients --package robustmq-test --test mod -- placement
- cargo nextest run --profile ci --package robustmq-test --test mod -- place_server
+
 
 if [ "$1" = "dev" ]; then
+
+  cargo nextest run --package grpc-clients --package robustmq-test --test mod -- placement
+  cargo nextest run --package robustmq-test --test mod -- place_server
+
  # Stop Server
  stop_server
+
+else
+
+   cargo nextest run --profile ci --package grpc-clients --package robustmq-test --test mod -- placement
+   cargo nextest run --profile ci --package robustmq-test --test mod -- place_server
+
 fi
