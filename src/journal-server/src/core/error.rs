@@ -70,6 +70,9 @@ pub enum JournalServerError {
     #[error("segment {0} does not exist")]
     SegmentNotExist(String),
 
+    #[error("segment {0} write thread does not exist")]
+    SegmentWriteThreadNotExist(String),
+
     #[error("Connection ID {0} information not found in cache.")]
     NotFoundConnectionInCache(u64),
 
@@ -148,6 +151,9 @@ pub fn get_journal_server_code(e: &JournalServerError) -> String {
         }
         JournalServerError::NotAvailableOffsetByTimestamp(_, _) => {
             "NotAvailableOffsetByTimestamp".to_string()
+        }
+        JournalServerError::SegmentWriteThreadNotExist(_) => {
+            "SegmentWriteThreadNotExist".to_string()
         }
     }
 }

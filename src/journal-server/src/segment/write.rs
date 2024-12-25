@@ -161,11 +161,14 @@ async fn write_data(
     segment_iden: &SegmentIdentity,
     data_list: Vec<JournalRecord>,
 ) -> Result<SegmentWriteResp, JournalServerError> {
-    let write = if let Some(write) = cache_manager.get_segment_write_thread(segment_iden) {
-        write.clone()
-    } else {
-        return Err(JournalServerError::SegmentNotExist(segment_iden.name()));
-    };
+    let write = get_write(
+        cache_manager,
+        rocksdb_engine_handler,
+        segment_file_manager,
+        client_pool,
+        segment_iden,
+    )
+    .await?;
 
     let (sx, rx) = oneshot::channel::<SegmentWriteResp>();
     let data = SegmentWriteData {
