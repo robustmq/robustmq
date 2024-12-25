@@ -29,7 +29,7 @@ use crate::index::engine::storage_data_fold;
 use crate::index::offset::OffsetIndexManager;
 use crate::index::time::TimestampIndexManager;
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct SegmentFileMetadata {
     pub namespace: String,
     pub shard_name: String,
@@ -265,10 +265,9 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::now_second;
-    use metadata_struct::journal::segment::{JournalSegment, Replica};
 
-    use super::{try_create_local_segment, SegmentFileManager, SegmentFileMetadata};
-    use crate::core::test::{test_build_data_fold, test_build_rocksdb_sgement, test_init_conf};
+    use super::{SegmentFileManager, SegmentFileMetadata};
+    use crate::core::test::{test_build_rocksdb_sgement, test_init_segment};
     use crate::segment::file::SegmentFile;
 
     #[tokio::test]
@@ -321,30 +320,8 @@ mod tests {
 
     #[tokio::test]
     async fn try_create_local_segment_test() {
-        test_init_conf();
-        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
-        let fold = test_build_data_fold().first().unwrap().to_string();
-        let segment_file_manager =
-            Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
-
-        let segment = JournalSegment {
-            namespace: segment_iden.namespace.clone(),
-            shard_name: segment_iden.shard_name.clone(),
-            segment_seq: segment_iden.segment_seq,
-            replicas: vec![Replica {
-                replica_seq: 0,
-                node_id: 1,
-                fold: fold.clone(),
-            }],
-            ..Default::default()
-        };
-
-        let res =
-            try_create_local_segment(&segment_file_manager, &rocksdb_engine_handler, &segment)
-                .await;
-
-        println!("{:?}", res);
-        assert!(res.is_ok());
+        let (segment_iden, cache_manager, segment_file_manager, fold, _) =
+            test_init_segment().await;
 
         let res = segment_file_manager.get_segment_file(&segment_iden);
         assert!(res.is_some());
