@@ -16,7 +16,7 @@ FROM rust:bullseye AS builder
 RUN sed -i "s@http://\(deb\|security\).debian.org@https://mirrors.aliyun.com@g" /etc/apt/sources.list && \
     apt-get update && apt-get install -y clang libclang-dev cmake libssl-dev pkg-config
 
-# 下载并安装 protoc
+# download and install protoc
 RUN curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v23.4/protoc-23.4-linux-x86_64.zip && \
     unzip protoc-23.4-linux-x86_64.zip -d /usr/local && \
     rm protoc-23.4-linux-x86_64.zip
