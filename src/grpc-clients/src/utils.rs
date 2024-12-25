@@ -69,7 +69,6 @@ where
         } else {
             addr.to_string()
         };
-
         if tried_addrs.contains(&target_addr) {
             if times > retry_times() {
                 return Err(CommonError::CommonError("Not found leader".to_string()));
@@ -111,6 +110,8 @@ where
                             }
                         }
                     }
+                } else {
+                    return Err(err);
                 }
 
                 if times > retry_times() {

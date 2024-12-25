@@ -118,7 +118,7 @@ impl SegmentFile {
             let position = writer.stream_position().await?;
 
             let data = JournalRecord::encode_to_vec(record);
-            writer.write_u64(record.offset).await?;
+            writer.write_u64(record.offset as u64).await?;
             writer.write_u32(data.len() as u32).await?;
             writer.write_all(data.as_ref()).await?;
 
@@ -259,6 +259,7 @@ mod tests {
 
     use super::{data_file_segment, data_fold_shard, open_segment_write, SegmentFile};
     use crate::core::cache::CacheManager;
+    use crate::core::test::{test_build_data_fold, test_build_segment};
     use crate::segment::SegmentIdentity;
 
     #[tokio::test]
@@ -316,16 +317,14 @@ mod tests {
 
     #[tokio::test]
     async fn segment_create() {
-        let data_fold = "/tmp/jl/tests";
+        let data_fold = test_build_data_fold();
+        let segment_iden = test_build_segment();
 
-        let namespace = unique_id();
-        let shard_name = "s1";
-        let segment_no = 10;
         let segment = SegmentFile::new(
-            namespace.to_string(),
-            shard_name.to_string(),
-            segment_no,
-            data_fold.to_string(),
+            segment_iden.namespace.to_string(),
+            segment_iden.shard_name.to_string(),
+            segment_iden.segment_seq,
+            data_fold.first().unwrap().to_string(),
         );
         assert!(segment.try_create().await.is_ok());
         assert!(segment.try_create().await.is_ok());
@@ -337,17 +336,14 @@ mod tests {
 
     #[tokio::test]
     async fn segment_read_offset_test() {
-        let data_fold = "/tmp/jl/tests";
-
-        let namespace = unique_id();
-        let shard_name = "s1";
-        let segment_no = 10;
+        let data_fold = test_build_data_fold();
+        let segment_iden = test_build_segment();
 
         let segment = SegmentFile::new(
-            namespace.to_string(),
-            shard_name.to_string(),
-            segment_no,
-            data_fold.to_string(),
+            segment_iden.namespace.to_string(),
+            segment_iden.shard_name.to_string(),
+            segment_iden.segment_seq,
+            data_fold.first().unwrap().to_string(),
         );
 
         segment.try_create().await.unwrap();
@@ -381,17 +377,14 @@ mod tests {
 
     #[tokio::test]
     async fn segment_read_position_test() {
-        let data_fold = "/tmp/jl/tests";
-
-        let namespace = unique_id();
-        let shard_name = "s1";
-        let segment_no = 10;
+        let data_fold = test_build_data_fold();
+        let segment_iden = test_build_segment();
 
         let segment = SegmentFile::new(
-            namespace.to_string(),
-            shard_name.to_string(),
-            segment_no,
-            data_fold.to_string(),
+            segment_iden.namespace.to_string(),
+            segment_iden.shard_name.to_string(),
+            segment_iden.segment_seq,
+            data_fold.first().unwrap().to_string(),
         );
 
         segment.try_create().await.unwrap();

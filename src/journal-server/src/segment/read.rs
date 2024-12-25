@@ -126,7 +126,7 @@ pub async fn read_data_req(
         for read_data in read_data_list {
             let record = read_data.record;
             record_message.push(ReadRespMessage {
-                offset: record.offset,
+                offset: record.offset as u64,
                 key: record.key,
                 value: record.content,
                 tags: record.tags,
@@ -148,9 +148,14 @@ async fn read_by_offset(
     read_options: &ReadReqOptions,
 ) -> Result<Vec<ReadData>, JournalServerError> {
     let offset_index = OffsetIndexManager::new(rocksdb_engine_handler.clone());
-    let start_position = offset_index
+    let start_position = if let Some(position) = offset_index
         .get_last_nearest_position_by_offset(segment_iden, filter.offset)
-        .await?;
+        .await?
+    {
+        position.position
+    } else {
+        0
+    };
 
     let res = segment_file
         .read_by_offset(start_position, filter.offset, read_options.max_size)

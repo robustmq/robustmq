@@ -8,7 +8,7 @@ message JournalRecord{
     bytes content = 4;
     uint64 create_time = 5;
     repeated string tags=6;
-    uint64 offset = 7;
+    int64 offset = 7;
     string namespace = 8;
     string shard_name = 9;
     uint32 segment = 10;

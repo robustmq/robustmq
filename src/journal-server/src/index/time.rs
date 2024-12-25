@@ -56,17 +56,17 @@ impl TimestampIndexManager {
     pub fn get_start_timestamp(
         &self,
         segment_iden: &SegmentIdentity,
-    ) -> Result<u64, JournalServerError> {
+    ) -> Result<i64, JournalServerError> {
         let key = timestamp_segment_start(segment_iden);
         if let Some(res) = rocksdb_engine_get(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
             key,
         )? {
-            return Ok(serde_json::from_slice::<u64>(&res.data)?);
+            return Ok(serde_json::from_slice::<i64>(&res.data)?);
         }
 
-        Ok(0)
+        Ok(-1)
     }
 
     pub fn save_end_timestamp(
@@ -86,17 +86,17 @@ impl TimestampIndexManager {
     pub fn get_end_timestamp(
         &self,
         segment_iden: &SegmentIdentity,
-    ) -> Result<u64, JournalServerError> {
+    ) -> Result<i64, JournalServerError> {
         let key = timestamp_segment_end(segment_iden);
         if let Some(res) = rocksdb_engine_get(
             self.rocksdb_engine_handler.clone(),
             DB_COLUMN_FAMILY_INDEX,
             key,
         )? {
-            return Ok(serde_json::from_slice::<u64>(&res.data)?);
+            return Ok(serde_json::from_slice::<i64>(&res.data)?);
         }
 
-        Ok(0)
+        Ok(-1)
     }
 
     pub fn save_timestamp_offset(
@@ -164,37 +164,17 @@ impl TimestampIndexManager {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use common_base::tools::{now_second, unique_id};
-    use rocksdb_engine::RocksDBEngine;
+    use common_base::tools::now_second;
 
     use super::TimestampIndexManager;
-    use crate::index::engine::{column_family_list, storage_data_fold};
+    use crate::core::test::test_build_rocksdb_sgement;
     use crate::index::IndexData;
-    use crate::segment::SegmentIdentity;
 
     #[test]
     fn start_end_index_test() {
-        let data_fold = vec![format!("/tmp/tests/{}", unique_id())];
-
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &storage_data_fold(&data_fold),
-            10000,
-            column_family_list(),
-        ));
+        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
 
         let time_index = TimestampIndexManager::new(rocksdb_engine_handler);
-
-        let namespace = unique_id();
-        let shard_name = "s1".to_string();
-        let segment_no = 10;
-
-        let segment_iden = SegmentIdentity {
-            namespace: namespace.clone(),
-            shard_name: shard_name.clone(),
-            segment_seq: segment_no,
-        };
 
         let start_timestamp = now_second();
         let res = time_index.save_start_timestamp(&segment_iden, start_timestamp);
@@ -202,7 +182,7 @@ mod tests {
 
         let res = time_index.get_start_timestamp(&segment_iden);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap(), start_timestamp);
+        assert_eq!(res.unwrap(), start_timestamp as i64);
 
         let end_timestamp = now_second();
         let res = time_index.save_end_timestamp(&segment_iden, end_timestamp);
@@ -210,30 +190,14 @@ mod tests {
 
         let res = time_index.get_end_timestamp(&segment_iden);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap(), end_timestamp);
+        assert_eq!(res.unwrap(), end_timestamp as i64);
     }
 
     #[tokio::test]
     async fn timestamp_index_test() {
-        let data_fold = vec![format!("/tmp/tests/{}", unique_id())];
-
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &storage_data_fold(&data_fold),
-            10000,
-            column_family_list(),
-        ));
+        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
 
         let time_index = TimestampIndexManager::new(rocksdb_engine_handler);
-
-        let namespace = unique_id();
-        let shard_name = "s1".to_string();
-        let segment_no = 10;
-
-        let segment_iden = SegmentIdentity {
-            namespace: namespace.clone(),
-            shard_name: shard_name.clone(),
-            segment_seq: segment_no,
-        };
 
         let timestamp = now_second();
 
