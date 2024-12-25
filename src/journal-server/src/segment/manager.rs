@@ -29,7 +29,7 @@ use crate::index::engine::storage_data_fold;
 use crate::index::offset::OffsetIndexManager;
 use crate::index::time::TimestampIndexManager;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct SegmentFileMetadata {
     pub namespace: String,
     pub shard_name: String,
@@ -270,14 +270,79 @@ mod tests {
     use std::path::Path;
     use std::sync::Arc;
 
+    use common_base::tools::{now_second, unique_id};
     use rocksdb_engine::RocksDBEngine;
 
-    use super::{load_local_segment_cache, SegmentFileManager};
+    use super::{load_local_segment_cache, SegmentFileManager, SegmentFileMetadata};
     use crate::index::engine::{column_family_list, storage_data_fold};
+    use crate::segment::SegmentIdentity;
+
+    #[tokio::test]
+    async fn segment_metadata_test() {
+        let data_fold = vec![format!("/tmp/tests/{}", unique_id())];
+
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
+            &storage_data_fold(&data_fold),
+            10000,
+            column_family_list(),
+        ));
+        let segment_file_manager =
+            Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
+
+        let namespace = unique_id();
+        let shard_name = "s1".to_string();
+        let segment_no = 10;
+
+        let segment_iden = SegmentIdentity {
+            namespace: namespace.clone(),
+            shard_name: shard_name.clone(),
+            segment_seq: segment_no,
+        };
+
+        let segment_file = SegmentFileMetadata {
+            namespace,
+            shard_name,
+            segment_no,
+            ..Default::default()
+        };
+        segment_file_manager.add_segment_file(segment_file);
+
+        let file = segment_file_manager.get_segment_file(&segment_iden);
+        assert!(file.is_some());
+
+        let start_offset = 10;
+        let res = segment_file_manager.update_start_offset(&segment_iden, start_offset);
+        assert!(res.is_ok());
+
+        let end_offset = 50;
+        let res = segment_file_manager.update_end_offset(&segment_iden, end_offset);
+        assert!(res.is_ok());
+
+        let start_timestamp = now_second() - 1000;
+        let res = segment_file_manager.update_start_timestamp(&segment_iden, start_timestamp);
+        assert!(res.is_ok());
+
+        let end_timestamp = now_second() + 1000;
+        let res = segment_file_manager.update_end_timestamp(&segment_iden, end_timestamp);
+        assert!(res.is_ok());
+
+        let file = segment_file_manager
+            .get_segment_file(&segment_iden)
+            .unwrap();
+        assert_eq!(file.start_offset, start_offset);
+        assert_eq!(file.end_offset, end_offset);
+        assert_eq!(file.start_timestamp, start_timestamp as i64);
+        assert_eq!(file.end_timestamp, end_timestamp as i64);
+
+        segment_file_manager.remove_segment_file(&segment_iden);
+
+        let file = segment_file_manager.get_segment_file(&segment_iden);
+        assert!(file.is_none());
+    }
 
     #[tokio::test]
     async fn log_segment_cache_test() {
-        let data_fold = vec!["/tmp/tests/jl".to_string()];
+        let data_fold = vec![format!("/tmp/tests/{}", unique_id())];
 
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &storage_data_fold(&data_fold),

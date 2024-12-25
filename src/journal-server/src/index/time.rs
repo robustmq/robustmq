@@ -133,7 +133,7 @@ impl TimestampIndexManager {
             );
         };
 
-        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
+        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
         iter.seek(prefix_key.clone());
 
         while iter.valid() {
@@ -147,7 +147,8 @@ impl TimestampIndexManager {
                     let data = serde_json::from_slice::<StorageDataWrap>(val)?;
                     let index_data = serde_json::from_slice::<IndexData>(data.data.as_ref())?;
 
-                    if index_data.offset < start_timestamp {
+                    if index_data.timestamp < start_timestamp {
+                        iter.next();
                         continue;
                     }
 
@@ -163,6 +164,119 @@ impl TimestampIndexManager {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use common_base::tools::{now_second, unique_id};
+    use rocksdb_engine::RocksDBEngine;
+
+    use super::TimestampIndexManager;
+    use crate::index::engine::{column_family_list, storage_data_fold};
+    use crate::index::IndexData;
+    use crate::segment::SegmentIdentity;
+
     #[test]
-    fn timestamp_index_test() {}
+    fn start_end_index_test() {
+        let data_fold = vec![format!("/tmp/tests/{}", unique_id())];
+
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
+            &storage_data_fold(&data_fold),
+            10000,
+            column_family_list(),
+        ));
+
+        let time_index = TimestampIndexManager::new(rocksdb_engine_handler);
+
+        let namespace = unique_id();
+        let shard_name = "s1".to_string();
+        let segment_no = 10;
+
+        let segment_iden = SegmentIdentity {
+            namespace: namespace.clone(),
+            shard_name: shard_name.clone(),
+            segment_seq: segment_no,
+        };
+
+        let start_timestamp = now_second();
+        let res = time_index.save_start_timestamp(&segment_iden, start_timestamp);
+        assert!(res.is_ok());
+
+        let res = time_index.get_start_timestamp(&segment_iden);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), start_timestamp);
+
+        let end_timestamp = now_second();
+        let res = time_index.save_end_timestamp(&segment_iden, end_timestamp);
+        assert!(res.is_ok());
+
+        let res = time_index.get_end_timestamp(&segment_iden);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), end_timestamp);
+    }
+
+    #[tokio::test]
+    async fn timestamp_index_test() {
+        let data_fold = vec![format!("/tmp/tests/{}", unique_id())];
+
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
+            &storage_data_fold(&data_fold),
+            10000,
+            column_family_list(),
+        ));
+
+        let time_index = TimestampIndexManager::new(rocksdb_engine_handler);
+
+        let namespace = unique_id();
+        let shard_name = "s1".to_string();
+        let segment_no = 10;
+
+        let segment_iden = SegmentIdentity {
+            namespace: namespace.clone(),
+            shard_name: shard_name.clone(),
+            segment_seq: segment_no,
+        };
+
+        let timestamp = now_second();
+
+        for i in 0..10 {
+            let cur_timestamp = timestamp + i * 10;
+            let index_data = IndexData {
+                offset: i,
+                timestamp: cur_timestamp,
+                position: i * 5,
+            };
+            let res = time_index.save_timestamp_offset(&segment_iden, cur_timestamp, index_data);
+            assert!(res.is_ok());
+        }
+
+        // get timestamp + 0
+        let res = time_index
+            .get_last_nearest_position_by_timestamp(&segment_iden, timestamp)
+            .await;
+
+        assert!(res.is_ok());
+        let res_op = res.unwrap();
+        assert!(res_op.is_some());
+        let data = res_op.unwrap();
+        assert_eq!(data.offset, 0);
+
+        // get timestamp + 10
+        let res = time_index
+            .get_last_nearest_position_by_timestamp(&segment_iden, timestamp + 10)
+            .await;
+        assert!(res.is_ok());
+        let res_op = res.unwrap();
+        assert!(res_op.is_some());
+        let data = res_op.unwrap();
+        assert_eq!(data.offset, 1);
+
+        // get timestamp + 50
+        let res = time_index
+            .get_last_nearest_position_by_timestamp(&segment_iden, timestamp + 50)
+            .await;
+        assert!(res.is_ok());
+        let res_op = res.unwrap();
+        assert!(res_op.is_some());
+        let data = res_op.unwrap();
+        assert_eq!(data.offset, 5);
+    }
 }

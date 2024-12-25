@@ -71,7 +71,7 @@ impl TagIndexManager {
             );
         };
 
-        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
+        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
         iter.seek(prefix_key.clone());
 
         let mut results = Vec::new();
@@ -137,7 +137,7 @@ impl TagIndexManager {
             );
         };
 
-        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
+        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
         iter.seek(prefix_key.clone());
 
         let mut results = Vec::new();

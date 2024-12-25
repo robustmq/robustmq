@@ -56,11 +56,15 @@ stop_mqtt_server(){
 rm -rf ./robust-data-test/placement-center*
 rm -rf ./robust-data-test/mqtt-server*
 
-if [ "$1" = "dev" ]; then
+# Start Server
+start_placement_server
+start_mqtt_server
 
-  # Start Server
-  start_placement_server
-  start_mqtt_server
+cargo nextest run --package grpc-clients --test mod -- mqtt
+cargo nextest run --package robustmq-test --test mod -- mqtt_server
+cargo nextest run --package robustmq-test --test mod -- mqtt_protocol
+
+if [ "$1" = "dev" ]; then
 
   cargo nextest run --package grpc-clients --test mod -- mqtt
   cargo nextest run --package robustmq-test --test mod -- mqtt_server
@@ -71,10 +75,6 @@ if [ "$1" = "dev" ]; then
   stop_mqtt_server
 
 else
-
-  # Start Server
-  start_placement_server
-  start_mqtt_server
 
   cargo nextest run --profile ci --package grpc-clients --test mod -- mqtt
   cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt_server

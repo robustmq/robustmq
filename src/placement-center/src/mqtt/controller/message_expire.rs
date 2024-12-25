@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
@@ -21,7 +20,7 @@ use log::error;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use metadata_struct::mqtt::topic::MqttTopic;
 use rocksdb_engine::warp::StorageDataWrap;
-use tokio::time::sleep;
+use tokio::time::{self, Duration, Interval};
 
 use crate::storage::keys::{
     storage_key_mqtt_last_will_prefix, storage_key_mqtt_topic_cluster_prefix,
@@ -33,21 +32,25 @@ use crate::storage::rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER};
 pub struct MessageExpire {
     cluster_name: String,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
+    interval: Interval,
 }
 
 impl MessageExpire {
     pub fn new(cluster_name: String, rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
+        let intervarl = time::interval(Duration::from_secs(1));
         MessageExpire {
             cluster_name,
             rocksdb_engine_handler,
+            interval: intervarl,
         }
     }
 
-    pub async fn retain_message_expire(&self) {
+    pub async fn retain_message_expire(&mut self) {
+        self.interval.tick().await;
         let search_key = storage_key_mqtt_topic_cluster_prefix(&self.cluster_name);
         let topic_storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
 
-        let cf = if let Some(cf) = self
+        let cf: std::sync::Arc<rocksdb::BoundColumnFamily<'_>> = if let Some(cf) = self
             .rocksdb_engine_handler
             .cf_handle(DB_COLUMN_FAMILY_CLUSTER)
         {
@@ -60,7 +63,7 @@ impl MessageExpire {
             return;
         };
 
-        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
+        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
         iter.seek(search_key.clone());
         while iter.valid() {
             let key = iter.key();
@@ -105,14 +108,15 @@ impl MessageExpire {
             }
             iter.next();
         }
-        sleep(Duration::from_secs(1)).await;
+        // sleep(Duration::from_secs(1)).await;
     }
 
-    pub async fn last_will_message_expire(&self) {
+    pub async fn last_will_message_expire(&mut self) {
+        self.interval.tick().await;
         let search_key = storage_key_mqtt_last_will_prefix(&self.cluster_name);
         let lastwill_storage = MqttLastWillStorage::new(self.rocksdb_engine_handler.clone());
 
-        let cf = if let Some(cf) = self
+        let cf: std::sync::Arc<rocksdb::BoundColumnFamily<'_>> = if let Some(cf) = self
             .rocksdb_engine_handler
             .cf_handle(DB_COLUMN_FAMILY_CLUSTER)
         {
@@ -124,7 +128,7 @@ impl MessageExpire {
             );
             return;
         };
-        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
+        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
         iter.seek(search_key.clone());
         while iter.valid() {
             let key = iter.key();
@@ -169,7 +173,7 @@ impl MessageExpire {
 
             iter.next();
         }
-        sleep(Duration::from_secs(1)).await;
+        // sleep(Duration::from_secs(1)).await;
     }
 }
 
@@ -204,9 +208,8 @@ mod tests {
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));
-        let message_expire =
+        let mut message_expire =
             MessageExpire::new(cluster_name.clone(), rocksdb_engine_handler.clone());
-
         let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
         let mut topic = MqttTopic::new(unique_id(), "t1".to_string(), "tp1".to_string());
         let retain_msg = MqttMessage::build_message("c1", &Publish::default(), &None, 600);
@@ -216,7 +219,6 @@ mod tests {
         topic_storage
             .save(&cluster_name, &topic.topic_name.clone(), topic.clone())
             .unwrap();
-
         tokio::spawn(async move {
             loop {
                 message_expire.retain_message_expire().await;
@@ -262,7 +264,7 @@ mod tests {
             last_will: None,
             last_will_properties: Some(last_will_properties),
         };
-        let message_expire =
+        let mut message_expire =
             MessageExpire::new(cluster_name.clone(), rocksdb_engine_handler.clone());
         tokio::spawn(async move {
             loop {

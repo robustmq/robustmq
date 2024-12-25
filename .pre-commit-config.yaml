@@ -15,7 +15,7 @@
 fail_fast: false
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v4.3.0
     hooks:
       - id: check-byte-order-marker
       - id: check-case-conflict
@@ -27,7 +27,7 @@ repos:
       - id: mixed-line-ending
       - id: trailing-whitespace
   - repo: https://github.com/psf/black
-    rev: 24.10.0
+    rev: 22.10.0
     hooks:
       - id: black
 # todo: we can use online github repo
