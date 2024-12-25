@@ -45,3 +45,50 @@ kind load docker-image k8s.gcr.io/ingress-nginx/controller:v1.1.2 --name robustm
 kind load docker-image quay.io/jetstack/cert-manager-cainjector:v1.6.1 --name robustmq-kind
 kind load docker-image quay.io/jetstack/cert-manager-controller:v1.6.1 --name robustmq-kind
 kind load docker-image quay.io/jetstack/cert-manager-webhook:v1.6.1 --name robustmq-kind
+
+修正方法：动态生成唯一的 broker.id
+
+在 StatefulSet 中，每个 Pod 的名称是唯一的，比如 kafka-0, kafka-1, kafka-2。可以通过利用这些唯一名称的特性生成唯一的 broker.id。
+
+配置示例
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+spec:
+  serviceName: kafka-service
+  replicas: 3
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      containers:
+        - name: kafka
+          image: confluentinc/cp-kafka:latest
+          ports:
+            - containerPort: 9092
+          env:
+            - name: BROKER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          command:
+            - sh
+            - -c
+            - |
+              export broker_id=${BROKER_ID##*-}
+              exec kafka-server-start.sh /opt/kafka/config/server.properties --override broker.id=$broker_id
+```
+关键点解释
+	1.	metadata.name 动态生成 Pod 名称：
+每个 Pod 的名称格式为 <StatefulSet 名称>-<副本索引>，比如 kafka-0, kafka-1, kafka-2。
+	2.	提取 broker.id：
+使用 ${BROKER_ID##*-} 提取 Pod 名称的最后一部分（即索引），作为 broker.id。
+	3.	--override 动态配置：
+Kafka 启动时通过 --override broker.id=$broker_id 动态设置每个 Broker 的 ID。
