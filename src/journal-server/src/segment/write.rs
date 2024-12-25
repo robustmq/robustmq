@@ -32,7 +32,7 @@ use tokio::time::{sleep, timeout};
 
 use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
-// use crate::core::segment_meta::{update_meta_end_timestamp, update_meta_start_timestamp};
+use crate::core::segment_meta::{update_meta_end_timestamp, update_meta_start_timestamp};
 use crate::core::segment_status::sealup_segment;
 use crate::index::build::try_trigger_build_index;
 use crate::segment::file::{open_segment_write, SegmentFile};
@@ -127,6 +127,16 @@ pub async fn write_data_req(
                 .await?;
             }
         }
+
+        let last_record = data_list.last().unwrap();
+        segment_position9_ac(
+            client_pool,
+            segment_file_manager,
+            &segment_iden,
+            resp.last_offset as i64,
+            last_record.create_time,
+        )
+        .await?;
 
         let mut resp_message_status = Vec::new();
         for (pkid, offset) in resp.offsets {
@@ -394,14 +404,6 @@ async fn batch_write0(
     match segment_write.write(&records).await {
         Ok(positions) => {
             let record = records.last().unwrap();
-            segment_position9_ac(
-                client_pool,
-                segment_file_manager,
-                &segment_iden,
-                record.offset,
-                record.create_time,
-            )
-            .await?;
             Ok(Some(SegmentWriteResp {
                 offsets: offsets.clone(),
                 positions,
@@ -430,7 +432,7 @@ async fn segment_position0_ac(
     segment_file_manager.update_start_timestamp(segment_iden, start_timestamp)?;
 
     // update meta start timestamp
-    // update_meta_start_timestamp(client_pool.clone(), segment_iden, start_timestamp).await?;
+    update_meta_start_timestamp(client_pool.clone(), segment_iden, start_timestamp).await?;
     Ok(())
 }
 
@@ -448,7 +450,7 @@ async fn segment_position9_ac(
     segment_file_manager.update_end_timestamp(segment_iden, end_timestamp)?;
 
     // update meta end timestamp
-    // update_meta_end_timestamp(client_pool.clone(), segment_iden, end_timestamp).await?;
+    update_meta_end_timestamp(client_pool.clone(), segment_iden, end_timestamp).await?;
     Ok(())
 }
 
@@ -635,13 +637,6 @@ mod tests {
         assert!(resp.error.is_none());
         assert_eq!(resp.offsets.len(), 10);
         assert_eq!(resp.last_offset, 19);
-
-        let segment_meta = cache_manager.get_segment_meta(&segment_iden);
-        println!("{:?}", segment_meta);
-
-        let file_meta = segment_file_manager.get_segment_file(&segment_iden);
-
-        println!("{:?}", file_meta);
 
         let write = open_segment_write(&cache_manager, &segment_iden)
             .await
