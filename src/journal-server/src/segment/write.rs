@@ -655,7 +655,7 @@ mod tests {
         let mut i = 0;
         for row in resp {
             assert_eq!(i, row.record.offset);
-            i = i + 1;
+            i += 1;
         }
     }
 }
