@@ -173,7 +173,8 @@ impl TopicStorage {
             cluster_name: config.cluster_name.clone(),
             action: req.action.clone(),
             source_topic: req.source_topic.clone(),
-            content: req.encode(),
+            dest_topic: req.dest_topic.clone(),
+            re: req.re.clone(),
         };
         placement_create_topic_rewrite_rule(&self.client_pool, &config.placement_center, request)
             .await?;

@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use prost::Message as _;
 use protocol::placement_center::placement_center_mqtt::{
     CreateSessionRequest, CreateTopicRewriteRuleRequest, CreateUserRequest,
@@ -141,7 +142,13 @@ impl DataRouteMqtt {
     pub fn create_topic_rewrite_rule(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let req = CreateTopicRewriteRuleRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
-        let topic_rewrite_rule = serde_json::from_slice(&req.content)?;
+        let topic_rewrite_rule = MqttTopicRewriteRule {
+            cluster: req.cluster_name.clone(),
+            action: req.action.clone(),
+            source_topic: req.source_topic.clone(),
+            dest_topic: req.dest_topic.clone(),
+            re: req.re.clone(),
+        };
         storage.save_topic_rewrite_rule(
             &req.cluster_name,
             &req.action,

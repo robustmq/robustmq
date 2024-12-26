@@ -15,5 +15,6 @@
 pub mod cluster_storage_test;
 mod observability;
 pub mod session_storage_test;
+mod topic_rewrite_rule_test;
 pub mod topic_storage_test;
 pub mod user_storage_test;

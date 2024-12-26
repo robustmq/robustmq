@@ -385,8 +385,9 @@ impl MqttBrokerAdminService for GrpcAdminServices {
     ) -> Result<Response<DeleteTopicRewriteRuleReply>, Status> {
         let req = request.into_inner();
         let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
+        let config = broker_mqtt_conf();
         match auth_driver
-            .delete_topic_rewrite_rule(&req.action, &req.source_topic)
+            .delete_topic_rewrite_rule(&config.cluster_name, &req.action, &req.source_topic)
             .await
         {
             Ok(_) => Ok(Response::new(DeleteTopicRewriteRuleReply::default())),
@@ -400,8 +401,18 @@ impl MqttBrokerAdminService for GrpcAdminServices {
     ) -> Result<Response<CreateTopicRewriteRuleReply>, Status> {
         let req = request.into_inner();
         let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
-        let data = serde_json::from_slice::<MqttTopicRewriteRule>(&req.content);
-        match auth_driver.create_topic_rewrite_rule(data.unwrap()).await {
+        let config = broker_mqtt_conf();
+        let topic_rewrite_rule = MqttTopicRewriteRule {
+            cluster: config.cluster_name.clone(),
+            action: req.action.clone(),
+            source_topic: req.source_topic.clone(),
+            dest_topic: req.dest_topic.clone(),
+            re: req.re.clone(),
+        };
+        match auth_driver
+            .create_topic_rewrite_rule(topic_rewrite_rule)
+            .await
+        {
             Ok(_) => Ok(Response::new(CreateTopicRewriteRuleReply::default())),
             Err(e) => Err(Status::cancelled(e.to_string())),
         }

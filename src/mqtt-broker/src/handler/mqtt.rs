@@ -15,9 +15,10 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use common_base::enum_type::topic_rewrite_action_enum::TopicRewriteActionEnum;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
-use log::{error, warn};
+use log::{error, info, warn};
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
@@ -27,7 +28,6 @@ use protocol::mqtt::common::{
     PublishProperties, QoS, Subscribe, SubscribeProperties, SubscribeReasonCode, UnsubAckReason,
     Unsubscribe, UnsubscribeProperties,
 };
-use regex::Regex;
 use storage_adapter::storage::StorageAdapter;
 
 use super::connection::disconnect_connection;
@@ -51,7 +51,7 @@ use crate::handler::response::{
 };
 use crate::handler::retain::save_retain_message;
 use crate::handler::session::{build_session, save_session};
-use crate::handler::topic::{get_topic_name, try_init_topic};
+use crate::handler::topic::{gen_rewrite_topic, get_topic_name, try_init_topic};
 use crate::handler::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
 };
@@ -62,7 +62,7 @@ use crate::observability::system_topic::event::{
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
-use crate::subscribe::sub_common::{decode_share_info, is_share_sub, min_qos, path_contain_sub};
+use crate::subscribe::sub_common::{min_qos, path_contain_sub, path_regex_match};
 use crate::subscribe::subscribe_manager::SubscribeManager;
 
 #[derive(Clone)]
@@ -707,7 +707,7 @@ where
     pub async fn subscribe(
         &self,
         connect_id: u64,
-        subscribe: Subscribe,
+        mut subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
     ) -> MqttPacket {
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
@@ -718,10 +718,29 @@ where
                 Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
-        for rule in self.cache_manager.topic_rewrite_rule.clone() {
-            for filter in subscribe.filters.clone() {
-                if path_regex_match(filter.path.clone(), rule.1.source_topic.clone()) {
-                    replace_with_captures(&rule.1.re, &filter.path, &rule.1.dest_topic);
+        {
+            let rules = &self.cache_manager.topic_rewrite_rule.lock().unwrap();
+            for filter in subscribe.filters.iter_mut() {
+                for topic_rewrite_rule in rules.iter().rev() {
+                    if topic_rewrite_rule.action != TopicRewriteActionEnum::All.to_string()
+                        && topic_rewrite_rule.action
+                            != TopicRewriteActionEnum::Subscribe.to_string()
+                    {
+                        continue;
+                    }
+                    if path_regex_match(
+                        filter.path.clone(),
+                        topic_rewrite_rule.source_topic.clone(),
+                    ) {
+                        if let Some(val) = gen_rewrite_topic(
+                            &filter.path,
+                            &topic_rewrite_rule.re,
+                            &topic_rewrite_rule.dest_topic,
+                        ) {
+                            info!("path replace {} {}", filter.path.clone(), val);
+                            filter.path = val;
+                        }
+                    }
                 }
             }
         }
@@ -769,26 +788,6 @@ where
                 }
             }
         }
-
-        // match pkid_save(
-        //     &self.cache_manager,
-        //     &self.client_pool,
-        //     &client_id,
-        //     subscribe.packet_identifier,
-        // )
-        // .await
-        // {
-        //     Ok(()) => {}
-        //     Err(e) => {
-        //         return response_packet_mqtt_suback(
-        //             &self.protocol,
-        //             &connection,
-        //             subscribe.packet_identifier,
-        //             vec![SubscribeReasonCode::Unspecified],
-        //             Some(e.to_string()),
-        //         );
-        //     }
-        // }
 
         match self
             .subscribe_manager
@@ -882,7 +881,7 @@ where
     pub async fn un_subscribe(
         &self,
         connect_id: u64,
-        un_subscribe: Unsubscribe,
+        mut un_subscribe: Unsubscribe,
         _: Option<UnsubscribeProperties>,
     ) -> MqttPacket {
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
@@ -893,10 +892,26 @@ where
                 Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
-        for rule in self.cache_manager.topic_rewrite_rule.clone() {
-            for filter in un_subscribe.filters.clone() {
-                if path_regex_match(filter.clone(), rule.1.source_topic.clone()) {
-                    replace_with_captures(&rule.1.re, &filter.clone(), &rule.1.dest_topic);
+        {
+            let rules = &self.cache_manager.topic_rewrite_rule.lock().unwrap();
+            for filter in un_subscribe.filters.iter_mut() {
+                for topic_rewrite_rule in rules.iter().rev() {
+                    if topic_rewrite_rule.action != TopicRewriteActionEnum::All.to_string()
+                        && topic_rewrite_rule.action
+                            != TopicRewriteActionEnum::Subscribe.to_string()
+                    {
+                        continue;
+                    }
+                    if path_regex_match(filter.to_string(), topic_rewrite_rule.source_topic.clone())
+                    {
+                        if let Some(val) = gen_rewrite_topic(
+                            filter,
+                            &topic_rewrite_rule.re,
+                            &topic_rewrite_rule.dest_topic,
+                        ) {
+                            *filter = val;
+                        }
+                    }
                 }
             }
         }
@@ -1018,52 +1033,4 @@ where
 
         None
     }
-}
-
-fn replace_with_captures(pattern: &str, input: &str, template: &str) -> Option<String> {
-    // 编译正则表达式
-    let re = Regex::new(pattern).ok()?;
-    let mut new_ret = template.to_string();
-    // 尝试匹配输入字符串
-    if let Some(captures) = re.captures(input) {
-        // 遍历所有捕获组
-        for (i, capture) in captures.iter().enumerate() {
-            let temp_str = format!("${}", i + 1);
-            new_ret = new_ret.replace(&temp_str, capture.unwrap().as_str());
-        }
-        Some(new_ret)
-    } else {
-        None
-    }
-}
-
-pub fn path_regex_match(topic_name: String, sub_path: String) -> bool {
-    let path = if is_share_sub(sub_path.clone()) {
-        let (_, group_path) = decode_share_info(sub_path);
-        group_path
-    } else {
-        sub_path
-    };
-
-    // Path perfect matching
-    if topic_name == path {
-        return true;
-    }
-
-    if path.contains("+") {
-        let sub_regex = path.replace("+", "[^+*/]+");
-        let re = Regex::new(&sub_regex.to_string()).unwrap();
-        return re.is_match(&topic_name);
-    }
-
-    if path.contains("#") {
-        if path.split("/").last().unwrap() != "#" {
-            return false;
-        }
-        let sub_regex = path.replace("#", "[^+#]+");
-        let re = Regex::new(&sub_regex.to_string()).unwrap();
-        return re.is_match(&topic_name);
-    }
-
-    false
 }

@@ -233,7 +233,7 @@ service MqttService {
   // - `action: String`: The action of the rewrite rule, one of the publish|subscribe|all.
   // - `source_topic: String`: The source topic of the rewrite rule.
   // - `dest_topic: String`: The dest topic of the rewrite rule.
-  // - `re: String`: The regex for extracting varaibles.
+  // - `re: String`: The regex for extracting variables.
   //
   //Returns: An empty struct.
   rpc CreateTopicRewriteRule(CreateTopicRewriteRuleRequest) returns(CreateTopicRewriteRuleReply) {}
@@ -561,8 +561,11 @@ message CreateTopicRewriteRuleRequest{
   //The source topic of the rewrite rule.
   string source_topic = 3;
 
-  //The parameter contains user information, encoded from a `MqttTopicRewriteRule` object into a binary format.
-  bytes content = 4;
+  //The dest topic of the rewrite rule.
+  string dest_topic = 4;
+
+  //The re of the rewrite rule.
+  string re = 5;
 }
 
 message CreateTopicRewriteRuleReply{

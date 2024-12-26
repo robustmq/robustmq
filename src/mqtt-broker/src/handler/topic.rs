@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::enum_type::topic_rewrite_action_enum::TopicRewriteActionEnum;
 use common_base::tools::unique_id;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MqttTopic;
@@ -25,9 +26,11 @@ use storage_adapter::storage::{ShardConfig, StorageAdapter};
 
 use super::error::MqttBrokerError;
 use crate::handler::cache::CacheManager;
-use crate::handler::mqtt::path_regex_match;
 use crate::storage::message::cluster_name;
 use crate::storage::topic::TopicStorage;
+use crate::subscribe::sub_common::{
+    decode_queue_info, decode_share_info, is_queue_sub, is_share_sub, path_regex_match,
+};
 
 pub fn is_system_topic(_: String) -> bool {
     true
@@ -106,9 +109,24 @@ pub fn get_topic_name(
     };
     topic_name_validator(&topic_name)?;
     // topic rewrite
-    for rule in metadata_cache.topic_rewrite_rule.clone() {
-        if path_regex_match(topic_name.clone(), rule.1.source_topic) {
-            replace_with_captures(&rule.1.re, &topic_name, &rule.1.dest_topic);
+    let rules = metadata_cache.topic_rewrite_rule.lock().unwrap();
+    for topic_rewrite_rule in rules.iter().rev() {
+        if topic_rewrite_rule.action != TopicRewriteActionEnum::All.to_string()
+            && topic_rewrite_rule.action != TopicRewriteActionEnum::Publish.to_string()
+        {
+            continue;
+        }
+        if path_regex_match(topic_name.clone(), topic_rewrite_rule.source_topic.clone()) {
+            let rewrite_topic = gen_rewrite_topic(
+                &topic_name,
+                &topic_rewrite_rule.re,
+                &topic_rewrite_rule.dest_topic,
+            );
+
+            return match rewrite_topic {
+                Some(rewrite_topic) => Ok(rewrite_topic),
+                None => Ok(topic_name),
+            };
         }
     }
     Ok(topic_name)
@@ -145,19 +163,29 @@ where
     Ok(topic)
 }
 
-fn replace_with_captures(pattern: &str, input: &str, template: &str) -> Option<String> {
-    // 编译正则表达式
+pub fn gen_rewrite_topic(input: &str, pattern: &str, template: &str) -> Option<String> {
+    let mut prefix = String::new();
+    let topic = if is_share_sub(input.to_string()) {
+        let (group, group_path) = decode_share_info(input.to_string());
+        let share_prefix = format!("$share/{}", group);
+        prefix = share_prefix.clone();
+        group_path
+    } else if is_queue_sub(input.to_string()) {
+        prefix = "$queue".to_string();
+        decode_queue_info(input.to_string())
+    } else {
+        input.to_string()
+    };
     let re = Regex::new(pattern).ok()?;
-    let mut new_ret = template.to_string();
-    // 尝试匹配输入字符串
-    if let Some(captures) = re.captures(input) {
-        // 遍历所有捕获组
-        for (i, capture) in captures.iter().enumerate() {
-            let owned_str = (i + 1).to_string();
-            let prefix = format!("${}", owned_str);
-            new_ret = new_ret.replace(&prefix, capture.unwrap().as_str()).clone();
+    let mut rewrite_topic = template.to_string();
+    if let Some(captures) = re.captures(topic.as_str()) {
+        for (i, capture) in captures.iter().skip(1).enumerate() {
+            let prefix = format!("${}", (i + 1)).to_string();
+            rewrite_topic = rewrite_topic
+                .replace(&prefix, capture.unwrap().as_str())
+                .clone();
         }
-        Some(new_ret)
+        Some(format!("{}{}", prefix, rewrite_topic))
     } else {
         None
     }
@@ -165,7 +193,6 @@ fn replace_with_captures(pattern: &str, input: &str, template: &str) -> Option<S
 
 #[cfg(test)]
 mod test {
-
     use super::topic_name_validator;
     use crate::handler::error::MqttBrokerError;
 

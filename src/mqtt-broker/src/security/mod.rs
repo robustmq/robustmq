@@ -306,13 +306,15 @@ impl AuthDriver {
         &self,
         topic_rewrite_rule: MqttTopicRewriteRule,
     ) -> Result<(), MqttBrokerError> {
-        let key = self.cache_manager.topic_rewrite_rule_key(
-            &topic_rewrite_rule.cluster,
-            &topic_rewrite_rule.action,
-            &topic_rewrite_rule.source_topic,
-        );
-        if let Some(_user) = self.cache_manager.topic_rewrite_rule.get(&key) {
-            return Err(MqttBrokerError::TopicRewriteRuleAlreadyExist);
+        {
+            let rules = self.cache_manager.topic_rewrite_rule.lock().unwrap();
+            if rules.iter().any(|rule| {
+                rule.cluster == topic_rewrite_rule.cluster
+                    && rule.action == topic_rewrite_rule.action
+                    && rule.source_topic == topic_rewrite_rule.source_topic
+            }) {
+                return Err(MqttBrokerError::TopicRewriteRuleAlreadyExist);
+            }
         }
         self.cache_manager
             .add_topic_rewrite_rule(topic_rewrite_rule.clone());
@@ -323,11 +325,12 @@ impl AuthDriver {
 
     pub async fn delete_topic_rewrite_rule(
         &self,
+        cluster: &str,
         action: &str,
         source_topic: &str,
     ) -> Result<(), MqttBrokerError> {
         self.cache_manager
-            .delete_topic_rewrite_rule("", action, source_topic);
+            .delete_topic_rewrite_rule(cluster, action, source_topic);
         self.driver
             .delete_topic_rewrite_rule(action.parse().unwrap(), source_topic.parse().unwrap())
             .await

@@ -223,8 +223,11 @@ message CreateTopicRewriteRuleRequest{
     //The source topic of the rewrite rule.
     string source_topic = 2;
 
-    //The parameter contains user information, encoded from a `MqttTopicRewriteRule` object into a binary format.
-    bytes content = 3;
+    //The dest topic of the rewrite rule.
+    string dest_topic = 3;
+
+    //The re of the rewrite rule.
+    string re = 4;
 }
 
 message CreateTopicRewriteRuleReply{
