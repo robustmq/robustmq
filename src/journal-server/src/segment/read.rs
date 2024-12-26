@@ -387,4 +387,21 @@ mod tests {
         assert_eq!(resp.len(), 1);
         assert!(resp.first().unwrap().record.tags.contains(&tag));
     }
+
+    #[tokio::test]
+    async fn read_data_req_test() {
+        let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
+            test_base_write_data(30).await;
+
+        let res = try_trigger_build_index(
+            &cache_manager,
+            &segment_file_manager,
+            &rocksdb_engine_handler,
+            &segment_iden,
+        )
+        .await;
+        assert!(res.is_ok());
+
+        sleep(Duration::from_secs(10)).await;
+    }
 }
