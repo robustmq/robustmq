@@ -45,7 +45,8 @@ pub async fn report_heartbeat(client_pool: Arc<ClientPool>, stop_send: broadcast
                 }
             }
             _ = report(client_pool.clone()) => {
-
+                let config = broker_mqtt_conf();
+                info!("Heartbeat reporting successfully,node:{}",config.broker_id);
             }
         }
     }
