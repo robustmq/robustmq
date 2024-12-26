@@ -158,7 +158,12 @@ async fn read_by_offset(
     };
 
     let res = segment_file
-        .read_by_offset(start_position, filter.offset, read_options.max_size)
+        .read_by_offset(
+            start_position,
+            filter.offset,
+            read_options.max_size,
+            read_options.max_record,
+        )
         .await?;
 
     Ok(res)
@@ -182,6 +187,7 @@ async fn read_by_key(
         .await?;
 
     let positions = index_data_list.iter().map(|raw| raw.position).collect();
+
     segment_file.read_by_positions(positions).await
 }
 
@@ -197,17 +203,205 @@ async fn read_by_tag(
         .get_last_positions_by_tag(
             segment_iden,
             filter.offset,
-            filter.key.clone(),
+            filter.tag.clone(),
             read_options.max_record,
         )
         .await?;
-
     let positions = index_data_list.iter().map(|raw| raw.position).collect();
     segment_file.read_by_positions(positions).await
 }
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
+    use protocol::journal_server::journal_engine::{ReadReqFilter, ReadReqOptions};
+    use tokio::time::sleep;
+
+    use super::{read_by_key, read_by_offset, read_by_tag};
+    use crate::core::test::test_base_write_data;
+    use crate::index::build::try_trigger_build_index;
+    use crate::segment::file::SegmentFile;
+
     #[tokio::test]
-    async fn read_base_test() {}
+    async fn read_by_offset_test() {
+        let (segment_iden, _, _, fold, rocksdb_engine_handler) = test_base_write_data(30).await;
+
+        let segment_file = SegmentFile::new(
+            segment_iden.namespace.clone(),
+            segment_iden.shard_name.clone(),
+            segment_iden.segment_seq,
+            fold,
+        );
+
+        let read_options = ReadReqOptions {
+            max_record: 2,
+            max_size: 1024 * 1024 * 1024,
+        };
+
+        let filter = ReadReqFilter {
+            offset: 5,
+            ..Default::default()
+        };
+        let res = read_by_offset(
+            &rocksdb_engine_handler,
+            &segment_file,
+            &segment_iden,
+            &filter,
+            &read_options,
+        )
+        .await;
+        assert!(res.is_ok());
+        let resp = res.unwrap();
+        assert_eq!(resp.len(), 2);
+
+        let mut i = 5;
+        for row in resp {
+            println!("{:?}", row);
+            assert_eq!(row.record.key, format!("key-{}", i));
+            i += 1;
+        }
+
+        let read_options = ReadReqOptions {
+            max_record: 5,
+            max_size: 1024 * 1024 * 1024,
+        };
+        let filter = ReadReqFilter {
+            offset: 10,
+            ..Default::default()
+        };
+        let res = read_by_offset(
+            &rocksdb_engine_handler,
+            &segment_file,
+            &segment_iden,
+            &filter,
+            &read_options,
+        )
+        .await;
+        assert!(res.is_ok());
+        let resp = res.unwrap();
+        assert_eq!(resp.len(), 5);
+
+        let mut i = 10;
+        for row in resp {
+            println!("{:?}", row);
+            assert_eq!(row.record.key, format!("key-{}", i));
+            i += 1;
+        }
+    }
+
+    #[tokio::test]
+    async fn read_by_key_test() {
+        let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
+            test_base_write_data(30).await;
+
+        let res = try_trigger_build_index(
+            &cache_manager,
+            &segment_file_manager,
+            &rocksdb_engine_handler,
+            &segment_iden,
+        )
+        .await;
+        assert!(res.is_ok());
+
+        sleep(Duration::from_secs(10)).await;
+
+        let segment_file = SegmentFile::new(
+            segment_iden.namespace.clone(),
+            segment_iden.shard_name.clone(),
+            segment_iden.segment_seq,
+            fold,
+        );
+
+        let read_options = ReadReqOptions {
+            max_record: 10,
+            max_size: 1024 * 1024 * 1024,
+        };
+
+        let key = "key-5".to_string();
+        let filter = ReadReqFilter {
+            key: key.clone(),
+            offset: 0,
+            ..Default::default()
+        };
+        let res = read_by_key(
+            &rocksdb_engine_handler,
+            &segment_file,
+            &segment_iden,
+            &filter,
+            &read_options,
+        )
+        .await;
+        println!("{:?}", res);
+        assert!(res.is_ok());
+        let resp = res.unwrap();
+        assert_eq!(resp.len(), 1);
+        assert_eq!(resp.first().unwrap().record.key, key);
+    }
+
+    #[tokio::test]
+    async fn read_by_tag_test() {
+        let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
+            test_base_write_data(30).await;
+
+        let res = try_trigger_build_index(
+            &cache_manager,
+            &segment_file_manager,
+            &rocksdb_engine_handler,
+            &segment_iden,
+        )
+        .await;
+        assert!(res.is_ok());
+
+        sleep(Duration::from_secs(10)).await;
+
+        let segment_file = SegmentFile::new(
+            segment_iden.namespace.clone(),
+            segment_iden.shard_name.clone(),
+            segment_iden.segment_seq,
+            fold,
+        );
+
+        let read_options = ReadReqOptions {
+            max_record: 10,
+            max_size: 1024 * 1024 * 1024,
+        };
+
+        let tag = "tag-5".to_string();
+        let filter = ReadReqFilter {
+            tag: tag.clone(),
+            offset: 0,
+            ..Default::default()
+        };
+        let res = read_by_tag(
+            &rocksdb_engine_handler,
+            &segment_file,
+            &segment_iden,
+            &filter,
+            &read_options,
+        )
+        .await;
+        println!("{:?}", res);
+        assert!(res.is_ok());
+        let resp = res.unwrap();
+        assert_eq!(resp.len(), 1);
+        assert!(resp.first().unwrap().record.tags.contains(&tag));
+    }
+
+    #[tokio::test]
+    async fn read_data_req_test() {
+        let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
+            test_base_write_data(30).await;
+
+        let res = try_trigger_build_index(
+            &cache_manager,
+            &segment_file_manager,
+            &rocksdb_engine_handler,
+            &segment_iden,
+        )
+        .await;
+        assert!(res.is_ok());
+
+        sleep(Duration::from_secs(10)).await;
+    }
 }

@@ -78,7 +78,7 @@ pub(crate) fn tag_segment(segment_iden: &SegmentIdentity, tag: String, offset: u
 }
 pub(crate) fn tag_segment_prefix(segment_iden: &SegmentIdentity, tag: String) -> String {
     format!(
-        "/index/{}/{}/{}/tag/{}",
+        "/index/{}/{}/{}/tag/{}/",
         segment_iden.namespace, segment_iden.shard_name, segment_iden.segment_seq, tag
     )
 }
@@ -92,7 +92,7 @@ pub(crate) fn key_segment(segment_iden: &SegmentIdentity, key: String, offset: u
 
 pub(crate) fn key_segment_prefix(segment_iden: &SegmentIdentity, key: String) -> String {
     format!(
-        "/index/{}/{}/{}/key/{}",
+        "/index/{}/{}/{}/key/{}/",
         segment_iden.namespace, segment_iden.shard_name, segment_iden.segment_seq, key
     )
 }

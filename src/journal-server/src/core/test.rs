@@ -17,15 +17,18 @@ use std::sync::Arc;
 use common_base::config::journal_server::{
     init_journal_server_conf_by_config, journal_server_conf, JournalServerConfig,
 };
-use common_base::tools::unique_id;
+use common_base::tools::{now_second, unique_id};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
+use prost::Message;
+use protocol::journal_server::journal_record::JournalRecord;
 use rocksdb_engine::RocksDBEngine;
 
 use super::cache::CacheManager;
 use crate::index::engine::{column_family_list, storage_data_fold};
 use crate::segment::manager::{try_create_local_segment, SegmentFileManager};
+use crate::segment::write::{create_write_thread, write_data};
 use crate::segment::SegmentIdentity;
 
 pub fn test_build_rocksdb_sgement() -> (Arc<RocksDBEngine>, SegmentIdentity) {
@@ -120,4 +123,66 @@ pub async fn test_init_segment() -> (
 
 pub fn test_init_client_pool() -> Arc<ClientPool> {
     Arc::new(ClientPool::new(10))
+}
+
+pub async fn test_base_write_data(
+    len: u64,
+) -> (
+    SegmentIdentity,
+    Arc<CacheManager>,
+    Arc<SegmentFileManager>,
+    String,
+    Arc<RocksDBEngine>,
+) {
+    let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
+        test_init_segment().await;
+    let client_pool = test_init_client_pool();
+
+    let res = create_write_thread(
+        &cache_manager,
+        &rocksdb_engine_handler,
+        &segment_file_manager,
+        &client_pool,
+        &segment_iden,
+    )
+    .await;
+    assert!(res.is_ok());
+
+    let mut data_list = Vec::new();
+
+    let producer_id = unique_id();
+    for i in 0..len {
+        data_list.push(JournalRecord {
+            namespace: segment_iden.namespace.clone(),
+            shard_name: segment_iden.shard_name.clone(),
+            segment: segment_iden.segment_seq,
+            content: format!("data-{}", i).encode_to_vec(),
+            key: format!("key-{}", i),
+            tags: vec![format!("tag-{}", i)],
+            pkid: i,
+            create_time: now_second(),
+            producer_id: producer_id.clone(),
+            ..Default::default()
+        });
+    }
+
+    let res = write_data(
+        &cache_manager,
+        &rocksdb_engine_handler,
+        &segment_file_manager,
+        &client_pool,
+        &segment_iden,
+        data_list,
+    )
+    .await;
+
+    assert!(res.is_ok());
+
+    (
+        segment_iden,
+        cache_manager,
+        segment_file_manager,
+        fold,
+        rocksdb_engine_handler,
+    )
 }

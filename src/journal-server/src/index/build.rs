@@ -136,11 +136,11 @@ async fn start_segment_build_index_thread(
                         }
                     }
                 },
-                val = segment_write.read_by_offset(start_position, last_build_offset, size)=>{
+                val = segment_write.read_by_offset(start_position, last_build_offset, size, 100)=>{
                     match val {
                         Ok(data) => {
-                            if data.is_empty() {
 
+                            if data.is_empty() {
                                 if data_empty_times >= max_data_empty_times {
                                     try_finish_segment_index_build(&rocksdb_engine_handler, &cache_manager, &segment_iden);
                                     cache_manager.remove_build_index_thread(&segment_iden);
@@ -170,16 +170,17 @@ async fn start_segment_build_index_thread(
                                 continue;
                             }
 
+                            last_build_offset = data.last().unwrap().record.offset as u64;
                             // save last offset bye build index
                             if let Err(e) = save_last_offset_build_index(
                                 &rocksdb_engine_handler,
                                 &segment_iden,
+                                last_build_offset,
                             ) {
                                 error!("Failure to save last_offset_build_index information with error message :{}",e);
                                 continue;
                             }
 
-                            last_build_offset = data.last().unwrap().record.offset as u64;
 
                         }
                         Err(e) => {
@@ -294,13 +295,14 @@ fn remove_last_offset_build_index(
 fn save_last_offset_build_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
+    offset: u64,
 ) -> Result<(), JournalServerError> {
     let key = last_offset_build_index(segment_iden);
     Ok(rocksdb_engine_save(
         rocksdb_engine_handler.clone(),
         DB_COLUMN_FAMILY_INDEX,
         key,
-        now_second(),
+        offset,
     )?)
 }
 
@@ -341,16 +343,16 @@ pub fn delete_segment_index(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+
+    use std::time::Duration;
 
     use common_base::tools::now_second;
-    use metadata_struct::journal::segment::{JournalSegment, Replica};
     use rocksdb_engine::engine::rocksdb_engine_prefix_map;
+    use tokio::time::sleep;
 
     use super::{save_finish_build_index, save_last_offset_build_index, try_trigger_build_index};
-    use crate::core::cache::CacheManager;
     use crate::core::consts::DB_COLUMN_FAMILY_INDEX;
-    use crate::core::test::{test_build_data_fold, test_build_rocksdb_sgement, test_init_conf};
+    use crate::core::test::{test_base_write_data, test_build_rocksdb_sgement};
     use crate::index::build::{
         delete_segment_index, get_last_offset_build_index, is_finish_build_index,
         remove_last_offset_build_index,
@@ -358,12 +360,10 @@ mod tests {
     use crate::index::keys::segment_index_prefix;
     use crate::index::offset::OffsetIndexManager;
     use crate::index::IndexData;
-    use crate::segment::file::SegmentFile;
-    use crate::segment::manager::{SegmentFileManager, SegmentFileMetadata};
     #[test]
     fn last_offset_build_index_test() {
         let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
-        let res = save_last_offset_build_index(&rocksdb_engine_handler, &segment_iden);
+        let res = save_last_offset_build_index(&rocksdb_engine_handler, &segment_iden, 10);
         assert!(res.is_ok());
 
         let res = get_last_offset_build_index(&rocksdb_engine_handler, &segment_iden);
@@ -438,48 +438,9 @@ mod tests {
 
     #[tokio::test]
     async fn build_thread_test() {
-        test_init_conf();
+        let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
+            test_base_write_data(10001).await;
 
-        let (rocksdb_engine_handler, segment_iden) = test_build_rocksdb_sgement();
-        let data_fold = test_build_data_fold().first().unwrap().to_string();
-
-        let cache_manager = Arc::new(CacheManager::new());
-        let segment_file_manager =
-            Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
-
-        let segment_file = SegmentFileMetadata {
-            namespace: segment_iden.namespace.to_string(),
-            shard_name: segment_iden.shard_name.to_string(),
-            segment_no: segment_iden.segment_seq,
-            ..Default::default()
-        };
-        segment_file_manager.add_segment_file(segment_file);
-
-        // create segment file
-        let segment_file = SegmentFile::new(
-            segment_iden.namespace.clone(),
-            segment_iden.shard_name.clone(),
-            segment_iden.segment_seq,
-            data_fold.clone(),
-        );
-        let res = segment_file.try_create().await;
-        assert!(res.is_ok());
-
-        // add cache
-        let segment = JournalSegment {
-            namespace: segment_iden.namespace.clone(),
-            shard_name: segment_iden.shard_name.clone(),
-            segment_seq: segment_iden.segment_seq,
-            replicas: vec![Replica {
-                replica_seq: 0,
-                node_id: 1,
-                fold: data_fold.clone(),
-            }],
-            ..Default::default()
-        };
-        cache_manager.set_segment(segment);
-
-        // start build thread
         let res = try_trigger_build_index(
             &cache_manager,
             &segment_file_manager,
@@ -487,18 +448,55 @@ mod tests {
             &segment_iden,
         )
         .await;
-        println!("{:?}", res);
         assert!(res.is_ok());
 
-        // check
-        assert!(segment_file.exists());
-        assert!(cache_manager.get_segment(&segment_iden).is_some());
-        assert!(segment_file_manager
-            .get_segment_file(&segment_iden)
-            .is_some());
+        sleep(Duration::from_secs(90)).await;
+        let prefix_key_name = segment_index_prefix(&segment_iden);
+        let comlumn_family = DB_COLUMN_FAMILY_INDEX;
+        let data = rocksdb_engine_prefix_map(
+            rocksdb_engine_handler.clone(),
+            comlumn_family,
+            prefix_key_name,
+        )
+        .unwrap();
 
-        // write data
+        let mut tag_num = 0;
+        let mut key_num = 0;
+        let mut offset_num = 0;
+        let mut timestamp_num = 0;
 
-        // check index
+        for (key, val) in data {
+            if key.contains("tag") {
+                tag_num += 1;
+            }
+
+            if key.contains("key") {
+                key_num += 1;
+            }
+
+            if key.contains("last/offset") {
+                let last_offset = serde_json::from_slice::<i64>(&val.data).unwrap();
+                assert_eq!(last_offset, 10000);
+            }
+
+            if key.contains("offset/position") {
+                let last_offset = serde_json::from_slice::<IndexData>(&val.data).unwrap();
+                println!("key: {},val={:?}", key, last_offset);
+                assert_eq!(last_offset.offset, 9999);
+                offset_num += 1;
+            }
+
+            if key.contains("timestamp/time-") {
+                let last_offset = serde_json::from_slice::<IndexData>(&val.data).unwrap();
+                println!("key: {},val={:?}", key, last_offset);
+                assert_eq!(last_offset.offset, 9999);
+                timestamp_num += 1;
+            }
+        }
+
+        assert_eq!(tag_num, 10001);
+        assert_eq!(key_num, 10001);
+        assert_eq!(offset_num, 1);
+        assert_eq!(timestamp_num, 1);
     }
 }

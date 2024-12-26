@@ -140,6 +140,7 @@ impl SegmentFile {
         start_position: u64,
         start_offset: u64,
         max_size: u64,
+        max_record: u64,
     ) -> Result<Vec<ReadData>, JournalServerError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = File::open(segment_file).await?;
@@ -184,6 +185,10 @@ impl SegmentFile {
             already_size += buf.len() as u64;
             let record = JournalRecord::decode(buf)?;
             results.push(ReadData { position, record });
+
+            if results.len() >= max_record as usize {
+                break;
+            }
         }
 
         Ok(results)
@@ -200,9 +205,7 @@ impl SegmentFile {
         let mut results = Vec::new();
 
         for position in positions {
-            reader
-                .seek(std::io::SeekFrom::Current(position as i64))
-                .await?;
+            reader.seek(std::io::SeekFrom::Start(position)).await?;
 
             // read offset
             let record_offset = match reader.read_u64().await {
@@ -217,6 +220,10 @@ impl SegmentFile {
 
             // read len
             let len = reader.read_u32().await?;
+
+            if len == 0 {
+                continue;
+            }
 
             // read body
             let mut buf = BytesMut::with_capacity(len as usize);
@@ -368,10 +375,10 @@ mod tests {
             }
         }
 
-        let res = segment.read_by_offset(0, 0, 20000).await.unwrap();
+        let res = segment.read_by_offset(0, 0, 20000, 1000).await.unwrap();
         assert_eq!(res.len(), 10);
 
-        let res = segment.read_by_offset(0, 1005, 20000).await.unwrap();
+        let res = segment.read_by_offset(0, 1005, 20000, 1000).await.unwrap();
         assert_eq!(res.len(), 5);
     }
 

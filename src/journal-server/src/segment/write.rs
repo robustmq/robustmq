@@ -153,7 +153,7 @@ pub async fn write_data_req(
     Ok(results)
 }
 
-async fn write_data(
+pub(crate) async fn write_data(
     cache_manager: &Arc<CacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
@@ -205,7 +205,7 @@ async fn get_write(
     Ok(write)
 }
 
-async fn create_write_thread(
+pub(crate) async fn create_write_thread(
     cache_manager: &Arc<CacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
@@ -644,7 +644,7 @@ mod tests {
         let write = open_segment_write(&cache_manager, &segment_iden)
             .await
             .unwrap();
-        let res = write.0.read_by_offset(0, 0, 1024 * 1024 * 1024).await;
+        let res = write.0.read_by_offset(0, 0, 1024 * 1024 * 1024, 1000).await;
         assert!(res.is_ok());
 
         let resp = res.unwrap();
