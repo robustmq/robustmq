@@ -15,7 +15,6 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use grpc_clients::pool::ClientPool;
 use log::info;
 use protocol::journal_server::journal_admin::journal_server_admin_service_server::JournalServerAdminServiceServer;
 use protocol::journal_server::journal_inner::journal_server_inner_service_server::JournalServerInnerServiceServer;
@@ -29,7 +28,6 @@ use crate::server::grpc::inner::GrpcJournalServerInnerService;
 
 pub struct GrpcServer {
     port: u32,
-    client_pool: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
     segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -38,14 +36,12 @@ pub struct GrpcServer {
 impl GrpcServer {
     pub fn new(
         port: u32,
-        client_pool: Arc<ClientPool>,
         cache_manager: Arc<CacheManager>,
         segment_file_manager: Arc<SegmentFileManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
         Self {
             port,
-            client_pool,
             cache_manager,
             segment_file_manager,
             rocksdb_engine_handler,

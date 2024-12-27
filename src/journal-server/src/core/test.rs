@@ -95,7 +95,7 @@ pub async fn test_init_segment() -> (
         ..Default::default()
     };
 
-    try_create_local_segment(&segment_file_manager, &rocksdb_engine_handler, &segment)
+    try_create_local_segment(&segment_file_manager, &segment)
         .await
         .unwrap();
 

@@ -127,6 +127,7 @@ impl JournalServerInnerService for GrpcJournalServerInnerService {
 
         match delete_local_segment(
             self.cache_manager.clone(),
+            self.rocksdb_engine_handler.clone(),
             self.segment_file_manager.clone(),
             req,
         ) {

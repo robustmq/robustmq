@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs::remove_dir_all;
-use std::path::Path;
 use std::sync::Arc;
 
 use common_base::config::journal_server::journal_server_conf;
@@ -21,23 +19,22 @@ use log::error;
 use protocol::journal_server::journal_inner::{
     DeleteSegmentFileRequest, GetSegmentDeleteStatusRequest,
 };
+use rocksdb_engine::RocksDBEngine;
 
 use super::cache::CacheManager;
 use super::error::JournalServerError;
-use crate::segment::file::{data_file_segment, open_segment_write};
+use crate::index::build::delete_segment_index;
+use crate::segment::file::{open_segment_write, SegmentFile};
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
 
 pub fn delete_local_segment(
     cache_manager: Arc<CacheManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
     segment_file_manager: Arc<SegmentFileManager>,
     req: DeleteSegmentFileRequest,
 ) -> Result<(), JournalServerError> {
-    let segment_iden = SegmentIdentity {
-        namespace: req.namespace,
-        shard_name: req.shard_name,
-        segment_seq: req.segment,
-    };
+    let segment_iden = SegmentIdentity::new(&req.namespace, &req.shard_name, req.segment);
 
     let segment = if let Some(segment) = cache_manager.get_segment(&segment_iden) {
         segment
@@ -54,11 +51,19 @@ pub fn delete_local_segment(
             return;
         };
 
-        let segment_file = data_file_segment(&data_fold, req.segment);
-        if Path::new(&segment_file).exists() {
-            if let Err(e) = remove_dir_all(&segment_file) {
-                error!("{}", e);
-            }
+        let segment_file = SegmentFile::new(
+            segment_iden.namespace.clone(),
+            segment_iden.shard_name.clone(),
+            segment_iden.segment_seq,
+            data_fold,
+        );
+        if let Err(e) = segment_file.delete().await {
+            error!("{}", e);
+        }
+
+        // delete index
+        if let Err(e) = delete_segment_index(&rocksdb_engine_handler, &segment_iden) {
+            error!("{}", e);
         }
 
         // delete segment
@@ -78,12 +83,6 @@ pub async fn segment_already_delete(
         namespace: req.namespace.clone(),
         shard_name: req.shard_name.clone(),
         segment_seq: req.segment,
-    };
-
-    let segment = if let Some(segment) = cache_manager.get_segment(&segment_iden) {
-        segment
-    } else {
-        return Ok(false);
     };
 
     // Does the file exist

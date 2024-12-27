@@ -38,12 +38,26 @@ use crate::segment::SegmentIdentity;
 #[derive(Clone)]
 pub struct CacheManager {
     cluster: DashMap<String, JournalEngineClusterConfig>,
+
+    // (node_id, BrokerNode)
     node_list: DashMap<u64, BrokerNode>,
+
+    // (shard_name, JournalShard)
     shards: DashMap<String, JournalShard>,
+
+    // (shard_name, (segment_no, JournalSegment))
     segments: DashMap<String, DashMap<u32, JournalSegment>>,
+
+    // (shard_name, (segment_no, JournalSegmentMetadata))
     segment_metadatas: DashMap<String, DashMap<u32, JournalSegmentMetadata>>,
+
+    // (segment_name, SegmentIdentity)
     leader_segments: DashMap<String, SegmentIdentity>,
+
+    // (segment_name, IndexBuildThreadData)
     segment_index_build_thread: DashMap<String, IndexBuildThreadData>,
+
+    // (segment_name, SegmentWrite)
     segment_writes: DashMap<String, SegmentWrite>,
 }
 

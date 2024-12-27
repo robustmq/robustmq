@@ -41,7 +41,6 @@ use crate::segment::SegmentIdentity;
 
 #[derive(Clone)]
 pub struct SegmentWrite {
-    last_write_time: u64,
     data_sender: Sender<SegmentWriteData>,
     pub stop_sender: broadcast::Sender<bool>,
 }
@@ -189,7 +188,6 @@ async fn get_write(
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
 ) -> Result<SegmentWrite, JournalServerError> {
-    let key = segment_iden.name();
     let write = if let Some(write) = cache_manager.get_segment_write_thread(segment_iden) {
         write.clone()
     } else {
@@ -244,7 +242,6 @@ pub(crate) async fn create_write_thread(
     let write = SegmentWrite {
         data_sender,
         stop_sender,
-        last_write_time: now_second(),
     };
     cache_manager.add_segment_write_thread(segment_iden, write.clone());
     Ok(write)
@@ -354,14 +351,7 @@ async fn batch_write(
         }));
     }
 
-    let resp = batch_write0(
-        data,
-        segment_write,
-        segment_file_manager,
-        client_pool,
-        local_segment_end_offset as u64,
-    )
-    .await?;
+    let resp = batch_write0(data, segment_write, local_segment_end_offset as u64).await?;
 
     try_trigger_build_index(
         cache_manager,
@@ -377,19 +367,11 @@ async fn batch_write(
 async fn batch_write0(
     data: Vec<JournalRecord>,
     segment_write: &SegmentFile,
-    segment_file_manager: &Arc<SegmentFileManager>,
-    client_pool: &Arc<ClientPool>,
     mut local_segment_end_offset: u64,
 ) -> Result<Option<SegmentWriteResp>, JournalServerError> {
     if data.is_empty() {
         return Ok(None);
     }
-
-    let segment_iden = SegmentIdentity {
-        namespace: segment_write.namespace.clone(),
-        shard_name: segment_write.shard_name.clone(),
-        segment_seq: segment_write.segment_no,
-    };
 
     // build write data
     let mut offsets = HashMap::new();
@@ -565,7 +547,7 @@ mod tests {
 
     #[tokio::test]
     async fn write_test() {
-        let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
+        let (segment_iden, cache_manager, segment_file_manager, _, rocksdb_engine_handler) =
             test_init_segment().await;
         let client_pool = test_init_client_pool();
 

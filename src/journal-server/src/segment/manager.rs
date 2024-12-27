@@ -216,7 +216,6 @@ pub fn metadata_and_local_segment_diff_check() {
 
 pub async fn try_create_local_segment(
     segment_file_manager: &Arc<SegmentFileManager>,
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment: &JournalSegment,
 ) -> Result<(), JournalServerError> {
     let segment_iden = SegmentIdentity {
@@ -320,8 +319,7 @@ mod tests {
 
     #[tokio::test]
     async fn try_create_local_segment_test() {
-        let (segment_iden, cache_manager, segment_file_manager, fold, _) =
-            test_init_segment().await;
+        let (segment_iden, _, segment_file_manager, fold, _) = test_init_segment().await;
 
         let res = segment_file_manager.get_segment_file(&segment_iden);
         assert!(res.is_some());

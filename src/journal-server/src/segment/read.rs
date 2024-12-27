@@ -215,10 +215,13 @@ async fn read_by_tag(
 mod tests {
     use std::time::Duration;
 
-    use protocol::journal_server::journal_engine::{ReadReqFilter, ReadReqOptions};
+    use common_base::config::journal_server::journal_server_conf;
+    use protocol::journal_server::journal_engine::{
+        ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
+    };
     use tokio::time::sleep;
 
-    use super::{read_by_key, read_by_offset, read_by_tag};
+    use super::{read_by_key, read_by_offset, read_by_tag, read_data_req};
     use crate::core::test::test_base_write_data;
     use crate::index::build::try_trigger_build_index;
     use crate::segment::file::SegmentFile;
@@ -390,7 +393,7 @@ mod tests {
 
     #[tokio::test]
     async fn read_data_req_test() {
-        let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
+        let (segment_iden, cache_manager, segment_file_manager, _, rocksdb_engine_handler) =
             test_base_write_data(30).await;
 
         let res = try_trigger_build_index(
@@ -403,5 +406,115 @@ mod tests {
         assert!(res.is_ok());
 
         sleep(Duration::from_secs(10)).await;
+
+        // offset
+        let req_body = ReadReqBody {
+            messages: vec![ReadReqMessage {
+                namespace: segment_iden.namespace.clone(),
+                shard_name: segment_iden.shard_name.clone(),
+                segment: segment_iden.segment_seq,
+                ready_type: ReadType::Offset.into(),
+                filter: Some(ReadReqFilter {
+                    offset: 5,
+                    ..Default::default()
+                }),
+                options: Some(ReadReqOptions {
+                    max_size: 1024 * 1024 * 1024,
+                    max_record: 2,
+                }),
+            }],
+        };
+        let conf = journal_server_conf();
+        let res = read_data_req(
+            &cache_manager,
+            &rocksdb_engine_handler,
+            &req_body,
+            conf.node_id,
+        )
+        .await;
+        println!("{:?}", res);
+        assert!(res.is_ok());
+        let resp = res.unwrap();
+        assert_eq!(resp.len(), 1);
+        let resp_shard = resp.first().unwrap();
+        assert_eq!(resp_shard.messages.len(), 2);
+
+        let mut i = 5;
+        for row in resp_shard.messages.iter() {
+            assert_eq!(row.offset, i);
+            i += 1;
+        }
+
+        // key
+        let key = format!("key-{}", 1);
+        let req_body = ReadReqBody {
+            messages: vec![ReadReqMessage {
+                namespace: segment_iden.namespace.clone(),
+                shard_name: segment_iden.shard_name.clone(),
+                segment: segment_iden.segment_seq,
+                ready_type: ReadType::Key.into(),
+                filter: Some(ReadReqFilter {
+                    offset: 0,
+                    key: key.clone(),
+                    ..Default::default()
+                }),
+                options: Some(ReadReqOptions {
+                    max_size: 1024 * 1024 * 1024,
+                    max_record: 2,
+                }),
+            }],
+        };
+        let conf = journal_server_conf();
+        let res = read_data_req(
+            &cache_manager,
+            &rocksdb_engine_handler,
+            &req_body,
+            conf.node_id,
+        )
+        .await;
+        println!("{:?}", res);
+        assert!(res.is_ok());
+        let resp = res.unwrap();
+        assert_eq!(resp.len(), 1);
+        let resp_shard = resp.first().unwrap();
+        assert_eq!(resp_shard.messages.len(), 1);
+        let data = resp_shard.messages.first().unwrap();
+        assert_eq!(data.key, key);
+
+        // tag
+        let tag = format!("tag-{}", 1);
+        let req_body = ReadReqBody {
+            messages: vec![ReadReqMessage {
+                namespace: segment_iden.namespace.clone(),
+                shard_name: segment_iden.shard_name.clone(),
+                segment: segment_iden.segment_seq,
+                ready_type: ReadType::Tag.into(),
+                filter: Some(ReadReqFilter {
+                    offset: 0,
+                    tag: tag.clone(),
+                    ..Default::default()
+                }),
+                options: Some(ReadReqOptions {
+                    max_size: 1024 * 1024 * 1024,
+                    max_record: 2,
+                }),
+            }],
+        };
+        let conf = journal_server_conf();
+        let res = read_data_req(
+            &cache_manager,
+            &rocksdb_engine_handler,
+            &req_body,
+            conf.node_id,
+        )
+        .await;
+        println!("{:?}", res);
+        assert!(res.is_ok());
+        let resp = res.unwrap();
+        assert_eq!(resp.len(), 1);
+        let resp_shard = resp.first().unwrap();
+        assert_eq!(resp_shard.messages.len(), 1);
+        let data = resp_shard.messages.first().unwrap();
+        assert!(data.tags.contains(&tag));
     }
 }

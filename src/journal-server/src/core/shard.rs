@@ -17,6 +17,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use common_base::config::journal_server::journal_server_conf;
+use log::error;
 use protocol::journal_server::journal_inner::{
     DeleteShardFileRequest, GetShardDeleteStatusRequest,
 };
@@ -29,14 +30,6 @@ pub fn delete_local_shard(
     cache_manager: Arc<CacheManager>,
     req: DeleteShardFileRequest,
 ) -> Result<(), JournalServerError> {
-    let shard = if let Some(shard) = cache_manager.get_shard(&req.namespace, &req.shard_name) {
-        shard
-    } else {
-        return Err(JournalServerError::ShardNotExist(
-            req.shard_name.to_string(),
-        ));
-    };
-
     tokio::spawn(async move {
         // delete file
         let conf = journal_server_conf();
@@ -45,7 +38,9 @@ pub fn delete_local_shard(
             if Path::new(data_fold).exists() {
                 match remove_dir_all(shard_fold_name) {
                     Ok(()) => {}
-                    Err(e) => {}
+                    Err(e) => {
+                        error!("{}", e);
+                    }
                 }
             }
         }

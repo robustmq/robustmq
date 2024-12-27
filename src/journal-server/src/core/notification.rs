@@ -142,13 +142,7 @@ async fn parse_segment(
                     segment.name()
                 );
 
-                match try_create_local_segment(
-                    segment_file_manager,
-                    rocksdb_engine_handler,
-                    &segment,
-                )
-                .await
-                {
+                match try_create_local_segment(segment_file_manager, &segment).await {
                     Ok(()) => {
                         cache_manager.set_segment(segment);
                     }
