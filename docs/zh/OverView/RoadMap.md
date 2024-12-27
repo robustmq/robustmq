@@ -19,7 +19,7 @@
 1. 完善集群能力，能运行稳定的集群模式
    1. 集群模式下，GRPC 提供的接口稳定运行
    2. 集群模式下，Leader 切换，GRPC 提供的接口稳定运行
-   3. 集群模式下，Leader 切换，非 Leader 节点的 Controller 节点暂停，Leader 节点运行 Controller
+   3. 集群模式下，Leader 切换，非 Leader 节点的 Controller 暂停，Leader 节点运行 Controller
 2. 压测 Placement Center 服务的性能
 3. 添加 Placement Center 的监控指标
    
@@ -44,16 +44,19 @@
 6. MQTT 数据集成支持 Kafka
 7. MQTT 支持 Schema 框架实现
 8. 自动订阅
-9.  连接抖动
-10. Robust Dashboard 
+9. 连接抖动
+10. 完善 Metrics
+11. 接入opentelemetry
+12. 限流模块开发（请求数、连接数、流量等等）
+13. Auth 模块完善
 
 Cli(命令行)：
 1. 完善命令行输出内容的统一格式
 2. 完善 MQTT 相关 Admin 接口和能力
 
-Dashboard(命令行):
+Dashboard:
 1. 完成 Dashboard 的框架搭建
-2. 完成 Dashboard 和 MQTT Broker 的联动
+2. 完成 Dashboard 和 MQTT Broker 的 Admin 相关接口联动
 
 #### Journal Engine 
 > 目标：Journal Engine 单节点模式稳定运行
