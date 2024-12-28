@@ -43,8 +43,6 @@ pub async fn sealup_segment(
 pub async fn pre_sealup_segment(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    cluster_name: String,
-    addrs: Vec<String>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {
     // active segment to preSealUp

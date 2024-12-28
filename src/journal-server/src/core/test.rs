@@ -31,6 +31,7 @@ use crate::segment::manager::{create_local_segment, SegmentFileManager};
 use crate::segment::write::{create_write_thread, write_data};
 use crate::segment::SegmentIdentity;
 
+#[allow(dead_code)]
 pub fn test_build_rocksdb_sgement() -> (Arc<RocksDBEngine>, SegmentIdentity) {
     let data_fold = test_build_data_fold();
     let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
@@ -43,6 +44,7 @@ pub fn test_build_rocksdb_sgement() -> (Arc<RocksDBEngine>, SegmentIdentity) {
     (rocksdb_engine_handler, segment_iden)
 }
 
+#[allow(dead_code)]
 pub fn test_build_segment() -> SegmentIdentity {
     let namespace = unique_id();
     let shard_name = "s1".to_string();
@@ -55,11 +57,13 @@ pub fn test_build_segment() -> SegmentIdentity {
     }
 }
 
+#[allow(dead_code)]
 pub fn test_build_data_fold() -> Vec<String> {
     let data_fold = vec![format!("/tmp/tests/{}", unique_id())];
     data_fold
 }
 
+#[allow(dead_code)]
 pub fn test_init_conf() {
     init_journal_server_conf_by_config(JournalServerConfig {
         node_id: 1,
@@ -68,6 +72,7 @@ pub fn test_init_conf() {
     });
 }
 
+#[allow(dead_code)]
 pub async fn test_init_segment() -> (
     SegmentIdentity,
     Arc<CacheManager>,
@@ -119,10 +124,12 @@ pub async fn test_init_segment() -> (
     )
 }
 
+#[allow(dead_code)]
 pub fn test_init_client_pool() -> Arc<ClientPool> {
     Arc::new(ClientPool::new(10))
 }
 
+#[allow(dead_code)]
 pub async fn test_base_write_data(
     len: u64,
 ) -> (

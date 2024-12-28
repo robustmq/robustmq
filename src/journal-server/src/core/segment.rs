@@ -15,9 +15,7 @@
 use std::sync::Arc;
 
 use log::error;
-use protocol::journal_server::journal_inner::{
-    DeleteSegmentFileRequest, GetSegmentDeleteStatusRequest,
-};
+use protocol::journal_server::journal_inner::GetSegmentDeleteStatusRequest;
 use rocksdb_engine::RocksDBEngine;
 
 use super::cache::CacheManager;
@@ -33,23 +31,23 @@ pub async fn delete_local_segment(
     segment_file_manager: &Arc<SegmentFileManager>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {
-    if cache_manager.get_segment(&segment_iden).is_none() {
+    if cache_manager.get_segment(segment_iden).is_none() {
         return Ok(());
     };
 
     // delete segment by cache
-    cache_manager.delete_segment(&segment_iden);
+    cache_manager.delete_segment(segment_iden);
 
     // delete segment file manager  by cache
-    segment_file_manager.remove_segment_file(&segment_iden);
+    segment_file_manager.remove_segment_file(segment_iden);
 
     // delete index
-    if let Err(e) = delete_segment_index(&rocksdb_engine_handler, &segment_iden) {
+    if let Err(e) = delete_segment_index(rocksdb_engine_handler, segment_iden) {
         error!("{}", e);
     }
 
     // delete local file
-    match open_segment_write(&cache_manager, &segment_iden).await {
+    match open_segment_write(cache_manager, segment_iden).await {
         Ok((segment_file, _)) => {
             if let Err(e) = segment_file.delete().await {
                 error!("{}", e);

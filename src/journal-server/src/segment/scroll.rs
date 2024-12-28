@@ -125,8 +125,6 @@ impl SegmentScrollManager {
                         if let Err(e) = pre_sealup_segment(
                             &self.cache_manager,
                             &self.client_pool,
-                            conf.cluster_name.clone(),
-                            conf.placement_center.clone(),
                             &segment_iden,
                         )
                         .await

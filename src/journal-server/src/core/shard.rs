@@ -20,7 +20,6 @@ use std::time::Duration;
 use common_base::config::journal_server::journal_server_conf;
 use grpc_clients::pool::ClientPool;
 use log::error;
-use metadata_struct::journal::namespace;
 use metadata_struct::journal::shard::shard_name_iden;
 use protocol::journal_server::journal_inner::{
     DeleteShardFileRequest, GetShardDeleteStatusRequest,
@@ -97,7 +96,7 @@ pub fn is_delete_by_shard(req: &GetShardDeleteStatusRequest) -> Result<bool, Jou
         }
     }
 
-    return Ok(true);
+    Ok(true)
 }
 
 pub async fn create_shard_to_place(
@@ -178,7 +177,7 @@ pub async fn try_auto_create_shard(
         sleep(Duration::from_secs(1)).await;
     }
 
-    return Err(JournalServerError::ShardNotExist(shard_name_iden(
+    Err(JournalServerError::ShardNotExist(shard_name_iden(
         namespace, shard_name,
-    )));
+    )))
 }

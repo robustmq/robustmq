@@ -23,7 +23,7 @@ use grpc_clients::pool::ClientPool;
 use log::{debug, error};
 use metadata_struct::journal::node_extend::JournalNodeExtend;
 use protocol::placement_center::placement_center_inner::{
-    ClusterType, HeartbeatRequest, RegisterNodeRequest, ReportMonitorRequest, UnRegisterNodeRequest,
+    ClusterType, HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
 };
 use tokio::select;
 use tokio::sync::broadcast;
