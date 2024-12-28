@@ -108,7 +108,6 @@ impl MessageExpire {
             }
             iter.next();
         }
-        // sleep(Duration::from_secs(1)).await;
     }
 
     pub async fn last_will_message_expire(&mut self) {
@@ -173,7 +172,6 @@ impl MessageExpire {
 
             iter.next();
         }
-        // sleep(Duration::from_secs(1)).await;
     }
 }
 

@@ -151,7 +151,7 @@ impl MqttController {
                             }
                         }
                          _ =  message.retain_message_expire() =>{
-
+                            sleep(Duration::from_secs(1)).await;
                         }
                     }
                 }
@@ -173,7 +173,7 @@ impl MqttController {
                             }
                         }
                         _ = message.last_will_message_expire() => {
-
+                            sleep(Duration::from_secs(1)).await;
                         }
                     }
                 }
