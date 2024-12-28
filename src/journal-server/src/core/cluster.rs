@@ -20,7 +20,7 @@ use common_base::error::common::CommonError;
 use common_base::tools::get_local_ip;
 use grpc_clients::placement::inner::call::{heartbeat, register_node, unregister_node};
 use grpc_clients::pool::ClientPool;
-use log::{debug, error, info};
+use log::{debug, error};
 use metadata_struct::journal::node_extend::JournalNodeExtend;
 use protocol::placement_center::placement_center_inner::{
     ClusterType, HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
@@ -28,12 +28,6 @@ use protocol::placement_center::placement_center_inner::{
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
-
-#[derive(Clone, Default)]
-pub struct JournalEngineClusterConfig {
-    pub enable_auto_create_shard: bool,
-    pub last_update_local_cache_time: u64,
-}
 
 pub async fn register_journal_node(
     client_pool: Arc<ClientPool>,
@@ -55,7 +49,7 @@ pub async fn register_journal_node(
         extend_info: serde_json::to_string(&extend)?,
     };
     register_node(&client_pool, &config.placement_center, req.clone()).await?;
-    info!("Node {} register successfully", config.node_id);
+    debug!("Node {} register successfully", config.node_id);
     Ok(())
 }
 
@@ -69,7 +63,7 @@ pub async fn unregister_journal_node(
         node_id: config.node_id,
     };
     unregister_node(&client_pool, &config.placement_center, req.clone()).await?;
-    info!("Node {} exits successfully", config.node_id);
+    debug!("Node {} exits successfully", config.node_id);
     Ok(())
 }
 

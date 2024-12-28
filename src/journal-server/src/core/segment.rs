@@ -14,7 +14,6 @@
 
 use std::sync::Arc;
 
-use common_base::config::journal_server::journal_server_conf;
 use log::error;
 use protocol::journal_server::journal_inner::{
     DeleteSegmentFileRequest, GetSegmentDeleteStatusRequest,
@@ -24,54 +23,43 @@ use rocksdb_engine::RocksDBEngine;
 use super::cache::CacheManager;
 use super::error::JournalServerError;
 use crate::index::build::delete_segment_index;
-use crate::segment::file::{open_segment_write, SegmentFile};
+use crate::segment::file::open_segment_write;
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
 
-pub fn delete_local_segment(
-    cache_manager: Arc<CacheManager>,
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    segment_file_manager: Arc<SegmentFileManager>,
-    req: DeleteSegmentFileRequest,
+pub async fn delete_local_segment(
+    cache_manager: &Arc<CacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    segment_file_manager: &Arc<SegmentFileManager>,
+    segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {
-    let segment_iden = SegmentIdentity::new(&req.namespace, &req.shard_name, req.segment);
-
-    let segment = if let Some(segment) = cache_manager.get_segment(&segment_iden) {
-        segment
-    } else {
-        return Err(JournalServerError::SegmentNotExist(segment_iden.name()));
+    if cache_manager.get_segment(&segment_iden).is_none() {
+        return Ok(());
     };
 
-    tokio::spawn(async move {
-        // delete local file
-        let conf = journal_server_conf();
-        let data_fold = if let Some(fold) = segment.get_fold(conf.node_id) {
-            fold
-        } else {
-            return;
-        };
+    // delete segment by cache
+    cache_manager.delete_segment(&segment_iden);
 
-        let segment_file = SegmentFile::new(
-            segment_iden.namespace.clone(),
-            segment_iden.shard_name.clone(),
-            segment_iden.segment_seq,
-            data_fold,
-        );
-        if let Err(e) = segment_file.delete().await {
+    // delete segment file manager  by cache
+    segment_file_manager.remove_segment_file(&segment_iden);
+
+    // delete index
+    if let Err(e) = delete_segment_index(&rocksdb_engine_handler, &segment_iden) {
+        error!("{}", e);
+    }
+
+    // delete local file
+    match open_segment_write(&cache_manager, &segment_iden).await {
+        Ok((segment_file, _)) => {
+            if let Err(e) = segment_file.delete().await {
+                error!("{}", e);
+            }
+        }
+        Err(e) => {
             error!("{}", e);
         }
+    }
 
-        // delete index
-        if let Err(e) = delete_segment_index(&rocksdb_engine_handler, &segment_iden) {
-            error!("{}", e);
-        }
-
-        // delete segment
-        cache_manager.delete_segment(&segment_iden);
-
-        // delete segment file manager
-        segment_file_manager.remove_segment_file(&segment_iden);
-    });
     Ok(())
 }
 
@@ -85,8 +73,7 @@ pub async fn segment_already_delete(
         segment_seq: req.segment,
     };
 
-    // Does the file exist
-    let (segment_write, _) = open_segment_write(cache_manager, &segment_iden).await?;
+    let (segment_file, _) = open_segment_write(cache_manager, &segment_iden).await?;
 
-    Ok(!segment_write.exists())
+    Ok(!segment_file.exists())
 }

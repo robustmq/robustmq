@@ -23,11 +23,12 @@ use protocol::journal_server::journal_engine::{
     GetShardMetadataRespShard,
 };
 use protocol::placement_center::placement_center_journal::{
-    CreateNextSegmentRequest, CreateShardRequest, DeleteShardRequest, UpdateSegmentStatusRequest,
+    CreateNextSegmentRequest, UpdateSegmentStatusRequest,
 };
 
 use crate::core::cache::{load_metadata_cache, CacheManager};
 use crate::core::error::JournalServerError;
+use crate::core::shard::{create_shard_to_place, delete_shard_to_place};
 use crate::segment::SegmentIdentity;
 
 #[derive(Clone)]
@@ -57,20 +58,13 @@ impl ShardHandler {
             .get_shard(&req_body.namespace, &req_body.shard_name)
             .is_none()
         {
-            let conf = journal_server_conf();
-            let request = CreateShardRequest {
-                cluster_name: conf.cluster_name.to_string(),
-                namespace: req_body.namespace.to_string(),
-                shard_name: req_body.shard_name.to_string(),
-                replica: req_body.replica_num,
-            };
-            let reply = grpc_clients::placement::journal::call::create_shard(
-                &self.client_pool,
-                &conf.placement_center,
-                request,
+            create_shard_to_place(
+                self.client_pool.clone(),
+                &req_body.namespace,
+                &req_body.shard_name,
+                req_body.replica_num,
             )
             .await?;
-            return Ok(());
         };
         Ok(())
     }
@@ -91,19 +85,13 @@ impl ShardHandler {
             return Err(JournalServerError::ShardNotExist(req_body.shard_name));
         }
 
-        let conf = journal_server_conf();
-        let request = DeleteShardRequest {
-            cluster_name: conf.cluster_name.clone(),
-            namespace: req_body.namespace,
-            shard_name: req_body.shard_name,
-        };
-
-        grpc_clients::placement::journal::call::delete_shard(
-            &self.client_pool,
-            &conf.placement_center,
-            request,
+        delete_shard_to_place(
+            self.client_pool.clone(),
+            &req_body.namespace,
+            &req_body.shard_name,
         )
         .await?;
+
         Ok(())
     }
 
@@ -215,7 +203,7 @@ impl ShardHandler {
             namespace: namespace.to_string(),
             shard_name: shard_name.to_string(),
         };
-        let reply = grpc_clients::placement::journal::call::create_next_segment(
+        grpc_clients::placement::journal::call::create_next_segment(
             &self.client_pool,
             &conf.placement_center,
             request,

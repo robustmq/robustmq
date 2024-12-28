@@ -27,7 +27,7 @@ use rocksdb_engine::RocksDBEngine;
 
 use super::cache::CacheManager;
 use crate::index::engine::{column_family_list, storage_data_fold};
-use crate::segment::manager::{try_create_local_segment, SegmentFileManager};
+use crate::segment::manager::{create_local_segment, SegmentFileManager};
 use crate::segment::write::{create_write_thread, write_data};
 use crate::segment::SegmentIdentity;
 
@@ -95,12 +95,10 @@ pub async fn test_init_segment() -> (
         ..Default::default()
     };
 
-    try_create_local_segment(&segment_file_manager, &segment)
+    let cache_manager = Arc::new(CacheManager::new());
+    create_local_segment(&cache_manager, &segment_file_manager, &segment)
         .await
         .unwrap();
-
-    let cache_manager = Arc::new(CacheManager::new());
-    cache_manager.set_segment(segment);
 
     let conf = journal_server_conf();
     let segment_meta = JournalSegmentMetadata {

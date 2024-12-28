@@ -50,7 +50,7 @@ impl MessageExpire {
         let search_key = storage_key_mqtt_topic_cluster_prefix(&self.cluster_name);
         let topic_storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
 
-        let cf: std::sync::Arc<rocksdb::BoundColumnFamily<'_>> = if let Some(cf) = self
+        let cf = if let Some(cf) = self
             .rocksdb_engine_handler
             .cf_handle(DB_COLUMN_FAMILY_CLUSTER)
         {

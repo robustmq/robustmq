@@ -15,22 +15,63 @@
 use std::fs::remove_dir_all;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 
 use common_base::config::journal_server::journal_server_conf;
+use grpc_clients::pool::ClientPool;
 use log::error;
+use metadata_struct::journal::namespace;
+use metadata_struct::journal::shard::shard_name_iden;
 use protocol::journal_server::journal_inner::{
     DeleteShardFileRequest, GetShardDeleteStatusRequest,
 };
+use protocol::placement_center::placement_center_journal::{
+    CreateShardRequest, DeleteShardRequest,
+};
+use rocksdb_engine::RocksDBEngine;
+use tokio::time::sleep;
 
 use super::cache::CacheManager;
 use super::error::JournalServerError;
+use super::segment::delete_local_segment;
 use crate::segment::file::data_fold_shard;
+use crate::segment::manager::SegmentFileManager;
+use crate::segment::SegmentIdentity;
 
 pub fn delete_local_shard(
     cache_manager: Arc<CacheManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    segment_file_manager: Arc<SegmentFileManager>,
     req: DeleteShardFileRequest,
-) -> Result<(), JournalServerError> {
+) {
+    if cache_manager
+        .get_shard(&req.namespace, &req.shard_name)
+        .is_none()
+    {
+        return;
+    }
+
     tokio::spawn(async move {
+        // delete segment
+        for segment in cache_manager.get_segments_list_by_shard(&req.namespace, &req.shard_name) {
+            let segment_iden =
+                SegmentIdentity::new(&req.namespace, &req.shard_name, segment.segment_seq);
+            if let Err(e) = delete_local_segment(
+                &cache_manager,
+                &rocksdb_engine_handler,
+                &segment_file_manager,
+                &segment_iden,
+            )
+            .await
+            {
+                error!("{}", e);
+                return;
+            }
+        }
+
+        // delete shard
+        cache_manager.delete_shard(&req.namespace, &req.shard_name);
+
         // delete file
         let conf = journal_server_conf();
         for data_fold in conf.storage.data_path.iter() {
@@ -44,27 +85,100 @@ pub fn delete_local_shard(
                 }
             }
         }
-
-        // delete cache
-        cache_manager.delete_shard(&req.namespace, &req.shard_name);
     });
-    Ok(())
 }
 
-pub fn shard_is_delete(
-    cache_manager: &Arc<CacheManager>,
-    req: &GetShardDeleteStatusRequest,
-) -> Result<bool, JournalServerError> {
-    // Does the file exist
-    let mut fold_exist = false;
+pub fn is_delete_by_shard(req: &GetShardDeleteStatusRequest) -> Result<bool, JournalServerError> {
     let conf = journal_server_conf();
     for data_fold in conf.storage.data_path.iter() {
         let shard_fold_name = data_fold_shard(&req.namespace, &req.shard_name, data_fold);
-        fold_exist = Path::new(data_fold).exists();
+        if Path::new(&shard_fold_name).exists() {
+            return Ok(false);
+        }
     }
 
-    // Does the cache exist
-    let cache_exist = cache_manager.is_exist_shard(&req.namespace, &req.shard_name);
+    return Ok(true);
+}
 
-    Ok(!fold_exist && !cache_exist)
+pub async fn create_shard_to_place(
+    client_pool: Arc<ClientPool>,
+    namespace: &str,
+    shard_name: &str,
+    replica_num: u32,
+) -> Result<(), JournalServerError> {
+    let conf = journal_server_conf();
+    let request = CreateShardRequest {
+        cluster_name: conf.cluster_name.to_string(),
+        namespace: namespace.to_string(),
+        shard_name: shard_name.to_string(),
+        replica: replica_num,
+    };
+    grpc_clients::placement::journal::call::create_shard(
+        &client_pool,
+        &conf.placement_center,
+        request,
+    )
+    .await?;
+    Ok(())
+}
+
+pub async fn delete_shard_to_place(
+    client_pool: Arc<ClientPool>,
+    namespace: &str,
+    shard_name: &str,
+) -> Result<(), JournalServerError> {
+    let conf = journal_server_conf();
+    let request = DeleteShardRequest {
+        cluster_name: conf.cluster_name.clone(),
+        namespace: namespace.to_string(),
+        shard_name: shard_name.to_string(),
+    };
+
+    grpc_clients::placement::journal::call::delete_shard(
+        &client_pool,
+        &conf.placement_center,
+        request,
+    )
+    .await?;
+    Ok(())
+}
+
+pub async fn try_auto_create_shard(
+    cache_manager: &Arc<CacheManager>,
+    client_pool: &Arc<ClientPool>,
+    namespace: &str,
+    shard_name: &str,
+) -> Result<(), JournalServerError> {
+    if cache_manager.get_shard(namespace, shard_name).is_some() {
+        return Ok(());
+    }
+
+    if !cache_manager.get_cluster().enable_auto_create_shard {
+        return Err(JournalServerError::ShardNotExist(shard_name_iden(
+            namespace, shard_name,
+        )));
+    }
+
+    create_shard_to_place(
+        client_pool.clone(),
+        namespace,
+        shard_name,
+        cache_manager.get_cluster().default_shard_replica_num,
+    )
+    .await?;
+    let mut i = 0;
+    loop {
+        if i >= 30 {
+            break;
+        }
+        if cache_manager.get_shard(namespace, shard_name).is_some() {
+            return Ok(());
+        }
+        i += 1;
+        sleep(Duration::from_secs(1)).await;
+    }
+
+    return Err(JournalServerError::ShardNotExist(shard_name_iden(
+        namespace, shard_name,
+    )));
 }

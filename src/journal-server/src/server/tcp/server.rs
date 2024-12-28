@@ -22,7 +22,6 @@ use tokio::net::TcpListener;
 use tokio::sync::{broadcast, mpsc};
 
 use crate::core::cache::CacheManager;
-use crate::core::offset::OffsetManager;
 use crate::handler::command::Command;
 use crate::segment::manager::SegmentFileManager;
 use crate::server::connection::NetworkConnectionType;
@@ -37,7 +36,6 @@ pub async fn start_tcp_server(
     client_pool: Arc<ClientPool>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
-    offset_manager: Arc<OffsetManager>,
     segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     stop_sx: broadcast::Sender<bool>,
@@ -46,7 +44,6 @@ pub async fn start_tcp_server(
     let command = Command::new(
         client_pool.clone(),
         cache_manager.clone(),
-        offset_manager,
         segment_file_manager,
         rocksdb_engine_handler,
     );
