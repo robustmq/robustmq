@@ -53,7 +53,7 @@ pub async fn register_node_by_req(
 
     sync_save_node(raft_machine_apply, &node).await?;
 
-    if !cluster_cache.cluster_list.contains_key(&cluster_name) {
+    if cluster_cache.get_cluster(&cluster_name).is_none() {
         let cluster = ClusterInfo {
             cluster_name: cluster_name.clone(),
             cluster_type: cluster_type.as_str_name().to_string(),

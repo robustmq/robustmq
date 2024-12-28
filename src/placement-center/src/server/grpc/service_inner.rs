@@ -99,11 +99,14 @@ impl PlacementCenterService for GrpcPlacementService {
     ) -> Result<Response<NodeListReply>, Status> {
         let req = request.into_inner();
         let mut nodes = Vec::new();
-        if let Some(node_list) = self.cluster_cache.node_list.get(&req.cluster_name) {
-            for raw in node_list.iter() {
-                nodes.push(raw.value().encode())
-            }
+
+        for raw in self
+            .cluster_cache
+            .get_broker_node_by_cluster(&req.cluster_name)
+        {
+            nodes.push(raw.encode())
         }
+
         return Ok(Response::new(NodeListReply { nodes }));
     }
 

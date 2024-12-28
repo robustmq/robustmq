@@ -77,7 +77,7 @@ impl MqttController {
     }
 
     pub async fn check_start_thread(&self) {
-        for (cluster_name, _) in self.placement_center_cache.cluster_list.clone() {
+        for cluster_name in self.placement_center_cache.get_all_cluster_name() {
             if self.thread_running_info.contains_key(&cluster_name) {
                 sleep(Duration::from_secs(5)).await;
                 continue;

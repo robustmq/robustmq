@@ -110,7 +110,7 @@ impl MqttCacheManager {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         placement_cache: Arc<PlacementCacheManager>,
     ) {
-        for (_, cluster) in placement_cache.cluster_list.clone() {
+        for cluster in placement_cache.get_all_cluster() {
             if cluster.cluster_type == *ClusterType::MqttBrokerServer.as_str_name() {
                 let topic = MqttTopicStorage::new(rocksdb_engine_handler.clone());
                 match topic.list(&cluster.cluster_name) {
