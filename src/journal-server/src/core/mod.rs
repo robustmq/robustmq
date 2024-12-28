@@ -18,8 +18,6 @@ pub mod cluster_config;
 pub mod consts;
 pub mod error;
 pub mod notification;
-pub mod record;
-pub mod report;
 pub mod segment;
 pub mod segment_meta;
 pub mod segment_status;

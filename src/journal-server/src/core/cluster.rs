@@ -23,7 +23,7 @@ use grpc_clients::pool::ClientPool;
 use log::{debug, error};
 use metadata_struct::journal::node_extend::JournalNodeExtend;
 use protocol::placement_center::placement_center_inner::{
-    ClusterType, HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
+    ClusterType, HeartbeatRequest, RegisterNodeRequest, ReportMonitorRequest, UnRegisterNodeRequest,
 };
 use tokio::select;
 use tokio::sync::broadcast;
@@ -79,14 +79,14 @@ pub async fn report_heartbeat(client_pool: Arc<ClientPool>, stop_send: broadcast
                     }
                 }
             }
-            _ = report(client_pool.clone()) => {
+            _ = report_report0(client_pool.clone()) => {
 
             }
         }
     }
 }
 
-async fn report(client_pool: Arc<ClientPool>) {
+async fn report_report0(client_pool: Arc<ClientPool>) {
     let config = journal_server_conf();
     let req = HeartbeatRequest {
         cluster_name: config.cluster_name.clone(),
@@ -109,5 +109,28 @@ async fn report(client_pool: Arc<ClientPool>) {
             error!("{}", e);
         }
     }
+    sleep(Duration::from_secs(1)).await;
+}
+
+pub async fn report_monitor(client_pool: Arc<ClientPool>, stop_send: broadcast::Sender<bool>) {
+    loop {
+        let mut stop_recv = stop_send.subscribe();
+        select! {
+            val = stop_recv.recv() =>{
+                if let Ok(flag) = val {
+                    if flag {
+                        debug!("{}","Monitor reporting thread exited successfully");
+                        break;
+                    }
+                }
+            }
+            _ = report_monitor0(client_pool.clone()) => {
+
+            }
+        }
+    }
+}
+
+async fn report_monitor0(_client_pool: Arc<ClientPool>) {
     sleep(Duration::from_secs(1)).await;
 }

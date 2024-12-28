@@ -15,7 +15,9 @@
 // #![allow(dead_code, unused_variables)]
 
 use core::cache::{load_metadata_cache, CacheManager};
-use core::cluster::{register_journal_node, report_heartbeat, unregister_journal_node};
+use core::cluster::{
+    register_journal_node, report_heartbeat, report_monitor, unregister_journal_node,
+};
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -157,6 +159,11 @@ impl JournalServer {
         let stop_sx = self.stop_send.clone();
         self.daemon_runtime
             .spawn(async move { report_heartbeat(client_pool, stop_sx).await });
+
+        let client_pool = self.client_pool.clone();
+        let stop_sx = self.stop_send.clone();
+        self.daemon_runtime
+            .spawn(async move { report_monitor(client_pool, stop_sx).await });
 
         let segment_scroll = SegmentScrollManager::new(
             self.cache_manager.clone(),
