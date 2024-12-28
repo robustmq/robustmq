@@ -43,12 +43,9 @@ impl ShareSubLeader {
         cluster_name: &str,
         group_name: &String,
     ) -> Result<u64, CommonError> {
-        let mut broker_ids = Vec::new();
-        if let Some(cluster) = self.cluster_cache.node_list.get(cluster_name) {
-            for (id, _) in cluster.clone() {
-                broker_ids.push(id);
-            }
-        }
+        let mut broker_ids = self
+            .cluster_cache
+            .get_broker_node_id_by_cluster(cluster_name);
 
         broker_ids.sort();
 

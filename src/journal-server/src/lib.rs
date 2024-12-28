@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(dead_code, unused_variables)]
+// #![allow(dead_code, unused_variables)]
 
 use core::cache::{load_metadata_cache, CacheManager};
-use core::cluster::{register_journal_node, report_heartbeat, unregister_journal_node};
-use core::offset::OffsetManager;
+use core::cluster::{
+    register_journal_node, report_heartbeat, report_monitor, unregister_journal_node,
+};
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -55,7 +56,6 @@ pub struct JournalServer {
     client_pool: Arc<ClientPool>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
-    offset_manager: Arc<OffsetManager>,
     segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
@@ -80,11 +80,6 @@ impl JournalServer {
 
         let segment_file_manager =
             Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
-        let offset_manager = Arc::new(OffsetManager::new(
-            client_pool.clone(),
-            cache_manager.clone(),
-            segment_file_manager.clone(),
-        ));
 
         JournalServer {
             config,
@@ -94,7 +89,6 @@ impl JournalServer {
             client_pool,
             connection_manager,
             cache_manager,
-            offset_manager,
             segment_file_manager,
             rocksdb_engine_handler,
         }
@@ -117,7 +111,6 @@ impl JournalServer {
     fn start_grpc_server(&self) {
         let server = GrpcServer::new(
             self.config.network.grpc_port,
-            self.client_pool.clone(),
             self.cache_manager.clone(),
             self.segment_file_manager.clone(),
             self.rocksdb_engine_handler.clone(),
@@ -137,7 +130,6 @@ impl JournalServer {
         let connection_manager = self.connection_manager.clone();
         let cache_manager = self.cache_manager.clone();
         let stop_sx = self.stop_send.clone();
-        let offset_manager = self.offset_manager.clone();
         let segment_file_manager = self.segment_file_manager.clone();
         let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
         self.server_runtime.spawn(async {
@@ -145,7 +137,6 @@ impl JournalServer {
                 client_pool,
                 connection_manager,
                 cache_manager,
-                offset_manager,
                 segment_file_manager,
                 rocksdb_engine_handler,
                 stop_sx,
@@ -168,6 +159,11 @@ impl JournalServer {
         let stop_sx = self.stop_send.clone();
         self.daemon_runtime
             .spawn(async move { report_heartbeat(client_pool, stop_sx).await });
+
+        let client_pool = self.client_pool.clone();
+        let stop_sx = self.stop_send.clone();
+        self.daemon_runtime
+            .spawn(async move { report_monitor(client_pool, stop_sx).await });
 
         let segment_scroll = SegmentScrollManager::new(
             self.cache_manager.clone(),

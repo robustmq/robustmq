@@ -18,15 +18,14 @@ use common_base::config::journal_server::journal_server_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::shard::shard_name_iden;
 use protocol::journal_server::journal_engine::{
-    AutoOffsetStrategy, FetchOffsetReq, FetchOffsetRespBody, FetchOffsetShard,
-    FetchOffsetShardMeta, JournalEngineError, ReadReq, ReadRespSegmentMessage, WriteReq,
-    WriteRespMessage,
+    FetchOffsetReq, FetchOffsetRespBody, FetchOffsetShardMeta, JournalEngineError, ReadReq,
+    ReadRespSegmentMessage, WriteReq, WriteRespMessage,
 };
 use rocksdb_engine::RocksDBEngine;
 
 use crate::core::cache::CacheManager;
 use crate::core::error::{get_journal_server_code, JournalServerError};
-use crate::core::offset::OffsetManager;
+use crate::core::shard::try_auto_create_shard;
 use crate::index::time::TimestampIndexManager;
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::read::read_data_req;
@@ -36,7 +35,6 @@ use crate::segment::SegmentIdentity;
 #[derive(Clone)]
 pub struct DataHandler {
     cache_manager: Arc<CacheManager>,
-    offset_manager: Arc<OffsetManager>,
     segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_pool: Arc<ClientPool>,
@@ -45,14 +43,12 @@ pub struct DataHandler {
 impl DataHandler {
     pub fn new(
         cache_manager: Arc<CacheManager>,
-        offset_manager: Arc<OffsetManager>,
         segment_file_manager: Arc<SegmentFileManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         client_pool: Arc<ClientPool>,
     ) -> DataHandler {
         DataHandler {
             cache_manager,
-            offset_manager,
             segment_file_manager,
             rocksdb_engine_handler,
             client_pool,
@@ -69,6 +65,14 @@ impl DataHandler {
 
         let req_body = request.body.unwrap();
         for message in req_body.data.iter() {
+            try_auto_create_shard(
+                &self.cache_manager,
+                &self.client_pool,
+                &message.namespace,
+                &message.shard_name,
+            )
+            .await?;
+
             let segment_identity = SegmentIdentity {
                 namespace: message.namespace.to_string(),
                 shard_name: message.shard_name.to_string(),
@@ -97,8 +101,15 @@ impl DataHandler {
         }
 
         let req_body = request.body.unwrap();
-        let conf = journal_server_conf();
         for row in req_body.messages.clone() {
+            try_auto_create_shard(
+                &self.cache_manager,
+                &self.client_pool,
+                &row.namespace,
+                &row.shard_name,
+            )
+            .await?;
+
             let segment_identity = SegmentIdentity {
                 namespace: row.namespace.to_string(),
                 shard_name: row.shard_name.to_string(),
@@ -132,6 +143,13 @@ impl DataHandler {
         let mut meta_list: Vec<FetchOffsetShardMeta> = Vec::new();
 
         for shard in req_body.shards {
+            try_auto_create_shard(
+                &self.cache_manager,
+                &self.client_pool,
+                &shard.namespace,
+                &shard.shard_name,
+            )
+            .await?;
             let segment_iden = SegmentIdentity {
                 namespace: shard.namespace.clone(),
                 shard_name: shard.shard_name.clone(),
@@ -252,36 +270,6 @@ impl DataHandler {
         Ok(FetchOffsetRespBody {
             shard_offsets: meta_list,
         })
-    }
-
-    async fn get_offset_by_timestamp(
-        &self,
-        shard: &FetchOffsetShard,
-        strategy: AutoOffsetStrategy,
-    ) -> Result<u64, JournalServerError> {
-        let conf = journal_server_conf();
-        let segment_iden = SegmentIdentity {
-            namespace: shard.namespace.to_owned(),
-            shard_name: shard.shard_name.to_owned(),
-            segment_seq: shard.segment_no,
-        };
-        let timestamp_index = TimestampIndexManager::new(self.rocksdb_engine_handler.clone());
-        let offset = if let Some(index_data) = timestamp_index
-            .get_last_nearest_position_by_timestamp(&segment_iden, shard.timestamp)
-            .await?
-        {
-            index_data.offset
-        } else {
-            self.offset_manager
-                .get_offset_by_strategy(
-                    &conf.cluster_name,
-                    &shard.namespace,
-                    &shard.shard_name,
-                    strategy,
-                )
-                .await?
-        };
-        Ok(offset)
     }
 
     fn validator(&self, segment_identity: &SegmentIdentity) -> Result<(), JournalServerError> {

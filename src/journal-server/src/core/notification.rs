@@ -22,16 +22,13 @@ use metadata_struct::placement::node::BrokerNode;
 use protocol::journal_server::journal_inner::{
     JournalUpdateCacheActionType, JournalUpdateCacheResourceType,
 };
-use rocksdb_engine::RocksDBEngine;
 
 use super::cache::CacheManager;
-use crate::segment::manager::{try_create_local_segment, SegmentFileManager};
-use crate::segment::SegmentIdentity;
+use crate::segment::manager::{create_local_segment, SegmentFileManager};
 
 pub async fn parse_notification(
     cache_manager: &Arc<CacheManager>,
     segment_file_manager: &Arc<SegmentFileManager>,
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     action_type: JournalUpdateCacheActionType,
     resource_type: JournalUpdateCacheResourceType,
     data: &str,
@@ -40,24 +37,10 @@ pub async fn parse_notification(
         JournalUpdateCacheResourceType::JournalNode => parse_node(cache_manager, action_type, data),
         JournalUpdateCacheResourceType::Shard => parse_shard(cache_manager, action_type, data),
         JournalUpdateCacheResourceType::Segment => {
-            parse_segment(
-                cache_manager,
-                segment_file_manager,
-                rocksdb_engine_handler,
-                action_type,
-                data,
-            )
-            .await
+            parse_segment(cache_manager, segment_file_manager, action_type, data).await
         }
         JournalUpdateCacheResourceType::SegmentMeta => {
-            parse_segment_meta(
-                cache_manager,
-                segment_file_manager,
-                rocksdb_engine_handler,
-                action_type,
-                data,
-            )
-            .await
+            parse_segment_meta(cache_manager, action_type, data).await
         }
     }
 }
@@ -130,7 +113,6 @@ fn parse_shard(
 async fn parse_segment(
     cache_manager: &Arc<CacheManager>,
     segment_file_manager: &Arc<SegmentFileManager>,
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     action_type: JournalUpdateCacheActionType,
     data: &str,
 ) {
@@ -142,19 +124,10 @@ async fn parse_segment(
                     segment.name()
                 );
 
-                match try_create_local_segment(
-                    segment_file_manager,
-                    rocksdb_engine_handler,
-                    &segment,
-                )
-                .await
+                if let Err(e) =
+                    create_local_segment(cache_manager, segment_file_manager, &segment).await
                 {
-                    Ok(()) => {
-                        cache_manager.set_segment(segment);
-                    }
-                    Err(e) => {
-                        error!("Error creating local Segment file, error message: {}", e);
-                    }
+                    error!("Error creating local Segment file, error message: {}", e);
                 }
             }
             Err(e) => {
@@ -175,25 +148,19 @@ async fn parse_segment(
 
 async fn parse_segment_meta(
     cache_manager: &Arc<CacheManager>,
-    segment_file_manager: &Arc<SegmentFileManager>,
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     action_type: JournalUpdateCacheActionType,
     data: &str,
 ) {
     match action_type {
         JournalUpdateCacheActionType::Set => {
             match serde_json::from_str::<JournalSegmentMetadata>(data) {
-                Ok(segment) => {
+                Ok(segment_meta) => {
                     info!(
                         "Update the cache, set segment meta, segment name:{}",
-                        segment.name()
+                        segment_meta.name()
                     );
-                    let segment_iden = SegmentIdentity {
-                        namespace: segment.namespace.clone(),
-                        shard_name: segment.shard_name.clone(),
-                        segment_seq: segment.segment_seq,
-                    };
-                    cache_manager.set_segment_meta(segment);
+
+                    cache_manager.set_segment_meta(segment_meta);
                 }
                 Err(e) => {
                     error!(

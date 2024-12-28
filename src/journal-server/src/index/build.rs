@@ -15,7 +15,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use common_base::tools::now_second;
 use log::{debug, error, warn};
 use metadata_struct::journal::segment::SegmentStatus;
 use rocksdb_engine::engine::{
@@ -41,7 +40,6 @@ use crate::segment::SegmentIdentity;
 
 #[derive(Clone)]
 pub struct IndexBuildThreadData {
-    pub last_build_time: u64,
     pub stop_send: broadcast::Sender<bool>,
 }
 
@@ -99,7 +97,6 @@ pub async fn try_trigger_build_index(
 
     let index_thread_data = IndexBuildThreadData {
         stop_send: stop_sender.clone(),
-        last_build_time: now_second(),
     };
     cache_manager.add_build_index_thread(segment_iden, index_thread_data);
     Ok(())

@@ -123,11 +123,7 @@ impl EngineService for GrpcEngineService {
     ) -> Result<Response<CreateShardReply>, Status> {
         let req = request.into_inner();
 
-        if !self
-            .cluster_cache
-            .cluster_list
-            .contains_key(&req.cluster_name)
-        {
+        if self.cluster_cache.get_cluster(&req.cluster_name).is_none() {
             return Err(Status::cancelled(
                 PlacementCenterError::ClusterDoesNotExist(req.cluster_name).to_string(),
             ));
@@ -158,11 +154,7 @@ impl EngineService for GrpcEngineService {
     ) -> Result<Response<DeleteShardReply>, Status> {
         let req = request.into_inner();
 
-        if !self
-            .cluster_cache
-            .cluster_list
-            .contains_key(&req.cluster_name)
-        {
+        if self.cluster_cache.get_cluster(&req.cluster_name).is_none() {
             return Err(Status::cancelled(
                 PlacementCenterError::ClusterDoesNotExist(req.cluster_name).to_string(),
             ));
@@ -250,11 +242,7 @@ impl EngineService for GrpcEngineService {
     ) -> Result<Response<CreateNextSegmentReply>, Status> {
         let req = request.into_inner();
 
-        if !self
-            .cluster_cache
-            .cluster_list
-            .contains_key(&req.cluster_name)
-        {
+        if self.cluster_cache.get_cluster(&req.cluster_name).is_none() {
             return Err(Status::cancelled(
                 PlacementCenterError::ClusterDoesNotExist(req.cluster_name).to_string(),
             ));
@@ -286,11 +274,7 @@ impl EngineService for GrpcEngineService {
     ) -> Result<Response<DeleteSegmentReply>, Status> {
         let req = request.into_inner();
 
-        if !self
-            .cluster_cache
-            .cluster_list
-            .contains_key(&req.cluster_name)
-        {
+        if self.cluster_cache.get_cluster(&req.cluster_name).is_none() {
             return Err(Status::cancelled(
                 PlacementCenterError::ClusterDoesNotExist(req.cluster_name).to_string(),
             ));

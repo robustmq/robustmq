@@ -31,7 +31,6 @@ use super::data::DataHandler;
 use super::shard::ShardHandler;
 use crate::core::cache::CacheManager;
 use crate::core::error::get_journal_server_code;
-use crate::core::offset::OffsetManager;
 use crate::segment::manager::SegmentFileManager;
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
@@ -47,7 +46,6 @@ impl Command {
     pub fn new(
         client_pool: Arc<ClientPool>,
         cache_manager: Arc<CacheManager>,
-        offset_manager: Arc<OffsetManager>,
         segment_file_manager: Arc<SegmentFileManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
@@ -55,7 +53,6 @@ impl Command {
         let shard_handler = ShardHandler::new(cache_manager.clone(), client_pool.clone());
         let data_handler = DataHandler::new(
             cache_manager,
-            offset_manager,
             segment_file_manager,
             rocksdb_engine_handler,
             client_pool,
@@ -69,15 +66,15 @@ impl Command {
 
     pub async fn apply(
         &self,
-        connect_manager: Arc<ConnectionManager>,
-        tcp_connection: NetworkConnection,
-        addr: SocketAddr,
+        _connect_manager: Arc<ConnectionManager>,
+        _tcp_connection: NetworkConnection,
+        _addr: SocketAddr,
         packet: JournalEnginePacket,
     ) -> Option<JournalEnginePacket> {
         info!("recv packet: {:?}", packet);
         match packet {
             /* Cluster Handler */
-            JournalEnginePacket::GetClusterMetadataReq(request) => {
+            JournalEnginePacket::GetClusterMetadataReq(_) => {
                 let mut header = RespHeader {
                     api_key: ApiKey::GetClusterMetadata.into(),
                     api_version: ApiVersion::V0.into(),
@@ -132,7 +129,7 @@ impl Command {
                     ..Default::default()
                 };
                 match self.shard_handler.delete_shard(request).await {
-                    Ok(replicas) => {
+                    Ok(()) => {
                         resp.body = Some(DeleteShardRespBody {});
                     }
                     Err(e) => {

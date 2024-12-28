@@ -125,8 +125,6 @@ impl SegmentScrollManager {
                         if let Err(e) = pre_sealup_segment(
                             &self.cache_manager,
                             &self.client_pool,
-                            conf.cluster_name.clone(),
-                            conf.placement_center.clone(),
                             &segment_iden,
                         )
                         .await
@@ -175,7 +173,9 @@ async fn update_end_and_start_offset(
     update_meta_end_offset(client_pool.clone(), segment_iden, end_offset).await?;
 
     // update next segment start offset
-    let next_segment_no = segment_iden.segment_seq + 1;
+    let mut new_segment_iden = segment_iden.clone();
+    new_segment_iden.segment_seq = segment_iden.segment_seq + 1;
+
     update_meta_start_offset(client_pool.clone(), segment_iden, end_offset + 1).await?;
     Ok(())
 }

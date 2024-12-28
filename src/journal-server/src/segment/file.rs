@@ -208,7 +208,7 @@ impl SegmentFile {
             reader.seek(std::io::SeekFrom::Start(position)).await?;
 
             // read offset
-            let record_offset = match reader.read_u64().await {
+            let _ = match reader.read_u64().await {
                 Ok(offset) => offset,
                 Err(e) => {
                     if e.kind() == ErrorKind::UnexpectedEof {
@@ -229,7 +229,6 @@ impl SegmentFile {
             let mut buf = BytesMut::with_capacity(len as usize);
             reader.read_buf(&mut buf).await?;
 
-            let buf_len = buf.len();
             let record = JournalRecord::decode(buf)?;
 
             results.push(ReadData { position, record });

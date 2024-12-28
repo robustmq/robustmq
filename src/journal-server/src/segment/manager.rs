@@ -24,6 +24,7 @@ use rocksdb_engine::RocksDBEngine;
 
 use super::file::SegmentFile;
 use super::SegmentIdentity;
+use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
 use crate::index::engine::storage_data_fold;
 use crate::index::offset::OffsetIndexManager;
@@ -214,9 +215,9 @@ pub fn metadata_and_local_segment_diff_check() {
     //todo
 }
 
-pub async fn try_create_local_segment(
+pub async fn create_local_segment(
+    cache_manager: &Arc<CacheManager>,
     segment_file_manager: &Arc<SegmentFileManager>,
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment: &JournalSegment,
 ) -> Result<(), JournalServerError> {
     let segment_iden = SegmentIdentity {
@@ -224,6 +225,10 @@ pub async fn try_create_local_segment(
         shard_name: segment.shard_name.clone(),
         segment_seq: segment.segment_seq,
     };
+
+    if cache_manager.get_segment(&segment_iden).is_some() {
+        return Ok(());
+    }
 
     let conf = journal_server_conf();
     let fold = if let Some(fold) = segment.get_fold(conf.node_id) {
@@ -256,6 +261,8 @@ pub async fn try_create_local_segment(
     };
     segment_file_manager.add_segment_file(segment_metadata);
 
+    // add cache
+    cache_manager.set_segment(segment.clone());
     Ok(())
 }
 
@@ -320,8 +327,7 @@ mod tests {
 
     #[tokio::test]
     async fn try_create_local_segment_test() {
-        let (segment_iden, cache_manager, segment_file_manager, fold, _) =
-            test_init_segment().await;
+        let (segment_iden, _, segment_file_manager, fold, _) = test_init_segment().await;
 
         let res = segment_file_manager.get_segment_file(&segment_iden);
         assert!(res.is_some());

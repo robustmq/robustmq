@@ -22,9 +22,6 @@ use crate::segment::write::SegmentWriteData;
 
 #[derive(Error, Debug)]
 pub enum JournalServerError {
-    #[error("Directory {0} No rocksdb instance available")]
-    NoRocksdbInstanceAvailable(String),
-
     #[error("{0}")]
     FromUtf8Error(#[from] FromUtf8Error),
 
@@ -70,9 +67,6 @@ pub enum JournalServerError {
     #[error("segment {0} does not exist")]
     SegmentNotExist(String),
 
-    #[error("segment {0} write thread does not exist")]
-    SegmentWriteThreadNotExist(String),
-
     #[error("Connection ID {0} information not found in cache.")]
     NotFoundConnectionInCache(u64),
 
@@ -84,9 +78,6 @@ pub enum JournalServerError {
 
     #[error("Current node is not the Leader of Segment {0}")]
     NotLeader(String),
-
-    #[error("Segment file {0} already exists. We can't create Segment file again and again.")]
-    SegmentFileAlreadyExists(String),
 
     #[error("Segment file {0} does not exist, maybe it hasn't been initialized yet.")]
     SegmentFileNotExists(String),
@@ -112,9 +103,6 @@ pub enum JournalServerError {
 
 pub fn get_journal_server_code(e: &JournalServerError) -> String {
     match e {
-        JournalServerError::NoRocksdbInstanceAvailable(_) => {
-            "NoRocksdbInstanceAvailable".to_string()
-        }
         JournalServerError::CommonError(_) => "CommonError".to_string(),
         JournalServerError::BroadcastBoolSendError(_) => "BroadcastBoolSendError".to_string(),
         JournalServerError::MpscSegmentWriteDataSendError(_) => {
@@ -136,7 +124,6 @@ pub fn get_journal_server_code(e: &JournalServerError) -> String {
         JournalServerError::NotFoundConnectionInCache(_) => "NotFoundConnectionInCache".to_string(),
         JournalServerError::SegmentStatusError(_, _) => "SegmentStatusError".to_string(),
         JournalServerError::NotLeader(_) => "NotLeader".to_string(),
-        JournalServerError::SegmentFileAlreadyExists(_) => "SegmentFileAlreadyExists".to_string(),
         JournalServerError::SegmentFileNotExists(_) => "SegmentFileNotExists".to_string(),
         JournalServerError::SegmentDataDirectoryNotFound(_, _) => {
             "SegmentDataDirectoryNotFound".to_string()
@@ -151,9 +138,6 @@ pub fn get_journal_server_code(e: &JournalServerError) -> String {
         }
         JournalServerError::NotAvailableOffsetByTimestamp(_, _) => {
             "NotAvailableOffsetByTimestamp".to_string()
-        }
-        JournalServerError::SegmentWriteThreadNotExist(_) => {
-            "SegmentWriteThreadNotExist".to_string()
         }
     }
 }
