@@ -17,6 +17,7 @@ use std::sync::Arc;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::serialize_value;
 use common_base::utils::file_utils::get_project_root;
+use common_base::utils::time_util::get_current_millisecond_timestamp;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
@@ -41,6 +42,7 @@ use crate::observability::slow::sub::{read_slow_sub_record, SlowSubData};
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::cluster::ClusterStorage;
+use crate::storage::topic::TopicStorage;
 
 pub struct GrpcAdminServices {
     client_pool: Arc<ClientPool>,
@@ -384,10 +386,9 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         request: Request<DeleteTopicRewriteRuleRequest>,
     ) -> Result<Response<DeleteTopicRewriteRuleReply>, Status> {
         let req = request.into_inner();
-        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
-        let config = broker_mqtt_conf();
-        match auth_driver
-            .delete_topic_rewrite_rule(&config.cluster_name, &req.action, &req.source_topic)
+        let topic_storage = TopicStorage::new(self.client_pool.clone());
+        match topic_storage
+            .delete_topic_rewrite_rule(req.action, req.source_topic)
             .await
         {
             Ok(_) => Ok(Response::new(DeleteTopicRewriteRuleReply::default())),
@@ -400,16 +401,17 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         request: Request<CreateTopicRewriteRuleRequest>,
     ) -> Result<Response<CreateTopicRewriteRuleReply>, Status> {
         let req = request.into_inner();
-        let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
         let config = broker_mqtt_conf();
         let topic_rewrite_rule = MqttTopicRewriteRule {
             cluster: config.cluster_name.clone(),
             action: req.action.clone(),
             source_topic: req.source_topic.clone(),
             dest_topic: req.dest_topic.clone(),
-            re: req.re.clone(),
+            regex: req.regex.clone(),
+            timestamp: get_current_millisecond_timestamp(),
         };
-        match auth_driver
+        let topic_storage = TopicStorage::new(self.client_pool.clone());
+        match topic_storage
             .create_topic_rewrite_rule(topic_rewrite_rule)
             .await
         {

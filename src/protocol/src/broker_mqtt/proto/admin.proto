@@ -226,8 +226,8 @@ message CreateTopicRewriteRuleRequest{
     //The dest topic of the rewrite rule.
     string dest_topic = 3;
 
-    //The re of the rewrite rule.
-    string re = 4;
+    //The regex of the rewrite rule.
+    string regex = 4;
 }
 
 message CreateTopicRewriteRuleReply{

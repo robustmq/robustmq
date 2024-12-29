@@ -38,7 +38,7 @@ mod tests {
             action: action.clone(),
             source_topic: source_topic.clone(),
             dest_topic: dest_topic.clone(),
-            re: re.clone(),
+            regex: re.clone(),
         };
 
         mqtt_broker_create_topic_rewrite_rule(&client_pool, &addrs, req)

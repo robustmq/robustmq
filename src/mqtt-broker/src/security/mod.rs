@@ -28,7 +28,6 @@ use login::Authentication;
 use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclAction, MqttAclResourceType};
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::connection::MQTTConnection;
-use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use mysql::MySQLAuthStorageAdapter;
 use placement::PlacementAuthStorageAdapter;
@@ -66,15 +65,6 @@ pub trait AuthStorageAdapter {
     async fn save_blacklist(&self, blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError>;
 
     async fn delete_blacklist(&self, blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError>;
-    async fn create_topic_rewrite_rule(
-        &self,
-        topic_rewrite_rule: MqttTopicRewriteRule,
-    ) -> Result<(), MqttBrokerError>;
-    async fn delete_topic_rewrite_rule(
-        &self,
-        action: String,
-        source_topic: String,
-    ) -> Result<(), MqttBrokerError>;
 }
 
 pub struct AuthDriver {
@@ -300,40 +290,6 @@ impl AuthDriver {
         }
 
         Ok(false)
-    }
-
-    pub async fn create_topic_rewrite_rule(
-        &self,
-        topic_rewrite_rule: MqttTopicRewriteRule,
-    ) -> Result<(), MqttBrokerError> {
-        {
-            let rules = self.cache_manager.topic_rewrite_rule.lock().unwrap();
-            if rules.iter().any(|rule| {
-                rule.cluster == topic_rewrite_rule.cluster
-                    && rule.action == topic_rewrite_rule.action
-                    && rule.source_topic == topic_rewrite_rule.source_topic
-            }) {
-                return Err(MqttBrokerError::TopicRewriteRuleAlreadyExist);
-            }
-        }
-        self.cache_manager
-            .add_topic_rewrite_rule(topic_rewrite_rule.clone());
-        self.driver
-            .create_topic_rewrite_rule(topic_rewrite_rule)
-            .await
-    }
-
-    pub async fn delete_topic_rewrite_rule(
-        &self,
-        cluster: &str,
-        action: &str,
-        source_topic: &str,
-    ) -> Result<(), MqttBrokerError> {
-        self.cache_manager
-            .delete_topic_rewrite_rule(cluster, action, source_topic);
-        self.driver
-            .delete_topic_rewrite_rule(action.parse().unwrap(), source_topic.parse().unwrap())
-            .await
     }
 }
 

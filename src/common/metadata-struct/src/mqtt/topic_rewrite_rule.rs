@@ -20,7 +20,8 @@ pub struct MqttTopicRewriteRule {
     pub action: String,
     pub source_topic: String,
     pub dest_topic: String,
-    pub re: String,
+    pub regex: String,
+    pub timestamp: u128,
 }
 
 impl MqttTopicRewriteRule {

@@ -14,6 +14,7 @@
 
 use std::sync::Arc;
 
+use common_base::utils::time_util::get_current_millisecond_timestamp;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
@@ -147,7 +148,8 @@ impl DataRouteMqtt {
             action: req.action.clone(),
             source_topic: req.source_topic.clone(),
             dest_topic: req.dest_topic.clone(),
-            re: req.re.clone(),
+            regex: req.regex.clone(),
+            timestamp: get_current_millisecond_timestamp(),
         };
         storage.save_topic_rewrite_rule(
             &req.cluster_name,

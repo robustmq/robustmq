@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
@@ -144,7 +144,7 @@ pub struct CacheManager {
     pub acl_metadata: AclMetadata,
 
     // All topic rewrite rule
-    pub topic_rewrite_rule: Arc<Mutex<Vec<MqttTopicRewriteRule>>>,
+    pub topic_rewrite_rule: DashMap<String, MqttTopicRewriteRule>,
 }
 
 impl CacheManager {
@@ -165,7 +165,7 @@ impl CacheManager {
             qos_ack_packet: DashMap::with_capacity(8),
             client_pkid_data: DashMap::with_capacity(8),
             acl_metadata: AclMetadata::new(),
-            topic_rewrite_rule: Arc::new(Mutex::new(Vec::with_capacity(8))),
+            topic_rewrite_rule: DashMap::with_capacity(8),
         }
     }
 
@@ -293,15 +293,17 @@ impl CacheManager {
     }
 
     pub fn add_topic_rewrite_rule(&self, topic_rewrite_rule: MqttTopicRewriteRule) {
-        let mut rules = self.topic_rewrite_rule.lock().unwrap();
-        rules.push(topic_rewrite_rule);
+        let key = self.topic_rewrite_rule_key(
+            &self.cluster_name,
+            &topic_rewrite_rule.action,
+            &topic_rewrite_rule.source_topic,
+        );
+        self.topic_rewrite_rule.insert(key, topic_rewrite_rule);
     }
 
     pub fn delete_topic_rewrite_rule(&self, cluster: &str, action: &str, source_topic: &str) {
-        let mut rules = self.topic_rewrite_rule.lock().unwrap();
-        rules.retain(|rule| {
-            rule.cluster != cluster || rule.action != action || rule.source_topic != source_topic
-        });
+        let key = self.topic_rewrite_rule_key(cluster, action, source_topic);
+        self.topic_rewrite_rule.remove(&key).unwrap();
     }
 
     pub fn update_topic_retain_message(&self, topic_name: &str, retain_message: Option<Vec<u8>>) {

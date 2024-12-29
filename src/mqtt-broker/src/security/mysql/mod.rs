@@ -18,7 +18,6 @@ use metadata_struct::acl::mqtt_acl::{
     MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
 };
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
-use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use mysql::prelude::Queryable;
 use mysql::Pool;
@@ -231,26 +230,10 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
     async fn delete_blacklist(&self, _blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError> {
         return Ok(());
     }
-
-    async fn create_topic_rewrite_rule(
-        &self,
-        _topic_rewrite_rule: MqttTopicRewriteRule,
-    ) -> Result<(), MqttBrokerError> {
-        Ok(())
-    }
-
-    async fn delete_topic_rewrite_rule(
-        &self,
-        _action: String,
-        _source_topic: String,
-    ) -> Result<(), MqttBrokerError> {
-        Ok(())
-    }
 }
 
 #[cfg(test)]
 mod tests {
-
     use mysql::params;
     use mysql::prelude::Queryable;
     use third_driver::mysql::build_mysql_conn_pool;

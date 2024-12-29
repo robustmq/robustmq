@@ -15,10 +15,9 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use common_base::enum_type::topic_rewrite_action_enum::TopicRewriteActionEnum;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
-use log::{error, info, warn};
+use log::{error, warn};
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
@@ -51,7 +50,8 @@ use crate::handler::response::{
 };
 use crate::handler::retain::save_retain_message;
 use crate::handler::session::{build_session, save_session};
-use crate::handler::topic::{gen_rewrite_topic, get_topic_name, try_init_topic};
+use crate::handler::topic::{get_topic_name, try_init_topic};
+use crate::handler::topic_rewrite::{process_sub_topic_rewrite, process_unsub_topic_rewrite};
 use crate::handler::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
 };
@@ -62,7 +62,7 @@ use crate::observability::system_topic::event::{
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
-use crate::subscribe::sub_common::{min_qos, path_contain_sub, path_regex_match};
+use crate::subscribe::sub_common::{min_qos, path_contain_sub};
 use crate::subscribe::subscribe_manager::SubscribeManager;
 
 #[derive(Clone)]
@@ -718,32 +718,7 @@ where
                 Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
-        {
-            let rules = &self.cache_manager.topic_rewrite_rule.lock().unwrap();
-            for filter in subscribe.filters.iter_mut() {
-                for topic_rewrite_rule in rules.iter().rev() {
-                    if topic_rewrite_rule.action != TopicRewriteActionEnum::All.to_string()
-                        && topic_rewrite_rule.action
-                            != TopicRewriteActionEnum::Subscribe.to_string()
-                    {
-                        continue;
-                    }
-                    if path_regex_match(
-                        filter.path.clone(),
-                        topic_rewrite_rule.source_topic.clone(),
-                    ) {
-                        if let Some(val) = gen_rewrite_topic(
-                            &filter.path,
-                            &topic_rewrite_rule.re,
-                            &topic_rewrite_rule.dest_topic,
-                        ) {
-                            info!("path replace {} {}", filter.path.clone(), val);
-                            filter.path = val;
-                        }
-                    }
-                }
-            }
-        }
+        process_sub_topic_rewrite(&mut subscribe, &self.cache_manager.topic_rewrite_rule).unwrap();
 
         let client_id = connection.client_id.clone();
 
@@ -892,29 +867,8 @@ where
                 Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
-        {
-            let rules = &self.cache_manager.topic_rewrite_rule.lock().unwrap();
-            for filter in un_subscribe.filters.iter_mut() {
-                for topic_rewrite_rule in rules.iter().rev() {
-                    if topic_rewrite_rule.action != TopicRewriteActionEnum::All.to_string()
-                        && topic_rewrite_rule.action
-                            != TopicRewriteActionEnum::Subscribe.to_string()
-                    {
-                        continue;
-                    }
-                    if path_regex_match(filter.to_string(), topic_rewrite_rule.source_topic.clone())
-                    {
-                        if let Some(val) = gen_rewrite_topic(
-                            filter,
-                            &topic_rewrite_rule.re,
-                            &topic_rewrite_rule.dest_topic,
-                        ) {
-                            *filter = val;
-                        }
-                    }
-                }
-            }
-        }
+        process_unsub_topic_rewrite(&mut un_subscribe, &self.cache_manager.topic_rewrite_rule)
+            .unwrap();
 
         if let Some(packet) = un_subscribe_validator(
             &connection.client_id,

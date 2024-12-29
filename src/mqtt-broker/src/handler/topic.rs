@@ -16,7 +16,6 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::enum_type::topic_rewrite_action_enum::TopicRewriteActionEnum;
 use common_base::tools::unique_id;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MqttTopic;
@@ -26,10 +25,11 @@ use storage_adapter::storage::{ShardConfig, StorageAdapter};
 
 use super::error::MqttBrokerError;
 use crate::handler::cache::CacheManager;
+use crate::handler::topic_rewrite::process_publish_topic_rewrite;
 use crate::storage::message::cluster_name;
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::sub_common::{
-    decode_queue_info, decode_share_info, is_queue_sub, is_share_sub, path_regex_match,
+    decode_queue_info, decode_share_info, is_queue_sub, is_share_sub,
 };
 
 pub fn is_system_topic(_: String) -> bool {
@@ -109,25 +109,11 @@ pub fn get_topic_name(
     };
     topic_name_validator(&topic_name)?;
     // topic rewrite
-    let rules = metadata_cache.topic_rewrite_rule.lock().unwrap();
-    for topic_rewrite_rule in rules.iter().rev() {
-        if topic_rewrite_rule.action != TopicRewriteActionEnum::All.to_string()
-            && topic_rewrite_rule.action != TopicRewriteActionEnum::Publish.to_string()
-        {
-            continue;
-        }
-        if path_regex_match(topic_name.clone(), topic_rewrite_rule.source_topic.clone()) {
-            let rewrite_topic = gen_rewrite_topic(
-                &topic_name,
-                &topic_rewrite_rule.re,
-                &topic_rewrite_rule.dest_topic,
-            );
-
-            return match rewrite_topic {
-                Some(rewrite_topic) => Ok(rewrite_topic),
-                None => Ok(topic_name),
-            };
-        }
+    let rewrite_topic_name =
+        process_publish_topic_rewrite(topic_name.clone(), &metadata_cache.topic_rewrite_rule)?;
+    if !rewrite_topic_name.is_empty() {
+        topic_name_validator(rewrite_topic_name.as_str())?;
+        return Ok(rewrite_topic_name);
     }
     Ok(topic_name)
 }

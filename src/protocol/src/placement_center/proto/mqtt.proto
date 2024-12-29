@@ -564,8 +564,8 @@ message CreateTopicRewriteRuleRequest{
   //The dest topic of the rewrite rule.
   string dest_topic = 4;
 
-  //The re of the rewrite rule.
-  string re = 5;
+  //The regex of the rewrite rule.
+  string regex = 5;
 }
 
 message CreateTopicRewriteRuleReply{

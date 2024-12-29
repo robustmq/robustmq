@@ -19,14 +19,12 @@ use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
-use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 
 use super::AuthStorageAdapter;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::acl::AclStorage;
 use crate::storage::blacklist::BlackListStorage;
-use crate::storage::topic::TopicStorage;
 use crate::storage::user::UserStorage;
 
 pub struct PlacementAuthStorageAdapter {
@@ -89,26 +87,5 @@ impl AuthStorageAdapter for PlacementAuthStorageAdapter {
     async fn delete_blacklist(&self, blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError> {
         let blacklist_storage = BlackListStorage::new(self.client_pool.clone());
         blacklist_storage.delete_blacklist(blacklist).await
-    }
-
-    async fn create_topic_rewrite_rule(
-        &self,
-        topic_rewrite_rule: MqttTopicRewriteRule,
-    ) -> Result<(), MqttBrokerError> {
-        let topic_storage = TopicStorage::new(self.client_pool.clone());
-        topic_storage
-            .create_topic_rewrite_rule(topic_rewrite_rule)
-            .await
-    }
-
-    async fn delete_topic_rewrite_rule(
-        &self,
-        action: String,
-        source_topic: String,
-    ) -> Result<(), MqttBrokerError> {
-        let topic_storage = TopicStorage::new(self.client_pool.clone());
-        topic_storage
-            .delete_topic_rewrite_rule(action, source_topic)
-            .await
     }
 }
