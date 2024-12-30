@@ -388,10 +388,19 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         let req = request.into_inner();
         let topic_storage = TopicStorage::new(self.client_pool.clone());
         match topic_storage
-            .delete_topic_rewrite_rule(req.action, req.source_topic)
+            .delete_topic_rewrite_rule(req.action.clone(), req.source_topic.clone())
             .await
         {
-            Ok(_) => Ok(Response::new(DeleteTopicRewriteRuleReply::default())),
+            Ok(_) => {
+                let config = broker_mqtt_conf();
+                let key = self.cache_manager.topic_rewrite_rule_key(
+                    &config.cluster_name,
+                    &req.action,
+                    &req.source_topic,
+                );
+                self.cache_manager.topic_rewrite_rule.remove(&key);
+                Ok(Response::new(DeleteTopicRewriteRuleReply::default()))
+            }
             Err(e) => Err(Status::cancelled(e.to_string())),
         }
     }
@@ -412,10 +421,20 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         };
         let topic_storage = TopicStorage::new(self.client_pool.clone());
         match topic_storage
-            .create_topic_rewrite_rule(topic_rewrite_rule)
+            .create_topic_rewrite_rule(topic_rewrite_rule.clone())
             .await
         {
-            Ok(_) => Ok(Response::new(CreateTopicRewriteRuleReply::default())),
+            Ok(_) => {
+                let key = self.cache_manager.topic_rewrite_rule_key(
+                    &config.cluster_name,
+                    &req.action,
+                    &req.source_topic,
+                );
+                self.cache_manager
+                    .topic_rewrite_rule
+                    .insert(key, topic_rewrite_rule);
+                Ok(Response::new(CreateTopicRewriteRuleReply::default()))
+            }
             Err(e) => Err(Status::cancelled(e.to_string())),
         }
     }

@@ -111,9 +111,9 @@ pub fn get_topic_name(
     // topic rewrite
     let rewrite_topic_name =
         process_publish_topic_rewrite(topic_name.clone(), &metadata_cache.topic_rewrite_rule)?;
-    if !rewrite_topic_name.is_empty() {
-        topic_name_validator(rewrite_topic_name.as_str())?;
-        return Ok(rewrite_topic_name);
+    if let Some(val) = rewrite_topic_name {
+        topic_name_validator(val.as_str())?;
+        return Ok(val);
     }
     Ok(topic_name)
 }

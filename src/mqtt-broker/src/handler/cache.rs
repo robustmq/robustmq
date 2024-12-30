@@ -303,7 +303,7 @@ impl CacheManager {
 
     pub fn delete_topic_rewrite_rule(&self, cluster: &str, action: &str, source_topic: &str) {
         let key = self.topic_rewrite_rule_key(cluster, action, source_topic);
-        self.topic_rewrite_rule.remove(&key).unwrap();
+        self.topic_rewrite_rule.remove(&key);
     }
 
     pub fn update_topic_retain_message(&self, topic_name: &str, retain_message: Option<Vec<u8>>) {
@@ -535,7 +535,6 @@ impl CacheManager {
                 );
             }
         };
-
         for topic_rewrite_rule in topic_rewrite_rules {
             self.add_topic_rewrite_rule(topic_rewrite_rule);
         }
