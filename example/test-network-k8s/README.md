@@ -92,3 +92,27 @@ spec:
 使用 ${BROKER_ID##*-} 提取 Pod 名称的最后一部分（即索引），作为 broker.id。
 	3.	--override 动态配置：
 Kafka 启动时通过 --override broker.id=$broker_id 动态设置每个 Broker 的 ID。
+
+
+
+
+6. aaa
+
+
+| **特性**               | **普通 Service**                                                                                      | **Headless Service**                                                                               |
+|------------------------|------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+| **Service 类型**        | ClusterIP（默认）、NodePort、LoadBalancer                                                          | ClusterIP，但指定 `None`（头无主 IP）。                                                          |
+| **Cluster IP**         | Service 自动分配一个 Cluster IP 地址。                                                              | 没有 Cluster IP（ClusterIP 设置为 `None`）。                                                     |
+| **DNS 行为**           | 为 Service 分配一个固定的 DNS 名称，解析时返回 Cluster IP。                                           | 每个 Pod 都有一个独立的 DNS 记录，DNS 解析返回 Pod 的 IP 地址（以 Pod 的 Endpoint 为单位）。      |
+| **负载均衡**           | Kubernetes 内部自动为服务后端的 Pods 提供负载均衡功能。                                              | 不提供负载均衡，客户端需要实现负载均衡（直接连接到 Pod 的 IP）。                                  |
+| **适用场景**           | - 大多数常规服务，如 Web 服务或 API 服务。                                                          | - 状态服务，如数据库、ZooKeeper、Cassandra、Kafka 等。                                           |
+| **Endpoint 显示行为** | Endpoint 对应的是 Service 的 Cluster IP。                                                            | Endpoint 直接对应的是后端 Pods 的 IP 和端口。                                                    |
+| **配置**               | `spec.clusterIP: 自动分配`（默认值）。                                                               | `spec.clusterIP: None` 明确设置 ClusterIP 为 None。                                              |
+
+1. 一些特殊的 Service
+
+
+
+kubectl exec -it placement-center-0 -n robustmq -- sh
+
+kubectl describe configmap placement-center-config  -n robustmq

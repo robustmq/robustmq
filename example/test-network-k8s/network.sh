@@ -29,9 +29,10 @@ context LOCAL_REGISTRY_PORT             5000
 context NGINX_HTTP_PORT                 80
 context NGINX_HTTPS_PORT                443
 
-context MQTT_SERVER_IMAGE_TAG           mqtt-server-test:0.1
-context JOURNAL_SERVER_IMAGE_TAG        journal-server-test:0.1
-context PLACEMENT_CENTER_IMAGE_TAG      placement-center-test:0.1
+context MQTT_SERVER_IMAGE_NAME          mqtt-server-test
+context JOURNAL_SERVER_IMAGE_NAME       journal-server-test
+context PLACEMENT_CENTER_IMAGE_NAME     placement-center-test
+context IMAGE_VERSION                   0.1
 
 context NAMESPACE                       robustmq
 context STORAGE_CLASS                   standard
@@ -39,7 +40,9 @@ context STORAGE_CLASS                   standard
 source ./scripts/util.sh
 source ./scripts/kind.sh
 source ./scripts/config.sh
-
+source ./scripts/docker.sh
+source ./scripts/cluster.sh
+source ./scripts/robustmq.sh
 function print_help() {
     echo "Usage: $0 <mode>"
     echo "Modes:"
@@ -58,6 +61,21 @@ fi
 
 if [ "${MODE}" == "kind" ]; then
   log "Creating KIND cluster \"${CLUSTER_NAME}\":"
-#   kind_init
+  kind_init
   log "🏁 - KIND cluster is ready"
+elif [ "${MODE}" == "unkind" ]; then
+  kind_unkind
+elif [ "${MODE}" == "build-images" ]; then
+  build_images
+elif [ "${MODE}" == "kind-load-images" ]; then
+  kind_load_docker_images
+elif [ "${MODE}" == "kind-init" ]; then
+  cluster_init
+elif [ "${MODE}" == "up" ]; then
+  network_up
+elif [ "${MODE}" == "down" ]; then
+  network_down
+else
+  print_help
+  exit 1
 fi

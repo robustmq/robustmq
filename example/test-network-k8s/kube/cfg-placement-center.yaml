@@ -12,15 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
----
 apiVersion: v1
-kind: PersistentVolumeClaim
+kind: ConfigMap
 metadata:
-  name: placement-center
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: ${STORAGE_CLASS}
-  resources:
-    requests:
-      storage: 1Gi
+  name: placement-center-config
+  namespace: ${NAMESPACE}
+data:
+  config.toml: |
+    cluster_name = "placement-test"
+
+    [node]
+    node_id = 1
+    nodes = { 1 = "127.0.0.1:1228"}
+
+    [network]
+    grpc_port = 1228
+    http_port = 1227
+
+    [system]
+    runtime_work_threads = 100
+
+    [heartbeat]
+    heartbeat_timeout_ms = 10000
+    heartbeat_check_time_ms = 1000
+
+    [rocksdb]
+    data_path = "./robust-data/placement-center/data"
+    max_open_files = 10000
+
+    [log]
+    log_config = "./config/log4rs.yaml"
+    log_path = "./robust-data/placement-center/logs"

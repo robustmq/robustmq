@@ -13,24 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-function init_namespace() {
-
-    kubectl create namespace ${NAMESPACE}
-
-}
-
-function delete_namespace() {
-
-    kubectl delete namespace ${NAMESPACE}
-
-}
-
-# function init_storage_volumes() {
-
-# cat kube/pvc-fabric-org0.yaml | envsubst | kubectl -n ${NAMESPACE} create -f -
-
-# }
-
-function load_config() {
-    kubectl apply -f  kube/cfg-placement-center.yaml
+function docker_build() {
+    local mqtt_server_tag=${MQTT_SERVER_IMAGE_NAME}:${IMAGE_VERSION}
+    local journal_server_tag=${JOURNAL_SERVER_IMAGE_NAME}:${IMAGE_VERSION}
+    local placement_center_tag=${PLACEMENT_CENTER_IMAGE_NAME}:${IMAGE_VERSION}
+    cd ../../
+    docker build --target placement-center -t ${placement_center_tag} .
+    docker build --target mqtt-server -t ${mqtt_server_tag} .
+    docker build --target journal-server -t ${journal_server_tag} .
 }

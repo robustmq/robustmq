@@ -13,24 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-function init_namespace() {
 
+function network_up() {
     kubectl create namespace ${NAMESPACE}
+    apply_template kube/cfg-placement-center.yaml ${NAMESPACE}
+    apply_template kube/placement-center.yaml ${NAMESPACE}
 
-}
-
-function delete_namespace() {
-
-    kubectl delete namespace ${NAMESPACE}
-
-}
-
-# function init_storage_volumes() {
-
-# cat kube/pvc-fabric-org0.yaml | envsubst | kubectl -n ${NAMESPACE} create -f -
-
-# }
-
-function load_config() {
-    kubectl apply -f  kube/cfg-placement-center.yaml
 }
