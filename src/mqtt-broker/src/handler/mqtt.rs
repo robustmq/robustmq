@@ -51,6 +51,7 @@ use crate::handler::response::{
 use crate::handler::retain::save_retain_message;
 use crate::handler::session::{build_session, save_session};
 use crate::handler::topic::{get_topic_name, try_init_topic};
+use crate::handler::topic_rewrite::{process_sub_topic_rewrite, process_unsub_topic_rewrite};
 use crate::handler::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
 };
@@ -706,7 +707,7 @@ where
     pub async fn subscribe(
         &self,
         connect_id: u64,
-        subscribe: Subscribe,
+        mut subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
     ) -> MqttPacket {
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
@@ -717,6 +718,7 @@ where
                 Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
+        process_sub_topic_rewrite(&mut subscribe, &self.cache_manager.topic_rewrite_rule).unwrap();
 
         let client_id = connection.client_id.clone();
 
@@ -761,26 +763,6 @@ where
                 }
             }
         }
-
-        // match pkid_save(
-        //     &self.cache_manager,
-        //     &self.client_pool,
-        //     &client_id,
-        //     subscribe.packet_identifier,
-        // )
-        // .await
-        // {
-        //     Ok(()) => {}
-        //     Err(e) => {
-        //         return response_packet_mqtt_suback(
-        //             &self.protocol,
-        //             &connection,
-        //             subscribe.packet_identifier,
-        //             vec![SubscribeReasonCode::Unspecified],
-        //             Some(e.to_string()),
-        //         );
-        //     }
-        // }
 
         match self
             .subscribe_manager
@@ -874,7 +856,7 @@ where
     pub async fn un_subscribe(
         &self,
         connect_id: u64,
-        un_subscribe: Unsubscribe,
+        mut un_subscribe: Unsubscribe,
         _: Option<UnsubscribeProperties>,
     ) -> MqttPacket {
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
@@ -885,6 +867,8 @@ where
                 Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
+        process_unsub_topic_rewrite(&mut un_subscribe, &self.cache_manager.topic_rewrite_rule)
+            .unwrap();
 
         if let Some(packet) = un_subscribe_validator(
             &connection.client_id,

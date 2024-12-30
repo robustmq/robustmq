@@ -17,20 +17,23 @@ use std::sync::Arc;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::serialize_value;
 use common_base::utils::file_utils::get_project_root;
+use common_base::utils::time_util::get_current_millisecond_timestamp;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
+use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
-    CreateBlacklistReply, CreateBlacklistRequest, CreateUserReply, CreateUserRequest,
-    DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
-    DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
-    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionRaw,
-    ListConnectionReply, ListConnectionRequest, ListSlowSubScribeRaw, ListSlowSubscribeReply,
-    ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-    MqttTopic,
+    CreateBlacklistReply, CreateBlacklistRequest, CreateTopicRewriteRuleReply,
+    CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
+    DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply,
+    EnableSlowSubscribeRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
+    ListBlacklistRequest, ListConnectionRaw, ListConnectionReply, ListConnectionRequest,
+    ListSlowSubScribeRaw, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
+    ListTopicRequest, ListUserReply, ListUserRequest, MqttTopic,
 };
 use tonic::{Request, Response, Status};
 
@@ -39,6 +42,7 @@ use crate::observability::slow::sub::{read_slow_sub_record, SlowSubData};
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::cluster::ClusterStorage;
+use crate::storage::topic::TopicStorage;
 
 pub struct GrpcAdminServices {
     client_pool: Arc<ClientPool>,
@@ -375,5 +379,63 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         };
 
         Ok(Response::new(reply))
+    }
+
+    async fn mqtt_broker_delete_topic_rewrite_rule(
+        &self,
+        request: Request<DeleteTopicRewriteRuleRequest>,
+    ) -> Result<Response<DeleteTopicRewriteRuleReply>, Status> {
+        let req = request.into_inner();
+        let topic_storage = TopicStorage::new(self.client_pool.clone());
+        match topic_storage
+            .delete_topic_rewrite_rule(req.action.clone(), req.source_topic.clone())
+            .await
+        {
+            Ok(_) => {
+                let config = broker_mqtt_conf();
+                let key = self.cache_manager.topic_rewrite_rule_key(
+                    &config.cluster_name,
+                    &req.action,
+                    &req.source_topic,
+                );
+                self.cache_manager.topic_rewrite_rule.remove(&key);
+                Ok(Response::new(DeleteTopicRewriteRuleReply::default()))
+            }
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn mqtt_broker_create_topic_rewrite_rule(
+        &self,
+        request: Request<CreateTopicRewriteRuleRequest>,
+    ) -> Result<Response<CreateTopicRewriteRuleReply>, Status> {
+        let req = request.into_inner();
+        let config = broker_mqtt_conf();
+        let topic_rewrite_rule = MqttTopicRewriteRule {
+            cluster: config.cluster_name.clone(),
+            action: req.action.clone(),
+            source_topic: req.source_topic.clone(),
+            dest_topic: req.dest_topic.clone(),
+            regex: req.regex.clone(),
+            timestamp: get_current_millisecond_timestamp(),
+        };
+        let topic_storage = TopicStorage::new(self.client_pool.clone());
+        match topic_storage
+            .create_topic_rewrite_rule(topic_rewrite_rule.clone())
+            .await
+        {
+            Ok(_) => {
+                let key = self.cache_manager.topic_rewrite_rule_key(
+                    &config.cluster_name,
+                    &req.action,
+                    &req.source_topic,
+                );
+                self.cache_manager
+                    .topic_rewrite_rule
+                    .insert(key, topic_rewrite_rule);
+                Ok(Response::new(CreateTopicRewriteRuleReply::default()))
+            }
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
     }
 }

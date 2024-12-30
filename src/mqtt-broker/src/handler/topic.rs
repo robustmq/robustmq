@@ -25,8 +25,12 @@ use storage_adapter::storage::{ShardConfig, StorageAdapter};
 
 use super::error::MqttBrokerError;
 use crate::handler::cache::CacheManager;
+use crate::handler::topic_rewrite::process_publish_topic_rewrite;
 use crate::storage::message::cluster_name;
 use crate::storage::topic::TopicStorage;
+use crate::subscribe::sub_common::{
+    decode_queue_info, decode_share_info, is_queue_sub, is_share_sub,
+};
 
 pub fn is_system_topic(_: String) -> bool {
     true
@@ -104,6 +108,13 @@ pub fn get_topic_name(
         topic
     };
     topic_name_validator(&topic_name)?;
+    // topic rewrite
+    let rewrite_topic_name =
+        process_publish_topic_rewrite(topic_name.clone(), &metadata_cache.topic_rewrite_rule)?;
+    if let Some(val) = rewrite_topic_name {
+        topic_name_validator(val.as_str())?;
+        return Ok(val);
+    }
     Ok(topic_name)
 }
 
@@ -138,9 +149,36 @@ where
     Ok(topic)
 }
 
+pub fn gen_rewrite_topic(input: &str, pattern: &str, template: &str) -> Option<String> {
+    let mut prefix = String::new();
+    let topic = if is_share_sub(input.to_string()) {
+        let (group, group_path) = decode_share_info(input.to_string());
+        let share_prefix = format!("$share/{}", group);
+        prefix = share_prefix.clone();
+        group_path
+    } else if is_queue_sub(input.to_string()) {
+        prefix = "$queue".to_string();
+        decode_queue_info(input.to_string())
+    } else {
+        input.to_string()
+    };
+    let re = Regex::new(pattern).ok()?;
+    let mut rewrite_topic = template.to_string();
+    if let Some(captures) = re.captures(topic.as_str()) {
+        for (i, capture) in captures.iter().skip(1).enumerate() {
+            let prefix = format!("${}", (i + 1)).to_string();
+            rewrite_topic = rewrite_topic
+                .replace(&prefix, capture.unwrap().as_str())
+                .clone();
+        }
+        Some(format!("{}{}", prefix, rewrite_topic))
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod test {
-
     use super::topic_name_validator;
     use crate::handler::error::MqttBrokerError;
 

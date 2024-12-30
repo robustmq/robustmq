@@ -19,4 +19,5 @@ pub mod message;
 pub mod node_extend;
 pub mod session;
 pub mod topic;
+pub mod topic_rewrite_rule;
 pub mod user;

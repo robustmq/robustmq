@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use common_base::utils::topic_util::topic_name_regex_match;
 use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use prost::Message;
 use protocol::placement_center::placement_center_mqtt::SetExclusiveTopicRequest;
 
@@ -27,6 +28,7 @@ use crate::storage::engine::{
 use crate::storage::keys::{
     storage_key_mqtt_exclusive_topic_name, storage_key_mqtt_exclusive_topic_prefix,
     storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix,
+    storage_key_mqtt_topic_rewrite_rule, storage_key_mqtt_topic_rewrite_rule_prefix,
 };
 use crate::storage::rocksdb::RocksDBEngine;
 
@@ -132,6 +134,43 @@ impl MqttTopicStorage {
         let key_name = storage_key_mqtt_exclusive_topic_name(cluster_name, topic_name);
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key_name, value)?;
         Ok(())
+    }
+
+    pub fn save_topic_rewrite_rule(
+        &self,
+        cluster_name: &str,
+        action: &str,
+        source_topic: &str,
+        topic_rewrite_rule: MqttTopicRewriteRule,
+    ) -> Result<(), PlacementCenterError> {
+        let key = storage_key_mqtt_topic_rewrite_rule(cluster_name, action, source_topic);
+        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, topic_rewrite_rule)?;
+        Ok(())
+    }
+
+    pub fn delete_topic_rewrite_rule(
+        &self,
+        cluster_name: &str,
+        action: &str,
+        source_topic: &str,
+    ) -> Result<(), PlacementCenterError> {
+        let key = storage_key_mqtt_topic_rewrite_rule(cluster_name, action, source_topic);
+        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
+        Ok(())
+    }
+
+    pub fn list_topic_rewrite_rule(
+        &self,
+        cluster_name: &str,
+    ) -> Result<Vec<MqttTopicRewriteRule>, PlacementCenterError> {
+        let prefix_key = storage_key_mqtt_topic_rewrite_rule_prefix(cluster_name);
+        let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
+        let mut results = Vec::new();
+        for raw in data {
+            let topic = serde_json::from_slice::<MqttTopicRewriteRule>(&raw.data)?;
+            results.push(topic);
+        }
+        Ok(results)
     }
 }
 
