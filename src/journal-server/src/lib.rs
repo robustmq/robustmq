@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(dead_code, unused_variables)]
+// #![allow(dead_code, unused_variables)]
 
 use core::cache::{load_metadata_cache, CacheManager};
 use core::cluster::{

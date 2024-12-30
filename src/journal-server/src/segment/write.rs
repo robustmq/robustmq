@@ -266,6 +266,7 @@ async fn create_write_thread0(
                 val = stop_recv.recv() =>{
                     if let Ok(flag) = val {
                         if flag {
+                            cache_manager.remove_segment_write_thread(&segment_iden);
                             break;
                         }
                     }
@@ -418,6 +419,9 @@ async fn segment_position0_ac(
 
     // update meta start timestamp
     update_meta_start_timestamp(client_pool.clone(), segment_iden, start_timestamp).await?;
+
+    // save start offset
+
     Ok(())
 }
 
