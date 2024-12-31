@@ -15,7 +15,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: mqtt-server
+  name: mqtt-server-config
   namespace: ${NAMESPACE}
 data:
   config.toml: |
@@ -62,5 +62,5 @@ data:
     storage_type = "memory"
 
     [log]
-    log_config = "./config/log-config/mqtt-log4rs.yaml"
+    log_config = "./config/mqtt-log4rs.yaml"
     log_path = "./robust-data-test/mqtt-broker/logs"

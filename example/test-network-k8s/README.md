@@ -116,3 +116,7 @@ Kafka 启动时通过 --override broker.id=$broker_id 动态设置每个 Broker 
 kubectl exec -it placement-center-0 -n robustmq -- sh
 
 kubectl describe configmap placement-center-config  -n robustmq
+
+kubectl delete deployment mqtt-server -n robustmq
+
+kubectl exec -it mqtt-server-56ccb75ff5-f5gc7 -n robustmq -- sh
