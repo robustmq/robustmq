@@ -134,10 +134,18 @@ lazy_static! {
     )
     .unwrap();
 
-    // Number of error packets.connack.auth_error received
+    // Number of packets.connack.auth_error received
     static ref PACKETS_CONNACK_AUTH_ERROR: IntGaugeVec = register_int_gauge_vec!(
         "packets_connack_auth_error",
-        "Number of error packets received",
+        "Number of connack auth error packets received",
+        &[METRICS_KEY_NETWORK_TYPE]
+    )
+    .unwrap();
+
+    // Number of packets.connack.error received
+    static ref PACKETS_CONNACK_ERROR: IntGaugeVec = register_int_gauge_vec!(
+        "packets_connack_error",
+        "Number of connack error packets received",
         &[METRICS_KEY_NETWORK_TYPE]
     )
     .unwrap();
@@ -380,6 +388,12 @@ pub fn record_sent_metrics(packet_wrapper: &MqttPacketWrapper, network_type: Str
             // 判断是否为 NotAuthorized
             if conn_ack.code == ConnectReturnCode::NotAuthorized {
                 PACKETS_CONNACK_AUTH_ERROR
+                    .with_label_values(&[&network_type.to_string()])
+                    .inc();
+            }
+            // 判断是否为 connack error
+            if conn_ack.code != ConnectReturnCode::Success {
+                PACKETS_CONNACK_ERROR
                     .with_label_values(&[&network_type.to_string()])
                     .inc();
             }
