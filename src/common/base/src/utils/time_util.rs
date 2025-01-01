@@ -12,24 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod acl;
-pub mod cache;
-pub mod cluster_config;
-pub mod command;
-pub mod connection;
-pub mod constant;
-pub mod error;
-pub mod flow_control;
-pub mod heartbreat;
-pub mod keep_alive;
-pub mod lastwill;
-pub mod message;
-pub mod mqtt;
-pub mod pkid;
-pub mod response;
-pub mod retain;
-pub mod session;
-pub mod topic;
-mod topic_rewrite;
-pub mod user;
-pub mod validator;
+use std::time::SystemTime;
+
+pub fn get_current_millisecond_timestamp() -> u128 {
+    let start = SystemTime::now();
+    let since_the_epoch = start
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .expect("Time went backwards");
+    since_the_epoch.as_millis()
+}

@@ -14,13 +14,16 @@
 
 use std::sync::Arc;
 
+use common_base::utils::time_util::get_current_millisecond_timestamp;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use prost::Message as _;
 use protocol::placement_center::placement_center_mqtt::{
-    CreateSessionRequest, CreateUserRequest, DeleteExclusiveTopicRequest, DeleteSessionRequest,
-    DeleteTopicRequest, DeleteUserRequest, SaveLastWillMessageRequest, SetExclusiveTopicRequest,
-    UpdateSessionRequest,
+    CreateSessionRequest, CreateTopicRewriteRuleRequest, CreateUserRequest,
+    DeleteExclusiveTopicRequest, DeleteSessionRequest, DeleteTopicRequest,
+    DeleteTopicRewriteRuleRequest, DeleteUserRequest, SaveLastWillMessageRequest,
+    SetExclusiveTopicRequest, UpdateSessionRequest,
 };
 
 use crate::core::error::PlacementCenterError;
@@ -135,5 +138,30 @@ impl DataRouteMqtt {
         let req = DeleteExclusiveTopicRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete_exclisve_topic(&req.cluster_name, &req.topic_name)
+    }
+
+    pub fn create_topic_rewrite_rule(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+        let req = CreateTopicRewriteRuleRequest::decode(value.as_ref())?;
+        let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
+        let topic_rewrite_rule = MqttTopicRewriteRule {
+            cluster: req.cluster_name.clone(),
+            action: req.action.clone(),
+            source_topic: req.source_topic.clone(),
+            dest_topic: req.dest_topic.clone(),
+            regex: req.regex.clone(),
+            timestamp: get_current_millisecond_timestamp(),
+        };
+        storage.save_topic_rewrite_rule(
+            &req.cluster_name,
+            &req.action,
+            &req.source_topic,
+            topic_rewrite_rule,
+        )
+    }
+
+    pub fn delete_topic_rewrite_rule(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+        let req = DeleteTopicRewriteRuleRequest::decode(value.as_ref())?;
+        let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
+        storage.delete_topic_rewrite_rule(&req.cluster_name, &req.action, &req.source_topic)
     }
 }

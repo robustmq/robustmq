@@ -15,12 +15,13 @@
 use common_base::error::common::CommonError;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
-    CreateBlacklistReply, CreateBlacklistRequest, CreateUserReply, CreateUserRequest,
-    DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
-    DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
-    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
-    ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
-    ListTopicRequest, ListUserReply, ListUserRequest,
+    CreateBlacklistReply, CreateBlacklistRequest, CreateTopicRewriteRuleReply,
+    CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
+    DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply,
+    EnableSlowSubscribeRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
+    ListBlacklistRequest, ListConnectionReply, ListConnectionRequest, ListSlowSubscribeReply,
+    ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
 };
 
 use crate::pool::ClientPool;
@@ -141,5 +142,21 @@ pub async fn mqtt_broker_list_topic(
     addrs: &[impl AsRef<str>],
     request: ListTopicRequest,
 ) -> Result<ListTopicReply, CommonError> {
+    retry_call(client_pool, addrs, request).await
+}
+
+pub async fn mqtt_broker_create_topic_rewrite_rule(
+    client_pool: &ClientPool,
+    addrs: &[impl AsRef<str>],
+    request: CreateTopicRewriteRuleRequest,
+) -> Result<CreateTopicRewriteRuleReply, CommonError> {
+    retry_call(client_pool, addrs, request).await
+}
+
+pub async fn mqtt_broker_delete_topic_rewrite_rule(
+    client_pool: &ClientPool,
+    addrs: &[impl AsRef<str>],
+    request: DeleteTopicRewriteRuleRequest,
+) -> Result<DeleteTopicRewriteRuleReply, CommonError> {
     retry_call(client_pool, addrs, request).await
 }

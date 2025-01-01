@@ -16,12 +16,14 @@ use common_base::error::common::CommonError;
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
-    CreateUserReply, CreateUserRequest, DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply,
-    DeleteBlacklistRequest, DeleteExclusiveTopicReply, DeleteExclusiveTopicRequest,
-    DeleteSessionReply, DeleteSessionRequest, DeleteTopicReply, DeleteTopicRequest,
-    DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
-    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply,
-    ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+    CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest,
+    DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
+    DeleteExclusiveTopicReply, DeleteExclusiveTopicRequest, DeleteSessionReply,
+    DeleteSessionRequest, DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
+    GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
+    ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest,
+    ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
     SaveLastWillMessageReply, SaveLastWillMessageRequest, SetExclusiveTopicReply,
     SetExclusiveTopicRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
     UpdateSessionReply, UpdateSessionRequest,
@@ -151,4 +153,22 @@ generate_mqtt_service_call!(
     DeleteBlacklistRequest,
     DeleteBlacklistReply,
     DeleteBlacklist
+);
+generate_mqtt_service_call!(
+    placement_list_topic_rewrite_rule,
+    ListTopicRewriteRuleRequest,
+    ListTopicRewriteRuleReply,
+    ListTopicRewriteRule
+);
+generate_mqtt_service_call!(
+    placement_create_topic_rewrite_rule,
+    CreateTopicRewriteRuleRequest,
+    CreateTopicRewriteRuleReply,
+    CreateTopicRewriteRule
+);
+generate_mqtt_service_call!(
+    placement_delete_topic_rewrite_rule,
+    DeleteTopicRewriteRuleRequest,
+    DeleteTopicRewriteRuleReply,
+    DeleteTopicRewriteRule
 );

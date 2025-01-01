@@ -72,6 +72,50 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
         return Ok(results);
     }
 
+    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
+        let mut conn = self.pool.get_conn()?;
+        let sql = format!(
+            "select allow, ipaddr, username, clientid, access, topic from {}",
+            self.table_acl()
+        );
+        let data: Vec<(u8, String, String, String, u8, Option<String>)> = conn.query(sql)?;
+        let mut results = Vec::new();
+        for raw in data {
+            let acl = MqttAcl {
+                permission: match raw.0 {
+                    0 => MqttAclPermission::Deny,
+                    1 => MqttAclPermission::Allow,
+                    _ => return Err(MqttBrokerError::InvalidAclPermission),
+                },
+                resource_type: match raw.2.clone().is_empty() {
+                    true => MqttAclResourceType::ClientId,
+                    false => MqttAclResourceType::User,
+                },
+                resource_name: match raw.2.clone().is_empty() {
+                    true => raw.3.clone(),
+                    false => raw.2.clone(),
+                },
+                topic: raw.5.clone().unwrap_or(String::new()),
+                ip: raw.1.clone(),
+                action: match raw.4 {
+                    0 => MqttAclAction::All,
+                    1 => MqttAclAction::Subscribe,
+                    2 => MqttAclAction::Publish,
+                    3 => MqttAclAction::PubSub,
+                    4 => MqttAclAction::Retain,
+                    5 => MqttAclAction::Qos,
+                    _ => return Err(MqttBrokerError::InvalidAclAction),
+                },
+            };
+            results.push(acl);
+        }
+        return Ok(results);
+    }
+
+    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
+        return Ok(Vec::new());
+    }
+
     async fn get_user(&self, username: String) -> Result<Option<MqttUser>, MqttBrokerError> {
         let mut conn = self.pool.get_conn()?;
         let sql = format!(
@@ -112,46 +156,6 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
         );
         let _data: Vec<(String, String, Option<String>, u8, Option<String>)> = conn.query(sql)?;
         return Ok(());
-    }
-
-    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
-        let mut conn = self.pool.get_conn()?;
-        let sql = format!(
-            "select allow, ipaddr, username, clientid, access, topic from {}",
-            self.table_acl()
-        );
-        let data: Vec<(u8, String, String, String, u8, Option<String>)> = conn.query(sql)?;
-        let mut results = Vec::new();
-        for raw in data {
-            let acl = MqttAcl {
-                permission: match raw.0 {
-                    0 => MqttAclPermission::Deny,
-                    1 => MqttAclPermission::Allow,
-                    _ => return Err(MqttBrokerError::InvalidAclPermission),
-                },
-                resource_type: match raw.2.clone().is_empty() {
-                    true => MqttAclResourceType::ClientId,
-                    false => MqttAclResourceType::User,
-                },
-                resource_name: match raw.2.clone().is_empty() {
-                    true => raw.3.clone(),
-                    false => raw.2.clone(),
-                },
-                topic: raw.5.clone().unwrap_or(String::new()),
-                ip: raw.1.clone(),
-                action: match raw.4 {
-                    0 => MqttAclAction::All,
-                    1 => MqttAclAction::Subscribe,
-                    2 => MqttAclAction::Publish,
-                    3 => MqttAclAction::PubSub,
-                    4 => MqttAclAction::Retain,
-                    5 => MqttAclAction::Qos,
-                    _ => return Err(MqttBrokerError::InvalidAclAction),
-                },
-            };
-            results.push(acl);
-        }
-        return Ok(results);
     }
 
     async fn save_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError> {
@@ -220,10 +224,6 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
         )> = conn.query(sql)?;
         return Ok(());
     }
-
-    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
-        return Ok(Vec::new());
-    }
     async fn save_blacklist(&self, _blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError> {
         return Ok(());
     }
@@ -234,7 +234,6 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
 
 #[cfg(test)]
 mod tests {
-
     use mysql::params;
     use mysql::prelude::Queryable;
     use third_driver::mysql::build_mysql_conn_pool;

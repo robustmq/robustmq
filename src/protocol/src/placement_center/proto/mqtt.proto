@@ -225,6 +225,36 @@ service MqttService {
   //
   //Returns: An empty struct.
   rpc CreateBlacklist(CreateBlacklistRequest) returns(CreateBlacklistReply) {}
+
+  //Create a topic rewrite rule.
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `action: String`: The action of the rewrite rule, one of the publish|subscribe|all.
+  // - `source_topic: String`: The source topic of the rewrite rule.
+  // - `dest_topic: String`: The dest topic of the rewrite rule.
+  // - `re: String`: The regex for extracting variables.
+  //
+  //Returns: An empty struct.
+  rpc CreateTopicRewriteRule(CreateTopicRewriteRuleRequest) returns(CreateTopicRewriteRuleReply) {}
+
+  //Delete a topic rewrite rule.
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `action: String`: The action of the rewrite rule, one of the publish|subscribe|all.
+  // - `source_topic: String`: The source topic of the rewrite rule.
+  //
+  //Returns: An empty struct.
+  rpc DeleteTopicRewriteRule(DeleteTopicRewriteRuleRequest) returns(DeleteTopicRewriteRuleReply) {}
+
+  //List topic rewrite rules.
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  //
+  // - `topic_rewrite_rules Vec<MQTTTopicRewriteRule>`: It's the result of encoding a `Vec<MQTTTopicRewriteRule>` into a binary format.
+  rpc ListTopicRewriteRule(ListTopicRewriteRuleRequest) returns(ListTopicRewriteRuleReply) {}
 }
 
 message GetShareSubLeaderRequest{
@@ -519,4 +549,49 @@ message DeleteBlacklistRequest{
 
 message DeleteBlacklistReply{
 
+}
+
+message CreateTopicRewriteRuleRequest{
+  //The cluster of the rewrite rule.
+  string cluster_name = 1;
+
+  //The action of the rewrite rule, one of the publish|subscribe|all.
+  string action = 2;
+
+  //The source topic of the rewrite rule.
+  string source_topic = 3;
+
+  //The dest topic of the rewrite rule.
+  string dest_topic = 4;
+
+  //The regex of the rewrite rule.
+  string regex = 5;
+}
+
+message CreateTopicRewriteRuleReply{
+
+}
+
+message DeleteTopicRewriteRuleRequest{
+  //The cluster of the rewrite rule.
+  string cluster_name = 1;
+  //The action of the rewrite rule, one of the publish|subscribe|all.
+  string action = 2;
+  //The source topic of the rewrite rule.
+  string source_topic = 3;
+}
+
+message DeleteTopicRewriteRuleReply{
+
+}
+
+
+message ListTopicRewriteRuleRequest{
+  //The name of the cluster.
+  string cluster_name = 1;
+}
+
+message ListTopicRewriteRuleReply{
+  //The parameter contains a list of users, encoded from a `Vec<MQTTTopicRewriteRule>` into a binary format.
+  repeated bytes topic_rewrite_rules = 1;
 }

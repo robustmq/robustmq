@@ -221,3 +221,18 @@ pub fn storage_key_mqtt_blacklist(
 pub fn storage_key_mqtt_blacklist_prefix(cluster_name: &str) -> String {
     format!("/mqtt/blacklist/{}/", cluster_name)
 }
+
+pub fn storage_key_mqtt_topic_rewrite_rule(
+    cluster_name: &str,
+    action: &str,
+    source_topic: &str,
+) -> String {
+    format!(
+        "/mqtt/topic_rewrite_rule/{}/{}/{}",
+        cluster_name, action, source_topic
+    )
+}
+
+pub fn storage_key_mqtt_topic_rewrite_rule_prefix(cluster_name: &str) -> String {
+    format!("/mqtt/topic_rewrite_rule/{}/", cluster_name)
+}

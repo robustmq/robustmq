@@ -15,12 +15,13 @@
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
-    CreateBlacklistReply, CreateBlacklistRequest, CreateUserReply, CreateUserRequest,
-    DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
-    DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
-    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
-    ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
-    ListTopicRequest, ListUserReply, ListUserRequest,
+    CreateBlacklistReply, CreateBlacklistRequest, CreateTopicRewriteRuleReply,
+    CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
+    DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply,
+    EnableSlowSubscribeRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
+    ListBlacklistRequest, ListConnectionReply, ListConnectionRequest, ListSlowSubscribeReply,
+    ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_inner::mqtt_broker_inner_service_client::MqttBrokerInnerServiceClient;
 use protocol::broker_mqtt::broker_mqtt_inner::{
@@ -168,6 +169,22 @@ impl_retriable_request!(
     ListTopicReply,
     mqtt_broker_admin_services_client,
     mqtt_broker_list_topic
+);
+
+impl_retriable_request!(
+    CreateTopicRewriteRuleRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    CreateTopicRewriteRuleReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_create_topic_rewrite_rule
+);
+
+impl_retriable_request!(
+    DeleteTopicRewriteRuleRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    DeleteTopicRewriteRuleReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_delete_topic_rewrite_rule
 );
 
 #[cfg(test)]
