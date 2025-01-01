@@ -20,11 +20,16 @@ function network_up() {
     apply_template kube/placement-center.yaml ${NAMESPACE}
     apply_template kube/cfg-mqtt-server.yaml ${NAMESPACE}
     apply_template kube/mqtt-server.yaml ${NAMESPACE}
+    apply_template kube/mqtt-server-ingress.yaml ${NAMESPACE}
 }
 
 function network_down() {
-    kubectl delete deployment mqtt-server -n robustmq
-    kubectl delete statefulset placement-center -n robustmq
+    kubectl delete deployment mqtt-server -n ${NAMESPACE}
+    kubectl delete statefulset placement-center -n ${NAMESPACE}
+    kubectl delete configmap placement-center-config -n ${NAMESPACE}
+    kubectl delete configmap mqtt-server-config -n ${NAMESPACE}
+    kubectl delete namespace ${NAMESPACE}
+    kubectl delete ingress mqtt-server-ingress -n ${NAMESPACE}
 }
 
 # kubectl exec -it placement-center-0 -n robustmq -- nc -zv placement-center-0.placement-center-hs.robustmq.svc.cluster.local 1228

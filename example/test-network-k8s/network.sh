@@ -32,7 +32,7 @@ context NGINX_HTTPS_PORT                443
 context MQTT_SERVER_IMAGE_NAME          mqtt-server-test
 context JOURNAL_SERVER_IMAGE_NAME       journal-server-test
 context PLACEMENT_CENTER_IMAGE_NAME     placement-center-test
-context IMAGE_VERSION                   0.1
+context IMAGE_VERSION                   0.2
 
 context NAMESPACE                       robustmq
 context STORAGE_CLASS                   standard
@@ -65,16 +65,18 @@ if [ "${MODE}" == "kind" ]; then
   log "🏁 - KIND cluster is ready"
 elif [ "${MODE}" == "unkind" ]; then
   kind_unkind
+elif [ "${MODE}" == "cluster-init" ]; then
+  cluster_init
 elif [ "${MODE}" == "build-images" ]; then
-  build_images
+  docker_build
 elif [ "${MODE}" == "kind-load-images" ]; then
   kind_load_docker_images
-elif [ "${MODE}" == "kind-init" ]; then
-  cluster_init
 elif [ "${MODE}" == "up" ]; then
   network_up
 elif [ "${MODE}" == "down" ]; then
   network_down
+elif [ "${MODE}" == "cluster-clean" ]; then
+cluster_clean
 else
   print_help
   exit 1

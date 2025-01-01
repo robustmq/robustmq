@@ -120,11 +120,6 @@ EOF
 }
 
 
-function kind_init() {
-  kind_create
-  launch_docker_registry
-}
-
 function stop_docker_registry() {
   docker kill kind-registry || true
   docker rm kind-registry   || true

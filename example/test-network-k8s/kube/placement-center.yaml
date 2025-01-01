@@ -65,7 +65,7 @@ spec:
       containers:
         - name: placement-center
           imagePullPolicy: IfNotPresent
-          image: docker.io/library/placement-center-test:0.1
+          image: docker.io/library/${PLACEMENT_CENTER_IMAGE_NAME}:${IMAGE_VERSION}
           resources:
             requests:
               memory: "200Mi"
@@ -78,9 +78,7 @@ spec:
           env:
             - name: PLACEMENT_CENTER_NODE_NODES
               value: |
-                { 1 = "placement-center-0.placement-center-hs.${NAMESPACE}.svc.cluster.local:1228",
-                  2 = "placement-center-1.placement-center-hs.${NAMESPACE}.svc.cluster.local:1228",
-                  3 = "placement-center-2.placement-center-hs.${NAMESPACE}.svc.cluster.local:1228" }
+                { 1 = "placement-center-0.placement-center-hs.${NAMESPACE}.svc.cluster.local:1228",2 = "placement-center-1.placement-center-hs.${NAMESPACE}.svc.cluster.local:1228",3 = "placement-center-2.placement-center-hs.${NAMESPACE}.svc.cluster.local:1228" }
           # command:
           #   - sh
           #   - -c

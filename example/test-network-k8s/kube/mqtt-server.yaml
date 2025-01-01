@@ -47,7 +47,7 @@ spec:
       containers:
         - name: mqtt-server
           imagePullPolicy: IfNotPresent
-          image: docker.io/library/mqtt-server-test:0.1
+          image: docker.io/library/${MQTT_SERVER_IMAGE_NAME}:${IMAGE_VERSION}
           resources:
             requests:
               memory: "200Mi"
@@ -58,21 +58,18 @@ spec:
             - containerPort: 9982
               name: http
           env:
-            - name: PLACEMENT_CENTER
+            - name: MQTT_SERVER_PLACEMENT_CENTER
               value: |
-                { "placement-center-0.placement-center-hs.${NAMESPACE}.svc.cluster.local:1228",
-                  "placement-center-1.placement-center-hs.${NAMESPACE}.svc.cluster.local:1228",
-                  "placement-center-2.placement-center-hs.${NAMESPACE}.svc.cluster.local:1228" }
+                [ "placement-center-0.placement-center-hs.${NAMESPACE}.svc.cluster.local:1228","placement-center-1.placement-center-hs.${NAMESPACE}.svc.cluster.local:1228","placement-center-2.placement-center-hs.${NAMESPACE}.svc.cluster.local:1228" ]
             - name: INDEX
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: BROKER_ID
-              value: "${INDEX##*-}"
           command:
             - sh
             - -c
-            - "export BROKER_ID=${BROKER_ID} && /robustmq/libs/mqtt-server --conf /robustmq/config/cluster/mqtt-server/node.toml"
+            - |
+              export BROKER_ID=$(echo ${INDEX} | sed -E 's/.*-([^-]+)$/\1/; s/[^0-9]//g') && /robustmq/libs/mqtt-server --conf /robustmq/config/cluster/mqtt-server/node.toml
           volumeMounts:
             - name: config
               mountPath: /robustmq/config/cluster/mqtt-server/node.toml
