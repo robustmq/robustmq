@@ -31,7 +31,6 @@ features:
   - title: 功能丰富
     details: 功能丰富：支持顺序消息、死消息、事务消息、幂等消息、延时消息等丰富的消息队列功能。
 ---
-
 <style>
 .clip{
   font-size:50px;

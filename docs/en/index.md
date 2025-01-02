@@ -9,7 +9,7 @@ hero:
   actions:
     - theme: brand
       text: Get Started
-      link: /en/OverView/What-is-RobustMQ
+      link: /OverView/What-is-RobustMQ
     # - theme: alt
     #   text: API Examples
     #   link: /api-examples
@@ -31,7 +31,6 @@ features:
   - title: Rich functions
     details: Rich functions support sequential messages, dead message messages, transaction messages, idempotent messages, delay messages and other rich message queue functions.
 ---
-
 <style>
 .clip{
   font-size:50px;
