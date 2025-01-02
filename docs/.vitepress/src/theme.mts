@@ -1,98 +1,97 @@
-import type { DefaultTheme } from "vitepress";
+import type {DefaultTheme} from "vitepress";
 
 export const themeConfig: DefaultTheme.Config = {
 
 
+    logo: "/logo.png",
 
-  logo: "/logo.png",
+    // i18n路由
 
-  // i18n路由
+    i18nRouting: true,
 
-  i18nRouting: true,
+    // 搜索配置（二选一）
+    search: {
 
-  // 搜索配置（二选一）
-  search: {
+        // 本地离线搜索
 
-    // 本地离线搜索
+        provider: "local",
 
-    provider: "local",
+        // 多语言搜索配置
 
-    // 多语言搜索配置
+        options: {
 
-    options: {
+            locales: {
 
-      locales: {
+                /* 默认语言 */
 
-        /* 默认语言 */
+                root: {
 
-        root: {
+                    translations: {
 
-          translations: {
+                        button: {
 
-            button: {
+                            buttonText: "Search",
 
-              buttonText: "搜索",
+                            buttonAriaLabel: "Search for Documents",
 
-              buttonAriaLabel: "搜索文档",
+                        },
+
+                        modal: {
+
+                            noResultsText: "Unable to find relevant results",
+
+                            resetButtonTitle: "Clear Query Results",
+
+                            footer: {
+
+                                selectText: "select",
+
+                                navigateText: "switch",
+
+                            },
+
+                        },
+
+                    },
+
+                },
+
+                zh: {
+                    translations: {
+
+                        button: {
+
+                            buttonText: "搜索",
+
+                            buttonAriaLabel: "搜索文档",
+
+                        },
+
+                        modal: {
+
+                            noResultsText: "无法找到相关结果",
+
+                            resetButtonTitle: "清除查询结果",
+
+                            footer: {
+
+                                selectText: "选择",
+
+                                navigateText: "切换",
+
+                            },
+
+                        },
+
+                    },
+
+
+                },
 
             },
-
-            modal: {
-
-              noResultsText: "无法找到相关结果",
-
-              resetButtonTitle: "清除查询结果",
-
-              footer: {
-
-                selectText: "选择",
-
-                navigateText: "切换",
-
-              },
-
-            },
-
-          },
 
         },
-
-        en: {
-
-          translations: {
-
-            button: {
-
-              buttonText: "Search",
-
-              buttonAriaLabel: "Search for Documents",
-
-            },
-
-            modal: {
-
-              noResultsText: "Unable to find relevant results",
-
-              resetButtonTitle: "Clear Query Results",
-
-              footer: {
-
-                selectText: "select",
-
-                navigateText: "switch",
-
-              },
-
-            },
-
-          },
-
-        },
-
-      },
 
     },
-
-  },
 
 };

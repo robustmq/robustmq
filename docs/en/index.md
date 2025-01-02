@@ -5,14 +5,17 @@ layout: home
 hero:
   name: "RobustMQ"
   text: "Next-generation high-performance cloud-native converged message queue."
-  tagline: RobustMQ is an open-source project in the middleware message queue space implemented 100% in Rust. Its goal is to build a next-generation high-performance cloud-native converged message queue based on Rust that is compatible with a variety of mainstream message queue protocols and has full serverless capabilities.
+  tagline: RobustMQ is an open-source middleware message queue project that is 100% implemented in Rust. Its goal is to create a next-generation high-performance cloud-native converged message queue that is compatible with various mainstream message queue protocols and has complete Serverless capabilities based on Rust.
   actions:
     - theme: brand
       text: Get Started
-      link: /en/Introduction/What-is-RobustMQ
+      link: /en/OverView/What-is-RobustMQ
     # - theme: alt
     #   text: API Examples
     #   link: /api-examples
+  image:
+    src: /logo-large.jpg
+    alt: RobustMQ
 
 features:
   - title: 100% Rust
@@ -26,5 +29,51 @@ features:
   - title: High cohesion
     details: It provides built-in metadata storage components and distributed journal storage services. All of these ones could be deployed quickly, easily and cohesively.
   - title: Rich functions
-    details: support sequential messages, dead message messages, transaction messages, idempotent messages, delay messages and other rich message queue functions.
+    details: Rich functions support sequential messages, dead message messages, transaction messages, idempotent messages, delay messages and other rich message queue functions.
 ---
+
+<style>
+.clip{
+  font-size:50px;
+}
+.text[data-v-72cc4481]
+{
+  font-size:20px !important;
+}
+.tagline
+{
+  font-size:20px !important;
+}
+.VPButton.brand
+{
+  background-color:purple !important;
+}
+:root {
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: purple;
+
+  --vp-home-hero-image-background-image: linear-gradient(-45deg, #bd34fe 50%, #bd34fe 50%);
+  --vp-home-hero-image-filter: blur(44px);
+}
+
+@media (min-width: 640px) {
+  :root {
+    --vp-home-hero-image-filter: blur(56px);
+    --vp-home-hero-name-font-size: 20px;
+  }
+}
+
+@media (min-width: 960px) {
+  :root {
+    --vp-home-hero-image-filter: blur(68px);
+  }
+  .name{
+    font-size:20px;
+  }
+}
+.VPImage {
+    border-radius: 24%;
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+}
+</style>

@@ -1,40 +1,44 @@
-import { defineConfig } from "vitepress";
+import {defineConfig} from "vitepress";
 
 
-import { docsConfig } from "./src/docs.mts";
+import {docsConfig} from "./src/docs.mts";
 
-import { themeConfig } from "./src/theme.mts";
+import {themeConfig} from "./src/theme.mts";
 
-import { head } from "./src/head.mts";
+import {head} from "./src/head.mts";
 
 
-import { enConfig } from './src/configs/en.mts';
+import {enConfig} from './src/configs/en.mts';
 
-import { zhConfig } from './src/configs/zh.mts';
+import {zhConfig} from './src/configs/zh.mts';
 
 export default defineConfig({
 
-  locales: {
+    rewrites: {
+        'en/:rest*': ':rest*'
+    },
 
-    root: { label: 'English', lang: 'en', ...enConfig},
+    locales: {
 
-    zh: { label: '简体中文', lang: 'zh', link: '/zh/', ...zhConfig},
+        root: {label: 'English', lang: 'en', ...enConfig},
 
-  },
+        zh: {label: '简体中文', lang: 'zh', ...zhConfig},
 
-  /* 文档配置 */
+    },
 
-  ...docsConfig,
+    /* 文档配置 */
 
-  /* 标头配置 */
+    ...docsConfig,
 
-  head,
+    /* 标头配置 */
 
-  /* 主题配置 */
+    head,
 
-  themeConfig,
+    /* 主题配置 */
 
-  /* 语言配置 */
+    themeConfig,
+
+    /* 语言配置 */
 
 
 });
