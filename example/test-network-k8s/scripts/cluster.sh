@@ -24,10 +24,6 @@ function cluster_init() {
   wait_for_cert_manager
   wait_for_nginx_ingress
 
-  # if [ "${STAGE_DOCKER_IMAGES}" == true ]; then
-  #   pull_docker_images
-  #   kind_load_docker_images
-  # fi
 }
 
 function apply_nginx_ingress() {

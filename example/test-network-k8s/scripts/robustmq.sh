@@ -31,5 +31,3 @@ function network_down() {
     kubectl delete namespace ${NAMESPACE}
     kubectl delete ingress mqtt-server-ingress -n ${NAMESPACE}
 }
-
-# kubectl exec -it placement-center-0 -n robustmq -- nc -zv placement-center-0.placement-center-hs.robustmq.svc.cluster.local 1228

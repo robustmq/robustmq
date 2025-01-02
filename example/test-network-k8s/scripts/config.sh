@@ -25,12 +25,6 @@ function delete_namespace() {
 
 }
 
-# function init_storage_volumes() {
-
-# cat kube/pvc-fabric-org0.yaml | envsubst | kubectl -n ${NAMESPACE} create -f -
-
-# }
-
 function load_config() {
     kubectl apply -f  kube/cfg-placement-center.yaml
 }

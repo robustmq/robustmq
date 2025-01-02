@@ -14,12 +14,7 @@
 # limitations under the License.
 
 function kind_create() {
-  push_fn  "Creating cluster \"${CLUSTER_NAME}\""
 
-  # prevent the next kind cluster from using the previous Fabric network's enrollments.
-  rm -rf $PWD/build
-
-  # todo: always delete?  Maybe return no-op if the cluster already exists?
   kind delete cluster --name $CLUSTER_NAME
 
   local reg_name=${LOCAL_REGISTRY_NAME}
@@ -70,11 +65,9 @@ EOF
 
 function kind_load_docker_images() {
     local mqtt_server_tag=${MQTT_SERVER_IMAGE_NAME}:${IMAGE_VERSION}
-    local journal_server_tag=${JOURNAL_SERVER_IMAGE_NAME}:${IMAGE_VERSION}
     local placement_center_tag=${PLACEMENT_CENTER_IMAGE_NAME}:${IMAGE_VERSION}
     # 加载的镜像只在当前 Kind 集群有效。如果你销毁并重新创建集群，需要重新加载镜像。
     kind load docker-image ${mqtt_server_tag}      --name robustmq-kind
-    kind load docker-image ${journal_server_tag}   --name robustmq-kind
     kind load docker-image ${placement_center_tag} --name robustmq-kind
 
     kind load docker-image k8s.gcr.io/ingress-nginx/kube-webhook-certgen:v1.1.1 --name robustmq-kind

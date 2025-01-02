@@ -15,10 +15,8 @@
 
 function docker_build() {
     local mqtt_server_tag=${MQTT_SERVER_IMAGE_NAME}:${IMAGE_VERSION}
-    #local journal_server_tag=${JOURNAL_SERVER_IMAGE_NAME}:${IMAGE_VERSION}
     local placement_center_tag=${PLACEMENT_CENTER_IMAGE_NAME}:${IMAGE_VERSION}
     cd ../../
     docker build --target placement-center -t ${placement_center_tag} .
     docker build --target mqtt-server -t ${mqtt_server_tag} .
-    #docker build --target journal-server -t ${journal_server_tag} .
 }

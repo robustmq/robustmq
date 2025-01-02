@@ -41,31 +41,31 @@ services:
     networks:
       - test-network
 
-  # placement-center-node-2:
-  #   image: placement-center-test:0.1
-  #   container_name: placement-center-node-2
-  #   working_dir: /robustmq
-  #   volumes:
-  #     - ./config/cluster/placement-center/node-2.toml:/robustmq/config/cluster/placement-center/node.toml
-  #     - placement-center-node-2-data:/robustmq/robust-data-test
-  #   ports:
-  #     - 2227:2227
-  #     - 2228:2228
-  #   networks:
-  #     - test-network
+  placement-center-node-2:
+    image: placement-center-test:0.1
+    container_name: placement-center-node-2
+    working_dir: /robustmq
+    volumes:
+      - ./config/cluster/placement-center/node-2.toml:/robustmq/config/cluster/placement-center/node.toml
+      - placement-center-node-2-data:/robustmq/robust-data-test
+    ports:
+      - 2227:2227
+      - 2228:2228
+    networks:
+      - test-network
 
-  # placement-center-node-3:
-  #   image: placement-center-test:0.1
-  #   container_name: placement-center-node-3
-  #   working_dir: /robustmq
-  #   volumes:
-  #     - ./config/cluster/placement-center/node-3.toml:/robustmq/config/cluster/placement-center/node.toml
-  #     - placement-center-node-3-data:/robustmq/robust-data-test
-  #   ports:
-  #     - 3227:3227
-  #     - 3228:3228
-  #   networks:
-  #     - test-network
+  placement-center-node-3:
+    image: placement-center-test:0.1
+    container_name: placement-center-node-3
+    working_dir: /robustmq
+    volumes:
+      - ./config/cluster/placement-center/node-3.toml:/robustmq/config/cluster/placement-center/node.toml
+      - placement-center-node-3-data:/robustmq/robust-data-test
+    ports:
+      - 3227:3227
+      - 3228:3228
+    networks:
+      - test-network
 
   mqtt-server-node-1:
     image: mqtt-server-test:0.1
@@ -82,28 +82,28 @@ services:
     networks:
       - test-network
 
-  # mqtt-server-node-2:
-  #   image: mqtt-server-test:0.1
-  #   container_name: mqtt-server-node-2
-  #   working_dir: /robustmq
-  #   volumes:
-  #     - ./config/cluster/mqtt-server/node-2.toml:/robustmq/config/cluster/mqtt-server/node.toml
-  #     - mqtt-server-node-2-data:/robustmq/robust-data-test
-  #   ports:
-  #     - 29981:29981
-  #     - 29982:29982
-  #   networks:
-  #     - test-network
+  mqtt-server-node-2:
+    image: mqtt-server-test:0.1
+    container_name: mqtt-server-node-2
+    working_dir: /robustmq
+    volumes:
+      - ./config/cluster/mqtt-server/node-2.toml:/robustmq/config/cluster/mqtt-server/node.toml
+      - mqtt-server-node-2-data:/robustmq/robust-data-test
+    ports:
+      - 29981:29981
+      - 29982:29982
+    networks:
+      - test-network
 
-  # mqtt-server-node-3:
-  #   image: mqtt-server-test:0.1
-  #   container_name: mqtt-server-node-3
-  #   working_dir: /robustmq
-  #   volumes:
-  #     - ./config/cluster/mqtt-server/node-3.toml:/robustmq/config/cluster/mqtt-server/node.toml
-  #     - mqtt-server-node-3-data:/robustmq/robust-data-test
-  #   ports:
-  #     - 39981:39981
-  #     - 39982:39982
-  #   networks:
-  #     - test-network
+  mqtt-server-node-3:
+    image: mqtt-server-test:0.1
+    container_name: mqtt-server-node-3
+    working_dir: /robustmq
+    volumes:
+      - ./config/cluster/mqtt-server/node-3.toml:/robustmq/config/cluster/mqtt-server/node.toml
+      - mqtt-server-node-3-data:/robustmq/robust-data-test
+    ports:
+      - 39981:39981
+      - 39982:39982
+    networks:
+      - test-network
