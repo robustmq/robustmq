@@ -8,7 +8,7 @@ export const themeConfig: DefaultTheme.Config = {
 
   // i18n路由
 
-  i18nRouting: false,
+  i18nRouting: true,
 
   // 搜索配置（二选一）
   search: {
