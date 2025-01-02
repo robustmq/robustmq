@@ -31,9 +31,10 @@ features:
   - title: 功能丰富
     details: 功能丰富：支持顺序消息、死消息、事务消息、幂等消息、延时消息等丰富的消息队列功能。
 ---
+
 <style>
 .clip{
-  font-size:50px;
+  font-size:50px !important;
 }
 .text[data-v-72cc4481]
 {
@@ -48,31 +49,31 @@ features:
   background-color:purple !important;
 }
 :root {
-  --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: purple;
+  --vp-home-hero-name-color: transparent !important;
+  --vp-home-hero-name-background: purple !important;
 
-  --vp-home-hero-image-background-image: linear-gradient(-45deg, #bd34fe 50%, #bd34fe 50%);
-  --vp-home-hero-image-filter: blur(44px);
+  --vp-home-hero-image-background-image: linear-gradient(-45deg, #bd34fe 50%, #bd34fe 50%) !important;
+  --vp-home-hero-image-filter: blur(44px) !important;
 }
 
 @media (min-width: 640px) {
   :root {
-    --vp-home-hero-image-filter: blur(56px);
-    --vp-home-hero-name-font-size: 20px;
+    --vp-home-hero-image-filter: blur(56px) !important;
+    --vp-home-hero-name-font-size: 20px !important;
   }
 }
 
 @media (min-width: 960px) {
   :root {
-    --vp-home-hero-image-filter: blur(68px);
+    --vp-home-hero-image-filter: blur(68px) !important;
   }
   .name{
-    font-size:20px;
+    font-size:20px !important;
   }
 }
 .VPImage {
-    border-radius: 24%;
-    opacity: 0.8;
-    transition: opacity 0.3s ease;
+    border-radius: 24% !important;
+    opacity: 0.8 !important;
+    transition: opacity 0.3s ease !important;
 }
 </style>
