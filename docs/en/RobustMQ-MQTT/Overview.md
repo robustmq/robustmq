@@ -1,11 +1,12 @@
+# Overview
 Complete list of MQTT Broker features:
 1. Complete MQTT V3.1/V3.1.1 and V5.0 protocol specification support
--QoS0, QoS1, QoS2 message support
+   -QoS0, QoS1, QoS2 message support
 - Persistent sessions with offline messaging support
 - Retained message support
 - Last Will message support
 2. TCP/SSL connection support
-MQTT/WebSocket/SSL support
+   MQTT/WebSocket/SSL support
 4. HTTP publishing interface support
 5. $SYS/# System theme support
 6. Client presence lookup and subscription support

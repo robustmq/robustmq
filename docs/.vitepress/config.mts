@@ -1,39 +1,44 @@
-import { defineConfig } from "vitepress";
+import {defineConfig} from "vitepress";
 
 
-import { docsConfig } from "./src/docs.mts";
+import {docsConfig} from "./src/docs.mts";
 
-import { themeConfig } from "./src/theme.mts";
+import {themeConfig} from "./src/theme.mts";
 
-import { head } from "./src/head.mts";
+import {head} from "./src/head.mts";
 
 
-import { enConfig } from './src/configs/en.mts';
+import {enConfig} from './src/configs/en.mts';
 
-import { zhConfig } from './src/configs/zh.mts';
+import {zhConfig} from './src/configs/zh.mts';
 
 export default defineConfig({
-  base: '/robustmq/',
 
-  locales: {
+    rewrites: {
+        'en/:rest*': ':rest*'
+    },
 
-    root: { label: '简体中文',  ...zhConfig },
+    locales: {
 
-    en: { label: 'English',  link: '/en/', ...enConfig },
+        root: {label: 'English', lang: 'en', dir: 'en', ...enConfig},
 
-  },
+        zh: {label: '简体中文', lang: 'zh', dir: 'zh', ...zhConfig},
 
-  /* 文档配置 */
+    },
 
-  ...docsConfig,  /* 标头配置 */
+    /* 文档配置 */
 
-  head,
+    ...docsConfig,
 
-  /* 主题配置 */
+    /* 标头配置 */
 
-  themeConfig,
+    head,
 
-  /* 语言配置 */
+    /* 主题配置 */
+
+    themeConfig,
+
+    /* 语言配置 */
 
 
 });
