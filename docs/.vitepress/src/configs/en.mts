@@ -7,7 +7,7 @@ import getNavs  from "../nav/en.mts";
 import {sidebar} from '../sidebars/en.mts'
 
 export const enConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
-  
+
 
     themeConfig: {
 
@@ -33,7 +33,7 @@ export const enConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
 
     //   },
 
-    logo: "../../images/logo.png",
+    logo: "./images/logo.png",
 
      nav: getNavs(),
 
