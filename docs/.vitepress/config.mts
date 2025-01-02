@@ -20,9 +20,9 @@ export default defineConfig({
 
     locales: {
 
-        root: {label: 'English', lang: 'en', ...enConfig},
+        root: {label: 'English', lang: 'en', dir: 'en', ...enConfig},
 
-        zh: {label: '简体中文', lang: 'zh', ...zhConfig},
+        zh: {label: '简体中文', lang: 'zh', dir: 'zh', ...zhConfig},
 
     },
 
