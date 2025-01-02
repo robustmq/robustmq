@@ -15,7 +15,7 @@
 
 function kind_create() {
 
-  kind delete cluster --name $CLUSTER_NAME
+  kind delete cluster --name ${CLUSTER_NAME}
 
   local reg_name=${LOCAL_REGISTRY_NAME}
   local reg_port=${LOCAL_REGISTRY_PORT}
@@ -24,7 +24,7 @@ function kind_create() {
 
   # the 'ipvs'proxy mode permits better HA abilities
 
-  cat <<EOF | kind create cluster --name $CLUSTER_NAME --config=-
+  cat <<EOF | kind create cluster --name ${CLUSTER_NAME} --config=-
 ---
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
@@ -54,7 +54,7 @@ containerdConfigPatches:
 
 EOF
 
-  for node in $(kind get nodes --name "$CLUSTER_NAME");
+  for node in $(kind get nodes --name "${CLUSTER_NAME}");
   do
     #  Kind 节点容器中启用路由回环，以便让容器节点可以通过网络访问主机的回环地址（127.0.0.1），从而实现一些特定的测试或网络通信需求。
     docker exec "$node" sysctl net.ipv4.conf.all.route_localnet=1;
@@ -67,11 +67,14 @@ function kind_load_docker_images() {
     local mqtt_server_tag=${MQTT_SERVER_IMAGE_NAME}:${IMAGE_VERSION}
     local placement_center_tag=${PLACEMENT_CENTER_IMAGE_NAME}:${IMAGE_VERSION}
     # 加载的镜像只在当前 Kind 集群有效。如果你销毁并重新创建集群，需要重新加载镜像。
-    kind load docker-image ${mqtt_server_tag}      --name robustmq-kind
-    kind load docker-image ${placement_center_tag} --name robustmq-kind
+    kind load docker-image ${mqtt_server_tag}      --name ${CLUSTER_NAME}
+    kind load docker-image ${placement_center_tag} --name ${CLUSTER_NAME}
 
-    kind load docker-image k8s.gcr.io/ingress-nginx/kube-webhook-certgen:v1.1.1 --name robustmq-kind
-    kind load docker-image k8s.gcr.io/ingress-nginx/controller:v1.1.2 --name robustmq-kind
+    kind load docker-image k8s.gcr.io/ingress-nginx/kube-webhook-certgen:v1.1.1 --name ${CLUSTER_NAME}
+    kind load docker-image k8s.gcr.io/ingress-nginx/controller:v1.1.2 --name ${CLUSTER_NAME}
+    kind load docker-image quay.io/jetstack/cert-manager-webhook:v1.6.1 --name ${CLUSTER_NAME}
+    kind load docker-image quay.io/jetstack/cert-manager-controller:v1.6.1 --name ${CLUSTER_NAME}
+    kind load docker-image quay.io/jetstack/cert-manager-cainjector:v1.6.1 --name ${CLUSTER_NAME}
 
 }
 
@@ -119,7 +122,7 @@ function stop_docker_registry() {
 }
 
 function kind_delete() {
-  kind delete cluster --name $CLUSTER_NAME
+  kind delete cluster --name ${CLUSTER_NAME}
 }
 
 function kind_init() {
