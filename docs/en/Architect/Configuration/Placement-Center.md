@@ -1,4 +1,5 @@
 # Configuration Description
+
 ## Cluster Name
 ```
 # Define the cluster name, used to identify the current cluster, default name placement-center

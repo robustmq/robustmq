@@ -1,4 +1,6 @@
-# 基础开发环境搭建(Mac)
+# 基础开发环境搭建
+# Mac环境搭建
+## 主要步骤
 > ⚠️注意：当前项目中已经默认携带了`rust-toolchain.toml`,
 > 因此默认情况下会使用该文件配置的rustc环境，如果通过brew安装了rust
 > 可能会出现版本被覆盖的问题， 需要卸载后重新按照该内容进行搭建
@@ -38,7 +40,7 @@ mac 安装命令如下：
 brew install protobuf
 ```
 
-# 开发pre-commit插件
+### 配置pre-commit插件
 
 RobustMQ默认使用`pre-commit`进行了代码预提交，因此需要安装指定版本的
 `pre-commit`工具。

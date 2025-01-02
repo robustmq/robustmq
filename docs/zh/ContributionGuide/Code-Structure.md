@@ -1,3 +1,4 @@
+# 代码结构
 ## 根目录
 
 主要关注： bin、config、docs、makefile、scripts、src、tests 这几个文件和目录.
