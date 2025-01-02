@@ -13,7 +13,7 @@ import { enConfig } from './src/configs/en.mts';
 import { zhConfig } from './src/configs/zh.mts';
 
 export default defineConfig({
-  base: '/robustmq/',
+/*  base: '/robustmq/',*/
 
   locales: {
 
