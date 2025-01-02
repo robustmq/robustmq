@@ -1,3 +1,4 @@
+# 单机模式
 1. Download .tar.gz
 ```
 $ tar -xzvf robustmq-v0.0.1-release.tar.gz

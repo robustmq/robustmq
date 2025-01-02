@@ -1,3 +1,5 @@
+# Placement Center
+## 概览
 Placement Center（后面简称PC）是基于 Raft 和 RocksDB 实现一个元数据存储组件。从存储的角度看，它是一个高性能的分布式KV存储服务。从定义上看，它是 Robust Broker 和 Robust Journal 集群的元数据存储、控制和调度中心。架构如下：
 ![image](../../images/doc-image1.png)
 - PC 是一个通过 Raft 协议组成的集群，根据 Raft 协议的定义完成Leader选举，切换、数据一致性等等。

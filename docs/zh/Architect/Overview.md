@@ -1,3 +1,4 @@
+# 概览
 RobustMQ 是一个典型的分布式分层架构，计算层、存储层、调度层分离。由控制层（Placement Center）、计算层（Multi-protocol computing layer）、存储适配层（Storage Adapter Layer）、独立的远端存储层（Standalone storage engine） 四个部分组成。每一层都具备快速扩缩容能力，从而达到整个系统具备完整的 Serverless 能力。
 
 ![image](../../images/doc-image.png)

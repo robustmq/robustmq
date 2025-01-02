@@ -1,3 +1,4 @@
+# Github贡献指南
 ## 1、创建 ISSUE
 
 ISSUE 范围两类，需求和小的 Fixed，所以在标题层面，需要通过：RBIP-\*和 MINOR 两个前缀来区分。

@@ -1,3 +1,4 @@
+# Cargo运行
 1. Run standalone by placement-center
 ```
 cargo run --package cmd --bin placement-center -- --conf=config/placement-center.toml
