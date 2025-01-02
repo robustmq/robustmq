@@ -14,7 +14,7 @@ hero:
     #   text: API Examples
     #   link: /api-examples
   image:
-    src: /images/logo-large.jpg
+    src: /logo-large.jpg
     alt: RobustMQ
 
 features:
