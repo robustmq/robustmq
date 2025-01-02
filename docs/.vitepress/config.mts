@@ -16,15 +16,17 @@ export default defineConfig({
 
   locales: {
 
-    root: { label: '简体中文',  ...zhConfig },
+    root: { label: 'English', lang: 'en', ...enConfig},
 
-    en: { label: 'English',  link: '/en/', ...enConfig },
+    zh: { label: '简体中文', lang: 'zh', link: '/zh/', ...zhConfig},
 
   },
 
   /* 文档配置 */
 
-  ...docsConfig,  /* 标头配置 */
+  ...docsConfig,
+
+  /* 标头配置 */
 
   head,
 

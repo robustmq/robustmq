@@ -33,7 +33,7 @@ export const enConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
 
     //   },
 
-    logo: "/images/logo.png",
+    logo: "/logo.png",
 
      nav: getNavs(),
 
