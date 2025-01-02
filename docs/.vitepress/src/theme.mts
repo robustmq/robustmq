@@ -4,7 +4,7 @@ export const themeConfig: DefaultTheme.Config = {
 
 
 
-  logo: "./images/logo.png",
+  logo: "/images/logo.png",
 
   // i18n路由
 

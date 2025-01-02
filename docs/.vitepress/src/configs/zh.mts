@@ -32,7 +32,7 @@ export const zhConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
 
     //   },
 
-    logo: "./images/logo.png",
+    logo: "/images/logo.png",
 
      nav: getNavs(),
 
