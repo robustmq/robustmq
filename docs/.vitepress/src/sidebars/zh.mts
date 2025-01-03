@@ -15,6 +15,8 @@ export const sidebar = [
             {text: "概览", link: "/zh/QuickGuide/Overview"},
             {text: "单机模式", link: "/zh/QuickGuide/Run-Standalone-Mode"},
             {text: "集群模式", link: "/zh/QuickGuide/Run-Cluster-Mode"},
+            {text: "Docker 模式", link: "/zh/QuickGuide/Run-Docker-Mode"},
+            {text: "K8S 模式", link: "/zh/QuickGuide/Run-K8S-Mode"},
         ],
     },
     {
