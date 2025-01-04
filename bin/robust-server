@@ -76,19 +76,22 @@ if [ $action = "start" ]
     fi
   elif [ $action = "stop" ]
   then
-    no=`ps -ef | grep ${bin_name}  | grep conf | grep -v grep | awk '{print $2}'`
-    if [ -n $no ]
-    then
-        echo "Currently running process number: $no"
-        kill $no
+      no=$(ps -ef | grep "${bin_name}" | grep conf | grep -v grep | awk '{print $2}')
+    if [ -n "$no" ]; then
+        echo "Currently running process numbers: $no"
+        for pid in $no; do
+            echo "Killing process: $pid"
+            kill "$pid"
+        done
         sleep 3
-        num=`ps -ef | grep /libs/${bin_name} | grep conf | grep -v grep | wc -l`
-        if [ $num -eq 0 ]
-        then
-            echo "${bin_name} stop successfully."
+        num=$(ps -ef | grep "/libs/${bin_name}" | grep conf | grep -v grep | wc -l)
+        if [ "$num" -eq 0 ]; then
+            echo "${bin_name} stopped successfully."
         else
             echo "WARN: ${bin_name} stop failure."
         fi
+    else
+        echo "No running processes found for ${bin_name}."
     fi
   else
     echo "Please make sure the position variable is start or stop."
