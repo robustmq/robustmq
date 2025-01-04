@@ -1,8 +1,12 @@
-1. 下载 robustmq-v0.0.1-release.tar.gz 二进制包
+1. 下载 .tar.gz
+```
+$ tar -xzvf robustmq-v0.0.1-release.tar.gz
+$ cd robustmq-v0.0.1-release
+```
+2. 编译
 
 ```shell
- tar -xzvf robustmq-v0.0.1-release.tar.gz
- cd robustmq-v0.0.1-release
+
  make build
  cd build
  tar -zxvf robustmq-local.tar.gz
@@ -12,13 +16,13 @@
  cp -r example/mqtt-cluster/placement-center config/cluster
 ```
 
-2. 启动 Placement-Center
+3. 启动 Placement-Center
 
 ```shell
 bin/robust-server place start config/placement-center.toml
 ```
 
-3. 启动 MQTT-Broker
+4. 启动 MQTT-Broker
 
 ```shell
 bin/robust-server mqtt start config/mqtt-server.toml

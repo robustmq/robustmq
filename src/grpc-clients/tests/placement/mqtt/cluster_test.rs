@@ -17,13 +17,13 @@ mod tests {
     use std::sync::Arc;
 
     use grpc_clients::placement::inner::call::{
-        cluster_status, delete_idempotent_data, get_resource_config, register_node,
+        cluster_status, delete_idempotent_data, get_resource_config, node_list, register_node,
         set_resource_config, unregister_node,
     };
     use grpc_clients::pool::ClientPool;
     use protocol::placement_center::placement_center_inner::{
         ClusterStatusRequest, ClusterType, DeleteIdempotentDataRequest, GetResourceConfigRequest,
-        RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
+        NodeListRequest, RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
     };
 
     use crate::common::get_placement_addr;
@@ -124,6 +124,29 @@ mod tests {
                 .await
                 .is_err()
         );
+    }
+
+    #[tokio::test]
+    async fn node_list_test() {
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
+        let addrs = vec![get_placement_addr()];
+
+        let request = ClusterStatusRequest::default();
+        assert!(cluster_status(&client_pool, &addrs, request).await.is_ok());
+
+        let cluster_name = "test-cluster-name".to_string();
+
+        let request = NodeListRequest {
+            cluster_name: cluster_name.clone(),
+        };
+        assert!(node_list(&client_pool, &addrs, request).await.is_ok());
+
+        let request_cluster_name_empty = NodeListRequest {
+            cluster_name: "".to_string(),
+        };
+        assert!(node_list(&client_pool, &addrs, request_cluster_name_empty)
+            .await
+            .is_err());
     }
 
     #[tokio::test]

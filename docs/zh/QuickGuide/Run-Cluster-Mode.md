@@ -1,3 +1,4 @@
+# 集群模式
 1. 下载 robustmq-v0.0.1-release.tar.gz 二进制包
 
 ```shell

@@ -98,6 +98,9 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<NodeListRequest>,
     ) -> Result<Response<NodeListReply>, Status> {
         let req = request.into_inner();
+
+        let _ = req.validate_ext()?;
+
         let mut nodes = Vec::new();
 
         for raw in self

@@ -55,7 +55,7 @@ export const sidebar = [
             {text: "VsCode", link: "/ContributionGuide/VsCode-Running"},
             {text: "Code Structure", link: "/ContributionGuide/Code-Structure"},
             {text: "Contribution Guide", link: "/ContributionGuide/GitHub-Contribution-Guide"},
-            {text: "PR Example", link: "/ContributionGuide/GitHub-Pull-Request-Example"},
+            {text: "PR Example", link: "/ContributionGuide/Pull-Request-Example"},
         ],
     },
     {

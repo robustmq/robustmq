@@ -1,3 +1,5 @@
+# Journal Server
+## 概览
 Storage Engine（后面简称SE）是独立的存储服务，它负责消息数据的持久存储，需要兼顾性能、可靠性和成本。它以GRPC 协议（GRPC协议可能会有性能瓶颈，待后续调整）的形式暴露服务。架构如下：
 ![image](../../images/doc-image3.png)
 

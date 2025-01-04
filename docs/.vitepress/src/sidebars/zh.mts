@@ -55,7 +55,7 @@ export const sidebar = [
             {text: "VsCode 运行", link: "/zh/ContributionGuide/VsCode-Running"},
             {text: "代码结构", link: "/zh/ContributionGuide/Code-Structure"},
             {text: "GitHub 贡献指南", link: "/zh/ContributionGuide/GitHub-Contribution-Guide"},
-            {text: "PR 提交示例", link: "/zh/ContributionGuide/GitHub-Pull-Request-Example"},
+            {text: "PR 提交示例", link: "/zh/ContributionGuide/Pull-Request-Example"},
         ],
     },
     {
