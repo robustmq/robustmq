@@ -1,0 +1,42 @@
+---
+name: Umbrella
+description: An umbrella issue with multiple sub-tasks
+body:
+  - type: textarea
+    attributes:
+      label: Describe the proposal
+      placeholder: >
+        Please describe the content of the proposal clearly and concisely.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Task list
+      description: >
+        For more details, please refer to [github docs](https://docs.github.com/en/issues/tracking-your-work-with-issues/about-task-lists).
+        placeholder: >
+        Please create sub-tasks with the pre-create issues here and @ the assignees if you know any of them. A simple example is as follows:
+          - [ ] #1
+            - [ ] #11 @user1
+            - [ ] #12
+            - [ ] #13
+          - [ ] #2 @user2
+          - [ ] #3
+    validations:
+      required: true
+
+  - type: checkboxes
+    attributes:
+      label: Are you willing to submit PR?
+      description: >
+        A pull request is optional, but we are glad to help you in the contribution process
+        especially if you already have a grip on how to implement the new feature.
+        RobustMQ is a community-driven project and we love to bring new contributors in.
+      options:
+        - label: Yes. I would be willing to submit a PR with guidance from the RobustMQ community to improve.
+        - label: No. I cannot submit a PR at this time.
+
+  - type: markdown
+    attributes:
+      value: "Thanks for taking the time to propose an umbrella issue!"

@@ -14,6 +14,7 @@
 
 ---
 name: Feature request
+title: "[Feat]"
 description: Suggest a new feature for RobustMQ
 labels: [ "feature request" ]
 body:
@@ -54,3 +55,14 @@ body:
         challenging issues to overcome, then provide them here.
     validations:
       required: false
+
+  - type: checkboxes
+    attributes:
+      label: Are you willing to submit PR?
+      description: >
+        A pull request is optional, but we are glad to help you in the contribution process
+        especially if you already know a good understanding of how to implement the feature.
+        RobustMQ is a community-driven project and we love to bring new contributors in.
+      options:
+        - label: Yes. I would be willing to submit a PR with guidance from the RobustMQ community to improve.
+        - label: No. I cannot submit a PR at this time.

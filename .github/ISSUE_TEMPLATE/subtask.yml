@@ -1,0 +1,41 @@
+---
+name: Subtask
+title: "[Subtask]"
+description: A subtask issue
+body:
+
+  - type: checkboxes
+    attributes:
+      label: Search before asking
+      options:
+        - label: >
+            I have searched in the [issues](https://github.com/robustmq/robustmq/issues) and found no similar
+            issues.
+          required: true
+  - type: textarea
+    attributes:
+      label: Describe the subtask
+      placeholder: >
+        Please describe the content of the subtask clearly and concisely.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Parent issue
+      placeholder: >
+        Please put the parent issue link here.
+    validations:
+      required: true
+  - type: checkboxes
+    attributes:
+      label: Are you willing to submit PR?
+      description: >
+        A pull request is optional, but we are glad to help you in the contribution process
+        especially if you already have a grip on how to implement the new feature.
+        RobustMQ is a community-driven project and we love to bring new contributors in.
+      options:
+        - label: Yes. I would be willing to submit a PR with guidance from the RobustMQ community to improve.
+        - label: No. I cannot submit a PR at this time.
+  - type: markdown
+    attributes:
+      value: "Thanks for taking the time to propose an subtask issue!"
