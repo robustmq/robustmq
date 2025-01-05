@@ -23,7 +23,7 @@ use protocol::placement_center::placement_center_journal::{
     CreateShardReply, CreateShardRequest, DeleteShardReply, DeleteShardRequest,
 };
 
-use super::segmet::{
+use super::segment::{
     build_segment, sync_save_segment_info, sync_save_segment_metadata_info, update_segment_status,
 };
 use crate::core::cache::PlacementCacheManager;

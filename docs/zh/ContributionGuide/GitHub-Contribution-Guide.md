@@ -29,7 +29,7 @@ Request`的提交。
 
 ![image](../../images/GithubContributionGuide-2.png)
 
-### Commiter创建ISSUE
+### Committer创建ISSUE
 
 对于创建各个类型的Issue同用户创建一致，但是这里由于是主动介入规划的任务开发，所以会分为两种
 情况，针对一些小的任务，直接使用`BugReport`, `Enhancement`, `FeatureRequest`对`Pull
