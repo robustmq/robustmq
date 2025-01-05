@@ -18,6 +18,17 @@ title: "[Style/Refactor/Performance/Doc/Test/Build/CI/Chore]"
 description: Suggest an enhancement to existing functionality
 labels: [ "enhancement" ]
 body:
+  - type: checkboxes
+    attributes:
+      label: Have you checked the documentation for submitting an Issue?
+      description: >
+        We would appreciate it if you could first check [Contribution Guide](https://robustmq.com/ContributionGuide/GitHub-Contribution-Guide.html),
+        as this will help us quickly categorize the Issue.
+        RobustMQ is a community-driven project and we love to bring new contributors in.
+      options:
+        - label: Yes.
+          required: true
+
   - type: dropdown
     id: type
     attributes:

@@ -17,6 +17,16 @@ name: Subtask
 title: "[RPIP-*/MINOR][Style/Refactor/Performance/Docs/Test/Build/CI/Chore][Subtask]"
 description: A subtask issue
 body:
+  - type: checkboxes
+    attributes:
+      label: Have you checked the documentation for submitting an Issue?
+      description: >
+        We would appreciate it if you could first check [Contribution Guide](https://robustmq.com/ContributionGuide/GitHub-Contribution-Guide.html),
+        as this will help us quickly categorize the Issue.
+        RobustMQ is a community-driven project and we love to bring new contributors in.
+      options:
+        - label: Yes.
+          required: true
 
   - type: checkboxes
     attributes:
@@ -26,6 +36,7 @@ body:
             I have searched in the [issues](https://github.com/robustmq/robustmq/issues) and found no similar
             issues.
           required: true
+
   - type: textarea
     attributes:
       label: Describe the subtask
@@ -33,6 +44,7 @@ body:
         Please describe the content of the subtask clearly and concisely.
     validations:
       required: true
+
   - type: textarea
     attributes:
       label: Parent issue
@@ -40,6 +52,7 @@ body:
         Please put the parent issue link here.
     validations:
       required: true
+
   - type: checkboxes
     attributes:
       label: Are you willing to submit PR?
@@ -50,6 +63,7 @@ body:
       options:
         - label: Yes. I would be willing to submit a PR with guidance from the RobustMQ community to improve.
         - label: No. I cannot submit a PR at this time.
+
   - type: markdown
     attributes:
       value: "Thanks for taking the time to propose an subtask issue!"

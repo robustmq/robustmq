@@ -17,6 +17,17 @@ name: Umbrella
 title: "[RPIP-*/MINOR]"
 description: An umbrella issue with multiple sub-tasks
 body:
+  - type: checkboxes
+    attributes:
+      label: Have you checked the documentation for submitting an Issue?
+      description: >
+        We would appreciate it if you could first check [Contribution Guide](https://robustmq.com/ContributionGuide/GitHub-Contribution-Guide.html),
+        as this will help us quickly categorize the Issue.
+        RobustMQ is a community-driven project and we love to bring new contributors in.
+      options:
+        - label: Yes.
+          required: true
+
   - type: textarea
     attributes:
       label: Describe the proposal
