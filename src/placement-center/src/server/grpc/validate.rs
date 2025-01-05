@@ -168,7 +168,6 @@ impl ValidateExt for NodeListRequest {
 
 impl ValidateExt for ExistsIdempotentDataRequest {
     fn validate_ext(&self) -> Result<(), Status> {
-        println!("here!!!!!!");
         ensure_param_not_empty("cluster_name", &self.cluster_name)?;
         ensure_param_not_empty("producer_id", &self.producer_id)?;
         Ok(())
