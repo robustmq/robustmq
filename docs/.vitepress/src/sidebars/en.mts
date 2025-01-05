@@ -56,7 +56,7 @@ export const sidebar = [
                 text: "ContributingCode",
                 collapsed: true,
                 items: [
-                    {text: "Build Develop Env", link: "/ContrƒibutionGuide/ContributingCode/Build-Develop-Env"},
+                    {text: "Build Develop Env", link: "/ContributionGuide/ContributingCode/Build-Develop-Env"},
                     {text: "Cargo Running", link: "/ContributionGuide/ContributingCode/Cargo-Running"},
                     {text: "VsCode Running", link: "/ContributionGuide/ContributingCode/VsCode-Running"},
                     {text: "Code Structure", link: "/ContributionGuide/ContributingCode/Code-Structure"},
