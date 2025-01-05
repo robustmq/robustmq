@@ -75,21 +75,32 @@ pub fn sub_path_validator(sub_path: String) -> bool {
 
 pub fn path_regex_match(topic_name: String, sub_path: String) -> bool {
     let path = if is_share_sub(sub_path.clone()) {
-        let (_, group_path) = decode_share_info(sub_path);
+        let (_, group_path) = decode_share_info(sub_path.clone());
         group_path
+    } else if is_queue_sub(sub_path.clone()) {
+        decode_queue_info(sub_path.clone())
     } else {
-        sub_path
+        sub_path.clone()
+    };
+
+    let topic = if is_share_sub(topic_name.clone()) {
+        let (_, group_path) = decode_share_info(topic_name.clone());
+        group_path
+    } else if is_queue_sub(topic_name.clone()) {
+        decode_queue_info(topic_name.clone())
+    } else {
+        topic_name.clone()
     };
 
     // Path perfect matching
-    if topic_name == path {
+    if topic == path {
         return true;
     }
 
     if path.contains("+") {
         let sub_regex = path.replace("+", "[^+*/]+");
         let re = Regex::new(&sub_regex.to_string()).unwrap();
-        return re.is_match(&topic_name);
+        return re.is_match(&topic);
     }
 
     if path.contains("#") {
@@ -98,7 +109,7 @@ pub fn path_regex_match(topic_name: String, sub_path: String) -> bool {
         }
         let sub_regex = path.replace("#", "[^+#]+");
         let re = Regex::new(&sub_regex.to_string()).unwrap();
-        return re.is_match(&topic_name);
+        return re.is_match(&topic);
     }
 
     false

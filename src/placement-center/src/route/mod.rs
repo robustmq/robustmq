@@ -210,6 +210,16 @@ impl DataRoute {
                 self.route_mqtt.delete_exclusive_topic(storage_data.value)?;
                 Ok(None)
             }
+            StorageDataType::MqttCreateTopicRewriteRule => {
+                self.route_mqtt
+                    .create_topic_rewrite_rule(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::MqttDeleteTopicRewriteRule => {
+                self.route_mqtt
+                    .delete_topic_rewrite_rule(storage_data.value)?;
+                Ok(None)
+            }
         }
     }
 

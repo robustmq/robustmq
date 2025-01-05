@@ -13,3 +13,4 @@
 // limitations under the License.
 
 pub mod common_enum;
+pub mod topic_rewrite_action_enum;

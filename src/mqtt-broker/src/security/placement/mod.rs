@@ -44,6 +44,16 @@ impl AuthStorageAdapter for PlacementAuthStorageAdapter {
         return user_storage.user_list().await;
     }
 
+    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
+        let acl_storage = AclStorage::new(self.client_pool.clone());
+        return acl_storage.list_acl().await;
+    }
+
+    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
+        let blacklist_storage = BlackListStorage::new(self.client_pool.clone());
+        return blacklist_storage.list_blacklist().await;
+    }
+
     async fn get_user(&self, username: String) -> Result<Option<MqttUser>, MqttBrokerError> {
         let user_storage = UserStorage::new(self.client_pool.clone());
         return user_storage.get_user(username).await;
@@ -69,23 +79,13 @@ impl AuthStorageAdapter for PlacementAuthStorageAdapter {
         return acl_storage.delete_acl(acl).await;
     }
 
-    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
-        let acl_storage = AclStorage::new(self.client_pool.clone());
-        return acl_storage.list_acl().await;
-    }
-
-    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
-        let blacklist_storage = BlackListStorage::new(self.client_pool.clone());
-        return blacklist_storage.list_blacklist().await;
-    }
-
     async fn save_blacklist(&self, blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError> {
         let blacklist_storage = BlackListStorage::new(self.client_pool.clone());
-        return blacklist_storage.save_blacklist(blacklist).await;
+        blacklist_storage.save_blacklist(blacklist).await
     }
 
     async fn delete_blacklist(&self, blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError> {
         let blacklist_storage = BlackListStorage::new(self.client_pool.clone());
-        return blacklist_storage.delete_blacklist(blacklist).await;
+        blacklist_storage.delete_blacklist(blacklist).await
     }
 }
