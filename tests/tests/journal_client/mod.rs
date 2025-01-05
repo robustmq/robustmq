@@ -13,4 +13,4 @@
 // limitations under the License.
 
 pub mod common;
-pub mod shard;
+pub mod client_test;

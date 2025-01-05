@@ -184,7 +184,7 @@ impl PlacementCenter {
     // Start Grpc Server
     pub fn start_grpc_server(&self, raft_machine_apply: Arc<RaftMachineApply>) {
         let config = placement_center_conf();
-        let ip = format!("0.0.0.0:{}", config.network.grpc_port)
+        let ip = format!("{}:{}", config.network.local_ip, config.network.grpc_port)
             .parse()
             .unwrap();
         let placement_handler = GrpcPlacementService::new(

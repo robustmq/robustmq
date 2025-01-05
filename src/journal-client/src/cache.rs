@@ -23,6 +23,7 @@ use protocol::journal_server::journal_engine::{
     ClientSegmentMetadata, GetClusterMetadataNode, GetShardMetadataReqShard,
     GetShardMetadataRespShard,
 };
+use rand::Rng;
 use tokio::select;
 use tokio::sync::broadcast::Receiver;
 use tokio::time::sleep;
@@ -57,6 +58,11 @@ impl MetadataCache {
             return Some(node.tcp_addr.clone());
         }
         None
+    }
+
+    pub fn get_rand_addr(&self) -> String {
+        let mut rng = rand::thread_rng();
+        self.addrs[rng.gen_range(0..self.addrs.len())].clone()
     }
 
     pub fn get_shard(&self, namespace: &str, shard: &str) -> Option<GetShardMetadataRespShard> {
@@ -153,7 +159,7 @@ pub async fn load_node_cache(
     Ok(())
 }
 
-pub fn start_update_cache_thread(
+pub async fn start_update_cache_thread(
     metadata_cache: Arc<MetadataCache>,
     connection_manager: Arc<ConnectionManager>,
     mut stop_recv: Receiver<bool>,
@@ -167,6 +173,7 @@ pub fn start_update_cache_thread(
                     }
                 },
                 val = update_cache(metadata_cache.clone(),connection_manager.clone())=>{
+                    sleep(Duration::from_secs(3)).await;
                 }
             }
         }

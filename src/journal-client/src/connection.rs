@@ -28,6 +28,7 @@ use tokio::time::sleep;
 use tokio_util::codec::Framed;
 
 use crate::cache::MetadataCache;
+use crate::consts::{ADMIN_NODE_ID, MODULE_ADMIN, MODULE_READ, MODULE_WRITE};
 use crate::error::JournalClientError;
 
 pub struct ClientConnection {
@@ -36,13 +37,13 @@ pub struct ClientConnection {
 }
 
 pub struct NodeConnection {
-    node_id: u64,
+    node_id: i64,
     metadata_cache: Arc<MetadataCache>,
     connection: DashMap<String, ClientConnection>,
 }
 
 impl NodeConnection {
-    pub fn new(node_id: u64, metadata_cache: Arc<MetadataCache>) -> Self {
+    pub fn new(node_id: i64, metadata_cache: Arc<MetadataCache>) -> Self {
         let connection = DashMap::with_capacity(2);
         NodeConnection {
             node_id,
@@ -86,6 +87,7 @@ impl NodeConnection {
                     match da.stream.send(req_packet.clone()).await {
                         Ok(()) => {
                             if let Some(data) = da.stream.next().await {
+                                println!("{:?}", data);
                                 match data {
                                     Ok(da) => return Ok(da),
                                     Err(e) => {
@@ -143,7 +145,12 @@ impl NodeConnection {
     }
 
     async fn open(&self) -> Result<Framed<TcpStream, JournalServerCodec>, JournalClientError> {
-        let addr = if let Some(addr) = self.metadata_cache.get_tcp_addr_by_node_id(self.node_id) {
+        let addr = if self.node_id == ADMIN_NODE_ID {
+            self.metadata_cache.get_rand_addr()
+        } else if let Some(addr) = self
+            .metadata_cache
+            .get_tcp_addr_by_node_id(self.node_id as u64)
+        {
             addr
         } else {
             return Err(JournalClientError::NodeNoAvailableAddr(self.node_id));
@@ -153,37 +160,39 @@ impl NodeConnection {
         Ok(Framed::new(socket, JournalServerCodec::new()))
     }
 
-    pub async fn init_conn(&self) -> Result<(), JournalClientError> {
-        self.connection.insert(
-            "admin".to_string(),
-            ClientConnection {
-                stream: self.open().await?,
-                last_active_time: now_second(),
-            },
-        );
+    pub async fn init_conn(&self, module: &str) -> Result<(), JournalClientError> {
+        match module {
+            "admin" => self.connection.insert(
+                MODULE_ADMIN.to_string(),
+                ClientConnection {
+                    stream: self.open().await?,
+                    last_active_time: now_second(),
+                },
+            ),
+            "read" => self.connection.insert(
+                MODULE_READ.to_string(),
+                ClientConnection {
+                    stream: self.open().await?,
+                    last_active_time: now_second(),
+                },
+            ),
+            "write" => self.connection.insert(
+                MODULE_WRITE.to_string(),
+                ClientConnection {
+                    stream: self.open().await?,
+                    last_active_time: now_second(),
+                },
+            ),
+            _ => None,
+        };
 
-        self.connection.insert(
-            "read".to_string(),
-            ClientConnection {
-                stream: self.open().await?,
-                last_active_time: now_second(),
-            },
-        );
-
-        self.connection.insert(
-            "write".to_string(),
-            ClientConnection {
-                stream: self.open().await?,
-                last_active_time: now_second(),
-            },
-        );
         Ok(())
     }
 }
 
 pub struct ConnectionManager {
     // node_id, NodeConnection
-    node_conns: DashMap<u64, NodeConnection>,
+    node_conns: DashMap<i64, NodeConnection>,
     metadata_cache: Arc<MetadataCache>,
     admin_conn_atom: AtomicU64,
 }
@@ -203,11 +212,15 @@ impl ConnectionManager {
         &self,
         req_packet: JournalEnginePacket,
     ) -> Result<JournalEnginePacket, JournalClientError> {
-        let node_id = self.choose_admin_node();
+        let node_id = if let Some(node_id) = self.choose_admin_node() {
+            node_id as i64
+        } else {
+            ADMIN_NODE_ID
+        };
 
         if !self.node_conns.contains_key(&node_id) {
             let conn = NodeConnection::new(node_id, self.metadata_cache.clone());
-            conn.init_conn().await?;
+            conn.init_conn(MODULE_ADMIN).await?;
             self.node_conns.insert(node_id, conn);
         }
 
@@ -220,13 +233,14 @@ impl ConnectionManager {
         node_id: u64,
         req_packet: JournalEnginePacket,
     ) -> Result<JournalEnginePacket, JournalClientError> {
-        if !self.node_conns.contains_key(&node_id) {
-            let conn = NodeConnection::new(node_id, self.metadata_cache.clone());
-            conn.init_conn().await?;
-            self.node_conns.insert(node_id, conn);
+        let new_node_id = node_id as i64;
+        if !self.node_conns.contains_key(&new_node_id) {
+            let conn = NodeConnection::new(new_node_id, self.metadata_cache.clone());
+            conn.init_conn(MODULE_WRITE).await?;
+            self.node_conns.insert(new_node_id, conn);
         }
 
-        let conn = self.node_conns.get(&node_id).unwrap();
+        let conn = self.node_conns.get(&new_node_id).unwrap();
         conn.write_send(req_packet).await
     }
 
@@ -235,27 +249,31 @@ impl ConnectionManager {
         node_id: u64,
         req_packet: JournalEnginePacket,
     ) -> Result<JournalEnginePacket, JournalClientError> {
-        if !self.node_conns.contains_key(&node_id) {
-            let conn = NodeConnection::new(node_id, self.metadata_cache.clone());
-            conn.init_conn().await?;
-            self.node_conns.insert(node_id, conn);
+        let new_node_id = node_id as i64;
+        if !self.node_conns.contains_key(&new_node_id) {
+            let conn = NodeConnection::new(new_node_id, self.metadata_cache.clone());
+            conn.init_conn(MODULE_READ).await?;
+            self.node_conns.insert(new_node_id, conn);
         }
 
-        let conn = self.node_conns.get(&node_id).unwrap();
+        let conn = self.node_conns.get(&new_node_id).unwrap();
         conn.read_send(req_packet).await
     }
 
-    fn choose_admin_node(&self) -> u64 {
+    fn choose_admin_node(&self) -> Option<u64> {
         let node_ids = self.metadata_cache.all_node_ids();
+        if node_ids.is_empty() {
+            return None;
+        }
         let posi = self
             .admin_conn_atom
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let index = posi as usize % node_ids.len();
         let node_id = node_ids.get(index).unwrap();
-        *node_id
+        Some(*node_id)
     }
 
-    pub fn get_inactive_conn(&self) -> Vec<(u64, String)> {
+    pub fn get_inactive_conn(&self) -> Vec<(i64, String)> {
         let mut results = Vec::new();
         for node in self.node_conns.iter() {
             for conn in node.connection.iter() {
@@ -267,7 +285,7 @@ impl ConnectionManager {
         results
     }
 
-    pub async fn close_conn_by_node(&self, node_id: u64, conn_type: &str) {
+    pub async fn close_conn_by_node(&self, node_id: i64, conn_type: &str) {
         if let Some(node) = self.node_conns.get(&node_id) {
             if let Some(mut conn) = node.connection.get_mut(conn_type) {
                 if let Err(e) = conn.stream.close().await {

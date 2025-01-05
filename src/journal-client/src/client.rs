@@ -48,7 +48,11 @@ pub struct JournalClient {
 }
 
 impl JournalClient {
-    pub fn new(addrs: Vec<String>) -> Self {
+    pub async fn new(addrs: Vec<String>) -> Result<JournalClient, JournalClientError> {
+        if addrs.is_empty() {
+            return Err(JournalClientError::AddrsNotEmpty);
+        }
+
         let metadata_cache = Arc::new(MetadataCache::new(addrs));
         let connection_manager = Arc::new(ConnectionManager::new(metadata_cache.clone()));
         let (stop_send, _) = broadcast::channel::<bool>(2);
@@ -62,30 +66,16 @@ impl JournalClient {
             connection_manager.clone(),
         ));
 
-        JournalClient {
+        let client = JournalClient {
             metadata_cache,
             connection_manager,
             writer,
             reader,
             stop_send,
-        }
-    }
-
-    pub async fn connect(&self) -> Result<(), JournalClientError> {
-        load_node_cache(&self.metadata_cache, &self.connection_manager).await?;
-
-        start_update_cache_thread(
-            self.metadata_cache.clone(),
-            self.connection_manager.clone(),
-            self.stop_send.subscribe(),
-        );
-
-        start_conn_gc_thread(
-            self.metadata_cache.clone(),
-            self.connection_manager.clone(),
-            self.stop_send.subscribe(),
-        );
-        Ok(())
+        };
+        client.validate()?;
+        client.connect().await?;
+        Ok(client)
     }
 
     pub async fn create_shard(
@@ -144,7 +134,7 @@ impl JournalClient {
         if let Some(resp) = resp_vec.first() {
             return Ok(resp.to_owned());
         }
-        Err(JournalClientError::WriteReqReturnTmpty)
+        Err(JournalClientError::WriteReqReturnEmpty)
     }
 
     pub async fn read_by_offset(
@@ -274,7 +264,30 @@ impl JournalClient {
         Ok(results)
     }
 
+    fn validate(&self) -> Result<(), JournalClientError> {
+        Ok(())
+    }
+
+    async fn connect(&self) -> Result<(), JournalClientError> {
+        load_node_cache(&self.metadata_cache, &self.connection_manager).await?;
+
+        // start_update_cache_thread(
+        //     self.metadata_cache.clone(),
+        //     self.connection_manager.clone(),
+        //     self.stop_send.subscribe(),
+        // )
+        // .await;
+
+        // start_conn_gc_thread(
+        //     self.metadata_cache.clone(),
+        //     self.connection_manager.clone(),
+        //     self.stop_send.subscribe(),
+        // );
+        Ok(())
+    }
+
     pub async fn close(&self) -> Result<(), CommonError> {
+        // self.stop_send.send(true)?;
         Ok(())
     }
 }

@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
+use log::info;
 use prost::Message;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterService;
 use protocol::placement_center::placement_center_inner::{
@@ -118,6 +119,7 @@ impl PlacementCenterService for GrpcPlacementService {
 
         let _ = req.validate_ext()?;
 
+        info!("register node:{:?}", req);
         match register_node_by_req(
             &self.cluster_cache,
             &self.raft_machine_apply,
@@ -141,6 +143,7 @@ impl PlacementCenterService for GrpcPlacementService {
         let req = request.into_inner();
         let _ = req.validate_ext()?;
 
+        info!("un register node:{:?}", req);
         match un_register_node_by_req(
             &self.cluster_cache,
             &self.raft_machine_apply,

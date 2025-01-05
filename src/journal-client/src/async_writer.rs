@@ -60,7 +60,7 @@ impl SenderMessage {
 }
 
 // Send Message Resp Struct
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct SenderMessageResp {
     pub offset: u64,
     pub error: Option<String>,

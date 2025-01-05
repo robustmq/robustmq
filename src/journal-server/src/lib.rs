@@ -110,7 +110,6 @@ impl JournalServer {
 
     fn start_grpc_server(&self) {
         let server = GrpcServer::new(
-            self.config.network.grpc_port,
             self.cache_manager.clone(),
             self.segment_file_manager.clone(),
             self.rocksdb_engine_handler.clone(),
