@@ -1,5 +1,6 @@
 ---
 name: Umbrella
+title: "[RPIP-*/MINOR]"
 description: An umbrella issue with multiple sub-tasks
 body:
   - type: textarea

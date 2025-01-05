@@ -1,9 +1,12 @@
 # 基础开发环境搭建
 # Mac环境搭建
 ## 主要步骤
-> ⚠️注意：当前项目中已经默认携带了`rust-toolchain.toml`,
-> 因此默认情况下会使用该文件配置的rustc环境，如果通过brew安装了rust
-> 可能会出现版本被覆盖的问题， 需要卸载后重新按照该内容进行搭建
+
+::: tip
+ ⚠️注意：当前项目中已经默认携带了`rust-toolchain.toml`, 
+ 因此默认情况下会使用该文件配置的rustc环境，如果通过brew安装了rust 
+ 可能会出现版本被覆盖的问题， 需要卸载后重新按照该内容进行搭建
+:::
 
 代码运行需要先搭建Rust开发环境，初始化rust环境后。 项目主要依赖 cmake、rocksdb、
 protoc， 需要根据不同的操作系统环境去安装这些依赖。
@@ -66,9 +69,11 @@ pip3 install -r ./.requirements-precommit.txt
 pre-commit install
 ```
 
-> ⚠️注意: 后续进行任何的`git commit`操作，`pre-commit`都会执行
-> 对应的检查， 这里如果不想每次提交都进行检查可以使用`git commit -n`
-> 来跳过检查。
+::: tip
+⚠️注意: 后续进行任何的`git commit`操作，`pre-commit`都会执行 
+对应的检查， 这里如果不想每次提交都进行检查可以使用`git commit -n`
+来跳过检查。
+:::
 
 `pre-commit`携带的检查功能使用了next-test,hawkeye,clippy,
 typos,cargo-deny等工具, 这些工具如果缺少可以参考如下命令进行安装
