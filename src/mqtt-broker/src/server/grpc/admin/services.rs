@@ -29,11 +29,12 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateBlacklistReply, CreateBlacklistRequest, CreateTopicRewriteRuleReply,
     CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
     DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply,
-    EnableSlowSubscribeRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
-    ListBlacklistRequest, ListConnectionRaw, ListConnectionReply, ListConnectionRequest,
-    ListSlowSubScribeRaw, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
-    ListTopicRequest, ListUserReply, ListUserRequest, MqttTopic,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
+    EnableFlappingDetectRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
+    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionRaw,
+    ListConnectionReply, ListConnectionRequest, ListSlowSubScribeRaw, ListSlowSubscribeReply,
+    ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+    MqttTopic,
 };
 use tonic::{Request, Response, Status};
 
@@ -253,6 +254,24 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         let auth_driver = AuthDriver::new(self.cache_manager.clone(), self.client_pool.clone());
         match auth_driver.save_blacklist(mqtt_blacklist).await {
             Ok(_) => Ok(Response::new(CreateBlacklistReply::default())),
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn mqtt_broker_enable_flapping_detect(
+        &self,
+        request: Request<EnableFlappingDetectRequest>,
+    ) -> Result<Response<EnableFlappingDetectReply>, Status> {
+        let subscribe_request = request.into_inner();
+
+        match self
+            .cache_manager
+            .enable_flapping_detect(subscribe_request.clone())
+            .await
+        {
+            Ok(_) => Ok(Response::new(EnableFlappingDetectReply {
+                is_enable: subscribe_request.is_enable,
+            })),
             Err(e) => Err(Status::cancelled(e.to_string())),
         }
     }

@@ -20,13 +20,15 @@ use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateUserRequest, DeleteUserRequest, ListTopicRequest,
+    CreateUserRequest, DeleteUserRequest, EnableFlappingDetectRequest, ListTopicRequest,
 };
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
 };
 
-use crate::mqtt::admin::{process_slow_sub_args, CreateUserArgs, DeleteUserArgs, SlowSubArgs};
+use crate::mqtt::admin::{
+    process_slow_sub_args, CreateUserArgs, DeleteUserArgs, FlappingDetectArgs, SlowSubArgs,
+};
 
 #[derive(Parser)] // requires `derive` feature
 #[command(name = "robust-ctl")]
@@ -70,6 +72,10 @@ enum MQTTAction {
 
     // Connections
     ListConnection,
+
+    // flapping-detect
+    #[clap(name = "flapping-detect")]
+    FlappingDetect(FlappingDetectArgs),
 
     ListTopic(ListTopicArgs),
 
@@ -183,7 +189,15 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
                     MatchOption::S => 2,
                 },
             }),
-            MQTTAction::SlowSub(args) => process_slow_sub_args(args), // _ => unreachable!("UnSupport command"),
+            MQTTAction::SlowSub(args) => process_slow_sub_args(args),
+            MQTTAction::FlappingDetect(args) => {
+                MqttActionType::EnableFlappingDetect(EnableFlappingDetectRequest {
+                    is_enable: args.is_enable.unwrap_or(false),
+                    window_time: args.window_time.unwrap_or(1),
+                    max_disconnects: args.max_disconnects.unwrap_or(15),
+                    ban_time: args.ban_time.unwrap_or(5),
+                })
+            }
         },
     };
     cmd.start(params).await;

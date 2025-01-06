@@ -15,7 +15,7 @@
 use clap::builder::{
     ArgAction, BoolishValueParser, EnumValueParser, NonEmptyStringValueParser, RangedU64ValueParser,
 };
-use clap::Parser;
+use clap::{arg, Parser};
 use cli_command::mqtt::MqttActionType;
 use common_base::enum_type::common_enum::SortType;
 use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -45,6 +45,38 @@ pub(crate) struct DeleteUserArgs {
     pub(crate) username: String,
 }
 
+// flapping-detect feat
+#[derive(Debug, Parser)]
+#[command(author="RobustMQ", about="", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct FlappingDetectArgs {
+    #[arg(long = "enable")]
+    #[arg(value_parser =  BoolishValueParser::new())]
+    #[arg(default_missing_value = "false")]
+    #[arg(action = ArgAction::Set, num_args = 0..=1)]
+    #[arg(required = true, require_equals = true, exclusive = true)]
+    #[arg(help = "Enable or disable the feature")]
+    pub(crate) is_enable: Option<bool>,
+    #[arg(long = "window-time")]
+    #[arg(value_parser = RangedU64ValueParser::<u32>::new())]
+    #[arg(default_missing_value = "1")]
+    #[arg(action = ArgAction::Set, num_args = 0..=1)]
+    #[arg(require_equals = true)]
+    #[arg(help = "unit is minutes")]
+    pub(crate) window_time: Option<u32>,
+    #[arg(long = "max-disconnect")]
+    #[arg(value_parser = RangedU64ValueParser::<u32>::new())]
+    #[arg(default_missing_value = "15")]
+    #[arg(action = ArgAction::Set, num_args = 0..=1)]
+    pub(crate) max_disconnects: Option<u32>,
+    #[arg(long = "ban-time")]
+    #[arg(value_parser = RangedU64ValueParser::<u32>::new())]
+    #[arg(default_missing_value = "5")]
+    #[arg(action = ArgAction::Set, num_args = 0..=1)]
+    #[arg(help = "unit is minutes")]
+    pub(crate) ban_time: Option<u32>,
+}
+
 // observability: slow-sub feat
 #[derive(Debug, Parser)]
 #[command(author="RobustMQ", about="", long_about = None)]
@@ -57,30 +89,30 @@ pub(crate) struct SlowSubArgs {
     #[arg(conflicts_with_all = ["list", "sort", "topic", "sub_name", "client_id"])]
     #[arg(help = "Enable or disable the feature")]
     is_enable: Option<bool>,
-    #[arg(long)]
+    #[arg(long = "list")]
     #[arg(value_parser = RangedU64ValueParser::<u64>::new())]
     #[arg(default_missing_value = "100")]
     #[arg(action = ArgAction::Set, num_args = 0..=1)]
     #[arg(require_equals = true)]
     list: Option<u64>,
-    #[arg(long)]
+    #[arg(long = "sort")]
     #[arg(required = false, requires = "list", require_equals = true)]
     #[arg(value_parser = EnumValueParser::<SortType>::new())]
     #[arg(default_missing_value = "DESC", ignore_case = true)]
     #[arg(action = ArgAction::Set, num_args = 0..=1)]
     #[arg(help = "Sort the results")]
     sort: Option<SortType>,
-    #[arg(long)]
+    #[arg(long = "topic")]
     #[arg(required = false, requires = "list", require_equals = true)]
     #[arg(action = ArgAction::Set, num_args = 0..=1)]
     #[arg(value_parser = NonEmptyStringValueParser::new())]
     topic: Option<String>,
-    #[arg(long)]
+    #[arg(long = "sub-name")]
     #[arg(required = false, requires = "list", require_equals = true)]
     #[arg(action = ArgAction::Set, num_args = 0..=1)]
     #[arg(value_parser = NonEmptyStringValueParser::new())]
     sub_name: Option<String>,
-    #[arg(long)]
+    #[arg(long = "client-id")]
     #[arg(required = false, requires = "list", require_equals = true)]
     #[arg(action = ArgAction::Set, num_args = 0..=1)]
     #[arg(value_parser = NonEmptyStringValueParser::new())]
