@@ -41,7 +41,7 @@ body:
       label: Task list
       description: >
         For more details, please refer to [github docs](https://docs.github.com/en/issues/tracking-your-work-with-issues/about-task-lists).
-        placeholder: >
+      placeholder: >
         Please create sub-tasks with the pre-create issues here and @ the assignees if you know any of them. A simple example is as follows:
           - [ ] #1
             - [ ] #11 @user1
