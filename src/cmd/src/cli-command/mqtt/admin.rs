@@ -22,6 +22,22 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
 };
 
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="related operations of mqtt users, such as listing, creating, and deleting ", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct MqttUserCommand {
+    #[command(subcommand)]
+    pub action: Option<MqttUserActionType>,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum MqttUserActionType {
+    #[command(author="RobustMQ", about="action: user list", long_about = None)]
+    List,
+    Delete(DeleteUserArgs),
+    Create(CreateUserArgs),
+}
+
 // security: user feat
 #[derive(clap::Args, Debug)]
 #[command(author="RobustMQ", about="action: create user", long_about = None)]
