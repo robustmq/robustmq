@@ -16,8 +16,9 @@ use std::net::{IpAddr, SocketAddr};
 
 use common_base::error::common::CommonError;
 use protocol::placement_center::placement_center_inner::{
-    ClusterType, DeleteIdempotentDataRequest, GetResourceConfigRequest, NodeListRequest,
-    RegisterNodeRequest, SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
+    ClusterType, DeleteIdempotentDataRequest, ExistsIdempotentDataRequest,
+    GetResourceConfigRequest, NodeListRequest, RegisterNodeRequest, SetIdempotentDataRequest,
+    SetResourceConfigRequest, UnRegisterNodeRequest,
 };
 use protocol::placement_center::placement_center_mqtt::GetShareSubLeaderRequest;
 use tonic::Status;
@@ -161,6 +162,14 @@ impl ValidateExt for GetShareSubLeaderRequest {
 impl ValidateExt for NodeListRequest {
     fn validate_ext(&self) -> Result<(), Status> {
         ensure_param_not_empty("cluster_name", &self.cluster_name)?;
+        Ok(())
+    }
+}
+
+impl ValidateExt for ExistsIdempotentDataRequest {
+    fn validate_ext(&self) -> Result<(), Status> {
+        ensure_param_not_empty("cluster_name", &self.cluster_name)?;
+        ensure_param_not_empty("producer_id", &self.producer_id)?;
         Ok(())
     }
 }
