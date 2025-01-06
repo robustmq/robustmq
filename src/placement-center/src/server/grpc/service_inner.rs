@@ -99,6 +99,9 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<NodeListRequest>,
     ) -> Result<Response<NodeListReply>, Status> {
         let req = request.into_inner();
+
+        let _ = req.validate_ext()?;
+
         let mut nodes = Vec::new();
 
         for raw in self
@@ -233,6 +236,9 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<DeleteResourceConfigRequest>,
     ) -> Result<Response<DeleteResourceConfigReply>, Status> {
         let req = request.into_inner();
+
+        let _ = req.validate_ext()?;
+
         let data = StorageData::new(
             StorageDataType::ClusterDeleteResourceConfig,
             DeleteResourceConfigRequest::encode_to_vec(&req),
@@ -270,6 +276,9 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<ExistsIdempotentDataRequest>,
     ) -> Result<Response<ExistsIdempotentDataReply>, Status> {
         let req = request.into_inner();
+
+        let _ = req.validate_ext()?;
+
         let storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
         match storage.exists(&req.cluster_name, &req.producer_id, req.seq_num) {
             Ok(flag) => {

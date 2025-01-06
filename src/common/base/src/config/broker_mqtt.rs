@@ -32,7 +32,7 @@ use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
 
-use super::common::{Auth, Log, Storage};
+use super::common::{override_default_by_env, Auth, Log, Storage};
 use super::default_mqtt::{
     default_auth, default_grpc_port, default_http_port, default_log, default_network,
     default_network_quic_port, default_network_tcp_port, default_network_tcps_port,
@@ -125,7 +125,8 @@ pub fn init_broker_mqtt_conf_by_path(config_path: &str) -> &'static BrokerMqttCo
                 panic!("{}", e.to_string())
             }
         };
-        let config: BrokerMqttConfig = match toml::from_str(&content) {
+        let new_content = override_default_by_env(content, "MQTT_SERVER");
+        let config: BrokerMqttConfig = match toml::from_str(&new_content) {
             Ok(da) => da,
             Err(e) => {
                 panic!("{}", e)
@@ -158,7 +159,9 @@ pub fn broker_mqtt_conf() -> &'static BrokerMqttConfig {
 
 #[cfg(test)]
 mod tests {
-    use super::{broker_mqtt_conf, init_broker_mqtt_conf_by_path, BrokerMqttConfig};
+    use super::{
+        broker_mqtt_conf, init_broker_mqtt_conf_by_path, override_default_by_env, BrokerMqttConfig,
+    };
     use crate::tools::read_file;
 
     #[test]
@@ -218,6 +221,108 @@ mod tests {
         );
 
         assert_eq!(config.auth.storage_type, "placement".to_string());
+        assert_eq!(config.auth.journal_addr, "".to_string());
+        assert_eq!(config.auth.mysql_addr, "".to_string());
+    }
+
+    #[test]
+    fn env_config_default_test() {
+        std::env::set_var("MQTT_SERVER_BROKER_ID", "10");
+        std::env::set_var("MQTT_SERVER_CLUSTER_NAME", "\"mqtt-broker-env\"");
+        std::env::set_var(
+            "MQTT_SERVER_PLACEMENT_CENTER",
+            "[\"127.0.0.1:1228\",\"127.0.0.1:1228\",\"127.0.0.1:1228\"]",
+        );
+        std::env::set_var("MQTT_SERVER_GRPC_PORT", "99810");
+        std::env::set_var("MQTT_SERVER_HTTP_PORT", "99820");
+        std::env::set_var("MQTT_SERVER_NETWORK_TCP_PORT", "18830");
+        std::env::set_var("MQTT_SERVER_NETWORK_TCPS_PORT", "88830");
+        std::env::set_var("MQTT_SERVER_NETWORK_WEBSOCKET_PORT", "80930");
+        std::env::set_var("MQTT_SERVER_NETWORK_WEBSOCKETS_PORT", "80940");
+        std::env::set_var("MQTT_SERVER_NETWORK_QUIC_PORT", "90830");
+        std::env::set_var("MQTT_SERVER_TLS_CERT", "\"./certs/server.crt-env\"");
+        std::env::set_var("MQTT_SERVER_TLS_KEY", "\"./certs/server.key-env\"");
+        std::env::set_var("MQTT_SERVER_TCP_THREAD_ACCEPT_THREAD_NUM", "10");
+        std::env::set_var("MQTT_SERVER_TCP_THREAD_HANDLER_THREAD_NUM", "100");
+        std::env::set_var("MQTT_SERVER_TCP_THREAD_RESPONSE_THREAD_NUM", "10");
+        std::env::set_var("MQTT_SERVER_TCP_THREAD_MAX_CONNECTION_NUM", "100000");
+        std::env::set_var("MQTT_SERVER_TCP_THREAD_REQUEST_QUEUE_SIZE", "20000");
+        std::env::set_var("MQTT_SERVER_TCP_THREAD_RESPONSE_QUEUE_SIZE", "20000");
+        std::env::set_var("MQTT_SERVER_TCP_THREAD_LOCK_MAX_TRY_MUT_TIMES", "300");
+        std::env::set_var("MQTT_SERVER_TCP_THREAD_LOCK_TRY_MUT_SLEEP_TIME_MS", "500");
+        std::env::set_var("MQTT_SERVER_SYSTEM_RUNTIME_WORKER_THREADS", "1280");
+        std::env::set_var("MQTT_SERVER_SYSTEM_DEFAULT_USER", "\"admin-env\"");
+        std::env::set_var("MQTT_SERVER_SYSTEM_DEFAULT_PASSWORD", "\"pwd123-env\"");
+        std::env::set_var("MQTT_SERVER_STORAGE_STORAGE_TYPE", "\"memory-env\"");
+        std::env::set_var(
+            "MQTT_SERVER_LOG_LOG_CONFIG",
+            "\"./config/log-config/mqtt-log4rs.yaml-env\"",
+        );
+        std::env::set_var(
+            "MQTT_SERVER_LOG_LOG_PATH",
+            "\"./robust-data/mqtt-broker/logs-env\"",
+        );
+        std::env::set_var("MQTT_SERVER_AUTH_STORAGE_TYPE", "\"placement-env\"");
+
+        let path = format!(
+            "{}/../../../config/mqtt-server.toml",
+            env!("CARGO_MANIFEST_DIR")
+        );
+
+        let content = read_file(&path).unwrap();
+
+        let new_content = override_default_by_env(content, "MQTT_SERVER");
+
+        println!("update content:{}", new_content);
+
+        let config: BrokerMqttConfig = match toml::from_str(&new_content) {
+            Ok(da) => da,
+            Err(e) => {
+                panic!("{}", e)
+            }
+        };
+        assert_eq!(config.broker_id, 10);
+        assert_eq!(config.cluster_name, "mqtt-broker-env".to_string());
+        assert_eq!(config.placement_center.len(), 3);
+        assert_eq!(config.grpc_port, 99810);
+        assert_eq!(config.http_port, 99820);
+
+        assert_eq!(config.network.tcp_port, 18830);
+        assert_eq!(config.network.tcps_port, 88830);
+        assert_eq!(config.network.websocket_port, 80930);
+        assert_eq!(config.network.websockets_port, 80940);
+        assert_eq!(config.network.quic_port, 90830);
+        assert!(!config.network.tls_cert.is_empty());
+        assert!(!config.network.tls_key.is_empty());
+
+        assert_eq!(config.tcp_thread.accept_thread_num, 10);
+        assert_eq!(config.tcp_thread.handler_thread_num, 100);
+        assert_eq!(config.tcp_thread.response_thread_num, 10);
+        assert_eq!(config.tcp_thread.max_connection_num, 100000);
+        assert_eq!(config.tcp_thread.request_queue_size, 20000);
+        assert_eq!(config.tcp_thread.response_queue_size, 20000);
+        assert_eq!(config.tcp_thread.lock_max_try_mut_times, 300);
+        assert_eq!(config.tcp_thread.lock_try_mut_sleep_time_ms, 500);
+
+        assert_eq!(config.system.runtime_worker_threads, 1280);
+        assert_eq!(config.system.default_user, "admin-env".to_string());
+        assert_eq!(config.system.default_password, "pwd123-env".to_string());
+
+        assert_eq!(config.storage.storage_type, "memory-env".to_string());
+        assert_eq!(config.storage.journal_addr, "".to_string());
+        assert_eq!(config.storage.mysql_addr, "".to_string());
+
+        assert_eq!(
+            config.log.log_config,
+            "./config/log-config/mqtt-log4rs.yaml-env"
+        );
+
+        assert_eq!(
+            config.log.log_path,
+            "./robust-data/mqtt-broker/logs-env".to_string()
+        );
+
+        assert_eq!(config.auth.storage_type, "placement-env".to_string());
         assert_eq!(config.auth.journal_addr, "".to_string());
         assert_eq!(config.auth.mysql_addr, "".to_string());
     }

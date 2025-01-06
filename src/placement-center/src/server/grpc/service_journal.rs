@@ -30,7 +30,7 @@ use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::journal::cache::JournalCacheManager;
 use crate::journal::controller::call_node::JournalInnerCallManager;
-use crate::journal::services::segmet::{
+use crate::journal::services::segment::{
     create_segment_by_req, delete_segment_by_req, update_segment_meta_req,
     update_segment_status_req,
 };

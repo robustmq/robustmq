@@ -1,3 +1,4 @@
+# 集成测试
 ## 安装 cargo-nextest
 RobustMQ 的集成测试依赖cargo-nextest来加快测试用例的运行速度，所以跑集成测试的时候，需要安装 cargo-nextest。
 

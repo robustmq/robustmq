@@ -226,7 +226,7 @@ where
         }
 
         let live_time = ConnectionLiveTime {
-            protobol: self.protocol.clone(),
+            protocol: self.protocol.clone(),
             keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
         };
@@ -844,7 +844,7 @@ where
         };
 
         let live_time = ConnectionLiveTime {
-            protobol: self.protocol.clone(),
+            protocol: self.protocol.clone(),
             keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
         };

@@ -29,7 +29,7 @@ use protocol::journal_server::journal_inner::{
 
 use crate::core::cache::PlacementCacheManager;
 use crate::journal::cache::JournalCacheManager;
-use crate::journal::services::segmet::{
+use crate::journal::services::segment::{
     sync_delete_segment_info, sync_delete_segment_metadata_info, update_segment_status,
 };
 use crate::journal::services::shard::{

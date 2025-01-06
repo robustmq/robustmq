@@ -59,10 +59,10 @@ pub enum JournalServerError {
     ShardNotExist(String),
 
     #[error("No Segment is available for Shard {0}")]
-    NotAvailableSegmets(String),
+    NotAvailableSegments(String),
 
     #[error("Shard {0} Not Active, is triggering the creation of an active Segment")]
-    NotActiveSegmet(String),
+    NotActiveSegment(String),
 
     #[error("segment {0} does not exist")]
     SegmentNotExist(String),
@@ -118,8 +118,8 @@ pub fn get_journal_server_code(e: &JournalServerError) -> String {
         JournalServerError::ParseIntError(_) => "ParseIntError".to_string(),
         JournalServerError::RequestBodyNotEmpty(_) => "RequestBodyNotEmpty".to_string(),
         JournalServerError::ShardNotExist(_) => "ShardNotExist".to_string(),
-        JournalServerError::NotAvailableSegmets(_) => "NotAvailableSegmets".to_string(),
-        JournalServerError::NotActiveSegmet(_) => "NotActiveSegmet".to_string(),
+        JournalServerError::NotAvailableSegments(_) => "NotAvailableSegments".to_string(),
+        JournalServerError::NotActiveSegment(_) => "NotActiveSegment".to_string(),
         JournalServerError::SegmentNotExist(_) => "SegmentNotExist".to_string(),
         JournalServerError::NotFoundConnectionInCache(_) => "NotFoundConnectionInCache".to_string(),
         JournalServerError::SegmentStatusError(_, _) => "SegmentStatusError".to_string(),

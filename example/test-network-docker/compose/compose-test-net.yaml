@@ -1,0 +1,109 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: '3.7'
+
+volumes:
+  journal-server-node-1-data:
+  mqtt-server-node-1-data:
+  mqtt-server-node-2-data:
+  mqtt-server-node-3-data:
+  placement-center-node-1-data:
+  placement-center-node-2-data:
+  placement-center-node-3-data:
+
+networks:
+  test-network:
+    name: robustmq-test-network
+
+services:
+  placement-center-node-1:
+    image: placement-center-test:0.1
+    container_name: placement-center-node-1
+    working_dir: /robustmq
+    volumes:
+      - ./config/cluster/placement-center/node-1.toml:/robustmq/config/cluster/placement-center/node.toml
+      - placement-center-node-1-data:/robustmq/robust-data-test
+    ports:
+      - 1227:1227
+      - 1228:1228
+    networks:
+      - test-network
+
+  placement-center-node-2:
+    image: placement-center-test:0.1
+    container_name: placement-center-node-2
+    working_dir: /robustmq
+    volumes:
+      - ./config/cluster/placement-center/node-2.toml:/robustmq/config/cluster/placement-center/node.toml
+      - placement-center-node-2-data:/robustmq/robust-data-test
+    ports:
+      - 2227:2227
+      - 2228:2228
+    networks:
+      - test-network
+
+  placement-center-node-3:
+    image: placement-center-test:0.1
+    container_name: placement-center-node-3
+    working_dir: /robustmq
+    volumes:
+      - ./config/cluster/placement-center/node-3.toml:/robustmq/config/cluster/placement-center/node.toml
+      - placement-center-node-3-data:/robustmq/robust-data-test
+    ports:
+      - 3227:3227
+      - 3228:3228
+    networks:
+      - test-network
+
+  mqtt-server-node-1:
+    image: mqtt-server-test:0.1
+    container_name: mqtt-server-node-1
+    working_dir: /robustmq
+    volumes:
+      - ./config/cluster/mqtt-server/node-1.toml:/robustmq/config/cluster/mqtt-server/node.toml
+      - mqtt-server-node-1-data:/robustmq/robust-data-test
+    depends_on:
+      - placement-center-node-1
+    ports:
+      - 9981:9981
+      - 9982:9982
+    networks:
+      - test-network
+
+  mqtt-server-node-2:
+    image: mqtt-server-test:0.1
+    container_name: mqtt-server-node-2
+    working_dir: /robustmq
+    volumes:
+      - ./config/cluster/mqtt-server/node-2.toml:/robustmq/config/cluster/mqtt-server/node.toml
+      - mqtt-server-node-2-data:/robustmq/robust-data-test
+    ports:
+      - 29981:29981
+      - 29982:29982
+    networks:
+      - test-network
+
+  mqtt-server-node-3:
+    image: mqtt-server-test:0.1
+    container_name: mqtt-server-node-3
+    working_dir: /robustmq
+    volumes:
+      - ./config/cluster/mqtt-server/node-3.toml:/robustmq/config/cluster/mqtt-server/node.toml
+      - mqtt-server-node-3-data:/robustmq/robust-data-test
+    ports:
+      - 39981:39981
+      - 39982:39982
+    networks:
+      - test-network

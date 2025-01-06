@@ -34,7 +34,7 @@ use serde::{Deserialize, Serialize};
 use toml::map::Map;
 use toml::{Table, Value};
 
-use super::common::Log;
+use super::common::{override_default_by_env, Log};
 use super::default_placement_center::{
     default_cluster_name, default_data_path, default_grpc_port, default_heartbeat,
     default_heartbeat_check_time_ms, default_heartbeat_timeout_ms, default_http_port,
@@ -113,8 +113,8 @@ pub fn init_placement_center_conf_by_path(config_path: &str) -> &'static Placeme
                 panic!("{}", e.to_string());
             }
         };
-
-        let pc_config: PlacementCenterConfig = toml::from_str(&content).unwrap();
+        let new_content = override_default_by_env(content, "PLACEMENT_CENTER");
+        let pc_config: PlacementCenterConfig = toml::from_str(&new_content).unwrap();
         match try_create_fold(&pc_config.rocksdb.data_path) {
             Ok(()) => {}
             Err(e) => {
@@ -194,11 +194,17 @@ mod tests {
             "{}/../../../config/placement-center.toml",
             env!("CARGO_MANIFEST_DIR")
         );
+        std::env::set_var("PLACEMENT_CENTER_NODE_NODE_ID", "2");
+        std::env::set_var(
+            "PLACEMENT_CENTER_NODE_NODES",
+            "{ 1 = \"127.0.0.1:1228\" , 2 = \"127.0.0.1:1227\" }",
+        );
         init_placement_center_conf_by_path(&path);
         let config: &PlacementCenterConfig = placement_center_conf();
         println!("{:?}", config);
         assert_eq!(config.cluster_name, "placement-test");
-        assert_eq!(config.node.node_id, 1);
+        assert_eq!(config.node.node_id, 2);
+        assert_eq!(config.node.nodes.len(), 2);
         assert_eq!(config.network.grpc_port, 1228);
         assert_eq!(config.network.http_port, 1227);
         assert_eq!(config.system.runtime_work_threads, 100);
