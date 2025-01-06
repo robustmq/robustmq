@@ -1,65 +1,110 @@
-# Github Contribution Guide
-## 1. Create an ISSUE
+# GitHub Contribution Guide
 
-There are two types of ISSUE scopes: requirements and minor fixes. Therefore, at the title level, they need to be distinguished by two prefixes: RBIP-* and MINOR.
+## 1. Creating an ISSUE
 
-**RBIP-***: It indicates the addition of features and functions. For example, RBIP-09, RBIP-10, and the subsequent serial numbers increase incrementally.
-![image](../../images/doc-image9.png)
+The main types of ISSUES include: feat, bug, test, refactor, chore, style, docs, perf, build, ci. The corresponding explanations are as follows:
+- feat: New feature
+- bug: Bug issue
+- test: Additional test cases
+- refactor: Code refactoring that is neither a new feature nor a bug fix
+- docs: Changes and additions to documentation, including code comments
+- perf: Code involving performance optimization, which requires proof of optimization
+- build: Changes to the build system or external dependencies
+- ci: Changes to continuous integration configuration, including modifications to configuration files and scripts
+- style: Code style changes, used for submission formatting, punctuation, etc., that do not affect the code
+- chore: Mixed types of work, possibly involving multiple other types of changes
 
-**MINOR**: It indicates the fixing or addition of some minor functions. The title can start with "MINOR:".
+### Users and Contributors Creating ISSUES
+
+For users, if there are new feature requirements or bug fixes, they can submit an Issue by selecting `BugReport` and `FeatureRequest`.
+
+![image](../../images/GithubContributionGuide-1.png)
+
+For contributors, if there are new feature requirements or bug fixes for a `Pull Request`, they should also create corresponding `BugReport` and `FeatureRequest` ISSUES before submitting the `Pull Request`. For other types of `Pull Request` submissions, use `Enhancement` to create an Issue according to the corresponding category before submitting the `Pull Request`.
+
+![image](../../images/GithubContributionGuide-2.png)
+
+### Committer Creating ISSUES
+
+Creating various types of Issues is the same as for users, but since this involves proactive planning and task development, there are two scenarios. For small tasks, directly use `BugReport`, `Enhancement`, `FeatureRequest` to associate with the `Pull Request`. For larger planned tasks that need to be broken down, use `Umbrella` to associate with the corresponding Issue and plan subtasks below it, as shown below:
+
+todo Add images on how to use umbrella to create subtasks
+
+For each subtask, create the corresponding subtask using `Subtask` and describe the specific content that needs to be completed for that subtask.
+
+For the title of `Umbrella`, it is temporarily divided into two categories, RBIP-* and MINOR.
+
+RBIP-*: Indicates the addition of features and characteristics, such as RBIP-09, RBIP-10, with the sequence number increasing.
+![image](../../images/GithubContributionGuide-3.png)
+
+MINOR: Indicates fixing or adding small features. It can start with MINOR, followed by the title.
 ![image](../../images/doc-image10.png)
 
-## 2. Create a Pull Request
+## 2. Creating a Pull Request
 
-If a PR is associated with an ISSUE, the following must be added to the content of the PR:
+If the PR is associated with an ISSUE, it must include the following in the PR content:
 
+```
 close #issue_number
-"close" is a fixed prefix, and "#" is also a fixed prefix. "issue_number" represents the ISSUE number associated with this PR. For example:
+```
+
+`close` is a fixed prefix, `#` is also a fixed prefix, and `issue_number` represents the ISSUE number associated with the PR. For example:
 
 ![image](../../images/doc-image11.png)
-#297 and #292 are the corresponding ISSUE numbers.
 
-For example, if you need to submit a PR to solve ISSUE #297, the content of the PR should include "close #297". At this time, when this PR is merged, this ISSUE will be automatically closed. After the PR is merged, the effects of the PR and the ISSUE are as follows:
+#297, #292 are the corresponding ISSUE numbers.
 
-**PR**:
+For example, if you need to submit a PR to resolve ISSUE #297, the PR content should include:
+
+```
+close #297
+```
+
+When this PR is MERGED, the ISSUE will be automatically closed. After the PR is merged, the PR and ISSUE will look like this:
+
+PR:
 ![image](../../images/doc-image12.png)
 
-**ISSUE**:
+ISSUE:
 ![image](../../images/doc-image13.png)
 
-## 3. Reasons for Failed PR Submission
+For more details, you can refer to the [PR submission example](./Pull-Request-Example.md).
 
-### License Error
+## 3. Reasons for PR Submission Failure
 
-The License checker / license - header - check (pull_request) fails. Some files do not have a License added, and it needs to be added. It is recommended to execute the check command before each submission.
+#### License Error
+
+License checker / license-header-check (pull_request) failed. Some files are missing a License, which needs to be added. It is best to run the check command before each submission.
 
 ```
 cargo install hawkeye
 
-# Execute in the current project to detect which files do not have a License added
+# Execute in the current project to check which files are missing a License
 hawkeye check
 
 # Automatically add a License to each code file
 hawkeye format
 ```
 
-### Incorrect Title Format
+#### Title Format Error
 
-The failure of PR Title Checker / check (pull_request_target) is due to an incorrect PR title format.
+PR Title Checker / check (pull_request_target) failed due to incorrect PR title format.
 
 ```
 Prefix: Title
-The available prefix options are: feat|fix|test|refactor|chore|style|docs|perf|build|ci|revert
+Prefix options include: feat|fix|test|refactor|chore|style|docs|perf|build|ci|revert
 
-feat: New feature. For example: feat: Compatible with Rocksdb
+feat: New feature
+For example: feat: Compatible with Rocksdb
+
 fix: Bug fix
-docs: Documentation changes
-style: Changes in code style (do not affect code logic), used for submitting changes such as formatting, punctuation, and whitespace that do not affect code operation.
-refactor: Code refactoring (code changes that are neither new feature additions nor bug fixes)
+docs: Documentation change
+style: Code style change (does not affect code logic), used for submissions that only involve formatting, punctuation, whitespace, etc., that do not affect code execution.
+refactor: Code refactoring (code changes that are neither new features nor bug fixes)
 perf: Performance optimization
-test: Addition or modification of tests
-chore: Miscellaneous (changes in the build process or auxiliary tools)
+test: Adding or modifying tests
+chore: Miscellaneous (changes to the build process or auxiliary tools)
 build: Changes to the build system or external dependencies
-ci: Changes to the continuous integration configuration, modification of configuration files and scripts.
+ci: Changes to continuous integration configuration, including modifications to configuration files and scripts.
 revert: Revert
 ```

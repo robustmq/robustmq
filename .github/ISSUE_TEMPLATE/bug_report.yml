@@ -14,9 +14,21 @@
 
 ---
 name: Bug report
+title: "[BUG]"
 description: Is something not working? Help us fix it!
-labels: [ "bug" ]
+labels: [ "kind:bug" ]
 body:
+  - type: checkboxes
+    attributes:
+      label: Have you checked the documentation for submitting an Issue?
+      description: >
+        We would appreciate it if you could first check [Contribution Guide](https://robustmq.com/ContributionGuide/GitHub-Contribution-Guide.html),
+        as this will help us quickly categorize the Issue.
+        RobustMQ is a community-driven project and we love to bring new contributors in.
+      options:
+        - label: Yes.
+          required: true
+
   - type: markdown
     attributes:
       value: |
@@ -58,10 +70,9 @@ body:
     id: reproduce
     attributes:
       label: Minimal reproduce step
-      description: |
-        Please walk us through and provide steps and details on how
-        to reproduce the issue. If possible, provide scripts that we
-        can run to trigger the bug.
+      description: >
+        Please walk us through and provide steps and details on how to reproduce the issue.
+        If possible, provide scripts that we can run to trigger the bug.
     validations:
       required: true
 
@@ -83,10 +94,9 @@ body:
     id: os
     attributes:
       label: What operating system did you use?
-      description: |
-        Please provide OS, version, and architecture. For example:
-        Windows 10 x64, Ubuntu 21.04 x64, Mac OS X 10.5 ARM, Rasperry
-        Pi i386, etc.
+      description: >
+        Please provide OS, version, and architecture. For example: Windows 10 x64, Ubuntu 21.04 x64, Mac OS X 10.5 ARM,
+        Raspberry Pi i386, etc.
       placeholder: "Ubuntu 21.04 x64"
     validations:
       required: true
@@ -95,8 +105,18 @@ body:
     id: logs
     attributes:
       label: Relevant log output and stack trace
-      description: |
-        Please copy and paste any relevant log output or a stack
-        trace. This will be automatically formatted into code, so no
-        need for backticks.
+      description: >
+        Please copy and paste any relevant log output or a stack trace.
+        This will be automatically formatted into code, so no need for backticks.
       render: bash
+
+  - type: checkboxes
+    attributes:
+      label: Are you willing to submit PR?
+      description: >
+        A pull request is optional, but we are glad to help you in the contribution process
+        especially if you already know a good understanding of how to implement the fix.
+        RobustMQ is a community-driven project and we love to bring new contributors in.
+      options:
+        - label: Yes. I would be willing to submit a PR with guidance from the RobustMQ community to improve.
+        - label: No. I cannot submit a PR at this time.

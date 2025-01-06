@@ -197,7 +197,7 @@ impl ClientKeepAlive {
                 }
             } else {
                 let live_time = ConnectionLiveTime {
-                    protobol: MqttProtocol::Mqtt5,
+                    protocol: MqttProtocol::Mqtt5,
                     keep_live: connection.keep_alive,
                     heartbeat: now_second(),
                 };
