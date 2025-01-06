@@ -15,7 +15,7 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
-use common_base::enum_type::common_enum::SortType;
+use common_base::enum_type::sort_type::SortType;
 use grpc_clients::mqtt::admin::call::{
     cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user,
     mqtt_broker_enable_flapping_detect, mqtt_broker_enable_slow_subscribe,

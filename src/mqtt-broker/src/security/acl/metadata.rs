@@ -16,6 +16,8 @@ use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclResourceType};
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
 
+use crate::security::connection_jitter::ConnectionJitterCondition;
+
 #[derive(Clone)]
 pub struct AclMetadata {
     // blacklist
@@ -29,6 +31,9 @@ pub struct AclMetadata {
     // acl
     pub acl_user: DashMap<String, Vec<MqttAcl>>,
     pub acl_client_id: DashMap<String, Vec<MqttAcl>>,
+
+    // flapping-detect (client_id, ConnectionJitterCondition)
+    pub flapping_detect_connection: DashMap<String, ConnectionJitterCondition>,
 }
 
 impl Default for AclMetadata {
@@ -49,7 +54,23 @@ impl AclMetadata {
 
             acl_user: DashMap::with_capacity(2),
             acl_client_id: DashMap::with_capacity(2),
+            flapping_detect_connection: DashMap::new(),
         }
+    }
+
+    pub fn get_connection_jitter_condition(
+        &self,
+        client_id: &str,
+    ) -> Option<ConnectionJitterCondition> {
+        if let Some(flapping_detector) = self.flapping_detect_connection.get(client_id) {
+            return Some(flapping_detector.clone());
+        }
+        None
+    }
+
+    pub fn add_connection_jitter_condition(&self, flapping_detector: ConnectionJitterCondition) {
+        self.flapping_detect_connection
+            .insert(flapping_detector.client_id.clone(), flapping_detector);
     }
 
     pub fn parse_mqtt_acl(&self, acl: MqttAcl) {

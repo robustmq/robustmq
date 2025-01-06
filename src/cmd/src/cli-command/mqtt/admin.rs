@@ -17,7 +17,7 @@ use clap::builder::{
 };
 use clap::{arg, Parser};
 use cli_command::mqtt::MqttActionType;
-use common_base::enum_type::common_enum::SortType;
+use common_base::enum_type::sort_type::SortType;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
 };

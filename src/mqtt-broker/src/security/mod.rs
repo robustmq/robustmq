@@ -39,6 +39,7 @@ use crate::handler::error::MqttBrokerError;
 use crate::subscribe::sub_common::get_sub_topic_id_list;
 
 pub mod acl;
+pub mod connection_jitter;
 pub mod login;
 pub mod mysql;
 pub mod placement;

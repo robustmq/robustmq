@@ -21,6 +21,7 @@ use log::warn;
 use tonic::Status;
 use uuid::Uuid;
 
+use crate::enum_type::time_unit_enum::TimeUnit;
 use crate::error::common::CommonError;
 
 /// Create multi-level directory
@@ -79,6 +80,18 @@ pub fn now_second() -> u64 {
 pub fn unique_id() -> String {
     let uuid = Uuid::new_v4();
     uuid.to_string().replace("-", "")
+}
+
+pub fn convert_seconds(number: u32, unit: TimeUnit) -> u32 {
+    if unit == TimeUnit::Minutes {
+        number * 60
+    } else if unit == TimeUnit::Hours {
+        number * 3600
+    } else if unit == TimeUnit::Days {
+        number * 86400
+    } else {
+        number
+    }
 }
 
 /// Obtain local IP address
@@ -153,7 +166,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::tools::{get_local_ip, unique_id};
+    use crate::enum_type::time_unit_enum::TimeUnit;
+    use crate::tools::{convert_seconds, get_local_ip, unique_id};
 
     #[test]
     fn get_local_ip_test() {
@@ -163,5 +177,10 @@ mod tests {
     #[test]
     fn unique_id_test() {
         println!("{}", unique_id());
+    }
+
+    #[test]
+    fn test_convert_seconds() {
+        assert_eq!(convert_seconds(1, TimeUnit::Minutes), 60);
     }
 }
