@@ -233,6 +233,9 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<DeleteResourceConfigRequest>,
     ) -> Result<Response<DeleteResourceConfigReply>, Status> {
         let req = request.into_inner();
+
+        let _ = req.validate_ext()?;
+
         let data = StorageData::new(
             StorageDataType::ClusterDeleteResourceConfig,
             DeleteResourceConfigRequest::encode_to_vec(&req),
