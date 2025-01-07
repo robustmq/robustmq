@@ -68,9 +68,14 @@ impl AclMetadata {
         None
     }
 
-    pub fn add_connection_jitter_condition(&self, connection_jitter_condition: ConnectionJitterCondition) {
-        self.connection_jitter_map
-            .insert(connection_jitter_condition.client_id.clone(), connection_jitter_condition);
+    pub fn add_connection_jitter_condition(
+        &self,
+        connection_jitter_condition: ConnectionJitterCondition,
+    ) {
+        self.connection_jitter_map.insert(
+            connection_jitter_condition.client_id.clone(),
+            connection_jitter_condition,
+        );
     }
 
     pub fn parse_mqtt_acl(&self, acl: MqttAcl) {

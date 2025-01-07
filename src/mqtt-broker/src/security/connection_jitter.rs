@@ -99,6 +99,10 @@ fn is_within_window_time(
     current_request_time - first_request_time < window_time_seconds as u64
 }
 
-fn is_exceed_max_client_connections(current_time: u32, connect_times: u32, max_client_connections: u32) -> bool {
+fn is_exceed_max_client_connections(
+    current_time: u32,
+    connect_times: u32,
+    max_client_connections: u32,
+) -> bool {
     current_time - connect_times > max_client_connections
 }

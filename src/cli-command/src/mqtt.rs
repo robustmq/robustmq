@@ -25,7 +25,11 @@ use grpc_clients::mqtt::admin::call::{
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use prettytable::{row, Table};
-use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, EnableConnectionJitterRequest, EnableSlowSubscribeRequest, ListConnectionRequest, ListSlowSubscribeRequest, ListTopicRequest, ListUserRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, EnableConnectionJitterRequest,
+    EnableSlowSubscribeRequest, ListConnectionRequest, ListSlowSubscribeRequest, ListTopicRequest,
+    ListUserRequest,
+};
 
 use crate::{error_info, grpc_addr};
 
