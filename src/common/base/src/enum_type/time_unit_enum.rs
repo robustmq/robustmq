@@ -21,6 +21,7 @@ use clap::ValueEnum;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TimeUnit {
+    Seconds,
     Minutes,
     Hours,
     Days,
@@ -57,6 +58,7 @@ impl ValueEnum for TimeUnit {
             TimeUnit::Minutes => PossibleValue::new("minutes"),
             TimeUnit::Hours => PossibleValue::new("hours"),
             TimeUnit::Days => PossibleValue::new("days"),
+            TimeUnit::Seconds => PossibleValue::new("seconds"),
         })
     }
 }

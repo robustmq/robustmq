@@ -29,7 +29,7 @@ use crate::handler::constant::WILDCARD_RESOURCE;
 pub mod metadata;
 
 pub fn is_allow_acl(
-    cache_mamanger: &Arc<CacheManager>,
+    cache_manager: &Arc<CacheManager>,
     connection: &MQTTConnection,
     topic_name: &str,
     action: MqttAclAction,
@@ -37,29 +37,22 @@ pub fn is_allow_acl(
     _: QoS,
 ) -> bool {
     // check super user
-    if is_super_user(cache_mamanger, &connection.login_user) {
+    if is_super_user(cache_manager, &connection.login_user) {
         return true;
     }
 
     // check blacklist
-    if is_blacklist(cache_mamanger, connection) {
+    if is_blacklist(cache_manager, connection) {
         return false;
     }
 
     // chack acl
-    if is_acl_deny(cache_mamanger, connection, topic_name, action) {
+    if is_acl_deny(cache_manager, connection, topic_name, action) {
         return false;
     }
 
     // check retain acl
-    if retain
-        && is_acl_deny(
-            cache_mamanger,
-            connection,
-            topic_name,
-            MqttAclAction::Retain,
-        )
-    {
+    if retain && is_acl_deny(cache_manager, connection, topic_name, MqttAclAction::Retain) {
         return false;
     }
 

@@ -34,7 +34,7 @@ impl CacheManager {
         dynamic_config.flapping_detect = MqttClusterDynamicFlappingDetect {
             enable: request.is_enable,
             window_time: request.window_time,
-            max_disconnects: request.max_disconnects,
+            max_client_connections: request.max_disconnects,
             ban_time: request.ban_time,
         };
 

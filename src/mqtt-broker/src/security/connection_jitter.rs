@@ -39,8 +39,10 @@ pub fn check_connection_jitter(
     {
         connection_jitter_condition
     } else {
-        // todo refactor to use MqttBrokerError
-        panic!("flapping detector for {} not found", client_id);
+        return Err(MqttBrokerError::CommonError(format!(
+            "connection jitter info for {} not found",
+            client_id
+        )));
     };
 
     let config = cache_manager.get_flapping_detect_config();
@@ -54,7 +56,7 @@ pub fn check_connection_jitter(
         if is_exceed_max_disconnects(
             counter,
             connection_jitter_condition.connect_times,
-            config.max_disconnects,
+            config.max_client_connections,
         ) {
             add_blacklist_4_connection_jitter(cache_manager.clone(), config);
         } else {

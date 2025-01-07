@@ -84,14 +84,13 @@ pub fn unique_id() -> String {
 
 pub fn convert_seconds(number: u32, unit: TimeUnit) -> u32 {
     if unit == TimeUnit::Minutes {
-        number * 60
+        return number * 60;
     } else if unit == TimeUnit::Hours {
-        number * 3600
+        return number * 3600;
     } else if unit == TimeUnit::Days {
-        number * 86400
-    } else {
-        number
+        return number * 86400;
     }
+    number
 }
 
 /// Obtain local IP address

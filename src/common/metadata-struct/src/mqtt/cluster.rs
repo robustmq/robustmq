@@ -80,7 +80,7 @@ pub struct MqttClusterDynamicSlowSub {
 pub struct MqttClusterDynamicFlappingDetect {
     pub enable: bool,
     pub window_time: u32,
-    pub max_disconnects: u32,
+    pub max_client_connections: u32,
     pub ban_time: u32,
 }
 
@@ -126,7 +126,7 @@ impl MqttClusterDynamicConfig {
             flapping_detect: MqttClusterDynamicFlappingDetect {
                 enable: false,
                 window_time: 1,
-                max_disconnects: 15,
+                max_client_connections: 15,
                 ban_time: 5,
             },
         }

@@ -217,7 +217,7 @@ where
         let record_offset = record.offset.unwrap();
 
         // build publish params
-        let sub_pub_param = if let Some(params) = buile_pub_message(
+        let sub_pub_param = if let Some(params) = build_pub_message(
             record.to_owned(),
             group_id,
             qos,
@@ -306,7 +306,7 @@ where
     Ok(Some(results.last().unwrap().offset.unwrap()))
 }
 
-async fn buile_pub_message(
+async fn build_pub_message(
     record: Record,
     group_id: &str,
     qos: &QoS,
