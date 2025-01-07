@@ -16,6 +16,7 @@ use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConnectionJitter;
+use std::sync::Arc;
 
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
@@ -29,7 +30,7 @@ pub struct ConnectionJitterCondition {
 
 pub fn check_connection_jitter(
     client_id: String,
-    cache_manager: CacheManager,
+    cache_manager: &Arc<CacheManager>,
 ) -> Result<bool, MqttBrokerError> {
     let mut counter = 0;
     counter += 1;
@@ -58,7 +59,7 @@ pub fn check_connection_jitter(
             connection_jitter_condition.connect_times,
             config.max_client_connections,
         ) {
-            add_blacklist_4_connection_jitter(cache_manager.clone(), config);
+            add_blacklist_4_connection_jitter(cache_manager, config);
         } else {
             connection_jitter_condition.connect_times = counter;
             return Ok(true);
@@ -76,7 +77,7 @@ pub fn check_connection_jitter(
 }
 
 fn add_blacklist_4_connection_jitter(
-    cache_manager: CacheManager,
+    cache_manager: &Arc<CacheManager>,
     config: MqttClusterDynamicConnectionJitter,
 ) {
     let client_id_blacklist = MqttAclBlackList {
