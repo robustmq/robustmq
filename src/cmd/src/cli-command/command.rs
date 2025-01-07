@@ -19,15 +19,13 @@ use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
 use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateUserRequest, DeleteUserRequest, EnableFlappingDetectRequest, ListTopicRequest,
-};
+use protocol::broker_mqtt::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequest, EnableConnectionJitterRequest,  ListTopicRequest};
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
 };
 
 use crate::mqtt::admin::{
-    process_slow_sub_args, CreateUserArgs, DeleteUserArgs, FlappingDetectArgs, SlowSubArgs,
+    process_slow_sub_args, CreateUserArgs, DeleteUserArgs, ConnectionJitterArgs, SlowSubArgs,
 };
 
 #[derive(Parser)] // requires `derive` feature
@@ -73,9 +71,9 @@ enum MQTTAction {
     // Connections
     ListConnection,
 
-    // flapping-detect
-    #[clap(name = "flapping-detect")]
-    FlappingDetect(FlappingDetectArgs),
+    // connection jitter
+    #[clap(name = "connection-jitter")]
+    ConnectionJitter(ConnectionJitterArgs),
 
     ListTopic(ListTopicArgs),
 
@@ -190,11 +188,11 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
                 },
             }),
             MQTTAction::SlowSub(args) => process_slow_sub_args(args),
-            MQTTAction::FlappingDetect(args) => {
-                MqttActionType::EnableFlappingDetect(EnableFlappingDetectRequest {
+            MQTTAction::ConnectionJitter(args) => {
+                MqttActionType::EnableConnectionJitter(EnableConnectionJitterRequest {
                     is_enable: args.is_enable.unwrap_or(false),
                     window_time: args.window_time.unwrap_or(1),
-                    max_disconnects: args.max_disconnects.unwrap_or(15),
+                    max_client_connections: args.max_client_connections.unwrap_or(15),
                     ban_time: args.ban_time.unwrap_or(5),
                 })
             }

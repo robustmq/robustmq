@@ -18,18 +18,14 @@ use std::sync::Arc;
 use common_base::enum_type::sort_type::SortType;
 use grpc_clients::mqtt::admin::call::{
     cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user,
-    mqtt_broker_enable_flapping_detect, mqtt_broker_enable_slow_subscribe,
+    mqtt_broker_enable_connection_jitter, mqtt_broker_enable_slow_subscribe,
     mqtt_broker_list_connection, mqtt_broker_list_slow_subscribe, mqtt_broker_list_topic,
     mqtt_broker_list_user,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use prettytable::{row, Table};
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, EnableFlappingDetectRequest,
-    EnableSlowSubscribeRequest, ListConnectionRequest, ListSlowSubscribeRequest, ListTopicRequest,
-    ListUserRequest,
-};
+use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, EnableConnectionJitterRequest, EnableSlowSubscribeRequest, ListConnectionRequest, ListSlowSubscribeRequest, ListTopicRequest, ListUserRequest};
 
 use crate::{error_info, grpc_addr};
 
@@ -55,8 +51,8 @@ pub enum MqttActionType {
     EnableSlowSubscribe(EnableSlowSubscribeRequest),
     ListSlowSubscribe(ListSlowSubscribeRequest),
 
-    // flapping-detect
-    EnableFlappingDetect(EnableFlappingDetectRequest),
+    // connection-jitter
+    EnableConnectionJitter(EnableConnectionJitterRequest),
 
     ListTopic(ListTopicRequest),
 }
@@ -106,8 +102,8 @@ impl MqttBrokerCommand {
                 self.list_slow_subscribe(&client_pool, params.clone(), request.clone())
                     .await;
             }
-            MqttActionType::EnableFlappingDetect(ref request) => {
-                self.enable_flapping_detect(&client_pool, params.clone(), request.clone())
+            MqttActionType::EnableConnectionJitter(ref request) => {
+                self.enable_connection_jitter(&client_pool, params.clone(), request.clone())
                     .await;
             }
         }
@@ -198,14 +194,14 @@ impl MqttBrokerCommand {
         }
     }
 
-    // flapping detect
-    async fn enable_flapping_detect(
+    // connection jitter
+    async fn enable_connection_jitter(
         &self,
         client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: EnableFlappingDetectRequest,
+        cli_request: EnableConnectionJitterRequest,
     ) {
-        match mqtt_broker_enable_flapping_detect(
+        match mqtt_broker_enable_connection_jitter(
             client_pool,
             &grpc_addr(params.server),
             cli_request,

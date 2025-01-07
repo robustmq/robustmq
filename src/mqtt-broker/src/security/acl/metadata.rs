@@ -32,8 +32,8 @@ pub struct AclMetadata {
     pub acl_user: DashMap<String, Vec<MqttAcl>>,
     pub acl_client_id: DashMap<String, Vec<MqttAcl>>,
 
-    // flapping-detect (client_id, ConnectionJitterCondition)
-    pub flapping_detect_connection: DashMap<String, ConnectionJitterCondition>,
+    // connection jitter (client_id, ConnectionJitterCondition)
+    pub connection_jitter_map: DashMap<String, ConnectionJitterCondition>,
 }
 
 impl Default for AclMetadata {
@@ -54,7 +54,7 @@ impl AclMetadata {
 
             acl_user: DashMap::with_capacity(2),
             acl_client_id: DashMap::with_capacity(2),
-            flapping_detect_connection: DashMap::new(),
+            connection_jitter_map: DashMap::new(),
         }
     }
 
@@ -62,15 +62,15 @@ impl AclMetadata {
         &self,
         client_id: &str,
     ) -> Option<ConnectionJitterCondition> {
-        if let Some(flapping_detector) = self.flapping_detect_connection.get(client_id) {
-            return Some(flapping_detector.clone());
+        if let Some(connection_jitter_condition) = self.connection_jitter_map.get(client_id) {
+            return Some(connection_jitter_condition.clone());
         }
         None
     }
 
-    pub fn add_connection_jitter_condition(&self, flapping_detector: ConnectionJitterCondition) {
-        self.flapping_detect_connection
-            .insert(flapping_detector.client_id.clone(), flapping_detector);
+    pub fn add_connection_jitter_condition(&self, connection_jitter_condition: ConnectionJitterCondition) {
+        self.connection_jitter_map
+            .insert(connection_jitter_condition.client_id.clone(), connection_jitter_condition);
     }
 
     pub fn parse_mqtt_acl(&self, acl: MqttAcl) {

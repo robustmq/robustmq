@@ -23,7 +23,7 @@ pub struct MqttClusterDynamicConfig {
     pub security: MqttClusterDynamicConfigSecurity,
     pub network: MqttClusterDynamicConfigNetwork,
     pub slow: MqttClusterDynamicSlowSub,
-    pub flapping_detect: MqttClusterDynamicFlappingDetect,
+    pub connection_jitter: MqttClusterDynamicConnectionJitter,
 }
 
 // MQTT cluster protocol related dynamic configuration
@@ -77,7 +77,7 @@ pub struct MqttClusterDynamicSlowSub {
 }
 
 #[derive(Serialize, Deserialize, Default, Clone)]
-pub struct MqttClusterDynamicFlappingDetect {
+pub struct MqttClusterDynamicConnectionJitter {
     pub enable: bool,
     pub window_time: u32,
     pub max_client_connections: u32,
@@ -123,7 +123,7 @@ impl MqttClusterDynamicConfig {
                 internal_ms: 0,
                 response_ms: 0,
             },
-            flapping_detect: MqttClusterDynamicFlappingDetect {
+            connection_jitter: MqttClusterDynamicConnectionJitter {
                 enable: false,
                 window_time: 1,
                 max_client_connections: 15,

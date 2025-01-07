@@ -13,17 +13,7 @@
 // limitations under the License.
 
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
-    CreateBlacklistReply, CreateBlacklistRequest, CreateTopicRewriteRuleReply,
-    CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
-    DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
-    EnableFlappingDetectRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
-    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
-    ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
-    ListTopicRequest, ListUserReply, ListUserRequest,
-};
+use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest, CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableConnectionJitterReply, EnableConnectionJitterRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest, ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply, ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest};
 use protocol::broker_mqtt::broker_mqtt_inner::mqtt_broker_inner_service_client::MqttBrokerInnerServiceClient;
 use protocol::broker_mqtt::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
@@ -149,11 +139,11 @@ impl_retriable_request!(
 );
 
 impl_retriable_request!(
-    EnableFlappingDetectRequest,
+    EnableConnectionJitterRequest,
     MqttBrokerAdminServiceClient<Channel>,
-    EnableFlappingDetectReply,
+    EnableConnectionJitterReply,
     mqtt_broker_admin_services_client,
-    mqtt_broker_enable_flapping_detect
+    mqtt_broker_enable_connection_jitter
 );
 
 impl_retriable_request!(

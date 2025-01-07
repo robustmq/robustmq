@@ -13,10 +13,9 @@
 // limitations under the License.
 
 use metadata_struct::mqtt::cluster::{
-    MqttClusterDynamicConfig, MqttClusterDynamicFlappingDetect, MqttClusterDynamicSlowSub,
+    MqttClusterDynamicConfig, MqttClusterDynamicConnectionJitter, MqttClusterDynamicSlowSub,
 };
-use protocol::broker_mqtt::broker_mqtt_admin::EnableFlappingDetectRequest;
-
+use protocol::broker_mqtt::broker_mqtt_admin::EnableConnectionJitterRequest;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::cluster::ClusterStorage;
@@ -25,16 +24,16 @@ use crate::storage::cluster::ClusterStorage;
 /// Through this implementation, we can retrieve configuration information within the cluster
 /// and set corresponding cluster configuration attributes.
 impl CacheManager {
-    pub async fn enable_flapping_detect(
+    pub async fn enable_connection_jitter(
         &self,
-        request: EnableFlappingDetectRequest,
+        request: EnableConnectionJitterRequest,
     ) -> Result<(), MqttBrokerError> {
         // save in cache
         let mut dynamic_config = self.get_cluster_info();
-        dynamic_config.flapping_detect = MqttClusterDynamicFlappingDetect {
+        dynamic_config.connection_jitter = MqttClusterDynamicConnectionJitter {
             enable: request.is_enable,
             window_time: request.window_time,
-            max_client_connections: request.max_disconnects,
+            max_client_connections: request.max_client_connections,
             ban_time: request.ban_time,
         };
 
@@ -45,8 +44,8 @@ impl CacheManager {
         Ok(())
     }
 
-    pub fn get_flapping_detect_config(&self) -> MqttClusterDynamicFlappingDetect {
-        self.get_cluster_info().flapping_detect
+    pub fn get_connection_jitter_config(&self) -> MqttClusterDynamicConnectionJitter {
+        self.get_cluster_info().connection_jitter
     }
 
     pub async fn enable_slow_sub(&self, is_enable: bool) -> Result<(), MqttBrokerError> {

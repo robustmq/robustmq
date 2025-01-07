@@ -24,18 +24,7 @@ use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListTyp
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
-    CreateBlacklistReply, CreateBlacklistRequest, CreateTopicRewriteRuleReply,
-    CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
-    DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
-    EnableFlappingDetectRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
-    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionRaw,
-    ListConnectionReply, ListConnectionRequest, ListSlowSubScribeRaw, ListSlowSubscribeReply,
-    ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-    MqttTopic,
-};
+use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest, CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableConnectionJitterReply, EnableConnectionJitterRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest, ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionRaw, ListConnectionReply, ListConnectionRequest, ListSlowSubScribeRaw, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest, MqttTopic};
 use tonic::{Request, Response, Status};
 
 use crate::handler::cache::CacheManager;
@@ -258,18 +247,18 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         }
     }
 
-    async fn mqtt_broker_enable_flapping_detect(
+    async fn mqtt_broker_enable_connection_jitter(
         &self,
-        request: Request<EnableFlappingDetectRequest>,
-    ) -> Result<Response<EnableFlappingDetectReply>, Status> {
+        request: Request<EnableConnectionJitterRequest>,
+    ) -> Result<Response<EnableConnectionJitterReply>, Status> {
         let subscribe_request = request.into_inner();
 
         match self
             .cache_manager
-            .enable_flapping_detect(subscribe_request.clone())
+            .enable_connection_jitter(subscribe_request.clone())
             .await
         {
-            Ok(_) => Ok(Response::new(EnableFlappingDetectReply {
+            Ok(_) => Ok(Response::new(EnableConnectionJitterReply {
                 is_enable: subscribe_request.is_enable,
             })),
             Err(e) => Err(Status::cancelled(e.to_string())),

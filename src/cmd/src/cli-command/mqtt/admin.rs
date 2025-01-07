@@ -45,11 +45,11 @@ pub(crate) struct DeleteUserArgs {
     pub(crate) username: String,
 }
 
-// flapping-detect feat
+// connection jitter feat
 #[derive(Debug, Parser)]
 #[command(author="RobustMQ", about="", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct FlappingDetectArgs {
+pub(crate) struct ConnectionJitterArgs {
     #[arg(long = "enable")]
     #[arg(value_parser =  BoolishValueParser::new())]
     #[arg(default_missing_value = "false")]
@@ -68,7 +68,7 @@ pub(crate) struct FlappingDetectArgs {
     #[arg(value_parser = RangedU64ValueParser::<u32>::new())]
     #[arg(default_missing_value = "15")]
     #[arg(action = ArgAction::Set, num_args = 0..=1)]
-    pub(crate) max_disconnects: Option<u32>,
+    pub(crate) max_client_connections: Option<u32>,
     #[arg(long = "ban-time")]
     #[arg(value_parser = RangedU64ValueParser::<u32>::new())]
     #[arg(default_missing_value = "5")]

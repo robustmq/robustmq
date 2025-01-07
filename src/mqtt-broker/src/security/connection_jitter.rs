@@ -15,7 +15,7 @@
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
-use metadata_struct::mqtt::cluster::MqttClusterDynamicFlappingDetect;
+use metadata_struct::mqtt::cluster::MqttClusterDynamicConnectionJitter;
 
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
@@ -45,7 +45,7 @@ pub fn check_connection_jitter(
         )));
     };
 
-    let config = cache_manager.get_flapping_detect_config();
+    let config = cache_manager.get_connection_jitter_config();
     let current_request_time = now_second();
 
     if is_within_window_time(
@@ -53,7 +53,7 @@ pub fn check_connection_jitter(
         connection_jitter_condition.first_request_time,
         config.window_time,
     ) {
-        if is_exceed_max_disconnects(
+        if is_exceed_max_client_connections(
             counter,
             connection_jitter_condition.connect_times,
             config.max_client_connections,
@@ -77,7 +77,7 @@ pub fn check_connection_jitter(
 
 fn add_blacklist_4_connection_jitter(
     cache_manager: CacheManager,
-    config: MqttClusterDynamicFlappingDetect,
+    config: MqttClusterDynamicConnectionJitter,
 ) {
     let client_id_blacklist = MqttAclBlackList {
         blacklist_type: MqttAclBlackListType::ClientId,
@@ -99,6 +99,6 @@ fn is_within_window_time(
     current_request_time - first_request_time < window_time_seconds as u64
 }
 
-fn is_exceed_max_disconnects(current_time: u32, connect_times: u32, max_disconnects: u32) -> bool {
-    current_time - connect_times > max_disconnects
+fn is_exceed_max_client_connections(current_time: u32, connect_times: u32, max_client_connections: u32) -> bool {
+    current_time - connect_times > max_client_connections
 }
