@@ -16,11 +16,12 @@
 mod tests {
     use common_base::tools::unique_id;
     use journal_client::client::{JournalClient, JournalClientWriteData};
+    use metadata_struct::adapter::read_config::ReadConfig;
 
     use crate::journal_client::common::journal_tcp_addr_vec;
 
     #[tokio::test]
-    async fn create_shard_test() {
+    async fn write_data_test() {
         let addrs = journal_tcp_addr_vec();
         let namespace = unique_id();
         let shard_name = "s1".to_string();
@@ -35,32 +36,87 @@ mod tests {
             .await;
         assert!(res.is_ok());
 
+        write_data(&client, &namespace, &shard_name).await;
+    }
+
+    #[tokio::test]
+    async fn read_data_test() {
+        let addrs = journal_tcp_addr_vec();
+        let namespace = unique_id();
+        let shard_name = "s1".to_string();
+        let replica_num = 1;
+
+        let res = JournalClient::new(addrs).await;
+        assert!(res.is_ok());
+        let client = res.unwrap();
+
+        let res = client
+            .create_shard(&namespace, &shard_name, replica_num)
+            .await;
+        assert!(res.is_ok());
+
+        write_data(&client, &namespace, &shard_name).await;
+
+        // read by key
+        let read_config = ReadConfig::new();
+        let res = client
+            .read_by_key(&namespace, &shard_name, 0, "k1", &read_config)
+            .await;
+        println!("{:?}", res);
+        assert!(res.is_ok());
+        let list = res.unwrap();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list.first().unwrap().key, "k1".to_string());
+
+        // read by tag
+        let read_config = ReadConfig::new();
+        let res = client
+            .read_by_tag(&namespace, &shard_name, 0, "tag1", &read_config)
+            .await;
+        println!("{:?}", res);
+        assert!(res.is_ok());
+        let list = res.unwrap();
+        assert_eq!(list.len(), 1);
+        assert!(list.first().unwrap().tags.contains(&("tag1".to_string())));
+
+        // read by offset
+        let read_config = ReadConfig::new();
+        let res = client
+            .read_by_offset(&namespace, &shard_name, 0, &read_config)
+            .await;
+        println!("{:?}", res);
+        assert!(res.is_ok());
+        let list = res.unwrap();
+        assert_eq!(list.len(), 5);
+    }
+
+    async fn write_data(client: &JournalClient, namespace: &str, shard_name: &str) {
+        let data = JournalClientWriteData {
+            key: "k0".to_string(),
+            content: "ccccc0".as_bytes().to_vec(),
+            tags: vec!["tag0".to_string()],
+        };
+
+        let res_opt = client
+            .write(namespace.to_owned(), shard_name.to_owned(), data)
+            .await;
+        assert!(res_opt.is_ok());
+
+        let res = res_opt.unwrap();
+        assert_eq!(res.offset, 0);
+
         let data = JournalClientWriteData {
             key: "k1".to_string(),
             content: "ccccc1".as_bytes().to_vec(),
             tags: vec!["tag1".to_string()],
         };
-
         let res_opt = client
-            .write(namespace.clone(), shard_name.clone(), data)
+            .write(namespace.to_owned(), shard_name.to_owned(), data)
             .await;
         assert!(res_opt.is_ok());
 
         let res = res_opt.unwrap();
-        assert_eq!(res.offset, 0);
-
-        let data = JournalClientWriteData {
-            key: "k2".to_string(),
-            content: "ccccc2".as_bytes().to_vec(),
-            tags: vec!["tag2".to_string()],
-        };
-        let res_opt = client
-            .write(namespace.clone(), shard_name.clone(), data)
-            .await;
-        assert!(res_opt.is_ok());
-
-        let res = res_opt.unwrap();
-        assert_eq!(res.offset, 0);
+        assert_eq!(res.offset, 1);
 
         let datas = vec![
             JournalClientWriteData {
@@ -69,23 +125,22 @@ mod tests {
                 tags: vec!["tag2".to_string()],
             },
             JournalClientWriteData {
-                key: "k2".to_string(),
-                content: "ccccc2".as_bytes().to_vec(),
-                tags: vec!["tag2".to_string()],
+                key: "k3".to_string(),
+                content: "ccccc3".as_bytes().to_vec(),
+                tags: vec!["tag3".to_string()],
             },
             JournalClientWriteData {
-                key: "k2".to_string(),
-                content: "ccccc2".as_bytes().to_vec(),
-                tags: vec!["tag2".to_string()],
+                key: "k4".to_string(),
+                content: "ccccc4".as_bytes().to_vec(),
+                tags: vec!["tag4".to_string()],
             },
         ];
         let res_opt = client
-            .batch_write(namespace.clone(), shard_name.clone(), datas)
+            .batch_write(namespace.to_owned(), shard_name.to_owned(), datas)
             .await;
         assert!(res_opt.is_ok());
 
         let res = res_opt.unwrap();
-        println!("{:?}", res);
         assert_eq!(res.len(), 3);
 
         assert_eq!(res.get(0).unwrap().offset, 2);
@@ -93,7 +148,6 @@ mod tests {
         assert_eq!(res.get(2).unwrap().offset, 4);
 
         let res = client.close().await;
-        println!("{:?}", res);
         assert!(res.is_ok());
     }
 }

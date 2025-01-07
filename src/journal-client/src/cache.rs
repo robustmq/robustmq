@@ -87,7 +87,7 @@ impl MetadataCache {
     pub fn get_segment_leader(&self, namespace: &str, shard: &str) -> Option<u32> {
         let key = shard_name_iden(namespace, shard);
         if let Some(shard) = self.shards.get(&key) {
-            return Some(shard.active_segment as u32);
+            return Some(shard.active_segment_leader as u32);
         }
         None
     }
@@ -128,6 +128,12 @@ impl MetadataCache {
             });
         }
         results
+    }
+
+    pub fn all_metadata(&self) -> (Vec<GetShardMetadataRespShard>, Vec<GetClusterMetadataNode>) {
+        let shards = self.shards.iter().map(|raw| raw.clone()).collect();
+        let nodes = self.nodes.iter().map(|raw| raw.clone()).collect();
+        (shards, nodes)
     }
 }
 
@@ -212,7 +218,6 @@ async fn update_cache(
             }
         }
     }
-    sleep(Duration::from_secs(10)).await;
 }
 
 pub async fn get_active_segment(

@@ -87,7 +87,6 @@ impl NodeConnection {
                     match da.stream.send(req_packet.clone()).await {
                         Ok(()) => {
                             if let Some(data) = da.stream.next().await {
-                                println!("{:?}", data);
                                 match data {
                                     Ok(da) => return Ok(da),
                                     Err(e) => {
@@ -321,6 +320,7 @@ pub fn start_conn_gc_thread(
                     }
                 },
                 val = gc_conn(metadata_cache.clone(),connection_manager.clone())=>{
+                    sleep(Duration::from_secs(10)).await;
                 }
             }
         }
@@ -329,7 +329,6 @@ pub fn start_conn_gc_thread(
 
 async fn gc_conn(metadata_cache: Arc<MetadataCache>, connection_manager: Arc<ConnectionManager>) {
     for raw in connection_manager.get_inactive_conn() {
-        connection_manager.close_conn_by_node(raw.0, &raw.1).await;
+        // connection_manager.close_conn_by_node(raw.0, &raw.1).await;
     }
-    sleep(Duration::from_secs(10)).await;
 }

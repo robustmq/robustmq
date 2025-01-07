@@ -17,11 +17,13 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
-use protocol::journal_server::journal_engine::{CreateShardReqBody, DeleteShardReqBody};
+use protocol::journal_server::journal_engine::{
+    CreateShardReqBody, DeleteShardReqBody, GetClusterMetadataNode, GetShardMetadataRespShard,
+};
 use tokio::sync::broadcast::{self, Sender};
 
-use super::cache::{load_node_cache, start_update_cache_thread, MetadataCache};
-use super::connection::{start_conn_gc_thread, ConnectionManager};
+use super::cache::{load_node_cache, MetadataCache};
+use super::connection::ConnectionManager;
 use super::error::JournalClientError;
 use crate::async_reader::{
     async_read_data_by_key, async_read_data_by_offset, async_read_data_by_tag,
@@ -262,6 +264,10 @@ impl JournalClient {
             results.push(record);
         }
         Ok(results)
+    }
+
+    pub fn metadata(&self) -> (Vec<GetShardMetadataRespShard>, Vec<GetClusterMetadataNode>) {
+        self.metadata_cache.all_metadata()
     }
 
     fn validate(&self) -> Result<(), JournalClientError> {
