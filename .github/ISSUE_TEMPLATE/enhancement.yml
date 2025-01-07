@@ -14,22 +14,35 @@
 
 ---
 name: Enhancement
+title: "[Style/Refactor/Performance/Doc/Test/Build/CI/Chore]"
 description: Suggest an enhancement to existing functionality
 labels: [ "enhancement" ]
 body:
+  - type: checkboxes
+    attributes:
+      label: Have you checked the documentation for submitting an Issue?
+      description: >
+        We would appreciate it if you could first check [Contribution Guide](https://robustmq.com/ContributionGuide/GitHub-Contribution-Guide.html),
+        as this will help us quickly categorize the Issue.
+        RobustMQ is a community-driven project and we love to bring new contributors in.
+      options:
+        - label: Yes.
+          required: true
+
   - type: dropdown
     id: type
     attributes:
       label: What type of enhancement is this?
       multiple: true
       options:
-        - API improvement
-        - Configuration
-        - Performance
+        - Style
         - Refactor
-        - Tech debt reduction
-        - User experience
-        - Other
+        - Performance
+        - Doc
+        - Test
+        - Build
+        - CI
+        - Chore
     validations:
       required: true
 
@@ -51,3 +64,14 @@ body:
         Share any ideas of how to implement the enhancement.
     validations:
       required: false
+
+  - type: checkboxes
+    attributes:
+      label: Are you willing to submit PR?
+      description: >
+        A pull request is optional, but we are glad to help you in the contribution process
+        especially if you already know a good understanding of how to implement the feature.
+        RobustMQ is a community-driven project and we love to bring new contributors in.
+      options:
+        - label: Yes. I would be willing to submit a PR with guidance from the RobustMQ community to improve.
+        - label: No. I cannot submit a PR at this time.

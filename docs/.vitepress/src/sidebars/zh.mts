@@ -50,12 +50,26 @@ export const sidebar = [
         text: "贡献指南",
         collapsed: true,
         items: [
-            {text: "环境搭建", link: "/zh/ContributionGuide/Build-Develop-Env"},
-            {text: "Cargo运行", link: "/zh/ContributionGuide/Cargo-Running"},
-            {text: "VsCode 运行", link: "/zh/ContributionGuide/VsCode-Running"},
-            {text: "代码结构", link: "/zh/ContributionGuide/Code-Structure"},
             {text: "GitHub 贡献指南", link: "/zh/ContributionGuide/GitHub-Contribution-Guide"},
             {text: "PR 提交示例", link: "/zh/ContributionGuide/Pull-Request-Example"},
+            {
+                text: "代码贡献",
+                collapsed: true,
+                items: [
+                    {text: "环境搭建", link: "/zh/ContributionGuide/ContributingCode/Build-Develop-Env"},
+                    {text: "Cargo运行", link: "/zh/ContributionGuide/ContributingCode/Cargo-Running"},
+                    {text: "VsCode 运行", link: "/zh/ContributionGuide/ContributingCode/VsCode-Running"},
+                    {text: "代码结构", link: "/zh/ContributionGuide/ContributingCode/Code-Structure"},
+                ]
+            },
+            {
+                text: "文档贡献",
+                collapsed: true,
+                items: [
+                    {text: "环境搭建", link: "/zh/ContributionGuide/ContributingDoc/Build-Doc-Env"},
+                    {text: "文档贡献指导", link: "/zh/ContributionGuide/ContributingDoc/Doc-Contribution-Guide"},
+                ]
+            }
         ],
     },
     {
@@ -69,7 +83,7 @@ export const sidebar = [
         text: "相关资料",
         collapsed: true,
         items: [
-            {text: "RobustMQ Rust China For 2024", link: "/zh/OtherData/RobustMQ-Rust-China-For-2024"},
+
         ],
     },
 ];

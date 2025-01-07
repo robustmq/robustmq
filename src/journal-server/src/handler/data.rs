@@ -179,7 +179,7 @@ impl DataHandler {
             {
                 segment.segment_seq
             } else {
-                let e = &JournalServerError::NotActiveSegmet(shard_iden);
+                let e = &JournalServerError::NotActiveSegment(shard_iden);
                 meta_list.push(FetchOffsetShardMeta {
                     error: Some(JournalEngineError {
                         code: get_journal_server_code(e),

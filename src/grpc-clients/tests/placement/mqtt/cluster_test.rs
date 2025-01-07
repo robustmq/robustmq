@@ -17,12 +17,13 @@ mod tests {
     use std::sync::Arc;
 
     use grpc_clients::placement::inner::call::{
-        cluster_status, delete_idempotent_data, get_resource_config, node_list, register_node,
-        set_resource_config, unregister_node,
+        cluster_status, delete_idempotent_data, delete_resource_config, exists_idempotent_data,
+        get_resource_config, node_list, register_node, set_resource_config, unregister_node,
     };
     use grpc_clients::pool::ClientPool;
     use protocol::placement_center::placement_center_inner::{
-        ClusterStatusRequest, ClusterType, DeleteIdempotentDataRequest, GetResourceConfigRequest,
+        ClusterStatusRequest, ClusterType, DeleteIdempotentDataRequest,
+        DeleteResourceConfigRequest, ExistsIdempotentDataRequest, GetResourceConfigRequest,
         NodeListRequest, RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
     };
 
@@ -252,5 +253,67 @@ mod tests {
                 .await
                 .is_err()
         );
+    }
+
+    #[tokio::test]
+    async fn exists_idempotent_data_test() {
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
+        let addrs = vec![get_placement_addr()];
+
+        let request = ClusterStatusRequest::default();
+        assert!(cluster_status(&client_pool, &addrs, request).await.is_ok());
+
+        let request = ExistsIdempotentDataRequest {
+            cluster_name: "test-cluster-name".to_string(),
+            producer_id: "2".to_string(),
+            seq_num: 1u64,
+        };
+        assert!(exists_idempotent_data(&client_pool, &addrs, request)
+            .await
+            .is_ok());
+
+        let request = ExistsIdempotentDataRequest {
+            cluster_name: "".to_string(),
+            producer_id: "2".to_string(),
+            seq_num: 2u64,
+        };
+        assert!(exists_idempotent_data(&client_pool, &addrs, request)
+            .await
+            .is_err());
+
+        let request = ExistsIdempotentDataRequest {
+            cluster_name: "test-cluster-name".to_string(),
+            producer_id: "".to_string(),
+            seq_num: 3u64,
+        };
+
+        assert!(exists_idempotent_data(&client_pool, &addrs, request)
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn delete_resource_config_test() {
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
+        let addrs = vec![get_placement_addr()];
+
+        let request = ClusterStatusRequest::default();
+        assert!(cluster_status(&client_pool, &addrs, request).await.is_ok());
+
+        let request = DeleteResourceConfigRequest {
+            cluster_name: "test-cluster-name".to_string(),
+            resources: Vec::new(),
+        };
+        assert!(delete_resource_config(&client_pool, &addrs, request)
+            .await
+            .is_ok());
+
+        let request = DeleteResourceConfigRequest {
+            cluster_name: "".to_string(),
+            resources: Vec::new(),
+        };
+        assert!(delete_resource_config(&client_pool, &addrs, request)
+            .await
+            .is_err());
     }
 }

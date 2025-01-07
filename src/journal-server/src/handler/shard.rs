@@ -130,7 +130,7 @@ impl ShardHandler {
                 // Active Segment does not exist, try to update cache.
                 // The Active Segment will only be updated if the Segment is successfully created
                 load_metadata_cache(&self.cache_manager, &self.client_pool).await;
-                return Err(JournalServerError::NotActiveSegmet(shard.name()));
+                return Err(JournalServerError::NotActiveSegment(shard.name()));
             };
 
             // Try to transition the Segment state
@@ -148,7 +148,7 @@ impl ShardHandler {
 
             if segments.is_empty() {
                 load_metadata_cache(&self.cache_manager, &self.client_pool).await;
-                return Err(JournalServerError::NotAvailableSegmets(raw.shard_name));
+                return Err(JournalServerError::NotAvailableSegments(raw.shard_name));
             };
 
             let mut resp_shard_segments = Vec::new();

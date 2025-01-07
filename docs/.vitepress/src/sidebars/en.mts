@@ -50,12 +50,26 @@ export const sidebar = [
         text: "ContributionGuide",
         collapsed: true,
         items: [
-            {text: "Build Env", link: "/ContributionGuide/Build-Develop-Env"},
-            {text: "Cargo", link: "/ContributionGuide/Cargo-Running"},
-            {text: "VsCode", link: "/ContributionGuide/VsCode-Running"},
-            {text: "Code Structure", link: "/ContributionGuide/Code-Structure"},
             {text: "Contribution Guide", link: "/ContributionGuide/GitHub-Contribution-Guide"},
             {text: "PR Example", link: "/ContributionGuide/Pull-Request-Example"},
+            {
+                text: "ContributingCode",
+                collapsed: true,
+                items: [
+                    {text: "Build Develop Env", link: "/ContributionGuide/ContributingCode/Build-Develop-Env"},
+                    {text: "Cargo Running", link: "/ContributionGuide/ContributingCode/Cargo-Running"},
+                    {text: "VsCode Running", link: "/ContributionGuide/ContributingCode/VsCode-Running"},
+                    {text: "Code Structure", link: "/ContributionGuide/ContributingCode/Code-Structure"},
+                ],
+            },
+            {
+                text: "ContributingDoc",
+                collapsed: true,
+                items: [
+                    {text: "Build Doc Env", link: "/ContributionGuide/ContributingDoc/Build-Doc-Env"},
+                    {text: "Doc Contribution Guide", link: "/ContributionGuide/ContributingDoc/Doc-Contribution-Guide"},
+                ],
+            }
         ],
     },
     {
@@ -68,8 +82,6 @@ export const sidebar = [
     {
         text: "Other Data",
         collapsed: true,
-        items: [
-            {text: "RobustMQ Rust China For 2024", link: "/OtherData/RobustMQ-Rust-China-For-2024"},
-        ],
+        items: [],
     },
 ];

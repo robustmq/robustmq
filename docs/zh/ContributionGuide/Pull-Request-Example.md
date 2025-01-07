@@ -1,5 +1,5 @@
 # PR 提交示例
-既然你已经看到这里了（[默认基础开发环境您已经配置好了](./Build-Develop-Env.md)），如果你发现了项目的bug或者让你不开心的地方，是不是想亲自下场，那么你可以提交一个 Pull Request 来帮助我们改进。
+既然你已经看到这里了（[默认基础开发环境您已经配置好了](ContributingCode/Build-Develop-Env.md)），如果你发现了项目的bug或者让你不开心的地方，是不是想亲自下场，那么你可以提交一个 Pull Request 来帮助我们改进。
 
 下面是一个完整的 Pull Request 流程示例，一个修改bug的示例：
 

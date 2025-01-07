@@ -1,10 +1,51 @@
 # Github贡献指南
 ## 1、创建 ISSUE
 
-ISSUE 范围两类，需求和小的 Fixed，所以在标题层面，需要通过：RBIP-\*和 MINOR 两个前缀来区分。
+ISSUE 主要的范围类型有：feat, bug, test, refactor, chore, style, docs, perf, build, ci,
+对应的解释内容如下：
+- feat: 新功能特性
+- bug: 发现的Bug问题
+- test: 增加的测试用例
+- refactor: 对代码的重构，既不是新功能特性也不是bug代码更改
+- docs: 文档的变更与添加，对代码的注释也属于此内容
+- perf: 设计到性能优化的代码，这部分需要有相关的优化证明
+- build: 构建系统或外部依赖项的变更
+- ci: 持续集成配置的变成，配置文件和脚本的修改等
+- style: 代码风格变动，用于提交格式化，标点符号等不影响代码的变更
+- chore: 混杂类型的工作，可能有多个其他类型的变更
+
+### 用户与贡献者创建ISSUE
+
+对于用户而言，如果有新的feat需求和bug的修复的需求，
+可以通过选择`BugReport`以及`FeatureRequest`来提交Issue。
+
+![image](../../images/GithubContributionGuide-1.png)
+
+对于贡献者而言，如果有新的feat需求和bug的修复的`Pull Request`
+进行提交，同用户一样创建对应的`BugReport`以及`FeatureRequest`
+ISSUE后再进行`Pull Request`的提交。 如果是其他类型的`Pull Request`
+提交，请选择使用`Enhancement`来按照对应的分类创建好Issue后再进行`Pull
+Request`的提交。
+
+![image](../../images/GithubContributionGuide-2.png)
+
+### Committer创建ISSUE
+
+对于创建各个类型的Issue同用户创建一致，但是这里由于是主动介入规划的任务开发，所以会分为两种
+情况，针对一些小的任务，直接使用`BugReport`, `Enhancement`, `FeatureRequest`对`Pull
+Request`进行关联，如果是比较大的规划任务需要进行拆分，此时使用`Umbrella`关联对应的Issue后，
+在其下方规划子任务，具体如下所示:
+
+todo 补充如何使用umbrella创建子任务的图片
+
+对于各项的子任务，则是通过`Subtask`来创建对应的子任务，在子任务中说明该部分子任务需要完成
+的对应内容。
+
+对于`Umbrella`的标题，暂时分为两类，RBIP-\* 和 MINOR 进行区分。
 
 RBIP-\*： 是标识有特性和功能添加，比如 RBIP-09，RBIP-10，后面的序号是递增的。
-![image](../../images/doc-image9.png)
+![image](../../images/GithubContributionGuide-3.png)
+
 
 MINOR：标识是修复或者增加一些小的功能。则可以 MINOR：开头，接标题。
 ![image](../../images/doc-image10.png)
@@ -29,6 +70,9 @@ PR：
 
 ISSUE：
 ![image](../../images/doc-image13.png)
+
+
+详细可以参考[提交PR的例子](./Pull-Request-Example.md)。
 
 ## 3、提交 PR 失败的原因
 
