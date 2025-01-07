@@ -237,3 +237,53 @@ async fn handle_placement(args: PlacementArgs, cmd: PlacementCenterCommand) {
 async fn handle_journal(args: JournalArgs) {
     println!("{:?}", args);
 }
+
+mod tests {
+    use super::*;
+    #[tokio::test]
+    async fn test_placement_args() {
+        let args = PlacementArgs {
+            server: String::from("127.0.0.1:1228"),
+            action: PlacementAction::AddLearner(AddLearnerArgs {
+                node_id: 1,
+                rpc_addr: String::from("127.0.0.1:1228"),
+                blocking: true,
+            }),
+        };
+
+        let action_type = process_placement_args(args);
+        assert_eq!(
+            PlacementActionType::AddLearner(AddLearnerRequest {
+                node_id: 1,
+                node: Some(Node {
+                    node_id: 1,
+                    rpc_addr: String::from("127.0.0.1:1228")
+                }),
+                blocking: true
+            }),
+            action_type
+        );
+    }
+    #[allow(dead_code)]
+    fn process_placement_args(args: PlacementArgs) -> PlacementActionType {
+        match args.action {
+            PlacementAction::Status => PlacementActionType::Status,
+            PlacementAction::AddLearner(arg) => {
+                PlacementActionType::AddLearner(AddLearnerRequest {
+                    node_id: arg.node_id,
+                    node: Some(Node {
+                        node_id: arg.node_id,
+                        rpc_addr: arg.rpc_addr,
+                    }),
+                    blocking: arg.blocking,
+                })
+            }
+            PlacementAction::ChangeMembership(arg) => {
+                PlacementActionType::ChangeMembership(ChangeMembershipRequest {
+                    members: arg.members,
+                    retain: arg.retain,
+                })
+            }
+        }
+    }
+}

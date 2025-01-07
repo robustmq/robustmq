@@ -32,7 +32,7 @@ pub struct PlacementCliCommandParam {
     pub action: PlacementActionType,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum PlacementActionType {
     Status,
     AddLearner(AddLearnerRequest),
