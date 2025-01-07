@@ -118,7 +118,7 @@ mod tests {
         let res = res_opt.unwrap();
         assert_eq!(res.offset, 1);
 
-        let datas = vec![
+        let data = vec![
             JournalClientWriteData {
                 key: "k2".to_string(),
                 content: "ccccc2".as_bytes().to_vec(),
@@ -136,7 +136,7 @@ mod tests {
             },
         ];
         let res_opt = client
-            .batch_write(namespace.to_owned(), shard_name.to_owned(), datas)
+            .batch_write(namespace.to_owned(), shard_name.to_owned(), data)
             .await;
         assert!(res_opt.is_ok());
 
