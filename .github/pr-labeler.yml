@@ -1,0 +1,50 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# .github/pr-labeler.yml
+# The bot always updates the labels, add/remove as necessary [default: false]
+alwaysReplace: false
+# Treats the text and labels as case sensitive [default: true]
+caseSensitive: true
+# Array of labels to be applied to the PR [default: []]
+customLabels:
+  # Finds the `text` within the PR title and body and applies the `label`
+  - text: '#feat'
+    label: 'feature'
+  - text: '#fix'
+    label: 'fix'
+  - text: '#test'
+    label: 'test'
+  - text: '#refactor'
+    label: 'refactor'
+  - text: '#chore'
+    label: 'chore'
+  - text: '#docs'
+    label: 'docs'
+  - text: '#style'
+    label: 'style'
+  - text: '#perf'
+    label: 'performance'
+  - text: '#ci'
+    label: 'ci'
+  - text: '#build'
+    label: 'build'
+  - text: '#revert'
+    label: 'revert'
+# Search the body of the PR for the `text` [default: true]
+searchBody: true
+# Search the title of the PR for the `text` [default: true]
+searchTitle: true
+# Search for whole words only [default: false]
+wholeWords: false
