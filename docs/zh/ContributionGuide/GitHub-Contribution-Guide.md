@@ -28,7 +28,7 @@ Request`进行关联，
 
 如果是比较大的规划任务，需要进行拆分，此时使用`Umbrella`关联对应的Issue后，在其下方规划子任务，具体如下所示:
 
-![image](../../images/umbrella-issue.png)
+![image](../../images/GithubContributionGuide-2.png)
 
 对于各项的子任务，则是通过`Subtask`来创建对应的子任务，在子任务中说明该部分子任务需要完成
 的对应内容。
@@ -40,12 +40,12 @@ Request`进行关联，
 
 
 [MINOR]：标识是修复或者增加一些小的功能。则可以 MINOR：开头，接标题。
-![image](../../images/doc-image10.png)
+![image](../../images/GithubContributionGuide-4.png)
 
 对于`Subtask`标题，使用以下格式：
 `[RBIP-*/MINOR][Style/Refactor/Performance/Docs/Test/Build/CI/Chore][Subtask] xxx`，例如：
 
-![image](../../images/subtask.png)
+![image](../../images/GithubContributionGuide-5.png)
 
 ## 2、创建 Pull Request
 

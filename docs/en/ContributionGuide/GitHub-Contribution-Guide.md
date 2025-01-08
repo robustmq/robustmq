@@ -26,7 +26,7 @@ If it is a small development task, then the process of creating an issue will be
 
 If it is a relatively large planned task that needs to be broken down, use `Umbrella` to associate with the corresponding issues and plan subtasks inside `Umbrella`. The specifics are as follows:
 
-![image](../../images/umbrella-issue.png)
+![image](../../images/GithubContributionGuide-2.png)
 
 For each subtask, create the corresponding subtask using `Subtask` and describe the specific content that needs to be completed for that subtask.
 
@@ -36,12 +36,12 @@ RBIP-*: Indicates the addition of features and characteristics, such as RBIP-09,
 ![image](../../images/GithubContributionGuide-3.png)
 
 MINOR: Indicates fixing or adding small features. It can start with MINOR, followed by the title.
-![image](../../images/doc-image10.png)
+![image](../../images/GithubContributionGuide-4.png)
 
 For `Subtask`, use the following format:
 `[RBIP-*/MINOR][Style/Refactor/Performance/Docs/Test/Build/CI/Chore][Subtask] xxx`, for example,
 
-![image](../../images/subtask.png)
+![image](../../images/GithubContributionGuide-5.png)
 
 ## 2. Creating a Pull Request
 
