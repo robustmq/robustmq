@@ -19,15 +19,12 @@ use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
 use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
-use mqtt::admin::MqttUserActionType;
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateUserRequest, DeleteUserRequest, ListTopicRequest,
-};
+use protocol::broker_mqtt::broker_mqtt_admin::ListTopicRequest;
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
 };
 
-use crate::mqtt::admin::{process_slow_sub_args, MqttUserCommand, SlowSubArgs};
+use crate::mqtt::admin::{process_slow_sub_args, process_user_args, MqttUserCommand, SlowSubArgs};
 
 #[derive(Parser)] // requires `derive` feature
 #[command(name = "robust-ctl")]
@@ -174,24 +171,7 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
         server: args.server,
         action: match args.action {
             MQTTAction::Status => MqttActionType::Status,
-            MQTTAction::User(args) => match args.action {
-                Some(action) => match action {
-                    MqttUserActionType::List => MqttActionType::ListUser,
-                    MqttUserActionType::Create(arg) => {
-                        MqttActionType::CreateUser(CreateUserRequest {
-                            username: arg.username,
-                            password: arg.password,
-                            is_superuser: arg.is_superuser,
-                        })
-                    }
-                    MqttUserActionType::Delete(arg) => {
-                        MqttActionType::DeleteUser(DeleteUserRequest {
-                            username: arg.username,
-                        })
-                    }
-                },
-                None => unreachable!(),
-            },
+            MQTTAction::User(args) => process_user_args(args),
             MQTTAction::ListConnection => MqttActionType::ListConnection,
             MQTTAction::ListTopic(args) => MqttActionType::ListTopic(ListTopicRequest {
                 topic_name: args.topic_name,

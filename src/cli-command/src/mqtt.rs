@@ -160,11 +160,15 @@ impl MqttBrokerCommand {
         let request = ListUserRequest {};
         match mqtt_broker_list_user(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
-                println!("user list:");
+                // format table
+                let mut table = Table::new();
+                table.add_row(row!["username", "is_superuser"]);
                 for user in data.users {
                     let mqtt_user = serde_json::from_slice::<MqttUser>(user.as_slice()).unwrap();
-                    println!("{},", mqtt_user.username);
+                    table.add_row(row![mqtt_user.username.as_str(), mqtt_user.is_superuser]);
                 }
+                // output cmd
+                table.printstd()
             }
             Err(e) => {
                 println!("MQTT broker list user exception");

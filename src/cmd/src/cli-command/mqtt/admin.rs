@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use core::option::Option::Some;
+
 use clap::builder::{
     ArgAction, BoolishValueParser, EnumValueParser, NonEmptyStringValueParser, RangedU64ValueParser,
 };
 use clap::Parser;
 use cli_command::mqtt::MqttActionType;
 use common_base::enum_type::common_enum::SortType;
+use protocol::broker_mqtt::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequest};
 use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
 };
@@ -120,6 +123,23 @@ pub fn process_slow_sub_args(args: SlowSubArgs) -> MqttActionType {
         MqttActionType::EnableSlowSubscribe(EnableSlowSubscribeRequest {
             is_enable: args.is_enable.unwrap(),
         })
+    }
+}
+
+pub fn process_user_args(args: MqttUserCommand) -> MqttActionType {
+    match args.action {
+        Some(user_action) => match user_action {
+            MqttUserActionType::List => MqttActionType::ListUser,
+            MqttUserActionType::Create(arg) => MqttActionType::CreateUser(CreateUserRequest {
+                username: arg.username,
+                password: arg.password,
+                is_superuser: arg.is_superuser,
+            }),
+            MqttUserActionType::Delete(arg) => MqttActionType::DeleteUser(DeleteUserRequest {
+                username: arg.username,
+            }),
+        },
+        None => unreachable!(),
     }
 }
 
