@@ -34,19 +34,23 @@ pub struct JournalStorageAdapter {
 }
 
 impl JournalStorageAdapter {
-    pub fn new(
+    pub async fn new(
         client_pool: Arc<ClientPool>,
         cluster_name: String,
         journal_addrs: Vec<String>,
         place_addrs: Vec<String>,
-    ) -> Self {
+    ) -> Result<JournalStorageAdapter, CommonError> {
         let offset_manager = PlaceOffsetManager::new(client_pool, place_addrs.clone());
-        let client = JournalClient::new(journal_addrs.clone());
-        JournalStorageAdapter {
+        let client = match JournalClient::new(journal_addrs.clone()).await {
+            Ok(client) => client,
+            Err(e) => return Err(CommonError::CommonError(e.to_string())),
+        };
+        let adapter = JournalStorageAdapter {
             offset_manager,
             cluster_name,
             client,
-        }
+        };
+        Ok(adapter)
     }
 }
 

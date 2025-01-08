@@ -16,6 +16,7 @@
 name: Umbrella
 title: "[RPIP-*/MINOR]"
 description: An umbrella issue with multiple sub-tasks
+labels: [ "kind:umbrella" ]
 body:
   - type: checkboxes
     attributes:

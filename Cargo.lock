@@ -1892,6 +1892,7 @@ dependencies = [
  "log",
  "metadata-struct",
  "protocol",
+ "rand",
  "serde",
  "serde_json",
  "thiserror",

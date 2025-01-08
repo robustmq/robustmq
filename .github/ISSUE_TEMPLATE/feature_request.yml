@@ -16,7 +16,7 @@
 name: Feature request
 title: "[Feat]"
 description: Suggest a new feature for RobustMQ
-labels: [ "feature request" ]
+labels: [ "kind:feat" ]
 body:
   - type: checkboxes
     attributes:

@@ -17,11 +17,13 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
-use protocol::journal_server::journal_engine::{CreateShardReqBody, DeleteShardReqBody};
+use protocol::journal_server::journal_engine::{
+    CreateShardReqBody, DeleteShardReqBody, GetClusterMetadataNode, GetShardMetadataRespShard,
+};
 use tokio::sync::broadcast::{self, Sender};
 
-use super::cache::{load_node_cache, start_update_cache_thread, MetadataCache};
-use super::connection::{start_conn_gc_thread, ConnectionManager};
+use super::cache::{load_node_cache, MetadataCache};
+use super::connection::ConnectionManager;
 use super::error::JournalClientError;
 use crate::async_reader::{
     async_read_data_by_key, async_read_data_by_offset, async_read_data_by_tag,
@@ -48,7 +50,11 @@ pub struct JournalClient {
 }
 
 impl JournalClient {
-    pub fn new(addrs: Vec<String>) -> Self {
+    pub async fn new(addrs: Vec<String>) -> Result<JournalClient, JournalClientError> {
+        if addrs.is_empty() {
+            return Err(JournalClientError::AddrsNotEmpty);
+        }
+
         let metadata_cache = Arc::new(MetadataCache::new(addrs));
         let connection_manager = Arc::new(ConnectionManager::new(metadata_cache.clone()));
         let (stop_send, _) = broadcast::channel::<bool>(2);
@@ -62,30 +68,16 @@ impl JournalClient {
             connection_manager.clone(),
         ));
 
-        JournalClient {
+        let client = JournalClient {
             metadata_cache,
             connection_manager,
             writer,
             reader,
             stop_send,
-        }
-    }
-
-    pub async fn connect(&self) -> Result<(), JournalClientError> {
-        load_node_cache(&self.metadata_cache, &self.connection_manager).await?;
-
-        start_update_cache_thread(
-            self.metadata_cache.clone(),
-            self.connection_manager.clone(),
-            self.stop_send.subscribe(),
-        );
-
-        start_conn_gc_thread(
-            self.metadata_cache.clone(),
-            self.connection_manager.clone(),
-            self.stop_send.subscribe(),
-        );
-        Ok(())
+        };
+        client.validate()?;
+        client.connect().await?;
+        Ok(client)
     }
 
     pub async fn create_shard(
@@ -144,7 +136,7 @@ impl JournalClient {
         if let Some(resp) = resp_vec.first() {
             return Ok(resp.to_owned());
         }
-        Err(JournalClientError::WriteReqReturnTmpty)
+        Err(JournalClientError::WriteReqReturnEmpty)
     }
 
     pub async fn read_by_offset(
@@ -274,7 +266,34 @@ impl JournalClient {
         Ok(results)
     }
 
+    pub fn metadata(&self) -> (Vec<GetShardMetadataRespShard>, Vec<GetClusterMetadataNode>) {
+        self.metadata_cache.all_metadata()
+    }
+
+    fn validate(&self) -> Result<(), JournalClientError> {
+        Ok(())
+    }
+
+    async fn connect(&self) -> Result<(), JournalClientError> {
+        load_node_cache(&self.metadata_cache, &self.connection_manager).await?;
+
+        // start_update_cache_thread(
+        //     self.metadata_cache.clone(),
+        //     self.connection_manager.clone(),
+        //     self.stop_send.subscribe(),
+        // )
+        // .await;
+
+        // start_conn_gc_thread(
+        //     self.metadata_cache.clone(),
+        //     self.connection_manager.clone(),
+        //     self.stop_send.subscribe(),
+        // );
+        Ok(())
+    }
+
     pub async fn close(&self) -> Result<(), CommonError> {
+        // self.stop_send.send(true)?;
         Ok(())
     }
 }

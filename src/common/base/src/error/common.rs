@@ -39,6 +39,9 @@ use tonic::Status;
 #[derive(Error, Debug)]
 pub enum CommonError {
     #[error("{0}")]
+    TokioBroadcastSendErrorBool(#[from] tokio::sync::broadcast::error::SendError<bool>),
+
+    #[error("{0}")]
     FromTonicTransport(#[from] tonic::transport::Error),
 
     #[error("{0}")]

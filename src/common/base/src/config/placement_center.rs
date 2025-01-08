@@ -37,9 +37,9 @@ use toml::{Table, Value};
 use super::common::{override_default_by_env, Log};
 use super::default_placement_center::{
     default_cluster_name, default_data_path, default_grpc_port, default_heartbeat,
-    default_heartbeat_check_time_ms, default_heartbeat_timeout_ms, default_http_port, default_log,
-    default_max_open_files, default_network, default_node, default_node_id, default_nodes,
-    default_rocksdb, default_runtime_work_threads, default_system,
+    default_heartbeat_check_time_ms, default_heartbeat_timeout_ms, default_http_port,
+    default_local_ip, default_log, default_max_open_files, default_network, default_node,
+    default_node_id, default_nodes, default_rocksdb, default_runtime_work_threads, default_system,
 };
 use crate::tools::{read_file, try_create_fold, unique_id};
 
@@ -71,6 +71,8 @@ pub struct Node {
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
 pub struct Network {
+    #[serde(default = "default_local_ip")]
+    pub local_ip: String,
     #[serde(default = "default_grpc_port")]
     pub grpc_port: u32,
     #[serde(default = "default_http_port")]

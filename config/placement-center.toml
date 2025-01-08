@@ -19,6 +19,7 @@ node_id = 1
 nodes = { 1 = "127.0.0.1:1228" }
 
 [network]
+local_ip = "127.0.0.1"
 grpc_port = 1228
 http_port = 1227
 

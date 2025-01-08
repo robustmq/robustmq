@@ -223,6 +223,10 @@ fn save_record_index(
             position: read_data.position,
         };
 
+        if read_data.position == 0 {
+            offset_index.save_start_offset(segment_iden, record.offset as u64)?;
+        }
+
         if (record.offset - start_offset as i64) % BUILD_INDE_PER_RECORD_NUM as i64 == 0 {
             // build position index
             offset_index.save_position_offset(
@@ -271,18 +275,6 @@ fn is_finish_build_index(
 ) -> Result<bool, JournalServerError> {
     let key = finish_build_index(segment_iden);
     Ok(rocksdb_engine_exists(
-        rocksdb_engine_handler.clone(),
-        DB_COLUMN_FAMILY_INDEX,
-        key,
-    )?)
-}
-
-fn remove_last_offset_build_index(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_iden: &SegmentIdentity,
-) -> Result<(), JournalServerError> {
-    let key = last_offset_build_index(segment_iden);
-    Ok(rocksdb_engine_delete(
         rocksdb_engine_handler.clone(),
         DB_COLUMN_FAMILY_INDEX,
         key,
@@ -352,7 +344,6 @@ mod tests {
     use crate::core::test::{test_base_write_data, test_build_rocksdb_sgement};
     use crate::index::build::{
         delete_segment_index, get_last_offset_build_index, is_finish_build_index,
-        remove_last_offset_build_index,
     };
     use crate::index::keys::segment_index_prefix;
     use crate::index::offset::OffsetIndexManager;
@@ -367,12 +358,6 @@ mod tests {
         println!("{:?}", res);
         assert!(res.is_ok());
         assert!(res.unwrap().is_some());
-
-        let res = remove_last_offset_build_index(&rocksdb_engine_handler, &segment_iden);
-
-        let res = get_last_offset_build_index(&rocksdb_engine_handler, &segment_iden);
-        assert!(res.is_ok());
-        assert!(res.unwrap().is_none());
     }
 
     #[test]
@@ -435,7 +420,7 @@ mod tests {
 
     #[tokio::test]
     async fn build_thread_test() {
-        let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
+        let (segment_iden, cache_manager, segment_file_manager, _, rocksdb_engine_handler) =
             test_base_write_data(10001).await;
 
         let res = try_trigger_build_index(

@@ -23,6 +23,7 @@ use protocol::journal_server::journal_engine::{
     ClientSegmentMetadata, GetClusterMetadataNode, GetShardMetadataReqShard,
     GetShardMetadataRespShard,
 };
+use rand::Rng;
 use tokio::select;
 use tokio::sync::broadcast::Receiver;
 use tokio::time::sleep;
@@ -59,6 +60,11 @@ impl MetadataCache {
         None
     }
 
+    pub fn get_rand_addr(&self) -> String {
+        let mut rng = rand::thread_rng();
+        self.addrs[rng.gen_range(0..self.addrs.len())].clone()
+    }
+
     pub fn get_shard(&self, namespace: &str, shard: &str) -> Option<GetShardMetadataRespShard> {
         if let Some(shard) = self.shards.get(&shard_name_iden(namespace, shard)) {
             return Some(shard.clone());
@@ -81,7 +87,7 @@ impl MetadataCache {
     pub fn get_segment_leader(&self, namespace: &str, shard: &str) -> Option<u32> {
         let key = shard_name_iden(namespace, shard);
         if let Some(shard) = self.shards.get(&key) {
-            return Some(shard.active_segment as u32);
+            return Some(shard.active_segment_leader as u32);
         }
         None
     }
@@ -123,6 +129,12 @@ impl MetadataCache {
         }
         results
     }
+
+    pub fn all_metadata(&self) -> (Vec<GetShardMetadataRespShard>, Vec<GetClusterMetadataNode>) {
+        let shards = self.shards.iter().map(|raw| raw.clone()).collect();
+        let nodes = self.nodes.iter().map(|raw| raw.clone()).collect();
+        (shards, nodes)
+    }
 }
 
 pub async fn load_shards_cache(
@@ -153,7 +165,7 @@ pub async fn load_node_cache(
     Ok(())
 }
 
-pub fn start_update_cache_thread(
+pub async fn start_update_cache_thread(
     metadata_cache: Arc<MetadataCache>,
     connection_manager: Arc<ConnectionManager>,
     mut stop_recv: Receiver<bool>,
@@ -167,6 +179,7 @@ pub fn start_update_cache_thread(
                     }
                 },
                 val = update_cache(metadata_cache.clone(),connection_manager.clone())=>{
+                    sleep(Duration::from_secs(3)).await;
                 }
             }
         }
@@ -205,7 +218,6 @@ async fn update_cache(
             }
         }
     }
-    sleep(Duration::from_secs(10)).await;
 }
 
 pub async fn get_active_segment(

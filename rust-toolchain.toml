@@ -13,5 +13,8 @@
 # limitations under the License.
 
 [toolchain]
-channel = "nightly-2024-11-08"
-components = [ "rustfmt", "rust-src", "miri", "rust-analyzer"]
+channel = "stable"
+components = [ "rustfmt", "rust-src", "rust-analyzer"]
+# The component named miri is supported in the nightly version
+# so we will use it until the stable version can be supported.
+# components = [ "rustfmt", "rust-src", "miri", "rust-analyzer"]

@@ -55,7 +55,7 @@ impl HttpServerState {
 
 pub async fn start_http_server(state: HttpServerState) {
     let config = placement_center_conf();
-    let ip: SocketAddr = format!("0.0.0.0:{}", config.network.http_port)
+    let ip: SocketAddr = format!("{}:{}", config.network.local_ip, config.network.http_port)
         .parse()
         .unwrap();
     let app = routes(state);

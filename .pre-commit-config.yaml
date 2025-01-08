@@ -49,7 +49,7 @@ repos:
       - id: cargo-fmt-auto
         name: cargo fmt auto
         description: Format files with rustfmt automatically.
-        entry: bash -c 'cargo fmt'
+        entry: bash -c 'cargo fmt --all'
         language: rust
         files: \.rs$
         args: []
