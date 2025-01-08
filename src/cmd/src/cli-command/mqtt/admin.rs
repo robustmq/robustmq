@@ -125,7 +125,6 @@ pub fn process_slow_sub_args(args: SlowSubArgs) -> MqttActionType {
 
 #[cfg(test)]
 mod tests {
-    use protocol::broker_mqtt::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequest};
 
     use super::*;
     #[tokio::test]
@@ -202,43 +201,5 @@ mod tests {
             }),
             action_type
         )
-    }
-
-    #[tokio::test]
-    async fn test_mqtt_user_command_function() {
-        let args = MqttUserCommand {
-            action: Some(MqttUserActionType::Create(CreateUserArgs {
-                username: "username".to_string(),
-                password: "password".to_string(),
-                is_superuser: false,
-            })),
-        };
-
-        let action_type = process_mqtt_user_command(args);
-        assert_eq!(
-            MqttActionType::CreateUser(CreateUserRequest {
-                username: "username".to_string(),
-                password: "password".to_string(),
-                is_superuser: false,
-            }),
-            action_type
-        )
-    }
-
-    fn process_mqtt_user_command(args: MqttUserCommand) -> MqttActionType {
-        match args.action {
-            Some(action) => match action {
-                MqttUserActionType::Create(arg) => MqttActionType::CreateUser(CreateUserRequest {
-                    username: arg.username,
-                    password: arg.password,
-                    is_superuser: arg.is_superuser,
-                }),
-                MqttUserActionType::Delete(arg) => MqttActionType::DeleteUser(DeleteUserRequest {
-                    username: arg.username,
-                }),
-                MqttUserActionType::List => MqttActionType::ListUser,
-            },
-            None => unreachable!(),
-        }
     }
 }
