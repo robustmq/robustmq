@@ -19,6 +19,7 @@ http_port = 9982
 placement_center = ["127.0.0.1:1228"]
 
 [network]
+local_ip = "127.0.0.1"
 tcp_port = 1883
 tcps_port = 8883
 websocket_port = 8093

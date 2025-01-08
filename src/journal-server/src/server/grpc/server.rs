@@ -14,6 +14,7 @@
 
 use std::sync::Arc;
 
+use common_base::config::journal_server::journal_server_conf;
 use common_base::error::common::CommonError;
 use log::info;
 use protocol::journal_server::journal_admin::journal_server_admin_service_server::JournalServerAdminServiceServer;
@@ -27,7 +28,6 @@ use crate::server::grpc::admin::GrpcJournalServerAdminService;
 use crate::server::grpc::inner::GrpcJournalServerInnerService;
 
 pub struct GrpcServer {
-    port: u32,
     cache_manager: Arc<CacheManager>,
     segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -35,24 +35,20 @@ pub struct GrpcServer {
 
 impl GrpcServer {
     pub fn new(
-        port: u32,
         cache_manager: Arc<CacheManager>,
         segment_file_manager: Arc<SegmentFileManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
         Self {
-            port,
             cache_manager,
             segment_file_manager,
             rocksdb_engine_handler,
         }
     }
     pub async fn start(&self) -> Result<(), CommonError> {
-        let addr = format!("0.0.0.0:{}", self.port).parse()?;
-        info!(
-            "Journal Engine Grpc Server start success. port:{}",
-            self.port
-        );
+        let conf = journal_server_conf();
+        let addr = format!("{}:{}", conf.network.local_ip, conf.network.grpc_port).parse()?;
+        info!("Journal Engine Grpc Server start success. addr:{}", addr);
         let admin_handler = GrpcJournalServerAdminService::new(self.cache_manager.clone());
         let inner_handler = GrpcJournalServerInnerService::new(
             self.cache_manager.clone(),

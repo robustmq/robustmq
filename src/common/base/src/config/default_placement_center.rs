@@ -34,9 +34,14 @@ pub fn default_node_id() -> u64 {
 
 pub fn default_network() -> Network {
     Network {
+        local_ip: default_local_ip(),
         grpc_port: default_grpc_port(),
         http_port: default_http_port(),
     }
+}
+
+pub fn default_local_ip() -> String {
+    "127.0.0.1".to_string()
 }
 
 pub fn default_grpc_port() -> u32 {

@@ -17,7 +17,6 @@ use std::time::Duration;
 
 use common_base::config::journal_server::{journal_server_conf, JournalServerConfig};
 use common_base::error::common::CommonError;
-use common_base::tools::get_local_ip;
 use grpc_clients::placement::inner::call::{heartbeat, register_node, unregister_node};
 use grpc_clients::pool::ClientPool;
 use log::{debug, error};
@@ -34,18 +33,19 @@ pub async fn register_journal_node(
     config: JournalServerConfig,
 ) -> Result<(), CommonError> {
     let conf = journal_server_conf();
+    let local_ip = conf.network.local_ip.clone();
     let extend = JournalNodeExtend {
         data_fold: conf.storage.data_path.clone(),
-        tcp_addr: format!("{}:{}", get_local_ip(), conf.network.tcp_port),
-        tcps_addr: format!("{}:{}", get_local_ip(), conf.network.tcps_port),
+        tcp_addr: format!("{}:{}", local_ip, conf.network.tcp_port),
+        tcps_addr: format!("{}:{}", local_ip, conf.network.tcps_port),
     };
 
     let req = RegisterNodeRequest {
         cluster_type: ClusterType::JournalServer.into(),
         cluster_name: config.cluster_name,
         node_id: config.node_id,
-        node_ip: get_local_ip(),
-        node_inner_addr: format!("{}:{}", get_local_ip(), conf.network.grpc_port),
+        node_ip: local_ip.clone(),
+        node_inner_addr: format!("{}:{}", local_ip.clone(), conf.network.grpc_port),
         extend_info: serde_json::to_string(&extend)?,
     };
     register_node(&client_pool, &config.placement_center, req.clone()).await?;
@@ -68,6 +68,7 @@ pub async fn unregister_journal_node(
 }
 
 pub async fn report_heartbeat(client_pool: Arc<ClientPool>, stop_send: broadcast::Sender<bool>) {
+    sleep(Duration::from_secs(10)).await;
     loop {
         let mut stop_recv = stop_send.subscribe();
         select! {
@@ -105,8 +106,9 @@ async fn report_report0(client_pool: Arc<ClientPool>) {
                 if let Err(e) = register_journal_node(client_pool.clone(), config.clone()).await {
                     error!("{}", e);
                 }
+            } else {
+                error!("{}", e);
             }
-            error!("{}", e);
         }
     }
     sleep(Duration::from_secs(1)).await;

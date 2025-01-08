@@ -33,3 +33,4 @@ serde_json.workspace = true
 dashmap.workspace = true
 log.workspace = true
 metadata-struct.workspace = true
+rand.workspace = true
