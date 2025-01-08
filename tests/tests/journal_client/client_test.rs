@@ -143,7 +143,7 @@ mod tests {
         let res = res_opt.unwrap();
         assert_eq!(res.len(), 3);
 
-        assert_eq!(res.get(0).unwrap().offset, 2);
+        assert_eq!(res.first().unwrap().offset, 2);
         assert_eq!(res.get(1).unwrap().offset, 3);
         assert_eq!(res.get(2).unwrap().offset, 4);
 

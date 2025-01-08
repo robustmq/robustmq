@@ -13,5 +13,7 @@
 # limitations under the License.
 
 edition = "2024"
-group_imports = "StdExternalCrate"
-imports_granularity = "Module"
+# These command are only supported in the nightly version
+# We use these command when they are supporting in the stable version
+# group_imports = "StdExternalCrate"
+# imports_granularity = "Module"
