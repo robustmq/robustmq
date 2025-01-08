@@ -14,8 +14,9 @@
 
 ---
 name: Subtask
-title: "[RPIP-*/MINOR][Style/Refactor/Performance/Docs/Test/Build/CI/Chore][Subtask]"
+title: "[RBIP-*/MINOR][Style/Refactor/Performance/Docs/Test/Build/CI/Chore][Subtask]"
 description: A subtask issue
+labels: [kind:subtask]
 body:
   - type: checkboxes
     attributes:
