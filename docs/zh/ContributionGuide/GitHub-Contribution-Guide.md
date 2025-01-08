@@ -16,39 +16,36 @@ ISSUE 主要的范围类型有：feat, bug, test, refactor, chore, style, docs, 
 
 ### 用户与贡献者创建ISSUE
 
-对于用户而言，如果有新的feat需求和bug的修复的需求，
-可以通过选择`BugReport`以及`FeatureRequest`来提交Issue。
+对于用户和贡献者而言，如果有新的feat需求和bug的修复的需求，
+可以通过选择`BugReport`，`Enhancement`以及`FeatureRequest`来提交Issue。
 
 ![image](../../images/GithubContributionGuide-1.png)
 
-对于贡献者而言，如果有新的feat需求和bug的修复的`Pull Request`
-进行提交，同用户一样创建对应的`BugReport`以及`FeatureRequest`
-ISSUE后再进行`Pull Request`的提交。 如果是其他类型的`Pull Request`
-提交，请选择使用`Enhancement`来按照对应的分类创建好Issue后再进行`Pull
-Request`的提交。
-
-![image](../../images/GithubContributionGuide-2.png)
-
 ### Committer创建ISSUE
 
-对于创建各个类型的Issue同用户创建一致，但是这里由于是主动介入规划的任务开发，所以会分为两种
-情况，针对一些小的任务，直接使用`BugReport`, `Enhancement`, `FeatureRequest`对`Pull
-Request`进行关联，如果是比较大的规划任务需要进行拆分，此时使用`Umbrella`关联对应的Issue后，
-在其下方规划子任务，具体如下所示:
+如果是小任务项目, 那么同用户和贡献者类似，直接使用`BugReport`, `Enhancement`, `FeatureRequest`对`Pull
+Request`进行关联，
 
-todo 补充如何使用umbrella创建子任务的图片
+如果是比较大的规划任务，需要进行拆分，此时使用`Umbrella`关联对应的Issue后，在其下方规划子任务，具体如下所示:
+
+![image](../../images/umbrella-issue.png)
 
 对于各项的子任务，则是通过`Subtask`来创建对应的子任务，在子任务中说明该部分子任务需要完成
 的对应内容。
 
 对于`Umbrella`的标题，暂时分为两类，RBIP-\* 和 MINOR 进行区分。
 
-RBIP-\*： 是标识有特性和功能添加，比如 RBIP-09，RBIP-10，后面的序号是递增的。
+[RBIP-\*]： 是标识有特性和功能添加，比如 RBIP-09，RBIP-10，后面的序号是递增的。
 ![image](../../images/GithubContributionGuide-3.png)
 
 
-MINOR：标识是修复或者增加一些小的功能。则可以 MINOR：开头，接标题。
+[MINOR]：标识是修复或者增加一些小的功能。则可以 MINOR：开头，接标题。
 ![image](../../images/doc-image10.png)
+
+对于`Subtask`标题，使用以下格式：
+`[RBIP-*/MINOR][Style/Refactor/Performance/Docs/Test/Build/CI/Chore][Subtask] xxx`，例如：
+
+![image](../../images/subtask.png)
 
 ## 2、创建 Pull Request
 

@@ -16,29 +16,32 @@ The main types of ISSUES include: feat, bug, test, refactor, chore, style, docs,
 
 ### Users and Contributors Creating ISSUES
 
-For users, if there are new feature requirements or bug fixes, they can submit an Issue by selecting `BugReport` and `FeatureRequest`.
+For users and contributors, if there are new feature requirements or bug fixes, they can submit an Issue by selecting `BugReport`, `Enhancement` or `FeatureRequest`.
 
 ![image](../../images/GithubContributionGuide-1.png)
 
-For contributors, if there are new feature requirements or bug fixes for a `Pull Request`, they should also create corresponding `BugReport` and `FeatureRequest` ISSUES before submitting the `Pull Request`. For other types of `Pull Request` submissions, use `Enhancement` to create an Issue according to the corresponding category before submitting the `Pull Request`.
-
-![image](../../images/GithubContributionGuide-2.png)
-
 ### Committer Creating ISSUES
 
-Creating various types of Issues is the same as for users, but since this involves proactive planning and task development, there are two scenarios. For small tasks, directly use `BugReport`, `Enhancement`, `FeatureRequest` to associate with the `Pull Request`. For larger planned tasks that need to be broken down, use `Umbrella` to associate with the corresponding Issue and plan subtasks below it, as shown below:
+If it is a small development task, then the process of creating an issue will be similar to users and contributors. You can  use `BugReport`, `Enhancement`, or `FeatureRequest` to associate your issue with pull requests.
 
-todo Add images on how to use umbrella to create subtasks
+If it is a relatively large planned task that needs to be broken down, use `Umbrella` to associate with the corresponding issues and plan subtasks inside `Umbrella`. The specifics are as follows:
+
+![image](../../images/umbrella-issue.png)
 
 For each subtask, create the corresponding subtask using `Subtask` and describe the specific content that needs to be completed for that subtask.
 
-For the title of `Umbrella`, it is temporarily divided into two categories, RBIP-* and MINOR.
+For `Umbrella`, it is temporarily divided into two categories, RBIP-* and MINOR.
 
 RBIP-*: Indicates the addition of features and characteristics, such as RBIP-09, RBIP-10, with the sequence number increasing.
 ![image](../../images/GithubContributionGuide-3.png)
 
 MINOR: Indicates fixing or adding small features. It can start with MINOR, followed by the title.
 ![image](../../images/doc-image10.png)
+
+For `Subtask`, use the following format:
+`[RBIP-*/MINOR][Style/Refactor/Performance/Docs/Test/Build/CI/Chore][Subtask] xxx`, for example,
+
+![image](../../images/subtask.png)
 
 ## 2. Creating a Pull Request
 
