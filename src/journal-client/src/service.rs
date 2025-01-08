@@ -41,9 +41,11 @@ pub(crate) async fn get_cluster_metadata(
 
     if let JournalEnginePacket::GetClusterMetadataResp(data) = resp_packet.clone() {
         resp_header_error(&data.header, resp_packet.clone())?;
+
         if let Some(body) = data.body {
             return Ok(body);
         }
+
         return Err(JournalClientError::ReceivedPacketNotContainBody(
             resp_packet.to_string(),
         ));

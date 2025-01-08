@@ -32,22 +32,22 @@ pub enum JournalClientError {
     MpscSendErrorBool(#[from] tokio::sync::mpsc::error::SendError<bool>),
 
     #[error("Node {0} has no available access address, may be cache data inconsistency, ready to trigger update node cache.")]
-    NodeNoAvailableAddr(u64),
+    NodeNoAvailableAddr(i64),
 
     #[error("Failed to send request to node {0} with error message :{1}")]
-    SendRequestError(u64, String),
+    SendRequestError(i64, String),
 
     #[error("request is sent to node {0} and the received return packet is empty")]
-    ReceivedPacketIsEmpty(u64),
+    ReceivedPacketIsEmpty(i64),
 
     #[error("Send request to node {0}, received wrong packet, error message :{1}")]
-    ReceivedPacketError(u64, String),
+    ReceivedPacketError(i64, String),
 
     #[error("Sending a request to node {0}, obtaining a connection failed, and the connection is occupied for a long time.")]
-    ConnectionIsOccupied(u64),
+    ConnectionIsOccupied(i64),
 
     #[error("Sending a request to node {0} failed to get a connection, possibly to create a connection.")]
-    NoAvailableConn(u64),
+    NoAvailableConn(i64),
 
     #[error("Received return packet type error, need {0}, received {1}.")]
     ReceivedPacketTypeError(String, String),
@@ -71,5 +71,11 @@ pub enum JournalClientError {
     NotShardMetadata(String),
 
     #[error("The write request returns empty")]
-    WriteReqReturnTmpty,
+    WriteReqReturnEmpty,
+
+    #[error("Addrs cannot be null")]
+    AddrsNotEmpty,
+
+    #[error("Sending a request packet, receiving a request returns a timeout")]
+    SendPacketTimeout,
 }

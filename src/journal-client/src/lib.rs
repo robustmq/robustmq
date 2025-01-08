@@ -18,6 +18,7 @@ mod async_writer;
 mod cache;
 pub mod client;
 mod connection;
+mod consts;
 mod error;
 pub mod option;
 mod service;

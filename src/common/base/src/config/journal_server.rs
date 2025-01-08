@@ -34,7 +34,7 @@ use serde::Deserialize;
 
 use super::common::Log;
 use super::default_journal_server::{
-    default_grpc_port, default_log, default_network, default_network_tcp_port,
+    default_grpc_port, default_local_ip, default_log, default_network, default_network_tcp_port,
     default_network_tcps_port, default_prometheus, default_prometheus_port, default_storage,
     default_system, default_tcp_thread,
 };
@@ -62,6 +62,8 @@ pub struct JournalServerConfig {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Network {
+    #[serde(default = "default_local_ip")]
+    pub local_ip: String,
     #[serde(default = "default_grpc_port")]
     pub grpc_port: u32,
     #[serde(default = "default_network_tcp_port")]

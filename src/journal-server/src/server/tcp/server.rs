@@ -62,7 +62,7 @@ pub async fn start_tcp_server(
         cache_manager.clone(),
         client_pool.clone(),
     );
-    server.start(conf.network.tcp_port).await;
+    server.start().await;
 
     let mut server = TcpServer::new(
         command,
@@ -72,7 +72,7 @@ pub async fn start_tcp_server(
         cache_manager,
         client_pool,
     );
-    server.start_tls(conf.network.tcps_port).await;
+    server.start_tls().await;
 }
 
 struct TcpServer {
@@ -116,8 +116,10 @@ impl TcpServer {
         }
     }
 
-    pub async fn start(&mut self, port: u32) {
-        let listener = match TcpListener::bind(format!("0.0.0.0:{}", port)).await {
+    pub async fn start(&mut self) {
+        let conf = journal_server_conf();
+        let addr = format!("{}:{}", conf.network.local_ip, conf.network.tcp_port);
+        let listener = match TcpListener::bind(&addr).await {
             Ok(tl) => tl,
             Err(e) => {
                 panic!("{}", e.to_string());
@@ -160,11 +162,13 @@ impl TcpServer {
         .await;
 
         self.network_connection_type = NetworkConnectionType::Tcp;
-        info!("Journal Engine Server started successfully, listening port: {port}");
+        info!("Journal Engine Server started successfully, addr: {addr}");
     }
 
-    pub async fn start_tls(&mut self, port: u32) {
-        let listener = match TcpListener::bind(format!("0.0.0.0:{}", port)).await {
+    pub async fn start_tls(&mut self) {
+        let conf = journal_server_conf();
+        let addr = format!("{}:{}", conf.network.local_ip, conf.network.tcps_port);
+        let listener = match TcpListener::bind(&addr).await {
             Ok(tl) => tl,
             Err(e) => {
                 panic!("{}", e.to_string());
@@ -205,6 +209,6 @@ impl TcpServer {
         )
         .await;
         self.network_connection_type = NetworkConnectionType::Tls;
-        info!("Journal Engine TLS Server started successfully, listening port: {port}");
+        info!("Journal Engine TLS Server started successfully, addr: {addr}");
     }
 }

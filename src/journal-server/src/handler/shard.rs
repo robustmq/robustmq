@@ -59,7 +59,8 @@ impl ShardHandler {
             .is_none()
         {
             create_shard_to_place(
-                self.client_pool.clone(),
+                &self.cache_manager,
+                &self.client_pool,
                 &req_body.namespace,
                 &req_body.shard_name,
                 req_body.replica_num,

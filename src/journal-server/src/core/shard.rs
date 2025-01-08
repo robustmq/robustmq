@@ -15,7 +15,7 @@
 use std::fs::remove_dir_all;
 use std::path::Path;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use common_base::config::journal_server::journal_server_conf;
 use grpc_clients::pool::ClientPool;
@@ -100,7 +100,8 @@ pub fn is_delete_by_shard(req: &GetShardDeleteStatusRequest) -> Result<bool, Jou
 }
 
 pub async fn create_shard_to_place(
-    client_pool: Arc<ClientPool>,
+    cache_manager: &Arc<CacheManager>,
+    client_pool: &Arc<ClientPool>,
     namespace: &str,
     shard_name: &str,
     replica_num: u32,
@@ -113,11 +114,23 @@ pub async fn create_shard_to_place(
         replica: replica_num,
     };
     grpc_clients::placement::journal::call::create_shard(
-        &client_pool,
+        client_pool,
         &conf.placement_center,
         request,
     )
     .await?;
+
+    let start = Instant::now();
+    loop {
+        if cache_manager.get_shard(namespace, shard_name).is_some() {
+            return Ok(());
+        }
+        if start.elapsed().as_millis() >= 3000 {
+            break;
+        }
+
+        sleep(Duration::from_millis(100)).await
+    }
     Ok(())
 }
 
@@ -159,7 +172,8 @@ pub async fn try_auto_create_shard(
     }
 
     create_shard_to_place(
-        client_pool.clone(),
+        cache_manager,
+        client_pool,
         namespace,
         shard_name,
         cache_manager.get_cluster().default_shard_replica_num,
