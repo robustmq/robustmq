@@ -19,7 +19,6 @@ use metadata_struct::mqtt::cluster::MqttClusterDynamicConnectionJitter;
 use std::sync::Arc;
 
 use crate::handler::cache::CacheManager;
-use crate::handler::error::MqttBrokerError;
 
 #[derive(Clone)]
 pub struct ConnectionJitterCondition {
@@ -28,22 +27,22 @@ pub struct ConnectionJitterCondition {
     first_request_time: u64,
 }
 
-pub fn check_connection_jitter(
-    client_id: String,
-    cache_manager: &Arc<CacheManager>,
-) -> Result<bool, MqttBrokerError> {
+pub fn check_connection_jitter(client_id: &str, cache_manager: &Arc<CacheManager>) {
+    // todo ig prometheus to get metric
     let mut counter = 0;
     counter += 1;
+
     let mut connection_jitter_condition = if let Some(connection_jitter_condition) = cache_manager
         .acl_metadata
-        .get_connection_jitter_condition(&client_id)
+        .get_connection_jitter_condition(client_id)
     {
         connection_jitter_condition
     } else {
-        return Err(MqttBrokerError::CommonError(format!(
-            "connection jitter info for {} not found",
-            client_id
-        )));
+        ConnectionJitterCondition {
+            client_id: client_id.to_string(),
+            connect_times: counter,
+            first_request_time: now_second(),
+        }
     };
 
     let config = cache_manager.get_connection_jitter_config();
@@ -62,7 +61,6 @@ pub fn check_connection_jitter(
             add_blacklist_4_connection_jitter(cache_manager, config);
         } else {
             connection_jitter_condition.connect_times = counter;
-            return Ok(true);
         }
     }
 
@@ -72,8 +70,6 @@ pub fn check_connection_jitter(
     cache_manager
         .acl_metadata
         .add_connection_jitter_condition(connection_jitter_condition);
-
-    Ok(true)
 }
 
 fn add_blacklist_4_connection_jitter(

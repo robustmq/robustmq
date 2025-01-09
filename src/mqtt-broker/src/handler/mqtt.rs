@@ -59,6 +59,7 @@ use crate::observability::system_topic::event::{
     st_report_connected_event, st_report_disconnected_event, st_report_subscribed_event,
     st_report_unsubscribed_event,
 };
+use crate::security::connection_jitter::check_connection_jitter;
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
@@ -113,6 +114,8 @@ where
     ) -> MqttPacket {
         let cluster: metadata_struct::mqtt::cluster::MqttClusterDynamicConfig =
             self.cache_manager.get_cluster_info();
+
+        check_connection_jitter(&connect.client_id, &self.cache_manager);
 
         if let Some(res) = connect_validator(
             &self.protocol,
