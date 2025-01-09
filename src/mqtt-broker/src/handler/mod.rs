@@ -17,6 +17,7 @@ pub mod cache;
 pub mod cluster_config;
 pub mod command;
 pub mod connection;
+pub mod connection_jitter;
 pub mod constant;
 pub mod error;
 pub mod flow_control;

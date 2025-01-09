@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::handler::error::MqttBrokerError;
+use crate::security::connection_jitter::ConnectionJitterCondition;
+use common_base::enum_type::time_unit_enum::TimeUnit;
+use common_base::tools::{convert_seconds, now_second};
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclResourceType};
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
-
-use crate::security::connection_jitter::ConnectionJitterCondition;
+use metadata_struct::mqtt::cluster::MqttClusterDynamicConnectionJitter;
 
 #[derive(Clone)]
 pub struct AclMetadata {
@@ -76,6 +79,25 @@ impl AclMetadata {
             connection_jitter_condition.client_id.clone(),
             connection_jitter_condition,
         );
+    }
+
+    pub fn remove_connection_jitter_condition(&self, client_id: &str) {
+        self.connection_jitter_map.remove(client_id);
+    }
+
+    pub async fn remove_connection_jitter_conditions(
+        &self,
+        config: MqttClusterDynamicConnectionJitter,
+    ) -> Result<(), MqttBrokerError> {
+        let current_time = now_second();
+        let window_time = convert_seconds(config.window_time, TimeUnit::Minutes) as u64;
+        self.connection_jitter_map
+            .retain(|_, connection_jitter_condition| {
+                // we need retain elements within window_time,
+                // so now_seconds - first_request_time must less than window_time
+                current_time - connection_jitter_condition.first_request_time < window_time
+            });
+        Ok(())
     }
 
     pub fn parse_mqtt_acl(&self, acl: MqttAcl) {
@@ -216,13 +238,51 @@ impl AclMetadata {
 
 #[cfg(test)]
 mod test {
+    use crate::security::acl::metadata::AclMetadata;
+    use crate::security::connection_jitter::ConnectionJitterCondition;
     use common_base::tools::now_second;
     use metadata_struct::acl::mqtt_acl::{
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
     use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
+    use metadata_struct::mqtt::cluster::MqttClusterDynamicConnectionJitter;
 
-    use crate::security::acl::metadata::AclMetadata;
+    #[tokio::test]
+    pub async fn test_mqtt_remove_connection_jitter() {
+        let acl_metadata = AclMetadata::new();
+        let condition1 = ConnectionJitterCondition {
+            client_id: "test_id_1".to_string(),
+            connect_times: 15,
+            first_request_time: now_second() - 10,
+        };
+        let condition2 = ConnectionJitterCondition {
+            client_id: "test_id_2".to_string(),
+            connect_times: 15,
+            first_request_time: now_second() - 70,
+        };
+
+        acl_metadata.add_connection_jitter_condition(condition1);
+
+        acl_metadata.add_connection_jitter_condition(condition2);
+
+        assert!(acl_metadata.connection_jitter_map.contains_key("test_id_1"));
+        assert!(acl_metadata.connection_jitter_map.contains_key("test_id_2"));
+
+        let jitter_config = MqttClusterDynamicConnectionJitter {
+            enable: true,
+            window_time: 1,
+            max_client_connections: 15,
+            ban_time: 5,
+        };
+
+        acl_metadata
+            .remove_connection_jitter_conditions(jitter_config)
+            .await
+            .expect("TODO: panic message");
+
+        assert!(acl_metadata.connection_jitter_map.contains_key("test_id_1"));
+        assert!(!acl_metadata.connection_jitter_map.contains_key("test_id_2"));
+    }
 
     #[tokio::test]
     pub async fn parse_mqtt_acl_test() {

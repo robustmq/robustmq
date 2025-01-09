@@ -23,8 +23,8 @@ use crate::handler::cache::CacheManager;
 #[derive(Clone)]
 pub struct ConnectionJitterCondition {
     pub client_id: String,
-    connect_times: u32,
-    first_request_time: u64,
+    pub connect_times: u32,
+    pub first_request_time: u64,
 }
 
 pub fn check_connection_jitter(client_id: &str, cache_manager: &Arc<CacheManager>) {
