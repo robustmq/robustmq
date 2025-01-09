@@ -15,7 +15,6 @@
 use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::error::common::CommonError;
 use grpc_clients::placement::inner::call::{
     delete_idempotent_data, exists_idempotent_data, set_idempotent_data,
 };
@@ -25,13 +24,14 @@ use protocol::placement_center::placement_center_inner::{
 };
 
 use super::cache::CacheManager;
+use super::error::MqttBrokerError;
 
 pub async fn pkid_save(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     client_id: &str,
     pkid: u16,
-) -> Result<(), CommonError> {
+) -> Result<(), MqttBrokerError> {
     if cache_manager
         .get_cluster_info()
         .protocol
@@ -48,7 +48,7 @@ pub async fn pkid_save(
                 return Ok(());
             }
             Err(e) => {
-                return Err(e);
+                return Err(MqttBrokerError::CommonError(e.to_string()));
             }
         }
     } else {
@@ -62,7 +62,7 @@ pub async fn pkid_exists(
     client_pool: &Arc<ClientPool>,
     client_id: &str,
     pkid: u16,
-) -> Result<bool, CommonError> {
+) -> Result<bool, MqttBrokerError> {
     if cache_manager
         .get_cluster_info()
         .protocol
@@ -76,7 +76,7 @@ pub async fn pkid_exists(
         };
         match exists_idempotent_data(client_pool, &conf.placement_center, request).await {
             Ok(reply) => Ok(reply.exists),
-            Err(e) => Err(e),
+            Err(e) => Err(MqttBrokerError::CommonError(e.to_string())),
         }
     } else {
         Ok(cache_manager.get_client_pkid(client_id, pkid).is_some())
@@ -88,7 +88,7 @@ pub async fn pkid_delete(
     client_pool: &Arc<ClientPool>,
     client_id: &str,
     pkid: u16,
-) -> Result<(), CommonError> {
+) -> Result<(), MqttBrokerError> {
     if cache_manager
         .get_cluster_info()
         .protocol
@@ -105,7 +105,7 @@ pub async fn pkid_delete(
                 return Ok(());
             }
             Err(e) => {
-                return Err(e);
+                return Err(MqttBrokerError::CommonError(e.to_string()));
             }
         }
     } else {

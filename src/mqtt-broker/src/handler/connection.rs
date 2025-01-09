@@ -15,7 +15,6 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use common_base::error::common::CommonError;
 use common_base::tools::{now_second, unique_id};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
@@ -23,6 +22,7 @@ use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
 use protocol::mqtt::common::{Connect, ConnectProperties};
 
 use super::cache::CacheManager;
+use super::error::MqttBrokerError;
 use super::keep_alive::client_keep_live_time;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::session::SessionStorage;
@@ -116,7 +116,7 @@ pub async fn disconnect_connection(
     client_pool: &Arc<ClientPool>,
     connection_manager: &Arc<ConnectionManager>,
     subscribe_manager: &Arc<SubscribeManager>,
-) -> Result<(), CommonError> {
+) -> Result<(), MqttBrokerError> {
     subscribe_manager
         .remove_exclusive_subscribe_by_client_id(client_id)
         .await?;
@@ -135,7 +135,7 @@ pub async fn disconnect_connection(
     {
         Ok(_) => {}
         Err(e) => {
-            return Err(e);
+            return Err(MqttBrokerError::CommonError(e.to_string()));
         }
     }
 
