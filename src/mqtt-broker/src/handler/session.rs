@@ -15,13 +15,13 @@
 use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
 use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillProperties};
 
 use super::cache::CacheManager;
+use super::error::MqttBrokerError;
 use super::lastwill::last_will_delay_interval;
 use crate::storage::session::SessionStorage;
 
@@ -35,7 +35,7 @@ pub async fn build_session(
     last_will_properties: &Option<LastWillProperties>,
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
-) -> Result<(MqttSession, bool), CommonError> {
+) -> Result<(MqttSession, bool), MqttBrokerError> {
     let session_expiry = session_expiry_interval(cache_manager, connect_properties);
     let is_contain_last_will = !last_will.is_none();
     let last_will_delay_interval = last_will_delay_interval(last_will_properties);
@@ -54,7 +54,7 @@ pub async fn build_session(
                 true,
             ),
             Err(e) => {
-                return Err(e);
+                return Err(MqttBrokerError::CommonError(e.to_string()));
             }
         }
     } else {
@@ -82,14 +82,14 @@ pub async fn save_session(
     new_session: bool,
     client_id: String,
     client_pool: &Arc<ClientPool>,
-) -> Result<(), CommonError> {
+) -> Result<(), MqttBrokerError> {
     let conf = broker_mqtt_conf();
     let session_storage = SessionStorage::new(client_pool.clone());
     if new_session {
         match session_storage.set_session(client_id, &session).await {
             Ok(_) => {}
             Err(e) => {
-                return Err(e);
+                return Err(MqttBrokerError::CommonError(e.to_string()));
             }
         }
     } else {
@@ -99,7 +99,7 @@ pub async fn save_session(
         {
             Ok(_) => {}
             Err(e) => {
-                return Err(e);
+                return Err(MqttBrokerError::CommonError(e.to_string()));
             }
         }
     }
