@@ -83,5 +83,3 @@
     | client_id | topic | sub_name | time_ms | create_time |
     +-----------+-------+----------+---------+-------------+
     ```
-
-Note: "TODO" in section 2 seems like a placeholder or note-to-self indicating that there might be more actions or details to add later regarding subscription and publication. In the translation, I've kept "TODO" as it appears in the original text, but in a real-world scenario, you would either remove it or replace it with appropriate content.
