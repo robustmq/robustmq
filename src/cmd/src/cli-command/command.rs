@@ -19,14 +19,12 @@ use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
 use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateUserRequest, DeleteUserRequest, ListTopicRequest,
-};
+use protocol::broker_mqtt::broker_mqtt_admin::ListTopicRequest;
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
 };
 
-use crate::mqtt::admin::{process_slow_sub_args, CreateUserArgs, DeleteUserArgs, SlowSubArgs};
+use crate::mqtt::admin::{process_slow_sub_args, process_user_args, MqttUserCommand, SlowSubArgs};
 
 #[derive(Parser)] // requires `derive` feature
 #[command(name = "robust-ctl")]
@@ -34,7 +32,16 @@ use crate::mqtt::admin::{process_slow_sub_args, CreateUserArgs, DeleteUserArgs, 
 #[command(styles = CLAP_STYLING)]
 #[command(author="RobustMQ", version="0.0.1", about="Command line tool for RobustMQ", long_about = None)]
 #[command(next_line_help = true)]
-enum RobustMQCli {
+struct RobustMQCli {
+    // Mqtt(MqttArgs),
+    // Place(PlacementArgs),
+    // Journal(JournalArgs),
+    #[command(subcommand)]
+    command: RobustMQCliCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum RobustMQCliCommand {
     Mqtt(MqttArgs),
     Place(PlacementArgs),
     Journal(JournalArgs),
@@ -64,10 +71,7 @@ struct MqttArgs {
 enum MQTTAction {
     Status,
     // User admin
-    CreateUser(CreateUserArgs),
-    DeleteUser(DeleteUserArgs),
-    ListUser,
-
+    User(MqttUserCommand),
     // Connections
     ListConnection,
 
@@ -153,10 +157,12 @@ struct JournalArgs {
 #[tokio::main]
 async fn main() {
     let args = RobustMQCli::parse();
-    match args {
-        RobustMQCli::Mqtt(args) => handle_mqtt(args, MqttBrokerCommand::new()).await,
-        RobustMQCli::Place(args) => handle_placement(args, PlacementCenterCommand::new()).await,
-        RobustMQCli::Journal(args) => handle_journal(args).await,
+    match args.command {
+        RobustMQCliCommand::Mqtt(args) => handle_mqtt(args, MqttBrokerCommand::new()).await,
+        RobustMQCliCommand::Place(args) => {
+            handle_placement(args, PlacementCenterCommand::new()).await
+        }
+        RobustMQCliCommand::Journal(args) => handle_journal(args).await,
     }
 }
 
@@ -165,15 +171,7 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
         server: args.server,
         action: match args.action {
             MQTTAction::Status => MqttActionType::Status,
-            MQTTAction::CreateUser(arg) => MqttActionType::CreateUser(CreateUserRequest {
-                username: arg.username,
-                password: arg.password,
-                is_superuser: arg.is_superuser,
-            }),
-            MQTTAction::DeleteUser(arg) => MqttActionType::DeleteUser(DeleteUserRequest {
-                username: arg.username,
-            }),
-            MQTTAction::ListUser => MqttActionType::ListUser,
+            MQTTAction::User(args) => process_user_args(args),
             MQTTAction::ListConnection => MqttActionType::ListConnection,
             MQTTAction::ListTopic(args) => MqttActionType::ListTopic(ListTopicRequest {
                 topic_name: args.topic_name,

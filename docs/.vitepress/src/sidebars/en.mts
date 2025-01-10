@@ -17,6 +17,7 @@ export const sidebar = [
             {text: "ClusterMode", link: "/QuickGuide/Run-Cluster-Mode"},
             {text: "DockerMode", link: "/QuickGuide/Run-Docker-Mode"},
             {text: "K8SMode", link: "/QuickGuide/Run-K8S-Mode"},
+            {text: "EasyStart", link: "/QuickGuide/Easy-Start"},
         ],
     },
     {
