@@ -14,15 +14,24 @@
 
 use std::io::Cursor;
 
+use serde::{Deserialize, Serialize};
+
 use crate::raft::raft_node::Node;
 use crate::raft::route::AppResponseData;
 use crate::route::data::StorageData;
 
 pub type SnapshotData = Cursor<Vec<u8>>;
 
-openraft::declare_raft_types!(
-    pub TypeConfig:
-        D = StorageData,
-        R = AppResponseData,
-        Node = Node,
-);
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
+pub struct TypeConfig {}
+
+impl openraft::RaftTypeConfig for TypeConfig {
+    type D = StorageData;
+    type R = AppResponseData;
+    type Node = Node;
+    type NodeId = u64;
+    type Entry = openraft::impls::Entry<Self>;
+    type SnapshotData = std::io::Cursor<Vec<u8>>;
+    type Responder = openraft::impls::OneshotResponder<Self>;
+    type AsyncRuntime = openraft::impls::TokioRuntime;
+}

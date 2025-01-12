@@ -49,10 +49,7 @@ impl ShareSubLeader {
 
         broker_ids.sort();
 
-        let node_sub_info = match self.read_node_sub_info(cluster_name) {
-            Ok(data) => data,
-            Err(e) => return Err(e),
-        };
+        let node_sub_info = self.read_node_sub_info(cluster_name)?;
 
         for (broker_id, group_list) in node_sub_info.clone() {
             if group_list.contains(group_name) {
@@ -95,10 +92,7 @@ impl ShareSubLeader {
         cluster_name: &str,
         group_name: &String,
     ) -> Result<(), CommonError> {
-        let mut node_sub_info = match self.read_node_sub_info(cluster_name) {
-            Ok(data) => data,
-            Err(e) => return Err(e),
-        };
+        let mut node_sub_info = self.read_node_sub_info(cluster_name)?;
         for (broker_id, mut group_list) in node_sub_info.clone() {
             if group_list.contains(group_name) {
                 group_list.retain(|x| x != group_name);
@@ -125,10 +119,7 @@ impl ShareSubLeader {
 
     #[allow(dead_code)]
     pub fn delete_node(&self, cluster_name: &str, broker_id: u64) -> Result<(), CommonError> {
-        let mut node_sub_info = match self.read_node_sub_info(cluster_name) {
-            Ok(data) => data,
-            Err(e) => return Err(e),
-        };
+        let mut node_sub_info = self.read_node_sub_info(cluster_name)?;
         if node_sub_info.contains_key(&broker_id) {
             node_sub_info.remove(&broker_id);
             let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
@@ -155,10 +146,7 @@ impl ShareSubLeader {
         broker_id: u64,
         group_name: &String,
     ) -> Result<(), CommonError> {
-        let mut node_sub_info = match self.read_node_sub_info(cluster_name) {
-            Ok(data) => data,
-            Err(e) => return Err(e),
-        };
+        let mut node_sub_info = self.read_node_sub_info(cluster_name)?;
         if let Some(data) = node_sub_info.get_mut(&broker_id) {
             if !data.contains(group_name) {
                 data.push(group_name.clone());
