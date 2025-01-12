@@ -55,7 +55,6 @@ pub async fn sealup_segment(
     Ok(())
 }
 
-
 pub async fn update_segment_status_to_pre_write(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,

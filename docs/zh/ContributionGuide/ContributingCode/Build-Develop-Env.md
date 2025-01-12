@@ -17,8 +17,8 @@ protoc， 需要根据不同的操作系统环境去安装这些依赖。
 - Rust 版本
 目前依赖的rust 版本是：nightly-2024-11-08
 ```shell
-rustup install nightly-2024-11-08
-rustup default nightly-2024-11-08
+rustup install stable
+rustup default stable
 rustc --version
 ```
 - 安装 Cmake.

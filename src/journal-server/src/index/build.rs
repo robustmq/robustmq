@@ -15,7 +15,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use grpc_clients::pool::ClientPool;
 use log::{debug, error, warn};
 use metadata_struct::journal::segment::SegmentStatus;
 use rocksdb_engine::engine::{
