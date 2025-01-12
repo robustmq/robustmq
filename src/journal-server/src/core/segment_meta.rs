@@ -25,7 +25,7 @@ use crate::segment::SegmentIdentity;
 pub async fn update_meta_start_offset(
     client_pool: Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
-    start_offset: u64,
+    start_offset: i64,
 ) -> Result<(), JournalServerError> {
     let conf = journal_server_conf();
     let next_segment_no = segment_iden.segment_seq;
@@ -34,7 +34,7 @@ pub async fn update_meta_start_offset(
         namespace: segment_iden.namespace.clone(),
         shard_name: segment_iden.shard_name.clone(),
         segment_no: next_segment_no,
-        start_offset: start_offset as i64,
+        start_offset,
         end_offset: -1,
         start_timestamp: -1,
         end_timestamp: -1,
@@ -46,7 +46,7 @@ pub async fn update_meta_start_offset(
 pub async fn update_meta_end_offset(
     client_pool: Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
-    end_offset: u64,
+    end_offset: i64,
 ) -> Result<(), JournalServerError> {
     let conf = journal_server_conf();
     let next_segment_no = segment_iden.segment_seq;
@@ -56,7 +56,7 @@ pub async fn update_meta_end_offset(
         shard_name: segment_iden.shard_name.clone(),
         segment_no: next_segment_no,
         start_offset: -1,
-        end_offset: end_offset as i64,
+        end_offset,
         start_timestamp: -1,
         end_timestamp: -1,
     };

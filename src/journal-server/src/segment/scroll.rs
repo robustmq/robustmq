@@ -140,7 +140,7 @@ impl SegmentScrollManager {
                         if let Err(e) = update_end_and_start_offset(
                             &self.client_pool,
                             &segment_iden,
-                            end_offset,
+                            end_offset as i64,
                         )
                         .await
                         {
@@ -167,7 +167,7 @@ impl SegmentScrollManager {
 async fn update_end_and_start_offset(
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
-    end_offset: u64,
+    end_offset: i64,
 ) -> Result<(), JournalServerError> {
     // update active segment end offset
     update_meta_end_offset(client_pool.clone(), segment_iden, end_offset).await?;

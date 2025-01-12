@@ -15,5 +15,9 @@
 #[cfg(test)]
 mod tests {
     #[test]
-    fn create_segment() {}
+    fn segment_status_update() {
+        // create segment
+
+        // get metadata
+    }
 }

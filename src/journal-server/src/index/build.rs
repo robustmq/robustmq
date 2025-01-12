@@ -45,6 +45,7 @@ pub struct IndexBuildThreadData {
 
 pub async fn try_trigger_build_index(
     cache_manager: &Arc<CacheManager>,
+
     segment_file_manager: &Arc<SegmentFileManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
@@ -161,7 +162,7 @@ async fn start_segment_build_index_thread(
                                 &segment_iden,
                                 &offset_index,
                                 &time_index,
-                                &tag_index)
+                                &tag_index).await
                             {
                                 error!("{}",e);
                                 continue;
@@ -206,7 +207,7 @@ fn try_finish_segment_index_build(
     }
 }
 
-fn save_record_index(
+async fn save_record_index(
     data: &[ReadData],
     start_offset: u64,
     segment_iden: &SegmentIdentity,

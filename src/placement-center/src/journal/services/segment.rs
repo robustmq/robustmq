@@ -91,7 +91,7 @@ pub async fn create_segment_by_req(
             namespace: segment.namespace.clone(),
             shard_name: segment.shard_name.clone(),
             segment_seq: segment.segment_seq,
-            start_offset: -1,
+            start_offset: if segment.segment_seq == 0 { 0 } else { -1 },
             end_offset: -1,
             start_timestamp: -1,
             end_timestamp: -1,
