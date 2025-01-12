@@ -154,32 +154,88 @@ impl StorageAdapter for MemoryStorageAdapter {
 
     async fn read_by_tag(
         &self,
-        _namespace: String,
-        _shard_name: String,
-        _offset: u64,
-        _tag: String,
-        _read_config: ReadConfig,
+        namespace: String,
+        shard_name: String,
+        offset: u64,
+        tag: String,
+        read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        return Ok(Vec::new());
+        let shard_key = self.shard_key(&namespace, &shard_name);
+
+        if let Some(record_list) = self.shard_data.get(&shard_key) {
+            if record_list.len() < offset as usize {
+                return Ok(Vec::new());
+            }
+            let mut result = Vec::new();
+
+            for i in offset..(offset + read_config.max_record_num) {
+                if let Some(value) = record_list.get(i as usize) {
+                    if value.tags.contains(&tag) {
+                        result.push(value.clone());
+                    }
+                } else {
+                    break;
+                }
+            }
+            return Ok(result);
+        }
+
+        Ok(Vec::new())
     }
 
     async fn read_by_key(
         &self,
-        _namespace: String,
-        _shard_name: String,
-        _offset: u64,
-        _key: String,
-        _read_config: ReadConfig,
+        namespace: String,
+        shard_name: String,
+        offset: u64,
+        key: String,
+        read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        return Ok(Vec::new());
+        let shard_key = self.shard_key(&namespace, &shard_name);
+
+        if let Some(record_list) = self.shard_data.get(&shard_key) {
+            if record_list.len() < offset as usize {
+                return Ok(Vec::new());
+            }
+            let mut result = Vec::new();
+
+            for i in offset..(offset + read_config.max_record_num) {
+                if let Some(value) = record_list.get(i as usize) {
+                    if value.key == key {
+                        result.push(value.clone());
+                    }
+                } else {
+                    break;
+                }
+            }
+            return Ok(result);
+        }
+
+        Ok(Vec::new())
     }
 
     async fn get_offset_by_timestamp(
         &self,
-        _namespace: String,
-        _shard_name: String,
+        namespace: String,
+        shard_name: String,
         _timestamp: u64,
     ) -> Result<Option<ShardOffset>, CommonError> {
+        let shard_key = self.shard_key(&namespace, &shard_name);
+
+        if let Some(record_list) = self.shard_data.get(&shard_key) {
+            for record in record_list.iter() {
+                if record.timestamp == _timestamp {
+                    if record.offset.is_none() {
+                        return Ok(None);
+                    }
+                    return Ok(Some(ShardOffset {
+                        offset: record.offset.unwrap(),
+                        ..Default::default()
+                    }));
+                }
+            }
+        }
+
         Ok(None)
     }
 
