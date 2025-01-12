@@ -36,8 +36,7 @@ pub async fn pre_sealup_segment(
     // next segment preWrite
     let mut next_segment_iden = segment_iden.clone();
     next_segment_iden.segment_seq = segment_iden.segment_seq + 1;
-    update_segment_status_to_pre_write(cache_manager, client_pool, &next_segment_iden).await?;
-    Ok(())
+    update_segment_status_to_pre_write(cache_manager, client_pool, &next_segment_iden).await
 }
 
 pub async fn sealup_segment(
@@ -51,8 +50,7 @@ pub async fn sealup_segment(
     // next segment to Write
     let mut next_segment_iden = segment_iden.clone();
     next_segment_iden.segment_seq = segment_iden.segment_seq + 1;
-    update_segment_status_to_write(cache_manager, client_pool, &next_segment_iden).await?;
-    Ok(())
+    update_segment_status_to_write(cache_manager, client_pool, &next_segment_iden).await
 }
 
 pub async fn update_segment_status_to_pre_write(
