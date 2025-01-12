@@ -68,6 +68,16 @@ mod tests {
         assert_eq!(list.len(), 1);
         assert_eq!(list.first().unwrap().key, "k1".to_string());
 
+        // read by key
+        let read_config = ReadConfig::new();
+        let res = client
+            .read_by_key(&namespace, &shard_name, 3, "k1", &read_config)
+            .await;
+        println!("{:?}", res);
+        assert!(res.is_ok());
+        let list = res.unwrap();
+        assert_eq!(list.len(), 0);
+
         // read by tag
         let read_config = ReadConfig::new();
         let res = client
@@ -79,6 +89,16 @@ mod tests {
         assert_eq!(list.len(), 1);
         assert!(list.first().unwrap().tags.contains(&("tag1".to_string())));
 
+        // read by tag
+        let read_config = ReadConfig::new();
+        let res = client
+            .read_by_tag(&namespace, &shard_name, 3, "tag1", &read_config)
+            .await;
+        println!("{:?}", res);
+        assert!(res.is_ok());
+        let list = res.unwrap();
+        assert_eq!(list.len(), 0);
+
         // read by offset
         let read_config = ReadConfig::new();
         let res = client
@@ -88,6 +108,16 @@ mod tests {
         assert!(res.is_ok());
         let list = res.unwrap();
         assert_eq!(list.len(), 5);
+
+        // read by offset
+        let read_config = ReadConfig::new();
+        let res = client
+            .read_by_offset(&namespace, &shard_name, 3, &read_config)
+            .await;
+        println!("{:?}", res);
+        assert!(res.is_ok());
+        let list = res.unwrap();
+        assert_eq!(list.len(), 2);
     }
 
     async fn write_data(client: &JournalClient, namespace: &str, shard_name: &str) {

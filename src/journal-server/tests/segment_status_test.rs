@@ -12,5 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod common;
-mod segment_status_test;
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn segment_status_update() {
+        // create segment
+
+        // get metadata
+    }
+}

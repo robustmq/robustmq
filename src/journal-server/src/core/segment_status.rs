@@ -25,6 +25,21 @@ use super::cache::CacheManager;
 use super::error::JournalServerError;
 use crate::segment::SegmentIdentity;
 
+pub async fn pre_sealup_segment(
+    cache_manager: &Arc<CacheManager>,
+    client_pool: &Arc<ClientPool>,
+    segment_iden: &SegmentIdentity,
+) -> Result<(), JournalServerError> {
+    // active segment to preSealUp
+    update_segment_status_to_pre_seal_up(cache_manager, client_pool, segment_iden).await?;
+
+    // next segment preWrite
+    let mut next_segment_iden = segment_iden.clone();
+    next_segment_iden.segment_seq = segment_iden.segment_seq + 1;
+    update_segment_status_to_pre_write(cache_manager, client_pool, &next_segment_iden).await?;
+    Ok(())
+}
+
 pub async fn sealup_segment(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
@@ -40,20 +55,6 @@ pub async fn sealup_segment(
     Ok(())
 }
 
-pub async fn pre_sealup_segment(
-    cache_manager: &Arc<CacheManager>,
-    client_pool: &Arc<ClientPool>,
-    segment_iden: &SegmentIdentity,
-) -> Result<(), JournalServerError> {
-    // active segment to preSealUp
-    update_segment_status_to_pre_seal_up(cache_manager, client_pool, segment_iden).await?;
-
-    // next segment preWrite
-    let mut next_segment_iden = segment_iden.clone();
-    next_segment_iden.segment_seq = segment_iden.segment_seq + 1;
-    update_segment_status_to_pre_write(cache_manager, client_pool, &next_segment_iden).await?;
-    Ok(())
-}
 
 pub async fn update_segment_status_to_pre_write(
     cache_manager: &Arc<CacheManager>,
