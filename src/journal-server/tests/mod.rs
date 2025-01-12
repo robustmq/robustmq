@@ -13,4 +13,3 @@
 // limitations under the License.
 
 mod common;
-mod segment_status_test;
