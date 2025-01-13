@@ -14,3 +14,4 @@
 
 pub mod client_test;
 pub mod common;
+mod segment_status_test;

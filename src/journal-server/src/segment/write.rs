@@ -419,9 +419,6 @@ async fn segment_position0_ac(
 
     // update meta start timestamp
     update_meta_start_timestamp(client_pool.clone(), segment_iden, start_timestamp).await?;
-
-    // save start offset
-
     Ok(())
 }
 

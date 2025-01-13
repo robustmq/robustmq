@@ -215,7 +215,7 @@ impl JournalServer {
             metadata_and_local_segment_diff_check();
 
             // todo
-            sleep(Duration::from_secs(3)).await;
+            sleep(Duration::from_secs(1)).await;
             match register_journal_node(self.client_pool.clone(), self.config.clone()).await {
                 Ok(()) => {}
                 Err(e) => {

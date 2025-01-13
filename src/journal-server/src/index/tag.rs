@@ -87,6 +87,7 @@ impl TagIndexManager {
                     let index_data = serde_json::from_slice::<IndexData>(data.data.as_ref())?;
 
                     if index_data.offset < start_offset {
+                        iter.next();
                         continue;
                     }
 
@@ -153,6 +154,7 @@ impl TagIndexManager {
                     let index_data = serde_json::from_slice::<IndexData>(data.data.as_ref())?;
 
                     if index_data.offset < start_offset {
+                        iter.next();
                         continue;
                     }
 
