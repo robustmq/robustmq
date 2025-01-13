@@ -218,13 +218,13 @@ impl StorageAdapter for MemoryStorageAdapter {
         &self,
         namespace: String,
         shard_name: String,
-        _timestamp: u64,
+        timestamp: u64,
     ) -> Result<Option<ShardOffset>, CommonError> {
         let shard_key = self.shard_key(&namespace, &shard_name);
 
         if let Some(record_list) = self.shard_data.get(&shard_key) {
             for record in record_list.iter() {
-                if record.timestamp == _timestamp {
+                if record.timestamp >= timestamp {
                     if record.offset.is_none() {
                         return Ok(None);
                     }
