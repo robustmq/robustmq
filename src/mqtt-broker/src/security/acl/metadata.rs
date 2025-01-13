@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::handler::connection_jitter::ConnectionJitterCondition;
 use crate::handler::error::MqttBrokerError;
-use crate::security::connection_jitter::ConnectionJitterCondition;
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
 use dashmap::DashMap;
@@ -238,8 +238,8 @@ impl AclMetadata {
 
 #[cfg(test)]
 mod test {
+    use crate::handler::connection_jitter::ConnectionJitterCondition;
     use crate::security::acl::metadata::AclMetadata;
-    use crate::security::connection_jitter::ConnectionJitterCondition;
     use common_base::tools::now_second;
     use metadata_struct::acl::mqtt_acl::{
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,

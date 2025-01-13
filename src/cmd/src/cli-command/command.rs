@@ -19,17 +19,13 @@ use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
 use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
-use protocol::broker_mqtt::broker_mqtt_admin::ListTopicRequest;
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateUserRequest, DeleteUserRequest, EnableConnectionJitterRequest, ListTopicRequest,
-};
+use protocol::broker_mqtt::broker_mqtt_admin::{EnableConnectionJitterRequest, ListTopicRequest};
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
 };
 
-use crate::mqtt::admin::{process_slow_sub_args, process_user_args, MqttUserCommand, SlowSubArgs};
 use crate::mqtt::admin::{
-    process_slow_sub_args, ConnectionJitterArgs, CreateUserArgs, DeleteUserArgs, SlowSubArgs,
+    process_slow_sub_args, process_user_args, ConnectionJitterArgs, MqttUserCommand, SlowSubArgs,
 };
 
 #[derive(Parser)] // requires `derive` feature

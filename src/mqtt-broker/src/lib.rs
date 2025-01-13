@@ -313,7 +313,7 @@ where
         });
     }
 
-    pub fn start_update_acl_cache_thread(&self, stop_send: broadcast::Sender<bool>) {
+    fn start_update_acl_cache_thread(&self, stop_send: broadcast::Sender<bool>) {
         let update_acl_cache = UpdateAclCache::new(stop_send, self.auth_driver.clone());
 
         self.runtime.spawn(async move {

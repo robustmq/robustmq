@@ -37,6 +37,7 @@ use crate::handler::cache::{
     CacheManager, ConnectionLiveTime, QosAckPackageData, QosAckPackageType,
 };
 use crate::handler::connection::{build_connection, get_client_id};
+use crate::handler::connection_jitter::check_connection_jitter;
 use crate::handler::lastwill::save_last_will_message;
 use crate::handler::pkid::{pkid_delete, pkid_exists, pkid_save};
 use crate::handler::response::{
@@ -59,7 +60,6 @@ use crate::observability::system_topic::event::{
     st_report_connected_event, st_report_disconnected_event, st_report_subscribed_event,
     st_report_unsubscribed_event,
 };
-use crate::security::connection_jitter::check_connection_jitter;
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;

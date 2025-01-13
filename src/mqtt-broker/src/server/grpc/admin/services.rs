@@ -39,7 +39,8 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 use tonic::{Request, Response, Status};
 
 use crate::handler::cache::CacheManager;
-use crate::observability::slow::sub::{read_slow_sub_record, SlowSubData};
+use crate::handler::connection_jitter::enable_connection_jitter;
+use crate::observability::slow::sub::{enable_slow_sub, read_slow_sub_record, SlowSubData};
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::cluster::ClusterStorage;
@@ -264,11 +265,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
     ) -> Result<Response<EnableConnectionJitterReply>, Status> {
         let subscribe_request = request.into_inner();
 
-        match self
-            .cache_manager
-            .enable_connection_jitter(subscribe_request.clone())
-            .await
-        {
+        match enable_connection_jitter(&self.cache_manager, subscribe_request.clone()).await {
             Ok(_) => Ok(Response::new(EnableConnectionJitterReply {
                 is_enable: subscribe_request.is_enable,
             })),
@@ -309,11 +306,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
     ) -> Result<Response<EnableSlowSubScribeReply>, Status> {
         let subscribe_request = request.into_inner();
 
-        match self
-            .cache_manager
-            .enable_slow_sub(subscribe_request.is_enable)
-            .await
-        {
+        match enable_slow_sub(&self.cache_manager, subscribe_request.is_enable).await {
             Ok(_) => Ok(Response::new(EnableSlowSubScribeReply {
                 is_enable: subscribe_request.is_enable,
             })),
