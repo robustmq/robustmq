@@ -223,6 +223,378 @@
 //     }
 // }
 
+use std::{collections::HashMap, fmt::Display, sync::Arc};
+
+use axum::async_trait;
+use common_base::error::common::CommonError;
+use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
+use rocksdb_engine::RocksDBEngine;
+
+use crate::storage::{ShardConfig, ShardOffset, StorageAdapter};
+
+const DB_COLUMN_FAMILY_OFFSET: &str = "offset";
+const DB_COLUMN_FAMILY_RECORD: &str = "record";
+
+fn column_family_list() -> Vec<String> {
+    vec![
+        DB_COLUMN_FAMILY_OFFSET.to_string(),
+        DB_COLUMN_FAMILY_RECORD.to_string(),
+    ]
+}
+
+pub struct RocksDBStorageAdapter {
+    pub db: Arc<RocksDBEngine>,
+}
+
+impl RocksDBStorageAdapter {
+    pub fn new(db_path: &str, max_open_files: i32) -> Self {
+        RocksDBStorageAdapter {
+            db: Arc::new(RocksDBEngine::new(
+                db_path,
+                max_open_files,
+                column_family_list(),
+            )),
+        }
+    }
+
+    #[inline(always)]
+    pub fn record_key<S1: Display>(&self, namespace: S1, shard_name: S1, index: u64) -> String {
+        format!("{}_{}_record_{}", namespace, shard_name, index)
+    }
+
+    #[inline(always)]
+    pub fn offset_shard_key<S1: Display>(&self, namespace: S1, shard_name: S1) -> String {
+        format!("{}_{}_{}", namespace, shard_name, "shard_offset")
+    }
+
+    // #[inline(always)]
+    // pub fn offset_key<S1: Display, S2: Display>(
+    //     &self,
+    //     namespace: S1,
+    //     shard_name: S1,
+    //     group_id: S2,
+    // ) -> String {
+    //     format!("{}_{}_{}", namespace, shard_name, group_id)
+    // }
+
+    // pub fn get_offset<S1: Display, S2: Display>(
+    //     &self,
+    //     namespace: S1,
+    //     shard_name: S1,
+    //     group_id: S2,
+    // ) -> Option<u64> {
+    //     let key = self.offset_key(namespace, shard_name, group_id);
+    //     self.db
+    //         .cf_handle(DB_COLUMN_FAMILY_OFFSET)
+    //         .and_then(|cf| self.db.read(cf, &key).ok()?)
+    // }
+}
+
+#[async_trait]
+impl StorageAdapter for RocksDBStorageAdapter {
+    /// create a shard by inserting an offset 0
+    async fn create_shard(
+        &self,
+        namespace: String,
+        shard_name: String,
+        _: ShardConfig,
+    ) -> Result<(), CommonError> {
+        let cf = self
+            .db
+            .cf_handle(DB_COLUMN_FAMILY_OFFSET)
+            .expect(format!("column family {DB_COLUMN_FAMILY_OFFSET} not found").as_str());
+
+        let key = self.offset_shard_key(namespace, shard_name.clone());
+
+        // check whether the shard exists
+        if self.db.read::<u64>(cf.clone(), key.as_str())?.is_some() {
+            return Err(CommonError::CommonError(format!(
+                "shard {} already exists",
+                shard_name
+            )));
+        }
+
+        self.db.write(cf, key.as_str(), &0_u64)
+    }
+
+    async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
+        let cf = self
+            .db
+            .cf_handle(DB_COLUMN_FAMILY_OFFSET)
+            .expect(format!("column family {DB_COLUMN_FAMILY_OFFSET} not found").as_str());
+
+        let key = self.offset_shard_key(namespace, shard_name.clone());
+
+        // check whether the shard exists
+        if self.db.read::<u64>(cf.clone(), key.as_str())?.is_none() {
+            return Err(CommonError::CommonError(format!(
+                "shard {} not exists",
+                shard_name
+            )));
+        }
+
+        self.db.delete(cf, &key)
+    }
+
+    async fn write(
+        &self,
+        namespace: String,
+        shard_name: String,
+        mut message: Record,
+    ) -> Result<u64, CommonError> {
+        // get the starting offset
+        let cf = self
+            .db
+            .cf_handle(DB_COLUMN_FAMILY_OFFSET)
+            .expect(format!("column family {DB_COLUMN_FAMILY_OFFSET} not found").as_str());
+
+        let key_shard_offset = self.offset_shard_key(namespace.clone(), shard_name.clone());
+        let offset = match self.db.read::<u64>(cf.clone(), key_shard_offset.as_str())? {
+            Some(offset) => offset,
+            None => {
+                return Err(CommonError::CommonError(format!(
+                    "shard {} under {} not exists",
+                    shard_name, namespace
+                )));
+            }
+        };
+
+        // write the message
+
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_RECORD).unwrap();
+        message.offset = Some(offset);
+
+        let key_record = self.record_key(namespace.clone(), shard_name.clone(), offset);
+        self.db.write(cf.clone(), &key_record, &message)?;
+
+        // update the offset
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_OFFSET).unwrap();
+
+        self.db
+            .write(cf, key_shard_offset.as_str(), &(offset + 1))?;
+
+        Ok(offset)
+    }
+
+    async fn batch_write(
+        &self,
+        namespace: String,
+        shard_name: String,
+        messages: Vec<Record>,
+    ) -> Result<Vec<u64>, CommonError> {
+        // get the starting offset
+        let cf = self
+            .db
+            .cf_handle(DB_COLUMN_FAMILY_OFFSET)
+            .expect(format!("column family {DB_COLUMN_FAMILY_OFFSET} not found").as_str());
+
+        let key_shard_offset = self.offset_shard_key(namespace.clone(), shard_name.clone());
+        let offset = match self.db.read::<u64>(cf.clone(), key_shard_offset.as_str())? {
+            Some(offset) => offset,
+            None => {
+                return Err(CommonError::CommonError(format!(
+                    "shard {} under {} not exists",
+                    shard_name, namespace
+                )));
+            }
+        };
+
+        // write the message
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_RECORD).unwrap();
+
+        let mut start_offset = offset;
+
+        let mut offset_res = Vec::new();
+
+        for mut msg in messages {
+            offset_res.push(start_offset);
+            msg.offset = Some(start_offset);
+
+            let key_record = self.record_key(namespace.clone(), shard_name.clone(), start_offset);
+            self.db.write(cf.clone(), &key_record, &msg)?;
+            start_offset += 1;
+        }
+
+        // update the offset
+
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_OFFSET).unwrap();
+        self.db
+            .write(cf, key_shard_offset.as_str(), &start_offset)?;
+
+        Ok(offset_res)
+    }
+
+    async fn read_by_offset(
+        &self,
+        namespace: String,
+        shard_name: String,
+        offset: u64,
+        read_config: ReadConfig,
+    ) -> Result<Vec<Record>, CommonError> {
+        let cf = self
+            .db
+            .cf_handle(DB_COLUMN_FAMILY_RECORD)
+            .expect(format!("column family {DB_COLUMN_FAMILY_RECORD} not found").as_str());
+
+        let mut start_offset = offset;
+        let mut record = Vec::new();
+
+        // read records with indices from offset to offset + max_record_num
+        // stop when the record is not found
+        for _ in 0..read_config.max_record_num {
+            let key = self.record_key(namespace.clone(), shard_name.clone(), start_offset);
+            let value = self.db.read::<Record>(cf.clone(), &key)?;
+
+            match value {
+                Some(value) => {
+                    record.push(value);
+                    start_offset += 1;
+                }
+                None => {
+                    break;
+                }
+            }
+        }
+
+        Ok(record)
+    }
+
+    async fn read_by_tag(
+        &self,
+        namespace: String,
+        shard_name: String,
+        offset: u64,
+        tag: String,
+        read_config: ReadConfig,
+    ) -> Result<Vec<Record>, CommonError> {
+        let cf = self
+            .db
+            .cf_handle(DB_COLUMN_FAMILY_RECORD)
+            .expect(format!("column family {DB_COLUMN_FAMILY_RECORD} not found").as_str());
+
+        let mut start_offset = offset;
+        let mut record = Vec::new();
+
+        // read records with indices from offset to offset + max_record_num
+        // stop when the record is not found
+        for _ in 0..read_config.max_record_num {
+            let key = self.record_key(namespace.clone(), shard_name.clone(), start_offset);
+            let value = self.db.read::<Record>(cf.clone(), &key)?;
+
+            match value {
+                Some(value) if value.tags.contains(&tag) => {
+                    record.push(value);
+                    start_offset += 1;
+                }
+                Some(_) => {
+                    start_offset += 1;
+                }
+                None => {
+                    break;
+                }
+            }
+        }
+
+        Ok(record)
+    }
+
+    async fn read_by_key(
+        &self,
+        namespace: String,
+        shard_name: String,
+        offset: u64,
+        key: String,
+        read_config: ReadConfig,
+    ) -> Result<Vec<Record>, CommonError> {
+        let cf = self
+            .db
+            .cf_handle(DB_COLUMN_FAMILY_RECORD)
+            .expect(format!("column family {DB_COLUMN_FAMILY_RECORD} not found").as_str());
+
+        let mut start_offset = offset;
+        let mut record = Vec::new();
+
+        // read records with indices from offset to offset + max_record_num
+        // stop when the record is not found
+        for _ in 0..read_config.max_record_num {
+            let key_record = self.record_key(namespace.clone(), shard_name.clone(), start_offset);
+            let value = self.db.read::<Record>(cf.clone(), &key_record)?;
+
+            match value {
+                Some(value) if value.key == key => {
+                    record.push(value);
+                    start_offset += 1;
+                }
+                Some(_) => {
+                    start_offset += 1;
+                }
+                None => {
+                    break;
+                }
+            }
+        }
+
+        Ok(record)
+    }
+
+    async fn get_offset_by_timestamp(
+        &self,
+        namespace: String,
+        shard_name: String,
+        timestamp: u64,
+    ) -> Result<Option<ShardOffset>, CommonError> {
+        let cf = self
+            .db
+            .cf_handle(DB_COLUMN_FAMILY_RECORD)
+            .expect(format!("column family {DB_COLUMN_FAMILY_RECORD} not found").as_str());
+
+        let mut start_offset = 0;
+
+        loop {
+            let key = self.record_key(namespace.clone(), shard_name.clone(), start_offset);
+            let value = self.db.read::<Record>(cf.clone(), &key)?;
+
+            match value {
+                Some(value) if value.timestamp >= timestamp => {
+                    return Ok(Some(ShardOffset {
+                        offset: start_offset,
+                        ..Default::default()
+                    }));
+                }
+                Some(_) => {
+                    start_offset += 1;
+                }
+                None => {
+                    break;
+                }
+            }
+        }
+
+        Ok(None)
+    }
+
+    async fn get_offset_by_group(
+        &self,
+        _group_name: String,
+    ) -> Result<Vec<ShardOffset>, CommonError> {
+        let results = Vec::new();
+        Ok(results)
+    }
+
+    async fn commit_offset(
+        &self,
+        _group_name: String,
+        _namespace: String,
+        _offset: HashMap<String, u64>,
+    ) -> Result<(), CommonError> {
+        Ok(())
+    }
+
+    async fn close(&self) -> Result<(), CommonError> {
+        Ok(())
+    }
+}
+
 // #[cfg(test)]
 // mod tests {
 //     use common_base::tools::unique_id;
