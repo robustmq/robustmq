@@ -16,28 +16,31 @@
 mod tests {
     use std::sync::Arc;
 
-    use grpc_clients::mqtt::admin::call::{
-        mqtt_broker_enable_slow_subscribe, mqtt_broker_list_slow_subscribe,
-    };
+    use grpc_clients::mqtt::admin::call::mqtt_broker_enable_connection_jitter;
     use grpc_clients::pool::ClientPool;
     use protocol::broker_mqtt::broker_mqtt_admin::{
-        EnableSlowSubScribeReply, EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
+        EnableConnectionJitterReply, EnableConnectionJitterRequest,
     };
 
     use crate::mqtt_protocol::common::broker_grpc_addr;
 
     #[tokio::test]
-    async fn test_enable_slow_subscribe() {
+    async fn test_enable_connection_jitter() {
         let client_pool = Arc::new(ClientPool::new(3));
         let grpc_addr = vec![broker_grpc_addr()];
 
-        let request = EnableSlowSubscribeRequest { is_enable: true };
+        let request = EnableConnectionJitterRequest {
+            is_enable: false,
+            window_time: 0,
+            max_client_connections: 0,
+            ban_time: 0,
+        };
 
-        let reply = EnableSlowSubScribeReply { is_enable: true };
+        let reply = EnableConnectionJitterReply { is_enable: false };
 
-        match mqtt_broker_enable_slow_subscribe(&client_pool, &grpc_addr, request).await {
+        match mqtt_broker_enable_connection_jitter(&client_pool, &grpc_addr, request).await {
             Ok(data) => {
-                assert_eq!(reply, data);
+                assert_eq!(data, reply);
             }
 
             Err(e) => {
@@ -48,24 +51,26 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_list_slow_subscribe() {
+    async fn test_enable_connection_jitter_is_true() {
         let client_pool = Arc::new(ClientPool::new(3));
         let grpc_addr = vec![broker_grpc_addr()];
-        let request = ListSlowSubscribeRequest {
-            list: 100,
-            sub_name: "".to_string(),
-            topic: "".to_string(),
-            client_id: "".to_string(),
-            sort: "asc".to_string(),
+
+        let request = EnableConnectionJitterRequest {
+            is_enable: true,
+            window_time: 0,
+            max_client_connections: 0,
+            ban_time: 0,
         };
 
-        match mqtt_broker_list_slow_subscribe(&client_pool, &grpc_addr, request).await {
+        let reply = EnableConnectionJitterReply { is_enable: true };
+
+        match mqtt_broker_enable_connection_jitter(&client_pool, &grpc_addr, request).await {
             Ok(data) => {
-                println!("{:?}", data);
+                assert_eq!(data, reply);
             }
 
             Err(e) => {
-                eprintln!("Failed list slow subscribe: {:?}", e);
+                eprintln!("Failed enable_slow_subscribe: {:?}", e);
                 std::process::exit(1);
             }
         }
