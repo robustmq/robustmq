@@ -31,7 +31,7 @@ pub struct UpdateConnectionJitterCache {
     cache_manager: Arc<CacheManager>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ConnectionJitterCondition {
     pub client_id: String,
     pub connect_times: u32,
@@ -74,9 +74,10 @@ impl UpdateConnectionJitterCache {
             .remove_connection_jitter_conditions(config)
             .await
         {
-            Ok(_) => {}
+            Ok(_) => {
+                info!("Updating Connection Jitter cache norm exception");
+            }
             Err(e) => {
-                println!("Updating Connection Jitter cache norm exception");
                 error!("{}", e);
             }
         }
@@ -89,6 +90,7 @@ pub fn check_connection_jitter(client_id: &str, cache_manager: &Arc<CacheManager
     let mut counter = 0;
     counter += 1;
 
+    eprintln!("client_id: {:?}", client_id);
     let mut connection_jitter_condition = if let Some(connection_jitter_condition) = cache_manager
         .acl_metadata
         .get_connection_jitter_condition(client_id)
@@ -101,6 +103,8 @@ pub fn check_connection_jitter(client_id: &str, cache_manager: &Arc<CacheManager
             first_request_time: now_second(),
         }
     };
+
+    eprintln!("connection_jitter_connection: {:?}", connection_jitter_condition.clone());
 
     let config = cache_manager.get_connection_jitter_config();
     let current_request_time = now_second();
@@ -140,6 +144,7 @@ fn add_blacklist_4_connection_jitter(
         desc: "Ban due to connection jitter ".to_string(),
     };
 
+    println!("client_id_blacklist:{:?}", client_id_blacklist);
     cache_manager.add_blacklist(client_id_blacklist);
 }
 
