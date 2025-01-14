@@ -85,30 +85,36 @@ impl UpdateConnectionJitterCache {
     }
 }
 
-pub fn check_connection_jitter(client_id: &str, cache_manager: &Arc<CacheManager>) {
+// todo 该函数需要放置在黑名单检查后使用
+pub fn check_connection_jitter(client_id: String, cache_manager: &Arc<CacheManager>) {
     // todo ig prometheus to get metric
     let mut counter = 0;
-    counter += 1;
 
     eprintln!("client_id: {:?}", client_id);
     let mut connection_jitter_condition = if let Some(connection_jitter_condition) = cache_manager
         .acl_metadata
-        .get_connection_jitter_condition(client_id)
+        .get_connection_jitter_condition(client_id.clone())
     {
+        info!("get connection jitter condition: {:?}", connection_jitter_condition.clone());
         connection_jitter_condition
     } else {
         ConnectionJitterCondition {
-            client_id: client_id.to_string(),
-            connect_times: counter,
+            client_id,
+            connect_times: 0,
             first_request_time: now_second(),
         }
     };
+
+    // mock metric test
+    counter = connection_jitter_condition.connect_times;
+    counter += 1;
 
     eprintln!("connection_jitter_connection: {:?}", connection_jitter_condition.clone());
 
     let config = cache_manager.get_connection_jitter_config();
     let current_request_time = now_second();
 
+    println!("max_client_connections: {}", config.max_client_connections);
     if is_within_window_time(
         current_request_time,
         connection_jitter_condition.first_request_time,
@@ -121,6 +127,7 @@ pub fn check_connection_jitter(client_id: &str, cache_manager: &Arc<CacheManager
         ) {
             add_blacklist_4_connection_jitter(cache_manager, config);
         } else {
+            // todo 这里的更新需要通过定时器来更新前60秒的连接次数，而不是在这里更新
             connection_jitter_condition.connect_times = counter;
         }
     }
@@ -128,6 +135,7 @@ pub fn check_connection_jitter(client_id: &str, cache_manager: &Arc<CacheManager
     connection_jitter_condition.connect_times = counter;
     connection_jitter_condition.first_request_time = now_second();
 
+    info!("connect_jitter_map_size: {}", cache_manager.acl_metadata.connection_jitter_map.capacity());
     cache_manager
         .acl_metadata
         .add_connection_jitter_condition(connection_jitter_condition);
@@ -183,3 +191,4 @@ pub async fn enable_connection_jitter(
 
     Ok(())
 }
+

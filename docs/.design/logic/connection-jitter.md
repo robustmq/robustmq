@@ -17,12 +17,11 @@ counter值增加1
 
 从Map中获取对应`client-id`的结构信息`ClientConnectInfo`
 
-如果`current_request_time` - `request_time` < `windows_time`
+如果`current_request_time` - `request_time` < `windows_time` - 在窗口时间内
 - 如果`counter` - `connect_count` > `max_count`：
- 将对应的client放入到黑名单当中，并指定封禁时间
-- 否则只更新connect_count放入到map中
+ 将对应的client放入到黑名单当中，并指定封禁时间， 并删除存放在map中的内容
 
-更新为本次request_time和connect_count
+否则不在窗口时间内，此时更新request_time和connect_count
 
 重新放入map中
 

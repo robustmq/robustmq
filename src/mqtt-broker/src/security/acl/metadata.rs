@@ -63,9 +63,9 @@ impl AclMetadata {
 
     pub fn get_connection_jitter_condition(
         &self,
-        client_id: &str,
+        client_id: String,
     ) -> Option<ConnectionJitterCondition> {
-        if let Some(connection_jitter_condition) = self.connection_jitter_map.get(client_id) {
+        if let Some(connection_jitter_condition) = self.connection_jitter_map.get(&client_id) {
             return Some(connection_jitter_condition.clone());
         }
         None

@@ -115,7 +115,7 @@ where
         let cluster: metadata_struct::mqtt::cluster::MqttClusterDynamicConfig =
             self.cache_manager.get_cluster_info();
 
-        check_connection_jitter(&connect.client_id, &self.cache_manager);
+        check_connection_jitter(connect.client_id.clone(), &self.cache_manager);
 
         if let Some(res) = connect_validator(
             &self.protocol,
