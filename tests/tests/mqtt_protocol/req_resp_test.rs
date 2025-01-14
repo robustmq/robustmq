@@ -22,7 +22,7 @@ mod tests {
     };
 
     #[tokio::test]
-    async fn client5_reuqset_response_test() {
+    async fn client5_request_response_test() {
         let sub_qos = &[0, 0];
 
         let topic = unique_id();

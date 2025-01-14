@@ -57,9 +57,9 @@ mod tests {
 
         let request = EnableConnectionJitterRequest {
             is_enable: true,
-            window_time: 0,
-            max_client_connections: 0,
-            ban_time: 0,
+            window_time: 1,
+            max_client_connections: 3,
+            ban_time: 5,
         };
 
         let reply = EnableConnectionJitterReply { is_enable: true };

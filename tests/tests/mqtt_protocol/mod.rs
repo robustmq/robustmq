@@ -35,3 +35,4 @@ mod topic_rewrite_rule_test;
 pub mod user_properties_test;
 pub mod ws_sub_pub_test;
 pub mod wss_sub_pub_test;
+mod connect_suite;
