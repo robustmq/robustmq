@@ -25,7 +25,7 @@ pub struct JournalEngineClusterConfig {
 
 impl JournalEngineClusterConfig {
     pub fn build() -> Self {
-        // todo load placemenet config
+        // todo load placement config
 
         // load local config
         let conf = journal_server_conf();
