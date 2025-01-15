@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::common::Log;
-use super::journal_server::{Network, Prometheus, Storage, System, TcpThread};
+use super::journal_server::{Network, Prometheus, Shard, Storage, System, TcpThread};
 
 pub fn default_network() -> Network {
     Network {
@@ -24,6 +24,26 @@ pub fn default_network() -> Network {
         tls_cert: "".to_string(),
         tls_key: "".to_string(),
     }
+}
+
+pub fn default_shard() -> Shard {
+    Shard {
+        enable_auto_create_shard: default_enable_auto_create_shard(),
+        shard_replica_num: default_shard_replica_num(),
+        max_segment_size: default_max_segment_size(),
+    }
+}
+
+pub fn default_enable_auto_create_shard() -> bool {
+    false
+}
+
+pub fn default_shard_replica_num() -> u32 {
+    1
+}
+
+pub fn default_max_segment_size() -> u32 {
+    1073741824
 }
 
 pub fn default_local_ip() -> String {

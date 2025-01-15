@@ -64,7 +64,7 @@ pub async fn update_meta_end_offset(
     Ok(())
 }
 
-pub async fn update_meta_start_timestamp(
+pub async fn _update_meta_start_timestamp(
     client_pool: Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
     start_timestamp: u64,
@@ -85,7 +85,7 @@ pub async fn update_meta_start_timestamp(
     Ok(())
 }
 
-pub async fn update_meta_end_timestamp(
+pub async fn _update_meta_end_timestamp(
     client_pool: Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
     end_timestamp: u64,

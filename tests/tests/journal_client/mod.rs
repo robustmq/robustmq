@@ -14,4 +14,5 @@
 
 pub mod client_test;
 pub mod common;
+pub mod segment_scroll;
 mod segment_status_test;

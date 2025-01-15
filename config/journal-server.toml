@@ -50,6 +50,12 @@ push_gateway_server = "127.0.0.1:8081"
 interval = 10
 header = ""
 
+[shard]
+enable_auto_create_shard = false
+shard_replica_num = 1
+max_segment_size = 1048576
+
 [log]
 log_config = "./config/log4rs.yaml"
 log_path = "./logs/journal-server"
+

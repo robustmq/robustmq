@@ -34,9 +34,10 @@ use serde::Deserialize;
 
 use super::common::Log;
 use super::default_journal_server::{
-    default_grpc_port, default_local_ip, default_log, default_network, default_network_tcp_port,
-    default_network_tcps_port, default_prometheus, default_prometheus_port, default_storage,
-    default_system, default_tcp_thread,
+    default_enable_auto_create_shard, default_grpc_port, default_local_ip, default_log,
+    default_max_segment_size, default_network, default_network_tcp_port, default_network_tcps_port,
+    default_prometheus, default_prometheus_port, default_shard, default_shard_replica_num,
+    default_storage, default_system, default_tcp_thread,
 };
 use crate::tools::{read_file, try_create_fold};
 
@@ -48,6 +49,8 @@ pub struct JournalServerConfig {
     pub placement_center: Vec<String>,
     #[serde(default = "default_network")]
     pub network: Network,
+    #[serde(default = "default_shard")]
+    pub shard: Shard,
     #[serde(default = "default_system")]
     pub system: System,
     #[serde(default = "default_storage")]
@@ -87,6 +90,16 @@ pub struct Storage {
     #[serde(default)]
     pub data_path: Vec<String>,
     pub rocksdb_max_open_files: Option<i32>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Shard {
+    #[serde(default = "default_enable_auto_create_shard")]
+    pub enable_auto_create_shard: bool,
+    #[serde(default = "default_shard_replica_num")]
+    pub shard_replica_num: u32,
+    #[serde(default = "default_max_segment_size")]
+    pub max_segment_size: u32,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

@@ -330,9 +330,9 @@ pub async fn build_segment(
     }
 
     let node_list = cluster_cache.get_broker_node_id_by_cluster(&shard_info.cluster_name);
-    if node_list.len() < shard_info.replica as usize {
+    if node_list.len() < shard_info.config.replica_num as usize {
         return Err(PlacementCenterError::NotEnoughNodes(
-            shard_info.replica,
+            shard_info.config.replica_num,
             node_list.len() as u32,
         ));
     }
@@ -340,7 +340,7 @@ pub async fn build_segment(
     //todo Get the node copies at random
     let mut rng = thread_rng();
     let node_ids: Vec<u64> = node_list
-        .choose_multiple(&mut rng, shard_info.replica as usize)
+        .choose_multiple(&mut rng, shard_info.config.replica_num as usize)
         .cloned()
         .collect();
     let mut replicas = Vec::new();
@@ -354,9 +354,9 @@ pub async fn build_segment(
         });
     }
 
-    if replicas.len() != (shard_info.replica as usize) {
+    if replicas.len() != (shard_info.config.replica_num as usize) {
         return Err(PlacementCenterError::NumberOfReplicasIsIncorrect(
-            shard_info.replica,
+            shard_info.config.replica_num,
             replicas.len(),
         ));
     }
@@ -372,7 +372,7 @@ pub async fn build_segment(
         replicas: replicas.clone(),
         isr: replicas.iter().map(|rep| rep.node_id).collect(),
         config: SegmentConfig {
-            max_segment_size: 1024 * 1024 * 1024,
+            max_segment_size: shard_info.config.max_segment_size,
         },
     })
 }

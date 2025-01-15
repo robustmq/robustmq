@@ -15,6 +15,7 @@
 #[cfg(test)]
 mod tests {
     use common_base::error::common::CommonError;
+    use metadata_struct::journal::shard::JournalShardConfig;
     use protocol::placement_center::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
     use protocol::placement_center::placement_center_inner::{
         HeartbeatRequest, RegisterNodeRequest, SetIdempotentDataRequest, UnRegisterNodeRequest,
@@ -27,7 +28,7 @@ mod tests {
 
     use crate::place_server::common::{
         cluster_name, cluster_type, extend_info, namespace, node_id, node_ip, pc_addr, producer_id,
-        seq_num, shard_name, shard_replica,
+        seq_num, shard_name,
     };
 
     #[tokio::test]
@@ -293,12 +294,18 @@ mod tests {
     async fn test_create_shard() {
         let mut client = EngineServiceClient::connect(pc_addr()).await.unwrap();
 
+        let config = JournalShardConfig {
+            max_segment_size: 1024 * 1024 * 10,
+            replica_num: 1,
+        };
+
         let request = CreateShardRequest {
             cluster_name: cluster_name(),
             namespace: namespace(),
             shard_name: shard_name(),
-            replica: shard_replica(),
+            shard_config: serde_json::to_vec(&config).unwrap(),
         };
+
         match client.create_shard(tonic::Request::new(request)).await {
             Ok(_) => {}
             Err(e) => {

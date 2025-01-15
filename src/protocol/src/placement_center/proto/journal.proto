@@ -51,7 +51,7 @@ message CreateShardRequest{
     string cluster_name = 1;
     string namespace = 2;
     string shard_name = 3;
-    uint32 replica = 4;
+    bytes  shard_config = 4;
 }
 
 message CreateShardReply{

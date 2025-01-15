@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
 use std::fs::remove_file;
 use std::io::ErrorKind;
 use std::path::Path;
@@ -39,7 +38,7 @@ pub struct ReadData {
 pub async fn open_segment_write(
     cache_manager: &Arc<CacheManager>,
     segment_iden: &SegmentIdentity,
-) -> Result<(SegmentFile, u64), JournalServerError> {
+) -> Result<(SegmentFile, u32), JournalServerError> {
     let segment = if let Some(segment) = cache_manager.get_segment(segment_iden) {
         segment
     } else {
@@ -105,28 +104,19 @@ impl SegmentFile {
         Ok(remove_file(segment_file)?)
     }
 
-    pub async fn write(
-        &self,
-        records: &[JournalRecord],
-    ) -> Result<HashMap<u64, u64>, JournalServerError> {
+    pub async fn write(&self, records: &[JournalRecord]) -> Result<(), JournalServerError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = OpenOptions::new().append(true).open(segment_file).await?;
         let mut writer = tokio::io::BufWriter::new(file);
 
-        let mut results = HashMap::new();
         for record in records {
-            let position = writer.stream_position().await?;
-
             let data = JournalRecord::encode_to_vec(record);
             writer.write_u64(record.offset as u64).await?;
             writer.write_u32(data.len() as u32).await?;
             writer.write_all(data.as_ref()).await?;
-
-            results.insert(record.pkid, position);
         }
-
         writer.flush().await?;
-        Ok(results)
+        Ok(())
     }
 
     pub async fn size(&self) -> Result<u64, JournalServerError> {

@@ -14,10 +14,10 @@ To run the code, you need to set up the Rust development environment first. Afte
  - Reference Document: [https://course.rs/first-try/installation.html](https://course.rs/first-try/installation.html)
 
 - **Rust Version**
- - The current Rust version required is `nightly-2024-11-08`.
+ - The current Rust version required is `stable`.
   ```shell
-  rustup install nightly-2024-11-08
-  rustup default nightly-2024-11-08
+  rustup install stable
+  rustup default stable
   rustc --version
   ```
 

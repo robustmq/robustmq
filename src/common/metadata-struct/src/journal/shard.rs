@@ -21,11 +21,11 @@ pub struct JournalShard {
     pub cluster_name: String,
     pub namespace: String,
     pub shard_name: String,
-    pub replica: u32,
     pub start_segment_seq: u32,
     pub active_segment_seq: u32,
     pub last_segment_seq: u32,
     pub status: JournalShardStatus,
+    pub config: JournalShardConfig,
     pub create_time: u128,
 }
 
@@ -36,7 +36,7 @@ impl JournalShard {
 }
 
 pub fn shard_name_iden(namespace: &str, shard_name: &str) -> String {
-    format!("{}_{}", namespace, shard_name)
+    format!("{},{}", namespace, shard_name)
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -45,4 +45,10 @@ pub enum JournalShardStatus {
     Run,
     PrepareDelete,
     Deleting,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct JournalShardConfig {
+    pub replica_num: u32,
+    pub max_segment_size: u32,
 }

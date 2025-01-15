@@ -16,7 +16,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use grpc_clients::pool::ClientPool;
-use log::{error, info};
+use log::{debug, error};
 use protocol::journal_server::codec::JournalEnginePacket;
 use protocol::journal_server::journal_engine::{
     ApiKey, ApiVersion, CreateShardResp, CreateShardRespBody, DeleteShardResp, DeleteShardRespBody,
@@ -71,7 +71,7 @@ impl Command {
         _addr: SocketAddr,
         packet: JournalEnginePacket,
     ) -> Option<JournalEnginePacket> {
-        info!("recv packet: {:?}", packet);
+        debug!("recv packet: {:?}", packet);
         match packet {
             /* Cluster Handler */
             JournalEnginePacket::GetClusterMetadataReq(_) => {

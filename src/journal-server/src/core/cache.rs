@@ -107,8 +107,13 @@ impl CacheManager {
     }
 
     pub fn init_cluster(&self) {
-        self.cluster
-            .insert("local".to_string(), JournalEngineClusterConfig::new());
+        let cluster_config = JournalEngineClusterConfig::build();
+        info!(
+            "cluster config: {}",
+            serde_json::to_string(&cluster_config).unwrap()
+        );
+
+        self.cluster.insert("local".to_string(), cluster_config);
     }
 
     pub fn update_local_cache_time(&self, time: u64) {
