@@ -32,9 +32,9 @@ use tokio::time::{sleep, timeout};
 
 use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
-use crate::core::segment_meta::{update_meta_end_timestamp, update_meta_start_timestamp};
 use crate::core::segment_status::sealup_segment;
 use crate::index::build::try_trigger_build_index;
+
 use crate::segment::file::{open_segment_write, SegmentFile};
 use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
@@ -53,7 +53,6 @@ pub struct SegmentWriteData {
 #[derive(Default, Debug)]
 pub struct SegmentWriteResp {
     offsets: HashMap<u64, u64>,
-    positions: HashMap<u64, u64>,
     last_offset: u64,
     error: Option<JournalServerError>,
 }
@@ -112,30 +111,9 @@ pub async fn write_data_req(
             return Err(e);
         }
 
-        // if position = 0, update start/timestamp
-        for (_, position) in resp.positions.iter() {
-            if *position == 0 {
-                let first_record = data_list.first().unwrap();
-                segment_position0_ac(
-                    segment_file_manager,
-                    client_pool,
-                    &segment_iden,
-                    *position as i64,
-                    first_record.create_time,
-                )
-                .await?;
-            }
-        }
-
         let last_record = data_list.last().unwrap();
-        segment_position9_ac(
-            client_pool,
-            segment_file_manager,
-            &segment_iden,
-            resp.last_offset as i64,
-            last_record.create_time,
-        )
-        .await?;
+        segment_file_manager.update_end_offset(&segment_iden, last_record.offset)?;
+        segment_file_manager.update_end_timestamp(&segment_iden, last_record.create_time)?;
 
         let mut resp_message_status = Vec::new();
         for (pkid, offset) in resp.offsets {
@@ -256,7 +234,7 @@ async fn create_write_thread0(
     client_pool: Arc<ClientPool>,
     mut local_segment_end_offset: i64,
     segment_write: SegmentFile,
-    max_file_size: u64,
+    max_file_size: u32,
     mut data_recv: Receiver<SegmentWriteData>,
     mut stop_recv: broadcast::Receiver<bool>,
 ) {
@@ -326,7 +304,7 @@ async fn batch_write(
     client_pool: &Arc<ClientPool>,
     local_segment_end_offset: i64,
     segment_write: &SegmentFile,
-    max_file_size: u64,
+    max_file_size: u32,
     data: Vec<JournalRecord>,
 ) -> Result<Option<SegmentWriteResp>, JournalServerError> {
     if data.is_empty() {
@@ -388,11 +366,10 @@ async fn batch_write0(
 
     // batch write data
     match segment_write.write(&records).await {
-        Ok(positions) => {
+        Ok(_) => {
             let record = records.last().unwrap();
             Ok(Some(SegmentWriteResp {
                 offsets: offsets.clone(),
-                positions,
                 last_offset: record.offset as u64,
                 ..Default::default()
             }))
@@ -404,49 +381,13 @@ async fn batch_write0(
     }
 }
 
-async fn segment_position0_ac(
-    segment_file_manager: &Arc<SegmentFileManager>,
-    client_pool: &Arc<ClientPool>,
-    segment_iden: &SegmentIdentity,
-    first_posi: i64,
-    start_timestamp: u64,
-) -> Result<(), JournalServerError> {
-    // update local file start offset
-    segment_file_manager.update_start_offset(segment_iden, first_posi)?;
-
-    // update local file start timestamp
-    segment_file_manager.update_start_timestamp(segment_iden, start_timestamp)?;
-
-    // update meta start timestamp
-    update_meta_start_timestamp(client_pool.clone(), segment_iden, start_timestamp).await?;
-    Ok(())
-}
-
-async fn segment_position9_ac(
-    client_pool: &Arc<ClientPool>,
-    segment_file_manager: &Arc<SegmentFileManager>,
-    segment_iden: &SegmentIdentity,
-    end_offset: i64,
-    end_timestamp: u64,
-) -> Result<(), JournalServerError> {
-    // update local file end offset
-    segment_file_manager.update_end_offset(segment_iden, end_offset)?;
-
-    // update local file end timestamp
-    segment_file_manager.update_end_timestamp(segment_iden, end_timestamp)?;
-
-    // update meta end timestamp
-    update_meta_end_timestamp(client_pool.clone(), segment_iden, end_timestamp).await?;
-    Ok(())
-}
-
 async fn is_sealup_segment(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     segment_write: &SegmentFile,
     local_segment_end_offset: u64,
     packet_len: u64,
-    max_file_size: u64,
+    max_file_size: u32,
 ) -> Result<bool, JournalServerError> {
     let segment_iden = SegmentIdentity::new(
         &segment_write.namespace,
@@ -481,7 +422,7 @@ async fn is_sealup_segment(
         local_segment_end_offset,
         packet_len,
         file_size,
-        max_file_size,
+        max_file_size as u64,
     ) {
         sealup_segment(cache_manager, client_pool, &segment_iden).await?;
         return Ok(true);

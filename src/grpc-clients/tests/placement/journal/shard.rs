@@ -26,7 +26,7 @@ mod tests {
     use metadata_struct::journal::node_extend::JournalNodeExtend;
     use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
     use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
-    use metadata_struct::journal::shard::{JournalShard, JournalShardStatus};
+    use metadata_struct::journal::shard::{JournalShard, JournalShardConfig, JournalShardStatus};
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
     use protocol::placement_center::placement_center_journal::{
         CreateNextSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
@@ -68,12 +68,17 @@ mod tests {
             panic!();
         }
 
+        let config = JournalShardConfig {
+            replica_num: 1,
+            max_segment_size: 10 * 1024 * 1024,
+        };
+
         // create shard
         let request = CreateShardRequest {
             cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
-            replica: 1,
+            shard_config: serde_json::to_vec(&config).unwrap(),
         };
         if let Err(e) = create_shard(&client_pool, &addrs, request).await {
             println!("{}", e);
@@ -93,7 +98,7 @@ mod tests {
         assert_eq!(shard_raw.cluster_name, cluster_name);
         assert_eq!(shard_raw.namespace, namespace);
         assert_eq!(shard_raw.shard_name, shard_name);
-        assert_eq!(shard_raw.replica, 1);
+        assert_eq!(shard_raw.config.replica_num, 1);
         assert_eq!(shard_raw.start_segment_seq, 0);
         assert_eq!(shard_raw.active_segment_seq, 0);
         assert_eq!(shard_raw.last_segment_seq, 0);
@@ -117,7 +122,6 @@ mod tests {
         assert_eq!(segment.leader_epoch, 0);
         assert_eq!(segment.leader, node_id);
         assert_eq!(segment.status, SegmentStatus::Write);
-        assert_eq!(segment.config.max_segment_size, 1073741824);
         assert_eq!(segment.replicas.len(), 1);
         let rep = segment.replicas.first().unwrap();
         assert_eq!(rep.replica_seq, 0);
@@ -173,7 +177,6 @@ mod tests {
         assert_eq!(segment.leader_epoch, 0);
         assert_eq!(segment.leader, node_id);
         assert_eq!(segment.status, SegmentStatus::Write);
-        assert_eq!(segment.config.max_segment_size, 1073741824);
         assert_eq!(segment.replicas.len(), 1);
         let rep = segment.replicas.first().unwrap();
         assert_eq!(rep.replica_seq, 0);
@@ -187,7 +190,6 @@ mod tests {
         assert_eq!(segment.leader_epoch, 0);
         assert_eq!(segment.leader, node_id);
         assert_eq!(segment.status, SegmentStatus::Idle);
-        assert_eq!(segment.config.max_segment_size, 1073741824);
         assert_eq!(segment.replicas.len(), 1);
         let rep = segment.replicas.first().unwrap();
         assert_eq!(rep.replica_seq, 0);
@@ -278,13 +280,16 @@ mod tests {
             println!("{}", e);
             panic!();
         }
-
+        let config = JournalShardConfig {
+            replica_num: 1,
+            max_segment_size: 10 * 1024 * 1024,
+        };
         // create shard
         let request = CreateShardRequest {
             cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
-            replica: 1,
+            shard_config: serde_json::to_vec(&config).unwrap(),
         };
         if let Err(e) = create_shard(&client_pool, &addrs, request).await {
             println!("{}", e);
@@ -416,12 +421,16 @@ mod tests {
             unreachable!();
         }
 
+        let config = JournalShardConfig {
+            replica_num: 1,
+            max_segment_size: 10 * 1024 * 1024,
+        };
         // create shard
         let request = CreateShardRequest {
             cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
-            replica: 1,
+            shard_config: serde_json::to_vec(&config).unwrap(),
         };
         if let Err(e) = create_shard(&client_pool, &addrs, request).await {
             println!("{}", e);
@@ -521,12 +530,16 @@ mod tests {
             panic!();
         }
 
+        let config = JournalShardConfig {
+            replica_num: 1,
+            max_segment_size: 10 * 1024 * 1024,
+        };
         // create shard
         let request = CreateShardRequest {
             cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
             namespace: namespace.clone(),
-            replica: 1,
+            shard_config: serde_json::to_vec(&config).unwrap(),
         };
         if let Err(e) = create_shard(&client_pool, &addrs, request).await {
             println!("{}", e);

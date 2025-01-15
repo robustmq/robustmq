@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use common_base::config::journal_server::journal_server_conf;
 use dashmap::DashMap;
-use log::error;
+use log::{error, info};
 use metadata_struct::journal::segment::{segment_name, JournalSegment};
 use rocksdb_engine::RocksDBEngine;
 
@@ -263,6 +263,8 @@ pub async fn create_local_segment(
 
     // add cache
     cache_manager.set_segment(segment.clone());
+
+    info!("Segment {} created successfully", segment_iden.name());
     Ok(())
 }
 

@@ -19,8 +19,8 @@ use std::time::{Duration, Instant};
 
 use common_base::config::journal_server::journal_server_conf;
 use grpc_clients::pool::ClientPool;
-use log::error;
-use metadata_struct::journal::shard::shard_name_iden;
+use log::{error, info};
+use metadata_struct::journal::shard::{shard_name_iden, JournalShardConfig};
 use protocol::journal_server::journal_inner::{
     DeleteShardFileRequest, GetShardDeleteStatusRequest,
 };
@@ -84,6 +84,10 @@ pub fn delete_local_shard(
                 }
             }
         }
+        info!(
+            "Shard {} deleted successfully",
+            shard_name_iden(&req.namespace, &req.shard_name)
+        );
     });
 }
 
@@ -104,14 +108,18 @@ pub async fn create_shard_to_place(
     client_pool: &Arc<ClientPool>,
     namespace: &str,
     shard_name: &str,
-    replica_num: u32,
 ) -> Result<(), JournalServerError> {
+    let cluster_config = cache_manager.get_cluster();
+    let config = JournalShardConfig {
+        replica_num: cluster_config.shard_replica_num,
+        max_segment_size: cluster_config.max_segment_size,
+    };
     let conf = journal_server_conf();
     let request = CreateShardRequest {
         cluster_name: conf.cluster_name.to_string(),
         namespace: namespace.to_string(),
         shard_name: shard_name.to_string(),
-        replica: replica_num,
+        shard_config: serde_json::to_vec(&config)?,
     };
     grpc_clients::placement::journal::call::create_shard(
         client_pool,
@@ -123,6 +131,10 @@ pub async fn create_shard_to_place(
     let start = Instant::now();
     loop {
         if cache_manager.get_shard(namespace, shard_name).is_some() {
+            info!(
+                "Shard {} created successfully",
+                shard_name_iden(namespace, shard_name)
+            );
             return Ok(());
         }
         if start.elapsed().as_millis() >= 3000 {
@@ -171,14 +183,7 @@ pub async fn try_auto_create_shard(
         )));
     }
 
-    create_shard_to_place(
-        cache_manager,
-        client_pool,
-        namespace,
-        shard_name,
-        cache_manager.get_cluster().default_shard_replica_num,
-    )
-    .await?;
+    create_shard_to_place(cache_manager, client_pool, namespace, shard_name).await?;
     let mut i = 0;
     loop {
         if i >= 30 {

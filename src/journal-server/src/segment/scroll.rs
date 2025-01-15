@@ -96,7 +96,7 @@ impl SegmentScrollManager {
                 };
 
                 // 50%
-                if self.percentage50_cache.get(&key).is_none() && file_size / max_size > 50 {
+                if self.percentage50_cache.get(&key).is_none() && file_size / max_size as u64 > 50 {
                     let request = CreateNextSegmentRequest {
                         cluster_name: conf.cluster_name.clone(),
                         namespace: segment_iden.namespace.clone(),
@@ -117,7 +117,7 @@ impl SegmentScrollManager {
                 }
 
                 // 90%
-                if self.percentage50_cache.get(&key).is_none() && file_size / max_size > 98 {
+                if self.percentage50_cache.get(&key).is_none() && file_size / max_size as u64 > 98 {
                     if let Some(current_end_offset) =
                         self.segment_file_manager.get_end_offset(&segment_iden)
                     {

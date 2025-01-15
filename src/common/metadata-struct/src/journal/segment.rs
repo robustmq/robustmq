@@ -105,5 +105,5 @@ pub fn str_to_segment_status(status: &str) -> Result<SegmentStatus, CommonError>
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct SegmentConfig {
-    pub max_segment_size: u64,
+    pub max_segment_size: u32,
 }

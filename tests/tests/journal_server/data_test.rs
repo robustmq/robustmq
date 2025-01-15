@@ -31,9 +31,11 @@ mod tests {
     use tokio::time::sleep;
     use tokio_util::codec::Framed;
 
+    use crate::journal_client::common::journal_tcp_addr;
+
     #[tokio::test]
     async fn base_rw_test() {
-        let server_addr = "127.0.0.1:3110";
+        let server_addr = journal_tcp_addr();
 
         let socket = TcpStream::connect(server_addr).await.unwrap();
         let mut stream = Framed::new(socket, JournalServerCodec::new());

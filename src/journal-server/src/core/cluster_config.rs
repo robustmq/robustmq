@@ -12,18 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[derive(Clone, Default)]
+use common_base::config::journal_server::journal_server_conf;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Clone, Default)]
 pub struct JournalEngineClusterConfig {
     pub enable_auto_create_shard: bool,
-    pub default_shard_replica_num: u32,
+    pub shard_replica_num: u32,
+    pub max_segment_size: u32,
     pub last_update_local_cache_time: u64,
 }
 
 impl JournalEngineClusterConfig {
-    pub fn new() -> Self {
+    pub fn build() -> Self {
+        // todo load placemenet config
+
+        // load local config
+        let conf = journal_server_conf();
         JournalEngineClusterConfig {
-            enable_auto_create_shard: true,
-            default_shard_replica_num: 2,
+            enable_auto_create_shard: conf.shard.enable_auto_create_shard,
+            shard_replica_num: conf.shard.shard_replica_num,
+            max_segment_size: conf.shard.max_segment_size,
             last_update_local_cache_time: 0,
         }
     }

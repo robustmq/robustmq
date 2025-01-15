@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use log::error;
+use log::{error, info};
 use protocol::journal_server::journal_inner::GetSegmentDeleteStatusRequest;
 use rocksdb_engine::RocksDBEngine;
 
@@ -58,6 +58,7 @@ pub async fn delete_local_segment(
         }
     }
 
+    info!("Segment {} deleted successfully", segment_iden.name());
     Ok(())
 }
 
