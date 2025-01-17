@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::Duration;
-
+use crate::core::cache::CacheManager;
+use crate::core::error::{get_journal_server_code, JournalServerError};
+use crate::core::segment_status::sealup_segment;
+use crate::index::build::try_trigger_build_index;
+use crate::segment::file::{open_segment_write, SegmentFile};
+use crate::segment::manager::SegmentFileManager;
+use crate::segment::SegmentIdentity;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use log::error;
@@ -25,19 +28,13 @@ use protocol::journal_server::journal_engine::{
 };
 use protocol::journal_server::journal_record::JournalRecord;
 use rocksdb_engine::RocksDBEngine;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::select;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::sync::{broadcast, oneshot};
 use tokio::time::{sleep, timeout};
-
-use crate::core::cache::CacheManager;
-use crate::core::error::JournalServerError;
-use crate::core::segment_meta::{update_meta_end_timestamp, update_meta_start_timestamp};
-use crate::core::segment_status::sealup_segment;
-use crate::index::build::try_trigger_build_index;
-use crate::segment::file::{open_segment_write, SegmentFile};
-use crate::segment::manager::SegmentFileManager;
-use crate::segment::SegmentIdentity;
 
 #[derive(Clone)]
 pub struct SegmentWrite {
@@ -53,7 +50,6 @@ pub struct SegmentWriteData {
 #[derive(Default, Debug)]
 pub struct SegmentWriteResp {
     offsets: HashMap<u64, u64>,
-    positions: HashMap<u64, u64>,
     last_offset: u64,
     error: Option<JournalServerError>,
 }
@@ -98,44 +94,45 @@ pub async fn write_data_req(
             data_list.push(record);
         }
 
-        let resp = write_data(
+        let resp = match write_data(
             cache_manager,
             rocksdb_engine_handler,
             segment_file_manager,
-            client_pool,
             &segment_iden,
             data_list.clone(),
         )
-        .await?;
+        .await
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                if get_journal_server_code(&e) == *"SegmentOffsetAtTheEnd" {
+                    sealup_segment(cache_manager, client_pool, &segment_iden).await?;
+
+                    let write = get_write(
+                        cache_manager,
+                        rocksdb_engine_handler,
+                        segment_file_manager,
+                        &segment_iden,
+                    )
+                    .await?;
+
+                    // Stop the segment writer thread while waiting for messages to be written to the channel to clear
+                    loop {
+                        if write.data_sender.capacity() == write.data_sender.max_capacity() {
+                            write.stop_sender.send(true)?;
+                            break;
+                        }
+                        sleep(Duration::from_millis(10)).await;
+                    }
+                }
+
+                return Err(e);
+            }
+        };
 
         if let Some(e) = resp.error {
             return Err(e);
         }
-
-        // if position = 0, update start/timestamp
-        for (_, position) in resp.positions.iter() {
-            if *position == 0 {
-                let first_record = data_list.first().unwrap();
-                segment_position0_ac(
-                    segment_file_manager,
-                    client_pool,
-                    &segment_iden,
-                    *position as i64,
-                    first_record.create_time,
-                )
-                .await?;
-            }
-        }
-
-        let last_record = data_list.last().unwrap();
-        segment_position9_ac(
-            client_pool,
-            segment_file_manager,
-            &segment_iden,
-            resp.last_offset as i64,
-            last_record.create_time,
-        )
-        .await?;
 
         let mut resp_message_status = Vec::new();
         for (pkid, offset) in resp.offsets {
@@ -156,7 +153,6 @@ pub(crate) async fn write_data(
     cache_manager: &Arc<CacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
-    client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
     data_list: Vec<JournalRecord>,
 ) -> Result<SegmentWriteResp, JournalServerError> {
@@ -164,7 +160,6 @@ pub(crate) async fn write_data(
         cache_manager,
         rocksdb_engine_handler,
         segment_file_manager,
-        client_pool,
         segment_iden,
     )
     .await?;
@@ -185,7 +180,6 @@ async fn get_write(
     cache_manager: &Arc<CacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
-    client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
 ) -> Result<SegmentWrite, JournalServerError> {
     let write = if let Some(write) = cache_manager.get_segment_write_thread(segment_iden) {
@@ -195,7 +189,6 @@ async fn get_write(
             cache_manager,
             rocksdb_engine_handler,
             segment_file_manager,
-            client_pool,
             segment_iden,
         )
         .await?
@@ -207,7 +200,6 @@ pub(crate) async fn create_write_thread(
     cache_manager: &Arc<CacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
-    client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
 ) -> Result<SegmentWrite, JournalServerError> {
     let (data_sender, data_recv) = mpsc::channel::<SegmentWriteData>(1000);
@@ -223,17 +215,15 @@ pub(crate) async fn create_write_thread(
             ));
         };
 
-    let (segment_write, max_file_size) = open_segment_write(cache_manager, segment_iden).await?;
+    let (segment_write, _) = open_segment_write(cache_manager, segment_iden).await?;
 
     create_write_thread0(
         rocksdb_engine_handler.clone(),
         segment_iden.clone(),
         segment_file_manager.clone(),
         cache_manager.clone(),
-        client_pool.clone(),
         segment_file_meta.end_offset,
         segment_write,
-        max_file_size,
         data_recv,
         stop_recv,
     )
@@ -253,10 +243,8 @@ async fn create_write_thread0(
     segment_iden: SegmentIdentity,
     segment_file_manager: Arc<SegmentFileManager>,
     cache_manager: Arc<CacheManager>,
-    client_pool: Arc<ClientPool>,
     mut local_segment_end_offset: i64,
     segment_write: SegmentFile,
-    max_file_size: u64,
     mut data_recv: Receiver<SegmentWriteData>,
     mut stop_recv: broadcast::Receiver<bool>,
 ) {
@@ -285,10 +273,8 @@ async fn create_write_thread0(
                         &segment_iden,
                         &segment_file_manager,
                         &cache_manager,
-                        &client_pool,
                         local_segment_end_offset,
                         &segment_write,
-                        max_file_size,
                         packet.data
                     ).await{
                         Ok(Some(resp)) => {
@@ -317,42 +303,35 @@ async fn create_write_thread0(
     });
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn batch_write(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
     segment_file_manager: &Arc<SegmentFileManager>,
     cache_manager: &Arc<CacheManager>,
-    client_pool: &Arc<ClientPool>,
     local_segment_end_offset: i64,
     segment_write: &SegmentFile,
-    max_file_size: u64,
     data: Vec<JournalRecord>,
 ) -> Result<Option<SegmentWriteResp>, JournalServerError> {
     if data.is_empty() {
         return Ok(None);
     }
 
-    let flag = is_sealup_segment(
+    write_validator(
         cache_manager,
-        client_pool,
         segment_write,
         local_segment_end_offset as u64,
         data.len() as u64,
-        max_file_size,
     )
     .await?;
 
-    if flag {
-        return Ok(Some(SegmentWriteResp {
-            error: Some(JournalServerError::SegmentAlreadySealUp(
-                segment_iden.name(),
-            )),
-            ..Default::default()
-        }));
-    }
-
-    let resp = batch_write0(data, segment_write, local_segment_end_offset as u64).await?;
+    let resp = batch_write0(
+        data,
+        segment_write,
+        segment_file_manager,
+        segment_iden,
+        local_segment_end_offset as u64,
+    )
+    .await?;
 
     try_trigger_build_index(
         cache_manager,
@@ -368,6 +347,8 @@ async fn batch_write(
 async fn batch_write0(
     data: Vec<JournalRecord>,
     segment_write: &SegmentFile,
+    segment_file_manager: &Arc<SegmentFileManager>,
+    segment_iden: &SegmentIdentity,
     mut local_segment_end_offset: u64,
 ) -> Result<Option<SegmentWriteResp>, JournalServerError> {
     if data.is_empty() {
@@ -388,11 +369,13 @@ async fn batch_write0(
 
     // batch write data
     match segment_write.write(&records).await {
-        Ok(positions) => {
+        Ok(_) => {
             let record = records.last().unwrap();
+            segment_file_manager.update_end_offset(segment_iden, record.offset)?;
+            segment_file_manager.update_end_timestamp(segment_iden, record.create_time)?;
+
             Ok(Some(SegmentWriteResp {
                 offsets: offsets.clone(),
-                positions,
                 last_offset: record.offset as u64,
                 ..Default::default()
             }))
@@ -404,50 +387,12 @@ async fn batch_write0(
     }
 }
 
-async fn segment_position0_ac(
-    segment_file_manager: &Arc<SegmentFileManager>,
-    client_pool: &Arc<ClientPool>,
-    segment_iden: &SegmentIdentity,
-    first_posi: i64,
-    start_timestamp: u64,
-) -> Result<(), JournalServerError> {
-    // update local file start offset
-    segment_file_manager.update_start_offset(segment_iden, first_posi)?;
-
-    // update local file start timestamp
-    segment_file_manager.update_start_timestamp(segment_iden, start_timestamp)?;
-
-    // update meta start timestamp
-    update_meta_start_timestamp(client_pool.clone(), segment_iden, start_timestamp).await?;
-    Ok(())
-}
-
-async fn segment_position9_ac(
-    client_pool: &Arc<ClientPool>,
-    segment_file_manager: &Arc<SegmentFileManager>,
-    segment_iden: &SegmentIdentity,
-    end_offset: i64,
-    end_timestamp: u64,
-) -> Result<(), JournalServerError> {
-    // update local file end offset
-    segment_file_manager.update_end_offset(segment_iden, end_offset)?;
-
-    // update local file end timestamp
-    segment_file_manager.update_end_timestamp(segment_iden, end_timestamp)?;
-
-    // update meta end timestamp
-    update_meta_end_timestamp(client_pool.clone(), segment_iden, end_timestamp).await?;
-    Ok(())
-}
-
-async fn is_sealup_segment(
+async fn write_validator(
     cache_manager: &Arc<CacheManager>,
-    client_pool: &Arc<ClientPool>,
     segment_write: &SegmentFile,
     local_segment_end_offset: u64,
     packet_len: u64,
-    max_file_size: u64,
-) -> Result<bool, JournalServerError> {
+) -> Result<(), JournalServerError> {
     let segment_iden = SegmentIdentity::new(
         &segment_write.namespace,
         &segment_write.shard_name,
@@ -474,30 +419,19 @@ async fn is_sealup_segment(
         ));
     };
 
-    let file_size = (segment_write.size().await).unwrap_or_default();
-
-    if is_sealup_segment0(
+    if is_end_offset(
         segment_meta.end_offset,
         local_segment_end_offset,
         packet_len,
-        file_size,
-        max_file_size,
     ) {
-        sealup_segment(cache_manager, client_pool, &segment_iden).await?;
-        return Ok(true);
+        cache_manager.update_segment_status(&segment_iden, SegmentStatus::SealUp);
+        return Err(JournalServerError::SegmentOffsetAtTheEnd);
     }
-    Ok(false)
+    Ok(())
 }
 
-fn is_sealup_segment0(
-    end_offset: i64,
-    current_offset: u64,
-    packet_len: u64,
-    file_size: u64,
-    max_file_size: u64,
-) -> bool {
-    (end_offset > 0 && (current_offset + packet_len) > end_offset as u64)
-        || file_size >= max_file_size
+fn is_end_offset(end_offset: i64, current_offset: u64, packet_len: u64) -> bool {
+    end_offset > 0 && (current_offset + packet_len) > end_offset as u64
 }
 
 #[cfg(test)]
@@ -506,8 +440,8 @@ mod tests {
     use prost::Message;
     use protocol::journal_server::journal_record::JournalRecord;
 
-    use super::{create_write_thread, is_sealup_segment0, write_data};
-    use crate::core::test::{test_init_client_pool, test_init_segment};
+    use super::{create_write_thread, is_end_offset, write_data};
+    use crate::core::test::test_init_segment;
     use crate::segment::file::open_segment_write;
 
     #[tokio::test]
@@ -516,47 +450,24 @@ mod tests {
         let current_offset = 0;
         let packet_len = 3;
 
-        let mut file_size = 100;
-        let max_file_size = 300;
-        assert!(!is_sealup_segment0(
-            end_offset,
-            current_offset,
-            packet_len,
-            file_size,
-            max_file_size
-        ));
-
-        file_size = 301;
-        assert!(is_sealup_segment0(
-            end_offset,
-            current_offset,
-            packet_len,
-            file_size,
-            max_file_size
-        ));
+        assert!(!is_end_offset(end_offset, current_offset, packet_len));
 
         end_offset = 2;
-        file_size = 30;
-        assert!(is_sealup_segment0(
-            end_offset,
-            current_offset,
-            packet_len,
-            file_size,
-            max_file_size
-        ));
+        assert!(is_end_offset(end_offset, current_offset, packet_len));
+
+        end_offset = 4;
+        assert!(!is_end_offset(end_offset, current_offset, packet_len));
     }
 
     #[tokio::test]
     async fn write_test() {
         let (segment_iden, cache_manager, segment_file_manager, _, rocksdb_engine_handler) =
             test_init_segment().await;
-        let client_pool = test_init_client_pool();
 
         let res = create_write_thread(
             &cache_manager,
             &rocksdb_engine_handler,
             &segment_file_manager,
-            &client_pool,
             &segment_iden,
         )
         .await;
@@ -581,7 +492,6 @@ mod tests {
             &cache_manager,
             &rocksdb_engine_handler,
             &segment_file_manager,
-            &client_pool,
             &segment_iden,
             data_list,
         )
@@ -611,7 +521,6 @@ mod tests {
             &cache_manager,
             &rocksdb_engine_handler,
             &segment_file_manager,
-            &client_pool,
             &segment_iden,
             data_list,
         )

@@ -297,7 +297,6 @@ mod tests {
     async fn read_by_key_test() {
         let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
             test_base_write_data(30).await;
-
         let res = try_trigger_build_index(
             &cache_manager,
             &segment_file_manager,
