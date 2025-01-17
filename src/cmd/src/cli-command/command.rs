@@ -19,12 +19,15 @@ use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
 use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
+use mqtt::publish::process_subscribe_args;
 use protocol::broker_mqtt::broker_mqtt_admin::ListTopicRequest;
+
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
 };
 
 use crate::mqtt::admin::{process_slow_sub_args, process_user_args, MqttUserCommand, SlowSubArgs};
+use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 
 #[derive(Parser)] // requires `derive` feature
 #[command(name = "robust-ctl")]
@@ -77,6 +80,9 @@ enum MQTTAction {
 
     ListTopic(ListTopicArgs),
 
+    Publish(PubSubArgs),
+
+    Subscribe(PubSubArgs),
     // observability: slow-sub feat
     #[clap(name = "slow-sub")]
     SlowSub(SlowSubArgs),
@@ -181,6 +187,8 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
                     MatchOption::S => 2,
                 },
             }),
+            MQTTAction::Publish(args) => process_publish_args(args),
+            MQTTAction::Subscribe(args) => process_subscribe_args(args),
             MQTTAction::SlowSub(args) => process_slow_sub_args(args), // _ => unreachable!("UnSupport command"),
         },
     };

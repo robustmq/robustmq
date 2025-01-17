@@ -12,5 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub(crate) mod admin;
-pub(crate) mod publish;
+#[derive(Clone, Debug, PartialEq)]
+pub struct PublishArgsRequest {
+    pub topic: String,
+    pub qos: i32,
+    pub retained: bool,
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SubscribeArgsRequest {
+    pub topic: String,
+    pub qos: i32,
+    pub username: String,
+    pub password: String,
+}

@@ -724,10 +724,12 @@ dependencies = [
  "common-base",
  "grpc-clients",
  "metadata-struct",
+ "paho-mqtt",
  "prettytable-rs",
  "protocol",
  "serde_json",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]
