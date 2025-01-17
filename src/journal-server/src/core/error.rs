@@ -99,6 +99,9 @@ pub enum JournalServerError {
 
     #[error("Offset for timestamp {0} is not available in Segment {1}.")]
     NotAvailableOffsetByTimestamp(u64, String),
+
+    #[error("Segment Offset is at the end and can no longer be written.")]
+    SegmentOffsetAtTheEnd,
 }
 
 pub fn get_journal_server_code(e: &JournalServerError) -> String {
@@ -139,6 +142,7 @@ pub fn get_journal_server_code(e: &JournalServerError) -> String {
         JournalServerError::NotAvailableOffsetByTimestamp(_, _) => {
             "NotAvailableOffsetByTimestamp".to_string()
         }
+        JournalServerError::SegmentOffsetAtTheEnd => "SegmentOffsetAtTheEnd".to_string(),
     }
 }
 #[cfg(test)]

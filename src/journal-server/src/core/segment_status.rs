@@ -53,7 +53,7 @@ pub async fn sealup_segment(
     update_segment_status_to_write(cache_manager, client_pool, &next_segment_iden).await
 }
 
-pub async fn update_segment_status_to_pre_write(
+async fn update_segment_status_to_pre_write(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
@@ -83,7 +83,7 @@ pub async fn update_segment_status_to_pre_write(
     Ok(())
 }
 
-pub async fn update_segment_status_to_write(
+async fn update_segment_status_to_write(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
@@ -111,7 +111,7 @@ pub async fn update_segment_status_to_write(
     Ok(())
 }
 
-pub async fn update_segment_status_to_pre_seal_up(
+async fn update_segment_status_to_pre_seal_up(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
@@ -142,7 +142,7 @@ pub async fn update_segment_status_to_pre_seal_up(
     Ok(())
 }
 
-pub async fn update_segment_status_to_seal_up(
+async fn update_segment_status_to_seal_up(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
