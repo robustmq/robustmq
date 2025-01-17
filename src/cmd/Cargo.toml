@@ -46,6 +46,5 @@ journal-server.workspace = true
 cli-command.workspace = true
 clap-cargo.workspace = true
 protocol.workspace = true
-
 [dev-dependencies]
 mockall.workspace = true

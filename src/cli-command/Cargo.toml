@@ -29,3 +29,5 @@ metadata-struct.workspace = true
 protocol.workspace = true
 serde_json.workspace = true
 prettytable-rs.workspace = true
+tokio.workspace = true
+paho-mqtt.workspace = true
