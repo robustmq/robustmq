@@ -13,7 +13,7 @@
     }
 
     ```
-   最终实现发布命令
+    实现发布命令
 
     ```bash
     cargo run --package cmd --bin cli-command -- mqtt --server=127.0.0.1:1883   publish --username=admin --password=pwd123 --topic=test/topic1 --qos=0
@@ -26,5 +26,10 @@
 2. 定义消息发布和订阅的逻辑
 
     ```bash
-    cargo run --package cmd --bin cli-command -- mqtt --server=127.0.0.1:1883   Subscribe --username=admin --password=pwd123 --topic=test/topic1 --qos=0
+    cargo run --package cmd --bin cli-command -- mqtt --server=127.0.0.1:1883   subscribe --username=admin --password=pwd123 --topic=test/topic1 --qos=0
+    ```
+    核心逻辑同步循环接收message，异步监听`CTR+C` 退出程序，关闭MQTT连接，并且显示退出信息
+    ```rust
+    while let Some(msg) = rx.iter().next() {
+    }
     ```
