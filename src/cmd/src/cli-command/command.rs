@@ -83,8 +83,6 @@ enum MQTTAction {
     Publish(PubSubArgs),
 
     Subscribe(PubSubArgs),
-
-    // Subscribe(SubscribeArgs),
     // observability: slow-sub feat
     #[clap(name = "slow-sub")]
     SlowSub(SlowSubArgs),

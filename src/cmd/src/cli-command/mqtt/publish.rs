@@ -36,9 +36,6 @@ pub(crate) struct PubSubArgs {
     #[arg(required = false, default_value_t = false)]
     #[arg(help = "Enable or disable the feature , If it is a subscription, ignore this item")]
     retained: bool,
-    // #[arg(help = "payload")]
-    // #[arg( long, required = true)]
-    // payload: String,
 }
 
 pub(crate) fn process_publish_args(args: PubSubArgs) -> MqttActionType {
