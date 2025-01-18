@@ -1,9 +1,7 @@
 # Column family (CF)
 
-We need 3 CFs:
-
-- `DB_COLUMN_FAMILY_OFFSET`: All offset data (type `u64`) will be stored under this CF
-- `DB_COLUMN_FAMILY_RECORD`: All shard records will be stored under this CF
+We need 1 CF:
+- `DB_COLUMN_FAMILY`: stores everything including records and offsets
 
 # design choice
 
@@ -11,19 +9,15 @@ We only have one copy of `Record` in rocksdb but we build multiple indices on on
 
 # Types of KV pairs
 
-## in `DB_COLUMN_FAMILY_RECORD`
+## shard record
 
-### shard records
-
-key: `{namespace}_{shard}_record_{record_offset}`
+key: `/{namespace}/{shard}/record/{record_offset}`
 
 value: record data
 
-## in `DB_COLUMN_FAMILY_OFFSET`
+## shard offset
 
-### shard offsets
-
-key: `{namespace}_{shard}_shard_offset`
+key: `/offset/{namespace}/{shard}`
 
 value: **next** offset of shard `shard` under the namespace `namespace`
 
@@ -33,28 +27,28 @@ When a shard is deleted, we will only delete the shard offset key associated wit
 
 This key value pair will be incremented when calling `write` or `batch_write` method
 
-### key offset
+## key offset
 
-key: `{namespace}_{shard}_key_{key}_offset`
+key: `/key/{namespace}/{shard}/{key}`
 
 value: the offset of the record in shard `shard` under namespace `namespace` with `record.key = key`
 
-Note: the key of a record should be unique under any `{namespace}_{shard}` pair
+Note: the key of a record should be unique under any `{namespace}/{shard}` pair
 
 This key value pair is used for fast record retrieval in `read_by_key` method
 
-### tag offsets
+## tag offsets
 
-key: `{namespace}_{shard}_tag_{tag}_offsets`
+key: `/tag/{namespace}/{shard}/{tag}`
 
 value: a list of offsets for all records in shard `shard` under namespace `namespace` whose `record.tags` contains `tag`
 
 This key value pair is used for fast record retrieval in `read_by_tag` method
 
-### group record offsets
+## group record offsets
 
-key: `{group_name}_group`
+key: `/group/{group}`
 
-value: A map of (`{namespace}_{shard}`, offset) pairs
+value: A map of (`/{namespace}/{shard}`, offset) pairs
 
 This key value pair will be set in `commit_offset` method

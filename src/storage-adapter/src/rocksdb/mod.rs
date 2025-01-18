@@ -12,218 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// use std::fmt::Display;
-// use std::sync::Arc;
-
-// use axum::async_trait;
-// use common_base::error::common::CommonError;
-// use metadata_struct::adapter::record::Record;
-// use rocksdb_engine::RocksDBEngine;
-
-// use crate::storage::{ShardConfig, StorageAdapter};
-
-// const DB_COLUMN_FAMILY_KV: &str = "kv";
-// const DB_COLUMN_FAMILY_RECORD: &str = "record";
-
-// fn column_family_list() -> Vec<String> {
-//     vec![
-//         DB_COLUMN_FAMILY_KV.to_string(),
-//         DB_COLUMN_FAMILY_RECORD.to_string(),
-//     ]
-// }
-
-// #[derive(Clone)]
-// pub struct RocksDBStorageAdapter {
-//     pub db: Arc<RocksDBEngine>,
-// }
-
-// impl RocksDBStorageAdapter {
-//     pub fn new(db_path: &str, max_open_files: i32) -> Self {
-//         RocksDBStorageAdapter {
-//             db: Arc::new(RocksDBEngine::new(
-//                 db_path,
-//                 max_open_files,
-//                 column_family_list(),
-//             )),
-//         }
-//     }
-
-//     #[inline(always)]
-//     pub fn record_key<S1: Display>(&self, namespace: S1, shard_name: S1, index: u128) -> String {
-//         format!("{}_{}_record_{}", namespace, shard_name, index)
-//     }
-
-//     #[inline(always)]
-//     pub fn offset_shard_key<S1: Display>(&self, namespace: S1, shard_name: S1) -> String {
-//         format!("{}_{}_{}", namespace, shard_name, "shard_offset")
-//     }
-
-//     #[inline(always)]
-//     pub fn offset_key<S1: Display, S2: Display>(
-//         &self,
-//         namespace: S1,
-//         shard_name: S1,
-//         group_id: S2,
-//     ) -> String {
-//         format!("{}_{}_{}", namespace, shard_name, group_id)
-//     }
-
-//     pub fn get_offset<S1: Display, S2: Display>(
-//         &self,
-//         namespace: S1,
-//         shard_name: S1,
-//         group_id: S2,
-//     ) -> Option<u128> {
-//         let key = self.offset_key(namespace, shard_name, group_id);
-//         self.db
-//             .cf_handle(DB_COLUMN_FAMILY_KV)
-//             .and_then(|cf| self.db.read(cf, &key).ok()?)
-//     }
-// }
-
-// impl RocksDBStorageAdapter {}
-
-// #[async_trait]
-// impl StorageAdapter for RocksDBStorageAdapter {
-//     async fn create_shard(
-//         &self,
-//         namespace: String,
-//         shard_name: String,
-//         _: ShardConfig,
-//     ) -> Result<(), CommonError> {
-//         let cf = self.db.cf_handle(DB_COLUMN_FAMILY_RECORD).unwrap();
-//         let key = self.offset_shard_key(namespace, shard_name);
-//         self.db.write(cf, key.as_str(), &0_u128)
-//     }
-
-//     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
-//         let cf = self.db.cf_handle(DB_COLUMN_FAMILY_RECORD).unwrap();
-//         let key = self.offset_shard_key(namespace, shard_name);
-//         self.db.delete_prefix(cf, &key)
-//     }
-
-//     async fn write(
-//         &self,
-//         namespace: String,
-//         shard_name: String,
-//         message: Vec<Record>,
-//     ) -> Result<Vec<usize>, CommonError> {
-//         let cf = self.db.cf_handle(DB_COLUMN_FAMILY_RECORD).unwrap();
-//         let key_shard_offset = self.offset_shard_key(namespace.clone(), shard_name.clone());
-//         let offset = self
-//             .db
-//             .read::<u128>(cf, key_shard_offset.as_str())?
-//             .unwrap_or(0);
-
-//         let mut start_offset = offset;
-
-//         let mut offset_res = Vec::new();
-//         for mut msg in message {
-//             offset_res.push(start_offset as usize);
-//             msg.offset = start_offset;
-
-//             let record_key = self.record_key(namespace.clone(), shard_name.clone(), start_offset);
-//             self.db.write(cf, &record_key, &msg)?;
-//             start_offset += 1;
-//         }
-
-//         self.db
-//             .write(cf, key_shard_offset.as_str(), &start_offset)?;
-
-//         Ok(offset_res)
-//     }
-
-//     async fn stream_read(
-//         &self,
-//         namespace: String,
-//         shard_name: String,
-//         group_id: String,
-//         record_num: Option<u128>,
-//         _: Option<usize>,
-//     ) -> Result<Option<Vec<Record>>, CommonError> {
-//         let cf = self.db.cf_handle(DB_COLUMN_FAMILY_RECORD).unwrap();
-//         let group_offset_key = self.offset_key(namespace.clone(), shard_name.clone(), group_id);
-//         let offset = self
-//             .db
-//             .read::<u128>(cf, group_offset_key.as_str())?
-//             .unwrap_or(0);
-
-//         let num = record_num.unwrap_or(10);
-
-//         let mut cur_offset = 0;
-//         let mut result = Vec::new();
-//         for i in offset..(offset + num) {
-//             let record_key = self.record_key(namespace.clone(), shard_name.clone(), i);
-//             let value = self.db.read::<Record>(cf, &record_key)?;
-
-//             if let Some(value) = value {
-//                 result.push(value.clone());
-//                 cur_offset += 1;
-//             } else {
-//                 break;
-//             }
-//         }
-
-//         if cur_offset > 0 {
-//             self.db
-//                 .write(cf, group_offset_key.as_str(), &(offset + cur_offset))?;
-//         }
-//         Ok(Some(result))
-//     }
-
-//     async fn stream_commit_offset(
-//         &self,
-//         namespace: String,
-//         shard_name: String,
-//         group_id: String,
-//         offset: u128,
-//     ) -> Result<bool, CommonError> {
-//         let cf = self.db.cf_handle(DB_COLUMN_FAMILY_RECORD).unwrap();
-//         let key = self.offset_key(namespace, group_id, shard_name);
-//         self.db.write(cf, key.as_str(), &offset)?;
-//         Ok(true)
-//     }
-
-//     async fn stream_read_by_offset(
-//         &self,
-//         namespace: String,
-//         shard_name: String,
-//         offset: usize,
-//     ) -> Result<Option<Record>, CommonError> {
-//         let cf = self.db.cf_handle(DB_COLUMN_FAMILY_RECORD).unwrap();
-//         self.db.read::<Record>(
-//             cf,
-//             self.record_key(namespace, shard_name, offset as u128)
-//                 .as_str(),
-//         )
-//     }
-
-//     async fn stream_read_by_timestamp(
-//         &self,
-//         _: String,
-//         _: String,
-//         _: u128,
-//         _: u128,
-//         _: Option<usize>,
-//         _: Option<usize>,
-//     ) -> Result<Option<Vec<Record>>, CommonError> {
-//         Ok(None)
-//     }
-
-//     async fn stream_read_by_key(
-//         &self,
-//         _: String,
-//         _: String,
-//         _: String,
-//     ) -> Result<Option<Record>, CommonError> {
-//         Ok(None)
-//     }
-//     async fn close(&self) -> Result<(), CommonError> {
-//         Ok(())
-//     }
-// }
-
-use std::{collections::HashMap, fmt::Display, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Display,
+    sync::Arc,
+};
 
 use axum::async_trait;
 use common_base::error::common::CommonError;
@@ -232,14 +25,10 @@ use rocksdb_engine::RocksDBEngine;
 
 use crate::storage::{ShardConfig, ShardOffset, StorageAdapter};
 
-const DB_COLUMN_FAMILY_OFFSET: &str = "offset";
-const DB_COLUMN_FAMILY_RECORD: &str = "record";
+const DB_COLUMN_FAMILY: &str = "db";
 
 fn column_family_list() -> Vec<String> {
-    vec![
-        DB_COLUMN_FAMILY_OFFSET.to_string(),
-        DB_COLUMN_FAMILY_RECORD.to_string(),
-    ]
+    vec![DB_COLUMN_FAMILY.to_string()]
 }
 
 pub struct RocksDBStorageAdapter {
@@ -258,36 +47,34 @@ impl RocksDBStorageAdapter {
     }
 
     #[inline(always)]
-    pub fn record_key<S1: Display>(&self, namespace: S1, shard_name: S1, index: u64) -> String {
-        format!("{}_{}_record_{}", namespace, shard_name, index)
+    pub fn shard_record_key<S1: Display>(
+        &self,
+        namespace: S1,
+        shard: S1,
+        record_offset: u64,
+    ) -> String {
+        format!("/{}/{}/record/{}", namespace, shard, record_offset)
     }
 
     #[inline(always)]
-    pub fn offset_shard_key<S1: Display>(&self, namespace: S1, shard_name: S1) -> String {
-        format!("{}_{}_{}", namespace, shard_name, "shard_offset")
+    pub fn shard_offset_key<S1: Display>(&self, namespace: &S1, shard: &S1) -> String {
+        format!("/offset/{}/{}", namespace, shard)
     }
 
-    // #[inline(always)]
-    // pub fn offset_key<S1: Display, S2: Display>(
-    //     &self,
-    //     namespace: S1,
-    //     shard_name: S1,
-    //     group_id: S2,
-    // ) -> String {
-    //     format!("{}_{}_{}", namespace, shard_name, group_id)
-    // }
+    #[inline(always)]
+    pub fn key_offset_key<S1: Display>(&self, namespace: &S1, shard: &S1, key: &S1) -> String {
+        format!("/key/{}/{}/{}", namespace, shard, key)
+    }
 
-    // pub fn get_offset<S1: Display, S2: Display>(
-    //     &self,
-    //     namespace: S1,
-    //     shard_name: S1,
-    //     group_id: S2,
-    // ) -> Option<u64> {
-    //     let key = self.offset_key(namespace, shard_name, group_id);
-    //     self.db
-    //         .cf_handle(DB_COLUMN_FAMILY_OFFSET)
-    //         .and_then(|cf| self.db.read(cf, &key).ok()?)
-    // }
+    #[inline(always)]
+    pub fn tag_offsets_key<S1: Display>(&self, namespace: &S1, shard: &S1, tag: &S1) -> String {
+        format!("/tag/{}/{}/{}", namespace, shard, tag)
+    }
+
+    #[inline(always)]
+    pub fn group_record_offsets_key<S1: Display>(&self, group: &S1) -> String {
+        format!("/group/{}", group)
+    }
 }
 
 #[async_trait]
@@ -299,41 +86,43 @@ impl StorageAdapter for RocksDBStorageAdapter {
         shard_name: String,
         _: ShardConfig,
     ) -> Result<(), CommonError> {
-        let cf = self
-            .db
-            .cf_handle(DB_COLUMN_FAMILY_OFFSET)
-            .expect(format!("column family {DB_COLUMN_FAMILY_OFFSET} not found").as_str());
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
-        let key = self.offset_shard_key(namespace, shard_name.clone());
+        let shard_offset_key = self.shard_offset_key(&namespace, &shard_name);
 
         // check whether the shard exists
-        if self.db.read::<u64>(cf.clone(), key.as_str())?.is_some() {
+        if self
+            .db
+            .read::<u64>(cf.clone(), shard_offset_key.as_str())?
+            .is_some()
+        {
             return Err(CommonError::CommonError(format!(
-                "shard {} already exists",
-                shard_name
+                "shard {} under namespace {} already exists",
+                shard_name, namespace
             )));
         }
 
-        self.db.write(cf, key.as_str(), &0_u64)
+        self.db.write(cf, shard_offset_key.as_str(), &0_u64)
     }
 
     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
-        let cf = self
-            .db
-            .cf_handle(DB_COLUMN_FAMILY_OFFSET)
-            .expect(format!("column family {DB_COLUMN_FAMILY_OFFSET} not found").as_str());
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
-        let key = self.offset_shard_key(namespace, shard_name.clone());
+        let shard_offset_key = self.shard_offset_key(&namespace, &shard_name);
 
         // check whether the shard exists
-        if self.db.read::<u64>(cf.clone(), key.as_str())?.is_none() {
+        if self
+            .db
+            .read::<u64>(cf.clone(), shard_offset_key.as_str())?
+            .is_none()
+        {
             return Err(CommonError::CommonError(format!(
-                "shard {} not exists",
-                shard_name
+                "shard {} under namespace {} not exists",
+                shard_name, namespace
             )));
         }
 
-        self.db.delete(cf, &key)
+        self.db.delete(cf, &shard_offset_key)
     }
 
     async fn write(
@@ -342,14 +131,21 @@ impl StorageAdapter for RocksDBStorageAdapter {
         shard_name: String,
         mut message: Record,
     ) -> Result<u64, CommonError> {
-        // get the starting offset
-        let cf = self
-            .db
-            .cf_handle(DB_COLUMN_FAMILY_OFFSET)
-            .expect(format!("column family {DB_COLUMN_FAMILY_OFFSET} not found").as_str());
+        // check whether the key exists
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
-        let key_shard_offset = self.offset_shard_key(namespace.clone(), shard_name.clone());
-        let offset = match self.db.read::<u64>(cf.clone(), key_shard_offset.as_str())? {
+        let key_offset_key = self.key_offset_key(&namespace, &shard_name, &message.key);
+
+        if self.db.read::<u64>(cf.clone(), &key_offset_key)?.is_some() {
+            return Err(CommonError::CommonError(format!(
+                "key {} already exists in shard {} under {}",
+                &message.key, &shard_name, &namespace
+            )));
+        }
+
+        // read the offset
+        let shard_offset_key = self.shard_offset_key(&namespace, &shard_name);
+        let offset = match self.db.read::<u64>(cf.clone(), shard_offset_key.as_str())? {
             Some(offset) => offset,
             None => {
                 return Err(CommonError::CommonError(format!(
@@ -360,18 +156,17 @@ impl StorageAdapter for RocksDBStorageAdapter {
         };
 
         // write the message
-
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_RECORD).unwrap();
         message.offset = Some(offset);
 
-        let key_record = self.record_key(namespace.clone(), shard_name.clone(), offset);
-        self.db.write(cf.clone(), &key_record, &message)?;
+        let shard_record_key = self.shard_record_key(namespace.clone(), shard_name.clone(), offset);
+        self.db.write(cf.clone(), &shard_record_key, &message)?;
 
-        // update the offset
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_OFFSET).unwrap();
-
+        // update the shard offset
         self.db
-            .write(cf, key_shard_offset.as_str(), &(offset + 1))?;
+            .write(cf.clone(), shard_offset_key.as_str(), &(offset + 1))?;
+
+        // update the key offset
+        self.db.write(cf, key_offset_key.as_str(), &offset)?;
 
         Ok(offset)
     }
@@ -382,14 +177,38 @@ impl StorageAdapter for RocksDBStorageAdapter {
         shard_name: String,
         messages: Vec<Record>,
     ) -> Result<Vec<u64>, CommonError> {
-        // get the starting offset
-        let cf = self
-            .db
-            .cf_handle(DB_COLUMN_FAMILY_OFFSET)
-            .expect(format!("column family {DB_COLUMN_FAMILY_OFFSET} not found").as_str());
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
-        let key_shard_offset = self.offset_shard_key(namespace.clone(), shard_name.clone());
-        let offset = match self.db.read::<u64>(cf.clone(), key_shard_offset.as_str())? {
+        // check whether key exists
+        for message in messages.iter() {
+            if message.key.is_empty() {
+                continue;
+            }
+
+            let key_offset_key = self.key_offset_key(&namespace, &shard_name, &message.key);
+
+            if self.db.read::<u64>(cf.clone(), &key_offset_key)?.is_some() {
+                return Err(CommonError::CommonError(format!(
+                    "key {} already exists in shard {} under {}",
+                    &message.key, &shard_name, &namespace
+                )));
+            }
+        }
+
+        // check duplicate key exists in messages
+        let mut key_set = HashSet::new();
+        for message in messages.iter() {
+            if !&message.key.is_empty() && !key_set.insert(&message.key) {
+                return Err(CommonError::CommonError(format!(
+                    "duplicate key {} in messages",
+                    message.key
+                )));
+            }
+        }
+
+        // get the starting shard offset
+        let shard_offset_key = self.shard_offset_key(&namespace, &shard_name);
+        let offset = match self.db.read::<u64>(cf.clone(), shard_offset_key.as_str())? {
             Some(offset) => offset,
             None => {
                 return Err(CommonError::CommonError(format!(
@@ -399,9 +218,6 @@ impl StorageAdapter for RocksDBStorageAdapter {
             }
         };
 
-        // write the message
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_RECORD).unwrap();
-
         let mut start_offset = offset;
 
         let mut offset_res = Vec::new();
@@ -410,16 +226,21 @@ impl StorageAdapter for RocksDBStorageAdapter {
             offset_res.push(start_offset);
             msg.offset = Some(start_offset);
 
-            let key_record = self.record_key(namespace.clone(), shard_name.clone(), start_offset);
-            self.db.write(cf.clone(), &key_record, &msg)?;
+            // write the shard record
+            let shard_record_key = self.shard_record_key(&namespace, &shard_name, start_offset);
+            self.db.write(cf.clone(), &shard_record_key, &msg)?;
+
+            // write the key offset
+            let key_offset_key = self.key_offset_key(&namespace, &shard_name, &msg.key);
+            self.db
+                .write(cf.clone(), key_offset_key.as_str(), &start_offset)?;
+
             start_offset += 1;
         }
 
-        // update the offset
-
-        let cf = self.db.cf_handle(DB_COLUMN_FAMILY_OFFSET).unwrap();
+        // update the shard offset
         self.db
-            .write(cf, key_shard_offset.as_str(), &start_offset)?;
+            .write(cf, shard_offset_key.as_str(), &start_offset)?;
 
         Ok(offset_res)
     }
@@ -431,10 +252,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         offset: u64,
         read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        let cf = self
-            .db
-            .cf_handle(DB_COLUMN_FAMILY_RECORD)
-            .expect(format!("column family {DB_COLUMN_FAMILY_RECORD} not found").as_str());
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
         let mut start_offset = offset;
         let mut record = Vec::new();
@@ -442,7 +260,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         // read records with indices from offset to offset + max_record_num
         // stop when the record is not found
         for _ in 0..read_config.max_record_num {
-            let key = self.record_key(namespace.clone(), shard_name.clone(), start_offset);
+            let key = self.shard_record_key(&namespace, &shard_name, start_offset);
             let value = self.db.read::<Record>(cf.clone(), &key)?;
 
             match value {
@@ -467,35 +285,36 @@ impl StorageAdapter for RocksDBStorageAdapter {
         tag: String,
         read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        let cf = self
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
+
+        // find all record offsets with the given tag, the offsets are sorted in ascending order
+        let tag_offsets_key = self.tag_offsets_key(&namespace, &shard_name, &tag);
+
+        let tag_offsets = self
             .db
-            .cf_handle(DB_COLUMN_FAMILY_RECORD)
-            .expect(format!("column family {DB_COLUMN_FAMILY_RECORD} not found").as_str());
+            .read::<Vec<u64>>(cf.clone(), &tag_offsets_key)?
+            .unwrap_or(Vec::new());
 
-        let mut start_offset = offset;
-        let mut record = Vec::new();
+        // only keep offsets >= offset and at most read_config.max_record_num
+        let retained_offsets: Vec<u64> = tag_offsets
+            .into_iter()
+            .filter(|&x| x >= offset)
+            .take(read_config.max_record_num as usize)
+            .collect();
 
-        // read records with indices from offset to offset + max_record_num
-        // stop when the record is not found
-        for _ in 0..read_config.max_record_num {
-            let key = self.record_key(namespace.clone(), shard_name.clone(), start_offset);
-            let value = self.db.read::<Record>(cf.clone(), &key)?;
+        let mut records = Vec::new();
 
-            match value {
-                Some(value) if value.tags.contains(&tag) => {
-                    record.push(value);
-                    start_offset += 1;
-                }
-                Some(_) => {
-                    start_offset += 1;
-                }
-                None => {
-                    break;
-                }
-            }
+        for offset in retained_offsets {
+            let shard_record_key = self.shard_record_key(&namespace, &shard_name, offset);
+            let record = self
+                .db
+                .read::<Record>(cf.clone(), &shard_record_key)?
+                .unwrap();
+
+            records.push(record);
         }
 
-        Ok(record)
+        Ok(records)
     }
 
     async fn read_by_key(
@@ -506,35 +325,22 @@ impl StorageAdapter for RocksDBStorageAdapter {
         key: String,
         read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
-        let cf = self
-            .db
-            .cf_handle(DB_COLUMN_FAMILY_RECORD)
-            .expect(format!("column family {DB_COLUMN_FAMILY_RECORD} not found").as_str());
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
-        let mut start_offset = offset;
-        let mut record = Vec::new();
+        let key_offset_key = self.key_offset_key(&namespace, &shard_name, &key);
 
-        // read records with indices from offset to offset + max_record_num
-        // stop when the record is not found
-        for _ in 0..read_config.max_record_num {
-            let key_record = self.record_key(namespace.clone(), shard_name.clone(), start_offset);
-            let value = self.db.read::<Record>(cf.clone(), &key_record)?;
+        match self.db.read::<u64>(cf.clone(), &key_offset_key)? {
+            Some(key_offset) if key_offset >= offset && read_config.max_record_num >= 1 => {
+                let shard_record_key = self.shard_record_key(&namespace, &shard_name, offset);
+                let record = self
+                    .db
+                    .read::<Record>(cf.clone(), &shard_record_key)?
+                    .unwrap();
 
-            match value {
-                Some(value) if value.key == key => {
-                    record.push(value);
-                    start_offset += 1;
-                }
-                Some(_) => {
-                    start_offset += 1;
-                }
-                None => {
-                    break;
-                }
+                return Ok(vec![record]);
             }
-        }
-
-        Ok(record)
+            _ => return Ok(Vec::new()),
+        };
     }
 
     async fn get_offset_by_timestamp(
@@ -543,16 +349,13 @@ impl StorageAdapter for RocksDBStorageAdapter {
         shard_name: String,
         timestamp: u64,
     ) -> Result<Option<ShardOffset>, CommonError> {
-        let cf = self
-            .db
-            .cf_handle(DB_COLUMN_FAMILY_RECORD)
-            .expect(format!("column family {DB_COLUMN_FAMILY_RECORD} not found").as_str());
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
         let mut start_offset = 0;
 
         loop {
-            let key = self.record_key(namespace.clone(), shard_name.clone(), start_offset);
-            let value = self.db.read::<Record>(cf.clone(), &key)?;
+            let shard_record_key = self.shard_record_key(&namespace, &shard_name, start_offset);
+            let value = self.db.read::<Record>(cf.clone(), &shard_record_key)?;
 
             match value {
                 Some(value) if value.timestamp >= timestamp => {
@@ -575,18 +378,49 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
     async fn get_offset_by_group(
         &self,
-        _group_name: String,
+        group_name: String,
     ) -> Result<Vec<ShardOffset>, CommonError> {
-        let results = Vec::new();
-        Ok(results)
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
+
+        let group_record_offsets_key = self.group_record_offsets_key(&group_name);
+
+        let offsets = self
+            .db
+            .read::<HashMap<String, u64>>(cf.clone(), &group_record_offsets_key)?
+            .unwrap_or(HashMap::new())
+            .into_values()
+            .map(|offset| ShardOffset {
+                offset,
+                ..Default::default()
+            })
+            .collect::<Vec<_>>();
+
+        Ok(offsets)
     }
 
     async fn commit_offset(
         &self,
-        _group_name: String,
-        _namespace: String,
-        _offset: HashMap<String, u64>,
+        group_name: String,
+        namespace: String,
+        offsets: HashMap<String, u64>,
     ) -> Result<(), CommonError> {
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
+
+        let group_record_offsets_key = self.group_record_offsets_key(&group_name);
+
+        let mut shard_offset_pairs = self
+            .db
+            .read::<HashMap<String, u64>>(cf.clone(), &group_record_offsets_key)?
+            .unwrap_or(HashMap::new());
+
+        for (shard_name, offset) in offsets {
+            let key = format!("{}_{}", &namespace, &shard_name);
+            shard_offset_pairs.insert(key, offset);
+        }
+
+        self.db
+            .write(cf, group_record_offsets_key.as_str(), &shard_offset_pairs)?;
+
         Ok(())
     }
 
@@ -595,180 +429,231 @@ impl StorageAdapter for RocksDBStorageAdapter {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use common_base::tools::unique_id;
-//     use metadata_struct::adapter::record::Record;
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
 
-//     use super::RocksDBStorageAdapter;
-//     use crate::storage::StorageAdapter;
-//     #[tokio::test]
-//     async fn stream_read_write() {
-//         let db_path = format!("/tmp/robustmq_{}", unique_id());
+    use common_base::tools::unique_id;
+    use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 
-//         let storage_adapter = RocksDBStorageAdapter::new(db_path.as_str(), 100);
-//         let namespace = unique_id();
-//         let shard_name = "test-11".to_string();
-//         let ms1 = "test1".to_string();
-//         let ms2 = "test2".to_string();
-//         let data = vec![
-//             Record::build_b(ms1.clone().as_bytes().to_vec()),
-//             Record::build_b(ms2.clone().as_bytes().to_vec()),
-//         ];
+    use crate::storage::{ShardConfig, StorageAdapter};
 
-//         let result = storage_adapter
-//             .stream_write(namespace.clone(), shard_name.clone(), data)
-//             .await
-//             .unwrap();
+    use super::RocksDBStorageAdapter;
+    #[tokio::test]
+    async fn stream_read_write() {
+        let db_path = format!("/tmp/robustmq_{}", unique_id());
 
-//         assert_eq!(result.first().unwrap().clone(), 0);
-//         assert_eq!(result.get(1).unwrap().clone(), 1);
-//         assert_eq!(
-//             storage_adapter
-//                 .stream_read(
-//                     namespace.clone(),
-//                     shard_name.clone(),
-//                     "test_".to_string(),
-//                     Some(10),
-//                     None
-//                 )
-//                 .await
-//                 .unwrap()
-//                 .unwrap()
-//                 .len(),
-//             2
-//         );
+        let storage_adapter = RocksDBStorageAdapter::new(db_path.as_str(), 100);
+        let namespace = unique_id();
+        let shard_name = "test-11".to_string();
 
-//         let ms3 = "test3".to_string();
-//         let ms4 = "test4".to_string();
-//         let data = vec![
-//             Record::build_b(ms3.clone().as_bytes().to_vec()),
-//             Record::build_b(ms4.clone().as_bytes().to_vec()),
-//         ];
+        // step 1: create shard
+        storage_adapter
+            .create_shard(
+                namespace.clone(),
+                shard_name.clone(),
+                ShardConfig::default(),
+            )
+            .await
+            .unwrap();
 
-//         let result = storage_adapter
-//             .stream_write(namespace.clone(), shard_name.clone(), data)
-//             .await
-//             .unwrap();
-//         let result_read = storage_adapter
-//             .stream_read(
-//                 namespace.clone(),
-//                 shard_name.clone(),
-//                 "test_".to_string(),
-//                 Some(10),
-//                 None,
-//             )
-//             .await
-//             .unwrap();
-//         println!("{:?}", result_read);
+        // insert two records (no key or tag) into the shard
+        let ms1 = "test1".to_string();
+        let ms2 = "test2".to_string();
+        let data = vec![
+            Record::build_byte(ms1.clone().as_bytes().to_vec()),
+            Record::build_byte(ms2.clone().as_bytes().to_vec()),
+        ];
 
-//         assert_eq!(result.first().unwrap().clone(), 2);
-//         assert_eq!(result.get(1).unwrap().clone(), 3);
-//         assert_eq!(result_read.unwrap().len(), 2);
+        let result = storage_adapter
+            .batch_write(namespace.clone(), shard_name.clone(), data)
+            .await
+            .unwrap();
 
-//         let group_id = "test_group_id".to_string();
-//         let record_num = Some(1);
-//         let record_size = None;
-//         let res = storage_adapter
-//             .stream_read(
-//                 namespace.clone(),
-//                 shard_name.clone(),
-//                 group_id.clone(),
-//                 record_num,
-//                 record_size,
-//             )
-//             .await
-//             .unwrap()
-//             .unwrap();
-//         assert_eq!(
-//             String::from_utf8(res.first().unwrap().clone().data).unwrap(),
-//             ms1
-//         );
-//         storage_adapter
-//             .stream_commit_offset(
-//                 namespace.clone(),
-//                 shard_name.clone(),
-//                 group_id.clone(),
-//                 res.first().unwrap().clone().offset,
-//             )
-//             .await
-//             .unwrap();
+        assert_eq!(result.first().unwrap().clone(), 0);
+        assert_eq!(result.get(1).unwrap().clone(), 1);
 
-//         let res = storage_adapter
-//             .stream_read(
-//                 namespace.clone(),
-//                 shard_name.clone(),
-//                 group_id.clone(),
-//                 record_num,
-//                 record_size,
-//             )
-//             .await
-//             .unwrap()
-//             .unwrap();
-//         assert_eq!(
-//             String::from_utf8(res.first().unwrap().clone().data).unwrap(),
-//             ms2
-//         );
-//         storage_adapter
-//             .stream_commit_offset(
-//                 namespace.clone(),
-//                 shard_name.clone(),
-//                 group_id.clone(),
-//                 res.first().unwrap().clone().offset,
-//             )
-//             .await
-//             .unwrap();
+        // read previous records
+        assert_eq!(
+            storage_adapter
+                .read_by_offset(
+                    namespace.clone(),
+                    shard_name.clone(),
+                    0,
+                    ReadConfig {
+                        max_record_num: 10,
+                        max_size: 1024,
+                    }
+                )
+                .await
+                .unwrap()
+                .len(),
+            2
+        );
 
-//         let res = storage_adapter
-//             .stream_read(
-//                 namespace.clone(),
-//                 shard_name.clone(),
-//                 group_id.clone(),
-//                 record_num,
-//                 record_size,
-//             )
-//             .await
-//             .unwrap()
-//             .unwrap();
-//         assert_eq!(
-//             String::from_utf8(res.first().unwrap().clone().data).unwrap(),
-//             ms3
-//         );
-//         storage_adapter
-//             .stream_commit_offset(
-//                 namespace.clone(),
-//                 shard_name.clone(),
-//                 group_id.clone(),
-//                 res.first().unwrap().clone().offset,
-//             )
-//             .await
-//             .unwrap();
+        // insert two other records (no key or tag) into the shard
+        let ms3 = "test3".to_string();
+        let ms4 = "test4".to_string();
+        let data = vec![
+            Record::build_byte(ms3.clone().as_bytes().to_vec()),
+            Record::build_byte(ms4.clone().as_bytes().to_vec()),
+        ];
 
-//         let res = storage_adapter
-//             .stream_read(
-//                 namespace.clone(),
-//                 shard_name.clone(),
-//                 group_id.clone(),
-//                 record_num,
-//                 record_size,
-//             )
-//             .await
-//             .unwrap()
-//             .unwrap();
-//         assert_eq!(
-//             String::from_utf8(res.first().unwrap().clone().data).unwrap(),
-//             ms4
-//         );
-//         storage_adapter
-//             .stream_commit_offset(
-//                 namespace.clone(),
-//                 shard_name.clone(),
-//                 group_id.clone(),
-//                 res.first().unwrap().clone().offset,
-//             )
-//             .await
-//             .unwrap();
+        let result = storage_adapter
+            .batch_write(namespace.clone(), shard_name.clone(), data)
+            .await
+            .unwrap();
 
-//         let _ = std::fs::remove_dir_all(&db_path);
-//     }
-// }
+        // read from offset 2
+        let result_read = storage_adapter
+            .read_by_offset(
+                namespace.clone(),
+                shard_name.clone(),
+                2,
+                ReadConfig {
+                    max_record_num: 10,
+                    max_size: 1024,
+                },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(result.first().unwrap().clone(), 2);
+        assert_eq!(result.get(1).unwrap().clone(), 3);
+        assert_eq!(result_read.len(), 2);
+
+        // test group functionalities
+        let group_id = "test_group_id".to_string();
+        let read_config = ReadConfig {
+            max_record_num: 1,
+            ..Default::default()
+        };
+
+        // read m1
+        let offset = 0;
+        let res = storage_adapter
+            .read_by_offset(
+                namespace.clone(),
+                shard_name.clone(),
+                offset,
+                read_config.clone(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
+            ms1
+        );
+
+        let mut offset_data = HashMap::new();
+        offset_data.insert(
+            shard_name.clone(),
+            res.first().unwrap().clone().offset.unwrap(),
+        );
+
+        storage_adapter
+            .commit_offset(group_id.clone(), namespace.clone(), offset_data)
+            .await
+            .unwrap();
+
+        // read ms2
+        let offset = storage_adapter
+            .get_offset_by_group(group_id.clone())
+            .await
+            .unwrap();
+
+        let res = storage_adapter
+            .read_by_offset(
+                namespace.clone(),
+                shard_name.clone(),
+                offset.first().unwrap().offset + 1,
+                read_config.clone(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
+            ms2
+        );
+
+        let mut offset_data = HashMap::new();
+        offset_data.insert(
+            shard_name.clone(),
+            res.first().unwrap().clone().offset.unwrap(),
+        );
+        storage_adapter
+            .commit_offset(group_id.clone(), namespace.clone(), offset_data)
+            .await
+            .unwrap();
+
+        // read m3
+        let offset: Vec<crate::storage::ShardOffset> = storage_adapter
+            .get_offset_by_group(group_id.clone())
+            .await
+            .unwrap();
+
+        let res = storage_adapter
+            .read_by_offset(
+                namespace.clone(),
+                shard_name.clone(),
+                offset.first().unwrap().offset + 1,
+                read_config.clone(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
+            ms3
+        );
+
+        let mut offset_data = HashMap::new();
+        offset_data.insert(
+            shard_name.clone(),
+            res.first().unwrap().clone().offset.unwrap(),
+        );
+        storage_adapter
+            .commit_offset(group_id.clone(), namespace.clone(), offset_data)
+            .await
+            .unwrap();
+
+        // read m4
+        let offset = storage_adapter
+            .get_offset_by_group(group_id.clone())
+            .await
+            .unwrap();
+
+        let res = storage_adapter
+            .read_by_offset(
+                namespace.clone(),
+                shard_name.clone(),
+                offset.first().unwrap().offset + 1,
+                read_config.clone(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
+            ms4
+        );
+
+        let mut offset_data = HashMap::new();
+        offset_data.insert(
+            shard_name.clone(),
+            res.first().unwrap().clone().offset.unwrap(),
+        );
+        storage_adapter
+            .commit_offset(group_id.clone(), namespace.clone(), offset_data)
+            .await
+            .unwrap();
+
+        // delete shard
+        storage_adapter
+            .delete_shard(namespace, shard_name)
+            .await
+            .unwrap();
+
+        let _ = std::fs::remove_dir_all(&db_path);
+    }
+}
