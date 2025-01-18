@@ -166,7 +166,21 @@ impl StorageAdapter for RocksDBStorageAdapter {
             .write(cf.clone(), shard_offset_key.as_str(), &(offset + 1))?;
 
         // update the key offset
-        self.db.write(cf, key_offset_key.as_str(), &offset)?;
+        self.db
+            .write(cf.clone(), key_offset_key.as_str(), &offset)?;
+
+        // update the tag lists
+        for tag in message.tags.iter() {
+            let tag_offsets_key = self.tag_offsets_key(&namespace, &shard_name, tag);
+            let mut offsets = self
+                .db
+                .read::<Vec<u64>>(cf.clone(), &tag_offsets_key)?
+                .unwrap_or(Vec::new());
+
+            offsets.push(offset);
+
+            self.db.write(cf.clone(), &tag_offsets_key, &offsets)?;
+        }
 
         Ok(offset)
     }
@@ -222,6 +236,23 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
         let mut offset_res = Vec::new();
 
+        let mut tags_map = HashMap::new();
+
+        // read tag offsets from db
+        for msg in messages.iter() {
+            for tag in msg.tags.iter() {
+                if !tags_map.contains_key(tag) {
+                    let tag_offsets_key = self.tag_offsets_key(&namespace, &shard_name, tag);
+                    let tag_offsets = self
+                        .db
+                        .read::<Vec<u64>>(cf.clone(), &tag_offsets_key)?
+                        .unwrap_or(Vec::new());
+
+                    tags_map.insert(tag.clone(), tag_offsets);
+                }
+            }
+        }
+
         for mut msg in messages {
             offset_res.push(start_offset);
             msg.offset = Some(start_offset);
@@ -235,12 +266,23 @@ impl StorageAdapter for RocksDBStorageAdapter {
             self.db
                 .write(cf.clone(), key_offset_key.as_str(), &start_offset)?;
 
+            // update the tag lists in memory
+            for tag in msg.tags.iter() {
+                tags_map.get_mut(tag).unwrap().push(start_offset);
+            }
+
             start_offset += 1;
         }
 
         // update the shard offset
         self.db
-            .write(cf, shard_offset_key.as_str(), &start_offset)?;
+            .write(cf.clone(), shard_offset_key.as_str(), &start_offset)?;
+
+        // write updated tag lists to db
+        for (tag, offsets) in tags_map {
+            let tag_offsets_key = self.tag_offsets_key(&namespace, &shard_name, &tag);
+            self.db.write(cf.clone(), &tag_offsets_key, &offsets)?;
+        }
 
         Ok(offset_res)
     }
