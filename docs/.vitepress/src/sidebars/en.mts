@@ -14,17 +14,10 @@ export const sidebar = [
         items: [
             { text: "Overview", link: "/QuickGuide/Overview" },
             { text: "Build", link: "/QuickGuide/Build" },
-            {
-                text: "RobustMQ MQTT",
-                collapsed: true,
-                items: [
-                    { text: "Stand-loneMode", link: "/QuickGuide/Run-Standalone-Mode" },
-                    { text: "ClusterMode", link: "/QuickGuide/Run-Cluster-Mode" },
-                    { text: "DockerMode", link: "/QuickGuide/Run-Docker-Mode" },
-                    { text: "K8SMode", link: "/QuickGuide/Run-K8S-Mode" },
-                ],
-            },
-
+            { text: "Stand-loneMode", link: "/QuickGuide/Run-Standalone-Mode" },
+            { text: "ClusterMode", link: "/QuickGuide/Run-Cluster-Mode" },
+            { text: "DockerMode", link: "/QuickGuide/Run-Docker-Mode" },
+            { text: "K8SMode", link: "/QuickGuide/Run-K8S-Mode" },
         ],
     },
     {

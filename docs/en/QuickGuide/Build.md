@@ -1,4 +1,4 @@
-## Project packaging
+## 项目打包
 RobustMQ can be packaged with the Make command that comes with the project itself.
 ```
 Build
@@ -9,33 +9,33 @@ Build
   build-arm-release               Build arm version robustmq.
 ```
 
-## Bundling local versions
+## 打包本地版本
 Automatically identify the current machine model for packaging.
 ```
 make build
 ```
-## Packaging the Mac version
+## 打包 Mac 版本
 Package versions for both the x86_64-apple-darwi and aarch64-apple-darwin platforms.
 ```
 make build-mac-release
 ```
-## Bundling Linux versions
+## 打包 Linux 版本
 Package aarch64-unknown-linux-gnu and aarch64-unknown-linux-musl versions.
 ```
 make build-linux-release  
 ```
-## Packaging the Win build
+## 打包 Win 版本
 Package x86_64-pc-windows-gnu and i686-pc-windows-gnu versions for both platforms.
 ```
 make build-win-release
 ```
-## Packaging Arm versions
+## 打包 Arm 版本
 Package aarch64-pc-windows-gnullvm platform version.
 ```
 make build-arm-release
 ```
 
-## Packaged product
+## 产物
 The resulting binary installation is located in the build directory:
 ```
 $ tree build/
