@@ -1,5 +1,5 @@
 ## 项目打包
-可以通过项目自身携带的 Make 命令打包。
+RobustMQ 可以通过项目自身携带的 Make 命令打包。
 ```
 Build
   build                           Build mac version robustmq.
@@ -10,33 +10,39 @@ Build
 ```
 
 ## 打包本地版本
+自动识别当前机器型号进行打包。
 ```
 make build
 ```
 ## 打包 Mac 版本
+打包 x86_64-apple-darwi 和 aarch64-apple-darwin 两个平台的版本。
 ```
 make build-mac-release
 ```
 ## 打包 Linux 版本
+打包 aarch64-unknown-linux-gnu 和 aarch64-unknown-linux-musl 两个平台的版本。
 ```
 make build-linux-release  
 ```
 ## 打包 Win 版本
+打包 x86_64-pc-windows-gnu 和 i686-pc-windows-gnu 两个平台的版本。
 ```
 make build-win-release
 ```
 ## 打包 Arm 版本
+打包 aarch64-pc-windows-gnullvm 平台的版本。
 ```
 make build-arm-release
 ```
 
 ## 产物
-二进制安装包位于 build 目录下：
+打包生成后的二进制安装包位于 build 目录下：
 ```
 $ tree build/
 build/
 ├── robustmq-0.1.6.tar.gz
 ```
+
 解压后结构如下：
 ```
 $ tree robustmq-0.1.6
