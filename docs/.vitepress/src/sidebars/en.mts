@@ -13,7 +13,7 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "Overview", link: "/QuickGuide/Overview" },
-            { text: "Build", link: "/zh/QuickGuide/Build" },
+            { text: "Build", link: "/QuickGuide/Build" },
             { text: "Stand-loneMode", link: "/QuickGuide/Run-Standalone-Mode" },
             { text: "ClusterMode", link: "/QuickGuide/Run-Cluster-Mode" },
             { text: "DockerMode", link: "/QuickGuide/Run-Docker-Mode" },
@@ -52,10 +52,10 @@ export const sidebar = [
         text: "RobustMQ Command",
         collapsed: true,
         items: [
-            { text: "Overview", link: "/zh/RobustMQ-Command/Overview" },
-            { text: "MQTT Command", link: "/zh/RobustMQ-Command/Mqtt-Broker" },
-            { text: "Placement Command", link: "/zh/RobustMQ-Command/Placement-Center" },
-            { text: "Journal Command", link: "/zh/RobustMQ-Command/Journal Server" },
+            { text: "Overview", link: "/RobustMQ-Command/Overview" },
+            { text: "MQTT Command", link: "/RobustMQ-Command/Mqtt-Broker" },
+            { text: "Placement Command", link: "/RobustMQ-Command/Placement-Center" },
+            { text: "Journal Command", link: "/RobustMQ-Command/Journal Server" },
         ],
     },
     {

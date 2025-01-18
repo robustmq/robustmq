@@ -1,5 +1,5 @@
 ## 项目打包
-可以通过项目自身携带的 Make 命令打包。
+RobustMQ can be packaged with the Make command that comes with the project itself.
 ```
 Build
   build                           Build mac version robustmq.
@@ -10,41 +10,47 @@ Build
 ```
 
 ## 打包本地版本
+Automatically identify the current machine model for packaging.
 ```
 make build
 ```
 ## 打包 Mac 版本
+Package versions for both the x86_64-apple-darwi and aarch64-apple-darwin platforms.
 ```
 make build-mac-release
 ```
 ## 打包 Linux 版本
+Package aarch64-unknown-linux-gnu and aarch64-unknown-linux-musl versions.
 ```
 make build-linux-release  
 ```
 ## 打包 Win 版本
+Package x86_64-pc-windows-gnu and i686-pc-windows-gnu versions for both platforms.
 ```
 make build-win-release
 ```
 ## 打包 Arm 版本
+Package aarch64-pc-windows-gnullvm platform version.
 ```
 make build-arm-release
 ```
 
 ## 产物
-二进制安装包位于 build 目录下：
+The resulting binary installation is located in the build directory:
 ```
 $ tree build/
 build/
 ├── robustmq-0.1.6.tar.gz
 ```
-解压后结构如下：
+
+After decompression, the structure is as follows:
 ```
 $ tree robustmq-0.1.6
 robustmq-0.1.6
-├── bin #  可执行文件目录
-│   ├── robust-ctl  # RobustMQ Command 入口文件
-│   └── robust-server # RobustMQ Server 入口文件
-├── config # 配置文件目录
+├── bin #  Executable file directory
+│   ├── robust-ctl  # RobustMQ Command entry file
+│   └── robust-server #  RobustMQ Server entry file
+├── config # Configuration file directory
 │   ├── example
 │   │   ├── certs
 │   │   │   ├── ca.pem
@@ -58,7 +64,7 @@ robustmq-0.1.6
 │   ├── log4rs.yaml
 │   ├── mqtt-server.toml
 │   └── placement-center.toml
-└── libs # 相关Lib文件目录
+└── libs # relevant Lib file directory
     ├── cli-command
     ├── journal-server
     ├── mqtt-server
