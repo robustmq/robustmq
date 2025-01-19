@@ -25,3 +25,64 @@
 会参考databend的编写方式，集成到当前的实现当中
 
 # 具体实现
+
+1. 首先构建全局的mtrics注册对象，用于后续进行指标内容的注册
+```rust
+pub static REGISTRY: LazyLock<Mutex<Registry>> = LazyLock::new(|| Mutex::new(Registry::default()));
+
+pub fn load_global_registry() -> MutexGuard<'static, Registry> {
+    REGISTRY.lock().unwrap()
+}
+```
+2. 构建指标存放集合
+```rust
+struct ConnectionJitterLabels {
+    client_id: String,
+}
+
+struct ServerMetrics {
+   connect_jitter_counter: Family<ConnectionJitterLabels, Counter>,
+}
+
+```
+3. 设定初始化方法等
+
+```rust
+static SERVER_METRICS: LazyLock<ServerMetrics> = LazyLock::new(|| ServerMetrics::init());
+
+impl ServerMetrics {
+
+
+   fn init() -> Self {
+      let metrics = Self {
+         connect_jitter_counter: Family::default(),
+      };
+
+      let registry = load_global_registry();
+
+      registry.register(
+         "connect_jitter_counter",
+         "current connect jitter times",
+         metrics.connect_jitter_counter.clone(),
+      );
+
+      metrics
+   }
+}
+
+pub fn incr_connect_jitter_counter(client_id: &str) {
+   let labels = ConnectionJitterLabels {
+      client_id: client_id.to_string(),
+   };
+
+   SERVER_METRICS.connect_jitter_counter.get_or_create(&labels).inc();
+}
+
+pub fn get_connect_jitter_counter(client_id: &str) -> i64 {
+   let labels = ConnectionJitterLabels {
+      client_id: client_id.to_string(),
+   };
+
+   SERVER_METRICS.connect_jitter_counter.get_or_create(&labels).get()
+}
+```
