@@ -12,11 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{
-    collections::{HashMap, HashSet},
-    fmt::Display,
-    sync::Arc,
-};
+use std::{collections::HashMap, fmt::Display, sync::Arc};
 
 use axum::async_trait;
 use common_base::error::common::CommonError;
@@ -49,11 +45,19 @@ impl RocksDBStorageAdapter {
     #[inline(always)]
     pub fn shard_record_key<S1: Display>(
         &self,
-        namespace: S1,
-        shard: S1,
+        namespace: &S1,
+        shard: &S1,
         record_offset: u64,
     ) -> String {
-        format!("/{}/{}/record/{}", namespace, shard, record_offset)
+        format!(
+            "/record/{}/{}/record/{:020}",
+            namespace, shard, record_offset
+        )
+    }
+
+    #[inline(always)]
+    pub fn shard_record_key_prefix<S1: Display>(&self, namespace: &S1, shard: &S1) -> String {
+        format!("/record/{}/{}/record/", namespace, shard)
     }
 
     #[inline(always)]
@@ -67,13 +71,39 @@ impl RocksDBStorageAdapter {
     }
 
     #[inline(always)]
-    pub fn tag_offsets_key<S1: Display>(&self, namespace: &S1, shard: &S1, tag: &S1) -> String {
-        format!("/tag/{}/{}/{}", namespace, shard, tag)
+    pub fn tag_offsets_key<S1: Display>(
+        &self,
+        namespace: &S1,
+        shard: &S1,
+        tag: &S1,
+        offset: u64,
+    ) -> String {
+        format!("/tag/{}/{}/{}/{:020}", namespace, shard, tag, offset)
     }
 
     #[inline(always)]
-    pub fn group_record_offsets_key<S1: Display>(&self, group: &S1) -> String {
-        format!("/group/{}", group)
+    pub fn tag_offsets_key_prefix<S1: Display>(
+        &self,
+        namespace: &S1,
+        shard: &S1,
+        tag: &S1,
+    ) -> String {
+        format!("/tag/{}/{}/{}/", namespace, shard, tag)
+    }
+
+    #[inline(always)]
+    pub fn group_record_offsets_key<S1: Display>(
+        &self,
+        group: &S1,
+        namespace: &S1,
+        shard: &S1,
+    ) -> String {
+        format!("/group/{}/{}/{}", group, namespace, shard)
+    }
+
+    #[inline(always)]
+    pub fn group_record_offsets_key_prefix<S1: Display>(&self, group: &S1) -> String {
+        format!("/group/{}/", group)
     }
 }
 
@@ -148,7 +178,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         // write the message
         message.offset = Some(offset);
 
-        let shard_record_key = self.shard_record_key(namespace.clone(), shard_name.clone(), offset);
+        let shard_record_key = self.shard_record_key(&namespace, &shard_name, offset);
         self.db.write(cf.clone(), &shard_record_key, &message)?;
 
         // update the shard offset
@@ -164,15 +194,9 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
         // update the tag lists
         for tag in message.tags.iter() {
-            let tag_offsets_key = self.tag_offsets_key(&namespace, &shard_name, tag);
-            let mut offsets = self
-                .db
-                .read::<Vec<u64>>(cf.clone(), &tag_offsets_key)?
-                .unwrap_or(Vec::new());
+            let tag_offsets_key = self.tag_offsets_key(&namespace, &shard_name, tag, offset);
 
-            offsets.push(offset);
-
-            self.db.write(cf.clone(), &tag_offsets_key, &offsets)?;
+            self.db.write(cf.clone(), &tag_offsets_key, &offset)?;
         }
 
         Ok(offset)
@@ -202,23 +226,6 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
         let mut offset_res = Vec::new();
 
-        let mut tags_map = HashMap::new();
-
-        // read tag offsets from db
-        for msg in messages.iter() {
-            for tag in msg.tags.iter() {
-                if !tags_map.contains_key(tag) {
-                    let tag_offsets_key = self.tag_offsets_key(&namespace, &shard_name, tag);
-                    let tag_offsets = self
-                        .db
-                        .read::<Vec<u64>>(cf.clone(), &tag_offsets_key)?
-                        .unwrap_or(Vec::new());
-
-                    tags_map.insert(tag.clone(), tag_offsets);
-                }
-            }
-        }
-
         for mut msg in messages {
             offset_res.push(start_offset);
             msg.offset = Some(start_offset);
@@ -234,9 +241,10 @@ impl StorageAdapter for RocksDBStorageAdapter {
                     .write(cf.clone(), key_offset_key.as_str(), &start_offset)?;
             }
 
-            // update the tag lists in memory
             for tag in msg.tags.iter() {
-                tags_map.get_mut(tag).unwrap().push(start_offset);
+                let tag_offsets_key =
+                    self.tag_offsets_key(&namespace, &shard_name, tag, start_offset);
+                self.db.write(cf.clone(), &tag_offsets_key, &start_offset)?;
             }
 
             start_offset += 1;
@@ -245,12 +253,6 @@ impl StorageAdapter for RocksDBStorageAdapter {
         // update the shard offset
         self.db
             .write(cf.clone(), shard_offset_key.as_str(), &start_offset)?;
-
-        // write updated tag lists to db
-        for (tag, offsets) in tags_map {
-            let tag_offsets_key = self.tag_offsets_key(&namespace, &shard_name, &tag);
-            self.db.write(cf.clone(), &tag_offsets_key, &offsets)?;
-        }
 
         Ok(offset_res)
     }
@@ -264,27 +266,18 @@ impl StorageAdapter for RocksDBStorageAdapter {
     ) -> Result<Vec<Record>, CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
-        let mut start_offset = offset;
-        let mut record = Vec::new();
+        let shard_record_key_prefix = self.shard_record_key_prefix(&namespace, &shard_name);
 
-        // read records with indices from offset to offset + max_record_num
-        // stop when the record is not found
-        for _ in 0..read_config.max_record_num {
-            let key = self.shard_record_key(&namespace, &shard_name, start_offset);
-            let value = self.db.read::<Record>(cf.clone(), &key)?;
+        let records = self
+            .db
+            .read_prefix(cf.clone(), &shard_record_key_prefix)?
+            .into_iter()
+            .map(|(_, v)| serde_json::from_slice::<Record>(&v).unwrap())
+            .skip_while(|r| r.offset.unwrap() < offset)
+            .take(read_config.max_record_num as usize)
+            .collect::<Vec<_>>();
 
-            match value {
-                Some(value) => {
-                    record.push(value);
-                    start_offset += 1;
-                }
-                None => {
-                    break;
-                }
-            }
-        }
-
-        Ok(record)
+        Ok(records)
     }
 
     async fn read_by_tag(
@@ -297,32 +290,27 @@ impl StorageAdapter for RocksDBStorageAdapter {
     ) -> Result<Vec<Record>, CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
-        // find all record offsets with the given tag, the offsets are sorted in ascending order
-        let tag_offsets_key = self.tag_offsets_key(&namespace, &shard_name, &tag);
+        let tag_offset_key_preix = self.tag_offsets_key_prefix(&namespace, &shard_name, &tag);
 
-        let tag_offsets = self
+        let offsets = self
             .db
-            .read::<Vec<u64>>(cf.clone(), &tag_offsets_key)?
-            .unwrap_or(Vec::new());
-
-        // only keep offsets >= offset and at most read_config.max_record_num
-        let retained_offsets: Vec<u64> = tag_offsets
+            .read_prefix(cf.clone(), &tag_offset_key_preix)?
             .into_iter()
-            .filter(|&x| x >= offset)
+            .map(|(_, v)| serde_json::from_slice::<u64>(&v).unwrap())
+            .skip_while(|r| *r < offset)
             .take(read_config.max_record_num as usize)
-            .collect();
+            .collect::<Vec<_>>();
 
-        let mut records = Vec::new();
-
-        for offset in retained_offsets {
-            let shard_record_key = self.shard_record_key(&namespace, &shard_name, offset);
-            let record = self
-                .db
-                .read::<Record>(cf.clone(), &shard_record_key)?
-                .unwrap();
-
-            records.push(record);
-        }
+        let records = offsets
+            .iter()
+            .map(|offset| {
+                let shard_record_key = self.shard_record_key(&namespace, &shard_name, *offset);
+                self.db
+                    .read(cf.clone(), &shard_record_key)
+                    .unwrap()
+                    .unwrap()
+            })
+            .collect::<Vec<_>>();
 
         Ok(records)
     }
@@ -361,29 +349,20 @@ impl StorageAdapter for RocksDBStorageAdapter {
     ) -> Result<Option<ShardOffset>, CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
-        let mut start_offset = 0;
+        let shard_record_key_prefix = self.shard_record_key_prefix(&namespace, &shard_name);
 
-        loop {
-            let shard_record_key = self.shard_record_key(&namespace, &shard_name, start_offset);
-            let value = self.db.read::<Record>(cf.clone(), &shard_record_key)?;
+        let res = self
+            .db
+            .read_prefix(cf.clone(), &shard_record_key_prefix)?
+            .into_iter()
+            .map(|(_, v)| serde_json::from_slice::<Record>(&v).unwrap())
+            .find(|r| r.timestamp >= timestamp)
+            .map(|r| ShardOffset {
+                offset: r.offset.unwrap(),
+                ..Default::default()
+            });
 
-            match value {
-                Some(value) if value.timestamp >= timestamp => {
-                    return Ok(Some(ShardOffset {
-                        offset: start_offset,
-                        ..Default::default()
-                    }));
-                }
-                Some(_) => {
-                    start_offset += 1;
-                }
-                None => {
-                    break;
-                }
-            }
-        }
-
-        Ok(None)
+        Ok(res)
     }
 
     async fn get_offset_by_group(
@@ -392,16 +371,18 @@ impl StorageAdapter for RocksDBStorageAdapter {
     ) -> Result<Vec<ShardOffset>, CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
-        let group_record_offsets_key = self.group_record_offsets_key(&group_name);
+        let group_record_offsets_key_prefix = self.group_record_offsets_key_prefix(&group_name);
 
         let offsets = self
             .db
-            .read::<HashMap<String, u64>>(cf.clone(), &group_record_offsets_key)?
-            .unwrap_or(HashMap::new())
-            .into_values()
-            .map(|offset| ShardOffset {
-                offset,
-                ..Default::default()
+            .read_prefix(cf.clone(), &group_record_offsets_key_prefix)?
+            .into_iter()
+            .map(|(_, v)| {
+                let offset = serde_json::from_slice::<u64>(&v).unwrap();
+                ShardOffset {
+                    offset,
+                    ..Default::default()
+                }
             })
             .collect::<Vec<_>>();
 
@@ -416,20 +397,13 @@ impl StorageAdapter for RocksDBStorageAdapter {
     ) -> Result<(), CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
-        let group_record_offsets_key = self.group_record_offsets_key(&group_name);
+        offsets.into_iter().try_for_each(|(shard_name, offset)| {
+            let group_record_offsets_key =
+                self.group_record_offsets_key(&group_name, &namespace, &shard_name);
 
-        let mut shard_offset_pairs = self
-            .db
-            .read::<HashMap<String, u64>>(cf.clone(), &group_record_offsets_key)?
-            .unwrap_or(HashMap::new());
-
-        for (shard_name, offset) in offsets {
-            let key = format!("{}_{}", &namespace, &shard_name);
-            shard_offset_pairs.insert(key, offset);
-        }
-
-        self.db
-            .write(cf, group_record_offsets_key.as_str(), &shard_offset_pairs)?;
+            self.db
+                .write(cf.clone(), &group_record_offsets_key, &offset)
+        })?;
 
         Ok(())
     }
