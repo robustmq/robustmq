@@ -131,17 +131,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         shard_name: String,
         mut message: Record,
     ) -> Result<u64, CommonError> {
-        // check whether the key exists
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
-
-        let key_offset_key = self.key_offset_key(&namespace, &shard_name, &message.key);
-
-        if self.db.read::<u64>(cf.clone(), &key_offset_key)?.is_some() {
-            return Err(CommonError::CommonError(format!(
-                "key {} already exists in shard {} under {}",
-                &message.key, &shard_name, &namespace
-            )));
-        }
 
         // read the offset
         let shard_offset_key = self.shard_offset_key(&namespace, &shard_name);
@@ -166,8 +156,11 @@ impl StorageAdapter for RocksDBStorageAdapter {
             .write(cf.clone(), shard_offset_key.as_str(), &(offset + 1))?;
 
         // update the key offset
-        self.db
-            .write(cf.clone(), key_offset_key.as_str(), &offset)?;
+        if !message.key.is_empty() {
+            let key_offset_key = self.key_offset_key(&namespace, &shard_name, &message.key);
+            self.db
+                .write(cf.clone(), key_offset_key.as_str(), &offset)?;
+        }
 
         // update the tag lists
         for tag in message.tags.iter() {
@@ -192,33 +185,6 @@ impl StorageAdapter for RocksDBStorageAdapter {
         messages: Vec<Record>,
     ) -> Result<Vec<u64>, CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
-
-        // check whether key exists
-        for message in messages.iter() {
-            if message.key.is_empty() {
-                continue;
-            }
-
-            let key_offset_key = self.key_offset_key(&namespace, &shard_name, &message.key);
-
-            if self.db.read::<u64>(cf.clone(), &key_offset_key)?.is_some() {
-                return Err(CommonError::CommonError(format!(
-                    "key {} already exists in shard {} under {}",
-                    &message.key, &shard_name, &namespace
-                )));
-            }
-        }
-
-        // check duplicate key exists in messages
-        let mut key_set = HashSet::new();
-        for message in messages.iter() {
-            if !&message.key.is_empty() && !key_set.insert(&message.key) {
-                return Err(CommonError::CommonError(format!(
-                    "duplicate key {} in messages",
-                    message.key
-                )));
-            }
-        }
 
         // get the starting shard offset
         let shard_offset_key = self.shard_offset_key(&namespace, &shard_name);
@@ -262,9 +228,11 @@ impl StorageAdapter for RocksDBStorageAdapter {
             self.db.write(cf.clone(), &shard_record_key, &msg)?;
 
             // write the key offset
-            let key_offset_key = self.key_offset_key(&namespace, &shard_name, &msg.key);
-            self.db
-                .write(cf.clone(), key_offset_key.as_str(), &start_offset)?;
+            if !msg.key.is_empty() {
+                let key_offset_key = self.key_offset_key(&namespace, &shard_name, &msg.key);
+                self.db
+                    .write(cf.clone(), key_offset_key.as_str(), &start_offset)?;
+            }
 
             // update the tag lists in memory
             for tag in msg.tags.iter() {
