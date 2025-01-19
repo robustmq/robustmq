@@ -11,7 +11,7 @@ We only have one copy of `Record` in rocksdb but we build multiple indices on on
 
 ## shard record
 
-key: `/{namespace}/{shard}/record/{record_offset}`
+key: `/record/{namespace}/{shard}/record/{record_offset:20}`
 
 value: record data
 
@@ -39,16 +39,16 @@ This key value pair is used for fast record retrieval in `read_by_key` method
 
 ## tag offsets
 
-key: `/tag/{namespace}/{shard}/{tag}`
+key: `/tag/{namespace}/{shard}/{tag}/{offset}`
 
-value: a list of offsets for all records in shard `shard` under namespace `namespace` whose `record.tags` contains `tag`
+value: offset for a record in shard `shard` under namespace `namespace` whose `record.tags` contains `tag`
 
-This key value pair is used for fast record retrieval in `read_by_tag` method
+This key value pair is used for fast record retrieval in `read_by_tag` method. It is realized by scanning the prefix `/tag/{namespace}/{shard}/{tag}/` for a given `tag`
 
 ## group record offsets
 
-key: `/group/{group}`
+key: `/group/{group}/{namespace}/{shard}`
 
-value: A map of (`/{namespace}/{shard}`, offset) pairs
+value: offset of shard `shard` under namespace `namespace` in group `group` 
 
 This key value pair will be set in `commit_offset` method
