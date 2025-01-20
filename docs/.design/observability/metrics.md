@@ -71,10 +71,10 @@
 
 # 消息分发指标
 
-| ｜ Metric Name                  | Description                |
-|--------------------------------|----------------------------|
-| ｜`delivery_dropped_too_large`  | 发送时由于长度超过限制而丢弃的消息数量        |
-| ｜`delivery_dropped_queue_full` | 发送时由于消息队列满而被丢弃的QoS不为0的消息数量 |
+| Metric Name                   | Description                |
+|-------------------------------|----------------------------|
+| `delivery_dropped_too_large`  | 发送时由于长度超过限制而丢弃的消息数量        |
+| `delivery_dropped_queue_full` | 发送时由于消息队列满而被丢弃的QoS不为0的消息数量 |
 
 
 # 统计指标
