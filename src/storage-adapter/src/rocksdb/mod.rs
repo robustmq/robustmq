@@ -149,16 +149,14 @@ impl RocksDBStorageAdapter {
             CommonError::CommonError(format!("Failed to send data to write thread: {}", err))
         })?;
 
-        let time_res: Result<Vec<u64>, CommonError> = timeout(Duration::from_secs(30), resp_rx)
+        timeout(Duration::from_secs(30), resp_rx)
             .await
             .map_err(|err| {
                 CommonError::CommonError(format!("Timeout while waiting for response: {}", err))
             })?
             .map_err(|err| {
                 CommonError::CommonError(format!("Failed to receive response: {}", err))
-            })?;
-
-        Ok(time_res?)
+            })?
     }
 
     async fn get_write_handle(&self) -> ThreadWriteHandle {
@@ -215,7 +213,7 @@ impl RocksDBStorageAdapter {
                             .await;
 
                         packet.resp_sx.send(res).map_err(|_| {
-                            CommonError::CommonError(format!("Failed to send response in write thread"))
+                            CommonError::CommonError("Failed to send response in write thread".to_string())
                         })?;
 
                     }
