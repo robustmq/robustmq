@@ -73,10 +73,12 @@ mockall = "0.13.1"
 ## text handle lib
 regex = "1.10.4"
 grep = "0.3.2"
-## other
-signal-hook = "0.3.17"
+## observability
 prometheus = "0.13.3"
 prometheus_exporter = "0.8"
+prometheus-client = "0.23.1"
+## other
+signal-hook = "0.3.17"
 lazy_static = "^1.4"
 thiserror = "1"
 bytes = { version = "1", features = ["serde"] }

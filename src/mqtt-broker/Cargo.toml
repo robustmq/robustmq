@@ -32,7 +32,6 @@ tonic.workspace = true
 dashmap.workspace = true
 serde.workspace = true
 lazy_static.workspace = true
-prometheus.workspace = true
 storage-adapter.workspace = true
 grpc-clients.workspace = true
 metadata-struct.workspace = true
@@ -51,3 +50,6 @@ ipnet.workspace = true
 os_info.workspace = true
 bincode.workspace = true
 grep.workspace = true
+# observability
+prometheus.workspace = true
+prometheus-client.workspace = true
