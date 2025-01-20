@@ -16,7 +16,9 @@
 function docker_build() {
     local mqtt_server_tag=${MQTT_SERVER_IMAGE_NAME}:${IMAGE_VERSION}
     local placement_center_tag=${PLACEMENT_CENTER_IMAGE_NAME}:${IMAGE_VERSION}
+    local cli_command_tag=${CLI_COMMAND_IMAGE_NAME}:${IMAGE_VERSION}
     cd ../../
     docker build --target placement-center -t ${placement_center_tag} .
     docker build --target mqtt-server -t ${mqtt_server_tag} .
+    docker build --target cli-command -t ${cli_command_tag} .
 }

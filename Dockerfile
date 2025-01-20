@@ -73,3 +73,17 @@ COPY --from=builder /robustmq/target/release/journal-server /robustmq/libs/journ
 COPY --from=builder /robustmq/config/* /robustmq/config/
 
 ENTRYPOINT ["/robustmq/libs/journal-server","--conf","config/cluster/journal-server/node.toml"]
+
+# cli-command
+FROM rust:bullseye AS cli-command
+
+RUN sed -i "s@http://\(deb\|security\).debian.org@https://mirrors.aliyun.com@g" /etc/apt/sources.list && \
+    apt-get update && apt-get install -y clang libclang-dev
+
+WORKDIR /robustmq
+
+COPY --from=builder bin/* /robustmq/bin/
+COPY --from=builder /robustmq/target/release/cli-command /robustmq/libs/cli-command
+COPY --from=builder /robustmq/config/* /robustmq/config/
+
+ENTRYPOINT ["/robustmq/libs/cli-command","-h"]
