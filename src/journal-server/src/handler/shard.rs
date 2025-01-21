@@ -63,7 +63,6 @@ impl ShardHandler {
                 &self.client_pool,
                 &req_body.namespace,
                 &req_body.shard_name,
-                req_body.replica_num,
             )
             .await?;
         };

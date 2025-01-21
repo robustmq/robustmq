@@ -15,11 +15,11 @@
 use std::process;
 use std::time::Duration;
 
+use crate::mqtt_protocol::connect_suite::ClientTestProperties;
 use paho_mqtt::{
     Client, ConnectOptions, ConnectOptionsBuilder, CreateOptions, CreateOptionsBuilder,
     DisconnectOptionsBuilder, Properties, PropertyCode, ReasonCode, SslOptionsBuilder,
 };
-use crate::mqtt_protocol::connect_suite::ClientTestProperties;
 
 #[allow(dead_code)]
 pub fn broker_addr() -> String {
@@ -153,9 +153,11 @@ pub fn build_v5_conn_pros_by_user_information(
         .finalize()
 }
 
-
 #[allow(dead_code)]
-pub fn build_conn_pros(client_test_properties: ClientTestProperties, err_pwd: bool) -> ConnectOptions {
+pub fn build_conn_pros(
+    client_test_properties: ClientTestProperties,
+    err_pwd: bool,
+) -> ConnectOptions {
     let pwd = if err_pwd { err_password() } else { password() };
     let mut conn_opts = if client_test_properties.ws {
         ConnectOptionsBuilder::new_ws()

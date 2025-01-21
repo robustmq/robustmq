@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashSet;
-
-use lazy_static::lazy_static;
-
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum PlacementCenterInterface {
     // kv interface
@@ -79,42 +75,6 @@ pub enum PlacementCenterInterface {
     Snapshot,
     AddLearner,
     ChangeMembership,
-}
-
-impl PlacementCenterInterface {
-    pub fn should_forward_to_leader(&self) -> bool {
-        lazy_static! {
-            static ref FORWARD_SET: HashSet<PlacementCenterInterface> = {
-                let mut set = HashSet::new();
-                // mqtt service interface
-                set.insert(PlacementCenterInterface::CreateUser);
-                set.insert(PlacementCenterInterface::DeleteUser);
-                set.insert(PlacementCenterInterface::CreateTopic);
-                set.insert(PlacementCenterInterface::DeleteTopic);
-                set.insert(PlacementCenterInterface::CreateSession);
-                set.insert(PlacementCenterInterface::DeleteSession);
-                set.insert(PlacementCenterInterface::UpdateSession);
-                set.insert(PlacementCenterInterface::DeleteSession);
-                set.insert(PlacementCenterInterface::CreateAcl);
-                set.insert(PlacementCenterInterface::DeleteAcl);
-                set.insert(PlacementCenterInterface::CreateBlackList);
-                set.insert(PlacementCenterInterface::DeleteBlackList);
-
-                // placement inner interface
-                set.insert(PlacementCenterInterface::RegisterNode);
-                set.insert(PlacementCenterInterface::UnRegisterNode);
-                set.insert(PlacementCenterInterface::Heartbeat);
-                set.insert(PlacementCenterInterface::SendRaftMessage);
-                set.insert(PlacementCenterInterface::SendRaftConfChange);
-                set.insert(PlacementCenterInterface::SetResourceConfig);
-                set.insert(PlacementCenterInterface::DeleteResourceConfig);
-                set.insert(PlacementCenterInterface::SetIdempotentData);
-                set.insert(PlacementCenterInterface::DeleteIdempotentData);
-                set
-            };
-        }
-        FORWARD_SET.contains(self)
-    }
 }
 
 #[allow(clippy::module_inception)]

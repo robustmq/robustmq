@@ -20,6 +20,7 @@ mod tests {
     use grpc_clients::placement::journal::call::{create_next_segment, create_shard};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::journal::node_extend::JournalNodeExtend;
+    use metadata_struct::journal::shard::JournalShardConfig;
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
     use protocol::placement_center::placement_center_journal::{
         CreateNextSegmentRequest, CreateShardRequest,
@@ -51,12 +52,16 @@ mod tests {
         };
         register_node(&client_pool, &addrs, request).await.unwrap();
 
+        let config = JournalShardConfig {
+            replica_num: 1,
+            max_segment_size: 10 * 1024 * 1024,
+        };
         //  create shard
         let request = CreateShardRequest {
             cluster_name: cluster.clone(),
             namespace: namespace.clone(),
             shard_name: shard_name.clone(),
-            replica: 1,
+            shard_config: serde_json::to_vec(&config).unwrap(),
         };
         let res = create_shard(&client_pool, &addrs, request).await.unwrap();
         assert_eq!(res.replica.len(), 1);

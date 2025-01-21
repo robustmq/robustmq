@@ -57,7 +57,7 @@ checksum = "0942ffc6dcaadf03badf6e6a2d0228460359d5e34b57ccdc720b7382dfbd5ec5"
 
 [[package]]
 name = "amqp-broker"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -66,7 +66,7 @@ dependencies = [
 
 [[package]]
 name = "amqp-plugins"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -717,17 +717,19 @@ checksum = "702fc72eb24e5a1e48ce58027a675bc24edd52096d5397d4aea7c6dd9eca0bd1"
 
 [[package]]
 name = "cli-command"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "axum 0.7.4",
  "bytes",
  "common-base",
  "grpc-clients",
  "metadata-struct",
+ "paho-mqtt",
  "prettytable-rs",
  "protocol",
  "serde_json",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -741,7 +743,7 @@ dependencies = [
 
 [[package]]
 name = "cmd"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "clap",
  "clap-cargo",
@@ -764,7 +766,7 @@ checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
 
 [[package]]
 name = "common-base"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "axum 0.7.4",
  "bincode",
@@ -1071,6 +1073,12 @@ name = "downcast"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1435fa1053d8b2fbbe9be7e97eca7f33d37b28409959813daefc1446a14247f1"
+
+[[package]]
+name = "dtoa"
+version = "1.0.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dcbb2bf8e87535c23f7a8a321e364ce21462d0ff10cb6407820e8e96dfff6653"
 
 [[package]]
 name = "dunce"
@@ -1488,7 +1496,7 @@ dependencies = [
 
 [[package]]
 name = "grpc-clients"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -1882,7 +1890,7 @@ dependencies = [
 
 [[package]]
 name = "journal-client"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -1902,7 +1910,7 @@ dependencies = [
 
 [[package]]
 name = "journal-server"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -2125,7 +2133,7 @@ dependencies = [
 
 [[package]]
 name = "metadata-struct"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "bytes",
  "common-base",
@@ -2243,7 +2251,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt-bridge-elasticsearch"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -2252,7 +2260,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt-bridge-kafka"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -2261,7 +2269,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt-bridge-redis"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -2270,7 +2278,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt-broker"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "axum 0.7.4",
  "axum-extra",
@@ -2292,6 +2300,7 @@ dependencies = [
  "paho-mqtt",
  "placement-center",
  "prometheus",
+ "prometheus-client",
  "protocol",
  "regex",
  "rustls-pemfile",
@@ -2308,7 +2317,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt-edge"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -2771,7 +2780,7 @@ checksum = "2900ede94e305130c13ddd391e0ab7cbaeb783945ae07a279c268cb05109c6cb"
 
 [[package]]
 name = "placement-center"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "axum 0.7.4",
  "bincode",
@@ -2916,6 +2925,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "prometheus-client"
+version = "0.23.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf41c1a7c32ed72abe5082fb19505b969095c12da9f5732a4bc9878757fd087c"
+dependencies = [
+ "dtoa",
+ "itoa",
+ "parking_lot",
+ "prometheus-client-derive-encode",
+]
+
+[[package]]
+name = "prometheus-client-derive-encode"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "440f724eba9f6996b75d63681b0a92b06947f1457076d503a4d2e2c8f56442b8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.90",
+]
+
+[[package]]
 name = "prost"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2977,7 +3009,7 @@ checksum = "106dd99e98437432fed6519dedecfade6a06a73bb7b2a1e019fdd2bee5778d94"
 
 [[package]]
 name = "protocol"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "axum 0.7.4",
  "bincode",
@@ -3163,7 +3195,7 @@ dependencies = [
 
 [[package]]
 name = "robustmq-test"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -3197,7 +3229,7 @@ dependencies = [
 
 [[package]]
 name = "rocksdb-engine"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "common-base",
  "dashmap",
@@ -3576,7 +3608,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "storage-adapter"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -3705,7 +3737,7 @@ checksum = "3369f5ac52d5eb6ab48c6b4ffdc8efbcad6b89c765749064ba298f2c68a16a76"
 
 [[package]]
 name = "third-driver"
-version = "0.1.1"
+version = "0.1.6"
 dependencies = [
  "common-base",
  "mysql",

@@ -26,6 +26,8 @@ spec:
       name: grpc
     - port: 9982
       name: http
+    - port: 1883
+      name: mqtt
   selector:
     app: mqtt-server
 ---
@@ -35,7 +37,7 @@ metadata:
   namespace: ${NAMESPACE}
   name: mqtt-server
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: mqtt-server
@@ -57,6 +59,8 @@ spec:
               name: grpc
             - containerPort: 9982
               name: http
+            - containerPort: 1883
+              name: mqtt
           env:
             - name: MQTT_SERVER_PLACEMENT_CENTER
               value: |
@@ -69,7 +73,7 @@ spec:
             - sh
             - -c
             - |
-              export BROKER_ID=$(echo ${INDEX} | sed -E 's/.*-([^-]+)$/\1/; s/[^0-9]//g') && /robustmq/libs/mqtt-server --conf /robustmq/config/cluster/mqtt-server/node.toml
+              export BROKER_ID=1 && /robustmq/libs/mqtt-server --conf /robustmq/config/cluster/mqtt-server/node.toml
           volumeMounts:
             - name: config
               mountPath: /robustmq/config/cluster/mqtt-server/node.toml

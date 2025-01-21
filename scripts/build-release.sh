@@ -140,11 +140,11 @@ build_win_arm_release(){
 }
 
 build_local(){
-
+    version=$1
     build="./build"
     target="robustmq"
 
-    package_name=${target}-local
+    package_name=${target}-$version
 
     echo "package name: ${package_name}"
     mkdir -p ${build}
@@ -200,5 +200,5 @@ fi
 if [ "$platform" = "local" ]; then
     echo "build local"
     rm -rf ../build/
-    build_local
+    build_local $version
 fi

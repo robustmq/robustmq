@@ -68,3 +68,47 @@
    - 加载镜像到kind集群
    - 启动 kind k8s 集群
    - 启动 RobustMQ 集群
+
+5. 简单使用
+
+    更多命令请参考 [cli-command](../RobustMQ-Command/Mqtt-Broker.md)
+
+    这个 kind-k8s 集群会启动一个 `cli-command` 的 pod，可以在集群中执行 cli-command 命令。
+
+    先获取到`cli-command`的 pod 的名字
+
+    ```console
+    % kubectl get pods -n robustmq
+    NAME                                READY   STATUS    RESTARTS   AGE
+    cli-command-6fbf8b6cc-7ldqp          1/1     Running   0          16m
+    ```
+    进入 `cli-command` 的 pod，执行命令
+
+    发布消息
+    ```console
+    % kubectl exec -it cli-command-6fbf8b6cc-7ldqp -n robustmq -- /bin/sh
+    # ./cli-command mqtt --server=mqtt-server-cs.robustmq.svc.cluster.local:1883 publish --username=admin --password=pwd123 --topic=test/topic1 --qos=0
+    able to connect: "mqtt-server-cs.robustmq.svc.cluster.local:1883"
+    you can post a message on the terminal:
+    1
+    > You typed: 1
+    2
+    > You typed: 2
+    3
+    > You typed: 3
+    ^C>  Ctrl+C detected,  Please press ENTER to end the program.
+    ```
+
+    订阅消息
+    ```console
+    kubectl exec -it cli-command-6fbf8b6cc-7ldqp -n robustmq -- /bin/sh
+    # cd libs
+    # ./cli-command mqtt --server=mqtt-server-cs.robustmq.svc.cluster.local:1883  subscribe --username=admin --password=pwd123 --topic=test/topic1 --qos=0
+    able to connect: "mqtt-server-cs.robustmq.svc.cluster.local:1883"
+    subscribe success
+    payload: 1
+    payload: 2
+    payload: 3
+    ^C Ctrl+C detected,  Please press ENTER to end the program.
+    End of input stream.
+    ```

@@ -14,28 +14,28 @@
 
 #[cfg(test)]
 mod tests {
-    use std::fmt::Debug;
-    use std::process;
-    use std::sync::Arc;
-    use dashmap::DashMap;
-    use paho_mqtt::Client;
-    use crate::mqtt_protocol::common::{broker_addr, broker_grpc_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr, build_conn_pros, build_create_pros, distinct_conn};
+    use crate::mqtt_protocol::common::{
+        broker_addr, broker_grpc_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr,
+        build_conn_pros, build_create_pros, distinct_conn,
+    };
     use crate::mqtt_protocol::connect_suite::ClientTestProperties;
     use crate::mqtt_protocol::connect_suite::{session_present_test, wrong_password_test};
     use common_base::tools::unique_id;
     use grpc_clients::mqtt::admin::call::mqtt_broker_enable_connection_jitter;
     use grpc_clients::pool::ClientPool;
-    use mqtt_broker::handler::connection_jitter::ConnectionJitterCondition;
+    use paho_mqtt::Client;
     use protocol::broker_mqtt::broker_mqtt_admin::EnableConnectionJitterRequest;
+    use std::process;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn client_connect_wrong_password_test_v3() {
-        let  client_v3_properties = ClientTestProperties {
+        let client_v3_properties = ClientTestProperties {
             mqtt_version: 3,
             client_id: unique_id(),
             addr: broker_addr(),
             ws: false,
-            ssl: false
+            ssl: false,
         };
         // connect_test
         wrong_password_test(client_v3_properties.clone());
@@ -44,12 +44,12 @@ mod tests {
 
     #[tokio::test]
     async fn client_connect_session_present_test_v3() {
-        let  client_v3_properties = ClientTestProperties {
+        let client_v3_properties = ClientTestProperties {
             mqtt_version: 3,
             client_id: unique_id(),
             addr: broker_addr(),
             ws: false,
-            ssl: false
+            ssl: false,
         };
         session_present_test(client_v3_properties.clone());
     }
@@ -61,7 +61,7 @@ mod tests {
             client_id: unique_id(),
             addr: broker_addr(),
             ws: false,
-            ssl: false
+            ssl: false,
         };
         client_v3_properties.addr = broker_ssl_addr();
         client_v3_properties.ssl = true;
@@ -70,7 +70,6 @@ mod tests {
         session_present_test(client_v3_properties.clone());
     }
 
-
     #[tokio::test]
     async fn client_connect_test_v4() {
         let client_properties_v4 = ClientTestProperties {
@@ -78,7 +77,7 @@ mod tests {
             client_id: unique_id(),
             addr: broker_addr(),
             ws: false,
-            ssl: false
+            ssl: false,
         };
         // connect_test
         wrong_password_test(client_properties_v4.clone());
@@ -92,7 +91,7 @@ mod tests {
             client_id: unique_id(),
             addr: broker_addr(),
             ws: false,
-            ssl: false
+            ssl: false,
         };
         client_properties_v4.addr = broker_ssl_addr();
         client_properties_v4.ssl = true;
@@ -108,7 +107,7 @@ mod tests {
             client_id: unique_id(),
             addr: broker_addr(),
             ws: false,
-            ssl: false
+            ssl: false,
         };
         // ws_test
         client_properties_v4.addr = broker_ws_addr();
@@ -126,7 +125,7 @@ mod tests {
             client_id: unique_id(),
             addr: broker_addr(),
             ws: false,
-            ssl: false
+            ssl: false,
         };
         // ws_test
         client_properties_v4.addr = broker_wss_addr();
@@ -136,7 +135,6 @@ mod tests {
         wrong_password_test(client_properties_v4.clone());
         session_present_test(client_properties_v4.clone());
     }
-
 
     async fn open_connect_jitter() {
         let client_pool = Arc::new(ClientPool::new(3));
@@ -149,25 +147,27 @@ mod tests {
             ban_time: 5,
         };
 
-        let _reply = mqtt_broker_enable_connection_jitter(&client_pool, &grpc_addr, request).await.unwrap();
-
+        let _reply = mqtt_broker_enable_connection_jitter(&client_pool, &grpc_addr, request)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
     async fn client_connect_jitter_test() {
-
         open_connect_jitter().await;
 
-
-        let  client_test_properties = ClientTestProperties {
+        let client_test_properties = ClientTestProperties {
             mqtt_version: 3,
             client_id: unique_id(),
             addr: broker_addr(),
             ws: false,
-            ssl: false
+            ssl: false,
         };
 
-        let create_opts = build_create_pros(&client_test_properties.client_id, &client_test_properties.addr);
+        let create_opts = build_create_pros(
+            &client_test_properties.client_id,
+            &client_test_properties.addr,
+        );
         let cli = Client::new(create_opts).unwrap_or_else(|err| {
             println!("Error creating the client: {:?}", err);
             process::exit(1);
@@ -181,7 +181,10 @@ mod tests {
 
         distinct_conn(cli);
 
-        let create_opts = build_create_pros(&client_test_properties.client_id, &client_test_properties.addr);
+        let create_opts = build_create_pros(
+            &client_test_properties.client_id,
+            &client_test_properties.addr,
+        );
         let cli = Client::new(create_opts).unwrap_or_else(|err| {
             println!("Error creating the client: {:?}", err);
             process::exit(1);
@@ -195,7 +198,10 @@ mod tests {
 
         distinct_conn(cli);
 
-        let create_opts = build_create_pros(&client_test_properties.client_id, &client_test_properties.addr);
+        let create_opts = build_create_pros(
+            &client_test_properties.client_id,
+            &client_test_properties.addr,
+        );
         let cli = Client::new(create_opts).unwrap_or_else(|err| {
             println!("Error creating the client: {:?}", err);
             process::exit(1);
@@ -209,7 +215,10 @@ mod tests {
 
         distinct_conn(cli);
 
-        let create_opts = build_create_pros(&client_test_properties.client_id, &client_test_properties.addr);
+        let create_opts = build_create_pros(
+            &client_test_properties.client_id,
+            &client_test_properties.addr,
+        );
         let cli = Client::new(create_opts).unwrap_or_else(|err| {
             println!("Error creating the client: {:?}", err);
             process::exit(1);
@@ -222,7 +231,5 @@ mod tests {
         println!("Unable to connect:\t{:?}", err);
 
         distinct_conn(cli);
-
     }
-
 }

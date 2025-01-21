@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::str::FromStr;
-use std::sync::Arc;
-
+use crate::template::{PublishArgsRequest, SubscribeArgsRequest};
+use crate::{connect_server5, error_info, grpc_addr};
 use common_base::enum_type::sort_type::SortType;
+use common_base::tools::unique_id;
 use grpc_clients::mqtt::admin::call::{
     cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user,
     mqtt_broker_enable_connection_jitter, mqtt_broker_enable_slow_subscribe,
@@ -24,14 +24,18 @@ use grpc_clients::mqtt::admin::call::{
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
+use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, EnableConnectionJitterRequest,
     EnableSlowSubscribeRequest, ListConnectionRequest, ListSlowSubscribeRequest, ListTopicRequest,
     ListUserRequest,
 };
+use std::str::FromStr;
+use std::sync::Arc;
 
-use crate::{error_info, grpc_addr};
+use tokio::io::{self, AsyncBufReadExt, BufReader};
+use tokio::{select, signal};
 
 #[derive(Clone)]
 pub struct MqttCliCommandParam {
@@ -57,6 +61,12 @@ pub enum MqttActionType {
 
     // connection-jitter
     EnableConnectionJitter(EnableConnectionJitterRequest),
+
+    // publish
+    Publish(PublishArgsRequest),
+
+    // subscribe
+    Subscribe(SubscribeArgsRequest),
 
     ListTopic(ListTopicRequest),
 }
@@ -110,9 +120,136 @@ impl MqttBrokerCommand {
                 self.enable_connection_jitter(&client_pool, params.clone(), request.clone())
                     .await;
             }
+            MqttActionType::Publish(ref request) => {
+                self.publish(params.clone(), request.clone()).await;
+            }
+            MqttActionType::Subscribe(ref request) => {
+                self.subscribe(params.clone(), request.clone()).await;
+            }
         }
     }
+    async fn publish(&self, params: MqttCliCommandParam, args: PublishArgsRequest) {
+        // stdin stream
+        let stdin = BufReader::new(io::stdin());
+        let mut lines = stdin.lines();
+        // mqtt publish client
+        let client_id = unique_id();
+        let addr = format!("tcp://{}", params.server);
+        let qos = args.qos;
+        let retained = args.retained;
+        let cli = connect_server5(
+            client_id.as_str(),
+            args.username,
+            args.password,
+            addr.as_str(),
+            false,
+            false,
+        );
+        let topic = args.topic;
+        let mut props = Properties::new();
+        props
+            .push_u32(PropertyCode::MessageExpiryInterval, 50)
+            .unwrap();
+        println!("you can post a message on the terminal:");
+        let j = tokio::spawn(async move {
+            loop {
+                print!("> ");
+                select! {
+                        _ = signal::ctrl_c() => {
+                        println!(" Ctrl+C detected,  Please press ENTER to end the program. ");
 
+                     let disconnect_opts = DisconnectOptionsBuilder::new()
+                    .reason_code(ReasonCode::DisconnectWithWillMessage)
+                    .finalize();
+                cli.disconnect(disconnect_opts).unwrap();
+                        break;
+
+                        }
+                        // Read from stdin
+                        line = lines.next_line() => {
+                        match line {
+                            Ok(Some(input)) => {
+                                    println!("You typed: {}", input);
+
+                                    let msg = MessageBuilder::new()
+                                    .properties(props.clone())
+                                    .payload(input)
+                                    .topic(topic.clone())
+                                    .qos(qos)
+                                    .retained(retained)
+                                    .finalize();
+
+                                    match cli.publish(msg) {
+                                        Ok(_) => {}
+                                        Err(e) => {
+                                            panic!("{:?}", e);
+                                        }
+                                    }
+                            }
+                            Ok(None) => {
+                                println!("End of input stream.");
+                                break;
+                            }
+                            Err(e) => {
+                                eprintln!("Error reading input: {}", e);
+                                break;
+                            }
+                    }
+                    }
+                }
+            }
+        });
+
+        j.await.ok();
+    }
+
+    async fn subscribe(&self, params: MqttCliCommandParam, args: SubscribeArgsRequest) {
+        let client_id = unique_id();
+        let addr = format!("tcp://{}", params.server);
+        let cli = connect_server5(
+            client_id.as_str(),
+            args.username,
+            args.password,
+            addr.as_str(),
+            false,
+            false,
+        );
+        let sub_topics = &[args.topic];
+        let qos = &[args.qos];
+        // subscribe
+        let rx = cli.start_consuming();
+        match cli.subscribe_many(sub_topics, qos) {
+            Ok(_) => {
+                println!("subscribe success")
+            }
+            Err(e) => {
+                panic!("subscribe_many: {}", e)
+            }
+        }
+
+        tokio::spawn(async move {
+            select! {
+                _ = signal::ctrl_c() => {
+             println!(" Ctrl+C detected,  Please press ENTER to end the program. ");
+             let disconnect_opts = DisconnectOptionsBuilder::new()
+             .reason_code(ReasonCode::DisconnectWithWillMessage)
+             .finalize();
+             cli.disconnect(disconnect_opts).unwrap();
+            }}
+        });
+        while let Some(msg) = rx.iter().next() {
+            match msg {
+                Some(msg) => {
+                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                    println!("payload: {}", payload);
+                }
+                None => {
+                    println!("End of input stream.");
+                    break;
+                }
+            }
+        }
+    }
     async fn status(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
         let request = ClusterStatusRequest {};
         match cluster_status(client_pool, &grpc_addr(params.server), request).await {

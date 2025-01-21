@@ -18,7 +18,7 @@ use common_base::tools::{now_mills, unique_id};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::SegmentStatus;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
-use metadata_struct::journal::shard::{JournalShard, JournalShardStatus};
+use metadata_struct::journal::shard::{JournalShard, JournalShardConfig, JournalShardStatus};
 use protocol::placement_center::placement_center_journal::{
     CreateShardReply, CreateShardRequest, DeleteShardReply, DeleteShardRequest,
 };
@@ -46,9 +46,13 @@ pub async fn create_shard_by_req(
 ) -> Result<CreateShardReply, PlacementCenterError> {
     // Check that the number of available nodes in the cluster is sufficient
     let num = cluster_cache.get_broker_num(&req.cluster_name) as u32;
-
-    if num < req.replica {
-        return Err(PlacementCenterError::NotEnoughNodes(req.replica, num));
+    let shard_config: JournalShardConfig =
+        serde_json::from_slice::<JournalShardConfig>(&req.shard_config)?;
+    if num < shard_config.replica_num {
+        return Err(PlacementCenterError::NotEnoughNodes(
+            shard_config.replica_num,
+            num,
+        ));
     }
 
     let shard = if let Some(shard) =
@@ -61,11 +65,11 @@ pub async fn create_shard_by_req(
             cluster_name: req.cluster_name.clone(),
             namespace: req.namespace.clone(),
             shard_name: req.shard_name.clone(),
-            replica: req.replica,
             start_segment_seq: 0,
             active_segment_seq: 0,
             last_segment_seq: 0,
             status: JournalShardStatus::Run,
+            config: shard_config,
             create_time: now_mills(),
         };
 

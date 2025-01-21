@@ -21,6 +21,7 @@ function network_up() {
     apply_template kube/cfg-mqtt-server.yaml ${NAMESPACE}
     apply_template kube/mqtt-server.yaml ${NAMESPACE}
     apply_template kube/mqtt-server-ingress.yaml ${NAMESPACE}
+    apply_template kube/cli-command.yaml ${NAMESPACE}
 }
 
 function network_down() {
@@ -28,6 +29,7 @@ function network_down() {
     kubectl delete statefulset placement-center -n ${NAMESPACE}
     kubectl delete configmap placement-center-config -n ${NAMESPACE}
     kubectl delete configmap mqtt-server-config -n ${NAMESPACE}
+    kubectl delete deployment cli-command -n ${NAMESPACE}
     kubectl delete namespace ${NAMESPACE}
-    kubectl delete ingress mqtt-server-ingress -n ${NAMESPACE}
+#    kubectl delete ingress mqtt-server-ingress -n ${NAMESPACE}
 }

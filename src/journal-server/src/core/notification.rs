@@ -156,8 +156,8 @@ async fn parse_segment_meta(
             match serde_json::from_str::<JournalSegmentMetadata>(data) {
                 Ok(segment_meta) => {
                     info!(
-                        "Update the cache, set segment meta, segment name:{}",
-                        segment_meta.name()
+                        "Update the cache, set segment meta, segment name:{:?}",
+                        segment_meta
                     );
 
                     cache_manager.set_segment_meta(segment_meta);

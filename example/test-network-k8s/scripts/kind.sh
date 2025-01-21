@@ -66,9 +66,11 @@ EOF
 function kind_load_docker_images() {
     local mqtt_server_tag=${MQTT_SERVER_IMAGE_NAME}:${IMAGE_VERSION}
     local placement_center_tag=${PLACEMENT_CENTER_IMAGE_NAME}:${IMAGE_VERSION}
+    local cli_command_tag=${CLI_COMMAND_IMAGE_NAME}:${IMAGE_VERSION}
     # 加载的镜像只在当前 Kind 集群有效。如果你销毁并重新创建集群，需要重新加载镜像。
     kind load docker-image ${mqtt_server_tag}      --name ${CLUSTER_NAME}
     kind load docker-image ${placement_center_tag} --name ${CLUSTER_NAME}
+    kind load docker-image ${cli_command_tag}     --name ${CLUSTER_NAME}
 
     kind load docker-image k8s.gcr.io/ingress-nginx/kube-webhook-certgen:v1.1.1 --name ${CLUSTER_NAME}
     kind load docker-image k8s.gcr.io/ingress-nginx/controller:v1.1.2 --name ${CLUSTER_NAME}

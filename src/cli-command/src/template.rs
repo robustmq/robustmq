@@ -11,3 +11,20 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PublishArgsRequest {
+    pub topic: String,
+    pub qos: i32,
+    pub retained: bool,
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SubscribeArgsRequest {
+    pub topic: String,
+    pub qos: i32,
+    pub username: String,
+    pub password: String,
+}

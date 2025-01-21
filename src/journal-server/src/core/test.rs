@@ -141,13 +141,11 @@ pub async fn test_base_write_data(
 ) {
     let (segment_iden, cache_manager, segment_file_manager, fold, rocksdb_engine_handler) =
         test_init_segment().await;
-    let client_pool = test_init_client_pool();
 
     let res = create_write_thread(
         &cache_manager,
         &rocksdb_engine_handler,
         &segment_file_manager,
-        &client_pool,
         &segment_iden,
     )
     .await;
@@ -175,7 +173,6 @@ pub async fn test_base_write_data(
         &cache_manager,
         &rocksdb_engine_handler,
         &segment_file_manager,
-        &client_pool,
         &segment_iden,
         data_list,
     )
