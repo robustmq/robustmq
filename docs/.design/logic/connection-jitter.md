@@ -9,9 +9,8 @@ struct ClientConnectInfo {
 }
 ```
 
-创建或获取当前的counter
+通过metrics增加一次访问记录
 
-counter值增加1
 
 获取当前时间`now_time`作为`current_request_time`
 

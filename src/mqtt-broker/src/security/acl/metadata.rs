@@ -90,7 +90,7 @@ impl AclMetadata {
         config: MqttClusterDynamicConnectionJitter,
     ) -> Result<(), MqttBrokerError> {
         let current_time = now_second();
-        let window_time = convert_seconds(config.window_time, TimeUnit::Minutes) as u64;
+        let window_time = convert_seconds(config.window_time as u64, TimeUnit::Minutes);
         self.connection_jitter_map
             .retain(|_, connection_jitter_condition| {
                 // we need retain elements within window_time,

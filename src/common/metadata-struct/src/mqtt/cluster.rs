@@ -80,7 +80,7 @@ pub struct MqttClusterDynamicSlowSub {
 pub struct MqttClusterDynamicConnectionJitter {
     pub enable: bool,
     pub window_time: u32,
-    pub max_client_connections: u32,
+    pub max_client_connections: u64,
     pub ban_time: u32,
 }
 

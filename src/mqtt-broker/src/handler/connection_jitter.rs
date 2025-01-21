@@ -14,6 +14,7 @@
 
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
+use crate::observability::metrics::event_metrics;
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
 use log::{error, info};
@@ -34,7 +35,7 @@ pub struct UpdateConnectionJitterCache {
 #[derive(Clone, Debug)]
 pub struct ConnectionJitterCondition {
     pub client_id: String,
-    pub connect_times: u32,
+    pub connect_times: u64,
     pub first_request_time: u64,
 }
 
@@ -66,8 +67,8 @@ impl UpdateConnectionJitterCache {
 
     async fn update_connection_jitter_cache(&self) {
         let config = self.cache_manager.get_connection_jitter_config().clone();
-        let window_time = config.window_time;
-        let window_time_2_seconds = convert_seconds(window_time, TimeUnit::Minutes) as u64;
+        let window_time = config.window_time as u64;
+        let window_time_2_seconds = convert_seconds(window_time, TimeUnit::Minutes);
         match self
             .cache_manager
             .acl_metadata
@@ -85,66 +86,45 @@ impl UpdateConnectionJitterCache {
     }
 }
 
-// todo 该函数需要放置在黑名单检查后使用
 pub fn check_connection_jitter(client_id: String, cache_manager: &Arc<CacheManager>) {
-    // todo ig prometheus to get metric
-    let mut _counter = 0;
+    // get metric
+    let current_counter = event_metrics::get_client_connection_counter(client_id.clone());
+    let current_request_time = now_second();
 
-    eprintln!("client_id: {:?}", client_id);
-    let mut connection_jitter_condition = if let Some(connection_jitter_condition) = cache_manager
+    // get connection jitter info
+    let connection_jitter_condition = if let Some(connection_jitter_condition) = cache_manager
         .acl_metadata
         .get_connection_jitter_condition(client_id.clone())
     {
-        info!(
-            "get connection jitter condition: {:?}",
-            connection_jitter_condition.clone()
-        );
         connection_jitter_condition
     } else {
         ConnectionJitterCondition {
-            client_id,
-            connect_times: 0,
-            first_request_time: now_second(),
+            client_id: client_id.clone(),
+            connect_times: current_counter,
+            first_request_time: current_request_time,
         }
     };
 
-    // mock metric test
-    _counter = connection_jitter_condition.connect_times;
-    _counter += 1;
-
-    eprintln!(
-        "connection_jitter_connection: {:?}",
-        connection_jitter_condition.clone()
-    );
+    // incr metric
+    event_metrics::incr_client_connection_counter(client_id.clone());
 
     let config = cache_manager.get_connection_jitter_config();
-    let current_request_time = now_second();
+    let current_counter = event_metrics::get_client_connection_counter(client_id.clone());
 
-    println!("max_client_connections: {}", config.max_client_connections);
     if is_within_window_time(
         current_request_time,
         connection_jitter_condition.first_request_time,
-        config.window_time,
+        config.window_time as u64,
     ) {
         if is_exceed_max_client_connections(
-            _counter,
+            current_counter,
             connection_jitter_condition.connect_times,
             config.max_client_connections,
         ) {
             add_blacklist_4_connection_jitter(cache_manager, config);
-        } else {
-            // todo 这里的更新需要通过定时器来更新前60秒的连接次数，而不是在这里更新
-            connection_jitter_condition.connect_times = _counter;
         }
     }
 
-    connection_jitter_condition.connect_times = _counter;
-    connection_jitter_condition.first_request_time = now_second();
-
-    info!(
-        "connect_jitter_map_size: {}",
-        cache_manager.acl_metadata.connection_jitter_map.capacity()
-    );
     cache_manager
         .acl_metadata
         .add_connection_jitter_condition(connection_jitter_condition);
@@ -157,18 +137,17 @@ fn add_blacklist_4_connection_jitter(
     let client_id_blacklist = MqttAclBlackList {
         blacklist_type: MqttAclBlackListType::ClientId,
         resource_name: "client_id".to_string(),
-        end_time: now_second() + convert_seconds(config.ban_time, TimeUnit::Minutes) as u64,
+        end_time: now_second() + convert_seconds(config.ban_time as u64, TimeUnit::Minutes) as u64,
         desc: "Ban due to connection jitter ".to_string(),
     };
 
-    println!("client_id_blacklist:{:?}", client_id_blacklist);
     cache_manager.add_blacklist(client_id_blacklist);
 }
 
 fn is_within_window_time(
     current_request_time: u64,
     first_request_time: u64,
-    window_time: u32,
+    window_time: u64,
 ) -> bool {
     let window_time_seconds = convert_seconds(window_time, TimeUnit::Minutes);
 
@@ -176,9 +155,9 @@ fn is_within_window_time(
 }
 
 fn is_exceed_max_client_connections(
-    current_time: u32,
-    connect_times: u32,
-    max_client_connections: u32,
+    current_time: u64,
+    connect_times: u64,
+    max_client_connections: u64,
 ) -> bool {
     current_time - connect_times > max_client_connections
 }
@@ -190,7 +169,7 @@ pub async fn enable_connection_jitter(
     let connection_jitter = MqttClusterDynamicConnectionJitter {
         enable: request.is_enable,
         window_time: request.window_time,
-        max_client_connections: request.max_client_connections,
+        max_client_connections: request.max_client_connections as u64,
         ban_time: request.ban_time,
     };
 

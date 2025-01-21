@@ -115,8 +115,6 @@ where
         let cluster: metadata_struct::mqtt::cluster::MqttClusterDynamicConfig =
             self.cache_manager.get_cluster_info();
 
-        check_connection_jitter(connect.client_id.clone(), &self.cache_manager);
-
         if let Some(res) = connect_validator(
             &self.protocol,
             &cluster,
@@ -153,6 +151,10 @@ where
                     Some(e.to_string()),
                 );
             }
+        }
+
+        if cluster.connection_jitter.enable {
+            check_connection_jitter(connect.client_id.clone(), &self.cache_manager);
         }
 
         let (client_id, new_client_id) = get_client_id(&connect.client_id);

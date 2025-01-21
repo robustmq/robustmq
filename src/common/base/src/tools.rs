@@ -82,7 +82,7 @@ pub fn unique_id() -> String {
     uuid.to_string().replace("-", "")
 }
 
-pub fn convert_seconds(number: u32, unit: TimeUnit) -> u32 {
+pub fn convert_seconds(number: u64, unit: TimeUnit) -> u64 {
     if unit == TimeUnit::Minutes {
         return number * 60;
     } else if unit == TimeUnit::Hours {
