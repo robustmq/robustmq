@@ -64,9 +64,10 @@ After installation, initialize the `pre-commit` hooks for the project content wi
 ```shell
 pre-commit install
 ```
-
 ::: tip
-⚠️ **Note**: Subsequent `git commit` operations will trigger the corresponding checks by `pre-commit`. If you do not want to perform checks with each commit, you can use `git commit -n` to skip the checks.
+⚠️ **Note:**
+1. For any subsequent `git commit` operations, `pre-commit` will execute the corresponding checks. If you don't want to run the checks every time you commit, you can use `git commit -n` to skip the checks.
+2. The `pre-commit` checks have been set to the `stage`; for tests and strict checks, they will be executed at the `pre-push` stage. To install the `pre-push` hooks, you need to use `pre-commit install --hook-type pre-push`.
 :::
 
 The checks carried by `pre-commit` use tools such as `next-test`, `hawkeye`, `clippy`, `typos`, and `cargo-deny`. If any of these tools are missing, you can install them using the following commands:
