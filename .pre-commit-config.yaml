@@ -61,29 +61,21 @@ repos:
         pass_filenames: true
         files: \.*$
         args: []
-      - id: cargo-check
-        name: cargo check
-        description: Check the package for errors.
-        entry: bash -c 'cargo check --all'
-        language: system
-        files: \.rs$
-        pass_filenames: false
-      - id: cargo-fmt-check
-        stages:
-          - pre-push
-        name: cargo fmt
-        description: Format files with rustfmt.
-        entry: bash -c 'cargo fmt -- --check'
-        language: system
-        pass_filenames: true
-        files: \.rs$
-        args: []
       - id: typos
         name: typos
         description: check typo
         entry: bash -c 'typos'
         language: system
         files: \.*$
+        pass_filenames: false
+      - id: cargo-check
+        stages:
+          - pre-commit
+        name: cargo check
+        description: Check the package for errors.
+        entry: bash -c 'cargo check --all'
+        language: system
+        files: \.rs$
         pass_filenames: false
       - id: hawkeye-fmt-check
         stages:
@@ -94,7 +86,19 @@ repos:
         language: rust
         files: \.*$
         args: []
+      - id: cargo-fmt-check
+        stages:
+          - pre-push
+        name: cargo fmt
+        description: Format files with rustfmt.
+        entry: bash -c 'cargo fmt -- --check'
+        language: system
+        pass_filenames: true
+        files: \.rs$
+        args: [ ]
       - id: cargo-deny
+        stages:
+          - pre-push
         name: cargo deny check
         description: Check cargo dependencies
         # we only check licenses
