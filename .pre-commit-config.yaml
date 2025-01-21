@@ -53,15 +53,7 @@ repos:
         language: rust
         files: \.rs$
         args: []
-      - id: cargo-fmt
-        name: cargo fmt
-        description: Format files with rustfmt.
-        entry: bash -c 'cargo fmt -- --check'
-        language: system
-        pass_filenames: true
-        files: \.rs$
-        args: []
-      - id: hawkeye-fmt-check-auto
+      - id: hawkeye-fmt-auto
         name: hawkeye fmt auto
         description: Format files with hawkeye automatically.
         entry: bash -c 'hawkeye format'
@@ -69,7 +61,33 @@ repos:
         pass_filenames: true
         files: \.*$
         args: []
+      - id: cargo-check
+        name: cargo check
+        description: Check the package for errors.
+        entry: bash -c 'cargo check --all'
+        language: system
+        files: \.rs$
+        pass_filenames: false
+      - id: cargo-fmt-check
+        stages:
+          - pre-push
+        name: cargo fmt
+        description: Format files with rustfmt.
+        entry: bash -c 'cargo fmt -- --check'
+        language: system
+        pass_filenames: true
+        files: \.rs$
+        args: []
+      - id: typos
+        name: typos
+        description: check typo
+        entry: bash -c 'typos'
+        language: system
+        files: \.*$
+        pass_filenames: false
       - id: hawkeye-fmt-check
+        stages:
+          - pre-push
         name: hawkeye fmt check
         description: Check files with hawkeye.
         entry: bash -c 'hawkeye check'
@@ -84,21 +102,9 @@ repos:
         language: system
         files: \.rs$
         args: []
-      - id: typos
-        name: typos
-        description: check typo
-        entry: bash -c 'typos'
-        language: system
-        files: \.*$
-        pass_filenames: false
-      - id: cargo-check
-        name: cargo check
-        description: Check the package for errors.
-        entry: bash -c 'cargo check --all'
-        language: system
-        files: \.rs$
-        pass_filenames: false
       - id: cargo-clippy
+        stages:
+          - pre-push
         name: cargo clippy
         description: Lint rust sources
         entry: bash -c 'cargo clippy --all-targets --all-features --tests --benches -- -D warnings'
@@ -106,7 +112,8 @@ repos:
         files: \.rs$
         pass_filenames: false
       - id: cargo-test
-        stages: [pre-push]
+        stages:
+          - pre-push
         name: cargo test
         description: unit test for the project
         entry: bash -c 'make test'
