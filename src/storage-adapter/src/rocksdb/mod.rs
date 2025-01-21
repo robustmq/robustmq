@@ -356,26 +356,17 @@ impl StorageAdapter for RocksDBStorageAdapter {
     ) -> Result<Vec<Record>, CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
-        let shard_record_key_prefix = Self::shard_record_key_prefix(&namespace, &shard_name);
-
-        let raw_records = self.db.read_prefix(cf.clone(), &shard_record_key_prefix)?;
-
         let mut records = Vec::new();
 
-        for (_, v) in raw_records {
-            let record = serde_json::from_slice::<Record>(&v)?;
+        for i in offset..offset + read_config.max_record_num {
+            let shard_record_key = Self::shard_record_key(&namespace, &shard_name, i);
+            let record = self.db.read::<Record>(cf.clone(), &shard_record_key)?;
 
-            if record.offset.is_none() {
-                return Err(CommonError::CommonError(
-                    "Record offset is None".to_string(),
-                ));
+            if record.is_none() {
+                break;
             }
 
-            if record.offset.unwrap() >= offset
-                && records.len() < read_config.max_record_num as usize
-            {
-                records.push(record);
-            }
+            records.push(record.unwrap());
         }
 
         Ok(records)
