@@ -7,6 +7,8 @@
     Next generation cloud-native converged message queue.
 </h3>
 
+> Tips: The project is still in its early preview version, undergoing rapid iteration and testing. A stable version has not been released yet. It is expected to release a stable version in the second half of 2025.
+
 ##  🚀 Introduction
 RobustMQ is a next-generation high-performance cloud-native converged message queue. The goal is to implement a message queue based on Rust that can be compatible with multiple mainstream message queue protocols and has complete Serverless architecture.
 
@@ -213,7 +215,7 @@ Please refer to [contribution guidelines](http://www.robustmq.com/docs/robustmq-
 - **Google Group**: Join [RobustMQ Google Group](https://groups.google.com/g/robustmq)
 
 - **Wechat Group**: If you're interested in contributing to this project or discussing development topics, scan the QR Code to join our WeChat group for real-time discussions and collaboration.
-<div align="center"> 
+<div align="center">
   <img src="docs/images/WechatGroup.jpg" alt="WeChat QR Code" width=200 />
 </div>
 
