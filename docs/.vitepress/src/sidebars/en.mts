@@ -92,13 +92,6 @@ export const sidebar = [
         ],
     },
     {
-        text: "VersionRecord",
-        collapsed: true,
-        items: [
-            { text: "0.1.0-beta", link: "/VersionRecord/0.1.0-beta" },
-        ],
-    },
-    {
         text: "Other Data",
         collapsed: true,
         items: [],
