@@ -3,8 +3,8 @@
 ## 主要步骤
 
 ::: tip
- ⚠️注意：当前项目中已经默认携带了`rust-toolchain.toml`, 
- 因此默认情况下会使用该文件配置的rustc环境，如果通过brew安装了rust 
+ ⚠️注意：当前项目中已经默认携带了`rust-toolchain.toml`,
+ 因此默认情况下会使用该文件配置的rustc环境，如果通过brew安装了rust
  可能会出现版本被覆盖的问题， 需要卸载后重新按照该内容进行搭建
 :::
 
@@ -70,9 +70,13 @@ pre-commit install
 ```
 
 ::: tip
-⚠️注意: 后续进行任何的`git commit`操作，`pre-commit`都会执行 
+⚠️注意:
+1. 后续进行任何的`git commit`操作，`pre-commit`都会执行
 对应的检查， 这里如果不想每次提交都进行检查可以使用`git commit -n`
 来跳过检查。
+2. `pre-commit`检查已经设置了`stage`，对于测试以及严格的检查会在
+`pre-push`阶段进行，需要使用`pre-commit install --hook-type pre-push`
+来安装`pre-push`的`hooks`。
 :::
 
 `pre-commit`携带的检查功能使用了next-test,hawkeye,clippy,
