@@ -26,17 +26,18 @@ The second kind of tables will store tag information for records in a shard unde
 Schema:
 
 ```sql
-CREATE TABLE `tag_{namespace}_{shard}` (
+CREATE TABLE `tags` (
+  `namespace` varchar(255) NOT NULL,
+  `shard` varchar(255) NOT NULL,
   `m_offset` int(11) unsigned NOT NULL,
   `tag` varchar(255) NOT NULL,
   PRIMARY KEY (`m_offset`, `tag`),
-  INDEX `tag_offset_idx` (`tag`, `m_offset`),
+  INDEX `ns_shard_tag_offset_idx` (`namespace`, `shard`, `tag`, `m_offset`),
   CONSTRAINT `fk_tag_offset`
     FOREIGN KEY (`m_offset`)
     REFERENCES `record_{namespace}_{shard}` (`m_offset`)
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;
-
 ```
 
 The third kind of tables will store group information.
@@ -44,10 +45,13 @@ The third kind of tables will store group information.
 Schema:
 
 ```sql
-CREATE TABLE `group_{group}` {
+CREATE TABLE `group` {
+    `group` varchar(255) NOT NULL,
     `namespace` varchar(255) NOT NULL,
     `shard` varchar(255) NOT NULL,
-    `offset` int(11) unsigned NOT NULL
+    `offset` int(11) unsigned NOT NULL,
+    PRIMARY KEY (`group`, `namespace`, `shard`),
+    INDEX `group` (`group`)
 }
 ```
 
@@ -79,11 +83,13 @@ CREATE TABLE `record_{namespace}_{shard}` (
   INDEX `ts_offset_idx` (`ts`, `offset`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;
 
-CREATE TABLE `tag_{namespace}_{shard}` (
+CREATE TABLE `tags` (
+  `namespace` varchar(255) NOT NULL,
+  `shard` varchar(255) NOT NULL,
   `m_offset` int(11) unsigned NOT NULL,
   `tag` varchar(255) NOT NULL,
   PRIMARY KEY (`m_offset`, `tag`),
-  INDEX `tag_offset_idx` (`tag`, `m_offset`),
+  INDEX `ns_shard_tag_offset_idx` (`namespace`, `shard`, `tag`, `m_offset`),
   CONSTRAINT `fk_tag_offset`
     FOREIGN KEY (`m_offset`)
     REFERENCES `record_{namespace}_{shard}` (`m_offset`)
@@ -141,8 +147,8 @@ First get the list of offsets:
 ```sql
 SELECT (r.offset,r.key,r.data,r.header,r.tags,r.ts)
 FROM 
-    `tag_{namespace}_{shard}` l LEFT JOIN `record_{namespace}_{shard}` r on l.m_offset = r.offset
-WHERE l.tag = :tag and l.m_offset > :offset
+    `tags` l LEFT JOIN `record_{namespace}_{shard}` r on l.m_offset = r.offset
+WHERE l.tag = :tag and l.m_offset > :offset and l.namespace = :namespace and l.shard = :shard
 ORDER BY l.m_offset
 LIMIT read_config.max_record_num
 ```
@@ -181,13 +187,14 @@ on the `ts` column and get the `offset` value without additional lookup.
 
 ```sql
 SELECT * 
-FROM `group_{group}`
+FROM `group`
+where group = :group;
 ```
 
 ## commit_offset
 
 ```sql
-REPLACE INTO `group_{group}` (namespace,shard,offset) VALUES (:namespace, :shard, :offset)
+REPLACE INTO `group` (group,namespace,shard,offset) VALUES (:group, :namespace, :shard, :offset)
 ```
 
 ## close
