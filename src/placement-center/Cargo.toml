@@ -35,9 +35,9 @@ grpc-clients.workspace = true
 metadata-struct.workspace = true
 openraft.workspace = true
 rand.workspace = true
-prost = "0.12.3"
+prost.workspace = true
 log.workspace = true
 mobc.workspace = true
 tracing.workspace = true
 rocksdb.workspace = true
-
+prost-validate = { workspace = true, features = ["derive"] }
