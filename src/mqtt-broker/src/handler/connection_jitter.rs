@@ -115,14 +115,12 @@ pub fn check_connection_jitter(client_id: String, cache_manager: &Arc<CacheManag
         current_request_time,
         connection_jitter_condition.first_request_time,
         config.window_time as u64,
+    ) && is_exceed_max_client_connections(
+        current_counter,
+        connection_jitter_condition.connect_times,
+        config.max_client_connections,
     ) {
-        if is_exceed_max_client_connections(
-            current_counter,
-            connection_jitter_condition.connect_times,
-            config.max_client_connections,
-        ) {
-            add_blacklist_4_connection_jitter(cache_manager, config);
-        }
+        add_blacklist_4_connection_jitter(cache_manager, config);
     }
 
     cache_manager
@@ -137,7 +135,7 @@ fn add_blacklist_4_connection_jitter(
     let client_id_blacklist = MqttAclBlackList {
         blacklist_type: MqttAclBlackListType::ClientId,
         resource_name: "client_id".to_string(),
-        end_time: now_second() + convert_seconds(config.ban_time as u64, TimeUnit::Minutes) as u64,
+        end_time: now_second() + convert_seconds(config.ban_time as u64, TimeUnit::Minutes),
         desc: "Ban due to connection jitter ".to_string(),
     };
 
@@ -151,7 +149,7 @@ fn is_within_window_time(
 ) -> bool {
     let window_time_seconds = convert_seconds(window_time, TimeUnit::Minutes);
 
-    current_request_time - first_request_time < window_time_seconds as u64
+    current_request_time - first_request_time < window_time_seconds
 }
 
 fn is_exceed_max_client_connections(

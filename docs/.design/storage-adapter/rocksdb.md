@@ -49,6 +49,6 @@ This key value pair is used for fast record retrieval in `read_by_tag` method. I
 
 key: `/group/{group}/{namespace}/{shard}`
 
-value: offset of shard `shard` under namespace `namespace` in group `group` 
+value: offset of shard `shard` under namespace `namespace` in group `group`
 
 This key value pair will be set in `commit_offset` method
