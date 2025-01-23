@@ -278,16 +278,18 @@ impl StorageAdapter for MySQLStorageAdapter {
         let sql = format!(
             "SELECT `offset`, `key`, `data`, `header`, `tags`, `ts`
             FROM `{}` 
-            WHERE `offset` >= {} 
+            WHERE `offset` >= :offset 
             ORDER BY `offset`
-            LIMIT {}",
-            Self::record_table_name(&namespace, &shard_name),
-            offset + 1, // offset is 1-based in the database
-            read_config.max_record_num
+            LIMIT :limit;",
+            Self::record_table_name(&namespace, &shard_name)
         );
 
-        let res: Vec<Record> = conn.query_map(
+        let res: Vec<Record> = conn.exec_map(
             sql,
+            params! {
+                "offset" => offset + 1, // offset is 1-based in the database
+                "limit" => read_config.max_record_num,
+            },
             |(offset, key, data, header, tags, ts): (
                 u64,
                 String,
@@ -324,20 +326,22 @@ impl StorageAdapter for MySQLStorageAdapter {
             "SELECT `r.offset`,`r.key`,`r.data`,`r.header`,`r.tags`,`r.ts`
             FROM 
                 `{}` l LEFT JOIN `{}` r on l.m_offset = r.offset
-            WHERE l.tag = '{}' and l.m_offset > {} and l.namespace = '{}' and l.shard = '{}'
+            WHERE l.tag = :tag and l.m_offset > :offset and l.namespace = :namespace and l.shard = :shard
             ORDER BY l.m_offset
-            LIMIT {}",
+            LIMIT :limit",
             Self::tags_table_name(),
-            Self::record_table_name(&namespace, &shard_name),
-            tag,
-            offset + 1, // offset is 1-based in the database
-            namespace,
-            shard_name,
-            read_config.max_record_num
+            Self::record_table_name(&namespace, &shard_name)
         );
 
-        let res: Vec<Record> = conn.query_map(
+        let res: Vec<Record> = conn.exec_map(
             sql,
+            params! {
+                "tag" => tag,
+                "offset" => offset + 1, // offset is 1-based in the database
+                "namespace" => namespace,
+                "shard" => shard_name,
+                "limit" => read_config.max_record_num,
+            },
             |(offset, key, data, header, tags, ts): (
                 u64,
                 String,
@@ -373,17 +377,21 @@ impl StorageAdapter for MySQLStorageAdapter {
         let sql = format!(
             "SELECT `offset`, `key`, `data`, `header`, `tags`, `ts`
             FROM {} 
-            WHERE `offset` >= {} AND `key` = '{}' 
+            WHERE `offset` >= :offset AND `key` = :key 
             ORDER BY `offset`
-            LIMIT {}",
-            Self::record_table_name(&namespace, &shard_name),
-            offset + 1, // offset is 1-based in the database
-            key,
-            read_config.max_record_num
+            LIMIT :limit",
+            Self::record_table_name(&namespace, &shard_name)
         );
 
         let res = conn
-            .query_first(sql)?
+            .exec_first(
+                sql,
+                params! {
+                    "offset" => offset + 1, // offset is 1-based in the database
+                    "key" => key,
+                    "limit" => read_config.max_record_num,
+                },
+            )?
             .map(
                 |(offset, key, data, header, tags, ts): (
                     u64,
@@ -417,23 +425,25 @@ impl StorageAdapter for MySQLStorageAdapter {
         let sql = format!(
             "SELECT `offset` 
             FROM `{}` 
-            WHERE `ts` >= {} 
+            WHERE `ts` >= :ts 
             ORDER BY `ts` 
             LIMIT 1",
-            Self::record_table_name(&namespace, &shard_name),
-            timestamp
+            Self::record_table_name(&namespace, &shard_name)
         );
 
-        conn.query_first::<u64, _>(sql)
-            .map(|offset| {
-                offset.map(|o| ShardOffset {
-                    offset: o - 1, // offset is 1-based in the database
-                    ..Default::default()
-                })
+        conn.exec_first(
+            sql,
+            params! {
+                "ts" => timestamp,
+            },
+        )
+        .map(|offset| {
+            offset.map(|o: u64| ShardOffset {
+                offset: o - 1, // offset is 1-based in the database
+                ..Default::default()
             })
-            .map_err(|e| {
-                CommonError::CommonError(format!("Failed to get offset by timestamp: {}", e))
-            })
+        })
+        .map_err(|e| CommonError::CommonError(format!("Failed to get offset by timestamp: {}", e)))
     }
 
     async fn get_offset_by_group(
@@ -445,15 +455,20 @@ impl StorageAdapter for MySQLStorageAdapter {
         let sql = format!(
             "SELECT `offset` 
             FROM `{}` 
-            WHERE `group` = '{}'",
-            Self::groups_table_name(),
-            group_name
+            WHERE `group` = :group",
+            Self::groups_table_name()
         );
 
-        let res = conn.query_map(sql, |offset: u64| ShardOffset {
-            offset: offset - 1, // offset is 1-based in the database
-            ..Default::default()
-        })?;
+        let res = conn.exec_map(
+            sql,
+            params! {
+                "group" => group_name,
+            },
+            |offset: u64| ShardOffset {
+                offset: offset - 1, // offset is 1-based in the database
+                ..Default::default()
+            },
+        )?;
 
         Ok(res)
     }
