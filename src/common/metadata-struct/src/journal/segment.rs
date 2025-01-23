@@ -33,7 +33,7 @@ pub struct JournalSegment {
 
 impl JournalSegment {
     pub fn allow_read(&self) -> bool {
-        self.status == SegmentStatus::Write
+        self.status == SegmentStatus::Write || self.status == SegmentStatus::PreWrite
     }
 
     pub fn get_fold(&self, node_id: u64) -> Option<String> {

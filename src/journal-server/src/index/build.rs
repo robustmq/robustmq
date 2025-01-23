@@ -88,7 +88,6 @@ pub async fn try_trigger_build_index(
         cache_manager.clone(),
         rocksdb_engine_handler.clone(),
         segment_iden.clone(),
-        segment_file_manager.clone(),
         segment_file_meta.start_offset as u64,
         start_position,
         last_build_offset,
@@ -103,12 +102,10 @@ pub async fn try_trigger_build_index(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn start_segment_build_index_thread(
     cache_manager: Arc<CacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     segment_iden: SegmentIdentity,
-    segment_file_manager: Arc<SegmentFileManager>,
     start_offset: u64,
     start_position: u64,
     mut last_build_offset: u64,
@@ -165,7 +162,6 @@ async fn start_segment_build_index_thread(
                                 &offset_index,
                                 &time_index,
                                 &tag_index,
-                                &segment_file_manager,
                             ).await
                             {
                                 error!("{}",e);
@@ -204,6 +200,7 @@ fn try_finish_segment_index_build(
 ) {
     if let Some(segment) = cache_manager.get_segment(segment_iden) {
         if segment.status == SegmentStatus::SealUp {
+            println!("{:?}", segment);
             if let Err(e) = save_finish_build_index(rocksdb_engine_handler, segment_iden) {
                 error!("{}", e);
             }
@@ -211,7 +208,6 @@ fn try_finish_segment_index_build(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn save_record_index(
     data: &[ReadData],
     start_offset: u64,
@@ -219,22 +215,9 @@ async fn save_record_index(
     offset_index: &OffsetIndexManager,
     time_index: &TimestampIndexManager,
     tag_index: &TagIndexManager,
-    segment_file_manager: &Arc<SegmentFileManager>,
 ) -> Result<(), JournalServerError> {
     for read_data in data.iter() {
         let record = read_data.record.clone();
-
-        // if position = 0, update start/timestamp
-        if read_data.position == 0 {
-            segment_position0_ac(
-                segment_file_manager,
-                segment_iden,
-                read_data.position as i64,
-                record.create_time,
-            )
-            .await?;
-        }
-
         let index_data = IndexData {
             offset: record.offset as u64,
             timestamp: record.create_time,
@@ -345,21 +328,6 @@ pub fn delete_segment_index(
             raw.key().to_string(),
         )?;
     }
-    Ok(())
-}
-
-async fn segment_position0_ac(
-    segment_file_manager: &Arc<SegmentFileManager>,
-    segment_iden: &SegmentIdentity,
-    first_posi: i64,
-    start_timestamp: u64,
-) -> Result<(), JournalServerError> {
-    // update local file start offset
-    segment_file_manager.update_start_offset(segment_iden, first_posi)?;
-
-    // update local file start timestamp
-    segment_file_manager.update_start_timestamp(segment_iden, start_timestamp)?;
-
     Ok(())
 }
 

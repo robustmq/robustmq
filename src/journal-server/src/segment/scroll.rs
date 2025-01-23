@@ -26,10 +26,8 @@ use tokio::time::sleep;
 
 use super::file::open_segment_write;
 use super::manager::SegmentFileManager;
-use super::SegmentIdentity;
 use crate::core::cache::CacheManager;
-use crate::core::error::JournalServerError;
-use crate::core::segment_meta::{update_meta_end_offset, update_meta_start_offset};
+use crate::core::segment_meta::update_end_and_start_offset;
 use crate::core::segment_status::pre_sealup_segment;
 
 pub struct SegmentScrollManager {
@@ -162,20 +160,4 @@ impl SegmentScrollManager {
         // todo
         10000
     }
-}
-
-async fn update_end_and_start_offset(
-    client_pool: &Arc<ClientPool>,
-    segment_iden: &SegmentIdentity,
-    end_offset: i64,
-) -> Result<(), JournalServerError> {
-    // update active segment end offset
-    update_meta_end_offset(client_pool.clone(), segment_iden, end_offset).await?;
-
-    // update next segment start offset
-    let mut new_segment_iden = segment_iden.clone();
-    new_segment_iden.segment_seq = segment_iden.segment_seq + 1;
-
-    update_meta_start_offset(client_pool.clone(), segment_iden, end_offset + 1).await?;
-    Ok(())
 }
