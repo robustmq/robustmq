@@ -253,7 +253,7 @@ impl MySQLStorageAdapter {
 
         // Then we need to insert into tags table
         let insert_tags_sql = format!(
-            "INSERT INTO {} (namespace, shard, m_offset, tag) VALUES (:namespace, :shard, :m_offset, :tag);",
+            "INSERT INTO `{}` (`namespace`, `shard`, `m_offset`, `tag`) VALUES (:namespace, :shard, :m_offset, :tag);",
             Self::tags_table_name()
         );
 
@@ -424,10 +424,10 @@ impl StorageAdapter for MySQLStorageAdapter {
         let mut conn = self.pool.get_conn()?;
 
         let sql = format!(
-            "SELECT r.offset,r.key,r.data,r.header,r.tags,r.ts
+            "SELECT `r.offset`,`r.key`,`r.data`,`r.header`,`r.tags`,`r.ts`
             FROM 
                 `{}` l LEFT JOIN `{}` r on l.m_offset = r.offset
-            WHERE l.tag = {} and l.m_offset > {} and l.namespace = {} and l.shard = {}
+            WHERE l.tag = '{}' and l.m_offset > {} and l.namespace = '{}' and l.shard = '{}'
             ORDER BY l.m_offset
             LIMIT {}",
             Self::tags_table_name(),
@@ -519,7 +519,7 @@ impl StorageAdapter for MySQLStorageAdapter {
 
         let sql = format!(
             "SELECT `offset` 
-            FROM {} 
+            FROM `{}` 
             WHERE `ts` >= {} 
             ORDER BY `ts` 
             LIMIT 1",
