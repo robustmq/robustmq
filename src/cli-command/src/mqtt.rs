@@ -105,7 +105,7 @@ impl MqttBrokerCommand {
                 self.list_connections(&client_pool, params.clone()).await;
             }
             MqttActionType::EnableSlowSubscribe(ref request) => {
-                self.enable_slow_subscribe(&client_pool, params.clone(), request.clone())
+                self.enable_slow_subscribe(&client_pool, params.clone(), *request)
                     .await;
             }
             MqttActionType::ListTopic(ref request) => {
@@ -117,7 +117,7 @@ impl MqttBrokerCommand {
                     .await;
             }
             MqttActionType::EnableConnectionJitter(ref request) => {
-                self.enable_connection_jitter(&client_pool, params.clone(), request.clone())
+                self.enable_connection_jitter(&client_pool, params.clone(), *request)
                     .await;
             }
             MqttActionType::Publish(ref request) => {
