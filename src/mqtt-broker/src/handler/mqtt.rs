@@ -168,6 +168,15 @@ where
             &addr,
         );
 
+        if self.auth_driver.allow_connect(&connection).await {
+            return response_packet_mqtt_connect_fail(
+                &self.protocol,
+                ConnectReturnCode::Banned,
+                &connect_properties,
+                None,
+            );
+        }
+
         let (session, new_session) = match build_session(
             connect_id,
             client_id.clone(),

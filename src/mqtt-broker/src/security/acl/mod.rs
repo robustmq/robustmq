@@ -18,6 +18,7 @@ use std::sync::Arc;
 
 use common_base::tools::now_second;
 use ipnet::IpNet;
+use log::debug;
 use metadata_struct::acl::mqtt_acl::{MqttAclAction, MqttAclPermission};
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::QoS;
@@ -69,7 +70,8 @@ fn is_super_user(cache_manager: &Arc<CacheManager>, username: &str) -> bool {
     false
 }
 
-fn is_blacklist(cache_manager: &Arc<CacheManager>, connection: &MQTTConnection) -> bool {
+pub fn is_blacklist(cache_manager: &Arc<CacheManager>, connection: &MQTTConnection) -> bool {
+    // todo: I believe this code can be refactored using the Chain of Responsibility pattern.
     // check user blacklist
     if let Some(data) = cache_manager
         .acl_metadata

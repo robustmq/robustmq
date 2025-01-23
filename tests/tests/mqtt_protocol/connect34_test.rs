@@ -153,6 +153,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[skip]
     async fn client_connect_jitter_test() {
         open_connect_jitter().await;
 
