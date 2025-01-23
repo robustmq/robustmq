@@ -9,20 +9,17 @@ struct ClientConnectInfo {
 }
 ```
 
-通过metrics增加一次访问记录
+获取当前的时间作为最近请求时间`current_request_time`
+获取当前的请求次数`current_counter`
 
+从Map中获取对应`client-id`的结构信息`ClientConnectInfo`，如果没有的情况下
+我们需要自己构建`ClientConnectInfo`, 并将`ClientConnectInfo`放入map中
 
-获取当前时间`now_time`作为`current_request_time`
+如果`current_request_time` - `request_time` < `windows_time` 并且
+`counter` - `connect_count` > `max_count`：
+ 将对应的client_id放入到黑名单当中，并指定封禁时间
+> 这里的两个校验分别是：是否在窗口时间内以及是否超过窗口时间内的最大连接次数
 
-从Map中获取对应`client-id`的结构信息`ClientConnectInfo`
-
-如果`current_request_time` - `request_time` < `windows_time` - 在窗口时间内
-- 如果`counter` - `connect_count` > `max_count`：
- 将对应的client放入到黑名单当中，并指定封禁时间， 并删除存放在map中的内容
-
-否则不在窗口时间内，此时更新request_time和connect_count
-
-重新放入map中
 
 # 定时清理map
 ## 目的
@@ -30,6 +27,5 @@ struct ClientConnectInfo {
 
 ## 核心逻辑
 
-获取now_time
-
-如果now_time - request_time > windows_time, 删除map中的元素
+线程会在窗口时间触发后执行，主要的执行逻辑如下：
+清理时间和首次请求时间已经大于当前的时间窗口了，此时就可以进行清理操作
