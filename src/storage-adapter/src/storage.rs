@@ -18,8 +18,9 @@ use axum::async_trait;
 use common_base::error::common::CommonError;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
+use serde::{Deserialize, Serialize};
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub struct ShardConfig {
     pub replica_num: u32,
 }

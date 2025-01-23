@@ -12,28 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{collections::HashMap, time::Duration};
+use std::collections::HashMap;
 
 use axum::async_trait;
 use common_base::error::common::CommonError;
-use dashmap::DashMap;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use mysql::{params, prelude::Queryable, Pool, Row};
-use tokio::{
-    select,
-    sync::{
-        broadcast,
-        mpsc::{self, Receiver},
-        oneshot,
-    },
-    time::{sleep, timeout},
-};
 
 use crate::storage::{ShardConfig, ShardOffset, StorageAdapter};
 
 pub struct MySQLStorageAdapter {
     pool: Pool,
-    write_handles: DashMap<String, ThreadWriteHandle>,
 }
 
 impl MySQLStorageAdapter {
@@ -42,7 +31,7 @@ impl MySQLStorageAdapter {
         let mut conn = pool.get_conn()?;
 
         let create_tags_table_sql = format!(
-            "CREATE TABLE `{}` (
+            "CREATE TABLE IF NOT EXISTS `{}` (
                 `namespace` varchar(255) NOT NULL,
                 `shard` varchar(255) NOT NULL,
                 `m_offset` int(11) unsigned NOT NULL,
@@ -56,7 +45,7 @@ impl MySQLStorageAdapter {
         conn.query_drop(create_tags_table_sql)?;
 
         let create_groups_table_sql = format!(
-            "CREATE TABLE `{}` (
+            "CREATE TABLE IF NOT EXISTS `{}` (
                 `group` varchar(255) NOT NULL,
                 `namespace` varchar(255) NOT NULL,
                 `shard` varchar(255) NOT NULL,
@@ -69,10 +58,19 @@ impl MySQLStorageAdapter {
 
         conn.query_drop(create_groups_table_sql)?;
 
-        Ok(MySQLStorageAdapter {
-            pool,
-            write_handles: DashMap::with_capacity(2),
-        })
+        let create_shard_info_table_sql = format!(
+            "CREATE TABLE IF NOT EXISTS `{}` (
+                `namespace` varchar(255) NOT NULL,
+                `shard` varchar(255) NOT NULL,
+                `info` blob,
+                PRIMARY KEY (`namespace`, `shard`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;",
+            Self::shard_info_table_name()
+        );
+
+        conn.query_drop(create_shard_info_table_sql)?;
+
+        Ok(MySQLStorageAdapter { pool })
     }
 
     #[inline(always)]
@@ -89,34 +87,10 @@ impl MySQLStorageAdapter {
     pub fn groups_table_name() -> String {
         "groups".to_string()
     }
-}
 
-struct WriteThreadData {
-    namespace: String,
-    shard: String,
-    records: Vec<Record>,
-    resp_sx: oneshot::Sender<Result<Vec<u64>, CommonError>>, // thread response: offset or error
-}
-
-#[derive(Clone)]
-struct ThreadWriteHandle {
-    data_sender: mpsc::Sender<WriteThreadData>,
-    stop_sender: broadcast::Sender<bool>,
-}
-
-impl WriteThreadData {
-    fn new(
-        namespace: String,
-        shard: String,
-        records: Vec<Record>,
-        resp_sx: oneshot::Sender<Result<Vec<u64>, CommonError>>,
-    ) -> Self {
-        WriteThreadData {
-            namespace,
-            shard,
-            records,
-            resp_sx,
-        }
+    #[inline(always)]
+    pub fn shard_info_table_name() -> String {
+        "shard_info".to_string()
     }
 }
 
@@ -127,98 +101,7 @@ impl MySQLStorageAdapter {
         shard_name: String,
         messages: Vec<Record>,
     ) -> Result<Vec<u64>, CommonError> {
-        let write_handle = self.get_write_handle().await;
-
-        let (resp_sx, resp_rx) = oneshot::channel();
-
-        let data = WriteThreadData::new(namespace, shard_name, messages, resp_sx);
-
-        write_handle.data_sender.send(data).await.map_err(|err| {
-            CommonError::CommonError(format!("Failed to send data to write thread: {}", err))
-        })?;
-
-        timeout(Duration::from_secs(30), resp_rx)
-            .await
-            .map_err(|err| {
-                CommonError::CommonError(format!("Timeout while waiting for response: {}", err))
-            })?
-            .map_err(|err| {
-                CommonError::CommonError(format!("Failed to receive response: {}", err))
-            })?
-    }
-
-    async fn get_write_handle(&self) -> ThreadWriteHandle {
-        let handle_key = "write_handle".to_string();
-        if !self.write_handles.contains_key(&handle_key) {
-            self.create_write_thread().await;
-        }
-        self.write_handles.get(&handle_key).unwrap().clone()
-    }
-
-    async fn register_write_handle(&self, handle: ThreadWriteHandle) {
-        let handle_key = "write_handle".to_string();
-        self.write_handles.insert(handle_key, handle);
-    }
-
-    async fn create_write_thread(&self) {
-        let (data_sender, data_recv) = mpsc::channel::<WriteThreadData>(1000);
-        let (stop_sender, stop_recv) = broadcast::channel::<bool>(1);
-
-        Self::spawn_write_thread(self.pool.clone(), stop_recv, data_recv).await;
-
-        let write_handle = ThreadWriteHandle {
-            data_sender,
-            stop_sender,
-        };
-
-        self.register_write_handle(write_handle).await;
-    }
-
-    async fn spawn_write_thread(
-        db: Pool,
-        mut stop_recv: broadcast::Receiver<bool>,
-        mut data_recv: Receiver<WriteThreadData>,
-    ) {
-        tokio::spawn(async move {
-            loop {
-                select! {
-                    val = stop_recv.recv() => {
-                        if let Ok(flag) = val {
-                            if flag {
-                                break
-                            }
-                        }
-                    },
-                    val = data_recv.recv() => {
-                        if val.is_none() {
-                            sleep(Duration::from_millis(100)).await;
-                            continue
-                        }
-
-                        let packet = val.unwrap();  // unwrap is safe here since we checked for None before
-                        let res = Self::
-                            thread_batch_write(db.clone(), packet.namespace, packet.shard, packet.records)
-                            .await;
-
-                        packet.resp_sx.send(res).map_err(|_| {
-                            CommonError::CommonError("Failed to send response in write thread".to_string())
-                        })?;
-
-                    }
-                }
-            }
-
-            Ok::<(), CommonError>(())
-        });
-    }
-
-    async fn thread_batch_write(
-        db: Pool,
-        namespace: String,
-        shard_name: String,
-        messages: Vec<Record>,
-    ) -> Result<Vec<u64>, CommonError> {
-        let mut conn = db.get_conn()?;
+        let mut conn = self.pool.get_conn()?;
 
         let insert_record_sql = format!(
             "INSERT INTO `{}` (`key`, `data`, `header`, `tags`, `ts`) VALUES (:key, :data, :header, :tags, :ts);",
@@ -282,7 +165,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         &self,
         namespace: String,
         shard_name: String,
-        _: ShardConfig,
+        config: ShardConfig,
     ) -> Result<(), CommonError> {
         let mut conn = self.pool.get_conn()?;
 
@@ -317,6 +200,20 @@ impl StorageAdapter for MySQLStorageAdapter {
         );
 
         conn.query_drop(create_table_sql)?;
+
+        let insert_shard_info_sql = format!(
+            "REPLACE INTO `{}` (`namespace`, `shard`, `info`) VALUES (:namespace, :shard, :info)",
+            Self::shard_info_table_name()
+        );
+
+        conn.exec_drop(
+            insert_shard_info_sql,
+            params! {
+                "namespace" => namespace,
+                "shard" => shard_name,
+                "info" => serde_json::to_vec(&config).unwrap(),
+            },
+        )?;
 
         Ok(())
     }
@@ -590,12 +487,6 @@ impl StorageAdapter for MySQLStorageAdapter {
     }
 
     async fn close(&self) -> Result<(), CommonError> {
-        self.get_write_handle()
-            .await
-            .stop_sender
-            .send(true)
-            .map_err(CommonError::TokioBroadcastSendErrorBool)?;
-
         Ok(())
     }
 }
