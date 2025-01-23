@@ -208,6 +208,11 @@ impl AuthDriver {
         Ok(())
     }
 
+    pub async fn allow_connect(&self, _connection: &MQTTConnection) -> bool {
+        // check blacklist
+        todo!();
+    }
+
     pub async fn allow_publish(
         &self,
         connection: &MQTTConnection,
@@ -237,7 +242,7 @@ impl AuthDriver {
                     &self.cache_manager,
                     connection,
                     &topic,
-                    MqttAclAction::Publish,
+                    MqttAclAction::Subscribe,
                     false,
                     filter.qos,
                 ) {

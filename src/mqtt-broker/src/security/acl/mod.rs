@@ -46,7 +46,7 @@ pub fn is_allow_acl(
         return false;
     }
 
-    // chack acl
+    // check acl
     if is_acl_deny(cache_manager, connection, topic_name, action) {
         return false;
     }

@@ -14,21 +14,27 @@
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
+    use common_base::error::common::CommonError;
     use grpc_clients::mqtt::admin::call::mqtt_broker_enable_connection_jitter;
     use grpc_clients::pool::ClientPool;
     use protocol::broker_mqtt::broker_mqtt_admin::{
         EnableConnectionJitterReply, EnableConnectionJitterRequest,
     };
+    use std::sync::Arc;
 
     use crate::mqtt_protocol::common::broker_grpc_addr;
 
-    #[tokio::test]
-    async fn test_enable_connection_jitter() {
+    async fn open_connection_jitter(
+        request: EnableConnectionJitterRequest,
+    ) -> Result<EnableConnectionJitterReply, CommonError> {
         let client_pool = Arc::new(ClientPool::new(3));
         let grpc_addr = vec![broker_grpc_addr()];
+        mqtt_broker_enable_connection_jitter(&client_pool, &grpc_addr, request).await
+    }
 
+    #[tokio::test]
+    async fn test_enable_connection_jitter() {
+        // per
         let request = EnableConnectionJitterRequest {
             is_enable: false,
             window_time: 0,
@@ -36,9 +42,11 @@ mod tests {
             ban_time: 0,
         };
 
+        // result
         let reply = EnableConnectionJitterReply { is_enable: false };
 
-        match mqtt_broker_enable_connection_jitter(&client_pool, &grpc_addr, request).await {
+        // action
+        match open_connection_jitter(request).await {
             Ok(data) => {
                 assert_eq!(data, reply);
             }
@@ -52,19 +60,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_enable_connection_jitter_is_true() {
-        let client_pool = Arc::new(ClientPool::new(3));
-        let grpc_addr = vec![broker_grpc_addr()];
-
+        // per
         let request = EnableConnectionJitterRequest {
             is_enable: true,
             window_time: 1,
-            max_client_connections: 3,
-            ban_time: 5,
+            max_client_connections: 15,
+            ban_time: 1,
         };
 
+        // result
         let reply = EnableConnectionJitterReply { is_enable: true };
 
-        match mqtt_broker_enable_connection_jitter(&client_pool, &grpc_addr, request).await {
+        // action
+        match open_connection_jitter(request).await {
             Ok(data) => {
                 assert_eq!(data, reply);
             }

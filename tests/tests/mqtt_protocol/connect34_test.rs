@@ -143,7 +143,7 @@ mod tests {
         let request = EnableConnectionJitterRequest {
             is_enable: true,
             window_time: 20,
-            max_client_connections: 1,
+            max_client_connections: 2,
             ban_time: 5,
         };
 

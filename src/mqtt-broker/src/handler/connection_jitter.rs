@@ -17,7 +17,7 @@ use crate::handler::error::MqttBrokerError;
 use crate::observability::metrics::event_metrics;
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
-use log::{error, info};
+use log::{debug, error, info};
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConnectionJitter;
 use protocol::broker_mqtt::broker_mqtt_admin::EnableConnectionJitterRequest;
@@ -100,10 +100,15 @@ pub fn check_connection_jitter(client_id: String, cache_manager: &Arc<CacheManag
     } else {
         ConnectionJitterCondition {
             client_id: client_id.clone(),
-            connect_times: current_counter,
+            connect_times: current_counter + 1,
             first_request_time: current_request_time,
         }
     };
+
+    debug!(
+        "get a connection_jitter_condition: {:?}",
+        connection_jitter_condition.clone()
+    );
 
     // incr metric
     event_metrics::incr_client_connection_counter(client_id.clone());
@@ -120,6 +125,7 @@ pub fn check_connection_jitter(client_id: String, cache_manager: &Arc<CacheManag
         connection_jitter_condition.connect_times,
         config.max_client_connections,
     ) {
+        debug!("add a new client_id: {client_id} into blacklist.");
         add_blacklist_4_connection_jitter(cache_manager, config);
     }
 
