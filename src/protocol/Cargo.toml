@@ -33,6 +33,9 @@ futures.workspace = true
 common-base.workspace =true
 serde.workspace =true
 validator.workspace = true
+prost-validate = { workspace = true, features = ["derive"] }
 
 [build-dependencies]
+prost-build.workspace = true
+prost-validate-build.workspace = true
 tonic-build.workspace = true

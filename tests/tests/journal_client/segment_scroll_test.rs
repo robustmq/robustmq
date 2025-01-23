@@ -35,8 +35,8 @@ mod tests {
             .await;
         assert!(res.is_ok());
 
-        for i in 0..11 {
-            let content = format!("xxxxx{}", i);
+        for i in 0..100 {
+            let content = format!("x{}", i).repeat(1024);
             let data = JournalClientWriteData {
                 key: format!("key-{}", i),
                 content: content.as_bytes().to_vec(),

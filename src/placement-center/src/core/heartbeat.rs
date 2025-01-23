@@ -70,7 +70,8 @@ impl BrokerHeartbeat {
                     .cluster_cache
                     .get_broker_heart(&cluster_name, node.node_id)
                 {
-                    if now_second() - heart_data.time >= self.timeout_ms / 1000
+                    let now_time = now_second();
+                    if now_time - heart_data.time >= self.timeout_ms / 1000
                         && self.cluster_cache.get_cluster(&cluster_name).is_some()
                     {
                         let cluster_type = str_to_cluster_type(&node.cluster_type).unwrap();
@@ -89,7 +90,8 @@ impl BrokerHeartbeat {
                         )
                         .await
                         {
-                            error!("Heartbeat timeout, failed to delete node {} in cluster {}, error message :{}",  node.node_id,cluster_name,e);
+                            error!("Heartbeat timeout, failed to delete node {} in cluster {}, error message :{},now time:{},report time:{}", 
+                             node.node_id,cluster_name,e,now_time,heart_data.time);
                             continue;
                         }
 

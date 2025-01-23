@@ -78,7 +78,7 @@ pub async fn read_data_req(
             }
         };
 
-        let read_options = if let Some(option) = raw.options.clone() {
+        let read_options = if let Some(option) = raw.options {
             option
         } else {
             ReadReqOptions {
