@@ -153,7 +153,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[skip]
     async fn client_connect_jitter_test() {
         open_connect_jitter().await;
 
@@ -176,9 +175,7 @@ mod tests {
 
         let conn_opts = build_conn_pros(client_test_properties.clone(), false);
 
-        println!("{:?}", conn_opts);
-        let err = cli.connect(conn_opts.clone()).unwrap();
-        println!("Unable to connect:\n\t{:?}", err);
+        assert!(cli.connect(conn_opts.clone()).is_ok());
 
         distinct_conn(cli);
 
@@ -193,9 +190,7 @@ mod tests {
 
         let conn_opts = build_conn_pros(client_test_properties.clone(), false);
 
-        eprintln!("{:?}", conn_opts);
-        let err = cli.connect(conn_opts.clone()).unwrap();
-        eprintln!("Unable to connect:\t{:?}", err);
+        assert!(cli.connect(conn_opts.clone()).is_ok());
 
         distinct_conn(cli);
 
@@ -210,9 +205,7 @@ mod tests {
 
         let conn_opts = build_conn_pros(client_test_properties.clone(), false);
 
-        eprintln!("{:?}", conn_opts);
-        let err = cli.connect(conn_opts.clone()).unwrap();
-        println!("Unable to connect:\t{:?}", err);
+        assert!(cli.connect(conn_opts.clone()).is_ok());
 
         distinct_conn(cli);
 
@@ -226,11 +219,6 @@ mod tests {
         });
 
         let conn_opts = build_conn_pros(client_test_properties.clone(), false);
-
-        println!("{:?}", conn_opts);
-        let err = cli.connect(conn_opts.clone()).unwrap();
-        println!("Unable to connect:\t{:?}", err);
-
-        distinct_conn(cli);
+        assert!(cli.connect(conn_opts.clone()).is_err());
     }
 }

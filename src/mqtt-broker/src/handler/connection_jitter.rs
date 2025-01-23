@@ -126,7 +126,7 @@ pub fn check_connection_jitter(client_id: String, cache_manager: &Arc<CacheManag
         config.max_client_connections,
     ) {
         debug!("add a new client_id: {client_id} into blacklist.");
-        add_blacklist_4_connection_jitter(cache_manager, config);
+        add_blacklist_4_connection_jitter(cache_manager, config, client_id);
     }
 
     cache_manager
@@ -137,10 +137,11 @@ pub fn check_connection_jitter(client_id: String, cache_manager: &Arc<CacheManag
 fn add_blacklist_4_connection_jitter(
     cache_manager: &Arc<CacheManager>,
     config: MqttClusterDynamicConnectionJitter,
+    client_id: String,
 ) {
     let client_id_blacklist = MqttAclBlackList {
         blacklist_type: MqttAclBlackListType::ClientId,
-        resource_name: "client_id".to_string(),
+        resource_name: client_id,
         end_time: now_second() + convert_seconds(config.ban_time as u64, TimeUnit::Minutes),
         desc: "Ban due to connection jitter ".to_string(),
     };

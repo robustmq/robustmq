@@ -18,7 +18,6 @@ use std::sync::Arc;
 
 use common_base::tools::now_second;
 use ipnet::IpNet;
-use log::debug;
 use metadata_struct::acl::mqtt_acl::{MqttAclAction, MqttAclPermission};
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::QoS;
