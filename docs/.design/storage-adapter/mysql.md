@@ -70,8 +70,6 @@ We just need to drop the two tabled created by `create_shard`
 
 ## write
 
-Just as what we did in rocksdb, we will spawn a writer thread which will handle all `write` and `batch_write` operations. 
-
 To insert a record, we execute:
 
 ```sql
@@ -101,7 +99,7 @@ Given `namespace`, `shard`, starting offset `offset` and the maximal number of r
 ```sql
 SELECT (offset,key,data,header,tags,ts) 
 FROM `record_{namespace}_{shard}`
-WHERE `offset` > :offset
+WHERE `offset` >= :offset
 ORDER BY `offset`
 LIMIT read_config.max_record_num
 ```
@@ -115,7 +113,7 @@ First get the list of offsets:
 SELECT (r.offset,r.key,r.data,r.header,r.tags,r.ts)
 FROM 
     `tags` l LEFT JOIN `record_{namespace}_{shard}` r on l.m_offset = r.offset
-WHERE l.tag = :tag and l.m_offset > :offset and l.namespace = :namespace and l.shard = :shard
+WHERE l.tag = :tag and l.m_offset >= :offset and l.namespace = :namespace and l.shard = :shard
 ORDER BY l.m_offset
 LIMIT read_config.max_record_num
 ```
@@ -130,7 +128,7 @@ The above query will be efficient because:
 ```sql
 SELECT (offset,key,data,header,tags,ts) 
 FROM `record_{namespace}_{shard}`
-WHERE key = :key and offset > :offset
+WHERE key = :key and offset >= :offset
 ORDER BY offset
 LIMIT read_config.max_record_num
 ```
@@ -166,4 +164,4 @@ REPLACE INTO `group` (group,namespace,shard,offset) VALUES (:group, :namespace, 
 
 ## close
 
-Just stop the writer thread
+Do nothing

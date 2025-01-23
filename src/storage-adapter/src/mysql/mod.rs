@@ -326,7 +326,7 @@ impl StorageAdapter for MySQLStorageAdapter {
             "SELECT `r.offset`,`r.key`,`r.data`,`r.header`,`r.tags`,`r.ts`
             FROM 
                 `{}` l LEFT JOIN `{}` r on l.m_offset = r.offset
-            WHERE l.tag = :tag and l.m_offset > :offset and l.namespace = :namespace and l.shard = :shard
+            WHERE l.tag = :tag and l.m_offset >= :offset and l.namespace = :namespace and l.shard = :shard
             ORDER BY l.m_offset
             LIMIT :limit",
             Self::tags_table_name(),
