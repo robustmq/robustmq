@@ -312,10 +312,8 @@ impl StorageAdapter for MySQLStorageAdapter {
                 INDEX `key_idx` (`key`),
                 INDEX `ts_idx` (`ts`),
                 INDEX `ts_offset_idx` (`ts`, `offset`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;
-             
-            ALTER TABLE `{}` AUTO_INCREMENT = 0;",
-            table_name, table_name
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;",
+            table_name
         );
 
         conn.query_drop(create_table_sql)?;

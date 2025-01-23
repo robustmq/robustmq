@@ -8,16 +8,16 @@ Schema:
 
 ```sql
 CREATE TABLE `record_{namespace}_{shard}` (
-  `offset` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `key` varchar(255) DEFAULT NULL, -- May need to adjust length based on key length constraint
-  `data` blob,
-  `header` blob,
-  `tags` blob,
-  `ts` timestamp NOT NULL,
-  PRIMARY KEY (`offset`),
-  UNIQUE INDEX `key_idx` (`key`),
-  INDEX `ts_idx` (`ts`),
-  INDEX `ts_offset_idx` (`ts`, `offset`)
+    `offset` int(11) unsigned NOT NULL AUTO_INCREMENT,
+    `key` varchar(255) DEFAULT NULL,
+    `data` blob,
+    `header` blob,
+    `tags` blob,
+    `ts` bigint unsigned NOT NULL,
+    PRIMARY KEY (`offset`),
+    INDEX `key_idx` (`key`),
+    INDEX `ts_idx` (`ts`),
+    INDEX `ts_offset_idx` (`ts`, `offset`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;
 ```
 
@@ -27,16 +27,12 @@ Schema:
 
 ```sql
 CREATE TABLE `tags` (
-  `namespace` varchar(255) NOT NULL,
-  `shard` varchar(255) NOT NULL,
-  `m_offset` int(11) unsigned NOT NULL,
-  `tag` varchar(255) NOT NULL,
-  PRIMARY KEY (`m_offset`, `tag`),
-  INDEX `ns_shard_tag_offset_idx` (`namespace`, `shard`, `tag`, `m_offset`),
-  CONSTRAINT `fk_tag_offset`
-    FOREIGN KEY (`m_offset`)
-    REFERENCES `record_{namespace}_{shard}` (`m_offset`)
-    ON DELETE CASCADE
+    `namespace` varchar(255) NOT NULL,
+    `shard` varchar(255) NOT NULL,
+    `m_offset` int(11) unsigned NOT NULL,
+    `tag` varchar(255) NOT NULL,
+    PRIMARY KEY (`m_offset`, `tag`),
+    INDEX `ns_shard_tag_offset_idx` (`namespace`, `shard`, `tag`, `m_offset`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;
 ```
 
@@ -45,14 +41,14 @@ The third kind of tables will store group information.
 Schema:
 
 ```sql
-CREATE TABLE `group` {
+CREATE TABLE `groups` (
     `group` varchar(255) NOT NULL,
     `namespace` varchar(255) NOT NULL,
     `shard` varchar(255) NOT NULL,
     `offset` int(11) unsigned NOT NULL,
     PRIMARY KEY (`group`, `namespace`, `shard`),
     INDEX `group` (`group`)
-}
+) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;
 ```
 
 # Queries for each operation defined in `StorageAdapter`:
@@ -62,40 +58,11 @@ CREATE TABLE `group` {
 First check whether the table exists:
 
 ```sql
-SHOW TABLES LIKE `{record}_{namespace}_{shard}`
+SHOW TABLES LIKE '{record}_{namespace}_{shard}'
 
-SHOW TABLES LIKE `tag_{namespace}_{shard}`
+SHOW TABLES LIKE 'tag_{namespace}_{shard}'
 ```
-
-Given the namespace and shard, execute the following sql queries:
-
-```sql
-CREATE TABLE `record_{namespace}_{shard}` (
-  `offset` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `key` varchar(255) DEFAULT NULL, -- May need to adjust length based on key length constraint
-  `data` blob,
-  `header` blob,
-  `tags` blob,
-  `ts` timestamp NOT NULL,
-  PRIMARY KEY (`offset`),
-  UNIQUE INDEX `key_idx` (`key`),
-  INDEX `ts_idx` (`ts`),
-  INDEX `ts_offset_idx` (`ts`, `offset`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;
-
-CREATE TABLE `tags` (
-  `namespace` varchar(255) NOT NULL,
-  `shard` varchar(255) NOT NULL,
-  `m_offset` int(11) unsigned NOT NULL,
-  `tag` varchar(255) NOT NULL,
-  PRIMARY KEY (`m_offset`, `tag`),
-  INDEX `ns_shard_tag_offset_idx` (`namespace`, `shard`, `tag`, `m_offset`),
-  CONSTRAINT `fk_tag_offset`
-    FOREIGN KEY (`m_offset`)
-    REFERENCES `record_{namespace}_{shard}` (`m_offset`)
-    ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;
-```
+Given the namespace and shard, create `record_{namespace}_{shard}` table
 
 ## delete_shard
 
@@ -108,7 +75,7 @@ Just as what we did in rocksdb, we will spawn a writer thread which will handle 
 To insert a record, we execute:
 
 ```sql
-REPLACE INTO `record_{namespace}_{shard}` (m_key,m_data,m_header,m_tags,m_ts) VALUES (:key,:data,:header,:tags,:ts)
+REPLACE INTO `record_{namespace}_{shard}` (`key`,`data`,`header`,`tags`,`ts`) VALUES (:key,:data,:header,:tags,:ts)
 ```
 
 The values of `key`, `data`, `header`, `tags` and `ts` are passed in through the application code.
@@ -116,7 +83,7 @@ The values of `key`, `data`, `header`, `tags` and `ts` are passed in through the
 To insert all tags for a record, we execute the following for each tag in `message.tags` (by calling `conn.exec_batch` in rust):
 
 ```sql
-REPLACE INTO `tag_{namespace}_{shard}` (m_offset,tag) VALUES (:offset,:tag)
+REPLACE INTO `tag_{namespace}_{shard}` (`m_offset`,`tag`) VALUES (:offset,:tag)
 ```
 
 ## batch_write
@@ -134,8 +101,8 @@ Given `namespace`, `shard`, starting offset `offset` and the maximal number of r
 ```sql
 SELECT (offset,key,data,header,tags,ts) 
 FROM `record_{namespace}_{shard}`
-WHERE offset > :offset
-ORDER BY offset
+WHERE `offset` > :offset
+ORDER BY `offset`
 LIMIT read_config.max_record_num
 ```
 
