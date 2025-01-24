@@ -265,7 +265,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
     ) -> Result<Response<EnableConnectionJitterReply>, Status> {
         let req = request.into_inner();
 
-        match enable_connection_jitter(&self.cache_manager, req.clone()).await {
+        match enable_connection_jitter(&self.cache_manager, req).await {
             Ok(_) => Ok(Response::new(EnableConnectionJitterReply {
                 is_enable: req.is_enable,
             })),
