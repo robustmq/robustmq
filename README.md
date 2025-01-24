@@ -14,11 +14,11 @@ RobustMQ is a next-generation high-performance cloud-native converged message qu
 
 It has long wanted to support multi-protocol and have a full Serverless architecture. At the same time, we hope to keep the architecture simple while adapting to different deployment scenarios and deployment requirements. To achieve lower deployment, operation and maintenance, and use costs.
 
-[《About RobustMQ》](https://shimo.im/docs/XKq427g9v0Tj0PAN)
+[About RobustMQ](https://shimo.im/docs/XKq427g9v0Tj0PAN)
 
 Official documentation:
-- [《English Version》](http://www.robustmq.com/docs/robustmq-tutorial/introduction/)
-- [《中文版》](http://www.robustmq.com/docs/robustmq-tutorial-cn/%e7%ae%80%e4%bb%8b/%e4%bb%80%e4%b9%88%e6%98%af-robustmq/)
+- [English Version](https://robustmq.com/OverView/What-is-RobustMQ.html)
+- [中文版](https://robustmq.com/zh/OverView/What-is-RobustMQ.html)
 
 > Tips: We are still young, please give us some time to grow up. We expect RobustMQ to become the next Apache top-level project in the message queue space.
 
@@ -27,13 +27,13 @@ Official documentation:
 In the first phase, the basic framework of the cluster (such as metadata storage service, storage adaptation layer, bring your own storage layer, etc.) and the functions related to MQTT protocol will be developed. The goal is to complete the RobustMQ architecture and adapt it to the MQTT protocol, and achieve production availability on the MQTT protocol.
 
 Welcome to our development plan.
-- [《RobustMQ 2024 Development Plan》](https://github.com/robustmq/robustmq/wiki/RobustMQ-2024-Development-Plan)
-- [《RobustMQ Long‐Term Evolution Initiative》](https://github.com/robustmq/robustmq/wiki/RobustMQ-Long%E2%80%90Term-Evolution-Initiative)
+- [RobustMQ 2024 Development Plan](https://github.com/robustmq/robustmq/wiki/RobustMQ-2024-Development-Plan)
+- [RobustMQ Long‐Term Evolution Initiative](https://github.com/robustmq/robustmq/wiki/RobustMQ-Long%E2%80%90Term-Evolution-Initiative)
 
 > We are still young and development plans can change quickly.
 
 Release planing：
-- [《RobustMQ Release Planing》(中文版)](https://shimo.im/docs/473QMlB9dQcRZm3w)
+- [RobustMQ Release Planing (中文版)](https://shimo.im/docs/473QMlB9dQcRZm3w)
 
 ## 💡 Features
 - 100% Rust: A message queuing kernel implemented entirely in Rust.
@@ -72,7 +72,7 @@ RobustMQ MQTT is RobustMQ's complete implementation of the MQTT protocol. The go
 3. **High performance**: A single machine supports millions of connections and high concurrent message throughput.
 4. **Multiple communication protocols**: Support TCP, TCP SSL, WebSocket, WebSocket SSL, QUIC, HTTP and other access methods.
 5. **Plug-in storage**: Support offline messages, support a variety of message persistence storage engines.
-6. **Fully functional**: It supports essential features like testament messages and retained messages, along with all the functionalities of enterprise MQTT brokers such as HiveMQ and EMQX. For the full features, see the [RobustMQ MQTT documentation](docs/en/mqtt-feature.md)
+6. **Fully functional**: It supports essential features like testament messages and retained messages, along with all the functionalities of enterprise MQTT brokers such as HiveMQ and EMQX. For the full features, see the [RobustMQ MQTT documentation](docs/en/RobustMQ-MQTT/Overview.md)
 
 ### Get Started
 To start the order, you need to start the Placement Center first, and then start the MQTT Broker.
@@ -137,7 +137,7 @@ cargo run --package cmd --bin mqtt-server -- --conf=example/mqtt-cluster/mqtt-se
 
 
 #### Test Cases
-You need to install the cargo-nextes command first. Please refer to documentation[《Testing》](http://www.robustmq.com/docs/robustmq-tutorial-cn/%e7%b3%bb%e7%bb%9f%e6%9e%b6%e6%9e%84/%e6%b5%8b%e8%af%95%e7%94%a8%e4%be%8b/)
+You need to install the cargo-nextest command first. Please refer to [documentation](https://robustmq.com/Architect/Test-Case.html)
 
 - Unit Tests
 
@@ -190,7 +190,7 @@ Build Arm Release
 ```
 
 ####  MQTT functional tests
-MQTT functionality was tested through the MQTTX tool. MQTTX quick start: https://mqttx.app/zh/docs/get-started.
+MQTT functionality was tested through the MQTTX tool. MQTTX quick start: https://mqttx.app/docs/get-started.
 
 ## RobustMQ AMQP
 In the planning
@@ -207,7 +207,7 @@ In the planning
 ## Contributing
 
 ### Contribution Guidelines
-Please refer to [contribution guidelines](https://robustmq.com/zh/ContributionGuide/GitHub-Contribution-Guide.html) for more information.
+Please refer to [contribution guidelines](https://robustmq.com/ContributionGuide/GitHub-Contribution-Guide.html) for more information.
 
 ### Contact us
 - **Discord Group**: [Discord Link](https://discord.gg/jVxz2EF3)
