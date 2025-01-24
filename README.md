@@ -207,16 +207,13 @@ In the planning
 ## Contributing
 
 ### Contribution Guidelines
-Please refer to [contribution guidelines](http://www.robustmq.com/docs/robustmq-tutorial-cn/%e8%b4%a1%e7%8c%ae%e6%8c%87%e5%8d%97/) for more information.
+Please refer to [contribution guidelines](https://robustmq.com/zh/ContributionGuide/GitHub-Contribution-Guide.html) for more information.
 
 ### Contact us
-- **Slack**: Join [RobustMQ Slack](https://join.slack.com/t/robustmq/shared_invite/zt-2r7sccx50-DIrAlYOETp3xhsX1Qsr79A)
-
-- **Google Group**: Join [RobustMQ Google Group](https://groups.google.com/g/robustmq)
-
+- **Discord Group**: [Discord Link](https://discord.gg/jVxz2EF3)
 - **Wechat Group**: If you're interested in contributing to this project or discussing development topics, scan the QR Code to join our WeChat group for real-time discussions and collaboration.
 <div align="center">
-  <img src="docs/images/WechatGroup.jpg" alt="WeChat QR Code" width=200 />
+  <img src="docs/images/WechatGroup.png" alt="WeChat QR Code" width=200 />
 </div>
 
 - **Personal wechat**: Wechat group QR code will be updated regularly. If the QR code expires, the developer's personal wechat can be added.
