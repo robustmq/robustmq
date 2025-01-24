@@ -4,18 +4,18 @@
 
      Register a user
     ```console
-    % cli-command mqtt user create --username=testp --password=7355608
+    % ./bin/robust-ctl mqtt mqtt user create --username=testp --password=7355608
     Created successfully!
     ```
      Delete a user
     ```console
-    % cli-command mqtt user delete --username=testp
+    % ./bin/robust-ctl mqtt mqtt user delete --username=testp
     Deleted successfully!
     ```
     1.2 View created users
 
     ```console
-    % cli-command mqtt user list
+    % ./bin/robust-ctl mqtt mqtt user list
     +----------+--------------+
     | username | is_superuser |
     +----------+--------------+
@@ -30,7 +30,7 @@
     `publish`
 
     ```console
-    % cli-command mqtt --server=127.0.0.1:1883 publish --username=admin --password=pwd123 --topic=test/topic1 --qos=0
+    % ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 publish --username=admin --password=pwd123 --topic=test/topic1 --qos=0
     able to connect: "127.0.0.1:1883"
     you can post a message on the terminal:
     1
@@ -49,7 +49,7 @@
     `subscribe`
 
     ```console
-    % cli-command mqtt --server=127.0.0.1:1883 subscribe --username=admin --password=pwd123 --topic=test/topic1 --qos=0
+    % ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 subscribe --username=admin --password=pwd123 --topic=test/topic1 --qos=0
 
     able to connect: "127.0.0.1:1883"
     subscribe success
@@ -68,7 +68,7 @@
 
    Enable slow subscription
    ```console
-    % ./cli-command mqtt slow-sub --enable=true
+    % ././bin/robust-ctl mqtt mqtt slow-sub --enable=true
     The slow subscription feature has been successfully enabled.
    ```
 
@@ -77,7 +77,7 @@
     After enabling the slow subscription statistics function, the cluster begins recording slow subscriptions. To query corresponding slow subscription records, clients can enter the following command:
 
    ```console
-    % ./cli-command mqtt slow-sub --query=true
+    % ././bin/robust-ctl mqtt mqtt slow-sub --query=true
     +-----------+-------+----------+---------+-------------+
     | client_id | topic | sub_name | time_ms | create_time |
     +-----------+-------+----------+---------+-------------+
@@ -88,7 +88,7 @@
    To obtain more slow subscription records and sort them in ascending order from smallest to largest, you can use the following command:
 
    ```console
-    % ./cli-command mqtt slow-sub --list=200 --sort=asc
+    % ././bin/robust-ctl mqtt mqtt slow-sub --list=200 --sort=asc
     +-----------+-------+----------+---------+-------------+
     | client_id | topic | sub_name | time_ms | create_time |
     +-----------+-------+----------+---------+-------------+
@@ -99,7 +99,7 @@
     For slow subscription queries, filtering queries are also supported. You can retrieve filtered results by fields such as topic, sub_name, and client_id. By default, the results are sorted in descending order from largest to smallest. Refer to the usage command below:
 
     ```console
-    % ./cli-command mqtt slow-sub --topic=topic_test1 --list=200
+    % ././bin/robust-ctl mqtt mqtt slow-sub --topic=topic_test1 --list=200
     +-----------+-------+----------+---------+-------------+
     | client_id | topic | sub_name | time_ms | create_time |
     +-----------+-------+----------+---------+-------------+

@@ -301,6 +301,16 @@ impl DataHandler {
             return Err(JournalServerError::NotLeader(segment_identity.name()));
         }
 
+        if self
+            .cache_manager
+            .get_segment_meta(segment_identity)
+            .is_none()
+        {
+            return Err(JournalServerError::SegmentFileMetaNotExists(
+                segment_identity.name(),
+            ));
+        }
+
         Ok(())
     }
 }

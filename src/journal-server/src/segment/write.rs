@@ -14,6 +14,7 @@
 
 use crate::core::cache::CacheManager;
 use crate::core::error::{get_journal_server_code, JournalServerError};
+use crate::core::segment_meta::{update_meta_end_timestamp, update_meta_start_timestamp};
 use crate::core::segment_status::sealup_segment;
 use crate::index::build::try_trigger_build_index;
 use crate::segment::file::{open_segment_write, SegmentFile};
@@ -21,7 +22,7 @@ use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
-use log::error;
+use log::{error, warn};
 use metadata_struct::journal::segment::SegmentStatus;
 use protocol::journal_server::journal_engine::{
     WriteReqBody, WriteRespMessage, WriteRespMessageStatus,
@@ -49,9 +50,9 @@ pub struct SegmentWriteData {
 
 #[derive(Default, Debug)]
 pub struct SegmentWriteResp {
-    offsets: HashMap<u64, u64>,
-    last_offset: u64,
-    error: Option<JournalServerError>,
+    pub offsets: HashMap<u64, u64>,
+    pub last_offset: u64,
+    pub error: Option<JournalServerError>,
 }
 
 pub async fn write_data_req(
@@ -76,7 +77,7 @@ pub async fn write_data_req(
             shard_data.segment,
         );
 
-        let mut data_list = Vec::new();
+        let mut record_list = Vec::new();
         for message in shard_data.messages.iter() {
             // todo data validator
             let record = JournalRecord {
@@ -91,7 +92,7 @@ pub async fn write_data_req(
                 producer_id: "".to_string(),
                 offset: -1,
             };
-            data_list.push(record);
+            record_list.push(record);
         }
 
         let resp = match write_data(
@@ -99,7 +100,7 @@ pub async fn write_data_req(
             rocksdb_engine_handler,
             segment_file_manager,
             &segment_iden,
-            data_list.clone(),
+            record_list.clone(),
         )
         .await
         {
@@ -107,7 +108,8 @@ pub async fn write_data_req(
             Err(e) => {
                 if get_journal_server_code(&e) == *"SegmentOffsetAtTheEnd" {
                     sealup_segment(cache_manager, client_pool, &segment_iden).await?;
-
+                    update_meta_end_timestamp(client_pool, &segment_iden, segment_file_manager)
+                        .await?;
                     let write = get_write(
                         cache_manager,
                         rocksdb_engine_handler,
@@ -142,6 +144,26 @@ pub async fn write_data_req(
                 ..Default::default()
             };
             resp_message_status.push(status);
+            let segment_file_meta = segment_file_manager
+                .get_segment_file(&segment_iden)
+                .unwrap();
+            if segment_file_meta.start_offset as u64 == offset {
+                let mut record = None;
+                for rc in record_list.iter() {
+                    if rc.pkid == pkid {
+                        record = Some(rc.clone());
+                    }
+                }
+                if let Some(rc) = record {
+                    let start_timestamp = rc.create_time;
+                    segment_file_manager.update_start_offset(&segment_iden, offset as i64)?;
+                    segment_file_manager.update_start_timestamp(&segment_iden, start_timestamp)?;
+                    update_meta_start_timestamp(client_pool, &segment_iden, start_timestamp)
+                        .await?;
+                } else {
+                    warn!("");
+                }
+            }
         }
         resp_message.messages = resp_message_status;
         results.push(resp_message);

@@ -18,6 +18,7 @@ use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use log::info;
 use prost::Message;
+use prost_validate::Validator;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterService;
 use protocol::placement_center::placement_center_inner::{
     ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataReply,
@@ -332,6 +333,9 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<GetOffsetDataRequest>,
     ) -> Result<Response<GetOffsetDataReply>, Status> {
         let req = request.into_inner();
+        let _ = req
+            .validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
         let offset_storage = OffsetStorage::new(self.rocksdb_engine_handler.clone());
         let offset_data = match offset_storage.group_offset(&req.cluster_name, &req.group) {
             Ok(data) => data,

@@ -91,13 +91,6 @@ export const sidebar = [
         ],
     },
     {
-        text: "版本记录",
-        collapsed: true,
-        items: [
-            { text: "0.1.0-beta", link: "/zh/VersionRecord/0.1.0-beta" },
-        ],
-    },
-    {
         text: "相关资料",
         collapsed: true,
         items: [

@@ -89,7 +89,7 @@ impl SegmentFileManager {
         if let Some(mut data) = self.segment_files.get_mut(&segment_iden.name()) {
             data.start_offset = start_offset;
             let offset_index = OffsetIndexManager::new(self.rocksdb_engine_handler.clone());
-            offset_index.save_end_offset(segment_iden, data.end_offset as u64)?;
+            offset_index.save_start_offset(segment_iden, data.end_offset as u64)?;
         }
         Ok(())
     }
