@@ -133,13 +133,18 @@ impl RocksDBStorageAdapter {
 }
 
 impl RocksDBStorageAdapter {
+    #[inline(always)]
+    fn write_handle_key(namespace: &String, shard_name: &String) -> String {
+        format!("{}-{}", namespace, shard_name)
+    }
+
     async fn handle_write_request(
         &self,
         namespace: String,
         shard_name: String,
         messages: Vec<Record>,
     ) -> Result<Vec<u64>, CommonError> {
-        let write_handle = self.get_write_handle().await;
+        let write_handle = self.get_write_handle(&namespace, &shard_name).await;
 
         let (resp_sx, resp_rx) = oneshot::channel();
 
@@ -159,20 +164,34 @@ impl RocksDBStorageAdapter {
             })?
     }
 
-    async fn get_write_handle(&self) -> ThreadWriteHandle {
-        let handle_key = "write_handle".to_string();
+    async fn get_write_handle(&self, namespace: &String, shard_name: &String) -> ThreadWriteHandle {
+        let handle_key = Self::write_handle_key(namespace, shard_name);
+
         if !self.write_handles.contains_key(&handle_key) {
-            self.create_write_thread().await;
+            self.create_write_thread(namespace, shard_name).await;
         }
+
         self.write_handles.get(&handle_key).unwrap().clone()
     }
 
-    async fn register_write_handle(&self, handle: ThreadWriteHandle) {
-        let handle_key = "write_handle".to_string();
+    async fn get_all_write_handles(&self) -> Vec<ThreadWriteHandle> {
+        self.write_handles
+            .iter()
+            .map(|item| item.value().clone())
+            .collect()
+    }
+
+    async fn register_write_handle(
+        &self,
+        namespace: &String,
+        shard_name: &String,
+        handle: ThreadWriteHandle,
+    ) {
+        let handle_key = Self::write_handle_key(namespace, shard_name);
         self.write_handles.insert(handle_key, handle);
     }
 
-    async fn create_write_thread(&self) {
+    async fn create_write_thread(&self, namespace: &String, shard_name: &String) {
         let (data_sender, data_recv) = mpsc::channel::<WriteThreadData>(1000);
         let (stop_sender, stop_recv) = broadcast::channel::<bool>(1);
 
@@ -183,7 +202,8 @@ impl RocksDBStorageAdapter {
             stop_sender,
         };
 
-        self.register_write_handle(write_handle).await;
+        self.register_write_handle(namespace, shard_name, write_handle)
+            .await;
     }
 
     async fn spawn_write_thread(
@@ -511,12 +531,14 @@ impl StorageAdapter for RocksDBStorageAdapter {
     }
 
     async fn close(&self) -> Result<(), CommonError> {
-        let write_handle = self.get_write_handle().await;
+        let write_handles = self.get_all_write_handles().await;
 
-        write_handle
-            .stop_sender
-            .send(true)
-            .map_err(CommonError::TokioBroadcastSendErrorBool)?;
+        for handle in write_handles {
+            handle
+                .stop_sender
+                .send(true)
+                .map_err(CommonError::TokioBroadcastSendErrorBool)?;
+        }
 
         Ok(())
     }
