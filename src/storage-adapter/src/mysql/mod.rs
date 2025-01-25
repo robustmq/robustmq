@@ -141,6 +141,9 @@ impl MySQLStorageAdapter {
         );
 
         for (offset, tags) in offsets.iter().zip(tags_list) {
+            if tags.is_empty() {
+                continue;
+            }
             conn.exec_batch(
                 insert_tags_sql.as_str(),
                 tags.into_iter().map(|tag| {
