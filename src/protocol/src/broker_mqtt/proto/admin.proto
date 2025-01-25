@@ -25,8 +25,8 @@ service MQTTBrokerAdminService {
 
     rpc mqtt_broker_create_blacklist(CreateBlacklistRequest) returns(CreateBlacklistReply) {}
 
-    // connection jitter
-    rpc mqtt_broker_enable_connection_jitter(EnableConnectionJitterRequest) returns(EnableConnectionJitterReply) {}
+    // flapping detect
+    rpc mqtt_broker_enable_flapping_detect(EnableFlappingDetectRequest) returns(EnableFlappingDetectReply) {}
 
     // connection
     rpc mqtt_broker_list_connection(ListConnectionRequest) returns(ListConnectionReply){}
@@ -156,15 +156,15 @@ message ListConnectionRaw {
     string info = 5;
 }
 
-// connection jitter
-message EnableConnectionJitterRequest {
+// flapping detect
+message EnableFlappingDetectRequest {
     bool is_enable = 1;
     uint32 window_time = 2;
     uint32 max_client_connections = 3;
     uint32 ban_time = 4;
 }
 
-message EnableConnectionJitterReply {
+message EnableFlappingDetectReply {
     bool is_enable = 1;
 }
 

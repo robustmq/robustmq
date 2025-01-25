@@ -29,8 +29,8 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateBlacklistReply, CreateBlacklistRequest, CreateTopicRewriteRuleReply,
     CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
     DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableConnectionJitterReply,
-    EnableConnectionJitterRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
+    EnableFlappingDetectRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
     ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionRaw,
     ListConnectionReply, ListConnectionRequest, ListSlowSubScribeRaw, ListSlowSubscribeReply,
     ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
@@ -39,7 +39,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 use tonic::{Request, Response, Status};
 
 use crate::handler::cache::CacheManager;
-use crate::handler::connection_jitter::enable_connection_jitter;
+use crate::handler::flapping_detect::enable_flapping_detect;
 use crate::observability::slow::sub::{enable_slow_sub, read_slow_sub_record, SlowSubData};
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
@@ -259,14 +259,14 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         }
     }
 
-    async fn mqtt_broker_enable_connection_jitter(
+    async fn mqtt_broker_enable_flapping_detect(
         &self,
-        request: Request<EnableConnectionJitterRequest>,
-    ) -> Result<Response<EnableConnectionJitterReply>, Status> {
+        request: Request<EnableFlappingDetectRequest>,
+    ) -> Result<Response<EnableFlappingDetectReply>, Status> {
         let req = request.into_inner();
 
-        match enable_connection_jitter(&self.cache_manager, req).await {
-            Ok(_) => Ok(Response::new(EnableConnectionJitterReply {
+        match enable_flapping_detect(&self.cache_manager, req).await {
+            Ok(_) => Ok(Response::new(EnableFlappingDetectReply {
                 is_enable: req.is_enable,
             })),
             Err(e) => Err(Status::cancelled(e.to_string())),

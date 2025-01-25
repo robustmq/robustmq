@@ -18,8 +18,8 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateBlacklistReply, CreateBlacklistRequest, CreateTopicRewriteRuleReply,
     CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
     DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableConnectionJitterReply,
-    EnableConnectionJitterRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
+    EnableFlappingDetectRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
     ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
     ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
     ListTopicRequest, ListUserReply, ListUserRequest,
@@ -120,12 +120,12 @@ pub async fn mqtt_broker_list_connection(
     retry_call(client_pool, addrs, request).await
 }
 
-// ------- connection jitter feat  -----------
-pub async fn mqtt_broker_enable_connection_jitter(
+// -------flapping detect feat  -----------
+pub async fn mqtt_broker_enable_flapping_detect(
     client_pool: &ClientPool,
     addrs: &[impl AsRef<str>],
-    request: EnableConnectionJitterRequest,
-) -> Result<EnableConnectionJitterReply, CommonError> {
+    request: EnableFlappingDetectRequest,
+) -> Result<EnableFlappingDetectReply, CommonError> {
     retry_call(client_pool, addrs, request).await
 }
 

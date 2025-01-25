@@ -18,7 +18,7 @@ use common_base::enum_type::sort_type::SortType;
 use common_base::tools::unique_id;
 use grpc_clients::mqtt::admin::call::{
     cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user,
-    mqtt_broker_enable_connection_jitter, mqtt_broker_enable_slow_subscribe,
+    mqtt_broker_enable_flapping_detect, mqtt_broker_enable_slow_subscribe,
     mqtt_broker_list_connection, mqtt_broker_list_slow_subscribe, mqtt_broker_list_topic,
     mqtt_broker_list_user,
 };
@@ -27,7 +27,7 @@ use metadata_struct::mqtt::user::MqttUser;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, EnableConnectionJitterRequest,
+    ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, EnableFlappingDetectRequest,
     EnableSlowSubscribeRequest, ListConnectionRequest, ListSlowSubscribeRequest, ListTopicRequest,
     ListUserRequest,
 };
@@ -55,12 +55,12 @@ pub enum MqttActionType {
     // connection
     ListConnection,
 
-    // observability: slow-ub
+    // observability: slow-sub
     EnableSlowSubscribe(EnableSlowSubscribeRequest),
     ListSlowSubscribe(ListSlowSubscribeRequest),
 
-    // connection-jitter
-    EnableConnectionJitter(EnableConnectionJitterRequest),
+    // flapping detect
+    EnableFlappingDetect(EnableFlappingDetectRequest),
 
     // publish
     Publish(PublishArgsRequest),
@@ -116,8 +116,8 @@ impl MqttBrokerCommand {
                 self.list_slow_subscribe(&client_pool, params.clone(), request.clone())
                     .await;
             }
-            MqttActionType::EnableConnectionJitter(ref request) => {
-                self.enable_connection_jitter(&client_pool, params.clone(), *request)
+            MqttActionType::EnableFlappingDetect(ref request) => {
+                self.enable_flapping_detect(&client_pool, params.clone(), *request)
                     .await;
             }
             MqttActionType::Publish(ref request) => {
@@ -339,14 +339,14 @@ impl MqttBrokerCommand {
         }
     }
 
-    // connection jitter
-    async fn enable_connection_jitter(
+    // flapping detect
+    async fn enable_flapping_detect(
         &self,
         client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: EnableConnectionJitterRequest,
+        cli_request: EnableFlappingDetectRequest,
     ) {
-        match mqtt_broker_enable_connection_jitter(
+        match mqtt_broker_enable_flapping_detect(
             client_pool,
             &grpc_addr(params.server),
             cli_request,
@@ -355,14 +355,16 @@ impl MqttBrokerCommand {
         {
             Ok(reply) => {
                 if reply.is_enable {
-                    println!("The slow subscription feature has been successfully enabled.");
+                    println!("The flapping detect feature has been successfully enabled.");
                 } else {
-                    println!("The slow subscription feature has been successfully closed.");
+                    println!("The flapping detect feature has been successfully closed.");
                 }
             }
 
             Err(e) => {
-                println!("The slow subscription feature failed to enable, with the specific reason being:");
+                println!(
+                    "The flapping detect feature failed to enable, with the specific reason being:"
+                );
                 error_info(e.to_string());
             }
         }

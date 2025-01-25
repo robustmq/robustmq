@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::connection_jitter::ConnectionJitterCondition;
 use crate::handler::error::MqttBrokerError;
+use crate::handler::flapping_detect::FlappingDetectCondition;
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclResourceType};
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
-use metadata_struct::mqtt::cluster::MqttClusterDynamicConnectionJitter;
+use metadata_struct::mqtt::cluster::MqttClusterDynamicFlappingDetect;
 
 #[derive(Clone)]
 pub struct AclMetadata {
@@ -35,8 +35,8 @@ pub struct AclMetadata {
     pub acl_user: DashMap<String, Vec<MqttAcl>>,
     pub acl_client_id: DashMap<String, Vec<MqttAcl>>,
 
-    // connection jitter (client_id, ConnectionJitterCondition)
-    pub connection_jitter_map: DashMap<String, ConnectionJitterCondition>,
+    // connection jitter (client_id, FlappingDetectCondition)
+    pub flapping_detect_map: DashMap<String, FlappingDetectCondition>,
 }
 
 impl Default for AclMetadata {
@@ -57,45 +57,45 @@ impl AclMetadata {
 
             acl_user: DashMap::with_capacity(2),
             acl_client_id: DashMap::with_capacity(2),
-            connection_jitter_map: DashMap::new(),
+            flapping_detect_map: DashMap::new(),
         }
     }
 
-    pub fn get_connection_jitter_condition(
+    pub fn get_flapping_detect_condition(
         &self,
         client_id: String,
-    ) -> Option<ConnectionJitterCondition> {
-        if let Some(connection_jitter_condition) = self.connection_jitter_map.get(&client_id) {
-            return Some(connection_jitter_condition.clone());
+    ) -> Option<FlappingDetectCondition> {
+        if let Some(flapping_detect_condition) = self.flapping_detect_map.get(&client_id) {
+            return Some(flapping_detect_condition.clone());
         }
         None
     }
 
-    pub fn add_connection_jitter_condition(
+    pub fn add_flapping_detect_condition(
         &self,
-        connection_jitter_condition: ConnectionJitterCondition,
+        flapping_detect_condition: FlappingDetectCondition,
     ) {
-        self.connection_jitter_map.insert(
-            connection_jitter_condition.client_id.clone(),
-            connection_jitter_condition,
+        self.flapping_detect_map.insert(
+            flapping_detect_condition.client_id.clone(),
+            flapping_detect_condition,
         );
     }
 
-    pub fn remove_connection_jitter_condition(&self, client_id: &str) {
-        self.connection_jitter_map.remove(client_id);
+    pub fn remove_flapping_detect_condition(&self, client_id: &str) {
+        self.flapping_detect_map.remove(client_id);
     }
 
-    pub async fn remove_connection_jitter_conditions(
+    pub async fn remove_flapping_detect_conditions(
         &self,
-        config: MqttClusterDynamicConnectionJitter,
+        config: MqttClusterDynamicFlappingDetect,
     ) -> Result<(), MqttBrokerError> {
         let current_time = now_second();
         let window_time = convert_seconds(config.window_time as u64, TimeUnit::Minutes);
-        self.connection_jitter_map
-            .retain(|_, connection_jitter_condition| {
+        self.flapping_detect_map
+            .retain(|_, flapping_detect_condition| {
                 // we need retain elements within window_time,
                 // so now_seconds - first_request_time must less than window_time
-                current_time - connection_jitter_condition.first_request_time < window_time
+                current_time - flapping_detect_condition.first_request_time < window_time
             });
         Ok(())
     }
@@ -238,37 +238,37 @@ impl AclMetadata {
 
 #[cfg(test)]
 mod test {
-    use crate::handler::connection_jitter::ConnectionJitterCondition;
+    use crate::handler::flapping_detect::FlappingDetectCondition;
     use crate::security::acl::metadata::AclMetadata;
     use common_base::tools::now_second;
     use metadata_struct::acl::mqtt_acl::{
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
     use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
-    use metadata_struct::mqtt::cluster::MqttClusterDynamicConnectionJitter;
+    use metadata_struct::mqtt::cluster::MqttClusterDynamicFlappingDetect;
 
     #[tokio::test]
-    pub async fn test_mqtt_remove_connection_jitter() {
+    pub async fn test_mqtt_remove_flapping_detect() {
         let acl_metadata = AclMetadata::new();
-        let condition1 = ConnectionJitterCondition {
+        let condition1 = FlappingDetectCondition {
             client_id: "test_id_1".to_string(),
             connect_times: 15,
             first_request_time: now_second() - 10,
         };
-        let condition2 = ConnectionJitterCondition {
+        let condition2 = FlappingDetectCondition {
             client_id: "test_id_2".to_string(),
             connect_times: 15,
             first_request_time: now_second() - 70,
         };
 
-        acl_metadata.add_connection_jitter_condition(condition1);
+        acl_metadata.add_flapping_detect_condition(condition1);
 
-        acl_metadata.add_connection_jitter_condition(condition2);
+        acl_metadata.add_flapping_detect_condition(condition2);
 
-        assert!(acl_metadata.connection_jitter_map.contains_key("test_id_1"));
-        assert!(acl_metadata.connection_jitter_map.contains_key("test_id_2"));
+        assert!(acl_metadata.flapping_detect_map.contains_key("test_id_1"));
+        assert!(acl_metadata.flapping_detect_map.contains_key("test_id_2"));
 
-        let jitter_config = MqttClusterDynamicConnectionJitter {
+        let jitter_config = MqttClusterDynamicFlappingDetect {
             enable: true,
             window_time: 1,
             max_client_connections: 15,
@@ -276,12 +276,12 @@ mod test {
         };
 
         acl_metadata
-            .remove_connection_jitter_conditions(jitter_config)
+            .remove_flapping_detect_conditions(jitter_config)
             .await
             .expect("TODO: panic message");
 
-        assert!(acl_metadata.connection_jitter_map.contains_key("test_id_1"));
-        assert!(!acl_metadata.connection_jitter_map.contains_key("test_id_2"));
+        assert!(acl_metadata.flapping_detect_map.contains_key("test_id_1"));
+        assert!(!acl_metadata.flapping_detect_map.contains_key("test_id_2"));
     }
 
     #[tokio::test]

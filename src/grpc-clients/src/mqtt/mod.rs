@@ -18,8 +18,8 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateBlacklistReply, CreateBlacklistRequest, CreateTopicRewriteRuleReply,
     CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
     DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableConnectionJitterReply,
-    EnableConnectionJitterRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
+    EnableFlappingDetectRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
     ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
     ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
     ListTopicRequest, ListUserReply, ListUserRequest,
@@ -149,11 +149,11 @@ impl_retriable_request!(
 );
 
 impl_retriable_request!(
-    EnableConnectionJitterRequest,
+    EnableFlappingDetectRequest,
     MqttBrokerAdminServiceClient<Channel>,
-    EnableConnectionJitterReply,
+    EnableFlappingDetectReply,
     mqtt_broker_admin_services_client,
-    mqtt_broker_enable_connection_jitter
+    mqtt_broker_enable_flapping_detect
 );
 
 impl_retriable_request!(

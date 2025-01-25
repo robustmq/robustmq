@@ -16,19 +16,19 @@ use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::cluster::ClusterStorage;
 use metadata_struct::mqtt::cluster::{
-    MqttClusterDynamicConfig, MqttClusterDynamicConnectionJitter, MqttClusterDynamicSlowSub,
+    MqttClusterDynamicConfig, MqttClusterDynamicFlappingDetect, MqttClusterDynamicSlowSub,
 };
 
 /// This section primarily implements cache management for cluster-related configuration operations.
 /// Through this implementation, we can retrieve configuration information within the cluster
 /// and set corresponding cluster configuration attributes.
 impl CacheManager {
-    pub async fn set_connection_jitter_config(
+    pub async fn set_flapping_detect_config(
         &self,
-        config: MqttClusterDynamicConnectionJitter,
+        config: MqttClusterDynamicFlappingDetect,
     ) -> Result<(), MqttBrokerError> {
         let mut dyn_config = self.get_cluster_info();
-        dyn_config.connection_jitter = config;
+        dyn_config.flapping_detect = config;
 
         // save in cache
         self.set_cluster_info(dyn_config.clone());
@@ -37,8 +37,8 @@ impl CacheManager {
         self.save_dynamic_config(dyn_config).await?;
         Ok(())
     }
-    pub fn get_connection_jitter_config(&self) -> MqttClusterDynamicConnectionJitter {
-        self.get_cluster_info().connection_jitter
+    pub fn get_flapping_detect_config(&self) -> MqttClusterDynamicFlappingDetect {
+        self.get_cluster_info().flapping_detect
     }
 
     pub async fn set_slow_sub_config(

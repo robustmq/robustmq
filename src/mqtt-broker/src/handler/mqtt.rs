@@ -37,7 +37,7 @@ use crate::handler::cache::{
     CacheManager, ConnectionLiveTime, QosAckPackageData, QosAckPackageType,
 };
 use crate::handler::connection::{build_connection, get_client_id};
-use crate::handler::connection_jitter::check_connection_jitter;
+use crate::handler::flapping_detect::check_flapping_detect;
 use crate::handler::lastwill::save_last_will_message;
 use crate::handler::pkid::{pkid_delete, pkid_exists, pkid_save};
 use crate::handler::response::{
@@ -153,8 +153,8 @@ where
             }
         }
 
-        if cluster.connection_jitter.enable {
-            check_connection_jitter(connect.client_id.clone(), &self.cache_manager);
+        if cluster.flapping_detect.enable {
+            check_flapping_detect(connect.client_id.clone(), &self.cache_manager);
         }
 
         let (client_id, new_client_id) = get_client_id(&connect.client_id);

@@ -19,27 +19,27 @@ use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
 use log::{debug, error, info};
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
-use metadata_struct::mqtt::cluster::MqttClusterDynamicConnectionJitter;
-use protocol::broker_mqtt::broker_mqtt_admin::EnableConnectionJitterRequest;
+use metadata_struct::mqtt::cluster::MqttClusterDynamicFlappingDetect;
+use protocol::broker_mqtt::broker_mqtt_admin::EnableFlappingDetectRequest;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
 
-pub struct UpdateConnectionJitterCache {
+pub struct UpdateFlappingDetectCache {
     stop_send: broadcast::Sender<bool>,
     cache_manager: Arc<CacheManager>,
 }
 
 #[derive(Clone, Debug)]
-pub struct ConnectionJitterCondition {
+pub struct FlappingDetectCondition {
     pub client_id: String,
     pub connect_times: u64,
     pub first_request_time: u64,
 }
 
-impl UpdateConnectionJitterCache {
+impl UpdateFlappingDetectCache {
     pub fn new(stop_send: broadcast::Sender<bool>, cache_manager: Arc<CacheManager>) -> Self {
         Self {
             stop_send,
@@ -54,29 +54,29 @@ impl UpdateConnectionJitterCache {
                 val = stop_rx.recv() =>{
                     if let Ok(flag) = val {
                         if flag {
-                            info!("{}","Connection Jitter cache updating thread stopped successfully.");
+                            info!("{}","Flapping detect cache updating thread stopped successfully.");
                             break;
                         }
                     }
                 }
-                _ = self.update_connection_jitter_cache()=>{
+                _ = self.update_flapping_detect_cache()=>{
                 }
             }
         }
     }
 
-    async fn update_connection_jitter_cache(&self) {
-        let config = self.cache_manager.get_connection_jitter_config().clone();
+    async fn update_flapping_detect_cache(&self) {
+        let config = self.cache_manager.get_flapping_detect_config().clone();
         let window_time = config.window_time as u64;
         let window_time_2_seconds = convert_seconds(window_time, TimeUnit::Minutes);
         match self
             .cache_manager
             .acl_metadata
-            .remove_connection_jitter_conditions(config)
+            .remove_flapping_detect_conditions(config)
             .await
         {
             Ok(_) => {
-                info!("Updating Connection Jitter cache norm exception");
+                info!("Updating Flapping detect cache norm exception");
             }
             Err(e) => {
                 error!("{}", e);
@@ -86,43 +86,43 @@ impl UpdateConnectionJitterCache {
     }
 }
 
-pub fn check_connection_jitter(client_id: String, cache_manager: &Arc<CacheManager>) {
+pub fn check_flapping_detect(client_id: String, cache_manager: &Arc<CacheManager>) {
     // get metric
     let current_counter = event_metrics::get_client_connection_counter(client_id.clone());
     let current_request_time = now_second();
 
-    // get connection jitter info
-    let connection_jitter_condition = if let Some(connection_jitter_condition) = cache_manager
+    // get flapping detect info
+    let flapping_detect_condition = if let Some(flapping_detect_info) = cache_manager
         .acl_metadata
-        .get_connection_jitter_condition(client_id.clone())
+        .get_flapping_detect_condition(client_id.clone())
     {
-        connection_jitter_condition
+        flapping_detect_info
     } else {
-        ConnectionJitterCondition {
+        FlappingDetectCondition {
             client_id: client_id.clone(),
-            connect_times: current_counter + 1,
+            connect_times: current_counter,
             first_request_time: current_request_time,
         }
     };
 
     debug!(
-        "get a connection_jitter_condition: {:?}",
-        connection_jitter_condition.clone()
+        "get a flapping_detect_condition: {:?}",
+        flapping_detect_condition.clone()
     );
 
     // incr metric
     event_metrics::incr_client_connection_counter(client_id.clone());
 
-    let config = cache_manager.get_connection_jitter_config();
+    let config = cache_manager.get_flapping_detect_config();
     let current_counter = event_metrics::get_client_connection_counter(client_id.clone());
 
     if is_within_window_time(
         current_request_time,
-        connection_jitter_condition.first_request_time,
+        flapping_detect_condition.first_request_time,
         config.window_time as u64,
     ) && is_exceed_max_client_connections(
         current_counter,
-        connection_jitter_condition.connect_times,
+        flapping_detect_condition.connect_times,
         config.max_client_connections,
     ) {
         debug!("add a new client_id: {client_id} into blacklist.");
@@ -131,12 +131,12 @@ pub fn check_connection_jitter(client_id: String, cache_manager: &Arc<CacheManag
 
     cache_manager
         .acl_metadata
-        .add_connection_jitter_condition(connection_jitter_condition);
+        .add_flapping_detect_condition(flapping_detect_condition);
 }
 
 fn add_blacklist_4_connection_jitter(
     cache_manager: &Arc<CacheManager>,
-    config: MqttClusterDynamicConnectionJitter,
+    config: MqttClusterDynamicFlappingDetect,
     client_id: String,
 ) {
     let client_id_blacklist = MqttAclBlackList {
@@ -167,11 +167,11 @@ fn is_exceed_max_client_connections(
     current_time - connect_times > max_client_connections
 }
 
-pub async fn enable_connection_jitter(
+pub async fn enable_flapping_detect(
     cache_manager: &Arc<CacheManager>,
-    request: EnableConnectionJitterRequest,
+    request: EnableFlappingDetectRequest,
 ) -> Result<(), MqttBrokerError> {
-    let connection_jitter = MqttClusterDynamicConnectionJitter {
+    let connection_jitter = MqttClusterDynamicFlappingDetect {
         enable: request.is_enable,
         window_time: request.window_time,
         max_client_connections: request.max_client_connections as u64,
@@ -179,7 +179,7 @@ pub async fn enable_connection_jitter(
     };
 
     cache_manager
-        .set_connection_jitter_config(connection_jitter)
+        .set_flapping_detect_config(connection_jitter)
         .await?;
 
     Ok(())

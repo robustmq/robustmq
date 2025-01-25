@@ -15,7 +15,7 @@ RobustMQ支持自动封禁那些被检测到短时间内频繁登录的客户端
 ### 通过命令行开启连接抖动检测功能
 我们通过如下命令启用连接抖动检测功能
 ```shell
-robust-cli mqtt connection-jitter --enable=true
+robust-cli mqtt flapping-detect --enable=true
 ```
 默认情况下拥有三个相关的参数内容:
 - 检测时间窗口: 您可以指定系统监视客户端抖动行为的持续时间。默认值为`1`分钟。
@@ -27,18 +27,18 @@ robust-cli mqtt connection-jitter --enable=true
 您可以通过如下的命令修改上述的几个命令配置:
 - 修改检测时间窗口(默认单位为分钟)
 ```shell
-roubst-cli mqtt connection-jitter --window-time=1
+roubst-cli mqtt flapping-detect --window-time=1
 ```
 - 修改最大断连次数
 ```shell
-roubst-cli mqtt connection-jitter --max-client-connections=15
+roubst-cli mqtt flapping-detect --max-client-connections=15
 ```
 - 修改封禁时长
 ```shell
-roubst-cli mqtt connection-jitter --ban-time=5
+roubst-cli mqtt flapping-detect --ban-time=5
 ```
 - 修改设置单位(是否考虑)
 ```shell
-roubst-cli mqtt connection-jitter --time-unit=seconds/minutes/hours/days/months
+roubst-cli mqtt flapping-detect --time-unit=seconds/minutes/hours/days/months
 ```
 ### TODO 配置文件支持连接抖动检测

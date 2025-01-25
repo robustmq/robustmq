@@ -2,18 +2,18 @@
 构建一个结构体
 create a struct
 ```rust
-struct ClientConnectInfo {
+struct FlappingDetectCondition {
     client_id: u64,
-    connect_count: u8,
-    request_time: u64,
+    connect_times: u8,
+    first_request_time: u64,
 }
 ```
 
 获取当前的时间作为最近请求时间`current_request_time`
 获取当前的请求次数`current_counter`
 
-从Map中获取对应`client-id`的结构信息`ClientConnectInfo`，如果没有的情况下
-我们需要自己构建`ClientConnectInfo`, 并将`ClientConnectInfo`放入map中
+从Map中获取对应`client-id`的结构信息`FlappingDetectCondition`，如果没有的情况下
+我们需要自己构建`FlappingDetectCondition`, 并将`FlappingDetectCondition`放入map中
 
 如果`current_request_time` - `request_time` < `windows_time` 并且
 `counter` - `connect_count` > `max_count`：

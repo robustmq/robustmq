@@ -20,14 +20,14 @@ use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
 use mqtt::publish::process_subscribe_args;
-use protocol::broker_mqtt::broker_mqtt_admin::{EnableConnectionJitterRequest, ListTopicRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{EnableFlappingDetectRequest, ListTopicRequest};
 
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
 };
 
 use crate::mqtt::admin::{
-    process_slow_sub_args, process_user_args, ConnectionJitterArgs, MqttUserCommand, SlowSubArgs,
+    process_slow_sub_args, process_user_args, FlappingDetectArgs, MqttUserCommand, SlowSubArgs,
 };
 use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 
@@ -80,9 +80,9 @@ enum MQTTAction {
     // Connections
     ListConnection,
 
-    // connection jitter
-    #[clap(name = "connection-jitter")]
-    ConnectionJitter(ConnectionJitterArgs),
+    // flapping detect feat
+    #[clap(name = "flapping-detect")]
+    FlappingDetect(FlappingDetectArgs),
 
     ListTopic(ListTopicArgs),
 
@@ -194,8 +194,8 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
                 },
             }),
             MQTTAction::SlowSub(args) => process_slow_sub_args(args),
-            MQTTAction::ConnectionJitter(args) => {
-                MqttActionType::EnableConnectionJitter(EnableConnectionJitterRequest {
+            MQTTAction::FlappingDetect(args) => {
+                MqttActionType::EnableFlappingDetect(EnableFlappingDetectRequest {
                     is_enable: args.is_enable.unwrap_or(false),
                     window_time: args.window_time.unwrap_or(1),
                     max_client_connections: args.max_client_connections.unwrap_or(15),

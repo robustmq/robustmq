@@ -21,10 +21,10 @@ mod tests {
     use crate::mqtt_protocol::connect_suite::ClientTestProperties;
     use crate::mqtt_protocol::connect_suite::{session_present_test, wrong_password_test};
     use common_base::tools::unique_id;
-    use grpc_clients::mqtt::admin::call::mqtt_broker_enable_connection_jitter;
+    use grpc_clients::mqtt::admin::call::mqtt_broker_enable_flapping_detect;
     use grpc_clients::pool::ClientPool;
     use paho_mqtt::Client;
-    use protocol::broker_mqtt::broker_mqtt_admin::EnableConnectionJitterRequest;
+    use protocol::broker_mqtt::broker_mqtt_admin::EnableFlappingDetectRequest;
     use std::process;
     use std::sync::Arc;
 
@@ -136,25 +136,25 @@ mod tests {
         session_present_test(client_properties_v4.clone());
     }
 
-    async fn open_connect_jitter() {
+    async fn open_flapping_detect() {
         let client_pool = Arc::new(ClientPool::new(3));
         let grpc_addr = vec![broker_grpc_addr()];
 
-        let request = EnableConnectionJitterRequest {
+        let request = EnableFlappingDetectRequest {
             is_enable: true,
             window_time: 20,
             max_client_connections: 2,
             ban_time: 5,
         };
 
-        let _reply = mqtt_broker_enable_connection_jitter(&client_pool, &grpc_addr, request)
+        let _reply = mqtt_broker_enable_flapping_detect(&client_pool, &grpc_addr, request)
             .await
             .unwrap();
     }
 
     #[tokio::test]
-    async fn client_connect_jitter_test() {
-        open_connect_jitter().await;
+    async fn client_flapping_detect_test() {
+        open_flapping_detect().await;
 
         let client_test_properties = ClientTestProperties {
             mqtt_version: 3,

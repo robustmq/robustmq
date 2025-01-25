@@ -15,27 +15,27 @@
 #[cfg(test)]
 mod tests {
     use common_base::error::common::CommonError;
-    use grpc_clients::mqtt::admin::call::mqtt_broker_enable_connection_jitter;
+    use grpc_clients::mqtt::admin::call::mqtt_broker_enable_flapping_detect;
     use grpc_clients::pool::ClientPool;
+
+    use crate::mqtt_protocol::common::broker_grpc_addr;
     use protocol::broker_mqtt::broker_mqtt_admin::{
-        EnableConnectionJitterReply, EnableConnectionJitterRequest,
+        EnableFlappingDetectReply, EnableFlappingDetectRequest,
     };
     use std::sync::Arc;
 
-    use crate::mqtt_protocol::common::broker_grpc_addr;
-
-    async fn open_connection_jitter(
-        request: EnableConnectionJitterRequest,
-    ) -> Result<EnableConnectionJitterReply, CommonError> {
+    async fn open_flapping_detect(
+        request: EnableFlappingDetectRequest,
+    ) -> Result<EnableFlappingDetectReply, CommonError> {
         let client_pool = Arc::new(ClientPool::new(3));
         let grpc_addr = vec![broker_grpc_addr()];
-        mqtt_broker_enable_connection_jitter(&client_pool, &grpc_addr, request).await
+        mqtt_broker_enable_flapping_detect(&client_pool, &grpc_addr, request).await
     }
 
     #[tokio::test]
-    async fn test_enable_connection_jitter() {
+    async fn test_enable_flapping_detect() {
         // per
-        let request = EnableConnectionJitterRequest {
+        let request = EnableFlappingDetectRequest {
             is_enable: false,
             window_time: 0,
             max_client_connections: 0,
@@ -43,10 +43,10 @@ mod tests {
         };
 
         // result
-        let reply = EnableConnectionJitterReply { is_enable: false };
+        let reply = EnableFlappingDetectReply { is_enable: false };
 
         // action
-        match open_connection_jitter(request).await {
+        match open_flapping_detect(request).await {
             Ok(data) => {
                 assert_eq!(data, reply);
             }
@@ -59,9 +59,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_enable_connection_jitter_is_true() {
+    async fn test_enable_flapping_detect_is_true() {
         // per
-        let request = EnableConnectionJitterRequest {
+        let request = EnableFlappingDetectRequest {
             is_enable: true,
             window_time: 1,
             max_client_connections: 15,
@@ -69,10 +69,10 @@ mod tests {
         };
 
         // result
-        let reply = EnableConnectionJitterReply { is_enable: true };
+        let reply = EnableFlappingDetectReply { is_enable: true };
 
         // action
-        match open_connection_jitter(request).await {
+        match open_flapping_detect(request).await {
             Ok(data) => {
                 assert_eq!(data, reply);
             }
