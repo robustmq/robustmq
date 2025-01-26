@@ -72,10 +72,10 @@ impl WriteThreadData {
 }
 
 impl RocksDBStorageAdapter {
-    pub fn new(db_path: &str, max_open_files: i32) -> Self {
+    pub fn new(db_path: impl AsRef<str>, max_open_files: i32) -> Self {
         RocksDBStorageAdapter {
             db: Arc::new(RocksDBEngine::new(
-                db_path,
+                db_path.as_ref(),
                 max_open_files,
                 column_family_list(),
             )),
@@ -134,8 +134,8 @@ impl RocksDBStorageAdapter {
 
 impl RocksDBStorageAdapter {
     #[inline(always)]
-    fn write_handle_key(namespace: &String, shard_name: &String) -> String {
-        format!("{}-{}", namespace, shard_name)
+    fn write_handle_key(namespace: impl AsRef<str>, shard_name: impl AsRef<str>) -> String {
+        format!("{}-{}", namespace.as_ref(), shard_name.as_ref())
     }
 
     async fn handle_write_request(
@@ -164,11 +164,16 @@ impl RocksDBStorageAdapter {
             })?
     }
 
-    async fn get_write_handle(&self, namespace: &String, shard_name: &String) -> ThreadWriteHandle {
-        let handle_key = Self::write_handle_key(namespace, shard_name);
+    async fn get_write_handle(
+        &self,
+        namespace: impl AsRef<str>,
+        shard_name: impl AsRef<str>,
+    ) -> ThreadWriteHandle {
+        let handle_key = Self::write_handle_key(namespace.as_ref(), shard_name.as_ref());
 
         if !self.write_handles.contains_key(&handle_key) {
-            self.create_write_thread(namespace, shard_name).await;
+            self.create_write_thread(namespace.as_ref(), shard_name.as_ref())
+                .await;
         }
 
         self.write_handles.get(&handle_key).unwrap().clone()
@@ -183,15 +188,15 @@ impl RocksDBStorageAdapter {
 
     async fn register_write_handle(
         &self,
-        namespace: &String,
-        shard_name: &String,
+        namespace: impl AsRef<str>,
+        shard_name: impl AsRef<str>,
         handle: ThreadWriteHandle,
     ) {
         let handle_key = Self::write_handle_key(namespace, shard_name);
         self.write_handles.insert(handle_key, handle);
     }
 
-    async fn create_write_thread(&self, namespace: &String, shard_name: &String) {
+    async fn create_write_thread(&self, namespace: impl AsRef<str>, shard_name: impl AsRef<str>) {
         let (data_sender, data_recv) = mpsc::channel::<WriteThreadData>(1000);
         let (stop_sender, stop_recv) = broadcast::channel::<bool>(1);
 
@@ -202,7 +207,7 @@ impl RocksDBStorageAdapter {
             stop_sender,
         };
 
-        self.register_write_handle(namespace, shard_name, write_handle)
+        self.register_write_handle(namespace.as_ref(), shard_name.as_ref(), write_handle)
             .await;
     }
 
