@@ -865,6 +865,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn mysql_concurrent_batch_write_test() {
         let addr = "mysql://root@127.0.0.1:3306/mqtt";
         let pool = build_mysql_conn_pool(addr).unwrap();
