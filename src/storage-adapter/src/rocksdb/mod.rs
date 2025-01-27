@@ -130,6 +130,11 @@ impl RocksDBStorageAdapter {
     pub fn group_record_offsets_key_prefix<S1: Display>(group: &S1) -> String {
         format!("/group/{}/", group)
     }
+
+    #[inline(always)]
+    pub fn shard_config_key<S1: Display>(namespace: &S1, shard: &S1) -> String {
+        format!("/shard_config/{}/{}", namespace, shard)
+    }
 }
 
 impl RocksDBStorageAdapter {
@@ -310,7 +315,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         &self,
         namespace: String,
         shard_name: String,
-        _: ShardConfig,
+        shard_config: ShardConfig,
     ) -> Result<(), CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
@@ -328,7 +333,15 @@ impl StorageAdapter for RocksDBStorageAdapter {
             )));
         }
 
-        self.db.write(cf, shard_offset_key.as_str(), &0_u64)
+        self.db
+            .write(cf.clone(), shard_offset_key.as_str(), &0_u64)?;
+
+        // store shard config
+        self.db.write(
+            cf,
+            Self::shard_config_key(&namespace, &shard_name).as_str(),
+            &serde_json::to_vec(&shard_config)?,
+        )
     }
 
     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
