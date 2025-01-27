@@ -70,22 +70,12 @@ impl MySQLStorageAdapter {
 
         conn.query_drop(create_shard_info_table_sql)?;
 
-        // create a dummy sql table with only one auto increment column
-        let create_increment_id_table_sql = format!(
-            "CREATE TABLE IF NOT EXISTS `{}` (
-                `offset` bigint unsigned PRIMARY KEY AUTO_INCREMENT
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;",
-            Self::increment_id_table_name()
-        );
-
-        conn.query_drop(create_increment_id_table_sql)?;
-
         Ok(MySQLStorageAdapter { pool })
     }
 
     #[inline(always)]
-    pub fn record_table_name(namespace: &String, shard_name: &String) -> String {
-        format!("record_{}_{}", namespace, shard_name)
+    pub fn record_table_name(namespace: impl AsRef<str>, shard_name: impl AsRef<str>) -> String {
+        format!("record_{}_{}", namespace.as_ref(), shard_name.as_ref())
     }
 
     #[inline(always)]
@@ -104,8 +94,15 @@ impl MySQLStorageAdapter {
     }
 
     #[inline(always)]
-    pub fn increment_id_table_name() -> String {
-        "increment_id".to_string()
+    pub fn increment_id_table_name(
+        namespace: impl AsRef<str>,
+        shard_name: impl AsRef<str>,
+    ) -> String {
+        format!(
+            "increment_id_{}_{}",
+            namespace.as_ref(),
+            shard_name.as_ref()
+        )
     }
 }
 
@@ -124,7 +121,7 @@ impl MySQLStorageAdapter {
             // STEP 1: insert an empty record in the increment_id table to get an offset
             conn.query_drop(format!(
                 "INSERT INTO `{}` () VALUES ();",
-                Self::increment_id_table_name()
+                Self::increment_id_table_name(&namespace, &shard_name)
             ))?;
 
             let offset: u64 =
@@ -224,11 +221,21 @@ impl StorageAdapter for MySQLStorageAdapter {
         conn.exec_drop(
             insert_shard_info_sql,
             params! {
-                "namespace" => namespace,
-                "shard" => shard_name,
+                "namespace" => namespace.clone(),
+                "shard" => shard_name.clone(),
                 "info" => serde_json::to_vec(&config).unwrap(),
             },
         )?;
+
+        // create a dummy sql table with only one auto increment column
+        let create_increment_id_table_sql = format!(
+            "CREATE TABLE IF NOT EXISTS `{}` (
+                `offset` bigint unsigned PRIMARY KEY AUTO_INCREMENT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;",
+            Self::increment_id_table_name(namespace, shard_name)
+        );
+
+        conn.query_drop(create_increment_id_table_sql)?;
 
         Ok(())
     }
