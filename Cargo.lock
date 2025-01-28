@@ -3651,6 +3651,7 @@ dependencies = [
  "bytes",
  "common-base",
  "dashmap",
+ "futures",
  "grpc-clients",
  "journal-client",
  "metadata-struct",
