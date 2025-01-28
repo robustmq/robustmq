@@ -113,7 +113,7 @@ where
                 connect,
                 properties,
                 last_will,
-                last_will_peoperties,
+                last_will_properties,
                 login,
             ) => {
                 connect_manager
@@ -127,7 +127,7 @@ where
                                 connect,
                                 properties,
                                 last_will,
-                                last_will_peoperties,
+                                last_will_properties,
                                 &login,
                                 addr,
                             )
@@ -141,7 +141,7 @@ where
                                 connect,
                                 properties,
                                 last_will,
-                                last_will_peoperties,
+                                last_will_properties,
                                 &login,
                                 addr,
                             )
@@ -155,7 +155,7 @@ where
                                 connect,
                                 properties,
                                 last_will,
-                                last_will_peoperties,
+                                last_will_properties,
                                 &login,
                                 addr,
                             )

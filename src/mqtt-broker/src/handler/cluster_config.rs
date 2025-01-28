@@ -12,17 +12,55 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use metadata_struct::mqtt::cluster::{MqttClusterDynamicConfig, MqttClusterDynamicSlowSub};
-
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::cluster::ClusterStorage;
+use metadata_struct::mqtt::cluster::{
+    MqttClusterDynamicConfig, MqttClusterDynamicFlappingDetect, MqttClusterDynamicSlowSub,
+};
 
 /// This section primarily implements cache management for cluster-related configuration operations.
 /// Through this implementation, we can retrieve configuration information within the cluster
 /// and set corresponding cluster configuration attributes.
 impl CacheManager {
-    pub(super) fn set_cluster_info(&self, cluster: MqttClusterDynamicConfig) {
+    pub async fn set_flapping_detect_config(
+        &self,
+        config: MqttClusterDynamicFlappingDetect,
+    ) -> Result<(), MqttBrokerError> {
+        let mut dyn_config = self.get_cluster_info();
+        dyn_config.flapping_detect = config;
+
+        // save in cache
+        self.set_cluster_info(dyn_config.clone());
+
+        // save in storage
+        self.save_dynamic_config(dyn_config).await?;
+        Ok(())
+    }
+    pub fn get_flapping_detect_config(&self) -> MqttClusterDynamicFlappingDetect {
+        self.get_cluster_info().flapping_detect
+    }
+
+    pub async fn set_slow_sub_config(
+        &self,
+        config: MqttClusterDynamicSlowSub,
+    ) -> Result<(), MqttBrokerError> {
+        let mut dynamic_config = self.get_cluster_info();
+        dynamic_config.slow = config;
+
+        // save in cache
+        self.set_cluster_info(dynamic_config.clone());
+
+        // save in storage
+        self.save_dynamic_config(dynamic_config).await?;
+        Ok(())
+    }
+
+    pub fn get_slow_sub_config(&self) -> MqttClusterDynamicSlowSub {
+        self.get_cluster_info().slow
+    }
+
+    pub fn set_cluster_info(&self, cluster: MqttClusterDynamicConfig) {
         self.cluster_info.insert(self.cluster_name.clone(), cluster);
     }
 
@@ -33,22 +71,15 @@ impl CacheManager {
         MqttClusterDynamicConfig::new()
     }
 
-    pub async fn enable_slow_sub(&self, is_enable: bool) -> Result<(), MqttBrokerError> {
-        // save in cache
-        let mut dynamic_config = self.get_cluster_info();
-        dynamic_config.slow.enable = is_enable;
-        self.set_cluster_info(dynamic_config.clone());
-
-        // save in storage
+    async fn save_dynamic_config(
+        &self,
+        dynamic_config: MqttClusterDynamicConfig,
+    ) -> Result<(), MqttBrokerError> {
         let client_pool = self.client_pool.clone();
         let cluster_storage = ClusterStorage::new(client_pool);
         cluster_storage
             .set_cluster_config(&self.cluster_name, dynamic_config)
             .await?;
         Ok(())
-    }
-
-    pub fn get_slow_sub_config(&self) -> MqttClusterDynamicSlowSub {
-        self.get_cluster_info().slow
     }
 }

@@ -12,4 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod flapping_detect_test;
 mod slow_sub_test;

@@ -24,7 +24,7 @@ use super::connection::connection_list;
 use super::prometheus::metrics;
 use super::publish::http_publish;
 
-pub const ROUTE_PUBLISTH: &str = "/publish";
+pub const ROUTE_PUBLISH: &str = "/publish";
 pub const ROUTE_CONNECTION: &str = "/connection";
 pub const ROUTE_METRICS: &str = "/metrics";
 
@@ -52,7 +52,7 @@ pub async fn start_http_server(state: HttpServerState) -> Result<(), CommonError
 
 fn routes_v1(state: HttpServerState) -> Router {
     let meta = Router::new()
-        .route(ROUTE_PUBLISTH, get(http_publish))
+        .route(ROUTE_PUBLISH, get(http_publish))
         .route(ROUTE_CONNECTION, get(connection_list))
         .route(ROUTE_METRICS, get(metrics));
 

@@ -92,7 +92,7 @@ pub(crate) async fn acceptor_process(
 
                                 let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
                                 let connection = NetworkConnection::new(
-                                    crate::server::connection::NetworkConnectionType::Tcp,
+                                    NetworkConnectionType::Tcp,
                                     addr,
                                     Some(connection_stop_sx.clone())
                                 );
@@ -113,7 +113,7 @@ pub(crate) async fn acceptor_process(
 }
 
 fn read_frame_process(
-    mut read_frame_stream: FramedRead<tokio::io::ReadHalf<tokio::net::TcpStream>, MqttCodec>,
+    mut read_frame_stream: FramedRead<io::ReadHalf<tokio::net::TcpStream>, MqttCodec>,
     connection: NetworkConnection,
     request_queue_sx: Sender<RequestPackage>,
     mut connection_stop_rx: Receiver<bool>,

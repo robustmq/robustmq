@@ -12,11 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::cmp::min;
-use std::net::SocketAddr;
-use std::sync::Arc;
-
-use futures::SinkExt;
+use futures_util::SinkExt;
 use grpc_clients::pool::ClientPool;
 use log::error;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
@@ -27,6 +23,11 @@ use protocol::mqtt::common::{
     LastWillProperties, Login, MqttPacket, MqttProtocol, PubAckReason, PubRecReason, Publish,
     PublishProperties, QoS, Subscribe, SubscribeReasonCode, UnsubAckReason, Unsubscribe,
 };
+use std::cmp::min;
+use std::net::SocketAddr;
+use std::sync::Arc;
+use tokio::io::{AsyncWrite, AsyncWriteExt, WriteHalf};
+use tokio::net::TcpStream;
 use tokio_util::codec::FramedWrite;
 
 use super::cache::CacheManager;
@@ -49,56 +50,16 @@ use crate::subscribe::sub_common::sub_path_validator;
 pub async fn tcp_establish_connection_check(
     addr: &SocketAddr,
     connection_manager: &Arc<ConnectionManager>,
-    write_frame_stream: &mut FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, MqttCodec>,
+    write_frame_stream: &mut FramedWrite<WriteHalf<TcpStream>, MqttCodec>,
 ) -> bool {
-    if connection_manager.tcp_connect_num_check() {
-        let packet_wrapper = MqttPacketWrapper {
-            protocol_version: MqttProtocol::Mqtt5.into(),
-            packet: response_packet_mqtt_distinct_by_reason(
-                &MqttProtocol::Mqtt5,
-                Some(DisconnectReasonCode::QuotaExceeded),
-            ),
-        };
-        match write_frame_stream.send(packet_wrapper).await {
-            Ok(_) => {}
-            Err(e) => error!("{}", e),
-        }
-
-        match write_frame_stream.close().await {
-            Ok(_) => {
-                error!(
-                    "tcp connection failed to establish from IP: {}",
-                    addr.to_string()
-                );
-            }
-            Err(e) => error!("{}", e),
-        }
-        return false;
+    if let Some(value) =
+        handle_tpc_connection_overflow(addr, connection_manager, write_frame_stream).await
+    {
+        return value;
     }
 
-    if is_connection_rate_exceeded() {
-        let packet_wrapper = MqttPacketWrapper {
-            protocol_version: MqttProtocol::Mqtt5.into(),
-            packet: response_packet_mqtt_distinct_by_reason(
-                &MqttProtocol::Mqtt5,
-                Some(DisconnectReasonCode::ConnectionRateExceeded),
-            ),
-        };
-        match write_frame_stream.send(packet_wrapper).await {
-            Ok(_) => {}
-            Err(e) => error!("{}", e),
-        }
-
-        match write_frame_stream.close().await {
-            Ok(_) => {
-                error!(
-                    "tcp connection failed to establish from IP: {}",
-                    addr.to_string()
-                );
-            }
-            Err(e) => error!("{}", e),
-        }
-        return false;
+    if let Some(value) = handle_connection_rate_exceeded(addr, write_frame_stream).await {
+        return value;
     }
     true
 }
@@ -107,10 +68,31 @@ pub async fn tcp_tls_establish_connection_check(
     addr: &SocketAddr,
     connection_manager: &Arc<ConnectionManager>,
     write_frame_stream: &mut FramedWrite<
-        tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
+        WriteHalf<tokio_rustls::server::TlsStream<TcpStream>>,
         MqttCodec,
     >,
 ) -> bool {
+    if let Some(value) =
+        handle_tpc_connection_overflow(addr, connection_manager, write_frame_stream).await
+    {
+        return value;
+    }
+
+    if let Some(value) = handle_connection_rate_exceeded(addr, write_frame_stream).await {
+        return value;
+    }
+
+    true
+}
+
+async fn handle_tpc_connection_overflow<T>(
+    addr: &SocketAddr,
+    connection_manager: &Arc<ConnectionManager>,
+    write_frame_stream: &mut FramedWrite<WriteHalf<T>, MqttCodec>,
+) -> Option<bool>
+where
+    T: AsyncWriteExt + AsyncWrite,
+{
     if connection_manager.tcp_connect_num_check() {
         let packet_wrapper = MqttPacketWrapper {
             protocol_version: MqttProtocol::Mqtt5.into(),
@@ -133,9 +115,18 @@ pub async fn tcp_tls_establish_connection_check(
             }
             Err(e) => error!("{}", e),
         }
-        return false;
+        return Some(false);
     }
+    None
+}
 
+async fn handle_connection_rate_exceeded<T>(
+    addr: &SocketAddr,
+    write_frame_stream: &mut FramedWrite<WriteHalf<T>, MqttCodec>,
+) -> Option<bool>
+where
+    T: AsyncWriteExt + AsyncWrite,
+{
     if is_connection_rate_exceeded() {
         let packet_wrapper = MqttPacketWrapper {
             protocol_version: MqttProtocol::Mqtt5.into(),
@@ -158,9 +149,9 @@ pub async fn tcp_tls_establish_connection_check(
             }
             Err(e) => error!("{}", e),
         }
-        return false;
+        return Some(false);
     }
-    true
+    None
 }
 
 #[allow(clippy::too_many_arguments)]

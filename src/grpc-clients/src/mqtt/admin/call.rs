@@ -18,10 +18,11 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateBlacklistReply, CreateBlacklistRequest, CreateTopicRewriteRuleReply,
     CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
     DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply,
-    EnableSlowSubscribeRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
-    ListBlacklistRequest, ListConnectionReply, ListConnectionRequest, ListSlowSubscribeReply,
-    ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
+    EnableFlappingDetectRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
+    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
+    ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
+    ListTopicRequest, ListUserReply, ListUserRequest,
 };
 
 use crate::pool::ClientPool;
@@ -116,6 +117,15 @@ pub async fn mqtt_broker_list_connection(
     addrs: &[impl AsRef<str>],
     request: ListConnectionRequest,
 ) -> Result<ListConnectionReply, CommonError> {
+    retry_call(client_pool, addrs, request).await
+}
+
+// -------flapping detect feat  -----------
+pub async fn mqtt_broker_enable_flapping_detect(
+    client_pool: &ClientPool,
+    addrs: &[impl AsRef<str>],
+    request: EnableFlappingDetectRequest,
+) -> Result<EnableFlappingDetectReply, CommonError> {
     retry_call(client_pool, addrs, request).await
 }
 
