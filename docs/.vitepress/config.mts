@@ -32,9 +32,7 @@ export default defineConfig({
 
     /* 标头配置 */
 
-    head: [
-        ['link', { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }], // 添加 favicon
-    ],
+    head,
 
     /* 主题配置 */
 
