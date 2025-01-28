@@ -36,6 +36,7 @@ use storage_adapter::StorageType;
 
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
+use crate::security::acl::is_blacklist;
 use crate::subscribe::sub_common::get_sub_topic_id_list;
 
 pub mod acl;
@@ -207,6 +208,11 @@ impl AuthDriver {
         Ok(())
     }
 
+    pub async fn allow_connect(&self, connection: &MQTTConnection) -> bool {
+        // check blacklist
+        is_blacklist(&self.cache_manager, connection)
+    }
+
     pub async fn allow_publish(
         &self,
         connection: &MQTTConnection,
@@ -236,7 +242,7 @@ impl AuthDriver {
                     &self.cache_manager,
                     connection,
                     &topic,
-                    MqttAclAction::Publish,
+                    MqttAclAction::Subscribe,
                     false,
                     filter.qos,
                 ) {

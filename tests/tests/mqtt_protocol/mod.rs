@@ -17,6 +17,7 @@ pub mod common;
 pub mod connect34_test;
 pub mod connect5_test;
 pub mod connect_packet_size_test;
+mod connect_suite;
 pub mod keep_alive_test;
 pub mod lastwill_message_test;
 pub mod permission34_test;

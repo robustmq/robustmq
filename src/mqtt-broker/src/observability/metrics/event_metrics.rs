@@ -87,5 +87,19 @@ mod tests {
             event_metrics::get_client_connection_counter("test_client_1".to_string()),
             1
         );
+
+        event_metrics::incr_client_connection_counter("test_client_1".to_string());
+
+        assert_eq!(
+            event_metrics::get_client_connection_counter("test_client_1".to_string()),
+            2
+        );
+
+        event_metrics::incr_client_connection_counter("test_client_2".to_string());
+
+        assert_eq!(
+            event_metrics::get_client_connection_counter("test_client_2".to_string()),
+            1
+        );
     }
 }

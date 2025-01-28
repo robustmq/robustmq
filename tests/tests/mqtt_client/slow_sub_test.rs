@@ -21,7 +21,7 @@ mod tests {
     };
     use grpc_clients::pool::ClientPool;
     use protocol::broker_mqtt::broker_mqtt_admin::{
-        EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
+        EnableSlowSubScribeReply, EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
     };
 
     use crate::mqtt_protocol::common::broker_grpc_addr;
@@ -33,9 +33,11 @@ mod tests {
 
         let request = EnableSlowSubscribeRequest { is_enable: true };
 
+        let reply = EnableSlowSubScribeReply { is_enable: true };
+
         match mqtt_broker_enable_slow_subscribe(&client_pool, &grpc_addr, request).await {
             Ok(data) => {
-                println!("{:?}", data);
+                assert_eq!(reply, data);
             }
 
             Err(e) => {

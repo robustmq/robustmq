@@ -15,6 +15,7 @@
 use std::process;
 use std::time::Duration;
 
+use crate::mqtt_protocol::connect_suite::ClientTestProperties;
 use paho_mqtt::{
     Client, ConnectOptions, ConnectOptionsBuilder, CreateOptions, CreateOptionsBuilder,
     DisconnectOptionsBuilder, Properties, PropertyCode, ReasonCode, SslOptionsBuilder,
@@ -150,6 +151,42 @@ pub fn build_v5_conn_pros_by_user_information(
         .user_name(username)
         .password(password)
         .finalize()
+}
+
+#[allow(dead_code)]
+pub fn build_conn_pros(
+    client_test_properties: ClientTestProperties,
+    err_pwd: bool,
+) -> ConnectOptions {
+    let pwd = if err_pwd { err_password() } else { password() };
+    let mut conn_opts = if client_test_properties.ws {
+        ConnectOptionsBuilder::new_ws()
+    } else {
+        ConnectOptionsBuilder::with_mqtt_version(client_test_properties.mqtt_version)
+    };
+    if client_test_properties.ssl {
+        let ssl_opts = SslOptionsBuilder::new()
+            .trust_store(get_cargo_manifest_dir())
+            .unwrap()
+            .verify(false)
+            .disable_default_trust_store(false)
+            .finalize();
+        conn_opts.ssl_options(ssl_opts);
+    }
+    conn_opts
+        .keep_alive_interval(Duration::from_secs(600))
+        .clean_session(true)
+        .connect_timeout(Duration::from_secs(50))
+        .user_name(username())
+        .password(pwd)
+        .finalize()
+}
+
+fn get_cargo_manifest_dir() -> String {
+    format!(
+        "{}/../config/example/certs/ca.pem",
+        env!("CARGO_MANIFEST_DIR")
+    )
 }
 
 #[allow(dead_code)]

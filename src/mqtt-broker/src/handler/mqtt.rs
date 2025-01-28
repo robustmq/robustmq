@@ -37,6 +37,7 @@ use crate::handler::cache::{
     CacheManager, ConnectionLiveTime, QosAckPackageData, QosAckPackageType,
 };
 use crate::handler::connection::{build_connection, get_client_id};
+use crate::handler::flapping_detect::check_flapping_detect;
 use crate::handler::lastwill::save_last_will_message;
 use crate::handler::pkid::{pkid_delete, pkid_exists, pkid_save};
 use crate::handler::response::{
@@ -152,6 +153,10 @@ where
             }
         }
 
+        if cluster.flapping_detect.enable {
+            check_flapping_detect(connect.client_id.clone(), &self.cache_manager);
+        }
+
         let (client_id, new_client_id) = get_client_id(&connect.client_id);
 
         let connection = build_connection(
@@ -162,6 +167,15 @@ where
             &connect_properties,
             &addr,
         );
+
+        if self.auth_driver.allow_connect(&connection).await {
+            return response_packet_mqtt_connect_fail(
+                &self.protocol,
+                ConnectReturnCode::Banned,
+                &connect_properties,
+                None,
+            );
+        }
 
         let (session, new_session) = match build_session(
             connect_id,

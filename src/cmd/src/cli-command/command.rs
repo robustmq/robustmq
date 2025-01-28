@@ -20,13 +20,15 @@ use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
 use mqtt::publish::process_subscribe_args;
-use protocol::broker_mqtt::broker_mqtt_admin::ListTopicRequest;
+use protocol::broker_mqtt::broker_mqtt_admin::{EnableFlappingDetectRequest, ListTopicRequest};
 
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
 };
 
-use crate::mqtt::admin::{process_slow_sub_args, process_user_args, MqttUserCommand, SlowSubArgs};
+use crate::mqtt::admin::{
+    process_slow_sub_args, process_user_args, FlappingDetectArgs, MqttUserCommand, SlowSubArgs,
+};
 use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 
 #[derive(Parser)] // requires `derive` feature
@@ -77,6 +79,10 @@ enum MQTTAction {
     User(MqttUserCommand),
     // Connections
     ListConnection,
+
+    // flapping detect feat
+    #[clap(name = "flapping-detect")]
+    FlappingDetect(FlappingDetectArgs),
 
     ListTopic(ListTopicArgs),
 
@@ -187,9 +193,18 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
                     MatchOption::S => 2,
                 },
             }),
+            MQTTAction::SlowSub(args) => process_slow_sub_args(args),
+            MQTTAction::FlappingDetect(args) => {
+                MqttActionType::EnableFlappingDetect(EnableFlappingDetectRequest {
+                    is_enable: args.is_enable.unwrap_or(false),
+                    window_time: args.window_time.unwrap_or(1),
+                    max_client_connections: args.max_client_connections.unwrap_or(15),
+                    ban_time: args.ban_time.unwrap_or(5),
+                })
+            }
             MQTTAction::Publish(args) => process_publish_args(args),
             MQTTAction::Subscribe(args) => process_subscribe_args(args),
-            MQTTAction::SlowSub(args) => process_slow_sub_args(args), // _ => unreachable!("UnSupport command"),
+            // _ => unreachable!("UnSupport command"),
         },
     };
     cmd.start(params).await;

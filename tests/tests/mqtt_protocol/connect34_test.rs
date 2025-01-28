@@ -14,134 +14,211 @@
 
 #[cfg(test)]
 mod tests {
-    use std::process;
-
-    use common_base::tools::unique_id;
-    use paho_mqtt::{Client, ReasonCode};
-
     use crate::mqtt_protocol::common::{
-        broker_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr, build_create_pros,
-        build_v3_conn_pros, distinct_conn,
+        broker_addr, broker_grpc_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr,
+        build_conn_pros, build_create_pros, distinct_conn,
     };
+    use crate::mqtt_protocol::connect_suite::ClientTestProperties;
+    use crate::mqtt_protocol::connect_suite::{session_present_test, wrong_password_test};
+    use common_base::tools::unique_id;
+    use grpc_clients::mqtt::admin::call::mqtt_broker_enable_flapping_detect;
+    use grpc_clients::pool::ClientPool;
+    use paho_mqtt::Client;
+    use protocol::broker_mqtt::broker_mqtt_admin::EnableFlappingDetectRequest;
+    use std::process;
+    use std::sync::Arc;
 
     #[tokio::test]
-    async fn client34_connect_test() {
-        let mqtt_version = 3;
-        let client_id = unique_id();
-        let addr = broker_addr();
-        v3_wrong_password_test(mqtt_version, &client_id, &addr, false, false);
-        v3_session_present_test(mqtt_version, &client_id, &addr, false, false);
-
-        let mqtt_version = 4;
-        let client_id = unique_id();
-        let addr = broker_addr();
-        v3_wrong_password_test(mqtt_version, &client_id, &addr, false, false);
-        v3_session_present_test(mqtt_version, &client_id, &addr, false, false);
+    async fn client_connect_wrong_password_test_v3() {
+        let client_v3_properties = ClientTestProperties {
+            mqtt_version: 3,
+            client_id: unique_id(),
+            addr: broker_addr(),
+            ws: false,
+            ssl: false,
+        };
+        // connect_test
+        wrong_password_test(client_v3_properties.clone());
+        session_present_test(client_v3_properties.clone());
     }
 
     #[tokio::test]
-    async fn client34_connect_ssl_test() {
-        let mqtt_version = 3;
-        let client_id = unique_id();
-        let addr = broker_ssl_addr();
-        v3_wrong_password_test(mqtt_version, &client_id, &addr, false, true);
-        v3_session_present_test(mqtt_version, &client_id, &addr, false, true);
-
-        let mqtt_version = 4;
-        let client_id = unique_id();
-        let addr = broker_ssl_addr();
-        v3_wrong_password_test(mqtt_version, &client_id, &addr, false, true);
-        v3_session_present_test(mqtt_version, &client_id, &addr, false, true);
+    async fn client_connect_session_present_test_v3() {
+        let client_v3_properties = ClientTestProperties {
+            mqtt_version: 3,
+            client_id: unique_id(),
+            addr: broker_addr(),
+            ws: false,
+            ssl: false,
+        };
+        session_present_test(client_v3_properties.clone());
     }
 
     #[tokio::test]
-    async fn client4_connect_ws_test() {
-        let mqtt_version = 4;
-        let client_id = unique_id();
-        let addr = broker_ws_addr();
+    async fn client_connect_ssl_test_v3() {
+        let mut client_v3_properties = ClientTestProperties {
+            mqtt_version: 3,
+            client_id: unique_id(),
+            addr: broker_addr(),
+            ws: false,
+            ssl: false,
+        };
+        client_v3_properties.addr = broker_ssl_addr();
+        client_v3_properties.ssl = true;
 
-        v3_wrong_password_test(mqtt_version, &client_id, &addr, true, false);
-        v3_session_present_test(mqtt_version, &client_id, &addr, true, false);
+        wrong_password_test(client_v3_properties.clone());
+        session_present_test(client_v3_properties.clone());
     }
 
     #[tokio::test]
-    async fn client4_connect_wss_test() {
-        let mqtt_version = 4;
-        let client_id = unique_id();
-        let addr = broker_wss_addr();
-        v3_wrong_password_test(mqtt_version, &client_id, &addr, true, true);
-        v3_session_present_test(mqtt_version, &client_id, &addr, true, true);
+    async fn client_connect_test_v4() {
+        let client_properties_v4 = ClientTestProperties {
+            mqtt_version: 4,
+            client_id: unique_id(),
+            addr: broker_addr(),
+            ws: false,
+            ssl: false,
+        };
+        // connect_test
+        wrong_password_test(client_properties_v4.clone());
+        session_present_test(client_properties_v4.clone());
     }
 
-    fn v3_wrong_password_test(mqtt_version: u32, client_id: &str, addr: &str, ws: bool, ssl: bool) {
-        let create_opts = build_create_pros(client_id, addr);
+    #[tokio::test]
+    async fn client_connect_ssl_test_v4() {
+        let mut client_properties_v4 = ClientTestProperties {
+            mqtt_version: 4,
+            client_id: unique_id(),
+            addr: broker_addr(),
+            ws: false,
+            ssl: false,
+        };
+        client_properties_v4.addr = broker_ssl_addr();
+        client_properties_v4.ssl = true;
+
+        wrong_password_test(client_properties_v4.clone());
+        session_present_test(client_properties_v4.clone());
+    }
+
+    #[tokio::test]
+    async fn client_connect_ws_test_v4() {
+        let mut client_properties_v4 = ClientTestProperties {
+            mqtt_version: 4,
+            client_id: unique_id(),
+            addr: broker_addr(),
+            ws: false,
+            ssl: false,
+        };
+        // ws_test
+        client_properties_v4.addr = broker_ws_addr();
+        client_properties_v4.ws = true;
+        client_properties_v4.ssl = false;
+
+        wrong_password_test(client_properties_v4.clone());
+        session_present_test(client_properties_v4.clone());
+    }
+
+    #[tokio::test]
+    async fn client_connect_wss_test_v4() {
+        let mut client_properties_v4 = ClientTestProperties {
+            mqtt_version: 4,
+            client_id: unique_id(),
+            addr: broker_addr(),
+            ws: false,
+            ssl: false,
+        };
+        // ws_test
+        client_properties_v4.addr = broker_wss_addr();
+        client_properties_v4.ws = true;
+        client_properties_v4.ssl = true;
+
+        wrong_password_test(client_properties_v4.clone());
+        session_present_test(client_properties_v4.clone());
+    }
+
+    async fn open_flapping_detect() {
+        let client_pool = Arc::new(ClientPool::new(3));
+        let grpc_addr = vec![broker_grpc_addr()];
+
+        let request = EnableFlappingDetectRequest {
+            is_enable: true,
+            window_time: 20,
+            max_client_connections: 2,
+            ban_time: 5,
+        };
+
+        let _reply = mqtt_broker_enable_flapping_detect(&client_pool, &grpc_addr, request)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn client_flapping_detect_test() {
+        open_flapping_detect().await;
+
+        let client_test_properties = ClientTestProperties {
+            mqtt_version: 3,
+            client_id: unique_id(),
+            addr: broker_addr(),
+            ws: false,
+            ssl: false,
+        };
+
+        let create_opts = build_create_pros(
+            &client_test_properties.client_id,
+            &client_test_properties.addr,
+        );
         let cli = Client::new(create_opts).unwrap_or_else(|err| {
             println!("Error creating the client: {:?}", err);
             process::exit(1);
         });
 
-        let conn_opts = build_v3_conn_pros(mqtt_version, true, ws, ssl);
-        println!("{:?}", conn_opts);
-        let err = cli.connect(conn_opts).unwrap_err();
-        println!("Unable to connect:\n\t{:?}", err);
-    }
+        let conn_opts = build_conn_pros(client_test_properties.clone(), false);
 
-    fn v3_session_present_test(
-        mqtt_version: u32,
-        client_id: &str,
-        addr: &str,
-        ws: bool,
-        ssl: bool,
-    ) {
-        let create_opts = build_create_pros(client_id, addr);
-        let cli = Client::new(create_opts).unwrap();
-        let conn_opts = build_v3_conn_pros(mqtt_version, false, ws, ssl);
-        let response = cli.connect(conn_opts).unwrap();
-        let resp = response.connect_response().unwrap();
-        if ws {
-            if ssl {
-                assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
-            } else {
-                assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
-            }
-            assert_eq!(4, resp.mqtt_version);
-        } else {
-            if ssl {
-                assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-            } else {
-                assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-            }
-            assert_eq!(mqtt_version, resp.mqtt_version);
-        }
-        assert!(resp.session_present);
-        assert_eq!(response.reason_code(), ReasonCode::Success);
+        assert!(cli.connect(conn_opts.clone()).is_ok());
+
         distinct_conn(cli);
 
-        let create_opts = build_create_pros(client_id, addr);
+        let create_opts = build_create_pros(
+            &client_test_properties.client_id,
+            &client_test_properties.addr,
+        );
+        let cli = Client::new(create_opts).unwrap_or_else(|err| {
+            println!("Error creating the client: {:?}", err);
+            process::exit(1);
+        });
 
-        let cli = Client::new(create_opts).unwrap();
+        let conn_opts = build_conn_pros(client_test_properties.clone(), false);
 
-        let conn_opts = build_v3_conn_pros(mqtt_version, false, ws, ssl);
+        assert!(cli.connect(conn_opts.clone()).is_ok());
 
-        let response = cli.connect(conn_opts).unwrap();
-        let resp = response.connect_response().unwrap();
-        if ws {
-            if ssl {
-                assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
-            } else {
-                assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
-            }
-            assert_eq!(4, resp.mqtt_version);
-        } else {
-            if ssl {
-                assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-            } else {
-                assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-            }
-            assert_eq!(mqtt_version, resp.mqtt_version);
-        }
-        assert!(!resp.session_present);
-        assert_eq!(response.reason_code(), ReasonCode::Success);
         distinct_conn(cli);
+
+        let create_opts = build_create_pros(
+            &client_test_properties.client_id,
+            &client_test_properties.addr,
+        );
+        let cli = Client::new(create_opts).unwrap_or_else(|err| {
+            println!("Error creating the client: {:?}", err);
+            process::exit(1);
+        });
+
+        let conn_opts = build_conn_pros(client_test_properties.clone(), false);
+
+        assert!(cli.connect(conn_opts.clone()).is_ok());
+
+        distinct_conn(cli);
+
+        let create_opts = build_create_pros(
+            &client_test_properties.client_id,
+            &client_test_properties.addr,
+        );
+        let cli = Client::new(create_opts).unwrap_or_else(|err| {
+            println!("Error creating the client: {:?}", err);
+            process::exit(1);
+        });
+
+        let conn_opts = build_conn_pros(client_test_properties.clone(), false);
+        assert!(cli.connect(conn_opts.clone()).is_err());
     }
 }

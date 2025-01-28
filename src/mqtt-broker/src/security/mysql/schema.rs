@@ -28,7 +28,7 @@ pub struct TAuthAcl {
     pub allow: u64,
     pub ipaddr: String,
     pub username: String,
-    pub clientid: String,
+    pub client_id: String,
     pub access: u64,
     pub topic: String,
 }

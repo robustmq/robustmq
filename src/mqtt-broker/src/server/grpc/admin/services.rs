@@ -29,16 +29,18 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateBlacklistReply, CreateBlacklistRequest, CreateTopicRewriteRuleReply,
     CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
     DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableSlowSubScribeReply,
-    EnableSlowSubscribeRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
-    ListBlacklistRequest, ListConnectionRaw, ListConnectionReply, ListConnectionRequest,
-    ListSlowSubScribeRaw, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
-    ListTopicRequest, ListUserReply, ListUserRequest, MqttTopic,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
+    EnableFlappingDetectRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
+    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionRaw,
+    ListConnectionReply, ListConnectionRequest, ListSlowSubScribeRaw, ListSlowSubscribeReply,
+    ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+    MqttTopic,
 };
 use tonic::{Request, Response, Status};
 
 use crate::handler::cache::CacheManager;
-use crate::observability::slow::sub::{read_slow_sub_record, SlowSubData};
+use crate::handler::flapping_detect::enable_flapping_detect;
+use crate::observability::slow::sub::{enable_slow_sub, read_slow_sub_record, SlowSubData};
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::cluster::ClusterStorage;
@@ -257,6 +259,20 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         }
     }
 
+    async fn mqtt_broker_enable_flapping_detect(
+        &self,
+        request: Request<EnableFlappingDetectRequest>,
+    ) -> Result<Response<EnableFlappingDetectReply>, Status> {
+        let req = request.into_inner();
+
+        match enable_flapping_detect(&self.cache_manager, req).await {
+            Ok(_) => Ok(Response::new(EnableFlappingDetectReply {
+                is_enable: req.is_enable,
+            })),
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
+    }
+
     // --- connection ---
     async fn mqtt_broker_list_connection(
         &self,
@@ -290,11 +306,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
     ) -> Result<Response<EnableSlowSubScribeReply>, Status> {
         let subscribe_request = request.into_inner();
 
-        match self
-            .cache_manager
-            .enable_slow_sub(subscribe_request.is_enable)
-            .await
-        {
+        match enable_slow_sub(&self.cache_manager, subscribe_request.is_enable).await {
             Ok(_) => Ok(Response::new(EnableSlowSubScribeReply {
                 is_enable: subscribe_request.is_enable,
             })),

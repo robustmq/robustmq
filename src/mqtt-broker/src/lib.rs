@@ -38,6 +38,7 @@ use storage::cluster::ClusterStorage;
 use storage_adapter::memory::MemoryStorageAdapter;
 // use storage_adapter::mysql::MySQLStorageAdapter;
 // use storage_adapter::rocksdb::RocksDBStorageAdapter;
+use crate::handler::flapping_detect::UpdateFlappingDetectCache;
 use storage_adapter::storage::StorageAdapter;
 use storage_adapter::StorageType;
 use subscribe::sub_exclusive::SubscribeExclusive;
@@ -157,6 +158,7 @@ where
         self.start_cluster_heartbeat_report(stop_send.clone());
         self.start_update_user_cache_thread(stop_send.clone());
         self.start_update_acl_cache_thread(stop_send.clone());
+        self.start_update_flapping_detect_cache_thread(stop_send.clone());
         self.start_push_server();
         self.start_system_topic_thread(stop_send.clone());
         self.awaiting_stop(stop_send);
@@ -316,6 +318,14 @@ where
 
         self.runtime.spawn(async move {
             update_acl_cache.start_update().await;
+        });
+    }
+
+    fn start_update_flapping_detect_cache_thread(&self, stop_send: broadcast::Sender<bool>) {
+        let update_flapping_detect_cache =
+            UpdateFlappingDetectCache::new(stop_send, self.cache_manager.clone());
+        self.runtime.spawn(async move {
+            update_flapping_detect_cache.start_update().await;
         });
     }
 

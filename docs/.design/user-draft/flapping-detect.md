@@ -1,4 +1,4 @@
-# 消息抖动功能用户文档
+# 连接抖动功能用户文档
 ## 功能介绍
 RobustMQ支持自动封禁那些被检测到短时间内频繁登录的客户端，
 并且在一段时间内拒绝这些客户端的登录，
@@ -31,7 +31,7 @@ roubst-cli mqtt flapping-detect --window-time=1
 ```
 - 修改最大断连次数
 ```shell
-roubst-cli mqtt flapping-detect --max-disconnects=15
+roubst-cli mqtt flapping-detect --max-client-connections=15
 ```
 - 修改封禁时长
 ```shell
