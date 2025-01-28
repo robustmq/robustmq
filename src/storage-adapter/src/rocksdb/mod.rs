@@ -19,6 +19,7 @@ use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use rocksdb_engine::RocksDBEngine;
+use serde::{Deserialize, Serialize};
 use tokio::{
     select,
     sync::{
@@ -53,6 +54,13 @@ struct WriteThreadData {
 struct ThreadWriteHandle {
     data_sender: mpsc::Sender<WriteThreadData>,
     stop_sender: broadcast::Sender<bool>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ShardConfigStore {
+    namespace: String,
+    shard_name: String,
+    shard_config: ShardConfig,
 }
 
 impl WriteThreadData {
@@ -336,11 +344,17 @@ impl StorageAdapter for RocksDBStorageAdapter {
         self.db
             .write(cf.clone(), shard_offset_key.as_str(), &0_u64)?;
 
+        let shard_config_store = ShardConfigStore {
+            namespace: namespace.clone(),
+            shard_name: shard_name.clone(),
+            shard_config,
+        };
+
         // store shard config
         self.db.write(
             cf,
             Self::shard_config_key(&namespace, &shard_name).as_str(),
-            &serde_json::to_vec(&shard_config)?,
+            &serde_json::to_vec(&shard_config_store)?,
         )
     }
 
