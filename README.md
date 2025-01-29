@@ -57,22 +57,20 @@ RobustMQ MQTT is RobustMQ's complete implementation of the MQTT protocol. The go
 5. **Plug-in storage**: Support offline messages, support a variety of message persistence storage engines.
 6. **Fully functional**: It supports essential features like testament messages and retained messages, along with all the functionalities of enterprise MQTT brokers such as HiveMQ and EMQX. For the full features, see the [RobustMQ MQTT documentation](docs/en/RobustMQ-MQTT/Overview.md)
 
-### Get Started
+### MQTT Get Started
 [《RobustMQ Quick Guide》](http://robustmq.com/QuickGuide/Overview.html)
 
 
-### Test Cases
+## Run Test Cases
 [Run Test Cases](http://robustmq.com/Architect/Test-Case.html)
 
-### Packaging
+## Packaging
 [Build & Packaging](http://robustmq.com/QuickGuide/Build.html)
 
-### Ontribution Guidelines
+## Ontribution Guidelines
 Please refer to [contribution guidelines](https://robustmq.com/ContributionGuide/GitHub-Contribution-Guide.html) for more information.
 
-
-
-### Contact us
+## Contact us
 - **Discord Group**: [Discord Link](https://discord.gg/jVxz2EF3)
 - **Wechat Group**: If you're interested in contributing to this project or discussing development topics, scan the QR Code to join our WeChat group for real-time discussions and collaboration.
 <div align="center">
