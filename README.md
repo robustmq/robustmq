@@ -58,8 +58,8 @@ RobustMQ MQTT is RobustMQ's complete implementation of the MQTT protocol. The go
 6. **Fully functional**: It supports essential features like testament messages and retained messages, along with all the functionalities of 
   
 ### Docs
-1. enterprise MQTT brokers such as HiveMQ and EMQX. For the full features, see the [RobustMQ MQTT documentation](docs/en/RobustMQ-MQTT/Overview.md)
-2. [《RobustMQ Quick Guide》](http://robustmq.com/QuickGuide/Overview.html)
+1. [《RobustMQ Quick Start》](http://robustmq.com/QuickGuide/Overview.html)
+2. [《RobsustMQ MQTT Doc》](https://robustmq.com/RobustMQ-MQTT/Overview.html)
 
 
 ## Run Test Cases
