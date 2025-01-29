@@ -578,10 +578,14 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::{collections::HashMap, sync::Arc, vec};
 
     use common_base::tools::unique_id;
-    use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
+    use futures::future;
+    use metadata_struct::adapter::{
+        read_config::ReadConfig,
+        record::{Header, Record},
+    };
 
     use crate::storage::{ShardConfig, StorageAdapter};
 
@@ -800,6 +804,141 @@ mod tests {
             .delete_shard(namespace, shard_name)
             .await
             .unwrap();
+
+        let _ = std::fs::remove_dir_all(&db_path);
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn concurrency_test() {
+        let db_path = format!("/tmp/robustmq_{}", unique_id());
+
+        let storage_adapter = Arc::new(RocksDBStorageAdapter::new(db_path.as_str(), 100));
+
+        // create one namespace with 4 shards
+        let namespace = unique_id();
+        let shards = (0..4).map(|i| format!("test-{}", i)).collect::<Vec<_>>();
+
+        // create shards
+        for i in 0..shards.len() {
+            storage_adapter
+                .create_shard(
+                    namespace.clone(),
+                    shards.get(i).unwrap().clone(),
+                    ShardConfig::default(),
+                )
+                .await
+                .unwrap();
+        }
+
+        let header = vec![Header {
+            name: "name".to_string(),
+            value: "value".to_string(),
+        }];
+
+        // create 10,000 tokio tasks, each of which will write 100 records to a shard
+        let mut tasks = vec![];
+        for tid in 0..10000 {
+            let storage_adapter = storage_adapter.clone();
+            let namespace = namespace.clone();
+            let shard_name = shards.get(tid % shards.len()).unwrap().clone();
+            let header = header.clone();
+
+            let task = tokio::spawn(async move {
+                let mut batch_data = Vec::new();
+
+                for idx in 0..100 {
+                    let data = Record {
+                        offset: None,
+                        header: header.clone(),
+                        key: format!("key-{}-{}", tid, idx),
+                        data: format!("data-{}-{}", tid, idx).as_bytes().to_vec(),
+                        tags: vec![format!("task-{}", tid)],
+                        timestamp: 0,
+                    };
+
+                    batch_data.push(data);
+                }
+
+                let write_offsets = storage_adapter
+                    .batch_write(namespace.clone(), shard_name.clone(), batch_data.clone())
+                    .await
+                    .unwrap();
+
+                assert_eq!(write_offsets.len(), 100);
+
+                let mut read_records = Vec::new();
+
+                for offset in write_offsets.iter() {
+                    let records = storage_adapter
+                        .read_by_offset(
+                            namespace.clone(),
+                            shard_name.clone(),
+                            *offset,
+                            ReadConfig {
+                                max_record_num: 1,
+                                max_size: u64::MAX,
+                            },
+                        )
+                        .await
+                        .unwrap();
+
+                    read_records.extend(records);
+                }
+
+                for (l, r) in batch_data.into_iter().zip(read_records.iter()) {
+                    assert_eq!(l.tags, r.tags);
+                    assert_eq!(l.key, r.key);
+                    assert_eq!(l.data, r.data);
+                }
+
+                // test read by tag
+                let tag_records = storage_adapter
+                    .read_by_tag(
+                        namespace.clone(),
+                        shard_name.clone(),
+                        0,
+                        format!("task-{}", tid),
+                        ReadConfig {
+                            max_record_num: u64::MAX,
+                            max_size: u64::MAX,
+                        },
+                    )
+                    .await
+                    .unwrap();
+
+                assert_eq!(tag_records.len(), 100);
+
+                for (l, r) in read_records.into_iter().zip(tag_records) {
+                    assert_eq!(l.offset, r.offset);
+                    assert_eq!(l.tags, r.tags);
+                    assert_eq!(l.key, r.key);
+                    assert_eq!(l.data, r.data);
+                }
+            });
+
+            tasks.push(task);
+        }
+
+        future::join_all(tasks).await;
+
+        for shard in shards.iter() {
+            let len = storage_adapter
+                .read_by_offset(
+                    namespace.clone(),
+                    shard.clone(),
+                    0,
+                    ReadConfig {
+                        max_record_num: u64::MAX,
+                        max_size: u64::MAX,
+                    },
+                )
+                .await
+                .unwrap()
+                .len();
+
+            assert_eq!(len, (10000 / shards.len()) * 100);
+        }
 
         let _ = std::fs::remove_dir_all(&db_path);
     }
