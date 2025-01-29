@@ -78,7 +78,7 @@ RobustMQ MQTT is RobustMQ's complete implementation of the MQTT protocol. The go
 ### Docs
 1. [《RobustMQ Quick Start》](http://robustmq.com/QuickGuide/Overview.html)
 2. [《RobsustMQ MQTT Doc》](https://robustmq.com/RobustMQ-MQTT/Overview.html)
-
+3. [《RobustMQ MQTT Command》](https://robustmq.com/RobustMQ-Command/Mqtt-Broker.html)
 
 ## Run Test Cases
 [Run Test Cases](http://robustmq.com/Architect/Test-Case.html)
