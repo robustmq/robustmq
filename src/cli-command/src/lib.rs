@@ -76,12 +76,6 @@ pub fn build_v5_pros() -> Properties {
         .push_val(PropertyCode::RequestProblemInformation, 1)
         .unwrap();
     props
-        .push_string_pair(PropertyCode::UserProperty, "lobo1", "1")
-        .unwrap();
-    props
-        .push_string_pair(PropertyCode::UserProperty, "lobo2", "2")
-        .unwrap();
-    props
 }
 
 pub fn build_create_pros(client_id: &str, addr: &str) -> CreateOptions {
