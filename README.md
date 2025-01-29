@@ -87,7 +87,7 @@ RobustMQ MQTT is RobustMQ's complete implementation of the MQTT protocol. The go
 [Build & Packaging](http://robustmq.com/QuickGuide/Build.html)
 
 ## Ontribution Guidelines
-Please refer to [contribution guidelines](https://robustmq.com/ContributionGuide/GitHub-Contribution-Guide.html) for more information.
+[GitHub Contribution Guide](https://robustmq.com/ContributionGuide/GitHub-Contribution-Guide.html)
 
 ## Contact us
 - **Discord Group**: [Discord Link](https://discord.gg/jVxz2EF3)
