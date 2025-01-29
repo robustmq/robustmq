@@ -7,33 +7,14 @@
     Next generation cloud-native converged message queue.
 </h3>
 
-> Tips: The project is still in its early preview version, undergoing rapid iteration and testing. A stable version has not been released yet. It is expected to release a stable version in the second half of 2025.
+> Tips: 
+> The project is still in its early preview version, undergoing rapid iteration and testing. A stable version has not been released yet. It is expected to release a stable version in the second half of 2025.
+> We are still young, please give us some time to grow up. We expect RobustMQ to become the next Apache top-level project in the message queue space.
 
 ##  🚀 Introduction
 RobustMQ is a next-generation high-performance cloud-native converged message queue. The goal is to implement a message queue based on Rust that can be compatible with multiple mainstream message queue protocols and has complete Serverless architecture.
 
 It has long wanted to support multi-protocol and have a full Serverless architecture. At the same time, we hope to keep the architecture simple while adapting to different deployment scenarios and deployment requirements. To achieve lower deployment, operation and maintenance, and use costs.
-
-[About RobustMQ](https://shimo.im/docs/XKq427g9v0Tj0PAN)
-
-Official documentation:
-- [English Version](https://robustmq.com/OverView/What-is-RobustMQ.html)
-- [中文版](https://robustmq.com/zh/OverView/What-is-RobustMQ.html)
-
-> Tips: We are still young, please give us some time to grow up. We expect RobustMQ to become the next Apache top-level project in the message queue space.
-
-## Planning
-
-In the first phase, the basic framework of the cluster (such as metadata storage service, storage adaptation layer, bring your own storage layer, etc.) and the functions related to MQTT protocol will be developed. The goal is to complete the RobustMQ architecture and adapt it to the MQTT protocol, and achieve production availability on the MQTT protocol.
-
-Welcome to our development plan.
-- [RobustMQ 2024 Development Plan](https://github.com/robustmq/robustmq/wiki/RobustMQ-2024-Development-Plan)
-- [RobustMQ Long‐Term Evolution Initiative](https://github.com/robustmq/robustmq/wiki/RobustMQ-Long%E2%80%90Term-Evolution-Initiative)
-
-> We are still young and development plans can change quickly.
-
-Release planing：
-- [RobustMQ Release Planing (中文版)](https://shimo.im/docs/473QMlB9dQcRZm3w)
 
 ## 💡 Features
 - 100% Rust: A message queuing kernel implemented entirely in Rust.
@@ -42,6 +23,8 @@ Release planing：
 - Plug-in storage: Standalone plug-in storage layer implementation, you can choose the appropriate storage layer according to your needs. It is compatible with traditional and cloud-native architectures, and supports cloud and IDC deployment patterns.
 - High cohesion architecture: It provides built-in metadata storage components, distributed Journal storage services, and has the ability to deploy quickly, easily and cohesively.
 - Rich functions: support sequential messages, dead message messages, transaction messages, idempotent messages, delay messages and other rich message queue functions.
+
+> In the first phase (~ end 2025), we will support RobustMQ MQTT.
 
 ## Architecture
 RobustMQ is a typical distributed layered architecture with separate computing layer, storage layer, and scheduling layer. By the control layer (Placement Center), computing Layer (Multi-protocol computing layer), Storage Adapter layer (Storage Adapter Layer), independent remote storage layer (Standalone storage) engine) consists of four parts. Each layer has the ability to quickly scale up and down, so as to achieve a complete Serverless capability of the whole system.
@@ -75,139 +58,19 @@ RobustMQ MQTT is RobustMQ's complete implementation of the MQTT protocol. The go
 6. **Fully functional**: It supports essential features like testament messages and retained messages, along with all the functionalities of enterprise MQTT brokers such as HiveMQ and EMQX. For the full features, see the [RobustMQ MQTT documentation](docs/en/RobustMQ-MQTT/Overview.md)
 
 ### Get Started
-To start the order, you need to start the Placement Center first, and then start the MQTT Broker.
-#### Binary packages run
-##### Download .tar.gz
-```
-$ wget https://github.com/robustmq/robustmq/releases/download/v0.1.0-beta/robustmq-apple-mac-arm64-0.1.0-beta.tar.gz
-$ tar -xzvf robustmq-apple-mac-arm64-0.1.0-beta.tar.gz
-$ cd robustmq-apple-mac-arm64-0.1.0-beta
-```
-
-##### Start the Placement Center and MQTT Server for a node
-```
-$ bin/robust-server placement-center start config/placement-center.toml
-$ bin/robust-server mqtt-server start config/mqtt-server.toml
-```
-
-##### Start the Placement Center and MQTT Server for 3 nodes
-```
-# Start Placement Center
-$ bin/robust-server placement-center start example/mqtt-cluster/placement-center/node-1.toml
-$ bin/robust-server placement-center start example/mqtt-cluster/placement-center/node-2.toml
-$ bin/robust-server placement-center start cexample/mqtt-cluster/placement-center/node-3.toml
-
-# Start MQTT Broker
-$ bin/robust-server mqtt-server start example/mqtt-cluster/mqtt-server/node-1.toml
-$ bin/robust-server mqtt-server start example/mqtt-cluster/mqtt-server/node-2.toml
-$ bin/robust-server mqtt-server start example/mqtt-cluster/mqtt-server/node-3.toml
-```
-
-#### Cargo runs
-##### Quickly launch the sample cluster
-```
-$ git clone https://github.com/robustmq/robustmq.git
-$ cd roubustmq
-
-# start cluster
-$ sh example/mqtt-cluster/start.sh
-
-# stop cluster
-$ sh example/mqtt-cluster/stop.sh
-```
-
-##### Start the Placement Center and MQTT Server for a node
-```
-$ cargo run --package cmd --bin placement-center -- --conf=config/placement-center.toml
-$ cargo run --package cmd --bin mqtt-server -- --conf=config/mqtt-server.toml
-```
-
-##### Start the Placement Center and MQTT Server for 3 node
-```
-# Start Placement Center
-$cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-1.toml
-$cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-2.toml
-$cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-3.toml
-
-# Start MQTT Broker
-cargo run --package cmd --bin mqtt-server -- --conf=example/mqtt-cluster/mqtt-server/node-1.toml
-cargo run --package cmd --bin mqtt-server -- --conf=example/mqtt-cluster/mqtt-server/node-2.toml
-cargo run --package cmd --bin mqtt-server -- --conf=example/mqtt-cluster/mqtt-server/node-3.toml
-```
+[《RobustMQ Quick Guide》](http://robustmq.com/QuickGuide/Overview.html)
 
 
-#### Test Cases
-You need to install the cargo-nextest command first. Please refer to [documentation](https://robustmq.com/Architect/Test-Case.html)
+### Test Cases
+[Run Test Cases](http://robustmq.com/Architect/Test-Case.html)
 
-- Unit Tests
+### Packaging
+[Build & Packaging](http://robustmq.com/QuickGuide/Build.html)
 
-  Run all unit tests:
-  ```
-  make test
-  ```
-
-- Integration Tests
-
-  For MQTT Broker:
-  ```
-  make mqtt-ig-test
-  ```
-
-  For Placement Center:
-  ```
-  make place-ig-test
-  ```
-
-  For Journal Engine:
-  ```
-  make journal-ig-test
-  ```
-
-
-#### Packaging
-Follow the "make help" prompts to build packages for different platforms
-
-```
-FWR3KG21WF:robustmq bytedance$ make help
-
-Usage:
-  make <target>
-
-Build Mac Release
-  build-mac-release               Build mac version robustmq.
-
-Build Linux Release
-  build-linux-release             Build linux version robustmq.
-
-Build Win Release
-  build-win-release               Build win version robustmq.
-
-Build Arm Release
-  build-arm-release               Build arm version robustmq.
-  test                            Integration testing for Robustmq
-  clean                           Clean the project.
-  help                            Display help messages.
-```
-
-####  MQTT functional tests
-MQTT functionality was tested through the MQTTX tool. MQTTX quick start: https://mqttx.app/docs/get-started.
-
-## RobustMQ AMQP
-In the planning
-
-## RobustMQ Kafka
-In the planning
-
-## RobustMQ RocketMQ
-In the planning
-
-## RobustMQ ...
-In the planning
-
-## Contributing
-
-### Contribution Guidelines
+### Ontribution Guidelines
 Please refer to [contribution guidelines](https://robustmq.com/ContributionGuide/GitHub-Contribution-Guide.html) for more information.
+
+
 
 ### Contact us
 - **Discord Group**: [Discord Link](https://discord.gg/jVxz2EF3)
