@@ -17,6 +17,7 @@ use std::fmt;
 use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 
+/// A struct used for segment status transition in the placement center.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct JournalSegment {
     pub cluster_name: String,

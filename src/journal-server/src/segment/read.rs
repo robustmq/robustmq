@@ -26,6 +26,9 @@ use crate::core::error::JournalServerError;
 use crate::index::offset::OffsetIndexManager;
 use crate::index::tag::TagIndexManager;
 
+/// handle all read requests from Journal Client
+///
+/// Redirect read requests to the corresponding handler according to the read type
 pub async fn read_data_req(
     cache_manager: &Arc<CacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -140,6 +143,9 @@ pub async fn read_data_req(
     Ok(results)
 }
 
+/// handle read requests by offset
+///
+/// Use index (if there's any) to find the last nearest start byte position given the offset
 async fn read_by_offset(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file: &SegmentFile,
@@ -169,6 +175,9 @@ async fn read_by_offset(
     Ok(res)
 }
 
+/// handle read requests by key
+///
+/// Use index (if there's any) to find all start byte positions of the records with the given key
 async fn read_by_key(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file: &SegmentFile,
@@ -191,6 +200,9 @@ async fn read_by_key(
     segment_file.read_by_positions(positions).await
 }
 
+/// handle read requests by tag
+///
+/// Similar to [`read_by_key`], but use tag index
 async fn read_by_tag(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file: &SegmentFile,
