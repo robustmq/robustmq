@@ -244,15 +244,11 @@ impl MqttBrokerCommand {
                     let raw = msg
                         .properties()
                         .get_string_pair_at(PropertyCode::UserProperty, 0);
-                    match raw {
-                        Some(raw) => {
-                            if raw.0 == "retain_push_flag" && raw.1 == "true" {
-                                let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                                println!("Retain message: {}", payload);
-                            }
-                            continue;
+                    if let Some(raw) = raw {
+                        if raw.0 == "retain_push_flag" && raw.1 == "true" {
+                            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                            println!("Retain message: {}", payload);
                         }
-                        None => {}
                     }
                     let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
                     println!("payload: {}", payload);
