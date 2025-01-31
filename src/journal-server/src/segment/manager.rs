@@ -30,6 +30,7 @@ use crate::index::engine::storage_data_fold;
 use crate::index::offset::OffsetIndexManager;
 use crate::index::time::TimestampIndexManager;
 
+/// struct that stores the metadata of a segment file.
 #[derive(Clone, Default, Debug)]
 pub struct SegmentFileMetadata {
     pub namespace: String,
@@ -40,6 +41,8 @@ pub struct SegmentFileMetadata {
     pub start_timestamp: i64,
     pub end_timestamp: i64,
 }
+
+/// struct that manages the segment file metadata, providing methods to add, get, remove, and update segment file metadata.
 pub struct SegmentFileManager {
     pub segment_files: DashMap<String, SegmentFileMetadata>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -134,6 +137,9 @@ impl SegmentFileManager {
     }
 }
 
+/// Populate `segment_file_manager` with the segment file metadata loaded from directory `dir` and its subdirectories.
+///
+/// This method is called when the node starts up.
 pub fn load_local_segment_cache(
     dir: &Path,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -215,6 +221,7 @@ pub fn metadata_and_local_segment_diff_check() {
     //todo
 }
 
+/// Create a new local segment file from `JournalSegment`.
 pub async fn create_local_segment(
     cache_manager: &Arc<CacheManager>,
     segment_file_manager: &Arc<SegmentFileManager>,

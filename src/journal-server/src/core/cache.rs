@@ -344,6 +344,7 @@ impl CacheManager {
     }
 }
 
+/// fetch node, shard, segment, segment meta from placement center and store them in cache
 pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool: &Arc<ClientPool>) {
     let conf = journal_server_conf();
 

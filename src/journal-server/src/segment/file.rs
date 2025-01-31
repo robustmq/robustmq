@@ -29,12 +29,14 @@ use super::SegmentIdentity;
 use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
 
+/// The record read from the segment file
 #[derive(Debug, Clone)]
 pub struct ReadData {
     pub position: u64,
     pub record: JournalRecord,
 }
 
+/// Given a segment identity, open a segment file for reading and writing.
 pub async fn open_segment_write(
     cache_manager: &Arc<CacheManager>,
     segment_iden: &SegmentIdentity,
@@ -66,6 +68,7 @@ pub async fn open_segment_write(
     ))
 }
 
+/// Represent a segment file, providing methods for reading and writing records.
 #[derive(Default)]
 pub struct SegmentFile {
     pub namespace: String,
@@ -85,6 +88,7 @@ impl SegmentFile {
         }
     }
 
+    /// try create a segment file under the data folder
     pub async fn try_create(&self) -> Result<(), JournalServerError> {
         try_create_fold(&self.data_fold)?;
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
@@ -95,6 +99,7 @@ impl SegmentFile {
         Ok(())
     }
 
+    /// delete the segment file
     pub async fn delete(&self) -> Result<(), JournalServerError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         if !file_exists(&segment_file) {
@@ -104,6 +109,7 @@ impl SegmentFile {
         Ok(remove_file(segment_file)?)
     }
 
+    /// append a list of records to the segment file
     pub async fn write(&self, records: &[JournalRecord]) -> Result<(), JournalServerError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = OpenOptions::new().append(true).open(segment_file).await?;
@@ -119,12 +125,30 @@ impl SegmentFile {
         Ok(())
     }
 
+    /// get the size of the segment file
     pub async fn size(&self) -> Result<u64, JournalServerError> {
         let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let metadata = fs::metadata(segment_file).await?;
         Ok(metadata.len())
     }
 
+    /// read a list of records starting from the byte position `start_position` in the segment file
+    ///
+    /// All records being returned satisfy the following conditions:
+    ///     1. the offset of the record is greater than or equal to `start_offset`
+    ///     2. the total size of the records is less than or equal to `max_size`
+    ///     3. the number of records is less than or equal to `max_record`
+    ///
+    /// The records are stored in the segment file in the following format:
+    ///
+    ///     [offset: u64][len: u32][data: bytes]
+    ///
+    /// We only consider `data` when calculating the size of a record.
+    ///
+    /// # Return
+    ///
+    /// A list of records and their byte positions in the segment file, in the order in which they are stored in the segment file.
+    ///
     pub async fn read_by_offset(
         &self,
         start_position: u64,
@@ -184,6 +208,9 @@ impl SegmentFile {
         Ok(results)
     }
 
+    /// read a list of records by their byte positions in the segment file
+    ///
+    /// See [`read_by_offset`] for more details.
     pub async fn read_by_positions(
         &self,
         positions: Vec<u64>,
