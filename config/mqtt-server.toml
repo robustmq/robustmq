@@ -52,7 +52,7 @@ runtime_worker_threads = 128
 default_user = "admin"
 default_password = "pwd123"
 
-[offline_messages]
+[offline.messages]
 enable = true
 expire_ms = 3600
 max_messages_num = 1000
