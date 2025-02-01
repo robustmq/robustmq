@@ -35,6 +35,7 @@ use crate::segment::manager::SegmentFileManager;
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
 
+/// a dispatcher struct to handle all commands from journal clients
 #[derive(Clone)]
 pub struct Command {
     cluster_handler: ClusterHandler,

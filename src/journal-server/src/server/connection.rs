@@ -39,6 +39,7 @@ impl fmt::Display for NetworkConnectionType {
     }
 }
 
+/// a struct that represents a TCP / TLS network connection
 #[derive(Clone)]
 pub struct NetworkConnection {
     pub connection_type: NetworkConnectionType,

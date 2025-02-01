@@ -24,6 +24,7 @@ use tokio_util::codec::FramedWrite;
 
 use super::connection::{NetworkConnection, NetworkConnectionType};
 
+/// a struct that manages all TCP and TLS connections
 pub struct ConnectionManager {
     connections: DashMap<u64, NetworkConnection>,
     tcp_write_list:
@@ -83,6 +84,7 @@ impl ConnectionManager {
         }
     }
 
+    /// stop a connection, note that we first stops all the connection threads, and then close the tcp stream
     pub async fn close_connect(&self, connection_id: u64) {
         if let Some((_, connection)) = self.connections.remove(&connection_id) {
             connection.stop_connection().await;
@@ -113,6 +115,7 @@ impl ConnectionManager {
         }
     }
 
+    /// write response packet to the corresponding tcp write stream identified by `connection_id`
     pub async fn write_tcp_frame(
         &self,
         connection_id: u64,
@@ -173,6 +176,7 @@ impl ConnectionManager {
         Ok(())
     }
 
+    /// similar to [`write_tcp_frame`], but for TLS connections
     async fn write_tcp_tls_frame(
         &self,
         connection_id: u64,

@@ -32,6 +32,7 @@ use crate::server::tcp::response::response_process;
 use crate::server::tcp::tcp_server::acceptor_process;
 use crate::server::tcp::tls_server::acceptor_tls_process;
 
+/// Start the TCP server in the journal engine from the config fire.
 pub async fn start_tcp_server(
     client_pool: Arc<ClientPool>,
     connection_manager: Arc<ConnectionManager>,

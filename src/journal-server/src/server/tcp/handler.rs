@@ -25,6 +25,7 @@ use crate::handler::command::Command;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::{RequestPackage, ResponsePackage};
 
+/// spawn `handler_process_num` threads to process request packets, distribute packets to threads
 pub(crate) async fn handler_process(
     handler_process_num: usize,
     mut request_queue_rx: Receiver<RequestPackage>,
@@ -94,6 +95,7 @@ pub(crate) async fn handler_process(
     });
 }
 
+/// each child process consumes the request packets from the request queue, applies the command, and sends the response to the response queue
 fn handler_child_process(
     handler_process_num: usize,
     stop_sx: broadcast::Sender<bool>,
