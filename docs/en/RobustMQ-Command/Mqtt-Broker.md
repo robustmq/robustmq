@@ -62,6 +62,25 @@
     End of input stream.
     ```
 
+    send retain message
+
+    ```console
+        % ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 publish --username=admin --password=pwd123 --topic=\$share/group1/test/topic1 --qos=1 --retained
+        able to connect: "127.0.0.1:1883"
+        you can post a message on the terminal:
+        helloworld!
+        > You typed: helloworld!
+        published retained message
+    ```
+
+    ```console
+        % ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 subscribe --username=admin --password=pwd123 --topic=\$share/group1/test/topic1 --qos=0
+        able to connect: "127.0.0.1:1883"
+        subscribe success
+        Retain message: helloworld!
+
+    ```
+
 3. Enable Slow Subscription Feature
 
    3.1 The slow subscription statistics function is mainly used to calculate the time (latency) it takes for the Broker to complete message processing and transmission after the message arrives at the Broker. If the latency exceeds the threshold, we will record a related piece of information in the cluster's slow subscription log. Operations personnel can query slow subscription records across the entire cluster using commands to address issues based on this information.

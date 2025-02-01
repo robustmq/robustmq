@@ -64,6 +64,23 @@ Deleted successfully!
     ^C Ctrl+C detected,  Please press ENTER to end the program.
     End of input stream.
 ```
+### 2.3 发布保留消息
+
+```console
+    % ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 publish --username=admin --password=pwd123 --topic=\$share/group1/test/topic1 --qos=1 --retained
+    able to connect: "127.0.0.1:1883"
+    you can post a message on the terminal:
+    helloworld!
+    > You typed: helloworld!
+    published retained message
+```
+
+```console
+    % ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 subscribe --username=admin --password=pwd123 --topic=\$share/group1/test/topic1 --qos=0
+    able to connect: "127.0.0.1:1883"
+    subscribe success
+    Retain message: helloworld!
+```
 
 ## 3. 开启慢订阅功能
 
