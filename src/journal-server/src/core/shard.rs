@@ -194,19 +194,5 @@ pub async fn try_auto_create_shard(
     }
 
     create_shard_to_place(cache_manager, client_pool, namespace, shard_name).await?;
-    let mut i = 0;
-    loop {
-        if i >= 30 {
-            break;
-        }
-        if cache_manager.get_shard(namespace, shard_name).is_some() {
-            return Ok(());
-        }
-        i += 1;
-        sleep(Duration::from_secs(1)).await;
-    }
-
-    Err(JournalServerError::ShardNotExist(shard_name_iden(
-        namespace, shard_name,
-    )))
+    Ok(())
 }
