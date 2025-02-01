@@ -30,6 +30,7 @@ use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::RequestPackage;
 
+// spawn `accept_thread_num` threads to accept tcp connections, prepare r/w stream for `read_frame_process` to fetch packets
 pub(crate) async fn acceptor_process(
     accept_thread_num: usize,
     connection_manager: Arc<ConnectionManager>,
@@ -94,6 +95,7 @@ pub(crate) async fn acceptor_process(
     }
 }
 
+/// read tcp stream, fetch packets and send them to the request queue for `handler_process` to consume
 fn read_frame_process(
     mut read_frame_stream: FramedRead<
         tokio::io::ReadHalf<tokio::net::TcpStream>,
