@@ -146,27 +146,23 @@ impl MqttBrokerCommand {
             false,
         );
         let topic = args.topic;
-        let mut props = Properties::new();
-        props
-            .push_u32(PropertyCode::MessageExpiryInterval, 50)
-            .unwrap();
+        let props = Properties::new();
+        let disconnect_opts = DisconnectOptionsBuilder::new()
+            .reason_code(ReasonCode::DisconnectWithWillMessage)
+            .finalize();
         println!("you can post a message on the terminal:");
         let j = tokio::spawn(async move {
             loop {
                 print!("> ");
                 select! {
-                        _ = signal::ctrl_c() => {
+                    _ = signal::ctrl_c() => {
                         println!(" Ctrl+C detected,  Please press ENTER to end the program. ");
-
-                     let disconnect_opts = DisconnectOptionsBuilder::new()
-                    .reason_code(ReasonCode::DisconnectWithWillMessage)
-                    .finalize();
-                cli.disconnect(disconnect_opts).unwrap();
+                        cli.disconnect(disconnect_opts).unwrap();
                         break;
+                    }
 
-                        }
                         // Read from stdin
-                        line = lines.next_line() => {
+                    line = lines.next_line() => {
                         match line {
                             Ok(Some(input)) => {
                                     println!("You typed: {}", input);
@@ -184,6 +180,11 @@ impl MqttBrokerCommand {
                                         Err(e) => {
                                             panic!("{:?}", e);
                                         }
+                                    }
+                                    if retained {
+                                        println!("published retained message");
+                                        cli.disconnect(disconnect_opts).unwrap(); // only one message retained
+                                        break;
                                     }
                             }
                             Ok(None) => {
@@ -240,6 +241,15 @@ impl MqttBrokerCommand {
         while let Some(msg) = rx.iter().next() {
             match msg {
                 Some(msg) => {
+                    let raw = msg
+                        .properties()
+                        .get_string_pair_at(PropertyCode::UserProperty, 0);
+                    if let Some(raw) = raw {
+                        if raw.0 == "retain_push_flag" && raw.1 == "true" {
+                            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                            println!("Retain message: {}", payload);
+                        }
+                    }
                     let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
                     println!("payload: {}", payload);
                 }
