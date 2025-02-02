@@ -54,7 +54,7 @@ No，这是一个 Apache License 2.0 的项目。
 目前正处于快速开发阶段，issue 信息不是很完善，建议添加我们微信群进行沟通。
 
 ## 💬 我们现在有多少人
-可以看我们的 GitHub 的 PR 日志和 Contributer list。
+可以看我们的 GitHub 的 PR 日志和 Contributor list。
 
 ## 👥 我能加入吗？
 超级欢迎的好不，我们希望有更多志同道合的人一起做事，一起玩，让我们的项目进度更快。
