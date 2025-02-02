@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::mqtt::common::{MqttProtocol, QoS};
+use protocol::mqtt::common::QoS;
 
-pub fn is_flow_control(protocol: &MqttProtocol, qos: QoS) -> bool {
-    protocol.is_mqtt5() && (qos == QoS::AtLeastOnce || qos == QoS::ExactlyOnce)
+pub fn is_qos_message(qos: QoS) -> bool {
+    qos == QoS::AtLeastOnce || qos == QoS::ExactlyOnce
 }
 
 pub fn is_connection_rate_exceeded() -> bool {

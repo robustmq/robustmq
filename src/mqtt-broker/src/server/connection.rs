@@ -100,6 +100,18 @@ impl NetworkConnection {
         false
     }
 
+    pub fn get_protocol(&self) -> MqttProtocol {
+        if self.is_mqtt3() {
+            return MqttProtocol::Mqtt3;
+        }
+
+        if self.is_mqtt4() {
+            return MqttProtocol::Mqtt4;
+        }
+
+        MqttProtocol::Mqtt5
+    }
+
     pub fn is_tcp(&self) -> bool {
         self.connection_type == NetworkConnectionType::Tcp
             || self.connection_type == NetworkConnectionType::Tls

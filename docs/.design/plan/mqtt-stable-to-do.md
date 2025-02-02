@@ -22,7 +22,8 @@
 
 ## 测试用例覆盖度
 1. 代码测试覆盖度
-   1. 
+   1. placement center
+   2. MQTT Broker
 2. 功能测试覆盖度
    1. TCP、TCPS、WebSocket，WebSockets
    2. 保留消息

@@ -22,6 +22,7 @@ use protocol::mqtt::common::{
 };
 use storage_adapter::storage::StorageAdapter;
 
+use super::flow_control::is_qos_message;
 use super::mqtt::MqttService;
 use crate::handler::cache::CacheManager;
 use crate::handler::response::{
@@ -187,26 +188,60 @@ where
             }
 
             MqttPacket::Publish(publish, publish_properties) => {
-                if tcp_connection.is_mqtt3() {
-                    return self
-                        .mqtt3_service
-                        .publish(tcp_connection.connection_id, publish, publish_properties)
-                        .await;
+                let connection = if let Some(se) = self
+                    .metadata_cache
+                    .connection_info
+                    .get(&tcp_connection.connection_id)
+                {
+                    se.clone()
+                } else {
+                    return Some(response_packet_mqtt_distinct_by_reason(
+                        &tcp_connection.get_protocol(),
+                        Some(DisconnectReasonCode::MaximumConnectTime),
+                    ));
+                };
+
+                if is_qos_message(publish.qos) {
+                    connection.recv_qos_message_incr();
                 }
 
-                if tcp_connection.is_mqtt4() {
-                    return self
-                        .mqtt4_service
-                        .publish(tcp_connection.connection_id, publish, publish_properties)
-                        .await;
+                let resp = if tcp_connection.is_mqtt3() {
+                    self.mqtt3_service
+                        .publish(
+                            tcp_connection.connection_id,
+                            publish.clone(),
+                            publish_properties,
+                        )
+                        .await
+                } else if tcp_connection.is_mqtt4() {
+                    self.mqtt4_service
+                        .publish(
+                            tcp_connection.connection_id,
+                            publish.clone(),
+                            publish_properties,
+                        )
+                        .await
+                } else if tcp_connection.is_mqtt5() {
+                    self.mqtt5_service
+                        .publish(
+                            tcp_connection.connection_id,
+                            publish.clone(),
+                            publish_properties,
+                        )
+                        .await
+                } else {
+                    None
+                };
+
+                if let Some(pack) = resp.clone() {
+                    if let MqttPacket::PubRec(_, _) = pack {
+                        // todo
+                    } else if is_qos_message(publish.qos) {
+                        connection.recv_qos_message_decr();
+                    }
                 }
 
-                if tcp_connection.is_mqtt5() {
-                    return self
-                        .mqtt5_service
-                        .publish(tcp_connection.connection_id, publish, publish_properties)
-                        .await;
-                }
+                return resp;
             }
 
             MqttPacket::PubRec(pub_rec, pub_rec_properties) => {
