@@ -704,7 +704,7 @@ where
                 Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
-        
+
         process_sub_topic_rewrite(&mut subscribe, &self.cache_manager.topic_rewrite_rule).unwrap();
 
         let client_id = connection.client_id.clone();
