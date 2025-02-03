@@ -42,3 +42,4 @@ bincode.workspace = true
 mysql.workspace = true
 clap.workspace = true
 regex.workspace = true
+opendal.workspace = true
