@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::broker_mqtt::{Network, System, TcpThread};
+use super::broker_mqtt::{Network, OfflineMessage, System, TcpThread};
 use super::common::{Auth, Log, Storage};
 
 pub fn default_grpc_port() -> u32 {
@@ -89,6 +89,14 @@ pub fn default_log() -> Log {
     Log {
         log_path: "./logs".to_string(),
         log_config: "./config/log4rs.yaml".to_string(),
+    }
+}
+
+pub fn default_offline_message() -> OfflineMessage {
+    OfflineMessage {
+        enable: false,
+        expire_ms: 0,
+        max_messages_num: 0,
     }
 }
 

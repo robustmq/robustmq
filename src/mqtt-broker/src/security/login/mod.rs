@@ -12,11 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::net::SocketAddr;
-
-use axum::async_trait;
-
 use crate::handler::error::MqttBrokerError;
+use axum::async_trait;
 
 pub mod http;
 pub mod jwt;
@@ -29,16 +26,5 @@ pub trait Authentication {
     async fn apply(&self) -> Result<bool, MqttBrokerError>;
 }
 
-pub fn is_ip_blacklist(_: &SocketAddr) -> bool {
-    false
-}
-
 #[cfg(test)]
-mod test {
-    use super::is_ip_blacklist;
-
-    #[tokio::test]
-    pub async fn is_ip_blacklist_test() {
-        assert!(!is_ip_blacklist(&"127.0.0.1:1000".parse().unwrap()))
-    }
-}
+mod test {}

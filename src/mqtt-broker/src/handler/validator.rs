@@ -33,7 +33,7 @@ use tokio_util::codec::FramedWrite;
 use super::cache::CacheManager;
 use super::error::MqttBrokerError;
 use super::flow_control::{
-    is_connection_rate_exceeded, is_flow_control, is_subscribe_rate_exceeded,
+    is_connection_rate_exceeded, is_qos_message, is_subscribe_rate_exceeded,
 };
 use super::pkid::pkid_exists;
 use super::response::{
@@ -43,7 +43,6 @@ use super::response::{
 };
 use super::topic::topic_name_validator;
 use crate::security::authentication_acl;
-use crate::security::login::is_ip_blacklist;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::sub_common::sub_path_validator;
 
@@ -154,7 +153,6 @@ where
     None
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn connect_validator(
     protocol: &MqttProtocol,
     cluster: &MqttClusterDynamicConfig,
@@ -163,7 +161,6 @@ pub fn connect_validator(
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
     login: &Option<Login>,
-    addr: &SocketAddr,
 ) -> Option<MqttPacket> {
     if cluster.security.is_self_protection_status {
         return Some(response_packet_mqtt_connect_fail(
@@ -171,15 +168,6 @@ pub fn connect_validator(
             ConnectReturnCode::ServerBusy,
             connect_properties,
             Some(MqttBrokerError::ClusterIsInSelfProtection.to_string()),
-        ));
-    }
-
-    if is_ip_blacklist(addr) {
-        return Some(response_packet_mqtt_connect_fail(
-            protocol,
-            ConnectReturnCode::Banned,
-            connect_properties,
-            None,
         ));
     }
 
@@ -384,7 +372,7 @@ pub async fn publish_validator(
         }
     }
 
-    if is_flow_control(protocol, publish.qos)
+    if is_qos_message(publish.qos)
         && connection.get_recv_qos_message() >= cluster.protocol.receive_max as isize
     {
         if is_puback {

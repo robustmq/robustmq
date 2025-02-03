@@ -36,8 +36,8 @@ use super::common::{override_default_by_env, Auth, Log, Storage};
 use super::default_mqtt::{
     default_auth, default_grpc_port, default_http_port, default_log, default_network,
     default_network_quic_port, default_network_tcp_port, default_network_tcps_port,
-    default_network_websocket_port, default_network_websockets_port, default_placement_center,
-    default_storage, default_system, default_tcp_thread,
+    default_network_websocket_port, default_network_websockets_port, default_offline_message,
+    default_placement_center, default_storage, default_system, default_tcp_thread,
 };
 use crate::tools::{read_file, try_create_fold};
 
@@ -63,6 +63,8 @@ pub struct BrokerMqttConfig {
     pub auth: Auth,
     #[serde(default = "default_log")]
     pub log: Log,
+    #[serde(default = "default_offline_message")]
+    pub offline_messages: OfflineMessage,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
@@ -111,6 +113,16 @@ pub struct System {
     pub default_user: String,
     #[serde(default)]
     pub default_password: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct OfflineMessage {
+    #[serde(default)]
+    pub enable: bool,
+    #[serde(default)]
+    pub expire_ms: u32,
+    #[serde(default)]
+    pub max_messages_num: u32,
 }
 
 static BROKER_MQTT_CONF: OnceLock<BrokerMqttConfig> = OnceLock::new();
