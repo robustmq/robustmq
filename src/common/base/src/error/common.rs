@@ -97,6 +97,9 @@ pub enum CommonError {
 
     #[error("RocksDB Family {0} not available")]
     RocksDBFamilyNotAvailable(String),
+
+    #[error("{0}")]
+    OpenDALError(#[from] opendal::Error),
 }
 
 impl From<CommonError> for Status {
