@@ -14,7 +14,7 @@
 
 ---
 name: Enhancement
-title: "[Style/Refactor/Performance/Doc/Test/Build/CI/Chore]"
+title: "[Style/Refactor/Performance/Docs/Test/Build/CI/Chore]"
 description: Suggest an enhancement to existing functionality
 labels: [ "enhancement" ]
 body:
