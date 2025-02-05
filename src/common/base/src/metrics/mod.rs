@@ -13,27 +13,26 @@
 // limitations under the License.
 
 pub mod broker;
+pub mod registry;
 use axum::routing::get;
 use axum::Router;
 use log::info;
-use prometheus::{Encoder, IntGaugeVec, TextEncoder};
+use prometheus_client::encoding::text::encode;
 
-lazy_static::lazy_static! {
-    static ref APP_VERSION: IntGaugeVec =
-        prometheus::register_int_gauge_vec!("app_version", "app version", &["short_version", "version"]).unwrap();
-}
+// lazy_static::lazy_static! {
+//     static ref APP_VERSION: IntGaugeVec =
+//         prometheus::register_int_gauge_vec!("app_version", "app version", &["short_version", "version"]).unwrap();
+// }
 
 const SERVER_LABEL_MQTT: &str = "mqtt4";
 const SERVER_LABEL_GRPC: &str = "grpc";
 const SERVER_LABEL_HTTP: &str = "http";
 
 pub fn dump_metrics() -> String {
-    let mut buffer = Vec::new();
-    let encoder = TextEncoder::new();
-    let mf = prometheus::gather();
-    encoder.encode(&mf, &mut buffer).unwrap();
-
-    String::from_utf8(buffer).unwrap()
+    let mut buffer = String::new();
+    let re = registry::default();
+    encode(&mut buffer, &re).unwrap();
+    buffer
 }
 
 pub async fn register_prometheus_export(port: u32) {
