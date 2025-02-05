@@ -150,17 +150,24 @@ where
 
     pub fn start(&self, stop_send: broadcast::Sender<bool>) {
         self.register_node();
-        self.start_grpc_server();
-        self.start_mqtt_server(stop_send.clone());
+        self.start_cluster_heartbeat_report(stop_send.clone());
+
+        self.start_push_server();
+
         self.start_http_server();
+
+        self.start_grpc_server();
+
+        self.start_mqtt_server(stop_send.clone());
         self.start_websocket_server(stop_send.clone());
         self.start_keep_alive_thread(stop_send.clone());
-        self.start_cluster_heartbeat_report(stop_send.clone());
+
         self.start_update_user_cache_thread(stop_send.clone());
         self.start_update_acl_cache_thread(stop_send.clone());
         self.start_update_flapping_detect_cache_thread(stop_send.clone());
-        self.start_push_server();
+
         self.start_system_topic_thread(stop_send.clone());
+
         self.awaiting_stop(stop_send);
     }
 

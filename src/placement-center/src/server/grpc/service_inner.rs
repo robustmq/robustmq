@@ -112,7 +112,7 @@ impl PlacementCenterService for GrpcPlacementService {
             nodes.push(raw.encode())
         }
 
-        return Ok(Response::new(NodeListReply { nodes }));
+        Ok(Response::new(NodeListReply { nodes }))
     }
 
     async fn register_node(
