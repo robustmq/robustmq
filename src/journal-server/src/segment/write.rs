@@ -234,7 +234,7 @@ async fn get_write(
     Ok(write)
 }
 
-/// create a segment write thread which is responsible for writing data to the segment file identities by `segment_iden`
+/// create a segment write thread which is responsible for writing data to the segment file identified by `segment_iden`
 ///
 /// Return a `SegmentWrite` handle which can be used to send data to the write thread
 pub(crate) async fn create_write_thread(
