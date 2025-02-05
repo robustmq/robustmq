@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::LazyLock;
-
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use prometheus_client::encoding::EncodeLabelSet;
 use protocol::mqtt::{
@@ -246,59 +244,8 @@ common_base::register_gauge_metric!(
     QosLabel
 );
 
-// macro_rules! common_base::gauge_metric_inc {
-//     ($family:ident,$label:ident) => {
-//         {
-//         let family = $family.clone();
-//         {
-//             let family_r = family.read().unwrap();
-//             if let Some(gauge) = family_r.get(&$label) {
-//                 gauge.inc();
-//                 return;
-//             };
-//         }
-//         let family_w = family.write().unwrap();
-//         family_w.get_or_create(&$label).inc();
-//         }
-//     };
-// }
-
-// macro_rules! common_base::gauge_metric_inc_by {
-//     ($family:ident,$label:ident,$v:expr) => {
-//         {
-//         let family = $family.clone();
-//         {
-//             let family_r = family.read().unwrap();
-//             if let Some(gauge) = family_r.get(&$label) {
-//                 gauge.inc();
-//                 return;
-//             };
-//         }
-//         let family_w = family.write().unwrap();
-//         family_w.get_or_create(&$label).inc_by($v);
-//         }
-//     };
-// }
-
 // Record the packet-related metrics received by the server for failed resolution
 pub fn record_received_error_metrics(network_type: NetworkConnectionType) {
-    // --------------------------WriteLock--------------------------
-    // PACKETS_RECEIVED_ERROR
-    //     .clone().write().unwrap()
-    //     .get_or_create(&NetworkLabel{network:network_type.to_string()})
-    //     .inc();
-    // ----------------------------RwLock---------------------------
-    // let family = PACKETS_RECEIVED_ERROR.clone();
-    // {
-    //     let family_r = family.read().unwrap();
-    //     if let Some(gauge) = family_r.get(&NetworkLabel{network:network_type.to_string()}) {
-    //         gauge.inc();
-    //         return;
-    //     };
-    // }
-    // let family_w = family.write().unwrap();
-    // family_w.get_or_create(&NetworkLabel{network:network_type.to_string()}).inc();
-    // --------------------------macro_rules--------------------------
     let labe = NetworkLabel {
         network: network_type.to_string(),
     };
