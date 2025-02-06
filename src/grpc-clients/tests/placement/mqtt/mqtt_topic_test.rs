@@ -150,6 +150,7 @@ mod tests {
         let mut flag: bool = false;
         for raw in data.topics.clone() {
             let topic = serde_json::from_slice::<MqttTopic>(raw.as_slice()).unwrap();
+
             if topic == mqtt_topic {
                 flag = true;
             }

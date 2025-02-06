@@ -81,8 +81,8 @@ pub async fn delete_topic_by_req(
 ) -> Result<(), PlacementCenterError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
     let topic = topic_storage.get(&req.cluster_name, &req.topic_name)?;
-    if topic.is_some() {
-        return Err(PlacementCenterError::TopicAlreadyExist(req.topic_name));
+    if topic.is_none() {
+        return Err(PlacementCenterError::TopicDoesNotExist(req.topic_name));
     };
 
     let data = StorageData::new(
@@ -118,7 +118,15 @@ pub async fn set_topic_retain_message_req(
     }
 
     let topic_vec = serde_json::to_vec(&topic)?;
-    let data = StorageData::new(StorageDataType::MqttSetTopic, topic_vec);
+    let request = CreateTopicRequest {
+        cluster_name: req.cluster_name.clone(),
+        topic_name: req.topic_name.clone(),
+        content: topic_vec,
+    };
+    let data = StorageData::new(
+        StorageDataType::MqttSetTopic,
+        CreateTopicRequest::encode_to_vec(&request),
+    );
     raft_machine_apply.client_write(data).await?;
     Ok(())
 }
