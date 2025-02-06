@@ -25,6 +25,8 @@ use std::hash::Hash;
 
 pub type FamilyGauge<L> = Arc<RwLock<Family<L, Gauge>>>;
 
+pub type FamilyCounter<L> = Arc<RwLock<Family<L, Counter>>>;
+
 static REGISTRY: LazyLock<Mutex<Registry>> = LazyLock::new(|| Mutex::new(Registry::default()));
 
 pub fn default() -> MutexGuard<'static, Registry> {
@@ -42,6 +44,16 @@ macro_rules! register_gauge_metric {
 }
 
 #[macro_export]
+macro_rules! register_counter_metric {
+    ($name:ident, $metric_name:expr, $help:expr,$label:ty) => {
+        static $name: std::sync::LazyLock<common_base::metrics::registry::FamilyCounter<$label>> =
+            std::sync::LazyLock::new(|| {
+                common_base::metrics::registry::register_int_counter_family($metric_name, $help)
+            });
+    };
+}
+
+#[macro_export]
 macro_rules! gauge_metric_inc {
     ($family:ident,$label:ident) => {{
         let family = $family.clone();
@@ -50,6 +62,25 @@ macro_rules! gauge_metric_inc {
             let family_r = family.read().unwrap();
             if let Some(gauge) = family_r.get(&$label) {
                 gauge.inc();
+                found = true;
+            };
+        }
+        if !found {
+            let family_w = family.write().unwrap();
+            family_w.get_or_create(&$label).inc();
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! counter_metric_inc {
+    ($family:ident,$label:ident) => {{
+        let family = $family.clone();
+        let mut found = false;
+        {
+            let family_r = family.read().unwrap();
+            if let Some(counter) = family_r.get(&$label) {
+                counter.inc();
                 found = true;
             };
         }
@@ -98,6 +129,25 @@ macro_rules! gauge_metric_get {
     }};
 }
 
+#[macro_export]
+macro_rules! counter_metric_get {
+    ($family:ident,$label:ident, $res:ident) => {{
+        let family = $family.clone();
+        let mut found = false;
+        {
+            let family_r = family.read().unwrap();
+            if let Some(counter) = family_r.get(&$label) {
+                $res = counter.get();
+                found = true;
+            };
+        }
+        if !found {
+            let family_w = family.write().unwrap();
+            $res = family_w.get_or_create(&$label).get();
+        }
+    }};
+}
+
 /// Register a `Family<Gauge>` and wrap it in `Arc<RwLock<...>>`
 pub fn register_int_gauge_family<L>(name: &str, help: &str) -> Arc<RwLock<Family<L, Gauge>>>
 where
@@ -109,7 +159,7 @@ where
 }
 
 /// Register a `Family<Counter>` and wrap it in `Arc<RwLock<...>>`
-pub fn register_counter_family<L>(name: &str, help: &str) -> Arc<RwLock<Family<L, Counter>>>
+pub fn register_int_counter_family<L>(name: &str, help: &str) -> Arc<RwLock<Family<L, Counter>>>
 where
     L: EncodeLabelSet + Eq + Clone + Hash + Debug + Sync + Send + 'static,
 {
@@ -170,7 +220,7 @@ mod test {
 
     #[tokio::test]
     async fn test_counter() {
-        let family = register_counter_family::<ClientConnectionLabels>(
+        let family = register_int_counter_family::<ClientConnectionLabels>(
             "client_connection",
             "client connection",
         );

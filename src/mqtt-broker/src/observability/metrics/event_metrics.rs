@@ -26,7 +26,7 @@ struct ClientConnectionLabels {
     client_id: String,
 }
 
-common_base::register_gauge_metric!(
+common_base::register_counter_metric!(
     CLIENT_CONNECTION_COUNTER,
     "client_connections",
     "The number of client connections, regardless of success or failure.",
@@ -35,13 +35,13 @@ common_base::register_gauge_metric!(
 
 pub fn incr_client_connection_counter(client_id: String) {
     let labels = ClientConnectionLabels { client_id };
-    common_base::gauge_metric_inc!(CLIENT_CONNECTION_COUNTER, labels)
+    common_base::counter_metric_inc!(CLIENT_CONNECTION_COUNTER, labels)
 }
 
 pub fn get_client_connection_counter(client_id: String) -> u64 {
     let labels = ClientConnectionLabels { client_id };
     let mut res = 0;
-    common_base::gauge_metric_get!(CLIENT_CONNECTION_COUNTER, labels, res);
+    common_base::counter_metric_get!(CLIENT_CONNECTION_COUNTER, labels, res);
     res as u64
 }
 
