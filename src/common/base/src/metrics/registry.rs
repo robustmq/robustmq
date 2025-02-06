@@ -121,7 +121,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use prometheus_client::encoding::{text::encode, LabelSetEncoder};
+    use prometheus_client::encoding::text::encode;
 
     #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
     struct ClientConnectionLabels {
@@ -165,7 +165,7 @@ mod test {
         let re = default();
         encode(&mut buffer, &re).unwrap();
 
-        println!("{}", buffer);
+        assert!(!buffer.is_empty());
     }
 
     #[tokio::test]
@@ -197,6 +197,6 @@ mod test {
         let re = default();
         encode(&mut buffer, &re).unwrap();
 
-        println!("{}", buffer);
+        assert!(!buffer.is_empty());
     }
 }
