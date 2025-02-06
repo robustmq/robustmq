@@ -67,14 +67,14 @@ pub(crate) async fn acceptor_tls_process(
     let certs = match load_certs(Path::new(&conf.network.tls_cert)) {
         Ok(data) => data,
         Err(e) => {
-            panic!("load certs: {}", e.to_string());
+            panic!("load certs: {}", e);
         }
     };
 
     let key = match load_key(Path::new(&conf.network.tls_key)) {
         Ok(data) => data,
         Err(e) => {
-            panic!("load key: {}", e.to_string());
+            panic!("load key: {}", e);
         }
     };
 
@@ -84,7 +84,7 @@ pub(crate) async fn acceptor_tls_process(
     {
         Ok(data) => data,
         Err(e) => {
-            panic!("ssl build cert:{}", e.to_string());
+            panic!("ssl build cert:{}", e);
         }
     };
     let tls_acceptor = TlsAcceptor::from(Arc::new(config));

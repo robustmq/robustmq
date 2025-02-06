@@ -292,7 +292,7 @@ impl CacheManager {
             .insert(topic.topic_id.clone(), topic_name.to_owned());
     }
 
-    pub fn delte_topic(&self, topic_name: &String, topic: &MqttTopic) {
+    pub fn delete_topic(&self, topic_name: &String, topic: &MqttTopic) {
         self.topic_info.remove(topic_name);
         self.topic_id_name.remove(&topic.topic_id);
     }
@@ -717,7 +717,7 @@ pub fn update_cache_metadata(cache_manager: &Arc<CacheManager>, request: UpdateM
             MqttBrokerUpdateCacheActionType::Delete => {
                 match serde_json::from_str::<MqttTopic>(&request.data) {
                     Ok(topic) => {
-                        cache_manager.delte_topic(&topic.topic_name, &topic);
+                        cache_manager.delete_topic(&topic.topic_name, &topic);
                     }
                     Err(e) => {
                         error!("{}", e);
