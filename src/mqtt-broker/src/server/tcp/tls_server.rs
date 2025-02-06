@@ -28,6 +28,7 @@ use tokio::select;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{broadcast, mpsc};
 use tokio::time::sleep;
+
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::TlsAcceptor;
@@ -63,18 +64,17 @@ pub(crate) async fn acceptor_tls_process(
     request_queue_sx: Sender<RequestPackage>,
 ) {
     let conf = broker_mqtt_conf();
-
     let certs = match load_certs(Path::new(&conf.network.tls_cert)) {
         Ok(data) => data,
         Err(e) => {
-            panic!("{}", e.to_string());
+            panic!("load certs: {}", e.to_string());
         }
     };
 
     let key = match load_key(Path::new(&conf.network.tls_key)) {
         Ok(data) => data,
         Err(e) => {
-            panic!("{}", e.to_string());
+            panic!("load key: {}", e.to_string());
         }
     };
 
@@ -84,7 +84,7 @@ pub(crate) async fn acceptor_tls_process(
     {
         Ok(data) => data,
         Err(e) => {
-            panic!("{}", e.to_string());
+            panic!("ssl build cert:{}", e.to_string());
         }
     };
     let tls_acceptor = TlsAcceptor::from(Arc::new(config));

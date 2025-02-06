@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
-use log::{error, info};
+use log::{debug, error};
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
@@ -39,14 +39,14 @@ pub async fn report_heartbeat(client_pool: Arc<ClientPool>, stop_send: broadcast
             val = stop_recv.recv() =>{
                 if let Ok(flag) = val {
                     if flag {
-                        info!("{}","Heartbeat reporting thread exited successfully");
+                        debug!("{}","Heartbeat reporting thread exited successfully");
                         break;
                     }
                 }
             }
             _ = report(client_pool.clone()) => {
                 let config = broker_mqtt_conf();
-                info!("Heartbeat reporting successfully,node:{}",config.broker_id);
+                debug!("Heartbeat reporting successfully,node:{}",config.broker_id);
             }
         }
     }

@@ -376,7 +376,7 @@ async fn add_call_message(
             match sx.send(message.clone()) {
                 Ok(_) => {}
                 Err(e) => {
-                    error!("v2{}", e);
+                    error!("{}", e);
                 }
             }
         }
