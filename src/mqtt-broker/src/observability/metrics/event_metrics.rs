@@ -42,7 +42,7 @@ pub fn get_client_connection_counter(client_id: String) -> u64 {
     let labels = ClientConnectionLabels { client_id };
     let mut res = 0;
     common_base::counter_metric_get!(CLIENT_CONNECTION_COUNTER, labels, res);
-    res as u64
+    res
 }
 
 #[cfg(test)]
