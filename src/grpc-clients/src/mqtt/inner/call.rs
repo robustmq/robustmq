@@ -15,7 +15,7 @@
 use common_base::error::common::CommonError;
 use protocol::broker_mqtt::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
-    UpdateCacheReply, UpdateCacheRequest,
+    UpdateMqttCacheReply, UpdateMqttCacheRequest,
 };
 
 use crate::pool::ClientPool;
@@ -32,8 +32,8 @@ pub async fn broker_mqtt_delete_session(
 pub async fn broker_mqtt_update_cache(
     client_pool: &ClientPool,
     addrs: &[impl AsRef<str>],
-    request: UpdateCacheRequest,
-) -> Result<UpdateCacheReply, CommonError> {
+    request: UpdateMqttCacheRequest,
+) -> Result<UpdateMqttCacheReply, CommonError> {
     retry_call(client_pool, addrs, request).await
 }
 

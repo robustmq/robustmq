@@ -12,23 +12,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use protocol::placement_center::placement_center_mqtt::{
-    CreateTopicRequest, SetTopicRetainMessageRequest,
-};
-use rocksdb_engine::RocksDBEngine;
-
-use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
+use crate::mqtt::controller::call_broker::{
+    update_cache_by_add_topic, update_cache_by_delete_topic, MQTTInnerCallManager,
+};
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::topic::MqttTopicStorage;
+use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::topic::MqttTopic;
+use prost::Message;
+use protocol::placement_center::placement_center_mqtt::{
+    CreateTopicRequest, DeleteTopicRequest, ListTopicRequest, SetTopicRetainMessageRequest,
+};
+use rocksdb_engine::RocksDBEngine;
+use std::sync::Arc;
 
-pub async fn create_topic_req(
+pub async fn list_topic_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    _: &Arc<PlacementCacheManager>,
+    req: ListTopicRequest,
+) -> Result<Vec<Vec<u8>>, PlacementCenterError> {
+    let storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
+    if !req.topic_name.is_empty() {
+        if let Some(data) = storage.get(&req.cluster_name, &req.topic_name)? {
+            return Ok(vec![data.encode()]);
+        }
+    } else {
+        let data = storage.list(&req.cluster_name)?;
+        let mut result = Vec::new();
+        for raw in data {
+            result.push(raw.encode());
+        }
+        return Ok(result);
+    }
+    Ok(Vec::new())
+}
+
+pub async fn create_topic_by_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_machine_apply: &Arc<RaftMachineApply>,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
     req: CreateTopicRequest,
 ) -> Result<(), PlacementCenterError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
@@ -37,12 +61,39 @@ pub async fn create_topic_req(
         return Err(PlacementCenterError::TopicAlreadyExist(req.topic_name));
     };
 
-    // if !cluster_cache.cluster_list.contains_key(&req.cluster_name) {
-    //     return Err(PlacementCenterError::ClusterDoesNotExist(req.cluster_name));
-    // }
-
-    let data = StorageData::new(StorageDataType::MqttSetTopic, req.content);
+    let data = StorageData::new(
+        StorageDataType::MqttSetTopic,
+        CreateTopicRequest::encode_to_vec(&req),
+    );
     raft_machine_apply.client_write(data).await?;
+
+    let topic = serde_json::from_slice::<MqttTopic>(&req.content)?;
+    update_cache_by_add_topic(&req.cluster_name, call_manager, client_pool, topic).await?;
+    Ok(())
+}
+
+pub async fn delete_topic_by_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    raft_machine_apply: &Arc<RaftMachineApply>,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    req: DeleteTopicRequest,
+) -> Result<(), PlacementCenterError> {
+    let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
+    let topic = topic_storage.get(&req.cluster_name, &req.topic_name)?;
+    if topic.is_some() {
+        return Err(PlacementCenterError::TopicAlreadyExist(req.topic_name));
+    };
+
+    let data = StorageData::new(
+        StorageDataType::MqttDeleteTopic,
+        DeleteTopicRequest::encode_to_vec(&req),
+    );
+    raft_machine_apply.client_write(data).await?;
+
+    update_cache_by_delete_topic(&req.cluster_name, call_manager, client_pool, topic.unwrap())
+        .await?;
+
     Ok(())
 }
 
