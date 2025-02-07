@@ -20,7 +20,7 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
-use log::warn;
+use log::{error, warn};
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
@@ -30,7 +30,7 @@ use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_inner::{
-    MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateCacheRequest,
+    MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateMqttCacheRequest,
 };
 use protocol::mqtt::common::{MqttProtocol, PublishProperties, Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
@@ -287,9 +287,14 @@ impl CacheManager {
     }
 
     pub fn add_topic(&self, topic_name: &str, topic: &MqttTopic) {
-        let t = topic.clone();
-        self.topic_info.insert(topic_name.to_owned(), t.clone());
-        self.topic_id_name.insert(t.topic_id, topic_name.to_owned());
+        self.topic_info.insert(topic_name.to_owned(), topic.clone());
+        self.topic_id_name
+            .insert(topic.topic_id.clone(), topic_name.to_owned());
+    }
+
+    pub fn delete_topic(&self, topic_name: &String, topic: &MqttTopic) {
+        self.topic_info.remove(topic_name);
+        self.topic_id_name.remove(&topic.topic_id);
     }
 
     pub fn add_topic_rewrite_rule(&self, topic_rewrite_rule: MqttTopicRewriteRule) {
@@ -648,15 +653,77 @@ impl CacheManager {
     }
 }
 
-pub fn update_cache_metadata(request: UpdateCacheRequest) {
+pub fn update_cache_metadata(cache_manager: &Arc<CacheManager>, request: UpdateMqttCacheRequest) {
     match request.resource_type() {
         MqttBrokerUpdateCacheResourceType::Session => match request.action_type() {
-            MqttBrokerUpdateCacheActionType::Add => {}
-            MqttBrokerUpdateCacheActionType::Delete => {}
+            MqttBrokerUpdateCacheActionType::Set => {
+                match serde_json::from_str::<MqttSession>(&request.data) {
+                    Ok(session) => {
+                        cache_manager.add_session(session.client_id.clone(), session);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+            MqttBrokerUpdateCacheActionType::Delete => {
+                match serde_json::from_str::<MqttSession>(&request.data) {
+                    Ok(session) => {
+                        cache_manager.remove_session(&session.client_id);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
         },
         MqttBrokerUpdateCacheResourceType::User => match request.action_type() {
-            MqttBrokerUpdateCacheActionType::Add => {}
+            MqttBrokerUpdateCacheActionType::Set => {
+                match serde_json::from_str::<MqttUser>(&request.data) {
+                    Ok(user) => {
+                        cache_manager.add_user(user);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+            MqttBrokerUpdateCacheActionType::Delete => {
+                match serde_json::from_str::<MqttUser>(&request.data) {
+                    Ok(user) => {
+                        cache_manager.del_user(user.username);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+        },
+        MqttBrokerUpdateCacheResourceType::Subscribe => match request.action_type() {
+            MqttBrokerUpdateCacheActionType::Set => {}
             MqttBrokerUpdateCacheActionType::Delete => {}
+        },
+        MqttBrokerUpdateCacheResourceType::Topic => match request.action_type() {
+            MqttBrokerUpdateCacheActionType::Set => {
+                match serde_json::from_str::<MqttTopic>(&request.data) {
+                    Ok(topic) => {
+                        cache_manager.add_topic(&topic.topic_name, &topic);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+            MqttBrokerUpdateCacheActionType::Delete => {
+                match serde_json::from_str::<MqttTopic>(&request.data) {
+                    Ok(topic) => {
+                        cache_manager.delete_topic(&topic.topic_name, &topic);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
         },
     }
 }

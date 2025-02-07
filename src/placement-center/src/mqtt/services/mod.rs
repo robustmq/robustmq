@@ -12,5 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod acl;
+pub mod session;
 pub mod share_sub;
+pub mod subscribe;
 pub mod topic;
+pub mod user;

@@ -78,4 +78,6 @@ pub enum StorageDataType {
     MqttDeleteExclusiveTopic,
     MqttCreateTopicRewriteRule,
     MqttDeleteTopicRewriteRule,
+    MqttSetSubscribe,
+    MqttDeleteSubscribe,
 }

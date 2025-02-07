@@ -76,7 +76,7 @@ impl UpdateFlappingDetectCache {
             .await
         {
             Ok(_) => {
-                info!("Updating Flapping detect cache norm exception");
+                debug!("Updating Flapping detect cache norm exception");
             }
             Err(e) => {
                 error!("{}", e);
