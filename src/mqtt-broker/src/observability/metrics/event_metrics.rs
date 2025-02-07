@@ -14,13 +14,6 @@
 
 use prometheus_client::encoding::EncodeLabelSet;
 
-/**
-For metrics related to counters,
-we typically name them in the format *xxx_counter* to indicate that they are of the counter type.
-If its type is *Family<>*, then we usually define labels as *xxxLabels*.
-For example, for *client_connection_counter*, its labels would be *ClientConnectionLabels*.
-*/
-
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
 struct ClientConnectionLabels {
     client_id: String,
