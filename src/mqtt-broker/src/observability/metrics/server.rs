@@ -12,28 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use lazy_static::lazy_static;
-use prometheus::{register_int_gauge_vec, IntGaugeVec};
-
-use crate::handler::constant::{METRICS_KEY_LABEL_NAME, METRICS_KEY_TYPE_NAME};
-
-lazy_static! {
-    static ref BROKER_NETWORK_QUEUE_NUM: IntGaugeVec = register_int_gauge_vec!(
-        "network_queue_num",
-        "broker network queue num",
-        &[METRICS_KEY_LABEL_NAME, METRICS_KEY_TYPE_NAME]
-    )
-    .unwrap();
+use prometheus_client::encoding::EncodeLabelSet;
+#[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
+struct LabelType {
+    label: String,
+    r#type: String,
 }
 
+common_base::register_gauge_metric!(
+    BROKER_NETWORK_QUEUE_NUM,
+    "network_queue_num",
+    "broker network queue num",
+    LabelType
+);
+
 pub fn metrics_request_queue(label: &str, len: usize) {
-    BROKER_NETWORK_QUEUE_NUM
-        .with_label_values(&[label, "request"])
-        .set(len as i64);
+    let label_type = LabelType {
+        label: label.to_string(),
+        r#type: "request".to_string(),
+    };
+    common_base::gauge_metric_inc_by!(BROKER_NETWORK_QUEUE_NUM, label_type, len as i64);
 }
 
 pub fn metrics_response_queue(label: &str, len: usize) {
-    BROKER_NETWORK_QUEUE_NUM
-        .with_label_values(&[label, "response"])
-        .set(len as i64);
+    let label_type = LabelType {
+        label: label.to_string(),
+        r#type: "response".to_string(),
+    };
+    common_base::gauge_metric_inc_by!(BROKER_NETWORK_QUEUE_NUM, label_type, len as i64);
 }
