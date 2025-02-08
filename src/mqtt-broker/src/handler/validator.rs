@@ -42,7 +42,7 @@ use super::response::{
     response_packet_mqtt_suback, response_packet_mqtt_unsuback,
 };
 use super::topic::topic_name_validator;
-use crate::security::authentication_acl;
+use crate::security::{authentication_acl, AuthDriver};
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::sub_common::sub_path_validator;
 
@@ -424,41 +424,10 @@ pub async fn publish_validator(
 
 pub async fn subscribe_validator(
     protocol: &MqttProtocol,
-    _cache_manager: &Arc<CacheManager>,
-    _client_pool: &Arc<ClientPool>,
+    auth_driver: &Arc<AuthDriver>,
     connection: &MQTTConnection,
     subscribe: &Subscribe,
 ) -> Option<MqttPacket> {
-    // match pkid_exists(
-    //     cache_manager,
-    //     client_pool,
-    //     &connection.client_id,
-    //     subscribe.packet_identifier,
-    // )
-    // .await
-    // {
-    //     Ok(res) => {
-    //         if res {
-    //             return Some(response_packet_mqtt_suback(
-    //                 protocol,
-    //                 connection,
-    //                 subscribe.packet_identifier,
-    //                 vec![SubscribeReasonCode::PkidInUse],
-    //                 None,
-    //             ));
-    //         }
-    //     }
-    //     Err(e) => {
-    //         return Some(response_packet_mqtt_suback(
-    //             protocol,
-    //             connection,
-    //             subscribe.packet_identifier,
-    //             vec![SubscribeReasonCode::Unspecified],
-    //             Some(e.to_string()),
-    //         ));
-    //     }
-    // };
-
     let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
     for filter in subscribe.filters.clone() {
         if !sub_path_validator(filter.path) {
@@ -492,6 +461,16 @@ pub async fn subscribe_validator(
             connection,
             subscribe.packet_identifier,
             vec![SubscribeReasonCode::QuotaExceeded],
+            None,
+        ));
+    }
+
+    if !auth_driver.allow_subscribe(connection, subscribe).await {
+        return Some(response_packet_mqtt_suback(
+            protocol,
+            connection,
+            subscribe.packet_identifier,
+            vec![SubscribeReasonCode::NotAuthorized],
             None,
         ));
     }

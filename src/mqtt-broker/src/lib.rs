@@ -24,6 +24,7 @@ use handler::acl::UpdateAclCache;
 use handler::cache::CacheManager;
 use handler::heartbreat::{register_node, report_heartbeat};
 use handler::keep_alive::ClientKeepAlive;
+use handler::sub_parse_topic::start_parse_subscribe_by_new_topic_thread;
 use handler::user::UpdateUserCache;
 use lazy_static::lazy_static;
 use log::{error, info};
@@ -129,10 +130,7 @@ where
             conf.system.runtime_worker_threads,
         );
 
-        let subscribe_manager = Arc::new(SubscribeManager::new(
-            cache_manager.clone(),
-            client_pool.clone(),
-        ));
+        let subscribe_manager = Arc::new(SubscribeManager::new(cache_manager.clone()));
 
         let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
 
@@ -152,7 +150,7 @@ where
         self.register_node();
         self.start_cluster_heartbeat_report(stop_send.clone());
 
-        self.start_push_server();
+        self.start_push_server(stop_send.clone());
 
         self.start_http_server();
 
@@ -259,10 +257,19 @@ where
         });
     }
 
-    fn start_push_server(&self) {
+    fn start_push_server(&self, stop_send: broadcast::Sender<bool>) {
         let subscribe_manager = self.subscribe_manager.clone();
+        let client_pool = self.client_pool.clone();
+        let metadata_cache = self.cache_manager.clone();
+
         self.runtime.spawn(async move {
-            subscribe_manager.start().await;
+            start_parse_subscribe_by_new_topic_thread(
+                &client_pool,
+                &metadata_cache,
+                &subscribe_manager,
+                stop_send,
+            )
+            .await;
         });
 
         let exclusive_sub = SubscribeExclusive::new(

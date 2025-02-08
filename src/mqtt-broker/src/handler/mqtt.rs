@@ -32,6 +32,8 @@ use storage_adapter::storage::StorageAdapter;
 use super::connection::disconnect_connection;
 use super::message::build_message_expire;
 use super::retain::try_send_retain_message;
+use super::sub_exclusive::remove_exclusive_subscribe;
+use super::subscribe::add_parse_subscribe;
 use crate::handler::cache::{
     CacheManager, ConnectionLiveTime, QosAckPackageData, QosAckPackageType,
 };
@@ -705,35 +707,62 @@ where
             );
         };
 
-        process_sub_topic_rewrite(&mut subscribe, &self.cache_manager.topic_rewrite_rule).unwrap();
-
-        let client_id = connection.client_id.clone();
-
-        if let Some(packet) = subscribe_validator(
-            &self.protocol,
-            &self.cache_manager,
-            &self.client_pool,
-            &connection,
-            &subscribe,
-        )
-        .await
+        if let Some(packet) =
+            subscribe_validator(&self.protocol, &self.auth_driver, &connection, &subscribe).await
         {
             return packet;
         }
 
-        if !self
-            .auth_driver
-            .allow_subscribe(&connection, &subscribe)
-            .await
+        process_sub_topic_rewrite(&mut subscribe, &self.cache_manager.topic_rewrite_rule);
+
+        if let Err(e) = add_parse_subscribe(
+            &connection.client_id,
+            &self.protocol,
+            &self.client_pool,
+            &self.cache_manager,
+            &self.subscribe_manager,
+            &subscribe,
+            &subscribe_properties,
+        )
+        .await
         {
             return response_packet_mqtt_suback(
                 &self.protocol,
                 &connection,
                 subscribe.packet_identifier,
-                vec![SubscribeReasonCode::NotAuthorized],
-                None,
+                vec![SubscribeReasonCode::Unspecified],
+                Some(e.to_string()),
             );
         }
+
+        self.cache_manager.add_client_subscribe(
+            &connection.client_id,
+            &self.protocol,
+            subscribe.clone(),
+            subscribe_properties.clone(),
+        );
+
+        st_report_subscribed_event(
+            &self.message_storage_adapter,
+            &self.cache_manager,
+            &self.client_pool,
+            &connection,
+            connect_id,
+            &self.connection_manager,
+            &subscribe,
+        )
+        .await;
+
+        try_send_retain_message(
+            self.protocol.clone(),
+            connection.client_id.clone(),
+            subscribe.clone(),
+            subscribe_properties.clone(),
+            self.client_pool.clone(),
+            self.cache_manager.clone(),
+            self.connection_manager.clone(),
+        )
+        .await;
 
         let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
         let cluster_qos = self.cache_manager.get_cluster_info().protocol.max_qos;
@@ -750,74 +779,13 @@ where
                 }
             }
         }
-
-        match self
-            .subscribe_manager
-            .save_exclusive_subscribe(subscribe.clone())
-            .await
-        {
-            Ok(None) => {}
-            Ok(Some(code)) => {
-                return response_packet_mqtt_suback(
-                    &self.protocol,
-                    &connection,
-                    subscribe.packet_identifier,
-                    vec![code],
-                    None,
-                );
-            }
-            Err(e) => {
-                return response_packet_mqtt_suback(
-                    &self.protocol,
-                    &connection,
-                    subscribe.packet_identifier,
-                    vec![SubscribeReasonCode::Unspecified],
-                    Some(e.to_string()),
-                );
-            }
-        }
-
-        self.cache_manager.add_client_subscribe(
-            client_id.clone(),
-            self.protocol.clone(),
-            subscribe.clone(),
-            subscribe_properties.clone(),
-        );
-
-        self.subscribe_manager
-            .add_subscribe(
-                client_id.clone(),
-                self.protocol.clone(),
-                subscribe.clone(),
-                subscribe_properties.clone(),
-            )
-            .await;
-
-        let pkid = subscribe.packet_identifier;
-
-        st_report_subscribed_event(
-            &self.message_storage_adapter,
-            &self.cache_manager,
-            &self.client_pool,
+        response_packet_mqtt_suback(
+            &self.protocol,
             &connection,
-            connect_id,
-            &self.connection_manager,
-            &subscribe,
+            subscribe.packet_identifier,
+            return_codes,
+            None,
         )
-        .await;
-
-        try_send_retain_message(
-            self.protocol.clone(),
-            client_id.clone(),
-            subscribe.clone(),
-            subscribe_properties.clone(),
-            self.client_pool.clone(),
-            self.cache_manager.clone(),
-            self.connection_manager.clone(),
-        )
-        .await;
-
-        response_packet_mqtt_suback(&self.protocol, &connection, pkid, return_codes, None)
     }
 
     pub async fn ping(&self, connect_id: u64, _: PingReq) -> MqttPacket {
@@ -869,29 +837,12 @@ where
             return packet;
         }
 
-        // match pkid_delete(
-        //     &self.cache_manager,
-        //     &self.client_pool,
-        //     &connection.client_id,
-        //     un_subscribe.pkid,
-        // )
-        // .await
-        // {
-        //     Ok(()) => {}
-        //     Err(e) => {
-        //         return response_packet_mqtt_unsuback(
-        //             &connection,
-        //             un_subscribe.pkid,
-        //             vec![UnsubAckReason::UnspecifiedError],
-        //             Some(e.to_string()),
-        //         );
-        //     }
-        // }
-
-        match self
-            .subscribe_manager
-            .remove_exclusive_subscribe(un_subscribe.clone())
-            .await
+        match remove_exclusive_subscribe(
+            &self.client_pool,
+            &self.cache_manager,
+            un_subscribe.clone(),
+        )
+        .await
         {
             Ok(_) => {}
             Err(e) => {
@@ -906,7 +857,7 @@ where
         }
 
         self.subscribe_manager
-            .remove_subscribe(&connection.client_id, &un_subscribe.filters);
+            .remove_subscribe0(&connection.client_id, &un_subscribe.filters);
 
         self.cache_manager
             .remove_filter_by_pkid(&connection.client_id, &un_subscribe.filters);

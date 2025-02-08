@@ -179,6 +179,7 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::config::placement_center::placement_center_test_conf;
+    use common_base::tools::now_second;
     use metadata_struct::mqtt::topic::MqttTopic;
     use tokio::fs::remove_dir_all;
 
@@ -203,6 +204,7 @@ mod tests {
             topic_name: topic_name.clone(),
             retain_message: None,
             retain_message_expired_at: None,
+            create_time: now_second(),
         };
         topic_storage
             .save(&cluster_name, &topic_name, topic)
@@ -215,6 +217,7 @@ mod tests {
             topic_name: topic_name.clone(),
             retain_message: None,
             retain_message_expired_at: None,
+            create_time: now_second(),
         };
         topic_storage
             .save(&cluster_name, &topic_name, topic)

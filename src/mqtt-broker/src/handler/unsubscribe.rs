@@ -11,23 +11,3 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-use protocol::mqtt::common::{MqttProtocol, Subscribe, SubscribeProperties};
-use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
-pub struct MqttSubscribe {
-    pub client_id: String,
-    pub pkid: u16,
-    pub cluster_name: String,
-    pub broker_id: u64,
-    pub protocol: MqttProtocol,
-    pub subscribe: Subscribe,
-    pub subscribe_properties: Option<SubscribeProperties>,
-}
-
-impl MqttSubscribe {
-    pub fn encode(&self) -> Vec<u8> {
-        serde_json::to_vec(&self).unwrap()
-    }
-}

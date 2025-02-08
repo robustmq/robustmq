@@ -24,7 +24,7 @@ use crate::subscribe::sub_common::path_regex_match;
 pub fn process_sub_topic_rewrite(
     subscribe: &mut Subscribe,
     rules_map: &DashMap<String, MqttTopicRewriteRule>,
-) -> Result<(), MqttBrokerError> {
+) {
     let mut rules: Vec<MqttTopicRewriteRule> = rules_map
         .iter()
         .map(|entry| entry.value().clone())
@@ -48,7 +48,6 @@ pub fn process_sub_topic_rewrite(
             }
         }
     }
-    Ok(())
 }
 
 pub fn process_unsub_topic_rewrite(
