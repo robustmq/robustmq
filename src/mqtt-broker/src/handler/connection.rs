@@ -119,12 +119,7 @@ pub async fn disconnect_connection(
     subscribe_manager: &Arc<SubscribeManager>,
 ) -> Result<(), MqttBrokerError> {
     // remove the exclusive subscribe
-    remove_exclusive_subscribe_by_client_id(
-        client_pool,
-        subscribe_manager,
-        client_id,
-    )
-    .await?;
+    remove_exclusive_subscribe_by_client_id(client_pool, subscribe_manager, client_id).await?;
 
     // Remove the connection cache
     cache_manager.remove_connection(connect_id);

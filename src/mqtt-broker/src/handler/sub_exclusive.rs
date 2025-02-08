@@ -32,8 +32,7 @@ pub fn check_exclusive_subscribe(metadata_cache: &Arc<CacheManager>) -> bool {
     {
         return false;
     }
-    
-    
+
     true
 }
 
