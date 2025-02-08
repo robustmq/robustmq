@@ -707,8 +707,14 @@ where
             );
         };
 
-        if let Some(packet) =
-            subscribe_validator(&self.protocol, &self.auth_driver, &connection, &subscribe).await
+        if let Some(packet) = subscribe_validator(
+            &self.protocol,
+            &self.auth_driver,
+            &self.cache_manager,
+            &connection,
+            &subscribe,
+        )
+        .await
         {
             return packet;
         }
@@ -837,13 +843,7 @@ where
 
         process_unsub_topic_rewrite(&mut un_subscribe, &self.cache_manager.topic_rewrite_rule);
 
-        match remove_exclusive_subscribe(
-            &self.client_pool,
-            &self.cache_manager,
-            un_subscribe.clone(),
-        )
-        .await
-        {
+        match remove_exclusive_subscribe(&self.client_pool, un_subscribe.clone()).await {
             Ok(_) => {}
             Err(e) => {
                 return response_packet_mqtt_suback(

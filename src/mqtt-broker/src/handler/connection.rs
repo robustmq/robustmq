@@ -121,7 +121,6 @@ pub async fn disconnect_connection(
     // remove the exclusive subscribe
     remove_exclusive_subscribe_by_client_id(
         client_pool,
-        cache_manager,
         subscribe_manager,
         client_id,
     )

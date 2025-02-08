@@ -88,7 +88,6 @@ where
         for client_id in req.client_id {
             remove_exclusive_subscribe_by_client_id(
                 &self.client_pool,
-                &self.cache_manager,
                 &self.subscribe_manager,
                 &client_id,
             )
