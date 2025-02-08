@@ -173,7 +173,7 @@ impl SubscribeManager {
         }
     }
 
-    pub fn remove_subscribe0(&self, client_id: &str, filter_path: &[String]) {
+    pub fn unsubscribe(&self, client_id: &str, filter_path: &[String]) {
         for (topic_name, _) in self.metadata_cache.topic_info.clone() {
             for path in filter_path {
                 if !path_regex_match(topic_name.clone(), path.clone()) {

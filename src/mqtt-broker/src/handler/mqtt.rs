@@ -822,8 +822,6 @@ where
                 Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
-        process_unsub_topic_rewrite(&mut un_subscribe, &self.cache_manager.topic_rewrite_rule)
-            .unwrap();
 
         if let Some(packet) = un_subscribe_validator(
             &connection.client_id,
@@ -836,6 +834,8 @@ where
         {
             return packet;
         }
+
+        process_unsub_topic_rewrite(&mut un_subscribe, &self.cache_manager.topic_rewrite_rule);
 
         match remove_exclusive_subscribe(
             &self.client_pool,
@@ -857,7 +857,7 @@ where
         }
 
         self.subscribe_manager
-            .remove_subscribe0(&connection.client_id, &un_subscribe.filters);
+            .unsubscribe(&connection.client_id, &un_subscribe.filters);
 
         self.cache_manager
             .remove_filter_by_pkid(&connection.client_id, &un_subscribe.filters);

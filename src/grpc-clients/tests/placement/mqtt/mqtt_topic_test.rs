@@ -17,7 +17,7 @@ mod tests {
     use std::sync::Arc;
 
     use bytes::Bytes;
-    use common_base::tools::unique_id;
+    use common_base::tools::{now_second, unique_id};
     use grpc_clients::placement::mqtt::call::{
         placement_create_topic, placement_delete_topic, placement_list_topic,
         placement_set_topic_retain_message,
@@ -49,6 +49,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             retain_message: None,
             retain_message_expired_at: None,
+            create_time: now_second(),
         };
 
         let request = CreateTopicRequest {
@@ -88,6 +89,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             retain_message: Some(retain_message.clone()),
             retain_message_expired_at: Some(retain_message_expired_at),
+            create_time: now_second(),
         };
 
         let request = SetTopicRetainMessageRequest {

@@ -53,7 +53,7 @@ pub fn process_sub_topic_rewrite(
 pub fn process_unsub_topic_rewrite(
     un_subscribe: &mut Unsubscribe,
     rules_map: &DashMap<String, MqttTopicRewriteRule>,
-) -> Result<(), MqttBrokerError> {
+) {
     let mut rules: Vec<MqttTopicRewriteRule> = rules_map
         .iter()
         .map(|entry| entry.value().clone())
@@ -77,7 +77,6 @@ pub fn process_unsub_topic_rewrite(
             }
         }
     }
-    Ok(())
 }
 
 pub fn process_publish_topic_rewrite(
