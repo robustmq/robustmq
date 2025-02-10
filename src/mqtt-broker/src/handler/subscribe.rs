@@ -15,12 +15,17 @@
 use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use grpc_clients::{placement::mqtt::call::placement_set_subscribe, pool::ClientPool};
+use grpc_clients::{
+    placement::mqtt::call::{placement_delete_subscribe, placement_set_subscribe},
+    pool::ClientPool,
+};
 use log::error;
-use metadata_struct::mqtt::{subscribe_data::MqttSubscribe, topic::MqttTopic};
+use metadata_struct::mqtt::{
+    cluster::AvailableFlag, subscribe_data::MqttSubscribe, topic::MqttTopic,
+};
 use protocol::{
-    mqtt::common::{Filter, MqttProtocol, Subscribe, SubscribeProperties},
-    placement_center::placement_center_mqtt::SetSubscribeRequest,
+    mqtt::common::{Filter, MqttProtocol, Subscribe, SubscribeProperties, Unsubscribe},
+    placement_center::placement_center_mqtt::{DeleteSubscribeRequest, SetSubscribeRequest},
 };
 use serde::{Deserialize, Serialize};
 
@@ -33,7 +38,11 @@ use crate::subscribe::{
     subscriber::Subscriber,
 };
 
-use super::{cache::CacheManager, error::MqttBrokerError};
+use super::{
+    cache::CacheManager,
+    error::MqttBrokerError,
+    sub_exclusive::{try_add_exclusive_subscribe, try_remove_exclusive_subscribe},
+};
 
 #[derive(Clone, Deserialize, Serialize)]
 struct ParseShareQueueSubscribeRequest {
@@ -41,14 +50,14 @@ struct ParseShareQueueSubscribeRequest {
     topic_id: String,
     client_id: String,
     protocol: MqttProtocol,
-    subscribe: Subscribe,
     sub_identifier: Option<usize>,
     filter: Filter,
     sub_name: String,
     group_name: String,
+    pkid: u16,
 }
 
-pub async fn add_parse_subscribe(
+pub async fn save_subscribe(
     client_id: &str,
     protocol: &MqttProtocol,
     client_pool: &Arc<ClientPool>,
@@ -59,51 +68,87 @@ pub async fn add_parse_subscribe(
 ) -> Result<(), MqttBrokerError> {
     let conf = broker_mqtt_conf();
 
-    let sucscribe_data = MqttSubscribe {
-        client_id: client_id.to_owned(),
-        pkid: subscribe.packet_identifier,
-        cluster_name: conf.cluster_name.clone(),
-        broker_id: conf.broker_id,
-        subscribe: subscribe.clone(),
-        subscribe_properties: subscribe_properties.clone(),
-        protocol: protocol.clone(),
-    };
+    for filter in subscribe.filters.clone() {
+        let sucscribe_data = MqttSubscribe {
+            client_id: client_id.to_owned(),
+            path: filter.path.clone(),
+            cluster_name: conf.cluster_name.to_owned(),
+            broker_id: conf.broker_id,
+            filter: filter.clone(),
+            pkid: subscribe.packet_identifier,
+            subscribe_properties: subscribe_properties.to_owned(),
+            protocol: protocol.to_owned(),
+        };
 
-    // save subscribe
-    let request = SetSubscribeRequest {
-        cluster_name: conf.cluster_name.clone(),
-        client_id: client_id.to_owned(),
-        pkid: subscribe.packet_identifier as i64,
-        subscribe: sucscribe_data.encode(),
-    };
-    placement_set_subscribe(client_pool, &conf.placement_center, request).await?;
+        // save subscribe
+        let request = SetSubscribeRequest {
+            cluster_name: conf.cluster_name.to_owned(),
+            client_id: client_id.to_owned(),
+            path: filter.path.clone(),
+            subscribe: sucscribe_data.encode(),
+        };
+        placement_set_subscribe(client_pool, &conf.placement_center, request).await?;
+
+        // add susribe by cache
+        subscribe_manager.add_subscribe(sucscribe_data.clone());
+    }
 
     // parse subscribe
     for (_, topic) in cache_manager.topic_info.clone() {
-        parse_subscribe(
-            client_pool,
-            subscribe_manager,
-            client_id,
-            &topic,
-            protocol,
-            subscribe,
-            subscribe_properties,
-        )
-        .await;
+        for filter in subscribe.filters.clone() {
+            parse_subscribe(
+                client_pool,
+                cache_manager,
+                subscribe_manager,
+                client_id,
+                &topic,
+                protocol,
+                subscribe.packet_identifier,
+                &filter,
+                subscribe_properties,
+            )
+            .await;
+        }
     }
 
-    // add susribe by cache
-    subscribe_manager.add_subscribe(sucscribe_data.clone());
     Ok(())
 }
 
+pub async fn remove_subscribe(
+    client_id: &str,
+    un_subscribe: &Unsubscribe,
+    client_pool: &Arc<ClientPool>,
+    subscribe_manager: &Arc<SubscribeManager>,
+    cache_manager: &Arc<CacheManager>,
+) -> Result<(), MqttBrokerError> {
+    let conf = broker_mqtt_conf();
+    for path in un_subscribe.filters.clone() {
+        let request = DeleteSubscribeRequest {
+            cluster_name: conf.cluster_name.to_owned(),
+            client_id: client_id.to_owned(),
+            path: path.clone(),
+        };
+        placement_delete_subscribe(client_pool, &conf.placement_center, request).await?;
+
+        subscribe_manager.remove_subscribe(client_id, &path);
+    }
+
+    try_remove_exclusive_subscribe(subscribe_manager, un_subscribe.clone());
+    subscribe_manager.unsubscribe(client_id, &un_subscribe.filters);
+    cache_manager.remove_filter_by_pkid(client_id, &un_subscribe.filters);
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
 pub async fn parse_subscribe(
     client_pool: &Arc<ClientPool>,
+    metadata_cache: &Arc<CacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     client_id: &str,
     topic: &MqttTopic,
     protocol: &MqttProtocol,
-    subscribe: &Subscribe,
+    pkid: u16,
+    filter: &Filter,
     subscribe_properties: &Option<SubscribeProperties>,
 ) {
     let sub_identifier = if let Some(properties) = subscribe_properties.clone() {
@@ -112,52 +157,60 @@ pub async fn parse_subscribe(
         None
     };
 
-    for filter in subscribe.filters.clone() {
-        if is_share_sub(filter.path.clone()) {
-            parse_share_subscribe(
-                client_pool,
-                subscribe_manager,
-                &mut ParseShareQueueSubscribeRequest {
-                    topic_name: topic.topic_name.to_owned(),
-                    topic_id: topic.topic_id.to_owned(),
-                    client_id: client_id.to_owned(),
-                    protocol: protocol.clone(),
-                    subscribe: subscribe.clone(),
-                    sub_identifier,
-                    filter,
-                    sub_name: "".to_string(),
-                    group_name: "".to_string(),
-                },
-            )
-            .await;
-        } else if is_queue_sub(filter.path.clone()) {
-            parse_queue_subscribe(
-                client_pool,
-                subscribe_manager,
-                &mut ParseShareQueueSubscribeRequest {
-                    topic_name: topic.topic_name.to_owned(),
-                    topic_id: topic.topic_id.to_owned(),
-                    client_id: client_id.to_owned(),
-                    protocol: protocol.clone(),
-                    subscribe: subscribe.clone(),
-                    sub_identifier,
-                    filter,
-                    sub_name: "".to_string(),
-                    group_name: "".to_string(),
-                },
-            )
-            .await;
-        } else {
-            add_exclusive_subscribe(
-                subscribe_manager,
-                &topic.topic_name,
-                &topic.topic_id,
-                client_id,
-                protocol,
-                &sub_identifier,
-                &filter,
-            );
-        }
+    let enable_exclusive_sub = metadata_cache
+        .get_cluster_info()
+        .feature
+        .exclusive_subscription_available
+        == AvailableFlag::Disable;
+
+    if enable_exclusive_sub {
+        try_add_exclusive_subscribe(subscribe_manager, &filter.path, client_id);
+    }
+
+    if is_share_sub(filter.path.clone()) {
+        parse_share_subscribe(
+            client_pool,
+            subscribe_manager,
+            &mut ParseShareQueueSubscribeRequest {
+                topic_name: topic.topic_name.to_owned(),
+                topic_id: topic.topic_id.to_owned(),
+                client_id: client_id.to_owned(),
+                protocol: protocol.clone(),
+                sub_identifier,
+                filter: filter.clone(),
+                pkid,
+                sub_name: "".to_string(),
+                group_name: "".to_string(),
+            },
+        )
+        .await;
+    } else if is_queue_sub(filter.path.clone()) {
+        parse_queue_subscribe(
+            client_pool,
+            subscribe_manager,
+            &mut ParseShareQueueSubscribeRequest {
+                topic_name: topic.topic_name.to_owned(),
+                topic_id: topic.topic_id.to_owned(),
+                client_id: client_id.to_owned(),
+                protocol: protocol.clone(),
+                pkid,
+                sub_identifier,
+                filter: filter.clone(),
+                sub_name: "".to_string(),
+                group_name: "".to_string(),
+            },
+        )
+        .await;
+    } else {
+        add_exclusive_subscribe(
+            subscribe_manager,
+            &topic.topic_name,
+            &topic.topic_id,
+            client_id,
+            protocol,
+            &sub_identifier,
+            filter,
+        );
     }
 }
 
@@ -238,7 +291,7 @@ async fn add_share_subscribe_follower(
     let share_sub = ShareSubShareSub {
         client_id: req.client_id.clone(),
         protocol: req.protocol.clone(),
-        packet_identifier: req.subscribe.packet_identifier,
+        packet_identifier: req.pkid,
         filter: req.filter.clone(),
         group_name: req.group_name.clone(),
         sub_name: req.sub_name.clone(),

@@ -32,8 +32,7 @@ use storage_adapter::storage::StorageAdapter;
 use super::connection::disconnect_connection;
 use super::message::build_message_expire;
 use super::retain::try_send_retain_message;
-use super::sub_exclusive::remove_exclusive_subscribe;
-use super::subscribe::add_parse_subscribe;
+use super::subscribe::{remove_subscribe, save_subscribe};
 use crate::handler::cache::{
     CacheManager, ConnectionLiveTime, QosAckPackageData, QosAckPackageType,
 };
@@ -711,6 +710,7 @@ where
             &self.protocol,
             &self.auth_driver,
             &self.cache_manager,
+            &self.subscribe_manager,
             &connection,
             &subscribe,
         )
@@ -721,7 +721,7 @@ where
 
         process_sub_topic_rewrite(&mut subscribe, &self.cache_manager.topic_rewrite_rule);
 
-        if let Err(e) = add_parse_subscribe(
+        if let Err(e) = save_subscribe(
             &connection.client_id,
             &self.protocol,
             &self.client_pool,
@@ -843,24 +843,22 @@ where
 
         process_unsub_topic_rewrite(&mut un_subscribe, &self.cache_manager.topic_rewrite_rule);
 
-        match remove_exclusive_subscribe(&self.client_pool, un_subscribe.clone()).await {
-            Ok(_) => {}
-            Err(e) => {
-                return response_packet_mqtt_suback(
-                    &self.protocol,
-                    &connection,
-                    un_subscribe.pkid,
-                    vec![SubscribeReasonCode::Unspecified],
-                    Some(e.to_string()),
-                );
-            }
+        if let Err(e) = remove_subscribe(
+            &connection.client_id,
+            &un_subscribe,
+            &self.client_pool,
+            &self.subscribe_manager,
+            &self.cache_manager,
+        )
+        .await
+        {
+            return response_packet_mqtt_unsuback(
+                &connection,
+                un_subscribe.pkid,
+                vec![UnsubAckReason::UnspecifiedError],
+                Some(e.to_string()),
+            );
         }
-
-        self.subscribe_manager
-            .unsubscribe(&connection.client_id, &un_subscribe.filters);
-
-        self.cache_manager
-            .remove_filter_by_pkid(&connection.client_id, &un_subscribe.filters);
 
         st_report_unsubscribed_event(
             &self.message_storage_adapter,

@@ -178,8 +178,8 @@ pub fn storage_key_mqtt_node_sub_group_leader(cluster_name: &str) -> String {
     format!("/mqtt/sub_group_leader/{}", cluster_name)
 }
 
-pub fn storage_key_mqtt_subscribe(cluster_name: &str, client_id: &str, pkid: u32) -> String {
-    format!("/mqtt/subscribe/{}/{}/{}", cluster_name, client_id, pkid)
+pub fn storage_key_mqtt_subscribe(cluster_name: &str, client_id: &str, path: &str) -> String {
+    format!("/mqtt/subscribe/{}/{}/{}", cluster_name, client_id, path)
 }
 
 pub fn storage_key_mqtt_subscribe_client_id_prefix(cluster_name: &str, client_id: &str) -> String {

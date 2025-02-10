@@ -12,18 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{cache::CacheManager, error::MqttBrokerError};
-use crate::subscribe::{
-    sub_common::{delete_exclusive_topic, set_nx_exclusive_topic},
-    subscribe_manager::SubscribeManager,
-};
-use common_base::{error::common::CommonError, utils::topic_util};
-use grpc_clients::pool::ClientPool;
+use super::cache::CacheManager;
+use crate::subscribe::subscribe_manager::SubscribeManager;
+use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
+
 use metadata_struct::mqtt::cluster::AvailableFlag;
-use protocol::mqtt::common::{Subscribe, SubscribeReasonCode, Unsubscribe};
+use protocol::mqtt::common::{Subscribe, Unsubscribe};
 use std::sync::Arc;
 
-pub fn check_exclusive_subscribe(metadata_cache: &Arc<CacheManager>) -> bool {
+pub fn check_exclusive_subscribe(
+    metadata_cache: &Arc<CacheManager>,
+    subscribe_manager: &Arc<SubscribeManager>,
+    subscribe: &Subscribe,
+) -> bool {
     if metadata_cache
         .get_cluster_info()
         .feature
@@ -33,70 +34,62 @@ pub fn check_exclusive_subscribe(metadata_cache: &Arc<CacheManager>) -> bool {
         return false;
     }
 
+    for filter in subscribe.filters.clone() {
+        if !is_exclusive_sub(&filter.path) {
+            continue;
+        }
+
+        let topic_name = decode_exclusive_sub_path_to_topic_name(&filter.path);
+        if subscribe_manager.is_exclusive_subscribe_by_topic(topic_name) {
+            return false;
+        }
+    }
+
     true
 }
 
-pub async fn save_exclusive_subscribe(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    subscribe: &Subscribe,
-) -> Result<Option<SubscribeReasonCode>, MqttBrokerError> {
-    if metadata_cache
-        .get_cluster_info()
-        .feature
-        .exclusive_subscription_available
-        == AvailableFlag::Disable
-    {
-        return Ok(None);
+pub fn try_add_exclusive_subscribe(
+    subscribe_manager: &Arc<SubscribeManager>,
+    path: &str,
+    client_id: &str,
+) {
+    if is_exclusive_sub(path) {
+        return;
     }
 
-    for filter in subscribe.filters.clone() {
-        if !topic_util::is_exclusive_sub(&filter.path) {
-            continue;
-        }
-        let topic_name = topic_util::decode_exclusive_sub_path_to_topic_name(&filter.path);
-
-        if !set_nx_exclusive_topic(client_pool.clone(), topic_name.to_owned())
-            .await?
-            .success
-        {
-            return Ok(Some(SubscribeReasonCode::TopicSubscribed));
-        }
-    }
-    Ok(None)
+    let topic_name = decode_exclusive_sub_path_to_topic_name(path);
+    subscribe_manager.add_exclusive_subscribe_by_topic(topic_name, client_id);
 }
 
-pub async fn remove_exclusive_subscribe(
-    client_pool: &Arc<ClientPool>,
+pub fn try_remove_exclusive_subscribe(
+    subscribe_manager: &Arc<SubscribeManager>,
     un_subscribe: Unsubscribe,
-) -> Result<(), CommonError> {
-    for filter in un_subscribe.filters.clone() {
-        remove_exclusive_subscribe_by_sub_path(client_pool, filter.clone()).await?;
+) {
+    for path in un_subscribe.filters {
+        if is_exclusive_sub(&path) {
+            return;
+        }
+
+        let topic_name = decode_exclusive_sub_path_to_topic_name(&path);
+        subscribe_manager.remove_exclusive_subscribe_by_topic(topic_name);
     }
-    Ok(())
 }
 
-pub async fn remove_exclusive_subscribe_by_client_id(
-    client_pool: &Arc<ClientPool>,
+pub fn try_remove_exclusive_subscribe_by_path(
+    subscribe_manager: &Arc<SubscribeManager>,
+    path: &str,
+) {
+    if is_exclusive_sub(path) {
+        return;
+    }
+
+    let topic_name = decode_exclusive_sub_path_to_topic_name(path);
+    subscribe_manager.remove_exclusive_subscribe_by_topic(topic_name);
+}
+
+pub fn try_remove_exclusive_subscribe_by_client_id(
     subscribe_manager: &Arc<SubscribeManager>,
     client_id: &str,
-) -> Result<(), CommonError> {
-    for (_, subscriber) in subscribe_manager.exclusive_subscribe.clone() {
-        if subscriber.client_id == *client_id {
-            remove_exclusive_subscribe_by_sub_path(client_pool, subscriber.sub_path).await?;
-        }
-    }
-    Ok(())
-}
-
-async fn remove_exclusive_subscribe_by_sub_path(
-    client_pool: &Arc<ClientPool>,
-    un_sub_path: String,
-) -> Result<(), CommonError> {
-    if !topic_util::is_exclusive_sub(&un_sub_path) {
-        return Ok(());
-    }
-    let topic_name = topic_util::decode_exclusive_sub_path_to_topic_name(&un_sub_path);
-    delete_exclusive_topic(client_pool.clone(), topic_name.to_owned()).await?;
-    Ok(())
+) {
+    subscribe_manager.remove_exclusive_subscribe_by_client_id(client_id);
 }

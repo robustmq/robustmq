@@ -28,7 +28,7 @@ use tonic::{Request, Response, Status};
 
 use crate::handler::cache::{update_cache_metadata, CacheManager};
 use crate::handler::lastwill::send_last_will_message;
-use crate::handler::sub_exclusive::remove_exclusive_subscribe_by_client_id;
+use crate::handler::sub_exclusive::try_remove_exclusive_subscribe_by_client_id;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub struct GrpcInnerServices<S> {
@@ -86,12 +86,7 @@ where
             return Err(Status::cancelled("Client ID cannot be empty".to_string()));
         }
         for client_id in req.client_id {
-            remove_exclusive_subscribe_by_client_id(
-                &self.client_pool,
-                &self.subscribe_manager,
-                &client_id,
-            )
-            .await?;
+            try_remove_exclusive_subscribe_by_client_id(&self.subscribe_manager, &client_id);
             self.cache_manager.remove_session(&client_id);
             self.subscribe_manager.stop_push_by_client_id(&client_id);
         }
