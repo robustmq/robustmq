@@ -28,6 +28,7 @@ use tonic::{Request, Response, Status};
 
 use crate::handler::cache::{update_cache_metadata, CacheManager};
 use crate::handler::lastwill::send_last_will_message;
+use crate::handler::sub_exclusive::remove_exclusive_subscribe_by_client_id;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub struct GrpcInnerServices<S> {
@@ -67,7 +68,7 @@ where
         if conf.cluster_name != req.cluster_name {
             return Ok(Response::new(UpdateMqttCacheReply::default()));
         }
-        update_cache_metadata(&self.cache_manager, req);
+        update_cache_metadata(&self.cache_manager, &self.subscribe_manager, req).await;
         return Ok(Response::new(UpdateMqttCacheReply::default()));
     }
 
@@ -85,9 +86,12 @@ where
             return Err(Status::cancelled("Client ID cannot be empty".to_string()));
         }
         for client_id in req.client_id {
-            self.subscribe_manager
-                .remove_exclusive_subscribe_by_client_id(&client_id)
-                .await?;
+            remove_exclusive_subscribe_by_client_id(
+                &self.client_pool,
+                &self.subscribe_manager,
+                &client_id,
+            )
+            .await?;
             self.cache_manager.remove_session(&client_id);
             self.subscribe_manager.stop_push_by_client_id(&client_id);
         }

@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::mqtt::common::{Subscribe, SubscribeProperties};
+use protocol::mqtt::common::{MqttProtocol, Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct MqttSubscribe {
-    pub cluster_name: String,
-    pub broker_id: u32,
     pub client_id: String,
     pub pkid: u16,
+    pub cluster_name: String,
+    pub broker_id: u64,
+    pub protocol: MqttProtocol,
     pub subscribe: Subscribe,
     pub subscribe_properties: Option<SubscribeProperties>,
 }

@@ -26,6 +26,7 @@ use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::session::MqttSession;
+use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
@@ -42,6 +43,7 @@ use crate::security::AuthDriver;
 use crate::storage::cluster::ClusterStorage;
 use crate::storage::topic::TopicStorage;
 use crate::storage::user::UserStorage;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 use crate::subscribe::subscriber::SubscribeData;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -171,15 +173,15 @@ impl CacheManager {
 
     pub fn add_client_subscribe(
         &self,
-        client_id: String,
-        protocol: MqttProtocol,
+        client_id: &String,
+        protocol: &MqttProtocol,
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
     ) {
         for filter in subscribe.filters {
             let mut is_new = false;
             let path = filter.path.clone();
-            if let Some(data) = self.subscribe_filter.get_mut(&client_id) {
+            if let Some(data) = self.subscribe_filter.get_mut(client_id) {
                 data.insert(
                     path.clone(),
                     SubscribeData {
@@ -202,7 +204,7 @@ impl CacheManager {
                 self.subscribe_filter.insert(client_id.clone(), data);
             };
 
-            if let Some(data) = self.subscribe_is_new.get_mut(&client_id) {
+            if let Some(data) = self.subscribe_is_new.get_mut(client_id) {
                 data.insert(path.clone(), is_new);
             } else {
                 let data = DashMap::with_capacity(8);
@@ -653,7 +655,11 @@ impl CacheManager {
     }
 }
 
-pub fn update_cache_metadata(cache_manager: &Arc<CacheManager>, request: UpdateMqttCacheRequest) {
+pub async fn update_cache_metadata(
+    cache_manager: &Arc<CacheManager>,
+    subscribe_manager: &Arc<SubscribeManager>,
+    request: UpdateMqttCacheRequest,
+) {
     match request.resource_type() {
         MqttBrokerUpdateCacheResourceType::Session => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
@@ -700,8 +706,26 @@ pub fn update_cache_metadata(cache_manager: &Arc<CacheManager>, request: UpdateM
             }
         },
         MqttBrokerUpdateCacheResourceType::Subscribe => match request.action_type() {
-            MqttBrokerUpdateCacheActionType::Set => {}
-            MqttBrokerUpdateCacheActionType::Delete => {}
+            MqttBrokerUpdateCacheActionType::Set => {
+                match serde_json::from_str::<MqttSubscribe>(&request.data) {
+                    Ok(subscribe) => {
+                        subscribe_manager.add_subscribe(subscribe);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+            MqttBrokerUpdateCacheActionType::Delete => {
+                match serde_json::from_str::<MqttSubscribe>(&request.data) {
+                    Ok(subscribe) => {
+                        subscribe_manager.remove_subscribe(&subscribe.client_id, subscribe.pkid);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
         },
         MqttBrokerUpdateCacheResourceType::Topic => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
