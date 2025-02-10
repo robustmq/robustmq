@@ -32,12 +32,13 @@ use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
 
-use super::common::{override_default_by_env, Auth, Log, Storage};
+use super::common::{override_default_by_env, Auth, Log, Storage, Telemetry};
 use super::default_mqtt::{
     default_auth, default_grpc_port, default_http_port, default_log, default_network,
     default_network_quic_port, default_network_tcp_port, default_network_tcps_port,
     default_network_websocket_port, default_network_websockets_port, default_offline_message,
     default_placement_center, default_storage, default_system, default_tcp_thread,
+    default_telemetry,
 };
 use crate::tools::{read_file, try_create_fold};
 
@@ -65,6 +66,8 @@ pub struct BrokerMqttConfig {
     pub log: Log,
     #[serde(default = "default_offline_message")]
     pub offline_messages: OfflineMessage,
+    #[serde(default = "default_telemetry")]
+    pub telemetry: Telemetry,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]

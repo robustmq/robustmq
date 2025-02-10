@@ -43,6 +43,13 @@ pub struct Log {
     pub log_path: String,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
+pub struct Telemetry {
+    pub enable: bool,
+    pub exporter_type: String,
+    pub exporter_endpoint: String,
+}
+
 /** `override_default_by_env` 根据环境变量覆盖内容
 
 ```

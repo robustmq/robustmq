@@ -38,3 +38,6 @@ grpc-clients.workspace = true
 metadata-struct.workspace = true
 log.workspace = true
 tonic.workspace = true
+opentelemetry.workspace = true
+opentelemetry_sdk.workspace = true
+opentelemetry-otlp.workspace = true
