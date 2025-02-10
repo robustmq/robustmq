@@ -20,17 +20,13 @@ use bytes::BytesMut;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use common_base::tools::now_mills;
-use grpc_clients::placement::mqtt::call::{
-    placement_delete_exclusive_topic, placement_get_share_sub_leader,
-    placement_set_nx_exclusive_topic,
-};
+use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
 use grpc_clients::pool::ClientPool;
 use log::error;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{MqttPacket, MqttProtocol, PubRel, QoS};
 use protocol::placement_center::placement_center_mqtt::{
-    DeleteExclusiveTopicReply, DeleteExclusiveTopicRequest, GetShareSubLeaderReply,
-    GetShareSubLeaderRequest, SetExclusiveTopicReply, SetExclusiveTopicRequest,
+    GetShareSubLeaderReply, GetShareSubLeaderRequest,
 };
 use regex::Regex;
 use storage_adapter::storage::StorageAdapter;
@@ -167,35 +163,6 @@ pub async fn get_share_sub_leader(
         group_name,
     };
     match placement_get_share_sub_leader(&client_pool, &conf.placement_center, req).await {
-        Ok(reply) => Ok(reply),
-        Err(e) => Err(e),
-    }
-}
-pub async fn set_nx_exclusive_topic(
-    client_pool: Arc<ClientPool>,
-    topic_name: String,
-) -> Result<SetExclusiveTopicReply, CommonError> {
-    let conf = broker_mqtt_conf();
-    let req = SetExclusiveTopicRequest {
-        cluster_name: conf.cluster_name.clone(),
-        topic_name,
-    };
-    match placement_set_nx_exclusive_topic(&client_pool, &conf.placement_center, req).await {
-        Ok(reply) => Ok(reply),
-        Err(e) => Err(e),
-    }
-}
-
-pub async fn delete_exclusive_topic(
-    client_pool: Arc<ClientPool>,
-    topic_name: String,
-) -> Result<DeleteExclusiveTopicReply, CommonError> {
-    let conf = broker_mqtt_conf();
-    let req = DeleteExclusiveTopicRequest {
-        cluster_name: conf.cluster_name.clone(),
-        topic_name,
-    };
-    match placement_delete_exclusive_topic(&client_pool, &conf.placement_center, req).await {
         Ok(reply) => Ok(reply),
         Err(e) => Err(e),
     }

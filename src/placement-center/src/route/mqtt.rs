@@ -172,20 +172,15 @@ impl DataRouteMqtt {
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
         let req = SetSubscribeRequest::decode(value.as_ref())?;
         let subscribe = serde_json::from_slice::<MqttSubscribe>(&req.subscribe)?;
-        storage.save(
-            &req.cluster_name,
-            &req.client_id,
-            req.pkid as u32,
-            subscribe,
-        )?;
+        storage.save(&req.cluster_name, &req.client_id, &req.path, subscribe)?;
         Ok(())
     }
 
     pub fn delete_subscribe(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
         let req = DeleteSubscribeRequest::decode(value.as_ref())?;
-        if req.pkid > 0 {
-            storage.delete_by_pkid(&req.cluster_name, &req.client_id, req.pkid as u32)?;
+        if !req.path.is_empty() {
+            storage.delete_by_path(&req.cluster_name, &req.client_id, &req.path)?;
         } else {
             storage.delete_by_client_id(&req.cluster_name, &req.client_id)?;
         }

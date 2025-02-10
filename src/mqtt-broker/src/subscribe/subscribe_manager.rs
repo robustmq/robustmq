@@ -46,6 +46,12 @@ pub struct ShareLeaderSubscribeData {
 }
 
 #[derive(Clone)]
+pub struct TopicSubscribeInfo {
+    pub client_id: String,
+    pub path: String,
+}
+
+#[derive(Clone)]
 pub struct SubscribeManager {
     metadata_cache: Arc<CacheManager>,
 
@@ -72,6 +78,12 @@ pub struct SubscribeManager {
 
     // (identifier_id，client_id)
     pub share_follower_identifier_id: DashMap<usize, String>,
+
+    //(topic, now)
+    pub exclusive_subscribe_by_topic: DashMap<String, String>,
+
+    //(topic, Vec<TopicSubscribeInfo>)
+    pub topic_subscribe_list: DashMap<String, Vec<TopicSubscribeInfo>>,
 }
 
 impl SubscribeManager {
@@ -86,21 +98,26 @@ impl SubscribeManager {
             exclusive_push_thread: DashMap::with_capacity(8),
             share_leader_push_thread: DashMap::with_capacity(8),
             share_follower_resub_thread: DashMap::with_capacity(8),
+            exclusive_subscribe_by_topic: DashMap::with_capacity(8),
+            topic_subscribe_list: DashMap::with_capacity(8),
         }
     }
 
     pub fn add_subscribe(&self, subscribe: MqttSubscribe) {
-        let key = self.subscribe_key(&subscribe.client_id, subscribe.pkid);
+        let key = self.subscribe_key(&subscribe.client_id, &subscribe.path);
         self.subscribe_list.insert(key, subscribe);
     }
 
-    pub fn remove_subscribe(&self, client_id: &str, pkid: u16) {
-        let key = self.subscribe_key(client_id, pkid);
-        self.subscribe_list.remove(&key);
+    pub fn get_subscribe(&self, client_id: &str, path: &str) -> Option<MqttSubscribe> {
+        let key = self.subscribe_key(client_id, path);
+        if let Some(da) = self.subscribe_list.get(&key) {
+            return Some(da.clone());
+        }
+        None
     }
 
-    pub fn remove_subscribe1(&self, client_id: &str, pkid: u16) {
-        let key = self.subscribe_key(client_id, pkid);
+    pub fn remove_subscribe(&self, client_id: &str, path: &str) {
+        let key = self.subscribe_key(client_id, path);
         self.subscribe_list.remove(&key);
     }
 
@@ -147,6 +164,23 @@ impl SubscribeManager {
 
             self.share_leader_subscribe
                 .insert(share_leader_key.clone(), data);
+        }
+    }
+
+    pub fn add_topic_subscribe(&self, topic_name: &str, client_id: &str, path: &str) {
+        if let Some(mut list) = self.topic_subscribe_list.get_mut(topic_name) {
+            list.push(TopicSubscribeInfo {
+                client_id: client_id.to_owned(),
+                path: path.to_owned(),
+            });
+        } else {
+            self.topic_subscribe_list.insert(
+                topic_name.to_owned(),
+                vec![TopicSubscribeInfo {
+                    client_id: client_id.to_owned(),
+                    path: path.to_owned(),
+                }],
+            );
         }
     }
 
@@ -236,8 +270,29 @@ impl SubscribeManager {
         }
     }
 
-    fn subscribe_key(&self, client_id: &str, pkid: u16) -> String {
-        format!("{}_{}", client_id, pkid)
+    pub fn is_exclusive_subscribe_by_topic(&self, topic: &str) -> bool {
+        self.exclusive_subscribe_by_topic.contains_key(topic)
+    }
+
+    pub fn add_exclusive_subscribe_by_topic(&self, topic: &str, client_id: &str) {
+        self.exclusive_subscribe_by_topic
+            .insert(topic.to_owned(), client_id.to_owned());
+    }
+
+    pub fn remove_exclusive_subscribe_by_topic(&self, topic: &str) {
+        self.exclusive_subscribe_by_topic.remove(topic);
+    }
+
+    pub fn remove_exclusive_subscribe_by_client_id(&self, client_id: &str) {
+        for (topic, cid) in self.exclusive_subscribe_by_topic.clone() {
+            if cid == *client_id {
+                self.exclusive_subscribe_by_topic.remove(&topic);
+            }
+        }
+    }
+
+    fn subscribe_key(&self, client_id: &str, path: &str) -> String {
+        format!("{}_{}", client_id, path)
     }
 
     fn exclusive_key(&self, client_id: &str, sub_name: &str, topic_id: &str) -> String {

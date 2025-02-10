@@ -19,7 +19,7 @@ use axum::extract::ws::{Message, WebSocket};
 use dashmap::DashMap;
 use futures::stream::SplitSink;
 use futures::SinkExt;
-use log::{debug, error, info};
+use log::{debug, info};
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::MqttProtocol;
 use tokio::time::sleep;
@@ -104,7 +104,7 @@ impl ConnectionManager {
         }
 
         if let Some((id, mut stream)) = self.tcp_write_list.remove(&connection_id) {
-            if let Ok(_) = stream.close().await {
+            if stream.close().await.is_ok() {
                 debug!(
                     "server closes the tcp connection actively, connection id [{}]",
                     id
@@ -113,7 +113,7 @@ impl ConnectionManager {
         }
 
         if let Some((id, mut stream)) = self.tcp_tls_write_list.remove(&connection_id) {
-            if let Ok(_) = stream.close().await {
+            if stream.close().await.is_ok() {
                 debug!(
                     "server closes the tcp connection actively, connection id [{}]",
                     id
@@ -122,7 +122,7 @@ impl ConnectionManager {
         }
 
         if let Some((id, mut stream)) = self.websocket_write_list.remove(&connection_id) {
-            if let Ok(_) = stream.close().await {
+            if stream.close().await.is_ok() {
                 debug!(
                     "server closes the websocket connection actively, connection id [{}]",
                     id

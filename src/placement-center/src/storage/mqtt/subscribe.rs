@@ -54,10 +54,10 @@ impl MqttSubscribeStorage {
         &self,
         cluster_name: &str,
         client_id: &str,
-        pkid: u32,
+        path: &str,
         subscribe: MqttSubscribe,
     ) -> Result<(), CommonError> {
-        let key = storage_key_mqtt_subscribe(cluster_name, client_id, pkid);
+        let key = storage_key_mqtt_subscribe(cluster_name, client_id, path);
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, subscribe)
     }
 
@@ -96,11 +96,7 @@ impl MqttSubscribeStorage {
         let list = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         for raw in list {
             let sub = serde_json::from_slice::<MqttSubscribe>(&raw.data)?;
-            self.delete_by_pkid(
-                &sub.cluster_name,
-                &sub.client_id,
-                sub.subscribe.packet_identifier as u32,
-            )?;
+            self.delete_by_path(&sub.cluster_name, &sub.client_id, &sub.filter.path)?;
         }
         Ok(())
     }
@@ -109,9 +105,9 @@ impl MqttSubscribeStorage {
         &self,
         cluster_name: &str,
         client_id: &str,
-        pkid: u32,
+        path: &str,
     ) -> Result<Option<MqttSubscribe>, PlacementCenterError> {
-        let key: String = storage_key_mqtt_subscribe(cluster_name, client_id, pkid);
+        let key: String = storage_key_mqtt_subscribe(cluster_name, client_id, path);
 
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
             let subscribe = serde_json::from_slice::<MqttSubscribe>(&data.data)?;
@@ -120,13 +116,13 @@ impl MqttSubscribeStorage {
         Ok(None)
     }
 
-    pub fn delete_by_pkid(
+    pub fn delete_by_path(
         &self,
         cluster_name: &str,
         client_id: &str,
-        pkid: u32,
+        path: &str,
     ) -> Result<(), CommonError> {
-        let key = storage_key_mqtt_subscribe(cluster_name, client_id, pkid);
+        let key = storage_key_mqtt_subscribe(cluster_name, client_id, path);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)
     }
 }

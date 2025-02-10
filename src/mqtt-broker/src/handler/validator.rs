@@ -46,6 +46,7 @@ use super::topic::topic_name_validator;
 use crate::security::{authentication_acl, AuthDriver};
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::sub_common::sub_path_validator;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub async fn tcp_establish_connection_check(
     addr: &SocketAddr,
@@ -427,6 +428,7 @@ pub async fn subscribe_validator(
     protocol: &MqttProtocol,
     auth_driver: &Arc<AuthDriver>,
     metadata_cache: &Arc<CacheManager>,
+    subscribe_manager: &Arc<SubscribeManager>,
     connection: &MQTTConnection,
     subscribe: &Subscribe,
 ) -> Option<MqttPacket> {
@@ -457,7 +459,7 @@ pub async fn subscribe_validator(
         ));
     }
 
-    if !check_exclusive_subscribe(metadata_cache) {
+    if !check_exclusive_subscribe(metadata_cache, subscribe_manager, subscribe) {
         return Some(response_packet_mqtt_suback(
             protocol,
             connection,

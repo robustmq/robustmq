@@ -605,7 +605,7 @@ message ListTopicRewriteRuleReply{
 message SetSubscribeRequest{
     string cluster_name = 1;
     string client_id = 3;
-    int64 pkid = 4;
+    string path = 4;
     bytes subscribe = 5;
 }
 
@@ -616,7 +616,7 @@ message SetSubscribeReply{
 message DeleteSubscribeRequest{
     string cluster_name = 1;
     string client_id = 2;
-    int64 pkid = 3;
+     string path = 3;
 }
 
 message DeleteSubscribeReply{

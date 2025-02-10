@@ -64,8 +64,8 @@ pub async fn delete_subscribe_by_req(
     raft_machine_apply.client_write(data).await?;
 
     let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
-    if req.pkid > 0 {
-        if let Some(subscribe) = storage.get(&req.cluster_name, &req.client_id, req.pkid as u32)? {
+    if !req.path.is_empty() {
+        if let Some(subscribe) = storage.get(&req.cluster_name, &req.client_id, &req.path)? {
             update_cache_by_delete_subscribe(
                 &req.cluster_name,
                 call_manager,

@@ -70,11 +70,13 @@ async fn parse_subscribe_by_new_topic(
 
             parse_subscribe(
                 client_pool,
+                metadata_cache,
                 subscribe_manager,
                 &subscribe.client_id,
                 &topic,
                 &subscribe.protocol,
-                &subscribe.subscribe,
+                subscribe.pkid,
+                &subscribe.filter,
                 &subscribe.subscribe_properties,
             )
             .await;

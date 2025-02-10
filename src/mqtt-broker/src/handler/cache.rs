@@ -46,6 +46,8 @@ use crate::storage::user::UserStorage;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use crate::subscribe::subscriber::SubscribeData;
 
+use super::sub_exclusive::try_remove_exclusive_subscribe_by_path;
+
 #[derive(Clone, Serialize, Deserialize)]
 pub enum MetadataCacheAction {
     Set,
@@ -719,7 +721,15 @@ pub async fn update_cache_metadata(
             MqttBrokerUpdateCacheActionType::Delete => {
                 match serde_json::from_str::<MqttSubscribe>(&request.data) {
                     Ok(subscribe) => {
-                        subscribe_manager.remove_subscribe(&subscribe.client_id, subscribe.pkid);
+                        if let Some(_sub) =
+                            subscribe_manager.get_subscribe(&subscribe.client_id, &subscribe.path)
+                        {
+                            try_remove_exclusive_subscribe_by_path(
+                                subscribe_manager,
+                                &subscribe.path,
+                            );
+                        }
+                        subscribe_manager.remove_subscribe(&subscribe.client_id, &subscribe.path)
                     }
                     Err(e) => {
                         error!("{}", e);

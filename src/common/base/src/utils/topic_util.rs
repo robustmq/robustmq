@@ -13,10 +13,13 @@
 // limitations under the License.
 
 use regex::Regex;
+
 const EXCLUSIVE_SUB_PREFIX: &str = "$exclusive";
+
 pub fn is_exclusive_sub(sub_path: &str) -> bool {
     sub_path.starts_with(EXCLUSIVE_SUB_PREFIX)
 }
+
 pub fn decode_exclusive_sub_path_to_topic_name(sub_path: &str) -> &str {
     if is_exclusive_sub(sub_path) {
         sub_path.trim_start_matches(EXCLUSIVE_SUB_PREFIX)
