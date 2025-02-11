@@ -48,7 +48,7 @@ pub struct TopicSubscribeInfo {
 
 #[derive(Clone, Default)]
 pub struct SubscribeManager {
-    //(client_id_pkid: MqttSubscribe)
+    //(client_id_path: MqttSubscribe)
     pub subscribe_list: DashMap<String, MqttSubscribe>,
 
     // (client_id_sub_name_topic_id, Subscriber)

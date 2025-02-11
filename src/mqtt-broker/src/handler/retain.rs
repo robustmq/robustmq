@@ -126,7 +126,8 @@ async fn send_retain_message(
             return Ok(());
         }
 
-        let is_new_sub = cache_manager.is_new_sub(client_id, &filter.path);
+        //todo
+        let is_new_sub = true;
         if filter.retain_forward_rule == RetainForwardRule::OnNewSubscribe && !is_new_sub {
             return Ok(());
         }

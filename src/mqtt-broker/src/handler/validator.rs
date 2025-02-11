@@ -484,39 +484,10 @@ pub async fn subscribe_validator(
 
 pub async fn un_subscribe_validator(
     client_id: &str,
-    cache_manager: &Arc<CacheManager>,
-    client_pool: &Arc<ClientPool>,
+    subscribe_manager: &Arc<SubscribeManager>,
     connection: &MQTTConnection,
     un_subscribe: &Unsubscribe,
 ) -> Option<MqttPacket> {
-    match pkid_exists(
-        cache_manager,
-        client_pool,
-        &connection.client_id,
-        un_subscribe.pkid,
-    )
-    .await
-    {
-        Ok(res) => {
-            if res {
-                return Some(response_packet_mqtt_unsuback(
-                    connection,
-                    un_subscribe.pkid,
-                    vec![UnsubAckReason::PacketIdentifierInUse],
-                    None,
-                ));
-            }
-        }
-        Err(e) => {
-            return Some(response_packet_mqtt_unsuback(
-                connection,
-                un_subscribe.pkid,
-                vec![UnsubAckReason::UnspecifiedError],
-                Some(e.to_string()),
-            ));
-        }
-    };
-
     let mut return_codes: Vec<UnsubAckReason> = Vec::new();
     for filter in un_subscribe.filters.clone() {
         if !sub_path_validator(filter) {
@@ -543,15 +514,13 @@ pub async fn un_subscribe_validator(
     }
 
     for path in un_subscribe.filters.clone() {
-        if let Some(sub_list) = cache_manager.subscribe_filter.get_mut(client_id) {
-            if !sub_list.contains_key(&path) {
-                return Some(response_packet_mqtt_unsuback(
-                    connection,
-                    un_subscribe.pkid,
-                    vec![UnsubAckReason::NoSubscriptionExisted],
-                    Some(MqttBrokerError::SubscriptionPathNotExists(path).to_string()),
-                ));
-            }
+        if subscribe_manager.get_subscribe(client_id, &path).is_none() {
+            return Some(response_packet_mqtt_unsuback(
+                connection,
+                un_subscribe.pkid,
+                vec![UnsubAckReason::NoSubscriptionExisted],
+                Some(MqttBrokerError::SubscriptionPathNotExists(path).to_string()),
+            ));
         }
     }
 

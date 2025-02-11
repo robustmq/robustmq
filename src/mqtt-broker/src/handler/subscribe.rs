@@ -123,6 +123,7 @@ pub async fn remove_subscribe(
     cache_manager: &Arc<CacheManager>,
 ) -> Result<(), MqttBrokerError> {
     let conf = broker_mqtt_conf();
+
     for path in un_subscribe.filters.clone() {
         let request = DeleteSubscribeRequest {
             cluster_name: conf.cluster_name.to_owned(),
@@ -135,13 +136,14 @@ pub async fn remove_subscribe(
     }
 
     try_remove_exclusive_subscribe(subscribe_manager, un_subscribe.clone());
+
     unsubscribe_by_path(
         cache_manager,
         subscribe_manager,
         client_id,
         &un_subscribe.filters,
     );
-    cache_manager.remove_filter_by_pkid(client_id, &un_subscribe.filters);
+
     Ok(())
 }
 

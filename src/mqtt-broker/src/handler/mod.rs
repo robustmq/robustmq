@@ -14,6 +14,7 @@
 
 pub mod acl;
 pub mod cache;
+pub mod cache_update;
 pub mod cluster_config;
 pub mod command;
 pub mod connection;

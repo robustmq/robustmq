@@ -15,12 +15,18 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use common_base::config::broker_mqtt::broker_mqtt_conf;
+use grpc_clients::pool::ClientPool;
 use log::{error, info};
+use metadata_struct::mqtt::user::MqttUser;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
 
 use crate::security::AuthDriver;
+use crate::storage::user::UserStorage;
+
+use super::cache::CacheManager;
 
 pub struct UpdateUserCache {
     stop_send: broadcast::Sender<bool>,
@@ -62,5 +68,23 @@ impl UpdateUserCache {
             }
         };
         sleep(Duration::from_secs(5)).await;
+    }
+}
+
+pub async fn init_system_user(cache_manager: &Arc<CacheManager>, client_pool: &Arc<ClientPool>) {
+    let conf = broker_mqtt_conf();
+    let system_user_info = MqttUser {
+        username: conf.system.default_user.clone(),
+        password: conf.system.default_password.clone(),
+        is_superuser: true,
+    };
+    let user_storage = UserStorage::new(client_pool.clone());
+    match user_storage.save_user(system_user_info.clone()).await {
+        Ok(_) => {
+            cache_manager.add_user(system_user_info);
+        }
+        Err(e) => {
+            panic!("{}", e.to_string());
+        }
     }
 }

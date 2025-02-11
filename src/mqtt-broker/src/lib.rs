@@ -22,10 +22,11 @@ use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use handler::acl::UpdateAclCache;
 use handler::cache::CacheManager;
+use handler::cache_update::load_metadata_cache;
 use handler::heartbreat::{register_node, report_heartbeat};
 use handler::keep_alive::ClientKeepAlive;
 use handler::sub_parse_topic::start_parse_subscribe_by_new_topic_thread;
-use handler::user::UpdateUserCache;
+use handler::user::{init_system_user, UpdateUserCache};
 use lazy_static::lazy_static;
 use log::{error, info};
 use observability::start_opservability;
@@ -253,7 +254,7 @@ where
     fn start_cluster_heartbeat_report(&self, stop_send: broadcast::Sender<bool>) {
         let client_pool = self.client_pool.clone();
         self.runtime.spawn(async move {
-            report_heartbeat(client_pool, stop_send).await;
+            report_heartbeat(&client_pool, stop_send).await;
         });
     }
 
@@ -385,15 +386,12 @@ where
     }
 
     fn register_node(&self) {
-        let metadata_cache = self.cache_manager.clone();
-        let client_pool = self.client_pool.clone();
-        let auth_driver = self.auth_driver.clone();
         self.runtime.block_on(async move {
-            metadata_cache.init_system_user().await;
-            metadata_cache.load_metadata_cache(auth_driver).await;
+            init_system_user(&self.cache_manager, &self.client_pool).await;
+            load_metadata_cache(&self.cache_manager, &self.client_pool, &self.auth_driver).await;
 
             let config = broker_mqtt_conf();
-            match register_node(client_pool.clone()).await {
+            match register_node(&self.client_pool).await {
                 Ok(()) => {
                     info!("Node {} has been successfully registered", config.broker_id);
                 }

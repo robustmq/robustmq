@@ -738,13 +738,6 @@ where
             );
         }
 
-        self.cache_manager.add_client_subscribe(
-            &connection.client_id,
-            &self.protocol,
-            subscribe.clone(),
-            subscribe_properties.clone(),
-        );
-
         st_report_subscribed_event(
             &self.message_storage_adapter,
             &self.cache_manager,
@@ -828,8 +821,7 @@ where
 
         if let Some(packet) = un_subscribe_validator(
             &connection.client_id,
-            &self.cache_manager,
-            &self.client_pool,
+            &self.subscribe_manager,
             &connection,
             &un_subscribe,
         )
