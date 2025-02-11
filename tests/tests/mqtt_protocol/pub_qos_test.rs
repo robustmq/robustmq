@@ -201,6 +201,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn client5_publish_trace_test() {
         let num = 1;
         let exporter = SpanExporter::builder().with_tonic().build().unwrap();

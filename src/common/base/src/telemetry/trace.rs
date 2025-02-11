@@ -34,8 +34,8 @@ static GLOBAL_PROVIDER: OnceLock<TraceExporterProvider> = OnceLock::new();
 pub async fn init_tracer_provider(broker_config: &'static BrokerMqttConfig) {
     if !broker_config.telemetry.enable {
         global::set_tracer_provider(NoopTracerProvider::new());
+        return;
     }
-
     match broker_config.telemetry.exporter_type.as_str() {
         "otlp" => {
             let exporter = SpanExporter::builder()
@@ -136,7 +136,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn telemetry_test() {
+    async fn telemetry_test_init() {
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         path.push("../../../example/mqtt-cluster/mqtt-server/node-1.toml");
         init_broker_mqtt_conf_by_path(path.to_str().unwrap());
