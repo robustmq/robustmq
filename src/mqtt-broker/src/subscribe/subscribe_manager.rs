@@ -132,7 +132,7 @@ impl SubscribeManager {
         }
     }
 
-    // pubsh by share subscribe
+    // push by share subscribe
     pub fn add_share_subscribe_leader(&self, sub_name: &str, sub: Subscriber) {
         let group_name = sub.group_name.clone().unwrap();
         let share_leader_key = self.share_leader_key(&group_name, sub_name, &sub.topic_id);

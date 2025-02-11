@@ -55,6 +55,10 @@ pub fn unsubscribe_by_path(
                                 .get_mut(&key)
                                 .unwrap();
                             mut_data.sub_list.remove(&sub_key);
+                            subscribe_manager.remove_topic_subscribe_by_path(
+                                &share_sub.topic_name,
+                                &share_sub.sub_path,
+                            );
                             flag = true;
                         }
                     }
@@ -91,6 +95,10 @@ pub fn unsubscribe_by_path(
                             }
                             subscribe_manager.exclusive_subscribe.remove(&key);
                         }
+                        subscribe_manager.remove_topic_subscribe_by_path(
+                            &subscriber.topic_name,
+                            &subscriber.sub_path,
+                        );
                     }
                 }
             }
