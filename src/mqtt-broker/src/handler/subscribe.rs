@@ -281,6 +281,7 @@ async fn add_share_subscribe_leader(
         sub_path: req.filter.path.clone(),
     };
 
+    subscribe_manager.add_topic_subscribe(&req.topic_name, &req.client_id, &req.filter.path);
     subscribe_manager.add_share_subscribe_leader(&req.sub_name, sub);
 }
 
@@ -329,7 +330,7 @@ fn add_exclusive_subscribe(
             subscription_identifier: sub_identifier.to_owned(),
             sub_path: filter.path.clone(),
         };
-
+        subscribe_manager.add_topic_subscribe(topic_name, client_id, &filter.path);
         subscribe_manager.add_exclusive_subscribe(client_id, &filter.path, topic_id, sub);
     }
 }

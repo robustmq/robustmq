@@ -82,7 +82,7 @@ pub struct SubscribeManager {
     //(topic, now)
     pub exclusive_subscribe_by_topic: DashMap<String, String>,
 
-    //(topic, Vec<TopicSubscribeInfo>)
+    //(topic_id, Vec<TopicSubscribeInfo>)
     pub topic_subscribe_list: DashMap<String, Vec<TopicSubscribeInfo>>,
 }
 
@@ -181,6 +181,18 @@ impl SubscribeManager {
                     path: path.to_owned(),
                 }],
             );
+        }
+    }
+
+    fn remove_topic_subscribe_by_client_id(&self, topic_name: &str, client_id: &str) {
+        if let Some(mut list) = self.topic_subscribe_list.get_mut(topic_name) {
+            list.retain(|x| x.client_id == *client_id);
+        }
+    }
+
+    pub fn remove_topic_subscribe_by_path(&self, topic_name: &str, path: &str) {
+        if let Some(mut list) = self.topic_subscribe_list.get_mut(topic_name) {
+            list.retain(|x| x.path == *path);
         }
     }
 
