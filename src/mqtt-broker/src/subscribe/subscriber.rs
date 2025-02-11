@@ -15,6 +15,8 @@
 use protocol::mqtt::common::{Filter, MqttProtocol, QoS, RetainForwardRule, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 
+use protocol::mqtt::common::{Publish, PublishProperties};
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Subscriber {
     pub protocol: MqttProtocol,
@@ -35,4 +37,34 @@ pub struct SubscribeData {
     pub protocol: MqttProtocol,
     pub filter: Filter,
     pub subscribe_properties: Option<SubscribeProperties>,
+}
+
+#[derive(Clone, Default, Debug)]
+pub(crate) struct SubPublishParam {
+    pub subscribe: Subscriber,
+    pub publish: Publish,
+    pub properties: Option<PublishProperties>,
+    pub create_time: u128,
+    pub pkid: u16,
+    pub group_id: String,
+}
+
+impl SubPublishParam {
+    pub fn new(
+        subscribe: Subscriber,
+        publish: Publish,
+        properties: Option<PublishProperties>,
+        create_time: u128,
+        group_id: String,
+        pkid: u16,
+    ) -> Self {
+        SubPublishParam {
+            subscribe,
+            publish,
+            properties,
+            create_time,
+            pkid,
+            group_id,
+        }
+    }
 }

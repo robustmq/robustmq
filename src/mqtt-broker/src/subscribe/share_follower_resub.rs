@@ -40,7 +40,7 @@ use super::sub_common::{
     qos2_send_pubrel, wait_packet_ack,
 };
 use super::subscribe_manager::SubscribeManager;
-use super::SubPublishParam;
+use super::subscriber::SubPublishParam;
 use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
 use crate::handler::error::MqttBrokerError;
 use crate::server::connection_manager::ConnectionManager;

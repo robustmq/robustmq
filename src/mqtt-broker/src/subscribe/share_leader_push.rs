@@ -37,8 +37,7 @@ use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
 use crate::storage::message::MessageStorage;
 use crate::subscribe::subscriber::Subscriber;
-use crate::subscribe::SubPublishParam;
-
+use crate::subscribe::subscriber::SubPublishParam;
 #[derive(Clone)]
 pub struct ShareLeaderPush<S> {
     pub subscribe_manager: Arc<SubscribeManager>,

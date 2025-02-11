@@ -38,7 +38,7 @@ use crate::handler::message::is_message_expire;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
 use crate::storage::message::MessageStorage;
-use crate::subscribe::SubPublishParam;
+use crate::subscribe::subscriber::SubPublishParam;
 
 pub struct ExclusivePush<S> {
     cache_manager: Arc<CacheManager>,
