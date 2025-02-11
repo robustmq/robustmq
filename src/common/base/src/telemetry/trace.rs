@@ -122,7 +122,7 @@ mod tests {
         path.push("../../../example/mqtt-cluster/mqtt-server/node-1.toml");
         init_broker_mqtt_conf_by_path(path.to_str().unwrap());
         let telemetry_config = &broker_mqtt_conf().telemetry;
-        assert_eq!(telemetry_config.enable, false);
+        assert!(!telemetry_config.enable);
         assert_eq!(
             telemetry_config.exporter_endpoint,
             "grpc://127.0.0.1:4317".to_string()
