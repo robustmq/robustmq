@@ -31,6 +31,7 @@ use storage_adapter::storage::StorageAdapter;
 
 use super::connection::disconnect_connection;
 use super::message::build_message_expire;
+use super::offline_message::save_message;
 use super::retain::try_send_retain_message;
 use super::subscribe::{remove_subscribe, save_subscribe};
 use crate::handler::cache::{
@@ -428,42 +429,41 @@ where
         }
 
         // Persisting stores message data
-        let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
-
-        let message_expire = build_message_expire(&self.cache_manager, &publish_properties);
-        let offset = if let Some(record) =
-            MqttMessage::build_record(&client_id, &publish, &publish_properties, message_expire)
+        let offset = match save_message(
+            &self.message_storage_adapter,
+            &self.cache_manager,
+            &publish,
+            &publish_properties,
+            &self.subscribe_manager,
+            &client_id,
+            &topic,
+        )
+        .await
         {
-            match message_storage
-                .append_topic_message(&topic.topic_id, vec![record])
-                .await
-            {
-                Ok(da) => {
-                    format!("{:?}", da)
-                }
-                Err(e) => {
-                    if is_puback {
-                        return Some(response_packet_mqtt_puback_fail(
-                            &self.protocol,
-                            &connection,
-                            publish.pkid,
-                            PubAckReason::UnspecifiedError,
-                            Some(e.to_string()),
-                        ));
-                    } else {
-                        return Some(response_packet_mqtt_pubrec_fail(
-                            &self.protocol,
-                            &connection,
-                            publish.pkid,
-                            PubRecReason::UnspecifiedError,
-                            Some(e.to_string()),
-                        ));
-                    }
+            Ok(da) => {
+                format!("{:?}", da)
+            }
+            Err(e) => {
+                if is_puback {
+                    return Some(response_packet_mqtt_puback_fail(
+                        &self.protocol,
+                        &connection,
+                        publish.pkid,
+                        PubAckReason::UnspecifiedError,
+                        Some(e.to_string()),
+                    ));
+                } else {
+                    return Some(response_packet_mqtt_pubrec_fail(
+                        &self.protocol,
+                        &connection,
+                        publish.pkid,
+                        PubRecReason::UnspecifiedError,
+                        Some(e.to_string()),
+                    ));
                 }
             }
-        } else {
-            "-1".to_string()
         };
+
         let user_properties: Vec<(String, String)> = vec![("offset".to_string(), offset)];
 
         self.cache_manager

@@ -22,6 +22,7 @@ use tokio::sync::broadcast::Sender;
 
 use super::sub_common::{decode_share_info, is_share_sub, path_regex_match};
 use crate::handler::cache::CacheManager;
+use crate::observability::slow::sub;
 use crate::subscribe::subscriber::Subscriber;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -184,6 +185,13 @@ impl SubscribeManager {
         }
     }
 
+    pub fn contain_topic_subscribe(&self, topic_name: &str) -> bool {
+        if let Some(list) = self.topic_subscribe_list.get(topic_name) {
+            return !list.is_empty();
+        }
+        false
+    }
+
     fn remove_topic_subscribe_by_client_id(&self, topic_name: &str, client_id: &str) {
         if let Some(mut list) = self.topic_subscribe_list.get_mut(topic_name) {
             list.retain(|x| x.client_id == *client_id);
@@ -200,6 +208,10 @@ impl SubscribeManager {
         for (key, subscriber) in self.exclusive_subscribe.clone() {
             if subscriber.client_id == *client_id {
                 self.exclusive_subscribe.remove(&key);
+                self.remove_topic_subscribe_by_client_id(
+                    &subscriber.topic_name,
+                    &subscriber.client_id,
+                );
             }
         }
 
@@ -208,6 +220,10 @@ impl SubscribeManager {
                 if subscriber.client_id == *client_id {
                     let mut_data = self.share_leader_subscribe.get_mut(&key).unwrap();
                     mut_data.sub_list.remove(&sub_key);
+                    self.remove_topic_subscribe_by_client_id(
+                        &subscriber.topic_name,
+                        &subscriber.client_id,
+                    );
                 }
             }
         }

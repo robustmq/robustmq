@@ -24,6 +24,7 @@ pub struct MqttClusterDynamicConfig {
     pub network: MqttClusterDynamicConfigNetwork,
     pub slow: MqttClusterDynamicSlowSub,
     pub flapping_detect: MqttClusterDynamicFlappingDetect,
+    pub offline_message: MqttClusterDynamicOfflineMessage,
 }
 
 // MQTT cluster protocol related dynamic configuration
@@ -84,6 +85,11 @@ pub struct MqttClusterDynamicFlappingDetect {
     pub ban_time: u32,
 }
 
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub struct MqttClusterDynamicOfflineMessage {
+    pub enable: bool,
+}
+
 impl MqttClusterDynamicConfig {
     pub fn new() -> Self {
         MqttClusterDynamicConfig {
@@ -129,6 +135,7 @@ impl MqttClusterDynamicConfig {
                 max_client_connections: 15,
                 ban_time: 5,
             },
+            offline_message: MqttClusterDynamicOfflineMessage { enable: false },
         }
     }
 
