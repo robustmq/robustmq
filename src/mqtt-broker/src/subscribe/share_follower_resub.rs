@@ -80,9 +80,7 @@ impl ShareFollowerResub {
     }
 
     async fn start_resub_thread(&self) {
-        for (follower_resub_key, share_sub) in
-            self.subscribe_manager.share_follower_resub.clone()
-        {
+        for (follower_resub_key, share_sub) in self.subscribe_manager.share_follower_resub.clone() {
             let metadata_cache = self.cache_manager.clone();
             let connection_manager = self.connection_manager.clone();
 

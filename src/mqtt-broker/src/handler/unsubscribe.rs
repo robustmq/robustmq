@@ -50,10 +50,8 @@ pub fn unsubscribe_by_path(
                                 && share_sub.group_name.unwrap() == group_name)
                             && share_sub.sub_path == sub_name
                         {
-                            let mut_data = subscribe_manager
-                                .share_leader_push
-                                .get_mut(&key)
-                                .unwrap();
+                            let mut_data =
+                                subscribe_manager.share_leader_push.get_mut(&key).unwrap();
                             mut_data.sub_list.remove(&sub_key);
                             subscribe_manager.remove_topic_subscribe_by_path(
                                 &share_sub.topic_name,

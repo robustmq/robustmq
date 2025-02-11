@@ -38,8 +38,8 @@ use crate::subscribe::exclusive_push::{
     exclusive_publish_message_qos1, exclusive_publish_message_qos2,
 };
 use crate::subscribe::sub_common::{get_sub_topic_id_list, min_qos, publish_message_qos0};
-use crate::subscribe::subscriber::Subscriber;
 use crate::subscribe::subscriber::SubPublishParam;
+use crate::subscribe::subscriber::Subscriber;
 
 pub async fn save_retain_message(
     cache_manager: &Arc<CacheManager>,
