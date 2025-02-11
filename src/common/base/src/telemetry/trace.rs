@@ -60,21 +60,18 @@ pub async fn init_tracer_provider(broker_config: &'static BrokerMqttConfig) {
 }
 
 pub async fn stop_tracer_provider() {
-    match GLOBAL_PROVIDER.get() {
-        Some(provider) => {
-            match provider {
-                TraceExporterProvider::Otlp(provider) => {
-                    provider.shutdown().unwrap();
-                }
-                TraceExporterProvider::Noop(_provider) => {
-                    // Ignore
-                }
-                TraceExporterProvider::Stdout(_provider) => {
-                    // Ignore
-                }
+    if let Some(provider) = GLOBAL_PROVIDER.get() {
+        match provider {
+            TraceExporterProvider::Otlp(provider) => {
+                provider.shutdown().unwrap();
+            }
+            TraceExporterProvider::Noop(_provider) => {
+                // Ignore
+            }
+            TraceExporterProvider::Stdout(_provider) => {
+                // Ignore
             }
         }
-        None => {}
     }
 }
 
@@ -85,9 +82,7 @@ pub struct CustomContext {
 impl Extractor for CustomContext {
     /// Get a value for a key from the MetadataMap.  If the value can't be converted to &str, returns None
     fn get(&self, key: &str) -> Option<&str> {
-        self.inner
-            .get(key)
-            .and_then(|metadata| Some(metadata.as_str()))
+        self.inner.get(key).map(|metadata| metadata.as_str())
     }
 
     /// Collect all the keys from the MetadataMap.
@@ -127,7 +122,7 @@ mod tests {
         path.push("../../../example/mqtt-cluster/mqtt-server/node-1.toml");
         init_broker_mqtt_conf_by_path(path.to_str().unwrap());
         let telemetry_config = &broker_mqtt_conf().telemetry;
-        assert_eq!(telemetry_config.enable, true);
+        assert_eq!(telemetry_config.enable, false);
         assert_eq!(
             telemetry_config.exporter_endpoint,
             "grpc://127.0.0.1:4317".to_string()
@@ -140,6 +135,6 @@ mod tests {
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         path.push("../../../example/mqtt-cluster/mqtt-server/node-1.toml");
         init_broker_mqtt_conf_by_path(path.to_str().unwrap());
-        init_tracer_provider(&broker_mqtt_conf()).await
+        init_tracer_provider(broker_mqtt_conf()).await
     }
 }

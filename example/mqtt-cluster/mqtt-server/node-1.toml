@@ -60,6 +60,6 @@ log_config = "./config/log-config/mqtt-log4rs.yaml"
 log_path = "./robust-data-test/mqtt-broker-1/logs"
 
 [telemetry]
-enable = true
+enable = false
 exporter_type = "otlp"
 exporter_endpoint = "grpc://127.0.0.1:4317"
