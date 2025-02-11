@@ -110,8 +110,8 @@ async fn publish5_qos_trace(num: i32, qos: i32, retained: bool) {
     // Tracing of distributed systems requires cross-system context
     let cx = Context::current_with_span(span);
 
-    let mut new_map = MqttContext::new();
-    let mut props = Properties::new();
+    let mut new_map = MqttContext::default();
+    let mut props = Properties::default();
 
     global::get_text_map_propagator(|propagator| propagator.inject_context(&cx, &mut new_map));
 
@@ -167,6 +167,12 @@ impl Injector for MqttContext {
     fn set(&mut self, key: &str, value: String) {
         println!("Injecting: {} -> {}", key, value);
         self.inner.insert(key.to_string(), value);
+    }
+}
+
+impl Default for MqttContext {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
