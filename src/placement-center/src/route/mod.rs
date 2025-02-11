@@ -220,6 +220,14 @@ impl DataRoute {
                     .delete_topic_rewrite_rule(storage_data.value)?;
                 Ok(None)
             }
+            StorageDataType::MqttSetSubscribe => {
+                self.route_mqtt.set_subscribe(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::MqttDeleteSubscribe => {
+                self.route_mqtt.delete_subscribe(storage_data.value)?;
+                Ok(None)
+            }
         }
     }
 

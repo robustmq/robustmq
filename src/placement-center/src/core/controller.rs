@@ -22,6 +22,7 @@ use tokio::sync::broadcast;
 use super::heartbeat::BrokerHeartbeat;
 use crate::core::cache::PlacementCacheManager;
 use crate::journal::controller::call_node::JournalInnerCallManager;
+use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
 use crate::route::apply::RaftMachineApply;
 
 pub struct ClusterController {
@@ -29,7 +30,8 @@ pub struct ClusterController {
     placement_center_storage: Arc<RaftMachineApply>,
     stop_send: broadcast::Sender<bool>,
     client_pool: Arc<ClientPool>,
-    call_manager: Arc<JournalInnerCallManager>,
+    journal_call_manager: Arc<JournalInnerCallManager>,
+    mqtt_call_manager: Arc<MQTTInnerCallManager>,
 }
 
 impl ClusterController {
@@ -38,14 +40,16 @@ impl ClusterController {
         placement_center_storage: Arc<RaftMachineApply>,
         stop_send: broadcast::Sender<bool>,
         client_pool: Arc<ClientPool>,
-        call_manager: Arc<JournalInnerCallManager>,
+        journal_call_manager: Arc<JournalInnerCallManager>,
+        mqtt_call_manager: Arc<MQTTInnerCallManager>,
     ) -> ClusterController {
         ClusterController {
             cluster_cache,
             placement_center_storage,
             stop_send,
             client_pool,
-            call_manager,
+            journal_call_manager,
+            mqtt_call_manager,
         }
     }
 
@@ -59,7 +63,8 @@ impl ClusterController {
             self.cluster_cache.clone(),
             self.placement_center_storage.clone(),
             self.client_pool.clone(),
-            self.call_manager.clone(),
+            self.journal_call_manager.clone(),
+            self.mqtt_call_manager.clone(),
         );
         loop {
             select! {

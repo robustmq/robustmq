@@ -18,6 +18,7 @@ use std::time::Duration;
 use common_base::config::placement_center::placement_center_conf;
 use grpc_clients::pool::ClientPool;
 use log::{error, info};
+use mqtt::controller::call_broker::{mqtt_call_thread_manager, MQTTInnerCallManager};
 use openraft::Raft;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterServiceServer;
 use protocol::placement_center::placement_center_journal::engine_service_server::EngineServiceServer;
@@ -38,7 +39,7 @@ use tonic::transport::Server;
 use crate::core::cache::PlacementCacheManager;
 use crate::core::controller::ClusterController;
 use crate::journal::cache::{load_journal_cache, JournalCacheManager};
-use crate::journal::controller::call_node::{call_thread_manager, JournalInnerCallManager};
+use crate::journal::controller::call_node::{journal_call_thread_manager, JournalInnerCallManager};
 use crate::journal::controller::StorageEngineController;
 use crate::mqtt::cache::MqttCacheManager;
 use crate::mqtt::controller::MqttController;
@@ -66,7 +67,8 @@ pub struct PlacementCenter {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     // Global GRPC client connection pool
     client_pool: Arc<ClientPool>,
-    call_manager: Arc<JournalInnerCallManager>,
+    journal_call_manager: Arc<JournalInnerCallManager>,
+    mqtt_call_manager: Arc<MQTTInnerCallManager>,
 }
 
 impl Default for PlacementCenter {
@@ -94,15 +96,16 @@ impl PlacementCenter {
             cluster_cache.clone(),
         ));
 
-        let call_manager = Arc::new(JournalInnerCallManager::new(cluster_cache.clone()));
-
+        let journal_call_manager = Arc::new(JournalInnerCallManager::new(cluster_cache.clone()));
+        let mqtt_call_manager = Arc::new(MQTTInnerCallManager::new(cluster_cache.clone()));
         PlacementCenter {
             cluster_cache,
             engine_cache,
             mqtt_cache,
             rocksdb_engine_handler,
             client_pool,
-            call_manager,
+            journal_call_manager,
+            mqtt_call_manager,
         }
     }
 
@@ -192,7 +195,8 @@ impl PlacementCenter {
             self.cluster_cache.clone(),
             self.rocksdb_engine_handler.clone(),
             self.client_pool.clone(),
-            self.call_manager.clone(),
+            self.journal_call_manager.clone(),
+            self.mqtt_call_manager.clone(),
         );
 
         let kv_handler = GrpcKvService::new(
@@ -205,7 +209,7 @@ impl PlacementCenter {
             self.engine_cache.clone(),
             self.cluster_cache.clone(),
             self.rocksdb_engine_handler.clone(),
-            self.call_manager.clone(),
+            self.journal_call_manager.clone(),
             self.client_pool.clone(),
         );
 
@@ -215,6 +219,8 @@ impl PlacementCenter {
             self.cluster_cache.clone(),
             raft_machine_apply.clone(),
             self.rocksdb_engine_handler.clone(),
+            self.mqtt_call_manager.clone(),
+            self.client_pool.clone(),
         );
 
         tokio::spawn(async move {
@@ -242,7 +248,8 @@ impl PlacementCenter {
             raft_machine_apply.clone(),
             stop_send.clone(),
             self.client_pool.clone(),
-            self.call_manager.clone(),
+            self.journal_call_manager.clone(),
+            self.mqtt_call_manager.clone(),
         );
         tokio::spawn(async move {
             ctrl.start_node_heartbeat_check().await;
@@ -279,9 +286,15 @@ impl PlacementCenter {
 
     fn start_call_thread(&self) {
         let client_pool = self.client_pool.clone();
-        let call_manager = self.call_manager.clone();
+        let journal_all_manager = self.journal_call_manager.clone();
         tokio::spawn(async move {
-            call_thread_manager(&call_manager, &client_pool).await;
+            journal_call_thread_manager(&journal_all_manager, &client_pool).await;
+        });
+
+        let mqtt_all_manager = self.mqtt_call_manager.clone();
+        let client_pool = self.client_pool.clone();
+        tokio::spawn(async move {
+            mqtt_call_thread_manager(&mqtt_all_manager, &client_pool).await;
         });
     }
 

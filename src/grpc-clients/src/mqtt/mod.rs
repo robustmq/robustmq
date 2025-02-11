@@ -27,7 +27,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 use protocol::broker_mqtt::broker_mqtt_inner::mqtt_broker_inner_service_client::MqttBrokerInnerServiceClient;
 use protocol::broker_mqtt::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
-    UpdateCacheReply, UpdateCacheRequest,
+    UpdateMqttCacheReply, UpdateMqttCacheRequest,
 };
 use tonic::transport::Channel;
 
@@ -45,9 +45,9 @@ impl_retriable_request!(
 );
 
 impl_retriable_request!(
-    UpdateCacheRequest,
+    UpdateMqttCacheRequest,
     MqttBrokerInnerServiceClient<Channel>,
-    UpdateCacheReply,
+    UpdateMqttCacheReply,
     mqtt_broker_mqtt_services_client,
     update_cache
 );

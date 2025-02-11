@@ -12,13 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod cluster;
-pub mod connection;
-pub mod lastwill;
-pub mod message;
-pub mod node_extend;
-pub mod session;
-pub mod subscribe_data;
-pub mod topic;
-pub mod topic_rewrite_rule;
-pub mod user;
+pub async fn is_exist_subscribe(_topic: &str) {}

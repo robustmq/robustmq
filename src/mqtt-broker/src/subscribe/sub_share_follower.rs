@@ -97,22 +97,22 @@ impl SubscribeShareFollower {
                             .remove(&follower_resub_key);
 
                         // parse sub
-                        let subscribe = Subscribe {
+                        let _subscribe = Subscribe {
                             packet_identifier: share_sub.packet_identifier,
                             filters: vec![share_sub.filter],
                         };
-                        let subscribe_properties = SubscribeProperties {
+                        let _subscribe_properties = SubscribeProperties {
                             subscription_identifier: share_sub.subscription_identifier,
                             user_properties: Vec::new(),
                         };
-                        self.subscribe_manager
-                            .add_subscribe(
-                                share_sub.client_id,
-                                share_sub.protocol,
-                                subscribe,
-                                Some(subscribe_properties),
-                            )
-                            .await;
+                        // self.subscribe_manager
+                        //     .add_subscribe0(
+                        //         share_sub.client_id,
+                        //         share_sub.protocol,
+                        //         subscribe,
+                        //         Some(subscribe_properties),
+                        //     )
+                        //     .await;
                     } else {
                         if self
                             .subscribe_manager

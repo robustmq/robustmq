@@ -12,31 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::tools::now_second;
+use protocol::mqtt::common::{Filter, MqttProtocol, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
-pub struct MqttTopic {
-    pub topic_id: String,
+pub struct MqttSubscribe {
+    pub client_id: String,
+    pub path: String,
     pub cluster_name: String,
-    pub topic_name: String,
-    pub retain_message: Option<Vec<u8>>,
-    pub retain_message_expired_at: Option<u64>,
-    pub create_time: u64,
+    pub broker_id: u64,
+    pub protocol: MqttProtocol,
+    pub filter: Filter,
+    pub pkid: u16,
+    pub subscribe_properties: Option<SubscribeProperties>,
 }
 
-impl MqttTopic {
-    pub fn new(topic_id: String, cluster_name: String, topic_name: String) -> Self {
-        MqttTopic {
-            topic_id,
-            cluster_name,
-            topic_name,
-            retain_message: None,
-            retain_message_expired_at: None,
-            create_time: now_second(),
-        }
-    }
-
+impl MqttSubscribe {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
     }

@@ -26,6 +26,7 @@ use tokio::time::sleep;
 use super::cluster::un_register_node_by_req;
 use crate::core::cache::PlacementCacheManager;
 use crate::journal::controller::call_node::JournalInnerCallManager;
+use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
 use crate::route::apply::RaftMachineApply;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -41,7 +42,8 @@ pub struct BrokerHeartbeat {
     cluster_cache: Arc<PlacementCacheManager>,
     raft_machine_apply: Arc<RaftMachineApply>,
     client_pool: Arc<ClientPool>,
-    call_manager: Arc<JournalInnerCallManager>,
+    journal_call_manager: Arc<JournalInnerCallManager>,
+    mqtt_call_manager: Arc<MQTTInnerCallManager>,
 }
 
 impl BrokerHeartbeat {
@@ -51,7 +53,8 @@ impl BrokerHeartbeat {
         cluster_cache: Arc<PlacementCacheManager>,
         raft_machine_apply: Arc<RaftMachineApply>,
         client_pool: Arc<ClientPool>,
-        call_manager: Arc<JournalInnerCallManager>,
+        journal_call_manager: Arc<JournalInnerCallManager>,
+        mqtt_call_manager: Arc<MQTTInnerCallManager>,
     ) -> Self {
         BrokerHeartbeat {
             timeout_ms,
@@ -59,7 +62,8 @@ impl BrokerHeartbeat {
             cluster_cache,
             raft_machine_apply,
             client_pool,
-            call_manager,
+            journal_call_manager,
+            mqtt_call_manager,
         }
     }
 
@@ -85,7 +89,8 @@ impl BrokerHeartbeat {
                             &self.cluster_cache,
                             &self.raft_machine_apply,
                             &self.client_pool,
-                            &self.call_manager,
+                            &self.journal_call_manager,
+                            &self.mqtt_call_manager,
                             req,
                         )
                         .await

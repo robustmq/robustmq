@@ -20,17 +20,18 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
-use log::warn;
+use log::{error, warn};
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::session::MqttSession;
+use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_inner::{
-    MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateCacheRequest,
+    MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateMqttCacheRequest,
 };
 use protocol::mqtt::common::{MqttProtocol, PublishProperties, Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
@@ -42,7 +43,10 @@ use crate::security::AuthDriver;
 use crate::storage::cluster::ClusterStorage;
 use crate::storage::topic::TopicStorage;
 use crate::storage::user::UserStorage;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 use crate::subscribe::subscriber::SubscribeData;
+
+use super::sub_exclusive::try_remove_exclusive_subscribe_by_path;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum MetadataCacheAction {
@@ -171,15 +175,15 @@ impl CacheManager {
 
     pub fn add_client_subscribe(
         &self,
-        client_id: String,
-        protocol: MqttProtocol,
+        client_id: &String,
+        protocol: &MqttProtocol,
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
     ) {
         for filter in subscribe.filters {
             let mut is_new = false;
             let path = filter.path.clone();
-            if let Some(data) = self.subscribe_filter.get_mut(&client_id) {
+            if let Some(data) = self.subscribe_filter.get_mut(client_id) {
                 data.insert(
                     path.clone(),
                     SubscribeData {
@@ -202,7 +206,7 @@ impl CacheManager {
                 self.subscribe_filter.insert(client_id.clone(), data);
             };
 
-            if let Some(data) = self.subscribe_is_new.get_mut(&client_id) {
+            if let Some(data) = self.subscribe_is_new.get_mut(client_id) {
                 data.insert(path.clone(), is_new);
             } else {
                 let data = DashMap::with_capacity(8);
@@ -287,9 +291,14 @@ impl CacheManager {
     }
 
     pub fn add_topic(&self, topic_name: &str, topic: &MqttTopic) {
-        let t = topic.clone();
-        self.topic_info.insert(topic_name.to_owned(), t.clone());
-        self.topic_id_name.insert(t.topic_id, topic_name.to_owned());
+        self.topic_info.insert(topic_name.to_owned(), topic.clone());
+        self.topic_id_name
+            .insert(topic.topic_id.clone(), topic_name.to_owned());
+    }
+
+    pub fn delete_topic(&self, topic_name: &String, topic: &MqttTopic) {
+        self.topic_info.remove(topic_name);
+        self.topic_id_name.remove(&topic.topic_id);
     }
 
     pub fn add_topic_rewrite_rule(&self, topic_rewrite_rule: MqttTopicRewriteRule) {
@@ -648,15 +657,107 @@ impl CacheManager {
     }
 }
 
-pub fn update_cache_metadata(request: UpdateCacheRequest) {
+pub async fn update_cache_metadata(
+    cache_manager: &Arc<CacheManager>,
+    subscribe_manager: &Arc<SubscribeManager>,
+    request: UpdateMqttCacheRequest,
+) {
     match request.resource_type() {
         MqttBrokerUpdateCacheResourceType::Session => match request.action_type() {
-            MqttBrokerUpdateCacheActionType::Add => {}
-            MqttBrokerUpdateCacheActionType::Delete => {}
+            MqttBrokerUpdateCacheActionType::Set => {
+                match serde_json::from_str::<MqttSession>(&request.data) {
+                    Ok(session) => {
+                        cache_manager.add_session(session.client_id.clone(), session);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+            MqttBrokerUpdateCacheActionType::Delete => {
+                match serde_json::from_str::<MqttSession>(&request.data) {
+                    Ok(session) => {
+                        cache_manager.remove_session(&session.client_id);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
         },
         MqttBrokerUpdateCacheResourceType::User => match request.action_type() {
-            MqttBrokerUpdateCacheActionType::Add => {}
-            MqttBrokerUpdateCacheActionType::Delete => {}
+            MqttBrokerUpdateCacheActionType::Set => {
+                match serde_json::from_str::<MqttUser>(&request.data) {
+                    Ok(user) => {
+                        cache_manager.add_user(user);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+            MqttBrokerUpdateCacheActionType::Delete => {
+                match serde_json::from_str::<MqttUser>(&request.data) {
+                    Ok(user) => {
+                        cache_manager.del_user(user.username);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+        },
+        MqttBrokerUpdateCacheResourceType::Subscribe => match request.action_type() {
+            MqttBrokerUpdateCacheActionType::Set => {
+                match serde_json::from_str::<MqttSubscribe>(&request.data) {
+                    Ok(subscribe) => {
+                        subscribe_manager.add_subscribe(subscribe);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+            MqttBrokerUpdateCacheActionType::Delete => {
+                match serde_json::from_str::<MqttSubscribe>(&request.data) {
+                    Ok(subscribe) => {
+                        if let Some(_sub) =
+                            subscribe_manager.get_subscribe(&subscribe.client_id, &subscribe.path)
+                        {
+                            try_remove_exclusive_subscribe_by_path(
+                                subscribe_manager,
+                                &subscribe.path,
+                            );
+                        }
+                        subscribe_manager.remove_subscribe(&subscribe.client_id, &subscribe.path)
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+        },
+        MqttBrokerUpdateCacheResourceType::Topic => match request.action_type() {
+            MqttBrokerUpdateCacheActionType::Set => {
+                match serde_json::from_str::<MqttTopic>(&request.data) {
+                    Ok(topic) => {
+                        cache_manager.add_topic(&topic.topic_name, &topic);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+            MqttBrokerUpdateCacheActionType::Delete => {
+                match serde_json::from_str::<MqttTopic>(&request.data) {
+                    Ok(topic) => {
+                        cache_manager.delete_topic(&topic.topic_name, &topic);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
         },
     }
 }

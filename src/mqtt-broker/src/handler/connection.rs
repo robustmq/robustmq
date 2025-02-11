@@ -24,6 +24,7 @@ use protocol::mqtt::common::{Connect, ConnectProperties};
 use super::cache::CacheManager;
 use super::error::MqttBrokerError;
 use super::keep_alive::client_keep_live_time;
+use super::sub_exclusive::try_remove_exclusive_subscribe_by_client_id;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::session::SessionStorage;
 use crate::subscribe::subscribe_manager::SubscribeManager;
@@ -117,9 +118,9 @@ pub async fn disconnect_connection(
     connection_manager: &Arc<ConnectionManager>,
     subscribe_manager: &Arc<SubscribeManager>,
 ) -> Result<(), MqttBrokerError> {
-    subscribe_manager
-        .remove_exclusive_subscribe_by_client_id(client_id)
-        .await?;
+    // remove the exclusive subscribe
+    try_remove_exclusive_subscribe_by_client_id(subscribe_manager, client_id);
+
     // Remove the connection cache
     cache_manager.remove_connection(connect_id);
     // Remove the client id bound connection information

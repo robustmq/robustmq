@@ -37,6 +37,7 @@ use crate::core::cache::PlacementCacheManager;
 use crate::core::cluster::{register_node_by_req, un_register_node_by_req};
 use crate::core::error::PlacementCenterError;
 use crate::journal::controller::call_node::JournalInnerCallManager;
+use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::config::ResourceConfigStorage;
@@ -49,7 +50,8 @@ pub struct GrpcPlacementService {
     cluster_cache: Arc<PlacementCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_pool: Arc<ClientPool>,
-    call_manager: Arc<JournalInnerCallManager>,
+    journal_call_manager: Arc<JournalInnerCallManager>,
+    mqtt_call_manager: Arc<MQTTInnerCallManager>,
 }
 
 impl GrpcPlacementService {
@@ -58,14 +60,16 @@ impl GrpcPlacementService {
         cluster_cache: Arc<PlacementCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         client_pool: Arc<ClientPool>,
-        call_manager: Arc<JournalInnerCallManager>,
+        journal_call_manager: Arc<JournalInnerCallManager>,
+        mqtt_call_manager: Arc<MQTTInnerCallManager>,
     ) -> Self {
         GrpcPlacementService {
             raft_machine_apply,
             cluster_cache,
             rocksdb_engine_handler,
             client_pool,
-            call_manager,
+            journal_call_manager,
+            mqtt_call_manager,
         }
     }
 }
@@ -128,7 +132,7 @@ impl PlacementCenterService for GrpcPlacementService {
             &self.cluster_cache,
             &self.raft_machine_apply,
             &self.client_pool,
-            &self.call_manager,
+            &self.journal_call_manager,
             req,
         )
         .await
@@ -152,7 +156,8 @@ impl PlacementCenterService for GrpcPlacementService {
             &self.cluster_cache,
             &self.raft_machine_apply,
             &self.client_pool,
-            &self.call_manager,
+            &self.journal_call_manager,
+            &self.mqtt_call_manager,
             req,
         )
         .await
