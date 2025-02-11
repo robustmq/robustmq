@@ -26,9 +26,11 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
 use storage_adapter::storage::StorageAdapter;
 use tonic::{Request, Response, Status};
 
-use crate::handler::cache::{update_cache_metadata, CacheManager};
+use crate::handler::cache::CacheManager;
+use crate::handler::cache_update::update_cache_metadata;
 use crate::handler::lastwill::send_last_will_message;
 use crate::handler::sub_exclusive::try_remove_exclusive_subscribe_by_client_id;
+use crate::handler::unsubscribe::stop_push_by_client_id;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub struct GrpcInnerServices<S> {
@@ -88,7 +90,7 @@ where
         for client_id in req.client_id {
             try_remove_exclusive_subscribe_by_client_id(&self.subscribe_manager, &client_id);
             self.cache_manager.remove_session(&client_id);
-            self.subscribe_manager.stop_push_by_client_id(&client_id);
+            stop_push_by_client_id(&self.subscribe_manager, &client_id);
         }
 
         return Ok(Response::new(DeleteSessionReply::default()));

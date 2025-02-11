@@ -34,12 +34,12 @@ use crate::observability::metrics::packets::{
 };
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::topic::TopicStorage;
-use crate::subscribe::sub_common::{get_sub_topic_id_list, min_qos, publish_message_qos0};
-use crate::subscribe::sub_exclusive::{
+use crate::subscribe::exclusive_push::{
     exclusive_publish_message_qos1, exclusive_publish_message_qos2,
 };
+use crate::subscribe::sub_common::{get_sub_topic_id_list, min_qos, publish_message_qos0};
+use crate::subscribe::subscriber::SubPublishParam;
 use crate::subscribe::subscriber::Subscriber;
-use crate::subscribe::SubPublishParam;
 
 pub async fn save_retain_message(
     cache_manager: &Arc<CacheManager>,
@@ -126,7 +126,8 @@ async fn send_retain_message(
             return Ok(());
         }
 
-        let is_new_sub = cache_manager.is_new_sub(client_id, &filter.path);
+        //todo
+        let is_new_sub = true;
         if filter.retain_forward_rule == RetainForwardRule::OnNewSubscribe && !is_new_sub {
             return Ok(());
         }

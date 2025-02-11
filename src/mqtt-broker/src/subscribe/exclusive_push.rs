@@ -38,16 +38,16 @@ use crate::handler::message::is_message_expire;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
 use crate::storage::message::MessageStorage;
-use crate::subscribe::SubPublishParam;
+use crate::subscribe::subscriber::SubPublishParam;
 
-pub struct SubscribeExclusive<S> {
+pub struct ExclusivePush<S> {
     cache_manager: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     message_storage: Arc<S>,
 }
 
-impl<S> SubscribeExclusive<S>
+impl<S> ExclusivePush<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
@@ -57,7 +57,7 @@ where
         subscribe_manager: Arc<SubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
     ) -> Self {
-        SubscribeExclusive {
+        ExclusivePush {
             message_storage,
             cache_manager,
             subscribe_manager,
@@ -79,7 +79,7 @@ where
         for (exclusive_key, sx) in self.subscribe_manager.exclusive_push_thread.clone() {
             if !self
                 .subscribe_manager
-                .exclusive_subscribe
+                .exclusive_push
                 .contains_key(&exclusive_key)
                 && sx.send(true).is_ok()
             {
@@ -93,7 +93,7 @@ where
     // Handles exclusive subscription push tasks
     // Exclusively subscribed messages are pushed directly to the consuming client
     async fn start_push_thread(&self) {
-        for (exclusive_key, subscriber) in self.subscribe_manager.exclusive_subscribe.clone() {
+        for (exclusive_key, subscriber) in self.subscribe_manager.exclusive_push.clone() {
             if self
                 .subscribe_manager
                 .exclusive_push_thread

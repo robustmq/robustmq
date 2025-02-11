@@ -40,7 +40,7 @@ pub fn check_exclusive_subscribe(
         }
 
         let topic_name = decode_exclusive_sub_path_to_topic_name(&filter.path);
-        if subscribe_manager.is_exclusive_subscribe_by_topic(topic_name) {
+        if subscribe_manager.is_exclusive_subscribe(topic_name) {
             return false;
         }
     }
@@ -58,7 +58,7 @@ pub fn try_add_exclusive_subscribe(
     }
 
     let topic_name = decode_exclusive_sub_path_to_topic_name(path);
-    subscribe_manager.add_exclusive_subscribe_by_topic(topic_name, client_id);
+    subscribe_manager.add_exclusive_subscribe(topic_name, client_id);
 }
 
 pub fn try_remove_exclusive_subscribe(

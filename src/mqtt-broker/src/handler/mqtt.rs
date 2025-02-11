@@ -18,7 +18,6 @@ use std::sync::Arc;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use log::{error, warn};
-use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MqttPacket, MqttProtocol, PingReq,
@@ -30,7 +29,7 @@ use protocol::mqtt::common::{
 use storage_adapter::storage::StorageAdapter;
 
 use super::connection::disconnect_connection;
-use super::message::build_message_expire;
+use super::offline_message::save_message;
 use super::retain::try_send_retain_message;
 use super::subscribe::{remove_subscribe, save_subscribe};
 use crate::handler::cache::{
@@ -62,7 +61,6 @@ use crate::observability::system_topic::event::{
 };
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
-use crate::storage::message::MessageStorage;
 use crate::subscribe::sub_common::{min_qos, path_contain_sub};
 use crate::subscribe::subscribe_manager::SubscribeManager;
 
@@ -428,42 +426,41 @@ where
         }
 
         // Persisting stores message data
-        let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
-
-        let message_expire = build_message_expire(&self.cache_manager, &publish_properties);
-        let offset = if let Some(record) =
-            MqttMessage::build_record(&client_id, &publish, &publish_properties, message_expire)
+        let offset = match save_message(
+            &self.message_storage_adapter,
+            &self.cache_manager,
+            &publish,
+            &publish_properties,
+            &self.subscribe_manager,
+            &client_id,
+            &topic,
+        )
+        .await
         {
-            match message_storage
-                .append_topic_message(&topic.topic_id, vec![record])
-                .await
-            {
-                Ok(da) => {
-                    format!("{:?}", da)
-                }
-                Err(e) => {
-                    if is_puback {
-                        return Some(response_packet_mqtt_puback_fail(
-                            &self.protocol,
-                            &connection,
-                            publish.pkid,
-                            PubAckReason::UnspecifiedError,
-                            Some(e.to_string()),
-                        ));
-                    } else {
-                        return Some(response_packet_mqtt_pubrec_fail(
-                            &self.protocol,
-                            &connection,
-                            publish.pkid,
-                            PubRecReason::UnspecifiedError,
-                            Some(e.to_string()),
-                        ));
-                    }
+            Ok(da) => {
+                format!("{:?}", da)
+            }
+            Err(e) => {
+                if is_puback {
+                    return Some(response_packet_mqtt_puback_fail(
+                        &self.protocol,
+                        &connection,
+                        publish.pkid,
+                        PubAckReason::UnspecifiedError,
+                        Some(e.to_string()),
+                    ));
+                } else {
+                    return Some(response_packet_mqtt_pubrec_fail(
+                        &self.protocol,
+                        &connection,
+                        publish.pkid,
+                        PubRecReason::UnspecifiedError,
+                        Some(e.to_string()),
+                    ));
                 }
             }
-        } else {
-            "-1".to_string()
         };
+
         let user_properties: Vec<(String, String)> = vec![("offset".to_string(), offset)];
 
         self.cache_manager
@@ -741,13 +738,6 @@ where
             );
         }
 
-        self.cache_manager.add_client_subscribe(
-            &connection.client_id,
-            &self.protocol,
-            subscribe.clone(),
-            subscribe_properties.clone(),
-        );
-
         st_report_subscribed_event(
             &self.message_storage_adapter,
             &self.cache_manager,
@@ -831,8 +821,7 @@ where
 
         if let Some(packet) = un_subscribe_validator(
             &connection.client_id,
-            &self.cache_manager,
-            &self.client_pool,
+            &self.subscribe_manager,
             &connection,
             &un_subscribe,
         )

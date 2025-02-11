@@ -14,6 +14,7 @@
 
 pub mod acl;
 pub mod cache;
+pub mod cache_update;
 pub mod cluster_config;
 pub mod command;
 pub mod connection;
@@ -36,5 +37,6 @@ pub mod sub_parse_topic;
 pub mod subscribe;
 pub mod topic;
 mod topic_rewrite;
+pub mod unsubscribe;
 pub mod user;
 pub mod validator;
