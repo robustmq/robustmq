@@ -42,9 +42,9 @@ use storage_adapter::memory::MemoryStorageAdapter;
 use crate::handler::flapping_detect::UpdateFlappingDetectCache;
 use storage_adapter::storage::StorageAdapter;
 use storage_adapter::StorageType;
-use subscribe::sub_exclusive::SubscribeExclusive;
-use subscribe::sub_share_follower::SubscribeShareFollower;
-use subscribe::sub_share_leader::SubscribeShareLeader;
+use subscribe::push_exclusive::SubscribeExclusive;
+use subscribe::push_share_follower::SubscribeShareFollower;
+use subscribe::push_share_leader::SubscribeShareLeader;
 use subscribe::subscribe_manager::SubscribeManager;
 use tokio::runtime::Runtime;
 use tokio::signal;
@@ -130,7 +130,7 @@ where
             conf.system.runtime_worker_threads,
         );
 
-        let subscribe_manager = Arc::new(SubscribeManager::new(cache_manager.clone()));
+        let subscribe_manager = Arc::new(SubscribeManager::new());
 
         let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
 

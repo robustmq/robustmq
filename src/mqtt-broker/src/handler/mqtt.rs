@@ -18,7 +18,6 @@ use std::sync::Arc;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use log::{error, warn};
-use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MqttPacket, MqttProtocol, PingReq,
@@ -30,7 +29,6 @@ use protocol::mqtt::common::{
 use storage_adapter::storage::StorageAdapter;
 
 use super::connection::disconnect_connection;
-use super::message::build_message_expire;
 use super::offline_message::save_message;
 use super::retain::try_send_retain_message;
 use super::subscribe::{remove_subscribe, save_subscribe};
@@ -63,7 +61,6 @@ use crate::observability::system_topic::event::{
 };
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
-use crate::storage::message::MessageStorage;
 use crate::subscribe::sub_common::{min_qos, path_contain_sub};
 use crate::subscribe::subscribe_manager::SubscribeManager;
 

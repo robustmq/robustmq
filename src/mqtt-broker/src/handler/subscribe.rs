@@ -42,6 +42,7 @@ use super::{
     cache::CacheManager,
     error::MqttBrokerError,
     sub_exclusive::{try_add_exclusive_subscribe, try_remove_exclusive_subscribe},
+    unsubscribe::unsubscribe_by_path,
 };
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -134,7 +135,12 @@ pub async fn remove_subscribe(
     }
 
     try_remove_exclusive_subscribe(subscribe_manager, un_subscribe.clone());
-    subscribe_manager.unsubscribe(client_id, &un_subscribe.filters);
+    unsubscribe_by_path(
+        cache_manager,
+        subscribe_manager,
+        client_id,
+        &un_subscribe.filters,
+    );
     cache_manager.remove_filter_by_pkid(client_id, &un_subscribe.filters);
     Ok(())
 }
@@ -331,6 +337,6 @@ fn add_exclusive_subscribe(
             sub_path: filter.path.clone(),
         };
         subscribe_manager.add_topic_subscribe(topic_name, client_id, &filter.path);
-        subscribe_manager.add_exclusive_subscribe(client_id, &filter.path, topic_id, sub);
+        subscribe_manager.add_exclusive_push(client_id, &filter.path, topic_id, sub);
     }
 }

@@ -12,18 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::subscribe::subscriber::Subscriber;
 use dashmap::DashMap;
-use log::error;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use protocol::mqtt::common::{Filter, MqttProtocol};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
-
-use super::sub_common::{decode_share_info, is_share_sub, path_regex_match};
-use crate::handler::cache::CacheManager;
-use crate::observability::slow::sub;
-use crate::subscribe::subscriber::Subscriber;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ShareSubShareSub {
@@ -52,10 +46,8 @@ pub struct TopicSubscribeInfo {
     pub path: String,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct SubscribeManager {
-    metadata_cache: Arc<CacheManager>,
-
     //(client_id_pkid: MqttSubscribe)
     pub subscribe_list: DashMap<String, MqttSubscribe>,
 
@@ -88,9 +80,8 @@ pub struct SubscribeManager {
 }
 
 impl SubscribeManager {
-    pub fn new(metadata_cache: Arc<CacheManager>) -> Self {
+    pub fn new() -> Self {
         SubscribeManager {
-            metadata_cache,
             subscribe_list: DashMap::with_capacity(8),
             exclusive_subscribe: DashMap::with_capacity(8),
             share_leader_subscribe: DashMap::with_capacity(8),
@@ -104,6 +95,7 @@ impl SubscribeManager {
         }
     }
 
+    // subscribe info
     pub fn add_subscribe(&self, subscribe: MqttSubscribe) {
         let key = self.subscribe_key(&subscribe.client_id, &subscribe.path);
         self.subscribe_list.insert(key, subscribe);
@@ -122,28 +114,25 @@ impl SubscribeManager {
         self.subscribe_list.remove(&key);
     }
 
-    pub fn add_share_subscribe_follower(
-        &self,
-        client_id: &str,
-        group_name: &str,
-        topic_id: &str,
-        share_sub: ShareSubShareSub,
-    ) {
-        let key = self.share_follower_key(client_id, group_name, topic_id);
-        self.share_follower_subscribe.insert(key, share_sub);
-    }
-
-    pub fn add_exclusive_subscribe(
-        &self,
-        client_id: &str,
-        path: &str,
-        topic_id: &str,
-        sub: Subscriber,
-    ) {
+    // push by exclusive subscribe
+    pub fn add_exclusive_push(&self, client_id: &str, path: &str, topic_id: &str, sub: Subscriber) {
         let key = self.exclusive_key(client_id, path, topic_id);
         self.exclusive_subscribe.insert(key, sub);
     }
 
+    pub fn remove_exclusive_push_by_client_id(&self, client_id: &str) {
+        for (key, subscriber) in self.exclusive_subscribe.clone() {
+            if subscriber.client_id == *client_id {
+                self.exclusive_subscribe.remove(&key);
+                self.remove_topic_subscribe_by_client_id(
+                    &subscriber.topic_name,
+                    &subscriber.client_id,
+                );
+            }
+        }
+    }
+
+    // pubsh by share subscribe
     pub fn add_share_subscribe_leader(&self, sub_name: &str, sub: Subscriber) {
         let group_name = sub.group_name.clone().unwrap();
         let share_leader_key = self.share_leader_key(&group_name, sub_name, &sub.topic_id);
@@ -168,6 +157,41 @@ impl SubscribeManager {
         }
     }
 
+    pub fn remove_share_subscribe_leader_by_client_id(&self, client_id: &str) {
+        for (key, share_sub) in self.share_leader_subscribe.clone() {
+            for (sub_key, subscriber) in share_sub.sub_list {
+                if subscriber.client_id == *client_id {
+                    let mut_data = self.share_leader_subscribe.get_mut(&key).unwrap();
+                    mut_data.sub_list.remove(&sub_key);
+                    self.remove_topic_subscribe_by_client_id(
+                        &subscriber.topic_name,
+                        &subscriber.client_id,
+                    );
+                }
+            }
+        }
+    }
+
+    pub fn add_share_subscribe_follower(
+        &self,
+        client_id: &str,
+        group_name: &str,
+        topic_id: &str,
+        share_sub: ShareSubShareSub,
+    ) {
+        let key = self.share_follower_key(client_id, group_name, topic_id);
+        self.share_follower_subscribe.insert(key, share_sub);
+    }
+
+    pub fn remove_share_subscribe_follower_by_client_id(&self, client_id: &str) {
+        for (key, share_sub) in self.share_follower_subscribe.clone() {
+            if share_sub.client_id == *client_id {
+                self.share_follower_subscribe.remove(&key);
+            }
+        }
+    }
+
+    // topic subscribe
     pub fn add_topic_subscribe(&self, topic_name: &str, client_id: &str, path: &str) {
         if let Some(mut list) = self.topic_subscribe_list.get_mut(topic_name) {
             list.push(TopicSubscribeInfo {
@@ -204,100 +228,7 @@ impl SubscribeManager {
         }
     }
 
-    pub fn stop_push_by_client_id(&self, client_id: &str) {
-        for (key, subscriber) in self.exclusive_subscribe.clone() {
-            if subscriber.client_id == *client_id {
-                self.exclusive_subscribe.remove(&key);
-                self.remove_topic_subscribe_by_client_id(
-                    &subscriber.topic_name,
-                    &subscriber.client_id,
-                );
-            }
-        }
-
-        for (key, share_sub) in self.share_leader_subscribe.clone() {
-            for (sub_key, subscriber) in share_sub.sub_list {
-                if subscriber.client_id == *client_id {
-                    let mut_data = self.share_leader_subscribe.get_mut(&key).unwrap();
-                    mut_data.sub_list.remove(&sub_key);
-                    self.remove_topic_subscribe_by_client_id(
-                        &subscriber.topic_name,
-                        &subscriber.client_id,
-                    );
-                }
-            }
-        }
-
-        for (key, share_sub) in self.share_follower_subscribe.clone() {
-            if share_sub.client_id == *client_id {
-                self.share_follower_subscribe.remove(&key);
-            }
-        }
-    }
-
-    pub fn unsubscribe(&self, client_id: &str, filter_path: &[String]) {
-        for (topic_name, _) in self.metadata_cache.topic_info.clone() {
-            for path in filter_path {
-                if !path_regex_match(topic_name.clone(), path.clone()) {
-                    continue;
-                }
-
-                if is_share_sub(path.clone()) {
-                    let (group_name, sub_name) = decode_share_info(path.clone());
-                    // share leader
-                    for (key, data) in self.share_leader_subscribe.clone() {
-                        let mut flag = false;
-                        for (sub_key, share_sub) in data.sub_list {
-                            if share_sub.client_id == *client_id
-                                && (share_sub.group_name.is_some()
-                                    && share_sub.group_name.unwrap() == group_name)
-                                && share_sub.sub_path == sub_name
-                            {
-                                let mut_data = self.share_leader_subscribe.get_mut(&key).unwrap();
-                                mut_data.sub_list.remove(&sub_key);
-                                flag = true;
-                            }
-                        }
-
-                        if flag {
-                            if let Some(sx) = self.share_leader_push_thread.get(&key) {
-                                match sx.send(true) {
-                                    Ok(_) => {}
-                                    Err(e) => error!("{}", e),
-                                }
-                            }
-                        }
-                    }
-
-                    // share follower
-                    for (key, data) in self.share_follower_subscribe.clone() {
-                        if data.client_id == *client_id && data.filter.path == *path {
-                            self.share_follower_subscribe.remove(&key);
-                            if let Some(sx) = self.share_follower_resub_thread.get(&key) {
-                                match sx.send(true) {
-                                    Ok(_) => {}
-                                    Err(e) => error!("{}", e),
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    for (key, subscriber) in self.exclusive_subscribe.clone() {
-                        if subscriber.client_id == *client_id && subscriber.sub_path == *path {
-                            if let Some(sx) = self.exclusive_push_thread.get(&key) {
-                                match sx.send(true) {
-                                    Ok(_) => {}
-                                    Err(e) => error!("{}", e),
-                                }
-                                self.exclusive_subscribe.remove(&key);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
+    // exclusive subscribe
     pub fn is_exclusive_subscribe_by_topic(&self, topic: &str) -> bool {
         self.exclusive_subscribe_by_topic.contains_key(topic)
     }
@@ -319,6 +250,7 @@ impl SubscribeManager {
         }
     }
 
+    // key
     fn subscribe_key(&self, client_id: &str, path: &str) -> String {
         format!("{}_{}", client_id, path)
     }

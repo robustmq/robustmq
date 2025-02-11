@@ -45,9 +45,9 @@ where
     }
 
     let message_storage = MessageStorage::new(message_storage_adapter.clone());
-    let message_expire = build_message_expire(cache_manager, &publish_properties);
+    let message_expire = build_message_expire(cache_manager, publish_properties);
     let offset = if let Some(record) =
-        MqttMessage::build_record(client_id, &publish, &publish_properties, message_expire)
+        MqttMessage::build_record(client_id, publish, publish_properties, message_expire)
     {
         let offsets = message_storage
             .append_topic_message(&topic.topic_id, vec![record])
