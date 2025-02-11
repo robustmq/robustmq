@@ -15,9 +15,9 @@
 use protocol::mqtt::common::{Publish, PublishProperties};
 use subscriber::Subscriber;
 
-pub mod push_exclusive;
-pub mod push_share_follower;
-pub mod push_share_leader;
+pub mod exclusive_push;
+pub mod share_follower_resub;
+pub mod share_leader_push;
 pub mod sub_common;
 pub mod subscribe_manager;
 pub mod subscriber;

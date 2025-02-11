@@ -52,19 +52,19 @@ pub struct SubscribeManager {
     pub subscribe_list: DashMap<String, MqttSubscribe>,
 
     // (client_id_sub_name_topic_id, Subscriber)
-    pub exclusive_subscribe: DashMap<String, Subscriber>,
+    pub exclusive_push: DashMap<String, Subscriber>,
 
     // (client_id_sub_name_topic_id, Sender<bool>)
     pub exclusive_push_thread: DashMap<String, Sender<bool>>,
 
     // (group_name_sub_name_topic_id, ShareLeaderSubscribeData)
-    pub share_leader_subscribe: DashMap<String, ShareLeaderSubscribeData>,
+    pub share_leader_push: DashMap<String, ShareLeaderSubscribeData>,
 
     // (group_name_sub_name_topic_id, Sender<bool>)
     pub share_leader_push_thread: DashMap<String, Sender<bool>>,
 
     // (client_id_group_name_sub_name,ShareSubShareSub)
-    pub share_follower_subscribe: DashMap<String, ShareSubShareSub>,
+    pub share_follower_resub: DashMap<String, ShareSubShareSub>,
 
     // (client_id_group_name_sub_name, Sender<bool>)
     pub share_follower_resub_thread: DashMap<String, Sender<bool>>,
@@ -73,7 +73,7 @@ pub struct SubscribeManager {
     pub share_follower_identifier_id: DashMap<usize, String>,
 
     //(topic, now)
-    pub exclusive_subscribe_by_topic: DashMap<String, String>,
+    pub exclusive_subscribe: DashMap<String, String>,
 
     //(topic_id, Vec<TopicSubscribeInfo>)
     pub topic_subscribe_list: DashMap<String, Vec<TopicSubscribeInfo>>,
@@ -83,14 +83,14 @@ impl SubscribeManager {
     pub fn new() -> Self {
         SubscribeManager {
             subscribe_list: DashMap::with_capacity(8),
-            exclusive_subscribe: DashMap::with_capacity(8),
-            share_leader_subscribe: DashMap::with_capacity(8),
-            share_follower_subscribe: DashMap::with_capacity(8),
+            exclusive_push: DashMap::with_capacity(8),
+            share_leader_push: DashMap::with_capacity(8),
+            share_follower_resub: DashMap::with_capacity(8),
             share_follower_identifier_id: DashMap::with_capacity(8),
             exclusive_push_thread: DashMap::with_capacity(8),
             share_leader_push_thread: DashMap::with_capacity(8),
             share_follower_resub_thread: DashMap::with_capacity(8),
-            exclusive_subscribe_by_topic: DashMap::with_capacity(8),
+            exclusive_subscribe: DashMap::with_capacity(8),
             topic_subscribe_list: DashMap::with_capacity(8),
         }
     }
@@ -117,13 +117,13 @@ impl SubscribeManager {
     // push by exclusive subscribe
     pub fn add_exclusive_push(&self, client_id: &str, path: &str, topic_id: &str, sub: Subscriber) {
         let key = self.exclusive_key(client_id, path, topic_id);
-        self.exclusive_subscribe.insert(key, sub);
+        self.exclusive_push.insert(key, sub);
     }
 
     pub fn remove_exclusive_push_by_client_id(&self, client_id: &str) {
-        for (key, subscriber) in self.exclusive_subscribe.clone() {
+        for (key, subscriber) in self.exclusive_push.clone() {
             if subscriber.client_id == *client_id {
-                self.exclusive_subscribe.remove(&key);
+                self.exclusive_push.remove(&key);
                 self.remove_topic_subscribe_by_client_id(
                     &subscriber.topic_name,
                     &subscriber.client_id,
@@ -138,7 +138,7 @@ impl SubscribeManager {
         let share_leader_key = self.share_leader_key(&group_name, sub_name, &sub.topic_id);
         let leader_sub_key = self.share_leader_sub_key(&sub.client_id, sub_name);
 
-        if let Some(share_sub) = self.share_leader_subscribe.get_mut(&share_leader_key) {
+        if let Some(share_sub) = self.share_leader_push.get_mut(&share_leader_key) {
             share_sub.sub_list.insert(leader_sub_key, sub);
         } else {
             let sub_list = DashMap::with_capacity(8);
@@ -152,16 +152,16 @@ impl SubscribeManager {
                 sub_list,
             };
 
-            self.share_leader_subscribe
+            self.share_leader_push
                 .insert(share_leader_key.clone(), data);
         }
     }
 
     pub fn remove_share_subscribe_leader_by_client_id(&self, client_id: &str) {
-        for (key, share_sub) in self.share_leader_subscribe.clone() {
+        for (key, share_sub) in self.share_leader_push.clone() {
             for (sub_key, subscriber) in share_sub.sub_list {
                 if subscriber.client_id == *client_id {
-                    let mut_data = self.share_leader_subscribe.get_mut(&key).unwrap();
+                    let mut_data = self.share_leader_push.get_mut(&key).unwrap();
                     mut_data.sub_list.remove(&sub_key);
                     self.remove_topic_subscribe_by_client_id(
                         &subscriber.topic_name,
@@ -180,13 +180,13 @@ impl SubscribeManager {
         share_sub: ShareSubShareSub,
     ) {
         let key = self.share_follower_key(client_id, group_name, topic_id);
-        self.share_follower_subscribe.insert(key, share_sub);
+        self.share_follower_resub.insert(key, share_sub);
     }
 
     pub fn remove_share_subscribe_follower_by_client_id(&self, client_id: &str) {
-        for (key, share_sub) in self.share_follower_subscribe.clone() {
+        for (key, share_sub) in self.share_follower_resub.clone() {
             if share_sub.client_id == *client_id {
-                self.share_follower_subscribe.remove(&key);
+                self.share_follower_resub.remove(&key);
             }
         }
     }
@@ -229,23 +229,23 @@ impl SubscribeManager {
     }
 
     // exclusive subscribe
-    pub fn is_exclusive_subscribe_by_topic(&self, topic: &str) -> bool {
-        self.exclusive_subscribe_by_topic.contains_key(topic)
+    pub fn is_exclusive_subscribe(&self, topic: &str) -> bool {
+        self.exclusive_subscribe.contains_key(topic)
     }
 
-    pub fn add_exclusive_subscribe_by_topic(&self, topic: &str, client_id: &str) {
-        self.exclusive_subscribe_by_topic
+    pub fn add_exclusive_subscribe(&self, topic: &str, client_id: &str) {
+        self.exclusive_subscribe
             .insert(topic.to_owned(), client_id.to_owned());
     }
 
     pub fn remove_exclusive_subscribe_by_topic(&self, topic: &str) {
-        self.exclusive_subscribe_by_topic.remove(topic);
+        self.exclusive_subscribe.remove(topic);
     }
 
     pub fn remove_exclusive_subscribe_by_client_id(&self, client_id: &str) {
-        for (topic, cid) in self.exclusive_subscribe_by_topic.clone() {
+        for (topic, cid) in self.exclusive_subscribe.clone() {
             if cid == *client_id {
-                self.exclusive_subscribe_by_topic.remove(&topic);
+                self.exclusive_subscribe.remove(&topic);
             }
         }
     }

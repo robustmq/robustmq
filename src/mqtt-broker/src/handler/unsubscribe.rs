@@ -42,7 +42,7 @@ pub fn unsubscribe_by_path(
             if is_share_sub(path.clone()) {
                 let (group_name, sub_name) = decode_share_info(path.clone());
                 // share leader
-                for (key, data) in subscribe_manager.share_leader_subscribe.clone() {
+                for (key, data) in subscribe_manager.share_leader_push.clone() {
                     let mut flag = false;
                     for (sub_key, share_sub) in data.sub_list {
                         if share_sub.client_id == *client_id
@@ -51,7 +51,7 @@ pub fn unsubscribe_by_path(
                             && share_sub.sub_path == sub_name
                         {
                             let mut_data = subscribe_manager
-                                .share_leader_subscribe
+                                .share_leader_push
                                 .get_mut(&key)
                                 .unwrap();
                             mut_data.sub_list.remove(&sub_key);
@@ -74,9 +74,9 @@ pub fn unsubscribe_by_path(
                 }
 
                 // share follower
-                for (key, data) in subscribe_manager.share_follower_subscribe.clone() {
+                for (key, data) in subscribe_manager.share_follower_resub.clone() {
                     if data.client_id == *client_id && data.filter.path == *path {
-                        subscribe_manager.share_follower_subscribe.remove(&key);
+                        subscribe_manager.share_follower_resub.remove(&key);
                         if let Some(sx) = subscribe_manager.share_follower_resub_thread.get(&key) {
                             match sx.send(true) {
                                 Ok(_) => {}
@@ -86,14 +86,14 @@ pub fn unsubscribe_by_path(
                     }
                 }
             } else {
-                for (key, subscriber) in subscribe_manager.exclusive_subscribe.clone() {
+                for (key, subscriber) in subscribe_manager.exclusive_push.clone() {
                     if subscriber.client_id == *client_id && subscriber.sub_path == *path {
                         if let Some(sx) = subscribe_manager.exclusive_push_thread.get(&key) {
                             match sx.send(true) {
                                 Ok(_) => {}
                                 Err(e) => error!("{}", e),
                             }
-                            subscribe_manager.exclusive_subscribe.remove(&key);
+                            subscribe_manager.exclusive_push.remove(&key);
                         }
                         subscribe_manager.remove_topic_subscribe_by_path(
                             &subscriber.topic_name,

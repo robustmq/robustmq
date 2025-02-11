@@ -49,21 +49,21 @@ use crate::subscribe::subscribe_manager::ShareSubShareSub;
 use crate::subscribe::subscriber::Subscriber;
 
 #[derive(Clone)]
-pub struct SubscribeShareFollower {
+pub struct ShareFollowerResub {
     pub subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
 }
 
-impl SubscribeShareFollower {
+impl ShareFollowerResub {
     pub fn new(
         subscribe_manager: Arc<SubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<CacheManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
-        SubscribeShareFollower {
+        ShareFollowerResub {
             subscribe_manager,
             connection_manager,
             cache_manager,
@@ -81,7 +81,7 @@ impl SubscribeShareFollower {
 
     async fn start_resub_thread(&self) {
         for (follower_resub_key, share_sub) in
-            self.subscribe_manager.share_follower_subscribe.clone()
+            self.subscribe_manager.share_follower_resub.clone()
         {
             let metadata_cache = self.cache_manager.clone();
             let connection_manager = self.connection_manager.clone();
@@ -93,7 +93,7 @@ impl SubscribeShareFollower {
                     if conf.broker_id == reply.broker_id {
                         // remove follower sub
                         self.subscribe_manager
-                            .share_follower_subscribe
+                            .share_follower_resub
                             .remove(&follower_resub_key);
 
                         // parse sub
@@ -177,12 +177,12 @@ impl SubscribeShareFollower {
         for (share_fllower_key, sx) in self.subscribe_manager.share_follower_resub_thread.clone() {
             if !self
                 .subscribe_manager
-                .share_follower_subscribe
+                .share_follower_resub
                 .contains_key(&share_fllower_key)
                 && sx.send(true).is_ok()
             {
                 self.subscribe_manager
-                    .share_follower_subscribe
+                    .share_follower_resub
                     .remove(&share_fllower_key);
             }
         }

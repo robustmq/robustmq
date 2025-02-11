@@ -103,9 +103,6 @@ pub struct CacheManager {
     // (client_id, Session)
     pub session_info: DashMap<String, MqttSession>,
 
-    // (client_id, <path,bool>)
-    pub subscribe_is_new: DashMap<String, DashMap<String, bool>>,
-
     // (client_id, vec<pkid>)
     pub publish_pkid_info: DashMap<String, Vec<u16>>,
 
@@ -145,7 +142,6 @@ impl CacheManager {
             topic_info: DashMap::with_capacity(8),
             topic_id_name: DashMap::with_capacity(8),
             connection_info: DashMap::with_capacity(8),
-            subscribe_is_new: DashMap::with_capacity(8),
             publish_pkid_info: DashMap::with_capacity(8),
             heartbeat_data: DashMap::with_capacity(8),
             qos_ack_packet: DashMap::with_capacity(8),
@@ -178,7 +174,6 @@ impl CacheManager {
 
     pub fn remove_session(&self, client_id: &str) {
         self.session_info.remove(client_id);
-        self.subscribe_is_new.remove(client_id);
         self.publish_pkid_info.remove(client_id);
         self.heartbeat_data.remove(client_id);
 
