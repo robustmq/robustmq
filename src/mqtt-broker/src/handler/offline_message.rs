@@ -15,8 +15,7 @@
 use std::sync::Arc;
 
 use super::{cache::CacheManager, error::MqttBrokerError, message::build_message_expire};
-use crate::{storage::message::MessageStorage, subscribe::subscribe_manager::SubscribeManager};
-use log::info;
+use crate::{observability::metrics::packets::record_messages_dropped_no_subscribers_metrics, storage::message::MessageStorage, subscribe::subscribe_manager::SubscribeManager};
 use metadata_struct::mqtt::{message::MqttMessage, topic::MqttTopic};
 use protocol::mqtt::common::{Publish, PublishProperties};
 use storage_adapter::storage::StorageAdapter;
@@ -41,8 +40,7 @@ where
     if !is_exist_subscribe(subscribe_manager, &topic.topic_name)
         && !cache_manager.get_cluster_info().offline_message.enable
     {
-        //todo
-        info!("Without a subscription, discard this message.");
+        record_messages_dropped_no_subscribers_metrics(publish.qos);
         return Ok(None);
     }
 

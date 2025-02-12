@@ -244,6 +244,13 @@ common_base::register_gauge_metric!(
     QosLabel
 );
 
+common_base::register_gauge_metric!(
+    MESSAGES_DROPPED_NO_SUBSCRIBERS,
+    "messages.dropped.no_subscribers",
+    "Number of messages dropped due to no subscribers",
+    QosLabel
+);
+
 // Record the packet-related metrics received by the server for failed resolution
 pub fn record_received_error_metrics(network_type: NetworkConnectionType) {
     let labe = NetworkLabel {
@@ -365,6 +372,12 @@ pub fn record_retain_sent_metrics(qos: QoS) {
     let qos_str = (qos as u8).to_string();
     let label = QosLabel { qos: qos_str };
     common_base::gauge_metric_inc!(RETAIN_PACKETS_SEND, label);
+}
+
+pub fn record_messages_dropped_no_subscribers_metrics(qos: QoS) {
+    let qos_str = (qos as u8).to_string();
+    let label = QosLabel { qos: qos_str };
+    common_base::gauge_metric_inc!(MESSAGES_DROPPED_NO_SUBSCRIBERS, label);
 }
 
 #[cfg(test)]
