@@ -1,24 +1,26 @@
 ## 功能覆盖度
-1. 离线消息
-2. 订阅逻辑优化
-3. 数据集成
+1. 离线消息【done】
+2. 订阅逻辑优化【done】
+3. MQTT 测试用例失败 case 修复
+4. 自动订阅
+5. 数据集成
    1. 文件传输
    2. Kafka 集成
    3. 企业及数据集成
-4. 限流
+6. 限流
    1. 速率限制
    2. QOS 限制
-5. 可观测体系搭建
-6. ACL/User
-7. Schema: Schema Registry、灵活地消息格式转换：JSON、Avro、Protobuf、Custom codec (HTTP/gRPC)
-8. 消息验证：确保消息的完整性和合法性
-9.  规则引擎
-10. Flow 设计器
-11. 故障排查
-12. Cloud-Native & K8s
-13. 边缘计算
-14. MQTT Over QUIC
-15. 多协议网关
+7. 可观测体系搭建
+8. ACL/User
+9. Schema: Schema Registry、灵活地消息格式转换：JSON、Avro、Protobuf、Custom codec (HTTP/gRPC)
+10. 消息验证：确保消息的完整性和合法性
+11. 规则引擎
+12. Flow 设计器
+13. 故障排查
+14. Cloud-Native & K8s
+15. 边缘计算
+16. MQTT Over QUIC
+17. 多协议网关
 
 ## 测试用例覆盖度
 1. 代码测试覆盖度
