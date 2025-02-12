@@ -30,6 +30,9 @@ pub enum MqttBrokerError {
     FromCommonError(#[from] CommonError),
 
     #[error("{0}")]
+    TokioBroadcastSendError(#[from] tokio::sync::broadcast::error::SendError<bool>),
+
+    #[error("{0}")]
     SerdeJsonError(#[from] serde_json::Error),
 
     #[error("{0}")]

@@ -21,7 +21,6 @@ use crate::subscribe::{
 };
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::{placement::mqtt::call::placement_delete_subscribe, pool::ClientPool};
-use log::error;
 use protocol::{
     mqtt::common::Unsubscribe, placement_center::placement_center_mqtt::DeleteSubscribeRequest,
 };
@@ -54,7 +53,7 @@ pub async fn remove_subscribe(
         subscribe_manager,
         client_id,
         &un_subscribe.filters,
-    );
+    )?;
 
     Ok(())
 }
@@ -64,7 +63,7 @@ fn unsubscribe_by_path(
     subscribe_manager: &Arc<SubscribeManager>,
     client_id: &str,
     filter_path: &[String],
-) {
+) -> Result<(), MqttBrokerError> {
     for (topic_name, _) in cache_manager.topic_info.clone() {
         for path in filter_path {
             if !path_regex_match(&topic_name, path) {
@@ -95,10 +94,7 @@ fn unsubscribe_by_path(
 
                     if flag {
                         if let Some(sx) = subscribe_manager.share_leader_push_thread.get(&key) {
-                            match sx.send(true) {
-                                Ok(_) => {}
-                                Err(e) => error!("{}", e),
-                            }
+                            sx.send(true)?;
                         }
                     }
                 }
@@ -108,10 +104,7 @@ fn unsubscribe_by_path(
                     if data.client_id == *client_id && data.filter.path == *path {
                         subscribe_manager.share_follower_resub.remove(&key);
                         if let Some(sx) = subscribe_manager.share_follower_resub_thread.get(&key) {
-                            match sx.send(true) {
-                                Ok(_) => {}
-                                Err(e) => error!("{}", e),
-                            }
+                            sx.send(true)?;
                         }
                     }
                 }
@@ -119,10 +112,7 @@ fn unsubscribe_by_path(
                 for (key, subscriber) in subscribe_manager.exclusive_push.clone() {
                     if subscriber.client_id == *client_id && subscriber.sub_path == *path {
                         if let Some(sx) = subscribe_manager.exclusive_push_thread.get(&key) {
-                            match sx.send(true) {
-                                Ok(_) => {}
-                                Err(e) => error!("{}", e),
-                            }
+                            sx.send(true)?;
                             subscribe_manager.exclusive_push.remove(&key);
                         }
                         subscribe_manager.remove_topic_subscribe_by_path(
@@ -134,4 +124,5 @@ fn unsubscribe_by_path(
             }
         }
     }
+    Ok(())
 }

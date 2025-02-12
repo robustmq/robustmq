@@ -15,7 +15,10 @@
 use std::sync::Arc;
 
 use super::{cache::CacheManager, error::MqttBrokerError, message::build_message_expire};
-use crate::{observability::metrics::packets::record_messages_dropped_no_subscribers_metrics, storage::message::MessageStorage, subscribe::subscribe_manager::SubscribeManager};
+use crate::{
+    observability::metrics::packets::record_messages_dropped_no_subscribers_metrics,
+    storage::message::MessageStorage, subscribe::subscribe_manager::SubscribeManager,
+};
 use metadata_struct::mqtt::{message::MqttMessage, topic::MqttTopic};
 use protocol::mqtt::common::{Publish, PublishProperties};
 use storage_adapter::storage::StorageAdapter;
