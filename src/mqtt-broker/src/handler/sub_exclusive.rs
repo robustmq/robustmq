@@ -86,10 +86,3 @@ pub fn try_remove_exclusive_subscribe_by_path(
     let topic_name = decode_exclusive_sub_path_to_topic_name(path);
     subscribe_manager.remove_exclusive_subscribe_by_topic(topic_name);
 }
-
-pub fn try_remove_exclusive_subscribe_by_client_id(
-    subscribe_manager: &Arc<SubscribeManager>,
-    client_id: &str,
-) {
-    subscribe_manager.remove_exclusive_subscribe_by_client_id(client_id);
-}

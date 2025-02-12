@@ -31,7 +31,8 @@ use storage_adapter::storage::StorageAdapter;
 use super::connection::disconnect_connection;
 use super::offline_message::save_message;
 use super::retain::try_send_retain_message;
-use super::subscribe::{remove_subscribe, save_subscribe};
+use super::subscribe::save_subscribe;
+use super::unsubscribe::remove_subscribe;
 use crate::handler::cache::{
     CacheManager, ConnectionLiveTime, QosAckPackageData, QosAckPackageType,
 };
@@ -900,7 +901,6 @@ where
             &self.cache_manager,
             &self.client_pool,
             &self.connection_manager,
-            &self.subscribe_manager,
         )
         .await
         {

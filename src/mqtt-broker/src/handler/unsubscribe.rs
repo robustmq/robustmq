@@ -12,22 +12,54 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::{
+    cache::CacheManager, error::MqttBrokerError, sub_exclusive::try_remove_exclusive_subscribe,
+};
 use crate::subscribe::{
     sub_common::{decode_share_info, is_share_sub, path_regex_match},
     subscribe_manager::SubscribeManager,
 };
+use common_base::config::broker_mqtt::broker_mqtt_conf;
+use grpc_clients::{placement::mqtt::call::placement_delete_subscribe, pool::ClientPool};
 use log::error;
+use protocol::{
+    mqtt::common::Unsubscribe, placement_center::placement_center_mqtt::DeleteSubscribeRequest,
+};
 use std::sync::Arc;
 
-use super::cache::CacheManager;
+pub async fn remove_subscribe(
+    client_id: &str,
+    un_subscribe: &Unsubscribe,
+    client_pool: &Arc<ClientPool>,
+    subscribe_manager: &Arc<SubscribeManager>,
+    cache_manager: &Arc<CacheManager>,
+) -> Result<(), MqttBrokerError> {
+    let conf = broker_mqtt_conf();
 
-pub fn stop_push_by_client_id(subscribe_manager: &Arc<SubscribeManager>, client_id: &str) {
-    subscribe_manager.remove_exclusive_push_by_client_id(client_id);
-    subscribe_manager.remove_share_subscribe_leader_by_client_id(client_id);
-    subscribe_manager.remove_share_subscribe_follower_by_client_id(client_id);
+    for path in un_subscribe.filters.clone() {
+        let request = DeleteSubscribeRequest {
+            cluster_name: conf.cluster_name.to_owned(),
+            client_id: client_id.to_owned(),
+            path: path.clone(),
+        };
+        placement_delete_subscribe(client_pool, &conf.placement_center, request).await?;
+
+        subscribe_manager.remove_subscribe(client_id, &path);
+    }
+
+    try_remove_exclusive_subscribe(subscribe_manager, un_subscribe.clone());
+
+    unsubscribe_by_path(
+        cache_manager,
+        subscribe_manager,
+        client_id,
+        &un_subscribe.filters,
+    );
+
+    Ok(())
 }
 
-pub fn unsubscribe_by_path(
+fn unsubscribe_by_path(
     cache_manager: &Arc<CacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     client_id: &str,
@@ -35,12 +67,12 @@ pub fn unsubscribe_by_path(
 ) {
     for (topic_name, _) in cache_manager.topic_info.clone() {
         for path in filter_path {
-            if !path_regex_match(topic_name.clone(), path.clone()) {
+            if !path_regex_match(&topic_name, path) {
                 continue;
             }
 
-            if is_share_sub(path.clone()) {
-                let (group_name, sub_name) = decode_share_info(path.clone());
+            if is_share_sub(path) {
+                let (group_name, sub_name) = decode_share_info(path);
                 // share leader
                 for (key, data) in subscribe_manager.share_leader_push.clone() {
                     let mut flag = false;

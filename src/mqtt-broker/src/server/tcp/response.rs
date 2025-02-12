@@ -158,7 +158,6 @@ pub(crate) fn response_child_process(
                                         &raw_cache_manager,
                                         &raw_client_pool,
                                         &raw_connect_manager,
-                                        &raw_subscribe_manager,
                                     ).await{
                                         Ok(()) => {},
                                         Err(e) => error!("{}",e)
