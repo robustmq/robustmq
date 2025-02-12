@@ -31,6 +31,7 @@ use storage_adapter::storage::StorageAdapter;
 use super::connection::disconnect_connection;
 use super::offline_message::save_message;
 use super::retain::try_send_retain_message;
+use super::sub_auto::start_auto_subscribe;
 use super::subscribe::save_subscribe;
 use super::unsubscribe::remove_subscribe;
 use crate::handler::cache::{
@@ -200,7 +201,7 @@ where
             }
         };
 
-        match save_session(
+        if let Err(e) = save_session(
             connect_id,
             session.clone(),
             new_session,
@@ -209,18 +210,15 @@ where
         )
         .await
         {
-            Ok(()) => {}
-            Err(e) => {
-                return response_packet_mqtt_connect_fail(
-                    &self.protocol,
-                    ConnectReturnCode::MalformedPacket,
-                    &connect_properties,
-                    Some(e.to_string()),
-                );
-            }
+            return response_packet_mqtt_connect_fail(
+                &self.protocol,
+                ConnectReturnCode::MalformedPacket,
+                &connect_properties,
+                Some(e.to_string()),
+            );
         }
 
-        match save_last_will_message(
+        if let Err(e) = save_last_will_message(
             client_id.clone(),
             &last_will,
             &last_will_properties,
@@ -228,15 +226,21 @@ where
         )
         .await
         {
-            Ok(()) => {}
-            Err(e) => {
-                return response_packet_mqtt_connect_fail(
-                    &self.protocol,
-                    ConnectReturnCode::UnspecifiedError,
-                    &connect_properties,
-                    Some(e.to_string()),
-                );
-            }
+            return response_packet_mqtt_connect_fail(
+                &self.protocol,
+                ConnectReturnCode::UnspecifiedError,
+                &connect_properties,
+                Some(e.to_string()),
+            );
+        }
+
+        if let Err(e) = start_auto_subscribe().await {
+            return response_packet_mqtt_connect_fail(
+                &self.protocol,
+                ConnectReturnCode::UnspecifiedError,
+                &connect_properties,
+                Some(e.to_string()),
+            );
         }
 
         let live_time = ConnectionLiveTime {
