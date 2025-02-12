@@ -29,7 +29,7 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
 };
 use std::sync::Arc;
 
-use super::{cache::CacheManager, sub_exclusive::try_remove_exclusive_subscribe_by_path};
+use super::{cache::CacheManager, sub_exclusive::remove_exclusive_subscribe_by_path};
 
 pub async fn load_metadata_cache(
     cache_manager: &Arc<CacheManager>,
@@ -181,10 +181,7 @@ pub async fn update_cache_metadata(
                         if let Some(_sub) =
                             subscribe_manager.get_subscribe(&subscribe.client_id, &subscribe.path)
                         {
-                            try_remove_exclusive_subscribe_by_path(
-                                subscribe_manager,
-                                &subscribe.path,
-                            );
+                            remove_exclusive_subscribe_by_path(subscribe_manager, &subscribe.path);
                         }
                         subscribe_manager.remove_subscribe(&subscribe.client_id, &subscribe.path)
                     }

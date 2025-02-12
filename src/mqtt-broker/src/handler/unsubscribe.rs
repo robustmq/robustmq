@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::{
-    cache::CacheManager, error::MqttBrokerError, sub_exclusive::try_remove_exclusive_subscribe,
+    cache::CacheManager, error::MqttBrokerError, sub_exclusive::remove_exclusive_subscribe,
 };
 use crate::subscribe::{
     sub_common::{decode_share_info, is_share_sub, path_regex_match},
@@ -47,7 +47,7 @@ pub async fn remove_subscribe(
         subscribe_manager.remove_subscribe(client_id, &path);
     }
 
-    try_remove_exclusive_subscribe(subscribe_manager, un_subscribe.clone());
+    remove_exclusive_subscribe(subscribe_manager, un_subscribe.clone());
 
     unsubscribe_by_path(
         cache_manager,

@@ -28,13 +28,11 @@ use crate::handler::connection::disconnect_connection;
 use crate::observability::metrics::server::{metrics_request_queue, metrics_response_queue};
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
-use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub(crate) async fn response_process(
     response_process_num: usize,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
-    subscribe_manager: Arc<SubscribeManager>,
     mut response_queue_rx: Receiver<ResponsePackage>,
     client_pool: Arc<ClientPool>,
     stop_sx: broadcast::Sender<bool>,
@@ -48,7 +46,6 @@ pub(crate) async fn response_process(
             stop_sx.clone(),
             connection_manager,
             cache_manager,
-            subscribe_manager,
             client_pool,
         );
 
@@ -102,7 +99,6 @@ pub(crate) fn response_child_process(
     stop_sx: broadcast::Sender<bool>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
-    subscribe_manager: Arc<SubscribeManager>,
     client_pool: Arc<ClientPool>,
 ) {
     for index in 1..=response_process_num {
@@ -113,7 +109,6 @@ pub(crate) fn response_child_process(
         let raw_connect_manager = connection_manager.clone();
         let raw_cache_manager = cache_manager.clone();
         let raw_client_pool = client_pool.clone();
-        let raw_subscribe_manager = subscribe_manager.clone();
         tokio::spawn(async move {
             debug!("TCP Server response process thread {index} start successfully.");
 

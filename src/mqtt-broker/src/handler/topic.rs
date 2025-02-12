@@ -32,10 +32,6 @@ use crate::subscribe::sub_common::{
     decode_queue_info, decode_share_info, is_queue_sub, is_share_sub,
 };
 
-pub fn is_system_topic(_: String) -> bool {
-    true
-}
-
 pub fn payload_format_validator(
     payload: &Bytes,
     payload_format_indicator: u8,

@@ -79,11 +79,11 @@ pub fn path_regex_match(topic_name: &str, sub_path: &str) -> bool {
         sub_path.to_owned()
     };
 
-    let topic = if is_share_sub(topic_name.clone()) {
-        let (_, group_path) = decode_share_info(topic_name.clone());
+    let topic = if is_share_sub(topic_name) {
+        let (_, group_path) = decode_share_info(topic_name);
         group_path
-    } else if is_queue_sub(topic_name.clone()) {
-        decode_queue_info(topic_name.clone())
+    } else if is_queue_sub(topic_name) {
+        decode_queue_info(topic_name)
     } else {
         topic_name.to_owned()
     };
@@ -124,7 +124,7 @@ pub async fn get_sub_topic_id_list(
 ) -> Vec<String> {
     let mut result = Vec::new();
     for (topic_id, topic_name) in metadata_cache.topic_id_name.clone() {
-        if path_regex_match(&topic_name, &sub_path) {
+        if path_regex_match(&topic_name, sub_path) {
             result.push(topic_id);
         }
     }

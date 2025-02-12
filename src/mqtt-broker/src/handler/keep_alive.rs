@@ -32,20 +32,17 @@ use super::cache::{CacheManager, ConnectionLiveTime};
 use super::connection::disconnect_connection;
 use super::response::response_packet_mqtt_distinct_by_reason;
 use crate::server::connection_manager::ConnectionManager;
-use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub struct ClientKeepAlive {
     cache_manager: Arc<CacheManager>,
     stop_send: broadcast::Sender<bool>,
     client_pool: Arc<ClientPool>,
     connection_manager: Arc<ConnectionManager>,
-    subscribe_manager: Arc<SubscribeManager>,
 }
 
 impl ClientKeepAlive {
     pub fn new(
         client_pool: Arc<ClientPool>,
-        subscribe_manager: Arc<SubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<CacheManager>,
         stop_send: broadcast::Sender<bool>,
@@ -55,7 +52,6 @@ impl ClientKeepAlive {
             connection_manager,
             cache_manager,
             stop_send,
-            subscribe_manager,
         }
     }
 
@@ -275,12 +271,9 @@ mod test {
             conf.cluster_name.clone(),
         ));
 
-        let subscribe_manager = Arc::new(SubscribeManager::new());
-
         let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
         let alive = ClientKeepAlive::new(
             client_pool,
-            subscribe_manager,
             connection_manager,
             cache_manager.clone(),
             stop_send,

@@ -48,7 +48,7 @@ pub fn check_exclusive_subscribe(
     true
 }
 
-pub fn try_add_exclusive_subscribe(
+pub fn add_exclusive_subscribe(
     subscribe_manager: &Arc<SubscribeManager>,
     path: &str,
     client_id: &str,
@@ -61,7 +61,7 @@ pub fn try_add_exclusive_subscribe(
     subscribe_manager.add_exclusive_subscribe(topic_name, client_id);
 }
 
-pub fn try_remove_exclusive_subscribe(
+pub fn remove_exclusive_subscribe(
     subscribe_manager: &Arc<SubscribeManager>,
     un_subscribe: Unsubscribe,
 ) {
@@ -75,10 +75,7 @@ pub fn try_remove_exclusive_subscribe(
     }
 }
 
-pub fn try_remove_exclusive_subscribe_by_path(
-    subscribe_manager: &Arc<SubscribeManager>,
-    path: &str,
-) {
+pub fn remove_exclusive_subscribe_by_path(subscribe_manager: &Arc<SubscribeManager>, path: &str) {
     if is_exclusive_sub(path) {
         return;
     }

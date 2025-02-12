@@ -35,9 +35,7 @@ use crate::subscribe::{
     subscriber::Subscriber,
 };
 
-use super::{
-    cache::CacheManager, error::MqttBrokerError, sub_exclusive::try_add_exclusive_subscribe,
-};
+use super::{cache::CacheManager, error::MqttBrokerError, sub_exclusive::add_exclusive_subscribe};
 
 #[derive(Clone, Deserialize, Serialize)]
 struct ParseShareQueueSubscribeRequest {
@@ -134,7 +132,7 @@ pub async fn parse_subscribe(
         == AvailableFlag::Disable;
 
     if enable_exclusive_sub {
-        try_add_exclusive_subscribe(subscribe_manager, &filter.path, client_id);
+        add_exclusive_subscribe(subscribe_manager, &filter.path, client_id);
     }
 
     if is_share_sub(&filter.path) {
@@ -172,7 +170,7 @@ pub async fn parse_subscribe(
         )
         .await;
     } else {
-        add_exclusive_subscribe(
+        add_exclusive_push(
             subscribe_manager,
             topic,
             client_id,
@@ -214,12 +212,12 @@ async fn parse_share_queue_subscribe_common(
 ) {
     let conf = broker_mqtt_conf();
     if path_regex_match(&req.topic_name, &req.sub_name) {
-        match get_share_sub_leader(&client_pool, &req.group_name).await {
+        match get_share_sub_leader(client_pool, &req.group_name).await {
             Ok(reply) => {
                 if reply.broker_id == conf.broker_id {
-                    add_share_subscribe_leader(subscribe_manager, req).await;
+                    add_share_push_leader(subscribe_manager, req).await;
                 } else {
-                    add_share_subscribe_follower(subscribe_manager, req).await;
+                    add_share_push_follower(subscribe_manager, req).await;
                 }
             }
             Err(e) => {
@@ -232,7 +230,7 @@ async fn parse_share_queue_subscribe_common(
     }
 }
 
-async fn add_share_subscribe_leader(
+async fn add_share_push_leader(
     subscribe_manager: &Arc<SubscribeManager>,
     req: &ParseShareQueueSubscribeRequest,
 ) {
@@ -254,7 +252,7 @@ async fn add_share_subscribe_leader(
     subscribe_manager.add_share_subscribe_leader(&req.sub_name, sub);
 }
 
-async fn add_share_subscribe_follower(
+async fn add_share_push_follower(
     subscribe_manager: &Arc<SubscribeManager>,
     req: &ParseShareQueueSubscribeRequest,
 ) {
@@ -276,7 +274,7 @@ async fn add_share_subscribe_follower(
     );
 }
 
-fn add_exclusive_subscribe(
+fn add_exclusive_push(
     subscribe_manager: &Arc<SubscribeManager>,
     topic: &MqttTopic,
     client_id: &str,
