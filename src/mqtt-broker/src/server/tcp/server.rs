@@ -65,7 +65,6 @@ pub async fn start_tcp_server<S>(
         proc_config,
         stop_sx.clone(),
         connection_manager.clone(),
-        subscribe_manager.clone(),
         cache_manager.clone(),
         client_pool.clone(),
     );
@@ -76,7 +75,6 @@ pub async fn start_tcp_server<S>(
         proc_config,
         stop_sx.clone(),
         connection_manager,
-        subscribe_manager.clone(),
         cache_manager,
         client_pool,
     );
@@ -89,7 +87,6 @@ struct TcpServer<S> {
     command: Command<S>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
-    subscribe_manager: Arc<SubscribeManager>,
     client_pool: Arc<ClientPool>,
     accept_thread_num: usize,
     handler_process_num: usize,
@@ -114,13 +111,11 @@ where
         proc_config: ProcessorConfig,
         stop_sx: broadcast::Sender<bool>,
         connection_manager: Arc<ConnectionManager>,
-        subscribe_manager: Arc<SubscribeManager>,
         cache_manager: Arc<CacheManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         Self {
             command,
-            subscribe_manager,
             cache_manager,
             client_pool,
             connection_manager,
@@ -169,7 +164,6 @@ where
             self.response_process_num,
             self.connection_manager.clone(),
             self.cache_manager.clone(),
-            self.subscribe_manager.clone(),
             response_queue_rx,
             self.client_pool.clone(),
             self.stop_sx.clone(),
@@ -216,7 +210,6 @@ where
             self.response_process_num,
             self.connection_manager.clone(),
             self.cache_manager.clone(),
-            self.subscribe_manager.clone(),
             response_queue_rx,
             self.client_pool.clone(),
             self.stop_sx.clone(),

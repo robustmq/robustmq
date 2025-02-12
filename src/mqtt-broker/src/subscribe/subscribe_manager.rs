@@ -120,7 +120,7 @@ impl SubscribeManager {
         self.exclusive_push.insert(key, sub);
     }
 
-    pub fn remove_exclusive_push_by_client_id(&self, client_id: &str) {
+    fn remove_exclusive_push_by_client_id(&self, client_id: &str) {
         for (key, subscriber) in self.exclusive_push.clone() {
             if subscriber.client_id == *client_id {
                 self.exclusive_push.remove(&key);
@@ -132,7 +132,7 @@ impl SubscribeManager {
         }
     }
 
-    // push by share subscribe
+    // Leader push by share subscribe
     pub fn add_share_subscribe_leader(&self, sub_name: &str, sub: Subscriber) {
         let group_name = sub.group_name.clone().unwrap();
         let share_leader_key = self.share_leader_key(&group_name, sub_name, &sub.topic_id);
@@ -157,7 +157,7 @@ impl SubscribeManager {
         }
     }
 
-    pub fn remove_share_subscribe_leader_by_client_id(&self, client_id: &str) {
+    fn remove_share_subscribe_leader_by_client_id(&self, client_id: &str) {
         for (key, share_sub) in self.share_leader_push.clone() {
             for (sub_key, subscriber) in share_sub.sub_list {
                 if subscriber.client_id == *client_id {
@@ -172,6 +172,7 @@ impl SubscribeManager {
         }
     }
 
+    // Follower resub by share subscribe
     pub fn add_share_subscribe_follower(
         &self,
         client_id: &str,
@@ -183,7 +184,7 @@ impl SubscribeManager {
         self.share_follower_resub.insert(key, share_sub);
     }
 
-    pub fn remove_share_subscribe_follower_by_client_id(&self, client_id: &str) {
+    fn remove_share_subscribe_follower_by_client_id(&self, client_id: &str) {
         for (key, share_sub) in self.share_follower_resub.clone() {
             if share_sub.client_id == *client_id {
                 self.share_follower_resub.remove(&key);
@@ -242,12 +243,19 @@ impl SubscribeManager {
         self.exclusive_subscribe.remove(topic);
     }
 
-    pub fn remove_exclusive_subscribe_by_client_id(&self, client_id: &str) {
+    fn remove_exclusive_subscribe_by_client_id(&self, client_id: &str) {
         for (topic, cid) in self.exclusive_subscribe.clone() {
             if cid == *client_id {
                 self.exclusive_subscribe.remove(&topic);
             }
         }
+    }
+
+    pub fn remove_client_id(&self, client_id: &str) {
+        self.remove_exclusive_push_by_client_id(client_id);
+        self.remove_share_subscribe_leader_by_client_id(client_id);
+        self.remove_share_subscribe_follower_by_client_id(client_id);
+        self.remove_exclusive_subscribe_by_client_id(client_id);
     }
 
     // key

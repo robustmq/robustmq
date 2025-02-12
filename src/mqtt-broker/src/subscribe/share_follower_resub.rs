@@ -84,8 +84,7 @@ impl ShareFollowerResub {
             let metadata_cache = self.cache_manager.clone();
             let connection_manager = self.connection_manager.clone();
 
-            match get_share_sub_leader(self.client_pool.clone(), share_sub.group_name.clone()).await
-            {
+            match get_share_sub_leader(&self.client_pool, &share_sub.group_name).await {
                 Ok(reply) => {
                     let conf = broker_mqtt_conf();
                     if conf.broker_id == reply.broker_id {

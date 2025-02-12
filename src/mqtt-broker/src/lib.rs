@@ -310,7 +310,6 @@ where
     fn start_keep_alive_thread(&self, stop_send: broadcast::Sender<bool>) {
         let mut keep_alive = ClientKeepAlive::new(
             self.client_pool.clone(),
-            self.subscribe_manager.clone(),
             self.connection_manager.clone(),
             self.cache_manager.clone(),
             stop_send,

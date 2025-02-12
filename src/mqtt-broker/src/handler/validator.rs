@@ -504,15 +504,6 @@ pub async fn un_subscribe_validator(
         ));
     }
 
-    if authentication_acl() {
-        return Some(response_packet_mqtt_unsuback(
-            connection,
-            un_subscribe.pkid,
-            vec![UnsubAckReason::NotAuthorized],
-            None,
-        ));
-    }
-
     for path in un_subscribe.filters.clone() {
         if subscribe_manager.get_subscribe(client_id, &path).is_none() {
             return Some(response_packet_mqtt_unsuback(
