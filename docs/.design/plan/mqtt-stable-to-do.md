@@ -4,9 +4,8 @@
 3. MQTT 测试用例失败 case 修复
 4. 自动订阅
 5. 数据集成
-   1. 文件传输
-   2. Kafka 集成
-   3. 企业及数据集成
+   1. sink local file
+   3. Kafka 集成
 6. 限流
    1. 速率限制
    2. QOS 限制
