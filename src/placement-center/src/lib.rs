@@ -124,9 +124,13 @@ impl PlacementCenter {
 
         let placement_center_storage = Arc::new(RaftMachineApply::new(openraft_node.clone()));
 
-        self.start_controller(placement_center_storage.clone(), stop_send.clone());
+        // You can continue the subsequent activities only after the node is started
+        start_openraft_node(openraft_node.clone()).await;
 
-        self.start_raft_machine(openraft_node.clone());
+        if is_leader(&openraft_node) {
+            info!("Starting Placement Center Controller");
+            self.start_controller(placement_center_storage.clone(), stop_send.clone());
+        };
 
         self.start_http_server(placement_center_storage.clone());
 
@@ -276,14 +280,6 @@ impl PlacementCenter {
             journal_controller.start().await;
         });
     }
-
-    // Start Raft Status Machine
-    fn start_raft_machine(&self, openraft_node: Raft<TypeConfig>) {
-        tokio::spawn(async move {
-            start_openraft_node(openraft_node).await;
-        });
-    }
-
     fn start_call_thread(&self) {
         let client_pool = self.client_pool.clone();
         let journal_all_manager = self.journal_call_manager.clone();
@@ -317,4 +313,23 @@ impl PlacementCenter {
             Err(e) => panic!("Failed to load Journal Cache,{}", e),
         }
     }
+}
+/// Check whether the current node is the leader of the Raft cluster.
+///
+/// This function compares the ID of the current node with the ID of the current leader recorded
+/// by the Raft cluster to determine whether it is in the leader state.
+///
+/// # Arguments
+/// * 'openraft_node' - An immutable reference to a Raft node, containing node state and metric information
+///
+/// # Returns
+/// Return a Boolean value:
+/// - 'true' indicates that the current node is the leader
+/// - 'false' indicates that the current node is not a leader or leader information does not exist
+pub fn is_leader(openraft_node: &Raft<TypeConfig>) -> bool {
+    openraft_node
+        .metrics()
+        .borrow()
+        .current_leader
+        .is_some_and(|leader| leader == openraft_node.metrics().borrow().id)
 }
