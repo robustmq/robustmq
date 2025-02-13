@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod exclusive_push;
-pub mod share_follower_resub;
-pub mod share_leader_push;
-mod shared_subscription;
-pub mod sub_common;
-pub mod subscribe_manager;
-pub mod subscriber;
+enum SubscriptionMode {
+    Shared { group_name: String },
+    Queue,
+}
+
+struct SharedSubscription {
+    subscription_type: SubscriptionMode,
+    topic_pattern: String,
+}
+
+impl SharedSubscription {}
