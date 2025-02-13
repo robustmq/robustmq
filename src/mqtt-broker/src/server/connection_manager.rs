@@ -154,7 +154,7 @@ impl ConnectionManager {
                                 };
 
                             record_sent_metrics(&packet_wrapper, network_type);
-                            info!("WebSockets response success,connection_id:{connection_id}"); 
+                            info!("WebSockets response success,connection_id:{connection_id}");
                             break;
                         }
                         Err(e) => {

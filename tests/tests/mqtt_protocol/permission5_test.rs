@@ -37,7 +37,7 @@ mod tests {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let grpc_addr = vec![broker_grpc_addr()];
 
-        let username =  unique_id();
+        let username = unique_id();
         let password = "permission".to_string();
 
         //unregistered users are not allowed to create connections.

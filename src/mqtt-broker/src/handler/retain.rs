@@ -92,6 +92,7 @@ pub async fn save_retain_message(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn try_send_retain_message(
     protocol: MqttProtocol,
     client_id: String,
@@ -146,7 +147,7 @@ async fn send_retain_message(
             return Ok(());
         }
 
-        let is_new_sub = is_new_subs.get(&filter.path).unwrap().clone();
+        let is_new_sub = *is_new_subs.get(&filter.path).unwrap();
         println!("is_new_sub:{}", is_new_sub);
         if filter.retain_forward_rule == RetainForwardRule::OnNewSubscribe && !is_new_sub {
             return Ok(());
