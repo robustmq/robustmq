@@ -183,6 +183,8 @@ impl PlacementCenterService for GrpcPlacementService {
                 PlacementCenterError::NodeDoesNotExist(req.node_id).to_string(),
             ));
         }
+
+        info!("receive heartbeat from node:{:?}", req.node_id);
         self.cluster_cache
             .report_broker_heart(&req.cluster_name, req.node_id);
         return Ok(Response::new(HeartbeatReply::default()));
