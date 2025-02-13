@@ -135,7 +135,7 @@ impl MqttClusterDynamicConfig {
                 max_client_connections: 15,
                 ban_time: 5,
             },
-            offline_message: MqttClusterDynamicOfflineMessage { enable: false },
+            offline_message: MqttClusterDynamicOfflineMessage { enable: true },
         }
     }
 

@@ -137,6 +137,8 @@ impl ConnectionManager {
         packet_wrapper: MqttPacketWrapper,
         resp: Message,
     ) -> Result<(), MqttBrokerError> {
+        info!("WebSockets response packet:{resp:?},connection_id:{connection_id}");
+
         let mut times = 0;
         let cluster = self.cache_manager.get_cluster_info();
         loop {
@@ -152,6 +154,7 @@ impl ConnectionManager {
                                 };
 
                             record_sent_metrics(&packet_wrapper, network_type);
+                            info!("WebSockets response success,connection_id:{connection_id}"); 
                             break;
                         }
                         Err(e) => {
@@ -196,7 +199,7 @@ impl ConnectionManager {
         connection_id: u64,
         resp: MqttPacketWrapper,
     ) -> Result<(), MqttBrokerError> {
-        info!("response packet:{resp:?},connection_id:{connection_id}");
+        info!("Tcp response packet:{resp:?},connection_id:{connection_id}");
 
         if let Some(connection) = self.get_connect(connection_id) {
             if connection.connection_type == NetworkConnectionType::Tls {

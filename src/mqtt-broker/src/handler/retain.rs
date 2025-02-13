@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use common_base::tools::now_second;
+use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use log::info;
 use metadata_struct::mqtt::message::MqttMessage;
@@ -38,8 +39,24 @@ use crate::subscribe::exclusive_push::{
     exclusive_publish_message_qos1, exclusive_publish_message_qos2,
 };
 use crate::subscribe::sub_common::{get_sub_topic_id_list, min_qos, publish_message_qos0};
+use crate::subscribe::subscribe_manager::SubscribeManager;
 use crate::subscribe::subscriber::SubPublishParam;
 use crate::subscribe::subscriber::Subscriber;
+
+pub async fn is_new_sub(
+    client_id: &str,
+    subscribe: &Subscribe,
+    subscribe_manager: &Arc<SubscribeManager>,
+) -> DashMap<String, bool> {
+    let results = DashMap::with_capacity(2);
+    for fileter in subscribe.filters.iter() {
+        let bool = subscribe_manager
+            .get_subscribe(client_id, &fileter.path)
+            .is_none();
+        results.insert(fileter.path.to_owned(), bool);
+    }
+    results
+}
 
 pub async fn save_retain_message(
     cache_manager: &Arc<CacheManager>,
@@ -83,6 +100,7 @@ pub async fn try_send_retain_message(
     client_pool: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
     connection_manager: Arc<ConnectionManager>,
+    is_new_subs: DashMap<String, bool>,
 ) {
     tokio::spawn(async move {
         let (stop_sx, _) = broadcast::channel(1);
@@ -95,6 +113,7 @@ pub async fn try_send_retain_message(
             &cache_manager,
             &connection_manager,
             &stop_sx,
+            &is_new_subs,
         )
         .await
         {
@@ -113,6 +132,7 @@ async fn send_retain_message(
     cache_manager: &Arc<CacheManager>,
     connection_manager: &Arc<ConnectionManager>,
     stop_sx: &broadcast::Sender<bool>,
+    is_new_subs: &DashMap<String, bool>,
 ) -> Result<(), MqttBrokerError> {
     let mut sub_ids = Vec::new();
     if let Some(properties) = subscribe_properties {
@@ -126,8 +146,8 @@ async fn send_retain_message(
             return Ok(());
         }
 
-        //todo
-        let is_new_sub = true;
+        let is_new_sub = is_new_subs.get(&filter.path).unwrap().clone();
+        println!("is_new_sub:{}", is_new_sub);
         if filter.retain_forward_rule == RetainForwardRule::OnNewSubscribe && !is_new_sub {
             return Ok(());
         }

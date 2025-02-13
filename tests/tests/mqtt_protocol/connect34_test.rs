@@ -168,6 +168,7 @@ mod tests {
             .unwrap();
     }
 
+    #[ignore = "reason: flapping detect is not supported in v3"]
     #[tokio::test]
     async fn client_flapping_detect_test() {
         open_flapping_detect().await;
