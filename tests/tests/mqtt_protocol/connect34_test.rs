@@ -152,6 +152,22 @@ mod tests {
             .unwrap();
     }
 
+    async fn close_flapping_detect() {
+        let client_pool = Arc::new(ClientPool::new(3));
+        let grpc_addr = vec![broker_grpc_addr()];
+
+        let request = EnableFlappingDetectRequest {
+            is_enable: false,
+            window_time: 20,
+            max_client_connections: 2,
+            ban_time: 5,
+        };
+
+        let _reply = mqtt_broker_enable_flapping_detect(&client_pool, &grpc_addr, request)
+            .await
+            .unwrap();
+    }
+
     #[tokio::test]
     async fn client_flapping_detect_test() {
         open_flapping_detect().await;
@@ -220,5 +236,7 @@ mod tests {
 
         let conn_opts = build_conn_pros(client_test_properties.clone(), false);
         assert!(cli.connect(conn_opts.clone()).is_err());
+
+        close_flapping_detect().await;
     }
 }

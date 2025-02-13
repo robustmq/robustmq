@@ -24,7 +24,7 @@ use crate::subscribe::sub_common::path_regex_match;
 pub fn process_sub_topic_rewrite(
     subscribe: &mut Subscribe,
     rules_map: &DashMap<String, MqttTopicRewriteRule>,
-) -> Result<(), MqttBrokerError> {
+) {
     let mut rules: Vec<MqttTopicRewriteRule> = rules_map
         .iter()
         .map(|entry| entry.value().clone())
@@ -37,7 +37,7 @@ pub fn process_sub_topic_rewrite(
             {
                 continue;
             }
-            if path_regex_match(filter.path.clone(), topic_rewrite_rule.source_topic.clone()) {
+            if path_regex_match(&filter.path, &topic_rewrite_rule.source_topic) {
                 if let Some(val) = gen_rewrite_topic(
                     &filter.path,
                     &topic_rewrite_rule.regex,
@@ -48,13 +48,12 @@ pub fn process_sub_topic_rewrite(
             }
         }
     }
-    Ok(())
 }
 
 pub fn process_unsub_topic_rewrite(
     un_subscribe: &mut Unsubscribe,
     rules_map: &DashMap<String, MqttTopicRewriteRule>,
-) -> Result<(), MqttBrokerError> {
+) {
     let mut rules: Vec<MqttTopicRewriteRule> = rules_map
         .iter()
         .map(|entry| entry.value().clone())
@@ -67,7 +66,7 @@ pub fn process_unsub_topic_rewrite(
             {
                 continue;
             }
-            if path_regex_match(filter.to_string(), topic_rewrite_rule.source_topic.clone()) {
+            if path_regex_match(filter, &topic_rewrite_rule.source_topic) {
                 if let Some(val) = gen_rewrite_topic(
                     filter,
                     &topic_rewrite_rule.regex,
@@ -78,7 +77,6 @@ pub fn process_unsub_topic_rewrite(
             }
         }
     }
-    Ok(())
 }
 
 pub fn process_publish_topic_rewrite(
@@ -96,7 +94,7 @@ pub fn process_publish_topic_rewrite(
         {
             continue;
         }
-        if path_regex_match(topic_name.clone(), topic_rewrite_rule.source_topic.clone()) {
+        if path_regex_match(&topic_name, &topic_rewrite_rule.source_topic) {
             let rewrite_topic = gen_rewrite_topic(
                 &topic_name,
                 &topic_rewrite_rule.regex,

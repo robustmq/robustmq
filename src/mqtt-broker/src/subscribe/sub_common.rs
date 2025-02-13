@@ -20,17 +20,13 @@ use bytes::BytesMut;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use common_base::tools::now_mills;
-use grpc_clients::placement::mqtt::call::{
-    placement_delete_exclusive_topic, placement_get_share_sub_leader,
-    placement_set_nx_exclusive_topic,
-};
+use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
 use grpc_clients::pool::ClientPool;
 use log::error;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{MqttPacket, MqttProtocol, PubRel, QoS};
 use protocol::placement_center::placement_center_mqtt::{
-    DeleteExclusiveTopicReply, DeleteExclusiveTopicRequest, GetShareSubLeaderReply,
-    GetShareSubLeaderRequest, SetExclusiveTopicReply, SetExclusiveTopicRequest,
+    GetShareSubLeaderReply, GetShareSubLeaderRequest,
 };
 use regex::Regex;
 use storage_adapter::storage::StorageAdapter;
@@ -38,7 +34,7 @@ use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::{sleep, timeout};
 
-use super::SubPublishParam;
+use super::subscriber::SubPublishParam;
 use crate::handler::cache::{CacheManager, QosAckPackageData};
 use crate::handler::error::MqttBrokerError;
 use crate::observability::slow::sub::{record_slow_sub_data, SlowSubData};
@@ -73,23 +69,23 @@ pub fn sub_path_validator(sub_path: String) -> bool {
     true
 }
 
-pub fn path_regex_match(topic_name: String, sub_path: String) -> bool {
-    let path = if is_share_sub(sub_path.clone()) {
-        let (_, group_path) = decode_share_info(sub_path.clone());
+pub fn path_regex_match(topic_name: &str, sub_path: &str) -> bool {
+    let path = if is_share_sub(sub_path) {
+        let (_, group_path) = decode_share_info(sub_path);
         group_path
-    } else if is_queue_sub(sub_path.clone()) {
-        decode_queue_info(sub_path.clone())
+    } else if is_queue_sub(sub_path) {
+        decode_queue_info(sub_path)
     } else {
-        sub_path.clone()
+        sub_path.to_owned()
     };
 
-    let topic = if is_share_sub(topic_name.clone()) {
-        let (_, group_path) = decode_share_info(topic_name.clone());
+    let topic = if is_share_sub(topic_name) {
+        let (_, group_path) = decode_share_info(topic_name);
         group_path
-    } else if is_queue_sub(topic_name.clone()) {
-        decode_queue_info(topic_name.clone())
+    } else if is_queue_sub(topic_name) {
+        decode_queue_info(topic_name)
     } else {
-        topic_name.clone()
+        topic_name.to_owned()
     };
 
     // Path perfect matching
@@ -128,22 +124,22 @@ pub async fn get_sub_topic_id_list(
 ) -> Vec<String> {
     let mut result = Vec::new();
     for (topic_id, topic_name) in metadata_cache.topic_id_name.clone() {
-        if path_regex_match(topic_name.clone(), sub_path.to_string()) {
+        if path_regex_match(&topic_name, sub_path) {
             result.push(topic_id);
         }
     }
     result
 }
 
-pub fn is_share_sub(sub_name: String) -> bool {
+pub fn is_share_sub(sub_name: &str) -> bool {
     sub_name.starts_with(SHARE_SUB_PREFIX)
 }
 
-pub fn is_queue_sub(sub_name: String) -> bool {
+pub fn is_queue_sub(sub_name: &str) -> bool {
     sub_name.starts_with(QUEUE_SUB_PREFIX)
 }
 
-pub fn decode_share_info(sub_name: String) -> (String, String) {
+pub fn decode_share_info(sub_name: &str) -> (String, String) {
     let mut str_slice: Vec<&str> = sub_name.split("/").collect();
     str_slice.remove(0);
     let group_name = str_slice.remove(0).to_string();
@@ -151,51 +147,22 @@ pub fn decode_share_info(sub_name: String) -> (String, String) {
     (group_name, sub_name)
 }
 
-pub fn decode_queue_info(sub_name: String) -> String {
+pub fn decode_queue_info(sub_name: &str) -> String {
     let mut str_slice: Vec<&str> = sub_name.split("/").collect();
     str_slice.remove(0);
     format!("/{}", str_slice.join("/"))
 }
 
 pub async fn get_share_sub_leader(
-    client_pool: Arc<ClientPool>,
-    group_name: String,
+    client_pool: &Arc<ClientPool>,
+    group_name: &String,
 ) -> Result<GetShareSubLeaderReply, CommonError> {
     let conf = broker_mqtt_conf();
     let req = GetShareSubLeaderRequest {
-        cluster_name: conf.cluster_name.clone(),
-        group_name,
+        cluster_name: conf.cluster_name.to_owned(),
+        group_name: group_name.to_owned(),
     };
-    match placement_get_share_sub_leader(&client_pool, &conf.placement_center, req).await {
-        Ok(reply) => Ok(reply),
-        Err(e) => Err(e),
-    }
-}
-pub async fn set_nx_exclusive_topic(
-    client_pool: Arc<ClientPool>,
-    topic_name: String,
-) -> Result<SetExclusiveTopicReply, CommonError> {
-    let conf = broker_mqtt_conf();
-    let req = SetExclusiveTopicRequest {
-        cluster_name: conf.cluster_name.clone(),
-        topic_name,
-    };
-    match placement_set_nx_exclusive_topic(&client_pool, &conf.placement_center, req).await {
-        Ok(reply) => Ok(reply),
-        Err(e) => Err(e),
-    }
-}
-
-pub async fn delete_exclusive_topic(
-    client_pool: Arc<ClientPool>,
-    topic_name: String,
-) -> Result<DeleteExclusiveTopicReply, CommonError> {
-    let conf = broker_mqtt_conf();
-    let req = DeleteExclusiveTopicRequest {
-        cluster_name: conf.cluster_name.clone(),
-        topic_name,
-    };
-    match placement_delete_exclusive_topic(&client_pool, &conf.placement_center, req).await {
+    match placement_get_share_sub_leader(client_pool, &conf.placement_center, req).await {
         Ok(reply) => Ok(reply),
         Err(e) => Err(e),
     }
@@ -511,16 +478,16 @@ mod tests {
         let sub3 = "$share/consumer1/sport/#".to_string();
         let sub4 = "$share/comsumer1/finance/#".to_string();
 
-        assert!(is_share_sub(sub1));
-        assert!(is_share_sub(sub2));
-        assert!(is_share_sub(sub3));
-        assert!(is_share_sub(sub4));
+        assert!(is_share_sub(&sub1));
+        assert!(is_share_sub(&sub2));
+        assert!(is_share_sub(&sub3));
+        assert!(is_share_sub(&sub4));
 
         let sub5 = "/comsumer1/$share/finance/#".to_string();
         let sub6 = "/comsumer1/$share/finance/$share".to_string();
 
-        assert!(!is_share_sub(sub5));
-        assert!(!is_share_sub(sub6));
+        assert!(!is_share_sub(&sub5));
+        assert!(!is_share_sub(&sub6));
     }
 
     #[tokio::test]
@@ -531,19 +498,19 @@ mod tests {
         let sub3 = "$share/consumer1/sport/#".to_string();
         let sub4 = "$share/comsumer1/finance/#".to_string();
 
-        let (group_name, topic_name) = decode_share_info(sub1);
+        let (group_name, topic_name) = decode_share_info(&sub1);
         assert_eq!(group_name, "consumer1".to_string());
         assert_eq!(topic_name, "/sport/tennis/+".to_string());
 
-        let (group_name, topic_name) = decode_share_info(sub2);
+        let (group_name, topic_name) = decode_share_info(&sub2);
         assert_eq!(group_name, "consumer2".to_string());
         assert_eq!(topic_name, "/sport/tennis/+".to_string());
 
-        let (group_name, topic_name) = decode_share_info(sub3);
+        let (group_name, topic_name) = decode_share_info(&sub3);
         assert_eq!(group_name, "consumer1".to_string());
         assert_eq!(topic_name, "/sport/#".to_string());
 
-        let (group_name, topic_name) = decode_share_info(sub4);
+        let (group_name, topic_name) = decode_share_info(&sub4);
         assert_eq!(group_name, "consumer1".to_string());
         assert_eq!(topic_name, "/finance/#".to_string());
     }
@@ -551,55 +518,55 @@ mod tests {
     fn path_regex_match_test() {
         let topic_name = "/loboxu/test".to_string();
         let sub_regex = "/loboxu/#".to_string();
-        assert!(path_regex_match(topic_name, sub_regex));
+        assert!(path_regex_match(&topic_name, &sub_regex));
 
         let topic_name = "/topic/test".to_string();
         let sub_regex = "/topic/test".to_string();
-        assert!(path_regex_match(topic_name, sub_regex));
+        assert!(path_regex_match(&topic_name, &sub_regex));
 
         let topic_name = r"/sensor/1/temperature".to_string();
         let sub_regex = r"/sensor/+/temperature".to_string();
-        assert!(path_regex_match(topic_name, sub_regex));
+        assert!(path_regex_match(&topic_name, &sub_regex));
 
         let topic_name = r"/sensor/1/2/temperature3".to_string();
         let sub_regex = r"/sensor/+/temperature".to_string();
-        assert!(!path_regex_match(topic_name, sub_regex));
+        assert!(!path_regex_match(&topic_name, &sub_regex));
 
         let topic_name = r"/sensor/temperature3".to_string();
         let sub_regex = r"/sensor/+/temperature".to_string();
-        assert!(!path_regex_match(topic_name, sub_regex));
+        assert!(!path_regex_match(&topic_name, &sub_regex));
 
         let topic_name = r"/sensor/temperature3".to_string();
         let sub_regex = r"/sensor/+".to_string();
-        assert!(path_regex_match(topic_name, sub_regex));
+        assert!(path_regex_match(&topic_name, &sub_regex));
 
         let topic_name = r"/sensor/temperature3/tmpq".to_string();
         let sub_regex = r"/sensor/#".to_string();
-        assert!(path_regex_match(topic_name, sub_regex));
+        assert!(path_regex_match(&topic_name, &sub_regex));
 
         let topic_name = "/topic/test".to_string();
         let sub_regex = "$share/groupname/topic/test".to_string();
-        assert!(path_regex_match(topic_name, sub_regex));
+        assert!(path_regex_match(&topic_name, &sub_regex));
 
         let topic_name = r"/sensor/1/temperature".to_string();
         let sub_regex = r"$share/groupname/sensor/+/temperature".to_string();
-        assert!(path_regex_match(topic_name, sub_regex));
+        assert!(path_regex_match(&topic_name, &sub_regex));
 
         let topic_name = r"/sensor/1/2/temperature3".to_string();
         let sub_regex = r"$share/groupname/sensor/+/temperature".to_string();
-        assert!(!path_regex_match(topic_name, sub_regex));
+        assert!(!path_regex_match(&topic_name, &sub_regex));
 
         let topic_name = r"/sensor/temperature3".to_string();
         let sub_regex = r"$share/groupname/sensor/+/temperature".to_string();
-        assert!(!path_regex_match(topic_name, sub_regex));
+        assert!(!path_regex_match(&topic_name, &sub_regex));
 
         let topic_name = r"/sensor/temperature3".to_string();
         let sub_regex = r"$share/groupname/sensor/+".to_string();
-        assert!(path_regex_match(topic_name, sub_regex));
+        assert!(path_regex_match(&topic_name, &sub_regex));
 
         let topic_name = r"/sensor/temperature3/tmpq".to_string();
         let sub_regex = r"$share/groupname/sensor/#".to_string();
-        assert!(path_regex_match(topic_name, sub_regex));
+        assert!(path_regex_match(&topic_name, &sub_regex));
     }
 
     #[test]

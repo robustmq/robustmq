@@ -36,18 +36,17 @@ use crate::handler::message::is_message_expire;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
 use crate::storage::message::MessageStorage;
+use crate::subscribe::subscriber::SubPublishParam;
 use crate::subscribe::subscriber::Subscriber;
-use crate::subscribe::SubPublishParam;
-
 #[derive(Clone)]
-pub struct SubscribeShareLeader<S> {
+pub struct ShareLeaderPush<S> {
     pub subscribe_manager: Arc<SubscribeManager>,
     message_storage: Arc<S>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
 }
 
-impl<S> SubscribeShareLeader<S>
+impl<S> ShareLeaderPush<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
@@ -57,7 +56,7 @@ where
         connection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<CacheManager>,
     ) -> Self {
-        SubscribeShareLeader {
+        ShareLeaderPush {
             subscribe_manager,
             message_storage,
             connection_manager,
@@ -79,7 +78,7 @@ where
         for (share_leader_key, sx) in self.subscribe_manager.share_leader_push_thread.clone() {
             if !self
                 .subscribe_manager
-                .share_leader_subscribe
+                .share_leader_push
                 .contains_key(&share_leader_key)
             {
                 match sx.send(true) {
@@ -98,7 +97,7 @@ where
 
     pub async fn start_push_thread(&self) {
         // Periodically verify if any push tasks are not started. If so, the thread is started
-        for (share_leader_key, sub_data) in self.subscribe_manager.share_leader_subscribe.clone() {
+        for (share_leader_key, sub_data) in self.subscribe_manager.share_leader_push.clone() {
             if sub_data.sub_list.is_empty() {
                 if let Some(sx) = self
                     .subscribe_manager
@@ -107,7 +106,7 @@ where
                 {
                     if sx.send(true).is_ok() {
                         self.subscribe_manager
-                            .share_leader_subscribe
+                            .share_leader_push
                             .remove(&share_leader_key);
                     }
                 }
@@ -618,7 +617,7 @@ fn build_share_leader_sub_list(
     subscribe_manager: &Arc<SubscribeManager>,
     key: &str,
 ) -> Vec<Subscriber> {
-    let sub_list = if let Some(sub) = subscribe_manager.share_leader_subscribe.get(key) {
+    let sub_list = if let Some(sub) = subscribe_manager.share_leader_push.get(key) {
         sub.sub_list.clone()
     } else {
         return Vec::new();

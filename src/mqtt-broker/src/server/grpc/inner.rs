@@ -26,7 +26,8 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
 use storage_adapter::storage::StorageAdapter;
 use tonic::{Request, Response, Status};
 
-use crate::handler::cache::{update_cache_metadata, CacheManager};
+use crate::handler::cache::CacheManager;
+use crate::handler::cache_update::update_cache_metadata;
 use crate::handler::lastwill::send_last_will_message;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 
@@ -67,7 +68,7 @@ where
         if conf.cluster_name != req.cluster_name {
             return Ok(Response::new(UpdateMqttCacheReply::default()));
         }
-        update_cache_metadata(&self.cache_manager, req);
+        update_cache_metadata(&self.cache_manager, &self.subscribe_manager, req).await;
         return Ok(Response::new(UpdateMqttCacheReply::default()));
     }
 
@@ -84,12 +85,10 @@ where
         if req.client_id.is_empty() {
             return Err(Status::cancelled("Client ID cannot be empty".to_string()));
         }
+
         for client_id in req.client_id {
-            self.subscribe_manager
-                .remove_exclusive_subscribe_by_client_id(&client_id)
-                .await?;
+            self.subscribe_manager.remove_client_id(&client_id);
             self.cache_manager.remove_session(&client_id);
-            self.subscribe_manager.stop_push_by_client_id(&client_id);
         }
 
         return Ok(Response::new(DeleteSessionReply::default()));
