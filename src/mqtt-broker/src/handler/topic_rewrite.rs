@@ -19,7 +19,7 @@ use protocol::mqtt::common::{Subscribe, Unsubscribe};
 
 use crate::handler::error::MqttBrokerError;
 use crate::handler::topic::gen_rewrite_topic;
-use crate::subscribe::sub_common::path_regex_match;
+use crate::subscribe::sub_common::validate_wildcard_topic_subscription;
 
 pub fn process_sub_topic_rewrite(
     subscribe: &mut Subscribe,
@@ -37,7 +37,8 @@ pub fn process_sub_topic_rewrite(
             {
                 continue;
             }
-            if path_regex_match(&filter.path, &topic_rewrite_rule.source_topic) {
+            if validate_wildcard_topic_subscription(&filter.path, &topic_rewrite_rule.source_topic)
+            {
                 if let Some(val) = gen_rewrite_topic(
                     &filter.path,
                     &topic_rewrite_rule.regex,
@@ -66,7 +67,7 @@ pub fn process_unsub_topic_rewrite(
             {
                 continue;
             }
-            if path_regex_match(filter, &topic_rewrite_rule.source_topic) {
+            if validate_wildcard_topic_subscription(filter, &topic_rewrite_rule.source_topic) {
                 if let Some(val) = gen_rewrite_topic(
                     filter,
                     &topic_rewrite_rule.regex,
@@ -94,7 +95,7 @@ pub fn process_publish_topic_rewrite(
         {
             continue;
         }
-        if path_regex_match(&topic_name, &topic_rewrite_rule.source_topic) {
+        if validate_wildcard_topic_subscription(&topic_name, &topic_rewrite_rule.source_topic) {
             let rewrite_topic = gen_rewrite_topic(
                 &topic_name,
                 &topic_rewrite_rule.regex,

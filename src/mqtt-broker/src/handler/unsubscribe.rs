@@ -16,7 +16,9 @@ use super::{
     cache::CacheManager, error::MqttBrokerError, sub_exclusive::remove_exclusive_subscribe,
 };
 use crate::subscribe::{
-    sub_common::{decode_share_info, is_share_sub, path_regex_match},
+    sub_common::{
+        extract_group_name_and_sub_path, is_share_sub, validate_wildcard_topic_subscription,
+    },
     subscribe_manager::SubscribeManager,
 };
 use common_base::config::broker_mqtt::broker_mqtt_conf;
@@ -66,12 +68,12 @@ fn unsubscribe_by_path(
 ) -> Result<(), MqttBrokerError> {
     for (topic_name, _) in cache_manager.topic_info.clone() {
         for path in filter_path {
-            if !path_regex_match(&topic_name, path) {
+            if !validate_wildcard_topic_subscription(&topic_name, path) {
                 continue;
             }
 
             if is_share_sub(path) {
-                let (group_name, sub_name) = decode_share_info(path);
+                let (group_name, sub_name) = extract_group_name_and_sub_path(path);
                 // share leader
                 for (key, data) in subscribe_manager.share_leader_push.clone() {
                     let mut flag = false;

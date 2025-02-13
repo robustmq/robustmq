@@ -69,9 +69,9 @@ pub fn sub_path_validator(sub_path: String) -> bool {
     true
 }
 
-pub fn path_regex_match(topic_name: &str, sub_path: &str) -> bool {
+pub fn validate_wildcard_topic_subscription(topic_name: &str, sub_path: &str) -> bool {
     let path = if is_share_sub(sub_path) {
-        let (_, group_path) = decode_share_info(sub_path);
+        let (_, group_path) = extract_group_name_and_sub_path(sub_path);
         group_path
     } else if is_queue_sub(sub_path) {
         decode_queue_info(sub_path)
@@ -80,7 +80,7 @@ pub fn path_regex_match(topic_name: &str, sub_path: &str) -> bool {
     };
 
     let topic = if is_share_sub(topic_name) {
-        let (_, group_path) = decode_share_info(topic_name);
+        let (_, group_path) = extract_group_name_and_sub_path(topic_name);
         group_path
     } else if is_queue_sub(topic_name) {
         decode_queue_info(topic_name)
@@ -124,7 +124,7 @@ pub async fn get_sub_topic_id_list(
 ) -> Vec<String> {
     let mut result = Vec::new();
     for (topic_id, topic_name) in metadata_cache.topic_id_name.clone() {
-        if path_regex_match(&topic_name, sub_path) {
+        if validate_wildcard_topic_subscription(&topic_name, sub_path) {
             result.push(topic_id);
         }
     }
@@ -139,12 +139,12 @@ pub fn is_queue_sub(sub_name: &str) -> bool {
     sub_name.starts_with(QUEUE_SUB_PREFIX)
 }
 
-pub fn decode_share_info(sub_name: &str) -> (String, String) {
+pub fn extract_group_name_and_sub_path(sub_name: &str) -> (String, String) {
     let mut str_slice: Vec<&str> = sub_name.split("/").collect();
     str_slice.remove(0);
     let group_name = str_slice.remove(0).to_string();
-    let sub_name = format!("/{}", str_slice.join("/"));
-    (group_name, sub_name)
+    let sub_path = format!("/{}", str_slice.join("/"));
+    (group_name, sub_path)
 }
 
 pub fn decode_queue_info(sub_name: &str) -> String {
@@ -467,8 +467,8 @@ mod tests {
 
     use crate::handler::cache::CacheManager;
     use crate::subscribe::sub_common::{
-        decode_share_info, get_sub_topic_id_list, is_share_sub, min_qos, path_regex_match,
-        sub_path_validator,
+        extract_group_name_and_sub_path, get_sub_topic_id_list, is_share_sub, min_qos,
+        sub_path_validator, validate_wildcard_topic_subscription,
     };
 
     #[tokio::test]
@@ -491,82 +491,120 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
-    async fn decode_share_info_test() {
+    async fn extract_group_name_and_sub_path_test() {
         let sub1 = "$share/consumer1/sport/tennis/+".to_string();
         let sub2 = "$share/consumer2/sport/tennis/+".to_string();
         let sub3 = "$share/consumer1/sport/#".to_string();
-        let sub4 = "$share/comsumer1/finance/#".to_string();
+        let sub4 = "$share/consumer1/finance/#".to_string();
 
-        let (group_name, topic_name) = decode_share_info(&sub1);
+        let (group_name, topic_name) = extract_group_name_and_sub_path(&sub1);
         assert_eq!(group_name, "consumer1".to_string());
         assert_eq!(topic_name, "/sport/tennis/+".to_string());
 
-        let (group_name, topic_name) = decode_share_info(&sub2);
+        let (group_name, topic_name) = extract_group_name_and_sub_path(&sub2);
         assert_eq!(group_name, "consumer2".to_string());
         assert_eq!(topic_name, "/sport/tennis/+".to_string());
 
-        let (group_name, topic_name) = decode_share_info(&sub3);
+        let (group_name, topic_name) = extract_group_name_and_sub_path(&sub3);
         assert_eq!(group_name, "consumer1".to_string());
         assert_eq!(topic_name, "/sport/#".to_string());
 
-        let (group_name, topic_name) = decode_share_info(&sub4);
+        let (group_name, topic_name) = extract_group_name_and_sub_path(&sub4);
         assert_eq!(group_name, "consumer1".to_string());
         assert_eq!(topic_name, "/finance/#".to_string());
     }
     #[test]
-    fn path_regex_match_test() {
+    fn validate_wildcard_topic_subscription_test() {
         let topic_name = "/loboxu/test".to_string();
         let sub_regex = "/loboxu/#".to_string();
-        assert!(path_regex_match(&topic_name, &sub_regex));
+        assert!(validate_wildcard_topic_subscription(
+            &topic_name,
+            &sub_regex
+        ));
 
         let topic_name = "/topic/test".to_string();
         let sub_regex = "/topic/test".to_string();
-        assert!(path_regex_match(&topic_name, &sub_regex));
+        assert!(validate_wildcard_topic_subscription(
+            &topic_name,
+            &sub_regex
+        ));
 
         let topic_name = r"/sensor/1/temperature".to_string();
         let sub_regex = r"/sensor/+/temperature".to_string();
-        assert!(path_regex_match(&topic_name, &sub_regex));
+        assert!(validate_wildcard_topic_subscription(
+            &topic_name,
+            &sub_regex
+        ));
 
         let topic_name = r"/sensor/1/2/temperature3".to_string();
         let sub_regex = r"/sensor/+/temperature".to_string();
-        assert!(!path_regex_match(&topic_name, &sub_regex));
+        assert!(!validate_wildcard_topic_subscription(
+            &topic_name,
+            &sub_regex
+        ));
 
         let topic_name = r"/sensor/temperature3".to_string();
         let sub_regex = r"/sensor/+/temperature".to_string();
-        assert!(!path_regex_match(&topic_name, &sub_regex));
+        assert!(!validate_wildcard_topic_subscription(
+            &topic_name,
+            &sub_regex
+        ));
 
         let topic_name = r"/sensor/temperature3".to_string();
         let sub_regex = r"/sensor/+".to_string();
-        assert!(path_regex_match(&topic_name, &sub_regex));
+        assert!(validate_wildcard_topic_subscription(
+            &topic_name,
+            &sub_regex
+        ));
 
         let topic_name = r"/sensor/temperature3/tmpq".to_string();
         let sub_regex = r"/sensor/#".to_string();
-        assert!(path_regex_match(&topic_name, &sub_regex));
+        assert!(validate_wildcard_topic_subscription(
+            &topic_name,
+            &sub_regex
+        ));
 
         let topic_name = "/topic/test".to_string();
         let sub_regex = "$share/groupname/topic/test".to_string();
-        assert!(path_regex_match(&topic_name, &sub_regex));
+        assert!(validate_wildcard_topic_subscription(
+            &topic_name,
+            &sub_regex
+        ));
 
         let topic_name = r"/sensor/1/temperature".to_string();
         let sub_regex = r"$share/groupname/sensor/+/temperature".to_string();
-        assert!(path_regex_match(&topic_name, &sub_regex));
+        assert!(validate_wildcard_topic_subscription(
+            &topic_name,
+            &sub_regex
+        ));
 
         let topic_name = r"/sensor/1/2/temperature3".to_string();
         let sub_regex = r"$share/groupname/sensor/+/temperature".to_string();
-        assert!(!path_regex_match(&topic_name, &sub_regex));
+        assert!(!validate_wildcard_topic_subscription(
+            &topic_name,
+            &sub_regex
+        ));
 
         let topic_name = r"/sensor/temperature3".to_string();
         let sub_regex = r"$share/groupname/sensor/+/temperature".to_string();
-        assert!(!path_regex_match(&topic_name, &sub_regex));
+        assert!(!validate_wildcard_topic_subscription(
+            &topic_name,
+            &sub_regex
+        ));
 
         let topic_name = r"/sensor/temperature3".to_string();
         let sub_regex = r"$share/groupname/sensor/+".to_string();
-        assert!(path_regex_match(&topic_name, &sub_regex));
+        assert!(validate_wildcard_topic_subscription(
+            &topic_name,
+            &sub_regex
+        ));
 
         let topic_name = r"/sensor/temperature3/tmpq".to_string();
         let sub_regex = r"$share/groupname/sensor/#".to_string();
-        assert!(path_regex_match(&topic_name, &sub_regex));
+        assert!(validate_wildcard_topic_subscription(
+            &topic_name,
+            &sub_regex
+        ));
     }
 
     #[test]

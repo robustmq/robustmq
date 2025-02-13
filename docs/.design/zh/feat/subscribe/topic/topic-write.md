@@ -10,10 +10,10 @@
 ```json
 rewrite = [
   {
-    action:       "all"
+    action: "all"
     source_topic: "x/#"
-    dest_topic:   "x/y/z/$1"
-    re:           "^x/y/(.+)$"
+    dest_topic: "x/y/z/$1"
+    re: "^x/y/(.+)$"
   }
 ]
 ```
