@@ -58,7 +58,7 @@ impl ClusterController {
         let mut stop_recv = self.stop_send.subscribe();
         let config = placement_center_conf();
         let mut heartbeat = BrokerHeartbeat::new(
-            config.heartbeat.heartbeat_timeout_ms,
+            100000000000000,
             config.heartbeat.heartbeat_check_time_ms,
             self.cluster_cache.clone(),
             self.placement_center_storage.clone(),
