@@ -5,7 +5,15 @@ layout: home
 hero:
   name: "RobustMQ"
   text: "下一代高性能云原生融合消息队列"
-  tagline: RobustMQ 是一个 100% 用 Rust 实现的中间件消息队列领域的开源项目。它的的目标是基于Rust 打造兼容多种主流消息队列协议、具备完整 Serverless 能力的下一代高性能云原生融合型消息队列。
+  tagline: >
+    RobustMQ 是一个 100% 用 Rust 实现的中间件消息队列领域的开源项目。它的的目标是基于Rust 打造兼容多种主流消息队列协议、具备完整 Serverless 能力的下一代高性能云原生融合型消息队列。
+    <div class="badges">
+      <img alt="Latest Release" src="https://img.shields.io/github/v/release/robustmq/robustmq?style=flat">
+      <img alt="License" src="https://img.shields.io/github/license/robustmq/robustmq?style=flat">
+      <img alt="GitHub issues" src="https://img.shields.io/github/issues/robustmq/robustmq?style=flat">
+      <img alt="GitHub stars" src="https://img.shields.io/github/stars/robustmq/robustmq?style=flat">
+    </div>
+
   actions:
     - theme: brand
       text: Get Started
@@ -33,6 +41,19 @@ features:
 ---
 
 <style>
+
+.badges {
+  display: flex;
+  justify-content: left;  /* 水平居中 */
+  gap: 10px;                /* 徽章之间的间距 */
+  margin-top: 10px;
+}
+
+.badges img {
+  height: 24px;   /* 调整徽章大小 */
+}
+
+
 .clip{
   font-size:50px !important;
 }

@@ -5,7 +5,15 @@ layout: home
 hero:
   name: "RobustMQ"
   text: "Next-generation high-performance cloud-native converged message queue."
-  tagline: RobustMQ is an open-source middleware message queue project that is 100% implemented in Rust. Its goal is to create a next-generation high-performance cloud-native converged message queue that is compatible with various mainstream message queue protocols and has complete Serverless capabilities based on Rust.
+  tagline: >
+   RobustMQ is an open-source middleware message queue project that is 100% implemented in Rust. Its goal is to create a next-generation high-performance cloud-native converged message queue that is compatible with various mainstream message queue protocols and has complete Serverless capabilities based on Rust.
+    <div class="badges">
+      <img alt="Latest Release" src="https://img.shields.io/github/v/release/robustmq/robustmq?style=flat">
+      <img alt="License" src="https://img.shields.io/github/license/robustmq/robustmq?style=flat">
+      <img alt="GitHub issues" src="https://img.shields.io/github/issues/robustmq/robustmq?style=flat">
+      <img alt="GitHub stars" src="https://img.shields.io/github/stars/robustmq/robustmq?style=flat">
+    </div>
+
   actions:
     - theme: brand
       text: Get Started
@@ -32,6 +40,18 @@ features:
     details: Rich functions support sequential messages, dead message messages, transaction messages, idempotent messages, delay messages and other rich message queue functions.
 ---
 <style>
+
+.badges {
+  display: flex;
+  justify-content: left;  /* 水平居中 */
+  gap: 10px;                /* 徽章之间的间距 */
+  margin-top: 10px;
+}
+
+.badges img {
+  height: 24px;   /* 调整徽章大小 */
+}
+
 .clip{
   font-size:50px !important;
 }
