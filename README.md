@@ -3,11 +3,19 @@
     <img alt="RobustMQ Logo" src="docs/images/robustmq-logo.png" width="300">
   </picture>
 </p>
- <h3 align="center">
+
+<p align="center">
+  <img alt="Latest Release" src="https://img.shields.io/github/v/release/robustmq/robustmq?style=flat">
+  <img alt="License" src="https://img.shields.io/github/license/robustmq/robustmq?style=flat">
+  <img alt="GitHub issues" src="https://img.shields.io/github/issues/robustmq/robustmq?style=flat">
+  <img alt="GitHub stars" src="https://img.shields.io/github/stars/robustmq/robustmq?style=flat">
+</p>
+
+<h3 align="center">
     Next generation cloud-native converged message queue.
 </h3>
 
-> Tips: 
+> Tips:
 > The project is still in its early preview version, undergoing rapid iteration and testing. A stable version has not been released yet. It is expected to release a stable version in the second half of 2025.
 > We are still young, please give us some time to grow up. We expect RobustMQ to become the next Apache top-level project in the message queue space.
 
@@ -73,8 +81,8 @@ RobustMQ MQTT is RobustMQ's complete implementation of the MQTT protocol. The go
 3. **High performance**: A single machine supports millions of connections and high concurrent message throughput.
 4. **Multiple communication protocols**: Support TCP, TCP SSL, WebSocket, WebSocket SSL, QUIC, HTTP and other access methods.
 5. **Plug-in storage**: Support offline messages, support a variety of message persistence storage engines.
-6. **Fully functional**: It supports essential features like testament messages and retained messages, along with all the functionalities of 
-  
+6. **Fully functional**: It supports essential features like testament messages and retained messages, along with all the functionalities of
+
 ### Docs
 1. [《RobustMQ Quick Start》](http://robustmq.com/QuickGuide/Overview.html)
 2. [《RobsustMQ MQTT Doc》](https://robustmq.com/RobustMQ-MQTT/Overview.html)
