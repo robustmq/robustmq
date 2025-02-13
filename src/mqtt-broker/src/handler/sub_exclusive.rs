@@ -53,7 +53,7 @@ pub fn add_exclusive_subscribe(
     path: &str,
     client_id: &str,
 ) {
-    if is_exclusive_sub(path) {
+    if !is_exclusive_sub(path) {
         return;
     }
 
@@ -66,7 +66,7 @@ pub fn remove_exclusive_subscribe(
     un_subscribe: Unsubscribe,
 ) {
     for path in un_subscribe.filters {
-        if is_exclusive_sub(&path) {
+        if !is_exclusive_sub(&path) {
             return;
         }
 
@@ -76,7 +76,7 @@ pub fn remove_exclusive_subscribe(
 }
 
 pub fn remove_exclusive_subscribe_by_path(subscribe_manager: &Arc<SubscribeManager>, path: &str) {
-    if is_exclusive_sub(path) {
+    if !is_exclusive_sub(path) {
         return;
     }
 
