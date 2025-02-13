@@ -102,7 +102,11 @@ impl BrokerHeartbeat {
 
                         self.cluster_cache
                             .remove_broker_heart(&cluster_name, node.node_id);
-                        info!("The heartbeat of the Node times out and is deleted from the cluster. Node ID: {}, node IP: {}.",  node.node_id, node.node_ip);
+                        info!(
+                            "The heartbeat of the Node times out and is deleted from the cluster.
+                             Node ID: {}, node IP: {},now time:{},report time:{}",
+                            node.node_id, node.node_ip, now_time, heart_data.time
+                        );
                     }
                 } else {
                     self.cluster_cache
