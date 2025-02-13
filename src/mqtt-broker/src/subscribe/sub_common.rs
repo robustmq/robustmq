@@ -140,11 +140,16 @@ pub fn is_queue_sub(sub_name: &str) -> bool {
 }
 
 pub fn extract_group_name_and_sub_path(sub_name: &str) -> (String, String) {
+    let mut no_prefix_sub_name = remove_subscription_prefix(sub_name);
+    let group_name = no_prefix_sub_name.remove(0).to_string();
+    let sub_path = format!("/{}", no_prefix_sub_name.join("/"));
+    (group_name, sub_path)
+}
+
+fn remove_subscription_prefix(sub_name: &str) -> Vec<&str> {
     let mut str_slice: Vec<&str> = sub_name.split("/").collect();
     str_slice.remove(0);
-    let group_name = str_slice.remove(0).to_string();
-    let sub_path = format!("/{}", str_slice.join("/"));
-    (group_name, sub_path)
+    str_slice
 }
 
 pub fn decode_queue_info(sub_name: &str) -> String {
