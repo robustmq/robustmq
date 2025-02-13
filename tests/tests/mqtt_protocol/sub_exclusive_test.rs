@@ -14,9 +14,9 @@
 
 #[cfg(test)]
 mod tests {
+    use crate::mqtt_protocol::common::{broker_addr, connect_server5, distinct_conn};
     use common_base::tools::unique_id;
     use paho_mqtt::{Message, RetainHandling, SubscribeOptions, QOS_1};
-    use crate::mqtt_protocol::common::{broker_addr, connect_server5, distinct_conn};
 
     #[tokio::test]
     async fn sub_exclusive_test() {
