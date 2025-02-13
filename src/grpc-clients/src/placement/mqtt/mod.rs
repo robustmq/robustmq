@@ -21,14 +21,15 @@ use protocol::placement_center::placement_center_mqtt::{
     CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest,
     DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
     DeleteExclusiveTopicReply, DeleteExclusiveTopicRequest, DeleteSessionReply,
-    DeleteSessionRequest, DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
-    GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
-    ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest,
+    DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest, DeleteTopicReply,
+    DeleteTopicRequest, DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest,
+    DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
+    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply,
+    ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply, ListTopicRequest,
     ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
     SaveLastWillMessageReply, SaveLastWillMessageRequest, SetExclusiveTopicReply,
-    SetExclusiveTopicRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
-    UpdateSessionReply, UpdateSessionRequest,
+    SetExclusiveTopicRequest, SetSubscribeReply, SetSubscribeRequest, SetTopicRetainMessageReply,
+    SetTopicRetainMessageRequest, UpdateSessionReply, UpdateSessionRequest,
 };
 use tonic::transport::Channel;
 
@@ -285,5 +286,32 @@ impl_retriable_request!(
     DeleteTopicRewriteRuleReply,
     placement_center_mqtt_services_client,
     delete_topic_rewrite_rule,
+    true
+);
+
+impl_retriable_request!(
+    SetSubscribeRequest,
+    MqttServiceClient<Channel>,
+    SetSubscribeReply,
+    placement_center_mqtt_services_client,
+    set_subscribe,
+    true
+);
+
+impl_retriable_request!(
+    DeleteSubscribeRequest,
+    MqttServiceClient<Channel>,
+    DeleteSubscribeReply,
+    placement_center_mqtt_services_client,
+    delete_subscribe,
+    true
+);
+
+impl_retriable_request!(
+    ListSubscribeRequest,
+    MqttServiceClient<Channel>,
+    ListSubscribeReply,
+    placement_center_mqtt_services_client,
+    list_subscribe,
     true
 );

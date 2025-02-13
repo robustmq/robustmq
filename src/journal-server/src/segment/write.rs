@@ -37,17 +37,20 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::sync::{broadcast, oneshot};
 use tokio::time::{sleep, timeout};
 
+/// the write handle for a segment
 #[derive(Clone)]
 pub struct SegmentWrite {
     data_sender: Sender<SegmentWriteData>,
     pub stop_sender: broadcast::Sender<bool>,
 }
 
+/// the data to be sent to the segment write thread
 pub struct SegmentWriteData {
     data: Vec<JournalRecord>,
     resp_sx: oneshot::Sender<SegmentWriteResp>,
 }
 
+/// the response of the write request from the segment write thread
 #[derive(Default, Debug)]
 pub struct SegmentWriteResp {
     pub offsets: HashMap<u64, u64>,
@@ -55,6 +58,7 @@ pub struct SegmentWriteResp {
     pub error: Option<JournalServerError>,
 }
 
+/// the entry point for handling write requests
 pub async fn write_data_req(
     cache_manager: &Arc<CacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -106,6 +110,7 @@ pub async fn write_data_req(
         {
             Ok(resp) => resp,
             Err(e) => {
+                // if this write filled up the segment, we need to seal up the segment and update end timestamp
                 if get_journal_server_code(&e) == *"SegmentOffsetAtTheEnd" {
                     sealup_segment(cache_manager, client_pool, &segment_iden).await?;
                     update_meta_end_timestamp(client_pool, &segment_iden, segment_file_manager)
@@ -147,6 +152,8 @@ pub async fn write_data_req(
             let segment_file_meta = segment_file_manager
                 .get_segment_file(&segment_iden)
                 .unwrap();
+
+            // TODO: When it will happen?
             if segment_file_meta.start_offset as u64 == offset {
                 let mut record = None;
                 for rc in record_list.iter() {
@@ -171,6 +178,7 @@ pub async fn write_data_req(
     Ok(results)
 }
 
+/// get the write handle for the segment identified by `segment_iden`, write data and return the response
 pub(crate) async fn write_data(
     cache_manager: &Arc<CacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -198,6 +206,14 @@ pub(crate) async fn write_data(
     Ok(time_res?)
 }
 
+/// get the write handle for the segment identified by `segment_iden`
+///
+/// If the write handle does not exist, create a new one
+///
+/// Note that this function may be executed concurrently by multiple threads
+///
+/// TODO: maybe we should use [`DashMap::entry()`](https://docs.rs/dashmap/latest/dashmap/struct.DashMap.html#method.entry)
+/// with [`or_insert`](https://docs.rs/dashmap/latest/dashmap/mapref/entry/enum.Entry.html#method.or_insert) to prevent creating multiple handles for the same segment
 async fn get_write(
     cache_manager: &Arc<CacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -218,6 +234,9 @@ async fn get_write(
     Ok(write)
 }
 
+/// create a segment write thread which is responsible for writing data to the segment file identified by `segment_iden`
+///
+/// Return a `SegmentWrite` handle which can be used to send data to the write thread
 pub(crate) async fn create_write_thread(
     cache_manager: &Arc<CacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -259,6 +278,7 @@ pub(crate) async fn create_write_thread(
     Ok(write)
 }
 
+/// spawn the write thread for a segment
 #[allow(clippy::too_many_arguments)]
 async fn create_write_thread0(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -325,6 +345,9 @@ async fn create_write_thread0(
     });
 }
 
+/// validate whether the data can be written to the segment, write the data to the segment file and update the index
+///
+/// Note that this function will be executed serially by the write thread of the segment
 async fn batch_write(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
@@ -366,6 +389,9 @@ async fn batch_write(
     Ok(resp)
 }
 
+/// write a batch of data to the segment file
+///
+/// Note that this function will be executed serially by the write thread of the segment
 async fn batch_write0(
     data: Vec<JournalRecord>,
     segment_write: &SegmentFile,
@@ -409,6 +435,9 @@ async fn batch_write0(
     }
 }
 
+/// validate whether the data can be written to the segment
+///
+/// Note that this function will be executed serially by the write thread of the segment
 async fn write_validator(
     cache_manager: &Arc<CacheManager>,
     segment_write: &SegmentFile,

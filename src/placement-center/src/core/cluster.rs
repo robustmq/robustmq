@@ -28,6 +28,7 @@ use super::error::PlacementCenterError;
 use crate::journal::controller::call_node::{
     update_cache_by_add_journal_node, update_cache_by_delete_journal_node, JournalInnerCallManager,
 };
+use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
 
@@ -75,14 +76,24 @@ pub async fn un_register_node_by_req(
     cluster_cache: &Arc<PlacementCacheManager>,
     raft_machine_apply: &Arc<RaftMachineApply>,
     client_pool: &Arc<ClientPool>,
-    call_manager: &Arc<JournalInnerCallManager>,
+    journal_call_manager: &Arc<JournalInnerCallManager>,
+    mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     req: UnRegisterNodeRequest,
 ) -> Result<(), PlacementCenterError> {
     if let Some(node) = cluster_cache.get_broker_node(&req.cluster_name, req.node_id) {
         sync_delete_node(raft_machine_apply, &req).await?;
         if req.cluster_type() == ClusterType::JournalServer {
-            update_cache_by_delete_journal_node(&req.cluster_name, call_manager, client_pool, node)
-                .await?;
+            update_cache_by_delete_journal_node(
+                &req.cluster_name,
+                journal_call_manager,
+                client_pool,
+                node,
+            )
+            .await?;
+            journal_call_manager.remove_node(&req.cluster_name, req.node_id);
+        }
+        if req.cluster_type() == ClusterType::MqttBrokerServer {
+            mqtt_call_manager.remove_node(&req.cluster_name, req.node_id);
         }
     }
     Ok(())

@@ -20,6 +20,7 @@ pub mod read;
 pub mod scroll;
 pub mod write;
 
+/// A unique identifier for a segment, used to get segment metadata or segment file.
 #[derive(Clone)]
 pub struct SegmentIdentity {
     pub namespace: String,

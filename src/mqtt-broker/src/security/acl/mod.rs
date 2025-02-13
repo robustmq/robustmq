@@ -18,6 +18,7 @@ use std::sync::Arc;
 
 use common_base::tools::now_second;
 use ipnet::IpNet;
+use log::info;
 use metadata_struct::acl::mqtt_acl::{MqttAclAction, MqttAclPermission};
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::QoS;
@@ -78,6 +79,7 @@ pub fn is_blacklist(cache_manager: &Arc<CacheManager>, connection: &MQTTConnecti
         .get(&connection.login_user)
     {
         if data.end_time > now_second() {
+            info!("user blacklist banned,user:{}", &connection.login_user);
             return true;
         }
     }
@@ -86,6 +88,10 @@ pub fn is_blacklist(cache_manager: &Arc<CacheManager>, connection: &MQTTConnecti
         for raw in data {
             let re = Regex::new(&format!("^{}$", raw.resource_name)).unwrap();
             if re.is_match(&connection.login_user) && raw.end_time > now_second() {
+                info!(
+                    "user blacklist banned by match,user:{}",
+                    &connection.login_user
+                );
                 return true;
             }
         }
@@ -98,6 +104,10 @@ pub fn is_blacklist(cache_manager: &Arc<CacheManager>, connection: &MQTTConnecti
         .get(&connection.client_id)
     {
         if data.end_time > now_second() {
+            info!(
+                "client_id blacklist banned,client_id:{}",
+                &connection.client_id
+            );
             return true;
         }
     }
@@ -106,6 +116,10 @@ pub fn is_blacklist(cache_manager: &Arc<CacheManager>, connection: &MQTTConnecti
         for raw in data {
             let re = Regex::new(&format!("^{}$", raw.resource_name)).unwrap();
             if re.is_match(&connection.client_id) && raw.end_time > now_second() {
+                info!(
+                    "client_id blacklist banned by match,client_id:{}",
+                    &connection.client_id
+                );
                 return true;
             }
         }
@@ -118,6 +132,10 @@ pub fn is_blacklist(cache_manager: &Arc<CacheManager>, connection: &MQTTConnecti
         .get(&connection.source_ip_addr)
     {
         if data.end_time < now_second() {
+            info!(
+                "ip blacklist banned,source_ip_addr:{}",
+                &connection.source_ip_addr
+            );
             return true;
         }
     }
@@ -127,6 +145,10 @@ pub fn is_blacklist(cache_manager: &Arc<CacheManager>, connection: &MQTTConnecti
             if ip_match(&connection.source_ip_addr, &raw.resource_name)
                 && raw.end_time < now_second()
             {
+                info!(
+                    "ip blacklist banned by match,source_ip_addr:{}",
+                    &connection.source_ip_addr
+                );
                 return true;
             }
         }

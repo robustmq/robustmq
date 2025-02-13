@@ -22,9 +22,11 @@ use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use handler::acl::UpdateAclCache;
 use handler::cache::CacheManager;
+use handler::cache_update::load_metadata_cache;
 use handler::heartbreat::{register_node, report_heartbeat};
 use handler::keep_alive::ClientKeepAlive;
-use handler::user::UpdateUserCache;
+use handler::sub_parse_topic::start_parse_subscribe_by_new_topic_thread;
+use handler::user::{init_system_user, UpdateUserCache};
 use lazy_static::lazy_static;
 use log::{error, info};
 use observability::start_opservability;
@@ -41,9 +43,9 @@ use storage_adapter::memory::MemoryStorageAdapter;
 use crate::handler::flapping_detect::UpdateFlappingDetectCache;
 use storage_adapter::storage::StorageAdapter;
 use storage_adapter::StorageType;
-use subscribe::sub_exclusive::SubscribeExclusive;
-use subscribe::sub_share_follower::SubscribeShareFollower;
-use subscribe::sub_share_leader::SubscribeShareLeader;
+use subscribe::exclusive_push::ExclusivePush;
+use subscribe::share_follower_resub::ShareFollowerResub;
+use subscribe::share_leader_push::ShareLeaderPush;
 use subscribe::subscribe_manager::SubscribeManager;
 use tokio::runtime::Runtime;
 use tokio::signal;
@@ -129,10 +131,7 @@ where
             conf.system.runtime_worker_threads,
         );
 
-        let subscribe_manager = Arc::new(SubscribeManager::new(
-            cache_manager.clone(),
-            client_pool.clone(),
-        ));
+        let subscribe_manager = Arc::new(SubscribeManager::new());
 
         let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
 
@@ -150,17 +149,24 @@ where
 
     pub fn start(&self, stop_send: broadcast::Sender<bool>) {
         self.register_node();
-        self.start_grpc_server();
-        self.start_mqtt_server(stop_send.clone());
+        self.start_cluster_heartbeat_report(stop_send.clone());
+
+        self.start_push_server(stop_send.clone());
+
         self.start_http_server();
+
+        self.start_grpc_server();
+
+        self.start_mqtt_server(stop_send.clone());
         self.start_websocket_server(stop_send.clone());
         self.start_keep_alive_thread(stop_send.clone());
-        self.start_cluster_heartbeat_report(stop_send.clone());
+
         self.start_update_user_cache_thread(stop_send.clone());
         self.start_update_acl_cache_thread(stop_send.clone());
         self.start_update_flapping_detect_cache_thread(stop_send.clone());
-        self.start_push_server();
+
         self.start_system_topic_thread(stop_send.clone());
+
         self.awaiting_stop(stop_send);
     }
 
@@ -248,17 +254,26 @@ where
     fn start_cluster_heartbeat_report(&self, stop_send: broadcast::Sender<bool>) {
         let client_pool = self.client_pool.clone();
         self.runtime.spawn(async move {
-            report_heartbeat(client_pool, stop_send).await;
+            report_heartbeat(&client_pool, stop_send).await;
         });
     }
 
-    fn start_push_server(&self) {
+    fn start_push_server(&self, stop_send: broadcast::Sender<bool>) {
         let subscribe_manager = self.subscribe_manager.clone();
+        let client_pool = self.client_pool.clone();
+        let metadata_cache = self.cache_manager.clone();
+
         self.runtime.spawn(async move {
-            subscribe_manager.start().await;
+            start_parse_subscribe_by_new_topic_thread(
+                &client_pool,
+                &metadata_cache,
+                &subscribe_manager,
+                stop_send,
+            )
+            .await;
         });
 
-        let exclusive_sub = SubscribeExclusive::new(
+        let exclusive_sub = ExclusivePush::new(
             self.message_storage_adapter.clone(),
             self.cache_manager.clone(),
             self.subscribe_manager.clone(),
@@ -269,7 +284,7 @@ where
             exclusive_sub.start().await;
         });
 
-        let leader_sub = SubscribeShareLeader::new(
+        let leader_sub = ShareLeaderPush::new(
             self.subscribe_manager.clone(),
             self.message_storage_adapter.clone(),
             self.connection_manager.clone(),
@@ -280,7 +295,7 @@ where
             leader_sub.start().await;
         });
 
-        let follower_sub = SubscribeShareFollower::new(
+        let follower_sub = ShareFollowerResub::new(
             self.subscribe_manager.clone(),
             self.connection_manager.clone(),
             self.cache_manager.clone(),
@@ -295,7 +310,6 @@ where
     fn start_keep_alive_thread(&self, stop_send: broadcast::Sender<bool>) {
         let mut keep_alive = ClientKeepAlive::new(
             self.client_pool.clone(),
-            self.subscribe_manager.clone(),
             self.connection_manager.clone(),
             self.cache_manager.clone(),
             stop_send,
@@ -371,15 +385,12 @@ where
     }
 
     fn register_node(&self) {
-        let metadata_cache = self.cache_manager.clone();
-        let client_pool = self.client_pool.clone();
-        let auth_driver = self.auth_driver.clone();
         self.runtime.block_on(async move {
-            metadata_cache.init_system_user().await;
-            metadata_cache.load_metadata_cache(auth_driver).await;
+            init_system_user(&self.cache_manager, &self.client_pool).await;
+            load_metadata_cache(&self.cache_manager, &self.client_pool, &self.auth_driver).await;
 
             let config = broker_mqtt_conf();
-            match register_node(client_pool.clone()).await {
+            match register_node(&self.client_pool).await {
                 Ok(()) => {
                     info!("Node {} has been successfully registered", config.broker_id);
                 }

@@ -5,6 +5,7 @@ export const sidebar = [
         items: [
             { text: "什么是 RobustMQ", link: "/zh/OverView/What-is-RobustMQ" },
             { text: "为什么有 RobustMQ", link: "/zh/OverView/Why-RobustMQ" },
+            { text: "非常欢迎你", link: "/zh/OverView/Welcome" },
             { text: "RoadMamp", link: "/zh/OverView/RoadMap" },
         ],
     },

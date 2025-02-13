@@ -25,6 +25,7 @@ use crate::core::cache::CacheManager;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
 
+/// spawn `response_process_num` threads to process response packets, distribute packets to threads
 pub(crate) async fn response_process(
     response_process_num: usize,
     connection_manager: Arc<ConnectionManager>,
@@ -88,6 +89,7 @@ pub(crate) async fn response_process(
     });
 }
 
+/// each child process consume the response packet from the response queue, and write the packet to the corresponding tcp write stream
 pub(crate) fn response_child_process(
     response_process_num: usize,
     process_handler: &mut HashMap<usize, Sender<ResponsePackage>>,

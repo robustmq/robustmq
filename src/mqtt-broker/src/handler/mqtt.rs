@@ -18,7 +18,6 @@ use std::sync::Arc;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use log::{error, warn};
-use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MqttPacket, MqttProtocol, PingReq,
@@ -30,9 +29,11 @@ use protocol::mqtt::common::{
 use storage_adapter::storage::StorageAdapter;
 
 use super::connection::disconnect_connection;
-use super::flow_control::is_flow_control;
-use super::message::build_message_expire;
+use super::offline_message::save_message;
 use super::retain::try_send_retain_message;
+use super::sub_auto::start_auto_subscribe;
+use super::subscribe::save_subscribe;
+use super::unsubscribe::remove_subscribe;
 use crate::handler::cache::{
     CacheManager, ConnectionLiveTime, QosAckPackageData, QosAckPackageType,
 };
@@ -62,7 +63,6 @@ use crate::observability::system_topic::event::{
 };
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
-use crate::storage::message::MessageStorage;
 use crate::subscribe::sub_common::{min_qos, path_contain_sub};
 use crate::subscribe::subscribe_manager::SubscribeManager;
 
@@ -112,9 +112,9 @@ where
         login: &Option<Login>,
         addr: SocketAddr,
     ) -> MqttPacket {
-        let cluster: metadata_struct::mqtt::cluster::MqttClusterDynamicConfig =
-            self.cache_manager.get_cluster_info();
+        let cluster = self.cache_manager.get_cluster_info();
 
+        // connect params validator
         if let Some(res) = connect_validator(
             &self.protocol,
             &cluster,
@@ -123,11 +123,31 @@ where
             &last_will,
             &last_will_properties,
             login,
-            &addr,
         ) {
             return res;
         }
 
+        // blacklist check
+        let (client_id, new_client_id) = get_client_id(&connect.client_id);
+        let connection = build_connection(
+            connect_id,
+            client_id.clone(),
+            &cluster,
+            &connect,
+            &connect_properties,
+            &addr,
+        );
+
+        if self.auth_driver.allow_connect(&connection).await {
+            return response_packet_mqtt_connect_fail(
+                &self.protocol,
+                ConnectReturnCode::Banned,
+                &connect_properties,
+                None,
+            );
+        }
+
+        // login check
         match self
             .auth_driver
             .check_login_auth(login, &connect_properties, &addr)
@@ -153,28 +173,9 @@ where
             }
         }
 
+        // flapping detect check
         if cluster.flapping_detect.enable {
             check_flapping_detect(connect.client_id.clone(), &self.cache_manager);
-        }
-
-        let (client_id, new_client_id) = get_client_id(&connect.client_id);
-
-        let connection = build_connection(
-            connect_id,
-            client_id.clone(),
-            &cluster,
-            &connect,
-            &connect_properties,
-            &addr,
-        );
-
-        if self.auth_driver.allow_connect(&connection).await {
-            return response_packet_mqtt_connect_fail(
-                &self.protocol,
-                ConnectReturnCode::Banned,
-                &connect_properties,
-                None,
-            );
         }
 
         let (session, new_session) = match build_session(
@@ -200,7 +201,7 @@ where
             }
         };
 
-        match save_session(
+        if let Err(e) = save_session(
             connect_id,
             session.clone(),
             new_session,
@@ -209,18 +210,15 @@ where
         )
         .await
         {
-            Ok(()) => {}
-            Err(e) => {
-                return response_packet_mqtt_connect_fail(
-                    &self.protocol,
-                    ConnectReturnCode::MalformedPacket,
-                    &connect_properties,
-                    Some(e.to_string()),
-                );
-            }
+            return response_packet_mqtt_connect_fail(
+                &self.protocol,
+                ConnectReturnCode::MalformedPacket,
+                &connect_properties,
+                Some(e.to_string()),
+            );
         }
 
-        match save_last_will_message(
+        if let Err(e) = save_last_will_message(
             client_id.clone(),
             &last_will,
             &last_will_properties,
@@ -228,15 +226,21 @@ where
         )
         .await
         {
-            Ok(()) => {}
-            Err(e) => {
-                return response_packet_mqtt_connect_fail(
-                    &self.protocol,
-                    ConnectReturnCode::UnspecifiedError,
-                    &connect_properties,
-                    Some(e.to_string()),
-                );
-            }
+            return response_packet_mqtt_connect_fail(
+                &self.protocol,
+                ConnectReturnCode::UnspecifiedError,
+                &connect_properties,
+                Some(e.to_string()),
+            );
+        }
+
+        if let Err(e) = start_auto_subscribe().await {
+            return response_packet_mqtt_connect_fail(
+                &self.protocol,
+                ConnectReturnCode::UnspecifiedError,
+                &connect_properties,
+                Some(e.to_string()),
+            );
         }
 
         let live_time = ConnectionLiveTime {
@@ -290,10 +294,6 @@ where
             ));
         };
 
-        if is_flow_control(&self.protocol, publish.qos) {
-            connection.recv_qos_message_incr();
-        }
-
         if let Some(pkg) = publish_validator(
             &self.protocol,
             &self.cache_manager,
@@ -304,9 +304,6 @@ where
         )
         .await
         {
-            if is_flow_control(&self.protocol, publish.qos) {
-                connection.recv_qos_message_decr();
-            }
             if publish.qos == QoS::AtMostOnce {
                 return None;
             } else {
@@ -324,10 +321,6 @@ where
         ) {
             Ok(da) => da,
             Err(e) => {
-                if is_flow_control(&self.protocol, publish.qos) {
-                    connection.recv_qos_message_decr();
-                }
-
                 if is_puback {
                     return Some(response_packet_mqtt_puback_fail(
                         &self.protocol,
@@ -382,10 +375,6 @@ where
         {
             Ok(tp) => tp,
             Err(e) => {
-                if is_flow_control(&self.protocol, publish.qos) {
-                    connection.recv_qos_message_decr();
-                }
-
                 if is_puback {
                     return Some(response_packet_mqtt_puback_fail(
                         &self.protocol,
@@ -421,10 +410,6 @@ where
         {
             Ok(()) => {}
             Err(e) => {
-                if is_flow_control(&self.protocol, publish.qos) {
-                    connection.recv_qos_message_decr();
-                }
-
                 if is_puback {
                     return Some(response_packet_mqtt_puback_fail(
                         &self.protocol,
@@ -446,46 +431,41 @@ where
         }
 
         // Persisting stores message data
-        let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
-
-        let message_expire = build_message_expire(&self.cache_manager, &publish_properties);
-        let offset = if let Some(record) =
-            MqttMessage::build_record(&client_id, &publish, &publish_properties, message_expire)
+        let offset = match save_message(
+            &self.message_storage_adapter,
+            &self.cache_manager,
+            &publish,
+            &publish_properties,
+            &self.subscribe_manager,
+            &client_id,
+            &topic,
+        )
+        .await
         {
-            match message_storage
-                .append_topic_message(&topic.topic_id, vec![record])
-                .await
-            {
-                Ok(da) => {
-                    format!("{:?}", da)
-                }
-                Err(e) => {
-                    if is_flow_control(&self.protocol, publish.qos) {
-                        connection.recv_qos_message_decr();
-                    }
-
-                    if is_puback {
-                        return Some(response_packet_mqtt_puback_fail(
-                            &self.protocol,
-                            &connection,
-                            publish.pkid,
-                            PubAckReason::UnspecifiedError,
-                            Some(e.to_string()),
-                        ));
-                    } else {
-                        return Some(response_packet_mqtt_pubrec_fail(
-                            &self.protocol,
-                            &connection,
-                            publish.pkid,
-                            PubRecReason::UnspecifiedError,
-                            Some(e.to_string()),
-                        ));
-                    }
+            Ok(da) => {
+                format!("{:?}", da)
+            }
+            Err(e) => {
+                if is_puback {
+                    return Some(response_packet_mqtt_puback_fail(
+                        &self.protocol,
+                        &connection,
+                        publish.pkid,
+                        PubAckReason::UnspecifiedError,
+                        Some(e.to_string()),
+                    ));
+                } else {
+                    return Some(response_packet_mqtt_pubrec_fail(
+                        &self.protocol,
+                        &connection,
+                        publish.pkid,
+                        PubRecReason::UnspecifiedError,
+                        Some(e.to_string()),
+                    ));
                 }
             }
-        } else {
-            "-1".to_string()
         };
+
         let user_properties: Vec<(String, String)> = vec![("offset".to_string(), offset)];
 
         self.cache_manager
@@ -494,10 +474,6 @@ where
         match publish.qos {
             QoS::AtMostOnce => None,
             QoS::AtLeastOnce => {
-                if is_flow_control(&self.protocol, publish.qos) {
-                    connection.recv_qos_message_decr();
-                }
-
                 let reason_code = if path_contain_sub(&topic_name) {
                     PubAckReason::Success
                 } else {
@@ -521,10 +497,6 @@ where
                 {
                     Ok(()) => {}
                     Err(e) => {
-                        if is_flow_control(&self.protocol, publish.qos) {
-                            connection.recv_qos_message_decr();
-                        }
-
                         if is_puback {
                             return Some(response_packet_mqtt_puback_fail(
                                 &self.protocol,
@@ -715,6 +687,9 @@ where
                 );
             }
         }
+
+        connection.recv_qos_message_decr();
+
         response_packet_mqtt_pubcomp_success(&self.protocol, pub_rel.pkid)
     }
 
@@ -732,14 +707,12 @@ where
                 Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
-        process_sub_topic_rewrite(&mut subscribe, &self.cache_manager.topic_rewrite_rule).unwrap();
-
-        let client_id = connection.client_id.clone();
 
         if let Some(packet) = subscribe_validator(
             &self.protocol,
+            &self.auth_driver,
             &self.cache_manager,
-            &self.client_pool,
+            &self.subscribe_manager,
             &connection,
             &subscribe,
         )
@@ -748,19 +721,49 @@ where
             return packet;
         }
 
-        if !self
-            .auth_driver
-            .allow_subscribe(&connection, &subscribe)
-            .await
+        process_sub_topic_rewrite(&mut subscribe, &self.cache_manager.topic_rewrite_rule);
+
+        if let Err(e) = save_subscribe(
+            &connection.client_id,
+            &self.protocol,
+            &self.client_pool,
+            &self.cache_manager,
+            &self.subscribe_manager,
+            &subscribe,
+            &subscribe_properties,
+        )
+        .await
         {
             return response_packet_mqtt_suback(
                 &self.protocol,
                 &connection,
                 subscribe.packet_identifier,
-                vec![SubscribeReasonCode::NotAuthorized],
-                None,
+                vec![SubscribeReasonCode::Unspecified],
+                Some(e.to_string()),
             );
         }
+
+        st_report_subscribed_event(
+            &self.message_storage_adapter,
+            &self.cache_manager,
+            &self.client_pool,
+            &connection,
+            connect_id,
+            &self.connection_manager,
+            &subscribe,
+        )
+        .await;
+
+        try_send_retain_message(
+            self.protocol.clone(),
+            connection.client_id.clone(),
+            subscribe.clone(),
+            subscribe_properties.clone(),
+            self.client_pool.clone(),
+            self.cache_manager.clone(),
+            self.connection_manager.clone(),
+        )
+        .await;
 
         let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
         let cluster_qos = self.cache_manager.get_cluster_info().protocol.max_qos;
@@ -777,74 +780,13 @@ where
                 }
             }
         }
-
-        match self
-            .subscribe_manager
-            .save_exclusive_subscribe(subscribe.clone())
-            .await
-        {
-            Ok(None) => {}
-            Ok(Some(code)) => {
-                return response_packet_mqtt_suback(
-                    &self.protocol,
-                    &connection,
-                    subscribe.packet_identifier,
-                    vec![code],
-                    None,
-                );
-            }
-            Err(e) => {
-                return response_packet_mqtt_suback(
-                    &self.protocol,
-                    &connection,
-                    subscribe.packet_identifier,
-                    vec![SubscribeReasonCode::Unspecified],
-                    Some(e.to_string()),
-                );
-            }
-        }
-
-        self.cache_manager.add_client_subscribe(
-            client_id.clone(),
-            self.protocol.clone(),
-            subscribe.clone(),
-            subscribe_properties.clone(),
-        );
-
-        self.subscribe_manager
-            .add_subscribe(
-                client_id.clone(),
-                self.protocol.clone(),
-                subscribe.clone(),
-                subscribe_properties.clone(),
-            )
-            .await;
-
-        let pkid = subscribe.packet_identifier;
-
-        st_report_subscribed_event(
-            &self.message_storage_adapter,
-            &self.cache_manager,
-            &self.client_pool,
+        response_packet_mqtt_suback(
+            &self.protocol,
             &connection,
-            connect_id,
-            &self.connection_manager,
-            &subscribe,
+            subscribe.packet_identifier,
+            return_codes,
+            None,
         )
-        .await;
-
-        try_send_retain_message(
-            self.protocol.clone(),
-            client_id.clone(),
-            subscribe.clone(),
-            subscribe_properties.clone(),
-            self.client_pool.clone(),
-            self.cache_manager.clone(),
-            self.connection_manager.clone(),
-        )
-        .await;
-
-        response_packet_mqtt_suback(&self.protocol, &connection, pkid, return_codes, None)
     }
 
     pub async fn ping(&self, connect_id: u64, _: PingReq) -> MqttPacket {
@@ -881,13 +823,10 @@ where
                 Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
-        process_unsub_topic_rewrite(&mut un_subscribe, &self.cache_manager.topic_rewrite_rule)
-            .unwrap();
 
         if let Some(packet) = un_subscribe_validator(
             &connection.client_id,
-            &self.cache_manager,
-            &self.client_pool,
+            &self.subscribe_manager,
             &connection,
             &un_subscribe,
         )
@@ -896,47 +835,24 @@ where
             return packet;
         }
 
-        // match pkid_delete(
-        //     &self.cache_manager,
-        //     &self.client_pool,
-        //     &connection.client_id,
-        //     un_subscribe.pkid,
-        // )
-        // .await
-        // {
-        //     Ok(()) => {}
-        //     Err(e) => {
-        //         return response_packet_mqtt_unsuback(
-        //             &connection,
-        //             un_subscribe.pkid,
-        //             vec![UnsubAckReason::UnspecifiedError],
-        //             Some(e.to_string()),
-        //         );
-        //     }
-        // }
+        process_unsub_topic_rewrite(&mut un_subscribe, &self.cache_manager.topic_rewrite_rule);
 
-        match self
-            .subscribe_manager
-            .remove_exclusive_subscribe(un_subscribe.clone())
-            .await
+        if let Err(e) = remove_subscribe(
+            &connection.client_id,
+            &un_subscribe,
+            &self.client_pool,
+            &self.subscribe_manager,
+            &self.cache_manager,
+        )
+        .await
         {
-            Ok(_) => {}
-            Err(e) => {
-                return response_packet_mqtt_suback(
-                    &self.protocol,
-                    &connection,
-                    un_subscribe.pkid,
-                    vec![SubscribeReasonCode::Unspecified],
-                    Some(e.to_string()),
-                );
-            }
+            return response_packet_mqtt_unsuback(
+                &connection,
+                un_subscribe.pkid,
+                vec![UnsubAckReason::UnspecifiedError],
+                Some(e.to_string()),
+            );
         }
-
-        self.subscribe_manager
-            .remove_subscribe(&connection.client_id, &un_subscribe.filters);
-
-        self.cache_manager
-            .remove_filter_by_pkid(&connection.client_id, &un_subscribe.filters);
 
         st_report_unsubscribed_event(
             &self.message_storage_adapter,
@@ -989,7 +905,6 @@ where
             &self.cache_manager,
             &self.client_pool,
             &self.connection_manager,
-            &self.subscribe_manager,
         )
         .await
         {

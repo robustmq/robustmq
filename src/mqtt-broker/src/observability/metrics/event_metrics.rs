@@ -12,67 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::observability::metrics::load_global_registry;
 use prometheus_client::encoding::EncodeLabelSet;
-use prometheus_client::metrics::counter::Counter;
-use prometheus_client::metrics::family::Family;
-use std::sync::LazyLock;
-
-/**
-For metrics related to counters,
-we typically name them in the format *xxx_counter* to indicate that they are of the counter type.
-If its type is *Family<>*, then we usually define labels as *xxxLabels*.
-For example, for *client_connection_counter*, its labels would be *ClientConnectionLabels*.
-*/
-static EVENT_METRICS: LazyLock<EventMetrics> = LazyLock::new(EventMetrics::init);
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
 struct ClientConnectionLabels {
     client_id: String,
 }
 
-struct EventMetrics {
-    client_connection_counter: Family<ClientConnectionLabels, Counter>,
-}
-
-impl EventMetrics {
-    fn init() -> Self {
-        // init event_metrics
-        let event_metrics = Self {
-            client_connection_counter: Family::default(),
-        };
-
-        // get global registry
-        let mut global_registry = load_global_registry();
-
-        // register event_metrics
-        global_registry.register(
-            "client_connections",
-            "The number of client connections, regardless of success or failure.",
-            event_metrics.client_connection_counter.clone(),
-        );
-
-        // return event_metrics
-        event_metrics
-    }
-}
+common_base::register_counter_metric!(
+    CLIENT_CONNECTION_COUNTER,
+    "client_connections",
+    "The number of client connections, regardless of success or failure.",
+    ClientConnectionLabels
+);
 
 pub fn incr_client_connection_counter(client_id: String) {
     let labels = ClientConnectionLabels { client_id };
-
-    EVENT_METRICS
-        .client_connection_counter
-        .get_or_create(&labels)
-        .inc();
+    common_base::counter_metric_inc!(CLIENT_CONNECTION_COUNTER, labels)
 }
 
 pub fn get_client_connection_counter(client_id: String) -> u64 {
     let labels = ClientConnectionLabels { client_id };
-
-    EVENT_METRICS
-        .client_connection_counter
-        .get_or_create(&labels)
-        .get()
+    let mut res = 0;
+    common_base::counter_metric_get!(CLIENT_CONNECTION_COUNTER, labels, res);
+    res
 }
 
 #[cfg(test)]

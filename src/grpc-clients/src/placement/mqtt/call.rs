@@ -19,14 +19,15 @@ use protocol::placement_center::placement_center_mqtt::{
     CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest,
     DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
     DeleteExclusiveTopicReply, DeleteExclusiveTopicRequest, DeleteSessionReply,
-    DeleteSessionRequest, DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
-    GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
-    ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest,
+    DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest, DeleteTopicReply,
+    DeleteTopicRequest, DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest,
+    DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
+    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply,
+    ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply, ListTopicRequest,
     ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
     SaveLastWillMessageReply, SaveLastWillMessageRequest, SetExclusiveTopicReply,
-    SetExclusiveTopicRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
-    UpdateSessionReply, UpdateSessionRequest,
+    SetExclusiveTopicRequest, SetSubscribeReply, SetSubscribeRequest, SetTopicRetainMessageReply,
+    SetTopicRetainMessageRequest, UpdateSessionReply, UpdateSessionRequest,
 };
 
 use crate::pool::ClientPool;
@@ -171,4 +172,25 @@ generate_mqtt_service_call!(
     DeleteTopicRewriteRuleRequest,
     DeleteTopicRewriteRuleReply,
     DeleteTopicRewriteRule
+);
+
+generate_mqtt_service_call!(
+    placement_set_subscribe,
+    SetSubscribeRequest,
+    SetSubscribeReply,
+    SetSubscribe
+);
+
+generate_mqtt_service_call!(
+    placement_delete_subscribe,
+    DeleteSubscribeRequest,
+    DeleteSubscribeReply,
+    DeleteSubscribe
+);
+
+generate_mqtt_service_call!(
+    placement_list_subscribe,
+    ListSubscribeRequest,
+    ListSubscribeReply,
+    ListSubscribe
 );

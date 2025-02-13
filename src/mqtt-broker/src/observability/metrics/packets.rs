@@ -12,278 +12,251 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use lazy_static::lazy_static;
-use prometheus::{register_int_gauge_vec, IntGaugeVec};
-use protocol::mqtt::codec::{calc_mqtt_packet_size, MqttPacketWrapper};
-use protocol::mqtt::common::{ConnectReturnCode, MqttPacket, QoS};
-
-use crate::handler::constant::{METRICS_KEY_NETWORK_TYPE, METRICS_KEY_QOS};
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};
+use prometheus_client::encoding::EncodeLabelSet;
+use protocol::mqtt::{
+    codec::{calc_mqtt_packet_size, MqttPacketWrapper},
+    common::{ConnectReturnCode, MqttPacket, QoS},
+};
 
-lazy_static! {
-    // Number of packets received
-    static ref PACKETS_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
-        "packets_received",
-        "Number of packets received",
-        &[METRICS_KEY_NETWORK_TYPE]
-    )
-    .unwrap();
+#[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
+pub struct NetworkLabel {
+    pub network: String,
+}
 
-    // Number of packets connect received
-    static ref PACKETS_CONNECT_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
-        "packets_connect_received",
-        "Number of packets connect received",
-        &[METRICS_KEY_NETWORK_TYPE]
-    )
-    .unwrap();
+#[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
+pub struct NetworkQosLabel {
+    pub network: String,
+    pub qos: String,
+}
 
-    // Number of packets publish received
-    static ref PACKETS_PUBLISH_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
-        "packets_publish_received",
-        "Number of packets publish received",
-        &[METRICS_KEY_NETWORK_TYPE]
-    )
-    .unwrap();
+#[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
+pub struct QosLabel {
+    pub qos: String,
+}
 
-    // Number of packets connack received
-    static ref PACKETS_CONNACK_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
-        "packets_connack_received",
-        "Number of packets connack received",
-        &[METRICS_KEY_NETWORK_TYPE]
-    )
-    .unwrap();
-
-    // Number of packets puback received
-    static ref PACKETS_PUBACK_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
+common_base::register_gauge_metric!(
+    PACKETS_RECEIVED,
+    "packets_received",
+    "Number of packets received",
+    NetworkLabel
+);
+common_base::register_gauge_metric!(
+    PACKETS_CONNECT_RECEIVED,
+    "packets_connect_received",
+    "Number of packets connect received",
+    NetworkLabel
+);
+common_base::register_gauge_metric!(
+    PACKETS_PUBLISH_RECEIVED,
+    "packets_publish_received",
+    "Number of packets publish received",
+    NetworkLabel
+);
+common_base::register_gauge_metric!(
+    PACKETS_CONNACK_RECEIVED,
+    "packets_connack_received",
+    "Number of packets connack received",
+    NetworkLabel
+);
+common_base::register_gauge_metric!(
+    PACKETS_PUBACK_RECEIVED,
     "packets_puback_received",
     "Number of packets puback received",
-    &[METRICS_KEY_NETWORK_TYPE]
-    )
-    .unwrap();
-
-    // Number of packets pubrec received
-    static ref PACKETS_PUBREC_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
-        "packets_pubrec_received",
-        "Number of packets pubrec received",
-        &[METRICS_KEY_NETWORK_TYPE]
-        )
-        .unwrap();
-
-    // Number of packets pubrel received
-    static ref PACKETS_PUBREL_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
-        "packets_pubrel_received",
-        "Number of packets pubrel received",
-        &[METRICS_KEY_NETWORK_TYPE]
-        )
-        .unwrap();
-
-    // Number of packets pubcomp received
-    static ref PACKETS_PUBCOMP_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
-        "packets_pubcomp_received",
-        "Number of packets pubcomp received",
-        &[METRICS_KEY_NETWORK_TYPE]
-        )
-        .unwrap();
-
-    // Number of packets subscrible received
-    static ref PACKETS_SUBSCRIBLE_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
+    NetworkLabel
+);
+common_base::register_gauge_metric!(
+    PACKETS_PUBREC_RECEIVED,
+    "packets_pubrec_received",
+    "Number of packets pubrec received",
+    NetworkLabel
+);
+common_base::register_gauge_metric!(
+    PACKETS_PUBREL_RECEIVED,
+    "packets_pubrel_received",
+    "Number of packets pubrel received",
+    NetworkLabel
+);
+common_base::register_gauge_metric!(
+    PACKETS_PUBCOMP_RECEIVED,
+    "packets_pubcomp_received",
+    "Number of packets pubcomp received",
+    NetworkLabel
+);
+common_base::register_gauge_metric!(
+    PACKETS_SUBSCRIBLE_RECEIVED,
     "packets_subscrible_received",
     "Number of packets subscrible received",
-    &[METRICS_KEY_NETWORK_TYPE]
-    )
-    .unwrap();
-
-    // Number of packets unsubscrible received
-    static ref PACKETS_UNSUBSCRIBLE_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
+    NetworkLabel
+);
+common_base::register_gauge_metric!(
+    PACKETS_UNSUBSCRIBLE_RECEIVED,
     "packets_unsubscrible_received",
     "Number of packets unsubscrible received",
-    &[METRICS_KEY_NETWORK_TYPE]
-    )
-    .unwrap();
-
-    // Number of packets pingreq received
-    static ref PACKETS_PINGREQ_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
+    NetworkLabel
+);
+common_base::register_gauge_metric!(
+    PACKETS_PINGREQ_RECEIVED,
     "packets_pingreq_received",
     "Number of packets pingreq received",
-    &[METRICS_KEY_NETWORK_TYPE]
-    )
-    .unwrap();
-
-    // Number of packets disconnect received
-    static ref PACKETS_DISCONNECT_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
+    NetworkLabel
+);
+common_base::register_gauge_metric!(
+    PACKETS_DISCONNECT_RECEIVED,
     "packets_disconnect_received",
     "Number of packets disconnect received",
-    &[METRICS_KEY_NETWORK_TYPE]
-    )
-    .unwrap();
-
-    // Number of packets auth received
-    static ref PACKETS_AUTH_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
+    NetworkLabel
+);
+common_base::register_gauge_metric!(
+    PACKETS_AUTH_RECEIVED,
     "packets_auth_received",
     "Number of packets auth received",
-    &[METRICS_KEY_NETWORK_TYPE]
-    )
-    .unwrap();
+    NetworkLabel
+);
+common_base::register_gauge_metric!(
+    PACKETS_RECEIVED_ERROR,
+    "packets_received_error",
+    "Number of error packets received",
+    NetworkLabel
+);
+common_base::register_gauge_metric!(
+    PACKETS_CONNACK_AUTH_ERROR,
+    "packets_connack_auth_error",
+    "Number of connack auth error packets received",
+    NetworkLabel
+);
+common_base::register_gauge_metric!(
+    PACKETS_CONNACK_ERROR,
+    "packets_connack_error",
+    "Number of connack error packets received",
+    NetworkLabel
+);
 
+common_base::register_gauge_metric!(
+    PACKETS_SENT,
+    "packets_sent",
+    "Number of packets sent",
+    NetworkQosLabel
+);
 
-    // Number of error packets received
-    static ref PACKETS_RECEIVED_ERROR: IntGaugeVec = register_int_gauge_vec!(
-        "packets_received_error",
-        "Number of error packets received",
-        &[METRICS_KEY_NETWORK_TYPE]
-    )
-    .unwrap();
+common_base::register_gauge_metric!(
+    PACKETS_CONNACK_SENT,
+    "packets_connack_sent",
+    "Number of packets connack sent",
+    NetworkQosLabel
+);
 
-    // Number of packets.connack.auth_error received
-    static ref PACKETS_CONNACK_AUTH_ERROR: IntGaugeVec = register_int_gauge_vec!(
-        "packets_connack_auth_error",
-        "Number of connack auth error packets received",
-        &[METRICS_KEY_NETWORK_TYPE]
-    )
-    .unwrap();
+common_base::register_gauge_metric!(
+    PACKETS_PUBLISH_SENT,
+    "packets_publish_sent",
+    "Number of packets publish sent",
+    NetworkQosLabel
+);
 
-    // Number of packets.connack.error received
-    static ref PACKETS_CONNACK_ERROR: IntGaugeVec = register_int_gauge_vec!(
-        "packets_connack_error",
-        "Number of connack error packets received",
-        &[METRICS_KEY_NETWORK_TYPE]
-    )
-    .unwrap();
+common_base::register_gauge_metric!(
+    PACKETS_PUBACK_SENT,
+    "packets_puback_sent",
+    "Number of packets puback sent",
+    NetworkQosLabel
+);
 
-    // Number of packets sent
-    static ref PACKETS_SENT: IntGaugeVec = register_int_gauge_vec!(
-        "packets_sent",
-        "Number of packets sent",
-        &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
-    )
-    .unwrap();
+common_base::register_gauge_metric!(
+    PACKETS_PUBREC_SENT,
+    "packets_pubrec_sent",
+    "Number of packets pubrec sent",
+    NetworkQosLabel
+);
 
-    // Number of packets connack sent
-    static ref PACKETS_CONNACK_SENT: IntGaugeVec = register_int_gauge_vec!(
-        "packets_connack_sent",
-        "Number of packets connack sent",
-        &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
-    )
-    .unwrap();
-
-    // Number of packets publish sent
-    static ref PACKETS_PUBLISH_SENT: IntGaugeVec = register_int_gauge_vec!(
-        "packets_publish_sent",
-        "Number of packets publish sent",
-        &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
-    )
-    .unwrap();
-
-    // Number of packets puback sent
-    static ref PACKETS_PUBACK_SENT: IntGaugeVec = register_int_gauge_vec!(
-        "packets_puback_sent",
-        "Number of packets puback sent",
-        &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
-    )
-    .unwrap();
-
-    // Number of packets pubrec sent
-    static ref PACKETS_PUBREC_SENT: IntGaugeVec = register_int_gauge_vec!(
-        "packets_pubrec_sent",
-        "Number of packets pubrec sent",
-        &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
-    )
-    .unwrap();
-
-   // Number of packets pubrel sent
-   static ref PACKETS_PUBREL_SENT: IntGaugeVec = register_int_gauge_vec!(
+common_base::register_gauge_metric!(
+    PACKETS_PUBREL_SENT,
     "packets_pubrel_sent",
     "Number of packets pubrel sent",
-    &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
-    )
-    .unwrap();
+    NetworkQosLabel
+);
 
-   // Number of packets pubcomp sent
-   static ref PACKETS_PUBCOMP_SENT: IntGaugeVec = register_int_gauge_vec!(
+common_base::register_gauge_metric!(
+    PACKETS_PUBCOMP_SENT,
     "packets_pubcomp_sent",
     "Number of packets pubcomp sent",
-    &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
-    )
-    .unwrap();
+    NetworkQosLabel
+);
 
-   // Number of packets suback sent
-   static ref PACKETS_SUBACK_SENT: IntGaugeVec = register_int_gauge_vec!(
+common_base::register_gauge_metric!(
+    PACKETS_SUBACK_SENT,
     "packets_suback_sent",
     "Number of packets suback sent",
-    &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
-    )
-    .unwrap();
+    NetworkQosLabel
+);
 
-   // Number of packets unsuback sent
-   static ref PACKETS_UNSUBACK_SENT: IntGaugeVec = register_int_gauge_vec!(
+common_base::register_gauge_metric!(
+    PACKETS_UNSUBACK_SENT,
     "packets_unsuback_sent",
     "Number of packets unsuback sent",
-    &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
-    )
-    .unwrap();
+    NetworkQosLabel
+);
 
-   // Number of packets pingresp sent
-   static ref PACKETS_PINGRESP_SENT: IntGaugeVec = register_int_gauge_vec!(
+common_base::register_gauge_metric!(
+    PACKETS_PINGRESP_SENT,
     "packets_pingresp_sent",
     "Number of packets pingresp sent",
-    &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
-    )
-    .unwrap();
+    NetworkQosLabel
+);
 
-   // Number of packets disconnect sent
-   static ref PACKETS_DISCONNECT_SENT: IntGaugeVec = register_int_gauge_vec!(
+common_base::register_gauge_metric!(
+    PACKETS_DISCONNECT_SENT,
     "packets_disconnect_sent",
     "Number of packets disconnect sent",
-    &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
-    )
-    .unwrap();
+    NetworkQosLabel
+);
 
-   // Number of packets auth sent
-   static ref PACKETS_AUTH_SENT: IntGaugeVec = register_int_gauge_vec!(
+common_base::register_gauge_metric!(
+    PACKETS_AUTH_SENT,
     "packets_auth_sent",
     "Number of packets auth sent",
-    &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
-    )
-    .unwrap();
+    NetworkQosLabel
+);
 
-    // Number of bytes received
-    static ref BYTES_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
-        "bytes_received",
-        "Number of bytes received",
-        &[METRICS_KEY_NETWORK_TYPE]
-    )
-    .unwrap();
+common_base::register_gauge_metric!(
+    BYTES_RECEIVED,
+    "bytes_received",
+    "Number of bytes received",
+    NetworkLabel
+);
 
-    // Number of bytes sent
-    static ref BYTES_SENT: IntGaugeVec = register_int_gauge_vec!(
-        "bytes_sent",
-        "Number of bytes sent",
-        &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
-    )
-    .unwrap();
+common_base::register_gauge_metric!(
+    BYTES_SENT,
+    "bytes_sent",
+    "Number of bytes sent",
+    NetworkQosLabel
+);
 
-    // Number of reserved messages received
-    static ref RETAIN_PACKETS_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
-        "retain_packets_received",
-        "Number of reserved messages received",
-        &[METRICS_KEY_QOS]
-    )
-    .unwrap();
+common_base::register_gauge_metric!(
+    RETAIN_PACKETS_RECEIVED,
+    "retain_packets_received",
+    "Number of reserved messages received",
+    QosLabel
+);
 
-    static ref RETAIN_PACKETS_SEND: IntGaugeVec = register_int_gauge_vec!(
-        "retain_packets_sent",
-        "Number of reserved messages sent",
-        &[METRICS_KEY_QOS]
-    )
-    .unwrap();
+common_base::register_gauge_metric!(
+    RETAIN_PACKETS_SEND,
+    "retain_packets_sent",
+    "Number of reserved messages sent",
+    QosLabel
+);
 
-}
+common_base::register_gauge_metric!(
+    MESSAGES_DROPPED_NO_SUBSCRIBERS,
+    "messages.dropped.no_subscribers",
+    "Number of messages dropped due to no subscribers",
+    QosLabel
+);
 
 // Record the packet-related metrics received by the server for failed resolution
 pub fn record_received_error_metrics(network_type: NetworkConnectionType) {
-    PACKETS_RECEIVED_ERROR
-        .with_label_values(&[&network_type.to_string()])
-        .inc();
+    let labe = NetworkLabel {
+        network: network_type.to_string(),
+    };
+    common_base::gauge_metric_inc!(PACKETS_RECEIVED_ERROR, labe);
 }
 
 // Record metrics related to packets received by the server
@@ -292,6 +265,9 @@ pub fn record_received_metrics(
     pkg: &MqttPacket,
     network_type: &NetworkConnectionType,
 ) {
+    let label = NetworkLabel {
+        network: network_type.to_string(),
+    };
     let payload_size = if let Some(protocol) = connection.protocol.clone() {
         let wrapper = MqttPacketWrapper {
             protocol_version: protocol.into(),
@@ -301,63 +277,35 @@ pub fn record_received_metrics(
     } else {
         0
     };
-
-    BYTES_RECEIVED
-        .with_label_values(&[&network_type.to_string()])
-        .add(payload_size as i64);
-
-    PACKETS_RECEIVED
-        .with_label_values(&[&network_type.to_string()])
-        .inc();
-
+    common_base::gauge_metric_inc_by!(BYTES_RECEIVED, label, payload_size as i64);
+    common_base::gauge_metric_inc!(PACKETS_RECEIVED, label);
     match pkg {
-        MqttPacket::Connect(_, _, _, _, _, _) => PACKETS_CONNECT_RECEIVED
-            .with_label_values(&[&network_type.to_string()])
-            .inc(),
-
-        MqttPacket::ConnAck(_, _) => PACKETS_CONNACK_RECEIVED
-            .with_label_values(&[&network_type.to_string()])
-            .inc(),
-
-        MqttPacket::Publish(_, _) => PACKETS_PUBLISH_RECEIVED
-            .with_label_values(&[&network_type.to_string()])
-            .inc(),
-
-        MqttPacket::PubAck(_, _) => PACKETS_PUBACK_RECEIVED
-            .with_label_values(&[&network_type.to_string()])
-            .inc(),
-
-        MqttPacket::PubRec(_, _) => PACKETS_PUBREC_RECEIVED
-            .with_label_values(&[&network_type.to_string()])
-            .inc(),
-
-        MqttPacket::PubRel(_, _) => PACKETS_PUBREL_RECEIVED
-            .with_label_values(&[&network_type.to_string()])
-            .inc(),
-
-        MqttPacket::PubComp(_, _) => PACKETS_PUBCOMP_RECEIVED
-            .with_label_values(&[&network_type.to_string()])
-            .inc(),
-
-        MqttPacket::PingReq(_) => PACKETS_PINGREQ_RECEIVED
-            .with_label_values(&[&network_type.to_string()])
-            .inc(),
-
-        MqttPacket::Disconnect(_, _) => PACKETS_DISCONNECT_RECEIVED
-            .with_label_values(&[&network_type.to_string()])
-            .inc(),
-
-        MqttPacket::Auth(_, _) => PACKETS_AUTH_RECEIVED
-            .with_label_values(&[&network_type.to_string()])
-            .inc(),
-
-        MqttPacket::Subscribe(_, _) => PACKETS_SUBSCRIBLE_RECEIVED
-            .with_label_values(&[&network_type.to_string()])
-            .inc(),
-
-        MqttPacket::Unsubscribe(_, _) => PACKETS_UNSUBSCRIBLE_RECEIVED
-            .with_label_values(&[&network_type.to_string()])
-            .inc(),
+        MqttPacket::Connect(_, _, _, _, _, _) => {
+            common_base::gauge_metric_inc!(PACKETS_CONNECT_RECEIVED, label)
+        }
+        MqttPacket::ConnAck(_, _) => {
+            common_base::gauge_metric_inc!(PACKETS_CONNACK_RECEIVED, label)
+        }
+        MqttPacket::Publish(_, _) => {
+            common_base::gauge_metric_inc!(PACKETS_PUBLISH_RECEIVED, label)
+        }
+        MqttPacket::PubAck(_, _) => common_base::gauge_metric_inc!(PACKETS_PUBACK_RECEIVED, label),
+        MqttPacket::PubRec(_, _) => common_base::gauge_metric_inc!(PACKETS_PUBREC_RECEIVED, label),
+        MqttPacket::PubRel(_, _) => common_base::gauge_metric_inc!(PACKETS_PUBREL_RECEIVED, label),
+        MqttPacket::PubComp(_, _) => {
+            common_base::gauge_metric_inc!(PACKETS_PUBCOMP_RECEIVED, label)
+        }
+        MqttPacket::PingReq(_) => common_base::gauge_metric_inc!(PACKETS_PINGREQ_RECEIVED, label),
+        MqttPacket::Disconnect(_, _) => {
+            common_base::gauge_metric_inc!(PACKETS_DISCONNECT_RECEIVED, label)
+        }
+        MqttPacket::Auth(_, _) => common_base::gauge_metric_inc!(PACKETS_AUTH_RECEIVED, label),
+        MqttPacket::Subscribe(_, _) => {
+            common_base::gauge_metric_inc!(PACKETS_SUBSCRIBLE_RECEIVED, label)
+        }
+        MqttPacket::Unsubscribe(_, _) => {
+            common_base::gauge_metric_inc!(PACKETS_UNSUBSCRIBLE_RECEIVED, label)
+        }
         _ => unreachable!("This branch only matches for packets could not be received"),
     }
 }
@@ -369,83 +317,135 @@ pub fn record_sent_metrics(packet_wrapper: &MqttPacketWrapper, network_type: Str
     } else {
         "-1".to_string()
     };
-
+    let label_qos = NetworkQosLabel {
+        network: network_type.clone(),
+        qos: qos_str,
+    };
+    let label = NetworkLabel {
+        network: network_type.clone(),
+    };
     let payload_size = calc_mqtt_packet_size(packet_wrapper.to_owned());
-
-    PACKETS_SENT
-        .with_label_values(&[&network_type, &qos_str])
-        .inc();
-
-    BYTES_SENT
-        .with_label_values(&[&network_type, &qos_str])
-        .add(payload_size as i64);
+    common_base::gauge_metric_inc!(PACKETS_SENT, label_qos);
+    common_base::gauge_metric_inc_by!(BYTES_SENT, label_qos, payload_size as i64);
 
     match &packet_wrapper.packet {
         MqttPacket::ConnAck(conn_ack, _) => {
-            PACKETS_CONNACK_SENT
-                .with_label_values(&[&network_type, &qos_str])
-                .inc();
-            // 判断是否为 NotAuthorized
+            common_base::gauge_metric_inc!(PACKETS_CONNACK_SENT, label_qos);
+            //  NotAuthorized
             if conn_ack.code == ConnectReturnCode::NotAuthorized {
-                PACKETS_CONNACK_AUTH_ERROR
-                    .with_label_values(&[&network_type.to_string()])
-                    .inc();
+                common_base::gauge_metric_inc!(PACKETS_CONNACK_AUTH_ERROR, label);
             }
-            // 判断是否为 connack error
+            //  connack error
             if conn_ack.code != ConnectReturnCode::Success {
-                PACKETS_CONNACK_ERROR
-                    .with_label_values(&[&network_type.to_string()])
-                    .inc();
+                common_base::gauge_metric_inc!(PACKETS_CONNACK_ERROR, label);
             }
         }
-        MqttPacket::Publish(_, _) => PACKETS_PUBLISH_SENT
-            .with_label_values(&[&network_type, &qos_str])
-            .inc(),
-        MqttPacket::PubAck(_, _) => PACKETS_PUBACK_SENT
-            .with_label_values(&[&network_type, &qos_str])
-            .inc(),
-        MqttPacket::PubRec(_, _) => PACKETS_PUBREC_SENT
-            .with_label_values(&[&network_type, &qos_str])
-            .inc(),
-        MqttPacket::PubRel(_, _) => PACKETS_PUBREL_SENT
-            .with_label_values(&[&network_type, &qos_str])
-            .inc(),
-        MqttPacket::PubComp(_, _) => PACKETS_PUBCOMP_SENT
-            .with_label_values(&[&network_type, &qos_str])
-            .inc(),
-        MqttPacket::SubAck(_, _) => PACKETS_SUBACK_SENT
-            .with_label_values(&[&network_type, &qos_str])
-            .inc(),
-        MqttPacket::UnsubAck(_, _) => PACKETS_UNSUBACK_SENT
-            .with_label_values(&[&network_type, &qos_str])
-            .inc(),
-        MqttPacket::PingResp(_) => PACKETS_PINGRESP_SENT
-            .with_label_values(&[&network_type, &qos_str])
-            .inc(),
-        MqttPacket::Disconnect(_, _) => PACKETS_DISCONNECT_SENT
-            .with_label_values(&[&network_type, &qos_str])
-            .inc(),
-        MqttPacket::Auth(_, _) => PACKETS_CONNACK_SENT
-            .with_label_values(&[&network_type, &qos_str])
-            .inc(),
+        MqttPacket::Publish(_, _) => {
+            common_base::gauge_metric_inc!(PACKETS_PUBLISH_SENT, label_qos)
+        }
+        MqttPacket::PubAck(_, _) => common_base::gauge_metric_inc!(PACKETS_PUBACK_SENT, label_qos),
+        MqttPacket::PubRec(_, _) => common_base::gauge_metric_inc!(PACKETS_PUBREC_SENT, label_qos),
+        MqttPacket::PubRel(_, _) => common_base::gauge_metric_inc!(PACKETS_PUBREL_SENT, label_qos),
+        MqttPacket::PubComp(_, _) => {
+            common_base::gauge_metric_inc!(PACKETS_PUBCOMP_SENT, label_qos)
+        }
+        MqttPacket::SubAck(_, _) => common_base::gauge_metric_inc!(PACKETS_SUBACK_SENT, label_qos),
+        MqttPacket::UnsubAck(_, _) => {
+            common_base::gauge_metric_inc!(PACKETS_UNSUBACK_SENT, label_qos)
+        }
+        MqttPacket::PingResp(_) => common_base::gauge_metric_inc!(PACKETS_PINGRESP_SENT, label_qos),
+        MqttPacket::Disconnect(_, _) => {
+            common_base::gauge_metric_inc!(PACKETS_DISCONNECT_SENT, label_qos)
+        }
+        MqttPacket::Auth(_, _) => common_base::gauge_metric_inc!(PACKETS_CONNACK_SENT, label_qos),
         _ => unreachable!("This branch only matches for packets could not be sent"),
     }
 }
 
 pub fn record_retain_recv_metrics(qos: QoS) {
     let qos_str = (qos as u8).to_string();
-    RETAIN_PACKETS_RECEIVED.with_label_values(&[&qos_str]).inc();
+    let label = QosLabel { qos: qos_str };
+    common_base::gauge_metric_inc!(RETAIN_PACKETS_RECEIVED, label)
 }
 
 pub fn record_retain_sent_metrics(qos: QoS) {
     let qos_str = (qos as u8).to_string();
-    RETAIN_PACKETS_SEND.with_label_values(&[&qos_str]).inc();
+    let label = QosLabel { qos: qos_str };
+    common_base::gauge_metric_inc!(RETAIN_PACKETS_SEND, label);
+}
+
+pub fn record_messages_dropped_no_subscribers_metrics(qos: QoS) {
+    let qos_str = (qos as u8).to_string();
+    let label = QosLabel { qos: qos_str };
+    common_base::gauge_metric_inc!(MESSAGES_DROPPED_NO_SUBSCRIBERS, label);
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
+    use super::*;
+    use common_base::metrics::registry::default;
+    use prometheus_client::encoding::text::encode;
+    #[tokio::test]
+    async fn test_gauge() {
+        let family = PACKETS_RECEIVED.clone();
+        let mut tasks = vec![];
+        for tid in 0..100 {
+            let family = family.clone();
+            let task = tokio::spawn(async move {
+                let family = family.write().unwrap();
+                let gauge = family.get_or_create(&NetworkLabel {
+                    network: format!("network-{}", tid),
+                });
+                gauge.inc();
+            });
+            tasks.push(task);
+        }
+
+        // 逐个 `await` 任务
+        while let Some(task) = tasks.pop() {
+            let _ = task.await;
+        }
+
+        let family = family.read().unwrap();
+
+        let gauge = family.get_or_create(&NetworkLabel {
+            network: format!("network-{}", 0),
+        });
+
+        gauge.inc();
+        assert_eq!(gauge.get(), 2);
+
+        let mut buffer = String::new();
+
+        let re = default();
+        encode(&mut buffer, &re).unwrap();
+
+        assert_ne!(buffer.capacity(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_gauge_metrics() {
+        record_received_error_metrics(NetworkConnectionType::Tcp);
+        let label = NetworkLabel {
+            network: "tcp".to_string(),
+        };
+        {
+            common_base::gauge_metric_inc_by!(PACKETS_RECEIVED_ERROR, label, 2);
+        }
+
+        {
+            let c = PACKETS_RECEIVED_ERROR
+                .clone()
+                .write()
+                .unwrap()
+                .get_or_create(&label)
+                .get();
+            assert_eq!(c, 3)
+        }
+    }
+
     use protocol::mqtt::codec::{calc_mqtt_packet_size, MqttPacketWrapper};
-    use protocol::mqtt::common::{MqttPacket, UnsubAck};
+    use protocol::mqtt::common::{MqttPacket, MqttProtocol, Publish, UnsubAck};
 
     #[test]
     fn calc_mqtt_packet_size_test() {
@@ -460,5 +460,44 @@ mod tests {
             packet,
         };
         assert_eq!(calc_mqtt_packet_size(packet_wrapper), 4);
+    }
+
+    use bytes::Bytes;
+    #[test]
+    fn calc_mqtt_packet_test() {
+        let mp: MqttPacket = MqttPacket::Publish(
+            Publish {
+                dup: false,
+                qos: QoS::AtMostOnce,
+                pkid: 0,
+                retain: false,
+                topic: Bytes::from("test"),
+                payload: Bytes::from("test"),
+            },
+            None,
+        );
+
+        let nc = NetworkConnection {
+            connection_type: NetworkConnectionType::Tcp,
+            addr: "127.0.0.1:1883".parse().unwrap(),
+            connection_stop_sx: None,
+            connection_id: 100,
+            protocol: Some(MqttProtocol::Mqtt3),
+        };
+        let ty = NetworkConnectionType::Tcp;
+        record_received_metrics(&nc, &mp, &ty);
+        let label = NetworkLabel {
+            network: ty.to_string(),
+        };
+        let pr = PACKETS_RECEIVED.clone();
+        {
+            let rs1 = pr.read().unwrap().get_or_create(&label).get();
+            assert_eq!(rs1, 1);
+        }
+        let ps = PACKETS_PUBLISH_RECEIVED.clone();
+        {
+            let rs2 = ps.read().unwrap().get_or_create(&label).get();
+            assert_eq!(rs2, 1);
+        }
     }
 }

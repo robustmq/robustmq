@@ -32,10 +32,6 @@ use crate::subscribe::sub_common::{
     decode_queue_info, decode_share_info, is_queue_sub, is_share_sub,
 };
 
-pub fn is_system_topic(_: String) -> bool {
-    true
-}
-
 pub fn payload_format_validator(
     payload: &Bytes,
     payload_format_indicator: u8,
@@ -151,14 +147,14 @@ where
 
 pub fn gen_rewrite_topic(input: &str, pattern: &str, template: &str) -> Option<String> {
     let mut prefix = String::new();
-    let topic = if is_share_sub(input.to_string()) {
-        let (group, group_path) = decode_share_info(input.to_string());
+    let topic = if is_share_sub(input) {
+        let (group, group_path) = decode_share_info(input);
         let share_prefix = format!("$share/{}", group);
         prefix = share_prefix.clone();
         group_path
-    } else if is_queue_sub(input.to_string()) {
+    } else if is_queue_sub(input) {
         prefix = "$queue".to_string();
-        decode_queue_info(input.to_string())
+        decode_queue_info(input)
     } else {
         input.to_string()
     };

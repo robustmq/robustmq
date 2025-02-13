@@ -255,6 +255,12 @@ service MqttService {
   //
   // - `topic_rewrite_rules Vec<MQTTTopicRewriteRule>`: It's the result of encoding a `Vec<MQTTTopicRewriteRule>` into a binary format.
   rpc ListTopicRewriteRule(ListTopicRewriteRuleRequest) returns(ListTopicRewriteRuleReply) {}
+
+  rpc ListSubscribe(ListSubscribeRequest) returns(ListSubscribeReply) {}
+
+  rpc SetSubscribe(SetSubscribeRequest) returns(SetSubscribeReply) {}
+
+  rpc DeleteSubscribe(DeleteSubscribeRequest) returns(DeleteSubscribeReply) {}
 }
 
 message GetShareSubLeaderRequest{
@@ -594,4 +600,33 @@ message ListTopicRewriteRuleRequest{
 message ListTopicRewriteRuleReply{
   //The parameter contains a list of users, encoded from a `Vec<MQTTTopicRewriteRule>` into a binary format.
   repeated bytes topic_rewrite_rules = 1;
+}
+
+message SetSubscribeRequest{
+    string cluster_name = 1;
+    string client_id = 3;
+    string path = 4;
+    bytes subscribe = 5;
+}
+
+message SetSubscribeReply{
+
+}
+
+message DeleteSubscribeRequest{
+    string cluster_name = 1;
+    string client_id = 2;
+     string path = 3;
+}
+
+message DeleteSubscribeReply{
+
+}
+
+message ListSubscribeRequest{
+    string cluster_name = 1;
+}
+
+message ListSubscribeReply{
+    repeated bytes subscribes = 1;
 }

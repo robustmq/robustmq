@@ -15,20 +15,22 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use common_base::error::common::CommonError;
-use common_base::tools::now_second;
-use grpc_clients::pool::ClientPool;
-use log::{debug, error};
-use metadata_struct::mqtt::session::MqttSession;
-use rocksdb_engine::warp::StorageDataWrap;
-use tokio::time::sleep;
-
-use super::call_broker::MqttBrokerCall;
 use crate::core::cache::PlacementCacheManager;
 use crate::mqtt::cache::MqttCacheManager;
 use crate::storage::keys::storage_key_mqtt_session_cluster_prefix;
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
+use crate::storage::mqtt::session::MqttSessionStorage;
 use crate::storage::rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER};
+use common_base::error::common::CommonError;
+use common_base::tools::now_second;
+use grpc_clients::mqtt::inner::call::{broker_mqtt_delete_session, send_last_will_message};
+use grpc_clients::pool::ClientPool;
+use log::{debug, error, warn};
+use metadata_struct::mqtt::lastwill::LastWillData;
+use metadata_struct::mqtt::session::MqttSession;
+use protocol::broker_mqtt::broker_mqtt_inner::{DeleteSessionRequest, SendLastWillMessageRequest};
+use rocksdb_engine::warp::StorageDataWrap;
+use tokio::time::sleep;
 
 #[derive(Clone, Debug)]
 pub struct ExpireLastWill {
@@ -152,32 +154,38 @@ impl SessionExpire {
     }
 
     fn delete_session(&self, sessions: Vec<MqttSession>) {
-        let call = MqttBrokerCall::new(
-            self.cluster_name.clone(),
-            self.placement_cache_manager.clone(),
-            self.rocksdb_engine_handler.clone(),
-            self.client_pool.clone(),
-            self.mqtt_cache_manager.clone(),
-        );
+        let cluster_name = self.cluster_name.clone();
+        let placement_cache_manager = self.placement_cache_manager.clone();
+        let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
+        let client_pool = self.client_pool.clone();
+        let mqtt_cache_manager = self.mqtt_cache_manager.clone();
         tokio::spawn(async move {
-            call.delete_sessions(sessions).await;
+            delete_sessions(
+                cluster_name,
+                placement_cache_manager,
+                rocksdb_engine_handler,
+                client_pool,
+                mqtt_cache_manager,
+                sessions,
+            )
+            .await;
         });
     }
 
     async fn send_expire_lastwill_message(&self, last_will_list: Vec<ExpireLastWill>) {
         let lastwill_storage = MqttLastWillStorage::new(self.rocksdb_engine_handler.clone());
-        let call = MqttBrokerCall::new(
-            self.cluster_name.clone(),
-            self.placement_cache_manager.clone(),
-            self.rocksdb_engine_handler.clone(),
-            self.client_pool.clone(),
-            self.mqtt_cache_manager.clone(),
-        );
         for lastwill in last_will_list {
             match lastwill_storage.get(&self.cluster_name, &lastwill.client_id) {
                 Ok(Some(data)) => {
-                    call.send_last_will_message(lastwill.client_id.clone(), data)
-                        .await;
+                    send_last_will(
+                        self.cluster_name.clone(),
+                        self.placement_cache_manager.clone(),
+                        self.client_pool.clone(),
+                        self.mqtt_cache_manager.clone(),
+                        lastwill.client_id.clone(),
+                        data,
+                    )
+                    .await;
                 }
                 Ok(None) => {
                     self.mqtt_cache_manager
@@ -202,6 +210,93 @@ impl SessionExpire {
         }
 
         false
+    }
+}
+
+pub async fn delete_sessions(
+    cluster_name: String,
+    placement_cache_manager: Arc<PlacementCacheManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    client_pool: Arc<ClientPool>,
+    mqtt_cache_manager: Arc<MqttCacheManager>,
+    sessions: Vec<MqttSession>,
+) {
+    let chunks: Vec<Vec<MqttSession>> = sessions
+        .chunks(100)
+        .map(|chunk| chunk.to_vec()) // 将切片转换为Vec
+        .collect();
+
+    for raw in chunks {
+        let client_ids: Vec<String> = raw.iter().map(|x| x.client_id.clone()).collect();
+        let mut success = true;
+        debug!(
+            "Session [{:?}] has expired. Call Broker to delete the Session information.",
+            client_ids
+        );
+
+        for addr in placement_cache_manager.get_broker_node_addr_by_cluster(&cluster_name) {
+            let request = DeleteSessionRequest {
+                client_id: client_ids.clone(),
+                cluster_name: cluster_name.clone(),
+            };
+            match broker_mqtt_delete_session(&client_pool, &[addr], request).await {
+                Ok(_) => {}
+                Err(e) => {
+                    success = false;
+                    warn!("{}", e);
+                }
+            }
+        }
+        debug!("Session expired call Broker status: {}", success);
+        if success {
+            let session_storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
+            for ms in raw {
+                match session_storage.delete(&cluster_name, &ms.client_id) {
+                    Ok(()) => {
+                        let delay = ms.last_will_delay_interval.unwrap_or_default();
+                        debug!(
+                            "Save the upcoming will message to the cache with client ID:{}",
+                            ms.client_id
+                        );
+                        mqtt_cache_manager.add_expire_last_will(ExpireLastWill {
+                            client_id: ms.client_id.clone(),
+                            delay_sec: now_second() + delay,
+                            cluster_name: cluster_name.clone(),
+                        });
+                    }
+                    Err(e) => error!("{}", e),
+                }
+            }
+        }
+    }
+}
+
+pub async fn send_last_will(
+    cluster_name: String,
+    placement_cache_manager: Arc<PlacementCacheManager>,
+    client_pool: Arc<ClientPool>,
+    mqtt_cache_manager: Arc<MqttCacheManager>,
+    client_id: String,
+    lastwill: LastWillData,
+) {
+    let request = SendLastWillMessageRequest {
+        client_id: client_id.clone(),
+        last_will_message: lastwill.encode(),
+    };
+
+    let node_addr = placement_cache_manager.get_broker_node_addr_by_cluster(&cluster_name);
+
+    if node_addr.is_empty() {
+        warn!("Get cluster {} Node access address is empty, there is no cluster node address available.",cluster_name);
+        mqtt_cache_manager.remove_expire_last_will(&cluster_name, &client_id);
+        return;
+    }
+
+    match send_last_will_message(&client_pool, &node_addr, request).await {
+        Ok(_) => mqtt_cache_manager.remove_expire_last_will(&cluster_name, &client_id),
+        Err(e) => {
+            error!("{}", e);
+        }
     }
 }
 

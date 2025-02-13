@@ -33,7 +33,7 @@ use tokio_util::codec::FramedWrite;
 use super::cache::CacheManager;
 use super::error::MqttBrokerError;
 use super::flow_control::{
-    is_connection_rate_exceeded, is_flow_control, is_subscribe_rate_exceeded,
+    is_connection_rate_exceeded, is_qos_message, is_subscribe_rate_exceeded,
 };
 use super::pkid::pkid_exists;
 use super::response::{
@@ -41,11 +41,12 @@ use super::response::{
     response_packet_mqtt_puback_fail, response_packet_mqtt_pubrec_fail,
     response_packet_mqtt_suback, response_packet_mqtt_unsuback,
 };
+use super::sub_exclusive::check_exclusive_subscribe;
 use super::topic::topic_name_validator;
-use crate::security::authentication_acl;
-use crate::security::login::is_ip_blacklist;
+use crate::security::{authentication_acl, AuthDriver};
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::sub_common::sub_path_validator;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub async fn tcp_establish_connection_check(
     addr: &SocketAddr,
@@ -154,7 +155,6 @@ where
     None
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn connect_validator(
     protocol: &MqttProtocol,
     cluster: &MqttClusterDynamicConfig,
@@ -163,7 +163,6 @@ pub fn connect_validator(
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
     login: &Option<Login>,
-    addr: &SocketAddr,
 ) -> Option<MqttPacket> {
     if cluster.security.is_self_protection_status {
         return Some(response_packet_mqtt_connect_fail(
@@ -171,15 +170,6 @@ pub fn connect_validator(
             ConnectReturnCode::ServerBusy,
             connect_properties,
             Some(MqttBrokerError::ClusterIsInSelfProtection.to_string()),
-        ));
-    }
-
-    if is_ip_blacklist(addr) {
-        return Some(response_packet_mqtt_connect_fail(
-            protocol,
-            ConnectReturnCode::Banned,
-            connect_properties,
-            None,
         ));
     }
 
@@ -384,7 +374,7 @@ pub async fn publish_validator(
         }
     }
 
-    if is_flow_control(protocol, publish.qos)
+    if is_qos_message(publish.qos)
         && connection.get_recv_qos_message() >= cluster.protocol.receive_max as isize
     {
         if is_puback {
@@ -436,41 +426,12 @@ pub async fn publish_validator(
 
 pub async fn subscribe_validator(
     protocol: &MqttProtocol,
-    _cache_manager: &Arc<CacheManager>,
-    _client_pool: &Arc<ClientPool>,
+    auth_driver: &Arc<AuthDriver>,
+    metadata_cache: &Arc<CacheManager>,
+    subscribe_manager: &Arc<SubscribeManager>,
     connection: &MQTTConnection,
     subscribe: &Subscribe,
 ) -> Option<MqttPacket> {
-    // match pkid_exists(
-    //     cache_manager,
-    //     client_pool,
-    //     &connection.client_id,
-    //     subscribe.packet_identifier,
-    // )
-    // .await
-    // {
-    //     Ok(res) => {
-    //         if res {
-    //             return Some(response_packet_mqtt_suback(
-    //                 protocol,
-    //                 connection,
-    //                 subscribe.packet_identifier,
-    //                 vec![SubscribeReasonCode::PkidInUse],
-    //                 None,
-    //             ));
-    //         }
-    //     }
-    //     Err(e) => {
-    //         return Some(response_packet_mqtt_suback(
-    //             protocol,
-    //             connection,
-    //             subscribe.packet_identifier,
-    //             vec![SubscribeReasonCode::Unspecified],
-    //             Some(e.to_string()),
-    //         ));
-    //     }
-    // };
-
     let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
     for filter in subscribe.filters.clone() {
         if !sub_path_validator(filter.path) {
@@ -488,16 +449,6 @@ pub async fn subscribe_validator(
         ));
     }
 
-    if authentication_acl() {
-        return Some(response_packet_mqtt_suback(
-            protocol,
-            connection,
-            subscribe.packet_identifier,
-            vec![SubscribeReasonCode::NotAuthorized],
-            None,
-        ));
-    }
-
     if is_subscribe_rate_exceeded() {
         return Some(response_packet_mqtt_suback(
             protocol,
@@ -508,44 +459,35 @@ pub async fn subscribe_validator(
         ));
     }
 
+    if !check_exclusive_subscribe(metadata_cache, subscribe_manager, subscribe) {
+        return Some(response_packet_mqtt_suback(
+            protocol,
+            connection,
+            subscribe.packet_identifier,
+            vec![SubscribeReasonCode::TopicSubscribed],
+            None,
+        ));
+    }
+
+    if !auth_driver.allow_subscribe(connection, subscribe).await {
+        return Some(response_packet_mqtt_suback(
+            protocol,
+            connection,
+            subscribe.packet_identifier,
+            vec![SubscribeReasonCode::NotAuthorized],
+            None,
+        ));
+    }
+
     None
 }
 
 pub async fn un_subscribe_validator(
     client_id: &str,
-    cache_manager: &Arc<CacheManager>,
-    client_pool: &Arc<ClientPool>,
+    subscribe_manager: &Arc<SubscribeManager>,
     connection: &MQTTConnection,
     un_subscribe: &Unsubscribe,
 ) -> Option<MqttPacket> {
-    match pkid_exists(
-        cache_manager,
-        client_pool,
-        &connection.client_id,
-        un_subscribe.pkid,
-    )
-    .await
-    {
-        Ok(res) => {
-            if res {
-                return Some(response_packet_mqtt_unsuback(
-                    connection,
-                    un_subscribe.pkid,
-                    vec![UnsubAckReason::PacketIdentifierInUse],
-                    None,
-                ));
-            }
-        }
-        Err(e) => {
-            return Some(response_packet_mqtt_unsuback(
-                connection,
-                un_subscribe.pkid,
-                vec![UnsubAckReason::UnspecifiedError],
-                Some(e.to_string()),
-            ));
-        }
-    };
-
     let mut return_codes: Vec<UnsubAckReason> = Vec::new();
     for filter in un_subscribe.filters.clone() {
         if !sub_path_validator(filter) {
@@ -562,25 +504,14 @@ pub async fn un_subscribe_validator(
         ));
     }
 
-    if authentication_acl() {
-        return Some(response_packet_mqtt_unsuback(
-            connection,
-            un_subscribe.pkid,
-            vec![UnsubAckReason::NotAuthorized],
-            None,
-        ));
-    }
-
     for path in un_subscribe.filters.clone() {
-        if let Some(sub_list) = cache_manager.subscribe_filter.get_mut(client_id) {
-            if !sub_list.contains_key(&path) {
-                return Some(response_packet_mqtt_unsuback(
-                    connection,
-                    un_subscribe.pkid,
-                    vec![UnsubAckReason::NoSubscriptionExisted],
-                    Some(MqttBrokerError::SubscriptionPathNotExists(path).to_string()),
-                ));
-            }
+        if subscribe_manager.get_subscribe(client_id, &path).is_none() {
+            return Some(response_packet_mqtt_unsuback(
+                connection,
+                un_subscribe.pkid,
+                vec![UnsubAckReason::NoSubscriptionExisted],
+                Some(MqttBrokerError::SubscriptionPathNotExists(path).to_string()),
+            ));
         }
     }
 

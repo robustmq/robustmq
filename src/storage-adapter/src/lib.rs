@@ -16,6 +16,7 @@ use std::str::FromStr;
 
 pub mod journal;
 pub mod memory;
+pub mod minio;
 pub mod mysql;
 pub mod rocksdb;
 pub mod storage;
@@ -27,6 +28,7 @@ pub enum StorageType {
     Mysql,
     Placement,
     RocksDB,
+    MinIO,
 }
 
 impl FromStr for StorageType {
@@ -39,6 +41,7 @@ impl FromStr for StorageType {
             "mysql" => Ok(StorageType::Mysql),
             "placement" => Ok(StorageType::Placement),
             "rocksdb" => Ok(StorageType::RocksDB),
+            "minio" => Ok(StorageType::MinIO),
             _ => Err(()),
         }
     }
@@ -103,5 +106,6 @@ mod tests {
             StorageType::from_str("rocksdb").unwrap(),
             StorageType::RocksDB
         );
+        assert_eq!(StorageType::from_str("minio").unwrap(), StorageType::MinIO);
     }
 }
