@@ -74,7 +74,7 @@ pub fn validate_wildcard_topic_subscription(topic_name: &str, sub_path: &str) ->
         let (_, group_path) = extract_group_name_and_sub_path(sub_path);
         group_path
     } else if is_queue_sub(sub_path) {
-        decode_queue_info(sub_path)
+        extract_queue_topic_name(sub_path)
     } else {
         sub_path.to_owned()
     };
@@ -83,7 +83,7 @@ pub fn validate_wildcard_topic_subscription(topic_name: &str, sub_path: &str) ->
         let (_, group_path) = extract_group_name_and_sub_path(topic_name);
         group_path
     } else if is_queue_sub(topic_name) {
-        decode_queue_info(topic_name)
+        extract_queue_topic_name(topic_name)
     } else {
         topic_name.to_owned()
     };
@@ -152,10 +152,9 @@ fn remove_subscription_prefix(sub_name: &str) -> Vec<&str> {
     str_slice
 }
 
-pub fn decode_queue_info(sub_name: &str) -> String {
-    let mut str_slice: Vec<&str> = sub_name.split("/").collect();
-    str_slice.remove(0);
-    format!("/{}", str_slice.join("/"))
+pub fn extract_queue_topic_name(sub_name: &str) -> String {
+    let no_prefix_sub_name = remove_subscription_prefix(sub_name);
+    format!("/{}", no_prefix_sub_name.join("/"))
 }
 
 pub async fn get_share_sub_leader(
@@ -472,8 +471,8 @@ mod tests {
 
     use crate::handler::cache::CacheManager;
     use crate::subscribe::sub_common::{
-        extract_group_name_and_sub_path, get_sub_topic_id_list, is_share_sub, min_qos,
-        sub_path_validator, validate_wildcard_topic_subscription,
+        extract_group_name_and_sub_path, extract_queue_topic_name, get_sub_topic_id_list,
+        is_share_sub, min_qos, sub_path_validator, validate_wildcard_topic_subscription,
     };
 
     #[tokio::test]
@@ -493,6 +492,26 @@ mod tests {
 
         assert!(!is_share_sub(&sub5));
         assert!(!is_share_sub(&sub6));
+    }
+
+    #[tokio::test]
+    async fn extract_queue_topic_name_test() {
+        let sub1 = "$queue/sport/tennis/+".to_string();
+        let sub2 = "$queue/sport/tennis/+".to_string();
+        let sub3 = "$queue/sport/#".to_string();
+        let sub4 = "$queue/finance/#".to_string();
+
+        let topic_name = extract_queue_topic_name(&sub1);
+        assert_eq!(topic_name, "/sport/tennis/+".to_string());
+
+        let topic_name = extract_queue_topic_name(&sub2);
+        assert_eq!(topic_name, "/sport/tennis/+".to_string());
+
+        let topic_name = extract_queue_topic_name(&sub3);
+        assert_eq!(topic_name, "/sport/#".to_string());
+
+        let topic_name = extract_queue_topic_name(&sub4);
+        assert_eq!(topic_name, "/finance/#".to_string());
     }
 
     #[tokio::test]

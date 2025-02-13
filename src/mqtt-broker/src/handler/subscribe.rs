@@ -28,8 +28,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::subscribe::{
     sub_common::{
-        decode_queue_info, extract_group_name_and_sub_path, get_share_sub_leader, is_queue_sub,
-        is_share_sub, validate_wildcard_topic_subscription,
+        extract_group_name_and_sub_path, extract_queue_topic_name, get_share_sub_leader,
+        is_queue_sub, is_share_sub, validate_wildcard_topic_subscription,
     },
     subscribe_manager::{ShareSubShareSub, SubscribeManager},
     subscriber::Subscriber,
@@ -197,7 +197,7 @@ async fn parse_queue_subscribe(
     subscribe_manager: &Arc<SubscribeManager>,
     req: &mut ParseShareQueueSubscribeRequest,
 ) {
-    let sub_name = decode_queue_info(&req.filter.path);
+    let sub_name = extract_queue_topic_name(&req.filter.path);
     // queueSub is a special shareSub
     let group_name = format!("$queue_{}", sub_name);
     req.group_name = group_name;
