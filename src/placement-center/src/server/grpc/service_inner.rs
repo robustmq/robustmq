@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
-use log::info;
+use log::{debug, info};
 use prost::Message;
 use prost_validate::Validator;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterService;
@@ -184,7 +184,7 @@ impl PlacementCenterService for GrpcPlacementService {
             ));
         }
 
-        info!("receive heartbeat from node:{:?}", req.node_id);
+        debug!("receive heartbeat from node:{:?}", req.node_id);
         self.cluster_cache
             .report_broker_heart(&req.cluster_name, req.node_id);
         return Ok(Response::new(HeartbeatReply::default()));
