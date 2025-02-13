@@ -46,6 +46,7 @@ pub async fn report_heartbeat(client_pool: &Arc<ClientPool>, stop_send: broadcas
             }
             _ = report(client_pool) => {
                 let config = broker_mqtt_conf();
+                sleep(Duration::from_secs(3)).await;
                 debug!("Heartbeat reporting successfully,node:{}",config.broker_id);
             }
         }
@@ -65,5 +66,4 @@ async fn report(client_pool: &Arc<ClientPool>) {
             error!("{}", e);
         }
     }
-    sleep(Duration::from_secs(3)).await;
 }
