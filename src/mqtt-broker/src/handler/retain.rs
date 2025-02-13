@@ -49,11 +49,11 @@ pub async fn is_new_sub(
     subscribe_manager: &Arc<SubscribeManager>,
 ) -> DashMap<String, bool> {
     let results = DashMap::with_capacity(2);
-    for fileter in subscribe.filters.iter() {
+    for filter in subscribe.filters.iter() {
         let bool = subscribe_manager
-            .get_subscribe(client_id, &fileter.path)
+            .get_subscribe(client_id, &filter.path)
             .is_none();
-        results.insert(fileter.path.to_owned(), bool);
+        results.insert(filter.path.to_owned(), bool);
     }
     results
 }
