@@ -27,8 +27,6 @@ mod tests {
     use protocol::broker_mqtt::broker_mqtt_admin::EnableFlappingDetectRequest;
     use std::process;
     use std::sync::Arc;
-    use std::thread::sleep;
-    use std::time::Duration;
 
     #[tokio::test]
     async fn client_connect_wrong_password_test_v3() {
@@ -187,7 +185,7 @@ mod tests {
         }
 
         test_correct_connect(&client_test_properties);
-        // test_fail_connect(&client_test_properties);
+        test_fail_connect(&client_test_properties);
 
         close_flapping_detect().await;
     }
