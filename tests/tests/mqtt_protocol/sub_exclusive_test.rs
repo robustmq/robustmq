@@ -14,10 +14,9 @@
 
 #[cfg(test)]
 mod tests {
-    use common_base::tools::unique_id;
-    use paho_mqtt::{RetainHandling, SubscribeOptions, QOS_1};
-
     use crate::mqtt_protocol::common::{broker_addr, connect_server5, distinct_conn};
+    use common_base::tools::unique_id;
+    use paho_mqtt::{Message, RetainHandling, SubscribeOptions, QOS_1};
 
     #[tokio::test]
     async fn sub_exclusive_test() {
@@ -36,6 +35,16 @@ mod tests {
 
         let client_id = unique_id();
         let cli = connect_server5(&client_id, &addr, false, false);
+
+        // publish
+        let message_content = "mqtt message".to_string();
+        let msg = Message::new(topic.clone(), message_content.clone(), QOS_1);
+        match cli.publish(msg) {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        }
 
         // subscribe exclusive topic
         let consumer_client_id = unique_id();

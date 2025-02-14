@@ -129,7 +129,7 @@ pub async fn parse_subscribe(
         .get_cluster_info()
         .feature
         .exclusive_subscription_available
-        == AvailableFlag::Disable;
+        == AvailableFlag::Enable;
 
     if enable_exclusive_sub {
         add_exclusive_subscribe(subscribe_manager, &filter.path, client_id);

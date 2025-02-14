@@ -287,7 +287,7 @@ pub async fn send_last_will(
     let node_addr = placement_cache_manager.get_broker_node_addr_by_cluster(&cluster_name);
 
     if node_addr.is_empty() {
-        warn!("Get cluster {} Node access address is empty, there is no cluster node address available.",cluster_name);
+        debug!("Get cluster {} Node access address is empty, there is no cluster node address available.",cluster_name);
         mqtt_cache_manager.remove_expire_last_will(&cluster_name, &client_id);
         return;
     }
