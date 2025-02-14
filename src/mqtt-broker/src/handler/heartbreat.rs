@@ -57,7 +57,11 @@ async fn report(client_pool: &Arc<ClientPool>) {
     match cluster_storage.heartbeat().await {
         Ok(()) => {
             let config = broker_mqtt_conf();
-            debug!("Heartbeat reporting successfully,node:{},{}",config.broker_id,now_second());
+            debug!(
+                "Heartbeat reporting successfully,node:{},{}",
+                config.broker_id,
+                now_second()
+            );
         }
         Err(e) => {
             if e.to_string().contains("Node") && e.to_string().contains("does not exist") {
