@@ -46,9 +46,7 @@ pub async fn report_heartbeat(client_pool: &Arc<ClientPool>, stop_send: broadcas
                 }
             }
             _ = report(client_pool) => {
-                let config = broker_mqtt_conf();
                 sleep(Duration::from_secs(3)).await;
-                debug!("Heartbeat reporting successfully,node:{},{}",config.broker_id,now_second());
             }
         }
     }
@@ -57,7 +55,10 @@ pub async fn report_heartbeat(client_pool: &Arc<ClientPool>, stop_send: broadcas
 async fn report(client_pool: &Arc<ClientPool>) {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     match cluster_storage.heartbeat().await {
-        Ok(()) => {}
+        Ok(()) => {
+            let config = broker_mqtt_conf();
+            debug!("Heartbeat reporting successfully,node:{},{}",config.broker_id,now_second());
+        }
         Err(e) => {
             if e.to_string().contains("Node") && e.to_string().contains("does not exist") {
                 if let Err(e) = register_node(client_pool).await {
