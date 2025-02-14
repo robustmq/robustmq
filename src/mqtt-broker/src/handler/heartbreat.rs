@@ -16,6 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use log::{debug, error};
 use tokio::select;
@@ -47,7 +48,7 @@ pub async fn report_heartbeat(client_pool: &Arc<ClientPool>, stop_send: broadcas
             _ = report(client_pool) => {
                 let config = broker_mqtt_conf();
                 sleep(Duration::from_secs(3)).await;
-                debug!("Heartbeat reporting successfully,node:{}",config.broker_id);
+                debug!("Heartbeat reporting successfully,node:{},{}",config.broker_id,now_second());
             }
         }
     }
