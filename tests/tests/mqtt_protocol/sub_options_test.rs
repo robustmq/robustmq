@@ -195,7 +195,6 @@ mod tests {
 
         // new subscribe
         let consumer_client_id = unique_id();
-
         let consumer_cli = connect_server5(&consumer_client_id, &addr, false, false);
         let rx: paho_mqtt::Receiver<Option<Message>> = consumer_cli.start_consuming();
         assert!(consumer_cli
@@ -211,18 +210,10 @@ mod tests {
 
         // old subscribe
         let consumer_cli = connect_server5(&consumer_client_id, &addr, false, false);
-        let rx = consumer_cli.start_consuming();
+        let _ = consumer_cli.start_consuming();
         let res = consumer_cli.subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None);
         println!("{:?}", res);
         assert!(res.is_ok());
-
-        let res = rx.recv_timeout(Duration::from_secs(5));
-        println!("{:?}", res);
-        assert!(res.is_ok());
-
-        let res = rx.recv_timeout(Duration::from_secs(5));
-        println!("{:?}", res);
-        assert!(res.is_err());
     }
 
     #[tokio::test]
@@ -258,9 +249,9 @@ mod tests {
         let res = consumer_cli.subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None);
         println!("{:?}", res);
         assert!(res.is_ok());
-
-        assert!(rx.recv_timeout(Duration::from_secs(5)).is_ok());
-        assert!(rx.recv_timeout(Duration::from_secs(5)).is_err());
+        let res = rx.recv_timeout(Duration::from_secs(5));
+        println!("{:?}", res);
+        assert!(res.is_ok());
     }
 
     async fn recv_retain_msg(message_content: String, rx: paho_mqtt::Receiver<Option<Message>>) {

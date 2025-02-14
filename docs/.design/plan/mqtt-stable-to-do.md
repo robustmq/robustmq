@@ -53,4 +53,8 @@
 ## 压测
 1. Placement 集群模式 Read/Write 延时和吞吐压测
 2. MQTT 发布订阅模式压测
+   1. connection
+   2. publish
+   3. subscribe
+   4. qos
 3. Journal Engine Node Read/Write 延时和吞吐压测
