@@ -60,10 +60,10 @@ mod tests {
 
         let cluster_name = "robust_test".to_string();
         let cluster = MqttClusterDynamicConfig {
-            protocol: MqttClusterDynamicConfigProtocol {
+            protocol: Some(MqttClusterDynamicConfigProtocol {
                 topic_alias_max: 999,
                 ..Default::default()
-            },
+            }),
             ..Default::default()
         };
         cluster_storage
@@ -76,7 +76,7 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(result.protocol.topic_alias_max, 999);
+        assert_eq!(result.protocol.as_ref().unwrap().topic_alias_max, 999);
 
         cluster_storage
             .delete_cluster_config(&cluster_name)
