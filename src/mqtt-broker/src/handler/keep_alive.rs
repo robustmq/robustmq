@@ -213,10 +213,10 @@ pub fn keep_live_time(keep_alive: u16) -> u16 {
 
 pub fn client_keep_live_time(cluster: &MqttClusterDynamicConfig, mut keep_alive: u16) -> u16 {
     if keep_alive == 0 {
-        keep_alive = cluster.protocol.default_server_keep_alive;
+        keep_alive = cluster.protocol.as_ref().unwrap().default_server_keep_alive;
     }
-    if keep_alive > cluster.protocol.max_server_keep_alive {
-        keep_alive = cluster.protocol.max_server_keep_alive / 2;
+    if keep_alive > cluster.protocol.as_ref().unwrap().max_server_keep_alive {
+        keep_alive = cluster.protocol.as_ref().unwrap().max_server_keep_alive / 2;
     }
     keep_alive
 }

@@ -35,6 +35,8 @@ pub async fn pkid_save(
     if cache_manager
         .get_cluster_info()
         .protocol
+        .as_ref()
+        .unwrap()
         .client_pkid_persistent
     {
         let conf = broker_mqtt_conf();
@@ -66,6 +68,8 @@ pub async fn pkid_exists(
     if cache_manager
         .get_cluster_info()
         .protocol
+        .as_ref()
+        .unwrap()
         .client_pkid_persistent
     {
         let conf = broker_mqtt_conf();
@@ -92,6 +96,8 @@ pub async fn pkid_delete(
     if cache_manager
         .get_cluster_info()
         .protocol
+        .as_ref()
+        .unwrap()
         .client_pkid_persistent
     {
         let conf = broker_mqtt_conf();
@@ -161,7 +167,12 @@ mod test {
             .unwrap();
         assert!(!flag);
         let mut cluset_info = cache_manager.get_cluster_info();
-        cluset_info.protocol.client_pkid_persistent = true;
+        cluset_info
+            .protocol
+            .as_mut()
+            .unwrap()
+            .client_pkid_persistent = true;
+
         cache_manager.set_cluster_info(cluset_info);
 
         let flag = pkid_exists(&cache_manager, &client_pool, &client_id, pkid)

@@ -174,7 +174,7 @@ where
         }
 
         // flapping detect check
-        if cluster.flapping_detect.enable {
+        if cluster.flapping_detect.as_ref().unwrap().enable {
             check_flapping_detect(connect.client_id.clone(), &self.cache_manager);
         }
 
@@ -766,7 +766,13 @@ where
         .await;
 
         let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
-        let cluster_qos = self.cache_manager.get_cluster_info().protocol.max_qos;
+        let cluster_qos = self
+            .cache_manager
+            .get_cluster_info()
+            .protocol
+            .as_ref()
+            .unwrap()
+            .max_qos;
         for filter in subscribe.filters.clone() {
             match min_qos(cluster_qos, filter.qos) {
                 QoS::AtMostOnce => {

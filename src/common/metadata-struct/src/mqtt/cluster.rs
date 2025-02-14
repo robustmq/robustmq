@@ -12,19 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::config::broker_mqtt::BrokerMqttConfig;
 use protocol::mqtt::common::QoS;
 use serde::{Deserialize, Serialize};
 
 // Dynamic configuration of MQTT cluster latitude
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct MqttClusterDynamicConfig {
-    pub protocol: MqttClusterDynamicConfigProtocol,
-    pub feature: MqttClusterDynamicConfigFeature,
-    pub security: MqttClusterDynamicConfigSecurity,
-    pub network: MqttClusterDynamicConfigNetwork,
-    pub slow: MqttClusterDynamicSlowSub,
-    pub flapping_detect: MqttClusterDynamicFlappingDetect,
-    pub offline_message: MqttClusterDynamicOfflineMessage,
+    pub protocol: Option<MqttClusterDynamicConfigProtocol>,
+    pub feature: Option<MqttClusterDynamicConfigFeature>,
+    pub security: Option<MqttClusterDynamicConfigSecurity>,
+    pub network: Option<MqttClusterDynamicConfigNetwork>,
+    pub slow: Option<MqttClusterDynamicSlowSub>,
+    pub flapping_detect: Option<MqttClusterDynamicFlappingDetect>,
+    pub offline_message: Option<MqttClusterDynamicOfflineMessage>,
 }
 
 // MQTT cluster protocol related dynamic configuration
@@ -93,7 +94,7 @@ pub struct MqttClusterDynamicOfflineMessage {
 impl MqttClusterDynamicConfig {
     pub fn new() -> Self {
         MqttClusterDynamicConfig {
-            protocol: MqttClusterDynamicConfigProtocol {
+            protocol: Some(MqttClusterDynamicConfigProtocol {
                 session_expiry_interval: 1800,
                 topic_alias_max: 65535,
                 max_qos: QoS::ExactlyOnce,
@@ -103,44 +104,52 @@ impl MqttClusterDynamicConfig {
                 receive_max: 65535,
                 client_pkid_persistent: false,
                 max_message_expiry_interval: 3600,
-            },
-            feature: MqttClusterDynamicConfigFeature {
+            }),
+            feature: Some(MqttClusterDynamicConfigFeature {
                 retain_available: AvailableFlag::Enable,
                 wildcard_subscription_available: AvailableFlag::Enable,
                 subscription_identifiers_available: AvailableFlag::Enable,
                 shared_subscription_available: AvailableFlag::Enable,
                 exclusive_subscription_available: AvailableFlag::Enable,
-            },
-            security: MqttClusterDynamicConfigSecurity {
+            }),
+            security: Some(MqttClusterDynamicConfigSecurity {
                 secret_free_login: false,
                 is_self_protection_status: false,
-            },
-            network: MqttClusterDynamicConfigNetwork {
+            }),
+            network: Some(MqttClusterDynamicConfigNetwork {
                 tcp_max_connection_num: 1000,
                 tcps_max_connection_num: 1000,
                 websocket_max_connection_num: 1000,
                 websockets_max_connection_num: 1000,
                 response_max_try_mut_times: 128,
                 response_try_mut_sleep_time_ms: 100,
-            },
-            slow: MqttClusterDynamicSlowSub {
+            }),
+            slow: Some(MqttClusterDynamicSlowSub {
                 enable: false,
                 whole_ms: 0,
                 internal_ms: 0,
                 response_ms: 0,
-            },
-            flapping_detect: MqttClusterDynamicFlappingDetect {
+            }),
+            flapping_detect: Some(MqttClusterDynamicFlappingDetect {
                 enable: false,
                 window_time: 1,
                 max_client_connections: 15,
                 ban_time: 5,
-            },
-            offline_message: MqttClusterDynamicOfflineMessage { enable: false },
+            }),
+            offline_message: Some(MqttClusterDynamicOfflineMessage { enable: false }),
         }
     }
 
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
+    }
+
+    pub fn merge_config(&mut self, local_config: &BrokerMqttConfig) {
+        if self.offline_message.is_none() {
+            self.offline_message = Some(MqttClusterDynamicOfflineMessage {
+                enable: local_config.offline_messages.enable,
+            });
+        }
     }
 }
 

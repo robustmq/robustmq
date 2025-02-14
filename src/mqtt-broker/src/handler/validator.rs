@@ -164,7 +164,7 @@ pub fn connect_validator(
     last_will_properties: &Option<LastWillProperties>,
     login: &Option<Login>,
 ) -> Option<MqttPacket> {
-    if cluster.security.is_self_protection_status {
+    if cluster.security.as_ref().unwrap().is_self_protection_status {
         return Some(response_packet_mqtt_connect_fail(
             protocol,
             ConnectReturnCode::ServerBusy,
@@ -307,8 +307,10 @@ pub async fn publish_validator(
     }
 
     let cluster = cache_manager.get_cluster_info();
-    let max_packet_size =
-        min(cluster.protocol.max_packet_size, connection.max_packet_size) as usize;
+    let max_packet_size = min(
+        cluster.protocol.as_ref().unwrap().max_packet_size,
+        connection.max_packet_size,
+    ) as usize;
     if publish.payload.len() > max_packet_size {
         if is_puback {
             return Some(response_packet_mqtt_puback_fail(
@@ -375,7 +377,8 @@ pub async fn publish_validator(
     }
 
     if is_qos_message(publish.qos)
-        && connection.get_recv_qos_message() >= cluster.protocol.receive_max as isize
+        && connection.get_recv_qos_message()
+            >= cluster.protocol.as_ref().unwrap().receive_max as isize
     {
         if is_puback {
             return Some(response_packet_mqtt_puback_fail(
@@ -399,7 +402,7 @@ pub async fn publish_validator(
     if let Some(properties) = publish_properties {
         if let Some(alias) = properties.topic_alias {
             let cluster = cache_manager.get_cluster_info();
-            if alias > cluster.protocol.topic_alias_max {
+            if alias > cluster.protocol.as_ref().unwrap().topic_alias_max {
                 if is_puback {
                     return Some(response_packet_mqtt_puback_fail(
                         protocol,
@@ -533,10 +536,10 @@ pub fn connection_max_packet_size(
 ) -> u32 {
     if let Some(properties) = connect_properties {
         if let Some(size) = properties.max_packet_size {
-            return min(size, cluster.protocol.max_packet_size);
+            return min(size, cluster.protocol.as_ref().unwrap().max_packet_size);
         }
     }
-    cluster.protocol.max_packet_size
+    cluster.protocol.as_ref().unwrap().max_packet_size
 }
 
 pub fn client_id_validator(client_id: &str) -> bool {

@@ -28,7 +28,8 @@ impl CacheManager {
         config: MqttClusterDynamicFlappingDetect,
     ) -> Result<(), MqttBrokerError> {
         let mut dyn_config = self.get_cluster_info();
-        dyn_config.flapping_detect = config;
+        // dyn_config.flapping_detect = config;
+        dyn_config.flapping_detect.insert(config);
 
         // save in cache
         self.set_cluster_info(dyn_config.clone());
@@ -38,7 +39,7 @@ impl CacheManager {
         Ok(())
     }
     pub fn get_flapping_detect_config(&self) -> MqttClusterDynamicFlappingDetect {
-        self.get_cluster_info().flapping_detect
+        self.get_cluster_info().flapping_detect.unwrap()
     }
 
     pub async fn set_slow_sub_config(
@@ -46,8 +47,8 @@ impl CacheManager {
         config: MqttClusterDynamicSlowSub,
     ) -> Result<(), MqttBrokerError> {
         let mut dynamic_config = self.get_cluster_info();
-        dynamic_config.slow = config;
-
+        // dynamic_config.slow = config;
+        dynamic_config.slow.insert(config);
         // save in cache
         self.set_cluster_info(dynamic_config.clone());
 
@@ -57,7 +58,7 @@ impl CacheManager {
     }
 
     pub fn get_slow_sub_config(&self) -> MqttClusterDynamicSlowSub {
-        self.get_cluster_info().slow
+        self.get_cluster_info().slow.unwrap()
     }
 
     pub fn set_cluster_info(&self, cluster: MqttClusterDynamicConfig) {

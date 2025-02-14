@@ -149,7 +149,7 @@ impl AuthDriver {
     ) -> Result<bool, MqttBrokerError> {
         let cluster = self.cache_manager.get_cluster_info();
 
-        if cluster.security.secret_free_login {
+        if cluster.security.as_ref().unwrap().secret_free_login {
             return Ok(true);
         }
 

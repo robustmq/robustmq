@@ -114,6 +114,8 @@ fn session_expiry_interval(
     let cluster_session_expiry_interval = cache_manager
         .get_cluster_info()
         .protocol
+        .as_ref()
+        .unwrap()
         .session_expiry_interval;
     let connection_session_expiry_interval = if let Some(properties) = connect_properties {
         if let Some(ck) = properties.session_expiry_interval {
@@ -175,6 +177,8 @@ mod test {
             cache_manager
                 .get_cluster_info()
                 .protocol
+                .as_ref()
+                .unwrap()
                 .session_expiry_interval as u64
         );
 

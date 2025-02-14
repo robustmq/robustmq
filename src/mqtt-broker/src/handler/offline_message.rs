@@ -41,7 +41,12 @@ where
 {
     // If Topic is not subscribed and offline messaging is not enabled. The message is not saved.
     if !is_exist_subscribe(subscribe_manager, &topic.topic_name)
-        && !cache_manager.get_cluster_info().offline_message.enable
+        && !cache_manager
+            .get_cluster_info()
+            .offline_message
+            .as_ref()
+            .unwrap()
+            .enable
     {
         record_messages_dropped_no_subscribers_metrics(publish.qos);
         return Ok(None);

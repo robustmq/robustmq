@@ -44,19 +44,19 @@ pub fn build_connection(
             let client_receive_maximum = if let Some(value) = properties.receive_maximum {
                 value
             } else {
-                cluster.protocol.receive_max
+                cluster.protocol.as_ref().unwrap().receive_max
             };
 
             let max_packet_size = if let Some(value) = properties.max_packet_size {
-                std::cmp::min(value, cluster.protocol.max_packet_size)
+                std::cmp::min(value, cluster.protocol.as_ref().unwrap().max_packet_size)
             } else {
-                cluster.protocol.max_packet_size
+                cluster.protocol.as_ref().unwrap().max_packet_size
             };
 
             let topic_alias_max = if let Some(value) = properties.topic_alias_max {
-                std::cmp::min(value, cluster.protocol.topic_alias_max)
+                std::cmp::min(value, cluster.protocol.as_ref().unwrap().topic_alias_max)
             } else {
-                cluster.protocol.topic_alias_max
+                cluster.protocol.as_ref().unwrap().topic_alias_max
             };
 
             let request_problem_info = properties.request_problem_info.unwrap_or_default();
@@ -69,9 +69,9 @@ pub fn build_connection(
             )
         } else {
             (
-                cluster.protocol.receive_max,
-                cluster.protocol.max_packet_size,
-                cluster.protocol.topic_alias_max,
+                cluster.protocol.as_ref().unwrap().receive_max,
+                cluster.protocol.as_ref().unwrap().max_packet_size,
+                cluster.protocol.as_ref().unwrap().topic_alias_max,
                 0,
             )
         };

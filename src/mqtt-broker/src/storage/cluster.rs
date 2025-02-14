@@ -22,9 +22,15 @@ use grpc_clients::placement::inner::call::{
     set_resource_config, unregister_node,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
+use metadata_struct::mqtt::cluster::{
+    AvailableFlag, MqttClusterDynamicConfig, MqttClusterDynamicConfigFeature,
+    MqttClusterDynamicConfigNetwork, MqttClusterDynamicConfigProtocol,
+    MqttClusterDynamicConfigSecurity, MqttClusterDynamicFlappingDetect,
+    MqttClusterDynamicOfflineMessage, MqttClusterDynamicSlowSub,
+};
 use metadata_struct::mqtt::node_extend::MqttNodeExtend;
 use metadata_struct::placement::node::BrokerNode;
+use protocol::mqtt::common::QoS;
 use protocol::placement_center::placement_center_inner::{
     ClusterType, DeleteResourceConfigRequest, GetResourceConfigRequest, HeartbeatRequest,
     NodeListRequest, RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
@@ -156,7 +162,10 @@ impl ClusterStorage {
                     Ok(None)
                 } else {
                     match serde_json::from_slice::<MqttClusterDynamicConfig>(&data.config) {
-                        Ok(data) => Ok(Some(data)),
+                        Ok(mut data) => {
+                            data.merge_config(config);
+                            Ok(Some(data))
+                        }
                         Err(e) => Err(CommonError::CommonError(e.to_string())),
                     }
                 }

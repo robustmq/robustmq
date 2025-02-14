@@ -56,22 +56,37 @@ pub fn response_packet_mqtt_connect_success(
 
     let properties = ConnAckProperties {
         session_expiry_interval: Some(session_expiry_interval),
-        receive_max: Some(cluster.protocol.receive_max),
-        max_qos: Some(cluster.protocol.max_qos.into()),
-        retain_available: Some(cluster.feature.retain_available.clone() as u8),
-        max_packet_size: Some(cluster.protocol.max_packet_size),
+        receive_max: Some(cluster.protocol.as_ref().unwrap().receive_max),
+        max_qos: Some(cluster.protocol.as_ref().unwrap().max_qos.into()),
+        retain_available: Some(cluster.feature.as_ref().unwrap().retain_available.clone() as u8),
+        max_packet_size: Some(cluster.protocol.as_ref().unwrap().max_packet_size),
         assigned_client_identifier,
-        topic_alias_max: Some(cluster.protocol.topic_alias_max),
+        topic_alias_max: Some(cluster.protocol.as_ref().unwrap().topic_alias_max),
         reason_string: None,
         user_properties: Vec::new(),
         wildcard_subscription_available: Some(
-            cluster.feature.wildcard_subscription_available.clone() as u8,
+            cluster
+                .feature
+                .as_ref()
+                .unwrap()
+                .wildcard_subscription_available
+                .clone() as u8,
         ),
         subscription_identifiers_available: Some(
-            cluster.feature.subscription_identifiers_available.clone() as u8,
+            cluster
+                .feature
+                .as_ref()
+                .unwrap()
+                .subscription_identifiers_available
+                .clone() as u8,
         ),
         shared_subscription_available: Some(
-            cluster.feature.shared_subscription_available.clone() as u8
+            cluster
+                .feature
+                .as_ref()
+                .unwrap()
+                .shared_subscription_available
+                .clone() as u8,
         ),
         server_keep_alive: Some(keep_live_time(keep_alive)),
         response_information: response_information(connect_properties),

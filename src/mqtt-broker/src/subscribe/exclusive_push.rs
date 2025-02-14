@@ -507,7 +507,12 @@ fn build_group_name(subscriber: &Subscriber) -> String {
 }
 
 fn build_pub_qos(cache_manager: &Arc<CacheManager>, subscriber: &Subscriber) -> QoS {
-    let cluster_qos = cache_manager.get_cluster_info().protocol.max_qos;
+    let cluster_qos = cache_manager
+        .get_cluster_info()
+        .protocol
+        .as_ref()
+        .unwrap()
+        .max_qos;
     min_qos(cluster_qos, subscriber.qos)
 }
 

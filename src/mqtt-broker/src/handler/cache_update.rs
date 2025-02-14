@@ -41,7 +41,11 @@ pub async fn load_metadata_cache(
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let cluster = match cluster_storage.get_cluster_config(&conf.cluster_name).await {
         Ok(Some(cluster)) => cluster,
-        Ok(None) => MqttClusterDynamicConfig::new(),
+        Ok(None) => {
+            let mut cluster = MqttClusterDynamicConfig::new();
+            cluster.merge_config(conf);
+            cluster
+        }
         Err(e) => {
             panic!(
                 "Failed to load the cluster configuration with error message:{}",

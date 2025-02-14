@@ -158,7 +158,7 @@ async fn send_retain_message(
                 false
             };
 
-            let qos = min_qos(cluster.protocol.max_qos, filter.qos);
+            let qos = min_qos(cluster.protocol.as_ref().unwrap().max_qos, filter.qos);
 
             let mut user_properties = msg.user_properties;
             user_properties.push((

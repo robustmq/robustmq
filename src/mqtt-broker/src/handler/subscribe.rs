@@ -128,6 +128,8 @@ pub async fn parse_subscribe(
     let enable_exclusive_sub = metadata_cache
         .get_cluster_info()
         .feature
+        .as_ref()
+        .unwrap()
         .exclusive_subscription_available
         == AvailableFlag::Disable;
 

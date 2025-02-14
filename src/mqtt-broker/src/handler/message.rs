@@ -37,7 +37,12 @@ pub fn build_message_expire(
     }
 
     let cluster = cache_manager.get_cluster_info();
-    now_second() + cluster.protocol.max_message_expiry_interval
+    now_second()
+        + cluster
+            .protocol
+            .as_ref()
+            .unwrap()
+            .max_message_expiry_interval
 }
 
 #[cfg(test)]
@@ -61,10 +66,10 @@ mod tests {
         let cluster_name = "test".to_string();
         let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
         let cluster = MqttClusterDynamicConfig {
-            protocol: MqttClusterDynamicConfigProtocol {
+            protocol: Some(MqttClusterDynamicConfigProtocol {
                 max_message_expiry_interval: 10,
                 ..Default::default()
-            },
+            }),
             ..Default::default()
         };
         cache_manager.set_cluster_info(cluster);

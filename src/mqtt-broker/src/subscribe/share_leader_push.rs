@@ -425,7 +425,12 @@ fn build_publish(
     topic_name: &str,
     msg: &MqttMessage,
 ) -> Option<(Publish, PublishProperties)> {
-    let cluster_qos = metadata_cache.get_cluster_info().protocol.max_qos;
+    let cluster_qos = metadata_cache
+        .get_cluster_info()
+        .protocol
+        .as_ref()
+        .unwrap()
+        .max_qos;
     let qos = min_qos(cluster_qos, subscribe.qos);
 
     let retain = if subscribe.preserve_retain {

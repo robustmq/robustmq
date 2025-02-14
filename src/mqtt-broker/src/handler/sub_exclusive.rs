@@ -28,6 +28,8 @@ pub fn check_exclusive_subscribe(
     if metadata_cache
         .get_cluster_info()
         .feature
+        .as_ref()
+        .unwrap()
         .exclusive_subscription_available
         == AvailableFlag::Disable
     {
