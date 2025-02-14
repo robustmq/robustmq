@@ -19,6 +19,7 @@ pub mod memory;
 pub mod minio;
 pub mod mysql;
 pub mod rocksdb;
+pub mod s3;
 pub mod storage;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

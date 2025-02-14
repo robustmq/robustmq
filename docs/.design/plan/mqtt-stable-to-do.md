@@ -3,23 +3,19 @@
 2. 订阅逻辑优化【done】
 3. MQTT 测试用例失败 case 修复
 4. 自动订阅
-5. 数据集成
+5. 延时发布
+6. 消息验证：确保消息的完整性和合法性
+7. 数据集成
    1. sink local file
-   3. Kafka 集成
-6. 限流
+   2. Kafka 集成
+8. 限流
    1. 速率限制
    2. QOS 限制
-7. 可观测体系搭建
-8. ACL/User
-9. Schema: Schema Registry、灵活地消息格式转换：JSON、Avro、Protobuf、Custom codec (HTTP/gRPC)
-10. 消息验证：确保消息的完整性和合法性
-11. 规则引擎
-12. Flow 设计器
-13. 故障排查
-14. Cloud-Native & K8s
-15. 边缘计算
-16. MQTT Over QUIC
-17. 多协议网关
+9. 可观测体系搭建 【done】 需要继续丰富指标
+10. ACL/User 【done】
+11. Schema: Schema Registry、灵活地消息格式转换：JSON、Avro、Protobuf、Custom codec (HTTP/gRPC)
+12. Cloud-Native & K8s
+13. MQTT Over QUIC
 
 ## 测试用例覆盖度
 1. 代码测试覆盖度
