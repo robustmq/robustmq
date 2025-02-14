@@ -35,7 +35,7 @@ pub struct UpdateFlappingDetectCache {
 #[derive(Clone, Debug)]
 pub struct FlappingDetectCondition {
     pub client_id: String,
-    pub connect_times: u64,
+    pub before_last_window_connections: u64,
     pub first_request_time: u64,
 }
 
@@ -100,7 +100,7 @@ pub fn check_flapping_detect(client_id: String, cache_manager: &Arc<CacheManager
     } else {
         FlappingDetectCondition {
             client_id: client_id.clone(),
-            connect_times: current_counter,
+            before_last_window_connections: current_counter + 1,
             first_request_time: current_request_time,
         }
     };
@@ -115,6 +115,7 @@ pub fn check_flapping_detect(client_id: String, cache_manager: &Arc<CacheManager
 
     let config = cache_manager.get_flapping_detect_config();
     let current_counter = event_metrics::get_client_connection_counter(client_id.clone());
+    debug!("get current_counter : {current_counter} by client_id: {client_id}");
 
     if is_within_window_time(
         current_request_time,
@@ -122,7 +123,7 @@ pub fn check_flapping_detect(client_id: String, cache_manager: &Arc<CacheManager
         config.window_time as u64,
     ) && is_exceed_max_client_connections(
         current_counter,
-        flapping_detect_condition.connect_times,
+        flapping_detect_condition.before_last_window_connections,
         config.max_client_connections,
     ) {
         debug!("add a new client_id: {client_id} into blacklist.");
@@ -164,7 +165,7 @@ fn is_exceed_max_client_connections(
     connect_times: u64,
     max_client_connections: u64,
 ) -> bool {
-    current_time - connect_times > max_client_connections
+    current_time - connect_times >= max_client_connections
 }
 
 pub async fn enable_flapping_detect(

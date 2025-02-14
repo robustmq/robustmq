@@ -57,5 +57,4 @@ max_segment_size = 1048576
 
 [log]
 log_config = "./config/log4rs.yaml"
-log_path = "./logs/journal-server"
-
+log_path = "./robust-data/journal-server/logs"

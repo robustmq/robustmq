@@ -252,12 +252,12 @@ mod test {
         let acl_metadata = AclMetadata::new();
         let condition1 = FlappingDetectCondition {
             client_id: "test_id_1".to_string(),
-            connect_times: 15,
+            before_last_window_connections: 15,
             first_request_time: now_second() - 10,
         };
         let condition2 = FlappingDetectCondition {
             client_id: "test_id_2".to_string(),
-            connect_times: 15,
+            before_last_window_connections: 15,
             first_request_time: now_second() - 70,
         };
 
