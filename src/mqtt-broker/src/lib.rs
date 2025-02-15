@@ -56,6 +56,7 @@ lazy_static! {
     pub static ref BROKER_START_TIME: u64 = now_second();
 }
 
+pub mod bridge;
 pub mod handler;
 pub mod observability;
 pub mod security;
