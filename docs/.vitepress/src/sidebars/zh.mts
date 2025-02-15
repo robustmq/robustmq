@@ -53,6 +53,57 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "概览", link: "/zh/RobustMQ-MQTT/Overview" },
+            { text: "核心概念", link: "" },
+            { text: "系统架构", link: "" },
+            {
+                text: "核心功能",
+                collapsed: true,
+                items: [
+                    { text: "共享订阅", link: "" },
+                    { text: "保留消息", link: "" },
+                    { text: "遗嘱消息", link: "" },
+                    { text: "排他订阅", link: "" },
+                    { text: "延迟发布", link: "" },
+                    { text: "自动订阅", link: "" },
+                    { text: "主题重写", link: "" },
+                    { text: "通配符订阅", link: "" },
+                    { text: "Session 持久化", link: "" },
+                ],
+            },
+            {
+                text: "安全",
+                collapsed: true,
+                items: [
+                    { text: "认证", link: "" },
+                    { text: "授权", link: "" },
+                    { text: "黑名单", link: "" },
+                    { text: "连接抖动", link: "" },
+                ]
+            },
+            {
+                text: "数据集成",
+                collapsed: true,
+                items: [
+                    { text: " Local File", link: "" },
+                    { text: "Kafka", link: "" },
+                    { text: "Redis", link: "" },
+                    { text: "RocketMQ", link: "" },
+                ]
+            },
+
+            {
+                text: "可观测性",
+                collapsed: true,
+                items: [
+                    { text: "指标", link: "" },
+                    { text: "Trace", link: "" },
+                    { text: "集成 promethrus", link: "" },
+                    { text: "集成 OpenTelemetry", link: "" },
+                ]
+            },
+            { text: "MQTT Over Quic", link: "" },
+            { text: "GRPC Admin 接口", link: "" },
+            { text: "Bench 性能压测", link: "" },
         ],
     },
     {

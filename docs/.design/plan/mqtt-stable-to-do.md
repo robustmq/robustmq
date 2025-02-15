@@ -54,3 +54,43 @@
    3. subscribe
    4. qos
 3. Journal Engine Node Read/Write 延时和吞吐压测
+
+## MQTT 文档
+- 简介
+- 核心概念
+- 系统架构
+- 客户端工具使用
+- 核心功能
+  - 共享订阅
+  - 保留消息
+  - 遗嘱消息
+  - 排他订阅
+  - 延迟发布
+  - 自动订阅
+  - 主题重写
+  - 通配符订阅
+  - Session 持久化
+- 客户端 SDK
+  - 使用 C SDK 连接
+  - 使用 Java SDK 连接
+  - 使用 Go SDK 连接
+  - 使用 Python SDK 连接
+  - 使用 Javascript SDK 连接
+- GRPC Admin 接口
+- Bench 性能压测
+- 安全
+  - 认证
+  - 授权
+  - 黑名单
+  - 连接抖动
+- 数据集成
+  - Local File
+  - Kafka
+  - RocketMQ
+-  可观测性
+   -  指标
+   -  trace
+   -  集成 promethrus
+   -  集成 OpenTelemetry
+-  MQTT Over Quic
+-  
