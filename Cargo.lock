@@ -721,6 +721,9 @@ dependencies = [
  "log4rs",
  "mysql",
  "opendal",
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry_sdk",
  "prometheus",
  "prometheus-client",
  "prost",
@@ -2296,6 +2299,7 @@ dependencies = [
  "log",
  "metadata-struct",
  "mysql",
+ "opentelemetry",
  "os_info",
  "paho-mqtt",
  "placement-center",
@@ -2660,6 +2664,83 @@ dependencies = [
  "openssl-src",
  "pkg-config",
  "vcpkg",
+]
+
+[[package]]
+name = "opentelemetry"
+version = "0.27.1"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust.git?rev=b6783a10984146c62ceaa6997fef1385d2ee5ae8#b6783a10984146c62ceaa6997fef1385d2ee5ae8"
+dependencies = [
+ "futures-core",
+ "futures-sink",
+ "js-sys",
+ "pin-project-lite",
+ "thiserror 2.0.11",
+ "tracing",
+]
+
+[[package]]
+name = "opentelemetry-http"
+version = "0.27.0"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust.git?rev=b6783a10984146c62ceaa6997fef1385d2ee5ae8#b6783a10984146c62ceaa6997fef1385d2ee5ae8"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "http",
+ "opentelemetry",
+ "reqwest",
+ "tracing",
+]
+
+[[package]]
+name = "opentelemetry-otlp"
+version = "0.27.0"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust.git?rev=b6783a10984146c62ceaa6997fef1385d2ee5ae8#b6783a10984146c62ceaa6997fef1385d2ee5ae8"
+dependencies = [
+ "async-trait",
+ "futures-core",
+ "http",
+ "opentelemetry",
+ "opentelemetry-http",
+ "opentelemetry-proto",
+ "opentelemetry_sdk",
+ "prost",
+ "reqwest",
+ "thiserror 2.0.11",
+ "tokio",
+ "tonic",
+ "tracing",
+]
+
+[[package]]
+name = "opentelemetry-proto"
+version = "0.27.0"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust.git?rev=b6783a10984146c62ceaa6997fef1385d2ee5ae8#b6783a10984146c62ceaa6997fef1385d2ee5ae8"
+dependencies = [
+ "opentelemetry",
+ "opentelemetry_sdk",
+ "prost",
+ "tonic",
+]
+
+[[package]]
+name = "opentelemetry_sdk"
+version = "0.27.1"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust.git?rev=b6783a10984146c62ceaa6997fef1385d2ee5ae8#b6783a10984146c62ceaa6997fef1385d2ee5ae8"
+dependencies = [
+ "async-trait",
+ "futures-channel",
+ "futures-executor",
+ "futures-util",
+ "glob",
+ "opentelemetry",
+ "percent-encoding",
+ "rand",
+ "serde_json",
+ "thiserror 2.0.11",
+ "tokio",
+ "tokio-stream",
+ "tracing",
 ]
 
 [[package]]
@@ -3407,6 +3488,7 @@ checksum = "c7d6d2a27d57148378eb5e111173f4276ad26340ecc5c49a4a2152167a2d6a37"
 dependencies = [
  "base64 0.22.0",
  "bytes",
+ "futures-channel",
  "futures-core",
  "futures-util",
  "http",
@@ -3501,6 +3583,9 @@ dependencies = [
  "log",
  "metadata-struct",
  "mqtt-broker",
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry_sdk",
  "paho-mqtt",
  "protocol",
  "serde",

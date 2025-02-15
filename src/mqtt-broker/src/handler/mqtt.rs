@@ -30,7 +30,7 @@ use storage_adapter::storage::StorageAdapter;
 
 use super::connection::disconnect_connection;
 use super::offline_message::save_message;
-use super::retain::try_send_retain_message;
+use super::retain::{is_new_sub, try_send_retain_message};
 use super::sub_auto::start_auto_subscribe;
 use super::subscribe::save_subscribe;
 use super::unsubscribe::remove_subscribe;
@@ -721,6 +721,7 @@ where
             return packet;
         }
 
+        let new_subs = is_new_sub(&connection.client_id, &subscribe, &self.subscribe_manager).await;
         process_sub_topic_rewrite(&mut subscribe, &self.cache_manager.topic_rewrite_rule);
 
         if let Err(e) = save_subscribe(
@@ -762,6 +763,7 @@ where
             self.client_pool.clone(),
             self.cache_manager.clone(),
             self.connection_manager.clone(),
+            new_subs,
         )
         .await;
 

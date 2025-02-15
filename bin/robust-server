@@ -13,86 +13,89 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/bin/sh
+# help info
+usage() {
+    echo "Usage: $0 <module> <action> [config_file]"
+    echo "  module: mqtt | journal | place"
+    echo "  action: start | stop"
+    echo "  config_file: optional, default is config/<module>.toml"
+    echo "  example start Placement-Center: $0 place start config/placement-center.toml"
+    echo "  example stop Placement-Center: $0 place stop"
+    exit 1
+}
+
+#get bin_name by mod
+get_bin_name() {
+    case "${1}" in
+        mqtt)    echo "mqtt-server" ;;
+        journal) echo "journal-server" ;;
+        place)   echo "placement-center" ;;
+    esac
+}
+
+# check args
+[ $# -lt 2 ] && usage
+
+
 workdir=$(cd $(dirname $0); pwd)
 mkdir -p ${workdir}/../logs
 mod=$1
 action=$2
 conf=$3
-if [ -z $mod ]
-then
- echo "Enter the name of the component to start, for example: mqtt | journal | place"
- exit
-fi
 
-if [ "$mod" != "mqtt" -a "$mod" != "journal" -a "$mod" != "place" ]; then
-    echo "cluster type Error, optional: mqtt, journal, place"
-    exit
-fi
-
-if [ -z $action ]
-then
- echo "Please make sure the position variable is start or stop."
- exit
-fi
-
-if [ "$action" != "start" -a "$action" != "stop" ]; then
-    echo "platform Error, optional: start, stop"
-    exit
-fi
-
-case "$mod" in
-  mqtt)
-    bin_name="mqtt-server"
-    ;;
-  journal)
-    bin_name="journal-server"
-    ;;
-  place)
-    bin_name="placement-center"
-    ;;
-  *)
-    echo "未知的变量a值: $a"
-    exit 1
-    ;;
+# check mod
+case "${mod}" in
+    mqtt|journal|place) ;;
+    *) echo "Invalid module type : ${mod}, optional: mqtt, journal, place"; usage ;;
 esac
 
-if [ $action = "start" ]
+# check action
+case "${action}" in
+    start|stop) ;;
+    *) echo "Invalid action: ${action}, optional: start, stop"; usage ;;
+esac
+
+bin_name=$(get_bin_name $mod)
+[ -z $conf ] && conf=${workdir}/../config/${bin_name}.toml
+log_file=${workdir}/../logs/${bin_name}-nohup.log
+
+start_service() {
+  echo "Starting ${bin_name} with config: ${conf}"
+  local bin_path="${workdir}/../libs/${bin_name}"
+  [ ! -x "$bin_path" ] && echo "ERROR: $bin_path not found or not executable" && exit 1
+  [ ! -f $conf ] && echo "Config file not found: $conf" && exit 1
+  echo "Config:$conf"
+  nohup "${bin_path}" --conf="${conf}" >> "${log_file}" 2>&1 &
+  sleep 3
+  num=` ps -ef | grep /libs/${bin_name} | grep -v grep | wc -l`
+  if [ $num -ge 1 ]
   then
-    if [ -z $conf ]
-    then
-        conf=${workdir}/../config/${bin_name}.toml
-    fi
-    echo "config:$conf"
-    echo "${bin_name} is starting..."
-    nohup ${workdir}/../libs/${bin_name} --conf=$conf >> ${workdir}/../logs/${bin_name}-nohub.log 2>&1 &
-    sleep 3
-    num=` ps -ef | grep /libs/${bin_name} | grep -v grep | wc -l`
-    if [ $num -ge 1 ]
-    then
-        echo "${bin_name} started successfully."
-    else
-        echo "WARN: ${bin_name} started failure."
-    fi
-  elif [ $action = "stop" ]
-  then
-      no=$(ps -ef | grep "${bin_name}" | grep conf | grep -v grep | awk '{print $2}')
-    if [ -n "$no" ]; then
-        echo "Currently running process numbers: $no"
-        for pid in $no; do
-            echo "Killing process: $pid"
-            kill "$pid"
-        done
-        sleep 3
-        num=$(ps -ef | grep "/libs/${bin_name}" | grep conf | grep -v grep | wc -l)
-        if [ "$num" -eq 0 ]; then
-            echo "${bin_name} stopped successfully."
-        else
-            echo "WARN: ${bin_name} stop failure."
-        fi
-    else
-        echo "No running processes found for ${bin_name}."
-    fi
+    echo "${bin_name} started successfully."
   else
-    echo "Please make sure the position variable is start or stop."
-fi
+    echo "WARN: ${bin_name} started failure. please check detail in ${log_file}"
+  fi
+
+}
+
+stop_service() {
+  no=$(ps -ef | grep "${bin_name}" | grep conf | grep -v grep | awk '{print $2}')
+  [ ! -n "$no" ] && echo "No running processes found for ${bin_name}." && exit 0
+  echo "Currently running process numbers: $no"
+  for pid in $no; do
+    echo "Killing process: $pid"
+    kill "$pid"
+  done
+  sleep 3
+  num=$(ps -ef | grep "/libs/${bin_name}" | grep conf | grep -v grep | wc -l)
+  if [ "$num" -eq 0 ]; then
+    echo "${bin_name} stopped successfully."
+  else
+    echo "WARN: ${bin_name} stop failure."
+  fi
+}
+
+
+case "${action}" in
+    start) start_service ;;
+    stop)  stop_service ;;
+esac

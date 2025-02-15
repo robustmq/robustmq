@@ -53,11 +53,3 @@ root:
   appenders:
     - stdout
     - server
-
-
-loggers:
-  mqtt-broker::observability::slow:
-    level: info
-    appenders:
-      - slow_sub
-    additive: false

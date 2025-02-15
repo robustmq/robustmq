@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use common_base::config::placement_center::placement_center_conf;
 use grpc_clients::pool::ClientPool;
-use log::{error, info};
+use log::info;
 use mqtt::controller::call_broker::{mqtt_call_thread_manager, MQTTInnerCallManager};
 use openraft::Raft;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterServiceServer;
@@ -25,6 +25,7 @@ use protocol::placement_center::placement_center_journal::engine_service_server:
 use protocol::placement_center::placement_center_kv::kv_service_server::KvServiceServer;
 use protocol::placement_center::placement_center_mqtt::mqtt_service_server::MqttServiceServer;
 use protocol::placement_center::placement_center_openraft::open_raft_service_server::OpenRaftServiceServer;
+use raft::leadership::monitoring_leader_transition;
 use server::grpc::service_inner::GrpcPlacementService;
 use server::grpc::service_journal::GrpcEngineService;
 use server::grpc::service_kv::GrpcKvService;
@@ -40,9 +41,7 @@ use crate::core::cache::PlacementCacheManager;
 use crate::core::controller::ClusterController;
 use crate::journal::cache::{load_journal_cache, JournalCacheManager};
 use crate::journal::controller::call_node::{journal_call_thread_manager, JournalInnerCallManager};
-use crate::journal::controller::StorageEngineController;
 use crate::mqtt::cache::MqttCacheManager;
-use crate::mqtt::controller::MqttController;
 use crate::raft::raft_node::{create_raft_node, start_openraft_node};
 use crate::raft::typeconfig::TypeConfig;
 use crate::route::apply::RaftMachineApply;
@@ -124,7 +123,7 @@ impl PlacementCenter {
 
         let placement_center_storage = Arc::new(RaftMachineApply::new(openraft_node.clone()));
 
-        self.start_controller(placement_center_storage.clone(), stop_send.clone());
+        self.start_heartbeat(placement_center_storage.clone(), stop_send.clone());
 
         self.start_raft_machine(openraft_node.clone());
 
@@ -132,43 +131,26 @@ impl PlacementCenter {
 
         self.start_grpc_server(placement_center_storage.clone());
 
-        self.monitoring_leader_transition(openraft_node.clone());
+        self.monitoring_leader_transition(openraft_node.clone(), placement_center_storage.clone());
 
         self.awaiting_stop(stop_send).await;
     }
 
-    pub fn monitoring_leader_transition(&self, raft: Raft<TypeConfig>) {
+    pub fn monitoring_leader_transition(
+        &self,
+        raft: Raft<TypeConfig>,
+        raft_machine_apply: Arc<RaftMachineApply>,
+    ) {
         info!("Initiate Monitoring of Raft Leader Transitions");
-        let mut metrics_rx = raft.metrics();
-        tokio::spawn(async move {
-            let mut last_leader: Option<u64> = None;
-            loop {
-                match metrics_rx.changed().await {
-                    Ok(_) => {
-                        let mm = metrics_rx.borrow().clone();
-
-                        if let Some(current_leader) = mm.current_leader {
-                            if last_leader != Some(current_leader) && last_leader.is_some() {
-                                info!(
-                                    "The leader transition has occurred. The current leader is Node {}. Previous leader was Node {}.",
-                                    current_leader, last_leader.unwrap()
-                                );
-                                if mm.id == current_leader {
-                                    info!("The current node transition to the Leader, starts controller thread.");
-                                    // TODO Start the control thread
-                                }
-                            }
-                            last_leader = Some(current_leader);
-                        }
-                    }
-                    Err(changed_err) => {
-                        error!(
-                        "Error while watching metrics_rx: {}; quitting monitoring_leader_transition() loop",
-                        changed_err);
-                    }
-                }
-            }
-        });
+        monitoring_leader_transition(
+            &raft,
+            self.rocksdb_engine_handler.clone(),
+            self.cluster_cache.clone(),
+            self.mqtt_cache.clone(),
+            self.engine_cache.clone(),
+            self.client_pool.clone(),
+            raft_machine_apply,
+        );
     }
 
     // Start HTTP Server
@@ -237,8 +219,7 @@ impl PlacementCenter {
         });
     }
 
-    // Start Storage Engine Cluster Controller
-    pub fn start_controller(
+    pub fn start_heartbeat(
         &self,
         raft_machine_apply: Arc<RaftMachineApply>,
         stop_send: Sender<bool>,
@@ -253,27 +234,6 @@ impl PlacementCenter {
         );
         tokio::spawn(async move {
             ctrl.start_node_heartbeat_check().await;
-        });
-
-        let mqtt_controller = MqttController::new(
-            self.rocksdb_engine_handler.clone(),
-            self.cluster_cache.clone(),
-            self.mqtt_cache.clone(),
-            self.client_pool.clone(),
-            stop_send.clone(),
-        );
-        tokio::spawn(async move {
-            mqtt_controller.start().await;
-        });
-
-        let journal_controller = StorageEngineController::new(
-            raft_machine_apply.clone(),
-            self.engine_cache.clone(),
-            self.cluster_cache.clone(),
-            self.client_pool.clone(),
-        );
-        tokio::spawn(async move {
-            journal_controller.start().await;
         });
     }
 

@@ -52,6 +52,57 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "Overview", link: "/RobustMQ-MQTT/Overview" },
+            { text: "Concepts", link: "" },
+            { text: "Architecture", link: "" },
+            {
+                text: "Features",
+                collapsed: true,
+                items: [
+                    { text: "Shared Subscription", link: "" },
+                    { text: "Retain Message", link: "" },
+                    { text: "LastWill Message", link: "" },
+                    { text: "Exclusive Subscription", link: "" },
+                    { text: "Delayed Publish", link: "" },
+                    { text: "Automatic subscription", link: "" },
+                    { text: "Topic Rewriting", link: "" },
+                    { text: "Wildcard Subscription", link: "" },
+                    { text: "Session Persistence", link: "" },
+                ],
+            },
+            {
+                text: "Security",
+                collapsed: true,
+                items: [
+                    { text: "Authentication", link: "" },
+                    { text: "Authorization", link: "" },
+                    { text: "Blacklist", link: "" },
+                    { text: "Flapping Detect", link: "" },
+                ]
+            },
+            {
+                text: "Data integration",
+                collapsed: true,
+                items: [
+                    { text: " Local File", link: "" },
+                    { text: "Kafka", link: "" },
+                    { text: "Redis", link: "" },
+                    { text: "RocketMQ", link: "" },
+                ]
+            },
+
+            {
+                text: "Observability",
+                collapsed: true,
+                items: [
+                    { text: "Metrics", link: "" },
+                    { text: "Trace", link: "" },
+                    { text: "Integrate promethrus", link: "" },
+                    { text: "Integrate OpenTelemetry", link: "" },
+                ]
+            },
+            { text: "MQTT Over Quic", link: "" },
+            { text: "GRPC Admin Interface", link: "" },
+            { text: "Performance Bench", link: "" },
         ],
     },
 

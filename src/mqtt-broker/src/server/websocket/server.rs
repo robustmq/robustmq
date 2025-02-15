@@ -28,7 +28,7 @@ use bytes::{BufMut, BytesMut};
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use futures_util::stream::StreamExt;
 use grpc_clients::pool::ClientPool;
-use log::{debug, error, info};
+use log::{error, info};
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{MqttPacket, MqttProtocol};
 use storage_adapter::storage::StorageAdapter;
@@ -161,7 +161,7 @@ where
     } else {
         String::from("Unknown Source")
     };
-    info!("`{user_agent}` at {addr} connected.");
+    info!("websocket `{user_agent}` at {addr} connected.");
     let command = Command::new(
         state.cache_manager.clone(),
         state.message_storage_adapter.clone(),
@@ -269,17 +269,17 @@ async fn handle_socket<S>(
                             }
                         }
                         Ok(Message::Text(data)) => {
-                            debug!(
+                            info!(
                                 "websocket server receives a TEXT message with the following content: {data}"
                             );
                         }
                         Ok(Message::Ping(data)) => {
-                            debug!(
+                            info!(
                                 "websocket server receives a Ping message with the following content: {data:?}"
                             );
                         }
                         Ok(Message::Pong(data)) => {
-                            debug!(
+                            info!(
                                 "websocket server receives a Pong message with the following content: {data:?}"
                             );
                         }
@@ -297,11 +297,11 @@ async fn handle_socket<S>(
                             break;
                         }
                         Err(e) => {
-                            debug!("websocket server parsing request packet error, error message :{e:?}");
+                            info!("websocket server parsing request packet error, error message :{e:?}");
                         },
                     }
                 } else {
-                    debug!("Web socket server receives an empty request packet");
+                    info!("Web socket server receives an empty request packet");
                 }
             }
         }

@@ -20,6 +20,7 @@ pub mod http_response;
 pub mod logs;
 pub mod metrics;
 pub mod runtime;
+pub mod telemetry;
 pub mod tools;
 pub mod utils;
 pub mod version;

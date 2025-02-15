@@ -15,13 +15,6 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use grpc_clients::pool::ClientPool;
-use log::info;
-use protocol::mqtt::common::{
-    is_mqtt3, is_mqtt4, is_mqtt5, ConnectReturnCode, DisconnectReasonCode, MqttPacket, MqttProtocol,
-};
-use storage_adapter::storage::StorageAdapter;
-
 use super::flow_control::is_qos_message;
 use super::mqtt::MqttService;
 use crate::handler::cache::CacheManager;
@@ -32,6 +25,15 @@ use crate::security::AuthDriver;
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::subscribe_manager::SubscribeManager;
+use common_base::telemetry::trace::CustomContext;
+use grpc_clients::pool::ClientPool;
+use log::info;
+use opentelemetry::global;
+use opentelemetry::trace::{Span, SpanKind, Tracer};
+use protocol::mqtt::common::{
+    is_mqtt3, is_mqtt4, is_mqtt5, ConnectReturnCode, DisconnectReasonCode, MqttPacket, MqttProtocol,
+};
+use storage_adapter::storage::StorageAdapter;
 
 // S: message storage adapter
 #[derive(Clone)]
@@ -188,6 +190,18 @@ where
             }
 
             MqttPacket::Publish(publish, publish_properties) => {
+                let mut context = CustomContext::default();
+                if let Some(ref p) = publish_properties {
+                    p.user_properties.iter().for_each(|(k, v)| {
+                        context.inner.insert(k.clone(), v.clone());
+                    });
+                };
+                let parent_cx = global::get_text_map_propagator(|prop| prop.extract(&context));
+                let tracer = global::tracer("robustmq/publish");
+                let mut span = tracer
+                    .span_builder("command/publish")
+                    .with_kind(SpanKind::Server)
+                    .start_with_context(&tracer, &parent_cx);
                 let connection = if let Some(se) = self
                     .metadata_cache
                     .connection_info
@@ -240,7 +254,11 @@ where
                         connection.recv_qos_message_decr();
                     }
                 }
-
+                // span add_event
+                span.add_event(
+                    format!("connection_id: {:?}", tcp_connection.connection_id),
+                    vec![],
+                );
                 return resp;
             }
 
