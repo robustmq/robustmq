@@ -13,22 +13,19 @@
 // limitations under the License.
 
 use crate::storage::topic::TopicStorage;
-use crate::{
-    security::AuthDriver, storage::cluster::ClusterStorage,
-    subscribe::subscribe_manager::SubscribeManager,
-};
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+use crate::{security::AuthDriver, subscribe::subscribe_manager::SubscribeManager};
 use grpc_clients::pool::ClientPool;
 use log::error;
+use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::user::MqttUser;
-use metadata_struct::mqtt::{cluster::MqttClusterDynamicConfig, session::MqttSession};
 use protocol::broker_mqtt::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateMqttCacheRequest,
 };
 use std::sync::Arc;
 
+use super::cluster_config::build_cluster_config;
 use super::{cache::CacheManager, sub_exclusive::remove_exclusive_subscribe_by_path};
 
 pub async fn load_metadata_cache(
@@ -36,12 +33,9 @@ pub async fn load_metadata_cache(
     client_pool: &Arc<ClientPool>,
     auth_driver: &Arc<AuthDriver>,
 ) {
-    let conf = broker_mqtt_conf();
     // load cluster config
-    let cluster_storage = ClusterStorage::new(client_pool.clone());
-    let cluster = match cluster_storage.get_cluster_config(&conf.cluster_name).await {
-        Ok(Some(cluster)) => cluster,
-        Ok(None) => MqttClusterDynamicConfig::new(),
+    let cluster = match build_cluster_config(client_pool).await {
+        Ok(cluster) => cluster,
         Err(e) => {
             panic!(
                 "Failed to load the cluster configuration with error message:{}",

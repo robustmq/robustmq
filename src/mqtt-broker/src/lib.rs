@@ -56,12 +56,12 @@ lazy_static! {
     pub static ref BROKER_START_TIME: u64 = now_second();
 }
 
+pub mod bridge;
 pub mod handler;
 pub mod observability;
 pub mod security;
 mod server;
 pub mod storage;
-pub mod bridge;
 mod subscribe;
 
 pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {

@@ -151,7 +151,7 @@ mod test {
     pub async fn build_connection_test() {
         let connect_id = 1;
         let client_id = "client_id-***".to_string();
-        let cluster = MqttClusterDynamicConfig::new();
+        let cluster = MqttClusterDynamicConfig::default();
         let connect = Connect {
             keep_alive: 10,
             client_id: client_id.clone(),

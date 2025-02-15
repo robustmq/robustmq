@@ -19,7 +19,7 @@ mod tests {
     use common_base::config::broker_mqtt::{broker_mqtt_conf, init_broker_mqtt_conf_by_path};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::cluster::{
-        MqttClusterDynamicConfig, MqttClusterDynamicConfigProtocol,
+        MqttClusterDynamicConfig, MqttClusterDynamicConfigProtocol, DEFAULT_DYNAMIC_CONFIG_PROTOCOL,
     };
     use mqtt_broker::storage::cluster::ClusterStorage;
 
@@ -59,34 +59,35 @@ mod tests {
         let cluster_storage = ClusterStorage::new(client_pool);
 
         let cluster_name = "robust_test".to_string();
-        let cluster = MqttClusterDynamicConfig {
-            protocol: MqttClusterDynamicConfigProtocol {
-                topic_alias_max: 999,
-                ..Default::default()
-            },
+        let protocol = MqttClusterDynamicConfigProtocol {
+            topic_alias_max: 999,
             ..Default::default()
         };
         cluster_storage
-            .set_cluster_config(&cluster_name, cluster)
+            .set_dynamic_config(
+                &cluster_name,
+                DEFAULT_DYNAMIC_CONFIG_PROTOCOL,
+                protocol.encode(),
+            )
             .await
             .unwrap();
 
         let result = cluster_storage
-            .get_cluster_config(&cluster_name)
+            .get_dynamic_config(&cluster_name, DEFAULT_DYNAMIC_CONFIG_PROTOCOL)
             .await
-            .unwrap()
             .unwrap();
-        assert_eq!(result.protocol.topic_alias_max, 999);
+        let result: MqttClusterDynamicConfigProtocol = serde_json::from_slice(&result).unwrap();
+        assert_eq!(result.topic_alias_max, 999);
 
         cluster_storage
-            .delete_cluster_config(&cluster_name)
+            .delete_dynamic_config(&cluster_name, DEFAULT_DYNAMIC_CONFIG_PROTOCOL)
             .await
             .unwrap();
 
         let result = cluster_storage
-            .get_cluster_config(&cluster_name)
+            .get_dynamic_config(&cluster_name, DEFAULT_DYNAMIC_CONFIG_PROTOCOL)
             .await
             .unwrap();
-        assert!(result.is_none());
+        assert!(result.is_empty());
     }
 }

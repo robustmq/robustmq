@@ -22,7 +22,6 @@ use grpc_clients::placement::inner::call::{
     set_resource_config, unregister_node,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::node_extend::MqttNodeExtend;
 use metadata_struct::placement::node::BrokerNode;
 use protocol::placement_center::placement_center_inner::{
@@ -109,17 +108,18 @@ impl ClusterStorage {
         Ok(())
     }
 
-    pub async fn set_cluster_config(
+    pub async fn set_dynamic_config(
         &self,
         cluster_name: &str,
-        cluster: MqttClusterDynamicConfig,
+        resource: &str,
+        data: Vec<u8>,
     ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
-        let resources = self.cluster_config_resources(cluster_name.to_string());
+        let resources = self.dynamic_config_resources(cluster_name, resource);
         let request = SetResourceConfigRequest {
             cluster_name: cluster_name.to_string(),
             resources,
-            config: cluster.encode(),
+            config: data,
         };
 
         set_resource_config(&self.client_pool, &config.placement_center, request).await?;
@@ -127,9 +127,13 @@ impl ClusterStorage {
         Ok(())
     }
 
-    pub async fn delete_cluster_config(&self, cluster_name: &str) -> Result<(), CommonError> {
+    pub async fn delete_dynamic_config(
+        &self,
+        cluster_name: &str,
+        resource: &str,
+    ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
-        let resources = self.cluster_config_resources(cluster_name.to_string());
+        let resources = self.dynamic_config_resources(cluster_name, resource);
         let request = DeleteResourceConfigRequest {
             cluster_name: cluster_name.to_string(),
             resources,
@@ -139,33 +143,28 @@ impl ClusterStorage {
         Ok(())
     }
 
-    pub async fn get_cluster_config(
+    pub async fn get_dynamic_config(
         &self,
         cluster_name: &str,
-    ) -> Result<Option<MqttClusterDynamicConfig>, CommonError> {
+        resource: &str,
+    ) -> Result<Vec<u8>, CommonError> {
         let config = broker_mqtt_conf();
-        let resources = self.cluster_config_resources(cluster_name.to_string());
+        let resources = self.dynamic_config_resources(cluster_name, resource);
         let request = GetResourceConfigRequest {
             cluster_name: cluster_name.to_string(),
             resources,
         };
 
-        match get_resource_config(&self.client_pool, &config.placement_center, request).await {
-            Ok(data) => {
-                if data.config.is_empty() {
-                    Ok(None)
-                } else {
-                    match serde_json::from_slice::<MqttClusterDynamicConfig>(&data.config) {
-                        Ok(data) => Ok(Some(data)),
-                        Err(e) => Err(CommonError::CommonError(e.to_string())),
-                    }
-                }
-            }
-            Err(e) => Err(e),
-        }
+        let reply =
+            get_resource_config(&self.client_pool, &config.placement_center, request).await?;
+        Ok(reply.config)
     }
 
-    fn cluster_config_resources(&self, cluster_name: String) -> Vec<String> {
-        vec!["cluster".to_string(), cluster_name]
+    fn dynamic_config_resources(&self, cluster_name: &str, resource: &str) -> Vec<String> {
+        vec![
+            "cluster".to_string(),
+            cluster_name.to_string(),
+            resource.to_string(),
+        ]
     }
 }

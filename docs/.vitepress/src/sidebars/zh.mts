@@ -104,6 +104,17 @@ export const sidebar = [
             { text: "MQTT Over Quic", link: "" },
             { text: "GRPC Admin 接口", link: "" },
             { text: "Bench 性能压测", link: "" },
+            {
+                text: "客户端 SDK",
+                collapsed: true,
+                items: [
+                    { text: "使用 C SDK 连接", link: "" },
+                    { text: "使用 Java SDK 连接", link: "" },
+                    { text: "使用 Go SDK 连接", link: "" },
+                    { text: "使用 Python SDK 连接", link: "" },
+                    { text: "使用 JavaScript SDK 连接", link: "" },
+                ]
+            },
         ],
     },
     {
