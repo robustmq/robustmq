@@ -202,7 +202,6 @@ mod tests {
 
         let conn_opts = build_conn_pros(client_test_properties.clone(), false);
         assert!(cli.connect(conn_opts.clone()).is_err());
-        distinct_conn(cli);
     }
 
     fn test_correct_connect(client_test_properties: &ClientTestProperties) {
