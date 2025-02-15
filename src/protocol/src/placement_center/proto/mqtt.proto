@@ -136,7 +136,7 @@ service MqttService {
   // - `cluster_name: String`: The name of the cluster.
   // - `topic_name: String`: The name of the topic.
   //
-  //Returns: 
+  //Returns:
   // - `success: bool`: Is set the exclusive topic successfully.
   rpc SetNXExclusiveTopic(SetExclusiveTopicRequest) returns(SetExclusiveTopicReply){}
 
@@ -146,7 +146,7 @@ service MqttService {
   // - `cluster_name: String`: The name of the cluster.
   // - `topic_name: String`: The name of the topic.
   //
-  //Returns: An empty struct. 
+  //Returns: An empty struct.
   rpc DeleteExclusiveTopic(DeleteExclusiveTopicRequest) returns(DeleteExclusiveTopicReply){}
 
   //Gets the share sub leader based on the request
@@ -183,7 +183,7 @@ service MqttService {
   //Deletes the corresponding ACL based on the request
   //
   //Parameters:
-  // - `cluster_name: String`: The name of the cluster. 
+  // - `cluster_name: String`: The name of the cluster.
   // - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
   //
   //Returns: An empty struct.
@@ -539,7 +539,7 @@ message CreateBlacklistRequest{
 }
 
 message CreateBlacklistReply{
-    
+
 }
 
 message DeleteBlacklistRequest{

@@ -29,7 +29,7 @@ use crate::handler::topic_rewrite::process_publish_topic_rewrite;
 use crate::storage::message::cluster_name;
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::sub_common::{
-    decode_queue_info, decode_share_info, is_queue_sub, is_share_sub,
+    extract_group_name_and_sub_path, extract_queue_topic_name, is_queue_sub, is_share_sub,
 };
 
 pub fn payload_format_validator(
@@ -148,13 +148,13 @@ where
 pub fn gen_rewrite_topic(input: &str, pattern: &str, template: &str) -> Option<String> {
     let mut prefix = String::new();
     let topic = if is_share_sub(input) {
-        let (group, group_path) = decode_share_info(input);
+        let (group, group_path) = extract_group_name_and_sub_path(input);
         let share_prefix = format!("$share/{}", group);
         prefix = share_prefix.clone();
         group_path
     } else if is_queue_sub(input) {
         prefix = "$queue".to_string();
-        decode_queue_info(input)
+        extract_queue_topic_name(input)
     } else {
         input.to_string()
     };
