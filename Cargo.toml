@@ -77,6 +77,11 @@ grep = "0.3.2"
 prometheus = "0.13.3"
 prometheus_exporter = "0.8"
 prometheus-client = "0.23.1"
+# b6783a10984146c62ceaa6997fef1385d2ee5ae8
+#
+opentelemetry = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = ["trace"] }
+opentelemetry_sdk = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = ["rt-tokio"] }
+opentelemetry-otlp = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = ["grpc-tonic"] }
 ## other
 signal-hook = "0.3.17"
 lazy_static = "^1.4"

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::broker_mqtt::{Network, OfflineMessage, System, TcpThread};
-use super::common::{Auth, Log, Storage};
+use super::common::{Auth, Log, Storage, Telemetry};
 
 pub fn default_grpc_port() -> u32 {
     9981
@@ -105,5 +105,13 @@ pub fn default_auth() -> Auth {
         storage_type: "memory".to_string(),
         journal_addr: "".to_string(),
         mysql_addr: "".to_string(),
+    }
+}
+
+pub fn default_telemetry() -> Telemetry {
+    Telemetry {
+        enable: false,
+        exporter_endpoint: "grpc://127.0.0.1:4317".to_string(),
+        exporter_type: "otlp".to_string(),
     }
 }
