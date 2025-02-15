@@ -44,3 +44,6 @@ clap.workspace = true
 regex.workspace = true
 opendal.workspace = true
 prometheus-client.workspace = true
+opentelemetry.workspace = true
+opentelemetry_sdk.workspace = true
+opentelemetry-otlp.workspace = true

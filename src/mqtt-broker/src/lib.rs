@@ -148,6 +148,8 @@ where
     }
 
     pub fn start(&self, stop_send: broadcast::Sender<bool>) {
+        self.start_tracer_provider();
+
         self.register_node();
         self.start_cluster_heartbeat_report(stop_send.clone());
 
@@ -170,6 +172,11 @@ where
         self.awaiting_stop(stop_send);
     }
 
+    fn start_tracer_provider(&self) {
+        self.runtime.spawn(async move {
+            common_base::telemetry::trace::init_tracer_provider(broker_mqtt_conf()).await;
+        });
+    }
     fn start_mqtt_server(&self, stop_send: broadcast::Sender<bool>) {
         let cache = self.cache_manager.clone();
         let message_storage_adapter = self.message_storage_adapter.clone();
@@ -404,6 +411,7 @@ where
     async fn stop_server(&self) {
         let cluster_storage = ClusterStorage::new(self.client_pool.clone());
         let config = broker_mqtt_conf();
+        common_base::telemetry::trace::stop_tracer_provider().await;
         match cluster_storage.unregister_node(config).await {
             Ok(()) => {
                 info!("Node {} exits successfully", config.broker_id);
