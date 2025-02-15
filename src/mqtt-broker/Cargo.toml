@@ -53,3 +53,4 @@ grep.workspace = true
 # observability
 prometheus.workspace = true
 prometheus-client.workspace = true
+rate-limiter.workspace = true

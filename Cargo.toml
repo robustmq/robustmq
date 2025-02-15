@@ -29,6 +29,7 @@ members = [
     "src/common/base",
     "src/common/rocksdb-engine",
     "src/common/metadata-struct",
+    "src/common/rate-limiter",
     "src/common/third-driver",
     "src/protocol",
     "src/journal-server",
@@ -114,6 +115,8 @@ openraft = { git = "https://github.com/databendlabs/openraft.git", features = [
 validator = { version = "0.18", features = ["derive"] }
 rand = "0.8.5"
 opendal = { version = "0.51", features = ["services-s3"] }
+governor = "0.8.0"
+nonzero_ext = { version = "0.3.0", default-features = false }
 #format
 prettytable-rs = "^0.10"
 
@@ -137,6 +140,7 @@ cmd = { path = "src/cmd" }
 common-base = { path = "src/common/base" }
 rocksdb-engine = { path = "src/common/rocksdb-engine" }
 metadata-struct = { path = "src/common/metadata-struct" }
+rate-limiter = { path = "src/common/rate-limiter" }
 third-driver = { path = "src/common/third-driver" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }

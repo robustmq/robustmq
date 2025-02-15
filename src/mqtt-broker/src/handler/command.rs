@@ -32,6 +32,7 @@ use crate::security::AuthDriver;
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::subscribe_manager::SubscribeManager;
+use rate_limiter::token_bucket::get_default_rate_limiter_manager;
 
 // S: message storage adapter
 #[derive(Clone)]
@@ -117,6 +118,20 @@ where
                 last_will_properties,
                 login,
             ) => {
+                //
+                if get_default_rate_limiter_manager()
+                    .get_or_register("CONNECT_PACKET".to_string())
+                    .await
+                    .check_key()
+                    .await
+                {
+                    return Some(response_packet_mqtt_connect_fail(
+                        &tcp_connection.get_protocol(),
+                        ConnectReturnCode::ConnectionRateExceeded,
+                        &None,
+                        None,
+                    ));
+                }
                 connect_manager
                     .set_connect_protocol(tcp_connection.connection_id, protocol_version);
 
@@ -188,6 +203,19 @@ where
             }
 
             MqttPacket::Publish(publish, publish_properties) => {
+                if get_default_rate_limiter_manager()
+                    .get_or_register(tcp_connection.connection_id.to_string())
+                    .await
+                    .check_key()
+                    .await
+                {
+                    return Some(response_packet_mqtt_connect_fail(
+                        &tcp_connection.get_protocol(),
+                        ConnectReturnCode::ConnectionRateExceeded,
+                        &None,
+                        None,
+                    ));
+                }
                 let connection = if let Some(se) = self
                     .metadata_cache
                     .connection_info
