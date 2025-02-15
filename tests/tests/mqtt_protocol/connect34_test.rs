@@ -142,9 +142,9 @@ mod tests {
 
         let request = EnableFlappingDetectRequest {
             is_enable: true,
-            window_time: 20,
-            max_client_connections: 2,
-            ban_time: 5,
+            window_time: 60,
+            max_client_connections: 20,
+            ban_time: 1,
         };
 
         let _reply = mqtt_broker_enable_flapping_detect(&client_pool, &grpc_addr, request)
@@ -158,9 +158,9 @@ mod tests {
 
         let request = EnableFlappingDetectRequest {
             is_enable: false,
-            window_time: 20,
-            max_client_connections: 2,
-            ban_time: 5,
+            window_time: 60,
+            max_client_connections: 20,
+            ban_time: 1,
         };
 
         let _reply = mqtt_broker_enable_flapping_detect(&client_pool, &grpc_addr, request)
@@ -168,7 +168,6 @@ mod tests {
             .unwrap();
     }
 
-    #[ignore = "reason: flapping detect is not supported in v3"]
     #[tokio::test]
     async fn client_flapping_detect_test() {
         open_flapping_detect().await;
@@ -181,51 +180,17 @@ mod tests {
             ssl: false,
         };
 
-        let create_opts = build_create_pros(
-            &client_test_properties.client_id,
-            &client_test_properties.addr,
-        );
-        let cli = Client::new(create_opts).unwrap_or_else(|err| {
-            println!("Error creating the client: {:?}", err);
-            process::exit(1);
-        });
+        for _i in 0..20 {
+            test_correct_connect(&client_test_properties);
+        }
 
-        let conn_opts = build_conn_pros(client_test_properties.clone(), false);
+        test_correct_connect(&client_test_properties);
+        test_fail_connect(&client_test_properties);
 
-        assert!(cli.connect(conn_opts.clone()).is_ok());
+        close_flapping_detect().await;
+    }
 
-        distinct_conn(cli);
-
-        let create_opts = build_create_pros(
-            &client_test_properties.client_id,
-            &client_test_properties.addr,
-        );
-        let cli = Client::new(create_opts).unwrap_or_else(|err| {
-            println!("Error creating the client: {:?}", err);
-            process::exit(1);
-        });
-
-        let conn_opts = build_conn_pros(client_test_properties.clone(), false);
-
-        assert!(cli.connect(conn_opts.clone()).is_ok());
-
-        distinct_conn(cli);
-
-        let create_opts = build_create_pros(
-            &client_test_properties.client_id,
-            &client_test_properties.addr,
-        );
-        let cli = Client::new(create_opts).unwrap_or_else(|err| {
-            println!("Error creating the client: {:?}", err);
-            process::exit(1);
-        });
-
-        let conn_opts = build_conn_pros(client_test_properties.clone(), false);
-
-        assert!(cli.connect(conn_opts.clone()).is_ok());
-
-        distinct_conn(cli);
-
+    fn test_fail_connect(client_test_properties: &ClientTestProperties) {
         let create_opts = build_create_pros(
             &client_test_properties.client_id,
             &client_test_properties.addr,
@@ -237,7 +202,22 @@ mod tests {
 
         let conn_opts = build_conn_pros(client_test_properties.clone(), false);
         assert!(cli.connect(conn_opts.clone()).is_err());
+    }
 
-        close_flapping_detect().await;
+    fn test_correct_connect(client_test_properties: &ClientTestProperties) {
+        let create_opts = build_create_pros(
+            &client_test_properties.client_id,
+            &client_test_properties.addr,
+        );
+        let cli = Client::new(create_opts).unwrap_or_else(|err| {
+            println!("Error creating the client: {:?}", err);
+            process::exit(1);
+        });
+
+        let conn_opts = build_conn_pros(client_test_properties.clone(), false);
+
+        assert!(cli.connect(conn_opts.clone()).is_ok());
+
+        distinct_conn(cli);
     }
 }

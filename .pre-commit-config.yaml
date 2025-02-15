@@ -115,12 +115,13 @@ repos:
         language: system
         files: \.rs$
         pass_filenames: false
-      - id: cargo-test
-        stages:
-          - pre-push
-        name: cargo test
-        description: unit test for the project
-        entry: bash -c 'make test'
-        language: system
-        files: \.rs$
-        pass_filenames: false
+# we think it is not necessary to run tests in pre-commit
+#      - id: cargo-test
+#        stages:
+#          - pre-push
+#        name: cargo test
+#        description: unit test for the project
+#        entry: bash -c 'make test'
+#        language: system
+#        files: \.rs$
+#        pass_filenames: false

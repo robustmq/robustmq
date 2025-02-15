@@ -36,14 +36,14 @@ mod tests {
     async fn test_enable_flapping_detect() {
         // per
         let request = EnableFlappingDetectRequest {
-            is_enable: false,
-            window_time: 0,
-            max_client_connections: 0,
-            ban_time: 0,
+            is_enable: true,
+            window_time: 1,
+            max_client_connections: 15,
+            ban_time: 1,
         };
 
         // result
-        let reply = EnableFlappingDetectReply { is_enable: false };
+        let reply = EnableFlappingDetectReply { is_enable: true };
 
         // action
         match open_flapping_detect(request).await {
@@ -56,20 +56,17 @@ mod tests {
                 std::process::exit(1);
             }
         }
-    }
 
-    #[tokio::test]
-    async fn test_enable_flapping_detect_is_true() {
         // per
         let request = EnableFlappingDetectRequest {
-            is_enable: true,
+            is_enable: false,
             window_time: 1,
             max_client_connections: 15,
             ban_time: 1,
         };
 
         // result
-        let reply = EnableFlappingDetectReply { is_enable: true };
+        let reply = EnableFlappingDetectReply { is_enable: false };
 
         // action
         match open_flapping_detect(request).await {
