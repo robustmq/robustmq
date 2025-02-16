@@ -139,7 +139,6 @@ pub async fn disconnect_connection(
 
 #[cfg(test)]
 mod test {
-    use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
     use protocol::mqtt::common::{Connect, ConnectProperties};
 
     use crate::handler::cluster_config::build_default_cluster_config;
