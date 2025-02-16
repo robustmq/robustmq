@@ -39,6 +39,6 @@ bin/robust-server mqtt stop
 5. 查看日志
 
 ```shell
-tail -fn 300 logs/placement-center-nohub.log
-tail -fn 300 logs/mqtt-server-nohub.log
+tail -fn 300 logs/placement-center-nohup.log
+tail -fn 300 logs/mqtt-server-nohup.log
 ```

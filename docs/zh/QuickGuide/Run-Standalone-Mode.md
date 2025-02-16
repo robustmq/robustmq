@@ -28,16 +28,16 @@ bin/robust-server place start config/placement-center.toml
 bin/robust-server mqtt start config/mqtt-server.toml
 ```
 
-4. 停止服务
+5. 停止服务
 
 ```shell
 bin/robust-server place stop
 bin/robust-server mqtt stop
 ```
 
-5. 查看日志
+6. 查看日志
 
 ```shell
-tail -fn 300 logs/placement-center-nohub.log
-tail -fn 300 logs/mqtt-server-nohub.log
+tail -fn 300 logs/placement-center-nohup.log
+tail -fn 300 logs/mqtt-server-nohup.log
 ```
