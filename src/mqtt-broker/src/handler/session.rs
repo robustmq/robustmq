@@ -141,7 +141,7 @@ mod test {
     use protocol::mqtt::common::ConnectProperties;
 
     use super::session_expiry_interval;
-    use crate::handler::cache::CacheManager;
+    use crate::handler::{cache::CacheManager, cluster_config::build_default_cluster_config};
 
     #[tokio::test]
     pub async fn build_session_test() {
@@ -169,6 +169,7 @@ mod test {
             client_pool.clone(),
             conf.cluster_name.clone(),
         ));
+        cache_manager.set_cluster_info(build_default_cluster_config());
         let res = session_expiry_interval(&cache_manager, &None);
         assert_eq!(
             res,

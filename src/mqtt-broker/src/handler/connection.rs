@@ -142,6 +142,8 @@ mod test {
     use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
     use protocol::mqtt::common::{Connect, ConnectProperties};
 
+    use crate::handler::cluster_config::build_default_cluster_config;
+
     use super::{
         build_connection, get_client_id, response_information, MQTTConnection,
         REQUEST_RESPONSE_PREFIX_NAME,
@@ -151,7 +153,7 @@ mod test {
     pub async fn build_connection_test() {
         let connect_id = 1;
         let client_id = "client_id-***".to_string();
-        let cluster = MqttClusterDynamicConfig::default();
+        let cluster = build_default_cluster_config();
         let connect = Connect {
             keep_alive: 10,
             client_id: client_id.clone(),
