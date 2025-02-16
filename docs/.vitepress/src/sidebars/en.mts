@@ -103,6 +103,17 @@ export const sidebar = [
             { text: "MQTT Over Quic", link: "" },
             { text: "GRPC Admin Interface", link: "" },
             { text: "Performance Bench", link: "" },
+            {
+                text: "Client SDK",
+                collapsed: true,
+                items: [
+                    { text: "C SDK", link: "" },
+                    { text: "Java SDK", link: "" },
+                    { text: "Go SDK", link: "" },
+                    { text: "Python SDK", link: "" },
+                    { text: "JavaScript SDK", link: "" },
+                ]
+            },
         ],
     },
 

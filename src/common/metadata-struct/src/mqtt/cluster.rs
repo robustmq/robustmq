@@ -15,6 +15,11 @@
 use protocol::mqtt::common::QoS;
 use serde::{Deserialize, Serialize};
 
+pub const DEFAULT_DYNAMIC_CONFIG_SLOW_SUB: &str = "slow_sub";
+pub const DEFAULT_DYNAMIC_CONFIG_FLAPPING_DETECT: &str = "flapping_detect";
+pub const DEFAULT_DYNAMIC_CONFIG_PROTOCOL: &str = "protocol";
+pub const DEFAULT_DYNAMIC_CONFIG_OFFLINE_MESSAGE: &str = "offline_message";
+
 // Dynamic configuration of MQTT cluster latitude
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct MqttClusterDynamicConfig {
@@ -41,11 +46,23 @@ pub struct MqttClusterDynamicConfigProtocol {
     pub client_pkid_persistent: bool,
 }
 
+impl MqttClusterDynamicConfigProtocol {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
+    }
+}
+
 // MQTT cluster security related dynamic configuration
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct MqttClusterDynamicConfigSecurity {
     pub is_self_protection_status: bool,
     pub secret_free_login: bool,
+}
+
+impl MqttClusterDynamicConfigSecurity {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
+    }
 }
 
 // MQTT cluster network related dynamic configuration
@@ -76,6 +93,11 @@ pub struct MqttClusterDynamicSlowSub {
     pub internal_ms: u32,
     pub response_ms: u32,
 }
+impl MqttClusterDynamicSlowSub {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
+    }
+}
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct MqttClusterDynamicFlappingDetect {
@@ -85,60 +107,18 @@ pub struct MqttClusterDynamicFlappingDetect {
     pub ban_time: u32,
 }
 
+impl MqttClusterDynamicFlappingDetect {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
+    }
+}
+
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct MqttClusterDynamicOfflineMessage {
     pub enable: bool,
 }
 
 impl MqttClusterDynamicConfig {
-    pub fn new() -> Self {
-        MqttClusterDynamicConfig {
-            protocol: MqttClusterDynamicConfigProtocol {
-                session_expiry_interval: 1800,
-                topic_alias_max: 65535,
-                max_qos: QoS::ExactlyOnce,
-                max_packet_size: 1024 * 1024 * 10,
-                max_server_keep_alive: 3600,
-                default_server_keep_alive: 60,
-                receive_max: 65535,
-                client_pkid_persistent: false,
-                max_message_expiry_interval: 3600,
-            },
-            feature: MqttClusterDynamicConfigFeature {
-                retain_available: AvailableFlag::Enable,
-                wildcard_subscription_available: AvailableFlag::Enable,
-                subscription_identifiers_available: AvailableFlag::Enable,
-                shared_subscription_available: AvailableFlag::Enable,
-                exclusive_subscription_available: AvailableFlag::Enable,
-            },
-            security: MqttClusterDynamicConfigSecurity {
-                secret_free_login: false,
-                is_self_protection_status: false,
-            },
-            network: MqttClusterDynamicConfigNetwork {
-                tcp_max_connection_num: 1000,
-                tcps_max_connection_num: 1000,
-                websocket_max_connection_num: 1000,
-                websockets_max_connection_num: 1000,
-                response_max_try_mut_times: 128,
-                response_try_mut_sleep_time_ms: 100,
-            },
-            slow: MqttClusterDynamicSlowSub {
-                enable: false,
-                whole_ms: 0,
-                internal_ms: 0,
-                response_ms: 0,
-            },
-            flapping_detect: MqttClusterDynamicFlappingDetect {
-                enable: false,
-                window_time: 1,
-                max_client_connections: 15,
-                ban_time: 5,
-            },
-            offline_message: MqttClusterDynamicOfflineMessage { enable: true },
-        }
-    }
-
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
     }
