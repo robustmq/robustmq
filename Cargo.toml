@@ -121,6 +121,7 @@ rand = "0.8.5"
 opendal = { version = "0.51", features = ["services-s3"] }
 #format
 prettytable-rs = "^0.10"
+googletest = "0.13.0"
 
 
 

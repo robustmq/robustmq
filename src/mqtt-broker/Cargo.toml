@@ -54,3 +54,4 @@ grep.workspace = true
 prometheus.workspace = true
 prometheus-client.workspace = true
 opentelemetry.workspace = true
+googletest.workspace = true
