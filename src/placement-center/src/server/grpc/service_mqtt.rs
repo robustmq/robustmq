@@ -41,7 +41,9 @@ use tonic::{Request, Response, Status};
 use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
-use crate::mqtt::services::connnector::list_connector_by_req;
+use crate::mqtt::services::connnector::{
+    create_connector_by_req, delete_connector_by_req, list_connector_by_req,
+};
 use crate::mqtt::services::session::{
     delete_session_by_req, list_session_by_req, save_session_by_req, update_session_by_req,
 };
@@ -618,8 +620,18 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<CreateConnectorRequest>,
     ) -> Result<Response<CreateConnectorReply>, Status> {
-        let _req = request.into_inner();
-        Ok(Response::new(CreateConnectorReply::default()))
+        let req = request.into_inner();
+        match create_connector_by_req(
+            &self.raft_machine_apply,
+            &self.mqtt_call_manager,
+            &self.client_pool,
+            req,
+        )
+        .await
+        {
+            Ok(()) => Ok(Response::new(CreateConnectorReply::default())),
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
     }
 
     async fn update_connector(
@@ -634,7 +646,18 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<DeleteConnectorRequest>,
     ) -> Result<Response<DeleteConnectorReply>, Status> {
-        let _req = request.into_inner();
-        Ok(Response::new(DeleteConnectorReply::default()))
+        let req = request.into_inner();
+        match delete_connector_by_req(
+            &self.raft_machine_apply,
+            &self.mqtt_call_manager,
+            &self.client_pool,
+            &self.rocksdb_engine_handler,
+            req,
+        )
+        .await
+        {
+            Ok(()) => Ok(Response::new(DeleteConnectorReply::default())),
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
     }
 }

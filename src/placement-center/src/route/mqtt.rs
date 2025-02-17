@@ -23,8 +23,8 @@ use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use prost::Message as _;
 use protocol::placement_center::placement_center_mqtt::{
     CreateConnectorRequest, CreateSessionRequest, CreateTopicRequest,
-    CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteExclusiveTopicRequest,
-    DeleteSessionRequest, DeleteSubscribeRequest, DeleteTopicRequest,
+    CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteConnectorRequest,
+    DeleteExclusiveTopicRequest, DeleteSessionRequest, DeleteSubscribeRequest, DeleteTopicRequest,
     DeleteTopicRewriteRuleRequest, DeleteUserRequest, SaveLastWillMessageRequest,
     SetExclusiveTopicRequest, SetSubscribeRequest, UpdateSessionRequest,
 };
@@ -199,13 +199,9 @@ impl DataRouteMqtt {
     }
 
     pub fn delete_connector(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
-        let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
-        let req = DeleteSubscribeRequest::decode(value.as_ref())?;
-        if !req.path.is_empty() {
-            storage.delete_by_path(&req.cluster_name, &req.client_id, &req.path)?;
-        } else {
-            storage.delete_by_client_id(&req.cluster_name, &req.client_id)?;
-        }
+        let storage = MqttConnectorStorage::new(self.rocksdb_engine_handler.clone());
+        let req = DeleteConnectorRequest::decode(value.as_ref())?;
+        storage.delete(&req.cluster_name, &req.connector_name)?;
         Ok(())
     }
 }

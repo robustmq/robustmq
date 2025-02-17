@@ -668,7 +668,8 @@ message UpdateConnectorReply{
 }
 
 message DeleteConnectorRequest{
-
+    string cluster_name = 1;
+    string connector_name = 2;
 }
 
 message DeleteConnectorReply{

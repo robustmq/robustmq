@@ -229,11 +229,11 @@ impl DataRoute {
                 Ok(None)
             }
             StorageDataType::MqttSetConnector => {
-                self.route_mqtt.set_subscribe(storage_data.value)?;
+                self.route_mqtt.set_connector(storage_data.value)?;
                 Ok(None)
             }
             StorageDataType::MqttDeleteConnector => {
-                self.route_mqtt.delete_subscribe(storage_data.value)?;
+                self.route_mqtt.delete_connector(storage_data.value)?;
                 Ok(None)
             }
         }

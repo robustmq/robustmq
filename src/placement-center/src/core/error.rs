@@ -121,4 +121,7 @@ pub enum PlacementCenterError {
 
     #[error("Segment {0} is in the wrong state. It should not be sealed.")]
     SegmentWrongState(String),
+
+    #[error("Connector {0} Not found")]
+    ConnectorNotFound(String),
 }

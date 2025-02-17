@@ -16,14 +16,16 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use prost::Message;
 use protocol::placement_center::placement_center_mqtt::{
-    CreateConnectorRequest, ListConnectorRequest,
+    CreateConnectorRequest, DeleteConnectorRequest, ListConnectorRequest,
 };
 use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
 
 use crate::{
     core::error::PlacementCenterError,
-    mqtt::controller::call_broker::{update_cache_by_add_connector, MQTTInnerCallManager},
+    mqtt::controller::call_broker::{
+        update_cache_by_add_connector, update_cache_by_delete_connector, MQTTInnerCallManager,
+    },
     route::{
         apply::RaftMachineApply,
         data::{StorageData, StorageDataType},
@@ -67,6 +69,37 @@ pub async fn create_connector_by_req(
     let connector = serde_json::from_slice::<MQTTConnector>(&req.connector)?;
     update_cache_by_add_connector(&req.cluster_name, call_manager, client_pool, connector).await?;
 
+    start_connector();
+    Ok(())
+}
+
+pub async fn delete_connector_by_req(
+    raft_machine_apply: &Arc<RaftMachineApply>,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    req: DeleteConnectorRequest,
+) -> Result<(), PlacementCenterError> {
+    let storage = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
+    let connector = storage.get(&req.cluster_name, &req.connector_name)?;
+    if connector.is_none() {
+        return Err(PlacementCenterError::ConnectorNotFound(req.connector_name));
+    }
+    let data = StorageData::new(
+        StorageDataType::MqttDeleteConnector,
+        DeleteConnectorRequest::encode_to_vec(&req),
+    );
+    raft_machine_apply.client_write(data).await?;
+
+    update_cache_by_delete_connector(
+        &req.cluster_name,
+        call_manager,
+        client_pool,
+        connector.unwrap(),
+    )
+    .await?;
+
+    stop_connector();
     Ok(())
 }
 
