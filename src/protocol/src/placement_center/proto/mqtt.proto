@@ -261,6 +261,14 @@ service MqttService {
   rpc SetSubscribe(SetSubscribeRequest) returns(SetSubscribeReply) {}
 
   rpc DeleteSubscribe(DeleteSubscribeRequest) returns(DeleteSubscribeReply) {}
+
+  rpc ListConnectors(ListConnectorRequest) returns(ListConnectorReply) {}
+
+  rpc CreateConnector(CreateConnectorRequest) returns(CreateConnectorReply) {}
+  
+  rpc UpdateConnector(UpdateConnectorRequest) returns(UpdateConnectorReply) {}
+
+  rpc DeleteConnector(DeleteConnectorRequest) returns(DeleteConnectorReply) {}
 }
 
 message GetShareSubLeaderRequest{
@@ -629,4 +637,40 @@ message ListSubscribeRequest{
 
 message ListSubscribeReply{
     repeated bytes subscribes = 1;
+}
+
+
+message ListConnectorRequest{
+    string cluster_name = 1;
+    string connector_name = 2;
+}
+
+message ListConnectorReply{
+    repeated bytes connectors = 1;
+}
+
+message CreateConnectorRequest{
+    string cluster_name = 1;
+    string connector_name = 2;
+    bytes connector = 3;
+}
+
+message CreateConnectorReply{
+    
+}
+
+message UpdateConnectorRequest{
+
+}
+
+message UpdateConnectorReply{
+    
+}
+
+message DeleteConnectorRequest{
+
+}
+
+message DeleteConnectorReply{
+    
 }

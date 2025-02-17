@@ -12,10 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod acl;
-pub mod connnector;
-pub mod session;
-pub mod share_sub;
-pub mod subscribe;
-pub mod topic;
-pub mod user;
+use serde::{Deserialize, Serialize};
+
+use super::{connector_type::ConnectorType, status::MQTTStatus};
+
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub struct MQTTConnector {
+    pub connector_id: String,
+    pub name: String,
+    pub description: String,
+    pub status: MQTTStatus,
+    pub config: String,
+    pub connector_type: ConnectorType,
+    pub create_time: u64,
+    pub update_time: u64,
+}
+
+impl MQTTConnector {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
+    }
+}

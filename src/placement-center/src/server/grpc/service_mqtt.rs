@@ -18,19 +18,22 @@ use prost::Message;
 use protocol::placement_center::placement_center_mqtt::mqtt_service_server::MqttService;
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
-    CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
-    CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest,
-    DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
-    DeleteExclusiveTopicReply, DeleteExclusiveTopicRequest, DeleteSessionReply,
-    DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest, DeleteTopicReply,
-    DeleteTopicRequest, DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest,
-    DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
-    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply,
+    CreateConnectorReply, CreateConnectorRequest, CreateSessionReply, CreateSessionRequest,
+    CreateTopicReply, CreateTopicRequest, CreateTopicRewriteRuleReply,
+    CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
+    DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, DeleteConnectorReply,
+    DeleteConnectorRequest, DeleteExclusiveTopicReply, DeleteExclusiveTopicRequest,
+    DeleteSessionReply, DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest,
+    DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
+    GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
+    ListBlacklistRequest, ListConnectorReply, ListConnectorRequest, ListSessionReply,
     ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply, ListTopicRequest,
     ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
     SaveLastWillMessageReply, SaveLastWillMessageRequest, SetExclusiveTopicReply,
     SetExclusiveTopicRequest, SetSubscribeReply, SetSubscribeRequest, SetTopicRetainMessageReply,
-    SetTopicRetainMessageRequest, UpdateSessionReply, UpdateSessionRequest,
+    SetTopicRetainMessageRequest, UpdateConnectorReply, UpdateConnectorRequest, UpdateSessionReply,
+    UpdateSessionRequest,
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
@@ -38,6 +41,7 @@ use tonic::{Request, Response, Status};
 use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
+use crate::mqtt::services::connnector::list_connector_by_req;
 use crate::mqtt::services::session::{
     delete_session_by_req, list_session_by_req, save_session_by_req, update_session_by_req,
 };
@@ -597,5 +601,40 @@ impl MqttService for GrpcMqttService {
             Ok(_) => Ok(Response::new(DeleteSubscribeReply::default())),
             Err(e) => Err(Status::cancelled(e.to_string())),
         }
+    }
+
+    async fn list_connectors(
+        &self,
+        request: Request<ListConnectorRequest>,
+    ) -> Result<Response<ListConnectorReply>, Status> {
+        let req = request.into_inner();
+        match list_connector_by_req(&self.rocksdb_engine_handler, req).await {
+            Ok(data) => Ok(Response::new(ListConnectorReply { connectors: data })),
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn create_connector(
+        &self,
+        request: Request<CreateConnectorRequest>,
+    ) -> Result<Response<CreateConnectorReply>, Status> {
+        let _req = request.into_inner();
+        Ok(Response::new(CreateConnectorReply::default()))
+    }
+
+    async fn update_connector(
+        &self,
+        request: Request<UpdateConnectorRequest>,
+    ) -> Result<Response<UpdateConnectorReply>, Status> {
+        let _req = request.into_inner();
+        Ok(Response::new(UpdateConnectorReply::default()))
+    }
+
+    async fn delete_connector(
+        &self,
+        request: Request<DeleteConnectorRequest>,
+    ) -> Result<Response<DeleteConnectorReply>, Status> {
+        let _req = request.into_inner();
+        Ok(Response::new(DeleteConnectorReply::default()))
     }
 }

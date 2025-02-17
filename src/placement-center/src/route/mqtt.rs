@@ -15,19 +15,22 @@
 use std::sync::Arc;
 
 use common_base::utils::time_util::get_current_millisecond_timestamp;
+use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use prost::Message as _;
 use protocol::placement_center::placement_center_mqtt::{
-    CreateSessionRequest, CreateTopicRequest, CreateTopicRewriteRuleRequest, CreateUserRequest,
-    DeleteExclusiveTopicRequest, DeleteSessionRequest, DeleteSubscribeRequest, DeleteTopicRequest,
+    CreateConnectorRequest, CreateSessionRequest, CreateTopicRequest,
+    CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteExclusiveTopicRequest,
+    DeleteSessionRequest, DeleteSubscribeRequest, DeleteTopicRequest,
     DeleteTopicRewriteRuleRequest, DeleteUserRequest, SaveLastWillMessageRequest,
     SetExclusiveTopicRequest, SetSubscribeRequest, UpdateSessionRequest,
 };
 
 use crate::core::error::PlacementCenterError;
+use crate::storage::mqtt::connector::MqttConnectorStorage;
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::session::MqttSessionStorage;
 use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
@@ -177,6 +180,25 @@ impl DataRouteMqtt {
     }
 
     pub fn delete_subscribe(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+        let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
+        let req = DeleteSubscribeRequest::decode(value.as_ref())?;
+        if !req.path.is_empty() {
+            storage.delete_by_path(&req.cluster_name, &req.client_id, &req.path)?;
+        } else {
+            storage.delete_by_client_id(&req.cluster_name, &req.client_id)?;
+        }
+        Ok(())
+    }
+
+    pub fn set_connector(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+        let storage = MqttConnectorStorage::new(self.rocksdb_engine_handler.clone());
+        let req = CreateConnectorRequest::decode(value.as_ref())?;
+        let connector = serde_json::from_slice::<MQTTConnector>(&req.connector)?;
+        storage.save(&req.cluster_name, &req.connector_name, connector)?;
+        Ok(())
+    }
+
+    pub fn delete_connector(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
         let req = DeleteSubscribeRequest::decode(value.as_ref())?;
         if !req.path.is_empty() {

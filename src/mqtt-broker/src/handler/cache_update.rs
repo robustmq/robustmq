@@ -207,5 +207,9 @@ pub async fn update_cache_metadata(
                 }
             }
         },
+        MqttBrokerUpdateCacheResourceType::Connector => match request.action_type() {
+            MqttBrokerUpdateCacheActionType::Set => {}
+            MqttBrokerUpdateCacheActionType::Delete => {}
+        },
     }
 }
