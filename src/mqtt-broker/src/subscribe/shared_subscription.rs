@@ -13,14 +13,19 @@
 // limitations under the License.
 
 #[derive(Debug, PartialEq)]
-enum SubscriptionMode {
-    SharedWithGroup { group_name: String },
-    SharedWithoutGroup,
+enum SubscriptionType {
+    SharedWithGroup {
+        function_prefix: String,
+        group_name: String,
+    },
+    SharedWithoutGroup {
+        function_prefix: String,
+    },
 }
 
 #[derive(Debug, PartialEq)]
 struct SharedSubscription {
-    subscription_type: SubscriptionMode,
+    subscription_type: SubscriptionType,
     topic_pattern: String,
 }
 
@@ -29,21 +34,43 @@ impl SharedSubscription {
         let mut split_topic_name_with_function_prefix = topic_name_with_function_prefix
             .split('/')
             .collect::<Vec<&str>>();
+
+        let subscription_type =
+            Self::get_subscription_type(&mut split_topic_name_with_function_prefix);
+
+        let topic_pattern = Self::get_topic_pattern(&mut split_topic_name_with_function_prefix);
+
+        SharedSubscription {
+            subscription_type,
+            topic_pattern,
+        }
+    }
+
+    fn get_subscription_type(
+        mut split_topic_name_with_function_prefix: &mut Vec<&str>,
+    ) -> SubscriptionType {
         let function_prefix = split_topic_name_with_function_prefix.remove(0);
-        let subscription_mode = match function_prefix {
-            "$share" => SubscriptionMode::SharedWithGroup {
-                group_name: split_topic_name_with_function_prefix.remove(0).to_string(),
+        println!("{}", function_prefix);
+        match function_prefix {
+            "$share" => SubscriptionType::SharedWithGroup {
+                function_prefix: function_prefix.to_string(),
+                group_name: Self::get_group_name(&mut split_topic_name_with_function_prefix),
             },
-            "$queue" => SubscriptionMode::SharedWithoutGroup,
+            "$queue" => SubscriptionType::SharedWithoutGroup {
+                function_prefix: function_prefix.to_string(),
+            },
             _ => {
                 panic!("Invalid function prefix")
             }
-        };
-        let topic_name = split_topic_name_with_function_prefix.join("/");
-        SharedSubscription {
-            subscription_type: subscription_mode,
-            topic_pattern: topic_name,
         }
+    }
+
+    fn get_topic_pattern(split_topic_name_with_function_prefix: &mut Vec<&str>) -> String {
+        split_topic_name_with_function_prefix.join("/")
+    }
+
+    fn get_group_name(split_topic_name_with_function_prefix: &mut Vec<&str>) -> String {
+        split_topic_name_with_function_prefix.remove(0).to_string()
     }
 }
 
@@ -77,7 +104,8 @@ mod tests {
 
         assert_that!(
             subscription.subscription_type,
-            matches_pattern!(SubscriptionMode::SharedWithGroup {
+            matches_pattern!(SubscriptionType::SharedWithGroup {
+                function_prefix: eq("$share"),
                 group_name: anything()
             })
         );
@@ -89,7 +117,8 @@ mod tests {
 
         assert_that!(
             subscription.subscription_type,
-            matches_pattern!(SubscriptionMode::SharedWithGroup {
+            matches_pattern!(SubscriptionType::SharedWithGroup {
+                function_prefix: eq("$share"),
                 group_name: eq("group1")
             })
         )
@@ -101,7 +130,9 @@ mod tests {
 
         assert_that!(
             subscription.subscription_type,
-            eq(&SubscriptionMode::SharedWithoutGroup)
+            matches_pattern!(SubscriptionType::SharedWithoutGroup {
+                function_prefix: eq("$queue")
+            })
         )
     }
 
@@ -140,7 +171,8 @@ mod tests {
         assert_that!(
             subscription,
             eq(&SharedSubscription {
-                subscription_type: SubscriptionMode::SharedWithGroup {
+                subscription_type: SubscriptionType::SharedWithGroup {
+                    function_prefix: "$share".to_string(),
                     group_name: "group1".to_string()
                 },
                 topic_pattern: "topic".to_string()
@@ -155,7 +187,9 @@ mod tests {
         assert_that!(
             subscription,
             eq(&SharedSubscription {
-                subscription_type: SubscriptionMode::SharedWithoutGroup,
+                subscription_type: SubscriptionType::SharedWithoutGroup {
+                    function_prefix: "$queue".to_string()
+                },
                 topic_pattern: "topic".to_string()
             })
         )
