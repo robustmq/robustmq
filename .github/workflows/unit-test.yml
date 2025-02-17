@@ -42,7 +42,7 @@ jobs:
 
 
       - name: Install Protobuf Compiler
-        run: sudo apt-get install -y protobuf-compiler
+        run: apt-get install -y protobuf-compiler
 
       - uses: dtolnay/rust-toolchain@nightly
         with:
