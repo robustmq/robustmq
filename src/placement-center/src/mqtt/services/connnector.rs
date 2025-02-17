@@ -69,7 +69,7 @@ pub async fn create_connector_by_req(
     let connector = serde_json::from_slice::<MQTTConnector>(&req.connector)?;
     update_cache_by_add_connector(&req.cluster_name, call_manager, client_pool, connector).await?;
 
-    start_connector();
+    start_connector().await;
     Ok(())
 }
 
@@ -99,7 +99,7 @@ pub async fn delete_connector_by_req(
     )
     .await?;
 
-    stop_connector();
+    stop_connector().await;
     Ok(())
 }
 
