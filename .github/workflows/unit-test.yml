@@ -38,10 +38,10 @@ jobs:
     container:
       image: amd64/rust
     steps:
-      - name: Install LLVM and Clang
-        uses: KyleMayes/install-llvm-action@v2
-        with:
-          version: "10.0"
+      - name: Install LLVM and libclang
+        run: |
+          apt-get update
+          apt-get install -y libclang-dev llvm-dev
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
