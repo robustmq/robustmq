@@ -20,6 +20,7 @@ use grpc_clients::mqtt::inner::call::broker_mqtt_update_cache;
 use grpc_clients::pool::ClientPool;
 use log::warn;
 use log::{debug, error, info};
+use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::MqttTopic;
@@ -164,6 +165,40 @@ pub async fn update_cache_by_delete_session(
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
         resource_type: MqttBrokerUpdateCacheResourceType::Session,
+        cluster_name: cluster_name.to_string(),
+        data,
+    };
+    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    Ok(())
+}
+
+pub async fn update_cache_by_add_connector(
+    cluster_name: &str,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    session: MQTTConnector,
+) -> Result<(), PlacementCenterError> {
+    let data = serde_json::to_string(&session)?;
+    let message = MQTTInnerCallMessage {
+        action_type: MqttBrokerUpdateCacheActionType::Set,
+        resource_type: MqttBrokerUpdateCacheResourceType::Connector,
+        cluster_name: cluster_name.to_string(),
+        data,
+    };
+    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    Ok(())
+}
+
+pub async fn update_cache_by_delete_connector(
+    cluster_name: &str,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    session: MQTTConnector,
+) -> Result<(), PlacementCenterError> {
+    let data = serde_json::to_string(&session)?;
+    let message = MQTTInnerCallMessage {
+        action_type: MqttBrokerUpdateCacheActionType::Delete,
+        resource_type: MqttBrokerUpdateCacheResourceType::Connector,
         cluster_name: cluster_name.to_string(),
         data,
     };

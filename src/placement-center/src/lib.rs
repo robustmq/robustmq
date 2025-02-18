@@ -18,6 +18,7 @@ use std::time::Duration;
 use common_base::config::placement_center::placement_center_conf;
 use grpc_clients::pool::ClientPool;
 use log::info;
+use mqtt::cache::load_mqtt_cache;
 use mqtt::controller::call_broker::{mqtt_call_thread_manager, MQTTInnerCallManager};
 use openraft::Raft;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterServiceServer;
@@ -87,13 +88,9 @@ impl PlacementCenter {
         ));
 
         let engine_cache = Arc::new(JournalCacheManager::new());
-
         let cluster_cache: Arc<PlacementCacheManager> =
             Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
-        let mqtt_cache: Arc<MqttCacheManager> = Arc::new(MqttCacheManager::new(
-            rocksdb_engine_handler.clone(),
-            cluster_cache.clone(),
-        ));
+        let mqtt_cache: Arc<MqttCacheManager> = Arc::new(MqttCacheManager::new());
 
         let journal_call_manager = Arc::new(JournalInnerCallManager::new(cluster_cache.clone()));
         let mqtt_call_manager = Arc::new(MQTTInnerCallManager::new(cluster_cache.clone()));
@@ -115,6 +112,7 @@ impl PlacementCenter {
             self.rocksdb_engine_handler.clone(),
             self.cluster_cache.clone(),
             self.engine_cache.clone(),
+            self.mqtt_cache.clone(),
         ));
 
         self.start_call_thread();
@@ -272,9 +270,16 @@ impl PlacementCenter {
     }
 
     pub fn init_cache(&self) {
-        match load_journal_cache(&self.engine_cache, &self.rocksdb_engine_handler) {
-            Ok(()) => {}
-            Err(e) => panic!("Failed to load Journal Cache,{}", e),
+        if let Err(e) = load_journal_cache(&self.engine_cache, &self.rocksdb_engine_handler) {
+            panic!("Failed to load Journal Cache,{}", e);
+        }
+
+        if let Err(e) = load_mqtt_cache(
+            &self.mqtt_cache,
+            &self.rocksdb_engine_handler,
+            &self.cluster_cache,
+        ) {
+            panic!("Failed to load Mqtt Cache,{}", e);
         }
     }
 }

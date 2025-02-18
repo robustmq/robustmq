@@ -12,10 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod acl;
-pub mod connnector;
-pub mod session;
-pub mod share_sub;
-pub mod subscribe;
-pub mod topic;
-pub mod user;
+pub mod config_kafka;
+pub mod config_local_file;
+pub mod connector;
+pub mod connector_type;
+pub mod status;

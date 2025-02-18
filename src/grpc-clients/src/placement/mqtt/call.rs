@@ -18,15 +18,14 @@ use protocol::placement_center::placement_center_mqtt::{
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
     CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest,
     DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
-    DeleteExclusiveTopicReply, DeleteExclusiveTopicRequest, DeleteSessionReply,
-    DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest, DeleteTopicReply,
-    DeleteTopicRequest, DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest,
-    DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
-    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply,
-    ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply, ListTopicRequest,
-    ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
-    SaveLastWillMessageReply, SaveLastWillMessageRequest, SetExclusiveTopicReply,
-    SetExclusiveTopicRequest, SetSubscribeReply, SetSubscribeRequest, SetTopicRetainMessageReply,
+    DeleteSessionReply, DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest,
+    DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
+    GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
+    ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListSubscribeReply,
+    ListSubscribeRequest, ListTopicReply, ListTopicRequest, ListTopicRewriteRuleReply,
+    ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest, SaveLastWillMessageReply,
+    SaveLastWillMessageRequest, SetSubscribeReply, SetSubscribeRequest, SetTopicRetainMessageReply,
     SetTopicRetainMessageRequest, UpdateSessionReply, UpdateSessionRequest,
 };
 
@@ -91,18 +90,6 @@ generate_mqtt_service_call!(
     SetTopicRetainMessageRequest,
     SetTopicRetainMessageReply,
     SetTopicRetainMessage
-);
-generate_mqtt_service_call!(
-    placement_set_nx_exclusive_topic,
-    SetExclusiveTopicRequest,
-    SetExclusiveTopicReply,
-    SetNxExclusiveTopic
-);
-generate_mqtt_service_call!(
-    placement_delete_exclusive_topic,
-    DeleteExclusiveTopicRequest,
-    DeleteExclusiveTopicReply,
-    DeleteExclusiveTopic
 );
 generate_mqtt_service_call!(
     placement_create_session,

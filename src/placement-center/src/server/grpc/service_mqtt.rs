@@ -12,32 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::utils::vec_util;
 use grpc_clients::pool::ClientPool;
 use prost::Message;
 use protocol::placement_center::placement_center_mqtt::mqtt_service_server::MqttService;
 use protocol::placement_center::placement_center_mqtt::{
-    CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
+    ConnectorHeartbeatReply, ConnectorHeartbeatRequest, CreateAclReply, CreateAclRequest,
+    CreateBlacklistReply, CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest,
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
     CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest,
     DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
-    DeleteExclusiveTopicReply, DeleteExclusiveTopicRequest, DeleteSessionReply,
-    DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest, DeleteTopicReply,
-    DeleteTopicRequest, DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest,
-    DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
-    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply,
-    ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply, ListTopicRequest,
-    ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
-    SaveLastWillMessageReply, SaveLastWillMessageRequest, SetExclusiveTopicReply,
-    SetExclusiveTopicRequest, SetSubscribeReply, SetSubscribeRequest, SetTopicRetainMessageReply,
-    SetTopicRetainMessageRequest, UpdateSessionReply, UpdateSessionRequest,
+    DeleteConnectorReply, DeleteConnectorRequest, DeleteSessionReply, DeleteSessionRequest,
+    DeleteSubscribeReply, DeleteSubscribeRequest, DeleteTopicReply, DeleteTopicRequest,
+    DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest,
+    GetShareSubLeaderReply, GetShareSubLeaderRequest, ListAclReply, ListAclRequest,
+    ListBlacklistReply, ListBlacklistRequest, ListConnectorReply, ListConnectorRequest,
+    ListSessionReply, ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply,
+    ListTopicRequest, ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply,
+    ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest, SetSubscribeReply,
+    SetSubscribeRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
+    UpdateConnectorReply, UpdateConnectorRequest, UpdateSessionReply, UpdateSessionRequest,
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 use crate::core::cache::PlacementCacheManager;
-use crate::core::error::PlacementCenterError;
+
 use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
+use crate::mqtt::services::connnector::{
+    create_connector_by_req, delete_connector_by_req, list_connector_by_req,
+    update_connector_by_req,
+};
 use crate::mqtt::services::session::{
     delete_session_by_req, list_session_by_req, save_session_by_req, update_session_by_req,
 };
@@ -84,6 +88,7 @@ impl GrpcMqttService {
 
 #[tonic::async_trait]
 impl MqttService for GrpcMqttService {
+    // User
     async fn list_user(
         &self,
         request: Request<ListUserRequest>,
@@ -132,6 +137,7 @@ impl MqttService for GrpcMqttService {
         }
     }
 
+    // Session
     async fn list_session(
         &self,
         request: Request<ListSessionRequest>,
@@ -199,6 +205,7 @@ impl MqttService for GrpcMqttService {
         }
     }
 
+    // Topic
     async fn list_topic(
         &self,
         request: Request<ListTopicRequest>,
@@ -270,54 +277,6 @@ impl MqttService for GrpcMqttService {
         }
     }
 
-    async fn set_nx_exclusive_topic(
-        &self,
-        request: Request<SetExclusiveTopicRequest>,
-    ) -> Result<Response<SetExclusiveTopicReply>, Status> {
-        let mut reply = SetExclusiveTopicReply::default();
-        let data = StorageData::new(
-            StorageDataType::MqttSetNxExclusiveTopic,
-            SetExclusiveTopicRequest::encode_to_vec(request.get_ref()),
-        );
-
-        match self.raft_machine_apply.client_write(data).await {
-            Ok(Some(resp)) => {
-                reply.success = false;
-                if let Some(value) = resp.data.value {
-                    reply.success = vec_util::vec_to_bool(&value);
-                }
-                return Ok(Response::new(reply));
-            }
-            Ok(None) => {
-                return Err(Status::cancelled(
-                    PlacementCenterError::ExecutionResultIsEmpty.to_string(),
-                ));
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
-    }
-
-    async fn delete_exclusive_topic(
-        &self,
-        request: Request<DeleteExclusiveTopicRequest>,
-    ) -> Result<Response<DeleteExclusiveTopicReply>, Status> {
-        let reply = DeleteExclusiveTopicReply::default();
-        let data = StorageData::new(
-            StorageDataType::MqttDeleteExclusiveTopic,
-            DeleteExclusiveTopicRequest::encode_to_vec(request.get_ref()),
-        );
-        match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => {
-                return Ok(Response::new(reply));
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
-    }
-
     async fn get_share_sub_leader(
         &self,
         request: Request<GetShareSubLeaderRequest>,
@@ -368,6 +327,8 @@ impl MqttService for GrpcMqttService {
             }
         }
     }
+
+    // ACL
     async fn list_acl(
         &self,
         request: Request<ListAclRequest>,
@@ -432,6 +393,7 @@ impl MqttService for GrpcMqttService {
         }
     }
 
+    // BlackList
     async fn list_blacklist(
         &self,
         request: Request<ListBlacklistRequest>,
@@ -492,6 +454,7 @@ impl MqttService for GrpcMqttService {
         }
     }
 
+    // TopicRewriteRule
     async fn create_topic_rewrite_rule(
         &self,
         request: Request<CreateTopicRewriteRuleRequest>,
@@ -544,6 +507,7 @@ impl MqttService for GrpcMqttService {
         }
     }
 
+    // Subscribe
     async fn list_subscribe(
         &self,
         request: Request<ListSubscribeRequest>,
@@ -597,5 +561,82 @@ impl MqttService for GrpcMqttService {
             Ok(_) => Ok(Response::new(DeleteSubscribeReply::default())),
             Err(e) => Err(Status::cancelled(e.to_string())),
         }
+    }
+
+    // Connector
+    async fn list_connectors(
+        &self,
+        request: Request<ListConnectorRequest>,
+    ) -> Result<Response<ListConnectorReply>, Status> {
+        let req = request.into_inner();
+        match list_connector_by_req(&self.rocksdb_engine_handler, req).await {
+            Ok(data) => Ok(Response::new(ListConnectorReply { connectors: data })),
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn create_connector(
+        &self,
+        request: Request<CreateConnectorRequest>,
+    ) -> Result<Response<CreateConnectorReply>, Status> {
+        let req = request.into_inner();
+        match create_connector_by_req(
+            &self.rocksdb_engine_handler,
+            &self.raft_machine_apply,
+            &self.mqtt_call_manager,
+            &self.client_pool,
+            req,
+        )
+        .await
+        {
+            Ok(()) => Ok(Response::new(CreateConnectorReply::default())),
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn update_connector(
+        &self,
+        request: Request<UpdateConnectorRequest>,
+    ) -> Result<Response<UpdateConnectorReply>, Status> {
+        let req = request.into_inner();
+        match update_connector_by_req(
+            &self.rocksdb_engine_handler,
+            &self.raft_machine_apply,
+            &self.mqtt_call_manager,
+            &self.client_pool,
+            req,
+        )
+        .await
+        {
+            Ok(()) => Ok(Response::new(UpdateConnectorReply::default())),
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn delete_connector(
+        &self,
+        request: Request<DeleteConnectorRequest>,
+    ) -> Result<Response<DeleteConnectorReply>, Status> {
+        let req = request.into_inner();
+        match delete_connector_by_req(
+            &self.raft_machine_apply,
+            &self.mqtt_call_manager,
+            &self.client_pool,
+            &self.rocksdb_engine_handler,
+            req,
+        )
+        .await
+        {
+            Ok(()) => Ok(Response::new(DeleteConnectorReply::default())),
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn connector_heartbeat(
+        &self,
+        request: Request<ConnectorHeartbeatRequest>,
+    ) -> Result<Response<ConnectorHeartbeatReply>, Status> {
+        let _req = request.into_inner();
+        Ok(Response::new(ConnectorHeartbeatReply::default()))
     }
 }
