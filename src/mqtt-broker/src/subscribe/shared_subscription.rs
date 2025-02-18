@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use regex::Regex;
+use std::fmt::Display;
+
 #[derive(Debug, PartialEq)]
 enum SubscriptionType {
     SharedWithGroup {
@@ -21,6 +24,35 @@ enum SubscriptionType {
     SharedWithoutGroup {
         function_prefix: String,
     },
+}
+
+impl SubscriptionType {
+    fn create_subscription_type(
+        mut split_topic_name_with_function_prefix: &mut Vec<&str>,
+    ) -> SubscriptionType {
+        let function_prefix =
+            Self::extract_function_prefix(&mut split_topic_name_with_function_prefix);
+        match function_prefix.as_str() {
+            "$share" => SubscriptionType::SharedWithGroup {
+                function_prefix: function_prefix.to_string(),
+                group_name: Self::extract_group_name(&mut split_topic_name_with_function_prefix),
+            },
+            "$queue" => SubscriptionType::SharedWithoutGroup {
+                function_prefix: function_prefix.to_string(),
+            },
+            _ => {
+                panic!("Invalid function prefix")
+            }
+        }
+    }
+
+    fn extract_function_prefix(split_topic_name_with_function_prefix: &mut Vec<&str>) -> String {
+        split_topic_name_with_function_prefix.remove(0).to_string()
+    }
+
+    fn extract_group_name(split_topic_name_with_function_prefix: &mut Vec<&str>) -> String {
+        split_topic_name_with_function_prefix.remove(0).to_string()
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -36,9 +68,10 @@ impl SharedSubscription {
             .collect::<Vec<&str>>();
 
         let subscription_type =
-            Self::get_subscription_type(&mut split_topic_name_with_function_prefix);
+            SubscriptionType::create_subscription_type(&mut split_topic_name_with_function_prefix);
 
-        let topic_pattern = Self::get_topic_pattern(&mut split_topic_name_with_function_prefix);
+        let topic_pattern =
+            Self::extract_topic_pattern(split_topic_name_with_function_prefix.clone());
 
         SharedSubscription {
             subscription_type,
@@ -46,31 +79,38 @@ impl SharedSubscription {
         }
     }
 
-    fn get_subscription_type(
-        mut split_topic_name_with_function_prefix: &mut Vec<&str>,
-    ) -> SubscriptionType {
-        let function_prefix = split_topic_name_with_function_prefix.remove(0);
-        println!("{}", function_prefix);
-        match function_prefix {
-            "$share" => SubscriptionType::SharedWithGroup {
-                function_prefix: function_prefix.to_string(),
-                group_name: Self::get_group_name(&mut split_topic_name_with_function_prefix),
-            },
-            "$queue" => SubscriptionType::SharedWithoutGroup {
-                function_prefix: function_prefix.to_string(),
-            },
-            _ => {
-                panic!("Invalid function prefix")
+    fn extract_topic_pattern(split_topic_name_with_function_prefix: Vec<&str>) -> String {
+        let topic_pattern = split_topic_name_with_function_prefix.join("/");
+        Self::validate_topic_pattern(topic_pattern.as_str());
+        topic_pattern
+    }
+
+    fn validate_topic_pattern(topic_pattern: &str) {
+        let regex = Regex::new(r"^[a-zA-Z0-9_#+/]+$").unwrap();
+
+        if !regex.is_match(&topic_pattern) {
+            panic!("Invalid topic")
+        }
+
+        let mut topic_name_vec = topic_pattern.split("/").collect::<Vec<_>>();
+        topic_name_vec.pop();
+        for topic_name in topic_name_vec.clone() {
+            if topic_name.contains("+") && topic_name.ne("+") {
+                panic!("Invalid topic")
             }
         }
-    }
 
-    fn get_topic_pattern(split_topic_name_with_function_prefix: &mut Vec<&str>) -> String {
-        split_topic_name_with_function_prefix.join("/")
-    }
+        for topic_name in topic_name_vec.clone() {
+            if topic_name.contains("#") {
+                panic!("Invalid topic")
+            }
+        }
 
-    fn get_group_name(split_topic_name_with_function_prefix: &mut Vec<&str>) -> String {
-        split_topic_name_with_function_prefix.remove(0).to_string()
+        let topic_name_vec = topic_pattern.split("/").collect::<Vec<_>>();
+        let last_topic_name = topic_name_vec[topic_name_vec.len() - 1];
+        if last_topic_name.contains("#") && last_topic_name.ne("#") {
+            panic!("Invalid topic")
+        }
     }
 }
 
@@ -193,5 +233,50 @@ mod tests {
                 topic_pattern: "topic".to_string()
             })
         )
+    }
+
+    // topic/1/+/2
+    #[gtest]
+    fn should_return_shared_subscription_3() {
+        let subscription = SharedSubscription::new("$queue/topic/1/+/2");
+
+        assert_that!(
+            subscription,
+            eq(&SharedSubscription {
+                subscription_type: SubscriptionType::SharedWithoutGroup {
+                    function_prefix: "$queue".to_string()
+                },
+                topic_pattern: "topic/1/+/2".to_string()
+            })
+        )
+    }
+    // topic/1/#
+
+    #[gtest]
+    fn should_return_shared_subscription_4() {
+        let subscription = SharedSubscription::new("$queue/topic/1/#");
+
+        assert_that!(
+            subscription,
+            eq(&SharedSubscription {
+                subscription_type: SubscriptionType::SharedWithoutGroup {
+                    function_prefix: "$queue".to_string()
+                },
+                topic_pattern: "topic/1/#".to_string()
+            })
+        )
+    }
+
+    // error topic/1/#/1
+    #[gtest]
+    #[should_panic]
+    fn should_panic_shared_subscription_invalid_topic() {
+        SharedSubscription::new("$queue/topic/1/#/1");
+    }
+    // error topic/$/1/#
+    #[gtest]
+    #[should_panic]
+    fn should_panic_shared_subscription_invalid_topic_2() {
+        SharedSubscription::new("$queue/topic/$/1/#");
     }
 }
