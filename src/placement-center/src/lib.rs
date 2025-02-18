@@ -19,6 +19,7 @@ use common_base::config::placement_center::placement_center_conf;
 use grpc_clients::pool::ClientPool;
 use log::info;
 use mqtt::cache::load_mqtt_cache;
+use mqtt::connector::heartbeat::start_connector_heartbeat_check;
 use mqtt::controller::call_broker::{mqtt_call_thread_manager, MQTTInnerCallManager};
 use openraft::Raft;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterServiceServer;
@@ -62,12 +63,15 @@ pub struct PlacementCenter {
     cluster_cache: Arc<PlacementCacheManager>,
     // Cache metadata information for the Broker Server cluster
     engine_cache: Arc<JournalCacheManager>,
+    // Cache metadata information for the MQTT Server cluster
     mqtt_cache: Arc<MqttCacheManager>,
     // Raft Global read and write pointer
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     // Global GRPC client connection pool
     client_pool: Arc<ClientPool>,
+    // Global call thread manager
     journal_call_manager: Arc<JournalInnerCallManager>,
+    // Global call thread manager
     mqtt_call_manager: Arc<MQTTInnerCallManager>,
 }
 
@@ -197,6 +201,7 @@ impl PlacementCenter {
 
         let mqtt_handler = GrpcMqttService::new(
             self.cluster_cache.clone(),
+            self.mqtt_cache.clone(),
             raft_machine_apply.clone(),
             self.rocksdb_engine_handler.clone(),
             self.mqtt_call_manager.clone(),
@@ -222,6 +227,7 @@ impl PlacementCenter {
         raft_machine_apply: Arc<RaftMachineApply>,
         stop_send: Sender<bool>,
     ) {
+        // start cluster node heartbeate check
         let ctrl = ClusterController::new(
             self.cluster_cache.clone(),
             raft_machine_apply.clone(),
@@ -232,6 +238,12 @@ impl PlacementCenter {
         );
         tokio::spawn(async move {
             ctrl.start_node_heartbeat_check().await;
+        });
+
+        // start mqtt connector heartbeat check
+        let mqtt_cache = self.mqtt_cache.clone();
+        tokio::spawn(async move {
+            start_connector_heartbeat_check(mqtt_cache, stop_send).await;
         });
     }
 

@@ -638,7 +638,12 @@ message DeleteConnectorReply{
 }
 
 message ConnectorHeartbeatRequest{
+   repeated ConnectorHeartbeatRaw heatbeats = 1;
+}
 
+message ConnectorHeartbeatRaw{
+    string cluster_name = 1;
+    string connector_name = 2;
 }
 
 message ConnectorHeartbeatReply{

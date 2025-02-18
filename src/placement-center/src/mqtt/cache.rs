@@ -14,12 +14,14 @@
 
 use std::sync::Arc;
 
+use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::placement_center::placement_center_inner::ClusterType;
 
+use super::connector::request::ConnectorHeartbeat;
 use super::controller::session_expire::ExpireLastWill;
 use super::is_send_last_will;
 use crate::core::cache::PlacementCacheManager;
@@ -41,6 +43,9 @@ pub struct MqttCacheManager {
 
     // (cluster_name,(client_id,MQTTConnector))
     connector_list: DashMap<String, DashMap<String, MQTTConnector>>,
+
+    //(cluster_connector_name, ConnectorHeartbeat)
+    connector_heartbeat: DashMap<String, ConnectorHeartbeat>,
 }
 
 impl MqttCacheManager {
@@ -50,6 +55,7 @@ impl MqttCacheManager {
             user_list: DashMap::with_capacity(8),
             expire_last_wills: DashMap::with_capacity(8),
             connector_list: DashMap::with_capacity(8),
+            connector_heartbeat: DashMap::with_capacity(8),
         }
     }
 
@@ -132,9 +138,36 @@ impl MqttCacheManager {
     }
 
     pub fn remove_connector(&self, cluster_name: &str, connector_name: &str) {
-        if let Some(data) = self.topic_list.get_mut(cluster_name) {
+        if let Some(data) = self.connector_list.get_mut(cluster_name) {
             data.remove(connector_name);
         }
+    }
+    pub fn get_connector(&self, cluster_name: &str, connector_name: &str) -> Option<MQTTConnector> {
+        if let Some(data) = self.connector_list.get(cluster_name) {
+            if let Some(val) = data.get(connector_name) {
+                return Some(val.clone());
+            }
+        }
+        None
+    }
+
+    // Report HeartBeart
+    pub fn report_connector_heartbeat(&self, cluster_name: &str, connector_name: &str) {
+        let key = format!("{}_{}", cluster_name, connector_name);
+        let heartbeat = ConnectorHeartbeat {
+            cluster_name: cluster_name.to_owned(),
+            connector_name: connector_name.to_owned(),
+            last_heartbeat: now_second(),
+        };
+        self.connector_heartbeat.insert(key, heartbeat);
+    }
+
+    pub fn get_all_connector(&self) -> Vec<ConnectorHeartbeat> {
+        let mut results = Vec::new();
+        for val in self.connector_heartbeat.clone() {
+            results.push(val.1);
+        }
+        results
     }
 }
 

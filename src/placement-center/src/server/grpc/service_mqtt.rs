@@ -37,11 +37,12 @@ use tonic::{Request, Response, Status};
 
 use crate::core::cache::PlacementCacheManager;
 
-use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
-use crate::mqtt::services::connnector::{
+use crate::mqtt::cache::MqttCacheManager;
+use crate::mqtt::connector::request::{
     create_connector_by_req, delete_connector_by_req, list_connector_by_req,
     update_connector_by_req,
 };
+use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
 use crate::mqtt::services::session::{
     delete_session_by_req, list_session_by_req, save_session_by_req, update_session_by_req,
 };
@@ -62,6 +63,7 @@ use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct GrpcMqttService {
     cluster_cache: Arc<PlacementCacheManager>,
+    mqtt_cache: Arc<MqttCacheManager>,
     raft_machine_apply: Arc<RaftMachineApply>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     mqtt_call_manager: Arc<MQTTInnerCallManager>,
@@ -71,6 +73,7 @@ pub struct GrpcMqttService {
 impl GrpcMqttService {
     pub fn new(
         cluster_cache: Arc<PlacementCacheManager>,
+        mqtt_cache: Arc<MqttCacheManager>,
         raft_machine_apply: Arc<RaftMachineApply>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         mqtt_call_manager: Arc<MQTTInnerCallManager>,
@@ -78,6 +81,7 @@ impl GrpcMqttService {
     ) -> Self {
         GrpcMqttService {
             cluster_cache,
+            mqtt_cache,
             raft_machine_apply,
             rocksdb_engine_handler,
             mqtt_call_manager,
@@ -636,7 +640,17 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<ConnectorHeartbeatRequest>,
     ) -> Result<Response<ConnectorHeartbeatReply>, Status> {
-        let _req = request.into_inner();
+        let req = request.into_inner();
+        for raw in req.heatbeats {
+            if self
+                .mqtt_cache
+                .get_connector(&raw.cluster_name, &raw.connector_name)
+                .is_some()
+            {
+                self.mqtt_cache
+                    .report_connector_heartbeat(&raw.cluster_name, &raw.connector_name);
+            }
+        }
         Ok(Response::new(ConnectorHeartbeatReply::default()))
     }
 }

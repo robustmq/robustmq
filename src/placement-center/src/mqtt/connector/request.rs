@@ -33,6 +33,15 @@ use crate::{
     storage::mqtt::connector::MqttConnectorStorage,
 };
 
+use super::scheduler::{start_connector, stop_connector};
+
+#[derive(Debug, Clone)]
+pub struct ConnectorHeartbeat {
+    pub cluster_name: String,
+    pub connector_name: String,
+    pub last_heartbeat: u64,
+}
+
 pub async fn list_connector_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: ListConnectorRequest,
@@ -141,7 +150,3 @@ pub async fn delete_connector_by_req(
     stop_connector().await;
     Ok(())
 }
-
-async fn start_connector() {}
-
-async fn stop_connector() {}
