@@ -50,7 +50,7 @@ impl MqttConnectorStorage {
         &self,
         cluster_name: &str,
         connector_name: &str,
-        connector: MQTTConnector,
+        connector: &MQTTConnector,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_connector(cluster_name, connector_name);
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, connector)
@@ -109,13 +109,13 @@ mod tests {
         let connector_id = "loboxu".to_string();
         let connector = MQTTConnector::default();
         connector_storage
-            .save(&cluster_name, &connector_id, connector)
+            .save(&cluster_name, &connector_id, &connector)
             .unwrap();
 
         let connector_id = "lobo1".to_string();
         let connector = MQTTConnector::default();
         connector_storage
-            .save(&cluster_name, &connector_id, connector)
+            .save(&cluster_name, &connector_id, &connector)
             .unwrap();
 
         let res = connector_storage.list(&cluster_name).unwrap();

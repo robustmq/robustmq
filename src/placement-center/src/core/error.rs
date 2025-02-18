@@ -124,4 +124,7 @@ pub enum PlacementCenterError {
 
     #[error("Connector {0} Not found")]
     ConnectorNotFound(String),
+
+    #[error("Connector [{0}] already exist")]
+    ConnectorAlreadyExist(String),
 }

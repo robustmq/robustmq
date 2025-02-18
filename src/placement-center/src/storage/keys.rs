@@ -198,20 +198,6 @@ pub fn storage_key_mqtt_connector_prefix(cluster_name: &str) -> String {
     format!("/mqtt/connector/{}", cluster_name)
 }
 
-pub fn storage_key_mqtt_exclusive_topic_name(
-    cluster_name: &str,
-    exclusive_topic_name: &str,
-) -> String {
-    format!(
-        "/mqtt/exclusive_topic/{}/{}",
-        cluster_name, exclusive_topic_name
-    )
-}
-
-pub fn storage_key_mqtt_exclusive_topic_prefix(cluster_name: &str) -> String {
-    format!("/mqtt/exclusive_topic/{}", cluster_name)
-}
-
 pub fn storage_key_mqtt_acl(
     cluster_name: &str,
     resource_type: &str,

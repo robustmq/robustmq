@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use metadata_struct::acl::mqtt_acl::MqttAcl;
-use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::placement::cluster::ClusterInfo;
 use metadata_struct::placement::node::BrokerNode;
 use prost::Message as _;
@@ -23,14 +19,10 @@ use protocol::placement_center::placement_center_inner::{
     DeleteIdempotentDataRequest, DeleteResourceConfigRequest, SaveOffsetDataRequest,
     SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };
-use protocol::placement_center::placement_center_mqtt::{
-    CreateAclRequest, CreateBlacklistRequest, DeleteAclRequest, DeleteBlacklistRequest,
-};
+use std::sync::Arc;
 
 use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
-use crate::storage::mqtt::acl::AclStorage;
-use crate::storage::mqtt::blacklist::MqttBlackListStorage;
 use crate::storage::placement::cluster::ClusterStorage;
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
@@ -55,24 +47,21 @@ impl DataRouteCluster {
         }
     }
 
-    pub async fn add_node(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
-        let node = serde_json::from_slice::<BrokerNode>(&value)?;
-
-        let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
-        node_storage.save(&node)?;
-
-        self.cluster_cache.add_broker_node(node);
-
+    // Cluster
+    pub async fn add_cluster(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+        let cluster = serde_json::from_slice::<ClusterInfo>(&value)?;
+        let cluster_storage = ClusterStorage::new(self.rocksdb_engine_handler.clone());
+        cluster_storage.save(&cluster)?;
+        self.cluster_cache.add_broker_cluster(&cluster);
         Ok(())
     }
 
-    pub async fn add_cluster(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
-        let cluster = serde_json::from_slice::<ClusterInfo>(&value)?;
-
-        let cluster_storage = ClusterStorage::new(self.rocksdb_engine_handler.clone());
-        cluster_storage.save(&cluster)?;
-
-        self.cluster_cache.add_broker_cluster(&cluster);
+    // Node
+    pub async fn add_node(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+        let node = serde_json::from_slice::<BrokerNode>(&value)?;
+        let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
+        node_storage.save(&node)?;
+        self.cluster_cache.add_broker_node(node);
         Ok(())
     }
 
@@ -85,6 +74,7 @@ impl DataRouteCluster {
         Ok(())
     }
 
+    // ResourceConfig
     pub fn set_resource_config(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let req = SetResourceConfigRequest::decode(value.as_ref())?;
         let config_storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
@@ -99,6 +89,7 @@ impl DataRouteCluster {
         Ok(())
     }
 
+    // IdempotentData
     pub fn set_idempotent_data(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let req = SetIdempotentDataRequest::decode(value.as_ref())?;
         let idempotent_storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
@@ -113,6 +104,7 @@ impl DataRouteCluster {
         Ok(())
     }
 
+    // OffsetData
     pub fn save_offset_data(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let req = SaveOffsetDataRequest::decode(value.as_ref())?;
         let offset_storage = OffsetStorage::new(self.rocksdb_engine_handler.clone());
@@ -129,37 +121,6 @@ impl DataRouteCluster {
     }
 
     pub fn delete_offset_data(&self, _: Vec<u8>) -> Result<(), PlacementCenterError> {
-        Ok(())
-    }
-
-    pub fn create_acl(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
-        let req = CreateAclRequest::decode(value.as_ref())?;
-        let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
-        let acl = serde_json::from_slice::<MqttAcl>(&req.acl)?;
-        acl_storage.save(&req.cluster_name, acl)?;
-        Ok(())
-    }
-
-    pub fn delete_acl(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
-        let req = DeleteAclRequest::decode(value.as_ref())?;
-        let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
-        let acl = serde_json::from_slice::<MqttAcl>(&req.acl)?;
-        acl_storage.delete(&req.cluster_name, &acl)?;
-        Ok(())
-    }
-
-    pub fn create_blacklist(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
-        let req = CreateBlacklistRequest::decode(value.as_ref())?;
-        let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
-        let blacklist = serde_json::from_slice::<MqttAclBlackList>(&req.blacklist)?;
-        blacklist_storage.save(&req.cluster_name, blacklist)?;
-        Ok(())
-    }
-
-    pub fn delete_blacklist(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
-        let req = DeleteBlacklistRequest::decode(value.as_ref())?;
-        let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
-        blacklist_storage.delete(&req.cluster_name, &req.blacklist_type, &req.resource_name)?;
         Ok(())
     }
 }

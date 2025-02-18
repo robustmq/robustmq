@@ -16,7 +16,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use prost::Message;
 use protocol::placement_center::placement_center_mqtt::{
-    CreateConnectorRequest, DeleteConnectorRequest, ListConnectorRequest,
+    CreateConnectorRequest, DeleteConnectorRequest, ListConnectorRequest, UpdateConnectorRequest,
 };
 use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
@@ -55,11 +55,20 @@ pub async fn list_connector_by_req(
 }
 
 pub async fn create_connector_by_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: CreateConnectorRequest,
 ) -> Result<(), PlacementCenterError> {
+    let storage = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
+    let connector = storage.get(&req.cluster_name, &req.connector_name)?;
+    if connector.is_some() {
+        return Err(PlacementCenterError::ConnectorAlreadyExist(
+            req.connector_name,
+        ));
+    }
+
     let data = StorageData::new(
         StorageDataType::MqttSetConnector,
         CreateConnectorRequest::encode_to_vec(&req),
@@ -70,6 +79,36 @@ pub async fn create_connector_by_req(
     update_cache_by_add_connector(&req.cluster_name, call_manager, client_pool, connector).await?;
 
     start_connector().await;
+    Ok(())
+}
+
+pub async fn update_connector_by_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    raft_machine_apply: &Arc<RaftMachineApply>,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    req: UpdateConnectorRequest,
+) -> Result<(), PlacementCenterError> {
+    let storage = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
+    let connector = storage.get(&req.cluster_name, &req.connector_name)?;
+    if connector.is_some() {
+        return Err(PlacementCenterError::ConnectorAlreadyExist(
+            req.connector_name,
+        ));
+    }
+
+    let data = StorageData::new(
+        StorageDataType::MqttSetConnector,
+        UpdateConnectorRequest::encode_to_vec(&req),
+    );
+    raft_machine_apply.client_write(data).await?;
+
+    stop_connector().await;
+    start_connector().await;
+
+    let connector = serde_json::from_slice::<MQTTConnector>(&req.connector)?;
+    update_cache_by_add_connector(&req.cluster_name, call_manager, client_pool, connector).await?;
+
     Ok(())
 }
 

@@ -20,15 +20,14 @@ use protocol::placement_center::placement_center_mqtt::{
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
     CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest,
     DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
-    DeleteExclusiveTopicReply, DeleteExclusiveTopicRequest, DeleteSessionReply,
-    DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest, DeleteTopicReply,
-    DeleteTopicRequest, DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest,
-    DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
-    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply,
-    ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply, ListTopicRequest,
-    ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
-    SaveLastWillMessageReply, SaveLastWillMessageRequest, SetExclusiveTopicReply,
-    SetExclusiveTopicRequest, SetSubscribeReply, SetSubscribeRequest, SetTopicRetainMessageReply,
+    DeleteSessionReply, DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest,
+    DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
+    GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
+    ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListSubscribeReply,
+    ListSubscribeRequest, ListTopicReply, ListTopicRequest, ListTopicRewriteRuleReply,
+    ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest, SaveLastWillMessageReply,
+    SaveLastWillMessageRequest, SetSubscribeReply, SetSubscribeRequest, SetTopicRetainMessageReply,
     SetTopicRetainMessageRequest, UpdateSessionReply, UpdateSessionRequest,
 };
 use tonic::transport::Channel;
@@ -142,24 +141,6 @@ impl_retriable_request!(
     SetTopicRetainMessageReply,
     placement_center_mqtt_services_client,
     set_topic_retain_message,
-    true
-);
-
-impl_retriable_request!(
-    SetExclusiveTopicRequest,
-    MqttServiceClient<Channel>,
-    SetExclusiveTopicReply,
-    placement_center_mqtt_services_client,
-    set_nx_exclusive_topic,
-    true
-);
-
-impl_retriable_request!(
-    DeleteExclusiveTopicRequest,
-    MqttServiceClient<Channel>,
-    DeleteExclusiveTopicReply,
-    placement_center_mqtt_services_client,
-    delete_exclusive_topic,
     true
 );
 
