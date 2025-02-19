@@ -16,6 +16,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use bridge::core::start_connector_thread;
 use bridge::manager::ConnectorManager;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::runtime::create_runtime;
@@ -167,12 +168,10 @@ where
         self.start_websocket_server(stop_send.clone());
         self.start_keep_alive_thread(stop_send.clone());
 
-        self.start_update_user_cache_thread(stop_send.clone());
-        self.start_update_acl_cache_thread(stop_send.clone());
-        self.start_update_flapping_detect_cache_thread(stop_send.clone());
-
+        self.start_update_cache_thread(stop_send.clone());
         self.start_system_topic_thread(stop_send.clone());
 
+        self.start_connector_thread(stop_send.clone());
         self.awaiting_stop(stop_send);
     }
 
@@ -270,6 +269,14 @@ where
         });
     }
 
+    fn start_connector_thread(&self, stop_send: broadcast::Sender<bool>) {
+        let message_storage = self.message_storage_adapter.clone();
+        let connector_manager = self.connector_manager.clone();
+        self.runtime.spawn(async move {
+            start_connector_thread(message_storage, connector_manager, stop_send).await;
+        });
+    }
+
     fn start_push_server(&self, stop_send: broadcast::Sender<bool>) {
         let subscribe_manager = self.subscribe_manager.clone();
         let client_pool = self.client_pool.clone();
@@ -331,25 +338,21 @@ where
         });
     }
 
-    fn start_update_user_cache_thread(&self, stop_send: broadcast::Sender<bool>) {
-        let update_user_cache = UpdateUserCache::new(stop_send, self.auth_driver.clone());
+    fn start_update_cache_thread(&self, stop_send: broadcast::Sender<bool>) {
+        let update_user_cache = UpdateUserCache::new(stop_send.clone(), self.auth_driver.clone());
 
         self.runtime.spawn(async move {
             update_user_cache.start_update().await;
         });
-    }
 
-    fn start_update_acl_cache_thread(&self, stop_send: broadcast::Sender<bool>) {
-        let update_acl_cache = UpdateAclCache::new(stop_send, self.auth_driver.clone());
+        let update_acl_cache = UpdateAclCache::new(stop_send.clone(), self.auth_driver.clone());
 
         self.runtime.spawn(async move {
             update_acl_cache.start_update().await;
         });
-    }
 
-    fn start_update_flapping_detect_cache_thread(&self, stop_send: broadcast::Sender<bool>) {
         let update_flapping_detect_cache =
-            UpdateFlappingDetectCache::new(stop_send, self.cache_manager.clone());
+            UpdateFlappingDetectCache::new(stop_send.clone(), self.cache_manager.clone());
         self.runtime.spawn(async move {
             update_flapping_detect_cache.start_update().await;
         });

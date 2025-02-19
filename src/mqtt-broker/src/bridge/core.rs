@@ -43,7 +43,6 @@ pub trait BridgePlugin {
 
 pub async fn start_connector_thread<S>(
     message_storage: Arc<S>,
-    connector: MQTTConnector,
     connector_manager: Arc<ConnectorManager>,
     stop_send: broadcast::Sender<bool>,
 ) where
@@ -62,7 +61,6 @@ pub async fn start_connector_thread<S>(
             }
             _ = check_connector(
                 &message_storage,
-                &connector,
                 &connector_manager
             ) => {
                 sleep(Duration::from_secs(1)).await;
@@ -71,11 +69,8 @@ pub async fn start_connector_thread<S>(
     }
 }
 
-async fn check_connector<S>(
-    message_storage: &Arc<S>,
-    connector: &MQTTConnector,
-    connector_manager: &Arc<ConnectorManager>,
-) where
+async fn check_connector<S>(message_storage: &Arc<S>, connector_manager: &Arc<ConnectorManager>)
+where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     // Start connector thread
@@ -96,7 +91,7 @@ async fn check_connector<S>(
         start_thread(
             connector_manager.clone(),
             message_storage.clone(),
-            connector.clone(),
+            raw.clone(),
             thread,
         );
     }
@@ -110,8 +105,11 @@ async fn check_connector<S>(
             continue;
         }
 
-        if let Err(e) = stop_thread(raw) {
-            error!("{}", e);
+        if let Err(e) = stop_thread(raw.clone()) {
+            error!(
+                "Stopping connector {} Thread failed with error message: {}",
+                raw.connector_name, e
+            );
         }
     }
 }
@@ -127,14 +125,15 @@ fn start_thread<S>(
     tokio::spawn(async move {
         match connector.connector_type {
             ConnectorType::LocalFile => {
-                let local_file_config =
-                    match serde_json::from_str::<LocalFileConnectorConfig>(&connector.config) {
-                        Ok(config) => config,
-                        Err(e) => {
-                            error!("{}", e);
-                            return;
-                        }
-                    };
+                let local_file_config = match serde_json::from_str::<LocalFileConnectorConfig>(
+                    &connector.config,
+                ) {
+                    Ok(config) => config,
+                    Err(e) => {
+                        error!("Failed to parse LocalFileConnectorConfig file with error message :{}, configuration contents: {}", e, connector.config);
+                        return;
+                    }
+                };
 
                 let bridge = FileBridgePlugin::new(
                     message_storage.clone(),
@@ -153,7 +152,10 @@ fn start_thread<S>(
                     .await
                 {
                     connector_manager.remove_connector_thread(&connector.connector_name);
-                    error!("{}", e);
+                    error!(
+                        "Failed to start FileBridgePlugin with error message: {:?}",
+                        e
+                    );
                 }
             }
             ConnectorType::Kafka => {}
