@@ -17,17 +17,18 @@ use std::sync::Arc;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::cluster::ClusterStorage;
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::config::broker_mqtt::{broker_mqtt_conf, ConfigAvailableFlag};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::cluster::{
     AvailableFlag, MqttClusterDynamicConfig, MqttClusterDynamicConfigFeature,
     MqttClusterDynamicConfigNetwork, MqttClusterDynamicConfigProtocol,
     MqttClusterDynamicConfigSecurity, MqttClusterDynamicFlappingDetect,
-    MqttClusterDynamicOfflineMessage, MqttClusterDynamicSlowSub,
-    DEFAULT_DYNAMIC_CONFIG_FLAPPING_DETECT, DEFAULT_DYNAMIC_CONFIG_OFFLINE_MESSAGE,
-    DEFAULT_DYNAMIC_CONFIG_PROTOCOL, DEFAULT_DYNAMIC_CONFIG_SLOW_SUB,
+    MqttClusterDynamicOfflineMessage, MqttClusterDynamicSlowSub, DEFAULT_DYNAMIC_CONFIG_FEATURE,
+    DEFAULT_DYNAMIC_CONFIG_FLAPPING_DETECT, DEFAULT_DYNAMIC_CONFIG_NETWORK,
+    DEFAULT_DYNAMIC_CONFIG_OFFLINE_MESSAGE, DEFAULT_DYNAMIC_CONFIG_PROTOCOL,
+    DEFAULT_DYNAMIC_CONFIG_SLOW_SUB,
 };
-use protocol::mqtt::common::QoS;
+use protocol::mqtt::common::{qos, QoS};
 
 /// This section primarily implements cache management for cluster-related configuration operations.
 /// Through this implementation, we can retrieve configuration information within the cluster
@@ -147,11 +148,11 @@ pub async fn build_cluster_config(
 ) -> Result<MqttClusterDynamicConfig, MqttBrokerError> {
     Ok(MqttClusterDynamicConfig {
         protocol: build_protocol(client_pool).await?,
-        feature: build_feature().await?,
-        security: build_security().await?,
-        network: build_network().await?,
-        slow: build_slow_sub().await?,
-        flapping_detect: build_flapping_detect().await?,
+        feature: build_feature(client_pool).await?,
+        security: build_security(client_pool).await?,
+        network: build_network(client_pool).await?,
+        slow: build_slow_sub(client_pool).await?,
+        flapping_detect: build_flapping_detect(client_pool).await?,
         offline_message: build_offline_message(client_pool).await?,
     })
 }
@@ -171,61 +172,156 @@ async fn build_protocol(
     }
 
     Ok(MqttClusterDynamicConfigProtocol {
-        session_expiry_interval: 1800,
-        topic_alias_max: 65535,
-        max_qos: QoS::ExactlyOnce,
-        max_packet_size: 1024 * 1024 * 10,
-        max_server_keep_alive: 3600,
-        default_server_keep_alive: 60,
-        receive_max: 65535,
-        client_pkid_persistent: false,
-        max_message_expiry_interval: 3600,
+        session_expiry_interval: conf.cluster_dynamic_config_protocol.session_expiry_interval,
+        topic_alias_max: conf.cluster_dynamic_config_protocol.topic_alias_max,
+        max_qos: qos(conf.cluster_dynamic_config_protocol.max_qos).unwrap(),
+        max_packet_size: conf.cluster_dynamic_config_protocol.max_packet_size,
+        max_server_keep_alive: conf.cluster_dynamic_config_protocol.max_server_keep_alive,
+        default_server_keep_alive: conf
+            .cluster_dynamic_config_protocol
+            .default_server_keep_alive,
+        receive_max: conf.cluster_dynamic_config_protocol.receive_max,
+        client_pkid_persistent: conf.cluster_dynamic_config_protocol.client_pkid_persistent,
+        max_message_expiry_interval: conf
+            .cluster_dynamic_config_protocol
+            .max_message_expiry_interval,
     })
 }
 
-async fn build_feature() -> Result<MqttClusterDynamicConfigFeature, MqttBrokerError> {
+async fn build_feature(
+    client_pool: &Arc<ClientPool>,
+) -> Result<MqttClusterDynamicConfigFeature, MqttBrokerError> {
+    let conf = broker_mqtt_conf();
+    let cluster_storage = ClusterStorage::new(client_pool.clone());
+    let data = cluster_storage
+        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_FEATURE)
+        .await?;
+    if !data.is_empty() {
+        let cluster = serde_json::from_slice::<MqttClusterDynamicConfigFeature>(&data)?;
+        return Ok(cluster);
+    }
     Ok(MqttClusterDynamicConfigFeature {
-        retain_available: AvailableFlag::Enable,
-        wildcard_subscription_available: AvailableFlag::Enable,
-        subscription_identifiers_available: AvailableFlag::Enable,
-        shared_subscription_available: AvailableFlag::Enable,
-        exclusive_subscription_available: AvailableFlag::Enable,
+        retain_available: to_auvailable_flag(
+            conf.cluster_dynamic_config_feature.retain_available.clone(),
+        ),
+        wildcard_subscription_available: to_auvailable_flag(
+            conf.cluster_dynamic_config_feature
+                .wildcard_subscription_available
+                .clone(),
+        ),
+        subscription_identifiers_available: to_auvailable_flag(
+            conf.cluster_dynamic_config_feature
+                .subscription_identifiers_available
+                .clone(),
+        ),
+        shared_subscription_available: to_auvailable_flag(
+            conf.cluster_dynamic_config_feature
+                .shared_subscription_available
+                .clone(),
+        ),
+        exclusive_subscription_available: to_auvailable_flag(
+            conf.cluster_dynamic_config_feature
+                .exclusive_subscription_available
+                .clone(),
+        ),
     })
 }
 
-async fn build_security() -> Result<MqttClusterDynamicConfigSecurity, MqttBrokerError> {
+fn to_auvailable_flag(flag: ConfigAvailableFlag) -> AvailableFlag {
+    match flag {
+        ConfigAvailableFlag::Enable => AvailableFlag::Enable,
+        ConfigAvailableFlag::Disable => AvailableFlag::Disable,
+    }
+}
+async fn build_security(
+    client_pool: &Arc<ClientPool>,
+) -> Result<MqttClusterDynamicConfigSecurity, MqttBrokerError> {
+    let conf = broker_mqtt_conf();
+    let cluster_storage = ClusterStorage::new(client_pool.clone());
+    let data = cluster_storage
+        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_FEATURE)
+        .await?;
+    if !data.is_empty() {
+        let cluster = serde_json::from_slice::<MqttClusterDynamicConfigSecurity>(&data)?;
+        return Ok(cluster);
+    }
     Ok(MqttClusterDynamicConfigSecurity {
-        secret_free_login: false,
-        is_self_protection_status: false,
+        secret_free_login: conf.cluster_dynamic_config_security.secret_free_login,
+        is_self_protection_status: conf
+            .cluster_dynamic_config_security
+            .is_self_protection_status,
     })
 }
 
-async fn build_network() -> Result<MqttClusterDynamicConfigNetwork, MqttBrokerError> {
+async fn build_network(
+    client_pool: &Arc<ClientPool>,
+) -> Result<MqttClusterDynamicConfigNetwork, MqttBrokerError> {
+    let conf = broker_mqtt_conf();
+    let cluster_storage = ClusterStorage::new(client_pool.clone());
+    let data = cluster_storage
+        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_NETWORK)
+        .await?;
+    if !data.is_empty() {
+        let cluster = serde_json::from_slice::<MqttClusterDynamicConfigNetwork>(&data)?;
+        return Ok(cluster);
+    }
     Ok(MqttClusterDynamicConfigNetwork {
-        tcp_max_connection_num: 1000,
-        tcps_max_connection_num: 1000,
-        websocket_max_connection_num: 1000,
-        websockets_max_connection_num: 1000,
-        response_max_try_mut_times: 128,
-        response_try_mut_sleep_time_ms: 100,
+        tcp_max_connection_num: conf.cluster_dynamic_config_network.tcp_max_connection_num,
+        tcps_max_connection_num: conf.cluster_dynamic_config_network.tcps_max_connection_num,
+        websocket_max_connection_num: conf
+            .cluster_dynamic_config_network
+            .websocket_max_connection_num,
+        websockets_max_connection_num: conf
+            .cluster_dynamic_config_network
+            .websockets_max_connection_num,
+        response_max_try_mut_times: conf
+            .cluster_dynamic_config_network
+            .response_max_try_mut_times,
+        response_try_mut_sleep_time_ms: conf
+            .cluster_dynamic_config_network
+            .response_try_mut_sleep_time_ms,
     })
 }
 
-async fn build_slow_sub() -> Result<MqttClusterDynamicSlowSub, MqttBrokerError> {
+async fn build_slow_sub(
+    client_pool: &Arc<ClientPool>,
+) -> Result<MqttClusterDynamicSlowSub, MqttBrokerError> {
+    let conf = broker_mqtt_conf();
+    let cluster_storage = ClusterStorage::new(client_pool.clone());
+    let data = cluster_storage
+        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_SLOW_SUB)
+        .await?;
+    if !data.is_empty() {
+        let cluster = serde_json::from_slice::<MqttClusterDynamicSlowSub>(&data)?;
+        return Ok(cluster);
+    }
     Ok(MqttClusterDynamicSlowSub {
-        enable: false,
-        whole_ms: 0,
-        internal_ms: 0,
-        response_ms: 0,
+        enable: conf.cluster_dynamic_config_slow_sub.enable,
+        whole_ms: conf.cluster_dynamic_config_slow_sub.whole_ms,
+        internal_ms: conf.cluster_dynamic_config_slow_sub.internal_ms,
+        response_ms: conf.cluster_dynamic_config_slow_sub.response_ms,
     })
 }
 
-async fn build_flapping_detect() -> Result<MqttClusterDynamicFlappingDetect, MqttBrokerError> {
+async fn build_flapping_detect(
+    client_pool: &Arc<ClientPool>,
+) -> Result<MqttClusterDynamicFlappingDetect, MqttBrokerError> {
+    let conf = broker_mqtt_conf();
+    let cluster_storage = ClusterStorage::new(client_pool.clone());
+    let data = cluster_storage
+        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_FLAPPING_DETECT)
+        .await?;
+    if !data.is_empty() {
+        let cluster = serde_json::from_slice::<MqttClusterDynamicFlappingDetect>(&data)?;
+        return Ok(cluster);
+    }
     Ok(MqttClusterDynamicFlappingDetect {
-        enable: false,
-        window_time: 1,
-        max_client_connections: 15,
-        ban_time: 5,
+        enable: conf.cluster_dynamic_config_flapping_detect.enable,
+        window_time: conf.cluster_dynamic_config_flapping_detect.window_time,
+        max_client_connections: conf
+            .cluster_dynamic_config_flapping_detect
+            .max_client_connections as u64,
+        ban_time: conf.cluster_dynamic_config_flapping_detect.ban_time,
     })
 }
 
