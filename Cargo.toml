@@ -15,9 +15,6 @@
 [workspace]
 name = "robustmq"
 members = [
-    "src/mqtt-bridge/kafka",
-    "src/mqtt-bridge/elasticsearch",
-    "src/mqtt-bridge/redis",
     "src/mqtt-broker",
     "src/mqtt-edge",
     "src/amqp-plugins",
@@ -125,9 +122,6 @@ prettytable-rs = "^0.10"
 
 
 ## workspaces members
-mqtt-bridge-kafka = { path = "src/mqtt-bridge/kafka" }
-mqtt-bridge-elasticsearch = { path = "src/mqtt-bridge/elasticsearch" }
-mqtt-bridge-redis = { path = "src/mqtt-bridge/redis" }
 mqtt-broker = { path = "src/mqtt-broker" }
 mqtt-edge = { path = "src/mqtt-edge" }
 amqp-broker = { path = "src/amqp-broker" }

@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::bridge::manager::ConnectorManager;
 use crate::storage::topic::TopicStorage;
 use crate::{security::AuthDriver, subscribe::subscribe_manager::SubscribeManager};
 use grpc_clients::pool::ClientPool;
 use log::error;
+use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::MqttTopic;
@@ -110,6 +112,7 @@ pub async fn load_metadata_cache(
 
 pub async fn update_cache_metadata(
     cache_manager: &Arc<CacheManager>,
+    connector_manager: &Arc<ConnectorManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     request: UpdateMqttCacheRequest,
 ) {
@@ -208,8 +211,26 @@ pub async fn update_cache_metadata(
             }
         },
         MqttBrokerUpdateCacheResourceType::Connector => match request.action_type() {
-            MqttBrokerUpdateCacheActionType::Set => {}
-            MqttBrokerUpdateCacheActionType::Delete => {}
+            MqttBrokerUpdateCacheActionType::Set => {
+                match serde_json::from_str::<MQTTConnector>(&request.data) {
+                    Ok(connector) => {
+                        connector_manager.add_connector(&connector);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+            MqttBrokerUpdateCacheActionType::Delete => {
+                match serde_json::from_str::<MQTTConnector>(&request.data) {
+                    Ok(connector) => {
+                        connector_manager.remove_connector(&connector.connector_name);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
         },
     }
 }

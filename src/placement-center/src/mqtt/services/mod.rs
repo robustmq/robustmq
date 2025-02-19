@@ -13,7 +13,6 @@
 // limitations under the License.
 
 pub mod acl;
-pub mod connnector;
 pub mod session;
 pub mod share_sub;
 pub mod subscribe;

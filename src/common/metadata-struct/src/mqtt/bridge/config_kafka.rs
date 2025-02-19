@@ -16,5 +16,5 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct KafkaConnectorConfig {
-    pub local_file_path: String,
+    pub bootstrap_servers: String,
 }

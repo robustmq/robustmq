@@ -23,6 +23,7 @@ use storage_adapter::storage::StorageAdapter;
 use tonic::transport::Server;
 
 use super::inner::GrpcInnerServices;
+use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::CacheManager;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::grpc::admin::services::GrpcAdminServices;
@@ -31,6 +32,7 @@ use crate::subscribe::subscribe_manager::SubscribeManager;
 pub struct GrpcServer<S> {
     port: u32,
     metadata_cache: Arc<CacheManager>,
+    connector_manager: Arc<ConnectorManager>,
     connection_manager: Arc<ConnectionManager>,
     subscribe_manager: Arc<SubscribeManager>,
     client_pool: Arc<ClientPool>,
@@ -44,6 +46,7 @@ where
     pub fn new(
         port: u32,
         metadata_cache: Arc<CacheManager>,
+        connector_manager: Arc<ConnectorManager>,
         subscribe_manager: Arc<SubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
         client_pool: Arc<ClientPool>,
@@ -51,6 +54,7 @@ where
     ) -> Self {
         Self {
             port,
+            connector_manager,
             metadata_cache,
             connection_manager,
             subscribe_manager,
@@ -64,6 +68,7 @@ where
         let inner_handler = GrpcInnerServices::new(
             self.metadata_cache.clone(),
             self.subscribe_manager.clone(),
+            self.connector_manager.clone(),
             self.client_pool.clone(),
             self.message_storage_adapter.clone(),
         );
