@@ -34,7 +34,9 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionRaw,
     ListConnectionReply, ListConnectionRequest, ListSlowSubScribeRaw, ListSlowSubscribeReply,
     ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-    MqttTopic,
+    MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttDeleteConnectorReply,
+    MqttDeleteConnectorRequest, MqttListConnectorReply, MqttListConnectorRequest, MqttTopic,
+    MqttUpdateConnectorReply, MqttUpdateConnectorRequest,
 };
 use tonic::{Request, Response, Status};
 
@@ -449,5 +451,37 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             }
             Err(e) => Err(Status::cancelled(e.to_string())),
         }
+    }
+
+    async fn mqtt_broker_list_connector(
+        &self,
+        request: Request<MqttListConnectorRequest>,
+    ) -> Result<Response<MqttListConnectorReply>, Status> {
+        let _req = request.into_inner();
+        Ok(Response::new(MqttListConnectorReply::default()))
+    }
+
+    async fn mqtt_broker_create_connector(
+        &self,
+        request: Request<MqttCreateConnectorRequest>,
+    ) -> Result<Response<MqttCreateConnectorReply>, Status> {
+        let _req = request.into_inner();
+        Ok(Response::new(MqttCreateConnectorReply::default()))
+    }
+
+    async fn mqtt_broker_update_connector(
+        &self,
+        request: Request<MqttUpdateConnectorRequest>,
+    ) -> Result<Response<MqttUpdateConnectorReply>, Status> {
+        let _req = request.into_inner();
+        Ok(Response::new(MqttUpdateConnectorReply::default()))
+    }
+
+    async fn mqtt_broker_delete_connector(
+        &self,
+        request: Request<MqttDeleteConnectorRequest>,
+    ) -> Result<Response<MqttDeleteConnectorReply>, Status> {
+        let _req = request.into_inner();
+        Ok(Response::new(MqttDeleteConnectorReply::default()))
     }
 }
