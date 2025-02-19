@@ -16,6 +16,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use bridge::manager::ConnectorManager;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::runtime::create_runtime;
 use common_base::tools::now_second;
@@ -114,6 +115,7 @@ pub struct MqttBroker<S> {
     message_storage_adapter: Arc<S>,
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
+    connector_manager: Arc<ConnectorManager>,
     auth_driver: Arc<AuthDriver>,
 }
 
@@ -133,16 +135,17 @@ where
         );
 
         let subscribe_manager = Arc::new(SubscribeManager::new());
-
+        let connector_manager = Arc::new(ConnectorManager::new());
         let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
-
         let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_pool.clone()));
+
         MqttBroker {
             runtime,
             cache_manager,
             client_pool,
             message_storage_adapter,
             subscribe_manager,
+            connector_manager,
             connection_manager,
             auth_driver,
         }
@@ -205,6 +208,7 @@ where
         let server = GrpcServer::new(
             conf.grpc_port,
             self.cache_manager.clone(),
+            self.connector_manager.clone(),
             self.subscribe_manager.clone(),
             self.connection_manager.clone(),
             self.client_pool.clone(),

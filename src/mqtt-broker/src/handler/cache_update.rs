@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::bridge::manager::ConnectorManager;
 use crate::storage::topic::TopicStorage;
 use crate::{security::AuthDriver, subscribe::subscribe_manager::SubscribeManager};
 use grpc_clients::pool::ClientPool;
@@ -111,6 +112,7 @@ pub async fn load_metadata_cache(
 
 pub async fn update_cache_metadata(
     cache_manager: &Arc<CacheManager>,
+    connector_manager: &Arc<ConnectorManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     request: UpdateMqttCacheRequest,
 ) {
@@ -212,7 +214,7 @@ pub async fn update_cache_metadata(
             MqttBrokerUpdateCacheActionType::Set => {
                 match serde_json::from_str::<MQTTConnector>(&request.data) {
                     Ok(connector) => {
-                        cache_manager.add_connector(&connector);
+                        connector_manager.add_connector(&connector);
                     }
                     Err(e) => {
                         error!("{}", e);
@@ -222,7 +224,7 @@ pub async fn update_cache_metadata(
             MqttBrokerUpdateCacheActionType::Delete => {
                 match serde_json::from_str::<MQTTConnector>(&request.data) {
                     Ok(connector) => {
-                        cache_manager.remove_connector(&connector.connector_name);
+                        connector_manager.remove_connector(&connector.connector_name);
                     }
                     Err(e) => {
                         error!("{}", e);
