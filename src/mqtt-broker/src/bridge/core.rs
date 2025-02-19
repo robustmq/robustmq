@@ -148,6 +148,7 @@ fn start_thread<S>(
                 };
 
                 let bridge = FileBridgePlugin::new(
+                    connector_manager.clone(),
                     message_storage.clone(),
                     connector.connector_name.clone(),
                     local_file_config,
