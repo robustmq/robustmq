@@ -15,9 +15,14 @@
 use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use grpc_clients::{placement::mqtt::call::placement_create_connector, pool::ClientPool};
+use grpc_clients::{
+    placement::mqtt::call::{placement_connector_heartbeat, placement_create_connector},
+    pool::ClientPool,
+};
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
-use protocol::placement_center::placement_center_mqtt::CreateConnectorRequest;
+use protocol::placement_center::placement_center_mqtt::{
+    ConnectorHeartbeatRaw, ConnectorHeartbeatRequest, CreateConnectorRequest,
+};
 
 use crate::handler::error::MqttBrokerError;
 
@@ -71,6 +76,19 @@ impl ConnectorStorage {
             connector: connector.encode(),
         };
         placement_create_connector(&self.client_pool, &config.placement_center, request).await?;
+        Ok(())
+    }
+
+    pub async fn connector_heartbeat(
+        &self,
+        heatbeats: Vec<ConnectorHeartbeatRaw>,
+    ) -> Result<(), MqttBrokerError> {
+        let config = broker_mqtt_conf();
+        let request = ConnectorHeartbeatRequest {
+            cluster_name: config.cluster_name.clone(),
+            heatbeats,
+        };
+        placement_connector_heartbeat(&self.client_pool, &config.placement_center, request).await?;
         Ok(())
     }
 }
