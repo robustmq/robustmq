@@ -14,6 +14,7 @@
 
 use crate::handler::error::MqttBrokerError;
 use axum::async_trait;
+use common_base::config::broker_mqtt::broker_mqtt_conf;
 use log::{error, info};
 use metadata_struct::mqtt::bridge::{
     config_local_file::LocalFileConnectorConfig, connector::MQTTConnector,
@@ -73,8 +74,19 @@ async fn check_connector<S>(message_storage: &Arc<S>, connector_manager: &Arc<Co
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
+    let config = broker_mqtt_conf();
     // Start connector thread
     for raw in connector_manager.get_all_connector() {
+        if raw.broker_id.is_none() {
+            continue;
+        }
+
+        if let Some(broker_id) = raw.broker_id {
+            if broker_id != config.broker_id {
+                continue;
+            }
+        }
+
         if connector_manager
             .get_connector_thread(&raw.connector_name)
             .is_some()
