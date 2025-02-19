@@ -15,6 +15,7 @@
 use std::{sync::Arc, time::Duration};
 
 use super::core::{BridgePlugin, BridgePluginReadConfig};
+use super::manager::ConnectorManager;
 use crate::{handler::error::MqttBrokerError, storage::message::MessageStorage};
 use axum::async_trait;
 use log::error;
@@ -27,6 +28,7 @@ use tokio::io::{AsyncWriteExt, BufWriter};
 use tokio::{fs::OpenOptions, select, sync::broadcast, time::sleep};
 
 pub struct FileBridgePlugin<S> {
+    connector_manager: Arc<ConnectorManager>,
     message_storage: Arc<S>,
     connector_name: String,
     config: LocalFileConnectorConfig,
@@ -38,12 +40,14 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
+        connector_manager: Arc<ConnectorManager>,
         message_storage: Arc<S>,
         connector_name: String,
         config: LocalFileConnectorConfig,
         stop_send: broadcast::Sender<bool>,
     ) -> Self {
         FileBridgePlugin {
+            connector_manager,
             message_storage,
             connector_name,
             config,
@@ -94,7 +98,7 @@ where
                 val = message_storage.read_topic_message(&config.topic_id, offset, config.record_num) => {
                     match val {
                         Ok(data) => {
-
+                            self.connector_manager.report_heartbeat(&self.connector_name);
                             if data.is_empty() {
                                 sleep(Duration::from_millis(100)).await;
                                 continue;

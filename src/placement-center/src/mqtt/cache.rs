@@ -14,7 +14,6 @@
 
 use std::sync::Arc;
 
-use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::topic::MqttTopic;
@@ -152,12 +151,17 @@ impl MqttCacheManager {
     }
 
     // Report HeartBeart
-    pub fn report_connector_heartbeat(&self, cluster_name: &str, connector_name: &str) {
+    pub fn report_connector_heartbeat(
+        &self,
+        cluster_name: &str,
+        connector_name: &str,
+        heartbeat_time: u64,
+    ) {
         let key = format!("{}_{}", cluster_name, connector_name);
         let heartbeat = ConnectorHeartbeat {
             cluster_name: cluster_name.to_owned(),
             connector_name: connector_name.to_owned(),
-            last_heartbeat: now_second(),
+            last_heartbeat: heartbeat_time,
         };
         self.connector_heartbeat.insert(key, heartbeat);
     }

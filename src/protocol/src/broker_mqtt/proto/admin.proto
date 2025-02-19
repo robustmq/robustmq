@@ -36,11 +36,15 @@ service MQTTBrokerAdminService {
     rpc mqtt_broker_list_slow_subscribe(ListSlowSubscribeRequest) returns(ListSlowSubscribeReply){}
     rpc mqtt_broker_list_topic(ListTopicRequest) returns(ListTopicReply){}
 
-
-
     // topic rewrite rule
     rpc mqtt_broker_delete_topic_rewrite_rule(DeleteTopicRewriteRuleRequest) returns(DeleteTopicRewriteRuleReply) {}
     rpc mqtt_broker_create_topic_rewrite_rule(CreateTopicRewriteRuleRequest) returns(CreateTopicRewriteRuleReply) {}
+
+    // connector
+    rpc mqtt_broker_list_connector(MqttListConnectorRequest) returns(MqttListConnectorReply){}
+    rpc mqtt_broker_create_connector(MqttCreateConnectorRequest) returns(MqttCreateConnectorReply){}
+    rpc mqtt_broker_delete_connector(MqttDeleteConnectorRequest) returns(MqttDeleteConnectorReply){}
+    rpc mqtt_broker_update_connector(MqttUpdateConnectorRequest) returns(MqttUpdateConnectorReply){}
 }
 
 // --------- cluster --------
@@ -250,3 +254,36 @@ message CreateTopicRewriteRuleRequest{
 message CreateTopicRewriteRuleReply{
 
 }
+
+message MqttListConnectorRequest{
+
+}
+
+message MqttListConnectorReply{
+
+}
+
+message MqttCreateConnectorRequest{
+
+}
+
+message MqttCreateConnectorReply{
+
+}
+
+message MqttDeleteConnectorRequest{
+
+}
+
+message MqttDeleteConnectorReply{
+
+}
+
+message MqttUpdateConnectorRequest{
+
+}
+
+message MqttUpdateConnectorReply{
+
+}
+

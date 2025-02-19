@@ -644,11 +644,14 @@ impl MqttService for GrpcMqttService {
         for raw in req.heatbeats {
             if self
                 .mqtt_cache
-                .get_connector(&raw.cluster_name, &raw.connector_name)
+                .get_connector(&req.cluster_name, &raw.connector_name)
                 .is_some()
             {
-                self.mqtt_cache
-                    .report_connector_heartbeat(&raw.cluster_name, &raw.connector_name);
+                self.mqtt_cache.report_connector_heartbeat(
+                    &req.cluster_name,
+                    &raw.connector_name,
+                    raw.heartbeat_time,
+                );
             }
         }
         Ok(Response::new(ConnectorHeartbeatReply::default()))
