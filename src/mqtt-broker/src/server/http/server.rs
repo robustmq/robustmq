@@ -30,9 +30,14 @@ pub const ROUTE_METRICS: &str = "/metrics";
 
 #[derive(Clone)]
 pub struct HttpServerState {}
-
 impl HttpServerState {
     pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Default for HttpServerState {
+    fn default() -> Self {
         Self {}
     }
 }

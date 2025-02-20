@@ -50,11 +50,13 @@ pub async fn run_client(
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct QuicClientConfig {
     quic_client_config: ClientConfig,
     bind_addr: SocketAddr,
 }
 
+#[allow(dead_code)]
 impl QuicClientConfig {
     pub fn get_quic_client_config(&self) -> ClientConfig {
         self.quic_client_config.clone()
@@ -80,7 +82,7 @@ impl Default for QuicClientConfig {
 }
 
 fn create_default_crypto() -> Arc<quinn::crypto::rustls::QuicClientConfig> {
-    let crypto = match quinn::crypto::rustls::QuicClientConfig::try_from(
+    match quinn::crypto::rustls::QuicClientConfig::try_from(
         rustls::ClientConfig::builder()
             .dangerous()
             .with_custom_certificate_verifier(SkipServerVerification::new())
@@ -88,8 +90,7 @@ fn create_default_crypto() -> Arc<quinn::crypto::rustls::QuicClientConfig> {
     ) {
         Ok(quic_client_config) => Arc::new(quic_client_config),
         Err(_) => panic!("failed to create quic client config"),
-    };
-    crypto
+    }
 }
 
 pub struct QuicClient {
@@ -160,9 +161,7 @@ impl QuicClient {
                 endpoint.wait_idle().await;
                 self.endpoint = None;
             }
-            Err(_) => {
-                return;
-            }
+            Err(_) => {}
         }
     }
 }

@@ -39,7 +39,7 @@ impl QuicServerConfig {
     }
 
     fn get_bind_addr(&self) -> SocketAddr {
-        self.bind_addr.clone()
+        self.bind_addr
     }
 }
 
