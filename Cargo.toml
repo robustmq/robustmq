@@ -52,7 +52,7 @@ futures = "0.3"
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7.9", features = ["codec"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["logging", "tls12", "ring"] }
-rustls = "0.23.23"
+rustls = { version = "0.23.23", default-features = false }
 rustls-pemfile = "2"
 ## axum
 axum = { version = "0.7.2", features = ["ws"] }
