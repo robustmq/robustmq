@@ -164,7 +164,7 @@ service MqttService {
   //Deletes the corresponding ACL based on the request
   //
   //Parameters:
-  // - `cluster_name: String`: The name of the cluster. 
+  // - `cluster_name: String`: The name of the cluster.
   // - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
   //
   //Returns: An empty struct.
@@ -246,7 +246,7 @@ service MqttService {
   rpc ListConnectors(ListConnectorRequest) returns(ListConnectorReply) {}
 
   rpc CreateConnector(CreateConnectorRequest) returns(CreateConnectorReply) {}
-  
+
   rpc UpdateConnector(UpdateConnectorRequest) returns(UpdateConnectorReply) {}
 
   rpc DeleteConnector(DeleteConnectorRequest) returns(DeleteConnectorReply) {}
@@ -506,7 +506,7 @@ message CreateBlacklistRequest{
 }
 
 message CreateBlacklistReply{
-    
+
 }
 
 message DeleteBlacklistRequest{
@@ -615,7 +615,7 @@ message CreateConnectorRequest{
 }
 
 message CreateConnectorReply{
-    
+
 }
 
 message UpdateConnectorRequest{
@@ -625,7 +625,7 @@ message UpdateConnectorRequest{
 }
 
 message UpdateConnectorReply{
-    
+
 }
 
 message DeleteConnectorRequest{
@@ -634,7 +634,7 @@ message DeleteConnectorRequest{
 }
 
 message DeleteConnectorReply{
-    
+
 }
 
 message ConnectorHeartbeatRequest{
@@ -648,5 +648,5 @@ message ConnectorHeartbeatRaw{
 }
 
 message ConnectorHeartbeatReply{
-    
+
 }
