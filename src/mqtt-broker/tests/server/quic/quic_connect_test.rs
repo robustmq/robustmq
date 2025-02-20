@@ -12,15 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use quinn::ServerConfig;
-use rustls_pki_types::{CertificateDer, PrivatePkcs8KeyDer};
-use std::sync::Arc;
-
 #[cfg(test)]
 mod tests {
-    use super::*;
     use mqtt_broker::server::quic::client::QuicClient;
-    use mqtt_broker::server::quic::server::{QuicServer, QuicServerConfig};
+    use mqtt_broker::server::quic::server::QuicServer;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
     // todo create a client to connect to server
