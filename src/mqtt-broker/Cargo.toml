@@ -59,3 +59,5 @@ rcgen.workspace = true
 rustls-pki-types.workspace = true
 rustls.workspace = true
 bindgen.workspace = true
+# test
+googletest.workspace = true

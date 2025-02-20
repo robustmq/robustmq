@@ -15,7 +15,6 @@
 use crate::handler::error::MqttBrokerError;
 use quinn::{Endpoint, ServerConfig};
 use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
-use rustls::Error;
 use rustls_pki_types::PrivateKeyDer;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
@@ -25,7 +24,7 @@ pub fn generate_self_signed_cert() -> (Vec<CertificateDer<'static>>, PrivateKeyD
     let priv_key = PrivatePkcs8KeyDer::from(cert.key_pair.serialize_der());
     (vec![cert_der.clone()], priv_key.into())
 }
-
+#[derive(Clone, Debug)]
 pub struct QuicServerConfig {
     server_config: ServerConfig,
     bind_addr: SocketAddr,
@@ -84,8 +83,8 @@ impl QuicServer {
             Ok(endpoint) => {
                 self.endpoint = Some(endpoint);
             }
-            Err(_) => {
-                panic!("Failed to start a quic server")
+            Err(e) => {
+                panic!("Failed to start a quic server: {}", e)
             }
         };
     }
@@ -97,5 +96,35 @@ impl QuicServer {
                 "Endpoint is not initialized".to_string(),
             )),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use googletest::matchers::{anything, none};
+    use googletest::{assert_that, gtest};
+
+    #[gtest]
+    #[tokio::test]
+    async fn should_create_quic_server() {
+        let quic_server = QuicServer::new(SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0));
+
+        assert_that!(quic_server.endpoint, none());
+
+        assert_that!(quic_server.quic_server_config, anything());
+    }
+
+    #[gtest]
+    #[tokio::test]
+    async fn should_start_quic_server() {
+        let mut quic_server =
+            QuicServer::new(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8080));
+
+        assert_that!(quic_server.endpoint, none());
+
+        quic_server.start();
+
+        assert_that!(quic_server.endpoint, anything());
     }
 }

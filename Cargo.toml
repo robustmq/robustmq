@@ -13,7 +13,6 @@
 # limitations under the License.
 
 [workspace]
-name = "robustmq"
 members = [
     "src/mqtt-bridge/kafka",
     "src/mqtt-bridge/elasticsearch",
@@ -45,8 +44,8 @@ edition = "2021"
 license = "Apache-2.0"
 
 [workspace.dependencies]
-rustls-pki-types = { version = "1.11.0", override = true }
-bindgen = { version = "0.69.5", override = true}
+rustls-pki-types = { version = "1.11.0" }
+bindgen = { version = "0.69.5" }
 ## async lib
 futures = "0.3"
 tokio = { version = "1", features = ["full"] }
@@ -69,6 +68,7 @@ clap-cargo = "0.14.1"
 clap = { version = "4.4.7", features = ["derive"] }
 ## unit test lib
 mockall = "0.13.1"
+googletest = "0.13.0"
 ## text handle lib
 regex = "1.10.4"
 grep = "0.3.2"
