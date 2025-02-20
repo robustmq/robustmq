@@ -15,6 +15,7 @@
 pub mod acl;
 pub mod blacklist;
 pub mod cluster;
+pub mod connector;
 pub mod message;
 pub mod session;
 pub mod topic;

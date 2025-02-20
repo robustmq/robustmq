@@ -20,6 +20,7 @@ service MQTTBrokerInnerService {
     rpc updateCache(UpdateMQTTCacheRequest) returns(UpdateMQTTCacheReply){}
     rpc deleteSession(DeleteSessionRequest) returns(DeleteSessionReply){}
     rpc sendLastWillMessage(SendLastWillMessageRequest) returns(SendLastWillMessageReply){}
+
 }
 
 message UpdateMQTTCacheRequest{

@@ -18,12 +18,13 @@ use super::{connector_type::ConnectorType, status::MQTTStatus};
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct MQTTConnector {
+    pub cluster_name: String,
     pub connector_name: String,
-    pub description: String,
-    pub config: String,
     pub connector_type: ConnectorType,
+    pub config: String,
+    pub topic_id: String,
     pub status: MQTTStatus,
-    pub broker_id: Option<u32>,
+    pub broker_id: Option<u64>,
     pub create_time: u64,
     pub update_time: u64,
 }

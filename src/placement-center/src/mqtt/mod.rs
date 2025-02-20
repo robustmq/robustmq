@@ -16,6 +16,7 @@ use common_base::tools::now_second;
 use controller::session_expire::ExpireLastWill;
 
 pub mod cache;
+pub mod connector;
 pub mod controller;
 pub mod services;
 
