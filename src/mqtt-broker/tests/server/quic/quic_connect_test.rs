@@ -19,8 +19,9 @@ use std::sync::Arc;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mqtt_broker::server::quic::client::run_client;
+    use mqtt_broker::server::quic::client::{run_client, QuicClient};
     use mqtt_broker::server::quic::server::{QuicServer, QuicServerConfig};
+    use quinn::Endpoint;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
     // todo create a client to connect to server
@@ -53,7 +54,13 @@ mod tests {
             );
         });
 
-        run_client(ip_server).await.unwrap();
+        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8082);
+
+        let mut quic_client = QuicClient::bind(addr);
+        let connection = quic_client.connect(ip_server, "localhost");
+        drop(connection);
+
+        quic_client.disconnect().await;
     }
 
     // todo server has a accept function to get a connection

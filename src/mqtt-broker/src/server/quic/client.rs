@@ -93,7 +93,7 @@ fn create_default_crypto() -> Arc<quinn::crypto::rustls::QuicClientConfig> {
     crypto
 }
 
-struct QuicClient {
+pub struct QuicClient {
     quic_client_config: QuicClientConfig,
     endpoint: Option<Endpoint>,
 }
@@ -153,6 +153,18 @@ impl QuicClient {
         info!("[client] connected: addr={}", connection.remote_address());
 
         Ok(connection)
+    }
+
+    pub async fn disconnect(&mut self) {
+        match self.get_endpoint() {
+            Ok(endpoint) => {
+                endpoint.wait_idle().await;
+                self.endpoint = None;
+            }
+            Err(_) => {
+                return;
+            }
+        }
     }
 }
 
