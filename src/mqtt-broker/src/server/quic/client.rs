@@ -75,7 +75,7 @@ impl Default for QuicClientConfig {
         let quic_client_config = ClientConfig::new(create_default_crypto());
         Self {
             quic_client_config,
-            bind_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8082),
+            bind_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0),
         }
     }
 }

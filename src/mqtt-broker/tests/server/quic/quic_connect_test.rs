@@ -19,9 +19,8 @@ use std::sync::Arc;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mqtt_broker::server::quic::client::{run_client, QuicClient};
+    use mqtt_broker::server::quic::client::QuicClient;
     use mqtt_broker::server::quic::server::{QuicServer, QuicServerConfig};
-    use quinn::Endpoint;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
     // todo create a client to connect to server
@@ -30,33 +29,24 @@ mod tests {
     async fn quic_client_should_connect_quic_server() {
         let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8080);
 
-        let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
-        let cert_der = CertificateDer::from(cert.cert);
-        let priv_key = PrivatePkcs8KeyDer::from(cert.key_pair.serialize_der());
+        //
+        // let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
+        // transport_config.max_concurrent_uni_streams(0_u8.into());
 
-        let mut server_config =
-            ServerConfig::with_single_cert(vec![cert_der.clone()], priv_key.into()).unwrap();
-        let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
-        transport_config.max_concurrent_uni_streams(0_u8.into());
+        let mut server = QuicServer::new(ip_server);
 
-        let config = QuicServerConfig::new(server_config, ip_server);
-        let mut server = QuicServer::new(config);
+        server.start();
 
-        server.start().expect("TODO: panic message");
+        let client_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8082);
 
         tokio::spawn(async move {
             let endpoint = server.get_endpoint().unwrap();
             let incoming_conn = endpoint.accept().await.unwrap();
             let conn = incoming_conn.await.unwrap();
-            println!(
-                "[server] connection accepted: addr={}",
-                conn.remote_address()
-            );
+            assert_eq!(conn.remote_address(), client_addr);
         });
 
-        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8082);
-
-        let mut quic_client = QuicClient::bind(addr);
+        let mut quic_client = QuicClient::bind(client_addr);
         let connection = quic_client.connect(ip_server, "localhost");
         drop(connection);
 

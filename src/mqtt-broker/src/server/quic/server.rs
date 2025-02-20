@@ -13,21 +13,17 @@
 // limitations under the License.
 
 use crate::handler::error::MqttBrokerError;
-use quinn::crypto::rustls::QuicClientConfig;
-use quinn::ClientConfig;
 use quinn::{Endpoint, ServerConfig};
-use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer, ServerName, UnixTime};
-use std::error::Error;
+use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
+use rustls::Error;
+use rustls_pki_types::PrivateKeyDer;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::sync::Arc;
 
-#[allow(unused)]
-pub fn make_server_endpoint(
-    server_config: ServerConfig,
-    bind_addr: SocketAddr,
-) -> Result<Endpoint, Box<dyn Error + Send + Sync + 'static>> {
-    let endpoint = Endpoint::server(server_config, bind_addr)?;
-    Ok(endpoint)
+pub fn generate_self_signed_cert() -> (Vec<CertificateDer<'static>>, PrivateKeyDer<'static>) {
+    let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
+    let cert_der = CertificateDer::from(cert.cert);
+    let priv_key = PrivatePkcs8KeyDer::from(cert.key_pair.serialize_der());
+    (vec![cert_der.clone()], priv_key.into())
 }
 
 pub struct QuicServerConfig {
@@ -36,13 +32,9 @@ pub struct QuicServerConfig {
 }
 
 impl QuicServerConfig {
-    pub fn new(server_config: ServerConfig, bind_addr: SocketAddr) -> Self {
-        QuicServerConfig {
-            server_config,
-            bind_addr,
-        }
+    pub fn bind_addr(&mut self, addr: SocketAddr) {
+        self.bind_addr = addr;
     }
-
     fn get_server_config(&self) -> ServerConfig {
         self.server_config.clone()
     }
@@ -52,33 +44,50 @@ impl QuicServerConfig {
     }
 }
 
+impl Default for QuicServerConfig {
+    fn default() -> Self {
+        let (cert_der, priv_key) = generate_self_signed_cert();
+        let server_config = match ServerConfig::with_single_cert(cert_der, priv_key) {
+            Ok(quin_server_config) => quin_server_config,
+            Err(_) => {
+                panic!("Failed to create quic server config in default")
+            }
+        };
+        QuicServerConfig {
+            server_config,
+            bind_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0),
+        }
+    }
+}
+
 pub struct QuicServer {
     quic_server_config: QuicServerConfig,
     endpoint: Option<Endpoint>,
 }
 
 impl QuicServer {
-    pub fn new(quic_server_config: QuicServerConfig) -> Self {
+    pub fn new(addr: SocketAddr) -> Self {
+        let mut quinn_quic_server_config = QuicServerConfig::default();
+        quinn_quic_server_config.bind_addr(addr);
+
         QuicServer {
-            quic_server_config,
+            quic_server_config: quinn_quic_server_config,
             endpoint: None,
         }
     }
 
-    pub fn start(&mut self) -> Result<(), MqttBrokerError> {
-        let endpoint = Endpoint::server(
+    pub fn start(&mut self) {
+        match Endpoint::server(
             self.quic_server_config.get_server_config(),
             self.quic_server_config.get_bind_addr(),
-        );
-        match endpoint {
+        ) {
             Ok(endpoint) => {
                 self.endpoint = Some(endpoint);
-                Ok(())
             }
-            Err(_) => Err(MqttBrokerError::CommonError(
-                "Failed to start quic server".to_string(),
-            )),
-        }
+            Err(_) => {
+                panic!("Failed to start a quic server")
+            }
+        };
     }
 
     pub fn get_endpoint(&self) -> Result<Endpoint, MqttBrokerError> {
