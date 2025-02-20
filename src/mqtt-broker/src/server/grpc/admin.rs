@@ -40,6 +40,11 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 };
 use tonic::{Request, Response, Status};
 
+use crate::bridge::manager::ConnectorManager;
+use crate::bridge::request::{
+    create_connector_by_req, delete_connector_by_req, list_connector_by_req,
+    update_connector_by_req,
+};
 use crate::handler::cache::CacheManager;
 use crate::handler::flapping_detect::enable_flapping_detect;
 use crate::observability::slow::sub::{enable_slow_sub, read_slow_sub_record, SlowSubData};
@@ -52,6 +57,7 @@ pub struct GrpcAdminServices {
     client_pool: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
     connection_manager: Arc<ConnectionManager>,
+    connector_manager: Arc<ConnectorManager>,
 }
 
 impl GrpcAdminServices {
@@ -59,11 +65,13 @@ impl GrpcAdminServices {
         client_pool: Arc<ClientPool>,
         cache_manager: Arc<CacheManager>,
         connection_manager: Arc<ConnectionManager>,
+        connector_manager: Arc<ConnectorManager>,
     ) -> Self {
         GrpcAdminServices {
             client_pool,
             cache_manager,
             connection_manager,
+            connector_manager,
         }
     }
 }
@@ -457,31 +465,43 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         request: Request<MqttListConnectorRequest>,
     ) -> Result<Response<MqttListConnectorReply>, Status> {
-        let _req = request.into_inner();
-        Ok(Response::new(MqttListConnectorReply::default()))
+        let req = request.into_inner();
+        match list_connector_by_req(&self.connector_manager, &req).await {
+            Ok(data) => return Ok(Response::new(MqttListConnectorReply { connectors: data })),
+            Err(e) => return Err(Status::cancelled(e.to_string())),
+        };
     }
 
     async fn mqtt_broker_create_connector(
         &self,
         request: Request<MqttCreateConnectorRequest>,
     ) -> Result<Response<MqttCreateConnectorReply>, Status> {
-        let _req = request.into_inner();
-        Ok(Response::new(MqttCreateConnectorReply::default()))
+        let req = request.into_inner();
+        match create_connector_by_req(&self.client_pool, &req).await {
+            Ok(_) => return Ok(Response::new(MqttCreateConnectorReply::default())),
+            Err(e) => return Err(Status::cancelled(e.to_string())),
+        };
     }
 
     async fn mqtt_broker_update_connector(
         &self,
         request: Request<MqttUpdateConnectorRequest>,
     ) -> Result<Response<MqttUpdateConnectorReply>, Status> {
-        let _req = request.into_inner();
-        Ok(Response::new(MqttUpdateConnectorReply::default()))
+        let req = request.into_inner();
+        match update_connector_by_req(&self.client_pool, &req).await {
+            Ok(_) => return Ok(Response::new(MqttUpdateConnectorReply::default())),
+            Err(e) => return Err(Status::cancelled(e.to_string())),
+        };
     }
 
     async fn mqtt_broker_delete_connector(
         &self,
         request: Request<MqttDeleteConnectorRequest>,
     ) -> Result<Response<MqttDeleteConnectorReply>, Status> {
-        let _req = request.into_inner();
-        Ok(Response::new(MqttDeleteConnectorReply::default()))
+        let req = request.into_inner();
+        match delete_connector_by_req(&self.client_pool, &req).await {
+            Ok(_) => return Ok(Response::new(MqttDeleteConnectorReply::default())),
+            Err(e) => return Err(Status::cancelled(e.to_string())),
+        };
     }
 }

@@ -255,16 +255,24 @@ message CreateTopicRewriteRuleReply{
 
 }
 
+// --------- mqtt topic --------
+enum MqttConnectorType {
+    File = 0;
+    Kafka = 1;
+}
 message MqttListConnectorRequest{
-
+    string connector_name = 1;
 }
 
 message MqttListConnectorReply{
-
+    repeated bytes connectors = 1;
 }
 
 message MqttCreateConnectorRequest{
-
+    string connector_name = 1;
+    MqttConnectorType connector_type = 2;
+    string config = 3;
+    string topic_id = 4;
 }
 
 message MqttCreateConnectorReply{
@@ -272,7 +280,7 @@ message MqttCreateConnectorReply{
 }
 
 message MqttDeleteConnectorRequest{
-
+    string connector_name = 1;
 }
 
 message MqttDeleteConnectorReply{
@@ -280,7 +288,7 @@ message MqttDeleteConnectorReply{
 }
 
 message MqttUpdateConnectorRequest{
-
+    bytes connector = 1;
 }
 
 message MqttUpdateConnectorReply{
