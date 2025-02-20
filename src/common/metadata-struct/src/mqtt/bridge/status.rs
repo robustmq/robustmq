@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub enum MQTTStatus {
     #[default]
+    Idle,
     Running,
     Stopped,
 }

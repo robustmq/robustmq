@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 
@@ -24,6 +25,9 @@ pub struct ConnectorManager {
 
     // (connector_name, BridgePluginThread)
     pub connector_thread: DashMap<String, BridgePluginThread>,
+
+    // (connector_name, u64)
+    pub connector_heartbeat: DashMap<String, u64>,
 }
 
 impl ConnectorManager {
@@ -31,6 +35,7 @@ impl ConnectorManager {
         ConnectorManager {
             connector_list: DashMap::with_capacity(8),
             connector_thread: DashMap::with_capacity(8),
+            connector_heartbeat: DashMap::with_capacity(8),
         }
     }
 
@@ -84,5 +89,11 @@ impl ConnectorManager {
 
     pub fn remove_connector_thread(&self, connector_name: &str) {
         self.connector_thread.remove(connector_name);
+    }
+
+    // Connector Heartbeat
+    pub fn report_heartbeat(&self, connector_name: &str) {
+        self.connector_heartbeat
+            .insert(connector_name.to_owned(), now_second());
     }
 }

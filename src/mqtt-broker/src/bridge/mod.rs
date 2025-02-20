@@ -14,5 +14,7 @@
 
 pub mod core;
 pub mod file;
+pub mod heartbeat;
 pub mod kafka;
 pub mod manager;
+pub mod request;

@@ -36,11 +36,15 @@ service MQTTBrokerAdminService {
     rpc mqtt_broker_list_slow_subscribe(ListSlowSubscribeRequest) returns(ListSlowSubscribeReply){}
     rpc mqtt_broker_list_topic(ListTopicRequest) returns(ListTopicReply){}
 
-
-
     // topic rewrite rule
     rpc mqtt_broker_delete_topic_rewrite_rule(DeleteTopicRewriteRuleRequest) returns(DeleteTopicRewriteRuleReply) {}
     rpc mqtt_broker_create_topic_rewrite_rule(CreateTopicRewriteRuleRequest) returns(CreateTopicRewriteRuleReply) {}
+
+    // connector
+    rpc mqtt_broker_list_connector(MqttListConnectorRequest) returns(MqttListConnectorReply){}
+    rpc mqtt_broker_create_connector(MqttCreateConnectorRequest) returns(MqttCreateConnectorReply){}
+    rpc mqtt_broker_delete_connector(MqttDeleteConnectorRequest) returns(MqttDeleteConnectorReply){}
+    rpc mqtt_broker_update_connector(MqttUpdateConnectorRequest) returns(MqttUpdateConnectorReply){}
 }
 
 // --------- cluster --------
@@ -250,3 +254,44 @@ message CreateTopicRewriteRuleRequest{
 message CreateTopicRewriteRuleReply{
 
 }
+
+// --------- mqtt topic --------
+enum MqttConnectorType {
+    File = 0;
+    Kafka = 1;
+}
+message MqttListConnectorRequest{
+    string connector_name = 1;
+}
+
+message MqttListConnectorReply{
+    repeated bytes connectors = 1;
+}
+
+message MqttCreateConnectorRequest{
+    string connector_name = 1;
+    MqttConnectorType connector_type = 2;
+    string config = 3;
+    string topic_id = 4;
+}
+
+message MqttCreateConnectorReply{
+
+}
+
+message MqttDeleteConnectorRequest{
+    string connector_name = 1;
+}
+
+message MqttDeleteConnectorReply{
+
+}
+
+message MqttUpdateConnectorRequest{
+    bytes connector = 1;
+}
+
+message MqttUpdateConnectorReply{
+
+}
+
