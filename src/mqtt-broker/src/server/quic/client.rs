@@ -93,6 +93,7 @@ fn create_default_crypto() -> Arc<quinn::crypto::rustls::QuicClientConfig> {
     }
 }
 
+#[allow(dead_code)]
 pub struct QuicClient {
     quic_client_config: QuicClientConfig,
     endpoint: Option<Endpoint>,
@@ -156,12 +157,9 @@ impl QuicClient {
     }
 
     pub async fn disconnect(&mut self) {
-        match self.get_endpoint() {
-            Ok(endpoint) => {
-                endpoint.wait_idle().await;
-                self.endpoint = None;
-            }
-            Err(_) => {}
+        if let Ok(endpoint) = self.get_endpoint() {
+            endpoint.wait_idle().await;
+            self.endpoint = None;
         }
     }
 }

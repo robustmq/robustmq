@@ -36,12 +36,6 @@ impl HttpServerState {
     }
 }
 
-impl Default for HttpServerState {
-    fn default() -> Self {
-        Self {}
-    }
-}
-
 pub async fn start_http_server(state: HttpServerState) -> Result<(), CommonError> {
     let config = broker_mqtt_conf();
     let ip: SocketAddr = format!("0.0.0.0:{}", config.http_port).parse()?;
