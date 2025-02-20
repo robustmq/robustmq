@@ -19,36 +19,6 @@ use quinn::{ClientConfig, Connection, Endpoint};
 use std::error::Error;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
-
-pub async fn run_client(
-    server_addr: SocketAddr,
-) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let mut endpoint = Endpoint::client(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8082))?;
-
-    endpoint.set_default_client_config(ClientConfig::new(Arc::new(
-        quinn::crypto::rustls::QuicClientConfig::try_from(
-            rustls::ClientConfig::builder()
-                .dangerous()
-                .with_custom_certificate_verifier(SkipServerVerification::new())
-                .with_no_client_auth(),
-        )?,
-    )));
-
-    // connect to server
-    let connection: Connection = endpoint
-        .connect(server_addr, "localhost")
-        .unwrap()
-        .await
-        .unwrap();
-    println!("[client] connected: addr={}", connection.remote_address());
-    // Dropping handles allows the corresponding objects to automatically shut down
-    drop(connection);
-    // Make sure the server has a chance to clean up
-    endpoint.wait_idle().await;
-
-    Ok(())
-}
-
 #[derive(Clone)]
 #[allow(dead_code)]
 struct QuicClientConfig {
