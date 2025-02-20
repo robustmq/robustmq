@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::handler::error::MqttBrokerError;
 use quinn::crypto::rustls::QuicClientConfig;
 use quinn::ClientConfig;
 use quinn::{Endpoint, ServerConfig};
@@ -20,42 +21,17 @@ use std::error::Error;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
-fn configure_server(
-) -> Result<(ServerConfig, CertificateDer<'static>), Box<dyn Error + Send + Sync + 'static>> {
-    let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
-    let cert_der = CertificateDer::from(cert.cert);
-    let priv_key = PrivatePkcs8KeyDer::from(cert.key_pair.serialize_der());
-
-    let mut server_config =
-        ServerConfig::with_single_cert(vec![cert_der.clone()], priv_key.into())?;
-    let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
-    transport_config.max_concurrent_uni_streams(0_u8.into());
-
-    Ok((server_config, cert_der))
-}
-
 #[allow(unused)]
 pub fn make_server_endpoint(
+    server_config: ServerConfig,
     bind_addr: SocketAddr,
-) -> Result<(Endpoint, CertificateDer<'static>), Box<dyn Error + Send + Sync + 'static>> {
-    let (server_config, server_cert) = configure_server()?;
+) -> Result<Endpoint, Box<dyn Error + Send + Sync + 'static>> {
     let endpoint = Endpoint::server(server_config, bind_addr)?;
-    Ok((endpoint, server_cert))
-}
-
-async fn run_server(addr: SocketAddr) {
-    let (endpoint, _server_cert) = make_server_endpoint(addr).unwrap();
-    // accept a single connection
-    let incoming_conn = endpoint.accept().await.unwrap();
-    let conn = incoming_conn.await.unwrap();
-    println!(
-        "[server] connection accepted: addr={}",
-        conn.remote_address()
-    );
+    Ok(endpoint)
 }
 
 async fn run_client(server_addr: SocketAddr) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let mut endpoint = Endpoint::client(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 2000))?;
+    let mut endpoint = Endpoint::client(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8082))?;
 
     endpoint.set_default_client_config(ClientConfig::new(Arc::new(QuicClientConfig::try_from(
         rustls::ClientConfig::builder()
@@ -133,19 +109,118 @@ impl rustls::client::danger::ServerCertVerifier for SkipServerVerification {
     }
 }
 
+struct QuicServerConfig {
+    server_config: ServerConfig,
+    bind_addr: SocketAddr,
+}
+
+impl QuicServerConfig {
+    fn new(server_config: ServerConfig, bind_addr: SocketAddr) -> Self {
+        QuicServerConfig {
+            server_config,
+            bind_addr,
+        }
+    }
+
+    fn get_server_config(&self) -> ServerConfig {
+        self.server_config.clone()
+    }
+
+    fn get_bind_addr(&self) -> SocketAddr {
+        self.bind_addr.clone()
+    }
+}
+
+struct QuicServer {
+    quic_server_config: QuicServerConfig,
+    endpoint: Option<Endpoint>,
+}
+
+impl QuicServer {
+    fn new(quic_server_config: QuicServerConfig) -> Self {
+        QuicServer {
+            quic_server_config,
+            endpoint: None,
+        }
+    }
+
+    fn start(&mut self) -> Result<(), MqttBrokerError> {
+        let endpoint = Endpoint::server(
+            self.quic_server_config.get_server_config(),
+            self.quic_server_config.get_bind_addr(),
+        );
+        match endpoint {
+            Ok(endpoint) => {
+                self.endpoint = Some(endpoint);
+                Ok(())
+            }
+            Err(_) => Err(MqttBrokerError::CommonError(
+                "Failed to start quic server".to_string(),
+            )),
+        }
+    }
+
+    fn get_endpoint(&self) -> Result<Endpoint, MqttBrokerError> {
+        match &self.endpoint {
+            Some(endpoint) => Ok(endpoint.clone()),
+            None => Err(MqttBrokerError::CommonError(
+                "Endpoint is not initialized".to_string(),
+            )),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
     // a client can connect to a server
+    // #[tokio::test]
+    // async fn quic_client_should_connect_quic_server_1() {
+    //     rustls::crypto::ring::default_provider()
+    //         .install_default()
+    //         .unwrap();
+    //     let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8080);
+    //     tokio::spawn(run_server(ip_server));
+    //     run_client(ip_server).await.unwrap();
+    // }
+
+    // create a new server and create a new client object, then client can connect to the server
+    // todo create a new server
     #[tokio::test]
     async fn quic_client_should_connect_quic_server() {
         rustls::crypto::ring::default_provider()
             .install_default()
             .unwrap();
         let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8080);
-        tokio::spawn(run_server(ip_server));
+
+        let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
+        let cert_der = CertificateDer::from(cert.cert);
+        let priv_key = PrivatePkcs8KeyDer::from(cert.key_pair.serialize_der());
+
+        let mut server_config =
+            ServerConfig::with_single_cert(vec![cert_der.clone()], priv_key.into()).unwrap();
+        let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
+        transport_config.max_concurrent_uni_streams(0_u8.into());
+
+        let config = QuicServerConfig::new(server_config, ip_server);
+        let mut server = QuicServer::new(config);
+
+        server.start().expect("TODO: panic message");
+
+        tokio::spawn(async move {
+            let endpoint = server.get_endpoint().unwrap();
+            let incoming_conn = endpoint.accept().await.unwrap();
+            let conn = incoming_conn.await.unwrap();
+            println!(
+                "[server] connection accepted: addr={}",
+                conn.remote_address()
+            );
+        });
+
         run_client(ip_server).await.unwrap();
     }
+    // todo create a client server
+    // todo client should connect to the server
 }
