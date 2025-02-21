@@ -19,28 +19,36 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
 };
 
 use crate::pool::ClientPool;
-use crate::utils::retry_call;
 
-pub async fn broker_mqtt_delete_session(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: DeleteSessionRequest,
-) -> Result<DeleteSessionReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
+macro_rules! generate_mqtt_inner_service_call {
+    ($fn_name:ident, $req_ty:ty, $rep_ty:ty, $variant:ident) => {
+        pub async fn $fn_name(
+            client_pool: &ClientPool,
+            addrs: &[impl AsRef<str>],
+            request: $req_ty,
+        ) -> Result<$rep_ty, CommonError> {
+            $crate::utils::retry_call(client_pool, addrs, request).await
+        }
+    };
 }
 
-pub async fn broker_mqtt_update_cache(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: UpdateMqttCacheRequest,
-) -> Result<UpdateMqttCacheReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_mqtt_inner_service_call!(
+    broker_mqtt_delete_session,
+    DeleteSessionRequest,
+    DeleteSessionReply,
+    DeleteSession
+);
 
-pub async fn send_last_will_message(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: SendLastWillMessageRequest,
-) -> Result<SendLastWillMessageReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_mqtt_inner_service_call!(
+    broker_mqtt_update_cache,
+    UpdateMqttCacheRequest,
+    UpdateMqttCacheReply,
+    UpdateMqttCache
+);
+
+generate_mqtt_inner_service_call!(
+    send_last_will_message,
+    SendLastWillMessageRequest,
+    SendLastWillMessageReply,
+    SendLastWillMessage
+);
