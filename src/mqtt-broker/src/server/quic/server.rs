@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::handler::error::MqttBrokerError;
-use quinn::{Endpoint, ServerConfig};
+use quinn::{Endpoint, ServerConfig, VarInt};
 use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 use rustls_pki_types::PrivateKeyDer;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -76,17 +76,35 @@ impl QuicServer {
     }
 
     pub fn start(&mut self) {
-        match Endpoint::server(
+        let endpoint = self.create_quinn_endpoint_as_a_quic_server();
+        self.bind_address_for_quic_server_config(endpoint);
+    }
+
+    fn bind_address_for_quic_server_config(&mut self, endpoint: Endpoint) {
+        let local_addr = match endpoint.local_addr() {
+            Ok(local_addr) => local_addr,
+            Err(e) => {
+                panic!("we can not to bind this address: {}", e)
+            }
+        };
+
+        self.quic_server_config.bind_addr = local_addr;
+    }
+
+    fn create_quinn_endpoint_as_a_quic_server(&mut self) -> Endpoint {
+        let endpoint = match Endpoint::server(
             self.quic_server_config.get_server_config(),
             self.quic_server_config.get_bind_addr(),
         ) {
             Ok(endpoint) => {
-                self.endpoint = Some(endpoint);
+                self.endpoint = Some(endpoint.clone());
+                endpoint
             }
             Err(e) => {
                 panic!("Failed to start a quic server: {}", e)
             }
         };
+        endpoint
     }
 
     pub fn get_endpoint(&self) -> Result<Endpoint, MqttBrokerError> {
@@ -95,6 +113,33 @@ impl QuicServer {
             None => Err(MqttBrokerError::CommonError(
                 "Endpoint is not initialized".to_string(),
             )),
+        }
+    }
+
+    pub fn local_addr(&self) -> SocketAddr {
+        match &self.endpoint {
+            Some(endpoint) => endpoint.local_addr().unwrap(),
+            None => panic!("quic server is not initialized"),
+        }
+    }
+
+    pub fn close(&mut self, error_code: VarInt, reason: &[u8]) {
+        match &self.endpoint {
+            Some(endpoint) => endpoint.close(error_code, reason),
+            None => {
+                panic!("quic server is not initialized")
+            }
+        }
+    }
+
+    pub async fn wait_idle(&self) {
+        match &self.endpoint {
+            None => {
+                panic!("quic server is not initialized")
+            }
+            Some(endpoint) => {
+                endpoint.wait_idle().await;
+            }
         }
     }
 }
