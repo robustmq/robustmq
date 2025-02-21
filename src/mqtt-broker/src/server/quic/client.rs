@@ -125,10 +125,12 @@ impl QuicClient {
         Ok(connection)
     }
 
-    pub async fn disconnect(&mut self) {
-        if let Ok(endpoint) = self.get_endpoint() {
-            endpoint.wait_idle().await;
-            self.endpoint = None;
+    pub async fn wait_idle(&self) {
+        match &self.endpoint {
+            None => {}
+            Some(endpoint) => {
+                endpoint.wait_idle().await;
+            }
         }
     }
 }

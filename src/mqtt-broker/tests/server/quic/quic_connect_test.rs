@@ -18,8 +18,6 @@ mod tests {
     use mqtt_broker::server::quic::server::QuicServer;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-    // todo create a client to connect to server
-    // todo server need to encapuslate
     #[tokio::test]
     async fn quic_client_should_connect_quic_server() {
         let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8080);
@@ -44,9 +42,32 @@ mod tests {
         let mut quic_client = QuicClient::bind(client_addr);
         let connection = quic_client.connect(ip_server, "localhost");
         drop(connection);
-
-        quic_client.disconnect().await;
+        quic_client.wait_idle().await;
     }
 
-    // todo server has a accept function to get a connection
+    // todo server can receive data twice from different clients
+    #[tokio::test]
+    #[ignore]
+    async fn quic_server_should_receive_data_from_different_client() {
+        let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8080);
+
+        //
+        // let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
+        // transport_config.max_concurrent_uni_streams(0_u8.into());
+
+        let mut server = QuicServer::new(ip_server);
+
+        server.start();
+
+        let client_addr_1 = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8081);
+        let client_addr_2 = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8082);
+
+        let mut quic_client_1 = QuicClient::bind(client_addr_1);
+        let mut quic_client_2 = QuicClient::bind(client_addr_2);
+
+        let quic_client_1 = async move {
+            let connection = quic_client_1.connect(ip_server, "localhost").await.unwrap();
+            connection.closed().await;
+        };
+    }
 }
