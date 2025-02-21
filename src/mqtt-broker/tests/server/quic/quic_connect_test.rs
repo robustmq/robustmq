@@ -18,7 +18,6 @@ mod tests {
     use mqtt_broker::server::quic::server::QuicServer;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use std::sync::Arc;
-    use tokio::runtime::{Builder, Runtime};
 
     #[tokio::test]
     async fn quic_client_should_connect_quic_server() {
@@ -104,9 +103,6 @@ mod tests {
         tokio::join!(quic_client_1, quic_client_2);
     }
 
-    fn runtime_basic() -> Runtime {
-        Builder::new_current_thread().enable_all().build().unwrap()
-    }
     #[tokio::test]
     async fn quic_client_receive_data_and_quic_server_sent_data() {
         let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
@@ -129,7 +125,7 @@ mod tests {
             let incoming_conn = endpoint.accept().await.unwrap();
             let conn = incoming_conn.await.unwrap();
             assert_eq!(conn.remote_address(), client_addr);
-            let (mut send_stream, mut recv_stream) = conn.open_bi().await.unwrap();
+            let (mut send_stream, _recv_stream) = conn.open_bi().await.unwrap();
             send_stream.write_all(MSG).await.unwrap();
             send_stream.finish().unwrap();
             let _ = send_stream.stopped().await;
@@ -139,7 +135,7 @@ mod tests {
             .connect(ip_server_addr, "localhost")
             .await
             .unwrap();
-        let (send_stream, mut recv_stream) = connection.accept_bi().await.unwrap();
+        let (_send_stream, mut recv_stream) = connection.accept_bi().await.unwrap();
         assert_eq!(recv_stream.read_to_end(MSG.len()).await.unwrap(), MSG);
 
         server.await.unwrap();
@@ -171,7 +167,7 @@ mod tests {
             let conn = incoming_conn.await.unwrap();
             assert_eq!(conn.remote_address(), client_addr);
             write_recv.notified().await;
-            let (mut send_stream, mut recv_stream) = conn.accept_bi().await.unwrap();
+            let (_send_stream, mut recv_stream) = conn.accept_bi().await.unwrap();
             assert_eq!(recv_stream.read_to_end(MSG.len()).await.unwrap(), MSG);
         });
 
@@ -179,7 +175,7 @@ mod tests {
             .connect(ip_server_addr, "localhost")
             .await
             .unwrap();
-        let (mut send_stream, recv_stream) = connection.open_bi().await.unwrap();
+        let (mut send_stream, _recv_stream) = connection.open_bi().await.unwrap();
         send_stream.write_all(MSG).await.unwrap();
         send_stream.finish().unwrap();
         let _ = send_stream.stopped().await;
@@ -193,6 +189,7 @@ mod tests {
         let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
         let mut server = QuicServer::new(ip_server);
+
         server.start();
 
         let ip_server_addr = server.local_addr();
@@ -206,7 +203,42 @@ mod tests {
         const SENDMSG: &[u8; 14] = b"hello, server!";
         const RESPONSE: &[u8; 14] = b"hello, client!";
 
-        let server = tokio::spawn(async move {});
+        let server_recv = Arc::new(tokio::sync::Notify::new());
+        let client_send = server_recv.clone();
+        let client_recv = Arc::new(tokio::sync::Notify::new());
+        let server_send = client_recv.clone();
+
+        let server = tokio::spawn(async move {
+            let endpoint = server.get_endpoint().unwrap();
+            let incoming_conn = endpoint.accept().await.unwrap();
+            let conn = incoming_conn.await.unwrap();
+            assert_eq!(conn.remote_address(), client_addr);
+            server_recv.notified().await;
+            let (mut send_stream, mut recv_stream) = conn.accept_bi().await.unwrap();
+            assert_eq!(
+                recv_stream.read_to_end(SENDMSG.len()).await.unwrap(),
+                SENDMSG
+            );
+            send_stream.write_all(RESPONSE).await.unwrap();
+            send_stream.finish().unwrap();
+            let _ = send_stream.stopped().await;
+            server_send.notify_one();
+        });
+
+        let connection = quic_client
+            .connect(ip_server_addr, "localhost")
+            .await
+            .unwrap();
+        let (mut send_stream, mut recv_stream) = connection.open_bi().await.unwrap();
+        send_stream.write_all(SENDMSG).await.unwrap();
+        send_stream.finish().unwrap();
+        let _ = send_stream.stopped().await;
+        client_send.notify_one();
+        client_recv.notified().await;
+        assert_eq!(
+            recv_stream.read_to_end(RESPONSE.len()).await.unwrap(),
+            RESPONSE
+        );
 
         server.await.unwrap();
     }
