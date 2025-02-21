@@ -72,6 +72,12 @@ pub enum MqttActionType {
     Subscribe(SubscribeArgsRequest),
 
     ListTopic(ListTopicRequest),
+
+    // connector
+    ListConnector(MqttListConnectorRequest),
+    CreateConnector(MqttCreateConnectorRequest),
+    UpdateConnector(MqttUpdateConnectorRequest),
+    DeleteConnector(MqttDeleteConnectorRequest),
 }
 
 pub struct MqttBrokerCommand {}
@@ -128,6 +134,22 @@ impl MqttBrokerCommand {
             }
             MqttActionType::Subscribe(ref request) => {
                 self.subscribe(params.clone(), request.clone()).await;
+            }
+            MqttActionType::ListConnector(ref request) => {
+                self.list_connectors(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::CreateConnector(ref request) => {
+                self.create_connector(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::DeleteConnector(ref request) => {
+                self.delete_connector(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::UpdateConnector(ref request) => {
+                self.update_connector(&client_pool, params.clone(), request.clone())
+                    .await;
             }
         }
     }
