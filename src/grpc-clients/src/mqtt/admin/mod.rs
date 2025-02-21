@@ -15,7 +15,11 @@
 use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
-use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    ClusterStatusReply, ClusterStatusRequest, MqttCreateConnectorReply, MqttCreateConnectorRequest,
+    MqttDeleteConnectorReply, MqttDeleteConnectorRequest, MqttListConnectorReply,
+    MqttListConnectorRequest, MqttUpdateConnectorReply, MqttUpdateConnectorRequest,
+};
 use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
     CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest,
@@ -201,4 +205,37 @@ impl_retriable_request!(
     DeleteTopicRewriteRuleReply,
     mqtt_broker_admin_services_client,
     mqtt_broker_delete_topic_rewrite_rule
+);
+
+// connector command line CRUD
+impl_retriable_request!(
+    MqttListConnectorRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    MqttListConnectorReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_list_connector
+);
+
+impl_retriable_request!(
+    MqttCreateConnectorRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    MqttCreateConnectorReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_create_connector
+);
+
+impl_retriable_request!(
+    MqttUpdateConnectorRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    MqttUpdateConnectorReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_update_connector
+);
+
+impl_retriable_request!(
+    MqttDeleteConnectorRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    MqttDeleteConnectorReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_delete_connector
 );

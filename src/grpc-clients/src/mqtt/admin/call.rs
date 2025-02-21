@@ -22,7 +22,10 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableFlappingDetectRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
     ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
     ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
-    ListTopicRequest, ListUserReply, ListUserRequest,
+    ListTopicRequest, ListUserReply, ListUserRequest, MqttCreateConnectorReply,
+    MqttCreateConnectorRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
+    MqttListConnectorReply, MqttListConnectorRequest, MqttUpdateConnectorReply,
+    MqttUpdateConnectorRequest,
 };
 
 use crate::pool::ClientPool;
@@ -157,4 +160,33 @@ generate_mqtt_admin_service_call!(
     DeleteTopicRewriteRuleRequest,
     DeleteTopicRewriteRuleReply,
     DeleteTopicRewriteRule
+);
+
+// connector command line CRUD
+generate_mqtt_admin_service_call!(
+    mqtt_broker_list_connector,
+    MqttListConnectorRequest,
+    MqttListConnectorReply,
+    MqttListConnector
+);
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_create_connector,
+    MqttCreateConnectorRequest,
+    MqttCreateConnectorReply,
+    MqttCreateConnector
+);
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_update_connector,
+    MqttUpdateConnectorRequest,
+    MqttUpdateConnectorReply,
+    MqttUpdateConnector
+);
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_delete_connector,
+    MqttDeleteConnectorRequest,
+    MqttDeleteConnectorReply,
+    MqttDeleteConnector
 );

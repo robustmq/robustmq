@@ -33,4 +33,8 @@ impl MQTTConnector {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
     }
+
+    pub fn decode(data: &[u8]) -> Self {
+        serde_json::from_slice(data).unwrap()
+    }
 }
