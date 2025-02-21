@@ -20,44 +20,50 @@ use protocol::journal_server::journal_inner::{
 };
 
 use crate::pool::ClientPool;
-use crate::utils::retry_call;
 
-pub async fn journal_inner_update_cache(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: UpdateJournalCacheRequest,
-) -> Result<UpdateJournalCacheReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
+macro_rules! generate_journal_inner_service_call {
+    ($fn_name:ident, $req_ty:ty, $rep_ty:ty, $variant:ident) => {
+        pub async fn $fn_name(
+            client_pool: &ClientPool,
+            addrs: &[impl AsRef<str>],
+            request: $req_ty,
+        ) -> Result<$rep_ty, CommonError> {
+            $crate::utils::retry_call(client_pool, addrs, request).await
+        }
+    };
 }
 
-pub async fn journal_inner_delete_shard_file(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: DeleteShardFileRequest,
-) -> Result<DeleteShardFileReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_journal_inner_service_call!(
+    journal_inner_update_cache,
+    UpdateJournalCacheRequest,
+    UpdateJournalCacheReply,
+    UpdateJournalCache
+);
 
-pub async fn journal_inner_get_shard_delete_status(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: GetShardDeleteStatusRequest,
-) -> Result<GetShardDeleteStatusReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_journal_inner_service_call!(
+    journal_inner_delete_shard_file,
+    DeleteShardFileRequest,
+    DeleteShardFileReply,
+    DeleteShardFile
+);
 
-pub async fn journal_inner_delete_segment_file(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: DeleteSegmentFileRequest,
-) -> Result<DeleteSegmentFileReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_journal_inner_service_call!(
+    journal_inner_get_shard_delete_status,
+    GetShardDeleteStatusRequest,
+    GetShardDeleteStatusReply,
+    GetShardDeleteStatus
+);
 
-pub async fn journal_inner_get_segment_delete_status(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: GetSegmentDeleteStatusRequest,
-) -> Result<GetSegmentDeleteStatusReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_journal_inner_service_call!(
+    journal_inner_delete_segment_file,
+    DeleteSegmentFileRequest,
+    DeleteSegmentFileReply,
+    DeleteSegmentFile
+);
+
+generate_journal_inner_service_call!(
+    journal_inner_get_segment_delete_status,
+    GetSegmentDeleteStatusRequest,
+    GetSegmentDeleteStatusReply,
+    GetSegmentDeleteStatus
+);

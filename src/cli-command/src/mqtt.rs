@@ -17,7 +17,7 @@ use crate::{connect_server5, error_info, grpc_addr};
 use common_base::enum_type::sort_type::SortType;
 use common_base::tools::unique_id;
 use grpc_clients::mqtt::admin::call::{
-    cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user,
+    mqtt_broker_cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user,
     mqtt_broker_enable_flapping_detect, mqtt_broker_enable_slow_subscribe,
     mqtt_broker_list_connection, mqtt_broker_list_slow_subscribe, mqtt_broker_list_topic,
     mqtt_broker_list_user,
@@ -262,7 +262,7 @@ impl MqttBrokerCommand {
     }
     async fn status(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
         let request = ClusterStatusRequest {};
-        match cluster_status(client_pool, &grpc_addr(params.server), request).await {
+        match mqtt_broker_cluster_status(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
                 println!("cluster name: {}", data.cluster_name);
                 println!("node list:");
