@@ -14,7 +14,6 @@
 
 use crate::handler::error::MqttBrokerError;
 use crate::server::quic::skip_server_verification::SkipServerVerification;
-use log::info;
 use quinn::{ClientConfig, Connection, Endpoint, VarInt};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
@@ -158,8 +157,6 @@ impl QuicClient {
                 )))
             }
         };
-
-        info!("[client] connected: addr={}", connection.remote_address());
 
         Ok(connection)
     }
