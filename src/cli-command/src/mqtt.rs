@@ -17,19 +17,22 @@ use crate::{connect_server5, error_info, grpc_addr};
 use common_base::enum_type::sort_type::SortType;
 use common_base::tools::unique_id;
 use grpc_clients::mqtt::admin::call::{
-    mqtt_broker_cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user,
-    mqtt_broker_enable_flapping_detect, mqtt_broker_enable_slow_subscribe,
-    mqtt_broker_list_connection, mqtt_broker_list_slow_subscribe, mqtt_broker_list_topic,
-    mqtt_broker_list_user,
+    mqtt_broker_cluster_status, mqtt_broker_create_connector, mqtt_broker_create_user,
+    mqtt_broker_delete_connector, mqtt_broker_delete_user, mqtt_broker_enable_flapping_detect,
+    mqtt_broker_enable_slow_subscribe, mqtt_broker_list_connection, mqtt_broker_list_connector,
+    mqtt_broker_list_slow_subscribe, mqtt_broker_list_topic, mqtt_broker_list_user,
+    mqtt_broker_update_connector,
 };
 use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::user::MqttUser;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, EnableFlappingDetectRequest,
     EnableSlowSubscribeRequest, ListConnectionRequest, ListSlowSubscribeRequest, ListTopicRequest,
-    ListUserRequest,
+    ListUserRequest, MqttCreateConnectorRequest, MqttDeleteConnectorRequest,
+    MqttListConnectorRequest, MqttUpdateConnectorRequest,
 };
 use std::str::FromStr;
 use std::sync::Arc;
@@ -69,6 +72,12 @@ pub enum MqttActionType {
     Subscribe(SubscribeArgsRequest),
 
     ListTopic(ListTopicRequest),
+
+    // connector
+    ListConnector(MqttListConnectorRequest),
+    CreateConnector(MqttCreateConnectorRequest),
+    UpdateConnector(MqttUpdateConnectorRequest),
+    DeleteConnector(MqttDeleteConnectorRequest),
 }
 
 pub struct MqttBrokerCommand {}
@@ -125,6 +134,22 @@ impl MqttBrokerCommand {
             }
             MqttActionType::Subscribe(ref request) => {
                 self.subscribe(params.clone(), request.clone()).await;
+            }
+            MqttActionType::ListConnector(ref request) => {
+                self.list_connectors(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::CreateConnector(ref request) => {
+                self.create_connector(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::DeleteConnector(ref request) => {
+                self.delete_connector(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::UpdateConnector(ref request) => {
+                self.update_connector(&client_pool, params.clone(), request.clone())
+                    .await;
             }
         }
     }
@@ -489,6 +514,108 @@ impl MqttBrokerCommand {
             }
             Err(e) => {
                 println!("MQTT broker list topic exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    // ------------------ connectors ----------------
+    async fn list_connectors(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttListConnectorRequest,
+    ) {
+        match mqtt_broker_list_connector(client_pool, &grpc_addr(params.server), cli_request).await
+        {
+            Ok(data) => {
+                println!("connector list result:");
+
+                for mqtt_connector in data.connectors {
+                    let connector = MQTTConnector::decode(&mqtt_connector);
+                    println!(
+                        concat!(
+                            "cluster name: {}\n",
+                            "connector name: {}\n",
+                            "connector type: {}\n",
+                            "connector config: {}\n",
+                            "topic id: {}\n",
+                            "status: {}\n",
+                            "broker id: {}\n",
+                            "create time: {}\n",
+                            "update time: {}"
+                        ),
+                        connector.cluster_name,
+                        connector.connector_name,
+                        connector.connector_type,
+                        connector.config,
+                        connector.topic_id,
+                        connector.status,
+                        connector.broker_id.unwrap_or(0),
+                        connector.create_time,
+                        connector.update_time
+                    );
+                }
+            }
+            Err(e) => {
+                println!("MQTT broker list connector exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn create_connector(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttCreateConnectorRequest,
+    ) {
+        match mqtt_broker_create_connector(client_pool, &grpc_addr(params.server), cli_request)
+            .await
+        {
+            Ok(_) => {
+                println!("Created successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker create connector exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn delete_connector(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttDeleteConnectorRequest,
+    ) {
+        match mqtt_broker_delete_connector(client_pool, &grpc_addr(params.server), cli_request)
+            .await
+        {
+            Ok(_) => {
+                println!("Deleted successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker delete connector exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn update_connector(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttUpdateConnectorRequest,
+    ) {
+        match mqtt_broker_update_connector(client_pool, &grpc_addr(params.server), cli_request)
+            .await
+        {
+            Ok(_) => {
+                println!("Updated successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker update connector exception");
                 error_info(e.to_string());
             }
         }

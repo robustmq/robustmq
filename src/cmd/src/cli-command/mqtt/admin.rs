@@ -138,6 +138,37 @@ pub(crate) struct SlowSubArgs {
     client_id: Option<String>,
 }
 
+#[derive(Debug, Parser)]
+#[command(author="RobustMQ", about="", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct ListConnectorArgs {
+    pub(crate) connector_name: String,
+}
+
+#[derive(Debug, Parser)]
+#[command(author="RobustMQ", about="", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct CreateConnectorArgs {
+    pub(crate) connector_name: String,
+    pub(crate) connector_type: i32,
+    pub(crate) config: String,
+    pub(crate) topic_id: String,
+}
+
+#[derive(Debug, Parser)]
+#[command(author="RobustMQ", about="", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct UpdateConnectorArgs {
+    pub(crate) connector: Vec<u8>,
+}
+
+#[derive(Debug, Parser)]
+#[command(author="RobustMQ", about="", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct DeleteConnectorArgs {
+    pub(crate) connector_name: String,
+}
+
 pub fn process_slow_sub_args(args: SlowSubArgs) -> MqttActionType {
     if args.is_enable.is_none() {
         if args.list.is_none() {
