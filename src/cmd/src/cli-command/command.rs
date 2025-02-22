@@ -19,8 +19,14 @@ use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
 use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
+use mqtt::admin::{
+    CreateConnectorArgs, DeleteConnectorArgs, ListConnectorArgs, UpdateConnectorArgs,
+};
 use mqtt::publish::process_subscribe_args;
-use protocol::broker_mqtt::broker_mqtt_admin::{EnableFlappingDetectRequest, ListTopicRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    EnableFlappingDetectRequest, ListTopicRequest, MqttCreateConnectorRequest,
+    MqttDeleteConnectorRequest, MqttListConnectorRequest, MqttUpdateConnectorRequest,
+};
 
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
@@ -92,6 +98,16 @@ enum MQTTAction {
     // observability: slow-sub feat
     #[clap(name = "slow-sub")]
     SlowSub(SlowSubArgs),
+
+    // connector
+    #[clap(name = "list-connector")]
+    ListConnector(ListConnectorArgs),
+    #[clap(name = "create-connector")]
+    CreateConnector(CreateConnectorArgs),
+    #[clap(name = "update-connector")]
+    UpdateConnector(UpdateConnectorArgs),
+    #[clap(name = "delete-connector")]
+    DeleteConnector(DeleteConnectorArgs),
 }
 
 #[derive(ValueEnum, Clone, Debug)]
@@ -204,7 +220,29 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             }
             MQTTAction::Publish(args) => process_publish_args(args),
             MQTTAction::Subscribe(args) => process_subscribe_args(args),
-            // _ => unreachable!("UnSupport command"),
+            MQTTAction::ListConnector(args) => {
+                MqttActionType::ListConnector(MqttListConnectorRequest {
+                    connector_name: args.connector_name,
+                })
+            }
+            MQTTAction::CreateConnector(args) => {
+                MqttActionType::CreateConnector(MqttCreateConnectorRequest {
+                    connector_name: args.connector_name,
+                    connector_type: args.connector_type,
+                    config: args.config,
+                    topic_id: args.topic_id,
+                })
+            }
+            MQTTAction::UpdateConnector(args) => {
+                MqttActionType::UpdateConnector(MqttUpdateConnectorRequest {
+                    connector: args.connector,
+                })
+            }
+            MQTTAction::DeleteConnector(args) => {
+                MqttActionType::DeleteConnector(MqttDeleteConnectorRequest {
+                    connector_name: args.connector_name,
+                })
+            }
         },
     };
     cmd.start(params).await;
