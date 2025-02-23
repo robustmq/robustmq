@@ -18,20 +18,29 @@ use protocol::journal_server::journal_admin::{
 };
 
 use crate::pool::ClientPool;
-use crate::utils::retry_call;
 
-pub async fn journal_admin_list_shard(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: ListShardRequest,
-) -> Result<ListShardReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
+macro_rules! generate_journal_admin_service_call {
+    ($fn_name:ident, $req_ty:ty, $rep_ty:ty, $variant:ident) => {
+        pub async fn $fn_name(
+            client_pool: &ClientPool,
+            addrs: &[impl AsRef<str>],
+            request: $req_ty,
+        ) -> Result<$rep_ty, CommonError> {
+            $crate::utils::retry_call(client_pool, addrs, request).await
+        }
+    };
 }
 
-pub async fn journal_admin_list_segment(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: ListSegmentRequest,
-) -> Result<ListSegmentReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_journal_admin_service_call!(
+    journal_admin_list_shard,
+    ListShardRequest,
+    ListShardReply,
+    ListShard
+);
+
+generate_journal_admin_service_call!(
+    journal_admin_list_segment,
+    ListSegmentRequest,
+    ListSegmentReply,
+    ListSegment
+);

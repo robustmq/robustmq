@@ -15,7 +15,14 @@
 use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::journal_server::journal_inner::journal_server_inner_service_client::JournalServerInnerServiceClient;
+use protocol::journal_server::journal_inner::{
+    DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
+    GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply,
+    GetShardDeleteStatusRequest, UpdateJournalCacheReply, UpdateJournalCacheRequest,
+};
 use tonic::transport::Channel;
+
+use crate::macros::impl_retriable_request;
 
 pub mod call;
 
@@ -55,3 +62,43 @@ impl Manager for JournalInnerServiceManager {
         Ok(conn)
     }
 }
+
+impl_retriable_request!(
+    UpdateJournalCacheRequest,
+    JournalServerInnerServiceClient<Channel>,
+    UpdateJournalCacheReply,
+    journal_inner_services_client,
+    update_cache
+);
+
+impl_retriable_request!(
+    DeleteShardFileRequest,
+    JournalServerInnerServiceClient<Channel>,
+    DeleteShardFileReply,
+    journal_inner_services_client,
+    delete_shard_file
+);
+
+impl_retriable_request!(
+    GetShardDeleteStatusRequest,
+    JournalServerInnerServiceClient<Channel>,
+    GetShardDeleteStatusReply,
+    journal_inner_services_client,
+    get_shard_delete_status
+);
+
+impl_retriable_request!(
+    DeleteSegmentFileRequest,
+    JournalServerInnerServiceClient<Channel>,
+    DeleteSegmentFileReply,
+    journal_inner_services_client,
+    delete_segment_file
+);
+
+impl_retriable_request!(
+    GetSegmentDeleteStatusRequest,
+    JournalServerInnerServiceClient<Channel>,
+    GetSegmentDeleteStatusReply,
+    journal_inner_services_client,
+    get_segment_delete_status
+);

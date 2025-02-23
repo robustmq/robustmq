@@ -15,7 +15,13 @@
 use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::broker_mqtt::broker_mqtt_inner::mqtt_broker_inner_service_client::MqttBrokerInnerServiceClient;
+use protocol::broker_mqtt::broker_mqtt_inner::{
+    DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
+    UpdateMqttCacheReply, UpdateMqttCacheRequest,
+};
 use tonic::transport::Channel;
+
+use crate::macros::impl_retriable_request;
 
 pub mod call;
 
@@ -53,3 +59,27 @@ impl Manager for MqttBrokerPlacementServiceManager {
         Ok(conn)
     }
 }
+
+impl_retriable_request!(
+    DeleteSessionRequest,
+    MqttBrokerInnerServiceClient<Channel>,
+    DeleteSessionReply,
+    mqtt_broker_mqtt_services_client,
+    delete_session
+);
+
+impl_retriable_request!(
+    UpdateMqttCacheRequest,
+    MqttBrokerInnerServiceClient<Channel>,
+    UpdateMqttCacheReply,
+    mqtt_broker_mqtt_services_client,
+    update_cache
+);
+
+impl_retriable_request!(
+    SendLastWillMessageRequest,
+    MqttBrokerInnerServiceClient<Channel>,
+    SendLastWillMessageReply,
+    mqtt_broker_mqtt_services_client,
+    send_last_will_message
+);
