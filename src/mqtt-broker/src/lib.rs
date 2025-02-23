@@ -62,7 +62,7 @@ pub mod bridge;
 pub mod handler;
 pub mod observability;
 pub mod security;
-mod server;
+pub mod server;
 pub mod storage;
 mod subscribe;
 

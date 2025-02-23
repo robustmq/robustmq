@@ -29,8 +29,10 @@ pub const ROUTE_CONNECTION: &str = "/connection";
 pub const ROUTE_METRICS: &str = "/metrics";
 
 #[derive(Clone)]
+#[allow(clippy::new_without_default)]
 pub struct HttpServerState {}
 
+#[allow(clippy::new_without_default)]
 impl HttpServerState {
     pub fn new() -> Self {
         Self {}
