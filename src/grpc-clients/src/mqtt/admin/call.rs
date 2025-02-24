@@ -22,151 +22,171 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableFlappingDetectRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
     ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
     ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
-    ListTopicRequest, ListUserReply, ListUserRequest,
+    ListTopicRequest, ListUserReply, ListUserRequest, MqttCreateConnectorReply,
+    MqttCreateConnectorRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
+    MqttListConnectorReply, MqttListConnectorRequest, MqttUpdateConnectorReply,
+    MqttUpdateConnectorRequest,
 };
 
 use crate::pool::ClientPool;
-use crate::utils::retry_call;
+
+macro_rules! generate_mqtt_admin_service_call {
+    ($fn_name:ident, $req_ty:ty, $rep_ty:ty, $variant:ident) => {
+        pub async fn $fn_name(
+            client_pool: &ClientPool,
+            addrs: &[impl AsRef<str>],
+            request: $req_ty,
+        ) -> Result<$rep_ty, CommonError> {
+            $crate::utils::retry_call(client_pool, addrs, request).await
+        }
+    };
+}
 
 // ---- cluster ------
-pub async fn cluster_status(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: ClusterStatusRequest,
-) -> Result<ClusterStatusReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_mqtt_admin_service_call!(
+    mqtt_broker_cluster_status,
+    ClusterStatusRequest,
+    ClusterStatusReply,
+    ClusterStatus
+);
 
 // ------ user -------
-pub async fn mqtt_broker_list_user(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: ListUserRequest,
-) -> Result<ListUserReply, CommonError> {
-    // let reply = retry_call(client_pool, addrs, MqttBrokerPlacementRequest::ListUser(request)).await?;
-    retry_call(client_pool, addrs, request).await
-}
+generate_mqtt_admin_service_call!(
+    mqtt_broker_list_user,
+    ListUserRequest,
+    ListUserReply,
+    ListUser
+);
 
-pub async fn mqtt_broker_create_user(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: CreateUserRequest,
-) -> Result<CreateUserReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_mqtt_admin_service_call!(
+    mqtt_broker_create_user,
+    CreateUserRequest,
+    CreateUserReply,
+    CreateUser
+);
 
-pub async fn mqtt_broker_delete_user(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: DeleteUserRequest,
-) -> Result<DeleteUserReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_mqtt_admin_service_call!(
+    mqtt_broker_delete_user,
+    DeleteUserRequest,
+    DeleteUserReply,
+    DeleteUser
+);
 
-pub async fn mqtt_broker_list_acl(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: ListAclRequest,
-) -> Result<ListAclReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_mqtt_admin_service_call!(mqtt_broker_list_acl, ListAclRequest, ListAclReply, ListAcl);
 
-pub async fn mqtt_broker_create_acl(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: CreateAclRequest,
-) -> Result<CreateAclReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_mqtt_admin_service_call!(
+    mqtt_broker_create_acl,
+    CreateAclRequest,
+    CreateAclReply,
+    CreateAcl
+);
 
-pub async fn mqtt_broker_delete_acl(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: DeleteAclRequest,
-) -> Result<DeleteAclReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_mqtt_admin_service_call!(
+    mqtt_broker_delete_acl,
+    DeleteAclRequest,
+    DeleteAclReply,
+    DeleteAcl
+);
 
-pub async fn mqtt_broker_list_blacklist(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: ListBlacklistRequest,
-) -> Result<ListBlacklistReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_mqtt_admin_service_call!(
+    mqtt_broker_list_blacklist,
+    ListBlacklistRequest,
+    ListBlacklistReply,
+    ListBlacklist
+);
 
-pub async fn mqtt_broker_create_blacklist(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: CreateBlacklistRequest,
-) -> Result<CreateBlacklistReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_mqtt_admin_service_call!(
+    mqtt_broker_create_blacklist,
+    CreateBlacklistRequest,
+    CreateBlacklistReply,
+    CreateBlacklist
+);
 
-pub async fn mqtt_broker_delete_blacklist(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: DeleteBlacklistRequest,
-) -> Result<DeleteBlacklistReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_mqtt_admin_service_call!(
+    mqtt_broker_delete_blacklist,
+    DeleteBlacklistRequest,
+    DeleteBlacklistReply,
+    DeleteBlacklist
+);
 
 // ------- connection  -----------
-pub async fn mqtt_broker_list_connection(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: ListConnectionRequest,
-) -> Result<ListConnectionReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_mqtt_admin_service_call!(
+    mqtt_broker_list_connection,
+    ListConnectionRequest,
+    ListConnectionReply,
+    ListConnection
+);
 
 // -------flapping detect feat  -----------
-pub async fn mqtt_broker_enable_flapping_detect(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: EnableFlappingDetectRequest,
-) -> Result<EnableFlappingDetectReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_mqtt_admin_service_call!(
+    mqtt_broker_enable_flapping_detect,
+    EnableFlappingDetectRequest,
+    EnableFlappingDetectReply,
+    EnableFlappingDetect
+);
 
 // --------- observability --------
 // --------- slow subscribe features ------
-pub async fn mqtt_broker_enable_slow_subscribe(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: EnableSlowSubscribeRequest,
-) -> Result<EnableSlowSubScribeReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_mqtt_admin_service_call!(
+    mqtt_broker_enable_slow_subscribe,
+    EnableSlowSubscribeRequest,
+    EnableSlowSubScribeReply,
+    EnableSlowSubscribe
+);
 
-pub async fn mqtt_broker_list_slow_subscribe(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: ListSlowSubscribeRequest,
-) -> Result<ListSlowSubscribeReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_mqtt_admin_service_call!(
+    mqtt_broker_list_slow_subscribe,
+    ListSlowSubscribeRequest,
+    ListSlowSubscribeReply,
+    ListSlowSubscribe
+);
 
-pub async fn mqtt_broker_list_topic(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: ListTopicRequest,
-) -> Result<ListTopicReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_mqtt_admin_service_call!(
+    mqtt_broker_list_topic,
+    ListTopicRequest,
+    ListTopicReply,
+    ListTopic
+);
 
-pub async fn mqtt_broker_create_topic_rewrite_rule(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: CreateTopicRewriteRuleRequest,
-) -> Result<CreateTopicRewriteRuleReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_mqtt_admin_service_call!(
+    mqtt_broker_create_topic_rewrite_rule,
+    CreateTopicRewriteRuleRequest,
+    CreateTopicRewriteRuleReply,
+    CreateTopicRewriteRule
+);
 
-pub async fn mqtt_broker_delete_topic_rewrite_rule(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: DeleteTopicRewriteRuleRequest,
-) -> Result<DeleteTopicRewriteRuleReply, CommonError> {
-    retry_call(client_pool, addrs, request).await
-}
+generate_mqtt_admin_service_call!(
+    mqtt_broker_delete_topic_rewrite_rule,
+    DeleteTopicRewriteRuleRequest,
+    DeleteTopicRewriteRuleReply,
+    DeleteTopicRewriteRule
+);
+
+// connector command line CRUD
+generate_mqtt_admin_service_call!(
+    mqtt_broker_list_connector,
+    MqttListConnectorRequest,
+    MqttListConnectorReply,
+    MqttListConnector
+);
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_create_connector,
+    MqttCreateConnectorRequest,
+    MqttCreateConnectorReply,
+    MqttCreateConnector
+);
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_update_connector,
+    MqttUpdateConnectorRequest,
+    MqttUpdateConnectorReply,
+    MqttUpdateConnector
+);
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_delete_connector,
+    MqttDeleteConnectorRequest,
+    MqttDeleteConnectorReply,
+    MqttDeleteConnector
+);
