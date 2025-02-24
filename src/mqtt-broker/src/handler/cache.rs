@@ -18,7 +18,6 @@ use grpc_clients::pool::ClientPool;
 use log::warn;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
-use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::session::MqttSession;
@@ -130,9 +129,6 @@ pub struct CacheManager {
 
     // All topic rewrite rule
     pub topic_rewrite_rule: DashMap<String, MqttTopicRewriteRule>,
-
-    // All connectors
-    pub connectors: DashMap<String, Vec<MQTTConnector>>,
 }
 
 impl CacheManager {
@@ -152,7 +148,6 @@ impl CacheManager {
             client_pkid_data: DashMap::with_capacity(8),
             acl_metadata: AclMetadata::new(),
             topic_rewrite_rule: DashMap::with_capacity(8),
-            connectors: DashMap::with_capacity(8),
         }
     }
 
@@ -449,16 +444,6 @@ impl CacheManager {
             return Some(data.clone());
         }
         None
-    }
-
-    // connectors
-    pub fn add_connector(&self, connector: MQTTConnector) {
-        let connector_name = connector.connector_name.clone();
-        if let Some(mut connectors) = self.connectors.get_mut(&connector_name) {
-            connectors.push(connector);
-        } else {
-            self.connectors.insert(connector_name, vec![connector]);
-        }
     }
 
     // key

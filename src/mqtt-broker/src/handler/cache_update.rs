@@ -35,6 +35,7 @@ pub async fn load_metadata_cache(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     auth_driver: &Arc<AuthDriver>,
+    connector_manager: &Arc<ConnectorManager>,
 ) {
     // load cluster config
     let cluster = match build_cluster_config(client_pool).await {
@@ -118,8 +119,8 @@ pub async fn load_metadata_cache(
             panic!("Failed to load the connector list with error message:{}", e);
         }
     };
-    for connector in connectors {
-        cache_manager.add_connector(connector);
+    for connector in connectors.iter() {
+        connector_manager.add_connector(connector);
     }
 }
 
