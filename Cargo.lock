@@ -65,15 +65,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "amqp-plugins"
-version = "0.1.6"
-dependencies = [
- "axum",
- "bytes",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "android-tzdata"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2377,15 +2368,6 @@ dependencies = [
  "tokio-rustls 0.26.0",
  "tokio-util",
  "tonic",
-]
-
-[[package]]
-name = "mqtt-edge"
-version = "0.1.6"
-dependencies = [
- "axum",
- "bytes",
- "thiserror 1.0.69",
 ]
 
 [[package]]

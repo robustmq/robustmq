@@ -15,8 +15,6 @@
 [workspace]
 members = [
     "src/mqtt-broker",
-    "src/mqtt-edge",
-    "src/amqp-plugins",
     "src/amqp-broker",
     "src/placement-center",
     "src/cli-command",
@@ -127,9 +125,7 @@ opendal = { version = "0.51", features = ["services-s3"] }
 prettytable-rs = "^0.10"
 ## workspaces members
 mqtt-broker = { path = "src/mqtt-broker" }
-mqtt-edge = { path = "src/mqtt-edge" }
 amqp-broker = { path = "src/amqp-broker" }
-amqp-plugins = { path = "src/amqp-plugins" }
 placement-center = { path = "src/placement-center" }
 cli-command = { path = "src/cli-command" }
 grpc-clients = { path = "src/grpc-clients" }
