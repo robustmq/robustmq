@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use grpc_clients::pool::ClientPool;
+use log::warn;
 use prost::Message;
 use protocol::placement_center::placement_center_mqtt::mqtt_service_server::MqttService;
 use protocol::placement_center::placement_center_mqtt::{
@@ -642,11 +643,20 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<ConnectorHeartbeatReply>, Status> {
         let req = request.into_inner();
         for raw in req.heatbeats {
-            if self
+            if let Some(connector) = self
                 .mqtt_cache
                 .get_connector(&req.cluster_name, &raw.connector_name)
-                .is_some()
             {
+                if connector.broker_id.is_none() {
+                    warn!("connector:{} not register", raw.connector_name);
+                    continue;
+                }
+
+                if connector.broker_id.unwrap() != raw.broker_id {
+                    warn!("connector:{} not register", raw.connector_name);
+                    continue;
+                }
+
                 self.mqtt_cache.report_connector_heartbeat(
                     &req.cluster_name,
                     &raw.connector_name,

@@ -16,12 +16,11 @@ use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 pub enum MQTTStatus {
     #[default]
     Idle,
     Running,
-    Stopped,
 }
 
 impl Display for MQTTStatus {
