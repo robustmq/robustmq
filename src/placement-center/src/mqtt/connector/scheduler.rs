@@ -16,7 +16,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use common_base::{config::placement_center::placement_center_conf, tools::now_second};
 use grpc_clients::pool::ClientPool;
-use log::info;
+use log::{info, warn};
 use metadata_struct::mqtt::bridge::status::MQTTStatus;
 use protocol::placement_center::placement_center_mqtt::CreateConnectorRequest;
 use tokio::{select, sync::broadcast};
@@ -69,7 +69,7 @@ async fn scheduler_thread(
         info!("check heartbeat error: {:?}", e);
     }
 
-    if let Err(e) = start_stop_conector_thread(
+    if let Err(e) = start_stop_connector_thread(
         raft_machine_apply,
         call_manager,
         client_pool,
@@ -120,7 +120,7 @@ async fn check_heartbeat(
     Ok(())
 }
 
-async fn start_stop_conector_thread(
+async fn start_stop_connector_thread(
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -128,10 +128,16 @@ async fn start_stop_conector_thread(
     placement_cache: &Arc<PlacementCacheManager>,
 ) -> Result<(), PlacementCenterError> {
     for mut connector in mqtt_cache.get_all_connector() {
+        if connector.broker_id.is_none() && connector.status == MQTTStatus::Running {
+            warn!("Connector {} has an abnormal state, which is Running, but the execution node is empty.", connector.cluster_name);
+        }
+
         if connector.broker_id.is_none() {
             connector.broker_id = Some(
                 calc_connector_broker(mqtt_cache, placement_cache, &connector.cluster_name).await?,
             );
+            connector.status = MQTTStatus::Idle;
+
             info!("Connector execution nodes are assigned and Connector {} is assigned to Broker {:?} for execution.",
                 connector.connector_name,
                 connector.broker_id
