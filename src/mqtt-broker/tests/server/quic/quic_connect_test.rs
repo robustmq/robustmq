@@ -107,87 +107,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn quic_client_receive_data_and_quic_server_sent_data() {
-        let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-
-        let mut server = QuicServer::new(ip_server);
-        server.start();
-
-        let ip_server_addr = server.local_addr();
-
-        let client_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-
-        let mut quic_client = QuicClient::bind(client_addr);
-
-        let client_addr = quic_client.local_addr();
-
-        const MSG: &[u8; 5] = b"hello";
-
-        let server = tokio::spawn(async move {
-            let endpoint = server.get_endpoint().unwrap();
-            let incoming_conn = endpoint.accept().await.unwrap();
-            let conn = incoming_conn.await.unwrap();
-            assert_eq!(conn.remote_address(), client_addr);
-            let (mut send_stream, _recv_stream) = conn.open_bi().await.unwrap();
-            send_stream.write_all(MSG).await.unwrap();
-            send_stream.finish().unwrap();
-            let _ = send_stream.stopped().await;
-        });
-
-        let connection = quic_client
-            .connect(ip_server_addr, "localhost")
-            .await
-            .unwrap();
-        let (_send_stream, mut recv_stream) = connection.accept_bi().await.unwrap();
-        assert_eq!(recv_stream.read_to_end(MSG.len()).await.unwrap(), MSG);
-
-        server.await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn quic_client_send_data_and_quic_server_receive_data() {
-        let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-
-        let mut server = QuicServer::new(ip_server);
-        server.start();
-
-        let ip_server_addr = server.local_addr();
-
-        let client_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-
-        let mut quic_client = QuicClient::bind(client_addr);
-
-        let client_addr = quic_client.local_addr();
-
-        const MSG: &[u8; 5] = b"hello";
-
-        let write_send = Arc::new(tokio::sync::Notify::new());
-        let write_recv = write_send.clone();
-
-        let server = tokio::spawn(async move {
-            let endpoint = server.get_endpoint().unwrap();
-            let incoming_conn = endpoint.accept().await.unwrap();
-            let conn = incoming_conn.await.unwrap();
-            assert_eq!(conn.remote_address(), client_addr);
-            write_recv.notified().await;
-            let (_send_stream, mut recv_stream) = conn.accept_bi().await.unwrap();
-            assert_eq!(recv_stream.read_to_end(MSG.len()).await.unwrap(), MSG);
-        });
-
-        let connection = quic_client
-            .connect(ip_server_addr, "localhost")
-            .await
-            .unwrap();
-        let (mut send_stream, _recv_stream) = connection.open_bi().await.unwrap();
-        send_stream.write_all(MSG).await.unwrap();
-        send_stream.finish().unwrap();
-        let _ = send_stream.stopped().await;
-        write_send.notify_one();
-
-        server.await.unwrap();
-    }
-
-    #[tokio::test]
     async fn each_receive_and_send_data() {
         let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
@@ -244,38 +163,6 @@ mod tests {
         );
 
         server.await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn try_encode_data_from_mqtt_encoder() {
-        let mut mqtt_codec = MqttCodec::new(None);
-        let connect = build_mqtt4_pg_connect();
-        let mqtt_packet_wrapper = MqttPacketWrapper {
-            protocol_version: 4,
-            packet: connect,
-        };
-        let mut bytes_mut = BytesMut::with_capacity(0);
-        mqtt_codec
-            .encode(mqtt_packet_wrapper, &mut bytes_mut)
-            .unwrap();
-        assert!(bytes_mut.len() > 0);
-    }
-
-    #[tokio::test]
-    async fn try_decode_data_from_mqtt_decoder() {
-        let mut mqtt_codec = MqttCodec::new(None);
-        let connect = build_mqtt4_pg_connect();
-        let mqtt_packet_wrapper = MqttPacketWrapper {
-            protocol_version: 4,
-            packet: connect,
-        };
-        let mut bytes_mut = BytesMut::with_capacity(0);
-        mqtt_codec
-            .encode(mqtt_packet_wrapper, &mut bytes_mut)
-            .unwrap();
-        assert!(bytes_mut.len() > 0);
-        let packet = mqtt_codec.decode(&mut bytes_mut).unwrap();
-        assert!(packet.is_some());
     }
 
     #[tokio::test]

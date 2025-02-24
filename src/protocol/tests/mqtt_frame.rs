@@ -14,20 +14,52 @@
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
+    use bytes::BytesMut;
     use futures::{SinkExt, StreamExt};
-    use protocol::mqtt::codec::MqttCodec;
+    use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
     use protocol::mqtt::mqttv4::codec::Mqtt4Codec;
     use protocol::mqtt::mqttv5::codec::Mqtt5Codec;
     use robustmq_test::mqtt_build_tool::build_connack::build_mqtt5_pg_connect_ack;
     use robustmq_test::mqtt_build_tool::build_connect::{
         build_mqtt4_pg_connect, build_mqtt5_pg_connect,
     };
+    use std::time::Duration;
     use tokio::io;
     use tokio::net::{TcpListener, TcpStream};
     use tokio::time::sleep;
-    use tokio_util::codec::{Framed, FramedRead, FramedWrite};
+    use tokio_util::codec::{Decoder, Encoder, Framed, FramedRead, FramedWrite};
+
+    #[tokio::test]
+    async fn try_encode_data_from_mqtt_encoder() {
+        let mut mqtt_codec = MqttCodec::new(None);
+        let connect = build_mqtt4_pg_connect();
+        let mqtt_packet_wrapper = MqttPacketWrapper {
+            protocol_version: 4,
+            packet: connect,
+        };
+        let mut bytes_mut = BytesMut::with_capacity(0);
+        mqtt_codec
+            .encode(mqtt_packet_wrapper, &mut bytes_mut)
+            .unwrap();
+        assert!(bytes_mut.len() > 0);
+    }
+
+    #[tokio::test]
+    async fn try_decode_data_from_mqtt_decoder() {
+        let mut mqtt_codec = MqttCodec::new(None);
+        let connect = build_mqtt4_pg_connect();
+        let mqtt_packet_wrapper = MqttPacketWrapper {
+            protocol_version: 4,
+            packet: connect,
+        };
+        let mut bytes_mut = BytesMut::with_capacity(0);
+        mqtt_codec
+            .encode(mqtt_packet_wrapper, &mut bytes_mut)
+            .unwrap();
+        assert!(bytes_mut.len() > 0);
+        let packet = mqtt_codec.decode(&mut bytes_mut).unwrap();
+        assert!(packet.is_some());
+    }
 
     #[tokio::test]
 
