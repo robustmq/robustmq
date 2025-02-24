@@ -92,7 +92,7 @@ impl QuicServer {
     }
 
     fn create_quinn_endpoint_as_a_quic_server(&mut self) -> Endpoint {
-        let endpoint = match Endpoint::server(
+        match Endpoint::server(
             self.quic_server_config.get_server_config(),
             self.quic_server_config.get_bind_addr(),
         ) {
@@ -103,8 +103,7 @@ impl QuicServer {
             Err(e) => {
                 panic!("Failed to start a quic server: {}", e)
             }
-        };
-        endpoint
+        }
     }
 
     pub fn get_endpoint(&self) -> Result<Endpoint, MqttBrokerError> {

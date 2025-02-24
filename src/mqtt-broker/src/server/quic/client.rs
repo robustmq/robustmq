@@ -96,7 +96,7 @@ impl QuicClient {
                 quinn_quic_client_config.bind_addr(addr);
             }
             Err(e) => {
-                panic!("failed to bind ip in quic client: {}", e.to_string())
+                panic!("failed to bind ip in quic client: {}", e)
             }
         }
     }
@@ -113,7 +113,7 @@ impl QuicClient {
                 endpoint
             }
             Err(e) => {
-                panic!("failed to create quic client endpoint: {}", e.to_string())
+                panic!("failed to create quic client endpoint: {}", e)
             }
         };
         (quinn_quic_client_config, endpoint)

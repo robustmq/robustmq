@@ -48,7 +48,6 @@ mod tests {
         quic_client.wait_idle().await;
     }
 
-    // todo server can receive data twice from different clients
     #[tokio::test]
     async fn quic_server_should_receive_data_from_different_client() {
         let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
