@@ -14,10 +14,13 @@
 
 #[cfg(test)]
 mod tests {
+    use bytes::BytesMut;
     use mqtt_broker::server::quic::client::QuicClient;
     use mqtt_broker::server::quic::server::QuicServer;
+    use protocol::mqtt::codec::MqttCodec;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use std::sync::Arc;
+    use tokio_util::codec::Encoder;
 
     #[tokio::test]
     async fn quic_client_should_connect_quic_server() {
@@ -240,5 +243,13 @@ mod tests {
         );
 
         server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn try_encode_data_from_mqtt_encoder() {
+        const MSG: &[u8; 5] = b"hello";
+        let bytes_mut = BytesMut::with_capacity(MSG.len());
+        let mqtt_codec = MqttCodec::new(None);
+        mqtt_codec.encode()
     }
 }

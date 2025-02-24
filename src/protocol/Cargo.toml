@@ -35,6 +35,9 @@ serde.workspace =true
 validator.workspace = true
 prost-validate = { workspace = true, features = ["derive"] }
 
+[dev-dependencies]
+robustmq-test.workspace = true
+
 [build-dependencies]
 prost-build.workspace = true
 prost-validate-build.workspace = true

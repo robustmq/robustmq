@@ -16,15 +16,14 @@
 mod tests {
     use std::time::Duration;
 
-    use bytes::Bytes;
     use futures::{SinkExt, StreamExt};
-    use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
-    use protocol::mqtt::common::{
-        ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, LastWill, Login,
-        MqttPacket,
-    };
+    use protocol::mqtt::codec::MqttCodec;
     use protocol::mqtt::mqttv4::codec::Mqtt4Codec;
     use protocol::mqtt::mqttv5::codec::Mqtt5Codec;
+    use robustmq_test::mqtt_build_tool::build_connack::build_mqtt5_pg_connect_ack;
+    use robustmq_test::mqtt_build_tool::build_connect::{
+        build_mqtt4_pg_connect, build_mqtt5_pg_connect,
+    };
     use tokio::io;
     use tokio::net::{TcpListener, TcpStream};
     use tokio::time::sleep;
@@ -95,71 +94,6 @@ mod tests {
                     panic!("error: {:?}", e);
                 }
             }
-        }
-    }
-
-    /// Build the connect content package for the mqtt4 protocol
-    fn build_mqtt4_pg_connect() -> MqttPacket {
-        let client_id = String::from("test_client_id");
-        let login = Some(Login {
-            username: "lobo".to_string(),
-            password: "123456".to_string(),
-        });
-        let lastwill = Some(LastWill {
-            topic: Bytes::from("topic1"),
-            message: Bytes::from("connection content"),
-            qos: protocol::mqtt::common::QoS::AtLeastOnce,
-            retain: true,
-        });
-
-        let connect: Connect = Connect {
-            keep_alive: 30u16, // 30 seconds
-            client_id,
-            clean_session: true,
-        };
-        MqttPacket::Connect(4, connect, None, lastwill, None, login)
-    }
-
-    /// Build the connect content package for the mqtt5 protocol
-    fn build_mqtt5_pg_connect() -> MqttPacket {
-        let client_id = String::from("test_client_id");
-        let login = Some(Login {
-            username: "lobo".to_string(),
-            password: "123456".to_string(),
-        });
-        let lastwill = Some(LastWill {
-            topic: Bytes::from("topic1"),
-            message: Bytes::from("connection content"),
-            qos: protocol::mqtt::common::QoS::AtLeastOnce,
-            retain: true,
-        });
-
-        let connect: Connect = Connect {
-            keep_alive: 30u16, // 30 seconds
-            client_id,
-            clean_session: true,
-        };
-
-        let properties = ConnectProperties {
-            session_expiry_interval: Some(30),
-            ..Default::default()
-        };
-        MqttPacket::Connect(5, connect, Some(properties), lastwill, None, login)
-    }
-
-    /// Build the connect content package for the mqtt5 protocol
-    fn build_mqtt5_pg_connect_ack() -> MqttPacketWrapper {
-        let ack: ConnAck = ConnAck {
-            session_present: true,
-            code: ConnectReturnCode::Success,
-        };
-        let properties = ConnAckProperties {
-            max_qos: Some(10u8),
-            ..Default::default()
-        };
-        MqttPacketWrapper {
-            protocol_version: 5,
-            packet: MqttPacket::ConnAck(ack, Some(properties)),
         }
     }
 }
