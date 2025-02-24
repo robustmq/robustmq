@@ -120,11 +120,7 @@ async fn check_connector<S>(
         let is_stop_thread =
             if let Some(connecttor) = connector_manager.get_connector(&raw.connector_name) {
                 if let Some(broker_id) = connecttor.broker_id {
-                    if broker_id != config.broker_id {
-                        true
-                    } else {
-                        false
-                    }
+                    broker_id != config.broker_id
                 } else {
                     true
                 }
