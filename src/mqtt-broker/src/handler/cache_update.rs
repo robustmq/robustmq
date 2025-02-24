@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::bridge::manager::ConnectorManager;
+use crate::storage::connector::ConnectorStorage;
 use crate::storage::topic::TopicStorage;
 use crate::{security::AuthDriver, subscribe::subscribe_manager::SubscribeManager};
 use grpc_clients::pool::ClientPool;
@@ -107,6 +108,18 @@ pub async fn load_metadata_cache(
     };
     for topic_rewrite_rule in topic_rewrite_rules {
         cache_manager.add_topic_rewrite_rule(topic_rewrite_rule);
+    }
+
+    // load all connectors
+    let connector_storage = ConnectorStorage::new(client_pool.clone());
+    let connectors = match connector_storage.list_all_connectors().await {
+        Ok(list) => list,
+        Err(e) => {
+            panic!("Failed to load the connector list with error message:{}", e);
+        }
+    };
+    for connector in connectors {
+        cache_manager.add_connector(connector);
     }
 }
 
