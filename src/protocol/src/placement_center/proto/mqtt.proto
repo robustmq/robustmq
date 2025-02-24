@@ -639,12 +639,14 @@ message DeleteConnectorReply{
 
 message ConnectorHeartbeatRequest{
     string cluster_name = 1;
+
    repeated ConnectorHeartbeatRaw heatbeats = 2;
 }
 
 message ConnectorHeartbeatRaw{
     string connector_name = 1;
-    uint64 heartbeat_time = 2;
+    uint64 broker_id = 2;
+    uint64 heartbeat_time = 3;
 }
 
 message ConnectorHeartbeatReply{

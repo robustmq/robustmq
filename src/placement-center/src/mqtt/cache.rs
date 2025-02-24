@@ -150,6 +150,16 @@ impl MqttCacheManager {
         None
     }
 
+    pub fn get_all_connector(&self) -> Vec<MQTTConnector> {
+        let mut results = Vec::new();
+        for (_, raw) in self.connector_list.clone() {
+            for (_, val) in raw {
+                results.push(val);
+            }
+        }
+        results
+    }
+
     // Report HeartBeart
     pub fn report_connector_heartbeat(
         &self,
@@ -166,7 +176,12 @@ impl MqttCacheManager {
         self.connector_heartbeat.insert(key, heartbeat);
     }
 
-    pub fn get_all_connector(&self) -> Vec<ConnectorHeartbeat> {
+    pub fn remove_connector_heartbeat(&self, cluster_name: &str, connector_name: &str) {
+        let key = format!("{}_{}", cluster_name, connector_name);
+        self.connector_heartbeat.remove(&key);
+    }
+
+    pub fn get_all_connector_heartbeat(&self) -> Vec<ConnectorHeartbeat> {
         let mut results = Vec::new();
         for val in self.connector_heartbeat.clone() {
             results.push(val.1);

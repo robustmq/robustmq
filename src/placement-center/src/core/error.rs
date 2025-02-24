@@ -66,6 +66,9 @@ pub enum PlacementCenterError {
     #[error("Cluster {0} does not exist")]
     ClusterDoesNotExist(String),
 
+    #[error("No Broker nodes are available")]
+    NoAvailableBrokerNode,
+
     #[error("Node {0} does not exist")]
     NodeDoesNotExist(u64),
 

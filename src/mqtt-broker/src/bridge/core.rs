@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::error::MqttBrokerError;
+use crate::{handler::error::MqttBrokerError, storage::connector::ConnectorStorage};
 use axum::async_trait;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
+use grpc_clients::pool::ClientPool;
 use log::{error, info};
 use metadata_struct::mqtt::bridge::{
     config_local_file::LocalFileConnectorConfig, connector::MQTTConnector,
-    connector_type::ConnectorType,
+    connector_type::ConnectorType, status::MQTTStatus,
 };
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
@@ -45,6 +46,7 @@ pub trait BridgePlugin {
 pub async fn start_connector_thread<S>(
     message_storage: Arc<S>,
     connector_manager: Arc<ConnectorManager>,
+    client_pool: Arc<ClientPool>,
     stop_send: broadcast::Sender<bool>,
 ) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
@@ -62,7 +64,8 @@ pub async fn start_connector_thread<S>(
             }
             _ = check_connector(
                 &message_storage,
-                &connector_manager
+                &connector_manager,
+                &client_pool
             ) => {
                 sleep(Duration::from_secs(1)).await;
             }
@@ -70,11 +73,15 @@ pub async fn start_connector_thread<S>(
     }
 }
 
-async fn check_connector<S>(message_storage: &Arc<S>, connector_manager: &Arc<ConnectorManager>)
-where
+async fn check_connector<S>(
+    message_storage: &Arc<S>,
+    connector_manager: &Arc<ConnectorManager>,
+    client_pool: &Arc<ClientPool>,
+) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let config = broker_mqtt_conf();
+
     // Start connector thread
     for raw in connector_manager.get_all_connector() {
         if raw.broker_id.is_none() {
@@ -110,18 +117,34 @@ where
 
     // Gc connector thread
     for raw in connector_manager.get_all_connector_thread() {
-        if connector_manager
-            .get_connector(&raw.connector_name)
-            .is_some()
-        {
-            continue;
-        }
+        let is_stop_thread =
+            if let Some(connecttor) = connector_manager.get_connector(&raw.connector_name) {
+                if let Some(broker_id) = connecttor.broker_id {
+                    broker_id != config.broker_id
+                } else {
+                    true
+                }
+            } else {
+                true
+            };
 
-        if let Err(e) = stop_thread(raw.clone()) {
-            error!(
-                "Stopping connector {} Thread failed with error message: {}",
-                raw.connector_name, e
-            );
+        if is_stop_thread {
+            if let Err(e) = stop_thread(raw.clone()) {
+                error!(
+                    "Stopping connector {} Thread failed with error message: {}",
+                    raw.connector_name, e
+                );
+            }
+            if let Some(mut connector) = connector_manager.get_connector(&raw.connector_name) {
+                connector.status = MQTTStatus::Idle;
+                let storage = ConnectorStorage::new(client_pool.clone());
+                if let Err(e) = storage.update_connector(connector.clone()).await {
+                    error!(
+                        "Failed to update connector {} status with error message: {}",
+                        connector.connector_name, e
+                    );
+                }
+            }
         }
     }
 }
