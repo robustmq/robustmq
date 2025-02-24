@@ -57,6 +57,7 @@ async fn report_heartbeat(
     let storage = ConnectorStorage::new(client_pool.clone());
     let conf = broker_mqtt_conf();
     let mut heatbeats = Vec::new();
+
     for (connector_name, heartbeat_time) in connector_manager.connector_heartbeat.clone() {
         heatbeats.push(ConnectorHeartbeatRaw {
             connector_name,
@@ -64,6 +65,7 @@ async fn report_heartbeat(
             broker_id: conf.broker_id,
         });
     }
+
     if let Err(e) = storage.connector_heartbeat(heatbeats).await {
         error!("report connector heartbeat error:{}", e);
     }
