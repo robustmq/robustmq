@@ -78,7 +78,7 @@ async fn scheduler_thread(
     )
     .await
     {
-        info!("start stop conector thread error: {:?}", e);
+        info!("start stop connector thread error: {:?}", e);
     }
 }
 
