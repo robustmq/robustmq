@@ -19,7 +19,7 @@ use common_base::config::placement_center::placement_center_conf;
 use grpc_clients::pool::ClientPool;
 use log::info;
 use mqtt::cache::load_mqtt_cache;
-use mqtt::connector::heartbeat::start_connector_heartbeat_check;
+use mqtt::connector::scheduler::start_connector_scheduler;
 use mqtt::controller::call_broker::{mqtt_call_thread_manager, MQTTInnerCallManager};
 use openraft::Raft;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterServiceServer;
@@ -240,10 +240,21 @@ impl PlacementCenter {
             ctrl.start_node_heartbeat_check().await;
         });
 
-        // start mqtt connector heartbeat check
+        // start mqtt connector scheduler thread
         let mqtt_cache = self.mqtt_cache.clone();
+        let call_manager = self.mqtt_call_manager.clone();
+        let client_pool = self.client_pool.clone();
+        let cluster_cache = self.cluster_cache.clone();
         tokio::spawn(async move {
-            start_connector_heartbeat_check(mqtt_cache, stop_send).await;
+            start_connector_scheduler(
+                &raft_machine_apply,
+                &call_manager,
+                &client_pool,
+                &mqtt_cache,
+                &cluster_cache,
+                stop_send,
+            )
+            .await;
         });
     }
 
