@@ -272,8 +272,10 @@ where
     fn start_connector_thread(&self, stop_send: broadcast::Sender<bool>) {
         let message_storage = self.message_storage_adapter.clone();
         let connector_manager = self.connector_manager.clone();
+        let client_poll = self.client_pool.clone();
         self.runtime.spawn(async move {
-            start_connector_thread(message_storage, connector_manager, stop_send).await;
+            start_connector_thread(message_storage, connector_manager, client_poll, stop_send)
+                .await;
         });
     }
 
@@ -402,7 +404,13 @@ where
     fn register_node(&self) {
         self.runtime.block_on(async move {
             init_system_user(&self.cache_manager, &self.client_pool).await;
-            load_metadata_cache(&self.cache_manager, &self.client_pool, &self.auth_driver).await;
+            load_metadata_cache(
+                &self.cache_manager,
+                &self.client_pool,
+                &self.auth_driver,
+                &self.connector_manager,
+            )
+            .await;
 
             let config = broker_mqtt_conf();
             match register_node(&self.client_pool).await {

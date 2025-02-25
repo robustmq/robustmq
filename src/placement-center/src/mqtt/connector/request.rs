@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use prost::Message;
 use protocol::placement_center::placement_center_mqtt::{
     CreateConnectorRequest, DeleteConnectorRequest, ListConnectorRequest, UpdateConnectorRequest,
@@ -23,9 +22,7 @@ use std::sync::Arc;
 
 use crate::{
     core::error::PlacementCenterError,
-    mqtt::controller::call_broker::{
-        update_cache_by_add_connector, update_cache_by_delete_connector, MQTTInnerCallManager,
-    },
+    mqtt::controller::call_broker::{update_cache_by_delete_connector, MQTTInnerCallManager},
     route::{
         apply::RaftMachineApply,
         data::{StorageData, StorageDataType},
@@ -33,7 +30,7 @@ use crate::{
     storage::mqtt::connector::MqttConnectorStorage,
 };
 
-use super::scheduler::{start_connector, stop_connector};
+use super::status::save_connector;
 
 #[derive(Debug, Clone)]
 pub struct ConnectorHeartbeat {
@@ -78,16 +75,8 @@ pub async fn create_connector_by_req(
         ));
     }
 
-    let data = StorageData::new(
-        StorageDataType::MqttSetConnector,
-        CreateConnectorRequest::encode_to_vec(&req),
-    );
-    raft_machine_apply.client_write(data).await?;
+    save_connector(raft_machine_apply, req, call_manager, client_pool).await?;
 
-    let connector = serde_json::from_slice::<MQTTConnector>(&req.connector)?;
-    update_cache_by_add_connector(&req.cluster_name, call_manager, client_pool, connector).await?;
-
-    start_connector().await;
     Ok(())
 }
 
@@ -106,18 +95,12 @@ pub async fn update_connector_by_req(
         ));
     }
 
-    let data = StorageData::new(
-        StorageDataType::MqttSetConnector,
-        UpdateConnectorRequest::encode_to_vec(&req),
-    );
-    raft_machine_apply.client_write(data).await?;
-
-    stop_connector().await;
-    start_connector().await;
-
-    let connector = serde_json::from_slice::<MQTTConnector>(&req.connector)?;
-    update_cache_by_add_connector(&req.cluster_name, call_manager, client_pool, connector).await?;
-
+    let create_req = CreateConnectorRequest {
+        cluster_name: req.cluster_name.clone(),
+        connector_name: req.connector_name.clone(),
+        connector: req.connector.clone(),
+    };
+    save_connector(raft_machine_apply, create_req, call_manager, client_pool).await?;
     Ok(())
 }
 
@@ -147,6 +130,5 @@ pub async fn delete_connector_by_req(
     )
     .await?;
 
-    stop_connector().await;
     Ok(())
 }

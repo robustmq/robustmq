@@ -57,6 +57,10 @@ impl ConnectorStorage {
         Ok(list)
     }
 
+    pub async fn list_all_connectors(&self) -> Result<Vec<MQTTConnector>, MqttBrokerError> {
+        self.list_connector("").await
+    }
+
     pub async fn create_connector(&self, connector: MQTTConnector) -> Result<(), MqttBrokerError> {
         let config = broker_mqtt_conf();
         let request = CreateConnectorRequest {
