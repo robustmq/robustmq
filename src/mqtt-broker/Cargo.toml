@@ -50,6 +50,7 @@ ipnet.workspace = true
 os_info.workspace = true
 bincode.workspace = true
 grep.workspace = true
+delay-message.workspace = true
 # observability
 prometheus.workspace = true
 prometheus-client.workspace = true

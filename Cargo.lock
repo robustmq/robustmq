@@ -1002,7 +1002,13 @@ version = "0.1.6"
 dependencies = [
  "axum",
  "bytes",
+ "common-base",
+ "dashmap",
+ "metadata-struct",
+ "storage-adapter",
  "thiserror 1.0.69",
+ "tokio",
+ "tokio-util",
 ]
 
 [[package]]
@@ -2345,6 +2351,7 @@ dependencies = [
  "bytes",
  "common-base",
  "dashmap",
+ "delay-message",
  "futures",
  "futures-util",
  "googletest",
@@ -4470,8 +4477,12 @@ checksum = "5419f34732d9eb6ee4c3578b7989078579b7f039cbbb9ca2c4da015749371e15"
 dependencies = [
  "bytes",
  "futures-core",
+ "futures-io",
  "futures-sink",
+ "futures-util",
+ "hashbrown 0.14.3",
  "pin-project-lite",
+ "slab",
  "tokio",
  "tracing",
 ]

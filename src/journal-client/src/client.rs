@@ -168,6 +168,7 @@ impl JournalClient {
                 tags: raw.tags,
                 header: Vec::new(),
                 timestamp: raw.timestamp,
+                delay_timestamp: 0,
             };
             results.push(record);
         }
@@ -223,6 +224,7 @@ impl JournalClient {
                 tags: raw.tags,
                 header: Vec::new(),
                 timestamp: raw.timestamp,
+                delay_timestamp: 0,
             };
             results.push(record);
         }
@@ -260,6 +262,7 @@ impl JournalClient {
                 tags: raw.tags,
                 header: Vec::new(),
                 timestamp: raw.timestamp,
+                delay_timestamp: 0,
             };
             results.push(record);
         }
