@@ -31,15 +31,15 @@ pub async fn pop_delay_queue<S>(
 {
     if let Some(mut delay_queue) = delay_message_manager.delay_queue_list.get_mut(&shard_no) {
         while let Some(expired) = delay_queue.next().await {
-            let delay_messsage = expired.into_inner();
+            let delay_message = expired.into_inner();
             let raw_message_storage_adapter = message_storage_adapter.clone();
             let raw_namespace = namespace.to_owned();
             tokio::spawn(async move {
                 send_delay_message_to_shard(
                     &raw_message_storage_adapter,
                     &raw_namespace,
-                    &delay_messsage.shard_name,
-                    delay_messsage.offset,
+                    &delay_message.shard_name,
+                    delay_message.offset,
                 )
                 .await;
             });
