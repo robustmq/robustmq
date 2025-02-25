@@ -127,9 +127,8 @@ mod tests {
             let conn = get_current_connection(server, client_addr).await;
 
             server_recv.notified().await;
-            let (mut server_send_stream, mut server_recv_stream) = conn.accept_bi().await.unwrap();
+            let (mut server_send_stream, server_recv_stream) = conn.accept_bi().await.unwrap();
             receive_packet(server_recv_stream).await;
-
             let server_bytes_mut = build_bytes_mut(build_mqtt5_pg_connect_ack_wrapper);
             send_packet(&mut server_send_stream, server_bytes_mut).await;
 
@@ -138,7 +137,7 @@ mod tests {
 
         let connection = quic_client.connect(server_addr, "localhost").await.unwrap();
 
-        let (mut client_send_stream, mut client_recv_stream) = connection.open_bi().await.unwrap();
+        let (mut client_send_stream, client_recv_stream) = connection.open_bi().await.unwrap();
 
         let client_bytes_mut = build_bytes_mut(build_mqtt5_pg_connect_wrapper);
         send_packet(&mut client_send_stream, client_bytes_mut).await;
@@ -167,17 +166,13 @@ mod tests {
 
     fn create_client() -> QuicClient {
         let client_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-
-        let mut quic_client = QuicClient::bind(client_addr);
-        quic_client
+        QuicClient::bind(client_addr)
     }
 
     fn create_server() -> QuicServer {
         let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
-        let mut server = QuicServer::new(ip_server);
-
-        server
+        QuicServer::new(ip_server)
     }
 
     async fn get_current_connection(mut server: QuicServer, client_addr: SocketAddr) -> Connection {

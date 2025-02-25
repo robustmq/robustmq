@@ -41,7 +41,7 @@ mod tests {
         mqtt_codec
             .encode(mqtt_packet_wrapper, &mut bytes_mut)
             .unwrap();
-        assert!(bytes_mut.len() > 0);
+        assert!(!bytes_mut.is_empty());
     }
 
     #[tokio::test]
@@ -56,7 +56,7 @@ mod tests {
         mqtt_codec
             .encode(mqtt_packet_wrapper, &mut bytes_mut)
             .unwrap();
-        assert!(bytes_mut.len() > 0);
+        assert!(!bytes_mut.is_empty());
         let packet = mqtt_codec.decode(&mut bytes_mut).unwrap();
         assert!(packet.is_some());
     }
