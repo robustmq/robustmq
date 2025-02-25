@@ -151,8 +151,7 @@ pub async fn delay_message_build_delay_queue<S>(
     delay_message_manager: Arc<DelayMessageManager<S>>,
     message_storage_adapter: Arc<S>,
     shard_num: u64,
-) -> Result<(), CommonError>
-where
+) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     for shard_no in 0..shard_num {
@@ -177,7 +176,6 @@ where
             .await;
         });
     }
-    Ok(())
 }
 
 pub async fn start_delay_message_pop<S>(

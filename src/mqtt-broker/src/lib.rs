@@ -362,6 +362,7 @@ where
                 message_storage_adapter,
                 shard_num,
             )
+            .await;
         });
     }
 
