@@ -179,6 +179,8 @@ pub async fn delay_message_build_delay_queue<S>(
 }
 
 pub async fn start_delay_message_pop<S>(
+    namespace: &str,
+    message_storage_adapter: Arc<S>,
     delay_message_manager: Arc<DelayMessageManager<S>>,
     shard_num: u64,
 ) -> Result<(), CommonError>
@@ -187,8 +189,16 @@ where
 {
     for shard_no in 0..shard_num {
         let new_delay_message_manager = delay_message_manager.clone();
+        let new_message_storage_adapter = message_storage_adapter.clone();
+        let new_namespace = namespace.to_owned();
         tokio::spawn(async move {
-            pop::pop_delay_queue(new_delay_message_manager, shard_no).await;
+            pop::pop_delay_queue(
+                &new_namespace,
+                &new_message_storage_adapter,
+                &new_delay_message_manager,
+                shard_no,
+            )
+            .await;
         });
     }
     Ok(())

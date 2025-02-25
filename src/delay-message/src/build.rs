@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::tools::now_second;
 use log::error;
 use metadata_struct::adapter::read_config::ReadConfig;
 use std::{sync::Arc, time::Duration};
@@ -54,11 +55,17 @@ pub async fn build_delay_queue<S>(
         }
         for record in data {
             offset = record.offset.unwrap();
+
+            if record.delay_timestamp < now_second() {
+                continue;
+            }
+
             let delay_message_record = DelayMessageRecord {
                 shard_name: shard_name.to_owned(),
                 offset,
                 delay_timestamp: record.delay_timestamp,
             };
+
             if let Err(e) = delay_message_manager
                 .send_to_delay_queue(shard_no, delay_message_record)
                 .await
