@@ -14,27 +14,58 @@
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
-    use bytes::Bytes;
+    use bytes::BytesMut;
     use futures::{SinkExt, StreamExt};
     use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
-    use protocol::mqtt::common::{
-        ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, LastWill, Login,
-        MqttPacket,
-    };
     use protocol::mqtt::mqttv4::codec::Mqtt4Codec;
     use protocol::mqtt::mqttv5::codec::Mqtt5Codec;
+    use robustmq_test::mqtt_build_tool::build_connack::build_mqtt5_pg_connect_ack_wrapper;
+    use robustmq_test::mqtt_build_tool::build_connect::{
+        build_mqtt4_pg_connect, build_mqtt5_pg_connect,
+    };
+    use std::time::Duration;
     use tokio::io;
     use tokio::net::{TcpListener, TcpStream};
     use tokio::time::sleep;
-    use tokio_util::codec::{Framed, FramedRead, FramedWrite};
+    use tokio_util::codec::{Decoder, Encoder, Framed, FramedRead, FramedWrite};
+
+    #[tokio::test]
+    async fn try_encode_data_from_mqtt_encoder() {
+        let mut mqtt_codec = MqttCodec::new(None);
+        let connect = build_mqtt4_pg_connect();
+        let mqtt_packet_wrapper = MqttPacketWrapper {
+            protocol_version: 4,
+            packet: connect,
+        };
+        let mut bytes_mut = BytesMut::with_capacity(0);
+        mqtt_codec
+            .encode(mqtt_packet_wrapper, &mut bytes_mut)
+            .unwrap();
+        assert!(!bytes_mut.is_empty());
+    }
+
+    #[tokio::test]
+    async fn try_decode_data_from_mqtt_decoder() {
+        let mut mqtt_codec = MqttCodec::new(None);
+        let connect = build_mqtt4_pg_connect();
+        let mqtt_packet_wrapper = MqttPacketWrapper {
+            protocol_version: 4,
+            packet: connect,
+        };
+        let mut bytes_mut = BytesMut::with_capacity(0);
+        mqtt_codec
+            .encode(mqtt_packet_wrapper, &mut bytes_mut)
+            .unwrap();
+        assert!(!bytes_mut.is_empty());
+        let packet = mqtt_codec.decode(&mut bytes_mut).unwrap();
+        assert!(packet.is_some());
+    }
 
     #[tokio::test]
 
     async fn mqtt_frame_server() {
         let req_packet = build_mqtt4_pg_connect();
-        let resp_packet = build_mqtt5_pg_connect_ack();
+        let resp_packet = build_mqtt5_pg_connect_ack_wrapper();
 
         let resp = resp_packet.clone();
         tokio::spawn(async move {
@@ -95,71 +126,6 @@ mod tests {
                     panic!("error: {:?}", e);
                 }
             }
-        }
-    }
-
-    /// Build the connect content package for the mqtt4 protocol
-    fn build_mqtt4_pg_connect() -> MqttPacket {
-        let client_id = String::from("test_client_id");
-        let login = Some(Login {
-            username: "lobo".to_string(),
-            password: "123456".to_string(),
-        });
-        let lastwill = Some(LastWill {
-            topic: Bytes::from("topic1"),
-            message: Bytes::from("connection content"),
-            qos: protocol::mqtt::common::QoS::AtLeastOnce,
-            retain: true,
-        });
-
-        let connect: Connect = Connect {
-            keep_alive: 30u16, // 30 seconds
-            client_id,
-            clean_session: true,
-        };
-        MqttPacket::Connect(4, connect, None, lastwill, None, login)
-    }
-
-    /// Build the connect content package for the mqtt5 protocol
-    fn build_mqtt5_pg_connect() -> MqttPacket {
-        let client_id = String::from("test_client_id");
-        let login = Some(Login {
-            username: "lobo".to_string(),
-            password: "123456".to_string(),
-        });
-        let lastwill = Some(LastWill {
-            topic: Bytes::from("topic1"),
-            message: Bytes::from("connection content"),
-            qos: protocol::mqtt::common::QoS::AtLeastOnce,
-            retain: true,
-        });
-
-        let connect: Connect = Connect {
-            keep_alive: 30u16, // 30 seconds
-            client_id,
-            clean_session: true,
-        };
-
-        let properties = ConnectProperties {
-            session_expiry_interval: Some(30),
-            ..Default::default()
-        };
-        MqttPacket::Connect(5, connect, Some(properties), lastwill, None, login)
-    }
-
-    /// Build the connect content package for the mqtt5 protocol
-    fn build_mqtt5_pg_connect_ack() -> MqttPacketWrapper {
-        let ack: ConnAck = ConnAck {
-            session_present: true,
-            code: ConnectReturnCode::Success,
-        };
-        let properties = ConnAckProperties {
-            max_qos: Some(10u8),
-            ..Default::default()
-        };
-        MqttPacketWrapper {
-            protocol_version: 5,
-            packet: MqttPacket::ConnAck(ack, Some(properties)),
         }
     }
 }

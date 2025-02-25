@@ -14,8 +14,7 @@
 
 use crate::handler::error::MqttBrokerError;
 use crate::server::quic::skip_server_verification::SkipServerVerification;
-use log::info;
-use quinn::{ClientConfig, Connection, Endpoint};
+use quinn::{ClientConfig, Connection, Endpoint, VarInt};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 #[derive(Clone)]
@@ -70,17 +69,56 @@ pub struct QuicClient {
 
 impl QuicClient {
     pub fn bind(addr: SocketAddr) -> Self {
-        let mut quinn_quic_client_config = QuicClientConfig::default();
-        quinn_quic_client_config.bind_addr(addr);
+        let (mut quinn_quic_client_config, endpoint) =
+            Self::create_default_config_for_quic_client_config(addr);
 
-        match Endpoint::client(quinn_quic_client_config.get_bind_addr()) {
-            Ok(endpoint) => Self {
-                quic_client_config: quinn_quic_client_config,
-                endpoint: Some(endpoint),
-            },
-            Err(_) => panic!("failed to bind ip in quic client"),
+        Self::add_addr_to_quinn_quic_client_config(&mut quinn_quic_client_config, &endpoint);
+
+        Self {
+            quic_client_config: quinn_quic_client_config,
+            endpoint: Some(endpoint),
         }
     }
+
+    pub fn local_addr(&self) -> SocketAddr {
+        match &self.endpoint {
+            Some(endpoint) => endpoint.local_addr().unwrap(),
+            None => panic!("quic server is not initialized"),
+        }
+    }
+
+    fn add_addr_to_quinn_quic_client_config(
+        quinn_quic_client_config: &mut QuicClientConfig,
+        endpoint: &Endpoint,
+    ) {
+        match endpoint.local_addr() {
+            Ok(addr) => {
+                quinn_quic_client_config.bind_addr(addr);
+            }
+            Err(e) => {
+                panic!("failed to bind ip in quic client: {}", e)
+            }
+        }
+    }
+
+    fn create_default_config_for_quic_client_config(
+        addr: SocketAddr,
+    ) -> (QuicClientConfig, Endpoint) {
+        let quinn_quic_client_config = QuicClientConfig::default();
+
+        let endpoint = match Endpoint::client(addr) {
+            Ok(mut endpoint) => {
+                endpoint
+                    .set_default_client_config(quinn_quic_client_config.get_quic_client_config());
+                endpoint
+            }
+            Err(e) => {
+                panic!("failed to create quic client endpoint: {}", e)
+            }
+        };
+        (quinn_quic_client_config, endpoint)
+    }
+
     fn get_endpoint(&self) -> Result<Endpoint, MqttBrokerError> {
         let endpoint = match &self.endpoint {
             None => {
@@ -120,15 +158,28 @@ impl QuicClient {
             }
         };
 
-        info!("[client] connected: addr={}", connection.remote_address());
-
         Ok(connection)
     }
 
-    pub async fn disconnect(&mut self) {
-        if let Ok(endpoint) = self.get_endpoint() {
-            endpoint.wait_idle().await;
-            self.endpoint = None;
+    pub async fn wait_idle(&self) {
+        match &self.endpoint {
+            None => {
+                panic!("quic client is not initialized");
+            }
+            Some(endpoint) => {
+                endpoint.wait_idle().await;
+            }
+        }
+    }
+
+    pub fn close(&mut self, error_code: VarInt, error_message: &[u8]) {
+        match &self.endpoint {
+            None => {
+                panic!("quic client is not initialized");
+            }
+            Some(endpoint) => {
+                endpoint.close(error_code, error_message);
+            }
         }
     }
 }
