@@ -42,7 +42,7 @@ mod tests {
         let client_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
         tokio::spawn(async move {
-            let conn = get_current_connection(server, ip_server_addr);
+            let conn = server.accept_connection().await.unwrap();
             assert_eq!(conn.remote_address(), client_addr);
         });
 
@@ -90,11 +90,8 @@ mod tests {
             connection.closed().await;
         };
 
-        let endpoint = server.get_endpoint().unwrap();
-
         tokio::spawn(async move {
-            while let Some(conn) = endpoint.accept().await {
-                let connection = conn.await.unwrap();
+            while let Ok(connection) = server.accept_connection().await {
                 assert!(
                     connection.remote_address() == client_addr_1
                         || connection.remote_address() == client_addr_2
@@ -122,7 +119,7 @@ mod tests {
         let server_send = client_recv.clone();
 
         let server = tokio::spawn(async move {
-            let conn = get_current_connection(server, client_addr).await;
+            let conn = server.accept_connection().await.unwrap();
 
             server_recv.notified().await;
             let (mut server_send_stream, server_recv_stream) = conn.accept_bi().await.unwrap();
