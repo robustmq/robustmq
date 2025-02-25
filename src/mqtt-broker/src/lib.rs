@@ -404,7 +404,13 @@ where
     fn register_node(&self) {
         self.runtime.block_on(async move {
             init_system_user(&self.cache_manager, &self.client_pool).await;
-            load_metadata_cache(&self.cache_manager, &self.client_pool, &self.auth_driver).await;
+            load_metadata_cache(
+                &self.cache_manager,
+                &self.client_pool,
+                &self.auth_driver,
+                &self.connector_manager,
+            )
+            .await;
 
             let config = broker_mqtt_conf();
             match register_node(&self.client_pool).await {
