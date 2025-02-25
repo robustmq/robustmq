@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::handler::error::MqttBrokerError;
-use quinn::{Endpoint, ServerConfig, VarInt};
+use quinn::{Connection, Endpoint, ServerConfig, VarInt};
 use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 use rustls_pki_types::PrivateKeyDer;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -112,6 +112,30 @@ impl QuicServer {
             None => Err(MqttBrokerError::CommonError(
                 "Endpoint is not initialized".to_string(),
             )),
+        }
+    }
+
+    pub async fn accept_connection(&self) -> Result<Connection, MqttBrokerError> {
+        if self.endpoint.as_ref().is_none() {
+            return Err(MqttBrokerError::CommonError(
+                "Server is not initialized".to_string(),
+            ));
+        }
+
+        let incoming = self.endpoint.as_ref().unwrap().accept().await;
+
+        if incoming.is_none() {
+            return Err(MqttBrokerError::CommonError(
+                "No incoming connection".to_string(),
+            ));
+        }
+
+        match incoming.unwrap().await {
+            Ok(connection) => Ok(connection),
+            Err(e) => Err(MqttBrokerError::CommonError(format!(
+                "Failed to accept connection: {}",
+                e
+            ))),
         }
     }
 

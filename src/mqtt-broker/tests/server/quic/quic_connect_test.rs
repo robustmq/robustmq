@@ -42,9 +42,7 @@ mod tests {
         let client_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
         tokio::spawn(async move {
-            let endpoint = server.get_endpoint().unwrap();
-            let incoming_conn = endpoint.accept().await.unwrap();
-            let conn = incoming_conn.await.unwrap();
+            let conn = get_current_connection(server, ip_server_addr);
             assert_eq!(conn.remote_address(), client_addr);
         });
 
