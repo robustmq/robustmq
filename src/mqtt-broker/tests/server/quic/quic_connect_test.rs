@@ -18,7 +18,7 @@ mod tests {
     use mqtt_broker::server::quic::client::QuicClient;
     use mqtt_broker::server::quic::server::QuicServer;
     use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
-    use quinn::{Connection, RecvStream, SendStream};
+    use quinn::{RecvStream, SendStream};
     use robustmq_test::mqtt_build_tool::build_connack::build_mqtt5_pg_connect_ack_wrapper;
     use robustmq_test::mqtt_build_tool::build_connect::build_mqtt5_pg_connect_wrapper;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
