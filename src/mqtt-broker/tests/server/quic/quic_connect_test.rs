@@ -111,8 +111,6 @@ mod tests {
         let server_addr = server.local_addr();
 
         let mut quic_client = create_client();
-        let client_addr = quic_client.local_addr();
-
         let server_recv = Arc::new(tokio::sync::Notify::new());
         let client_send = server_recv.clone();
         let client_recv = Arc::new(tokio::sync::Notify::new());
@@ -168,14 +166,6 @@ mod tests {
         let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
         QuicServer::new(ip_server)
-    }
-
-    async fn get_current_connection(server: QuicServer, client_addr: SocketAddr) -> Connection {
-        let endpoint = server.get_endpoint().unwrap();
-        let incoming_conn = endpoint.accept().await.unwrap();
-        let conn = incoming_conn.await.unwrap();
-        assert_eq!(conn.remote_address(), client_addr);
-        conn
     }
 
     fn build_bytes_mut(
