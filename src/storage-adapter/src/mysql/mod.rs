@@ -19,7 +19,7 @@ use common_base::error::common::CommonError;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use mysql::{params, prelude::Queryable, Pool, Row};
 
-use crate::storage::{ShardConfig, ShardOffset, StorageAdapter};
+use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 
 pub struct MySQLStorageAdapter {
     pool: Pool,
@@ -174,15 +174,10 @@ impl MySQLStorageAdapter {
 
 #[async_trait]
 impl StorageAdapter for MySQLStorageAdapter {
-    async fn create_shard(
-        &self,
-        namespace: String,
-        shard_name: String,
-        config: ShardConfig,
-    ) -> Result<(), CommonError> {
+    async fn create_shard(&self, shard: ShardInfo) -> Result<(), CommonError> {
         let mut conn = self.pool.get_conn()?;
 
-        let table_name = Self::record_table_name(&namespace, &shard_name);
+        let table_name = Self::record_table_name(&shard.namespace, &shard.shard_name);
 
         let check_table_exists_sql = format!("SHOW TABLES LIKE '{}';", table_name);
 
@@ -192,7 +187,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         {
             return Err(CommonError::CommonError(format!(
                 "shard {} under namespace {} already exists",
-                &shard_name, &namespace
+                &shard.shard_name, &shard.namespace
             )));
         };
 
@@ -221,9 +216,9 @@ impl StorageAdapter for MySQLStorageAdapter {
         conn.exec_drop(
             insert_shard_info_sql,
             params! {
-                "namespace" => namespace.clone(),
-                "shard" => shard_name.clone(),
-                "info" => serde_json::to_vec(&config).unwrap(),
+                "namespace" => shard.namespace.clone(),
+                "shard" => shard.shard_name.clone(),
+                "info" => serde_json::to_vec(&shard).unwrap(),
             },
         )?;
 
@@ -232,12 +227,20 @@ impl StorageAdapter for MySQLStorageAdapter {
             "CREATE TABLE IF NOT EXISTS `{}` (
                 `offset` bigint unsigned PRIMARY KEY AUTO_INCREMENT
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;",
-            Self::increment_id_table_name(namespace, shard_name)
+            Self::increment_id_table_name(shard.namespace, shard.shard_name)
         );
 
         conn.query_drop(create_increment_id_table_sql)?;
 
         Ok(())
+    }
+
+    async fn get_shard(
+        &self,
+        _namespace: String,
+        _shard_name: String,
+    ) -> Result<Option<ShardInfo>, CommonError> {
+        Ok(None)
     }
 
     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
@@ -327,6 +330,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                     header: serde_json::from_slice(&header).unwrap(),
                     tags: serde_json::from_slice(&tags).unwrap(),
                     timestamp: ts,
+                    delay_timestamp: 0,
                 }
             },
         )?;
@@ -379,6 +383,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                     header: serde_json::from_slice(&header).unwrap(),
                     tags: serde_json::from_slice(&tags).unwrap(),
                     timestamp: ts,
+                    delay_timestamp: 0,
                 }
             },
         )?;
@@ -429,6 +434,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                     header: serde_json::from_slice(&header).unwrap(),
                     tags: serde_json::from_slice(&tags).unwrap(),
                     timestamp: ts,
+                    delay_timestamp: 0,
                 },
             )
             .ok_or(CommonError::CommonError("No record found".to_string()))?;
@@ -543,7 +549,7 @@ mod tests {
     use third_driver::mysql::build_mysql_conn_pool;
 
     use super::MySQLStorageAdapter;
-    use crate::storage::{ShardConfig, StorageAdapter};
+    use crate::storage::{ShardInfo, StorageAdapter};
 
     async fn clean_resources(pool: Pool) {
         let mut conn = pool.get_conn().unwrap();
@@ -565,10 +571,13 @@ mod tests {
 
         let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).unwrap();
         let shard_name = String::from("test");
-        let shard_config = ShardConfig::default();
         let namespace = unique_id();
         mysql_adapter
-            .create_shard(namespace.clone(), shard_name.clone(), shard_config)
+            .create_shard(ShardInfo {
+                namespace: namespace.clone(),
+                shard_name: shard_name.clone(),
+                replica_num: 1,
+            })
             .await
             .unwrap();
 
@@ -587,10 +596,13 @@ mod tests {
         let pool = build_mysql_conn_pool(addr).unwrap();
         let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).unwrap();
         let shard_name = String::from("test");
-        let shard_config = ShardConfig::default();
         let namespace = unique_id();
         mysql_adapter
-            .create_shard(namespace.clone(), shard_name.clone(), shard_config)
+            .create_shard(ShardInfo {
+                namespace: namespace.clone(),
+                shard_name: shard_name.clone(),
+                replica_num: 1,
+            })
             .await
             .unwrap();
         let mut data = Vec::new();
@@ -605,6 +617,7 @@ mod tests {
             offset: None,
             timestamp: 1737600096,
             tags: vec![],
+            delay_timestamp: 0,
         });
         data.push(Record {
             data: "test2".to_string().as_bytes().to_vec(),
@@ -613,6 +626,7 @@ mod tests {
             offset: None,
             timestamp: 1737600097,
             tags: vec![],
+            delay_timestamp: 0,
         });
 
         let result = mysql_adapter
@@ -663,11 +677,11 @@ mod tests {
 
         // step 1: create shard
         mysql_adapter
-            .create_shard(
-                namespace.clone(),
-                shard_name.clone(),
-                ShardConfig::default(),
-            )
+            .create_shard(ShardInfo {
+                namespace: namespace.clone(),
+                shard_name: shard_name.clone(),
+                replica_num: 1,
+            })
             .await
             .unwrap();
 
@@ -884,11 +898,11 @@ mod tests {
 
         // step 1: create shard
         mysql_adapter
-            .create_shard(
-                namespace.clone(),
-                shard_name.clone(),
-                ShardConfig::default(),
-            )
+            .create_shard(ShardInfo {
+                namespace: namespace.clone(),
+                shard_name: shard_name.clone(),
+                replica_num: 1,
+            })
             .await
             .unwrap();
 
@@ -916,6 +930,7 @@ mod tests {
                         offset: None,
                         timestamp: 1737600096,
                         tags: vec![],
+                        delay_timestamp: 0,
                     });
                 }
 

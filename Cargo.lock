@@ -65,15 +65,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "amqp-plugins"
-version = "0.1.6"
-dependencies = [
- "axum",
- "bytes",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "android-tzdata"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1004,6 +995,23 @@ name = "data-encoding"
 version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8566979429cf69b49a5c740c60791108e86440e8be149bbea4fe54d2c32d6e2"
+
+[[package]]
+name = "delay-message"
+version = "0.1.6"
+dependencies = [
+ "axum",
+ "bytes",
+ "common-base",
+ "dashmap",
+ "futures",
+ "log",
+ "metadata-struct",
+ "storage-adapter",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-util",
+]
 
 [[package]]
 name = "deranged"
@@ -2345,6 +2353,7 @@ dependencies = [
  "bytes",
  "common-base",
  "dashmap",
+ "delay-message",
  "futures",
  "futures-util",
  "googletest",
@@ -2378,15 +2387,6 @@ dependencies = [
  "tokio-rustls 0.26.0",
  "tokio-util",
  "tonic",
-]
-
-[[package]]
-name = "mqtt-edge"
-version = "0.1.6"
-dependencies = [
- "axum",
- "bytes",
- "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -4481,8 +4481,12 @@ checksum = "5419f34732d9eb6ee4c3578b7989078579b7f039cbbb9ca2c4da015749371e15"
 dependencies = [
  "bytes",
  "futures-core",
+ "futures-io",
  "futures-sink",
+ "futures-util",
+ "hashbrown 0.14.3",
  "pin-project-lite",
+ "slab",
  "tokio",
  "tracing",
 ]

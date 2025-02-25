@@ -15,11 +15,10 @@
 [workspace]
 members = [
     "src/mqtt-broker",
-    "src/mqtt-edge",
-    "src/amqp-plugins",
     "src/amqp-broker",
     "src/placement-center",
     "src/cli-command",
+    "src/delay-message",
     "src/grpc-clients",
     "src/cmd",
     "src/common/base",
@@ -46,8 +45,12 @@ bindgen = { version = "0.69.5" }
 ## async lib
 futures = "0.3"
 tokio = { version = "1", features = ["full"] }
-tokio-util = { version = "0.7.9", features = ["codec"] }
-tokio-rustls = { version = "0.26", default-features = false, features = ["logging", "tls12", "ring"] }
+tokio-util = { version = "0.7.9", features = ["full"] }
+tokio-rustls = { version = "0.26", default-features = false, features = [
+    "logging",
+    "tls12",
+    "ring",
+] }
 rustls = { version = "0.23.23", default-features = false }
 rustls-pemfile = "2"
 ## axum
@@ -79,13 +82,19 @@ log = "0.4.0"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.0", features = ["env-filter"] }
 # opentelemetry
-opentelemetry = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = ["trace"] }
-opentelemetry_sdk = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = ["rt-tokio"] }
-opentelemetry-otlp = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = ["grpc-tonic"] }
+opentelemetry = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = [
+    "trace",
+] }
+opentelemetry_sdk = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = [
+    "rt-tokio",
+] }
+opentelemetry-otlp = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = [
+    "grpc-tonic",
+] }
 # prost
 prost = "0.13.2"
 prost-build = "0.13.2"
-prost-validate = {version = "0.2.6", features=["derive"]}
+prost-validate = { version = "0.2.6", features = ["derive"] }
 prost-validate-build = "0.2.6"
 # tonic
 tonic = "0.12.3"
@@ -127,9 +136,8 @@ opendal = { version = "0.51", features = ["services-s3"] }
 prettytable-rs = "^0.10"
 ## workspaces members
 mqtt-broker = { path = "src/mqtt-broker" }
-mqtt-edge = { path = "src/mqtt-edge" }
 amqp-broker = { path = "src/amqp-broker" }
-amqp-plugins = { path = "src/amqp-plugins" }
+delay-message = { path = "src/delay-message" }
 placement-center = { path = "src/placement-center" }
 cli-command = { path = "src/cli-command" }
 grpc-clients = { path = "src/grpc-clients" }
