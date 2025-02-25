@@ -175,7 +175,7 @@ mod tests {
         QuicServer::new(ip_server)
     }
 
-    async fn get_current_connection(mut server: QuicServer, client_addr: SocketAddr) -> Connection {
+    async fn get_current_connection(server: QuicServer, client_addr: SocketAddr) -> Connection {
         let endpoint = server.get_endpoint().unwrap();
         let incoming_conn = endpoint.accept().await.unwrap();
         let conn = incoming_conn.await.unwrap();
