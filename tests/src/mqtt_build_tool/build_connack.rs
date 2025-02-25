@@ -47,9 +47,10 @@ mod tests {
     #[test]
     fn test_decode_mqtt5_pg_connect_ack() {
         let wrapper = build_mqtt5_pg_connect_ack_wrapper();
-        let mut codec = MqttCodec::new(None);
+        let mut codec = MqttCodec::new(Some(5));
         let mut bytes_mut = BytesMut::with_capacity(0);
         codec.encode(wrapper, &mut bytes_mut).unwrap();
+
         let packet = codec.decode(&mut bytes_mut).unwrap();
         assert!(packet.is_some());
     }

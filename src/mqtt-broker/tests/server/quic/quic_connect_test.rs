@@ -128,8 +128,8 @@ mod tests {
 
             server_recv.notified().await;
             let (mut server_send_stream, server_recv_stream) = conn.accept_bi().await.unwrap();
-            receive_packet(server_recv_stream).await;
-            let server_bytes_mut = build_bytes_mut(build_mqtt5_pg_connect_ack_wrapper);
+            receive_packet(server_recv_stream, Some(5)).await;
+            let server_bytes_mut = build_bytes_mut(build_mqtt5_pg_connect_ack_wrapper, Some(5));
             send_packet(&mut server_send_stream, server_bytes_mut).await;
 
             server_send.notify_one();
@@ -139,12 +139,12 @@ mod tests {
 
         let (mut client_send_stream, client_recv_stream) = connection.open_bi().await.unwrap();
 
-        let client_bytes_mut = build_bytes_mut(build_mqtt5_pg_connect_wrapper);
+        let client_bytes_mut = build_bytes_mut(build_mqtt5_pg_connect_wrapper, Some(5));
         send_packet(&mut client_send_stream, client_bytes_mut).await;
         client_send.notify_one();
 
-        // client_recv.notified().await;
-        receive_packet(client_recv_stream).await;
+        client_recv.notified().await;
+        receive_packet(client_recv_stream, Some(5)).await;
 
         server.await.unwrap();
     }
@@ -155,8 +155,8 @@ mod tests {
         let _ = send_stream.stopped().await;
     }
 
-    async fn receive_packet(mut recv_stream: RecvStream) {
-        let mut codec = MqttCodec::new(None);
+    async fn receive_packet(mut recv_stream: RecvStream, protocol_version: Option<u8>) {
+        let mut codec = MqttCodec::new(protocol_version);
         let mut decode_bytes = BytesMut::with_capacity(0);
         let vec = recv_stream.read_to_end(1024).await.unwrap();
         decode_bytes.extend(vec);
@@ -183,8 +183,11 @@ mod tests {
         conn
     }
 
-    fn build_bytes_mut(create_connect_wrapper: fn() -> MqttPacketWrapper) -> BytesMut {
-        let mut mqtt_codec = MqttCodec::new(None);
+    fn build_bytes_mut(
+        create_connect_wrapper: fn() -> MqttPacketWrapper,
+        protocol_version: Option<u8>,
+    ) -> BytesMut {
+        let mut mqtt_codec = MqttCodec::new(protocol_version);
         let connect_wrapper = create_connect_wrapper();
 
         let mut bytes_mut = BytesMut::with_capacity(0);
