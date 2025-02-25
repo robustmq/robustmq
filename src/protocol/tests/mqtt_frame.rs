@@ -19,7 +19,7 @@ mod tests {
     use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
     use protocol::mqtt::mqttv4::codec::Mqtt4Codec;
     use protocol::mqtt::mqttv5::codec::Mqtt5Codec;
-    use robustmq_test::mqtt_build_tool::build_connack::build_mqtt5_pg_connect_ack;
+    use robustmq_test::mqtt_build_tool::build_connack::build_mqtt5_pg_connect_ack_wrapper;
     use robustmq_test::mqtt_build_tool::build_connect::{
         build_mqtt4_pg_connect, build_mqtt5_pg_connect,
     };
@@ -65,7 +65,7 @@ mod tests {
 
     async fn mqtt_frame_server() {
         let req_packet = build_mqtt4_pg_connect();
-        let resp_packet = build_mqtt5_pg_connect_ack();
+        let resp_packet = build_mqtt5_pg_connect_ack_wrapper();
 
         let resp = resp_packet.clone();
         tokio::spawn(async move {

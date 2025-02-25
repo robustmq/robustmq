@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use bytes::Bytes;
+use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, Login, MqttPacket};
 
 /// Build the connect content package for the mqtt4 protocol
@@ -62,4 +63,11 @@ pub fn build_mqtt5_pg_connect() -> MqttPacket {
         ..Default::default()
     };
     MqttPacket::Connect(5, connect, Some(properties), lastwill, None, login)
+}
+
+pub fn build_mqtt5_pg_connect_wrapper() -> MqttPacketWrapper {
+    MqttPacketWrapper {
+        protocol_version: 5,
+        packet: build_mqtt5_pg_connect(),
+    }
 }

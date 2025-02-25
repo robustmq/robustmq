@@ -16,7 +16,7 @@ use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::mqtt::common::{ConnAck, ConnAckProperties, ConnectReturnCode, MqttPacket};
 
 /// Build the connect content package for the mqtt5 protocol
-pub fn build_mqtt5_pg_connect_ack() -> MqttPacketWrapper {
+pub fn build_mqtt5_pg_connect_ack_wrapper() -> MqttPacketWrapper {
     let ack: ConnAck = ConnAck {
         session_present: true,
         code: ConnectReturnCode::Success,
@@ -28,5 +28,29 @@ pub fn build_mqtt5_pg_connect_ack() -> MqttPacketWrapper {
     MqttPacketWrapper {
         protocol_version: 5,
         packet: MqttPacket::ConnAck(ack, Some(properties)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bytes::BytesMut;
+    use protocol::mqtt::codec::MqttCodec;
+    use tokio_util::codec::{Decoder, Encoder};
+
+    #[test]
+    fn test_build_mqtt5_pg_connect_ack_wrapper() {
+        let wrapper = build_mqtt5_pg_connect_ack_wrapper();
+        assert_eq!(wrapper.protocol_version, 5);
+    }
+
+    #[test]
+    fn test_decode_mqtt5_pg_connect_ack() {
+        let wrapper = build_mqtt5_pg_connect_ack_wrapper();
+        let mut codec = MqttCodec::new(None);
+        let mut bytes_mut = BytesMut::with_capacity(0);
+        codec.encode(wrapper, &mut bytes_mut).unwrap();
+        let packet = codec.decode(&mut bytes_mut).unwrap();
+        assert!(packet.is_some());
     }
 }
