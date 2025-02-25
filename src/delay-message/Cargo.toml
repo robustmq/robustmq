@@ -29,3 +29,5 @@ metadata-struct.workspace = true
 dashmap.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
+log.workspace = true
+futures.workspace = true

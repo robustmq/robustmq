@@ -11,3 +11,21 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+use std::sync::Arc;
+
+use crate::DelayMessageManager;
+use futures::StreamExt;
+use storage_adapter::storage::StorageAdapter;
+
+pub async fn pop_delay_queue<S>(delay_message_manager: Arc<DelayMessageManager<S>>, shard_no: u64)
+where
+    S: StorageAdapter + Sync + Send + 'static + Clone,
+{
+    if let Some(mut delay_queue) = delay_message_manager.delay_queue_list.get_mut(&shard_no) {
+        while let Some(expired) = delay_queue.next().await {
+            let record = expired.into_inner();
+            println!("Expired item: {},{}", record.shard_name, record.offset);
+        }
+    }
+}

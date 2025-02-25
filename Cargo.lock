@@ -1004,6 +1004,8 @@ dependencies = [
  "bytes",
  "common-base",
  "dashmap",
+ "futures",
+ "log",
  "metadata-struct",
  "storage-adapter",
  "thiserror 1.0.69",
