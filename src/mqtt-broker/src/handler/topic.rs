@@ -21,7 +21,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MqttTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
 use regex::Regex;
-use storage_adapter::storage::{ShardConfig, StorageAdapter};
+use storage_adapter::storage::{ShardInfo, StorageAdapter};
 
 use super::error::MqttBrokerError;
 use crate::handler::cache::CacheManager;
@@ -135,11 +135,13 @@ where
 
         // Create the resource object of the storage layer
         let shard_name = topic.topic_id.clone();
-        let shard_config = ShardConfig::default();
         let namespace = cluster_name();
-        message_storage_adapter
-            .create_shard(namespace, shard_name, shard_config)
-            .await?;
+        let shard = ShardInfo {
+            namespace: namespace.clone(),
+            shard_name: shard_name.clone(),
+            replica_num: 1,
+        };
+        message_storage_adapter.create_shard(shard).await?;
         return Ok(topic);
     };
     Ok(topic)

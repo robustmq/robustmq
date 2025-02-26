@@ -13,7 +13,7 @@
 # limitations under the License.
 
 [package]
-name = "mqtt-edge"
+name = "delay-message"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -23,3 +23,11 @@ license.workspace = true
 bytes.workspace = true
 axum.workspace = true
 thiserror.workspace = true
+common-base.workspace = true
+storage-adapter.workspace = true
+metadata-struct.workspace = true
+dashmap.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+log.workspace = true
+futures.workspace = true

@@ -21,6 +21,7 @@ use bridge::manager::ConnectorManager;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::runtime::create_runtime;
 use common_base::tools::now_second;
+use delay_message::{delay_message_build_delay_queue, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
 use handler::acl::UpdateAclCache;
 use handler::cache::CacheManager;
@@ -118,6 +119,7 @@ pub struct MqttBroker<S> {
     connection_manager: Arc<ConnectionManager>,
     connector_manager: Arc<ConnectorManager>,
     auth_driver: Arc<AuthDriver>,
+    delay_message_manager: Arc<DelayMessageManager<S>>,
 }
 
 impl<S> MqttBroker<S>
@@ -139,7 +141,11 @@ where
         let connector_manager = Arc::new(ConnectorManager::new());
         let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
         let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_pool.clone()));
-
+        let delay_message_manager = Arc::new(DelayMessageManager::new(
+            conf.cluster_name.clone(),
+            3,
+            message_storage_adapter.clone(),
+        ));
         MqttBroker {
             runtime,
             cache_manager,
@@ -149,6 +155,7 @@ where
             connector_manager,
             connection_manager,
             auth_driver,
+            delay_message_manager,
         }
     }
 
@@ -167,7 +174,7 @@ where
         self.start_mqtt_server(stop_send.clone());
         self.start_websocket_server(stop_send.clone());
         self.start_keep_alive_thread(stop_send.clone());
-
+        self.start_delay_message_thread();
         self.start_update_cache_thread(stop_send.clone());
         self.start_system_topic_thread(stop_send.clone());
 
@@ -337,6 +344,25 @@ where
         );
         self.runtime.spawn(async move {
             keep_alive.start_heartbeat_check().await;
+        });
+    }
+
+    fn start_delay_message_thread(&self) {
+        let delay_message_manager = self.delay_message_manager.clone();
+        let message_storage_adapter = self.message_storage_adapter.clone();
+        self.runtime.spawn(async move {
+            if let Err(e) = delay_message_manager.init().await {
+                panic!("{}", e.to_string());
+            }
+            let conf = broker_mqtt_conf();
+            let shard_num = 1;
+            delay_message_build_delay_queue(
+                conf.cluster_name.clone(),
+                delay_message_manager,
+                message_storage_adapter,
+                shard_num,
+            )
+            .await;
         });
     }
 
