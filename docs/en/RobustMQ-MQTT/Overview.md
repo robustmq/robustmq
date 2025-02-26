@@ -57,7 +57,7 @@ RobustMQ MQTT goal is to build a high-performance, highly available, and scalabl
 | Message Expiry Interval | Supported |
 | Maximum Packet Size | Support |
  
-## Architecture
+## 架构概述
 
 ![image](../../images/doc-image5.png)
 
