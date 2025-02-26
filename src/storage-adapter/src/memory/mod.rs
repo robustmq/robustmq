@@ -61,16 +61,19 @@ impl StorageAdapter for MemoryStorageAdapter {
         return Ok(());
     }
 
-    async fn get_shard(
+    async fn list_shard(
         &self,
         namespace: String,
         shard_name: String,
-    ) -> Result<Option<ShardInfo>, CommonError> {
-        let key = self.shard_key(&namespace, &shard_name);
-        if let Some(info) = self.shard_info.get(&key) {
-            return Ok(Some(info.clone()));
+    ) -> Result<Vec<ShardInfo>, CommonError> {
+        if shard_name.is_empty() {
+            let key = self.shard_key(&namespace, &shard_name);
+            if let Some(info) = self.shard_info.get(&key) {
+                return Ok(vec![info.clone()]);
+            }
         }
-        Ok(None)
+
+        Ok(self.shard_info.iter().map(|v| v.value().clone()).collect())
     }
 
     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {

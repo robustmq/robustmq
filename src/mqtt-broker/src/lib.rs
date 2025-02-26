@@ -21,7 +21,7 @@ use bridge::manager::ConnectorManager;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::runtime::create_runtime;
 use common_base::tools::now_second;
-use delay_message::{delay_message_build_delay_queue, DelayMessageManager};
+use delay_message::{start_build_delay_queue, start_delay_message_pop, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
 use handler::acl::UpdateAclCache;
 use handler::cache::CacheManager;
@@ -351,15 +351,27 @@ where
         let delay_message_manager = self.delay_message_manager.clone();
         let message_storage_adapter = self.message_storage_adapter.clone();
         self.runtime.spawn(async move {
+            // Initialize the delay message manager
             if let Err(e) = delay_message_manager.init().await {
                 panic!("{}", e.to_string());
             }
+
+            // Start the delayed message index building thread
             let conf = broker_mqtt_conf();
             let shard_num = 1;
-            delay_message_build_delay_queue(
+            start_build_delay_queue(
                 conf.cluster_name.clone(),
-                delay_message_manager,
+                delay_message_manager.clone(),
+                message_storage_adapter.clone(),
+                shard_num,
+            )
+            .await;
+
+            // Start the delay message pop thread
+            start_delay_message_pop(
+                conf.cluster_name.clone(),
                 message_storage_adapter,
+                delay_message_manager,
                 shard_num,
             )
             .await;

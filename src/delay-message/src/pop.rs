@@ -55,7 +55,14 @@ async fn send_delay_message_to_shard<S>(
 ) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
+    let mut times = 0;
     loop {
+        if times > 1000 {
+            error!("send_delay_message_to_shard failed, times: {},namespace:{},shard_name:{},offset:{}", times, namespace, shard_name, offset);
+            break;
+        }
+
+        times += 1;
         let record =
             match read_offset_data(message_storage_adapter, namespace, shard_name, offset).await {
                 Ok(Some(record)) => record,
@@ -111,4 +118,10 @@ where
         }
     }
     Ok(None)
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    pub fn read_offset_data_test() {}
 }
