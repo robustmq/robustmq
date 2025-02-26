@@ -1,9 +1,9 @@
 ## 功能覆盖度
 1. 离线消息【done】
 2. 订阅逻辑优化【done】
-3. MQTT 测试用例失败 case 修复
+3. MQTT 测试用例失败 case 修复【done】
 4. 自动订阅
-5. 延时发布
+5. 延时发布【done】 
 6. 消息验证：确保消息的完整性和合法性
 7. 数据集成
    1. sink local file
@@ -78,6 +78,7 @@
   - 使用 Javascript SDK 连接
 - GRPC Admin 接口
 - Bench 性能压测
+- Schema Registry
 - 安全
   - 认证
   - 授权
