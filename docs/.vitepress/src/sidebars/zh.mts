@@ -63,7 +63,7 @@ export const sidebar = [
                     { text: "保留消息", link: "" },
                     { text: "遗嘱消息", link: "" },
                     { text: "排他订阅", link: "" },
-                    { text: "延迟发布", link: "" },
+                    { text: "延迟发布", link: "/zh/RobustMQ-MQTT/DelayMessage.md" },
                     { text: "自动订阅", link: "" },
                     { text: "主题重写", link: "" },
                     { text: "通配符订阅", link: "" },
