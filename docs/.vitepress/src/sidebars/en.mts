@@ -62,7 +62,7 @@ export const sidebar = [
                     { text: "Retain Message", link: "" },
                     { text: "LastWill Message", link: "" },
                     { text: "Exclusive Subscription", link: "" },
-                    { text: "Delayed Publish", link: "" },
+                    { text: "Delayed Publish", link: "/RobustMQ-MQTT/DelayMessage.md" },
                     { text: "Automatic subscription", link: "" },
                     { text: "Topic Rewriting", link: "" },
                     { text: "Wildcard Subscription", link: "" },
