@@ -119,7 +119,7 @@ where
         Ok(())
     }
 
-    pub fn add_delay_queue_pop_thread(&self, shard_no: u64, stop_send: broadcast::Sender<bool>) {
+    fn add_delay_queue_pop_thread(&self, shard_no: u64, stop_send: broadcast::Sender<bool>) {
         self.delay_queue_pop_thread.insert(shard_no, stop_send);
     }
 

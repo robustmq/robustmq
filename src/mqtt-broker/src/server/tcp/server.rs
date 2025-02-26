@@ -15,6 +15,7 @@
 use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
+use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use log::info;
 use storage_adapter::storage::StorageAdapter;
@@ -33,11 +34,13 @@ use crate::server::tcp::tcp_server::acceptor_process;
 use crate::server::tcp::tls_server::acceptor_tls_process;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn start_tcp_server<S>(
     subscribe_manager: Arc<SubscribeManager>,
     cache_manager: Arc<CacheManager>,
     connection_manager: Arc<ConnectionManager>,
     message_storage_adapter: Arc<S>,
+    delay_message_manager: Arc<DelayMessageManager<S>>,
     client_pool: Arc<ClientPool>,
     stop_sx: broadcast::Sender<bool>,
     auth_driver: Arc<AuthDriver>,
@@ -48,6 +51,7 @@ pub async fn start_tcp_server<S>(
     let command = Command::new(
         cache_manager.clone(),
         message_storage_adapter.clone(),
+        delay_message_manager.clone(),
         subscribe_manager.clone(),
         client_pool.clone(),
         connection_manager.clone(),

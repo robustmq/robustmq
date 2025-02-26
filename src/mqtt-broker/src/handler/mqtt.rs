@@ -16,6 +16,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use common_base::tools::now_second;
+use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use log::{error, warn};
 use protocol::mqtt::common::{
@@ -72,6 +73,7 @@ pub struct MqttService<S> {
     cache_manager: Arc<CacheManager>,
     connection_manager: Arc<ConnectionManager>,
     message_storage_adapter: Arc<S>,
+    delay_message_manager: Arc<DelayMessageManager<S>>,
     subscribe_manager: Arc<SubscribeManager>,
     client_pool: Arc<ClientPool>,
     auth_driver: Arc<AuthDriver>,
@@ -81,11 +83,13 @@ impl<S> MqttService<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         protocol: MqttProtocol,
         cache_manager: Arc<CacheManager>,
         connection_manager: Arc<ConnectionManager>,
         message_storage_adapter: Arc<S>,
+        delay_message_manager: Arc<DelayMessageManager<S>>,
         subscribe_manager: Arc<SubscribeManager>,
         client_pool: Arc<ClientPool>,
         auth_driver: Arc<AuthDriver>,
@@ -95,6 +99,7 @@ where
             cache_manager,
             connection_manager,
             message_storage_adapter,
+            delay_message_manager,
             subscribe_manager,
             client_pool,
             auth_driver,
@@ -433,6 +438,7 @@ where
         // Persisting stores message data
         let offset = match save_message(
             &self.message_storage_adapter,
+            &self.delay_message_manager,
             &self.cache_manager,
             &publish,
             &publish_properties,

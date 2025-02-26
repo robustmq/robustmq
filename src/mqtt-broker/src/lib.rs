@@ -194,6 +194,7 @@ where
         let client_pool = self.client_pool.clone();
         let connection_manager = self.connection_manager.clone();
         let auth_driver = self.auth_driver.clone();
+        let delay_message_manager = self.delay_message_manager.clone();
 
         self.runtime.spawn(async move {
             start_tcp_server(
@@ -201,6 +202,7 @@ where
                 cache,
                 connection_manager,
                 message_storage_adapter,
+                delay_message_manager,
                 client_pool,
                 stop_send,
                 auth_driver,
@@ -248,6 +250,7 @@ where
             self.cache_manager.clone(),
             self.connection_manager.clone(),
             self.message_storage_adapter.clone(),
+            self.delay_message_manager.clone(),
             self.client_pool.clone(),
             self.auth_driver.clone(),
             stop_send.clone(),
@@ -260,6 +263,7 @@ where
             self.cache_manager.clone(),
             self.connection_manager.clone(),
             self.message_storage_adapter.clone(),
+            self.delay_message_manager.clone(),
             self.client_pool.clone(),
             self.auth_driver.clone(),
             stop_send.clone(),
