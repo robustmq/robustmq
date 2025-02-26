@@ -466,6 +466,7 @@ where
         let cluster_storage = ClusterStorage::new(self.client_pool.clone());
         let config = broker_mqtt_conf();
         common_base::telemetry::trace::stop_tracer_provider().await;
+        let _ = self.delay_message_manager.stop().await;
         match cluster_storage.unregister_node(config).await {
             Ok(()) => {
                 info!("Node {} exits successfully", config.broker_id);

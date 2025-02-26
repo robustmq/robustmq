@@ -152,7 +152,7 @@ where
             % self.shard_num
     }
 
-    pub fn get_delay_message_shard_name(&self, no: u64) -> String {
+    fn get_delay_message_shard_name(&self, no: u64) -> String {
         format!("{}{}", DELAY_MESSAGE_SHARD_NAME_PREFIX, no)
     }
 }
