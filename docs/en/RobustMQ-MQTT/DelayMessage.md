@@ -1,6 +1,6 @@
 ## Overview
 
-Deferred publication is an MQTT extension supported by RobustMQ MQTT. When the client publishes a message using the special topic prefix $delayed/{DelayInteval}, the delayed publication feature is triggered, which allows the user to delay the publication of the message at a user-configured interval.
+Deferred publication is an MQTT extension supported by RobustMQ MQTT. When the client publishes a message using the special topic prefix $delayed/{DelayInterval}, the delayed publication feature is triggered, which allows the user to delay the publication of the message at a user-configured interval.
 
 ## Functional Description
 The format of a deferred publication topic is as follows:
