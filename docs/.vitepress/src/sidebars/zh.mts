@@ -53,14 +53,13 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "概览", link: "/zh/RobustMQ-MQTT/Overview" },
-            { text: "核心概念", link: "" },
-            { text: "系统架构", link: "" },
+            { text: "系统架构", link: "/zh/RobustMQ-MQTT/SystemArchitecture.md" },
             {
                 text: "核心功能",
                 collapsed: true,
                 items: [
-                    { text: "共享订阅", link: "" },
-                    { text: "保留消息", link: "" },
+                    { text: "共享订阅", link: "/zh/RobustMQ-MQTT/SharedSubscription.md" },
+                    { text: "保留消息", link: "/zh/RobustMQ-MQTT/RetainMessage.md" },
                     { text: "遗嘱消息", link: "" },
                     { text: "排他订阅", link: "" },
                     { text: "延迟发布", link: "/zh/RobustMQ-MQTT/DelayMessage.md" },

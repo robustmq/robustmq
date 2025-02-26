@@ -52,14 +52,13 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "Overview", link: "/RobustMQ-MQTT/Overview" },
-            { text: "Concepts", link: "" },
-            { text: "Architecture", link: "" },
+            { text: "Architecture", link: "/RobustMQ-MQTT/SystemArchitecture" },
             {
                 text: "Features",
                 collapsed: true,
                 items: [
-                    { text: "Shared Subscription", link: "" },
-                    { text: "Retain Message", link: "" },
+                    { text: "Shared Subscription", link: "/RobustMQ-MQTT/SystemArchitecture.md" },
+                    { text: "Retain Message", link: "/RobustMQ-MQTT/RetainMessage.md" },
                     { text: "LastWill Message", link: "" },
                     { text: "Exclusive Subscription", link: "" },
                     { text: "Delayed Publish", link: "/RobustMQ-MQTT/DelayMessage.md" },
