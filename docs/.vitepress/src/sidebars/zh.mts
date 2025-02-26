@@ -117,6 +117,15 @@ export const sidebar = [
             },
         ],
     },
+
+    {
+        text: "RobustMQ Kafka",
+        collapsed: true,
+        items: [
+            { text: "概览", link: "/zh/RobustMQ-Kafka/Overview" },
+        ],
+    },
+
     {
         text: "RobustMQ 命令行",
         collapsed: true,
