@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use metadata_struct::schema::SchemaData;
+use metadata_struct::schema::{SchemaData, SchemaType};
+use serde_json::json;
+
+use crate::json::json_validate;
 
 #[derive(Default)]
 pub struct SchemaRegisterManager {
@@ -36,6 +40,24 @@ impl SchemaRegisterManager {
             return list.is_empty();
         }
         false
+    }
+
+    pub fn validate(&self, resource: &str, data: &[u8]) -> Result<bool, CommonError> {
+        if let Some(schemc_list) = self.schema_resource_list.get(resource) {
+            for schema_name in schemc_list.iter() {
+                if let Some(schema) = self.schema_list.get(schema_name) {
+                    match schema.schema_type {
+                        SchemaType::JSON => {
+                            let raw = serde_json::from_slice::<String>(data)?;
+                            return json_validate(&schema.schema, json!(raw));
+                        }
+                        SchemaType::PROTOBUF => {}
+                        SchemaType::AVRO => {}
+                    }
+                }
+            }
+        }
+        Ok(true)
     }
 
     // Schema

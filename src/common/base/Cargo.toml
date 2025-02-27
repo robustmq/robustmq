@@ -47,3 +47,4 @@ prometheus-client.workspace = true
 opentelemetry.workspace = true
 opentelemetry_sdk.workspace = true
 opentelemetry-otlp.workspace = true
+valico.workspace = true

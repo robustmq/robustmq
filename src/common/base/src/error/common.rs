@@ -35,6 +35,7 @@ use std::string::FromUtf8Error;
 
 use thiserror::Error;
 use tonic::Status;
+use valico::json_schema::SchemaError;
 
 #[derive(Error, Debug)]
 pub enum CommonError {
@@ -55,6 +56,9 @@ pub enum CommonError {
 
     #[error("{0}")]
     FromRocksdbError(#[from] rocksdb::Error),
+
+    #[error("{0}")]
+    SchemaError(#[from] SchemaError),
 
     #[error("{0}")]
     FromIoError(#[from] io::Error),

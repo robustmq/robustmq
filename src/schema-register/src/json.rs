@@ -12,17 +12,56 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[derive(Default)]
-pub struct JsonValidate {}
+use common_base::error::common::CommonError;
+use serde_json::{json, Value};
+use valico::json_schema::{self};
 
-impl JsonValidate {
-    pub fn new() -> Self {
-        JsonValidate {}
-    }
+pub fn json_validate(schema: &str, data: Value) -> Result<bool, CommonError> {
+    let schema = json!(schema);
+
+    let mut scope = json_schema::Scope::new();
+    let schema = scope.compile_and_return(schema, false)?;
+
+    let state = schema.validate(&data);
+    Ok(state.is_valid())
 }
 
 #[cfg(test)]
 mod test {
+    use serde_json::json;
+    use valico::json_schema;
+
     #[test]
-    pub fn read_offset_data_test() {}
+    pub fn json_validate_test() {}
+
+    #[test]
+    pub fn read_offset_data_test() {
+        // Defining JSON Schema
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "name": { "type": "string" },
+                "age": { "type": "integer", "minimum": 0 }
+            },
+            "required": ["name"]
+        });
+
+        // Create the Scope and compile the Schema
+        let mut scope = json_schema::Scope::new();
+        let schema = scope.compile_and_return(schema, false).unwrap();
+
+        // JSON data to validate
+        let data = json!({
+            "name": "John Doe",
+            "age": 30
+        });
+
+        // Validate data
+        let state = schema.validate(&data);
+        if state.is_valid() {
+            println!("JSON is valid!");
+        } else {
+            println!("JSON is invalid: {:?}", state.errors);
+        }
+    }
 }

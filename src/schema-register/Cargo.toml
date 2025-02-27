@@ -32,3 +32,4 @@ tokio-util.workspace = true
 log.workspace = true
 futures.workspace = true
 valico.workspace = true
+serde_json.workspace = true

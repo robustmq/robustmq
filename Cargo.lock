@@ -792,6 +792,7 @@ dependencies = [
  "toml",
  "tonic",
  "uuid",
+ "valico",
 ]
 
 [[package]]
@@ -4057,6 +4058,7 @@ dependencies = [
  "futures",
  "log",
  "metadata-struct",
+ "serde_json",
  "storage-adapter",
  "thiserror 1.0.69",
  "tokio",
