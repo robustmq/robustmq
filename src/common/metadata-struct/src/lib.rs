@@ -17,3 +17,4 @@ pub mod adapter;
 pub mod journal;
 pub mod mqtt;
 pub mod placement;
+pub mod schema;

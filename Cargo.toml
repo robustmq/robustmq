@@ -20,7 +20,7 @@ members = [
     "src/cli-command",
     "src/delay-message",
     "src/idempotent-message",
-    "src/message-schema",
+    "src/schema-register",
     "src/grpc-clients",
     "src/cmd",
     "src/common/base",
@@ -134,6 +134,8 @@ openraft = { git = "https://github.com/databendlabs/openraft.git", features = [
 validator = { version = "0.18", features = ["derive"] }
 rand = "0.8.5"
 opendal = { version = "0.51", features = ["services-s3"] }
+valico = "4.0.0"
+
 #format
 prettytable-rs = "^0.10"
 ## workspaces members
@@ -142,7 +144,7 @@ amqp-broker = { path = "src/amqp-broker" }
 delay-message = { path = "src/delay-message" }
 idempotent-message = { path = "src/idempotent-message" }
 placement-center = { path = "src/placement-center" }
-message-schema = { path = "src/message-schema" }
+schema-register = { path = "src/schema-register" }
 cli-command = { path = "src/cli-command" }
 grpc-clients = { path = "src/grpc-clients" }
 journal-server = { path = "src/journal-server" }
