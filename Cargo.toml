@@ -20,6 +20,7 @@ members = [
     "src/cli-command",
     "src/delay-message",
     "src/idempotent-message",
+    "src/message-schema",
     "src/grpc-clients",
     "src/cmd",
     "src/common/base",
@@ -141,6 +142,7 @@ amqp-broker = { path = "src/amqp-broker" }
 delay-message = { path = "src/delay-message" }
 idempotent-message = { path = "src/idempotent-message" }
 placement-center = { path = "src/placement-center" }
+message-schema = { path = "src/message-schema" }
 cli-command = { path = "src/cli-command" }
 grpc-clients = { path = "src/grpc-clients" }
 journal-server = { path = "src/journal-server" }

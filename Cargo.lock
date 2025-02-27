@@ -2247,6 +2247,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "message-schema"
+version = "0.1.6"
+dependencies = [
+ "axum",
+ "bytes",
+ "common-base",
+ "dashmap",
+ "futures",
+ "log",
+ "metadata-struct",
+ "storage-adapter",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "metadata-struct"
 version = "0.1.6"
 dependencies = [
