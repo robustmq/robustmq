@@ -22,34 +22,28 @@ mod tests {
     use robustmq_test::mqtt_build_tool::build_connack::build_mqtt5_pg_connect_ack_wrapper;
     use robustmq_test::mqtt_build_tool::build_connect::build_mqtt5_pg_connect_wrapper;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
+    use crate::server::quic::quic_common::set_up;
+    use googletest::assert_that;
+    use googletest::matchers::eq;
     use std::sync::Arc;
     use tokio_util::codec::{Decoder, Encoder};
 
     #[tokio::test]
     async fn quic_client_should_connect_quic_server() {
-        let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-
-        //
-        // let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
-        // transport_config.max_concurrent_uni_streams(0_u8.into());
-
-        let mut server = QuicServer::new(ip_server);
-
-        server.start();
+        let (server, mut client) = set_up().await;
 
         let ip_server_addr = server.local_addr();
 
-        let client_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-
+        let ip_client_addr = client.local_addr();
         tokio::spawn(async move {
             let conn = server.accept_connection().await.unwrap();
-            assert_eq!(conn.remote_address(), client_addr);
+            assert_that!(conn.remote_address(), eq(ip_client_addr));
         });
 
-        let mut quic_client = QuicClient::bind(client_addr);
-        let connection = quic_client.connect(ip_server_addr, "localhost");
+        let connection = client.connect(ip_server_addr, "localhost");
         drop(connection);
-        quic_client.wait_idle().await;
+        client.wait_idle().await;
     }
 
     #[tokio::test]
@@ -105,12 +99,8 @@ mod tests {
 
     #[tokio::test]
     async fn each_receive_and_send_data() {
-        // initialization
-        let mut server = create_server();
-        server.start();
+        let (server, mut client) = set_up().await;
         let server_addr = server.local_addr();
-
-        let mut quic_client = create_client();
         let server_recv = Arc::new(tokio::sync::Notify::new());
         let client_send = server_recv.clone();
         let client_recv = Arc::new(tokio::sync::Notify::new());
@@ -128,7 +118,7 @@ mod tests {
             server_send.notify_one();
         });
 
-        let connection = quic_client.connect(server_addr, "localhost").await.unwrap();
+        let connection = client.connect(server_addr, "localhost").await.unwrap();
 
         let (mut client_send_stream, client_recv_stream) = connection.open_bi().await.unwrap();
 
