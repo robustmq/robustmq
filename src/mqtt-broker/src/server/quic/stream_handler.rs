@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::subscribe::share_follower_resub::WriteStream;
 use quinn::{RecvStream, SendStream};
 
 pub trait StreamOperator {
@@ -20,6 +19,7 @@ pub trait StreamOperator {
     fn receive_message(&self) -> String;
 }
 
+#[allow(dead_code)]
 pub struct QuicStream {
     write_stream: SendStream,
     read_stream: RecvStream,
@@ -38,12 +38,12 @@ impl QuicStream {
 }
 
 impl StreamOperator for QuicStream {
-    fn send_message(&self, message: String) {
+    fn send_message(&self, _message: String) {
         // Implementation to send a message over the write stream.
     }
 
     fn receive_message(&self) -> String {
         // Implementation to read and return a message from the read stream.
-        return "".to_string();
+        "".to_string()
     }
 }
