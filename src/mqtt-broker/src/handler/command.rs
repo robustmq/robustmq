@@ -26,6 +26,7 @@ use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use common_base::telemetry::trace::CustomContext;
+use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use log::info;
 use opentelemetry::global;
@@ -51,6 +52,7 @@ where
     pub fn new(
         cache_manager: Arc<CacheManager>,
         message_storage_adapter: Arc<S>,
+        delay_message_manager: Arc<DelayMessageManager<S>>,
         subscribe_manager: Arc<SubscribeManager>,
         client_pool: Arc<ClientPool>,
         connection_manager: Arc<ConnectionManager>,
@@ -61,6 +63,7 @@ where
             cache_manager.clone(),
             connection_manager.clone(),
             message_storage_adapter.clone(),
+            delay_message_manager.clone(),
             subscribe_manager.clone(),
             client_pool.clone(),
             auth_driver.clone(),
@@ -70,6 +73,7 @@ where
             cache_manager.clone(),
             connection_manager.clone(),
             message_storage_adapter.clone(),
+            delay_message_manager.clone(),
             subscribe_manager.clone(),
             client_pool.clone(),
             auth_driver.clone(),
@@ -79,6 +83,7 @@ where
             cache_manager.clone(),
             connection_manager.clone(),
             message_storage_adapter.clone(),
+            delay_message_manager.clone(),
             subscribe_manager.clone(),
             client_pool.clone(),
             auth_driver.clone(),

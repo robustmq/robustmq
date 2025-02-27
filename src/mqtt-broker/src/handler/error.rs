@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::string::FromUtf8Error;
+use std::{num::ParseIntError, string::FromUtf8Error};
 
 use common_base::error::common::CommonError;
 use thiserror::Error;
@@ -28,6 +28,9 @@ pub enum MqttBrokerError {
 
     #[error("{0}")]
     FromCommonError(#[from] CommonError),
+
+    #[error("{0}")]
+    ParseIntError(#[from] ParseIntError),
 
     #[error("{0}")]
     TokioBroadcastSendError(#[from] tokio::sync::broadcast::error::SendError<bool>),
@@ -96,6 +99,9 @@ pub enum MqttBrokerError {
 
     #[error("topicRewriteRule has been existed")]
     TopicRewriteRuleAlreadyExist,
+
+    #[error("Publish message was delayed, the target Topic failed to resolve, Topic name {0}")]
+    DelayPublishDecodeTopicNameFail(String),
 }
 
 impl From<MqttBrokerError> for Status {

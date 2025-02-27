@@ -39,11 +39,11 @@ pub struct ShardOffset {
 pub trait StorageAdapter {
     async fn create_shard(&self, shard: ShardInfo) -> Result<(), CommonError>;
 
-    async fn get_shard(
+    async fn list_shard(
         &self,
         namespace: String,
         shard_name: String,
-    ) -> Result<Option<ShardInfo>, CommonError>;
+    ) -> Result<Vec<ShardInfo>, CommonError>;
 
     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError>;
 

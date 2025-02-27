@@ -235,12 +235,12 @@ impl StorageAdapter for MySQLStorageAdapter {
         Ok(())
     }
 
-    async fn get_shard(
+    async fn list_shard(
         &self,
         _namespace: String,
         _shard_name: String,
-    ) -> Result<Option<ShardInfo>, CommonError> {
-        Ok(None)
+    ) -> Result<Vec<ShardInfo>, CommonError> {
+        Ok(Vec::new())
     }
 
     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
