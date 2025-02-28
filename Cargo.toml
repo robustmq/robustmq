@@ -16,6 +16,7 @@
 members = [
     "src/mqtt-broker",
     "src/amqp-broker",
+    "src/kafka-broker",
     "src/placement-center",
     "src/cli-command",
     "src/delay-message",
@@ -144,6 +145,7 @@ prettytable-rs = "^0.10"
 ## workspaces members
 mqtt-broker = { path = "src/mqtt-broker" }
 amqp-broker = { path = "src/amqp-broker" }
+kafka-broker = { path = "src/kafka-broker" }
 delay-message = { path = "src/delay-message" }
 idempotent-message = { path = "src/idempotent-message" }
 placement-center = { path = "src/placement-center" }
