@@ -70,7 +70,7 @@ mod test {
         writer.append_ser(test_data).unwrap();
         let encoded_data = writer.into_inner().unwrap();
 
-        let result = avro_validate(&raw_schema, &encoded_data);
+        let result = avro_validate(raw_schema, &encoded_data);
         assert!(result.is_ok());
         assert!(result.unwrap());
 
@@ -95,7 +95,7 @@ mod test {
         writer.append_ser(test_data2).unwrap();
         let encoded_data = writer.into_inner().unwrap();
 
-        let result = avro_validate(&raw_schema, &encoded_data);
+        let result = avro_validate(raw_schema, &encoded_data);
         assert!(result.is_err());
     }
 
