@@ -137,13 +137,6 @@ async fn check_connector<S>(
             }
             if let Some(mut connector) = connector_manager.get_connector(&raw.connector_name) {
                 connector.status = MQTTStatus::Idle;
-                let storage = ConnectorStorage::new(client_pool.clone());
-                if let Err(e) = storage.update_connector(connector.clone()).await {
-                    error!(
-                        "Failed to update connector {} status with error message: {}",
-                        connector.connector_name, e
-                    );
-                }
             }
         }
     }
