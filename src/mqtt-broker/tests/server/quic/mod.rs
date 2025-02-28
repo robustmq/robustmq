@@ -15,4 +15,3 @@
 mod packet_handler;
 mod quic_common;
 mod quic_connect_test;
-mod stream_handler;
