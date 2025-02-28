@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod client;
+mod quic_server_handler;
 pub mod server;
 mod skip_server_verification;
 pub mod stream_handler;

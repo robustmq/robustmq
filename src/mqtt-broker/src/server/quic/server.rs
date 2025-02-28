@@ -12,11 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::handler::cache::CacheManager;
+use crate::handler::command::Command;
 use crate::handler::error::MqttBrokerError;
+use crate::security::AuthDriver;
+use crate::server::connection_manager::ConnectionManager;
+use crate::server::packet::{RequestPackage, ResponsePackage};
+use crate::subscribe::subscribe_manager::SubscribeManager;
+use common_base::config::broker_mqtt::broker_mqtt_conf;
+use delay_message::DelayMessageManager;
+use grpc_clients::pool::ClientPool;
 use quinn::{Connection, Endpoint, ServerConfig, VarInt};
 use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 use rustls_pki_types::PrivateKeyDer;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::sync::Arc;
+use storage_adapter::storage::StorageAdapter;
+use tokio::sync::{broadcast, mpsc};
 
 pub fn generate_self_signed_cert() -> (Vec<CertificateDer<'static>>, PrivateKeyDer<'static>) {
     let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
@@ -24,6 +36,44 @@ pub fn generate_self_signed_cert() -> (Vec<CertificateDer<'static>>, PrivateKeyD
     let priv_key = PrivatePkcs8KeyDer::from(cert.key_pair.serialize_der());
     (vec![cert_der.clone()], priv_key.into())
 }
+
+pub async fn start_quic_server<S>(
+    subscribe_manager: Arc<SubscribeManager>,
+    cache_manager: Arc<CacheManager>,
+    connection_manager: Arc<ConnectionManager>,
+    message_storage_adapter: Arc<S>,
+    delay_message_manager: Arc<DelayMessageManager<S>>,
+    client_pool: Arc<ClientPool>,
+    stop_sx: broadcast::Sender<bool>,
+    auth_driver: Arc<AuthDriver>,
+) where
+    S: StorageAdapter + Sync + Send + 'static + Clone,
+{
+    let conf = broker_mqtt_conf();
+    let command = Command::new(
+        cache_manager.clone(),
+        message_storage_adapter.clone(),
+        delay_message_manager.clone(),
+        subscribe_manager.clone(),
+        client_pool.clone(),
+        connection_manager.clone(),
+        auth_driver.clone(),
+    );
+
+    let mut server = QuicServer::new(SocketAddr::new(
+        IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+        conf.network.quic_port as u16,
+    ));
+    server.start();
+
+    let quic_endpoint = server.get_endpoint();
+
+    let (request_queue_sx, request_queue_rx) = mpsc::channel::<RequestPackage>(1000);
+    let (response_queue_sx, response_queue_rx) = mpsc::channel::<ResponsePackage>(1000);
+
+    let arc_quic_endpoint = Arc::new(quic_endpoint);
+}
+
 #[derive(Clone, Debug)]
 pub struct QuicServerConfig {
     server_config: ServerConfig,
@@ -106,12 +156,12 @@ impl QuicServer {
         }
     }
 
-    pub fn get_endpoint(&self) -> Result<Endpoint, MqttBrokerError> {
+    pub fn get_endpoint(&self) -> Endpoint {
         match &self.endpoint {
-            Some(endpoint) => Ok(endpoint.clone()),
-            None => Err(MqttBrokerError::CommonError(
-                "Endpoint is not initialized".to_string(),
-            )),
+            Some(endpoint) => endpoint.clone(),
+            None => {
+                panic!("quic server is not initialized")
+            }
         }
     }
 
