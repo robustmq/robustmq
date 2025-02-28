@@ -25,6 +25,7 @@ use super::controller::session_expire::ExpireLastWill;
 use super::is_send_last_will;
 use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
+use crate::storage::mqtt::connector::MqttConnectorStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
 use crate::storage::rocksdb::RocksDBEngine;
@@ -209,6 +210,13 @@ pub fn load_mqtt_cache(
             let data = user.list(&cluster.cluster_name)?;
             for user in data {
                 mqtt_cache.add_user(&cluster.cluster_name, user);
+            }
+
+            // connector
+            let connector = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
+            let data = connector.list(&cluster.cluster_name)?;
+            for connector in data {
+                mqtt_cache.add_connector(&cluster.cluster_name, &connector);
             }
         }
     }
