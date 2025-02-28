@@ -135,6 +135,9 @@ validator = { version = "0.18", features = ["derive"] }
 rand = "0.8.5"
 opendal = { version = "0.51", features = ["services-s3"] }
 valico = "4.0.0"
+apache-avro = "0.17.0"
+protobuf = "3.7.1"
+protobuf-codegen = "3.7.1"
 
 #format
 prettytable-rs = "^0.10"

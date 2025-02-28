@@ -70,6 +70,9 @@ pub enum CommonError {
     FromAddrParseError(#[from] AddrParseError),
 
     #[error("{0}")]
+    ApacheAvroError(#[from] apache_avro::Error),
+
+    #[error("{0}")]
     FromMysqlError(#[from] mysql::Error),
 
     #[error("{0}")]

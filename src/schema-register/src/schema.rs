@@ -15,9 +15,8 @@
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use metadata_struct::schema::{SchemaData, SchemaType};
-use serde_json::json;
 
-use crate::json::json_validate;
+use crate::{avro::avro_validate, json::json_validate};
 
 #[derive(Default)]
 pub struct SchemaRegisterManager {
@@ -49,10 +48,12 @@ impl SchemaRegisterManager {
                     match schema.schema_type {
                         SchemaType::JSON => {
                             let raw = serde_json::from_slice::<String>(data)?;
-                            return json_validate(&schema.schema, json!(raw));
+                            return json_validate(&schema.schema, &raw);
                         }
                         SchemaType::PROTOBUF => {}
-                        SchemaType::AVRO => {}
+                        SchemaType::AVRO => {
+                            return avro_validate(&schema.schema, data);
+                        }
                     }
                 }
             }

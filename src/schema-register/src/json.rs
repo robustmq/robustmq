@@ -13,16 +13,16 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use serde_json::{json, Value};
 use valico::json_schema::{self};
 
-pub fn json_validate(schema: &str, data: Value) -> Result<bool, CommonError> {
-    let schema = json!(schema);
+pub fn json_validate(json_schema: &str, data: &str) -> Result<bool, CommonError> {
+    let schema = serde_json::from_str(json_schema)?;
 
     let mut scope = json_schema::Scope::new();
     let schema = scope.compile_and_return(schema, false)?;
 
-    let state = schema.validate(&data);
+    let json_data = serde_json::from_str(data)?;
+    let state = schema.validate(&json_data);
     Ok(state.is_valid())
 }
 
@@ -31,20 +31,43 @@ mod test {
     use serde_json::json;
     use valico::json_schema;
 
-    #[test]
-    pub fn json_validate_test() {}
+    use crate::json::json_validate;
 
     #[test]
-    pub fn read_offset_data_test() {
-        // Defining JSON Schema
-        let schema = json!({
+    pub fn json_validate_test() {
+        let schema = r#"{
             "type": "object",
             "properties": {
                 "name": { "type": "string" },
                 "age": { "type": "integer", "minimum": 0 }
             },
             "required": ["name"]
-        });
+        }"#;
+
+        let data = r#"{
+            "name": "John Doe",
+            "age": 30
+        }"#;
+
+        let result = json_validate(schema, data);
+        println!("{:?}", result);
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+    }
+
+    #[test]
+    pub fn read_offset_data_test() {
+        let json_schema = r#"{
+            "type": "object",
+            "properties": {
+                "name": { "type": "string" },
+                "age": { "type": "integer", "minimum": 0 }
+            },
+            "required": ["name"]
+        }"#;
+
+        // Defining JSON Schema
+        let schema = serde_json::from_str(json_schema).unwrap();
 
         // Create the Scope and compile the Schema
         let mut scope = json_schema::Scope::new();
