@@ -36,7 +36,7 @@ pub fn generate_self_signed_cert() -> (Vec<CertificateDer<'static>>, PrivateKeyD
     let priv_key = PrivatePkcs8KeyDer::from(cert.key_pair.serialize_der());
     (vec![cert_der.clone()], priv_key.into())
 }
-
+#[allow(clippy::too_many_arguments)]
 pub async fn start_quic_server<S>(
     subscribe_manager: Arc<SubscribeManager>,
     cache_manager: Arc<CacheManager>,
@@ -44,13 +44,13 @@ pub async fn start_quic_server<S>(
     message_storage_adapter: Arc<S>,
     delay_message_manager: Arc<DelayMessageManager<S>>,
     client_pool: Arc<ClientPool>,
-    stop_sx: broadcast::Sender<bool>,
+    _stop_sx: broadcast::Sender<bool>,
     auth_driver: Arc<AuthDriver>,
 ) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let conf = broker_mqtt_conf();
-    let command = Command::new(
+    let _command = Command::new(
         cache_manager.clone(),
         message_storage_adapter.clone(),
         delay_message_manager.clone(),
@@ -68,10 +68,10 @@ pub async fn start_quic_server<S>(
 
     let quic_endpoint = server.get_endpoint();
 
-    let (request_queue_sx, request_queue_rx) = mpsc::channel::<RequestPackage>(1000);
-    let (response_queue_sx, response_queue_rx) = mpsc::channel::<ResponsePackage>(1000);
+    let (_request_queue_sx, _request_queue_rx) = mpsc::channel::<RequestPackage>(1000);
+    let (_response_queue_sx, _response_queue_rx) = mpsc::channel::<ResponsePackage>(1000);
 
-    let arc_quic_endpoint = Arc::new(quic_endpoint);
+    let _arc_quic_endpoint = Arc::new(quic_endpoint);
 }
 
 #[derive(Clone, Debug)]

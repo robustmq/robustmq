@@ -23,7 +23,7 @@ use std::sync::Arc;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::Sender;
-
+#[allow(dead_code)]
 pub(crate) async fn acceptor_process(
     accept_thread_num: usize,
     connection_manager: Arc<ConnectionManager>,
@@ -35,11 +35,11 @@ pub(crate) async fn acceptor_process(
 ) {
     for index in 1..=accept_thread_num {
         let endpoint = endpoint_arc.clone();
-        let connection_manager = connection_manager.clone();
+        let _connection_manager = connection_manager.clone();
         let mut stop_rx = stop_sx.subscribe();
-        let raw_request_queue_sx = request_queue_sx.clone();
-        let network_type = network_connection_type.clone();
-        let cache_manager = cache_manager.clone();
+        let _raw_request_queue_sx = request_queue_sx.clone();
+        let _network_type = network_connection_type.clone();
+        let _cache_manager = cache_manager.clone();
         tokio::spawn(async move {
             debug!("Quic Server acceptor thread {} start successfully.", index);
             loop {
@@ -60,8 +60,8 @@ pub(crate) async fn acceptor_process(
                                 Ok(connection) => {
                                         info!("accept quic connection:{:?}",connection.remote_address());
                                         match connection.accept_bi().await {
-                                            Ok((w_stream, r_stream)) => {
-                                                    let codec = MqttCodec::new(None);
+                                            Ok((_w_stream, _r_stream)) => {
+                                                    let _codec = MqttCodec::new(None);
                                                     // todo 这里需要有对应的写入流
                                                    // todo 这里需要有对应的写出流
 
