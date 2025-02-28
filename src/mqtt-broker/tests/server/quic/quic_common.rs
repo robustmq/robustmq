@@ -14,9 +14,7 @@
 
 use mqtt_broker::server::quic::client::QuicClient;
 use mqtt_broker::server::quic::server::QuicServer;
-use std::borrow::Cow;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::sync::{Arc, Mutex};
 
 fn create_client() -> QuicClient {
     let client_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
