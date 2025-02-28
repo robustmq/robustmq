@@ -1,4 +1,3 @@
-#!/bin/sh
 # Copyright 2023 RobustMQ Team
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,8 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-hawkeye format
-cargo fmt --all
-cargo fmt --all -- --check
-cargo clippy --all -- --deny warnings
-cargo-deny check licenses
+[package]
+name = "kafka-broker"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+
+[dependencies]
+bytes.workspace = true
+axum.workspace = true
+thiserror.workspace = true
+common-base.workspace = true
+storage-adapter.workspace = true
+metadata-struct.workspace = true
+dashmap.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+log.workspace = true
+futures.workspace = true
