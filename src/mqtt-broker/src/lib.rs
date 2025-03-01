@@ -283,10 +283,8 @@ where
     fn start_connector_thread(&self, stop_send: broadcast::Sender<bool>) {
         let message_storage = self.message_storage_adapter.clone();
         let connector_manager = self.connector_manager.clone();
-        let client_poll = self.client_pool.clone();
         self.runtime.spawn(async move {
-            start_connector_thread(message_storage, connector_manager, client_poll, stop_send)
-                .await;
+            start_connector_thread(message_storage, connector_manager, stop_send).await;
         });
     }
 
