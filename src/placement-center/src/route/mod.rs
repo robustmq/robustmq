@@ -13,7 +13,7 @@
 // limitations under the License.
 
 pub mod apply;
-pub mod cluster;
+pub mod common;
 pub mod data;
 pub mod journal;
 pub mod kv;
@@ -30,7 +30,7 @@ use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::journal::cache::JournalCacheManager;
 use crate::mqtt::cache::MqttCacheManager;
-use crate::route::cluster::DataRouteCluster;
+use crate::route::common::DataRouteCluster;
 use crate::route::journal::DataRouteJournal;
 use crate::route::kv::DataRouteKv;
 use crate::route::mqtt::DataRouteMqtt;
@@ -121,6 +121,22 @@ impl DataRoute {
             }
             StorageDataType::ClusterDeleteOffset => {
                 self.route_cluster.delete_offset_data(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::SchemaSet => {
+                self.route_cluster.set_schema(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::SchemaDelete => {
+                self.route_cluster.delete_schema(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::SchemaBindSet => {
+                self.route_cluster.set_schema_bind(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::SchemaBindDelete => {
+                self.route_cluster.delete_schema_bind(storage_data.value)?;
                 Ok(None)
             }
 

@@ -198,6 +198,36 @@ pub fn storage_key_mqtt_connector_prefix(cluster_name: &str) -> String {
     format!("/mqtt/connector/{}", cluster_name)
 }
 
+pub fn storage_key_mqtt_schema(cluster_name: &str, schema_name: &str) -> String {
+    format!("/mqtt/schema/{}/{}", cluster_name, schema_name)
+}
+
+pub fn storage_key_mqtt_schema_prefix(cluster_name: &str) -> String {
+    format!("/mqtt/schema/{}", cluster_name)
+}
+
+pub fn storage_key_mqtt_schema_bind(
+    cluster_name: &str,
+    resouce_name: &str,
+    schema_name: &str,
+) -> String {
+    format!(
+        "/mqtt/schema_bind/{}/{}/{}",
+        cluster_name, resouce_name, schema_name
+    )
+}
+
+pub fn storage_key_mqtt_schema_bind_prefix_by_resource(
+    cluster_name: &str,
+    resource_name: &str,
+) -> String {
+    format!("/mqtt/schema_bind/{}/{}", cluster_name, resource_name)
+}
+
+pub fn storage_key_mqtt_schema_bind_prefix_by_cluster(cluster_name: &str) -> String {
+    format!("/mqtt/schema_bind/{}", cluster_name)
+}
+
 pub fn storage_key_mqtt_acl(
     cluster_name: &str,
     resource_type: &str,

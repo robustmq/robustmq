@@ -49,6 +49,12 @@ pub enum StorageDataType {
     ClusterSaveOffset,
     ClusterDeleteOffset,
 
+    // Common
+    SchemaSet,
+    SchemaDelete,
+    SchemaBindSet,
+    SchemaBindDelete,
+
     // Journal
     JournalSetShard,
     JournalDeleteShard,
