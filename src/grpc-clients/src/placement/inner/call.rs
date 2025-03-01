@@ -14,13 +14,16 @@
 
 use common_base::error::common::CommonError;
 use protocol::placement_center::placement_center_inner::{
-    ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataReply,
-    DeleteIdempotentDataRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
+    BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
+    CreateSchemaReply, CreateSchemaRequest, DeleteIdempotentDataReply, DeleteIdempotentDataRequest,
+    DeleteResourceConfigReply, DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
     ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetOffsetDataReply,
     GetOffsetDataRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply,
-    HeartbeatRequest, NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest,
+    HeartbeatRequest, ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply,
+    ListSchemaRequest, NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest,
     SaveOffsetDataReply, SaveOffsetDataRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
-    SetResourceConfigReply, SetResourceConfigRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
+    SetResourceConfigReply, SetResourceConfigRequest, UnBindSchemaReply, UnBindSchemaRequest,
+    UnRegisterNodeReply, UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest,
 };
 
 use crate::pool::ClientPool;
@@ -100,6 +103,45 @@ generate_placement_service_call!(
     SaveOffsetDataRequest,
     SaveOffsetDataReply,
     SaveOffsetData
+);
+
+generate_placement_service_call!(list_schema, ListSchemaRequest, ListSchemaReply, ListSchema);
+
+generate_placement_service_call!(
+    create_schema,
+    CreateSchemaRequest,
+    CreateSchemaReply,
+    CreateSchema
+);
+
+generate_placement_service_call!(
+    update_schema,
+    UpdateSchemaRequest,
+    UpdateSchemaReply,
+    UpdateSchema
+);
+
+generate_placement_service_call!(
+    delete_schema,
+    DeleteSchemaRequest,
+    DeleteSchemaReply,
+    DeleteSchema
+);
+
+generate_placement_service_call!(
+    list_bind_schema,
+    ListBindSchemaRequest,
+    ListBindSchemaReply,
+    ListBindSchema
+);
+
+generate_placement_service_call!(bind_schema, BindSchemaRequest, BindSchemaReply, BindSchema);
+
+generate_placement_service_call!(
+    un_bind_schema,
+    UnBindSchemaRequest,
+    UnBindSchemaReply,
+    BindSchema
 );
 
 generate_placement_service_call!(
