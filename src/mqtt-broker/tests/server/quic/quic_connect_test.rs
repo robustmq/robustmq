@@ -26,6 +26,7 @@ mod tests {
     use crate::server::quic::quic_common::set_up;
     use googletest::assert_that;
     use googletest::matchers::eq;
+    use mqtt_broker::server::quic::quic_server_stream::QuicFramedWriteStream;
     use std::sync::Arc;
     use tokio_util::codec::{Decoder, Encoder};
 
@@ -121,9 +122,12 @@ mod tests {
         let connection = client.connect(server_addr, "localhost").await.unwrap();
 
         let (mut client_send_stream, client_recv_stream) = connection.open_bi().await.unwrap();
-
-        let client_bytes_mut = build_bytes_mut(build_mqtt5_pg_connect_wrapper, Some(5));
-        send_packet(&mut client_send_stream, client_bytes_mut).await;
+        if let Err(e) = QuicFramedWriteStream::new(client_send_stream, MqttCodec::new(None))
+            .send(build_mqtt5_pg_connect_wrapper())
+            .await
+        {
+            assert!(false)
+        }
         client_send.notify_one();
 
         client_recv.notified().await;
