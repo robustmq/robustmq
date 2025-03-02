@@ -37,3 +37,4 @@ apache-avro.workspace = true
 serde.workspace = true
 protobuf.workspace = true
 protobuf-codegen.workspace = true
+protofish.workspace = true
