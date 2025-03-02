@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod acl;
-pub mod adapter;
-pub mod journal;
-pub mod mqtt;
-pub mod placement;
+pub mod avro;
+pub mod json;
+pub mod protobuf;
 pub mod schema;

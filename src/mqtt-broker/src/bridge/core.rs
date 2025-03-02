@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{handler::error::MqttBrokerError, storage::connector::ConnectorStorage};
+use crate::handler::error::MqttBrokerError;
 use axum::async_trait;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use grpc_clients::pool::ClientPool;
 use log::{error, info};
 use metadata_struct::mqtt::bridge::{
     config_local_file::LocalFileConnectorConfig, connector::MQTTConnector,
@@ -46,7 +45,6 @@ pub trait BridgePlugin {
 pub async fn start_connector_thread<S>(
     message_storage: Arc<S>,
     connector_manager: Arc<ConnectorManager>,
-    client_pool: Arc<ClientPool>,
     stop_send: broadcast::Sender<bool>,
 ) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
@@ -65,7 +63,6 @@ pub async fn start_connector_thread<S>(
             _ = check_connector(
                 &message_storage,
                 &connector_manager,
-                &client_pool
             ) => {
                 sleep(Duration::from_secs(1)).await;
             }
@@ -73,11 +70,8 @@ pub async fn start_connector_thread<S>(
     }
 }
 
-async fn check_connector<S>(
-    message_storage: &Arc<S>,
-    connector_manager: &Arc<ConnectorManager>,
-    client_pool: &Arc<ClientPool>,
-) where
+async fn check_connector<S>(message_storage: &Arc<S>, connector_manager: &Arc<ConnectorManager>)
+where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let config = broker_mqtt_conf();
@@ -137,13 +131,6 @@ async fn check_connector<S>(
             }
             if let Some(mut connector) = connector_manager.get_connector(&raw.connector_name) {
                 connector.status = MQTTStatus::Idle;
-                let storage = ConnectorStorage::new(client_pool.clone());
-                if let Err(e) = storage.update_connector(connector.clone()).await {
-                    error!(
-                        "Failed to update connector {} status with error message: {}",
-                        connector.connector_name, e
-                    );
-                }
             }
         }
     }
