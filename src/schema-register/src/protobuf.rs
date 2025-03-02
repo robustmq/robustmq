@@ -71,7 +71,7 @@ mod test {
 
     #[test]
     pub fn protofish_example_test() {
-        let context = Context::parse(&[r#"
+        let context = Context::parse([r#"
             syntax = "proto3";
             package Proto;
 
@@ -113,7 +113,7 @@ mod test {
 
     #[test]
     pub fn protofish_schema_test() {
-        let context = Context::parse(&[r#"
+        let context = Context::parse([r#"
             syntax = "proto3";
             package MyPackage;
 
