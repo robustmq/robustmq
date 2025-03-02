@@ -126,7 +126,7 @@ mod tests {
                     assert_eq!(packet, verify_mqtt_packet)
                 }
                 Err(_) => {
-                    assert!(false)
+                    unreachable!()
                 }
             }
 
@@ -138,12 +138,12 @@ mod tests {
 
         let connection = client.connect(server_addr, "localhost").await.unwrap();
 
-        let (mut client_send_stream, client_recv_stream) = connection.open_bi().await.unwrap();
-        if let Err(e) = QuicFramedWriteStream::new(client_send_stream, MqttCodec::new(None))
+        let (client_send_stream, client_recv_stream) = connection.open_bi().await.unwrap();
+        if let Err(_e) = QuicFramedWriteStream::new(client_send_stream, MqttCodec::new(None))
             .send(build_mqtt5_pg_connect_wrapper())
             .await
         {
-            assert!(false)
+            unreachable!()
         }
         client_send.notify_one();
 
@@ -166,17 +166,6 @@ mod tests {
         decode_bytes.extend(vec);
         let packet = codec.decode(&mut decode_bytes).unwrap();
         assert!(packet.is_some());
-    }
-
-    fn create_client() -> QuicClient {
-        let client_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-        QuicClient::bind(client_addr)
-    }
-
-    fn create_server() -> QuicServer {
-        let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-
-        QuicServer::new(ip_server)
     }
 
     fn build_bytes_mut(
