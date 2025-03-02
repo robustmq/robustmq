@@ -16,8 +16,9 @@ use crate::handler::error::MqttBrokerError;
 use bytes::BytesMut;
 use common_base::error::common::CommonError::CommonError;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
-use protocol::mqtt::common::{Error, MqttPacket};
-use quinn::{RecvStream, SendStream, WriteError};
+use protocol::mqtt::common::MqttPacket;
+use quinn::{RecvStream, SendStream};
+use tokio::io::AsyncReadExt;
 use tokio_util::codec::{Decoder, Encoder};
 
 pub struct QuicFramedWriteStream {
@@ -74,7 +75,7 @@ impl QuicFramedWriteStream {
     }
 }
 
-struct QuicFramedReadStream {
+pub struct QuicFramedReadStream {
     read_stream: RecvStream,
     codec: MqttCodec,
 }
@@ -83,22 +84,35 @@ impl QuicFramedReadStream {
     pub fn new(read_stream: RecvStream, codec: MqttCodec) -> Self {
         Self { read_stream, codec }
     }
-
     pub async fn receive(&mut self) -> Result<MqttPacket, MqttBrokerError> {
         let mut decode_bytes = BytesMut::with_capacity(0);
-        let vec = self.read_stream.read_to_end(1024).await.map_err(|e| {
-            MqttBrokerError::from(CommonError(format!(
-                "read packet failed: {}",
-                e.to_string()
-            )))
-        })?;
-        decode_bytes.extend(vec);
-        let packet = self.codec.decode(&mut decode_bytes).map_err(|e| {
-            MqttBrokerError::from(CommonError(format!(
+        match self.read_stream.read_to_end(1024).await {
+            Ok(vec) => {
+                decode_bytes.extend(vec);
+            }
+            Err(e) => {
+                return Err(MqttBrokerError::from(CommonError(format!(
+                    "read packet failed: {}",
+                    e
+                ))));
+            }
+        }
+
+        if decode_bytes.is_empty() {
+            return Err(MqttBrokerError::from(CommonError(
+                "decode packet failed: the packet is empty".to_string(),
+            )));
+        }
+
+        match self.codec.decode(&mut decode_bytes) {
+            Ok(Some(packet)) => Ok(packet),
+            Ok(None) => Err(MqttBrokerError::from(CommonError(
+                "decode packet failed: the packet is empty".to_string(),
+            ))),
+            Err(e) => Err(MqttBrokerError::from(CommonError(format!(
                 "decode packet failed: {}",
-                e.to_string()
-            )))
-        })?;
-        Ok(packet.unwrap())
+                e
+            )))),
+        }
     }
 }

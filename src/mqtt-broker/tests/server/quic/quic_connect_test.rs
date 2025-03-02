@@ -26,7 +26,9 @@ mod tests {
     use crate::server::quic::quic_common::set_up;
     use googletest::assert_that;
     use googletest::matchers::eq;
-    use mqtt_broker::server::quic::quic_server_stream::QuicFramedWriteStream;
+    use mqtt_broker::server::quic::quic_server_stream::{
+        QuicFramedReadStream, QuicFramedWriteStream,
+    };
     use std::sync::Arc;
     use tokio_util::codec::{Decoder, Encoder};
 
@@ -107,12 +109,27 @@ mod tests {
         let client_recv = Arc::new(tokio::sync::Notify::new());
         let server_send = client_recv.clone();
 
+        let mut test_bytes_mut = BytesMut::new();
+        let mut codec = MqttCodec::new(Some(5));
+        let _ = codec.encode_data(build_mqtt5_pg_connect_wrapper(), &mut test_bytes_mut);
+        let verify_mqtt_packet = codec.decode(&mut test_bytes_mut).unwrap().unwrap();
+
         let server = tokio::spawn(async move {
             let conn = server.accept_connection().await.unwrap();
-
             server_recv.notified().await;
             let (mut server_send_stream, server_recv_stream) = conn.accept_bi().await.unwrap();
-            receive_packet(server_recv_stream, Some(5)).await;
+            // receive_packet(server_recv_stream, Some(5)).await;
+            let mut quic_framed_read_stream =
+                QuicFramedReadStream::new(server_recv_stream, MqttCodec::new(Some(5)));
+            match quic_framed_read_stream.receive().await {
+                Ok(packet) => {
+                    assert_eq!(packet, verify_mqtt_packet)
+                }
+                Err(_) => {
+                    assert!(false)
+                }
+            }
+
             let server_bytes_mut = build_bytes_mut(build_mqtt5_pg_connect_ack_wrapper, Some(5));
             send_packet(&mut server_send_stream, server_bytes_mut).await;
 
