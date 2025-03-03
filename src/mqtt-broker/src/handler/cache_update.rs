@@ -16,6 +16,8 @@ use crate::bridge::manager::ConnectorManager;
 use crate::storage::connector::ConnectorStorage;
 use crate::storage::topic::TopicStorage;
 use crate::{security::AuthDriver, subscribe::subscribe_manager::SubscribeManager};
+use common_base::config::broker_mqtt::broker_mqtt_conf;
+use grpc_clients::placement::inner::call::list_schema;
 use grpc_clients::pool::ClientPool;
 use log::error;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
@@ -27,6 +29,7 @@ use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use protocol::broker_mqtt::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateMqttCacheRequest,
 };
+use protocol::placement_center::placement_center_inner::ListSchemaRequest;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 
@@ -38,6 +41,7 @@ pub async fn load_metadata_cache(
     client_pool: &Arc<ClientPool>,
     auth_driver: &Arc<AuthDriver>,
     connector_manager: &Arc<ConnectorManager>,
+    schema_manager: &Arc<SchemaRegisterManager>,
 ) {
     // load cluster config
     let cluster = match build_cluster_config(client_pool).await {
@@ -123,6 +127,31 @@ pub async fn load_metadata_cache(
     };
     for connector in connectors.iter() {
         connector_manager.add_connector(connector);
+    }
+
+    // load all schemas
+    let config = broker_mqtt_conf();
+    let request = ListSchemaRequest {
+        cluster_name: config.cluster_name.clone(),
+        schema_name: "".to_owned(),
+    };
+
+    match list_schema(client_pool, &config.placement_center, request).await {
+        Ok(reply) => {
+            for raw in reply.schemas {
+                match serde_json::from_slice::<SchemaData>(raw.as_slice()) {
+                    Ok(schema) => {
+                        schema_manager.add_schema(schema);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            panic!("Failed to load the schema list with error message:{}", e);
+        }
     }
 }
 
