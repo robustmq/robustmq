@@ -36,7 +36,7 @@ impl SchemaRegisterManager {
 
     pub fn is_check_schema(&self, topic: &str) -> bool {
         if let Some(list) = self.schema_resource_list.get(topic) {
-            return list.is_empty();
+            return !list.is_empty();
         }
         false
     }
@@ -93,5 +93,170 @@ impl SchemaRegisterManager {
         if let Some(mut list) = self.schema_resource_list.get_mut(resource) {
             list.retain(|x| x != schema_name);
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::SchemaRegisterManager;
+    use apache_avro::{Schema, Writer};
+    use metadata_struct::schema::{SchemaData, SchemaResourceBind, SchemaType};
+    use serde::{Deserialize, Serialize};
+
+    #[test]
+    pub fn json_schema_test() {
+        let schema_manager = SchemaRegisterManager::new();
+        let cluster_name = "test1".to_string();
+        let schema_name = "schema1".to_string();
+        let schema_json_content = r#"{
+            "type": "object",
+            "properties": {
+                "name": { "type": "string" },
+                "age": { "type": "integer", "minimum": 0 }
+            },
+            "required": ["name"]
+        }"#;
+        schema_manager.add_schema(SchemaData {
+            cluster_name: cluster_name.clone(),
+            name: schema_name.clone(),
+            schema: schema_json_content.to_string(),
+            schema_type: SchemaType::JSON,
+            desc: "test".to_string(),
+        });
+
+        let topic_name = "t1".to_string();
+        let bind_schema = SchemaResourceBind {
+            cluster_name: cluster_name.clone(),
+            resource_name: topic_name.clone(),
+            schema_name: schema_name.clone(),
+        };
+        schema_manager.add_schema_resource(&bind_schema);
+
+        assert!(schema_manager.is_check_schema(&topic_name));
+
+        let topic_name1 = "t2".to_string();
+        assert!(!schema_manager.is_check_schema(&topic_name1));
+
+        let data = r#"{
+            "name": "John Doe",
+            "age": 30
+        }"#;
+
+        let result =
+            schema_manager.validate(&topic_name, serde_json::to_vec(data).unwrap().as_slice());
+        println!("{:?}", result);
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+
+        let data1 = r#"{
+            "age": 30
+        }"#;
+
+        let result =
+            schema_manager.validate(&topic_name, serde_json::to_vec(data1).unwrap().as_slice());
+        println!("{:?}", result);
+        assert!(result.is_ok());
+        assert!(!result.unwrap());
+
+        let data1 = r#"{
+            "name": "John Doe"
+        }"#;
+
+        let result =
+            schema_manager.validate(&topic_name, serde_json::to_vec(data1).unwrap().as_slice());
+        println!("{:?}", result);
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    struct TestData {
+        a: u64,
+        b: String,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    struct TestData2 {
+        c: String,
+        b: String,
+    }
+
+    #[test]
+    pub fn avro_schema_test() {
+        let schema_manager = SchemaRegisterManager::new();
+        let cluster_name = "test1".to_string();
+        let schema_name = "schema1".to_string();
+        let schema_avro_content = r#"
+        {
+            "type": "record",
+            "name": "test",
+            "fields": [
+                {"name": "a", "type": "long"},
+                {"name": "b", "type": "string"}
+            ]
+        }
+        "#;
+
+        schema_manager.add_schema(SchemaData {
+            cluster_name: cluster_name.clone(),
+            name: schema_name.clone(),
+            schema: schema_avro_content.to_string(),
+            schema_type: SchemaType::AVRO,
+            desc: "test".to_string(),
+        });
+
+        let topic_name = "t1".to_string();
+        let bind_schema = SchemaResourceBind {
+            cluster_name: cluster_name.clone(),
+            resource_name: topic_name.clone(),
+            schema_name: schema_name.clone(),
+        };
+        schema_manager.add_schema_resource(&bind_schema);
+
+        assert!(schema_manager.is_check_schema(&topic_name));
+
+        let topic_name1 = "t2".to_string();
+        assert!(!schema_manager.is_check_schema(&topic_name1));
+
+        // build avro data
+        let test_data = TestData {
+            a: 1,
+            b: "test".to_string(),
+        };
+
+        let schema = Schema::parse_str(schema_avro_content).unwrap();
+        let mut writer = Writer::new(&schema, Vec::new());
+        writer.append_ser(test_data).unwrap(); // 序列化时校验数据是否符合模式
+        let encoded_data = writer.into_inner().unwrap();
+
+        let result = schema_manager.validate(&topic_name, encoded_data.as_slice());
+        println!("{:?}", result);
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+
+        // build avro data
+        let test_data = TestData2 {
+            b: "test".to_string(),
+            c: "test".to_string(),
+        };
+        let raw_schema1 = r#"
+        {
+            "type": "record",
+            "name": "test",
+            "fields": [
+                {"name": "c", "type": "string"},
+                {"name": "b", "type": "string"}
+            ]
+        }
+        "#;
+
+        let schema = Schema::parse_str(raw_schema1).unwrap();
+        let mut writer = Writer::new(&schema, Vec::new());
+        writer.append_ser(test_data).unwrap(); // 序列化时校验数据是否符合模式
+        let encoded_data = writer.into_inner().unwrap();
+
+        let result = schema_manager.validate(&topic_name, encoded_data.as_slice());
+        println!("{:?}", result);
+        assert!(result.is_err());
     }
 }
