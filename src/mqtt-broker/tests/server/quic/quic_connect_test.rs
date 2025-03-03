@@ -26,9 +26,11 @@ mod tests {
     use crate::server::quic::quic_common::set_up;
     use googletest::assert_that;
     use googletest::matchers::eq;
-    use mqtt_broker::server::quic::quic_server_stream::{
+    use mqtt_broker::server::quic::quic_stream_wrapper::{
         QuicFramedReadStream, QuicFramedWriteStream,
     };
+    use protocol::mqtt::common::MqttPacket;
+    use rustls::ProtocolVersion;
     use std::sync::Arc;
     use tokio_util::codec::{Decoder, Encoder};
 
@@ -109,10 +111,8 @@ mod tests {
         let client_recv = Arc::new(tokio::sync::Notify::new());
         let server_send = client_recv.clone();
 
-        let mut test_bytes_mut = BytesMut::new();
-        let mut codec = MqttCodec::new(Some(5));
-        let _ = codec.encode_data(build_mqtt5_pg_connect_wrapper(), &mut test_bytes_mut);
-        let verify_mqtt_packet = codec.decode(&mut test_bytes_mut).unwrap().unwrap();
+        let verify_mqtt_packet =
+            construct_verify_mqtt_packet(build_mqtt5_pg_connect_wrapper, Some(5));
 
         let server = tokio::spawn(async move {
             let conn = server.accept_connection().await.unwrap();
@@ -129,10 +129,14 @@ mod tests {
                     unreachable!()
                 }
             }
-
-            let server_bytes_mut = build_bytes_mut(build_mqtt5_pg_connect_ack_wrapper, Some(5));
-            send_packet(&mut server_send_stream, server_bytes_mut).await;
-
+            let mut quic_framed_write_stream =
+                QuicFramedWriteStream::new(server_send_stream, MqttCodec::new(Some(5)));
+            if let Err(_e) = quic_framed_write_stream
+                .send(build_mqtt5_pg_connect_ack_wrapper())
+                .await
+            {
+                unreachable!()
+            }
             server_send.notify_one();
         });
 
@@ -148,9 +152,34 @@ mod tests {
         client_send.notify_one();
 
         client_recv.notified().await;
-        receive_packet(client_recv_stream, Some(5)).await;
+        // prepare to receive packet
+        let verify_mqtt_packet =
+            construct_verify_mqtt_packet(build_mqtt5_pg_connect_ack_wrapper, Some(5));
+
+        // act
+        let mut quic_framed_read_stream =
+            QuicFramedReadStream::new(client_recv_stream, MqttCodec::new(Some(5)));
+        match quic_framed_read_stream.receive().await {
+            Ok(packet) => {
+                // verify receive packet
+                assert_eq!(packet, verify_mqtt_packet)
+            }
+            Err(_) => {
+                unreachable!()
+            }
+        }
 
         server.await.unwrap();
+    }
+
+    fn construct_verify_mqtt_packet(
+        create_mqtt_packet_wrapper: fn() -> MqttPacketWrapper,
+        protocol_version: Option<u8>,
+    ) -> MqttPacket {
+        let mut codec = MqttCodec::new(protocol_version);
+        let mut test_bytes_mut = build_bytes_mut(create_mqtt_packet_wrapper, protocol_version);
+        let verify_mqtt_packet = codec.decode(&mut test_bytes_mut).unwrap().unwrap();
+        verify_mqtt_packet
     }
 
     async fn send_packet(send_stream: &mut SendStream, mut bytes_mut: BytesMut) {
@@ -169,11 +198,11 @@ mod tests {
     }
 
     fn build_bytes_mut(
-        create_connect_wrapper: fn() -> MqttPacketWrapper,
+        create_mqtt_packet_wrapper: fn() -> MqttPacketWrapper,
         protocol_version: Option<u8>,
     ) -> BytesMut {
         let mut mqtt_codec = MqttCodec::new(protocol_version);
-        let connect_wrapper = create_connect_wrapper();
+        let connect_wrapper = create_mqtt_packet_wrapper();
 
         let mut bytes_mut = BytesMut::with_capacity(0);
         mqtt_codec.encode(connect_wrapper, &mut bytes_mut).unwrap();
