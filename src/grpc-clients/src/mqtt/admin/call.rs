@@ -22,10 +22,14 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableFlappingDetectRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
     ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
     ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
-    ListTopicRequest, ListUserReply, ListUserRequest, MqttCreateConnectorReply,
-    MqttCreateConnectorRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
-    MqttListConnectorReply, MqttListConnectorRequest, MqttUpdateConnectorReply,
-    MqttUpdateConnectorRequest,
+    ListTopicRequest, ListUserReply, ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest,
+    MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttCreateSchemaReply,
+    MqttCreateSchemaRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
+    MqttDeleteSchemaReply, MqttDeleteSchemaRequest, MqttListBindSchemaReply,
+    MqttListBindSchemaRequest, MqttListConnectorReply, MqttListConnectorRequest,
+    MqttListSchemaReply, MqttListSchemaRequest, MqttUnbindSchemaReply, MqttUnbindSchemaRequest,
+    MqttUpdateConnectorReply, MqttUpdateConnectorRequest, MqttUpdateSchemaReply,
+    MqttUpdateSchemaRequest,
 };
 
 use crate::pool::ClientPool;
@@ -189,4 +193,54 @@ generate_mqtt_admin_service_call!(
     MqttDeleteConnectorRequest,
     MqttDeleteConnectorReply,
     MqttDeleteConnector
+);
+
+// schema command line CRUD
+generate_mqtt_admin_service_call!(
+    mqtt_broker_list_schema,
+    MqttListSchemaRequest,
+    MqttListSchemaReply,
+    MqttListSchema
+);
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_create_schema,
+    MqttCreateSchemaRequest,
+    MqttCreateSchemaReply,
+    MqttCreateSchema
+);
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_update_schema,
+    MqttUpdateSchemaRequest,
+    MqttUpdateSchemaReply,
+    MqttUpdateSchema
+);
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_delete_schema,
+    MqttDeleteSchemaRequest,
+    MqttDeleteSchemaReply,
+    MqttDeleteSchema
+);
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_list_bind_schema,
+    MqttListBindSchemaRequest,
+    MqttListBindSchemaReply,
+    MqttListBindSchema
+);
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_bind_schema,
+    MqttBindSchemaRequest,
+    MqttBindSchemaReply,
+    MqttBindSchema
+);
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_unbind_schema,
+    MqttUnbindSchemaRequest,
+    MqttUnbindSchemaReply,
+    MqttUnbindSchema
 );
