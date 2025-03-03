@@ -14,12 +14,18 @@
 
 use super::error::PlacementCenterError;
 use crate::{
+    mqtt::controller::call_broker::{
+        update_cache_by_add_schema, update_cache_by_add_schema_bind, update_cache_by_delete_schema,
+        update_cache_by_delete_schema_bind, MQTTInnerCallManager,
+    },
     route::{
         apply::RaftMachineApply,
         data::{StorageData, StorageDataType},
     },
     storage::placement::schema::SchemaStorage,
 };
+use grpc_clients::pool::ClientPool;
+use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use prost::Message;
 use prost_validate::Result;
 use protocol::placement_center::placement_center_inner::{
@@ -57,6 +63,8 @@ pub fn list_schema_req(
 
 pub async fn create_schema_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
     req: &CreateSchemaRequest,
 ) -> Result<(), PlacementCenterError> {
     if req.cluster_name.is_empty() {
@@ -83,11 +91,15 @@ pub async fn create_schema_req(
     );
     raft_machine_apply.client_write(data).await?;
 
+    let schema = serde_json::from_slice::<SchemaData>(&req.schema)?;
+    update_cache_by_add_schema(&req.cluster_name, call_manager, client_pool, schema).await?;
     Ok(())
 }
 
 pub async fn update_schema_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
     req: &UpdateSchemaRequest,
 ) -> Result<(), PlacementCenterError> {
     if req.cluster_name.is_empty() {
@@ -114,13 +126,26 @@ pub async fn update_schema_req(
     );
     raft_machine_apply.client_write(data).await?;
 
+    let schema = serde_json::from_slice::<SchemaData>(&req.schema)?;
+    update_cache_by_add_schema(&req.cluster_name, call_manager, client_pool, schema).await?;
     Ok(())
 }
 
 pub async fn delete_schema_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_machine_apply: &Arc<RaftMachineApply>,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
     req: &DeleteSchemaRequest,
 ) -> Result<(), PlacementCenterError> {
+    let storage = SchemaStorage::new(rocksdb_engine_handler.clone());
+    let schema = if let Some(schema) = storage.get(&req.cluster_name, &req.schema_name)? {
+        schema
+    } else {
+        return Err(PlacementCenterError::SchemaDoesNotExist(
+            req.schema_name.clone(),
+        ));
+    };
     if req.cluster_name.is_empty() {
         return Err(PlacementCenterError::RequestParamsNotEmpty(
             "cluster_name".to_string(),
@@ -139,6 +164,7 @@ pub async fn delete_schema_req(
     );
     raft_machine_apply.client_write(data).await?;
 
+    update_cache_by_delete_schema(&req.cluster_name, call_manager, client_pool, schema).await?;
     Ok(())
 }
 
@@ -183,6 +209,8 @@ pub async fn list_bind_schema_req(
 
 pub async fn bind_schema_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
     req: &BindSchemaRequest,
 ) -> Result<(), PlacementCenterError> {
     if req.cluster_name.is_empty() {
@@ -207,11 +235,21 @@ pub async fn bind_schema_req(
     );
     raft_machine_apply.client_write(data).await?;
 
+    let schema_data = SchemaResourceBind {
+        cluster_name: req.cluster_name.clone(),
+        schema_name: req.schema_name.clone(),
+        resource_name: req.resource_name.clone(),
+    };
+
+    update_cache_by_add_schema_bind(&req.cluster_name, call_manager, client_pool, schema_data)
+        .await?;
     Ok(())
 }
 
 pub async fn un_bind_schema_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
     req: &UnBindSchemaRequest,
 ) -> Result<(), PlacementCenterError> {
     if req.cluster_name.is_empty() {
@@ -236,5 +274,13 @@ pub async fn un_bind_schema_req(
     );
     raft_machine_apply.client_write(data).await?;
 
+    let schema_data = SchemaResourceBind {
+        cluster_name: req.cluster_name.clone(),
+        schema_name: req.schema_name.clone(),
+        resource_name: req.resource_name.clone(),
+    };
+
+    update_cache_by_delete_schema_bind(&req.cluster_name, call_manager, client_pool, schema_data)
+        .await?;
     Ok(())
 }

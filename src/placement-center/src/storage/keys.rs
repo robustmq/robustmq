@@ -208,12 +208,12 @@ pub fn storage_key_mqtt_schema_prefix(cluster_name: &str) -> String {
 
 pub fn storage_key_mqtt_schema_bind(
     cluster_name: &str,
-    resouce_name: &str,
+    resource_name: &str,
     schema_name: &str,
 ) -> String {
     format!(
         "/mqtt/schema_bind/{}/{}/{}",
-        cluster_name, resouce_name, schema_name
+        cluster_name, resource_name, schema_name
     )
 }
 

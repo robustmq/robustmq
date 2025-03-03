@@ -393,7 +393,14 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<CreateSchemaRequest>,
     ) -> Result<Response<CreateSchemaReply>, Status> {
         let req = request.into_inner();
-        match create_schema_req(&self.raft_machine_apply, &req).await {
+        match create_schema_req(
+            &self.raft_machine_apply,
+            &self.mqtt_call_manager,
+            &self.client_pool,
+            &req,
+        )
+        .await
+        {
             Ok(_) => {
                 return Ok(Response::new(CreateSchemaReply::default()));
             }
@@ -408,7 +415,14 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<UpdateSchemaRequest>,
     ) -> Result<Response<UpdateSchemaReply>, Status> {
         let req = request.into_inner();
-        match update_schema_req(&self.raft_machine_apply, &req).await {
+        match update_schema_req(
+            &self.raft_machine_apply,
+            &self.mqtt_call_manager,
+            &self.client_pool,
+            &req,
+        )
+        .await
+        {
             Ok(_) => {
                 return Ok(Response::new(UpdateSchemaReply::default()));
             }
@@ -423,7 +437,15 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<DeleteSchemaRequest>,
     ) -> Result<Response<DeleteSchemaReply>, Status> {
         let req = request.into_inner();
-        match delete_schema_req(&self.raft_machine_apply, &req).await {
+        match delete_schema_req(
+            &self.rocksdb_engine_handler,
+            &self.raft_machine_apply,
+            &self.mqtt_call_manager,
+            &self.client_pool,
+            &req,
+        )
+        .await
+        {
             Ok(_) => {
                 return Ok(Response::new(DeleteSchemaReply::default()));
             }
@@ -453,7 +475,14 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<BindSchemaRequest>,
     ) -> Result<Response<BindSchemaReply>, Status> {
         let req = request.into_inner();
-        match bind_schema_req(&self.raft_machine_apply, &req).await {
+        match bind_schema_req(
+            &self.raft_machine_apply,
+            &self.mqtt_call_manager,
+            &self.client_pool,
+            &req,
+        )
+        .await
+        {
             Ok(_) => {
                 return Ok(Response::new(BindSchemaReply::default()));
             }
@@ -468,7 +497,14 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<UnBindSchemaRequest>,
     ) -> Result<Response<UnBindSchemaReply>, Status> {
         let req = request.into_inner();
-        match un_bind_schema_req(&self.raft_machine_apply, &req).await {
+        match un_bind_schema_req(
+            &self.raft_machine_apply,
+            &self.mqtt_call_manager,
+            &self.client_pool,
+            &req,
+        )
+        .await
+        {
             Ok(_) => {
                 return Ok(Response::new(UnBindSchemaReply::default()));
             }

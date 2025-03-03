@@ -19,6 +19,7 @@ use grpc_clients::pool::ClientPool;
 use log::info;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminServiceServer;
 use protocol::broker_mqtt::broker_mqtt_inner::mqtt_broker_inner_service_server::MqttBrokerInnerServiceServer;
+use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
 use tonic::transport::Server;
 
@@ -35,6 +36,7 @@ pub struct GrpcServer<S> {
     connector_manager: Arc<ConnectorManager>,
     connection_manager: Arc<ConnectionManager>,
     subscribe_manager: Arc<SubscribeManager>,
+    schema_manager: Arc<SchemaRegisterManager>,
     client_pool: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
 }
@@ -43,12 +45,14 @@ impl<S> GrpcServer<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         port: u32,
         metadata_cache: Arc<CacheManager>,
         connector_manager: Arc<ConnectorManager>,
         subscribe_manager: Arc<SubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
+        schema_manager: Arc<SchemaRegisterManager>,
         client_pool: Arc<ClientPool>,
         message_storage_adapter: Arc<S>,
     ) -> Self {
@@ -60,6 +64,7 @@ where
             subscribe_manager,
             client_pool,
             message_storage_adapter,
+            schema_manager,
         }
     }
     pub async fn start(&self) -> Result<(), CommonError> {
@@ -69,6 +74,7 @@ where
             self.metadata_cache.clone(),
             self.subscribe_manager.clone(),
             self.connector_manager.clone(),
+            self.schema_manager.clone(),
             self.client_pool.clone(),
             self.message_storage_adapter.clone(),
         );
