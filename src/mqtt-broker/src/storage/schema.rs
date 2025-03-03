@@ -17,7 +17,7 @@ use std::sync::Arc;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::{
     placement::inner::call::{
-        bind_schema, create_schema, delete_schema, list_bind_schema, un_bind_schema, update_schema,
+        bind_schema, create_schema, delete_schema, un_bind_schema, update_schema,
     },
     pool::ClientPool,
 };
@@ -28,8 +28,8 @@ use protocol::{
         MqttUpdateSchemaRequest,
     },
     placement_center::placement_center_inner::{
-        BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, ListBindSchemaRequest,
-        UnBindSchemaRequest, UpdateSchemaRequest,
+        BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, UnBindSchemaRequest,
+        UpdateSchemaRequest,
     },
 };
 use schema_register::schema::SchemaRegisterManager;
