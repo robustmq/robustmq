@@ -13,16 +13,18 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
-use crate::server::connection::NetworkConnectionType;
+use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::RequestPackage;
+use crate::server::quic::quic_stream_wrapper::{QuicFramedReadStream, QuicFramedWriteStream};
 use log::{debug, error, info};
 use protocol::mqtt::codec::MqttCodec;
 use quinn::Endpoint;
 use std::sync::Arc;
 use tokio::select;
 use tokio::sync::broadcast;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc::{self, Receiver, Sender};
+
 #[allow(dead_code)]
 pub(crate) async fn acceptor_process(
     accept_thread_num: usize,
@@ -35,7 +37,7 @@ pub(crate) async fn acceptor_process(
 ) {
     for index in 1..=accept_thread_num {
         let endpoint = endpoint_arc.clone();
-        let _connection_manager = connection_manager.clone();
+        let connection_manager = connection_manager.clone();
         let mut stop_rx = stop_sx.subscribe();
         let _raw_request_queue_sx = request_queue_sx.clone();
         let _network_type = network_connection_type.clone();
@@ -59,12 +61,22 @@ pub(crate) async fn acceptor_process(
                                 match incoming.await {
                                 Ok(connection) => {
                                         info!("accept quic connection:{:?}",connection.remote_address());
+                                        let client_addr = connection.remote_address();
                                         match connection.accept_bi().await {
-                                            Ok((_w_stream, _r_stream)) => {
-                                                    let _codec = MqttCodec::new(None);
-                                                    // todo 这里需要有对应的写入流
+                                            Ok((w_stream, r_stream)) => {
+                                                    let codec = MqttCodec::new(None);
+                                                    let mut quic_framed_write_stream = QuicFramedWriteStream::new(w_stream, codec.clone());
+                                                    let mut quic_framed_read_stream = QuicFramedReadStream::new(r_stream, codec.clone());
+                                                    // todo we need to add quic_establish_connection_check
 
-                                                    // todo 这里需要有对应的写出流
+                                                let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
+                                                let connection = NetworkConnection::new(
+                                                    NetworkConnectionType::Quic,
+                                                    client_addr,
+                                                    Some(connection_stop_sx.clone())
+                                                );
+                                                connection_manager.add_connection(connection.clone());
+                                                connection_manager.add_quic_write(connection.connection_id, quic_framed_write_stream);
 
                                             },
                                             Err(e) => {
