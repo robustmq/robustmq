@@ -32,6 +32,7 @@ use grpc_clients::pool::ClientPool;
 use log::{error, info};
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{MqttPacket, MqttProtocol};
+use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self};
@@ -54,6 +55,7 @@ pub struct WebSocketServerState<S> {
     client_pool: Arc<ClientPool>,
     stop_sx: broadcast::Sender<bool>,
     connection_manager: Arc<ConnectionManager>,
+    schema_manager: Arc<SchemaRegisterManager>,
     auth_driver: Arc<AuthDriver>,
 }
 
@@ -68,6 +70,7 @@ where
         connection_manager: Arc<ConnectionManager>,
         message_storage_adapter: Arc<S>,
         delay_message_manager: Arc<DelayMessageManager<S>>,
+        schema_manager: Arc<SchemaRegisterManager>,
         client_pool: Arc<ClientPool>,
         auth_driver: Arc<AuthDriver>,
         stop_sx: broadcast::Sender<bool>,
@@ -78,6 +81,7 @@ where
             connection_manager,
             message_storage_adapter,
             delay_message_manager,
+            schema_manager,
             client_pool,
             auth_driver,
             stop_sx,
@@ -174,6 +178,7 @@ where
         state.sucscribe_manager.clone(),
         state.client_pool.clone(),
         state.connection_manager.clone(),
+        state.schema_manager.clone(),
         state.auth_driver.clone(),
     );
     let codec = MqttCodec::new(None);
