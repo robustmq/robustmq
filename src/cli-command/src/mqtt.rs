@@ -17,22 +17,27 @@ use crate::{connect_server5, error_info, grpc_addr};
 use common_base::enum_type::sort_type::SortType;
 use common_base::tools::unique_id;
 use grpc_clients::mqtt::admin::call::{
-    mqtt_broker_cluster_status, mqtt_broker_create_connector, mqtt_broker_create_user,
-    mqtt_broker_delete_connector, mqtt_broker_delete_user, mqtt_broker_enable_flapping_detect,
-    mqtt_broker_enable_slow_subscribe, mqtt_broker_list_connection, mqtt_broker_list_connector,
-    mqtt_broker_list_slow_subscribe, mqtt_broker_list_topic, mqtt_broker_list_user,
-    mqtt_broker_update_connector,
+    mqtt_broker_bind_schema, mqtt_broker_cluster_status, mqtt_broker_create_connector,
+    mqtt_broker_create_schema, mqtt_broker_create_user, mqtt_broker_delete_connector,
+    mqtt_broker_delete_schema, mqtt_broker_delete_user, mqtt_broker_enable_flapping_detect,
+    mqtt_broker_enable_slow_subscribe, mqtt_broker_list_bind_schema, mqtt_broker_list_connection,
+    mqtt_broker_list_connector, mqtt_broker_list_schema, mqtt_broker_list_slow_subscribe,
+    mqtt_broker_list_topic, mqtt_broker_list_user, mqtt_broker_unbind_schema,
+    mqtt_broker_update_connector, mqtt_broker_update_schema,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::schema::SchemaData;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, EnableFlappingDetectRequest,
     EnableSlowSubscribeRequest, ListConnectionRequest, ListSlowSubscribeRequest, ListTopicRequest,
-    ListUserRequest, MqttCreateConnectorRequest, MqttDeleteConnectorRequest,
-    MqttListConnectorRequest, MqttUpdateConnectorRequest,
+    ListUserRequest, MqttBindSchemaRequest, MqttCreateConnectorRequest, MqttCreateSchemaRequest,
+    MqttDeleteConnectorRequest, MqttDeleteSchemaRequest, MqttListBindSchemaRequest,
+    MqttListConnectorRequest, MqttListSchemaRequest, MqttUnbindSchemaRequest,
+    MqttUpdateConnectorRequest, MqttUpdateSchemaRequest,
 };
 use std::str::FromStr;
 use std::sync::Arc;
@@ -78,6 +83,15 @@ pub enum MqttActionType {
     CreateConnector(MqttCreateConnectorRequest),
     UpdateConnector(MqttUpdateConnectorRequest),
     DeleteConnector(MqttDeleteConnectorRequest),
+
+    // schema
+    ListSchema(MqttListSchemaRequest),
+    CreateSchema(MqttCreateSchemaRequest),
+    UpdateSchema(MqttUpdateSchemaRequest),
+    DeleteSchema(MqttDeleteSchemaRequest),
+    ListBindSchema(MqttListBindSchemaRequest),
+    BindSchema(MqttBindSchemaRequest),
+    UnbindSchema(MqttUnbindSchemaRequest),
 }
 
 pub struct MqttBrokerCommand {}
@@ -149,6 +163,42 @@ impl MqttBrokerCommand {
             }
             MqttActionType::UpdateConnector(ref request) => {
                 self.update_connector(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+
+            // schema
+            MqttActionType::ListSchema(ref request) => {
+                self.list_schema(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+
+            MqttActionType::CreateSchema(ref request) => {
+                self.create_schema(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+
+            MqttActionType::UpdateSchema(ref request) => {
+                self.update_schema(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+
+            MqttActionType::DeleteSchema(ref request) => {
+                self.delete_schema(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+
+            MqttActionType::BindSchema(ref request) => {
+                self.bind_schema(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+
+            MqttActionType::UnbindSchema(ref request) => {
+                self.unbind_schema(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+
+            MqttActionType::ListBindSchema(ref request) => {
+                self.list_bind_schema(&client_pool, params.clone(), request.clone())
                     .await;
             }
         }
@@ -616,6 +666,162 @@ impl MqttBrokerCommand {
             }
             Err(e) => {
                 println!("MQTT broker update connector exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    // ------------------ schema ----------------
+    async fn list_schema(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttListSchemaRequest,
+    ) {
+        match mqtt_broker_list_schema(client_pool, &grpc_addr(params.server), cli_request).await {
+            Ok(data) => {
+                println!("schema list result:");
+                for mqtt_schema in data.schemas {
+                    let schema = serde_json::from_slice::<SchemaData>(&mqtt_schema).unwrap();
+                    println!(
+                        concat!(
+                            "cluster name: {}\n",
+                            "schema name: {}\n",
+                            "schema type: {}\n",
+                            "schema desc: {}\n",
+                            "schema: {}\n"
+                        ),
+                        schema.cluster_name,
+                        schema.name,
+                        schema.schema_type,
+                        schema.desc,
+                        schema.schema
+                    );
+                }
+            }
+            Err(e) => {
+                println!("MQTT broker list schema exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn create_schema(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttCreateSchemaRequest,
+    ) {
+        match mqtt_broker_create_schema(client_pool, &grpc_addr(params.server), cli_request).await {
+            Ok(_) => {
+                println!("Created successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker create schema exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn update_schema(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttUpdateSchemaRequest,
+    ) {
+        match mqtt_broker_update_schema(client_pool, &grpc_addr(params.server), cli_request).await {
+            Ok(_) => {
+                println!("Updated successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker update schema exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn delete_schema(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttDeleteSchemaRequest,
+    ) {
+        match mqtt_broker_delete_schema(client_pool, &grpc_addr(params.server), cli_request).await {
+            Ok(_) => {
+                println!("Deleted successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker delete schema exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn bind_schema(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttBindSchemaRequest,
+    ) {
+        match mqtt_broker_bind_schema(client_pool, &grpc_addr(params.server), cli_request).await {
+            Ok(_) => {
+                println!("Created successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker create schema exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn unbind_schema(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttUnbindSchemaRequest,
+    ) {
+        match mqtt_broker_unbind_schema(client_pool, &grpc_addr(params.server), cli_request).await {
+            Ok(_) => {
+                println!("Deleted successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker delete schema exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn list_bind_schema(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttListBindSchemaRequest,
+    ) {
+        match mqtt_broker_list_bind_schema(client_pool, &grpc_addr(params.server), cli_request)
+            .await
+        {
+            Ok(data) => {
+                println!("bind schema list result:");
+                for mqtt_schema in data.schema_binds {
+                    let schema = serde_json::from_slice::<SchemaData>(&mqtt_schema).unwrap();
+                    println!(
+                        concat!(
+                            "cluster name: {}\n",
+                            "schema name: {}\n",
+                            "schema type: {}\n",
+                            "schema desc: {}\n",
+                            "schema: {}\n"
+                        ),
+                        schema.cluster_name,
+                        schema.name,
+                        schema.schema_type,
+                        schema.desc,
+                        schema.schema
+                    );
+                }
+            }
+            Err(e) => {
+                println!("MQTT broker list bind schema exception");
                 error_info(e.to_string());
             }
         }

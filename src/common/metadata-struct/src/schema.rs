@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
@@ -47,4 +49,14 @@ pub enum SchemaType {
     JSON,
     PROTOBUF,
     AVRO,
+}
+
+impl Display for SchemaType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SchemaType::JSON => write!(f, "json"),
+            SchemaType::PROTOBUF => write!(f, "protobuf"),
+            SchemaType::AVRO => write!(f, "avro"),
+        }
+    }
 }
