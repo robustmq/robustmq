@@ -7,7 +7,7 @@ RobustMQ MQTT supports two formats of shared subscription prefixes, one for shar
 | --- | --- | --- | --- |
 | with group format | $share/abc/t/1 | $share/abc/ | t/1 |
 | without group format | $queue/t/1 | $queue/ | t/1 |
- 
+
 ## Shared subscriptions with groups
 You can do this by prefacing the original theme with $share/&lt; group-name&gt;  Subscribers prefixed with a group enable shared subscriptions. The group name can be any string. The RobustMQ MQTT Broker forwards messages to different groups simultaneously, and subscribers belonging to the same group can receive messages using load balancing.
 

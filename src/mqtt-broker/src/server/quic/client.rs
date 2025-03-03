@@ -62,6 +62,7 @@ fn create_default_crypto() -> Arc<quinn::crypto::rustls::QuicClientConfig> {
 }
 
 #[allow(dead_code)]
+#[derive(Clone)]
 pub struct QuicClient {
     quic_client_config: QuicClientConfig,
     endpoint: Option<Endpoint>,

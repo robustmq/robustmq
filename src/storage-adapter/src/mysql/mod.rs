@@ -302,8 +302,8 @@ impl StorageAdapter for MySQLStorageAdapter {
 
         let sql = format!(
             "SELECT `offset`, `key`, `data`, `header`, `tags`, `ts`
-            FROM `{}` 
-            WHERE `offset` >= :offset 
+            FROM `{}`
+            WHERE `offset` >= :offset
             ORDER BY `offset`
             LIMIT :limit;",
             Self::record_table_name(&namespace, &shard_name)
@@ -350,7 +350,7 @@ impl StorageAdapter for MySQLStorageAdapter {
 
         let sql = format!(
             "SELECT `r.offset`,`r.key`,`r.data`,`r.header`,`r.tags`,`r.ts`
-            FROM 
+            FROM
                 `{}` l LEFT JOIN `{}` r on l.m_offset = r.offset
             WHERE l.tag = :tag and l.m_offset >= :offset and l.namespace = :namespace and l.shard = :shard
             ORDER BY l.m_offset
@@ -403,8 +403,8 @@ impl StorageAdapter for MySQLStorageAdapter {
 
         let sql = format!(
             "SELECT `offset`, `key`, `data`, `header`, `tags`, `ts`
-            FROM {} 
-            WHERE `offset` >= :offset AND `key` = :key 
+            FROM {}
+            WHERE `offset` >= :offset AND `key` = :key
             ORDER BY `offset`
             LIMIT :limit",
             Self::record_table_name(&namespace, &shard_name)
@@ -451,10 +451,10 @@ impl StorageAdapter for MySQLStorageAdapter {
         let mut conn = self.pool.get_conn()?;
 
         let sql = format!(
-            "SELECT `offset` 
-            FROM `{}` 
-            WHERE `ts` >= :ts 
-            ORDER BY `ts` 
+            "SELECT `offset`
+            FROM `{}`
+            WHERE `ts` >= :ts
+            ORDER BY `ts`
             LIMIT 1",
             Self::record_table_name(&namespace, &shard_name)
         );
@@ -481,8 +481,8 @@ impl StorageAdapter for MySQLStorageAdapter {
         let mut conn = self.pool.get_conn()?;
 
         let sql = format!(
-            "SELECT `offset` 
-            FROM `{}` 
+            "SELECT `offset`
+            FROM `{}`
             WHERE `group` = :group",
             Self::groups_table_name()
         );
