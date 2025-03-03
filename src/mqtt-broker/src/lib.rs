@@ -33,6 +33,7 @@ use handler::user::{init_system_user, UpdateUserCache};
 use lazy_static::lazy_static;
 use log::{error, info};
 use observability::start_opservability;
+use schema_register::schema::SchemaRegisterManager;
 use security::AuthDriver;
 use server::connection_manager::ConnectionManager;
 use server::grpc::server::GrpcServer;
@@ -120,6 +121,7 @@ pub struct MqttBroker<S> {
     connector_manager: Arc<ConnectorManager>,
     auth_driver: Arc<AuthDriver>,
     delay_message_manager: Arc<DelayMessageManager<S>>,
+    schema_manager: Arc<SchemaRegisterManager>,
 }
 
 impl<S> MqttBroker<S>
@@ -146,6 +148,7 @@ where
             3,
             message_storage_adapter.clone(),
         ));
+        let schema_manager = Arc::new(SchemaRegisterManager::new());
         MqttBroker {
             runtime,
             cache_manager,
@@ -156,6 +159,7 @@ where
             connection_manager,
             auth_driver,
             delay_message_manager,
+            schema_manager,
         }
     }
 
@@ -195,6 +199,7 @@ where
         let connection_manager = self.connection_manager.clone();
         let auth_driver = self.auth_driver.clone();
         let delay_message_manager = self.delay_message_manager.clone();
+        let schema_manager = self.schema_manager.clone();
 
         self.runtime.spawn(async move {
             start_tcp_server(
@@ -203,6 +208,7 @@ where
                 connection_manager,
                 message_storage_adapter,
                 delay_message_manager,
+                schema_manager,
                 client_pool,
                 stop_send,
                 auth_driver,
@@ -219,6 +225,7 @@ where
             self.connector_manager.clone(),
             self.subscribe_manager.clone(),
             self.connection_manager.clone(),
+            self.schema_manager.clone(),
             self.client_pool.clone(),
             self.message_storage_adapter.clone(),
         );
@@ -251,6 +258,7 @@ where
             self.connection_manager.clone(),
             self.message_storage_adapter.clone(),
             self.delay_message_manager.clone(),
+            self.schema_manager.clone(),
             self.client_pool.clone(),
             self.auth_driver.clone(),
             stop_send.clone(),
@@ -264,6 +272,7 @@ where
             self.connection_manager.clone(),
             self.message_storage_adapter.clone(),
             self.delay_message_manager.clone(),
+            self.schema_manager.clone(),
             self.client_pool.clone(),
             self.auth_driver.clone(),
             stop_send.clone(),

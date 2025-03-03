@@ -14,7 +14,7 @@
 
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use metadata_struct::schema::{SchemaData, SchemaType};
+use metadata_struct::schema::{SchemaData, SchemaResourceBind, SchemaType};
 
 use crate::{avro::avro_validate, json::json_validate};
 
@@ -71,14 +71,17 @@ impl SchemaRegisterManager {
     }
 
     // Schema Resource
-    pub fn add_schema_resource(&self, topic: &str, schema_name: &str) {
+    pub fn add_schema_resource(&self, schema_resource: &SchemaResourceBind) {
+        let schema_name = &schema_resource.schema_name;
+        let resource = schema_resource.resource_name.clone();
+
         if let Some(mut list) = self.schema_resource_list.get_mut(schema_name) {
             if !list.contains(&schema_name.to_owned()) {
                 list.push(schema_name.to_owned());
             }
         } else {
             self.schema_resource_list
-                .insert(topic.to_owned(), vec![schema_name.to_owned()]);
+                .insert(resource, vec![schema_name.to_owned()]);
         }
     }
 

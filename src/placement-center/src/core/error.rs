@@ -130,4 +130,7 @@ pub enum PlacementCenterError {
 
     #[error("Connector [{0}] already exist")]
     ConnectorAlreadyExist(String),
+
+    #[error("Schema [{0}] does not exist")]
+    SchemaDoesNotExist(String),
 }

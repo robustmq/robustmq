@@ -62,6 +62,8 @@ enum MQTTBrokerUpdateCacheResourceType{
     Subscribe = 2;
     Topic = 3;
     Connector = 4;
+    Schema = 5;
+    SchemaResource = 6;
 }
 
 message SendLastWillMessageRequest{

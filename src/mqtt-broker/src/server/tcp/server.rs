@@ -18,6 +18,7 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use log::info;
+use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
 use tokio::net::TcpListener;
 use tokio::sync::{broadcast, mpsc};
@@ -41,6 +42,7 @@ pub async fn start_tcp_server<S>(
     connection_manager: Arc<ConnectionManager>,
     message_storage_adapter: Arc<S>,
     delay_message_manager: Arc<DelayMessageManager<S>>,
+    schema_manager: Arc<SchemaRegisterManager>,
     client_pool: Arc<ClientPool>,
     stop_sx: broadcast::Sender<bool>,
     auth_driver: Arc<AuthDriver>,
@@ -55,6 +57,7 @@ pub async fn start_tcp_server<S>(
         subscribe_manager.clone(),
         client_pool.clone(),
         connection_manager.clone(),
+        schema_manager.clone(),
         auth_driver.clone(),
     );
 

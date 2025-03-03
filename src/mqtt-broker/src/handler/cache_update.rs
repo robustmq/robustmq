@@ -23,9 +23,11 @@ use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use protocol::broker_mqtt::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateMqttCacheRequest,
 };
+use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 
 use super::cluster_config::build_cluster_config;
@@ -128,6 +130,7 @@ pub async fn update_cache_metadata(
     cache_manager: &Arc<CacheManager>,
     connector_manager: &Arc<ConnectorManager>,
     subscribe_manager: &Arc<SubscribeManager>,
+    schema_manager: &Arc<SchemaRegisterManager>,
     request: UpdateMqttCacheRequest,
 ) {
     match request.resource_type() {
@@ -239,6 +242,54 @@ pub async fn update_cache_metadata(
                 match serde_json::from_str::<MQTTConnector>(&request.data) {
                     Ok(connector) => {
                         connector_manager.remove_connector(&connector.connector_name);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+        },
+        MqttBrokerUpdateCacheResourceType::Schema => match request.action_type() {
+            MqttBrokerUpdateCacheActionType::Set => {
+                match serde_json::from_str::<SchemaData>(&request.data) {
+                    Ok(schema) => {
+                        schema_manager.add_schema(schema);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+            MqttBrokerUpdateCacheActionType::Delete => {
+                match serde_json::from_str::<SchemaData>(&request.data) {
+                    Ok(schema) => {
+                        schema_manager.remove_schema(&schema.name);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+        },
+        MqttBrokerUpdateCacheResourceType::SchemaResource => match request.action_type() {
+            MqttBrokerUpdateCacheActionType::Set => {
+                match serde_json::from_str::<SchemaResourceBind>(&request.data) {
+                    Ok(schema_bind) => {
+                        schema_manager.add_schema_resource(&schema_bind);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+
+            MqttBrokerUpdateCacheActionType::Delete => {
+                match serde_json::from_str::<SchemaResourceBind>(&request.data) {
+                    Ok(schema_bind) => {
+                        schema_manager.remove_resource_schema(
+                            &schema_bind.resource_name,
+                            &schema_bind.schema_name,
+                        );
                     }
                     Err(e) => {
                         error!("{}", e);

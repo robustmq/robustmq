@@ -16,13 +16,16 @@ use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::placement_center::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
 use protocol::placement_center::placement_center_inner::{
-    ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataReply,
-    DeleteIdempotentDataRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
+    BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
+    CreateSchemaReply, CreateSchemaRequest, DeleteIdempotentDataReply, DeleteIdempotentDataRequest,
+    DeleteResourceConfigReply, DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
     ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetOffsetDataReply,
     GetOffsetDataRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply,
-    HeartbeatRequest, NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest,
+    HeartbeatRequest, ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply,
+    ListSchemaRequest, NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest,
     SaveOffsetDataReply, SaveOffsetDataRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
-    SetResourceConfigReply, SetResourceConfigRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
+    SetResourceConfigReply, SetResourceConfigRequest, UnBindSchemaReply, UnBindSchemaRequest,
+    UnRegisterNodeReply, UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest,
 };
 use tonic::transport::Channel;
 
@@ -179,5 +182,68 @@ impl_retriable_request!(
     GetOffsetDataReply,
     placement_center_inner_services_client,
     get_offset_data,
+    true
+);
+
+impl_retriable_request!(
+    ListSchemaRequest,
+    PlacementCenterServiceClient<Channel>,
+    ListSchemaReply,
+    placement_center_inner_services_client,
+    list_schema,
+    true
+);
+
+impl_retriable_request!(
+    CreateSchemaRequest,
+    PlacementCenterServiceClient<Channel>,
+    CreateSchemaReply,
+    placement_center_inner_services_client,
+    create_schema,
+    true
+);
+
+impl_retriable_request!(
+    UpdateSchemaRequest,
+    PlacementCenterServiceClient<Channel>,
+    UpdateSchemaReply,
+    placement_center_inner_services_client,
+    update_schema,
+    true
+);
+
+impl_retriable_request!(
+    DeleteSchemaRequest,
+    PlacementCenterServiceClient<Channel>,
+    DeleteSchemaReply,
+    placement_center_inner_services_client,
+    delete_schema,
+    true
+);
+
+impl_retriable_request!(
+    ListBindSchemaRequest,
+    PlacementCenterServiceClient<Channel>,
+    ListBindSchemaReply,
+    placement_center_inner_services_client,
+    list_bind_schema,
+    true
+);
+
+impl_retriable_request!(
+    BindSchemaRequest,
+    PlacementCenterServiceClient<Channel>,
+    BindSchemaReply,
+    placement_center_inner_services_client,
+    bind_schema,
+    true
+);
+
+impl_retriable_request!(
+    UnBindSchemaRequest,
+    PlacementCenterServiceClient<Channel>,
+    UnBindSchemaReply,
+    placement_center_inner_services_client,
+    un_bind_schema,
     true
 );

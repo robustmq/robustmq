@@ -23,6 +23,7 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
     UpdateMqttCacheReply, UpdateMqttCacheRequest,
 };
+use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
 use tonic::{Request, Response, Status};
 
@@ -36,6 +37,7 @@ pub struct GrpcInnerServices<S> {
     cache_manager: Arc<CacheManager>,
     connector_manager: Arc<ConnectorManager>,
     subscribe_manager: Arc<SubscribeManager>,
+    schema_manager: Arc<SchemaRegisterManager>,
     client_pool: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
 }
@@ -45,6 +47,7 @@ impl<S> GrpcInnerServices<S> {
         cache_manager: Arc<CacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
         connector_manager: Arc<ConnectorManager>,
+        schema_manager: Arc<SchemaRegisterManager>,
         client_pool: Arc<ClientPool>,
         message_storage_adapter: Arc<S>,
     ) -> Self {
@@ -54,6 +57,7 @@ impl<S> GrpcInnerServices<S> {
             connector_manager,
             client_pool,
             message_storage_adapter,
+            schema_manager,
         }
     }
 }
@@ -76,6 +80,7 @@ where
             &self.cache_manager,
             &self.connector_manager,
             &self.subscribe_manager,
+            &self.schema_manager,
             req,
         )
         .await;
