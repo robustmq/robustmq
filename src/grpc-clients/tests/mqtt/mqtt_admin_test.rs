@@ -17,13 +17,15 @@ mod tests {
     use std::sync::Arc;
 
     use grpc_clients::mqtt::admin::call::{
-        mqtt_broker_cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user,
-        mqtt_broker_list_user,
+        mqtt_broker_cluster_status, mqtt_broker_create_schema, mqtt_broker_create_user,
+        mqtt_broker_delete_user, mqtt_broker_list_schema, mqtt_broker_list_user,
     };
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::user::MqttUser;
+    use metadata_struct::schema::{SchemaData, SchemaType};
     use protocol::broker_mqtt::broker_mqtt_admin::{
         ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListUserRequest,
+        MqttCreateSchemaRequest, MqttListSchemaRequest,
     };
 
     use crate::common::get_mqtt_broker_addr;
@@ -110,5 +112,62 @@ mod tests {
                 panic!("{:?}", e);
             }
         };
+    }
+
+    #[tokio::test]
+    async fn schema_test() {
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
+        let addrs = vec![get_mqtt_broker_addr()];
+
+        let schema_name = "test_schema".to_string();
+
+        let schema_data = r#"{
+                "type":"object",
+                "properties":{
+                    "name":{
+                        "type": "string"
+                    },
+                    "age":{
+                        "type": "integer", "minimum": 0
+                    }
+                },
+                "required":["name"]
+            }"#
+        .to_string();
+
+        let create_request = MqttCreateSchemaRequest {
+            schema_name: schema_name.clone(),
+            schema_type: "json".to_string(),
+            schema: schema_data.clone(),
+            desc: "".to_string(),
+        };
+
+        match mqtt_broker_create_schema(&client_pool, &addrs, create_request).await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("create schema failed: {}", e);
+            }
+        }
+
+        let list_request = MqttListSchemaRequest {
+            schema_name: schema_name.clone(),
+        };
+
+        match mqtt_broker_list_schema(&client_pool, &addrs, list_request).await {
+            Ok(reply) => {
+                assert_eq!(reply.schemas.len(), 1);
+                let schema =
+                    serde_json::from_slice::<SchemaData>(reply.schemas.first().unwrap()).unwrap();
+
+                assert_eq!(schema.name, schema_name);
+                assert_eq!(schema.schema_type, SchemaType::JSON);
+                assert_eq!(schema.schema, schema_data);
+                assert_eq!(schema.desc, "".to_string());
+            }
+
+            Err(e) => {
+                panic!("list schema failed: {}", e);
+            }
+        }
     }
 }
