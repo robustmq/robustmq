@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use super::rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER};
 use common_base::error::common::CommonError;
 use rocksdb_engine::engine::{
     rocksdb_engine_delete, rocksdb_engine_exists, rocksdb_engine_get, rocksdb_engine_prefix_list,
@@ -21,8 +20,7 @@ use rocksdb_engine::engine::{
 };
 use rocksdb_engine::warp::StorageDataWrap;
 use serde::Serialize;
-
-use super::rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER};
+use std::sync::Arc;
 
 pub fn engine_save_by_cluster<T>(
     rocksdb_engine_handler: Arc<RocksDBEngine>,

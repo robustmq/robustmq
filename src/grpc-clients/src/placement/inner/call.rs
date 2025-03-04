@@ -141,7 +141,7 @@ generate_placement_service_call!(
     un_bind_schema,
     UnBindSchemaRequest,
     UnBindSchemaReply,
-    BindSchema
+    UnBindSchema
 );
 
 generate_placement_service_call!(

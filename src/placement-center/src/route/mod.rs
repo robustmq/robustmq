@@ -97,29 +97,29 @@ impl DataRoute {
             }
             StorageDataType::ClusterDeleteCluster => Ok(None),
 
-            StorageDataType::ClusterSetResourceConfig => {
+            StorageDataType::ResourceConfigSet => {
                 self.route_cluster.set_resource_config(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::ClusterDeleteResourceConfig => {
+            StorageDataType::ResourceConfigDelete => {
                 self.route_cluster
                     .delete_resource_config(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::ClusterSetIdempotentData => {
+            StorageDataType::IdempotentDataSet => {
                 self.route_cluster.set_idempotent_data(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::ClusterDeleteIdempotentData => {
+            StorageDataType::IdempotentDataDelete => {
                 self.route_cluster
                     .delete_idempotent_data(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::ClusterSaveOffset => {
+            StorageDataType::OffsetSet => {
                 self.route_cluster.save_offset_data(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::ClusterDeleteOffset => {
+            StorageDataType::OffsetDelete => {
                 self.route_cluster.delete_offset_data(storage_data.value)?;
                 Ok(None)
             }

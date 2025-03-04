@@ -40,11 +40,13 @@ pub async fn list_user_by_req(
 ) -> Result<Vec<Vec<u8>>, PlacementCenterError> {
     let storage = MqttUserStorage::new(rocksdb_engine_handler.clone());
 
-    if !req.user_name.is_empty() {
+    if !req.cluster_name.is_empty() && !req.user_name.is_empty() {
         if let Some(data) = storage.get(&req.cluster_name, &req.user_name)? {
             return Ok(vec![data.encode()]);
         }
-    } else {
+    }
+
+    if !req.cluster_name.is_empty() && req.user_name.is_empty() {
         let data = storage.list(&req.cluster_name)?;
         let mut result = Vec::new();
         for raw in data {

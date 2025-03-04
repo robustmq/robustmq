@@ -33,6 +33,7 @@ RobustMQ MQTT 目标是基于 Rust 打造一个高性能、高可用、高可扩
 | Trace | 支持 |
 | 系统主题 | 支持 |
 | 慢订阅统计 | 支持 |
+| Schema | Json、Protobuf、AVRO |
 | QUIC 协议 | 支持 |
 
 ## MQTT 5 特性清单

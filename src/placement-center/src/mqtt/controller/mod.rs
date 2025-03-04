@@ -29,7 +29,6 @@ use crate::mqtt::cache::MqttCacheManager;
 use crate::storage::rocksdb::RocksDBEngine;
 
 pub mod call_broker;
-pub mod connector;
 pub mod message_expire;
 pub mod session_expire;
 
