@@ -16,12 +16,17 @@ use crate::handler::cache::CacheManager;
 use crate::handler::command::Command;
 use crate::handler::error::MqttBrokerError;
 use crate::security::AuthDriver;
+use crate::server::connection::NetworkConnectionType;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::{RequestPackage, ResponsePackage};
+use crate::server::quic::handler::handler_process;
+use crate::server::quic::quic_server_handler::acceptor_process;
+use crate::server::quic::response::response_process;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
+use log::info;
 use quinn::{Connection, Endpoint, ServerConfig, VarInt};
 use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 use rustls_pki_types::PrivateKeyDer;
@@ -44,13 +49,13 @@ pub async fn start_quic_server<S>(
     message_storage_adapter: Arc<S>,
     delay_message_manager: Arc<DelayMessageManager<S>>,
     client_pool: Arc<ClientPool>,
-    _stop_sx: broadcast::Sender<bool>,
+    stop_sx: broadcast::Sender<bool>,
     auth_driver: Arc<AuthDriver>,
 ) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let conf = broker_mqtt_conf();
-    let _command = Command::new(
+    let command = Command::new(
         cache_manager.clone(),
         message_storage_adapter.clone(),
         delay_message_manager.clone(),
@@ -68,10 +73,52 @@ pub async fn start_quic_server<S>(
 
     let quic_endpoint = server.get_endpoint();
 
-    let (_request_queue_sx, _request_queue_rx) = mpsc::channel::<RequestPackage>(1000);
-    let (_response_queue_sx, _response_queue_rx) = mpsc::channel::<ResponsePackage>(1000);
+    let (request_queue_sx, request_queue_rx) = mpsc::channel::<RequestPackage>(1000);
+    let (response_queue_sx, response_queue_rx) = mpsc::channel::<ResponsePackage>(1000);
 
-    let _arc_quic_endpoint = Arc::new(quic_endpoint);
+    let arc_quic_endpoint = Arc::new(quic_endpoint);
+
+    let accept_thread_num = conf.tcp_thread.accept_thread_num;
+    let handler_process_num = conf.tcp_thread.handler_thread_num;
+    let response_thread_num = conf.tcp_thread.response_thread_num;
+
+    let connection_type = NetworkConnectionType::Quic;
+
+    acceptor_process(
+        accept_thread_num,
+        connection_manager.clone(),
+        stop_sx.clone(),
+        arc_quic_endpoint.clone(),
+        request_queue_sx,
+        cache_manager.clone(),
+        connection_type,
+    )
+    .await;
+
+    handler_process(
+        handler_process_num,
+        request_queue_rx,
+        connection_manager.clone(),
+        response_queue_sx,
+        stop_sx.clone(),
+        command.clone(),
+    )
+    .await;
+
+    response_process(
+        response_thread_num,
+        connection_manager.clone(),
+        cache_manager.clone(),
+        response_queue_rx,
+        client_pool.clone(),
+        stop_sx.clone(),
+    )
+    .await;
+
+    info!(
+        "MQTT Quic Server started successfully, listening port: {}",
+        server.local_addr().port()
+    );
 }
 
 #[derive(Clone, Debug)]
