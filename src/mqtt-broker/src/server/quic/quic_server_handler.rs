@@ -13,6 +13,10 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
+use crate::observability::metrics::packets::{
+    record_received_error_metrics, record_received_metrics,
+};
+use crate::observability::slow::request::try_record_total_request_ms;
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::RequestPackage;
@@ -21,9 +25,10 @@ use log::{debug, error, info};
 use protocol::mqtt::codec::MqttCodec;
 use quinn::Endpoint;
 use std::sync::Arc;
-use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::{io, select};
+use tokio_util::codec::FramedRead;
 
 #[allow(dead_code)]
 pub(crate) async fn acceptor_process(
@@ -39,9 +44,9 @@ pub(crate) async fn acceptor_process(
         let endpoint = endpoint_arc.clone();
         let connection_manager = connection_manager.clone();
         let mut stop_rx = stop_sx.subscribe();
-        let _raw_request_queue_sx = request_queue_sx.clone();
-        let _network_type = network_connection_type.clone();
-        let _cache_manager = cache_manager.clone();
+        let raw_request_queue_sx = request_queue_sx.clone();
+        let network_type = network_connection_type.clone();
+        let cache_manager = cache_manager.clone();
         tokio::spawn(async move {
             debug!("Quic Server acceptor thread {} start successfully.", index);
             loop {
@@ -77,7 +82,7 @@ pub(crate) async fn acceptor_process(
                                                 );
                                                 connection_manager.add_connection(connection.clone());
                                                 connection_manager.add_quic_write(connection.connection_id, quic_framed_write_stream);
-
+                                                read_frame_process(quic_framed_read_stream, connection.clone(), raw_request_queue_sx.clone(),connection_stop_rx, network_type.clone(), cache_manager.clone())
                                             },
                                             Err(e) => {
                                                 error!("Quic accept failed to create connection with error message :{:?}",e);
@@ -99,4 +104,51 @@ pub(crate) async fn acceptor_process(
             }
         });
     }
+}
+
+fn read_frame_process(
+    mut read_frame_stream: QuicFramedReadStream,
+    connection: NetworkConnection,
+    request_queue_sx: Sender<RequestPackage>,
+    mut connection_stop_rx: Receiver<bool>,
+    network_type: NetworkConnectionType,
+    cache_manager: Arc<CacheManager>,
+) {
+    tokio::spawn(async move {
+        loop {
+            select! {
+                val = connection_stop_rx.recv() =>{
+                    if let Some(flag) = val{
+                        if flag {
+                            debug!("TCP connection 【{}】 acceptor thread stopped successfully.",connection.connection_id);
+                            break;
+                        }
+                    }
+                }
+                val = read_frame_stream.receive() => {
+                  match val {
+
+                    Ok(packet) => {
+                            record_received_metrics(&connection, &packet, &network_type);
+
+                                info!("revc quic packet:{:?}", packet);
+                                let package =
+                                    RequestPackage::new(connection.connection_id, connection.addr, packet);
+
+                                match request_queue_sx.send(package.clone()).await {
+                                    Ok(_) => {
+                                        try_record_total_request_ms(cache_manager.clone(),package.clone());
+                                    }
+                                    Err(err) => error!("Failed to write data to the request queue, error message: {:?}",err),
+                                }
+                        },
+                        Err(e) => {
+                            record_received_error_metrics(network_type.clone());
+                            debug!("Quic connection parsing packet format error message :{:?}",e)
+                        }
+                }
+                }
+            }
+        }
+    });
 }
