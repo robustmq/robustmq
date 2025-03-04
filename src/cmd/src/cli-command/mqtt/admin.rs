@@ -182,7 +182,9 @@ pub(crate) struct ListSchemaArgs {
 #[command(next_line_help = true)]
 pub(crate) struct CreateSchemaArgs {
     pub(crate) schema_name: String,
-    pub(crate) schema: Vec<u8>,
+    pub(crate) schema_type: String,
+    pub(crate) schema: String,
+    pub(crate) desc: String,
 }
 
 #[derive(Debug, Parser)]
@@ -190,7 +192,9 @@ pub(crate) struct CreateSchemaArgs {
 #[command(next_line_help = true)]
 pub(crate) struct UpdateSchemaArgs {
     pub(crate) schema_name: String,
-    pub(crate) schema: Vec<u8>,
+    pub(crate) schema_type: String,
+    pub(crate) schema: String,
+    pub(crate) desc: String,
 }
 
 #[derive(Debug, Parser)]

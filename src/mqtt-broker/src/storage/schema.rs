@@ -21,6 +21,7 @@ use grpc_clients::{
     },
     pool::ClientPool,
 };
+use metadata_struct::schema::{SchemaData, SchemaType};
 use protocol::{
     broker_mqtt::broker_mqtt_admin::{
         MqttBindSchemaRequest, MqttCreateSchemaRequest, MqttDeleteSchemaRequest,
@@ -62,10 +63,26 @@ pub async fn create_schema_by_req(
     req: &MqttCreateSchemaRequest,
 ) -> Result<(), MqttBrokerError> {
     let config = broker_mqtt_conf();
+
+    let schema_type = match req.schema_type.as_str() {
+        "" | "json" => SchemaType::JSON,
+        "avro" => SchemaType::AVRO,
+        "protobuf" => SchemaType::PROTOBUF,
+        _ => return Err(MqttBrokerError::InvalidSchemaType(req.schema_type.clone())),
+    };
+
+    let schema_data = SchemaData {
+        cluster_name: config.cluster_name.clone(),
+        name: req.schema_name.clone(),
+        schema_type,
+        schema: req.schema.clone(),
+        desc: req.desc.clone(),
+    };
+
     let request = CreateSchemaRequest {
         cluster_name: config.cluster_name.clone(),
         schema_name: req.schema_name.clone(),
-        schema: req.schema.clone(),
+        schema: serde_json::to_vec(&schema_data).unwrap(),
     };
 
     create_schema(client_pool, &config.placement_center, request).await?;
@@ -77,10 +94,26 @@ pub async fn update_schema_by_req(
     req: &MqttUpdateSchemaRequest,
 ) -> Result<(), MqttBrokerError> {
     let config = broker_mqtt_conf();
+
+    let schema_type = match req.schema_type.as_str() {
+        "" | "json" => SchemaType::JSON,
+        "avro" => SchemaType::AVRO,
+        "protobuf" => SchemaType::PROTOBUF,
+        _ => return Err(MqttBrokerError::InvalidSchemaType(req.schema_type.clone())),
+    };
+
+    let schema_data = SchemaData {
+        cluster_name: config.cluster_name.clone(),
+        name: req.schema_name.clone(),
+        schema_type,
+        schema: req.schema.clone(),
+        desc: req.desc.clone(),
+    };
+
     let request = UpdateSchemaRequest {
         cluster_name: config.cluster_name.clone(),
         schema_name: req.schema_name.clone(),
-        schema: req.schema.clone(),
+        schema: serde_json::to_vec(&schema_data).unwrap(),
     };
 
     update_schema(client_pool, &config.placement_center, request).await?;

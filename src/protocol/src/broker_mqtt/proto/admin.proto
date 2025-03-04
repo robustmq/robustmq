@@ -315,14 +315,18 @@ message MqttListSchemaReply {
 
 message MqttCreateSchemaRequest {
     string schema_name = 1;
-    bytes schema = 2;
+    string schema_type = 2;
+    string schema = 3;
+    string desc = 4;
 }
 
 message MqttCreateSchemaReply {}
 
 message MqttUpdateSchemaRequest {
     string schema_name = 1;
-    bytes schema = 2;
+    string schema_type = 2;
+    string schema = 3;
+    string desc = 4;
 }
 
 message MqttUpdateSchemaReply {}

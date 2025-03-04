@@ -273,14 +273,18 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             MQTTAction::CreateSchema(args) => {
                 MqttActionType::CreateSchema(MqttCreateSchemaRequest {
                     schema_name: args.schema_name,
+                    schema_type: args.schema_type,
                     schema: args.schema,
+                    desc: args.desc,
                 })
             }
 
             MQTTAction::UpdateSchema(args) => {
                 MqttActionType::UpdateSchema(MqttUpdateSchemaRequest {
                     schema_name: args.schema_name,
+                    schema_type: args.schema_type,
                     schema: args.schema,
+                    desc: args.desc,
                 })
             }
 

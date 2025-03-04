@@ -102,6 +102,9 @@ pub enum MqttBrokerError {
 
     #[error("Publish message was delayed, the target Topic failed to resolve, Topic name {0}")]
     DelayPublishDecodeTopicNameFail(String),
+
+    #[error("Invalid schema type {0}")]
+    InvalidSchemaType(String),
 }
 
 impl From<MqttBrokerError> for Status {
