@@ -85,7 +85,7 @@ mod test {
             Ok(reply) => {
                 assert_eq!(reply.schemas.len(), 1);
                 let schema =
-                    serde_json::from_slice::<SchemaData>(reply.schemas.get(0).unwrap()).unwrap();
+                    serde_json::from_slice::<SchemaData>(reply.schemas.first().unwrap()).unwrap();
 
                 check_schema_equal(&schema, &schema_data);
             }
