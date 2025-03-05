@@ -70,6 +70,21 @@ impl SchemaRegisterManager {
         self.schema_list.remove(schema_name);
     }
 
+    pub fn get_schema(&self, schema_name: &str) -> Option<SchemaData> {
+        if let Some(schema) = self.schema_list.get(schema_name) {
+            return Some(schema.clone());
+        }
+        None
+    }
+
+    pub fn get_all_schema(&self) -> Vec<SchemaData> {
+        let mut list = Vec::new();
+        for schema in self.schema_list.iter() {
+            list.push(schema.clone());
+        }
+        list
+    }
+
     // Schema Resource
     pub fn add_schema_resource(&self, schema_resource: &SchemaResourceBind) {
         let schema_name = &schema_resource.schema_name;
@@ -92,6 +107,20 @@ impl SchemaRegisterManager {
     pub fn remove_resource_schema(&self, resource: &str, schema_name: &str) {
         if let Some(mut list) = self.schema_resource_list.get_mut(resource) {
             list.retain(|x| x != schema_name);
+        }
+    }
+
+    pub fn get_schema_resource(&self, resource: &str) -> Vec<SchemaData> {
+        if let Some(list) = self.schema_resource_list.get(resource) {
+            let mut res = Vec::new();
+            for schema_name in list.iter() {
+                if let Some(schema) = self.schema_list.get(schema_name) {
+                    res.push(schema.clone());
+                }
+            }
+            res
+        } else {
+            vec![]
         }
     }
 }

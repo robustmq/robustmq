@@ -45,6 +45,15 @@ service MQTTBrokerAdminService {
     rpc mqtt_broker_create_connector(MqttCreateConnectorRequest) returns(MqttCreateConnectorReply){}
     rpc mqtt_broker_delete_connector(MqttDeleteConnectorRequest) returns(MqttDeleteConnectorReply){}
     rpc mqtt_broker_update_connector(MqttUpdateConnectorRequest) returns(MqttUpdateConnectorReply){}
+
+    // schema
+    rpc mqtt_broker_list_schema(MqttListSchemaRequest) returns(MqttListSchemaReply){}
+    rpc mqtt_broker_create_schema(MqttCreateSchemaRequest) returns(MqttCreateSchemaReply){}
+    rpc mqtt_broker_update_schema(MqttUpdateSchemaRequest) returns(MqttUpdateSchemaReply){}
+    rpc mqtt_broker_delete_schema(MqttDeleteSchemaRequest) returns(MqttDeleteSchemaReply){}
+    rpc mqtt_broker_list_bind_schema(MqttListBindSchemaRequest) returns(MqttListBindSchemaReply){}
+    rpc mqtt_broker_bind_schema(MqttBindSchemaRequest) returns(MqttBindSchemaReply){}
+    rpc mqtt_broker_unbind_schema(MqttUnbindSchemaRequest) returns(MqttUnbindSchemaReply){}
 }
 
 // --------- cluster --------
@@ -294,3 +303,59 @@ message MqttUpdateConnectorRequest{
 message MqttUpdateConnectorReply{
 
 }
+
+// --------- mqtt schema --------
+message MqttListSchemaRequest {
+    string schema_name = 1;
+}
+
+message MqttListSchemaReply {
+    repeated bytes schemas = 1;
+}
+
+message MqttCreateSchemaRequest {
+    string schema_name = 1;
+    string schema_type = 2;
+    string schema = 3;
+    string desc = 4;
+}
+
+message MqttCreateSchemaReply {}
+
+message MqttUpdateSchemaRequest {
+    string schema_name = 1;
+    string schema_type = 2;
+    string schema = 3;
+    string desc = 4;
+}
+
+message MqttUpdateSchemaReply {}
+
+message MqttDeleteSchemaRequest {
+    string schema_name = 1;
+}
+
+message MqttDeleteSchemaReply {}
+
+message MqttListBindSchemaRequest {
+    string schema_name = 1;
+    string resource_name = 2;
+}
+
+message MqttListBindSchemaReply {
+    repeated bytes schema_binds = 1;
+}
+
+message MqttBindSchemaRequest {
+    string schema_name = 1;
+    string resource_name = 2;
+}
+
+message MqttBindSchemaReply {}
+
+message MqttUnbindSchemaRequest {
+    string schema_name = 1;
+    string resource_name = 2;
+}
+
+message MqttUnbindSchemaReply {}

@@ -458,6 +458,7 @@ where
                 &self.client_pool,
                 &self.auth_driver,
                 &self.connector_manager,
+                &self.schema_manager,
             )
             .await;
 
