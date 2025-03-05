@@ -34,6 +34,7 @@ use opentelemetry::trace::{Span, SpanKind, Tracer};
 use protocol::mqtt::common::{
     is_mqtt3, is_mqtt4, is_mqtt5, ConnectReturnCode, DisconnectReasonCode, MqttPacket, MqttProtocol,
 };
+use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
 
 // S: message storage adapter
@@ -49,6 +50,7 @@ impl<S> Command<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         cache_manager: Arc<CacheManager>,
         message_storage_adapter: Arc<S>,
@@ -56,6 +58,7 @@ where
         subscribe_manager: Arc<SubscribeManager>,
         client_pool: Arc<ClientPool>,
         connection_manager: Arc<ConnectionManager>,
+        schema_manager: Arc<SchemaRegisterManager>,
         auth_driver: Arc<AuthDriver>,
     ) -> Self {
         let mqtt3_service = MqttService::new(
@@ -65,6 +68,7 @@ where
             message_storage_adapter.clone(),
             delay_message_manager.clone(),
             subscribe_manager.clone(),
+            schema_manager.clone(),
             client_pool.clone(),
             auth_driver.clone(),
         );
@@ -75,6 +79,7 @@ where
             message_storage_adapter.clone(),
             delay_message_manager.clone(),
             subscribe_manager.clone(),
+            schema_manager.clone(),
             client_pool.clone(),
             auth_driver.clone(),
         );
@@ -85,6 +90,7 @@ where
             message_storage_adapter.clone(),
             delay_message_manager.clone(),
             subscribe_manager.clone(),
+            schema_manager.clone(),
             client_pool.clone(),
             auth_driver.clone(),
         );

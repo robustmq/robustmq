@@ -18,3 +18,4 @@ pub mod idempotent;
 pub mod kv;
 pub mod node;
 pub mod offset;
+pub mod schema;

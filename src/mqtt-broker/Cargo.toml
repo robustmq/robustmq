@@ -51,6 +51,7 @@ os_info.workspace = true
 bincode.workspace = true
 grep.workspace = true
 delay-message.workspace = true
+schema-register.workspace = true
 # observability
 prometheus.workspace = true
 prometheus-client.workspace = true

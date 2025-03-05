@@ -60,6 +60,21 @@ service PlacementCenterService {
   rpc SaveOffsetData(SaveOffsetDataRequest) returns(SaveOffsetDataReply) {}
 
   rpc GetOffsetData(GetOffsetDataRequest) returns(GetOffsetDataReply) {}
+
+  rpc ListSchema(ListSchemaRequest) returns(ListSchemaReply) {}
+  
+  rpc CreateSchema(CreateSchemaRequest) returns(CreateSchemaReply) {}
+  
+  rpc UpdateSchema(UpdateSchemaRequest) returns(UpdateSchemaReply) {}
+
+  rpc DeleteSchema(DeleteSchemaRequest) returns(DeleteSchemaReply) {}
+  
+  rpc ListBindSchema(ListBindSchemaRequest) returns(ListBindSchemaReply) {}
+
+  rpc BindSchema(BindSchemaRequest) returns(BindSchemaReply) {}
+
+  rpc UnBindSchema(UnBindSchemaRequest) returns(UnBindSchemaReply) {}
+  
 }
 
 message ClusterStatusRequest{
@@ -228,4 +243,72 @@ message GetOffsetDataReplyOffset{
     string namespace = 1;
     string shard_name = 2;
     uint64 offset = 3;
+}
+
+message ListSchemaRequest{
+    string cluster_name = 1;
+    string schema_name = 2;
+}
+
+message ListSchemaReply{
+    repeated bytes schemas = 1;
+}
+
+message CreateSchemaRequest{
+    string cluster_name = 1;
+    string schema_name = 2;
+    bytes schema = 3;
+}
+
+message CreateSchemaReply{
+
+}
+
+message UpdateSchemaRequest{
+    string cluster_name = 1;
+    string schema_name = 2;
+    bytes schema = 3;
+}
+
+message UpdateSchemaReply{
+
+}
+
+message DeleteSchemaRequest{
+    string cluster_name = 1;
+    string schema_name = 2;
+}
+
+message DeleteSchemaReply{
+
+}
+
+message ListBindSchemaRequest{
+    string cluster_name = 1;
+    string schema_name = 2;
+    string resource_name = 3;
+}
+
+message ListBindSchemaReply{
+    repeated bytes schema_binds = 1;
+}
+
+message BindSchemaRequest{
+    string cluster_name = 1;
+    string schema_name = 2;
+    string resource_name = 3;
+}
+
+message BindSchemaReply{
+
+}
+
+message UnBindSchemaRequest{
+    string cluster_name = 1;
+    string schema_name = 2;
+    string resource_name = 3;
+}
+
+message UnBindSchemaReply{
+
 }
