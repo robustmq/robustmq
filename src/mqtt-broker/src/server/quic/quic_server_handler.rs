@@ -25,10 +25,9 @@ use log::{debug, error, info};
 use protocol::mqtt::codec::MqttCodec;
 use quinn::Endpoint;
 use std::sync::Arc;
+use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
-use tokio::{io, select};
-use tokio_util::codec::FramedRead;
 
 #[allow(dead_code)]
 pub(crate) async fn acceptor_process(
@@ -70,8 +69,8 @@ pub(crate) async fn acceptor_process(
                                         match connection.accept_bi().await {
                                             Ok((w_stream, r_stream)) => {
                                                     let codec = MqttCodec::new(None);
-                                                    let mut quic_framed_write_stream = QuicFramedWriteStream::new(w_stream, codec.clone());
-                                                    let mut quic_framed_read_stream = QuicFramedReadStream::new(r_stream, codec.clone());
+                                                    let quic_framed_write_stream = QuicFramedWriteStream::new(w_stream, codec.clone());
+                                                    let quic_framed_read_stream = QuicFramedReadStream::new(r_stream, codec.clone());
                                                     // todo we need to add quic_establish_connection_check
 
                                                 let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
