@@ -17,12 +17,16 @@ mod test {
     use std::sync::Arc;
 
     use grpc_clients::{
-        placement::mqtt::call::{placement_create_connector, placement_list_connector},
+        placement::mqtt::call::{
+            placement_create_connector, placement_delete_connector, placement_list_connector,
+            placement_update_connector,
+        },
         pool::ClientPool,
     };
-    use metadata_struct::mqtt::bridge::connector::MQTTConnector;
+    use metadata_struct::mqtt::bridge::{connector::MQTTConnector, connector_type::ConnectorType};
     use protocol::placement_center::placement_center_mqtt::{
-        CreateConnectorRequest, ListConnectorRequest,
+        CreateConnectorRequest, DeleteConnectorRequest, ListConnectorRequest,
+        UpdateConnectorRequest,
     };
 
     use crate::common::get_placement_addr;
@@ -49,9 +53,10 @@ mod test {
         let connector_name = "test_connector".to_string();
 
         // create connector
-        let connector = MQTTConnector {
+        let mut connector = MQTTConnector {
             cluster_name: cluster_name.clone(),
             connector_name: connector_name.clone(),
+            connector_type: ConnectorType::LocalFile,
             ..Default::default()
         };
 
@@ -74,7 +79,7 @@ mod test {
             connector_name: connector_name.clone(),
         };
 
-        match placement_list_connector(&client_pool, &addrs, list_request).await {
+        match placement_list_connector(&client_pool, &addrs, list_request.clone()).await {
             Ok(reply) => {
                 assert_eq!(reply.connectors.len(), 1);
 
@@ -84,6 +89,62 @@ mod test {
 
                     check_connector_equal(&mqtt_connector, &connector);
                 }
+            }
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        }
+
+        // update connector
+        connector.connector_type = ConnectorType::LocalFile;
+
+        let update_request = UpdateConnectorRequest {
+            cluster_name: cluster_name.clone(),
+            connector_name: connector_name.clone(),
+            connector: serde_json::to_vec(&connector).unwrap(),
+        };
+
+        match placement_update_connector(&client_pool, &addrs, update_request).await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        }
+
+        // list the connector we just updated
+        match placement_list_connector(&client_pool, &addrs, list_request.clone()).await {
+            Ok(reply) => {
+                assert_eq!(reply.connectors.len(), 1);
+
+                for connector_bytes in reply.connectors {
+                    let mqtt_connector =
+                        serde_json::from_slice::<MQTTConnector>(&connector_bytes).unwrap();
+
+                    check_connector_equal(&mqtt_connector, &connector);
+                }
+            }
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        }
+
+        // delete connector
+        let delete_request = DeleteConnectorRequest {
+            cluster_name: cluster_name.clone(),
+            connector_name: connector_name.clone(),
+        };
+
+        match placement_delete_connector(&client_pool, &addrs, delete_request).await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        }
+
+        // list connector should return nothing
+        match placement_list_connector(&client_pool, &addrs, list_request).await {
+            Ok(reply) => {
+                assert_eq!(reply.connectors.len(), 0);
             }
             Err(e) => {
                 panic!("{:?}", e);
