@@ -17,7 +17,7 @@ use std::sync::Arc;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::{
     placement::inner::call::{
-        bind_schema, create_schema, delete_schema, un_bind_schema, update_schema,
+        bind_schema, create_schema, delete_schema, list_schema, un_bind_schema, update_schema,
     },
     pool::ClientPool,
 };
@@ -29,8 +29,8 @@ use protocol::{
         MqttUpdateSchemaRequest,
     },
     placement_center::placement_center_inner::{
-        BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, UnBindSchemaRequest,
-        UpdateSchemaRequest,
+        BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, ListSchemaRequest,
+        UnBindSchemaRequest, UpdateSchemaRequest,
     },
 };
 use schema_register::schema::SchemaRegisterManager;
@@ -38,14 +38,25 @@ use schema_register::schema::SchemaRegisterManager;
 use crate::handler::error::MqttBrokerError;
 
 pub async fn list_schema_by_req(
+    client_pool: &Arc<ClientPool>,
     schema_manager: &Arc<SchemaRegisterManager>,
     req: &MqttListSchemaRequest,
 ) -> Result<Vec<Vec<u8>>, MqttBrokerError> {
-    let data_list = if req.schema_name.is_empty() {
+    let data_list = if !req.schema_name.is_empty() {
         if let Some(data) = schema_manager.get_schema(req.schema_name.as_str()) {
             vec![data]
         } else {
-            vec![]
+            // request from placement center
+            let config = broker_mqtt_conf();
+            let request = ListSchemaRequest {
+                cluster_name: config.cluster_name.clone(),
+                schema_name: req.schema_name.clone(),
+            };
+
+            let schemas = list_schema(client_pool, &config.placement_center, request)
+                .await?
+                .schemas;
+            return Ok(schemas);
         }
     } else {
         schema_manager.get_all_schema()

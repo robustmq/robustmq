@@ -523,7 +523,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         request: Request<MqttListSchemaRequest>,
     ) -> Result<Response<MqttListSchemaReply>, Status> {
         let req = request.into_inner();
-        match list_schema_by_req(&self.schema_manager, &req).await {
+        match list_schema_by_req(&self.client_pool, &self.schema_manager, &req).await {
             Ok(data) => return Ok(Response::new(MqttListSchemaReply { schemas: data })),
             Err(e) => return Err(Status::cancelled(e.to_string())),
         }
