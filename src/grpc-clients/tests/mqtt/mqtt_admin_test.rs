@@ -17,15 +17,23 @@ mod tests {
     use std::sync::Arc;
 
     use grpc_clients::mqtt::admin::call::{
-        mqtt_broker_cluster_status, mqtt_broker_create_schema, mqtt_broker_create_user,
-        mqtt_broker_delete_user, mqtt_broker_list_schema, mqtt_broker_list_user,
+        mqtt_broker_cluster_status, mqtt_broker_create_connector, mqtt_broker_create_schema,
+        mqtt_broker_create_user, mqtt_broker_delete_connector, mqtt_broker_delete_user,
+        mqtt_broker_list_connector, mqtt_broker_list_schema, mqtt_broker_list_user,
+        mqtt_broker_update_connector,
     };
     use grpc_clients::pool::ClientPool;
+    use metadata_struct::mqtt::bridge::config_kafka::KafkaConnectorConfig;
+    use metadata_struct::mqtt::bridge::config_local_file::LocalFileConnectorConfig;
+    use metadata_struct::mqtt::bridge::connector::MQTTConnector;
+    use metadata_struct::mqtt::bridge::connector_type::ConnectorType;
     use metadata_struct::mqtt::user::MqttUser;
     use metadata_struct::schema::{SchemaData, SchemaType};
     use protocol::broker_mqtt::broker_mqtt_admin::{
         ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListUserRequest,
-        MqttCreateSchemaRequest, MqttListSchemaRequest,
+        MqttConnectorType, MqttCreateConnectorRequest, MqttCreateSchemaRequest,
+        MqttDeleteConnectorRequest, MqttListConnectorRequest, MqttListSchemaRequest,
+        MqttUpdateConnectorRequest,
     };
 
     use crate::common::get_mqtt_broker_addr;
@@ -167,6 +175,129 @@ mod tests {
 
             Err(e) => {
                 panic!("list schema failed: {}", e);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn connector_test() {
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
+        let addrs = vec![get_mqtt_broker_addr()];
+
+        // create connector
+        let connector_name = "test_connector-1".to_string();
+
+        let create_request = MqttCreateConnectorRequest {
+            connector_name: connector_name.clone(),
+            connector_type: MqttConnectorType::File as i32,
+            config: serde_json::to_string(&LocalFileConnectorConfig {
+                local_file_path: "/tmp/test".to_string(),
+            })
+            .unwrap(),
+            topic_id: "test-topic-1".to_string(),
+        };
+
+        match mqtt_broker_create_connector(&client_pool, &addrs, create_request).await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        }
+
+        // list connector we just created
+        let list_request = MqttListConnectorRequest {
+            connector_name: connector_name.clone(),
+        };
+
+        let mut connector =
+            match mqtt_broker_list_connector(&client_pool, &addrs, list_request.clone()).await {
+                Ok(reply) => {
+                    assert_eq!(reply.connectors.len(), 1);
+                    serde_json::from_slice::<MQTTConnector>(reply.connectors.first().unwrap())
+                        .unwrap()
+                }
+
+                Err(e) => {
+                    panic!("{:?}", e);
+                }
+            };
+
+        assert_eq!(&connector.connector_name, &connector_name);
+        assert_eq!(connector.connector_type.clone(), ConnectorType::LocalFile);
+        assert_eq!(
+            &connector.config,
+            &serde_json::to_string(&LocalFileConnectorConfig {
+                local_file_path: "/tmp/test".to_string(),
+            })
+            .unwrap()
+        );
+        assert_eq!(&connector.topic_id, "test-topic-1");
+
+        // update
+        connector.connector_type = ConnectorType::Kafka;
+        connector.config = serde_json::to_string(&KafkaConnectorConfig {
+            bootstrap_servers: "localhost:9092".to_string(),
+        })
+        .unwrap();
+        connector.topic_id = "test-topic-2".to_string();
+
+        let update_request = MqttUpdateConnectorRequest {
+            connector: serde_json::to_vec(&connector).unwrap(),
+        };
+
+        match mqtt_broker_update_connector(&client_pool, &addrs, update_request).await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        }
+
+        // list connector we just updated
+        connector = match mqtt_broker_list_connector(&client_pool, &addrs, list_request.clone())
+            .await
+        {
+            Ok(reply) => {
+                assert_eq!(reply.connectors.len(), 1);
+                serde_json::from_slice::<MQTTConnector>(reply.connectors.first().unwrap()).unwrap()
+            }
+
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        };
+
+        assert_eq!(&connector.connector_name, &connector_name);
+        assert_eq!(connector.connector_type.clone(), ConnectorType::Kafka);
+
+        assert_eq!(
+            &connector.config,
+            &serde_json::to_string(&KafkaConnectorConfig {
+                bootstrap_servers: "localhost:9092".to_string(),
+            })
+            .unwrap()
+        );
+        assert_eq!(&connector.topic_id, "test-topic-2");
+
+        // delete connector
+        let delete_request = MqttDeleteConnectorRequest {
+            connector_name: connector_name.clone(),
+        };
+
+        match mqtt_broker_delete_connector(&client_pool, &addrs, delete_request).await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        }
+
+        // list connector we just deleted
+        match mqtt_broker_list_connector(&client_pool, &addrs, list_request).await {
+            Ok(reply) => {
+                assert_eq!(reply.connectors.len(), 0);
+            }
+
+            Err(e) => {
+                panic!("{:?}", e);
             }
         }
     }
