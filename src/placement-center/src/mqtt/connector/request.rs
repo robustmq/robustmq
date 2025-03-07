@@ -89,10 +89,8 @@ pub async fn update_connector_by_req(
 ) -> Result<(), PlacementCenterError> {
     let storage = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
     let connector = storage.get(&req.cluster_name, &req.connector_name)?;
-    if connector.is_some() {
-        return Err(PlacementCenterError::ConnectorAlreadyExist(
-            req.connector_name,
-        ));
+    if connector.is_none() {
+        return Err(PlacementCenterError::ConnectorNotFound(req.connector_name));
     }
 
     let create_req = CreateConnectorRequest {

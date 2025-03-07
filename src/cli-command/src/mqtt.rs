@@ -412,10 +412,28 @@ impl MqttBrokerCommand {
         let request = ListConnectionRequest {};
         match mqtt_broker_list_connection(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
+                let mut table = Table::new();
+
                 println!("connection list:");
+                table.add_row(row![
+                    "connection_id",
+                    "connection_type",
+                    "protocol",
+                    "source_addr",
+                    "info",
+                ]);
+
                 for raw in data.list_connection_raw {
-                    println!("{:?}", raw)
+                    table.add_row(row![
+                        raw.connection_id,
+                        raw.connection_type,
+                        raw.protocol,
+                        raw.source_addr,
+                        raw.info,
+                    ]);
                 }
+                // output cmd
+                table.printstd();
             }
             Err(e) => {
                 println!("MQTT broker list connection exception");
@@ -547,20 +565,25 @@ impl MqttBrokerCommand {
         match mqtt_broker_list_topic(client_pool, &grpc_addr(params.server), cli_request).await {
             Ok(data) => {
                 println!("topic list result:");
-                for mqtt_topic in data.topics {
-                    println!(
-                        concat!(
-                            "topic id: {}\n",
-                            "topic name: {}\n",
-                            "cluster name: {}\n",
-                            "is contain retain message: {}\n"
-                        ),
-                        mqtt_topic.topic_id,
-                        mqtt_topic.topic_name,
-                        mqtt_topic.cluster_name,
-                        mqtt_topic.is_contain_retain_message
-                    );
+                // format table
+                let mut table = Table::new();
+                table.add_row(row![
+                    "topic_id",
+                    "topic_name",
+                    "cluster_name",
+                    "is_contain_retain_message",
+                ]);
+                let topics = data.topics;
+                for topic in topics {
+                    table.add_row(row![
+                        topic.topic_id,
+                        topic.topic_name,
+                        topic.cluster_name,
+                        topic.is_contain_retain_message
+                    ]);
                 }
+                // output cmd
+                table.printstd()
             }
             Err(e) => {
                 println!("MQTT broker list topic exception");
