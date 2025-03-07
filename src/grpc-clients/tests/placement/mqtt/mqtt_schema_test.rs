@@ -60,7 +60,7 @@ mod test {
                 "required":["name"]
             }"#
             .to_string(),
-            desc: "".to_string(),
+            desc: "Old schema".to_string(),
         };
 
         let create_request = CreateSchemaRequest {
@@ -106,6 +106,7 @@ mod test {
             ]
         }"#
         .to_string();
+        schema_data.desc = "New schema".to_string();
 
         let update_request = UpdateSchemaRequest {
             cluster_name: cluster_name.clone(),

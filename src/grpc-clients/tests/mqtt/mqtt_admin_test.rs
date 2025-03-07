@@ -174,17 +174,13 @@ mod tests {
 
         // update schema
         schema_data = r#"{
-                "type":"object",
-                "properties":{
-                    "name":{
-                        "type": "string"
-                    },
-                    "age":{
-                        "type": "integer", "minimum": 0
-                    }
-                },
-                "required":["name"]
-            }"#
+            "type": "record",
+            "name": "test",
+            "fields": [
+                {"name": "name", "type": "string"},
+                {"name": "age", "type": "int"}
+            ]
+        }"#
         .to_string();
 
         let update_request = MqttUpdateSchemaRequest {
