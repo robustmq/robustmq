@@ -478,7 +478,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         request: Request<MqttListConnectorRequest>,
     ) -> Result<Response<MqttListConnectorReply>, Status> {
         let req = request.into_inner();
-        match list_connector_by_req(&self.connector_manager, &req).await {
+        match list_connector_by_req(&self.client_pool, &self.connector_manager, &req).await {
             Ok(data) => return Ok(Response::new(MqttListConnectorReply { connectors: data })),
             Err(e) => return Err(Status::cancelled(e.to_string())),
         };
