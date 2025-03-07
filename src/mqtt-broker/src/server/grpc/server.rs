@@ -83,7 +83,6 @@ where
             self.metadata_cache.clone(),
             self.connection_manager.clone(),
             self.connector_manager.clone(),
-            self.schema_manager.clone(),
         );
         Server::builder()
             .add_service(MqttBrokerInnerServiceServer::new(inner_handler))
