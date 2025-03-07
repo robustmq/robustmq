@@ -23,6 +23,7 @@ mod tests {
         mqtt_broker_update_connector,
     };
     use grpc_clients::pool::ClientPool;
+    use metadata_struct::mqtt::bridge::config_kafka::KafkaConnectorConfig;
     use metadata_struct::mqtt::bridge::config_local_file::LocalFileConnectorConfig;
     use metadata_struct::mqtt::bridge::connector::MQTTConnector;
     use metadata_struct::mqtt::bridge::connector_type::ConnectorType;
@@ -30,8 +31,9 @@ mod tests {
     use metadata_struct::schema::{SchemaData, SchemaType};
     use protocol::broker_mqtt::broker_mqtt_admin::{
         ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListUserRequest,
-        MqttCreateConnectorRequest, MqttCreateSchemaRequest, MqttDeleteConnectorRequest,
-        MqttListConnectorRequest, MqttListSchemaRequest, MqttUpdateConnectorRequest,
+        MqttConnectorType, MqttCreateConnectorRequest, MqttCreateSchemaRequest,
+        MqttDeleteConnectorRequest, MqttListConnectorRequest, MqttListSchemaRequest,
+        MqttUpdateConnectorRequest,
     };
 
     use crate::common::get_mqtt_broker_addr;
@@ -183,18 +185,16 @@ mod tests {
         let addrs = vec![get_mqtt_broker_addr()];
 
         // create connector
-        let connector_name = "test_connector".to_string();
-
-        let config = serde_json::to_string(&LocalFileConnectorConfig {
-            local_file_path: "/tmp/test".to_string(),
-        })
-        .unwrap();
+        let connector_name = "test_connector-1".to_string();
 
         let create_request = MqttCreateConnectorRequest {
             connector_name: connector_name.clone(),
-            connector_type: ConnectorType::Kafka as i32,
-            config: config.clone(),
-            topic_id: "test-topic".to_string(),
+            connector_type: MqttConnectorType::File as i32,
+            config: serde_json::to_string(&LocalFileConnectorConfig {
+                local_file_path: "/tmp/test".to_string(),
+            })
+            .unwrap(),
+            topic_id: "test-topic-1".to_string(),
         };
 
         match mqtt_broker_create_connector(&client_pool, &addrs, create_request).await {
@@ -223,21 +223,23 @@ mod tests {
             };
 
         assert_eq!(&connector.connector_name, &connector_name);
+        assert_eq!(connector.connector_type.clone(), ConnectorType::LocalFile);
         assert_eq!(
-            connector.connector_type.clone() as i32,
-            ConnectorType::Kafka as i32
+            &connector.config,
+            &serde_json::to_string(&LocalFileConnectorConfig {
+                local_file_path: "/tmp/test".to_string(),
+            })
+            .unwrap()
         );
-        assert_eq!(&connector.config, &config);
-        assert_eq!(&connector.topic_id, "test-topic");
+        assert_eq!(&connector.topic_id, "test-topic-1");
 
         // update
-        let new_config = serde_json::to_string(&LocalFileConnectorConfig {
-            local_file_path: "/tmp/test2".to_string(),
+        connector.connector_type = ConnectorType::Kafka;
+        connector.config = serde_json::to_string(&KafkaConnectorConfig {
+            bootstrap_servers: "localhost:9092".to_string(),
         })
         .unwrap();
-
-        connector.config = new_config.clone();
-        connector.connector_type = ConnectorType::LocalFile;
+        connector.topic_id = "test-topic-2".to_string();
 
         let update_request = MqttUpdateConnectorRequest {
             connector: serde_json::to_vec(&connector).unwrap(),
@@ -265,13 +267,16 @@ mod tests {
         };
 
         assert_eq!(&connector.connector_name, &connector_name);
-        assert_eq!(
-            connector.connector_type.clone() as i32,
-            ConnectorType::LocalFile as i32
-        );
+        assert_eq!(connector.connector_type.clone(), ConnectorType::Kafka);
 
-        assert_eq!(&connector.config, &new_config);
-        assert_eq!(&connector.topic_id, "test-topic");
+        assert_eq!(
+            &connector.config,
+            &serde_json::to_string(&KafkaConnectorConfig {
+                bootstrap_servers: "localhost:9092".to_string(),
+            })
+            .unwrap()
+        );
+        assert_eq!(&connector.topic_id, "test-topic-2");
 
         // delete connector
         let delete_request = MqttDeleteConnectorRequest {

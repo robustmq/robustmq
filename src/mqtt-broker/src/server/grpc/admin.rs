@@ -45,7 +45,6 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 use schema_register::schema::SchemaRegisterManager;
 use tonic::{Request, Response, Status};
 
-use crate::bridge::manager::ConnectorManager;
 use crate::bridge::request::{
     create_connector_by_req, delete_connector_by_req, list_connector_by_req,
     update_connector_by_req,
@@ -66,7 +65,6 @@ pub struct GrpcAdminServices {
     client_pool: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
     connection_manager: Arc<ConnectionManager>,
-    connector_manager: Arc<ConnectorManager>,
     schema_manager: Arc<SchemaRegisterManager>,
 }
 
@@ -75,14 +73,12 @@ impl GrpcAdminServices {
         client_pool: Arc<ClientPool>,
         cache_manager: Arc<CacheManager>,
         connection_manager: Arc<ConnectionManager>,
-        connector_manager: Arc<ConnectorManager>,
         schema_manager: Arc<SchemaRegisterManager>,
     ) -> Self {
         GrpcAdminServices {
             client_pool,
             cache_manager,
             connection_manager,
-            connector_manager,
             schema_manager,
         }
     }
@@ -478,7 +474,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         request: Request<MqttListConnectorRequest>,
     ) -> Result<Response<MqttListConnectorReply>, Status> {
         let req = request.into_inner();
-        match list_connector_by_req(&self.client_pool, &self.connector_manager, &req).await {
+        match list_connector_by_req(&self.client_pool, &req).await {
             Ok(data) => return Ok(Response::new(MqttListConnectorReply { connectors: data })),
             Err(e) => return Err(Status::cancelled(e.to_string())),
         };

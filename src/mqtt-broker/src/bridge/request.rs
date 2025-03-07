@@ -30,39 +30,21 @@ use protocol::{
 
 use crate::{handler::error::MqttBrokerError, storage::connector::ConnectorStorage};
 
-use super::manager::ConnectorManager;
-
 pub async fn list_connector_by_req(
     client_pool: &Arc<ClientPool>,
-    connector_manager: &Arc<ConnectorManager>,
     req: &MqttListConnectorRequest,
 ) -> Result<Vec<Vec<u8>>, MqttBrokerError> {
-    let data_list = if !req.connector_name.is_empty() {
-        if let Some(data) = connector_manager.get_connector(req.connector_name.as_str()) {
-            vec![data]
-        } else {
-            let config = broker_mqtt_conf();
-            let request = ListConnectorRequest {
-                cluster_name: config.cluster_name.clone(),
-                connector_name: req.connector_name.clone(),
-            };
-
-            let connectors =
-                placement_list_connector(client_pool, &config.placement_center, request)
-                    .await?
-                    .connectors;
-
-            return Ok(connectors);
-        }
-    } else {
-        connector_manager.get_all_connector()
+    let config = broker_mqtt_conf();
+    let request = ListConnectorRequest {
+        cluster_name: config.cluster_name.clone(),
+        connector_name: req.connector_name.clone(),
     };
-    let mut results = Vec::new();
-    for data in data_list {
-        results.push(data.encode());
-    }
 
-    Ok(results)
+    let connectors = placement_list_connector(client_pool, &config.placement_center, request)
+        .await?
+        .connectors;
+
+    return Ok(connectors);
 }
 
 pub async fn create_connector_by_req(
@@ -96,7 +78,7 @@ pub async fn update_connector_by_req(
     let connector = serde_json::from_slice::<MQTTConnector>(&req.connector)?;
     connector_config_validator(&connector.connector_type, &connector.config)?;
     let storage = ConnectorStorage::new(client_pool.clone());
-    storage.create_connector(connector).await?;
+    storage.update_connector(connector).await?;
     Ok(())
 }
 

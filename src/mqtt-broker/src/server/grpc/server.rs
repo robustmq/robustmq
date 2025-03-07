@@ -82,7 +82,6 @@ where
             self.client_pool.clone(),
             self.metadata_cache.clone(),
             self.connection_manager.clone(),
-            self.connector_manager.clone(),
             self.schema_manager.clone(),
         );
         Server::builder()

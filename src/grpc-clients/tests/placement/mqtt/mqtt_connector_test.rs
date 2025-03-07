@@ -23,7 +23,10 @@ mod test {
         },
         pool::ClientPool,
     };
-    use metadata_struct::mqtt::bridge::{connector::MQTTConnector, connector_type::ConnectorType};
+    use metadata_struct::mqtt::bridge::{
+        config_kafka::KafkaConnectorConfig, config_local_file::LocalFileConnectorConfig,
+        connector::MQTTConnector, connector_type::ConnectorType,
+    };
     use protocol::placement_center::placement_center_mqtt::{
         CreateConnectorRequest, DeleteConnectorRequest, ListConnectorRequest,
         UpdateConnectorRequest,
@@ -57,6 +60,11 @@ mod test {
             cluster_name: cluster_name.clone(),
             connector_name: connector_name.clone(),
             connector_type: ConnectorType::LocalFile,
+            config: serde_json::to_string(&LocalFileConnectorConfig {
+                local_file_path: "/tmp/test".to_string(),
+            })
+            .unwrap(),
+            topic_id: "test_topic-1".to_string(),
             ..Default::default()
         };
 
@@ -96,7 +104,12 @@ mod test {
         }
 
         // update connector
-        connector.connector_type = ConnectorType::LocalFile;
+        connector.connector_type = ConnectorType::Kafka;
+        connector.config = serde_json::to_string(&KafkaConnectorConfig {
+            bootstrap_servers: "localhost:9092".to_string(),
+        })
+        .unwrap();
+        connector.topic_id = "test_topic-2".to_string();
 
         let update_request = UpdateConnectorRequest {
             cluster_name: cluster_name.clone(),
