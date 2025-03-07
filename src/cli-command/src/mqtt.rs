@@ -412,10 +412,28 @@ impl MqttBrokerCommand {
         let request = ListConnectionRequest {};
         match mqtt_broker_list_connection(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
+                let mut table = Table::new();
+
                 println!("connection list:");
+                table.add_row(row![
+                    "connection_id",
+                    "connection_type",
+                    "protocol",
+                    "source_addr",
+                    "info",
+                ]);
+
                 for raw in data.list_connection_raw {
-                    println!("{:?}", raw)
+                    table.add_row(row![
+                        raw.connection_id,
+                        raw.connection_type,
+                        raw.protocol,
+                        raw.source_addr,
+                        raw.info,
+                    ]);
                 }
+                // output cmd
+                table.printstd();
             }
             Err(e) => {
                 println!("MQTT broker list connection exception");
