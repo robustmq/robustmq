@@ -44,7 +44,7 @@ pub async fn list_connector_by_req(
         .await?
         .connectors;
 
-    return Ok(connectors);
+    Ok(connectors)
 }
 
 pub async fn create_connector_by_req(
