@@ -566,14 +566,14 @@ impl MqttBrokerCommand {
             Ok(data) => {
                 println!("topic list result:");
                 // format table
-                let mut table = Table::new();                
+                let mut table = Table::new();
                 table.add_row(row![
                     "topic_id",
                     "topic_name",
                     "cluster_name",
                     "is_contain_retain_message",
                 ]);
-                let topics=data.topics;
+                let topics = data.topics;
                 for topic in topics {
                     table.add_row(row![
                         topic.topic_id,
@@ -583,7 +583,7 @@ impl MqttBrokerCommand {
                     ]);
                 }
                 // output cmd
-                table.printstd()              
+                table.printstd()
             }
             Err(e) => {
                 println!("MQTT broker list topic exception");

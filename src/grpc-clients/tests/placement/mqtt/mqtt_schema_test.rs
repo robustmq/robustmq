@@ -17,12 +17,12 @@ mod test {
     use std::sync::Arc;
 
     use grpc_clients::{
-        placement::inner::call::{create_schema, list_schema},
+        placement::inner::call::{create_schema, delete_schema, list_schema, update_schema},
         pool::ClientPool,
     };
     use metadata_struct::schema::{SchemaData, SchemaType};
     use protocol::placement_center::placement_center_inner::{
-        CreateSchemaRequest, ListSchemaRequest,
+        CreateSchemaRequest, DeleteSchemaRequest, ListSchemaRequest, UpdateSchemaRequest,
     };
 
     use crate::common::get_placement_addr;
@@ -43,7 +43,7 @@ mod test {
         let cluster_name = "test_cluster".to_string();
         let schema_name = "test_schema".to_string();
 
-        let schema_data = SchemaData {
+        let mut schema_data = SchemaData {
             cluster_name: cluster_name.clone(),
             name: schema_name.clone(),
             schema_type: SchemaType::JSON,
@@ -60,7 +60,7 @@ mod test {
                 "required":["name"]
             }"#
             .to_string(),
-            desc: "".to_string(),
+            desc: "Old schema".to_string(),
         };
 
         let create_request = CreateSchemaRequest {
@@ -81,13 +81,77 @@ mod test {
             schema_name: "".to_string(),
         };
 
-        match list_schema(&client_pool, &addrs, list_request).await {
+        match list_schema(&client_pool, &addrs, list_request.clone()).await {
             Ok(reply) => {
                 assert_eq!(reply.schemas.len(), 1);
                 let schema =
                     serde_json::from_slice::<SchemaData>(reply.schemas.first().unwrap()).unwrap();
 
                 check_schema_equal(&schema, &schema_data);
+            }
+
+            Err(e) => {
+                panic!("list schema failed: {}", e);
+            }
+        }
+
+        // update schema
+        schema_data.schema_type = SchemaType::AVRO;
+        schema_data.schema = r#"{
+            "type": "record",
+            "name": "test",
+            "fields": [
+                {"name": "name", "type": "string"},
+                {"name": "age", "type": "int"}
+            ]
+        }"#
+        .to_string();
+        schema_data.desc = "New schema".to_string();
+
+        let update_request = UpdateSchemaRequest {
+            cluster_name: cluster_name.clone(),
+            schema_name: schema_name.clone(),
+            schema: serde_json::to_vec(&schema_data).unwrap(),
+        };
+
+        match update_schema(&client_pool, &addrs, update_request).await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("update schema failed: {}", e);
+            }
+        }
+
+        // check the schema we just updated
+        match list_schema(&client_pool, &addrs, list_request.clone()).await {
+            Ok(reply) => {
+                assert_eq!(reply.schemas.len(), 1);
+                let schema =
+                    serde_json::from_slice::<SchemaData>(reply.schemas.first().unwrap()).unwrap();
+
+                check_schema_equal(&schema, &schema_data);
+            }
+
+            Err(e) => {
+                panic!("list schema failed: {}", e);
+            }
+        }
+
+        // delete schema
+        let delete_request = DeleteSchemaRequest {
+            cluster_name: cluster_name.clone(),
+            schema_name: schema_name.clone(),
+        };
+
+        match delete_schema(&client_pool, &addrs, delete_request).await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("delete schema failed: {}", e);
+            }
+        }
+
+        match list_schema(&client_pool, &addrs, list_request).await {
+            Ok(reply) => {
+                assert_eq!(reply.schemas.len(), 0);
             }
 
             Err(e) => {

@@ -18,9 +18,9 @@ mod tests {
 
     use grpc_clients::mqtt::admin::call::{
         mqtt_broker_cluster_status, mqtt_broker_create_connector, mqtt_broker_create_schema,
-        mqtt_broker_create_user, mqtt_broker_delete_connector, mqtt_broker_delete_user,
-        mqtt_broker_list_connector, mqtt_broker_list_schema, mqtt_broker_list_user,
-        mqtt_broker_update_connector,
+        mqtt_broker_create_user, mqtt_broker_delete_connector, mqtt_broker_delete_schema,
+        mqtt_broker_delete_user, mqtt_broker_list_connector, mqtt_broker_list_schema,
+        mqtt_broker_list_user, mqtt_broker_update_connector, mqtt_broker_update_schema,
     };
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::bridge::config_kafka::KafkaConnectorConfig;
@@ -32,8 +32,8 @@ mod tests {
     use protocol::broker_mqtt::broker_mqtt_admin::{
         ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListUserRequest,
         MqttConnectorType, MqttCreateConnectorRequest, MqttCreateSchemaRequest,
-        MqttDeleteConnectorRequest, MqttListConnectorRequest, MqttListSchemaRequest,
-        MqttUpdateConnectorRequest,
+        MqttDeleteConnectorRequest, MqttDeleteSchemaRequest, MqttListConnectorRequest,
+        MqttListSchemaRequest, MqttUpdateConnectorRequest, MqttUpdateSchemaRequest,
     };
 
     use crate::common::get_mqtt_broker_addr;
@@ -129,7 +129,7 @@ mod tests {
 
         let schema_name = "test_schema".to_string();
 
-        let schema_data = r#"{
+        let mut schema_data = r#"{
                 "type":"object",
                 "properties":{
                     "name":{
@@ -147,7 +147,7 @@ mod tests {
             schema_name: schema_name.clone(),
             schema_type: "json".to_string(),
             schema: schema_data.clone(),
-            desc: "".to_string(),
+            desc: "Old schema".to_string(),
         };
 
         match mqtt_broker_create_schema(&client_pool, &addrs, create_request).await {
@@ -161,7 +161,7 @@ mod tests {
             schema_name: schema_name.clone(),
         };
 
-        match mqtt_broker_list_schema(&client_pool, &addrs, list_request).await {
+        match mqtt_broker_list_schema(&client_pool, &addrs, list_request.clone()).await {
             Ok(reply) => {
                 assert_eq!(reply.schemas.len(), 1);
                 let schema =
@@ -170,7 +170,72 @@ mod tests {
                 assert_eq!(schema.name, schema_name);
                 assert_eq!(schema.schema_type, SchemaType::JSON);
                 assert_eq!(schema.schema, schema_data);
-                assert_eq!(schema.desc, "".to_string());
+                assert_eq!(schema.desc, "Old schema".to_string());
+            }
+
+            Err(e) => {
+                panic!("list schema failed: {}", e);
+            }
+        }
+
+        // update schema
+        schema_data = r#"{
+            "type": "record",
+            "name": "test",
+            "fields": [
+                {"name": "name", "type": "string"},
+                {"name": "age", "type": "int"}
+            ]
+        }"#
+        .to_string();
+
+        let update_request = MqttUpdateSchemaRequest {
+            schema_name: schema_name.clone(),
+            schema_type: "avro".to_string(),
+            schema: schema_data.clone(),
+            desc: "New schema".to_string(),
+        };
+
+        match mqtt_broker_update_schema(&client_pool, &addrs, update_request).await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("update schema failed: {}", e);
+            }
+        }
+
+        // list the request just updated
+        match mqtt_broker_list_schema(&client_pool, &addrs, list_request.clone()).await {
+            Ok(reply) => {
+                assert_eq!(reply.schemas.len(), 1);
+                let schema =
+                    serde_json::from_slice::<SchemaData>(reply.schemas.first().unwrap()).unwrap();
+
+                assert_eq!(schema.name, schema_name);
+                assert_eq!(schema.schema_type, SchemaType::AVRO);
+                assert_eq!(schema.schema, schema_data);
+                assert_eq!(schema.desc, "New schema".to_string());
+            }
+
+            Err(e) => {
+                panic!("list schema failed: {}", e);
+            }
+        }
+
+        // delete schema
+        let delete_request = MqttDeleteSchemaRequest {
+            schema_name: schema_name.clone(),
+        };
+
+        match mqtt_broker_delete_schema(&client_pool, &addrs, delete_request).await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("delete schema failed: {}", e);
+            }
+        }
+
+        match mqtt_broker_list_schema(&client_pool, &addrs, list_request).await {
+            Ok(reply) => {
+                assert_eq!(reply.schemas.len(), 0);
             }
 
             Err(e) => {
