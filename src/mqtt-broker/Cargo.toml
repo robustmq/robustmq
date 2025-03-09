@@ -61,6 +61,7 @@ rcgen.workspace = true
 rustls-pki-types.workspace = true
 rustls.workspace = true
 bindgen.workspace = true
+rdkafka.workspace = true
 
 
 [dev-dependencies]
