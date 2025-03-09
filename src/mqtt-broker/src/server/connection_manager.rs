@@ -29,6 +29,7 @@ use super::connection::{NetworkConnection, NetworkConnectionType};
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::observability::metrics::packets::record_sent_metrics;
+use crate::server::quic::quic_stream_wrapper::QuicFramedWriteStream;
 
 pub struct ConnectionManager {
     connections: DashMap<u64, NetworkConnection>,
@@ -42,6 +43,7 @@ pub struct ConnectionManager {
         >,
     >,
     websocket_write_list: DashMap<u64, SplitSink<WebSocket, Message>>,
+    quic_write_list: DashMap<u64, QuicFramedWriteStream>,
     cache_manager: Arc<CacheManager>,
 }
 
@@ -51,12 +53,14 @@ impl ConnectionManager {
         let tcp_write_list = DashMap::with_capacity(64);
         let tcp_tls_write_list = DashMap::with_capacity(64);
         let websocket_write_list = DashMap::with_capacity(64);
+        let quic_write_list = DashMap::with_capacity(64);
         ConnectionManager {
             connections,
             tcp_write_list,
             tcp_tls_write_list,
             cache_manager,
             websocket_write_list,
+            quic_write_list,
         }
     }
 
@@ -90,6 +94,15 @@ impl ConnectionManager {
 
     pub fn add_websocket_write(&self, connection_id: u64, write: SplitSink<WebSocket, Message>) {
         self.websocket_write_list.insert(connection_id, write);
+    }
+
+    pub fn add_quic_write(
+        &self,
+        connection_id: u64,
+        quic_framed_write_stream: QuicFramedWriteStream,
+    ) {
+        self.quic_write_list
+            .insert(connection_id, quic_framed_write_stream);
     }
 
     pub async fn close_all_connect(&self) {

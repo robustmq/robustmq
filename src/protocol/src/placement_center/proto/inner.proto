@@ -62,19 +62,19 @@ service PlacementCenterService {
   rpc GetOffsetData(GetOffsetDataRequest) returns(GetOffsetDataReply) {}
 
   rpc ListSchema(ListSchemaRequest) returns(ListSchemaReply) {}
-  
+
   rpc CreateSchema(CreateSchemaRequest) returns(CreateSchemaReply) {}
-  
+
   rpc UpdateSchema(UpdateSchemaRequest) returns(UpdateSchemaReply) {}
 
   rpc DeleteSchema(DeleteSchemaRequest) returns(DeleteSchemaReply) {}
-  
+
   rpc ListBindSchema(ListBindSchemaRequest) returns(ListBindSchemaReply) {}
 
   rpc BindSchema(BindSchemaRequest) returns(BindSchemaReply) {}
 
   rpc UnBindSchema(UnBindSchemaRequest) returns(UnBindSchemaReply) {}
-  
+
 }
 
 message ClusterStatusRequest{
