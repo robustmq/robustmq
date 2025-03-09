@@ -29,6 +29,10 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableSlowSubscribeRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
     ListBlacklistRequest, ListConnectionReply, ListConnectionRequest, ListSlowSubscribeReply,
     ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+    MqttBindSchemaReply, MqttBindSchemaRequest, MqttCreateSchemaReply, MqttCreateSchemaRequest,
+    MqttDeleteSchemaReply, MqttDeleteSchemaRequest, MqttListBindSchemaReply,
+    MqttListBindSchemaRequest, MqttListSchemaReply, MqttListSchemaRequest, MqttUnbindSchemaReply,
+    MqttUnbindSchemaRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
 };
 use tonic::transport::Channel;
 
@@ -238,4 +242,61 @@ impl_retriable_request!(
     MqttDeleteConnectorReply,
     mqtt_broker_admin_services_client,
     mqtt_broker_delete_connector
+);
+
+// schema command line CRUD
+impl_retriable_request!(
+    MqttListSchemaRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    MqttListSchemaReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_list_schema
+);
+
+impl_retriable_request!(
+    MqttCreateSchemaRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    MqttCreateSchemaReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_create_schema
+);
+
+impl_retriable_request!(
+    MqttUpdateSchemaRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    MqttUpdateSchemaReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_update_schema
+);
+
+impl_retriable_request!(
+    MqttDeleteSchemaRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    MqttDeleteSchemaReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_delete_schema
+);
+
+impl_retriable_request!(
+    MqttListBindSchemaRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    MqttListBindSchemaReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_list_bind_schema
+);
+
+impl_retriable_request!(
+    MqttBindSchemaRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    MqttBindSchemaReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_bind_schema
+);
+
+impl_retriable_request!(
+    MqttUnbindSchemaRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    MqttUnbindSchemaReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_unbind_schema
 );

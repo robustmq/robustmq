@@ -217,7 +217,7 @@ impl PlacementCenterService for GrpcPlacementService {
         let _ = req.validate_ext()?;
 
         let data = StorageData::new(
-            StorageDataType::ClusterSetResourceConfig,
+            StorageDataType::ResourceConfigSet,
             SetResourceConfigRequest::encode_to_vec(&req),
         );
 
@@ -260,7 +260,7 @@ impl PlacementCenterService for GrpcPlacementService {
         let _ = req.validate_ext()?;
 
         let data = StorageData::new(
-            StorageDataType::ClusterDeleteResourceConfig,
+            StorageDataType::ResourceConfigDelete,
             DeleteResourceConfigRequest::encode_to_vec(&req),
         );
 
@@ -279,7 +279,7 @@ impl PlacementCenterService for GrpcPlacementService {
         let req = request.into_inner();
         let _ = req.validate_ext()?;
         let data = StorageData::new(
-            StorageDataType::ClusterSetIdempotentData,
+            StorageDataType::IdempotentDataSet,
             SetIdempotentDataRequest::encode_to_vec(&req),
         );
 
@@ -317,7 +317,7 @@ impl PlacementCenterService for GrpcPlacementService {
         let req = request.into_inner();
         let _ = req.validate_ext()?;
         let data = StorageData::new(
-            StorageDataType::ClusterDeleteIdempotentData,
+            StorageDataType::IdempotentDataDelete,
             DeleteIdempotentDataRequest::encode_to_vec(&req),
         );
 
@@ -335,7 +335,7 @@ impl PlacementCenterService for GrpcPlacementService {
     ) -> Result<Response<SaveOffsetDataReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
-            StorageDataType::ClusterSaveOffset,
+            StorageDataType::OffsetSet,
             SaveOffsetDataRequest::encode_to_vec(&req),
         );
 

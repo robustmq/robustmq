@@ -20,12 +20,17 @@ use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
 use mqtt::admin::{
-    CreateConnectorArgs, DeleteConnectorArgs, ListConnectorArgs, UpdateConnectorArgs,
+    BindSchemaArgs, CreateConnectorArgs, CreateSchemaArgs, DeleteConnectorArgs, DeleteSchemaArgs,
+    ListBindSchemaArgs, ListConnectorArgs, ListSchemaArgs, UnbindSchemaArgs, UpdateConnectorArgs,
+    UpdateSchemaArgs,
 };
 use mqtt::publish::process_subscribe_args;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    EnableFlappingDetectRequest, ListTopicRequest, MqttCreateConnectorRequest,
-    MqttDeleteConnectorRequest, MqttListConnectorRequest, MqttUpdateConnectorRequest,
+    EnableFlappingDetectRequest, ListTopicRequest, MqttBindSchemaRequest,
+    MqttCreateConnectorRequest, MqttCreateSchemaRequest, MqttDeleteConnectorRequest,
+    MqttDeleteSchemaRequest, MqttListBindSchemaRequest, MqttListConnectorRequest,
+    MqttListSchemaRequest, MqttUnbindSchemaRequest, MqttUpdateConnectorRequest,
+    MqttUpdateSchemaRequest,
 };
 
 use protocol::placement_center::placement_center_openraft::{
@@ -108,6 +113,22 @@ enum MQTTAction {
     UpdateConnector(UpdateConnectorArgs),
     #[clap(name = "delete-connector")]
     DeleteConnector(DeleteConnectorArgs),
+
+    // schema
+    #[clap(name = "list-schema")]
+    ListSchema(ListSchemaArgs),
+    #[clap(name = "create-schema")]
+    CreateSchema(CreateSchemaArgs),
+    #[clap(name = "update-schema")]
+    UpdateSchema(UpdateSchemaArgs),
+    #[clap(name = "delete-schema")]
+    DeleteSchema(DeleteSchemaArgs),
+    #[clap(name = "list-bind-schema")]
+    ListBindSchema(ListBindSchemaArgs),
+    #[clap(name = "bind-schema")]
+    BindSchema(BindSchemaArgs),
+    #[clap(name = "unbind-schema")]
+    UnbindSchema(UnbindSchemaArgs),
 }
 
 #[derive(ValueEnum, Clone, Debug)]
@@ -241,6 +262,54 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             MQTTAction::DeleteConnector(args) => {
                 MqttActionType::DeleteConnector(MqttDeleteConnectorRequest {
                     connector_name: args.connector_name,
+                })
+            }
+
+            // schema
+            MQTTAction::ListSchema(args) => MqttActionType::ListSchema(MqttListSchemaRequest {
+                schema_name: args.schema_name,
+            }),
+
+            MQTTAction::CreateSchema(args) => {
+                MqttActionType::CreateSchema(MqttCreateSchemaRequest {
+                    schema_name: args.schema_name,
+                    schema_type: args.schema_type,
+                    schema: args.schema,
+                    desc: args.desc,
+                })
+            }
+
+            MQTTAction::UpdateSchema(args) => {
+                MqttActionType::UpdateSchema(MqttUpdateSchemaRequest {
+                    schema_name: args.schema_name,
+                    schema_type: args.schema_type,
+                    schema: args.schema,
+                    desc: args.desc,
+                })
+            }
+
+            MQTTAction::DeleteSchema(args) => {
+                MqttActionType::DeleteSchema(MqttDeleteSchemaRequest {
+                    schema_name: args.schema_name,
+                })
+            }
+
+            MQTTAction::ListBindSchema(args) => {
+                MqttActionType::ListBindSchema(MqttListBindSchemaRequest {
+                    schema_name: args.schema_name,
+                    resource_name: args.resource_name,
+                })
+            }
+
+            MQTTAction::BindSchema(args) => MqttActionType::BindSchema(MqttBindSchemaRequest {
+                schema_name: args.schema_name,
+                resource_name: args.resource_name,
+            }),
+
+            MQTTAction::UnbindSchema(args) => {
+                MqttActionType::UnbindSchema(MqttUnbindSchemaRequest {
+                    schema_name: args.schema_name,
+                    resource_name: args.resource_name,
                 })
             }
         },

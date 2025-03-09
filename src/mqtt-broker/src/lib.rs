@@ -227,7 +227,7 @@ where
         let connection_manager = self.connection_manager.clone();
         let auth_driver = self.auth_driver.clone();
         let delay_message_manager = self.delay_message_manager.clone();
-
+        let schema_manager = self.schema_manager.clone();
         self.runtime.spawn(async move {
             start_quic_server(
                 subscribe_manager,
@@ -238,6 +238,7 @@ where
                 client_pool,
                 stop_send,
                 auth_driver,
+                schema_manager,
             )
             .await
         });
@@ -484,6 +485,7 @@ where
                 &self.client_pool,
                 &self.auth_driver,
                 &self.connector_manager,
+                &self.schema_manager,
             )
             .await;
 

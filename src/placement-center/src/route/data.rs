@@ -41,19 +41,22 @@ pub enum StorageDataType {
     ClusterDeleteNode,
     ClusterAddCluster,
     ClusterDeleteCluster,
-    ClusterSetResourceConfig,
-    ClusterDeleteResourceConfig,
-    ClusterSetIdempotentData,
-    ClusterDeleteIdempotentData,
 
-    ClusterSaveOffset,
-    ClusterDeleteOffset,
+    // KV
+    KvSet,
+    KvDelete,
 
     // Common
     SchemaSet,
     SchemaDelete,
     SchemaBindSet,
     SchemaBindDelete,
+    ResourceConfigSet,
+    ResourceConfigDelete,
+    IdempotentDataSet,
+    IdempotentDataDelete,
+    OffsetSet,
+    OffsetDelete,
 
     // Journal
     JournalSetShard,
@@ -62,10 +65,6 @@ pub enum StorageDataType {
     JournalDeleteSegment,
     JournalSetSegmentMetadata,
     JournalDeleteSegmentMetadata,
-
-    // kv
-    KvSet,
-    KvDelete,
 
     // mqtt
     MqttSetUser,

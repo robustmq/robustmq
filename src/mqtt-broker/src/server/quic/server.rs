@@ -30,6 +30,7 @@ use log::info;
 use quinn::{Connection, Endpoint, ServerConfig, VarInt};
 use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 use rustls_pki_types::PrivateKeyDer;
+use schema_register::schema::SchemaRegisterManager;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
@@ -51,6 +52,7 @@ pub async fn start_quic_server<S>(
     client_pool: Arc<ClientPool>,
     stop_sx: broadcast::Sender<bool>,
     auth_driver: Arc<AuthDriver>,
+    schema_register_manager: Arc<SchemaRegisterManager>,
 ) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
@@ -62,6 +64,7 @@ pub async fn start_quic_server<S>(
         subscribe_manager.clone(),
         client_pool.clone(),
         connection_manager.clone(),
+        schema_register_manager.clone(),
         auth_driver.clone(),
     );
 

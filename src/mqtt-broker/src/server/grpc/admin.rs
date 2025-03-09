@@ -34,13 +34,16 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionRaw,
     ListConnectionReply, ListConnectionRequest, ListSlowSubScribeRaw, ListSlowSubscribeReply,
     ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-    MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttDeleteConnectorReply,
-    MqttDeleteConnectorRequest, MqttListConnectorReply, MqttListConnectorRequest, MqttTopic,
-    MqttUpdateConnectorReply, MqttUpdateConnectorRequest,
+    MqttBindSchemaReply, MqttBindSchemaRequest, MqttCreateConnectorReply,
+    MqttCreateConnectorRequest, MqttCreateSchemaReply, MqttCreateSchemaRequest,
+    MqttDeleteConnectorReply, MqttDeleteConnectorRequest, MqttDeleteSchemaReply,
+    MqttDeleteSchemaRequest, MqttListBindSchemaReply, MqttListBindSchemaRequest,
+    MqttListConnectorReply, MqttListConnectorRequest, MqttListSchemaReply, MqttListSchemaRequest,
+    MqttTopic, MqttUnbindSchemaReply, MqttUnbindSchemaRequest, MqttUpdateConnectorReply,
+    MqttUpdateConnectorRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
 };
 use tonic::{Request, Response, Status};
 
-use crate::bridge::manager::ConnectorManager;
 use crate::bridge::request::{
     create_connector_by_req, delete_connector_by_req, list_connector_by_req,
     update_connector_by_req,
@@ -51,13 +54,16 @@ use crate::observability::slow::sub::{enable_slow_sub, read_slow_sub_record, Slo
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::cluster::ClusterStorage;
+use crate::storage::schema::{
+    bind_schema_by_req, create_schema_by_req, delete_schema_by_req, list_bind_schema_by_req,
+    list_schema_by_req, unbind_schema_by_req, update_schema_by_req,
+};
 use crate::storage::topic::TopicStorage;
 
 pub struct GrpcAdminServices {
     client_pool: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
     connection_manager: Arc<ConnectionManager>,
-    connector_manager: Arc<ConnectorManager>,
 }
 
 impl GrpcAdminServices {
@@ -65,13 +71,11 @@ impl GrpcAdminServices {
         client_pool: Arc<ClientPool>,
         cache_manager: Arc<CacheManager>,
         connection_manager: Arc<ConnectionManager>,
-        connector_manager: Arc<ConnectorManager>,
     ) -> Self {
         GrpcAdminServices {
             client_pool,
             cache_manager,
             connection_manager,
-            connector_manager,
         }
     }
 }
@@ -466,7 +470,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         request: Request<MqttListConnectorRequest>,
     ) -> Result<Response<MqttListConnectorReply>, Status> {
         let req = request.into_inner();
-        match list_connector_by_req(&self.connector_manager, &req).await {
+        match list_connector_by_req(&self.client_pool, &req).await {
             Ok(data) => return Ok(Response::new(MqttListConnectorReply { connectors: data })),
             Err(e) => return Err(Status::cancelled(e.to_string())),
         };
@@ -503,5 +507,90 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             Ok(_) => return Ok(Response::new(MqttDeleteConnectorReply::default())),
             Err(e) => return Err(Status::cancelled(e.to_string())),
         };
+    }
+
+    // --- schema ---
+    async fn mqtt_broker_list_schema(
+        &self,
+        request: Request<MqttListSchemaRequest>,
+    ) -> Result<Response<MqttListSchemaReply>, Status> {
+        let req = request.into_inner();
+        match list_schema_by_req(&self.client_pool, &req).await {
+            Ok(data) => return Ok(Response::new(MqttListSchemaReply { schemas: data })),
+            Err(e) => return Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn mqtt_broker_create_schema(
+        &self,
+        request: Request<MqttCreateSchemaRequest>,
+    ) -> Result<Response<MqttCreateSchemaReply>, Status> {
+        let req = request.into_inner();
+        match create_schema_by_req(&self.client_pool, &req).await {
+            Ok(_) => return Ok(Response::new(MqttCreateSchemaReply::default())),
+            Err(e) => return Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn mqtt_broker_update_schema(
+        &self,
+        request: Request<MqttUpdateSchemaRequest>,
+    ) -> Result<Response<MqttUpdateSchemaReply>, Status> {
+        let req = request.into_inner();
+        match update_schema_by_req(&self.client_pool, &req).await {
+            Ok(_) => return Ok(Response::new(MqttUpdateSchemaReply::default())),
+            Err(e) => return Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn mqtt_broker_delete_schema(
+        &self,
+        request: Request<MqttDeleteSchemaRequest>,
+    ) -> Result<Response<MqttDeleteSchemaReply>, Status> {
+        let req = request.into_inner();
+        match delete_schema_by_req(&self.client_pool, &req).await {
+            Ok(_) => return Ok(Response::new(MqttDeleteSchemaReply::default())),
+            Err(e) => return Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn mqtt_broker_list_bind_schema(
+        &self,
+        request: Request<MqttListBindSchemaRequest>,
+    ) -> Result<Response<MqttListBindSchemaReply>, Status> {
+        let req = request.into_inner();
+
+        match list_bind_schema_by_req(&self.client_pool, &req).await {
+            Ok(data) => {
+                return Ok(Response::new(MqttListBindSchemaReply {
+                    schema_binds: data,
+                }))
+            }
+            Err(e) => return Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn mqtt_broker_bind_schema(
+        &self,
+        request: Request<MqttBindSchemaRequest>,
+    ) -> Result<Response<MqttBindSchemaReply>, Status> {
+        let req = request.into_inner();
+
+        match bind_schema_by_req(&self.client_pool, &req).await {
+            Ok(_) => return Ok(Response::new(MqttBindSchemaReply::default())),
+            Err(e) => return Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn mqtt_broker_unbind_schema(
+        &self,
+        request: Request<MqttUnbindSchemaRequest>,
+    ) -> Result<Response<MqttUnbindSchemaReply>, Status> {
+        let req = request.into_inner();
+
+        match unbind_schema_by_req(&self.client_pool, &req).await {
+            Ok(_) => return Ok(Response::new(MqttUnbindSchemaReply::default())),
+            Err(e) => return Err(Status::cancelled(e.to_string())),
+        }
     }
 }

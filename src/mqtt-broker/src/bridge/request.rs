@@ -15,39 +15,36 @@
 use std::sync::Arc;
 
 use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::now_second};
-use grpc_clients::pool::ClientPool;
+use grpc_clients::{placement::mqtt::call::placement_list_connector, pool::ClientPool};
 use metadata_struct::mqtt::bridge::{
     config_kafka::KafkaConnectorConfig, config_local_file::LocalFileConnectorConfig,
     connector::MQTTConnector, connector_type::ConnectorType, status::MQTTStatus,
 };
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    MqttConnectorType, MqttCreateConnectorRequest, MqttDeleteConnectorRequest,
-    MqttListConnectorRequest, MqttUpdateConnectorRequest,
+use protocol::{
+    broker_mqtt::broker_mqtt_admin::{
+        MqttConnectorType, MqttCreateConnectorRequest, MqttDeleteConnectorRequest,
+        MqttListConnectorRequest, MqttUpdateConnectorRequest,
+    },
+    placement_center::placement_center_mqtt::ListConnectorRequest,
 };
 
 use crate::{handler::error::MqttBrokerError, storage::connector::ConnectorStorage};
 
-use super::manager::ConnectorManager;
-
 pub async fn list_connector_by_req(
-    connector_manager: &Arc<ConnectorManager>,
+    client_pool: &Arc<ClientPool>,
     req: &MqttListConnectorRequest,
 ) -> Result<Vec<Vec<u8>>, MqttBrokerError> {
-    let data_list = if req.connector_name.is_empty() {
-        if let Some(data) = connector_manager.get_connector(req.connector_name.as_str()) {
-            vec![data]
-        } else {
-            vec![]
-        }
-    } else {
-        connector_manager.get_all_connector()
+    let config = broker_mqtt_conf();
+    let request = ListConnectorRequest {
+        cluster_name: config.cluster_name.clone(),
+        connector_name: req.connector_name.clone(),
     };
-    let mut results = Vec::new();
-    for data in data_list {
-        results.push(data.encode());
-    }
 
-    Ok(results)
+    let connectors = placement_list_connector(client_pool, &config.placement_center, request)
+        .await?
+        .connectors;
+
+    Ok(connectors)
 }
 
 pub async fn create_connector_by_req(
@@ -81,7 +78,7 @@ pub async fn update_connector_by_req(
     let connector = serde_json::from_slice::<MQTTConnector>(&req.connector)?;
     connector_config_validator(&connector.connector_type, &connector.config)?;
     let storage = ConnectorStorage::new(client_pool.clone());
-    storage.create_connector(connector).await?;
+    storage.update_connector(connector).await?;
     Ok(())
 }
 

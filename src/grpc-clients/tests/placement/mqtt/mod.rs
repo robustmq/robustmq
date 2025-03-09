@@ -18,6 +18,7 @@ mod mqtt_acl_test;
 mod mqtt_blacklist_test;
 mod mqtt_connector_test;
 mod mqtt_last_will_test;
+mod mqtt_schema_test;
 mod mqtt_session_test;
 mod mqtt_share_sub_test;
 mod mqtt_topic_test;

@@ -33,6 +33,7 @@ RobustMQ MQTT goal is to build a high-performance, highly available, and scalabl
 | Trace | supported |
 | System topic | support |
 | Slow subscribe statistics | Support |
+| Schema | Json、Protobuf、AVRO |
 | QUIC protocol | supported |
 
 
