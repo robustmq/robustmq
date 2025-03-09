@@ -107,6 +107,8 @@ mod test {
         connector.connector_type = ConnectorType::Kafka;
         connector.config = serde_json::to_string(&KafkaConnectorConfig {
             bootstrap_servers: "localhost:9092".to_string(),
+            topic: "test_topic".to_string(),
+            key: "test_key".to_string(),
         })
         .unwrap();
         connector.topic_id = "test_topic-2".to_string();
