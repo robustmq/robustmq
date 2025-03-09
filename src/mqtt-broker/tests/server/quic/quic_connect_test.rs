@@ -30,7 +30,6 @@ mod tests {
         QuicFramedReadStream, QuicFramedWriteStream,
     };
     use protocol::mqtt::common::MqttPacket;
-    use rustls::ProtocolVersion;
     use std::sync::Arc;
     use tokio_util::codec::{Decoder, Encoder};
 
@@ -117,7 +116,7 @@ mod tests {
         let server = tokio::spawn(async move {
             let conn = server.accept_connection().await.unwrap();
             server_recv.notified().await;
-            let (mut server_send_stream, server_recv_stream) = conn.accept_bi().await.unwrap();
+            let (server_send_stream, server_recv_stream) = conn.accept_bi().await.unwrap();
             // receive_packet(server_recv_stream, Some(5)).await;
             let mut quic_framed_read_stream =
                 QuicFramedReadStream::new(server_recv_stream, MqttCodec::new(Some(5)));
@@ -178,23 +177,7 @@ mod tests {
     ) -> MqttPacket {
         let mut codec = MqttCodec::new(protocol_version);
         let mut test_bytes_mut = build_bytes_mut(create_mqtt_packet_wrapper, protocol_version);
-        let verify_mqtt_packet = codec.decode(&mut test_bytes_mut).unwrap().unwrap();
-        verify_mqtt_packet
-    }
-
-    async fn send_packet(send_stream: &mut SendStream, mut bytes_mut: BytesMut) {
-        send_stream.write_all(bytes_mut.as_mut()).await.unwrap();
-        send_stream.finish().unwrap();
-        let _ = send_stream.stopped().await;
-    }
-
-    async fn receive_packet(mut recv_stream: RecvStream, protocol_version: Option<u8>) {
-        let mut codec = MqttCodec::new(protocol_version);
-        let mut decode_bytes = BytesMut::with_capacity(0);
-        let vec = recv_stream.read_to_end(1024).await.unwrap();
-        decode_bytes.extend(vec);
-        let packet = codec.decode(&mut decode_bytes).unwrap();
-        assert!(packet.is_some());
+        codec.decode(&mut test_bytes_mut).unwrap().unwrap()
     }
 
     fn build_bytes_mut(
