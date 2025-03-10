@@ -13,10 +13,7 @@
 // limitations under the License.
 
 use super::broker_mqtt::{
-    ConfigAvailableFlag, MqttClusterDynamicConfigFeature, MqttClusterDynamicConfigNetwork,
-    MqttClusterDynamicConfigProtocol, MqttClusterDynamicConfigSecurity,
-    MqttClusterDynamicFlappingDetect, MqttClusterDynamicSlowSub, Network, OfflineMessage, System,
-    TcpThread,
+    ConfigAvailableFlag, MqttClusterDynamicConfigFeature, MqttClusterDynamicConfigNetwork, MqttClusterDynamicConfigProtocol, MqttClusterDynamicConfigSecurity, MqttClusterDynamicFlappingDetect, MqttClusterDynamicSlowSub, Network, OfflineMessage, RateLimiter, System, TcpThread
 };
 use super::common::{Auth, Log, Storage, Telemetry};
 
@@ -178,5 +175,13 @@ pub fn default_mqtt_cluster_dynamic_network() -> MqttClusterDynamicConfigNetwork
         websockets_max_connection_num: 1000,
         response_max_try_mut_times: 128,
         response_try_mut_sleep_time_ms: 100,
+    }
+}
+
+pub fn default_rate_limiter() -> RateLimiter {
+    RateLimiter {
+        enable: false,
+        connect: 100000,
+        publish: 100000,
     }
 }
