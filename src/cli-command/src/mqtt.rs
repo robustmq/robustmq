@@ -603,21 +603,23 @@ impl MqttBrokerCommand {
         {
             Ok(data) => {
                 println!("connector list result:");
+                let mut table = Table::new();
+
+                table.add_row(row![
+                    "cluster name",
+                    "connector name",
+                    "connector type",
+                    "connector config",
+                    "topic id",
+                    "status",
+                    "broker id",
+                    "create time",
+                    "update time",
+                ]);
 
                 for mqtt_connector in data.connectors {
                     let connector = MQTTConnector::decode(&mqtt_connector);
-                    println!(
-                        concat!(
-                            "cluster name: {}\n",
-                            "connector name: {}\n",
-                            "connector type: {}\n",
-                            "connector config: {}\n",
-                            "topic id: {}\n",
-                            "status: {}\n",
-                            "broker id: {}\n",
-                            "create time: {}\n",
-                            "update time: {}"
-                        ),
+                    table.add_row(row![
                         connector.cluster_name,
                         connector.connector_name,
                         connector.connector_type,
@@ -627,8 +629,11 @@ impl MqttBrokerCommand {
                         connector.broker_id.unwrap_or(0),
                         connector.create_time,
                         connector.update_time
-                    );
+                    ]);
                 }
+
+                // output cmd
+                table.printstd()
             }
             Err(e) => {
                 println!("MQTT broker list connector exception");
