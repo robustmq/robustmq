@@ -41,7 +41,7 @@ use super::default_mqtt::{
     default_network_quic_port, default_network_tcp_port, default_network_tcps_port,
     default_network_websocket_port, default_network_websockets_port, default_offline_message,
     default_placement_center, default_storage, default_system, default_tcp_thread,
-    default_telemetry,
+    default_telemetry,default_rate_limiter
 };
 use crate::tools::{read_file, try_create_fold};
 
@@ -84,6 +84,9 @@ pub struct BrokerMqttConfig {
     pub cluster_dynamic_config_security: MqttClusterDynamicConfigSecurity,
     #[serde(default = "default_mqtt_cluster_dynamic_network")]
     pub cluster_dynamic_config_network: MqttClusterDynamicConfigNetwork,
+
+    #[serde(default = "default_rate_limiter")]
+    pub rate_limiter: RateLimiter,
 }
 
 // MQTT cluster protocol related dynamic configuration
@@ -117,6 +120,14 @@ impl MqttClusterDynamicConfigSecurity {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
     }
+}
+
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct RateLimiter {
+    pub enable: bool,
+    pub connect: u32,
+    pub publish: u32,
 }
 
 // MQTT cluster network related dynamic configuration

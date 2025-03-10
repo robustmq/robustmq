@@ -25,6 +25,7 @@ use crate::security::AuthDriver;
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::subscribe_manager::SubscribeManager;
+use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::telemetry::trace::CustomContext;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
@@ -36,6 +37,7 @@ use protocol::mqtt::common::{
 };
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
+use rate_limiter::token_bucket::get_default_rate_limiter_manager;
 
 // S: message storage adapter
 #[derive(Clone)]
@@ -130,6 +132,25 @@ where
                 last_will_properties,
                 login,
             ) => {
+
+                // connect rate limiter
+                if get_default_rate_limiter_manager()
+                    .get_or_register(
+                        "CONNECT_PACKET".to_string(),
+                        broker_mqtt_conf().rate_limiter.connect,
+                    )
+                    .await
+                    .check_key()
+                    .await
+                {
+                    return Some(response_packet_mqtt_connect_fail(
+                        &tcp_connection.get_protocol(),
+                        ConnectReturnCode::ConnectionRateExceeded,
+                        &None,
+                        None,
+                    ));
+                }
+
                 connect_manager
                     .set_connect_protocol(tcp_connection.connection_id, protocol_version);
 
@@ -201,6 +222,25 @@ where
             }
 
             MqttPacket::Publish(publish, publish_properties) => {
+
+                if get_default_rate_limiter_manager()
+                // todo Eventually, we will use dynamic configuration
+                .get_or_register(
+                    tcp_connection.connection_id.to_string(),
+                    broker_mqtt_conf().rate_limiter.publish,
+                )
+                .await
+                .check_key()
+                .await
+            {
+                return Some(response_packet_mqtt_connect_fail(
+                    &tcp_connection.get_protocol(),
+                    ConnectReturnCode::ConnectionRateExceeded,
+                    &None,
+                    None,
+                ));
+            }
+            
                 let mut context = CustomContext::default();
                 if let Some(ref p) = publish_properties {
                     p.user_properties.iter().for_each(|(k, v)| {
