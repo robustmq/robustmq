@@ -62,6 +62,8 @@ rustls-pki-types.workspace = true
 rustls.workspace = true
 bindgen.workspace = true
 rate-limiter.workspace = true
+rdkafka.workspace = true
+
 
 [dev-dependencies]
 # test

@@ -3,7 +3,7 @@
 2. 订阅逻辑优化【done】
 3. MQTT 测试用例失败 case 修复【done】
 4. 自动订阅【ing】
-5. 延时发布【done】 
+5. 延时发布【done】
 6. 消息验证：确保消息的完整性和合法性
 7. 数据集成【done】
    1. sink local file

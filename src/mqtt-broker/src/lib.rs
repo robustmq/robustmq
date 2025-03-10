@@ -45,6 +45,7 @@ use storage_adapter::memory::MemoryStorageAdapter;
 // use storage_adapter::mysql::MySQLStorageAdapter;
 // use storage_adapter::rocksdb::RocksDBStorageAdapter;
 use crate::handler::flapping_detect::UpdateFlappingDetectCache;
+use crate::server::quic::server::start_quic_server;
 use storage_adapter::storage::StorageAdapter;
 use storage_adapter::StorageType;
 use subscribe::exclusive_push::ExclusivePush;
@@ -176,6 +177,7 @@ where
         self.start_grpc_server();
 
         self.start_mqtt_server(stop_send.clone());
+        self.start_quic_server(stop_send.clone());
         self.start_websocket_server(stop_send.clone());
         self.start_keep_alive_thread(stop_send.clone());
         self.start_delay_message_thread();
@@ -212,6 +214,31 @@ where
                 client_pool,
                 stop_send,
                 auth_driver,
+            )
+            .await
+        });
+    }
+
+    fn start_quic_server(&self, stop_send: broadcast::Sender<bool>) {
+        let cache = self.cache_manager.clone();
+        let message_storage_adapter = self.message_storage_adapter.clone();
+        let subscribe_manager = self.subscribe_manager.clone();
+        let client_pool = self.client_pool.clone();
+        let connection_manager = self.connection_manager.clone();
+        let auth_driver = self.auth_driver.clone();
+        let delay_message_manager = self.delay_message_manager.clone();
+        let schema_manager = self.schema_manager.clone();
+        self.runtime.spawn(async move {
+            start_quic_server(
+                subscribe_manager,
+                cache,
+                connection_manager,
+                message_storage_adapter,
+                delay_message_manager,
+                client_pool,
+                stop_send,
+                auth_driver,
+                schema_manager,
             )
             .await
         });
