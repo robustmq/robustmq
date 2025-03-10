@@ -15,6 +15,7 @@
 use std::{num::ParseIntError, string::FromUtf8Error};
 
 use common_base::error::common::CommonError;
+use rdkafka::error::KafkaError;
 use thiserror::Error;
 use tonic::Status;
 
@@ -105,6 +106,9 @@ pub enum MqttBrokerError {
 
     #[error("Invalid schema type {0}")]
     InvalidSchemaType(String),
+
+    #[error("kafka error: {0}")]
+    KafkaError(#[from] KafkaError),
 }
 
 impl From<MqttBrokerError> for Status {

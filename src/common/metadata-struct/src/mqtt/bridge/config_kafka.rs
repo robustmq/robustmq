@@ -17,4 +17,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct KafkaConnectorConfig {
     pub bootstrap_servers: String,
+    pub topic: String,
+    pub key: String,
 }

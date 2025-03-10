@@ -140,6 +140,7 @@ apache-avro = { version = "0.17.0" }
 protobuf = "3.7.1"
 protobuf-codegen = "3.7.1"
 protofish = { version = "0.5.2"}
+rdkafka = { version = "0.37.0" }
 
 #format
 prettytable-rs = "^0.10"

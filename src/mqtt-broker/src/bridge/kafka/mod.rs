@@ -12,45 +12,75 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use axum::async_trait;
-use log::error;
-use metadata_struct::mqtt::bridge::config_kafka::KafkaConnectorConfig;
 use std::{sync::Arc, time::Duration};
+
+use axum::async_trait;
+use log::{error, info};
+use metadata_struct::{adapter::record::Record, mqtt::bridge::config_kafka::KafkaConnectorConfig};
+use rdkafka::producer::{FutureProducer, FutureRecord, Producer};
 use storage_adapter::storage::StorageAdapter;
 use tokio::{select, sync::broadcast, time::sleep};
 
 use crate::{handler::error::MqttBrokerError, storage::message::MessageStorage};
 
-use super::core::{BridgePlugin, BridgePluginReadConfig};
+use super::{
+    core::{BridgePlugin, BridgePluginReadConfig},
+    manager::ConnectorManager,
+};
 
-pub struct FileBridgePlugin<S> {
+pub struct KafkaBridgePlugin<S> {
+    connector_manager: Arc<ConnectorManager>,
     message_storage: Arc<S>,
     connector_name: String,
     config: KafkaConnectorConfig,
     stop_send: broadcast::Sender<bool>,
 }
 
-impl<S> FileBridgePlugin<S>
+impl<S> KafkaBridgePlugin<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
+        connector_manager: Arc<ConnectorManager>,
         message_storage: Arc<S>,
         connector_name: String,
         config: KafkaConnectorConfig,
         stop_send: broadcast::Sender<bool>,
     ) -> Self {
-        FileBridgePlugin {
+        KafkaBridgePlugin {
+            connector_manager,
             message_storage,
             connector_name,
             config,
             stop_send,
         }
     }
+
+    pub async fn append(
+        &self,
+        records: &Vec<Record>,
+        producer: FutureProducer,
+    ) -> Result<(), MqttBrokerError> {
+        for record in records {
+            let data = serde_json::to_string(record)?;
+            producer
+                .send(
+                    FutureRecord::to(self.config.topic.as_str())
+                        .key(self.config.key.as_str())
+                        .payload(&data),
+                    Duration::from_secs(0),
+                )
+                .await
+                .map_err(|(e, _)| e)?;
+        }
+
+        producer.flush(Duration::from_secs(0))?;
+        Ok(())
+    }
 }
 
 #[async_trait]
-impl<S> BridgePlugin for FileBridgePlugin<S>
+impl<S> BridgePlugin for KafkaBridgePlugin<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
@@ -59,27 +89,35 @@ where
         let group_name = self.connector_name.clone();
         let offset = message_storage.get_group_offset(&group_name).await?;
         let mut recv = self.stop_send.subscribe();
+        let producer: FutureProducer = rdkafka::ClientConfig::new()
+            .set("bootstrap.servers", self.config.bootstrap_servers.as_str())
+            .set("message.timeout.ms", "5000")
+            .create()?;
 
         loop {
             select! {
                 val = recv.recv() =>{
                     if let Ok(flag) = val {
                         if flag {
+                            info!("{}","Connector thread exited successfully");
                             break;
                         }
                     }
-                },
+                }
 
                 val = message_storage.read_topic_message(&config.topic_id, offset, config.record_num) => {
                     match val {
                         Ok(data) => {
-
+                            self.connector_manager.report_heartbeat(&self.connector_name);
                             if data.is_empty() {
-                                sleep(Duration::from_millis(100)).await;
+                                tokio::time::sleep(Duration::from_millis(100)).await;
                                 continue;
                             }
 
-                            println!("{}", self.config.bootstrap_servers);
+                            if let Err(e) = self.append(&data, producer.clone()).await{
+                                error!("Connector {} failed to write data to kafka topic {}, error message: {}", self.connector_name, self.config.topic, e);
+                                sleep(Duration::from_millis(100)).await;
+                            }
                         },
                         Err(e) => {
                             error!("Connector {} failed to read Topic {} data with error message :{}", self.connector_name,config.topic_id,e);
@@ -89,6 +127,7 @@ where
                 }
             }
         }
+
         Ok(())
     }
 }
