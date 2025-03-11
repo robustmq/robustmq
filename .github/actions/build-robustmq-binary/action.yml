@@ -1,0 +1,59 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Build robust binary
+description: Build and upload the single linux artifact
+inputs:
+  base-image:
+    description: Base image to build robust
+    required: true
+  features:
+    description: Cargo features to build
+    required: true
+  cargo-profile:
+    description: Cargo profile to build
+    required: true
+  artifacts-dir:
+    description: Directory to store artifacts
+    required: true
+  version:
+    description: Version of the artifact
+    required: true
+  working-dir:
+    description: Working directory to build the artifacts
+    required: false
+    default: .
+runs:
+  using: composite
+  steps:
+    - name: Build robust binary
+      shell: bash
+      if: ${{ inputs.build-android-artifacts == 'false' }}
+      run: |
+        cd ${{ inputs.working-dir }} && \
+        make build-by-dev-builder \
+          CARGO_PROFILE=${{ inputs.cargo-profile }} \
+          FEATURES=${{ inputs.features }} \
+          BASE_IMAGE=${{ inputs.base-image }}
+
+    - name: Upload artifacts
+      uses: ./.github/actions/upload-artifacts
+      if: ${{ inputs.build-android-artifacts == 'false' }}
+      env:
+        PROFILE_TARGET: ${{ inputs.cargo-profile == 'dev' && 'debug' || inputs.cargo-profile }}
+      with:
+        artifacts-dir: ${{ inputs.artifacts-dir }}
+        target-file: ./target/$PROFILE_TARGET/robust
+        version: ${{ inputs.version }}
+        working-dir: ${{ inputs.working-dir }}

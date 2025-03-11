@@ -1,0 +1,213 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+filters:
+  # PRs: feat|fix|test|refactor|chore|style|docs|perf|build|ci|revert
+  - label: kind:feat
+    regexs:
+      - /^feat(\(.*\))?:/i
+    events: [pull_request]
+    targets: [title]
+
+  - label: kind:bug
+    regexs:
+      - /^fix(\(.*\))?:/i
+    events: [pull_request]
+    targets: [title]
+
+  - label: kind:test
+    regexs:
+      - /^test(\(.*\))?:/i
+    events: [pull_request]
+    targets: [title]
+
+  - label: kind:refactor
+    regexs:
+      - /^refactor(\(.*\))?:/i
+    events: [pull_request]
+    targets: [title]
+
+  - label: kind:chore
+    regexs:
+      - /^chore(\(.*\))?:/i
+    events: [pull_request]
+    targets: [title]
+
+  - label: kind:style
+    regexs:
+      - /^style(\(.*\))?:/i
+    events: [pull_request]
+    targets: [title]
+
+  - label: kind:docs
+    regexs:
+      - /^docs(\(.*\))?:/i
+    events: [pull_request]
+    targets: [title]
+
+  - label: kind:perf
+    regexs:
+      - /^perf(\(.*\))?:/i
+    events: [pull_request]
+    targets: [title]
+
+  - label: kind:build
+    regexs:
+      - /^build(\(.*\))?:/i
+    events: [pull_request]
+    targets: [title]
+
+  - label: kind:ci
+    regexs:
+      - /^ci(\(.*\))?:/i
+    events: [pull_request]
+    targets: [title]
+
+  - label: kind:revert
+    regexs:
+      - /^revert(\(.*\))?:/i
+    events: [pull_request]
+    targets: [title]
+
+  # subtask issues: [RBIP-*/MINOR][Style/Refactor/Performance/Docs/Test/Build/CI/Chore][Subtask]xxx
+  - label: kind:style
+    regexs:
+      - /^\[(RBIP-\d+|MINOR)\]\[Style\]\[Subtask\]/
+    events: [issues]
+    targets: [title]
+
+  - label: kind:refactor
+    regexs:
+      - /^\[(RBIP-\d+|MINOR)\]\[Refactor\]\[Subtask\]/
+    events: [issues]
+    targets: [title]
+
+  - label: kind:perf
+    regexs:
+      - /^\[(RBIP-\d+|MINOR)\]\[Performance\]\[Subtask\]/
+    events: [issues]
+    targets: [title]
+
+  - label: kind:docs
+    regexs:
+      - /^\[(RBIP-\d+|MINOR)\]\[Docs\]\[Subtask\]/
+    events: [issues]
+    targets: [title]
+
+  - label: kind:test
+    regexs:
+      - /^\[(RBIP-\d+|MINOR)\]\[Test\]\[Subtask\]/
+    events: [issues]
+    targets: [title]
+
+  - label: kind:build
+    regexs:
+      - /^\[(RBIP-\d+|MINOR)\]\[Build\]\[Subtask\]/
+    events: [issues]
+    targets: [title]
+
+  - label: kind:ci
+    regexs:
+      - /^\[(RBIP-\d+|MINOR)\]\[CI\]\[Subtask\]/
+    events: [issues]
+    targets: [title]
+
+  - label: kind:chore
+    regexs:
+      - /^\[(RBIP-\d+|MINOR)\]\[Chore\]\[Subtask\]/
+    events: [issues]
+    targets: [title]
+
+  - label: kind:subtask
+    regexs:
+      - /^\[(RBIP-\d+|MINOR)\].*\[Subtask\]/
+    events: [issues]
+    targets: [title]
+  
+  # enhancement issues: [Style/Refactor/Performance/Doc/Test/Build/CI/Chore]xxx
+  - label: kind:style
+    regexs:
+      - /^\[Style\]/
+    events: [issues]
+    targets: [title]
+
+  - label: kind:refactor
+    regexs:
+      - /^\[Refactor\]/
+    events: [issues]
+    targets: [title]
+
+  - label: kind:perf
+    regexs:
+      - /^\[Performance\]/
+    events: [issues]
+    targets: [title]
+
+  - label: kind:docs
+    regexs:
+      - /^\[Docs\]/
+    events: [issues]
+    targets: [title]
+
+  - label: kind:test
+    regexs:
+      - /^\[Test\]/
+    events: [issues]
+    targets: [title]
+
+  - label: kind:build
+    regexs:
+      - /^\[Build\]/
+    events: [issues]
+    targets: [title]
+
+  - label: kind:ci
+    regexs:
+      - /^\[CI\]/
+    events: [issues]
+    targets: [title]
+
+  - label: kind:chore
+    regexs:
+      - /^\[Chore\]/
+    events: [issues]
+    targets: [title]
+
+  - label: enhancement
+    regexs:
+      - /^\[(Style|Refactor|Performance|Docs|Test|Build|CI|Chore)\]/
+    events: [issues]
+    targets: [title]
+
+  # bug issue: [BUG]
+  - label: kind:bug
+    regexs:
+      - /^\[BUG\]/
+    events: [issues]
+    targets: [title]
+
+  # feature request issue: [Feat]
+  - label: kind:feat
+    regexs:
+      - /^\[Feat\]/
+    events: [issues]
+    targets: [title]
+
+  # umbrella issue: [RPIP-*/MINOR] and no [Subtask]
+  - label: kind:umbrella
+    regexs:
+      - /^\[(RBIP-\d+|MINOR)\](?!.*\[Subtask\])/
+    events: [issues]
+    targets: [title]
+    

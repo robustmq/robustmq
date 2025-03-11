@@ -1,0 +1,103 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Build macos artifacts
+description: Build macos artifacts
+inputs:
+  arch:
+    description: Architecture to build
+    required: true
+  rust-toolchain:
+    description: Rust toolchain to use
+    required: true
+  cargo-profile:
+    description: Cargo profile to build
+    required: true
+  features:
+    description: Cargo features to build
+    required: true
+  version:
+    description: Version of the artifact
+    required: true
+  disable-run-tests:
+    description: Disable running integration tests
+    required: true
+  artifacts-dir:
+    description: Directory to store artifacts
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Cache cargo assets
+      id: cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ inputs.arch }}-build-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Install protoc
+      shell: bash
+      run: |
+        brew install protobuf
+
+    - name: Install rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust-toolchain }}
+        targets: ${{ inputs.arch }}
+
+    - name: Start etcd # For integration tests.
+      if: ${{ inputs.disable-run-tests == 'false' }}
+      shell: bash
+      run: |
+        brew install etcd && \
+        brew services start etcd
+
+    - name: Install latest nextest release # For integration tests.
+      if: ${{ inputs.disable-run-tests == 'false' }}
+      uses: taiki-e/install-action@nextest
+
+    - name: Run integration tests
+      if: ${{ inputs.disable-run-tests == 'false' }}
+      shell: bash
+      run: |
+        make test sqlness-test
+
+    - name: Upload sqlness logs
+      if: ${{ failure() }} # Only upload logs when the integration tests failed.
+      uses: actions/upload-artifact@v3
+      with:
+        name: sqlness-logs
+        path: ./robust-data-*.log
+        retention-days: 3
+
+    - name: Build robust binary
+      shell: bash
+      run: |
+        make build \
+        CARGO_PROFILE=${{ inputs.cargo-profile }} \
+        FEATURES=${{ inputs.features }} \
+        TARGET=${{ inputs.arch }}
+
+    - name: Upload artifacts
+      uses: ./.github/actions/upload-artifacts
+      with:
+        artifacts-dir: ${{ inputs.artifacts-dir }}
+        target-file: target/${{ inputs.arch }}/${{ inputs.cargo-profile }}/robust
+        version: ${{ inputs.version }}

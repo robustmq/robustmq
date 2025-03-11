@@ -1,0 +1,43 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+[package]
+name = "placement-center"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+tokio.workspace = true
+tonic.workspace = true
+common-base.workspace = true
+protocol.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+rocksdb-engine.workspace = true
+bincode.workspace = true
+dashmap.workspace = true
+byteorder.workspace = true
+axum.workspace = true
+grpc-clients.workspace = true
+metadata-struct.workspace = true
+openraft.workspace = true
+rand.workspace = true
+prost.workspace = true
+log.workspace = true
+mobc.workspace = true
+tracing.workspace = true
+rocksdb.workspace = true
+prost-validate = { workspace = true, features = ["derive"] }

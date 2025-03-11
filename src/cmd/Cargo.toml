@@ -1,0 +1,50 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+[package]
+name = "cmd"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+default-run = "cli-command"
+
+[[bin]]
+name = "mqtt-server"
+path = "src/mqtt-server/server.rs"
+
+[[bin]]
+name = "journal-server"
+path = "src/journal-server/server.rs"
+
+[[bin]]
+name = "placement-center"
+path = "src/placement-center/server.rs"
+
+[[bin]]
+name = "cli-command"
+path = "src/cli-command/command.rs"
+
+[dependencies]
+clap.workspace = true
+common-base.workspace = true
+lazy_static.workspace = true
+tokio.workspace = true
+mqtt-broker.workspace = true
+placement-center.workspace = true
+journal-server.workspace = true
+cli-command.workspace = true
+clap-cargo.workspace = true
+protocol.workspace = true
+[dev-dependencies]
+mockall.workspace = true

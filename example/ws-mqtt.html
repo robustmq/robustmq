@@ -1,0 +1,160 @@
+// Copyright 2023 RobustMQ Team
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MQTT over WebSocket</title>
+    <!-- the latest version of mqtt.js is recommended -->
+    <!-- <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script> -->
+    <!-- however, due to the issue https://github.com/mqttjs/MQTT.js/pull/1871#issuecomment-2127647457, we use v5.6.1 now -->
+    <script src="https://unpkg.com/mqtt@5.6.1/dist/mqtt.min.js"></script>
+  </head>
+  <body>
+    <h1>Use WebSocket client to connect to MQTT server</h1>
+    <h2>MQTT Over WebSocket</h2>
+    <p>
+      WebSocket protocol is a new network protocol based on TCP, which enables
+      the creation of a persistent connection between a browser and a server
+      through a single handshake. Since there is no need for repeated handshakes
+      between the browser and server, bi-directional data exchange between the
+      two becomes much simpler. Specifically, WebSocket in MQTT refers to
+      establishing a connection using WebSocket first and then communicating
+      over the WebSocket channel using the MQTT protocol, i.e. MQTT over
+      WebSocket, which is mainly used for connections in the browser
+      environment.
+    </p>
+    <h2>WebSocket over TLS/SSL</h2>
+    <p>
+      WebSocket over TLS/SSL means to add TLS/SSL encryption to WebSocket
+      protocol communication. In this way, the communication is secured from
+      eavesdropping and tampering.
+    </p>
+  </body>
+  <script>
+    /**
+     * this demo uses EMQX Public MQTT Broker (https://www.emqx.com/en/mqtt/public-mqtt5-broker), here are the details:
+     *
+     * Broker host: broker.emqx.io
+     * WebSocket port: 8083
+     * WebSocket over TLS/SSL port: 8084
+     */
+    const clientId = 'mqttjs_' + Math.random().toString(16).substring(2, 8)
+
+    /**
+     * choose which protocol to use for connection here
+     *
+     * /mqtt: MQTT-WebSocket uniformly uses /path as the connection path,
+     * which should be specified when connecting, and the path used on EMQX is /mqtt.
+     *
+     * for more details about "mqtt.connect" method & options,
+     * please refer to https://github.com/mqttjs/MQTT.js#mqttconnecturl-options
+     */
+    // const connectUrl = 'ws://broker.emqx.io:8083/mqtt'
+    const connectUrl = 'ws://127.0.0.1:8083/mqtt'
+
+    const options = {
+      keepalive: 60,
+      clientId: clientId,
+      clean: true,
+      connectTimeout: 30 * 1000,
+      /**
+       * By default, EMQX allows clients to connect without authentication.
+       * https://docs.emqx.com/en/enterprise/v4.4/advanced/auth.html#anonymous-login
+       */
+      username: 'admin',
+      password: 'pwd123',
+      reconnectPeriod: 1000,
+      // for more options and details, please refer to https://github.com/mqttjs/MQTT.js#mqttclientstreambuilder-options
+    }
+    const topic = '/WebSocket/mqtt'
+    const payload = 'WebSocket mqtt test'
+    // https://github.com/mqttjs/MQTT.js#qos
+    const qos = 1
+
+    console.log('connecting mqtt client')
+    const client = mqtt.connect(connectUrl, options)
+
+    // https://github.com/mqttjs/MQTT.js#event-error
+    client.on('error', (err) => {
+      console.log('Connection error: ', err)
+      client.end()
+    })
+
+    // https://github.com/mqttjs/MQTT.js#event-reconnect
+    client.on('reconnect', () => {
+      console.log('Reconnecting...')
+    })
+
+    // https://github.com/mqttjs/MQTT.js#event-connect
+    client.on('connect', () => {
+      console.log('Client connected:' + clientId)
+
+      // subscribe topic
+      // https://github.com/mqttjs/MQTT.js#mqttclientsubscribetopictopic-arraytopic-object-options-callback
+      client.subscribe(topic, { qos }, (error) => {
+        if (error) {
+          console.log('Subscribe error:', error)
+          return
+        }
+        console.log(`Subscribe to topic ${topic}`)
+      })
+
+      // publish message
+      // https://github.com/mqttjs/MQTT.js#mqttclientpublishtopic-message-options-callback
+      client.publish(topic, payload, { qos }, (error) => {
+        if (error) {
+          console.error(error)
+        }
+      })
+    })
+
+    // https://github.com/mqttjs/MQTT.js#event-message
+    client.on('message', (topic, payload) => {
+      console.log(
+        'Received Message: ' + payload.toString() + '\nOn topic: ' + topic
+      )
+    })
+
+    /**
+     * If you need to unsubscribe from a topic, you can use the following code.
+     */
+    // // unsubscribe topic
+    // // https://github.com/mqttjs/MQTT.js#mqttclientunsubscribetopictopic-array-options-callback
+    // client.unsubscribe(topic, { qos }, (error) => {
+    //   if (error) {
+    //     console.log('unsubscribe error:', error)
+    //     return
+    //   }
+    //   console.log(`unsubscribed topic: ${topic}`)
+    // })
+
+    /**
+     * If you need to disconnect, you can use the following code.
+     */
+    // if (client.connected) {
+    //   try {
+    //     // disconnect
+    //     // https://github.com/mqttjs/MQTT.js#mqttclientendforce-options-callback
+    //     client.end(false, () => {
+    //       console.log('disconnected successfully')
+    //     })
+    //   } catch (error) {
+    //     console.log('disconnect error:', error)
+    //   }
+    // }
+  </script>
+</html>

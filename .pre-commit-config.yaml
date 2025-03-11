@@ -1,0 +1,127 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+fail_fast: false
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.3.0
+    hooks:
+      - id: check-byte-order-marker
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+      - id: trailing-whitespace
+  - repo: https://github.com/psf/black
+    rev: 22.10.0
+    hooks:
+      - id: black
+# todo: we can use online github repo
+#  - repo: https://github.com/crate-ci/typos
+#    rev: v1.28.4
+#    hooks:
+#      - id: typos
+#        language: system
+#        files: \.*$
+#        pass_filenames: false
+#  - repo: https://github.com/EmbarkStudios/cargo-deny
+#    rev: 0.14.16 # choose your preferred tag
+#    hooks:
+#      - id: cargo-deny
+#        # optionally modify the arguments for cargo-deny (default arguments shown here)
+#        args: [ "--licenses", "check" ]
+  - repo: local
+    hooks:
+      - id: cargo-fmt-auto
+        name: cargo fmt auto
+        description: Format files with rustfmt automatically.
+        entry: bash -c 'cargo fmt --all'
+        language: rust
+        files: \.rs$
+        args: []
+      - id: hawkeye-fmt-auto
+        name: hawkeye fmt auto
+        description: Format files with hawkeye automatically.
+        entry: bash -c 'hawkeye format'
+        language: system
+        pass_filenames: true
+        files: \.*$
+        args: []
+      - id: typos
+        name: typos
+        description: check typo
+        entry: bash -c 'typos'
+        language: system
+        files: \.*$
+        pass_filenames: false
+      - id: cargo-check
+        stages:
+          - pre-commit
+        name: cargo check
+        description: Check the package for errors.
+        entry: bash -c 'cargo check --all'
+        language: system
+        files: \.rs$
+        pass_filenames: false
+      - id: hawkeye-fmt-check
+        stages:
+          - pre-push
+        name: hawkeye fmt check
+        description: Check files with hawkeye.
+        entry: bash -c 'hawkeye check'
+        language: rust
+        files: \.*$
+        args: []
+      - id: cargo-fmt-check
+        stages:
+          - pre-push
+        name: cargo fmt
+        description: Format files with rustfmt.
+        entry: bash -c 'cargo fmt -- --check'
+        language: system
+        pass_filenames: true
+        files: \.rs$
+        args: [ ]
+      - id: cargo-deny
+        stages:
+          - pre-push
+        name: cargo deny check
+        description: Check cargo dependencies
+        # we only check licenses
+        entry: bash -c 'cargo deny check licenses'
+        language: system
+        files: \.rs$
+        args: []
+      - id: cargo-clippy
+        stages:
+          - pre-push
+        name: cargo clippy
+        description: Lint rust sources
+        entry: bash -c 'cargo clippy --all-targets --all-features --tests --benches -- -D warnings'
+        language: system
+        files: \.rs$
+        pass_filenames: false
+# we think it is not necessary to run tests in pre-commit
+#      - id: cargo-test
+#        stages:
+#          - pre-push
+#        name: cargo test
+#        description: unit test for the project
+#        entry: bash -c 'make test'
+#        language: system
+#        files: \.rs$
+#        pass_filenames: false

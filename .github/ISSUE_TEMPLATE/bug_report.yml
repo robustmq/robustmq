@@ -1,0 +1,122 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+name: Bug report
+title: "[BUG]"
+description: Is something not working? Help us fix it!
+labels: [ "kind:bug" ]
+body:
+  - type: checkboxes
+    attributes:
+      label: Have you checked the documentation for submitting an Issue?
+      description: >
+        We would appreciate it if you could first check [Contribution Guide](https://robustmq.com/ContributionGuide/GitHub-Contribution-Guide.html),
+        as this will help us quickly categorize the Issue.
+        RobustMQ is a community-driven project and we love to bring new contributors in.
+      options:
+        - label: Yes.
+          required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        Take some time to fill out this bug report. Thank you!
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: What type of bug is this?
+      multiple: true
+      options:
+        - Configuration
+        - Crash
+        - Data corruption
+        - Incorrect result
+        - Locking issue
+        - Performance issue
+        - Unexpected error
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: subsystem
+    attributes:
+      label: What subsystems are affected?
+      description: You can pick multiple subsystems.
+      multiple: true
+      options:
+        - Standalone mode
+        - Frontend
+        - Datanode
+        - Meta
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduce step
+      description: >
+        Please walk us through and provide steps and details on how to reproduce the issue.
+        If possible, provide scripts that we can run to trigger the bug.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-manner
+    attributes:
+      label: What did you expect to see?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-manner
+    attributes:
+      label: What did you see instead?
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: What operating system did you use?
+      description: >
+        Please provide OS, version, and architecture. For example: Windows 10 x64, Ubuntu 21.04 x64, Mac OS X 10.5 ARM,
+        Raspberry Pi i386, etc.
+      placeholder: "Ubuntu 21.04 x64"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output and stack trace
+      description: >
+        Please copy and paste any relevant log output or a stack trace.
+        This will be automatically formatted into code, so no need for backticks.
+      render: bash
+
+  - type: checkboxes
+    attributes:
+      label: Are you willing to submit PR?
+      description: >
+        A pull request is optional, but we are glad to help you in the contribution process
+        especially if you already know a good understanding of how to implement the fix.
+        RobustMQ is a community-driven project and we love to bring new contributors in.
+      options:
+        - label: Yes. I would be willing to submit a PR with guidance from the RobustMQ community to improve.
+        - label: No. I cannot submit a PR at this time.

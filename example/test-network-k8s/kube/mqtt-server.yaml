@@ -1,0 +1,84 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: ${NAMESPACE}
+  name: mqtt-server-cs
+  labels:
+    app: mq
+spec:
+  type: NodePort
+  ports:
+    - port: 9981
+      name: grpc
+    - port: 9982
+      name: http
+    - port: 1883
+      name: mqtt
+  selector:
+    app: mqtt-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: ${NAMESPACE}
+  name: mqtt-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mqtt-server
+  template:
+    metadata:
+      labels:
+        app: mqtt-server
+    spec:
+      containers:
+        - name: mqtt-server
+          imagePullPolicy: IfNotPresent
+          image: docker.io/library/${MQTT_SERVER_IMAGE_NAME}:${IMAGE_VERSION}
+          resources:
+            requests:
+              memory: "200Mi"
+              cpu: "500m"
+          ports:
+            - containerPort: 9981
+              name: grpc
+            - containerPort: 9982
+              name: http
+            - containerPort: 1883
+              name: mqtt
+          env:
+            - name: MQTT_SERVER_PLACEMENT_CENTER
+              value: |
+                [ "placement-center-0.placement-center-hs.${NAMESPACE}.svc.cluster.local:1228","placement-center-1.placement-center-hs.${NAMESPACE}.svc.cluster.local:1228","placement-center-2.placement-center-hs.${NAMESPACE}.svc.cluster.local:1228" ]
+            - name: INDEX
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          command:
+            - sh
+            - -c
+            - |
+              export BROKER_ID=1 && /robustmq/libs/mqtt-server --conf /robustmq/config/cluster/mqtt-server/node.toml
+          volumeMounts:
+            - name: config
+              mountPath: /robustmq/config/cluster/mqtt-server/node.toml
+              subPath: config.toml
+      volumes:
+        - name: config
+          configMap:
+            name: mqtt-server-config
