@@ -22,23 +22,12 @@ use mqtt::cache::load_mqtt_cache;
 use mqtt::connector::scheduler::start_connector_scheduler;
 use mqtt::controller::call_broker::{mqtt_call_thread_manager, MQTTInnerCallManager};
 use openraft::Raft;
-use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterServiceServer;
-use protocol::placement_center::placement_center_journal::engine_service_server::EngineServiceServer;
-use protocol::placement_center::placement_center_kv::kv_service_server::KvServiceServer;
-use protocol::placement_center::placement_center_mqtt::mqtt_service_server::MqttServiceServer;
-use protocol::placement_center::placement_center_openraft::open_raft_service_server::OpenRaftServiceServer;
 use raft::leadership::monitoring_leader_transition;
-use server::grpc::intercept::grpc_intercept;
-use server::grpc::service_inner::GrpcPlacementService;
-use server::grpc::service_journal::GrpcEngineService;
-use server::grpc::service_kv::GrpcKvService;
-use server::grpc::service_mqtt::GrpcMqttService;
-use server::grpc::services_openraft::GrpcOpenRaftServices;
+use server::grpc::server::start_grpc_server;
 use storage::rocksdb::{column_family_list, storage_data_fold, RocksDBEngine};
 use tokio::signal;
 use tokio::sync::broadcast::Sender;
 use tokio::time::sleep;
-use tonic::transport::Server;
 
 use crate::core::cache::PlacementCacheManager;
 use crate::core::controller::ClusterController;
@@ -171,62 +160,28 @@ impl PlacementCenter {
 
     // Start Grpc Server
     pub fn start_grpc_server(&self, raft_machine_apply: Arc<RaftMachineApply>) {
-        let config = placement_center_conf();
-        let ip = format!("{}:{}", config.network.local_ip, config.network.grpc_port)
-            .parse()
-            .unwrap();
-        let placement_handler = GrpcPlacementService::new(
-            raft_machine_apply.clone(),
-            self.cluster_cache.clone(),
-            self.rocksdb_engine_handler.clone(),
-            self.client_pool.clone(),
-            self.journal_call_manager.clone(),
-            self.mqtt_call_manager.clone(),
-        );
-
-        let kv_handler = GrpcKvService::new(
-            raft_machine_apply.clone(),
-            self.rocksdb_engine_handler.clone(),
-        );
-
-        let engine_handler = GrpcEngineService::new(
-            raft_machine_apply.clone(),
-            self.engine_cache.clone(),
-            self.cluster_cache.clone(),
-            self.rocksdb_engine_handler.clone(),
-            self.journal_call_manager.clone(),
-            self.client_pool.clone(),
-        );
-
-        let openraft_handler = GrpcOpenRaftServices::new(raft_machine_apply.openraft_node.clone());
-
-        let mqtt_handler = GrpcMqttService::new(
-            self.cluster_cache.clone(),
-            self.mqtt_cache.clone(),
-            raft_machine_apply.clone(),
-            self.rocksdb_engine_handler.clone(),
-            self.mqtt_call_manager.clone(),
-            self.client_pool.clone(),
-        );
-
+        let cluster_cache = self.cluster_cache.clone();
+        let engine_cache = self.engine_cache.clone();
+        let mqtt_cache = self.mqtt_cache.clone();
+        let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
+        let client_pool = self.client_pool.clone();
+        let journal_call_manager = self.journal_call_manager.clone();
+        let mqtt_call_manager = self.mqtt_call_manager.clone();
         tokio::spawn(async move {
-            info!("RobustMQ Meta Grpc Server start success. bind addr:{}", ip);
-            let pc_svc =
-                PlacementCenterServiceServer::with_interceptor(placement_handler, grpc_intercept);
-            let kv_svc = KvServiceServer::with_interceptor(kv_handler, grpc_intercept);
-            let mqtt_svc = MqttServiceServer::with_interceptor(mqtt_handler, grpc_intercept);
-            let engine_svc = EngineServiceServer::with_interceptor(engine_handler, grpc_intercept);
-            let openraft_svc =
-                OpenRaftServiceServer::with_interceptor(openraft_handler, grpc_intercept);
-            Server::builder()
-                .add_service(pc_svc)
-                .add_service(kv_svc)
-                .add_service(mqtt_svc)
-                .add_service(engine_svc)
-                .add_service(openraft_svc)
-                .serve(ip)
-                .await
-                .unwrap();
+            if let Err(e) = start_grpc_server(
+                raft_machine_apply,
+                cluster_cache,
+                engine_cache,
+                mqtt_cache,
+                rocksdb_engine_handler,
+                client_pool,
+                journal_call_manager,
+                mqtt_call_manager,
+            )
+            .await
+            {
+                panic!("Failed to start grpc server,{}", e);
+            }
         });
     }
 

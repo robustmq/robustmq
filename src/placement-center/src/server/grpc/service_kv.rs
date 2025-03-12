@@ -55,7 +55,7 @@ impl KvService for GrpcKvService {
                 CommonError::ParameterCannotBeNull("key or value".to_string()).to_string(),
             ));
         }
-
+        println!("ffff set");
         // Raft state machine is used to store Node data
         let data = StorageData::new(StorageDataType::KvSet, SetRequest::encode_to_vec(&req));
         match self.raft_machine_apply.client_write(data).await {
