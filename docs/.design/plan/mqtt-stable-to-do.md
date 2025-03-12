@@ -89,7 +89,6 @@
    -  集成 OpenTelemetry
 -  MQTT Over Quic
 
-
 ## MQTT 文档
 - 简介
 - 核心概念
@@ -129,4 +128,20 @@
    -  集成 promethrus
    -  集成 OpenTelemetry
 -  MQTT Over Quic
--
+
+## 开发任务
+
+### placement
+1. 增加拦截器，记录每个GRPC接口的访问次数统计，总访问次数
+2. 增加拦截器，记录每个GRPC接口的访问耗时
+3. Raft状态机 各种操作类型的次数统计，总次数统计
+
+### MQTT
+1. 主题维度指标统计，进出消息数、频率
+2. Topic 数、Client数、Session数、订阅数、消息数、QOS 0 消息数、QOS 1 消息数、QOS 2 消息数
+3. 
+   
+### 文档
+1. MQTT 文档初版全部完成
+
+### 测试用例

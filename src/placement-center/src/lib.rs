@@ -28,6 +28,7 @@ use protocol::placement_center::placement_center_kv::kv_service_server::KvServic
 use protocol::placement_center::placement_center_mqtt::mqtt_service_server::MqttServiceServer;
 use protocol::placement_center::placement_center_openraft::open_raft_service_server::OpenRaftServiceServer;
 use raft::leadership::monitoring_leader_transition;
+use server::grpc::intercept::grpc_intercept;
 use server::grpc::service_inner::GrpcPlacementService;
 use server::grpc::service_journal::GrpcEngineService;
 use server::grpc::service_kv::GrpcKvService;
@@ -210,12 +211,19 @@ impl PlacementCenter {
 
         tokio::spawn(async move {
             info!("RobustMQ Meta Grpc Server start success. bind addr:{}", ip);
+            let pc_svc =
+                PlacementCenterServiceServer::with_interceptor(placement_handler, grpc_intercept);
+            let kv_svc = KvServiceServer::with_interceptor(kv_handler, grpc_intercept);
+            let mqtt_svc = MqttServiceServer::with_interceptor(mqtt_handler, grpc_intercept);
+            let engine_svc = EngineServiceServer::with_interceptor(engine_handler, grpc_intercept);
+            let openraft_svc =
+                OpenRaftServiceServer::with_interceptor(openraft_handler, grpc_intercept);
             Server::builder()
-                .add_service(PlacementCenterServiceServer::new(placement_handler))
-                .add_service(KvServiceServer::new(kv_handler))
-                .add_service(MqttServiceServer::new(mqtt_handler))
-                .add_service(EngineServiceServer::new(engine_handler))
-                .add_service(OpenRaftServiceServer::new(openraft_handler))
+                .add_service(pc_svc)
+                .add_service(kv_svc)
+                .add_service(mqtt_svc)
+                .add_service(engine_svc)
+                .add_service(openraft_svc)
                 .serve(ip)
                 .await
                 .unwrap();

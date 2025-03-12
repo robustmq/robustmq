@@ -72,6 +72,7 @@ impl DataRoute {
         &self,
         storage_data: StorageData,
     ) -> Result<Option<Vec<u8>>, PlacementCenterError> {
+        
         match storage_data.data_type {
             // Placement Center
             StorageDataType::KvSet => {
