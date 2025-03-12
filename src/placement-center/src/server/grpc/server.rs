@@ -53,7 +53,6 @@ pub async fn start_grpc_server(
     client_pool: Arc<ClientPool>,
     journal_call_manager: Arc<JournalInnerCallManager>,
     mqtt_call_manager: Arc<MQTTInnerCallManager>,
-    // Cache metadata information for the MQTT Serve
 ) -> Result<(), PlacementCenterError> {
     let config = placement_center_conf();
     let ip = format!("{}:{}", config.network.local_ip, config.network.grpc_port).parse()?;
@@ -122,6 +121,7 @@ impl<S> Layer<S> for BaseMiddlewareLayer {
     }
 }
 
+// See: https://github.com/hyperium/tonic/blob/master/examples/src/tower/server.rs
 #[derive(Debug, Clone)]
 struct BaseMiddleware<S> {
     inner: S,
@@ -157,7 +157,8 @@ where
     }
 }
 
+// See: https://github.com/hyperium/tonic/blob/master/examples/src/interceptor/server.rs
 pub fn grpc_intercept(req: Request<()>) -> Result<Request<()>, Status> {
-    println!("Intercepting request remote_addr: {:?}", req.remote_addr());
+    //todo
     Ok(req)
 }
