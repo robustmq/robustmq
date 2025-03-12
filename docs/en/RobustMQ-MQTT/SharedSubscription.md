@@ -3,8 +3,6 @@ RobustMQ MQTT implements the shared subscription functionality. A shared subscri
 
 RobustMQ MQTT supports two formats of shared subscription prefixes, one for shared subscriptions with groups (prefixes $share/&lt; group-name&gt; /) and shared subscriptions without groups (prefixed with $queue/). Examples of two shared subscription formats are as follows:
 
-| Prefix format | Example | prefix | real subject name |
-| --- | --- | --- | --- |
 | with group format | $share/abc/t/1 | $share/abc/ | t/1 |
 | without group format | $queue/t/1 | $queue/ | t/1 |
 
