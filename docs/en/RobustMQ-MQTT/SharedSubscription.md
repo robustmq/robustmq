@@ -2,9 +2,8 @@
 RobustMQ MQTT implements the shared subscription functionality. A shared subscription is a subscription pattern used to achieve load balancing among multiple subscribers. Clients can be divided into multiple subscription groups, and messages will still be forwarded to all subscription groups, but only one client will receive the message within each subscription group. You can prefix the original topic for a group of subscribers to enable a shared subscription.
 
 RobustMQ MQTT supports two formats of shared subscription prefixes, one for shared subscriptions with groups (prefixes $share/&lt; group-name&gt; /) and shared subscriptions without groups (prefixed with $queue/). Examples of two shared subscription formats are as follows:
-
-| with group format | $share/abc/t/1 | $share/abc/ | t/1 |
-| without group format | $queue/t/1 | $queue/ | t/1 |
+- with group format, $share/abc/t/1, $share/abc/, t/1
+- without group format , $queue/t/1, $queue/, t/1
 
 ## Shared subscriptions with groups
 You can do this by prefacing the original theme with $share/&lt; group-name&gt;  Subscribers prefixed with a group enable shared subscriptions. The group name can be any string. The RobustMQ MQTT Broker forwards messages to different groups simultaneously, and subscribers belonging to the same group can receive messages using load balancing.
