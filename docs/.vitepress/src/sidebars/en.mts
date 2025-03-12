@@ -82,10 +82,8 @@ export const sidebar = [
                 text: "Data integration",
                 collapsed: true,
                 items: [
-                    { text: " Local File", link: "" },
+                    { text: "Local File", link: "" },
                     { text: "Kafka", link: "" },
-                    { text: "Redis", link: "" },
-                    { text: "RocketMQ", link: "" },
                 ]
             },
 
@@ -100,7 +98,7 @@ export const sidebar = [
                 ]
             },
             { text: "MQTT Over Quic", link: "" },
-            { text: "GRPC Admin Interface", link: "" },
+            { text: "GRPC Admin Interface", link: "/RobustMQ-MQTT/GrpcAdmin.md" },
             { text: "Performance Bench", link: "" },
             {
                 text: "Client SDK",
