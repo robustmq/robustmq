@@ -46,6 +46,7 @@ pub fn monitoring_leader_transition(
             match metrics_rx.changed().await {
                 Ok(_) => {
                     let mm = metrics_rx.borrow().clone();
+
                     if let Some(current_leader) = mm.current_leader {
                         if last_leader != Some(current_leader) {
                             if mm.id == current_leader {

@@ -85,8 +85,6 @@ export const sidebar = [
                 items: [
                     { text: " Local File", link: "" },
                     { text: "Kafka", link: "" },
-                    { text: "Redis", link: "" },
-                    { text: "RocketMQ", link: "" },
                 ]
             },
 
@@ -96,12 +94,12 @@ export const sidebar = [
                 items: [
                     { text: "指标", link: "" },
                     { text: "Trace", link: "" },
-                    { text: "集成 promethrus", link: "" },
+                    { text: "集成 Prometheus", link: "" },
                     { text: "集成 OpenTelemetry", link: "" },
                 ]
             },
             { text: "MQTT Over Quic", link: "" },
-            { text: "GRPC Admin 接口", link: "" },
+            { text: "GRPC Admin 接口", link: "/zh/RobustMQ-MQTT/GrpcAdmin.md" },
             { text: "Bench 性能压测", link: "" },
             {
                 text: "客户端 SDK",
