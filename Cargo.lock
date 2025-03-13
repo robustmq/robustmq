@@ -73,7 +73,7 @@ checksum = "0942ffc6dcaadf03badf6e6a2d0228460359d5e34b57ccdc720b7382dfbd5ec5"
 
 [[package]]
 name = "amqp-broker"
-version = "0.1.6"
+version = "0.1.14"
 dependencies = [
  "axum",
  "bytes",
@@ -734,7 +734,7 @@ checksum = "702fc72eb24e5a1e48ce58027a675bc24edd52096d5397d4aea7c6dd9eca0bd1"
 
 [[package]]
 name = "cli-command"
-version = "0.1.6"
+version = "0.1.14"
 dependencies = [
  "axum",
  "bytes",
@@ -760,7 +760,7 @@ dependencies = [
 
 [[package]]
 name = "cmd"
-version = "0.1.6"
+version = "0.1.14"
 dependencies = [
  "clap",
  "clap-cargo",
@@ -793,7 +793,7 @@ dependencies = [
 
 [[package]]
 name = "common-base"
-version = "0.1.6"
+version = "0.1.14"
 dependencies = [
  "apache-avro",
  "axum",
@@ -1071,7 +1071,7 @@ checksum = "e8566979429cf69b49a5c740c60791108e86440e8be149bbea4fe54d2c32d6e2"
 
 [[package]]
 name = "delay-message"
-version = "0.1.6"
+version = "0.1.14"
 dependencies = [
  "axum",
  "bytes",
@@ -1691,7 +1691,7 @@ dependencies = [
 
 [[package]]
 name = "grpc-clients"
-version = "0.1.6"
+version = "0.1.14"
 dependencies = [
  "axum",
  "bytes",
@@ -1979,7 +1979,7 @@ dependencies = [
 
 [[package]]
 name = "idempotent-message"
-version = "0.1.6"
+version = "0.1.14"
 dependencies = [
  "axum",
  "bytes",
@@ -2111,7 +2111,7 @@ dependencies = [
 
 [[package]]
 name = "journal-client"
-version = "0.1.6"
+version = "0.1.14"
 dependencies = [
  "axum",
  "bytes",
@@ -2131,7 +2131,7 @@ dependencies = [
 
 [[package]]
 name = "journal-server"
-version = "0.1.6"
+version = "0.1.14"
 dependencies = [
  "axum",
  "bytes",
@@ -2185,7 +2185,7 @@ dependencies = [
 
 [[package]]
 name = "kafka-broker"
-version = "0.1.6"
+version = "0.1.14"
 dependencies = [
  "axum",
  "bytes",
@@ -2425,7 +2425,7 @@ dependencies = [
 
 [[package]]
 name = "metadata-struct"
-version = "0.1.6"
+version = "0.1.14"
 dependencies = [
  "bytes",
  "common-base",
@@ -2537,7 +2537,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt-broker"
-version = "0.1.6"
+version = "0.1.14"
 dependencies = [
  "axum",
  "axum-extra",
@@ -3255,7 +3255,7 @@ checksum = "2900ede94e305130c13ddd391e0ab7cbaeb783945ae07a279c268cb05109c6cb"
 
 [[package]]
 name = "placement-center"
-version = "0.1.6"
+version = "0.1.14"
 dependencies = [
  "axum",
  "bincode",
@@ -3268,6 +3268,7 @@ dependencies = [
  "metadata-struct",
  "mobc",
  "openraft",
+ "prometheus-client",
  "prost",
  "prost-validate",
  "protocol",
@@ -3651,7 +3652,7 @@ dependencies = [
 
 [[package]]
 name = "protocol"
-version = "0.1.6"
+version = "0.1.14"
 dependencies = [
  "axum",
  "bincode",
@@ -4075,7 +4076,7 @@ checksum = "3582f63211428f83597b51b2ddb88e2a91a9d52d12831f9d08f5e624e8977422"
 
 [[package]]
 name = "robustmq-test"
-version = "0.1.6"
+version = "0.1.14"
 dependencies = [
  "axum",
  "bytes",
@@ -4112,7 +4113,7 @@ dependencies = [
 
 [[package]]
 name = "rocksdb-engine"
-version = "0.1.6"
+version = "0.1.14"
 dependencies = [
  "common-base",
  "dashmap",
@@ -4337,7 +4338,7 @@ dependencies = [
 
 [[package]]
 name = "schema-register"
-version = "0.1.6"
+version = "0.1.14"
 dependencies = [
  "apache-avro",
  "axum",
@@ -4630,7 +4631,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "storage-adapter"
-version = "0.1.6"
+version = "0.1.14"
 dependencies = [
  "axum",
  "bytes",
@@ -4786,7 +4787,7 @@ checksum = "3369f5ac52d5eb6ab48c6b4ffdc8efbcad6b89c765749064ba298f2c68a16a76"
 
 [[package]]
 name = "third-driver"
-version = "0.1.6"
+version = "0.1.14"
 dependencies = [
  "common-base",
  "mysql",
