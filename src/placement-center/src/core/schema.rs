@@ -102,6 +102,15 @@ pub async fn update_schema_req(
     client_pool: &Arc<ClientPool>,
     req: &UpdateSchemaRequest,
 ) -> Result<(), PlacementCenterError> {
+    let storage = SchemaStorage::new(rocksdb_engine_handler.clone());
+    let schema = if let Some(schema) = storage.get(&req.cluster_name, &req.schema_name)? {
+        schema
+    } else {
+        return Err(PlacementCenterError::SchemaNotFound(
+            req.schema_name.clone(),
+        ));
+    };
+
     if req.cluster_name.is_empty() {
         return Err(PlacementCenterError::RequestParamsNotEmpty(
             "cluster_name".to_string(),
