@@ -27,10 +27,10 @@ common_base::register_counter_metric!(
 );
 
 pub fn metrics_grpc_request_incr(method: &str) {
-    let lable = GrpcMethodLabel {
+    let label = GrpcMethodLabel {
         method: method.to_string(),
     };
-    common_base::gauge_metric_inc!(GRPC_REQUEST_NUM, lable)
+    common_base::gauge_metric_inc!(GRPC_REQUEST_NUM, label)
 }
 
 pub fn metrics_grpc_request_ms(_: u128) {}
