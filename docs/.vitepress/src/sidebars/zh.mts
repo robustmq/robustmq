@@ -58,7 +58,6 @@ export const sidebar = [
                 text: "核心功能",
                 collapsed: true,
                 items: [
-                    { text: "共享订阅", link: "/zh/RobustMQ-MQTT/SharedSubscription.md" },
                     { text: "保留消息", link: "/zh/RobustMQ-MQTT/RetainMessage.md" },
                     { text: "遗嘱消息", link: "" },
                     { text: "排他订阅", link: "" },
@@ -67,6 +66,7 @@ export const sidebar = [
                     { text: "主题重写", link: "" },
                     { text: "通配符订阅", link: "" },
                     { text: "Session 持久化", link: "" },
+                    { text: "共享订阅", link: "" },
                 ],
             },
             {

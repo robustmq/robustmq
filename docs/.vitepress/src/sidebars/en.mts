@@ -57,7 +57,6 @@ export const sidebar = [
                 text: "Features",
                 collapsed: true,
                 items: [
-                    { text: "Shared Subscription", link: "/RobustMQ-MQTT/SystemArchitecture.md" },
                     { text: "Retain Message", link: "/RobustMQ-MQTT/RetainMessage.md" },
                     { text: "LastWill Message", link: "" },
                     { text: "Exclusive Subscription", link: "" },
@@ -66,6 +65,7 @@ export const sidebar = [
                     { text: "Topic Rewriting", link: "" },
                     { text: "Wildcard Subscription", link: "" },
                     { text: "Session Persistence", link: "" },
+                    { text: "Shared Subscription", link: "" },
                 ],
             },
             {
