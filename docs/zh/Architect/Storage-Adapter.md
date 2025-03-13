@@ -25,7 +25,7 @@ Storage Adapter 是一个 lib，不是一个 Service。它通过 trait StorageAd
 
 > StorageAdapter 文件路径：src/storage-adapter/src/storage.rs
 
-如果需要适配任何一种存储系统（比如 HDFS、Ceph、S3 等），只需要实现 StorageAdapter trait 即可。具体实现可以参考 StoageAdapter 不同的实现。
+如果需要适配任何一种存储系统（比如 HDFS、Ceph、S3 等），只需要实现 StorageAdapter trait 即可。具体实现可以参考 StoageAdapter 的实现。
 
 当前已经适配的存储系统有：
 - Journal Engine
