@@ -38,7 +38,6 @@ use crate::raft::raft_node::{create_raft_node, start_openraft_node};
 use crate::raft::typeconfig::TypeConfig;
 use crate::route::apply::RaftMachineApply;
 use crate::route::DataRoute;
-use crate::server::http::server::{start_http_server, HttpServerState};
 
 mod core;
 mod journal;
@@ -119,8 +118,6 @@ impl PlacementCenter {
 
         self.start_raft_machine(openraft_node.clone());
 
-        self.start_http_server(placement_center_storage.clone());
-
         self.start_grpc_server(placement_center_storage.clone());
 
         self.monitoring_leader_transition(openraft_node.clone(), placement_center_storage.clone());
@@ -143,19 +140,6 @@ impl PlacementCenter {
             self.client_pool.clone(),
             raft_machine_apply,
         );
-    }
-
-    // Start HTTP Server
-    pub fn start_http_server(&self, raft_machine_apply: Arc<RaftMachineApply>) {
-        let state: HttpServerState = HttpServerState::new(
-            self.cluster_cache.clone(),
-            self.cluster_cache.clone(),
-            self.engine_cache.clone(),
-            raft_machine_apply.clone(),
-        );
-        tokio::spawn(async move {
-            start_http_server(state).await;
-        });
     }
 
     // Start Grpc Server

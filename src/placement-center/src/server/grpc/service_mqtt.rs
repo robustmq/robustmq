@@ -44,6 +44,7 @@ use crate::mqtt::connector::request::{
     update_connector_by_req,
 };
 use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
+use crate::mqtt::services::acl::{create_acl_by_req, delete_acl_by_req, list_acl_by_req};
 use crate::mqtt::services::session::{
     delete_session_by_req, list_session_by_req, save_session_by_req, update_session_by_req,
 };
@@ -56,7 +57,6 @@ use crate::mqtt::services::user::{delete_user_by_req, list_user_by_req, save_use
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
 use crate::server::grpc::validate::ValidateExt;
-use crate::storage::mqtt::acl::AclStorage;
 use crate::storage::mqtt::blacklist::MqttBlackListStorage;
 use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
@@ -339,22 +339,9 @@ impl MqttService for GrpcMqttService {
         request: Request<ListAclRequest>,
     ) -> Result<Response<ListAclReply>, Status> {
         let req = request.into_inner();
-        let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
-        match acl_storage.list(&req.cluster_name) {
+        match list_acl_by_req(&req, &self.rocksdb_engine_handler) {
             Ok(list) => {
-                let mut acls = Vec::new();
-                for acl in list {
-                    match acl.encode() {
-                        Ok(data) => {
-                            acls.push(data);
-                        }
-                        Err(e) => {
-                            return Err(Status::cancelled(e.to_string()));
-                        }
-                    }
-                }
-
-                return Ok(Response::new(ListAclReply { acls }));
+                return Ok(Response::new(ListAclReply { acls: list }));
             }
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -367,12 +354,8 @@ impl MqttService for GrpcMqttService {
         request: Request<DeleteAclRequest>,
     ) -> Result<Response<DeleteAclReply>, Status> {
         let req = request.into_inner();
-        let data = StorageData::new(
-            StorageDataType::MqttDeleteAcl,
-            DeleteAclRequest::encode_to_vec(&req),
-        );
 
-        match self.raft_machine_apply.client_write(data).await {
+        match delete_acl_by_req(&req, &self.raft_machine_apply).await {
             Ok(_) => return Ok(Response::new(DeleteAclReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -385,12 +368,7 @@ impl MqttService for GrpcMqttService {
         request: Request<CreateAclRequest>,
     ) -> Result<Response<CreateAclReply>, Status> {
         let req = request.into_inner();
-        let data = StorageData::new(
-            StorageDataType::MqttSetAcl,
-            CreateAclRequest::encode_to_vec(&req),
-        );
-
-        match self.raft_machine_apply.client_write(data).await {
+        match create_acl_by_req(&req, &self.raft_machine_apply).await {
             Ok(_) => return Ok(Response::new(CreateAclReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));

@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use axum::http;
 use common_base::config::placement_center::placement_center_conf;
+use common_base::tools::now_mills;
 use grpc_clients::pool::ClientPool;
 use log::info;
 use rocksdb_engine::RocksDBEngine;
@@ -23,6 +24,7 @@ use rocksdb_engine::RocksDBEngine;
 use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
 
+use crate::core::metrics::{metrics_grpc_request_incr, metrics_grpc_request_ms};
 use crate::journal::cache::JournalCacheManager;
 use crate::journal::controller::call_node::JournalInnerCallManager;
 use crate::mqtt::cache::MqttCacheManager;
@@ -149,9 +151,12 @@ where
         let mut inner = std::mem::replace(&mut self.inner, clone);
 
         Box::pin(async move {
-            // Do extra async work here...
+            let start_time = now_mills();
+
+            // call
             let response = inner.call(req).await?;
 
+            metrics_grpc_request_ms(now_mills() - start_time);
             Ok(response)
         })
     }
@@ -159,6 +164,6 @@ where
 
 // See: https://github.com/hyperium/tonic/blob/master/examples/src/interceptor/server.rs
 pub fn grpc_intercept(req: Request<()>) -> Result<Request<()>, Status> {
-    //todo
+    metrics_grpc_request_incr("all");
     Ok(req)
 }
