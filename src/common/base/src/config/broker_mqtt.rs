@@ -358,7 +358,6 @@ mod tests {
             "[\"127.0.0.1:1228\",\"127.0.0.1:1228\",\"127.0.0.1:1228\"]",
         );
         std::env::set_var("MQTT_SERVER_GRPC_PORT", "99810");
-        std::env::set_var("MQTT_SERVER_HTTP_PORT", "99820");
         std::env::set_var("MQTT_SERVER_NETWORK_TCP_PORT", "18830");
         std::env::set_var("MQTT_SERVER_NETWORK_TCPS_PORT", "88830");
         std::env::set_var("MQTT_SERVER_NETWORK_WEBSOCKET_PORT", "80930");
