@@ -23,8 +23,8 @@ use mysql::prelude::Queryable;
 use mysql::Pool;
 use third_driver::mysql::build_mysql_conn_pool;
 
-use super::AuthStorageAdapter;
 use crate::handler::error::MqttBrokerError;
+use crate::security::AuthStorageAdapter;
 
 mod schema;
 pub struct MySQLAuthStorageAdapter {

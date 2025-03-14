@@ -17,7 +17,7 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use acl::is_allow_acl;
+use acl::auth::is_allow_acl;
 use axum::async_trait;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::config::common::Auth;
@@ -29,21 +29,19 @@ use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclAction, MqttAclResourceType
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::user::MqttUser;
-use mysql::MySQLAuthStorageAdapter;
-use placement::PlacementAuthStorageAdapter;
 use protocol::mqtt::common::{ConnectProperties, Login, QoS, Subscribe};
+use storage::mysql::MySQLAuthStorageAdapter;
+use storage::placement::PlacementAuthStorageAdapter;
 use storage_adapter::StorageType;
 
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
-use crate::security::acl::is_blacklist;
+use crate::security::acl::auth::is_blacklist;
 use crate::subscribe::sub_common::get_sub_topic_id_list;
 
 pub mod acl;
 pub mod login;
-pub mod mysql;
-pub mod placement;
-pub mod redis;
+pub mod storage;
 
 #[async_trait]
 pub trait AuthStorageAdapter {
@@ -316,8 +314,4 @@ pub fn build_driver(
     }
 
     Err(MqttBrokerError::UnavailableStorageType)
-}
-
-pub fn authentication_acl() -> bool {
-    false
 }

@@ -43,7 +43,7 @@ use super::response::{
 };
 use super::sub_exclusive::check_exclusive_subscribe;
 use super::topic::topic_name_validator;
-use crate::security::{authentication_acl, AuthDriver};
+use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::sub_common::sub_path_validator;
 use crate::subscribe::subscribe_manager::SubscribeManager;
@@ -352,25 +352,6 @@ pub async fn publish_validator(
                     ));
                 }
             }
-        }
-    }
-    if authentication_acl() {
-        if is_puback {
-            return Some(response_packet_mqtt_puback_fail(
-                protocol,
-                connection,
-                publish.pkid,
-                PubAckReason::NotAuthorized,
-                None,
-            ));
-        } else {
-            return Some(response_packet_mqtt_pubrec_fail(
-                protocol,
-                connection,
-                publish.pkid,
-                PubRecReason::NotAuthorized,
-                None,
-            ));
         }
     }
 
