@@ -133,4 +133,7 @@ pub enum PlacementCenterError {
 
     #[error("Schema [{0}] does not exist")]
     SchemaDoesNotExist(String),
+
+    #[error("Schema {0} Not found")]
+    SchemaNotFound(String),
 }

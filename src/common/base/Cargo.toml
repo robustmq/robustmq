@@ -49,3 +49,4 @@ opentelemetry_sdk.workspace = true
 opentelemetry-otlp.workspace = true
 valico.workspace = true
 apache-avro.workspace = true
+crc32fast.workspace = true

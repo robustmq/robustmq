@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::tools::now_second;
+use common_base::{tools::now_second, utils::crc::calc_crc32};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -30,10 +30,12 @@ pub struct Record {
     pub tags: Vec<String>,
     pub timestamp: u64,
     pub delay_timestamp: u64,
+    pub crc_num: u32,
 }
 
 impl Record {
     pub fn build_byte(data: Vec<u8>) -> Self {
+        let crc_num = calc_crc32(&data);
         Record {
             offset: None,
             key: "".to_string(),
@@ -42,10 +44,12 @@ impl Record {
             timestamp: now_second(),
             header: Vec::new(),
             delay_timestamp: 0,
+            crc_num,
         }
     }
 
     pub fn build_str(data: String) -> Self {
+        let crc_num = calc_crc32(data.as_bytes());
         Record {
             offset: None,
             key: "".to_string(),
@@ -54,6 +58,7 @@ impl Record {
             timestamp: now_second(),
             header: Vec::new(),
             delay_timestamp: 0,
+            crc_num,
         }
     }
 
@@ -67,5 +72,10 @@ impl Record {
 
     pub fn set_key(&mut self, key: String) {
         self.key = key;
+    }
+
+    pub fn crc32_check(&self) -> bool {
+        let crc_num = calc_crc32(&self.data);
+        crc_num == self.crc_num
     }
 }

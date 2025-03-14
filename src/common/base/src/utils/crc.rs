@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod crc;
-pub mod file_utils;
-pub mod time_util;
-pub mod topic_util;
-pub mod vec_util;
+use crc32fast::Hasher;
+
+pub fn calc_crc32(data: &[u8]) -> u32 {
+    let mut hasher = Hasher::new();
+    hasher.update(data);
+    hasher.finalize()
+}
