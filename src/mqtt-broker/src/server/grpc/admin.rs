@@ -44,6 +44,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 };
 use tonic::{Request, Response, Status};
 
+use crate::admin::cluster_status_by_req;
 use crate::bridge::request::{
     create_connector_by_req, delete_connector_by_req, list_connector_by_req,
     update_connector_by_req,
@@ -53,7 +54,6 @@ use crate::handler::flapping_detect::enable_flapping_detect;
 use crate::observability::slow::sub::{enable_slow_sub, read_slow_sub_record, SlowSubData};
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
-use crate::storage::cluster::ClusterStorage;
 use crate::storage::schema::{
     bind_schema_by_req, create_schema_by_req, delete_schema_by_req, list_bind_schema_by_req,
     list_schema_by_req, unbind_schema_by_req, update_schema_by_req,
@@ -87,23 +87,14 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         _: Request<ClusterStatusRequest>,
     ) -> Result<Response<ClusterStatusReply>, Status> {
-        let mut reply = ClusterStatusReply::default();
-        let config = broker_mqtt_conf();
-        reply.cluster_name = config.cluster_name.clone();
-        let mut broker_node_list = Vec::new();
-        let cluster_storage = ClusterStorage::new(self.client_pool.clone());
-        match cluster_storage.node_list().await {
-            Ok(data) => {
-                for node in data {
-                    broker_node_list.push(format!("{}@{}", node.node_ip, node.node_id));
-                }
+        match cluster_status_by_req(&self.client_pool).await {
+            Ok(reply) => {
+                return Ok(Response::new(reply));
             }
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
-        reply.nodes = broker_node_list;
-        Ok(Response::new(reply))
     }
 
     // --- user ---

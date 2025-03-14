@@ -32,16 +32,17 @@ use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
 
-use super::common::{override_default_by_env, Auth, Log, Storage, Telemetry};
+use super::common::{
+    default_prometheus, override_default_by_env, Auth, Log, Prometheus, Storage, Telemetry,
+};
 use super::default_mqtt::{
-    default_auth, default_grpc_port, default_http_port, default_log,
-    default_mqtt_cluster_dynamic_feature, default_mqtt_cluster_dynamic_flapping_detect,
-    default_mqtt_cluster_dynamic_network, default_mqtt_cluster_dynamic_protocol,
-    default_mqtt_cluster_dynamic_security, default_mqtt_cluster_dynamic_slow_sub, default_network,
-    default_network_quic_port, default_network_tcp_port, default_network_tcps_port,
-    default_network_websocket_port, default_network_websockets_port, default_offline_message,
-    default_placement_center, default_storage, default_system, default_tcp_thread,
-    default_telemetry,
+    default_auth, default_grpc_port, default_log, default_mqtt_cluster_dynamic_feature,
+    default_mqtt_cluster_dynamic_flapping_detect, default_mqtt_cluster_dynamic_network,
+    default_mqtt_cluster_dynamic_protocol, default_mqtt_cluster_dynamic_security,
+    default_mqtt_cluster_dynamic_slow_sub, default_network, default_network_quic_port,
+    default_network_tcp_port, default_network_tcps_port, default_network_websocket_port,
+    default_network_websockets_port, default_offline_message, default_placement_center,
+    default_storage, default_system, default_tcp_thread, default_telemetry,
 };
 use crate::tools::{read_file, try_create_fold};
 
@@ -51,8 +52,6 @@ pub struct BrokerMqttConfig {
     pub broker_id: u64,
     #[serde(default = "default_grpc_port")]
     pub grpc_port: u32,
-    #[serde(default = "default_http_port")]
-    pub http_port: usize,
     #[serde(default = "default_placement_center")]
     pub placement_center: Vec<String>,
     #[serde(default = "default_network")]
@@ -71,6 +70,8 @@ pub struct BrokerMqttConfig {
     pub offline_messages: OfflineMessage,
     #[serde(default = "default_telemetry")]
     pub telemetry: Telemetry,
+    #[serde(default = "default_prometheus")]
+    pub prometheus: Prometheus,
 
     #[serde(default = "default_mqtt_cluster_dynamic_slow_sub")]
     pub cluster_dynamic_config_slow_sub: MqttClusterDynamicSlowSub,
@@ -307,7 +308,6 @@ mod tests {
         assert_eq!(config.cluster_name, "mqtt-broker".to_string());
         assert_eq!(config.placement_center.len(), 1);
         assert_eq!(config.grpc_port, 9981);
-        assert_eq!(config.http_port, 9982);
 
         assert_eq!(config.network.tcp_port, 1883);
         assert_eq!(config.network.tcps_port, 8883);
@@ -358,7 +358,6 @@ mod tests {
             "[\"127.0.0.1:1228\",\"127.0.0.1:1228\",\"127.0.0.1:1228\"]",
         );
         std::env::set_var("MQTT_SERVER_GRPC_PORT", "99810");
-        std::env::set_var("MQTT_SERVER_HTTP_PORT", "99820");
         std::env::set_var("MQTT_SERVER_NETWORK_TCP_PORT", "18830");
         std::env::set_var("MQTT_SERVER_NETWORK_TCPS_PORT", "88830");
         std::env::set_var("MQTT_SERVER_NETWORK_WEBSOCKET_PORT", "80930");
@@ -409,7 +408,6 @@ mod tests {
         assert_eq!(config.cluster_name, "mqtt-broker-env".to_string());
         assert_eq!(config.placement_center.len(), 3);
         assert_eq!(config.grpc_port, 99810);
-        assert_eq!(config.http_port, 99820);
 
         assert_eq!(config.network.tcp_port, 18830);
         assert_eq!(config.network.tcps_port, 88830);
@@ -464,7 +462,6 @@ mod tests {
         assert_eq!(config.cluster_name, "mqtt-broker".to_string());
         assert_eq!(config.placement_center.len(), 1);
         assert_eq!(config.grpc_port, 9981);
-        assert_eq!(config.http_port, 9982);
 
         assert_eq!(config.network.tcp_port, 1883);
         assert_eq!(config.network.tcps_port, 8883);

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod crc;
 pub mod file_utils;
 pub mod time_util;
 pub mod topic_util;

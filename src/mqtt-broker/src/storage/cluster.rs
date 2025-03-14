@@ -63,7 +63,6 @@ impl ClusterStorage {
 
         let node = MqttNodeExtend {
             grpc_addr: format!("{}:{}", local_ip, config.grpc_port),
-            http_addr: format!("{}:{}", local_ip, config.http_port),
             mqtt_addr: format!("{}:{}", local_ip, config.network.tcp_port),
             mqtts_addr: format!("{}:{}", local_ip, config.network.tcps_port),
             websocket_addr: format!("{}:{}", local_ip, config.network.websocket_port),

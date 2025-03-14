@@ -105,6 +105,9 @@ pub enum CommonError {
     #[error("RocksDB Family {0} not available")]
     RocksDBFamilyNotAvailable(String),
 
+    #[error("CRC check for the message data failed")]
+    CrcCheckByMessage,
+
     #[error("{0}")]
     OpenDALError(#[from] opendal::Error),
 }

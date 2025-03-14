@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::common::Log;
-use super::journal_server::{Network, Prometheus, Shard, Storage, System, TcpThread};
+use super::journal_server::{Network, Shard, Storage, System, TcpThread};
 
 pub fn default_network() -> Network {
     Network {
@@ -60,10 +60,6 @@ pub fn default_network_tcps_port() -> u32 {
     3111
 }
 
-pub fn default_prometheus_port() -> u32 {
-    9090
-}
-
 pub fn default_system() -> System {
     System {
         runtime_work_threads: 16,
@@ -85,17 +81,6 @@ pub fn default_tcp_thread() -> TcpThread {
         max_connection_num: 1000,
         request_queue_size: 2000,
         response_queue_size: 2000,
-    }
-}
-
-pub fn default_prometheus() -> Prometheus {
-    Prometheus {
-        enable: false,
-        model: "pull".to_string(),
-        port: default_prometheus_port(),
-        push_gateway_server: "".to_string(),
-        interval: 10,
-        header: "".to_string(),
     }
 }
 

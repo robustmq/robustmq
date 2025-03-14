@@ -142,6 +142,7 @@ protobuf = "3.7.1"
 protobuf-codegen = "3.7.1"
 protofish = { version = "0.5.2"}
 rdkafka = { version = "0.37.0" }
+crc32fast = "1.4.2"
 
 #format
 prettytable-rs = "^0.10"

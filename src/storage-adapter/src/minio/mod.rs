@@ -584,7 +584,7 @@ impl StorageAdapter for MinIoStorageAdapter {
 mod tests {
     use std::{collections::HashMap, sync::Arc, vec};
 
-    use common_base::tools::unique_id;
+    use common_base::{tools::unique_id, utils::crc::calc_crc32};
     use futures::future;
     use metadata_struct::adapter::{
         read_config::ReadConfig,
@@ -849,14 +849,16 @@ mod tests {
                 let mut batch_data = Vec::new();
 
                 for idx in 0..100 {
+                    let value = format!("data-{}-{}", tid, idx).as_bytes().to_vec();
                     let data = Record {
                         offset: None,
                         header: header.clone(),
                         key: format!("key-{}-{}", tid, idx),
-                        data: format!("data-{}-{}", tid, idx).as_bytes().to_vec(),
+                        data: value.clone(),
                         tags: vec![format!("task-{}", tid)],
                         timestamp: 0,
                         delay_timestamp: 0,
+                        crc_num: calc_crc32(&value),
                     };
 
                     batch_data.push(data);

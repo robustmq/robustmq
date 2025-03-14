@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use axum::extract::State;
-use common_base::http_response::success_response;
+use crc32fast::Hasher;
 
-use super::server::HttpServerState;
-
-pub async fn connection_list(State(_): State<HttpServerState>) -> String {
-    success_response("data")
+pub fn calc_crc32(data: &[u8]) -> u32 {
+    let mut hasher = Hasher::new();
+    hasher.update(data);
+    hasher.finalize()
 }
