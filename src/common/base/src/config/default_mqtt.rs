@@ -24,10 +24,6 @@ pub fn default_grpc_port() -> u32 {
     9981
 }
 
-pub fn default_http_port() -> usize {
-    9982
-}
-
 pub fn default_placement_center() -> Vec<String> {
     vec!["127.0.0.1:1228".to_string()]
 }

@@ -19,6 +19,7 @@ use std::time::Duration;
 use bridge::core::start_connector_thread;
 use bridge::manager::ConnectorManager;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
 use common_base::tools::now_second;
 use delay_message::{start_build_delay_queue, start_delay_message_pop, DelayMessageManager};
@@ -37,7 +38,6 @@ use schema_register::schema::SchemaRegisterManager;
 use security::AuthDriver;
 use server::connection_manager::ConnectionManager;
 use server::grpc::server::GrpcServer;
-use server::http::server::{start_http_server, HttpServerState};
 use server::tcp::server::start_tcp_server;
 use server::websocket::server::{websocket_server, websockets_server, WebSocketServerState};
 use storage::cluster::ClusterStorage;
@@ -61,6 +61,7 @@ lazy_static! {
     pub static ref BROKER_START_TIME: u64 = now_second();
 }
 
+pub mod admin;
 pub mod bridge;
 pub mod handler;
 pub mod observability;
@@ -172,8 +173,6 @@ where
 
         self.start_push_server(stop_send.clone());
 
-        self.start_http_server();
-
         self.start_grpc_server();
 
         self.start_mqtt_server(stop_send.clone());
@@ -183,7 +182,7 @@ where
         self.start_delay_message_thread();
         self.start_update_cache_thread(stop_send.clone());
         self.start_system_topic_thread(stop_send.clone());
-
+        self.start_prometheus();
         self.start_connector_thread(stop_send.clone());
         self.awaiting_stop(stop_send);
     }
@@ -217,6 +216,15 @@ where
             )
             .await
         });
+    }
+
+    fn start_prometheus(&self) {
+        let conf = broker_mqtt_conf();
+        if conf.prometheus.enable {
+            self.runtime.spawn(async move {
+                register_prometheus_export(conf.prometheus.port).await;
+            });
+        }
     }
 
     fn start_quic_server(&self, stop_send: broadcast::Sender<bool>) {
@@ -259,18 +267,6 @@ where
         self.runtime.spawn(async move {
             match server.start().await {
                 Ok(()) => {}
-                Err(e) => {
-                    panic!("{}", e.to_string());
-                }
-            }
-        });
-    }
-
-    fn start_http_server(&self) {
-        let http_state = HttpServerState::new();
-        self.runtime.spawn(async move {
-            match start_http_server(http_state).await {
-                Ok(_) => {}
                 Err(e) => {
                     panic!("{}", e.to_string());
                 }

@@ -14,8 +14,6 @@
 
 cluster_name = "mqtt-broker"
 broker_id = 1
-grpc_port = 9981
-http_port = 9982
 placement_center = ["127.0.0.1:1228"]
 
 [network]
@@ -42,7 +40,9 @@ lock_try_mut_sleep_time_ms = 50
 storage_type = "placement"
 
 [prometheus]
-model = "push"
+enable = true
+model = "pull"
+port = 9090
 push_gateway_server = "127.0.0.1:8081"
 interval = 10
 header = ""
