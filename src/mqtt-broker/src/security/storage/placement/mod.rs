@@ -21,8 +21,8 @@ use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::user::MqttUser;
 
-use super::AuthStorageAdapter;
 use crate::handler::error::MqttBrokerError;
+use crate::security::AuthStorageAdapter;
 use crate::storage::acl::AclStorage;
 use crate::storage::blacklist::BlackListStorage;
 use crate::storage::user::UserStorage;
