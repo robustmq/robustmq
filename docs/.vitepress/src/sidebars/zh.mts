@@ -14,15 +14,15 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "概览", link: "/zh/QuickGuide/Overview" },
-            { text: "编译打包", link: "/zh/QuickGuide/Build" },
             {
                 text: "RobustMQ MQTT",
                 collapsed: true,
                 items: [
-                    { text: "单机模式", link: "/zh/QuickGuide/Run-Standalone-Mode" },
-                    { text: "集群模式", link: "/zh/QuickGuide/Run-Cluster-Mode" },
-                    { text: "Docker 模式", link: "/zh/QuickGuide/Run-Docker-Mode" },
-                    { text: "K8S 模式", link: "/zh/QuickGuide/Run-K8S-Mode" },
+                    { text: "编译打包", link: "/zh/QuickGuide/mqtt/Build" },
+                    { text: "二进制运行[单机]", link: "/zh/QuickGuide/mqtt/Run-Standalone-Mode" },
+                    { text: "二进制运行[集群]", link: "/zh/QuickGuide/mqtt/Run-Cluster-Mode" },
+                    { text: "Docker 模式", link: "/zh/QuickGuide/mqtt/Run-Docker-Mode" },
+                    { text: "K8S 模式", link: "/zh/QuickGuide/mqtt/Run-K8S-Mode" },
                 ],
             },
 
