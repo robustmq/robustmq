@@ -59,6 +59,7 @@ cross_build(){
     # copy bin&config
 	cp -rf bin/* ${build}/${package_name}/bin
 	cp -rf config/* ${build}/${package_name}/config
+    cp -rf example/* ${build}/${package_name}/config/example
 
     # chmod file
 	chmod -R 777 ${build}/${package_name}/bin/*
@@ -167,7 +168,8 @@ build_local(){
     # copy bin&config
 	cp -rf bin/* ${build}/${package_name}/bin
 	cp -rf config/* ${build}/${package_name}/config
-
+    cp -rf example/* ${build}/${package_name}/config/example
+    
     # chmod file
 	chmod -R 777 ${build}/${package_name}/bin/*
 

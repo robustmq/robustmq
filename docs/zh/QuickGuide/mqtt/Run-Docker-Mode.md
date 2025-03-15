@@ -1,4 +1,4 @@
-1. docker 构建镜像
+1. 构建 Docker 镜像
 
     构建镜像需要在`robustmq`根目录构建
 
@@ -17,54 +17,13 @@
     ```shell
     cd ./example/test-network-docker
     docker-compose -f compose/compose-test-net.yaml up
-
     ```
 
-3. 简单使用
+3. 验证 MQTT 功能是否正常
+   
+查看文档执行测试：[MQTT 功能测试](./MQTT-test.md)
 
-    更多命令请参考 [cli-command](../RobustMQ-Command/Mqtt-Broker.md)
-
-    查看用户
-    ```console
-    % cli-command mqtt user list
-    +----------+--------------+
-    | username | is_superuser |
-    +----------+--------------+
-    | admin    | true         |
-    +----------+--------------+
-    ```
-
-    发布消息
-    ```console
-    % cli-command mqtt --server=127.0.0.1:1883 publish --username=admin --password=pwd123 --topic=test/topic1 --qos=0
-    able to connect: "127.0.0.1:1883"
-    you can post a message on the terminal:
-    1
-    > You typed: 1
-    2
-    > You typed: 2
-    3
-    > You typed: 3
-    4
-    > You typed: 4
-    5
-    > You typed: 5
-    ^C>  Ctrl+C detected,  Please press ENTER to end the program.
-    ```
-
-    订阅消息
-    ```console
-    % cli-command mqtt --server=127.0.0.1:1883 subscribe --username=admin --password=pwd123 --topic=test/topic1 --qos=0
-    able to connect: "127.0.0.1:1883"
-    subscribe success
-    payload: 1
-    payload: 2
-    payload: 3
-    payload: 4
-    payload: 5
-    ^C Ctrl+C detected,  Please press ENTER to end the program.
-    End of input stream.
-    ```
+    
 4. 出现的问题怎么解决
 
    4.1 出现`Not found leader`这种问题是因为 `placement-center` 集群的数据有问题，需要清理掉 volumes
