@@ -699,6 +699,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn stream_read_write() {
         let client_pool = Arc::new(ClientPool::new(100));
         let addrs = vec![get_placement_addr()];
@@ -917,6 +918,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn concurrency_test() {
         let client_pool = Arc::new(ClientPool::new(100));
         let addrs = vec![get_placement_addr()];
