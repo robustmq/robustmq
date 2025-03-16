@@ -5,7 +5,14 @@ export const sidebar = [
         items: [
             { text: "What is RobustMQ", link: "/OverView/What-is-RobustMQ" },
             { text: "Why RobustMQ", link: "/OverView/Why-RobustMQ" },
-            { text: "RoadMamp", link: "/OverView/RoadMap" },
+            {
+                text: "Version planning",
+                collapsed: true,
+                items: [
+                    { text: "2025 RoadMamp", link: "/zh/OverView/RoadMap-2025" },
+                    { text: "MQTT Release Planning", link: "/zh/OverView/MQTT-Release" },
+                ],
+            },
         ],
     },
     {
@@ -13,15 +20,15 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "Overview", link: "/QuickGuide/Overview" },
-            { text: "Build", link: "/QuickGuide/Build" },
             {
                 text: "RobustMQ MQTT",
                 collapsed: true,
                 items: [
-                    { text: "Stand-loneMode", link: "/QuickGuide/Run-Standalone-Mode" },
-                    { text: "ClusterMode", link: "/QuickGuide/Run-Cluster-Mode" },
-                    { text: "DockerMode", link: "/QuickGuide/Run-Docker-Mode" },
-                    { text: "K8SMode", link: "/QuickGuide/Run-K8S-Mode" },
+                    { text: "Build", link: "/QuickGuide/mqtt/Build" },
+                    { text: "Stand-loneMode", link: "/QuickGuide/mqtt/Run-Standalone-Mode" },
+                    { text: "ClusterMode", link: "/QuickGuide/mqtt/Run-Cluster-Mode" },
+                    { text: "DockerMode", link: "/QuickGuide/mqtt/Run-Docker-Mode" },
+                    { text: "K8SMode", link: "/QuickGuide/mqtt/Run-K8S-Mode" },
                 ],
             },
 
