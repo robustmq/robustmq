@@ -69,7 +69,7 @@
 
 5. Enter docket
 
-    For more commands, please refer to [cli-command](../RobustMQ-Command/Mqtt-Broker.md)
+    For more commands, please refer to [cli-command](../../RobustMQ-Command/Mqtt-Broker.md)
 
     
 
