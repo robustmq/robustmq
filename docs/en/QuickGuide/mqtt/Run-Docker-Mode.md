@@ -21,7 +21,7 @@
 
 3. Simple Usage
 
-    For more commands, please refer to [cli-command](../RobustMQ-Command/Mqtt-Broker.md)
+    For more commands, please refer to [cli-command](../../RobustMQ-Command/Mqtt-Broker.md)
 
     List users
     ```console
