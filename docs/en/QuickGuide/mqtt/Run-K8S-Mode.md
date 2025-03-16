@@ -66,20 +66,12 @@
    - Launch the KIND Kubernetes cluster
    - Start the RobustMQ cluster
 
-5. Simple Usage
 
-    For more commands, please refer to [cli-command](../RobustMQ-Command/Mqtt-Broker.md)
+5. Enter docket
 
-    This KIND-Kubernetes cluster will start a `cli-command` pod, from which you can execute cli-command commands within the cluster.
+    For more commands, please refer to [cli-command](../../RobustMQ-Command/Mqtt-Broker.md)
 
-    First, get the name of the `cli-command` pod
-
-    ```console
-    % kubectl get pods -n robustmq
-    NAME                                READY   STATUS    RESTARTS   AGE
-    cli-command-6fbf8b6cc-7ldqp          1/1     Running   0          16m
-    ```
-    Enter the `cli-command` pod and run commands
+    
 
     Publish messages
     ```console
@@ -109,3 +101,18 @@
     ^C Ctrl+C detected,  Please press ENTER to end the program.
     End of input stream.
     ```
+    
+6. Verify that MQTT functions correctly
+
+This KIND-Kubernetes cluster will start a `cli-command` pod, from which you can execute cli-command commands within the cluster.
+
+First, get the name of the `cli-command` pod
+
+    ```console
+    % kubectl get pods -n robustmq
+    NAME                                READY   STATUS    RESTARTS   AGE
+    cli-command-6fbf8b6cc-7ldqp          1/1     Running   0          16m
+    ```
+Enter the `cli-command` pod and run commands
+
+Check the documentation to run the test：[MQTT functional tests](./MQTT-test.md)

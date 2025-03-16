@@ -1,4 +1,4 @@
- ## 查看用户
+ ## User List
 ```console
 % bin/robust-ctl mqtt user list
 +----------+--------------+
@@ -8,7 +8,7 @@
 +----------+--------------+
 ```
 
-## 发布消息
+## Pub Message
 ```console
  % bin/robust-ctl mqtt --server=127.0.0.1:1883 publish --username=admin --password=pwd123 --topic=test/topic1 --qos=0
  able to connect: "127.0.0.1:1883"
@@ -26,7 +26,7 @@
 ^C>  Ctrl+C detected,  Please press ENTER to end the program.
 ```
 
-## 订阅消息
+## Sub Message
 ```console
 % bin/robust-ctl mqtt --server=127.0.0.1:1883 subscribe --username=admin --password=pwd123 --topic=test/topic1 --qos=0
 able to connect: "127.0.0.1:1883"

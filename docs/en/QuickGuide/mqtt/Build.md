@@ -2,7 +2,7 @@
 RobustMQ can be packaged with the Make command that comes with the project itself.
 ```
 Build
-  build                           Build mac version robustmq.
+  build                           Build local machine version robustmq.
   build-mac-release               Build mac version robustmq.
   build-linux-release             Build linux version robustmq.
   build-win-release               Build win version robustmq.

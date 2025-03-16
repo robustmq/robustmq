@@ -4,12 +4,12 @@
 
     Build the Placement Center image
     ```shell
-        docker build --target placement-center -t placement-center-test:0.1 .
+    docker build --target placement-center -t placement-center-test:0.1 .
     ```
 
     Build the MQServer image
     ```shell
-        docker build --target mqserver -t mqserver-test:0.1 .
+    docker build --target mqserver -t mqserver-test:0.1 .
     ```
 
 2. Running with Docker
@@ -21,7 +21,7 @@
 
 3. Simple Usage
 
-    For more commands, please refer to [cli-command](../RobustMQ-Command/Mqtt-Broker.md)
+    For more commands, please refer to [cli-command](../../RobustMQ-Command/Mqtt-Broker.md)
 
     List users
     ```console

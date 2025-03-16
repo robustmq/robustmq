@@ -1,32 +1,33 @@
-1. 构建 Docker 镜像
+## 1. 构建 Docker 镜像
+构建镜像需要在`robustmq`根目录构建
 
-    构建镜像需要在`robustmq`根目录构建
+- 构建 placement center 镜像
 
-    构建 placement center 镜像
-    ```shell
-        docker build --target placement-center -t placement-center-test:0.1 .
-    ```
+```shell
+    docker build --target placement-center -t placement-center-test:0.1 .
+```
 
-    构建 mqserver 镜像
-    ```shell
-        docker build --target mqserver -t mqserver-test:0.1 .
-    ```
+- 构建 mqserver 镜像
 
-2. docker 运行
+```shell
+    docker build --target mqserver -t mqserver-test:0.1 .
+```
+
+## 2. docker 运行
 
     ```shell
     cd ./example/test-network-docker
     docker-compose -f compose/compose-test-net.yaml up
     ```
 
-3. 验证 MQTT 功能是否正常
+## 3. 验证 MQTT 功能是否正常
    
 查看文档执行测试：[MQTT 功能测试](./MQTT-test.md)
 
     
-4. 出现的问题怎么解决
+## 4. 出现的问题怎么解决
 
-   4.1 出现`Not found leader`这种问题是因为 `placement-center` 集群的数据有问题，需要清理掉 volumes
+4.1 出现`Not found leader`这种问题是因为 `placement-center` 集群的数据有问题，需要清理掉 volumes
 
    ```console
     mqtt-server-node-1       | thread 'main' panicked at src/mqtt-broker/src/handler/cache.rs:523:17:
