@@ -16,8 +16,8 @@ use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::placement_center::placement_center_kv::kv_service_client::KvServiceClient;
 use protocol::placement_center::placement_center_kv::{
-    DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetReply,
-    SetRequest,
+    DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetPrefixReply, GetPrefixRequest,
+    GetReply, GetRequest, ListShardReply, ListShardRequest, SetReply, SetRequest,
 };
 use tonic::transport::Channel;
 
@@ -94,6 +94,24 @@ impl_retriable_request!(
     ExistsReply,
     placement_center_kv_services_client,
     exists,
+    true
+);
+
+impl_retriable_request!(
+    ListShardRequest,
+    KvServiceClient<Channel>,
+    ListShardReply,
+    placement_center_kv_services_client,
+    list_shard,
+    true
+);
+
+impl_retriable_request!(
+    GetPrefixRequest,
+    KvServiceClient<Channel>,
+    GetPrefixReply,
+    placement_center_kv_services_client,
+    get_prefix,
     true
 );
 
