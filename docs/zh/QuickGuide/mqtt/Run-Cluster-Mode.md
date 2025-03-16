@@ -1,5 +1,5 @@
 # 集群模式
-1. 前面部分和单机模式一样，参考 [单机模式](Run-Single-Mode.md)。集群模式同样要启动两个组件：Placement-Center 和 MQTT-Broker。
+1. 前面部分和单机模式一样，参考 [单机模式](./Run-Standalone-Mode.md)。集群模式同样要启动两个组件：Placement-Center 和 MQTT-Broker。
 
 > 集群模式和单机模式的区别就是，集群模式需要启动多个 Placement Center 和 MQTT Broker 节点。多个节点启动后，会自动组建成一个高可用的集群。
 
