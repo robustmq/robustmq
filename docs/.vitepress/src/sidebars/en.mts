@@ -5,7 +5,14 @@ export const sidebar = [
         items: [
             { text: "What is RobustMQ", link: "/OverView/What-is-RobustMQ" },
             { text: "Why RobustMQ", link: "/OverView/Why-RobustMQ" },
-            { text: "RoadMamp", link: "/OverView/RoadMap" },
+            {
+                text: "Version planning",
+                collapsed: true,
+                items: [
+                    { text: "2025 RoadMamp", link: "/zh/OverView/RoadMap-2025" },
+                    { text: "MQTT Release Planning", link: "/zh/OverView/MQTT-Release" },
+                ],
+            },
         ],
     },
     {
