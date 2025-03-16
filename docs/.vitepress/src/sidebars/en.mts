@@ -9,8 +9,8 @@ export const sidebar = [
                 text: "Version planning",
                 collapsed: true,
                 items: [
-                    { text: "2025 RoadMamp", link: "/zh/OverView/RoadMap-2025" },
-                    { text: "MQTT Release Planning", link: "/zh/OverView/MQTT-Release" },
+                    { text: "2025 RoadMamp", link: "/OverView/RoadMap-2025" },
+                    { text: "MQTT Release Planning", link: "/OverView/MQTT-Release" },
                 ],
             },
         ],
