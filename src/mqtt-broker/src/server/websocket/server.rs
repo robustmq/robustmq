@@ -311,8 +311,6 @@ async fn handle_socket<S>(
                             info!("websocket server parsing request packet error, error message :{e:?}");
                         },
                     }
-                } else {
-                    info!("Web socket server receives an empty request packet");
                 }
             }
         }

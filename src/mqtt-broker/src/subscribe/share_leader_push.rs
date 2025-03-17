@@ -268,10 +268,14 @@ where
             }
 
             cursor_point = choose_available_sub(cursor_point, sub_list);
-            let subscribe = sub_list.get(cursor_point).unwrap();
+            let subscribe = if let Some(sub) = sub_list.get(cursor_point) {
+                sub.clone()
+            } else {
+                continue;
+            };
 
             if let Some((mut publish, properties)) =
-                build_publish(cache_manager, subscribe, &sub_data.topic_name, &msg)
+                build_publish(cache_manager, &subscribe, &sub_data.topic_name, &msg)
             {
                 let pkid = if publish.qos != QoS::AtMostOnce {
                     cache_manager.get_pkid(&subscribe.client_id).await
