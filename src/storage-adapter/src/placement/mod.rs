@@ -947,7 +947,7 @@ mod tests {
             value: "value".to_string(),
         }];
 
-        // create 1,000 tokio tasks, each of which will write 100 records to a shard
+        // create 100 tokio tasks, each of which will write 100 records to a shard
         let mut tasks = vec![];
         for tid in 0..100 {
             let storage_adapter = storage_adapter.clone();
