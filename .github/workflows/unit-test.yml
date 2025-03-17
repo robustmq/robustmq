@@ -62,3 +62,16 @@ jobs:
           path: |
             target/nextest/ci/junit.xml
           if-no-files-found: error
+
+  code-cov:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@main
+    - uses: codecov/codecov-action@v5
+      with:
+        fail_ci_if_error: true # optional (default = false)
+        files: ./coverage1.xml,./coverage2.xml # optional
+        flags: unittests # optional
+        name: codecov-umbrella # optional
+        token: ${{ secrets.GITHUB_TOKEN }}
+        verbose: true # optional (default = false)
