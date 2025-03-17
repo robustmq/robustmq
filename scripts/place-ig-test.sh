@@ -43,7 +43,8 @@ rm -rf ./robust-data-test/placement-center*
 if [ "$1" = "dev" ]; then
 
   cargo nextest run --package grpc-clients --package robustmq-test --test mod -- placement && \
-  cargo nextest run --package robustmq-test --test mod -- place_server
+  cargo nextest run --package robustmq-test --test mod -- place_server && \
+  cargo nextest run --package storage-adapter --lib -- placement
 
  # Stop Server
  stop_server
