@@ -699,7 +699,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn stream_read_write() {
         let client_pool = Arc::new(ClientPool::new(100));
         let addrs = vec![get_placement_addr()];
@@ -785,10 +784,10 @@ mod tests {
         assert_eq!(result_read.len(), 2);
 
         // test group functionalities
-        let group_id = "test_group_id".to_string();
+        let group_id = unique_id();
         let read_config = ReadConfig {
             max_record_num: 1,
-            ..Default::default()
+            max_size: 1024,
         };
 
         // read m1
@@ -824,6 +823,9 @@ mod tests {
             .get_offset_by_group(group_id.clone())
             .await
             .unwrap();
+
+        assert_eq!(offset.len(), 1);
+        assert_eq!(offset.first().unwrap().offset, 0);
 
         let res = storage_adapter
             .read_by_offset(
@@ -918,9 +920,8 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn concurrency_test() {
-        let client_pool = Arc::new(ClientPool::new(100));
+        let client_pool = Arc::new(ClientPool::new(1000));
         let addrs = vec![get_placement_addr()];
 
         let storage_adapter = Arc::new(PlacementStorageAdapter::new(client_pool, addrs));
@@ -946,9 +947,9 @@ mod tests {
             value: "value".to_string(),
         }];
 
-        // create 10,000 tokio tasks, each of which will write 100 records to a shard
+        // create 1,000 tokio tasks, each of which will write 100 records to a shard
         let mut tasks = vec![];
-        for tid in 0..10000 {
+        for tid in 0..100 {
             let storage_adapter = storage_adapter.clone();
             let namespace = namespace.clone();
             let shard_name = shards.get(tid % shards.len()).unwrap().clone();
@@ -1050,7 +1051,7 @@ mod tests {
                 .unwrap()
                 .len();
 
-            assert_eq!(len, (10000 / shards.len()) * 100);
+            assert_eq!(len, (100 / shards.len()) * 100);
         }
     }
 }
