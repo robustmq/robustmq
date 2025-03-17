@@ -164,12 +164,5 @@ export const sidebar = [
                 ]
             }
         ],
-    },
-    {
-        text: "相关资料",
-        collapsed: true,
-        items: [
-
-        ],
-    },
+    }
 ];

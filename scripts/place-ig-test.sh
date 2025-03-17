@@ -14,7 +14,7 @@
 
 
 start_server(){
-    nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-1.toml 2>/tmp/1.log &
+    nohup cargo run --package cmd --bin placement-center -- --conf=example/test-config/place.toml 2>/tmp/1.log &
     sleep 3
 
     no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`

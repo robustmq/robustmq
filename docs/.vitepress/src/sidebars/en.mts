@@ -162,10 +162,5 @@ export const sidebar = [
                 ],
             }
         ],
-    },
-    {
-        text: "Other Data",
-        collapsed: true,
-        items: [],
-    },
+    }
 ];

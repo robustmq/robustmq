@@ -13,7 +13,7 @@
 # limitations under the License.
 
 start_placement_server(){
-    nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-1.toml 2>/tmp/pc-1.log &
+    nohup cargo run --package cmd --bin placement-center -- --conf=example/test-config/place.toml 2>/tmp/pc-1.log &
     sleep 3
 
     no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
@@ -33,7 +33,7 @@ stop_placement_server(){
 }
 
 start_mqtt_server(){
-    nohup cargo run --package cmd --bin mqtt-server -- --conf=example/mqtt-cluster/mqtt-server/node-1.toml 2>/tmp/mqtt-1.log &
+    nohup cargo run --package cmd --bin mqtt-server -- --conf=example/test-config/mqtt.toml 2>/tmp/mqtt-1.log &
     sleep 3
 
     no1=`ps -ef | grep mqtt-server  | grep node-1 | grep -v grep | awk '{print $2}'`
