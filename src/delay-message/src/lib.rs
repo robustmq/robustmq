@@ -15,7 +15,7 @@
 use build::build_delay_queue;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use log::debug;
+use log::{debug, info};
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use std::{
     sync::{atomic::AtomicU64, Arc},
@@ -67,7 +67,7 @@ where
     pub async fn init(&self) -> Result<(), CommonError> {
         self.try_init_shard().await?;
         self.init_delay_queue().await?;
-        println!("DelayMessage service start");
+        info!("DelayMessage service start");
         Ok(())
     }
 
@@ -85,7 +85,7 @@ where
                     replica_num: 1,
                 };
                 self.message_storage_adapter.create_shard(shard).await?;
-                println!("init shard:{}, {}", self.namespace.clone(), shard_name);
+                info!("init shard:{}, {}", self.namespace.clone(), shard_name);
             }
         }
 

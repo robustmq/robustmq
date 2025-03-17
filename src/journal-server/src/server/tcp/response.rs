@@ -73,7 +73,7 @@ pub(crate) async fn response_process(
                                         break;
                                     }
                                     Err(err) => error!(
-                                        "Failed to write data to the response process queue, error message: {:?}",
+                                        "Failed to write data to the quic response process queue, error message: {:?}",
                                         err
                                     ),
                                 }

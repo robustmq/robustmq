@@ -15,19 +15,19 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::handler::cache::CacheManager;
+use crate::handler::connection::disconnect_connection;
+use crate::observability::metrics::server::{metrics_request_queue, metrics_response_queue};
+use crate::server::connection_manager::ConnectionManager;
+use crate::server::packet::ResponsePackage;
 use grpc_clients::pool::ClientPool;
+use log::info;
 use log::{debug, error};
 use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::mqtt::common::MqttPacket;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
-
-use crate::handler::cache::CacheManager;
-use crate::handler::connection::disconnect_connection;
-use crate::observability::metrics::server::{metrics_request_queue, metrics_response_queue};
-use crate::server::connection_manager::ConnectionManager;
-use crate::server::packet::ResponsePackage;
 
 pub(crate) async fn response_process(
     response_process_num: usize,
@@ -64,27 +64,31 @@ pub(crate) async fn response_process(
                 val = response_queue_rx.recv()=>{
                     if let Some(packet) = val{
                         metrics_request_queue("response-total", response_queue_rx.len());
-                        loop{
-                            let seq = if response_process_seq > process_handler.len(){
-                                1
-                            } else {
-                                response_process_seq
-                            };
 
-                            if let Some(handler_sx) = process_handler.get(&seq){
-                                match handler_sx.try_send(packet.clone()){
-                                    Ok(_) => {
-                                        break;
-                                    }
-                                    Err(err) => error!(
-                                        "Failed to write data to the response process queue, error message: {:?}",
-                                        err
-                                    ),
-                                }
-                                response_process_seq += 1;
-                            }else{
-                                error!("{}","No request packet processing thread available");
+                        let seq = if response_process_seq > process_handler.len(){
+                            1
+                        } else {
+                            response_process_seq
+                        };
+
+                        if let Some(handler_sx) = process_handler.get(&seq){
+                            if handler_sx.is_closed(){
+                                error!("Response queue {} is closed and is not allowed to send messages to the channel.", seq);
+                                process_handler.remove(&seq);
+                                continue;
                             }
+
+                            match handler_sx.try_send(packet.clone()){
+                                Ok(_) => {}
+                                Err(err) => error!(
+                                    "Failed to write data to the tcp response process queue, error message: {:?}",
+                                    err
+                                ),
+                            }
+
+                            response_process_seq += 1;
+                        }else{
+                            error!("{}","No request packet processing thread available");
                         }
                     }
                 }
@@ -117,7 +121,7 @@ pub(crate) fn response_child_process(
                     val = raw_stop_rx.recv() =>{
                         if let Ok(flag) = val {
                             if flag {
-                                debug!("TCP Server response process thread {index} stopped successfully.");
+                                info!("TCP Server response process thread {index} stopped successfully.");
                                 break;
                             }
                         }
