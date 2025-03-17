@@ -218,7 +218,7 @@ mod tests {
             config.log,
             Log {
                 log_path: "./robust-data/placement-center/logs".to_string(),
-                log_config: "./config/log4rs.yaml".to_string(),
+                log_config: "./config/log-config/place-log4rs.yaml".to_string(),
             }
         );
         let mut nodes = Table::new();
