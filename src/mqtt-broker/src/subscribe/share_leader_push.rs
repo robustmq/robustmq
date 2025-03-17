@@ -381,8 +381,7 @@ where
                 }
                 Err(e) => {
                     error!(
-                        "SharSub Leader failed to send QOS1 message to {}, error message :{},
-                     trying to deliver the message to another client.",
+                        "SharSub Leader failed to send QOS1 message to {}, error message :{},trying to deliver the message to another client.",
                         sub_pub_param.subscribe.client_id.clone(),
                         e.to_string()
                     );
