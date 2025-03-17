@@ -62,3 +62,13 @@ jobs:
           path: |
             target/nextest/ci/junit.xml
           if-no-files-found: error
+
+      - name: rust-grcov
+        uses: actions-rs/grcov@v0.1
+      - name: Codecov
+        uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          verbose: true
+          fail_ci_if_error: true
