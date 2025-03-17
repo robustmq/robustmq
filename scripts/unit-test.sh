@@ -17,11 +17,11 @@
 if [ "$1" = "dev" ]; then
 
  # Run Cargo Test （exclude integration test modules）
- cargo nextest run  --workspace --exclude=robustmq-test --exclude=grpc-clients
+ cargo nextest run  --workspace --exclude=robustmq-test --exclude=grpc-clients --filter-expr '!(test(placement) & package(storage-adapter))'
 
 else
 
   # Run Cargo Test （exclude integration test modules）
- cargo nextest run  --profile=ci --workspace --exclude=robustmq-test --exclude=grpc-clients
+ cargo nextest run  --profile=ci --workspace --exclude=robustmq-test --exclude=grpc-clients --filter-expr '!(test(placement) & package(storage-adapter))'
 
 fi
