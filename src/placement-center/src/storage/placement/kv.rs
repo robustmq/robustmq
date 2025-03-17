@@ -18,7 +18,7 @@ use common_base::error::common::CommonError;
 
 use crate::storage::engine::{
     engine_delete_by_cluster, engine_exists_by_cluster, engine_get_by_cluster,
-    engine_save_by_cluster,
+    engine_prefix_list_by_cluster, engine_save_by_cluster,
 };
 use crate::storage::rocksdb::RocksDBEngine;
 
@@ -51,5 +51,18 @@ impl KvStorage {
 
     pub fn exists(&self, key: String) -> Result<bool, CommonError> {
         engine_exists_by_cluster(self.rocksdb_engine_handler.clone(), key)
+    }
+
+    pub fn get_prefix(&self, prefix: String) -> Result<Vec<String>, CommonError> {
+        match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix) {
+            Ok(data) => {
+                let mut result = Vec::new();
+                for item in data {
+                    result.push(serde_json::from_slice(&item.data)?);
+                }
+                Ok(result)
+            }
+            Err(e) => Err(e),
+        }
     }
 }

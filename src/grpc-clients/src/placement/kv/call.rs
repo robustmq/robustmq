@@ -14,8 +14,8 @@
 
 use common_base::error::common::CommonError;
 use protocol::placement_center::placement_center_kv::{
-    DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetReply,
-    SetRequest,
+    DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetPrefixReply, GetPrefixRequest,
+    GetReply, GetRequest, ListShardReply, ListShardRequest, SetReply, SetRequest,
 };
 
 use crate::pool::ClientPool;
@@ -36,3 +36,15 @@ generate_kv_service_call!(placement_set, SetRequest, SetReply, Set);
 generate_kv_service_call!(placement_get, GetRequest, GetReply, Get);
 generate_kv_service_call!(placement_delete, DeleteRequest, DeleteReply, Delete);
 generate_kv_service_call!(placement_exists, ExistsRequest, ExistsReply, Exists);
+generate_kv_service_call!(
+    placement_list_shard,
+    ListShardRequest,
+    ListShardReply,
+    ListShard
+);
+generate_kv_service_call!(
+    placement_get_prefix,
+    GetPrefixRequest,
+    GetPrefixReply,
+    GetPrefix
+);

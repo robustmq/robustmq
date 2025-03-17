@@ -18,8 +18,8 @@ use common_base::error::common::CommonError;
 use prost::Message;
 use protocol::placement_center::placement_center_kv::kv_service_server::KvService;
 use protocol::placement_center::placement_center_kv::{
-    DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetReply,
-    SetRequest,
+    DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetPrefixReply, GetPrefixRequest,
+    GetReply, GetRequest, ListShardReply, ListShardRequest, SetReply, SetRequest,
 };
 use tonic::{Request, Response, Status};
 
@@ -134,6 +134,46 @@ impl KvService for GrpcKvService {
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
+        }
+    }
+
+    async fn list_shard(
+        &self,
+        request: Request<ListShardRequest>,
+    ) -> Result<Response<ListShardReply>, Status> {
+        let req = request.into_inner();
+
+        if req.namespace.is_empty() {
+            return Err(Status::cancelled(
+                CommonError::ParameterCannotBeNull("namespace".to_string()).to_string(),
+            ));
+        }
+
+        let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
+
+        match kv_storage.get_prefix(format!("/shard/{}/", req.namespace)) {
+            Ok(shards_info) => Ok(Response::new(ListShardReply { shards_info })),
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn get_prefix(
+        &self,
+        request: Request<GetPrefixRequest>,
+    ) -> Result<Response<GetPrefixReply>, Status> {
+        let req = request.into_inner();
+
+        if req.prefix.is_empty() {
+            return Err(Status::cancelled(
+                CommonError::ParameterCannotBeNull("prefix".to_string()).to_string(),
+            ));
+        }
+
+        let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
+
+        match kv_storage.get_prefix(req.prefix) {
+            Ok(values) => Ok(Response::new(GetPrefixReply { values })),
+            Err(e) => Err(Status::cancelled(e.to_string())),
         }
     }
 }
