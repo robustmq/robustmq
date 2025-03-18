@@ -1,111 +1,126 @@
-# Github贡献指南
-## 1、创建 ISSUE
+# GitHub 贡献指南
 
-ISSUE 主要的范围类型有：feat, bug, test, refactor, chore, style, docs, perf, build, ci,
-对应的解释内容如下：
-- feat: 新功能特性
-- bug: 发现的Bug问题
-- test: 增加的测试用例
-- refactor: 对代码的重构，既不是新功能特性也不是bug代码更改
-- docs: 文档的变更与添加，对代码的注释也属于此内容
-- perf: 设计到性能优化的代码，这部分需要有相关的优化证明
-- build: 构建系统或外部依赖项的变更
-- ci: 持续集成配置的变成，配置文件和脚本的修改等
-- style: 代码风格变动，用于提交格式化，标点符号等不影响代码的变更
-- chore: 混杂类型的工作，可能有多个其他类型的变更
+本指南定义了 ISSUE 和 Pull Request（以下简称 PR）的创建流程及规范，以确保协作高效且规范统一。
 
-### 用户与贡献者创建ISSUE
+## 一、创建 ISSUE
 
-对于用户和贡献者而言，如果有新的feat需求和bug的修复的需求，
-可以通过选择`BugReport`，`Enhancement`以及`FeatureRequest`来提交Issue。
+### ISSUE 类型
 
-![image](../../images/GithubContributionGuide-1.png)
+请根据实际内容正确选择 ISSUE 类型：
 
-### Committer创建ISSUE
+- **feat**：新增功能或特性
+- **bug**：Bug 问题修复
+- **test**：新增或修改测试用例
+- **refactor**：代码重构（无新功能或Bug修复）
+- **docs**：文档或代码注释的更新
+- **perf**：性能优化（需提供优化依据或测试报告）
+- **build**：构建系统或依赖项的变更
+- **ci**：持续集成配置的修改
+- **style**：代码格式修改（不影响功能）
+- **chore**：杂项，如开发工具或项目配置变更
 
-如果是小任务项目, 那么同用户和贡献者类似，直接使用`BugReport`, `Enhancement`, `FeatureRequest`对`Pull
-Request`进行关联，
+### 用户与贡献者创建 ISSUE
 
-如果是比较大的规划任务，需要进行拆分，此时使用`Umbrella`关联对应的Issue后，在其下方规划子任务，具体如下所示:
+用户和贡献者可直接使用 GitHub Issue 模板创建 ISSUE：
 
-![image](../../images/GithubContributionGuide-2.png)
+- **BugReport**：用于报告问题或缺陷
+- **FeatureRequest**：用于请求新的功能特性
+- **Enhancement**：用于对现有功能的增强需求
 
-对于各项的子任务，则是通过`Subtask`来创建对应的子任务，在子任务中说明该部分子任务需要完成
-的对应内容。
+### Committer 创建 ISSUE
 
-对于`Umbrella`的标题，暂时分为两类，RBIP-\* 和 MINOR 进行区分。
+- 对于小型任务项目，参照用户和贡献者流程，创建 ISSUE 并关联 PR。
 
-[RBIP-\*]： 是标识有特性和功能添加，比如 RBIP-09，RBIP-10，后面的序号是递增的。
-![image](../../images/GithubContributionGuide-3.png)
+- 对于大型或复杂任务，建议创建一个**总任务（Umbrella）** ISSUE，并在其中规划和管理子任务：
 
+  - **总任务（Umbrella）** 标题命名规范：
 
-[MINOR]：标识是修复或者增加一些小的功能。则可以 MINOR：开头，接标题。
-![image](../../images/GithubContributionGuide-4.png)
+    - `[RBIP-*]`：特性或新功能添加，如 `RBIP-09`。
+    - `[MINOR]`：小功能或优化点，如 `[MINOR] 更新登录提示`。
 
-对于`Subtask`标题，使用以下格式：
-`[RBIP-*/MINOR][Style/Refactor/Performance/Docs/Test/Build/CI/Chore][Subtask] xxx`，例如：
+  - **子任务（Subtask）** 创建规范：
 
-![image](../../images/GithubContributionGuide-5.png)
+    - 标题格式：`[RBIP-*/MINOR][类型][Subtask] 具体任务描述`
+    - 示例：`[RBIP-09][Docs][Subtask] 完善登录功能说明文档`
 
-## 2、创建 Pull Request
+## 二、创建 Pull Request
 
-如果 PR 有关联的 ISSUE，必须在 PR 的内容中添加上：
+### PR 关联 ISSUE 规则
 
-close #issue_number
-close 是固定的前缀， #也是固定的前缀，issue_number 表示这个 PR 关联的 ISSUE 编号。比如：
-
-![image](../../images/doc-image11.png)
-#297，#292 就是对应的 ISSUE 编号。
-
-比如需要提交一个解决 ISSUE #297 的 PR，则 PR 内容需要包含
-
-close #297
-此时，当该 PR 被 MERGE 时，这个 ISSUE 会自动被关闭。PR 合并后，PR 和 ISSUE 效果如下：
-
-PR：
-![image](../../images/doc-image12.png)
-
-ISSUE：
-![image](../../images/doc-image13.png)
-
-
-详细可以参考[提交PR的例子](./Pull-Request-Example.md)。
-
-## 3、提交 PR 失败的原因
-
-#### License 错误
-
-License checker / license-header-check (pull_request) 失败。 有的文件没加 License, 需要加一下,最好每次提交前执行下检查命令.
+每个 PR 应尽可能关联对应的 ISSUE。关联方式是在 PR 内容中添加：
 
 ```
+close #ISSUE_NUMBER
+```
+
+其中 `close` 和 `#` 为固定前缀，`ISSUE_NUMBER` 为对应的 ISSUE 编号。
+
+- 示例：若 PR 修复 ISSUE #297，则 PR 描述中需明确注明：
+
+```
+close #297
+```
+
+- PR 合并后，该 ISSUE 将自动关闭。
+
+### PR 标题格式要求
+
+每个 PR 的标题必须遵循以下规范：
+
+```
+类型: 简要描述
+```
+
+类型包括以下选项：
+
+- **feat**：新增功能
+- **fix**：Bug 修复
+- **docs**：文档更新
+- **style**：代码风格或格式变动
+- **refactor**：代码重构
+- **perf**：性能优化
+- **test**：测试代码变更
+- **chore**：杂项（非业务代码变动）
+- **build**：构建系统或依赖变动
+- **ci**：CI 配置或脚本变动
+- **revert**：代码回滚
+
+示例：
+
+```
+feat: 支持 RocksDB 存储引擎
+fix: 修复登录跳转问题
+```
+
+### PR 提交检查
+
+在提交 PR 前，建议执行以下检查，避免因格式或 License 问题导致的 PR 提交失败：
+
+- **License 检查**：
+
+```bash
 cargo install hawkeye
 
-# 当前项目下执行, 检测有哪些文件没有加 License
+# 检测缺失 License 的文件
 hawkeye check
 
-# 自动没每个代码文件加上 License
+# 自动为文件添加 License
 hawkeye format
 ```
 
-#### 标题格式错误
+- **标题检查**：务必确认 PR 标题符合上述格式规范。
 
-PR Title Checker / check (pull_request_target) 这个失败是 PR 的标题格式错误
+## 三、常见问题与解决方案
 
-```
-前缀: 标题
-前缀有这些选项：feat|fix|test|refactor|chore|style|docs|perf|build|ci|revert
+### 1. License 检测失败
 
-feat: 新功能（feature）
-例如：feat: Compatible with Rocksdb
+- 使用上述 `hawkeye` 工具检查并自动修复 License 问题。
 
-fix: 修复 bug
-docs: 文档变更
-style: 代码风格变动（不影响代码逻辑）,用于提交仅格式化、标点符号、空白等不影响代码运行的变更。
-refactor: 代码重构（既不是新增功能也不是修复bug的代码更改）
-perf: 性能优化
-test: 添加或修改测试
-chore: 杂项（构建过程或辅助工具的变动）
-build: 构建系统或外部依赖项的变更
-ci: 持续集成配置的变更,配置文件和脚本的修改。
-revert: 回滚
-```
+### 2. 标题格式错误
+
+- 确认标题格式符合规定，如：`feat: 新增用户登录功能`
+- 不得出现未规范的前缀或无前缀的情况。
+
+更多细节，可参阅[提交 PR 的完整示例](./Pull-Request-Example.md)。
+
+---
