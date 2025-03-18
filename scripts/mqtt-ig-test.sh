@@ -52,6 +52,10 @@ stop_mqtt_server(){
     fi
 }
 
+# Stop Server
+stop_placement_server
+stop_mqtt_server
+
 # Clean up
 rm -rf ./robust-data-test/placement-center*
 rm -rf ./robust-data-test/mqtt-server*

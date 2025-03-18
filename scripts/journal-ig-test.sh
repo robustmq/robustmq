@@ -52,6 +52,10 @@ stop_journal_server(){
     fi
 }
 
+# Stop Server
+stop_placement_server
+stop_journal_server
+
 # Clean up
 rm -rf ./robust-data-test/placement-center*
 rm -rf ./robust-data-test/journal-server*
@@ -68,10 +72,9 @@ if [ "$1" = "dev" ]; then
   cargo nextest run  --package robustmq-test --test mod -- journal_client && \
   cargo nextest run  --package robustmq-test --test mod -- journal_server
 
-
-# Stop Server
-stop_placement_server
-stop_journal_server
+    # Stop Server
+    stop_placement_server
+    stop_journal_server
 
 else
 
