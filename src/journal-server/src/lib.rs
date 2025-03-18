@@ -228,6 +228,8 @@ impl JournalServer {
     }
 
     async fn stop_server(&self) {
+        self.cache_manager.stop_all_build_index_thread();
+        
         match unregister_journal_node(self.client_pool.clone(), self.config.clone()).await {
             Ok(()) => {}
             Err(e) => {

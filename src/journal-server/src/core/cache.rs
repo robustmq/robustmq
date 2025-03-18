@@ -308,6 +308,14 @@ impl CacheManager {
             .contains_key(&segment_iden.name())
     }
 
+    pub fn stop_all_build_index_thread(&self) {
+        for raw in self.segment_index_build_thread.iter() {
+            if let Err(e) = raw.value().stop_send.send(true) {
+                error!("Trying to stop the index building thread for segment {} failed with error message:{}", raw.key(),e);
+            }
+        }
+    }
+
     // Segment Write Thread
     pub fn add_segment_write_thread(
         &self,

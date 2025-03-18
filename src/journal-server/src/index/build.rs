@@ -182,7 +182,7 @@ async fn start_segment_build_index_thread(
 
                         }
                         Err(e) => {
-                            error!("Failed to read Segment file data with error message :{},segment:{:?}", e, segment_iden);
+                            error!("Failed to read Segment file data with error message:{},segment:{:?}", e, segment_iden);
 
                             if e.to_string().contains("No such file or directory"){
                                 cache_manager.remove_build_index_thread(&segment_iden);
