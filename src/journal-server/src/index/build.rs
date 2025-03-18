@@ -15,11 +15,11 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use log::{debug, error, warn};
+use common_base::tools::now_second;
+use log::{debug, error, info, warn};
 use metadata_struct::journal::segment::SegmentStatus;
 use rocksdb_engine::engine::{
-    rocksdb_engine_delete, rocksdb_engine_exists, rocksdb_engine_get, rocksdb_engine_prefix_map,
-    rocksdb_engine_save,
+    rocksdb_engine_delete, rocksdb_engine_get, rocksdb_engine_prefix_map, rocksdb_engine_save,
 };
 use rocksdb_engine::RocksDBEngine;
 use tokio::select;
@@ -127,7 +127,7 @@ async fn start_segment_build_index_thread(
                     if let Ok(flag) = val {
                         if flag {
                             cache_manager.remove_build_index_thread(&segment_iden);
-                            debug!("segment {} index build thread exited successfully.",
+                            info!("segment {} index build thread exited successfully.",
                                segment_iden.name());
                             break;
                         }
@@ -182,7 +182,13 @@ async fn start_segment_build_index_thread(
 
                         }
                         Err(e) => {
-                            error!("Failed to read Segment file data with error message :{}", e);
+                            error!("Failed to read Segment file data with error message :{},segment:{:?}", e, segment_iden);
+
+                            if e.to_string().contains("No such file or directory"){
+                                cache_manager.remove_build_index_thread(&segment_iden);
+                                break;
+                            }
+
                             sleep(Duration::from_millis(100)).await;
                         }
                     }
@@ -200,7 +206,6 @@ fn try_finish_segment_index_build(
 ) {
     if let Some(segment) = cache_manager.get_segment(segment_iden) {
         if segment.status == SegmentStatus::SealUp {
-            println!("{:?}", segment);
             if let Err(e) = save_finish_build_index(rocksdb_engine_handler, segment_iden) {
                 error!("{}", e);
             }
@@ -266,7 +271,7 @@ fn save_finish_build_index(
         rocksdb_engine_handler.clone(),
         DB_COLUMN_FAMILY_INDEX,
         key,
-        true,
+        now_second(),
     )?)
 }
 
@@ -275,11 +280,8 @@ fn is_finish_build_index(
     segment_iden: &SegmentIdentity,
 ) -> Result<bool, JournalServerError> {
     let key = finish_build_index(segment_iden);
-    Ok(rocksdb_engine_exists(
-        rocksdb_engine_handler.clone(),
-        DB_COLUMN_FAMILY_INDEX,
-        key,
-    )?)
+    let res = rocksdb_engine_get(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, key)?;
+    Ok(res.is_some())
 }
 
 fn save_last_offset_build_index(

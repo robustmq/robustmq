@@ -53,7 +53,7 @@ fn parse_node(
     match action_type {
         JournalUpdateCacheActionType::Set => match serde_json::from_str::<BrokerNode>(data) {
             Ok(node) => {
-                info!("Update the cache, Set node, node id: {}", node.node_id);
+                info!("Update the cache, Set node, node: {:?}", node);
                 cache_manager.add_node(node);
             }
             Err(e) => {
@@ -87,10 +87,7 @@ fn parse_shard(
     match action_type {
         JournalUpdateCacheActionType::Set => match serde_json::from_str::<JournalShard>(data) {
             Ok(shard) => {
-                info!(
-                    "Update the cache, set shard, shard name: {}",
-                    shard.shard_name
-                );
+                info!("Update the cache, set shard, shard name: {:?}", shard);
                 cache_manager.set_shard(shard);
             }
             Err(e) => {
@@ -119,10 +116,7 @@ async fn parse_segment(
     match action_type {
         JournalUpdateCacheActionType::Set => match serde_json::from_str::<JournalSegment>(data) {
             Ok(segment) => {
-                info!(
-                    "Segment cache update, action: set, segment:{}",
-                    segment.name()
-                );
+                info!("Segment cache update, action: set, segment:{:?}", segment);
 
                 if let Err(e) =
                     create_local_segment(cache_manager, segment_file_manager, &segment).await
@@ -156,7 +150,7 @@ async fn parse_segment_meta(
             match serde_json::from_str::<JournalSegmentMetadata>(data) {
                 Ok(segment_meta) => {
                     info!(
-                        "Update the cache, set segment meta, segment name:{:?}",
+                        "Update the cache, set segment meta, segment meta:{:?}",
                         segment_meta
                     );
 
