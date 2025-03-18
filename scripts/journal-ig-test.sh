@@ -13,7 +13,7 @@
 # limitations under the License.
 
 start_placement_server(){
-    nohup cargo run --package cmd --bin placement-center -- --conf=example/test-config/place.toml 2>/tmp/pc-1.log &
+    nohup cargo run --package cmd --bin placement-center -- --conf=example/test-config/place.toml 2>./pc-1.log &
     sleep 3
 
     no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
@@ -33,7 +33,7 @@ stop_placement_server(){
 }
 
 start_journal_server(){
-    nohup cargo run --package cmd --bin journal-server -- --conf=example/test-config/journal.toml 2>/tmp/jn-1.log &
+    nohup cargo run --package cmd --bin journal-server -- --conf=example/test-config/journal.toml 2>./jn-1.log &
     sleep 3
 
     no1=`ps -ef | grep journal-server  | grep node-1 | grep -v grep | awk '{print $2}'`
@@ -59,6 +59,8 @@ stop_journal_server
 # Clean up
 rm -rf ./robust-data-test/placement-center*
 rm -rf ./robust-data-test/journal-server*
+
+sleep 3
 
 start_placement_server
 start_journal_server
