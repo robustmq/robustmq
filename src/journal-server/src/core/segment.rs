@@ -42,7 +42,7 @@ pub async fn delete_local_segment(
     segment_file_manager.remove_segment_file(segment_iden);
 
     // delete build index thread
-    cache_manager.remove_build_index_thread(&segment_iden);
+    cache_manager.remove_build_index_thread(segment_iden);
 
     // delete index
     if let Err(e) = delete_segment_index(rocksdb_engine_handler, segment_iden) {
