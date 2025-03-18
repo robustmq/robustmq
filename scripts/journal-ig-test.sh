@@ -16,7 +16,7 @@ start_placement_server(){
     nohup cargo run --package cmd --bin placement-center -- --conf=example/test-config/place.toml 2>./pc-1.log &
     sleep 3
 
-    no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep placement-center  | grep test-config | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
         echo "placement-center node 1 started successfully. process no: $no1"
@@ -24,7 +24,7 @@ start_placement_server(){
 }
 
 stop_placement_server(){
-    no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep placement-center  | grep test-config | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
         echo "kill placement center $no1"
@@ -36,7 +36,7 @@ start_journal_server(){
     nohup cargo run --package cmd --bin journal-server -- --conf=example/test-config/journal.toml 2>./jn-1.log &
     sleep 3
 
-    no1=`ps -ef | grep journal-server  | grep node-1 | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep journal-server  | grep test-config | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
         echo "journal-server node 1 started successfully. process no: $no1"
@@ -44,7 +44,7 @@ start_journal_server(){
 }
 
 stop_journal_server(){
-    no1=`ps -ef | grep journal-server  | grep node-1 | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep journal-server  | grep test-config | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
         echo "kill journal server $no1"
