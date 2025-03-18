@@ -51,5 +51,5 @@ interval = 10
 header = ""
 
 [log]
-log_config = "./config/log4rs.yaml"
+log_config = "./config/log-config/journal-log4rs.yaml"
 log_path = "./robust-data-test/journal-server/logs/journal-server"

@@ -16,7 +16,7 @@ start_placement_server(){
     nohup cargo run --package cmd --bin placement-center -- --conf=example/test-config/place.toml 2>/tmp/pc-1.log &
     sleep 3
 
-    no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep placement-center  | grep test-config | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
         echo "placement-center node 1 started successfully. process no: $no1"
@@ -24,7 +24,7 @@ start_placement_server(){
 }
 
 stop_placement_server(){
-    no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep placement-center  | grep test-config | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
         echo "kill placement center $no1"
@@ -36,7 +36,7 @@ start_mqtt_server(){
     nohup cargo run --package cmd --bin mqtt-server -- --conf=example/test-config/mqtt.toml 2>/tmp/mqtt-1.log &
     sleep 3
 
-    no1=`ps -ef | grep mqtt-server  | grep node-1 | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep mqtt-server  | grep test-config | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
         echo "mqtt-server node 1 started successfully. process no: $no1"
@@ -44,13 +44,17 @@ start_mqtt_server(){
 }
 
 stop_mqtt_server(){
-    no1=`ps -ef | grep mqtt-server  | grep node-1 | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep mqtt-server  | grep test-config | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
         echo "kill mqtt server $no1"
         kill $no1
     fi
 }
+
+# Stop Server
+stop_placement_server
+stop_mqtt_server
 
 # Clean up
 rm -rf ./robust-data-test/placement-center*

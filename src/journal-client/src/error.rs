@@ -14,6 +14,8 @@
 
 use thiserror::Error;
 
+use crate::async_writer::DataSenderPkg;
+
 #[derive(Error, Debug)]
 pub enum JournalClientError {
     #[error("{0}")]
@@ -27,6 +29,9 @@ pub enum JournalClientError {
 
     #[error("{0}")]
     BroadcastSendErrorBool(#[from] tokio::sync::broadcast::error::SendError<bool>),
+
+    #[error("{0}")]
+    MpscSendErrorDataSenderPkg(#[from] tokio::sync::mpsc::error::SendError<DataSenderPkg>),
 
     #[error("{0}")]
     MpscSendErrorBool(#[from] tokio::sync::mpsc::error::SendError<bool>),

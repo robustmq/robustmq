@@ -41,9 +41,12 @@ pub async fn delete_local_segment(
     // delete segment file manager  by cache
     segment_file_manager.remove_segment_file(segment_iden);
 
+    // delete build index thread
+    cache_manager.remove_build_index_thread(segment_iden);
+
     // delete index
     if let Err(e) = delete_segment_index(rocksdb_engine_handler, segment_iden) {
-        error!("{}", e);
+        info!("Delete Segment {:?} index, hint:{:?}", segment_iden, e);
     }
 
     // delete local file
@@ -54,7 +57,7 @@ pub async fn delete_local_segment(
             }
         }
         Err(e) => {
-            error!("{}", e);
+            info!("Delete Segment {:?}, hint: {:?}", segment_iden, e);
         }
     }
 

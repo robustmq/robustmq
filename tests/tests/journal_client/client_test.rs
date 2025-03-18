@@ -133,6 +133,8 @@ mod tests {
         assert!(res_opt.is_ok());
 
         let res = res_opt.unwrap();
+        println!("{:?}", res);
+        assert!(res.is_ok());
         assert_eq!(res.offset, 0);
 
         let data = JournalClientWriteData {
@@ -146,6 +148,8 @@ mod tests {
         assert!(res_opt.is_ok());
 
         let res = res_opt.unwrap();
+        println!("{:?}", res);
+        assert!(res.is_ok());
         assert_eq!(res.offset, 1);
 
         let data = vec![
@@ -172,7 +176,9 @@ mod tests {
 
         let res = res_opt.unwrap();
         assert_eq!(res.len(), 3);
-
+        for row in res.clone() {
+            assert!(row.is_ok());
+        }
         assert_eq!(res.first().unwrap().offset, 2);
         assert_eq!(res.get(1).unwrap().offset, 3);
         assert_eq!(res.get(2).unwrap().offset, 4);
