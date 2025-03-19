@@ -30,7 +30,7 @@ As shown in the figure above, the independent deployment architecture consists o
 
 Journal Engine abstracts the concept of Shard, to carry all the protocols of the compute layer (such as MQTT, AMQP, Kafka, Rocketmq...). For persistent storage of message data. This means that RobustMQ provides a robust, high-performance service without any external system.
 
-In the high cohesion architecture, the cluster contains three components: Placment Center, Broker and Journal Engine, each performing its own duties. There are no external dependencies, and the benefits are a leaner architecture and lower operational costs.
+In the high cohesion architecture, the cluster contains three components: Placement Center, Broker and Journal Engine, each performing its own duties. There are no external dependencies, and the benefits are a leaner architecture and lower operational costs.
 
 ## 3. Shared memory architecture
 The shared storage architecture refers to RobustMQ, which relies on external off-the-shelf distributed storage components for data storage. Its storage layer relies on various existing remote storage (such as HDFS, S3, OSS, GCS, Azure Blob, COS, BOS, MinIO...). The completion of.

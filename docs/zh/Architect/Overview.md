@@ -29,7 +29,7 @@ Journal Engine 消费进度(Offset)信息等。
 
 Journal Engine 抽象了Shard的概念，，来承接计算层所有协议（比如 MQTT、AMQP、Kafka、Rocketmq...）的消息数据的持久化存储。也就是说 RobustMQ 可以在不依赖任何外部系统的情况下，独立提供高性能的、稳定的服务。
 
-在高内聚架构中，集群包含Placment Center、Broker、Journal Engine 三个组件，各司其职。不会有外部依赖，好处是精简架构，降低运维成本。
+在高内聚架构中，集群包含Placement Center、Broker、Journal Engine 三个组件，各司其职。不会有外部依赖，好处是精简架构，降低运维成本。
 
 ## 3. 共享存储架构
 共享存储架构是指依赖外部现成的分布式存储组件来完成数据存储的 RobustMQ 部署形态。它的存储层依赖现有的各种远程存储（比如HDFS、S3、OSS、GCS、Azure Blob、COS、BOS、MinIO...）的完成。
