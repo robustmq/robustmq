@@ -28,6 +28,7 @@ struct ArgsParams {
 }
 
 fn main() {
+    console_subscriber::init();
     let args = ArgsParams::parse();
     init_journal_server_conf_by_path(&args.conf);
     init_journal_server_log();
