@@ -27,21 +27,32 @@
 - **FeatureRequest**：用于请求新的功能特性
 - **Enhancement**：用于对现有功能的增强需求
 
+![image](../../images/GithubContributionGuide-1.png)
+
 ### Committer 创建 ISSUE
 
 - 对于小型任务项目，参照用户和贡献者流程，创建 ISSUE 并关联 PR。
 
 - 对于大型或复杂任务，建议创建一个**总任务（Umbrella）** ISSUE，并在其中规划和管理子任务：
 
-  - **总任务（Umbrella）** 标题命名规范：
+![image](../../images/GithubContributionGuide-2.png)
 
-    - `[RBIP-*]`：特性或新功能添加，如 `RBIP-09`。
-    - `[MINOR]`：小功能或优化点，如 `[MINOR] 更新登录提示`。
+- **总任务（Umbrella）** 标题命名规范：
+
+  - `[RBIP-*]`：特性或新功能添加，如 `RBIP-09`。
+
+    ![image](../../images/GithubContributionGuide-3.png)
+
+  - `[MINOR]`：小功能或优化点，如 `[MINOR] 更新登录提示`。
+
+    ![image](../../images/GithubContributionGuide-4.png)
 
   - **子任务（Subtask）** 创建规范：
 
     - 标题格式：`[RBIP-*/MINOR][类型][Subtask] 具体任务描述`
     - 示例：`[RBIP-09][Docs][Subtask] 完善登录功能说明文档`
+
+    ![image](../../images/GithubContributionGuide-5.png)
 
 ## 二、创建 Pull Request
 
@@ -55,6 +66,10 @@ close #ISSUE_NUMBER
 
 其中 `close` 和 `#` 为固定前缀，`ISSUE_NUMBER` 为对应的 ISSUE 编号。
 
+![image](../../images/doc-image11.png)
+
+#297，#292 就是对应的 ISSUE 编号。
+
 - 示例：若 PR 修复 ISSUE #297，则 PR 描述中需明确注明：
 
 ```
@@ -62,6 +77,12 @@ close #297
 ```
 
 - PR 合并后，该 ISSUE 将自动关闭。
+
+  - PR：
+    ![image](../../images/doc-image12.png)
+
+  - ISSUE：
+    ![image](../../images/doc-image13.png)
 
 ### PR 标题格式要求
 
