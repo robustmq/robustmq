@@ -12,15 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod bridge;
-pub mod cluster;
-pub mod connection;
-pub mod lastwill;
-pub mod message;
-pub mod node_extend;
-pub mod session;
-pub mod subscribe_data;
-pub mod topic;
-pub mod topic_rewrite_rule;
-pub mod user;
-pub mod auto_subscribe_rule;
+use protocol::mqtt::common::{QoS, RetainForwardRule};
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub struct MqttAutoSubscribeRule {
+    pub cluster: String,
+    pub topic: String,
+    pub qos: QoS,
+    pub no_local: bool,
+    pub retain_as_published: bool,
+    pub retained_handling: RetainForwardRule,
+}
+
+impl MqttAutoSubscribeRule {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
+    }
+}

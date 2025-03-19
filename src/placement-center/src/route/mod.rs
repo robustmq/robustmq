@@ -75,178 +75,188 @@ impl DataRoute {
         match storage_data.data_type {
             // Placement Center
             StorageDataType::KvSet => {
-                self.route_kv.set(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_kv.set(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::KvDelete => {
-                self.route_kv.delete(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_kv.delete(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::ClusterAddNode => {
-                self.route_cluster.add_node(storage_data.value).await?;
-                Ok(None)
-            }
+                        self.route_cluster.add_node(storage_data.value).await?;
+                        Ok(None)
+                    }
             StorageDataType::ClusterDeleteNode => {
-                self.route_cluster.delete_node(storage_data.value).await?;
-                Ok(None)
-            }
+                        self.route_cluster.delete_node(storage_data.value).await?;
+                        Ok(None)
+                    }
 
             StorageDataType::ClusterAddCluster => {
-                self.route_cluster.add_cluster(storage_data.value).await?;
-                Ok(None)
-            }
+                        self.route_cluster.add_cluster(storage_data.value).await?;
+                        Ok(None)
+                    }
             StorageDataType::ClusterDeleteCluster => Ok(None),
 
             StorageDataType::ResourceConfigSet => {
-                self.route_cluster.set_resource_config(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_cluster.set_resource_config(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::ResourceConfigDelete => {
-                self.route_cluster
-                    .delete_resource_config(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_cluster
+                            .delete_resource_config(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::IdempotentDataSet => {
-                self.route_cluster.set_idempotent_data(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_cluster.set_idempotent_data(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::IdempotentDataDelete => {
-                self.route_cluster
-                    .delete_idempotent_data(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_cluster
+                            .delete_idempotent_data(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::OffsetSet => {
-                self.route_cluster.save_offset_data(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_cluster.save_offset_data(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::OffsetDelete => {
-                self.route_cluster.delete_offset_data(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_cluster.delete_offset_data(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::SchemaSet => {
-                self.route_cluster.set_schema(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_cluster.set_schema(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::SchemaDelete => {
-                self.route_cluster.delete_schema(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_cluster.delete_schema(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::SchemaBindSet => {
-                self.route_cluster.set_schema_bind(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_cluster.set_schema_bind(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::SchemaBindDelete => {
-                self.route_cluster.delete_schema_bind(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_cluster.delete_schema_bind(storage_data.value)?;
+                        Ok(None)
+                    }
 
             // Journal Engine
             StorageDataType::JournalSetShard => Ok(Some(
-                self.route_journal.set_shard(storage_data.value).await?,
-            )),
+                        self.route_journal.set_shard(storage_data.value).await?,
+                    )),
             StorageDataType::JournalDeleteShard => {
-                self.route_journal.delete_shard(storage_data.value).await?;
-                Ok(None)
-            }
+                        self.route_journal.delete_shard(storage_data.value).await?;
+                        Ok(None)
+                    }
             StorageDataType::JournalSetSegment => Ok(Some(
-                self.route_journal.set_segment(storage_data.value).await?,
-            )),
+                        self.route_journal.set_segment(storage_data.value).await?,
+                    )),
             StorageDataType::JournalDeleteSegment => {
-                self.route_journal
-                    .delete_segment(storage_data.value)
-                    .await?;
-                Ok(None)
-            }
+                        self.route_journal
+                            .delete_segment(storage_data.value)
+                            .await?;
+                        Ok(None)
+                    }
 
             StorageDataType::JournalSetSegmentMetadata => Ok(Some(
-                self.route_journal
-                    .set_segment_meta(storage_data.value)
-                    .await?,
-            )),
+                        self.route_journal
+                            .set_segment_meta(storage_data.value)
+                            .await?,
+                    )),
             StorageDataType::JournalDeleteSegmentMetadata => {
-                self.route_journal
-                    .delete_segment_meta(storage_data.value)
-                    .await?;
-                Ok(None)
-            }
+                        self.route_journal
+                            .delete_segment_meta(storage_data.value)
+                            .await?;
+                        Ok(None)
+                    }
 
             // Mqtt Broker
             StorageDataType::MqttSetAcl => {
-                self.route_mqtt.create_acl(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_mqtt.create_acl(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::MqttDeleteAcl => {
-                self.route_mqtt.delete_acl(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_mqtt.delete_acl(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::MqttSetBlacklist => {
-                self.route_mqtt.create_blacklist(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_mqtt.create_blacklist(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::MqttDeleteBlacklist => {
-                self.route_mqtt.delete_blacklist(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_mqtt.delete_blacklist(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::MqttSetUser => {
-                self.route_mqtt.create_user(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_mqtt.create_user(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::MqttDeleteUser => {
-                self.route_mqtt.delete_user(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_mqtt.delete_user(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::MqttSetTopic => {
-                self.route_mqtt.create_topic(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_mqtt.create_topic(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::MqttDeleteTopic => {
-                self.route_mqtt.delete_topic(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_mqtt.delete_topic(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::MqttSetSession => {
-                self.route_mqtt.create_session(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_mqtt.create_session(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::MqttDeleteSession => {
-                self.route_mqtt.delete_session(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_mqtt.delete_session(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::MqttUpdateSession => {
-                self.route_mqtt.update_session(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_mqtt.update_session(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::MqttSaveLastWillMessage => {
-                self.route_mqtt.save_last_will_message(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_mqtt.save_last_will_message(storage_data.value)?;
+                        Ok(None)
+                    }
 
             StorageDataType::MqttCreateTopicRewriteRule => {
-                self.route_mqtt
-                    .create_topic_rewrite_rule(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_mqtt
+                            .create_topic_rewrite_rule(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::MqttDeleteTopicRewriteRule => {
-                self.route_mqtt
-                    .delete_topic_rewrite_rule(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_mqtt
+                            .delete_topic_rewrite_rule(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::MqttSetSubscribe => {
-                self.route_mqtt.set_subscribe(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_mqtt.set_subscribe(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::MqttDeleteSubscribe => {
-                self.route_mqtt.delete_subscribe(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_mqtt.delete_subscribe(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::MqttSetConnector => {
-                self.route_mqtt.set_connector(storage_data.value)?;
-                Ok(None)
-            }
+                        self.route_mqtt.set_connector(storage_data.value)?;
+                        Ok(None)
+                    }
             StorageDataType::MqttDeleteConnector => {
-                self.route_mqtt.delete_connector(storage_data.value)?;
-                Ok(None)
+                        self.route_mqtt.delete_connector(storage_data.value)?;
+                        Ok(None)
+                    }
+
+            // auto subscribe
+            StorageDataType::MqttSetAutoSubscribeRule => {
+                        self.route_mqtt.set_auto_subscribe_rule(storage_data.value)?;
+                        Ok(None)
+                    }
+            StorageDataType::MqttDeleteAutoSubscribeRule => {
+                        self.route_mqtt.delete_auto_subscribe_rule(storage_data.value)?;
+                        Ok(None)
+                    }
             }
-        }
     }
 
     pub fn build_snapshot(&self) -> Vec<u8> {

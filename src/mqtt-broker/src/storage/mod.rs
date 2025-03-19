@@ -21,3 +21,4 @@ pub mod schema;
 pub mod session;
 pub mod topic;
 pub mod user;
+pub mod auto_subscribe;

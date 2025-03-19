@@ -21,6 +21,7 @@ use common_base::utils::time_util::get_current_millisecond_timestamp;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
+use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
@@ -28,20 +29,24 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
     CreateBlacklistReply, CreateBlacklistRequest, CreateTopicRewriteRuleReply,
     CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
-    DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
+    DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
+    DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
     DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
     EnableFlappingDetectRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
-    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionRaw,
-    ListConnectionReply, ListConnectionRequest, ListSlowSubScribeRaw, ListSlowSubscribeReply,
-    ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-    MqttBindSchemaReply, MqttBindSchemaRequest, MqttCreateConnectorReply,
-    MqttCreateConnectorRequest, MqttCreateSchemaReply, MqttCreateSchemaRequest,
-    MqttDeleteConnectorReply, MqttDeleteConnectorRequest, MqttDeleteSchemaReply,
-    MqttDeleteSchemaRequest, MqttListBindSchemaReply, MqttListBindSchemaRequest,
-    MqttListConnectorReply, MqttListConnectorRequest, MqttListSchemaReply, MqttListSchemaRequest,
-    MqttTopic, MqttUnbindSchemaReply, MqttUnbindSchemaRequest, MqttUpdateConnectorReply,
+    ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
+    ListBlacklistReply, ListBlacklistRequest, ListConnectionRaw, ListConnectionReply,
+    ListConnectionRequest, ListSlowSubScribeRaw, ListSlowSubscribeReply, ListSlowSubscribeRequest,
+    ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest, MqttBindSchemaReply,
+    MqttBindSchemaRequest, MqttCreateConnectorReply, MqttCreateConnectorRequest,
+    MqttCreateSchemaReply, MqttCreateSchemaRequest, MqttDeleteConnectorReply,
+    MqttDeleteConnectorRequest, MqttDeleteSchemaReply, MqttDeleteSchemaRequest,
+    MqttListBindSchemaReply, MqttListBindSchemaRequest, MqttListConnectorReply,
+    MqttListConnectorRequest, MqttListSchemaReply, MqttListSchemaRequest, MqttTopic,
+    MqttUnbindSchemaReply, MqttUnbindSchemaRequest, MqttUpdateConnectorReply,
     MqttUpdateConnectorRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
+    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
 };
+use protocol::mqtt::common::{qos, Error, QoS, RetainForwardRule};
 use tonic::{Request, Response, Status};
 
 use crate::bridge::request::{
@@ -53,6 +58,7 @@ use crate::handler::flapping_detect::enable_flapping_detect;
 use crate::observability::slow::sub::{enable_slow_sub, read_slow_sub_record, SlowSubData};
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
+use crate::storage::auto_subscribe::AutoSubscribeStorage;
 use crate::storage::cluster::ClusterStorage;
 use crate::storage::schema::{
     bind_schema_by_req, create_schema_by_req, delete_schema_by_req, list_bind_schema_by_req,
@@ -592,5 +598,98 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             Ok(_) => return Ok(Response::new(MqttUnbindSchemaReply::default())),
             Err(e) => return Err(Status::cancelled(e.to_string())),
         }
+    }
+
+    async fn mqtt_broker_delete_auto_subscribe_rule(
+        &self,
+        request: Request<DeleteAutoSubscribeRuleRequest>,
+    ) -> Result<Response<DeleteAutoSubscribeRuleReply>, Status> {
+        let req = request.into_inner();
+        let auto_subscribe_storage = AutoSubscribeStorage::new(self.client_pool.clone());
+        match auto_subscribe_storage
+            .delete_auto_subscribe_rule(req.topic.clone())
+            .await
+        {
+            Ok(_) => {
+                let config = broker_mqtt_conf();
+                let key = self
+                    .cache_manager
+                    .auto_subscribe_rule_key(&config.cluster_name, &req.topic);
+                self.cache_manager.auto_subscribe_rule.remove(&key);
+                Ok(Response::new(DeleteAutoSubscribeRuleReply::default()))
+            }
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn mqtt_broker_set_auto_subscribe_rule(
+        &self,
+        request: Request<SetAutoSubscribeRuleRequest>,
+    ) -> Result<Response<SetAutoSubscribeRuleReply>, Status> {
+        let req = request.into_inner();
+        let config = broker_mqtt_conf();
+
+        let mut _qos: Option<QoS> = None;
+        if req.qos <= u8::MAX as u32 {
+            _qos = qos(req.qos.clone() as u8);
+        } else {
+            return Err(Status::cancelled(
+                Error::InvalidRemainingLength(req.qos.clone() as usize).to_string(),
+            ));
+        };
+        let mut _retained_handling: Option<RetainForwardRule> = None;
+        if req.retained_handling <= u8::MAX as u32 {
+            _retained_handling =
+                RetainForwardRule::retain_forward_rule(req.retained_handling.clone() as u8);
+        } else {
+            return Err(Status::cancelled(
+                Error::InvalidRemainingLength(req.retained_handling.clone() as usize).to_string(),
+            ));
+        };
+
+        let auto_subscribe_rule = MqttAutoSubscribeRule {
+            cluster: config.cluster_name.clone(),
+            topic: req.topic.clone(),
+            qos: _qos.ok_or_else(|| {
+                Status::cancelled(Error::InvalidQoS(req.qos.clone() as u8).to_string())
+            })?,
+            no_local: req.no_local.clone(),
+            retain_as_published: req.retain_as_published.clone(),
+            retained_handling: _retained_handling.ok_or_else(|| {
+                Status::cancelled(
+                    Error::InvalidQoS(req.retained_handling.clone() as u8).to_string(),
+                )
+            })?,
+        };
+        let auto_subscribe_storage = AutoSubscribeStorage::new(self.client_pool.clone());
+        match auto_subscribe_storage
+            .set_auto_subscribe_rule(auto_subscribe_rule.clone())
+            .await
+        {
+            Ok(_) => {
+                let key = self
+                    .cache_manager
+                    .auto_subscribe_rule_key(&config.cluster_name, &req.topic);
+                self.cache_manager
+                    .auto_subscribe_rule
+                    .insert(key, auto_subscribe_rule);
+                Ok(Response::new(SetAutoSubscribeRuleReply::default()))
+            }
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn mqtt_broker_list_auto_subscribe_rule(
+        &self,
+        _request: Request<ListAutoSubscribeRuleRequest>,
+    ) -> Result<Response<ListAutoSubscribeRuleReply>, Status> {
+        return Ok(Response::new(ListAutoSubscribeRuleReply {
+            auto_subscribe_rules: self
+                .cache_manager
+                .auto_subscribe_rule
+                .iter()
+                .map(|entry| entry.value().clone().encode())
+                .collect(),
+        }));
     }
 }

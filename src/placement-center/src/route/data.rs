@@ -85,4 +85,6 @@ pub enum StorageDataType {
     MqttDeleteSubscribe,
     MqttSetConnector,
     MqttDeleteConnector,
+    MqttSetAutoSubscribeRule,
+    MqttDeleteAutoSubscribeRule,
 }
