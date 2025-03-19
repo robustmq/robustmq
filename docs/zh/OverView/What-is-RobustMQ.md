@@ -8,9 +8,9 @@
 
 ## 1.3 愿景
 
-用 Rust 打造一个高性能的、高可用、功能齐全的、兼容多种主流消息队列协议的、架构上具备完整 Serveless 能力的消息队列。
+用 Rust 打造一个高性能的、高可用、功能齐全的、兼容多种主流消息队列协议的、架构上具备完整 Serverless 能力的消息队列。
 
-> Use Rust to build a high-performance, stable, fully functional message queue that is compatible with a variety of mainstream message queue protocols, and has complete Serveless architecture.
+> Use Rust to build a high-performance, stable, fully functional message queue that is compatible with a variety of mainstream message queue protocols, and has complete Serverless architecture.
 
 ## 1.4 特点
 - 100% Rust：完全基于 Rust 语言实现的消息队列引擎。

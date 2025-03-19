@@ -1,22 +1,36 @@
-# What is RobustMQ
-## Overview
-RobustMQ MQTT is a complete implementation of the MQTT protocol adapted by RobustMQ. It supports:
-- Clustered deployment with seamless horizontal scaling.
-- A single node can handle millions of connections.
-- Full support for MQTT 3.1/3.1.1/5.0 protocols.
-- Supports TCP, SSL, WebSocket, and WebSockets protocols.
-- Supports session management, including session persistence and expiration.
-- Supports retained messages.
-- Supports will messages.
-- Supports shared subscriptions.
-- Supports system topics.
-- Supports Schema.
-- Supports data integration.
+## 一、RobustMQ
+### 1.1 Logo
+![image](https://uploader.shimo.im/f/edIiOkJ79eEBngLX.png!thumbnail?accessToken=eyJhbGciOiJIUzI1NiIsImtpZCI6ImRlZmF1bHQiLCJ0eXAiOiJKV1QifQ.eyJleHAiOjE3NDIzNTc4NTEsImZpbGVHVUlEIjoiRWUzMm1FbGFlZWhaejlBMiIsImlhdCI6MTc0MjM1NzU1MSwiaXNzIjoidXBsb2FkZXJfYWNjZXNzX3Jlc291cmNlIiwicGFhIjoiYWxsOmFsbDoiLCJ1c2VySWQiOjQxNTIyNzgwfQ.6xsFSqx8WnH7_y1NhfiSDDIgc-ayAwqNm6DzeNyV5kk)
 
-The overall architecture is as follows:
-![image](../../images/doc-image5.png)
-- MQTT Broker is a stateless node, and MQTT clients randomly access a Broker to complete Pub/Sub of message data.
-- MQTT Broker performs node discovery and node health checks based on the Placement Center, thus completing node construction.
-- The MQTT cluster persists message through the Storage Adapter layer. The cluster’s metadata is stored in the Placement Center Cluster.
-- MQTT Broker supports MQTT 3.1/3.1.1/5.0 protocols over TCP and the internal management and scheduling of the cluster based on the GRPC protocol.
-- The Placement Center runs the corresponding controller threads of the MQTT Broker cluster, responsible for tasks like cluster scheduling, such as assigning a Leader in a shared cluster.
+### 1.2 Definition
+Next-generation high performance cloud-native converged message queues.
+
+### 1.3 
+Use Rust to build a high-performance, stable, fully functional message queue that is compatible with a variety of mainstream message queue protocols, and has complete Serverless architecture.
+
+### 1.4 Vision
+- 100% Rust: A message queuing kernel implemented entirely in Rust.
+- Multi-protocol: Support MQTT 3.1/3.1.1/5.0, AMQP, RocketMQ Remoting/GRPC, Kafka Protocol, OpenMessing, JNS, SQS and other mainstream message protocols.
+- Layered architecture: computing, storage, scheduling independent three-tier architecture, each layer has the ability of cluster deployment, rapid horizontal scaling capacity.
+- Plug-in storage: Standalone plug-in storage layer implementation, you can choose the appropriate storage layer according to your needs. It is compatible with traditional and cloud-native architectures, and supports cloud and IDC deployment patterns.
+- High cohesion architecture: It provides built-in metadata storage components, distributed Journal storage services, and has the ability to deploy quickly, easily and cohesively.
+- Rich functions: support sequential messages, dead message messages, transaction messages, idempotent messages, delay messages and other rich message queue functions.
+
+### 1.5 Why
+
+Explore the application of Rust in the field of message queue, and build a message queue product with better performance, functionality and stability based on Rust.
+- Build a message queue that is compatible with all major message queuing protocols to reduce usage, learning, and maintenance costs.
+- Create a full Serverless message queue to reduce resource costs.
+- Build a message queue that can meet the needs of various scenarios.
+
+
+## 二、Long term planning
+
+RobustMQ vision is multi-protocol support and a fully Serverless architecture. The overall development effort is heavy, so it is divided into several phases:
+
+- Phase 1: Development of the cluster infrastructure (such as metadata storage service, storage adaptation layer, self-contained storage layer, etc.).
+- Phase 2: Complete the development of MQTT protocol-related functions, with the goal of building RobustMQ, verifying its feasibility, and adapting the MQTT protocol. Functionally align EMQX and finally implement RobustMQ MQTT for production availability.
+- Phase 3: Starts the development of the AMQP protocol-specific functionality, which will functionally align AMQP and eventually lead to RobustMQ AMQP being production-ready
+- Stage 4: todo
+
+>  We are currently in the second phase, with the goal of completing the RobustMQ MQTT and making the RobustMQ MQTT production-ready by mid-2025.
