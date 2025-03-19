@@ -1,25 +1,42 @@
-# 什么是RobustMQ
-## 1、定义
-RobustMQ 是一个 100% 用 Rust 实现的中间件消息队列领域的开源项目。它的目标是基于Rust 打造兼容多种主流消息队列协议、具备完整 Serverless 能力的下一代高性能云原生融合型消息队列。
+## 一、RobustMQ
+### 1.1 Logo
+![image](https://uploader.shimo.im/f/edIiOkJ79eEBngLX.png!thumbnail?accessToken=eyJhbGciOiJIUzI1NiIsImtpZCI6ImRlZmF1bHQiLCJ0eXAiOiJKV1QifQ.eyJleHAiOjE3NDIzNTc4NTEsImZpbGVHVUlEIjoiRWUzMm1FbGFlZWhaejlBMiIsImlhdCI6MTc0MjM1NzU1MSwiaXNzIjoidXBsb2FkZXJfYWNjZXNzX3Jlc291cmNlIiwicGFhIjoiYWxsOmFsbDoiLCJ1c2VySWQiOjQxNTIyNzgwfQ.6xsFSqx8WnH7_y1NhfiSDDIgc-ayAwqNm6DzeNyV5kk)
 
-## 2、愿景
-RobustMQ 是基于 Apache 2.0 LICENSE 的基础软件开源项目，希望探索Rust 在消息队列领域的应用，并希望推动消息队列领域的技术发展。我们致力于将 RobustMQ 打造成消息队列领域下一个 Apache 顶级项目。我们还很年轻，请给我们时间成长，- - 。
+### 1.2 定义
+下一代高性能云原生融合型消息队列。
+> Next-generation high performance cloud-native converged message queues.
 
-非常非常非常欢迎、期待期待期待感兴趣的小伙伴可以加入我们，一起学习，一起成长，一起打造牛逼的基础软件。
+### 1.3 愿景
 
-## 3、特点
-它具备以下特点：
+用 Rust 打造一个高性能的、高可用、功能齐全的、兼容多种主流消息队列协议的、架构上具备完整 Serverless 能力的消息队列。
+
+> Use Rust to build a high-performance, stable, fully functional message queue that is compatible with a variety of mainstream message queue protocols, and has complete Serverless architecture.
+
+### 1.4 特点
 - 100% Rust：完全基于 Rust 语言实现的消息队列引擎。
 - 多协议：支持MQTT 3.1/3.1.1/5.0、AMQP、Kafka Protocol、RocketMQ Remoting/GRPC、OpenMessing、JNS、SQS 等主流消息协议。
-- 分层架构：计算、存储、调度独立的三层架构，每层均具备集群化部署，快速水平扩缩容的能力。
-- 插件式存储：独立插件式的存储层实现，可根据需要选择合适的存储层。兼容传统和云原生架构，支持云、IDC 多种部署形态。
-- 高内聚架构：提供内置的元数据存储组件(Placement Center)和分布式存储服务（RobustMQ Journal Server），具备快速、简单、内聚的部署能力。
-- 功能丰富：支持顺序消息、死信消息、事务消息、幂等消息、延时消息等丰富的消息队列功能功能。
+- 分层架构：计算、存储、调度完全独立的三层架构，职责清晰、独立。
+- Serverless：所有组件均具备分布式集群化部署，快速扩缩容的能力。
+- 插件式存储：独立插件式的存储层实现，支持独立部署和共享存储两种架构。
+- 功能齐全：完全对齐协议对应的社区主流 MQ 产品的功能和能力。
 
-## 4、长期规划
-RobustMQ 长期希望支持多协议，并在架构上具备完整的Serverless能力。同时希望能够在适配各种不同的部署场景、部署需求的基础上，在架构上保持简单。以实现更低的部署、运维、使用成本。所以在开发角度分为几个阶段：
-- 在第一阶段，主要会完成集群的基础框架的（比如元数据存储服务、存储适配层、自带存储层等）和MQTT协议相关的功能开发。目标是完成RobustMQ整体架构的搭建和适配MQTT协议，并在MQTT协议上实现生产可用。
+### 1.5 为什么
 
-- 在第二阶段，会启动 Kafka/AMQP 协议相关功能的开发。
+探索 Rust 在消息队列领域的应用，基于 Rust 打造一个在性能、功能、稳定性方面表现更优秀的消息队列产品。
+- 打造一个能够兼容各种主流消息队列协议的消息队列，从而降低使用、学习、运维成本。
+- 打造一个具备完整 Serverless 能力的消息队列，从而降低资源成本。
+- 打造一个能够满足各种场景需求的消息队列。
 
-预计在前两个阶段需要较长时间的打磨，当完成前两个阶段开发后，再根据实际情况考虑适配其他的协议。
+
+## 二、长期规划
+RobustMQ 的愿景是支持多协议，并在架构上具备完整的Serverless能力。整体开发工作量大，因此分为几个阶段：
+
+- 第一阶段：主要会完成集群的基础框架的（比如元数据存储服务、存储适配层、自带存储层等）的开发。
+
+- 第二阶段：完成 MQTT 协议相关功能的开发，目标是完成 RobustMQ 整体架构的搭建、验证可行性，并完成MQTT协议适配。功能上对齐 EMQX ，最终实现RobustMQ MQTT 生产可用。
+
+- 第三阶段：会启动AMQP协议相关功能的开发，功能上对齐 AMQP，最终实现 RobustMQ AMQP 生产可用
+
+- 第四阶段：todo
+
+> 当前所处的是第二阶段，目标是在 2025 年 年中完善 RobustMQ MQTT，实现 RobustMQ MQTT 生产可用。

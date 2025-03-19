@@ -112,7 +112,7 @@ impl DataRouteMqtt {
     pub fn create_session(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let req = CreateSessionRequest::decode(value.as_ref())?;
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
-        let session = serde_json::from_slice::<MqttSession>(&req.session)?;
+        let session = serde_json::from_str::<MqttSession>(&req.session)?;
         storage.save(&req.cluster_name, &req.client_id, session)?;
         Ok(())
     }

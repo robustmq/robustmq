@@ -16,7 +16,7 @@ use core::fmt;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StorageData {
     pub data_type: StorageDataType,
     pub value: Vec<u8>,
@@ -34,7 +34,7 @@ impl fmt::Display for StorageData {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum StorageDataType {
     // Cluster
     ClusterAddNode,

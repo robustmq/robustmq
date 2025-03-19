@@ -66,7 +66,7 @@ impl MqttSession {
         self.distinct_time = Some(now_second());
     }
 
-    pub fn encode(&self) -> Vec<u8> {
-        serde_json::to_vec(&self).unwrap()
+    pub fn encode(&self) -> String {
+        serde_json::to_string(&self).unwrap()
     }
 }

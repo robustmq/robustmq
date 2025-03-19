@@ -60,7 +60,7 @@ impl AclStorage {
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            let acl_list = serde_json::from_slice::<Vec<MqttAcl>>(&raw.data)?;
+            let acl_list = serde_json::from_str::<Vec<MqttAcl>>(&raw.data.to_string())?;
             results.extend(acl_list);
         }
         Ok(results)
@@ -103,7 +103,7 @@ impl AclStorage {
     ) -> Result<Vec<MqttAcl>, CommonError> {
         let key = storage_key_mqtt_acl(cluster_name, resource_type, resource_name);
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
-            return Ok(serde_json::from_slice::<Vec<MqttAcl>>(&data.data)?);
+            return Ok(serde_json::from_str::<Vec<MqttAcl>>(&data.data)?);
         }
         Ok(Vec::new())
     }

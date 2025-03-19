@@ -306,7 +306,7 @@ fn get_last_offset_build_index(
     if let Some(res) =
         rocksdb_engine_get(rocksdb_engine_handler.clone(), DB_COLUMN_FAMILY_INDEX, key)?
     {
-        return Ok(Some(serde_json::from_slice::<u64>(&res.data)?));
+        return Ok(Some(serde_json::from_str::<u64>(&res.data)?));
     }
 
     Ok(None)
@@ -459,19 +459,19 @@ mod tests {
             }
 
             if key.contains("last/offset") {
-                let last_offset = serde_json::from_slice::<i64>(&val.data).unwrap();
+                let last_offset = serde_json::from_str::<i64>(&val.data).unwrap();
                 assert_eq!(last_offset, 10000);
             }
 
             if key.contains("offset/position") {
-                let last_offset = serde_json::from_slice::<IndexData>(&val.data).unwrap();
+                let last_offset = serde_json::from_str::<IndexData>(&val.data).unwrap();
                 println!("key: {},val={:?}", key, last_offset);
                 assert_eq!(last_offset.offset, 9999);
                 offset_num += 1;
             }
 
             if key.contains("timestamp/time-") {
-                let last_offset = serde_json::from_slice::<IndexData>(&val.data).unwrap();
+                let last_offset = serde_json::from_str::<IndexData>(&val.data).unwrap();
                 println!("key: {},val={:?}", key, last_offset);
                 assert_eq!(last_offset.offset, 9999);
                 timestamp_num += 1;

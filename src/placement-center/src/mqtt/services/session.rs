@@ -37,7 +37,7 @@ use crate::{
 pub async fn list_session_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: ListSessionRequest,
-) -> Result<Vec<Vec<u8>>, PlacementCenterError> {
+) -> Result<Vec<String>, PlacementCenterError> {
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
 
     if !req.client_id.is_empty() {
@@ -67,7 +67,7 @@ pub async fn save_session_by_req(
     );
     raft_machine_apply.client_write(data).await?;
 
-    let session = serde_json::from_slice::<MqttSession>(&req.session)?;
+    let session = serde_json::from_str::<MqttSession>(&req.session)?;
     update_cache_by_add_session(&req.cluster_name, call_manager, client_pool, session).await?;
     Ok(())
 }
