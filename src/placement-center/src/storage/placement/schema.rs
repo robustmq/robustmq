@@ -53,7 +53,7 @@ impl SchemaStorage {
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            let topic = serde_json::from_slice::<SchemaData>(&raw.data)?;
+            let topic = serde_json::from_str::<SchemaData>(&raw.data)?;
             results.push(topic);
         }
         Ok(results)
@@ -67,7 +67,7 @@ impl SchemaStorage {
         let key: String = storage_key_mqtt_schema(cluster_name, schema_name);
 
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
-            let topic = serde_json::from_slice::<SchemaData>(&data.data)?;
+            let topic = serde_json::from_str::<SchemaData>(&data.data)?;
             return Ok(Some(topic));
         }
         Ok(None)
@@ -107,7 +107,7 @@ impl SchemaStorage {
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            let topic = serde_json::from_slice::<SchemaResourceBind>(&raw.data)?;
+            let topic = serde_json::from_str::<SchemaResourceBind>(&raw.data)?;
             results.push(topic);
         }
         Ok(results)
@@ -121,7 +121,7 @@ impl SchemaStorage {
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            let topic = serde_json::from_slice::<SchemaResourceBind>(&raw.data)?;
+            let topic = serde_json::from_str::<SchemaResourceBind>(&raw.data)?;
             results.push(topic);
         }
         Ok(results)
@@ -136,7 +136,7 @@ impl SchemaStorage {
         let key: String = storage_key_mqtt_schema_bind(cluster_name, resource_name, schema_name);
 
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
-            let topic = serde_json::from_slice::<SchemaResourceBind>(&data.data)?;
+            let topic = serde_json::from_str::<SchemaResourceBind>(&data.data)?;
             return Ok(Some(topic));
         }
         Ok(None)

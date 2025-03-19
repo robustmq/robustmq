@@ -50,7 +50,7 @@ impl ClusterStorage {
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_slice::<ClusterInfo>(&raw.data)?);
+            results.push(serde_json::from_str::<ClusterInfo>(&raw.data)?);
         }
         Ok(results)
     }

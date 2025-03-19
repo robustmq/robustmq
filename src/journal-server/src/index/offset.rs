@@ -63,7 +63,7 @@ impl OffsetIndexManager {
             DB_COLUMN_FAMILY_INDEX,
             key,
         )? {
-            return Ok(serde_json::from_slice::<i64>(&res.data)?);
+            return Ok(serde_json::from_str::<i64>(&res.data)?);
         }
 
         Ok(-1)
@@ -93,7 +93,7 @@ impl OffsetIndexManager {
             DB_COLUMN_FAMILY_INDEX,
             key,
         )? {
-            return Ok(serde_json::from_slice::<i64>(&res.data)?);
+            return Ok(serde_json::from_str::<i64>(&res.data)?);
         }
 
         Ok(-1)

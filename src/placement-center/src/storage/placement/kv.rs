@@ -44,7 +44,7 @@ impl KvStorage {
 
     pub fn get(&self, key: String) -> Result<Option<String>, CommonError> {
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
-            return Ok(Some(serde_json::from_slice::<String>(&data.data)?));
+            return Ok(Some(serde_json::from_str::<String>(&data.data)?));
         }
         Ok(None)
     }
@@ -58,7 +58,7 @@ impl KvStorage {
             Ok(data) => {
                 let mut result = Vec::new();
                 for item in data {
-                    result.push(serde_json::from_slice(&item.data)?);
+                    result.push(serde_json::from_str(&item.data)?);
                 }
                 Ok(result)
             }
