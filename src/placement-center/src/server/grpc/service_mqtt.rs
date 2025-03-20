@@ -21,17 +21,20 @@ use protocol::placement_center::placement_center_mqtt::{
     CreateBlacklistReply, CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest,
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
     CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest,
-    DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
-    DeleteConnectorReply, DeleteConnectorRequest, DeleteSessionReply, DeleteSessionRequest,
-    DeleteSubscribeReply, DeleteSubscribeRequest, DeleteTopicReply, DeleteTopicRequest,
-    DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest,
-    GetShareSubLeaderReply, GetShareSubLeaderRequest, ListAclReply, ListAclRequest,
-    ListBlacklistReply, ListBlacklistRequest, ListConnectorReply, ListConnectorRequest,
-    ListSessionReply, ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply,
-    ListTopicRequest, ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply,
-    ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest, SetSubscribeReply,
-    SetSubscribeRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
-    UpdateConnectorReply, UpdateConnectorRequest, UpdateSessionReply, UpdateSessionRequest,
+    DeleteAclReply, DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
+    DeleteBlacklistReply, DeleteBlacklistRequest, DeleteConnectorReply, DeleteConnectorRequest,
+    DeleteSessionReply, DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest,
+    DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
+    GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply,
+    ListAutoSubscribeRuleRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectorReply,
+    ListConnectorRequest, ListSessionReply, ListSessionRequest, ListSubscribeReply,
+    ListSubscribeRequest, ListTopicReply, ListTopicRequest, ListTopicRewriteRuleReply,
+    ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest, SaveLastWillMessageReply,
+    SaveLastWillMessageRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
+    SetSubscribeReply, SetSubscribeRequest, SetTopicRetainMessageReply,
+    SetTopicRetainMessageRequest, UpdateConnectorReply, UpdateConnectorRequest, UpdateSessionReply,
+    UpdateSessionRequest,
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
@@ -643,5 +646,58 @@ impl MqttService for GrpcMqttService {
             }
         }
         Ok(Response::new(ConnectorHeartbeatReply::default()))
+    }
+
+    // AutoSubscribeRule
+    async fn set_auto_subscribe_rule(
+        &self,
+        request: Request<SetAutoSubscribeRuleRequest>,
+    ) -> Result<Response<SetAutoSubscribeRuleReply>, Status> {
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::MqttSetAutoSubscribeRule,
+            SetAutoSubscribeRuleRequest::encode_to_vec(&req),
+        );
+
+        match self.raft_machine_apply.client_write(data).await {
+            Ok(_) => Ok(Response::new(SetAutoSubscribeRuleReply::default())),
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn delete_auto_subscribe_rule(
+        &self,
+        request: Request<DeleteAutoSubscribeRuleRequest>,
+    ) -> Result<Response<DeleteAutoSubscribeRuleReply>, Status> {
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::MqttDeleteAutoSubscribeRule,
+            DeleteAutoSubscribeRuleRequest::encode_to_vec(&req),
+        );
+
+        match self.raft_machine_apply.client_write(data).await {
+            Ok(_) => Ok(Response::new(DeleteAutoSubscribeRuleReply::default())),
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn list_auto_subscribe_rule(
+        &self,
+        request: Request<ListAutoSubscribeRuleRequest>,
+    ) -> Result<Response<ListAutoSubscribeRuleReply>, Status> {
+        let req = request.into_inner();
+        let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
+        match storage.list_auto_subscribe_rule(&req.cluster_name) {
+            Ok(data) => {
+                let mut result = Vec::new();
+                for raw in data {
+                    result.push(raw.encode());
+                }
+                Ok(Response::new(ListAutoSubscribeRuleReply {
+                    auto_subscribe_rules: result,
+                }))
+            }
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
     }
 }

@@ -272,3 +272,11 @@ pub fn storage_key_mqtt_topic_rewrite_rule(
 pub fn storage_key_mqtt_topic_rewrite_rule_prefix(cluster_name: &str) -> String {
     format!("/mqtt/topic_rewrite_rule/{}/", cluster_name)
 }
+
+pub fn storage_key_mqtt_auto_subscribe_rule(cluster_name: &str, topic: &str) -> String {
+    format!("/mqtt/auto_subscribe_rule/{}/{}", cluster_name, topic)
+}
+
+pub fn storage_key_mqtt_auto_subscribe_rule_prefix(cluster_name: &str) -> String {
+    format!("/mqtt/auto_subscribe_rule/{}/", cluster_name)
+}

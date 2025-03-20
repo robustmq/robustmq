@@ -246,6 +246,18 @@ impl DataRoute {
                 self.route_mqtt.delete_connector(storage_data.value)?;
                 Ok(None)
             }
+
+            // auto subscribe
+            StorageDataType::MqttSetAutoSubscribeRule => {
+                self.route_mqtt
+                    .set_auto_subscribe_rule(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::MqttDeleteAutoSubscribeRule => {
+                self.route_mqtt
+                    .delete_auto_subscribe_rule(storage_data.value)?;
+                Ok(None)
+            }
         }
     }
 

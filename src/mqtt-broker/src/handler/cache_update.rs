@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::bridge::manager::ConnectorManager;
+use crate::storage::auto_subscribe::AutoSubscribeStorage;
 use crate::storage::connector::ConnectorStorage;
 use crate::storage::topic::TopicStorage;
 use crate::{security::AuthDriver, subscribe::subscribe_manager::SubscribeManager};
@@ -152,6 +153,21 @@ pub async fn load_metadata_cache(
         Err(e) => {
             panic!("Failed to load the schema list with error message:{}", e);
         }
+    }
+
+    // load all auto subscribe rule
+    let auto_subscribe_storage = AutoSubscribeStorage::new(client_pool.clone());
+    let auto_subscribe_rules = match auto_subscribe_storage.list_auto_subscribe_rule().await {
+        Ok(list) => list,
+        Err(e) => {
+            panic!(
+                "Failed to load the auto subscribe list with error message:{}",
+                e
+            );
+        }
+    };
+    for auto_subscribe_rule in auto_subscribe_rules {
+        cache_manager.add_auto_subscribe_rule(auto_subscribe_rule);
     }
 }
 

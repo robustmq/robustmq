@@ -16,9 +16,12 @@ use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusReply, ClusterStatusRequest, MqttCreateConnectorReply, MqttCreateConnectorRequest,
-    MqttDeleteConnectorReply, MqttDeleteConnectorRequest, MqttListConnectorReply,
-    MqttListConnectorRequest, MqttUpdateConnectorReply, MqttUpdateConnectorRequest,
+    ClusterStatusReply, ClusterStatusRequest, DeleteAutoSubscribeRuleReply,
+    DeleteAutoSubscribeRuleRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
+    MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttDeleteConnectorReply,
+    MqttDeleteConnectorRequest, MqttListConnectorReply, MqttListConnectorRequest,
+    MqttUpdateConnectorReply, MqttUpdateConnectorRequest, SetAutoSubscribeRuleReply,
+    SetAutoSubscribeRuleRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
@@ -299,4 +302,28 @@ impl_retriable_request!(
     MqttUnbindSchemaReply,
     mqtt_broker_admin_services_client,
     mqtt_broker_unbind_schema
+);
+
+impl_retriable_request!(
+    ListAutoSubscribeRuleRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    ListAutoSubscribeRuleReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_list_auto_subscribe_rule
+);
+
+impl_retriable_request!(
+    SetAutoSubscribeRuleRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    SetAutoSubscribeRuleReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_set_auto_subscribe_rule
+);
+
+impl_retriable_request!(
+    DeleteAutoSubscribeRuleRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    DeleteAutoSubscribeRuleReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_delete_auto_subscribe_rule
 );

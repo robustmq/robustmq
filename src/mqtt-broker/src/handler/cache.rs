@@ -18,6 +18,7 @@ use grpc_clients::pool::ClientPool;
 use log::warn;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::session::MqttSession;
@@ -129,6 +130,9 @@ pub struct CacheManager {
 
     // All topic rewrite rule
     pub topic_rewrite_rule: DashMap<String, MqttTopicRewriteRule>,
+
+    // All auto subscribe rule
+    pub auto_subscribe_rule: DashMap<String, MqttAutoSubscribeRule>,
 }
 
 impl CacheManager {
@@ -148,6 +152,7 @@ impl CacheManager {
             client_pkid_data: DashMap::with_capacity(8),
             acl_metadata: AclMetadata::new(),
             topic_rewrite_rule: DashMap::with_capacity(8),
+            auto_subscribe_rule: DashMap::with_capacity(8),
         }
     }
 
@@ -458,5 +463,20 @@ impl CacheManager {
         source_topic: &str,
     ) -> String {
         format!("{}_{}_{}", cluster, action, source_topic)
+    }
+
+    // auto subscribe rule
+    pub fn auto_subscribe_rule_key(&self, cluster: &str, topic: &str) -> String {
+        format!("{}_{}", cluster, topic)
+    }
+
+    pub fn add_auto_subscribe_rule(&self, auto_subscribe_rule: MqttAutoSubscribeRule) {
+        let key = self.auto_subscribe_rule_key(&self.cluster_name, &auto_subscribe_rule.topic);
+        self.auto_subscribe_rule.insert(key, auto_subscribe_rule);
+    }
+
+    pub fn delete_auto_subscribe_rule(&self, cluster: &str, topic: &str) {
+        let key = self.auto_subscribe_rule_key(cluster, topic);
+        self.auto_subscribe_rule.remove(&key);
     }
 }
