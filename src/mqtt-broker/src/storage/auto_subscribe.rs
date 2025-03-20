@@ -69,8 +69,7 @@ impl AutoSubscribeStorage {
             qos: Into::<u8>::into(auto_subscribe_rule.qos) as u32,
             no_local: auto_subscribe_rule.no_local,
             retain_as_published: auto_subscribe_rule.retain_as_published,
-            retained_handling: Into::<u8>::into(auto_subscribe_rule.retained_handling)
-                as u32,
+            retained_handling: Into::<u8>::into(auto_subscribe_rule.retained_handling) as u32,
         };
         placement_set_auto_subscribe_rule(&self.client_pool, &config.placement_center, request)
             .await?;

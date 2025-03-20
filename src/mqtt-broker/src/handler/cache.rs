@@ -466,19 +466,12 @@ impl CacheManager {
     }
 
     // auto subscribe rule
-    pub fn auto_subscribe_rule_key(
-        &self,
-        cluster: &str,
-        topic: &str,
-    ) -> String {
+    pub fn auto_subscribe_rule_key(&self, cluster: &str, topic: &str) -> String {
         format!("{}_{}", cluster, topic)
     }
 
     pub fn add_auto_subscribe_rule(&self, auto_subscribe_rule: MqttAutoSubscribeRule) {
-        let key = self.auto_subscribe_rule_key(
-            &self.cluster_name,
-            &auto_subscribe_rule.topic,
-        );
+        let key = self.auto_subscribe_rule_key(&self.cluster_name, &auto_subscribe_rule.topic);
         self.auto_subscribe_rule.insert(key, auto_subscribe_rule);
     }
 

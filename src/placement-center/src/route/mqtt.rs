@@ -273,12 +273,10 @@ impl DataRouteMqtt {
 
         let mut _retained_handling: Option<RetainForwardRule> = None;
         if req.retained_handling <= u8::MAX as u32 {
-            _retained_handling =
-                retain_forward_rule(req.retained_handling as u8);
+            _retained_handling = retain_forward_rule(req.retained_handling as u8);
         } else {
             return Err(PlacementCenterError::CommonError(
-                Error::InvalidRemainingLength(req.retained_handling as usize)
-                    .to_string(),
+                Error::InvalidRemainingLength(req.retained_handling as usize).to_string(),
             ));
         };
 

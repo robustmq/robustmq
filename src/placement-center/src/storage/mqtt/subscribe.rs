@@ -36,9 +36,9 @@ use crate::storage::engine::{
     engine_save_by_cluster,
 };
 use crate::storage::keys::{
-    storage_key_mqtt_auto_subscribe_rule, storage_key_mqtt_auto_subscribe_rule_prefix, 
-    storage_key_mqtt_subscribe, storage_key_mqtt_subscribe_client_id_prefix, 
-    storage_key_mqtt_subscribe_cluster_prefix
+    storage_key_mqtt_auto_subscribe_rule, storage_key_mqtt_auto_subscribe_rule_prefix,
+    storage_key_mqtt_subscribe, storage_key_mqtt_subscribe_client_id_prefix,
+    storage_key_mqtt_subscribe_cluster_prefix,
 };
 use crate::storage::rocksdb::RocksDBEngine;
 
@@ -135,7 +135,11 @@ impl MqttSubscribeStorage {
         auto_subscribe_rule: MqttAutoSubscribeRule,
     ) -> Result<(), PlacementCenterError> {
         let key = storage_key_mqtt_auto_subscribe_rule(cluster_name, topic);
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, auto_subscribe_rule)?;
+        engine_save_by_cluster(
+            self.rocksdb_engine_handler.clone(),
+            key,
+            auto_subscribe_rule,
+        )?;
         Ok(())
     }
 

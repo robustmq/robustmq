@@ -250,7 +250,9 @@ where
             &self.client_pool,
             &self.cache_manager,
             &self.subscribe_manager,
-        ).await {
+        )
+        .await
+        {
             return response_packet_mqtt_connect_fail(
                 &self.protocol,
                 ConnectReturnCode::UnspecifiedError,

@@ -27,17 +27,16 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
     EnableFlappingDetectRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
     ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
-    ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
-    ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest,
-    ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest, MqttBindSchemaReply,
-    MqttBindSchemaRequest, MqttCreateConnectorReply, MqttCreateConnectorRequest,
-    MqttCreateSchemaReply, MqttCreateSchemaRequest, MqttDeleteConnectorReply,
-    MqttDeleteConnectorRequest, MqttDeleteSchemaReply, MqttDeleteSchemaRequest,
-    MqttListBindSchemaReply, MqttListBindSchemaRequest, MqttListConnectorReply,
-    MqttListConnectorRequest, MqttListSchemaReply, MqttListSchemaRequest,
-    MqttUnbindSchemaReply, MqttUnbindSchemaRequest, MqttUpdateConnectorReply,
-    MqttUpdateConnectorRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
-    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
+    ListBlacklistReply, ListBlacklistRequest, ListConnectionReply, ListConnectionRequest,
+    ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest,
+    ListUserReply, ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest,
+    MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttCreateSchemaReply,
+    MqttCreateSchemaRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
+    MqttDeleteSchemaReply, MqttDeleteSchemaRequest, MqttListBindSchemaReply,
+    MqttListBindSchemaRequest, MqttListConnectorReply, MqttListConnectorRequest,
+    MqttListSchemaReply, MqttListSchemaRequest, MqttUnbindSchemaReply, MqttUnbindSchemaRequest,
+    MqttUpdateConnectorReply, MqttUpdateConnectorRequest, MqttUpdateSchemaReply,
+    MqttUpdateSchemaRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
 };
 use protocol::mqtt::common::{qos, retain_forward_rule, Error, QoS, RetainForwardRule};
 use tonic::{Request, Response, Status};
@@ -374,8 +373,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         };
         let mut _retained_handling: Option<RetainForwardRule> = None;
         if req.retained_handling <= u8::MAX as u32 {
-            _retained_handling =
-                retain_forward_rule(req.retained_handling as u8);
+            _retained_handling = retain_forward_rule(req.retained_handling as u8);
         } else {
             return Err(Status::cancelled(
                 Error::InvalidRemainingLength(req.retained_handling as usize).to_string(),
@@ -385,15 +383,12 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         let auto_subscribe_rule = MqttAutoSubscribeRule {
             cluster: config.cluster_name.clone(),
             topic: req.topic.clone(),
-            qos: _qos.ok_or_else(|| {
-                Status::cancelled(Error::InvalidQoS(req.qos as u8).to_string())
-            })?,
+            qos: _qos
+                .ok_or_else(|| Status::cancelled(Error::InvalidQoS(req.qos as u8).to_string()))?,
             no_local: req.no_local,
             retain_as_published: req.retain_as_published,
             retained_handling: _retained_handling.ok_or_else(|| {
-                Status::cancelled(
-                    Error::InvalidQoS(req.retained_handling as u8).to_string(),
-                )
+                Status::cancelled(Error::InvalidQoS(req.retained_handling as u8).to_string())
             })?,
         };
         let auto_subscribe_storage = AutoSubscribeStorage::new(self.client_pool.clone());
