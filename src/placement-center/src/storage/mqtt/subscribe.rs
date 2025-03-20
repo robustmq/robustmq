@@ -157,7 +157,7 @@ impl MqttSubscribeStorage {
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            let topic = serde_json::from_slice::<MqttAutoSubscribeRule>(&raw.data)?;
+            let topic = serde_json::from_str::<MqttAutoSubscribeRule>(&raw.data)?;
             results.push(topic);
         }
         Ok(results)

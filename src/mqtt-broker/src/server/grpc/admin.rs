@@ -14,6 +14,7 @@
 
 use std::sync::Arc;
 
+use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
@@ -26,19 +27,19 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
     EnableFlappingDetectRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
     ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
-    ListBlacklistReply, ListBlacklistRequest, ListConnectionRaw, ListConnectionReply,
-    ListConnectionRequest, ListSlowSubScribeRaw, ListSlowSubscribeReply, ListSlowSubscribeRequest,
+    ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
+    ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest,
     ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest, MqttBindSchemaReply,
     MqttBindSchemaRequest, MqttCreateConnectorReply, MqttCreateConnectorRequest,
     MqttCreateSchemaReply, MqttCreateSchemaRequest, MqttDeleteConnectorReply,
     MqttDeleteConnectorRequest, MqttDeleteSchemaReply, MqttDeleteSchemaRequest,
     MqttListBindSchemaReply, MqttListBindSchemaRequest, MqttListConnectorReply,
-    MqttListConnectorRequest, MqttListSchemaReply, MqttListSchemaRequest, MqttTopic,
+    MqttListConnectorRequest, MqttListSchemaReply, MqttListSchemaRequest,
     MqttUnbindSchemaReply, MqttUnbindSchemaRequest, MqttUpdateConnectorReply,
     MqttUpdateConnectorRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
     SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
 };
-use protocol::mqtt::common::{qos, Error, QoS, RetainForwardRule};
+use protocol::mqtt::common::{qos, retain_forward_rule, Error, QoS, RetainForwardRule};
 use tonic::{Request, Response, Status};
 
 use crate::admin::{
@@ -374,7 +375,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         let mut _retained_handling: Option<RetainForwardRule> = None;
         if req.retained_handling <= u8::MAX as u32 {
             _retained_handling =
-                RetainForwardRule::retain_forward_rule(req.retained_handling.clone() as u8);
+                retain_forward_rule(req.retained_handling.clone() as u8);
         } else {
             return Err(Status::cancelled(
                 Error::InvalidRemainingLength(req.retained_handling.clone() as usize).to_string(),

@@ -25,7 +25,7 @@ use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use prost::Message as _;
-use protocol::mqtt::common::{qos, Error, QoS, RetainForwardRule};
+use protocol::mqtt::common::{qos, retain_forward_rule, Error, QoS, RetainForwardRule};
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclRequest, CreateBlacklistRequest, CreateConnectorRequest, CreateSessionRequest,
     CreateTopicRequest, CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
@@ -274,7 +274,7 @@ impl DataRouteMqtt {
         let mut _retained_handling: Option<RetainForwardRule> = None;
         if req.retained_handling <= u8::MAX as u32 {
             _retained_handling =
-                RetainForwardRule::retain_forward_rule(req.retained_handling.clone() as u8);
+                retain_forward_rule(req.retained_handling.clone() as u8);
         } else {
             return Err(PlacementCenterError::CommonError(
                 Error::InvalidRemainingLength(req.retained_handling.clone() as usize)

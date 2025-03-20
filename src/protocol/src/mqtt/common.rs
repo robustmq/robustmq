@@ -902,14 +902,12 @@ impl From<RetainForwardRule> for u8 {
     }
 }
 
-impl RetainForwardRule {
-    pub fn retain_forward_rule(num: u8) -> Option<RetainForwardRule> {
-        match num {
-            0 => Some(RetainForwardRule::OnEverySubscribe),
-            1 => Some(RetainForwardRule::OnNewSubscribe),
-            2 => Some(RetainForwardRule::Never),
-            _ => None,
-        }
+pub fn retain_forward_rule(num: u8) -> Option<RetainForwardRule> {
+    match num {
+        0 => Some(RetainForwardRule::OnEverySubscribe),
+        1 => Some(RetainForwardRule::OnNewSubscribe),
+        2 => Some(RetainForwardRule::Never),
+        _ => None,
     }
 }
 
