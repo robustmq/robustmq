@@ -21,13 +21,14 @@ mod tests {
     use paho_mqtt::{Client, PropertyCode, ReasonCode};
 
     use crate::mqtt_protocol::common::{
-        broker_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr, build_create_pros,
-        build_v5_conn_pros, build_v5_pros, distinct_conn,
+        broker_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr, build_client_id,
+        build_create_pros, build_v5_conn_pros, build_v5_pros, distinct_conn,
     };
 
     #[tokio::test]
     async fn client5_connect_test() {
-        let client_id = unique_id();
+        let client_id = build_client_id("connect_test");
+
         let addr = broker_addr();
         v5_wrong_password_test(&client_id, &addr, false, false);
         v5_session_present_test(&client_id, &addr, false, false);
@@ -38,7 +39,7 @@ mod tests {
 
     #[tokio::test]
     async fn client5_connect_ssl_test() {
-        let client_id = unique_id();
+        let client_id = build_client_id("client5_connect_ssl_test");
         let addr = broker_ssl_addr();
         v5_wrong_password_test(&client_id, &addr, false, true);
         v5_session_present_test(&client_id, &addr, false, true);
@@ -49,7 +50,7 @@ mod tests {
 
     #[tokio::test]
     async fn client5_connect_ws_test() {
-        let client_id = unique_id();
+        let client_id = build_client_id("client5_connect_ws_test");
         let addr = broker_ws_addr();
         v5_wrong_password_test(&client_id, &addr, true, false);
         v5_session_present_test(&client_id, &addr, true, false);
@@ -60,7 +61,7 @@ mod tests {
 
     #[tokio::test]
     async fn client5_connect_wss_test() {
-        let client_id = unique_id();
+        let client_id = build_client_id("client5_connect_wss_test");
         let addr = broker_wss_addr();
         v5_wrong_password_test(&client_id, &addr, true, true);
         v5_session_present_test(&client_id, &addr, true, true);

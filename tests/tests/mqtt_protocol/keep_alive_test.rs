@@ -24,6 +24,8 @@ mod tests {
     use tokio::time::{sleep, Instant};
     use tokio_util::codec::Framed;
 
+    use crate::mqtt_protocol::common::build_client_id;
+
     #[tokio::test]
     async fn mqtt4_keep_alive_test() {
         let socket = TcpStream::connect("127.0.0.1:1883").await.unwrap();
@@ -56,7 +58,7 @@ mod tests {
 
     /// Build the connect content package for the mqtt4 protocol
     fn build_mqtt4_pg_connect() -> MqttPacket {
-        let client_id = String::from("test_client_id");
+        let client_id = build_client_id("build_mqtt4_pg_connect");
         let login = Some(Login {
             username: "admin".to_string(),
             password: "pwd123".to_string(),

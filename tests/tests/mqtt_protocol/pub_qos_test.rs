@@ -30,9 +30,11 @@ use opentelemetry::{
 
 use crate::mqtt_protocol::common::{broker_addr, connect_server34, connect_server5, distinct_conn};
 
+use super::common::build_client_id;
+
 async fn publish34_qos(num: i32, qos: i32) {
     let mqtt_version = 3;
-    let client_id = unique_id();
+    let client_id = build_client_id("publish34_qos");
     let addr = broker_addr();
     let cli = connect_server34(mqtt_version, &client_id, &addr, false, false);
     let topic = "/tests/t1".to_string();
@@ -48,7 +50,7 @@ async fn publish34_qos(num: i32, qos: i32) {
     distinct_conn(cli);
 
     let mqtt_version = 4;
-    let client_id = unique_id();
+    let client_id = build_client_id("publish34_qos");
     let addr = broker_addr();
     let cli = connect_server34(mqtt_version, &client_id, &addr, false, false);
     let topic = "/tests/t1".to_string();
@@ -65,7 +67,7 @@ async fn publish34_qos(num: i32, qos: i32) {
 }
 
 async fn publish5_qos(num: i32, qos: i32, retained: bool) {
-    let client_id = unique_id();
+    let client_id = build_client_id("publish5_qos");
     let addr = broker_addr();
     let cli = connect_server5(&client_id, &addr, false, false);
     let topic = "/tests/t1".to_string();
@@ -94,7 +96,7 @@ async fn publish5_qos(num: i32, qos: i32, retained: bool) {
 }
 
 async fn publish5_qos_trace(num: i32, qos: i32, retained: bool) {
-    let client_id = unique_id();
+    let client_id = build_client_id("publish5_qos_trace");
     let addr = broker_addr();
     let cli = connect_server5(&client_id, &addr, false, false);
     let topic = "/tests/t1".to_string();

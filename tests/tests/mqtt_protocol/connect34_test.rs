@@ -16,7 +16,7 @@
 mod tests {
     use crate::mqtt_protocol::common::{
         broker_addr, broker_grpc_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr,
-        build_conn_pros, build_create_pros, distinct_conn,
+        build_client_id, build_conn_pros, build_create_pros, distinct_conn,
     };
     use crate::mqtt_protocol::connect_suite::ClientTestProperties;
     use crate::mqtt_protocol::connect_suite::{session_present_test, wrong_password_test};
@@ -30,9 +30,10 @@ mod tests {
 
     #[tokio::test]
     async fn client_connect_wrong_password_test_v3() {
+        let client_id = build_client_id("client_connect_wrong_password_test_v3");
         let client_v3_properties = ClientTestProperties {
             mqtt_version: 3,
-            client_id: unique_id(),
+            client_id,
             addr: broker_addr(),
             ws: false,
             ssl: false,
@@ -44,9 +45,10 @@ mod tests {
 
     #[tokio::test]
     async fn client_connect_session_present_test_v3() {
+        let client_id = build_client_id("client_connect_session_present_test_v3");
         let client_v3_properties = ClientTestProperties {
             mqtt_version: 3,
-            client_id: unique_id(),
+            client_id,
             addr: broker_addr(),
             ws: false,
             ssl: false,
@@ -56,9 +58,10 @@ mod tests {
 
     #[tokio::test]
     async fn client_connect_ssl_test_v3() {
+        let client_id = build_client_id("client_connect_ssl_test_v3");
         let mut client_v3_properties = ClientTestProperties {
             mqtt_version: 3,
-            client_id: unique_id(),
+            client_id,
             addr: broker_addr(),
             ws: false,
             ssl: false,
@@ -72,9 +75,10 @@ mod tests {
 
     #[tokio::test]
     async fn client_connect_test_v4() {
+        let client_id = build_client_id("client_connect_test_v4");
         let client_properties_v4 = ClientTestProperties {
             mqtt_version: 4,
-            client_id: unique_id(),
+            client_id,
             addr: broker_addr(),
             ws: false,
             ssl: false,
@@ -86,9 +90,10 @@ mod tests {
 
     #[tokio::test]
     async fn client_connect_ssl_test_v4() {
+        let client_id = build_client_id("client_connect_ssl_test_v4");
         let mut client_properties_v4 = ClientTestProperties {
             mqtt_version: 4,
-            client_id: unique_id(),
+            client_id,
             addr: broker_addr(),
             ws: false,
             ssl: false,
@@ -102,9 +107,10 @@ mod tests {
 
     #[tokio::test]
     async fn client_connect_ws_test_v4() {
+        let client_id = build_client_id("client_connect_ws_test_v4");
         let mut client_properties_v4 = ClientTestProperties {
             mqtt_version: 4,
-            client_id: unique_id(),
+            client_id,
             addr: broker_addr(),
             ws: false,
             ssl: false,
@@ -120,9 +126,10 @@ mod tests {
 
     #[tokio::test]
     async fn client_connect_wss_test_v4() {
+        let client_id = build_client_id("client_connect_wss_test_v4");
         let mut client_properties_v4 = ClientTestProperties {
             mqtt_version: 4,
-            client_id: unique_id(),
+            client_id,
             addr: broker_addr(),
             ws: false,
             ssl: false,

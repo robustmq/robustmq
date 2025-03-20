@@ -22,7 +22,9 @@ mod tests {
     };
     use paho_mqtt::{Message, PropertyCode, RetainHandling, SubscribeOptions, QOS_0, QOS_2};
 
-    use crate::mqtt_protocol::common::{broker_addr, connect_server5, distinct_conn};
+    use crate::mqtt_protocol::common::{
+        broker_addr, build_client_id, connect_server5, distinct_conn,
+    };
 
     #[tokio::test]
     async fn sub_options_no_local_test() {
@@ -48,7 +50,7 @@ mod tests {
         no_local: bool,
         payload_flag: String,
     ) {
-        let client_id = unique_id();
+        let client_id = build_client_id("no_local_test");
         let addr = broker_addr();
         let sub_topics = &[sub_topic.clone()];
         let sub_qos = &[QOS_2];
@@ -86,7 +88,7 @@ mod tests {
         retain_as_published: bool,
         payload_flag: String,
     ) {
-        let client_id = unique_id();
+        let client_id = build_client_id("retain_as_published_test");
         let addr = broker_addr();
         let sub_topics = &[sub_topic.clone()];
         let sub_qos = &[QOS_0];
@@ -117,7 +119,7 @@ mod tests {
         let sub_topic = topic.clone();
         let retain_handling = RetainHandling::SendRetainedOnSubscribe;
         let payload_flag = "111".to_string();
-        let client_id = unique_id();
+        let client_id = build_client_id("send_retained_on_subscribe_test");
 
         println!("client_id:{:#?},topic:{:#?}", client_id, sub_topic.clone());
 
@@ -134,7 +136,7 @@ mod tests {
         assert!(cli.publish(msg.clone()).is_ok());
 
         // subscribe
-        let consumer_client_id = unique_id();
+        let consumer_client_id = build_client_id("send_retained_on_subscribe_test");
         let consumer_cli = connect_server5(&consumer_client_id, &addr, false, false);
         let rx = consumer_cli.start_consuming();
         assert!(consumer_cli
@@ -176,7 +178,7 @@ mod tests {
         let retain_handling = RetainHandling::SendRetainedOnNew;
         let payload_flag = "111".to_string();
 
-        let client_id = unique_id();
+        let client_id = build_client_id("send_retained_on_new_test");
 
         println!("client_id:{:#?},topic:{:#?}", client_id, sub_topic.clone());
 
@@ -194,7 +196,7 @@ mod tests {
         assert!(cli.publish(msg.clone()).is_ok());
 
         // new subscribe
-        let consumer_client_id = unique_id();
+        let consumer_client_id = build_client_id("send_retained_on_new_test");
         let consumer_cli = connect_server5(&consumer_client_id, &addr, false, false);
         let rx: paho_mqtt::Receiver<Option<Message>> = consumer_cli.start_consuming();
         assert!(consumer_cli
@@ -224,7 +226,7 @@ mod tests {
         let retain_handling = RetainHandling::DontSendRetained;
         let payload_flag = "111".to_string();
 
-        let client_id = unique_id();
+        let client_id = build_client_id("dont_send_retained_test");
 
         println!("client_id:{:#?},topic:{:#?}", client_id, sub_topic.clone());
 
@@ -241,7 +243,7 @@ mod tests {
         let msg = Message::new_retained(pub_topic.clone(), message_content.clone(), QOS_0);
         assert!(cli.publish(msg.clone()).is_ok());
 
-        let consumer_client_id = unique_id();
+        let consumer_client_id = build_client_id("dont_send_retained_test");
 
         // new subscribe
         let consumer_cli = connect_server5(&consumer_client_id, &addr, false, false);

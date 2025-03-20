@@ -20,11 +20,13 @@ mod tests {
     };
     use paho_mqtt::{MessageBuilder, PropertyCode, QOS_1};
 
-    use crate::mqtt_protocol::common::{broker_addr, connect_server5, distinct_conn};
+    use crate::mqtt_protocol::common::{
+        broker_addr, build_client_id, connect_server5, distinct_conn,
+    };
 
     #[tokio::test]
     async fn retain_message_sub_qos0_test() {
-        let client_id = unique_id();
+        let client_id = build_client_id("retain_message_sub_qos0_test");
         let addr = broker_addr();
         let topic = format!("/tests/{}", unique_id());
         let sub_topics = &[topic.clone()];
@@ -48,7 +50,7 @@ mod tests {
         distinct_conn(cli);
 
         // subscribe
-        let client_id = unique_id();
+        let client_id = build_client_id("retain_message_sub_qos0_test");
         let cli = connect_server5(&client_id, &addr, false, false);
         let sub_qos = &[0];
         let rx = cli.start_consuming();
@@ -81,7 +83,7 @@ mod tests {
 
     #[tokio::test]
     async fn retain_message_sub_qos1_test() {
-        let client_id = unique_id();
+        let client_id = build_client_id("retain_message_sub_qos1_test");
         let addr = broker_addr();
         let topic = format!("/tests/{}", unique_id());
         let sub_topics = &[topic.clone()];
@@ -105,7 +107,7 @@ mod tests {
         distinct_conn(cli);
 
         // subscribe
-        let client_id = unique_id();
+        let client_id = build_client_id("retain_message_sub_qos1_test");
         let cli = connect_server5(&client_id, &addr, false, false);
         let sub_qos = &[1];
         let rx = cli.start_consuming();
@@ -138,7 +140,7 @@ mod tests {
 
     #[tokio::test]
     async fn retain_message_sub_qos2_test() {
-        let client_id = unique_id();
+        let client_id = build_client_id("retain_message_sub_qos2_test");
         let addr = broker_addr();
         let topic = format!("/tests/{}", unique_id());
         let sub_topics = &[topic.clone()];
@@ -162,7 +164,7 @@ mod tests {
         distinct_conn(cli);
 
         // subscribe
-        let client_id = unique_id();
+        let client_id = build_client_id("retain_message_sub_qos2_test");
         let cli = connect_server5(&client_id, &addr, false, false);
         let sub_qos = &[2];
         let rx = cli.start_consuming();

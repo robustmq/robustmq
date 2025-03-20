@@ -22,7 +22,9 @@ mod tests {
     use paho_mqtt::{Message, QOS_1};
     use protocol::broker_mqtt::broker_mqtt_admin::CreateTopicRewriteRuleRequest;
 
-    use crate::mqtt_protocol::common::{broker_addr, connect_server5, distinct_conn};
+    use crate::mqtt_protocol::common::{
+        broker_addr, build_client_id, connect_server5, distinct_conn,
+    };
 
     #[tokio::test]
     async fn client5_rewrite_pub_test() {
@@ -138,7 +140,7 @@ mod tests {
         payload_flag: String,
         unsub_topic: String,
     ) {
-        let client_id = unique_id();
+        let client_id = build_client_id("topic_rewrite_rule_test");
         let addr = broker_addr();
         let sub_topics = &[sub_topic.clone()];
 

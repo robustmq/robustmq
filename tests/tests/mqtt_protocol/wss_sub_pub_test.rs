@@ -20,12 +20,12 @@ mod tests {
     use paho_mqtt::{Message, QOS_1};
 
     use crate::mqtt_protocol::common::{
-        broker_wss_addr, connect_server34, connect_server5, distinct_conn,
+        broker_wss_addr, build_client_id, connect_server34, connect_server5, distinct_conn,
     };
 
     #[tokio::test]
     async fn wss3_sub_pub_test() {
-        let client_id = unique_id();
+        let client_id = build_client_id("wss3_sub_pub_test");
         let addr = broker_wss_addr();
         let pub_topic = unique_id();
         let cli = connect_server34(4, &client_id, &addr, true, true);
@@ -66,7 +66,7 @@ mod tests {
 
     #[tokio::test]
     async fn wss4_sub_pub_test() {
-        let client_id = unique_id();
+        let client_id = build_client_id("wss4_sub_pub_test");
         let addr = broker_wss_addr();
         let pub_topic = unique_id();
 
@@ -108,7 +108,7 @@ mod tests {
 
     #[tokio::test]
     async fn wss5_sub_pub_test() {
-        let client_id = unique_id();
+        let client_id = build_client_id("wss5_sub_pub_test");
         let addr = broker_wss_addr();
         let pub_topic = unique_id();
 
