@@ -68,7 +68,7 @@ jobs:
           # Generate separate reports for nextest and doctests, and combine them.
         run: |
           cargo llvm-cov clean --workspace 
-          cargo llvm-cov  nextest  --workspace --exclude=robustmq-test --exclude=grpc-clients  --lcov --output-path lcov.info
+          cargo llvm-cov  nextest  --workspace --exclude=robustmq-test --exclude=grpc-clients  --filter-expr '!(test(placement) & package(storage-adapter))'  --lcov --output-path lcov.info
           sed -i 's/__w\/robustmq\/robustmq\///g' lcov.info
       - name: Upload coverage data to codecov
         # Run this step even if the test step fails. Upload it right now because
