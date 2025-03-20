@@ -264,20 +264,20 @@ impl DataRouteMqtt {
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
         let mut _qos: Option<QoS> = None;
         if req.qos <= u8::MAX as u32 {
-            _qos = qos(req.qos.clone() as u8);
+            _qos = qos(req.qos as u8);
         } else {
             return Err(PlacementCenterError::CommonError(
-                Error::InvalidRemainingLength(req.qos.clone() as usize).to_string(),
+                Error::InvalidRemainingLength(req.qos as usize).to_string(),
             ));
         };
 
         let mut _retained_handling: Option<RetainForwardRule> = None;
         if req.retained_handling <= u8::MAX as u32 {
             _retained_handling =
-                retain_forward_rule(req.retained_handling.clone() as u8);
+                retain_forward_rule(req.retained_handling as u8);
         } else {
             return Err(PlacementCenterError::CommonError(
-                Error::InvalidRemainingLength(req.retained_handling.clone() as usize)
+                Error::InvalidRemainingLength(req.retained_handling as usize)
                     .to_string(),
             ));
         };
@@ -286,12 +286,12 @@ impl DataRouteMqtt {
             cluster: req.cluster_name.clone(),
             topic: req.topic.clone(),
             qos: _qos.ok_or(PlacementCenterError::CommonError(
-                Error::InvalidQoS(req.qos.clone() as u8).to_string(),
+                Error::InvalidQoS(req.qos as u8).to_string(),
             ))?,
-            no_local: req.no_local.clone(),
-            retain_as_published: req.retain_as_published.clone(),
+            no_local: req.no_local,
+            retain_as_published: req.retain_as_published,
             retained_handling: _retained_handling.ok_or(PlacementCenterError::CommonError(
-                Error::InvalidRetainForwardRule(req.retained_handling.clone() as u8).to_string(),
+                Error::InvalidRetainForwardRule(req.retained_handling as u8).to_string(),
             ))?,
         };
         storage.save_auto_subscribe_rule(&req.cluster_name, &req.topic, auto_subscribe_rule)

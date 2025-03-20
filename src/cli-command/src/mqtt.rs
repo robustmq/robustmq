@@ -212,7 +212,7 @@ impl MqttBrokerCommand {
 
             //auto subscribe
             MqttActionType::ListAutoSubscribeRule(ref request) => {
-                self.list_auto_subscribe_rule(&client_pool, params.clone(), request.clone())
+                self.list_auto_subscribe_rule(&client_pool, params.clone(), request)
                     .await;
             }
             MqttActionType::SetAutoSubscribeRule(ref request) => {
@@ -928,7 +928,7 @@ impl MqttBrokerCommand {
         &self,
         client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: ListAutoSubscribeRuleRequest,
+        _cli_request: ListAutoSubscribeRuleRequest,
     ) {
         let request = ListAutoSubscribeRuleRequest {};
         match mqtt_broker_list_auto_subscribe_rule(client_pool, &grpc_addr(params.server), request)
