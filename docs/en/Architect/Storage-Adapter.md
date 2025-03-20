@@ -11,18 +11,18 @@ To address this issue, RobustMQ provides a unified Storage semantics through Sto
 ![image](../../images/storage-adapter.png)
 
 The Storage Adapter is a lib, not a Service. It defines the following semantics via the trait StorageAdapter:
--create_shard: Creates a Shard
--list_shard: Lists shards
--delete_shard: Deletes the Shard
--write: Writes a single piece of data
--batch_write: To write multiple entries
--read_by_offset: Reads data as Offset
--read_by_tag: Reads data by Tag
--read_by_key: Reads data by Key
--get_offset_by_timestamp: Get the Offset by Timestamp
--get_offset_by_group: Get the Offset by Group
--commit_offset: Commits the Offset
--close: The Storage Adapter is closed
+- create_shard: Creates a Shard
+- list_shard: Lists shards
+- delete_shard: Deletes the Shard
+- write: Writes a single piece of data
+- batch_write: To write multiple entries
+- read_by_offset: Reads data as Offset
+- read_by_tag: Reads data by Tag
+- read_by_key: Reads data by Key
+- get_offset_by_timestamp: Get the Offset by Timestamp
+- get_offset_by_group: Get the Offset by Group
+- commit_offset: Commits the Offset
+- close: The Storage Adapter is closed
  
 
 > StorageAdapter file path：src/storage-adapter/src/storage.rs
