@@ -355,7 +355,7 @@ pub async fn wait_pub_comp(
                 qos2_send_pubrel(metadata_cache, sub_pub_param, connection_manager, stop_sx).await;
                 return Err(MqttBrokerError::CommonError(
                     format!(
-                        "Push QOS2 Publish message to client {}, wait pubromp timeout, more than 30s, error message :{:?}",
+                        "Push QOS2 Publish message to client {}, wait PubComp timeout, more than 30s, error message :{:?}",
                         sub_pub_param.subscribe.client_id,
                         e
                     )
