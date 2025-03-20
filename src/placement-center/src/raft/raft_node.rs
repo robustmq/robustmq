@@ -126,7 +126,7 @@ pub async fn create_raft_node(
         log_store,
         state_machine_store,
     )
-        .await
+    .await
     {
         Ok(data) => data,
         Err(e) => {
