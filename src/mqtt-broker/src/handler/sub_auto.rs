@@ -52,10 +52,10 @@ pub async fn start_auto_subscribe(
 
         filters.push(Filter {
             path,
-            qos: auto_subscribe_rule.qos.clone(),
-            nolocal: auto_subscribe_rule.no_local.clone(),
-            preserve_retain: auto_subscribe_rule.retain_as_published.clone(),
-            retain_forward_rule: auto_subscribe_rule.retained_handling.clone(),
+            qos: auto_subscribe_rule.qos,
+            nolocal: auto_subscribe_rule.no_local,
+            preserve_retain: auto_subscribe_rule.retain_as_published,
+            retain_forward_rule: auto_subscribe_rule.retained_handling,
         });
     }
 
@@ -67,10 +67,10 @@ pub async fn start_auto_subscribe(
 
         match save_subscribe(
             &client_id,
-            &protocol,
-            &client_pool,
-            &cache_manager,
-            &subscribe_manager,
+            protocol,
+            client_pool,
+            cache_manager,
+            subscribe_manager,
             &subscribe,
             &None,
         )

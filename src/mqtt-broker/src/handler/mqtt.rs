@@ -245,7 +245,7 @@ where
 
         if let Err(e) = start_auto_subscribe(
             client_id.clone(),
-            &login,
+            login,
             &self.protocol,
             &self.client_pool,
             &self.cache_manager,

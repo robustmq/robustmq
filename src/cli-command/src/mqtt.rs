@@ -928,8 +928,9 @@ impl MqttBrokerCommand {
         &self,
         client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        _cli_request: ListAutoSubscribeRuleRequest,
+        cli_request: ListAutoSubscribeRuleRequest,
     ) {
+        let _ = cli_request;
         let request = ListAutoSubscribeRuleRequest {};
         match mqtt_broker_list_auto_subscribe_rule(client_pool, &grpc_addr(params.server), request)
             .await

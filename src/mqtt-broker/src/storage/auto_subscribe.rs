@@ -66,10 +66,10 @@ impl AutoSubscribeStorage {
         let request = SetAutoSubscribeRuleRequest {
             cluster_name: config.cluster_name.clone(),
             topic: auto_subscribe_rule.topic.clone(),
-            qos: Into::<u8>::into(auto_subscribe_rule.qos.clone()) as u32,
-            no_local: auto_subscribe_rule.no_local.clone(),
-            retain_as_published: auto_subscribe_rule.retain_as_published.clone(),
-            retained_handling: Into::<u8>::into(auto_subscribe_rule.retained_handling.clone())
+            qos: Into::<u8>::into(auto_subscribe_rule.qos) as u32,
+            no_local: auto_subscribe_rule.no_local,
+            retain_as_published: auto_subscribe_rule.retain_as_published,
+            retained_handling: Into::<u8>::into(auto_subscribe_rule.retained_handling)
                 as u32,
         };
         placement_set_auto_subscribe_rule(&self.client_pool, &config.placement_center, request)
@@ -81,7 +81,7 @@ impl AutoSubscribeStorage {
         let config = broker_mqtt_conf();
         let request = DeleteAutoSubscribeRuleRequest {
             cluster_name: config.cluster_name.clone(),
-            topic: topic,
+            topic,
         };
         placement_delete_auto_subscribe_rule(&self.client_pool, &config.placement_center, request)
             .await?;
