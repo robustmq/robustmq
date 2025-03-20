@@ -51,7 +51,7 @@ place-ig-test-ci:
 journal-ig-test:  ## Integration testing for Journal Engine
 	sh ./scripts/journal-ig-test.sh dev
 
-.PHONY: journal-ig-test
+.PHONY: journal-ig-test-ci
 journal-ig-test-ci:  
 	sh ./scripts/journal-ig-test.sh ci
 
