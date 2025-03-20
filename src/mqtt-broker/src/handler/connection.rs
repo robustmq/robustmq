@@ -26,6 +26,7 @@ use super::error::MqttBrokerError;
 use super::keep_alive::client_keep_live_time;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::session::SessionStorage;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/sys/request_response/";
 
@@ -114,11 +115,15 @@ pub async fn disconnect_connection(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     connection_manager: &Arc<ConnectionManager>,
+    subscribe_manager: &Arc<SubscribeManager>,
 ) -> Result<(), MqttBrokerError> {
     // Remove the connection cache
     cache_manager.remove_connection(connect_id);
     // Remove the client id bound connection information
     cache_manager.update_session_connect_id(client_id, None);
+
+    // Remove the client id bound subscription information
+    subscribe_manager.remove_client_id(client_id);
 
     // Remove the Connect id of the Session in the Placement Center
     let session_storage = SessionStorage::new(client_pool.clone());
