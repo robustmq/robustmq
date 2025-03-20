@@ -213,7 +213,6 @@ where
     }
 
     for record in results.iter() {
-        println!("{:?}", record);
         let record_offset = record.offset.unwrap();
 
         // build publish params
