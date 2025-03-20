@@ -212,7 +212,7 @@ impl MqttBrokerCommand {
 
             //auto subscribe
             MqttActionType::ListAutoSubscribeRule(ref request) => {
-                self.list_auto_subscribe_rule(&client_pool, params.clone(), request)
+                self.list_auto_subscribe_rule(&client_pool, params.clone(), *request)
                     .await;
             }
             MqttActionType::SetAutoSubscribeRule(ref request) => {
