@@ -296,12 +296,24 @@ impl CacheManager {
     }
 
     pub fn remove_build_index_thread(&self, segment_iden: &SegmentIdentity) {
-        self.segment_index_build_thread.remove(&segment_iden.name());
+        if let Some((_, data)) = self.segment_index_build_thread.remove(&segment_iden.name()) {
+            if let Err(e) = data.stop_send.send(true) {
+                error!("Trying to stop the index building thread for segment {} failed with error message:{}", segment_iden.name(),e);
+            }
+        }
     }
 
     pub fn contain_build_index_thread(&self, segment_iden: &SegmentIdentity) -> bool {
         self.segment_index_build_thread
             .contains_key(&segment_iden.name())
+    }
+
+    pub fn stop_all_build_index_thread(&self) {
+        for raw in self.segment_index_build_thread.iter() {
+            if let Err(e) = raw.value().stop_send.send(true) {
+                error!("Trying to stop the index building thread for segment {} failed with error message:{}", raw.key(),e);
+            }
+        }
     }
 
     // Segment Write Thread

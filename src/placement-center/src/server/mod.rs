@@ -13,4 +13,3 @@
 // limitations under the License.
 
 pub mod grpc;
-pub mod http;

@@ -62,7 +62,7 @@ impl SegmentStorage {
     ) -> Result<Option<JournalSegment>, CommonError> {
         let shard_key: String = key_segment(cluster_name, namespace, shard_name, segment_seq);
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), shard_key)? {
-            return Ok(Some(serde_json::from_slice::<JournalSegment>(&data.data)?));
+            return Ok(Some(serde_json::from_str::<JournalSegment>(&data.data)?));
         }
         Ok(None)
     }
@@ -72,7 +72,7 @@ impl SegmentStorage {
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_slice::<JournalSegment>(&raw.data)?);
+            results.push(serde_json::from_str::<JournalSegment>(&raw.data)?);
         }
         Ok(results)
     }
@@ -82,7 +82,7 @@ impl SegmentStorage {
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_slice::<JournalSegment>(&raw.data)?);
+            results.push(serde_json::from_str::<JournalSegment>(&raw.data)?);
         }
         Ok(results)
     }
@@ -96,7 +96,7 @@ impl SegmentStorage {
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_slice::<JournalSegment>(&raw.data)?);
+            results.push(serde_json::from_str::<JournalSegment>(&raw.data)?);
         }
         Ok(results)
     }
@@ -111,7 +111,7 @@ impl SegmentStorage {
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_slice::<JournalSegment>(&raw.data)?);
+            results.push(serde_json::from_str::<JournalSegment>(&raw.data)?);
         }
         Ok(results)
     }

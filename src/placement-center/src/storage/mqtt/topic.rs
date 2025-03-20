@@ -55,7 +55,7 @@ impl MqttTopicStorage {
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            let topic = serde_json::from_slice::<MqttTopic>(&raw.data)?;
+            let topic = serde_json::from_str::<MqttTopic>(&raw.data)?;
             results.push(topic);
         }
         Ok(results)
@@ -69,7 +69,7 @@ impl MqttTopicStorage {
         let key: String = storage_key_mqtt_topic(cluster_name, topicname);
 
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
-            let topic = serde_json::from_slice::<MqttTopic>(&data.data)?;
+            let topic = serde_json::from_str::<MqttTopic>(&data.data)?;
             return Ok(Some(topic));
         }
         Ok(None)
@@ -112,7 +112,7 @@ impl MqttTopicStorage {
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            let topic = serde_json::from_slice::<MqttTopicRewriteRule>(&raw.data)?;
+            let topic = serde_json::from_str::<MqttTopicRewriteRule>(&raw.data)?;
             results.push(topic);
         }
         Ok(results)

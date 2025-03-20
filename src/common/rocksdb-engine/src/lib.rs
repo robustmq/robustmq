@@ -93,13 +93,19 @@ impl RocksDBEngine {
     ) -> Result<Option<T>, CommonError> {
         match self.db.get_cf(&cf, key) {
             Ok(opt) => match opt {
-                Some(found) => match serde_json::from_slice::<T>(&found) {
-                    Ok(t) => Ok(Some(t)),
-                    Err(err) => Err(CommonError::CommonError(format!(
-                        "Failed to deserialize: {:?}",
-                        err
-                    ))),
-                },
+                Some(found) => {
+                    if !found.is_empty() {
+                        match serde_json::from_slice::<T>(&found) {
+                            Ok(t) => Ok(Some(t)),
+                            Err(err) => Err(CommonError::CommonError(format!(
+                                "Failed to deserialize: {:?}",
+                                err
+                            ))),
+                        }
+                    } else {
+                        Ok(None)
+                    }
+                }
                 None => Ok(None),
             },
             Err(err) => Err(CommonError::CommonError(format!(

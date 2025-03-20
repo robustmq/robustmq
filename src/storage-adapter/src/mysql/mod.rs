@@ -15,7 +15,7 @@
 use std::collections::HashMap;
 
 use axum::async_trait;
-use common_base::error::common::CommonError;
+use common_base::{error::common::CommonError, utils::crc::calc_crc32};
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use mysql::{params, prelude::Queryable, Pool, Row};
 
@@ -326,11 +326,12 @@ impl StorageAdapter for MySQLStorageAdapter {
                 Record {
                     offset: Some(offset), // offset is 1-based in the database
                     key,
-                    data,
+                    data: data.clone(),
                     header: serde_json::from_slice(&header).unwrap(),
                     tags: serde_json::from_slice(&tags).unwrap(),
                     timestamp: ts,
                     delay_timestamp: 0,
+                    crc_num: calc_crc32(&data),
                 }
             },
         )?;
@@ -379,11 +380,12 @@ impl StorageAdapter for MySQLStorageAdapter {
                 Record {
                     offset: Some(offset), // offset is 1-based in the database
                     key,
-                    data,
+                    data: data.clone(),
                     header: serde_json::from_slice(&header).unwrap(),
                     tags: serde_json::from_slice(&tags).unwrap(),
                     timestamp: ts,
                     delay_timestamp: 0,
+                    crc_num: calc_crc32(&data),
                 }
             },
         )?;
@@ -430,11 +432,12 @@ impl StorageAdapter for MySQLStorageAdapter {
                 )| Record {
                     offset: Some(offset),
                     key,
-                    data,
+                    data: data.clone(),
                     header: serde_json::from_slice(&header).unwrap(),
                     tags: serde_json::from_slice(&tags).unwrap(),
                     timestamp: ts,
                     delay_timestamp: 0,
+                    crc_num: calc_crc32(&data),
                 },
             )
             .ok_or(CommonError::CommonError("No record found".to_string()))?;
@@ -538,7 +541,7 @@ impl StorageAdapter for MySQLStorageAdapter {
 mod tests {
     use std::{collections::HashMap, sync::Arc};
 
-    use common_base::tools::unique_id;
+    use common_base::{tools::unique_id, utils::crc::calc_crc32};
     use futures::future;
     use metadata_struct::adapter::{
         read_config::ReadConfig,
@@ -610,23 +613,29 @@ mod tests {
             name: "n1".to_string(),
             value: "v1".to_string(),
         }];
+
+        let value = "test1".to_string().as_bytes().to_vec();
         data.push(Record {
-            data: "test1".to_string().as_bytes().to_vec(),
+            data: value.clone(),
             key: "k1".to_string(),
             header: header.clone(),
             offset: None,
             timestamp: 1737600096,
             tags: vec![],
             delay_timestamp: 0,
+            crc_num: calc_crc32(&value),
         });
+
+        let value = "test2".to_string().as_bytes().to_vec();
         data.push(Record {
-            data: "test2".to_string().as_bytes().to_vec(),
+            data: value.clone(),
             key: "k2".to_string(),
             header: header.clone(),
             offset: None,
             timestamp: 1737600097,
             tags: vec![],
             delay_timestamp: 0,
+            crc_num: calc_crc32(&value),
         });
 
         let result = mysql_adapter
@@ -923,14 +932,16 @@ mod tests {
 
                 // push 10 records for each task
                 for i in 0..10 {
+                    let value = format!("test-{}-{}", tid, i).as_bytes().to_vec();
                     data.push(Record {
-                        data: format!("test-{}-{}", tid, i).as_bytes().to_vec(),
+                        data: value.clone(),
                         key: format!("k-{}-{}", tid, i),
                         header: header.clone(),
                         offset: None,
                         timestamp: 1737600096,
                         tags: vec![],
                         delay_timestamp: 0,
+                        crc_num: calc_crc32(&value),
                     });
                 }
 

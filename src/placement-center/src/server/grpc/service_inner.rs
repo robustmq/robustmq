@@ -416,6 +416,7 @@ impl PlacementCenterService for GrpcPlacementService {
     ) -> Result<Response<UpdateSchemaReply>, Status> {
         let req = request.into_inner();
         match update_schema_req(
+            &self.rocksdb_engine_handler,
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,

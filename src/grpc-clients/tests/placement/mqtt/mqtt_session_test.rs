@@ -72,7 +72,7 @@ mod tests {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.sessions {
-                    let session = serde_json::from_slice::<MqttSession>(raw.as_slice()).unwrap();
+                    let session = serde_json::from_str::<MqttSession>(&raw).unwrap();
                     if mqtt_session == session {
                         flag = true;
                     }
@@ -113,7 +113,7 @@ mod tests {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.sessions {
-                    let session = serde_json::from_slice::<MqttSession>(raw.as_slice()).unwrap();
+                    let session = serde_json::from_str::<MqttSession>(&raw).unwrap();
                     if mqtt_session == session {
                         flag = true;
                     }
@@ -146,7 +146,7 @@ mod tests {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.sessions {
-                    let session = serde_json::from_slice::<MqttSession>(raw.as_slice()).unwrap();
+                    let session = serde_json::from_str::<MqttSession>(&raw).unwrap();
                     if mqtt_session == session {
                         flag = true;
                     }

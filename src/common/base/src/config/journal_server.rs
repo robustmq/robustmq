@@ -12,32 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
- * Copyright (c) 2023 RobustMQ Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 use std::sync::OnceLock;
 
 use serde::Deserialize;
 
-use super::common::Log;
+use super::common::{default_prometheus, Log, Prometheus};
 use super::default_journal_server::{
     default_enable_auto_create_shard, default_grpc_port, default_local_ip, default_log,
     default_max_segment_size, default_network, default_network_tcp_port, default_network_tcps_port,
-    default_prometheus, default_prometheus_port, default_shard, default_shard_replica_num,
-    default_storage, default_system, default_tcp_thread,
+    default_shard, default_shard_replica_num, default_storage, default_system, default_tcp_thread,
 };
 use crate::tools::{read_file, try_create_fold};
 
@@ -118,22 +101,6 @@ pub struct TcpThread {
     pub response_queue_size: usize,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct Prometheus {
-    #[serde(default)]
-    pub enable: bool,
-    #[serde(default)]
-    pub model: String,
-    #[serde(default = "default_prometheus_port")]
-    pub port: u32,
-    #[serde(default)]
-    pub push_gateway_server: String,
-    #[serde(default)]
-    pub interval: u32,
-    #[serde(default)]
-    pub header: String,
-}
-
 static STORAGE_ENGINE_CONFIG: OnceLock<JournalServerConfig> = OnceLock::new();
 
 pub fn init_journal_server_conf_by_path(config_path: &str) -> &'static JournalServerConfig {
@@ -155,6 +122,7 @@ pub fn init_journal_server_conf_by_path(config_path: &str) -> &'static JournalSe
                 }
             }
         }
+
         match try_create_fold(&pc_config.log.log_path) {
             Ok(()) => {}
             Err(e) => {

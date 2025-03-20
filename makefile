@@ -3,7 +3,7 @@ VERSION:=$(shell grep "version =" Cargo.toml | awk -F'"' '{print $2}' | head -n 
 
 ##@ Build
 .PHONY: build
-build: ## Build mac version robustmq.
+build: ## Build local machine version robustmq.
 	sh scripts/build-release.sh local $(VERSION)
 
 .PHONY: build-mac-release

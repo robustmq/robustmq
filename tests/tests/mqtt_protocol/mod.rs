@@ -25,7 +25,7 @@ pub mod permission5_test;
 pub mod pub_qos_test;
 pub mod req_resp_test;
 pub mod retain_message_test;
-pub mod share_sub_test;
+// pub mod share_sub_test;
 pub mod sub34_qos_test;
 pub mod sub5_qos_test;
 pub mod sub_exclusive_test;

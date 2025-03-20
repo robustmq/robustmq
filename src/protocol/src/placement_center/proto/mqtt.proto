@@ -413,7 +413,7 @@ message ListSessionRequest{
 
 message ListSessionReply{
     //The parameter contains a list of sessions, encoded from a `Vec<MQTTSession>` into a binary format.
-    repeated bytes sessions = 1;
+    repeated string sessions = 1;
 }
 
 message CreateSessionRequest{
@@ -424,7 +424,7 @@ message CreateSessionRequest{
     string client_id = 2;
 
     //The parameter contains session information, encoded from a `MQTTSession` object into a binary format.
-    bytes session = 3;
+    string session = 3;
 }
 
 message CreateSessionReply{

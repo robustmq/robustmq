@@ -97,11 +97,19 @@ pub async fn create_schema_req(
 }
 
 pub async fn update_schema_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UpdateSchemaRequest,
 ) -> Result<(), PlacementCenterError> {
+    let storage = SchemaStorage::new(rocksdb_engine_handler.clone());
+    if storage.get(&req.cluster_name, &req.schema_name)?.is_none() {
+        return Err(PlacementCenterError::SchemaNotFound(
+            req.schema_name.clone(),
+        ));
+    };
+
     if req.cluster_name.is_empty() {
         return Err(PlacementCenterError::RequestParamsNotEmpty(
             "cluster_name".to_string(),

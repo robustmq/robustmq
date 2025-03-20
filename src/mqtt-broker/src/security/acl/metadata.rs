@@ -61,6 +61,7 @@ impl AclMetadata {
         }
     }
 
+    // Flapping Detects
     pub fn get_flapping_detect_condition(
         &self,
         client_id: String,
@@ -100,6 +101,7 @@ impl AclMetadata {
         Ok(())
     }
 
+    // ACL
     pub fn parse_mqtt_acl(&self, acl: MqttAcl) {
         match acl.resource_type {
             MqttAclResourceType::ClientId => {
@@ -132,6 +134,7 @@ impl AclMetadata {
         }
     }
 
+    // Blacklist
     pub fn parse_mqtt_blacklist(&self, blacklist: MqttAclBlackList) {
         match blacklist.blacklist_type {
             MqttAclBlackListType::ClientId => {

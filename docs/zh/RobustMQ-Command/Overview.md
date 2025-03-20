@@ -24,7 +24,7 @@ Options:
           Print version
 ```
 
-## ./bin/robust-ctl mqtt
+## MQTT Broker
 负责 MQTT Broker 服务相关的操作
 ```
 $ ./bin/robust-ctl mqtt -h
@@ -56,7 +56,7 @@ Options:
   -h, --help
           Print help
 ```
-## ./bin/robust-ctl place
+## Placement Center
 负责  Placement Center 服务相关的操作
 ```
 $ ./bin/robust-ctl place -h
@@ -80,7 +80,7 @@ Options:
   -h, --help
           Print help
 ```
-## ./bin/robust-ctl journal
+## Journal Server
 负责 Journal Server 服务相关的操作
 ```
 ./bin/robust-ctl journal -h
