@@ -15,5 +15,6 @@
 pub mod amqp;
 pub mod broker_mqtt;
 pub mod journal_server;
+pub mod kafka;
 pub mod mqtt;
 pub mod placement_center;

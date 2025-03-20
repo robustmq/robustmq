@@ -75,11 +75,11 @@ pub fn delete_local_shard(
         let conf = journal_server_conf();
         for data_fold in conf.storage.data_path.iter() {
             let shard_fold_name = data_fold_shard(&req.namespace, &req.shard_name, data_fold);
-            if Path::new(data_fold).exists() {
+            if Path::new(&shard_fold_name).exists() {
                 match remove_dir_all(shard_fold_name) {
                     Ok(()) => {}
                     Err(e) => {
-                        error!("{}", e);
+                        info!("{}", e);
                     }
                 }
             }

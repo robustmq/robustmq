@@ -85,7 +85,7 @@ impl OffsetStorage {
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_slice::<OffsetData>(&raw.data)?);
+            results.push(serde_json::from_str::<OffsetData>(&raw.data)?);
         }
         Ok(results)
     }

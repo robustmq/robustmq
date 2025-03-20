@@ -26,6 +26,7 @@ use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use common_base::telemetry::trace::CustomContext;
+use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use log::info;
 use opentelemetry::global;
@@ -33,6 +34,7 @@ use opentelemetry::trace::{Span, SpanKind, Tracer};
 use protocol::mqtt::common::{
     is_mqtt3, is_mqtt4, is_mqtt5, ConnectReturnCode, DisconnectReasonCode, MqttPacket, MqttProtocol,
 };
+use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
 
 // S: message storage adapter
@@ -48,12 +50,15 @@ impl<S> Command<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         cache_manager: Arc<CacheManager>,
         message_storage_adapter: Arc<S>,
+        delay_message_manager: Arc<DelayMessageManager<S>>,
         subscribe_manager: Arc<SubscribeManager>,
         client_pool: Arc<ClientPool>,
         connection_manager: Arc<ConnectionManager>,
+        schema_manager: Arc<SchemaRegisterManager>,
         auth_driver: Arc<AuthDriver>,
     ) -> Self {
         let mqtt3_service = MqttService::new(
@@ -61,7 +66,9 @@ where
             cache_manager.clone(),
             connection_manager.clone(),
             message_storage_adapter.clone(),
+            delay_message_manager.clone(),
             subscribe_manager.clone(),
+            schema_manager.clone(),
             client_pool.clone(),
             auth_driver.clone(),
         );
@@ -70,7 +77,9 @@ where
             cache_manager.clone(),
             connection_manager.clone(),
             message_storage_adapter.clone(),
+            delay_message_manager.clone(),
             subscribe_manager.clone(),
+            schema_manager.clone(),
             client_pool.clone(),
             auth_driver.clone(),
         );
@@ -79,7 +88,9 @@ where
             cache_manager.clone(),
             connection_manager.clone(),
             message_storage_adapter.clone(),
+            delay_message_manager.clone(),
             subscribe_manager.clone(),
+            schema_manager.clone(),
             client_pool.clone(),
             auth_driver.clone(),
         );

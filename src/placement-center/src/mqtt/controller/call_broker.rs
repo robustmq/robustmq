@@ -20,11 +20,13 @@ use grpc_clients::mqtt::inner::call::broker_mqtt_update_cache;
 use grpc_clients::pool::ClientPool;
 use log::warn;
 use log::{debug, error, info};
+use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::placement::node::BrokerNode;
+use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use protocol::broker_mqtt::broker_mqtt_inner::MqttBrokerUpdateCacheResourceType;
 use protocol::broker_mqtt::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, UpdateMqttCacheRequest,
@@ -164,6 +166,108 @@ pub async fn update_cache_by_delete_session(
     let message = MQTTInnerCallMessage {
         action_type: MqttBrokerUpdateCacheActionType::Delete,
         resource_type: MqttBrokerUpdateCacheResourceType::Session,
+        cluster_name: cluster_name.to_string(),
+        data,
+    };
+    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    Ok(())
+}
+
+pub async fn update_cache_by_add_schema(
+    cluster_name: &str,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    schema: SchemaData,
+) -> Result<(), PlacementCenterError> {
+    let data = serde_json::to_string(&schema)?;
+    let message = MQTTInnerCallMessage {
+        action_type: MqttBrokerUpdateCacheActionType::Set,
+        resource_type: MqttBrokerUpdateCacheResourceType::Schema,
+        cluster_name: cluster_name.to_string(),
+        data,
+    };
+    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    Ok(())
+}
+
+pub async fn update_cache_by_delete_schema(
+    cluster_name: &str,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    schema: SchemaData,
+) -> Result<(), PlacementCenterError> {
+    let data = serde_json::to_string(&schema)?;
+    let message = MQTTInnerCallMessage {
+        action_type: MqttBrokerUpdateCacheActionType::Delete,
+        resource_type: MqttBrokerUpdateCacheResourceType::Schema,
+        cluster_name: cluster_name.to_string(),
+        data,
+    };
+    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    Ok(())
+}
+
+pub async fn update_cache_by_add_schema_bind(
+    cluster_name: &str,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    bind_data: SchemaResourceBind,
+) -> Result<(), PlacementCenterError> {
+    let data = serde_json::to_string(&bind_data)?;
+    let message = MQTTInnerCallMessage {
+        action_type: MqttBrokerUpdateCacheActionType::Set,
+        resource_type: MqttBrokerUpdateCacheResourceType::SchemaResource,
+        cluster_name: cluster_name.to_string(),
+        data,
+    };
+    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    Ok(())
+}
+
+pub async fn update_cache_by_delete_schema_bind(
+    cluster_name: &str,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    bind_data: SchemaResourceBind,
+) -> Result<(), PlacementCenterError> {
+    let data = serde_json::to_string(&bind_data)?;
+    let message = MQTTInnerCallMessage {
+        action_type: MqttBrokerUpdateCacheActionType::Delete,
+        resource_type: MqttBrokerUpdateCacheResourceType::SchemaResource,
+        cluster_name: cluster_name.to_string(),
+        data,
+    };
+    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    Ok(())
+}
+
+pub async fn update_cache_by_add_connector(
+    cluster_name: &str,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    session: MQTTConnector,
+) -> Result<(), PlacementCenterError> {
+    let data = serde_json::to_string(&session)?;
+    let message = MQTTInnerCallMessage {
+        action_type: MqttBrokerUpdateCacheActionType::Set,
+        resource_type: MqttBrokerUpdateCacheResourceType::Connector,
+        cluster_name: cluster_name.to_string(),
+        data,
+    };
+    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    Ok(())
+}
+
+pub async fn update_cache_by_delete_connector(
+    cluster_name: &str,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    session: MQTTConnector,
+) -> Result<(), PlacementCenterError> {
+    let data = serde_json::to_string(&session)?;
+    let message = MQTTInnerCallMessage {
+        action_type: MqttBrokerUpdateCacheActionType::Delete,
+        resource_type: MqttBrokerUpdateCacheResourceType::Connector,
         cluster_name: cluster_name.to_string(),
         data,
     };

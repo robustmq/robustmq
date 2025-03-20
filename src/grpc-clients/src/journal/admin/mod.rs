@@ -15,7 +15,12 @@
 use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::journal_server::journal_admin::journal_server_admin_service_client::JournalServerAdminServiceClient;
+use protocol::journal_server::journal_admin::{
+    ListSegmentReply, ListSegmentRequest, ListShardReply, ListShardRequest,
+};
 use tonic::transport::Channel;
+
+use crate::macros::impl_retriable_request;
 
 pub mod call;
 
@@ -55,3 +60,19 @@ impl Manager for JournalAdminServiceManager {
         Ok(conn)
     }
 }
+
+impl_retriable_request!(
+    ListShardRequest,
+    JournalServerAdminServiceClient<Channel>,
+    ListShardReply,
+    journal_admin_services_client,
+    list_shard
+);
+
+impl_retriable_request!(
+    ListSegmentRequest,
+    JournalServerAdminServiceClient<Channel>,
+    ListSegmentReply,
+    journal_admin_services_client,
+    list_segment
+);

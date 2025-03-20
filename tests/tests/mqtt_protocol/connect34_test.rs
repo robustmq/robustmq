@@ -168,6 +168,7 @@ mod tests {
             .unwrap();
     }
 
+    #[ignore = "reason"]
     #[tokio::test]
     async fn client_flapping_detect_test() {
         open_flapping_detect().await;

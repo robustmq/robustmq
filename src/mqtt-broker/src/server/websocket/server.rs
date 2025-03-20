@@ -26,11 +26,13 @@ use axum_extra::TypedHeader;
 use axum_server::tls_rustls::RustlsConfig;
 use bytes::{BufMut, BytesMut};
 use common_base::config::broker_mqtt::broker_mqtt_conf;
+use delay_message::DelayMessageManager;
 use futures_util::stream::StreamExt;
 use grpc_clients::pool::ClientPool;
 use log::{error, info};
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{MqttPacket, MqttProtocol};
+use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self};
@@ -49,9 +51,11 @@ pub struct WebSocketServerState<S> {
     sucscribe_manager: Arc<SubscribeManager>,
     cache_manager: Arc<CacheManager>,
     message_storage_adapter: Arc<S>,
+    delay_message_manager: Arc<DelayMessageManager<S>>,
     client_pool: Arc<ClientPool>,
     stop_sx: broadcast::Sender<bool>,
     connection_manager: Arc<ConnectionManager>,
+    schema_manager: Arc<SchemaRegisterManager>,
     auth_driver: Arc<AuthDriver>,
 }
 
@@ -59,11 +63,14 @@ impl<S> WebSocketServerState<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         sucscribe_manager: Arc<SubscribeManager>,
         cache_manager: Arc<CacheManager>,
         connection_manager: Arc<ConnectionManager>,
         message_storage_adapter: Arc<S>,
+        delay_message_manager: Arc<DelayMessageManager<S>>,
+        schema_manager: Arc<SchemaRegisterManager>,
         client_pool: Arc<ClientPool>,
         auth_driver: Arc<AuthDriver>,
         stop_sx: broadcast::Sender<bool>,
@@ -73,6 +80,8 @@ where
             cache_manager,
             connection_manager,
             message_storage_adapter,
+            delay_message_manager,
+            schema_manager,
             client_pool,
             auth_driver,
             stop_sx,
@@ -165,9 +174,11 @@ where
     let command = Command::new(
         state.cache_manager.clone(),
         state.message_storage_adapter.clone(),
+        state.delay_message_manager.clone(),
         state.sucscribe_manager.clone(),
         state.client_pool.clone(),
         state.connection_manager.clone(),
+        state.schema_manager.clone(),
         state.auth_driver.clone(),
     );
     let codec = MqttCodec::new(None);
@@ -300,8 +311,6 @@ async fn handle_socket<S>(
                             info!("websocket server parsing request packet error, error message :{e:?}");
                         },
                     }
-                } else {
-                    info!("Web socket server receives an empty request packet");
                 }
             }
         }

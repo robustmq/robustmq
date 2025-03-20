@@ -66,6 +66,9 @@ pub enum PlacementCenterError {
     #[error("Cluster {0} does not exist")]
     ClusterDoesNotExist(String),
 
+    #[error("No Broker nodes are available")]
+    NoAvailableBrokerNode,
+
     #[error("Node {0} does not exist")]
     NodeDoesNotExist(u64),
 
@@ -121,4 +124,16 @@ pub enum PlacementCenterError {
 
     #[error("Segment {0} is in the wrong state. It should not be sealed.")]
     SegmentWrongState(String),
+
+    #[error("Connector {0} Not found")]
+    ConnectorNotFound(String),
+
+    #[error("Connector [{0}] already exist")]
+    ConnectorAlreadyExist(String),
+
+    #[error("Schema [{0}] does not exist")]
+    SchemaDoesNotExist(String),
+
+    #[error("Schema {0} Not found")]
+    SchemaNotFound(String),
 }

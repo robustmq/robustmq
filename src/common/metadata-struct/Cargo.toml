@@ -27,3 +27,4 @@ protocol.workspace = true
 bytes.workspace = true
 log.workspace = true
 dashmap.workspace = true
+crc32fast.workspace = true

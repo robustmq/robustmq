@@ -27,3 +27,29 @@ pub fn storage_data_fold(path: &str) -> String {
 pub fn storage_raft_fold(path: &str) -> String {
     format!("{}/_raft", path)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::storage::rocksdb::{column_family_list, storage_data_fold, storage_raft_fold};
+
+    #[tokio::test]
+    async fn column_family_list_test() {
+        let list = column_family_list();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0], "cluster");
+    }
+
+    #[tokio::test]
+    async fn storage_data_fold_test() {
+        let path = "/tmp/test";
+        let fold = storage_data_fold(path);
+        assert_eq!(fold, "/tmp/test/_data");
+    }
+
+    #[tokio::test]
+    async fn storage_raft_fold_test() {
+        let path = "/tmp/test";
+        let fold = storage_raft_fold(path);
+        assert_eq!(fold, "/tmp/test/_raft");
+    }
+}

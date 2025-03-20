@@ -14,11 +14,17 @@
 
 use std::sync::Arc;
 
-use super::{cache::CacheManager, error::MqttBrokerError, message::build_message_expire};
+use super::{
+    cache::CacheManager,
+    delay_message::{decode_delay_topic, is_delay_message},
+    error::MqttBrokerError,
+    message::build_message_expire,
+};
 use crate::{
     observability::metrics::packets::record_messages_dropped_no_subscribers_metrics,
     storage::message::MessageStorage, subscribe::subscribe_manager::SubscribeManager,
 };
+use delay_message::DelayMessageManager;
 use metadata_struct::mqtt::{message::MqttMessage, topic::MqttTopic};
 use protocol::mqtt::common::{Publish, PublishProperties};
 use storage_adapter::storage::StorageAdapter;
@@ -27,8 +33,10 @@ pub fn is_exist_subscribe(subscribe_manager: &Arc<SubscribeManager>, topic: &str
     subscribe_manager.contain_topic_subscribe(topic)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn save_message<S>(
     message_storage_adapter: &Arc<S>,
+    delay_message_manager: &Arc<DelayMessageManager<S>>,
     cache_manager: &Arc<CacheManager>,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
@@ -52,10 +60,21 @@ where
     let offset = if let Some(record) =
         MqttMessage::build_record(client_id, publish, publish_properties, message_expire)
     {
-        let offsets = message_storage
-            .append_topic_message(&topic.topic_id, vec![record])
-            .await?;
-        Some(format!("{:?}", offsets))
+        if is_delay_message(&topic.topic_name) {
+            let delay_topic = decode_delay_topic(&topic.topic_name)?;
+            if delay_topic.is_none() {
+                return Err(MqttBrokerError::DelayPublishDecodeTopicNameFail(
+                    topic.topic_name.clone(),
+                ));
+            }
+            delay_message_manager.send_delay_message(record).await?;
+            return Ok(None);
+        } else {
+            let offsets = message_storage
+                .append_topic_message(&topic.topic_id, vec![record])
+                .await?;
+            Some(format!("{:?}", offsets))
+        }
     } else {
         None
     };

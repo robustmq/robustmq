@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::string::FromUtf8Error;
+use std::{num::ParseIntError, string::FromUtf8Error};
 
 use common_base::error::common::CommonError;
+use rdkafka::error::KafkaError;
 use thiserror::Error;
 use tonic::Status;
 
@@ -28,6 +29,9 @@ pub enum MqttBrokerError {
 
     #[error("{0}")]
     FromCommonError(#[from] CommonError),
+
+    #[error("{0}")]
+    ParseIntError(#[from] ParseIntError),
 
     #[error("{0}")]
     TokioBroadcastSendError(#[from] tokio::sync::broadcast::error::SendError<bool>),
@@ -96,6 +100,15 @@ pub enum MqttBrokerError {
 
     #[error("topicRewriteRule has been existed")]
     TopicRewriteRuleAlreadyExist,
+
+    #[error("Publish message was delayed, the target Topic failed to resolve, Topic name {0}")]
+    DelayPublishDecodeTopicNameFail(String),
+
+    #[error("Invalid schema type {0}")]
+    InvalidSchemaType(String),
+
+    #[error("kafka error: {0}")]
+    KafkaError(#[from] KafkaError),
 }
 
 impl From<MqttBrokerError> for Status {

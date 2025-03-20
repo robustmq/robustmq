@@ -125,7 +125,7 @@ impl SessionExpire {
             }
             let result_value = value.unwrap();
             let session = match serde_json::from_slice::<StorageDataWrap>(result_value) {
-                Ok(data) => match serde_json::from_slice::<MqttSession>(&data.data) {
+                Ok(data) => match serde_json::from_str::<MqttSession>(&data.data) {
                     Ok(da) => da,
                     Err(e) => {
                         error!(
@@ -141,6 +141,7 @@ impl SessionExpire {
                         "Session expired, failed to parse Session data, error message :{}",
                         e.to_string()
                     );
+                    println!("{:?}", result_value);
                     iter.next();
                     continue;
                 }
@@ -330,10 +331,7 @@ mod tests {
             column_family_list(),
         ));
         let placement_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
-        let mqtt_cache_manager = Arc::new(MqttCacheManager::new(
-            rocksdb_engine_handler.clone(),
-            placement_cache.clone(),
-        ));
+        let mqtt_cache_manager = Arc::new(MqttCacheManager::new());
         let client_pool = Arc::new(ClientPool::new(10));
 
         let session_expire = SessionExpire::new(
@@ -374,10 +372,7 @@ mod tests {
             column_family_list(),
         ));
         let placement_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
-        let mqtt_cache_manager = Arc::new(MqttCacheManager::new(
-            rocksdb_engine_handler.clone(),
-            placement_cache.clone(),
-        ));
+        let mqtt_cache_manager = Arc::new(MqttCacheManager::new());
         let client_pool = Arc::new(ClientPool::new(10));
 
         let session_expire = SessionExpire::new(
@@ -450,16 +445,7 @@ mod tests {
         let config = placement_center_test_conf();
 
         let cluster_name = unique_id();
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &config.rocksdb.data_path,
-            config.rocksdb.max_open_files.unwrap(),
-            column_family_list(),
-        ));
-        let placement_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
-        let mqtt_cache_manager = Arc::new(MqttCacheManager::new(
-            rocksdb_engine_handler.clone(),
-            placement_cache.clone(),
-        ));
+        let mqtt_cache_manager = Arc::new(MqttCacheManager::new());
 
         let client_id = unique_id();
         let expire_last_will = ExpireLastWill {

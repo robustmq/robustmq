@@ -130,25 +130,6 @@ service MqttService {
   //Returns: An empty struct.
   rpc SetTopicRetainMessage(SetTopicRetainMessageRequest) returns(SetTopicRetainMessageReply){}
 
-  //Add the exclusive topic if the topic is not exist
-  //
-  //Parameters:
-  // - `cluster_name: String`: The name of the cluster.
-  // - `topic_name: String`: The name of the topic.
-  //
-  //Returns: 
-  // - `success: bool`: Is set the exclusive topic successfully.
-  rpc SetNXExclusiveTopic(SetExclusiveTopicRequest) returns(SetExclusiveTopicReply){}
-
-   //Delete the exclusive topic
-  //
-  //Parameters:
-  // - `cluster_name: String`: The name of the cluster.
-  // - `topic_name: String`: The name of the topic.
-  //
-  //Returns: An empty struct. 
-  rpc DeleteExclusiveTopic(DeleteExclusiveTopicRequest) returns(DeleteExclusiveTopicReply){}
-
   //Gets the share sub leader based on the request
   //
   //Parameters:
@@ -183,7 +164,7 @@ service MqttService {
   //Deletes the corresponding ACL based on the request
   //
   //Parameters:
-  // - `cluster_name: String`: The name of the cluster. 
+  // - `cluster_name: String`: The name of the cluster.
   // - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
   //
   //Returns: An empty struct.
@@ -261,6 +242,16 @@ service MqttService {
   rpc SetSubscribe(SetSubscribeRequest) returns(SetSubscribeReply) {}
 
   rpc DeleteSubscribe(DeleteSubscribeRequest) returns(DeleteSubscribeReply) {}
+
+  rpc ListConnectors(ListConnectorRequest) returns(ListConnectorReply) {}
+
+  rpc CreateConnector(CreateConnectorRequest) returns(CreateConnectorReply) {}
+
+  rpc UpdateConnector(UpdateConnectorRequest) returns(UpdateConnectorReply) {}
+
+  rpc DeleteConnector(DeleteConnectorRequest) returns(DeleteConnectorReply) {}
+
+  rpc ConnectorHeartbeat(ConnectorHeartbeatRequest) returns(ConnectorHeartbeatReply) {}
 }
 
 message GetShareSubLeaderRequest{
@@ -280,30 +271,6 @@ message GetShareSubLeaderReply{
 
     //The parameter for the extended information of the broker node.
     string extend_info = 3;
-}
-
-message SetExclusiveTopicRequest{
-    //The name of the cluster.
-    string cluster_name = 1;
-
-    //The name of the topic.
-    string topic_name = 3;
-}
-
-message SetExclusiveTopicReply{
-    //Is set the exclusive topic successfully.
-    bool success = 1;
-}
-
-message DeleteExclusiveTopicRequest{
-    //The name of the cluster.
-    string cluster_name = 1;
-
-    //The name of the topic.
-    string topic_name = 3;
-}
-
-message DeleteExclusiveTopicReply{
 }
 
 message ListUserRequest{
@@ -415,7 +382,7 @@ message ListSessionRequest{
 
 message ListSessionReply{
     //The parameter contains a list of sessions, encoded from a `Vec<MQTTSession>` into a binary format.
-    repeated bytes sessions = 1;
+    repeated string sessions = 1;
 }
 
 message CreateSessionRequest{
@@ -426,7 +393,7 @@ message CreateSessionRequest{
     string client_id = 2;
 
     //The parameter contains session information, encoded from a `MQTTSession` object into a binary format.
-    bytes session = 3;
+    string session = 3;
 }
 
 message CreateSessionReply{
@@ -539,7 +506,7 @@ message CreateBlacklistRequest{
 }
 
 message CreateBlacklistReply{
-    
+
 }
 
 message DeleteBlacklistRequest{
@@ -629,4 +596,59 @@ message ListSubscribeRequest{
 
 message ListSubscribeReply{
     repeated bytes subscribes = 1;
+}
+
+
+message ListConnectorRequest{
+    string cluster_name = 1;
+    string connector_name = 2;
+}
+
+message ListConnectorReply{
+    repeated bytes connectors = 1;
+}
+
+message CreateConnectorRequest{
+    string cluster_name = 1;
+    string connector_name = 2;
+    bytes connector = 3;
+}
+
+message CreateConnectorReply{
+
+}
+
+message UpdateConnectorRequest{
+    string cluster_name = 1;
+    string connector_name = 2;
+    bytes connector = 3;
+}
+
+message UpdateConnectorReply{
+
+}
+
+message DeleteConnectorRequest{
+    string cluster_name = 1;
+    string connector_name = 2;
+}
+
+message DeleteConnectorReply{
+
+}
+
+message ConnectorHeartbeatRequest{
+    string cluster_name = 1;
+
+   repeated ConnectorHeartbeatRaw heatbeats = 2;
+}
+
+message ConnectorHeartbeatRaw{
+    string connector_name = 1;
+    uint64 broker_id = 2;
+    uint64 heartbeat_time = 3;
+}
+
+message ConnectorHeartbeatReply{
+
 }

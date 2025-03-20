@@ -15,6 +15,7 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
+use common_base::utils::crc::calc_crc32;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 use protocol::journal_server::journal_engine::{
@@ -164,10 +165,12 @@ impl JournalClient {
             let record = Record {
                 offset: Some(raw.offset),
                 key: raw.key,
-                data: raw.value,
+                data: raw.value.clone(),
                 tags: raw.tags,
                 header: Vec::new(),
                 timestamp: raw.timestamp,
+                delay_timestamp: 0,
+                crc_num: calc_crc32(&raw.value),
             };
             results.push(record);
         }
@@ -219,10 +222,12 @@ impl JournalClient {
             let record = Record {
                 offset: Some(raw.offset),
                 key: raw.key,
-                data: raw.value,
+                data: raw.value.clone(),
                 tags: raw.tags,
                 header: Vec::new(),
                 timestamp: raw.timestamp,
+                delay_timestamp: 0,
+                crc_num: calc_crc32(&raw.value),
             };
             results.push(record);
         }
@@ -256,10 +261,12 @@ impl JournalClient {
             let record = Record {
                 offset: Some(raw.offset),
                 key: raw.key,
-                data: raw.value,
+                data: raw.value.clone(),
                 tags: raw.tags,
                 header: Vec::new(),
                 timestamp: raw.timestamp,
+                delay_timestamp: 0,
+                crc_num: calc_crc32(&raw.value),
             };
             results.push(record);
         }

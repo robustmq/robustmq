@@ -22,14 +22,17 @@ use prost::Message;
 use prost_validate::Validator;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterService;
 use protocol::placement_center::placement_center_inner::{
-    ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataReply,
-    DeleteIdempotentDataRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
+    BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
+    CreateSchemaReply, CreateSchemaRequest, DeleteIdempotentDataReply, DeleteIdempotentDataRequest,
+    DeleteResourceConfigReply, DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
     ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetOffsetDataReply,
     GetOffsetDataReplyOffset, GetOffsetDataRequest, GetResourceConfigReply,
-    GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, NodeListReply, NodeListRequest,
+    GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, ListBindSchemaReply,
+    ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest, NodeListReply, NodeListRequest,
     RegisterNodeReply, RegisterNodeRequest, ReportMonitorReply, ReportMonitorRequest,
     SaveOffsetDataReply, SaveOffsetDataRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
-    SetResourceConfigReply, SetResourceConfigRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
+    SetResourceConfigReply, SetResourceConfigRequest, UnBindSchemaReply, UnBindSchemaRequest,
+    UnRegisterNodeReply, UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest,
 };
 use tonic::{Request, Response, Status};
 
@@ -37,6 +40,10 @@ use super::validate::ValidateExt;
 use crate::core::cache::PlacementCacheManager;
 use crate::core::cluster::{register_node_by_req, un_register_node_by_req};
 use crate::core::error::PlacementCenterError;
+use crate::core::schema::{
+    bind_schema_req, create_schema_req, delete_schema_req, list_bind_schema_req, list_schema_req,
+    un_bind_schema_req, update_schema_req,
+};
 use crate::journal::controller::call_node::JournalInnerCallManager;
 use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
 use crate::route::apply::RaftMachineApply;
@@ -210,7 +217,7 @@ impl PlacementCenterService for GrpcPlacementService {
         let _ = req.validate_ext()?;
 
         let data = StorageData::new(
-            StorageDataType::ClusterSetResourceConfig,
+            StorageDataType::ResourceConfigSet,
             SetResourceConfigRequest::encode_to_vec(&req),
         );
 
@@ -253,7 +260,7 @@ impl PlacementCenterService for GrpcPlacementService {
         let _ = req.validate_ext()?;
 
         let data = StorageData::new(
-            StorageDataType::ClusterDeleteResourceConfig,
+            StorageDataType::ResourceConfigDelete,
             DeleteResourceConfigRequest::encode_to_vec(&req),
         );
 
@@ -272,7 +279,7 @@ impl PlacementCenterService for GrpcPlacementService {
         let req = request.into_inner();
         let _ = req.validate_ext()?;
         let data = StorageData::new(
-            StorageDataType::ClusterSetIdempotentData,
+            StorageDataType::IdempotentDataSet,
             SetIdempotentDataRequest::encode_to_vec(&req),
         );
 
@@ -310,7 +317,7 @@ impl PlacementCenterService for GrpcPlacementService {
         let req = request.into_inner();
         let _ = req.validate_ext()?;
         let data = StorageData::new(
-            StorageDataType::ClusterDeleteIdempotentData,
+            StorageDataType::IdempotentDataDelete,
             DeleteIdempotentDataRequest::encode_to_vec(&req),
         );
 
@@ -328,7 +335,7 @@ impl PlacementCenterService for GrpcPlacementService {
     ) -> Result<Response<SaveOffsetDataReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
-            StorageDataType::ClusterSaveOffset,
+            StorageDataType::OffsetSet,
             SaveOffsetDataRequest::encode_to_vec(&req),
         );
 
@@ -364,5 +371,147 @@ impl PlacementCenterService for GrpcPlacementService {
             });
         }
         return Ok(Response::new(GetOffsetDataReply { offsets: results }));
+    }
+
+    async fn list_schema(
+        &self,
+        request: Request<ListSchemaRequest>,
+    ) -> Result<Response<ListSchemaReply>, Status> {
+        let req = request.into_inner();
+        match list_schema_req(&self.rocksdb_engine_handler, &req) {
+            Ok(data) => {
+                return Ok(Response::new(ListSchemaReply { schemas: data }));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn create_schema(
+        &self,
+        request: Request<CreateSchemaRequest>,
+    ) -> Result<Response<CreateSchemaReply>, Status> {
+        let req = request.into_inner();
+        match create_schema_req(
+            &self.raft_machine_apply,
+            &self.mqtt_call_manager,
+            &self.client_pool,
+            &req,
+        )
+        .await
+        {
+            Ok(_) => {
+                return Ok(Response::new(CreateSchemaReply::default()));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn update_schema(
+        &self,
+        request: Request<UpdateSchemaRequest>,
+    ) -> Result<Response<UpdateSchemaReply>, Status> {
+        let req = request.into_inner();
+        match update_schema_req(
+            &self.rocksdb_engine_handler,
+            &self.raft_machine_apply,
+            &self.mqtt_call_manager,
+            &self.client_pool,
+            &req,
+        )
+        .await
+        {
+            Ok(_) => {
+                return Ok(Response::new(UpdateSchemaReply::default()));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn delete_schema(
+        &self,
+        request: Request<DeleteSchemaRequest>,
+    ) -> Result<Response<DeleteSchemaReply>, Status> {
+        let req = request.into_inner();
+        match delete_schema_req(
+            &self.rocksdb_engine_handler,
+            &self.raft_machine_apply,
+            &self.mqtt_call_manager,
+            &self.client_pool,
+            &req,
+        )
+        .await
+        {
+            Ok(_) => {
+                return Ok(Response::new(DeleteSchemaReply::default()));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn list_bind_schema(
+        &self,
+        request: Request<ListBindSchemaRequest>,
+    ) -> Result<Response<ListBindSchemaReply>, Status> {
+        let req = request.into_inner();
+        match list_bind_schema_req(&self.rocksdb_engine_handler, &req).await {
+            Ok(schema_binds) => {
+                return Ok(Response::new(ListBindSchemaReply { schema_binds }));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn bind_schema(
+        &self,
+        request: Request<BindSchemaRequest>,
+    ) -> Result<Response<BindSchemaReply>, Status> {
+        let req = request.into_inner();
+        match bind_schema_req(
+            &self.raft_machine_apply,
+            &self.mqtt_call_manager,
+            &self.client_pool,
+            &req,
+        )
+        .await
+        {
+            Ok(_) => {
+                return Ok(Response::new(BindSchemaReply::default()));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn un_bind_schema(
+        &self,
+        request: Request<UnBindSchemaRequest>,
+    ) -> Result<Response<UnBindSchemaReply>, Status> {
+        let req = request.into_inner();
+        match un_bind_schema_req(
+            &self.raft_machine_apply,
+            &self.mqtt_call_manager,
+            &self.client_pool,
+            &req,
+        )
+        .await
+        {
+            Ok(_) => {
+                return Ok(Response::new(UnBindSchemaReply::default()));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
     }
 }

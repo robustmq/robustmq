@@ -21,7 +21,9 @@ use metadata_struct::adapter::record::Record;
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Clone, Serialize, Deserialize)]
-pub struct ShardConfig {
+pub struct ShardInfo {
+    pub namespace: String,
+    pub shard_name: String,
     pub replica_num: u32,
 }
 
@@ -35,12 +37,13 @@ pub struct ShardOffset {
 
 #[async_trait]
 pub trait StorageAdapter {
-    async fn create_shard(
+    async fn create_shard(&self, shard: ShardInfo) -> Result<(), CommonError>;
+
+    async fn list_shard(
         &self,
         namespace: String,
         shard_name: String,
-        shard_config: ShardConfig,
-    ) -> Result<(), CommonError>;
+    ) -> Result<Vec<ShardInfo>, CommonError>;
 
     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError>;
 

@@ -13,192 +13,192 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -e
+
 platform=$1
 version=$2
+build_dir="../build"
+target="robustmq"
 
-if [ "$platform" != "linux-x86" -a "$platform" != "linux-arm" -a "$platform" != "mac" -a "$platform" != "win-x86" -a "$platform" != "win-arm" -a "$platform" != "local" ]; then
-    echo "platform Error, optional: linux-x86,linux-arm, mac, win-x86, win-arm"
-    exit
-fi
+timestamp() {
+    date '+%Y-%m-%d %H:%M:%S'
+}
+
+log() {
+    echo "[$(timestamp)] $1"
+}
 
 if [ -z "$version" ]; then
-    echo "package version cannot be null, eg: sh scripts/build-release.sh win-arm 0.1.0"
-    exit
+    log "Package version cannot be null, eg: sh scripts/build-release.sh mac-x86_64 0.1.0"
+    exit 1
 fi
 
+prepare_target() {
+    local arc=$1
+    if ! rustup target list | grep -q "${arc} (installed)"; then
+        log "Installing Rust target ${arc}..."
+        rustup target add ${arc}
+    fi
+}
+
 cross_build(){
-    arc=$1
-    platform_package_name=$2
-    version=$3
+    local arc=$1
+    local platform_package_name=$2
+    local version=$3
 
-    build="./build"
-    target="robustmq"
+    local package_name=${target}-${platform_package_name}-${version}
+    local package_path=${build_dir}/${package_name}
 
-    package_name=${target}-${platform_package_name}-${version}
+    log "Architecture: ${arc}"
+    log "Building ${package_name} ..."
 
-    echo "${arc} Architecture, start compiling"
-    echo "package name: ${package_name}"
-    mkdir -p ${build}
+    # Build
+    cargo build --release --target ${arc}
 
-    # build
-	cargo build --release --target ${arc}
+    # Check if the build was successful
+    if [ $? -ne 0 ]; then
+        log "Cargo build failed for ${arc}"
+        exit 1
+    fi
 
-    # makdir fold
-	mkdir -p ${build}/${package_name}
-	mkdir -p ${build}/${package_name}/bin
-	mkdir -p ${build}/${package_name}/libs
-	mkdir -p ${build}/${package_name}/config
+    mkdir -p ${package_path}/{bin,libs,config}
 
-    # copy bin
-	cp -rf target/${arc}/release/mqtt-server ${build}/${package_name}/libs
-	cp -rf target/${arc}/release/placement-center ${build}/${package_name}/libs
-	cp -rf target/${arc}/release/journal-server ${build}/${package_name}/libs
-	cp -rf target/${arc}/release/cli-command-mqtt ${build}/${package_name}/libs
-	cp -rf target/${arc}/release/cli-command-placement ${build}/${package_name}/libs
+    binaries=(mqtt-server placement-center journal-server cli-command-mqtt cli-command-placement)
 
-    # copy bin&config
-	cp -rf bin/* ${build}/${package_name}/bin
-	cp -rf config/* ${build}/${package_name}/config
+    for binary in "${binaries[@]}"; do
+        local bin_path="target/${arc}/release/${binary}"
+        if [ -f "${bin_path}" ]; then
+        cp "${bin_path}" ${package_path}/libs/
+        else
+            log "Error: ${binary} not found in target/${arc}/release/"
+            exit 1
+        fi
+    done
 
-    # chmod file
-	chmod -R 777 ${build}/${package_name}/bin/*
+    cp -rf bin/* ${package_path}/bin/
+    cp -rf config/* ${package_path}/config/
+    cp -rf example/* ${package_path}/config/example
 
-    # bundle file
-	cd ${build} && tar zcvf ${package_name}.tar.gz ${package_name} && rm -rf ${package_name}
+    # Recommended to use the 755 in the production environment
+    chmod -R 777 ${package_path}/bin/*
+    
+    # Compress the package
+    (cd ${build_dir} && tar zcvf ${package_name}.tar.gz ${package_name} && rm -rf ${package_name})
     cd ..
-	echo "build release package success. ${package_name}.tar.gz "
+
+    log "Build ${package_name} successfully"
+    log "You can find the package in ${build_dir}"
 }
 
-build_linux_x86_release(){
-    version=$1
+build_linux_x86_64_release() {
+    # Amd64 gnu
+    prepare_target "x86_64-unknown-linux-gnu"
+    cross_build "x86_64-unknown-linux-gnu" "linux-x86_64-gnu" "$1"
 
-    # Intel 64
-    platform_name="x86_64-unknown-linux-gnu"
-    rustup target add ${platform_name}
-    package_name="linux-gnu-intel64"
-    cross_build $platform_name $package_name $version
-
-    platform_name="x86_64-unknown-linux-musl"
-    rustup target add ${platform_name}
-    package_name="linux-musl-intel64"
-    cross_build $platform_name $package_name $version
+    # Amd64 musl
+    prepare_target "x86_64-unknown-linux-musl"
+    cross_build "x86_64-unknown-linux-musl" "linux-x86_64-musl" "$1"
 }
 
-build_linux_arm_release(){
-    version=$1
+build_linux_arm64_release() {
+    # Arm64 gnu
+    prepare_target "aarch64-unknown-linux-gnu"
+    cross_build "aarch64-unknown-linux-gnu" "linux-arm64-gnu" "$1"
 
-    platform_name="aarch64-unknown-linux-gnu"
-    rustup target add ${platform_name}
-    package_name="linux-gnu-arm64"
-    cross_build $platform_name $package_name $version
-
-    platform_name="aarch64-unknown-linux-musl"
-    rustup target add ${platform_name}
-    package_name="linux-musl-arm64"
-    cross_build $platform_name $package_name $version
+    # Arm64 musl
+    prepare_target "aarch64-unknown-linux-musl"
+    cross_build "aarch64-unknown-linux-musl" "linux-arm64-musl" "$1"
 }
 
-build_mac_release(){
-    version=$1
-
-    # Intel 64
-    platform_name="x86_64-apple-darwin"
-    rustup target add ${platform_name}
-    package_name="apple-mac-intel64"
-    cross_build $platform_name $package_name $version
-
-    # Arm 64
-    platform_name="aarch64-apple-darwin"
-    rustup target add ${platform_name}
-    package_name="apple-mac-arm64"
-    cross_build $platform_name $package_name $version
+build_mac_x86_64_release() {
+    # Amd64 apple
+    prepare_target "x86_64-apple-darwin"
+    cross_build "x86_64-apple-darwin" "mac-x86_64-apple" "$1"
 }
 
-build_win_x86_release(){
-    version=$1
-
-    # Intel 64
-    platform_name="x86_64-pc-windows-gnu"
-    rustup target add ${platform_name}
-    package_name="windows-gnu-intel64"
-    cross_build $platform_name $package_name $version
-
-    # Intel 32
-    platform_name="i686-pc-windows-gnu"
-    rustup target add ${platform_name}
-    package_name="windows-gnu-intel32"
-    cross_build $platform_name $package_name $version
+build_mac_arm64_release() {
+    # Arm64 apple silicon
+    prepare_target "aarch64-apple-darwin"
+    cross_build "aarch64-apple-darwin" "mac-arm64-apple" "$1"
 }
 
-build_win_arm_release(){
-    version=$1
-    # Arm 64
-    platform_name="aarch64-pc-windows-gnullvm"
-    rustup target add ${platform_name}
-    package_name="windows-gnu-arm32"
-    cross_build $platform_name $package_name $version
+build_win_x86_64_release() {
+    # Amd64 gnu
+    prepare_target "x86_64-pc-windows-gnu"
+    cross_build "x86_64-pc-windows-gnu" "windows-x86_64-gnu" "$1"
+}
+
+build_win_x86_release() {
+    # x86 32bit gnu
+    prepare_target "i686-pc-windows-gnu"
+    cross_build "i686-pc-windows-gnu" "windows-x86-gnu" "$1"
+}
+
+build_win_arm64_release() {
+    # Arm64 gnu
+    prepare_target "aarch64-pc-windows-gnullvm"
+    cross_build "aarch64-pc-windows-gnullvm" "windows-arm64-gnu" "$1"
 }
 
 build_local(){
-    version=$1
-    build="./build"
-    target="robustmq"
+    local package_name=${target}-${version}
+    local package_path=${build_dir}/${package_name}
 
-    package_name=${target}-$version
+    log "Building ${package_name} ..."
 
-    echo "package name: ${package_name}"
-    mkdir -p ${build}
+    # Build
+    cargo build
+    if [ $? -ne 0 ]; then
+        log "Cargo build failed"
+        exit 1
+    fi
 
-    # build
-	cargo build
+    mkdir -p ${package_path}/{bin,libs,config}
 
-    # makdir fold
-	mkdir -p ${build}/${package_name}
-	mkdir -p ${build}/${package_name}/bin
-	mkdir -p ${build}/${package_name}/libs
-	mkdir -p ${build}/${package_name}/config
+    binaries=(mqtt-server placement-center journal-server cli-command-mqtt cli-command-placement)
 
-    # copy bin
-	cp -rf target/debug/mqtt-server ${build}/${package_name}/libs
-	cp -rf target/debug/placement-center ${build}/${package_name}/libs
-	cp -rf target/debug/journal-server ${build}/${package_name}/libs
-	cp -rf target/debug/cli-command ${build}/${package_name}/libs
+    for binary in "${binaries[@]}"; do
+        local bin_path="target/debug/${binary}"
+        if [ -f "${bin_path}" ]; then
+            cp "${bin_path}" ${package_path}/libs/
+        else
+            log "Error: ${binary} not found in target/debug/"
+            exit 1
+        fi
+    done
 
-    # copy bin&config
-	cp -rf bin/* ${build}/${package_name}/bin
-	cp -rf config/* ${build}/${package_name}/config
+    cp -rf bin/* ${package_path}/bin/
+    cp -rf config/* ${package_path}/config/
+    cp -rf example/* ${package_path}/config/example
 
-    # chmod file
-	chmod -R 777 ${build}/${package_name}/bin/*
+    # Recommended to use the 755
+    chmod -R 777 ${package_path}/bin/*
 
-    # bundle file
-	cd ${build} && tar zcvf ${package_name}.tar.gz ${package_name} && rm -rf ${package_name}
-    cd ..
-	echo "build release package success. ${package_name}.tar.gz "
+    # Compress the package
+    (cd ${build_dir} && tar zcvf ${package_name}.tar.gz ${package_name} && rm -rf ${package_name})
+
+    log "Build ${package_name} successfully"
+    log "You can find the package in ${build_dir}"
 }
 
-if [ "$platform" = "linux-x86" ]; then
-   build_linux_x86_release $version
-fi
+# Create the build directory if it doesn't exist
+mkdir -p ${build_dir}
 
-if [ "$platform" = "linux-arm" ]; then
-   build_linux_arm_release $version
-fi
-
-if [ "$platform" = "mac" ]; then
-   build_mac_release $version
-fi
-
-if [ "$platform" = "win-x86" ]; then
-    build_win_x86_release $version
-fi
-
-if [ "$platform" = "win-arm" ]; then
-    build_win_arm_release $version
-fi
-
-if [ "$platform" = "local" ]; then
-    echo "build local"
-    rm -rf ../build/
-    build_local $version
-fi
+case "$platform" in
+    linux-x86_64) build_linux_x86_64_release "$version" ;;
+    linux-arm64)  build_linux_arm64_release "$version" ;;
+    mac-x86_64)   build_mac_x86_64_release "$version" ;;
+    mac-arm64)    build_mac_arm64_release "$version" ;;
+    win-x86_64)   build_win_x86_64_release "$version" ;;
+    win-x86)      build_win_x86_release "$version" ;;
+    win-arm64)    build_win_arm64_release "$version" ;;
+    local)
+        rm -rf ${build_dir}
+        mkdir -p ${build_dir}
+        build_local "$version"
+        ;;
+    *)
+        log "Platform Error, optional: mac-x86_64, mac-arm64, linux-x86_64, linux-arm64, win-x86_64, win-x86, win-arm64, local"
+        exit 1
+        ;;
+esac

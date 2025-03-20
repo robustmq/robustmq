@@ -13,7 +13,7 @@
 // limitations under the License.
 
 pub mod apply;
-pub mod cluster;
+pub mod common;
 pub mod data;
 pub mod journal;
 pub mod kv;
@@ -23,14 +23,14 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use bincode::{deserialize, serialize};
-use common_base::utils::vec_util;
 use data::{StorageData, StorageDataType};
 use log::{error, info};
 
 use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::journal::cache::JournalCacheManager;
-use crate::route::cluster::DataRouteCluster;
+use crate::mqtt::cache::MqttCacheManager;
+use crate::route::common::DataRouteCluster;
 use crate::route::journal::DataRouteJournal;
 use crate::route::kv::DataRouteKv;
 use crate::route::mqtt::DataRouteMqtt;
@@ -50,9 +50,10 @@ impl DataRoute {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cluster_cache: Arc<PlacementCacheManager>,
         engine_cache: Arc<JournalCacheManager>,
+        mqtt_cache: Arc<MqttCacheManager>,
     ) -> DataRoute {
         let route_kv = DataRouteKv::new(rocksdb_engine_handler.clone());
-        let route_mqtt = DataRouteMqtt::new(rocksdb_engine_handler.clone());
+        let route_mqtt = DataRouteMqtt::new(rocksdb_engine_handler.clone(), mqtt_cache.clone());
         let route_cluster =
             DataRouteCluster::new(rocksdb_engine_handler.clone(), cluster_cache.clone());
         let route_journal =
@@ -96,30 +97,46 @@ impl DataRoute {
             }
             StorageDataType::ClusterDeleteCluster => Ok(None),
 
-            StorageDataType::ClusterSetResourceConfig => {
+            StorageDataType::ResourceConfigSet => {
                 self.route_cluster.set_resource_config(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::ClusterDeleteResourceConfig => {
+            StorageDataType::ResourceConfigDelete => {
                 self.route_cluster
                     .delete_resource_config(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::ClusterSetIdempotentData => {
+            StorageDataType::IdempotentDataSet => {
                 self.route_cluster.set_idempotent_data(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::ClusterDeleteIdempotentData => {
+            StorageDataType::IdempotentDataDelete => {
                 self.route_cluster
                     .delete_idempotent_data(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::ClusterSaveOffset => {
+            StorageDataType::OffsetSet => {
                 self.route_cluster.save_offset_data(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::ClusterDeleteOffset => {
+            StorageDataType::OffsetDelete => {
                 self.route_cluster.delete_offset_data(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::SchemaSet => {
+                self.route_cluster.set_schema(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::SchemaDelete => {
+                self.route_cluster.delete_schema(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::SchemaBindSet => {
+                self.route_cluster.set_schema_bind(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::SchemaBindDelete => {
+                self.route_cluster.delete_schema_bind(storage_data.value)?;
                 Ok(None)
             }
 
@@ -155,19 +172,19 @@ impl DataRoute {
 
             // Mqtt Broker
             StorageDataType::MqttSetAcl => {
-                self.route_cluster.create_acl(storage_data.value)?;
+                self.route_mqtt.create_acl(storage_data.value)?;
                 Ok(None)
             }
             StorageDataType::MqttDeleteAcl => {
-                self.route_cluster.delete_acl(storage_data.value)?;
+                self.route_mqtt.delete_acl(storage_data.value)?;
                 Ok(None)
             }
             StorageDataType::MqttSetBlacklist => {
-                self.route_cluster.create_blacklist(storage_data.value)?;
+                self.route_mqtt.create_blacklist(storage_data.value)?;
                 Ok(None)
             }
             StorageDataType::MqttDeleteBlacklist => {
-                self.route_cluster.delete_blacklist(storage_data.value)?;
+                self.route_mqtt.delete_blacklist(storage_data.value)?;
                 Ok(None)
             }
             StorageDataType::MqttSetUser => {
@@ -202,14 +219,7 @@ impl DataRoute {
                 self.route_mqtt.save_last_will_message(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::MqttSetNxExclusiveTopic => {
-                let is_set = self.route_mqtt.set_nx_exclusive_topic(storage_data.value)?;
-                Ok(Some(vec_util::bool_to_vec(is_set)))
-            }
-            StorageDataType::MqttDeleteExclusiveTopic => {
-                self.route_mqtt.delete_exclusive_topic(storage_data.value)?;
-                Ok(None)
-            }
+
             StorageDataType::MqttCreateTopicRewriteRule => {
                 self.route_mqtt
                     .create_topic_rewrite_rule(storage_data.value)?;
@@ -226,6 +236,14 @@ impl DataRoute {
             }
             StorageDataType::MqttDeleteSubscribe => {
                 self.route_mqtt.delete_subscribe(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::MqttSetConnector => {
+                self.route_mqtt.set_connector(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::MqttDeleteConnector => {
+                self.route_mqtt.delete_connector(storage_data.value)?;
                 Ok(None)
             }
         }

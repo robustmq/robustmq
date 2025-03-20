@@ -5,8 +5,14 @@ export const sidebar = [
         items: [
             { text: "什么是 RobustMQ", link: "/zh/OverView/What-is-RobustMQ" },
             { text: "为什么有 RobustMQ", link: "/zh/OverView/Why-RobustMQ" },
-            { text: "非常欢迎你", link: "/zh/OverView/Welcome" },
-            { text: "RoadMamp", link: "/zh/OverView/RoadMap" },
+            {
+                text: "版本计划",
+                collapsed: true,
+                items: [
+                    { text: "2025 年 RoadMamp", link: "/zh/OverView/RoadMap-2025" },
+                    { text: "MQTT Release 计划", link: "/zh/OverView/MQTT-Release" },
+                ],
+            },
         ],
     },
     {
@@ -14,15 +20,15 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "概览", link: "/zh/QuickGuide/Overview" },
-            { text: "编译打包", link: "/zh/QuickGuide/Build" },
             {
                 text: "RobustMQ MQTT",
                 collapsed: true,
                 items: [
-                    { text: "单机模式", link: "/zh/QuickGuide/Run-Standalone-Mode" },
-                    { text: "集群模式", link: "/zh/QuickGuide/Run-Cluster-Mode" },
-                    { text: "Docker 模式", link: "/zh/QuickGuide/Run-Docker-Mode" },
-                    { text: "K8S 模式", link: "/zh/QuickGuide/Run-K8S-Mode" },
+                    { text: "编译打包", link: "/zh/QuickGuide/mqtt/Build" },
+                    { text: "二进制运行[单机]", link: "/zh/QuickGuide/mqtt/Run-Standalone-Mode" },
+                    { text: "二进制运行[集群]", link: "/zh/QuickGuide/mqtt/Run-Cluster-Mode" },
+                    { text: "Docker 模式", link: "/zh/QuickGuide/mqtt/Run-Docker-Mode" },
+                    { text: "K8S 模式", link: "/zh/QuickGuide/mqtt/Run-K8S-Mode" },
                 ],
             },
 
@@ -53,21 +59,20 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "概览", link: "/zh/RobustMQ-MQTT/Overview" },
-            { text: "核心概念", link: "" },
-            { text: "系统架构", link: "" },
+            { text: "系统架构", link: "/zh/RobustMQ-MQTT/SystemArchitecture.md" },
             {
                 text: "核心功能",
                 collapsed: true,
                 items: [
-                    { text: "共享订阅", link: "" },
-                    { text: "保留消息", link: "" },
+                    { text: "保留消息", link: "/zh/RobustMQ-MQTT/RetainMessage.md" },
                     { text: "遗嘱消息", link: "" },
                     { text: "排他订阅", link: "" },
-                    { text: "延迟发布", link: "" },
+                    { text: "延迟发布", link: "/zh/RobustMQ-MQTT/DelayMessage.md" },
                     { text: "自动订阅", link: "" },
                     { text: "主题重写", link: "" },
                     { text: "通配符订阅", link: "" },
                     { text: "Session 持久化", link: "" },
+                    { text: "共享订阅", link: "" },
                 ],
             },
             {
@@ -86,8 +91,6 @@ export const sidebar = [
                 items: [
                     { text: " Local File", link: "" },
                     { text: "Kafka", link: "" },
-                    { text: "Redis", link: "" },
-                    { text: "RocketMQ", link: "" },
                 ]
             },
 
@@ -97,12 +100,12 @@ export const sidebar = [
                 items: [
                     { text: "指标", link: "" },
                     { text: "Trace", link: "" },
-                    { text: "集成 promethrus", link: "" },
+                    { text: "集成 Prometheus", link: "" },
                     { text: "集成 OpenTelemetry", link: "" },
                 ]
             },
             { text: "MQTT Over Quic", link: "" },
-            { text: "GRPC Admin 接口", link: "" },
+            { text: "GRPC Admin 接口", link: "/zh/RobustMQ-MQTT/GrpcAdmin.md" },
             { text: "Bench 性能压测", link: "" },
             {
                 text: "客户端 SDK",
@@ -117,6 +120,15 @@ export const sidebar = [
             },
         ],
     },
+
+    {
+        text: "RobustMQ Kafka",
+        collapsed: true,
+        items: [
+            { text: "概览", link: "/zh/RobustMQ-Kafka/Overview" },
+        ],
+    },
+
     {
         text: "RobustMQ 命令行",
         collapsed: true,
@@ -152,12 +164,5 @@ export const sidebar = [
                 ]
             }
         ],
-    },
-    {
-        text: "相关资料",
-        collapsed: true,
-        items: [
-
-        ],
-    },
+    }
 ];

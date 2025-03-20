@@ -23,9 +23,11 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
     UpdateMqttCacheReply, UpdateMqttCacheRequest,
 };
+use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
 use tonic::{Request, Response, Status};
 
+use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::CacheManager;
 use crate::handler::cache_update::update_cache_metadata;
 use crate::handler::lastwill::send_last_will_message;
@@ -33,23 +35,29 @@ use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub struct GrpcInnerServices<S> {
     cache_manager: Arc<CacheManager>,
+    connector_manager: Arc<ConnectorManager>,
     subscribe_manager: Arc<SubscribeManager>,
+    schema_manager: Arc<SchemaRegisterManager>,
     client_pool: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
 }
 
 impl<S> GrpcInnerServices<S> {
     pub fn new(
-        metadata_cache: Arc<CacheManager>,
+        cache_manager: Arc<CacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
+        connector_manager: Arc<ConnectorManager>,
+        schema_manager: Arc<SchemaRegisterManager>,
         client_pool: Arc<ClientPool>,
         message_storage_adapter: Arc<S>,
     ) -> Self {
         GrpcInnerServices {
-            cache_manager: metadata_cache,
+            cache_manager,
             subscribe_manager,
+            connector_manager,
             client_pool,
             message_storage_adapter,
+            schema_manager,
         }
     }
 }
@@ -68,7 +76,14 @@ where
         if conf.cluster_name != req.cluster_name {
             return Ok(Response::new(UpdateMqttCacheReply::default()));
         }
-        update_cache_metadata(&self.cache_manager, &self.subscribe_manager, req).await;
+        update_cache_metadata(
+            &self.cache_manager,
+            &self.connector_manager,
+            &self.subscribe_manager,
+            &self.schema_manager,
+            req,
+        )
+        .await;
         return Ok(Response::new(UpdateMqttCacheReply::default()));
     }
 

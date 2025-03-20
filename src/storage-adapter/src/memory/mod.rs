@@ -20,10 +20,11 @@ use dashmap::DashMap;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 
-use crate::storage::{ShardConfig, ShardOffset, StorageAdapter};
+use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 
 #[derive(Clone)]
 pub struct MemoryStorageAdapter {
+    pub shard_info: DashMap<String, ShardInfo>,
     pub shard_data: DashMap<String, Vec<Record>>,
     //group, (namespace_shard_name,offset)
     pub group_data: DashMap<String, DashMap<String, u64>>,
@@ -40,6 +41,7 @@ impl MemoryStorageAdapter {
         MemoryStorageAdapter {
             shard_data: DashMap::with_capacity(256),
             group_data: DashMap::with_capacity(256),
+            shard_info: DashMap::with_capacity(2),
         }
     }
 
@@ -52,15 +54,26 @@ impl MemoryStorageAdapter {}
 
 #[async_trait]
 impl StorageAdapter for MemoryStorageAdapter {
-    async fn create_shard(
+    async fn create_shard(&self, shard: ShardInfo) -> Result<(), CommonError> {
+        let key = self.shard_key(&shard.namespace, &shard.shard_name);
+        self.shard_data.insert(key.clone(), Vec::new());
+        self.shard_info.insert(key.clone(), shard);
+        return Ok(());
+    }
+
+    async fn list_shard(
         &self,
         namespace: String,
         shard_name: String,
-        _: ShardConfig,
-    ) -> Result<(), CommonError> {
-        self.shard_data
-            .insert(self.shard_key(&namespace, &shard_name), Vec::new());
-        return Ok(());
+    ) -> Result<Vec<ShardInfo>, CommonError> {
+        if shard_name.is_empty() {
+            let key = self.shard_key(&namespace, &shard_name);
+            if let Some(info) = self.shard_info.get(&key) {
+                return Ok(vec![info.clone()]);
+            }
+        }
+
+        Ok(self.shard_info.iter().map(|v| v.value().clone()).collect())
     }
 
     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {

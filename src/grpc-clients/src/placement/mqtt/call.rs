@@ -14,20 +14,21 @@
 
 use common_base::error::common::CommonError;
 use protocol::placement_center::placement_center_mqtt::{
-    CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
+    ConnectorHeartbeatReply, ConnectorHeartbeatRequest, CreateAclReply, CreateAclRequest,
+    CreateBlacklistReply, CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest,
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
     CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest,
     DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
-    DeleteExclusiveTopicReply, DeleteExclusiveTopicRequest, DeleteSessionReply,
-    DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest, DeleteTopicReply,
-    DeleteTopicRequest, DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest,
-    DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
-    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply,
-    ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply, ListTopicRequest,
-    ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
-    SaveLastWillMessageReply, SaveLastWillMessageRequest, SetExclusiveTopicReply,
-    SetExclusiveTopicRequest, SetSubscribeReply, SetSubscribeRequest, SetTopicRetainMessageReply,
-    SetTopicRetainMessageRequest, UpdateSessionReply, UpdateSessionRequest,
+    DeleteConnectorReply, DeleteConnectorRequest, DeleteSessionReply, DeleteSessionRequest,
+    DeleteSubscribeReply, DeleteSubscribeRequest, DeleteTopicReply, DeleteTopicRequest,
+    DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest,
+    GetShareSubLeaderReply, GetShareSubLeaderRequest, ListAclReply, ListAclRequest,
+    ListBlacklistReply, ListBlacklistRequest, ListConnectorReply, ListConnectorRequest,
+    ListSessionReply, ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply,
+    ListTopicRequest, ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply,
+    ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest, SetSubscribeReply,
+    SetSubscribeRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
+    UpdateConnectorReply, UpdateConnectorRequest, UpdateSessionReply, UpdateSessionRequest,
 };
 
 use crate::pool::ClientPool;
@@ -91,18 +92,6 @@ generate_mqtt_service_call!(
     SetTopicRetainMessageRequest,
     SetTopicRetainMessageReply,
     SetTopicRetainMessage
-);
-generate_mqtt_service_call!(
-    placement_set_nx_exclusive_topic,
-    SetExclusiveTopicRequest,
-    SetExclusiveTopicReply,
-    SetNxExclusiveTopic
-);
-generate_mqtt_service_call!(
-    placement_delete_exclusive_topic,
-    DeleteExclusiveTopicRequest,
-    DeleteExclusiveTopicReply,
-    DeleteExclusiveTopic
 );
 generate_mqtt_service_call!(
     placement_create_session,
@@ -193,4 +182,39 @@ generate_mqtt_service_call!(
     ListSubscribeRequest,
     ListSubscribeReply,
     ListSubscribe
+);
+
+generate_mqtt_service_call!(
+    placement_list_connector,
+    ListConnectorRequest,
+    ListConnectorReply,
+    ListConnector
+);
+
+generate_mqtt_service_call!(
+    placement_create_connector,
+    CreateConnectorRequest,
+    CreateConnectorReply,
+    CreateConnector
+);
+
+generate_mqtt_service_call!(
+    placement_update_connector,
+    UpdateConnectorRequest,
+    UpdateConnectorReply,
+    UpdateConnector
+);
+
+generate_mqtt_service_call!(
+    placement_delete_connector,
+    DeleteConnectorRequest,
+    DeleteConnectorReply,
+    DeleteConnector
+);
+
+generate_mqtt_service_call!(
+    placement_connector_heartbeat,
+    ConnectorHeartbeatRequest,
+    ConnectorHeartbeatReply,
+    ConnectorHeartbeat
 );

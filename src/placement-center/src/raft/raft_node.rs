@@ -80,33 +80,25 @@ pub async fn start_openraft_node(raft_node: Raft<TypeConfig>) {
     }
 
     info!("Raft Nodes:{:?}", nodes);
-    let init_node_id = calc_init_node(&nodes);
-    if init_node_id == conf.node.node_id {
-        match raft_node.is_initialized().await {
-            Ok(flag) => {
-                info!("Whether nodes should be initialized, flag={}", flag);
-                if !flag {
-                    match raft_node.initialize(nodes.clone()).await {
-                        Ok(_) => {
-                            info!("Node {:?} was initialized successfully", nodes);
-                        }
-                        Err(e) => {
-                            panic!("openraft init fail,{}", e);
-                        }
+
+    match raft_node.is_initialized().await {
+        Ok(flag) => {
+            info!("Whether nodes should be initialized, flag={}", flag);
+            if !flag {
+                match raft_node.initialize(nodes.clone()).await {
+                    Ok(_) => {
+                        info!("Node {:?} was initialized successfully", nodes);
+                    }
+                    Err(e) => {
+                        panic!("openraft init fail,{}", e);
                     }
                 }
             }
-            Err(e) => {
-                panic!("openraft initialized fail,{}", e);
-            }
+        }
+        Err(e) => {
+            panic!("openraft initialized fail,{}", e);
         }
     }
-}
-
-pub fn calc_init_node(nodes: &BTreeMap<u64, Node>) -> u64 {
-    let mut node_ids: Vec<u64> = nodes.keys().copied().collect();
-    node_ids.sort();
-    *node_ids.first().unwrap()
 }
 
 pub async fn create_raft_node(

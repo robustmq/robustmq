@@ -138,6 +138,96 @@ pub(crate) struct SlowSubArgs {
     client_id: Option<String>,
 }
 
+#[derive(Debug, Parser)]
+#[command(author="RobustMQ", about="", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct ListConnectorArgs {
+    pub(crate) connector_name: String,
+}
+
+#[derive(Debug, Parser)]
+#[command(author="RobustMQ", about="", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct CreateConnectorArgs {
+    pub(crate) connector_name: String,
+    pub(crate) connector_type: i32,
+    pub(crate) config: String,
+    pub(crate) topic_id: String,
+}
+
+#[derive(Debug, Parser)]
+#[command(author="RobustMQ", about="", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct UpdateConnectorArgs {
+    pub(crate) connector: Vec<u8>,
+}
+
+#[derive(Debug, Parser)]
+#[command(author="RobustMQ", about="", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct DeleteConnectorArgs {
+    pub(crate) connector_name: String,
+}
+
+// schema
+#[derive(Debug, Parser)]
+#[command(author="RobustMQ", about="", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct ListSchemaArgs {
+    pub(crate) schema_name: String,
+}
+
+#[derive(Debug, Parser)]
+#[command(author="RobustMQ", about="", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct CreateSchemaArgs {
+    pub(crate) schema_name: String,
+    pub(crate) schema_type: String,
+    pub(crate) schema: String,
+    pub(crate) desc: String,
+}
+
+#[derive(Debug, Parser)]
+#[command(author="RobustMQ", about="", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct UpdateSchemaArgs {
+    pub(crate) schema_name: String,
+    pub(crate) schema_type: String,
+    pub(crate) schema: String,
+    pub(crate) desc: String,
+}
+
+#[derive(Debug, Parser)]
+#[command(author="RobustMQ", about="", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct DeleteSchemaArgs {
+    pub(crate) schema_name: String,
+}
+
+#[derive(Debug, Parser)]
+#[command(author="RobustMQ", about="", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct ListBindSchemaArgs {
+    pub(crate) schema_name: String,
+    pub(crate) resource_name: String,
+}
+
+#[derive(Debug, Parser)]
+#[command(author="RobustMQ", about="", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct BindSchemaArgs {
+    pub(crate) schema_name: String,
+    pub(crate) resource_name: String,
+}
+
+#[derive(Debug, Parser)]
+#[command(author="RobustMQ", about="", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct UnbindSchemaArgs {
+    pub(crate) schema_name: String,
+    pub(crate) resource_name: String,
+}
+
 pub fn process_slow_sub_args(args: SlowSubArgs) -> MqttActionType {
     if args.is_enable.is_none() {
         if args.list.is_none() {

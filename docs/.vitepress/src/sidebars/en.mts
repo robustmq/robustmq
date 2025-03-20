@@ -5,7 +5,14 @@ export const sidebar = [
         items: [
             { text: "What is RobustMQ", link: "/OverView/What-is-RobustMQ" },
             { text: "Why RobustMQ", link: "/OverView/Why-RobustMQ" },
-            { text: "RoadMamp", link: "/OverView/RoadMap" },
+            {
+                text: "Version planning",
+                collapsed: true,
+                items: [
+                    { text: "2025 RoadMamp", link: "/OverView/RoadMap-2025" },
+                    { text: "MQTT Release Planning", link: "/OverView/MQTT-Release" },
+                ],
+            },
         ],
     },
     {
@@ -13,15 +20,15 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "Overview", link: "/QuickGuide/Overview" },
-            { text: "Build", link: "/QuickGuide/Build" },
             {
                 text: "RobustMQ MQTT",
                 collapsed: true,
                 items: [
-                    { text: "Stand-loneMode", link: "/QuickGuide/Run-Standalone-Mode" },
-                    { text: "ClusterMode", link: "/QuickGuide/Run-Cluster-Mode" },
-                    { text: "DockerMode", link: "/QuickGuide/Run-Docker-Mode" },
-                    { text: "K8SMode", link: "/QuickGuide/Run-K8S-Mode" },
+                    { text: "Build", link: "/QuickGuide/mqtt/Build" },
+                    { text: "Stand-loneMode", link: "/QuickGuide/mqtt/Run-Standalone-Mode" },
+                    { text: "ClusterMode", link: "/QuickGuide/mqtt/Run-Cluster-Mode" },
+                    { text: "DockerMode", link: "/QuickGuide/mqtt/Run-Docker-Mode" },
+                    { text: "K8SMode", link: "/QuickGuide/mqtt/Run-K8S-Mode" },
                 ],
             },
 
@@ -52,21 +59,20 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "Overview", link: "/RobustMQ-MQTT/Overview" },
-            { text: "Concepts", link: "" },
-            { text: "Architecture", link: "" },
+            { text: "Architecture", link: "/RobustMQ-MQTT/SystemArchitecture" },
             {
                 text: "Features",
                 collapsed: true,
                 items: [
-                    { text: "Shared Subscription", link: "" },
-                    { text: "Retain Message", link: "" },
+                    { text: "Retain Message", link: "/RobustMQ-MQTT/RetainMessage.md" },
                     { text: "LastWill Message", link: "" },
                     { text: "Exclusive Subscription", link: "" },
-                    { text: "Delayed Publish", link: "" },
+                    { text: "Delayed Publish", link: "/RobustMQ-MQTT/DelayMessage.md" },
                     { text: "Automatic subscription", link: "" },
                     { text: "Topic Rewriting", link: "" },
                     { text: "Wildcard Subscription", link: "" },
                     { text: "Session Persistence", link: "" },
+                    { text: "Shared Subscription", link: "" },
                 ],
             },
             {
@@ -83,10 +89,8 @@ export const sidebar = [
                 text: "Data integration",
                 collapsed: true,
                 items: [
-                    { text: " Local File", link: "" },
+                    { text: "Local File", link: "" },
                     { text: "Kafka", link: "" },
-                    { text: "Redis", link: "" },
-                    { text: "RocketMQ", link: "" },
                 ]
             },
 
@@ -101,7 +105,7 @@ export const sidebar = [
                 ]
             },
             { text: "MQTT Over Quic", link: "" },
-            { text: "GRPC Admin Interface", link: "" },
+            { text: "GRPC Admin Interface", link: "/RobustMQ-MQTT/GrpcAdmin.md" },
             { text: "Performance Bench", link: "" },
             {
                 text: "Client SDK",
@@ -116,7 +120,13 @@ export const sidebar = [
             },
         ],
     },
-
+    {
+        text: "RobustMQ Kafka",
+        collapsed: true,
+        items: [
+            { text: "Overview", link: "/RobustMQ-Kafka/Overview" },
+        ],
+    },
     {
         text: "RobustMQ Command",
         collapsed: true,
@@ -152,10 +162,5 @@ export const sidebar = [
                 ],
             }
         ],
-    },
-    {
-        text: "Other Data",
-        collapsed: true,
-        items: [],
-    },
+    }
 ];

@@ -87,7 +87,7 @@ impl MessageExpire {
 
             let result_value = value.unwrap().to_vec();
             let data = serde_json::from_slice::<StorageDataWrap>(&result_value).unwrap();
-            let mut value = serde_json::from_slice::<MqttTopic>(data.data.as_slice()).unwrap();
+            let mut value = serde_json::from_str::<MqttTopic>(&data.data).unwrap();
 
             if value.retain_message.is_some() {
                 let delete = if let Some(expired_at) = value.retain_message_expired_at {
@@ -152,7 +152,7 @@ impl MessageExpire {
 
             let result_value = value.unwrap().to_vec();
             let data = serde_json::from_slice::<StorageDataWrap>(&result_value).unwrap();
-            let value = serde_json::from_slice::<LastWillData>(data.data.as_slice()).unwrap();
+            let value = serde_json::from_str::<LastWillData>(&data.data).unwrap();
             if let Some(properties) = value.last_will_properties {
                 let delete = if let Some(expiry_interval) = properties.message_expiry_interval {
                     now_second() >= ((expiry_interval as u64) + data.create_time)

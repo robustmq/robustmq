@@ -16,7 +16,7 @@ use core::fmt;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StorageData {
     pub data_type: StorageDataType,
     pub value: Vec<u8>,
@@ -34,20 +34,29 @@ impl fmt::Display for StorageData {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum StorageDataType {
     // Cluster
     ClusterAddNode,
     ClusterDeleteNode,
     ClusterAddCluster,
     ClusterDeleteCluster,
-    ClusterSetResourceConfig,
-    ClusterDeleteResourceConfig,
-    ClusterSetIdempotentData,
-    ClusterDeleteIdempotentData,
 
-    ClusterSaveOffset,
-    ClusterDeleteOffset,
+    // KV
+    KvSet,
+    KvDelete,
+
+    // Common
+    SchemaSet,
+    SchemaDelete,
+    SchemaBindSet,
+    SchemaBindDelete,
+    ResourceConfigSet,
+    ResourceConfigDelete,
+    IdempotentDataSet,
+    IdempotentDataDelete,
+    OffsetSet,
+    OffsetDelete,
 
     // Journal
     JournalSetShard,
@@ -56,10 +65,6 @@ pub enum StorageDataType {
     JournalDeleteSegment,
     JournalSetSegmentMetadata,
     JournalDeleteSegmentMetadata,
-
-    // kv
-    KvSet,
-    KvDelete,
 
     // mqtt
     MqttSetUser,
@@ -74,10 +79,10 @@ pub enum StorageDataType {
     MqttDeleteAcl,
     MqttSetBlacklist,
     MqttDeleteBlacklist,
-    MqttSetNxExclusiveTopic,
-    MqttDeleteExclusiveTopic,
     MqttCreateTopicRewriteRule,
     MqttDeleteTopicRewriteRule,
     MqttSetSubscribe,
     MqttDeleteSubscribe,
+    MqttSetConnector,
+    MqttDeleteConnector,
 }

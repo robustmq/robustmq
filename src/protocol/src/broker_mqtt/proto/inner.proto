@@ -20,6 +20,7 @@ service MQTTBrokerInnerService {
     rpc updateCache(UpdateMQTTCacheRequest) returns(UpdateMQTTCacheReply){}
     rpc deleteSession(DeleteSessionRequest) returns(DeleteSessionReply){}
     rpc sendLastWillMessage(SendLastWillMessageRequest) returns(SendLastWillMessageReply){}
+
 }
 
 message UpdateMQTTCacheRequest{
@@ -60,6 +61,9 @@ enum MQTTBrokerUpdateCacheResourceType{
     User = 1;
     Subscribe = 2;
     Topic = 3;
+    Connector = 4;
+    Schema = 5;
+    SchemaResource = 6;
 }
 
 message SendLastWillMessageRequest{

@@ -12,17 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::bridge::manager::ConnectorManager;
+use crate::storage::connector::ConnectorStorage;
 use crate::storage::topic::TopicStorage;
 use crate::{security::AuthDriver, subscribe::subscribe_manager::SubscribeManager};
+use common_base::config::broker_mqtt::broker_mqtt_conf;
+use grpc_clients::placement::inner::call::list_schema;
 use grpc_clients::pool::ClientPool;
 use log::error;
+use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use protocol::broker_mqtt::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateMqttCacheRequest,
 };
+use protocol::placement_center::placement_center_inner::ListSchemaRequest;
+use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 
 use super::cluster_config::build_cluster_config;
@@ -32,6 +40,8 @@ pub async fn load_metadata_cache(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     auth_driver: &Arc<AuthDriver>,
+    connector_manager: &Arc<ConnectorManager>,
+    schema_manager: &Arc<SchemaRegisterManager>,
 ) {
     // load cluster config
     let cluster = match build_cluster_config(client_pool).await {
@@ -106,11 +116,50 @@ pub async fn load_metadata_cache(
     for topic_rewrite_rule in topic_rewrite_rules {
         cache_manager.add_topic_rewrite_rule(topic_rewrite_rule);
     }
+
+    // load all connectors
+    let connector_storage = ConnectorStorage::new(client_pool.clone());
+    let connectors = match connector_storage.list_all_connectors().await {
+        Ok(list) => list,
+        Err(e) => {
+            panic!("Failed to load the connector list with error message:{}", e);
+        }
+    };
+    for connector in connectors.iter() {
+        connector_manager.add_connector(connector);
+    }
+
+    // load all schemas
+    let config = broker_mqtt_conf();
+    let request = ListSchemaRequest {
+        cluster_name: config.cluster_name.clone(),
+        schema_name: "".to_owned(),
+    };
+
+    match list_schema(client_pool, &config.placement_center, request).await {
+        Ok(reply) => {
+            for raw in reply.schemas {
+                match serde_json::from_slice::<SchemaData>(raw.as_slice()) {
+                    Ok(schema) => {
+                        schema_manager.add_schema(schema);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            panic!("Failed to load the schema list with error message:{}", e);
+        }
+    }
 }
 
 pub async fn update_cache_metadata(
     cache_manager: &Arc<CacheManager>,
+    connector_manager: &Arc<ConnectorManager>,
     subscribe_manager: &Arc<SubscribeManager>,
+    schema_manager: &Arc<SchemaRegisterManager>,
     request: UpdateMqttCacheRequest,
 ) {
     match request.resource_type() {
@@ -200,6 +249,76 @@ pub async fn update_cache_metadata(
                 match serde_json::from_str::<MqttTopic>(&request.data) {
                     Ok(topic) => {
                         cache_manager.delete_topic(&topic.topic_name, &topic);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+        },
+        MqttBrokerUpdateCacheResourceType::Connector => match request.action_type() {
+            MqttBrokerUpdateCacheActionType::Set => {
+                match serde_json::from_str::<MQTTConnector>(&request.data) {
+                    Ok(connector) => {
+                        connector_manager.add_connector(&connector);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+            MqttBrokerUpdateCacheActionType::Delete => {
+                match serde_json::from_str::<MQTTConnector>(&request.data) {
+                    Ok(connector) => {
+                        connector_manager.remove_connector(&connector.connector_name);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+        },
+        MqttBrokerUpdateCacheResourceType::Schema => match request.action_type() {
+            MqttBrokerUpdateCacheActionType::Set => {
+                match serde_json::from_str::<SchemaData>(&request.data) {
+                    Ok(schema) => {
+                        schema_manager.add_schema(schema);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+            MqttBrokerUpdateCacheActionType::Delete => {
+                match serde_json::from_str::<SchemaData>(&request.data) {
+                    Ok(schema) => {
+                        schema_manager.remove_schema(&schema.name);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+        },
+        MqttBrokerUpdateCacheResourceType::SchemaResource => match request.action_type() {
+            MqttBrokerUpdateCacheActionType::Set => {
+                match serde_json::from_str::<SchemaResourceBind>(&request.data) {
+                    Ok(schema_bind) => {
+                        schema_manager.add_schema_resource(&schema_bind);
+                    }
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
+
+            MqttBrokerUpdateCacheActionType::Delete => {
+                match serde_json::from_str::<SchemaResourceBind>(&request.data) {
+                    Ok(schema_bind) => {
+                        schema_manager.remove_resource_schema(
+                            &schema_bind.resource_name,
+                            &schema_bind.schema_name,
+                        );
                     }
                     Err(e) => {
                         error!("{}", e);

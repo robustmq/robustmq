@@ -66,6 +66,23 @@ pub struct SenderMessageResp {
     pub error: Option<String>,
 }
 
+impl SenderMessageResp {
+    pub fn new(offset: u64) -> Self {
+        SenderMessageResp {
+            offset,
+            error: None,
+        }
+    }
+
+    pub fn is_ok(&self) -> bool {
+        self.error.is_none()
+    }
+
+    pub fn error(&self) -> String {
+        self.error.clone().unwrap()
+    }
+}
+
 // Node Sender Threade Struct
 #[derive(Clone)]
 struct NodeSenderThread {
@@ -161,9 +178,12 @@ impl AsyncWriter {
             message: message.to_owned(),
         };
 
-        let rs = sender.send(data).await;
+        sender.send(data).await?;
         let resp_data = timeout(Duration::from_secs(30), callback_rx.recv()).await?;
-        Ok(resp_data.unwrap())
+        if let Some(resp_data) = resp_data {
+            return Ok(resp_data);
+        }
+        Err(JournalClientError::WriteReqReturnEmpty)
     }
 
     pub async fn close(&self) -> Result<(), JournalClientError> {

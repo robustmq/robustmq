@@ -43,7 +43,7 @@ mod tests {
 
     #[test]
     fn it_should_find_our_project_root() {
-        let crate_name = "name = \"robustmq\"";
+        let crate_name = "[workspace]";
 
         let project_root = get_project_root().expect("There is no project root");
 

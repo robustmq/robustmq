@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use std::env;
 
 use serde::{Deserialize, Serialize};
+
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
 pub struct Storage {
     pub storage_type: String,
@@ -26,6 +27,22 @@ pub struct Storage {
     #[serde(default)]
     pub rocksdb_data_path: String,
     pub rocksdb_max_open_files: Option<i32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct Prometheus {
+    #[serde(default)]
+    pub enable: bool,
+    #[serde(default)]
+    pub model: String,
+    #[serde(default = "default_prometheus_port")]
+    pub port: u32,
+    #[serde(default)]
+    pub push_gateway_server: String,
+    #[serde(default)]
+    pub interval: u32,
+    #[serde(default)]
+    pub header: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
@@ -48,6 +65,21 @@ pub struct Telemetry {
     pub enable: bool,
     pub exporter_type: String,
     pub exporter_endpoint: String,
+}
+
+pub fn default_prometheus() -> Prometheus {
+    Prometheus {
+        enable: false,
+        model: "pull".to_string(),
+        port: default_prometheus_port(),
+        push_gateway_server: "".to_string(),
+        interval: 10,
+        header: "".to_string(),
+    }
+}
+
+pub fn default_prometheus_port() -> u32 {
+    9090
 }
 
 /** `override_default_by_env` 根据环境变量覆盖内容

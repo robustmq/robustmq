@@ -21,7 +21,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MqttTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
 use regex::Regex;
-use storage_adapter::storage::{ShardConfig, StorageAdapter};
+use storage_adapter::storage::{ShardInfo, StorageAdapter};
 
 use super::error::MqttBrokerError;
 use crate::handler::cache::CacheManager;
@@ -126,20 +126,33 @@ where
     let topic = if let Some(tp) = metadata_cache.get_topic_by_name(topic_name) {
         tp
     } else {
+        let namespace = cluster_name();
+
+        // create Topic
         let topic_storage = TopicStorage::new(client_pool.clone());
         let topic_id = unique_id();
         let conf = broker_mqtt_conf();
-        let topic = MqttTopic::new(topic_id, conf.cluster_name.clone(), topic_name.to_owned());
-        topic_storage.save_topic(topic.clone()).await?;
+        let topic = if let Some(topic) = topic_storage.get_topic(topic_name).await? {
+            topic
+        } else {
+            let topic = MqttTopic::new(topic_id, conf.cluster_name.clone(), topic_name.to_owned());
+            topic_storage.save_topic(topic.clone()).await?;
+            topic
+        };
         metadata_cache.add_topic(topic_name, &topic);
 
         // Create the resource object of the storage layer
-        let shard_name = topic.topic_id.clone();
-        let shard_config = ShardConfig::default();
-        let namespace = cluster_name();
-        message_storage_adapter
-            .create_shard(namespace, shard_name, shard_config)
+        let list = message_storage_adapter
+            .list_shard(namespace.clone(), topic_name.to_owned())
             .await?;
+        if list.is_empty() {
+            let shard = ShardInfo {
+                namespace: namespace.clone(),
+                shard_name: topic_name.to_owned(),
+                replica_num: 1,
+            };
+            message_storage_adapter.create_shard(shard).await?;
+        }
         return Ok(topic);
     };
     Ok(topic)

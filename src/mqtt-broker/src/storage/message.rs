@@ -46,9 +46,11 @@ where
     ) -> Result<Vec<u64>, CommonError> {
         let shard_name = topic_id;
         let namespace = cluster_name();
-        self.storage_adapter
+        let results = self
+            .storage_adapter
             .batch_write(namespace, shard_name.to_owned(), record)
-            .await
+            .await?;
+        Ok(results)
     }
 
     pub async fn read_topic_message(
@@ -62,9 +64,16 @@ where
         let mut read_config = ReadConfig::new();
         read_config.max_record_num = record_num;
 
-        self.storage_adapter
+        let records = self
+            .storage_adapter
             .read_by_offset(namespace, shard_name.to_owned(), offset, read_config)
-            .await
+            .await?;
+        for raw in records.iter() {
+            if !raw.crc32_check() {
+                return Err(CommonError::CrcCheckByMessage);
+            }
+        }
+        Ok(records)
     }
 
     pub async fn get_group_offset(&self, group_id: &str) -> Result<u64, CommonError> {

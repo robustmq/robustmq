@@ -28,6 +28,7 @@ pub enum NetworkConnectionType {
     Tls,
     WebSocket,
     WebSockets,
+    Quic,
 }
 
 impl fmt::Display for NetworkConnectionType {
@@ -40,6 +41,7 @@ impl fmt::Display for NetworkConnectionType {
                 NetworkConnectionType::Tls => "tls",
                 NetworkConnectionType::WebSocket => "websocket",
                 NetworkConnectionType::WebSockets => "websockets",
+                NetworkConnectionType::Quic => "quic",
             }
         )
     }

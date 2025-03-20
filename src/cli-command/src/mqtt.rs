@@ -17,19 +17,27 @@ use crate::{connect_server5, error_info, grpc_addr};
 use common_base::enum_type::sort_type::SortType;
 use common_base::tools::unique_id;
 use grpc_clients::mqtt::admin::call::{
-    cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user,
-    mqtt_broker_enable_flapping_detect, mqtt_broker_enable_slow_subscribe,
-    mqtt_broker_list_connection, mqtt_broker_list_slow_subscribe, mqtt_broker_list_topic,
-    mqtt_broker_list_user,
+    mqtt_broker_bind_schema, mqtt_broker_cluster_status, mqtt_broker_create_connector,
+    mqtt_broker_create_schema, mqtt_broker_create_user, mqtt_broker_delete_connector,
+    mqtt_broker_delete_schema, mqtt_broker_delete_user, mqtt_broker_enable_flapping_detect,
+    mqtt_broker_enable_slow_subscribe, mqtt_broker_list_bind_schema, mqtt_broker_list_connection,
+    mqtt_broker_list_connector, mqtt_broker_list_schema, mqtt_broker_list_slow_subscribe,
+    mqtt_broker_list_topic, mqtt_broker_list_user, mqtt_broker_unbind_schema,
+    mqtt_broker_update_connector, mqtt_broker_update_schema,
 };
 use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::schema::SchemaData;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, EnableFlappingDetectRequest,
     EnableSlowSubscribeRequest, ListConnectionRequest, ListSlowSubscribeRequest, ListTopicRequest,
-    ListUserRequest,
+    ListUserRequest, MqttBindSchemaRequest, MqttCreateConnectorRequest, MqttCreateSchemaRequest,
+    MqttDeleteConnectorRequest, MqttDeleteSchemaRequest, MqttListBindSchemaRequest,
+    MqttListConnectorRequest, MqttListSchemaRequest, MqttUnbindSchemaRequest,
+    MqttUpdateConnectorRequest, MqttUpdateSchemaRequest,
 };
 use std::str::FromStr;
 use std::sync::Arc;
@@ -69,6 +77,21 @@ pub enum MqttActionType {
     Subscribe(SubscribeArgsRequest),
 
     ListTopic(ListTopicRequest),
+
+    // connector
+    ListConnector(MqttListConnectorRequest),
+    CreateConnector(MqttCreateConnectorRequest),
+    UpdateConnector(MqttUpdateConnectorRequest),
+    DeleteConnector(MqttDeleteConnectorRequest),
+
+    // schema
+    ListSchema(MqttListSchemaRequest),
+    CreateSchema(MqttCreateSchemaRequest),
+    UpdateSchema(MqttUpdateSchemaRequest),
+    DeleteSchema(MqttDeleteSchemaRequest),
+    ListBindSchema(MqttListBindSchemaRequest),
+    BindSchema(MqttBindSchemaRequest),
+    UnbindSchema(MqttUnbindSchemaRequest),
 }
 
 pub struct MqttBrokerCommand {}
@@ -125,6 +148,58 @@ impl MqttBrokerCommand {
             }
             MqttActionType::Subscribe(ref request) => {
                 self.subscribe(params.clone(), request.clone()).await;
+            }
+            MqttActionType::ListConnector(ref request) => {
+                self.list_connectors(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::CreateConnector(ref request) => {
+                self.create_connector(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::DeleteConnector(ref request) => {
+                self.delete_connector(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::UpdateConnector(ref request) => {
+                self.update_connector(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+
+            // schema
+            MqttActionType::ListSchema(ref request) => {
+                self.list_schema(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+
+            MqttActionType::CreateSchema(ref request) => {
+                self.create_schema(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+
+            MqttActionType::UpdateSchema(ref request) => {
+                self.update_schema(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+
+            MqttActionType::DeleteSchema(ref request) => {
+                self.delete_schema(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+
+            MqttActionType::BindSchema(ref request) => {
+                self.bind_schema(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+
+            MqttActionType::UnbindSchema(ref request) => {
+                self.unbind_schema(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+
+            MqttActionType::ListBindSchema(ref request) => {
+                self.list_bind_schema(&client_pool, params.clone(), request.clone())
+                    .await;
             }
         }
     }
@@ -262,7 +337,7 @@ impl MqttBrokerCommand {
     }
     async fn status(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
         let request = ClusterStatusRequest {};
-        match cluster_status(client_pool, &grpc_addr(params.server), request).await {
+        match mqtt_broker_cluster_status(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
                 println!("cluster name: {}", data.cluster_name);
                 println!("node list:");
@@ -337,10 +412,28 @@ impl MqttBrokerCommand {
         let request = ListConnectionRequest {};
         match mqtt_broker_list_connection(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
+                let mut table = Table::new();
+
                 println!("connection list:");
+                table.add_row(row![
+                    "connection_id",
+                    "connection_type",
+                    "protocol",
+                    "source_addr",
+                    "info",
+                ]);
+
                 for raw in data.list_connection_raw {
-                    println!("{:?}", raw)
+                    table.add_row(row![
+                        raw.connection_id,
+                        raw.connection_type,
+                        raw.protocol,
+                        raw.source_addr,
+                        raw.info,
+                    ]);
                 }
+                // output cmd
+                table.printstd();
             }
             Err(e) => {
                 println!("MQTT broker list connection exception");
@@ -472,23 +565,291 @@ impl MqttBrokerCommand {
         match mqtt_broker_list_topic(client_pool, &grpc_addr(params.server), cli_request).await {
             Ok(data) => {
                 println!("topic list result:");
-                for mqtt_topic in data.topics {
+                // format table
+                let mut table = Table::new();
+                table.add_row(row![
+                    "topic_id",
+                    "topic_name",
+                    "cluster_name",
+                    "is_contain_retain_message",
+                ]);
+                let topics = data.topics;
+                for topic in topics {
+                    table.add_row(row![
+                        topic.topic_id,
+                        topic.topic_name,
+                        topic.cluster_name,
+                        topic.is_contain_retain_message
+                    ]);
+                }
+                // output cmd
+                table.printstd()
+            }
+            Err(e) => {
+                println!("MQTT broker list topic exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    // ------------------ connectors ----------------
+    async fn list_connectors(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttListConnectorRequest,
+    ) {
+        match mqtt_broker_list_connector(client_pool, &grpc_addr(params.server), cli_request).await
+        {
+            Ok(data) => {
+                println!("connector list result:");
+                let mut table = Table::new();
+
+                table.add_row(row![
+                    "cluster name",
+                    "connector name",
+                    "connector type",
+                    "connector config",
+                    "topic id",
+                    "status",
+                    "broker id",
+                    "create time",
+                    "update time",
+                ]);
+
+                for mqtt_connector in data.connectors {
+                    let connector = MQTTConnector::decode(&mqtt_connector);
+                    table.add_row(row![
+                        connector.cluster_name,
+                        connector.connector_name,
+                        connector.connector_type,
+                        connector.config,
+                        connector.topic_id,
+                        connector.status,
+                        connector.broker_id.unwrap_or(0),
+                        connector.create_time,
+                        connector.update_time
+                    ]);
+                }
+
+                // output cmd
+                table.printstd()
+            }
+            Err(e) => {
+                println!("MQTT broker list connector exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn create_connector(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttCreateConnectorRequest,
+    ) {
+        match mqtt_broker_create_connector(client_pool, &grpc_addr(params.server), cli_request)
+            .await
+        {
+            Ok(_) => {
+                println!("Created successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker create connector exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn delete_connector(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttDeleteConnectorRequest,
+    ) {
+        match mqtt_broker_delete_connector(client_pool, &grpc_addr(params.server), cli_request)
+            .await
+        {
+            Ok(_) => {
+                println!("Deleted successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker delete connector exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn update_connector(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttUpdateConnectorRequest,
+    ) {
+        match mqtt_broker_update_connector(client_pool, &grpc_addr(params.server), cli_request)
+            .await
+        {
+            Ok(_) => {
+                println!("Updated successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker update connector exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    // ------------------ schema ----------------
+    async fn list_schema(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttListSchemaRequest,
+    ) {
+        match mqtt_broker_list_schema(client_pool, &grpc_addr(params.server), cli_request).await {
+            Ok(data) => {
+                println!("schema list result:");
+                for mqtt_schema in data.schemas {
+                    let schema = serde_json::from_slice::<SchemaData>(&mqtt_schema).unwrap();
                     println!(
                         concat!(
-                            "topic id: {}\n",
-                            "topic name: {}\n",
                             "cluster name: {}\n",
-                            "is contain retain message: {}\n"
+                            "schema name: {}\n",
+                            "schema type: {}\n",
+                            "schema desc: {}\n",
+                            "schema: {}\n"
                         ),
-                        mqtt_topic.topic_id,
-                        mqtt_topic.topic_name,
-                        mqtt_topic.cluster_name,
-                        mqtt_topic.is_contain_retain_message
+                        schema.cluster_name,
+                        schema.name,
+                        schema.schema_type,
+                        schema.desc,
+                        schema.schema
                     );
                 }
             }
             Err(e) => {
-                println!("MQTT broker list topic exception");
+                println!("MQTT broker list schema exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn create_schema(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttCreateSchemaRequest,
+    ) {
+        match mqtt_broker_create_schema(client_pool, &grpc_addr(params.server), cli_request).await {
+            Ok(_) => {
+                println!("Created successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker create schema exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn update_schema(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttUpdateSchemaRequest,
+    ) {
+        match mqtt_broker_update_schema(client_pool, &grpc_addr(params.server), cli_request).await {
+            Ok(_) => {
+                println!("Updated successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker update schema exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn delete_schema(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttDeleteSchemaRequest,
+    ) {
+        match mqtt_broker_delete_schema(client_pool, &grpc_addr(params.server), cli_request).await {
+            Ok(_) => {
+                println!("Deleted successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker delete schema exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn bind_schema(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttBindSchemaRequest,
+    ) {
+        match mqtt_broker_bind_schema(client_pool, &grpc_addr(params.server), cli_request).await {
+            Ok(_) => {
+                println!("Created successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker create schema exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn unbind_schema(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttUnbindSchemaRequest,
+    ) {
+        match mqtt_broker_unbind_schema(client_pool, &grpc_addr(params.server), cli_request).await {
+            Ok(_) => {
+                println!("Deleted successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker delete schema exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn list_bind_schema(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: MqttListBindSchemaRequest,
+    ) {
+        match mqtt_broker_list_bind_schema(client_pool, &grpc_addr(params.server), cli_request)
+            .await
+        {
+            Ok(data) => {
+                println!("bind schema list result:");
+                for mqtt_schema in data.schema_binds {
+                    let schema = serde_json::from_slice::<SchemaData>(&mqtt_schema).unwrap();
+                    println!(
+                        concat!(
+                            "cluster name: {}\n",
+                            "schema name: {}\n",
+                            "schema type: {}\n",
+                            "schema desc: {}\n",
+                            "schema: {}\n"
+                        ),
+                        schema.cluster_name,
+                        schema.name,
+                        schema.schema_type,
+                        schema.desc,
+                        schema.schema
+                    );
+                }
+            }
+            Err(e) => {
+                println!("MQTT broker list bind schema exception");
                 error_info(e.to_string());
             }
         }

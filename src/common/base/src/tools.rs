@@ -59,6 +59,20 @@ pub fn now_mills() -> u128 {
         .as_millis()
 }
 
+/// Retrieve the current timestamp (in milliseconds)
+///
+/// Returns the number of milliseconds since the Unix era (January 1, 1970 00:00:00 UTC).
+/// This function uses system time and converts it to a duration with millisecond precision.
+///
+/// # Return value
+/// Returns the number of milliseconds since the Unix era (type u128).
+pub fn now_nanos() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos()
+}
+
 /// Get current seconds
 ///
 /// # Return value

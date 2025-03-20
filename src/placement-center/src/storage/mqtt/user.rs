@@ -50,7 +50,7 @@ impl MqttUserStorage {
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_slice::<MqttUser>(&raw.data)?);
+            results.push(serde_json::from_str::<MqttUser>(&raw.data)?);
         }
         Ok(results)
     }
@@ -58,7 +58,7 @@ impl MqttUserStorage {
     pub fn get(&self, cluster_name: &str, username: &str) -> Result<Option<MqttUser>, CommonError> {
         let key: String = storage_key_mqtt_user(cluster_name, username);
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
-            return Ok(Some(serde_json::from_slice::<MqttUser>(&data.data)?));
+            return Ok(Some(serde_json::from_str::<MqttUser>(&data.data)?));
         }
         Ok(None)
     }

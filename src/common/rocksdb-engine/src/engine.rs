@@ -38,7 +38,7 @@ where
         ));
     };
 
-    let content = match serde_json::to_vec(&value) {
+    let content = match serde_json::to_string(&value) {
         Ok(data) => data,
         Err(e) => return Err(CommonError::CommonError(e.to_string())),
     };

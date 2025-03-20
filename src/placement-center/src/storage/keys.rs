@@ -190,18 +190,42 @@ pub fn storage_key_mqtt_subscribe_cluster_prefix(cluster_name: &str) -> String {
     format!("/mqtt/subscribe/{}/", cluster_name)
 }
 
-pub fn storage_key_mqtt_exclusive_topic_name(
+pub fn storage_key_mqtt_connector(cluster_name: &str, connector_name: &str) -> String {
+    format!("/mqtt/connector/{}/{}", cluster_name, connector_name)
+}
+
+pub fn storage_key_mqtt_connector_prefix(cluster_name: &str) -> String {
+    format!("/mqtt/connector/{}", cluster_name)
+}
+
+pub fn storage_key_mqtt_schema(cluster_name: &str, schema_name: &str) -> String {
+    format!("/mqtt/schema/{}/{}", cluster_name, schema_name)
+}
+
+pub fn storage_key_mqtt_schema_prefix(cluster_name: &str) -> String {
+    format!("/mqtt/schema/{}", cluster_name)
+}
+
+pub fn storage_key_mqtt_schema_bind(
     cluster_name: &str,
-    exclusive_topic_name: &str,
+    resource_name: &str,
+    schema_name: &str,
 ) -> String {
     format!(
-        "/mqtt/exclusive_topic/{}/{}",
-        cluster_name, exclusive_topic_name
+        "/mqtt/schema_bind/{}/{}/{}",
+        cluster_name, resource_name, schema_name
     )
 }
 
-pub fn storage_key_mqtt_exclusive_topic_prefix(cluster_name: &str) -> String {
-    format!("/mqtt/exclusive_topic/{}", cluster_name)
+pub fn storage_key_mqtt_schema_bind_prefix_by_resource(
+    cluster_name: &str,
+    resource_name: &str,
+) -> String {
+    format!("/mqtt/schema_bind/{}/{}", cluster_name, resource_name)
+}
+
+pub fn storage_key_mqtt_schema_bind_prefix_by_cluster(cluster_name: &str) -> String {
+    format!("/mqtt/schema_bind/{}", cluster_name)
 }
 
 pub fn storage_key_mqtt_acl(

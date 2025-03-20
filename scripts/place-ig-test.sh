@@ -14,10 +14,10 @@
 
 
 start_server(){
-    nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-1.toml 2>/tmp/1.log &
+    nohup cargo run --package cmd --bin placement-center -- --conf=example/test-config/place.toml 2>/tmp/1.log &
     sleep 3
 
-    no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep placement-center  | grep test-config | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
         echo "placement-center node 1 started successfully. process no: $no1"
@@ -25,28 +25,32 @@ start_server(){
 }
 
 stop_server(){
-    no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep placement-center  | grep test-config | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
         echo "kill placement center $no1"
         kill $no1
     fi
 }
+
+# Stop Server
+stop_server
+
 # Clean up
 rm -rf ./robust-data-test/placement-center*
- # Start Server
- start_server
 
- # Run Placement integration Test
+# Start Server
+start_server
 
-
+# Run Placement integration Test
 if [ "$1" = "dev" ]; then
 
   cargo nextest run --package grpc-clients --package robustmq-test --test mod -- placement && \
-  cargo nextest run --package robustmq-test --test mod -- place_server
+  cargo nextest run --package robustmq-test --test mod -- place_server && \
+  cargo nextest run --package storage-adapter --lib -- placement
 
- # Stop Server
- stop_server
+  # Stop Server
+  stop_server
 
 else
 

@@ -25,7 +25,11 @@ service KvService {
 
   rpc get(GetRequest) returns(GetReply){}
 
-  rpc exists(ExistsRequest) returns(ExistsReply){} 
+  rpc exists(ExistsRequest) returns(ExistsReply){}
+
+  rpc list_shard(ListShardRequest) returns(ListShardReply){}
+
+  rpc get_prefix(GetPrefixRequest) returns(GetPrefixReply){}
 }
 
 message SetRequest{
@@ -57,4 +61,20 @@ message ExistsRequest{
 
 message ExistsReply{
     bool flag = 1;
+}
+
+message ListShardRequest{
+    string namespace = 1;
+}
+
+message ListShardReply {
+    repeated string shards_info = 1;
+}
+
+message GetPrefixRequest{
+    string prefix = 1;
+}
+
+message GetPrefixReply {
+    repeated string values = 1;
 }

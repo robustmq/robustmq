@@ -20,7 +20,6 @@ use dashmap::DashMap;
 use futures::TryStreamExt;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use opendal::{services::S3, EntryMode, Operator};
-use serde::{Deserialize, Serialize};
 use tokio::{
     select,
     sync::{
@@ -31,7 +30,7 @@ use tokio::{
     time::{sleep, timeout},
 };
 
-use crate::storage::{ShardConfig, ShardOffset, StorageAdapter};
+use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -47,13 +46,6 @@ struct WriteThreadData {
 struct ThreadWriteHandle {
     data_sender: mpsc::Sender<WriteThreadData>,
     stop_sender: broadcast::Sender<bool>,
-}
-
-#[derive(Serialize, Deserialize)]
-struct ShardConfigStore {
-    namespace: String,
-    shard_name: String,
-    shard_config: ShardConfig,
 }
 
 #[allow(dead_code)]
@@ -118,12 +110,8 @@ impl MinIoStorageAdapter {
     }
 
     #[inline(always)]
-    pub fn shard_config_path(namespace: impl AsRef<str>, shard_name: impl AsRef<str>) -> String {
-        format!(
-            "shard_config/{}-{}-config",
-            namespace.as_ref(),
-            shard_name.as_ref()
-        )
+    pub fn shard_info(namespace: impl AsRef<str>, shard_name: impl AsRef<str>) -> String {
+        format!("shard/{}-{}", namespace.as_ref(), shard_name.as_ref())
     }
 
     #[inline(always)]
@@ -356,27 +344,30 @@ impl MinIoStorageAdapter {
 
 #[async_trait]
 impl StorageAdapter for MinIoStorageAdapter {
-    async fn create_shard(
-        &self,
-        namespace: String,
-        shard_name: String,
-        shard_config: ShardConfig,
-    ) -> Result<(), CommonError> {
+    async fn create_shard(&self, shard: ShardInfo) -> Result<(), CommonError> {
         self.op
             .write(
-                &Self::offsets_path(&namespace, &shard_name),
+                &Self::offsets_path(&shard.namespace, &shard.shard_name),
                 serde_json::to_vec(&0)?,
             )
             .await?;
 
         self.op
             .write(
-                &Self::shard_config_path(&namespace, &shard_name),
-                serde_json::to_vec(&shard_config)?,
+                &Self::shard_info(&shard.namespace, &shard.shard_name),
+                serde_json::to_vec(&shard)?,
             )
             .await?;
 
         Ok(())
+    }
+
+    async fn list_shard(
+        &self,
+        _namespace: String,
+        _shard_name: String,
+    ) -> Result<Vec<ShardInfo>, CommonError> {
+        Ok(Vec::new())
     }
 
     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
@@ -593,7 +584,7 @@ impl StorageAdapter for MinIoStorageAdapter {
 mod tests {
     use std::{collections::HashMap, sync::Arc, vec};
 
-    use common_base::tools::unique_id;
+    use common_base::{tools::unique_id, utils::crc::calc_crc32};
     use futures::future;
     use metadata_struct::adapter::{
         read_config::ReadConfig,
@@ -602,7 +593,7 @@ mod tests {
 
     use crate::{
         minio::MinIoStorageAdapter,
-        storage::{ShardConfig, StorageAdapter},
+        storage::{ShardInfo, StorageAdapter},
     };
 
     #[tokio::test]
@@ -614,11 +605,11 @@ mod tests {
 
         // step 1: create shard
         storage_adapter
-            .create_shard(
-                namespace.clone(),
-                shard_name.clone(),
-                ShardConfig::default(),
-            )
+            .create_shard(ShardInfo {
+                namespace: namespace.clone(),
+                shard_name: shard_name.clone(),
+                replica_num: 1,
+            })
             .await
             .unwrap();
 
@@ -832,11 +823,11 @@ mod tests {
         // create shards
         for i in 0..shards.len() {
             storage_adapter
-                .create_shard(
-                    namespace.clone(),
-                    shards.get(i).unwrap().clone(),
-                    ShardConfig::default(),
-                )
+                .create_shard(ShardInfo {
+                    namespace: namespace.clone(),
+                    shard_name: shards.get(i).unwrap().clone(),
+                    replica_num: 1,
+                })
                 .await
                 .unwrap();
         }
@@ -858,13 +849,16 @@ mod tests {
                 let mut batch_data = Vec::new();
 
                 for idx in 0..100 {
+                    let value = format!("data-{}-{}", tid, idx).as_bytes().to_vec();
                     let data = Record {
                         offset: None,
                         header: header.clone(),
                         key: format!("key-{}-{}", tid, idx),
-                        data: format!("data-{}-{}", tid, idx).as_bytes().to_vec(),
+                        data: value.clone(),
                         tags: vec![format!("task-{}", tid)],
                         timestamp: 0,
+                        delay_timestamp: 0,
+                        crc_num: calc_crc32(&value),
                     };
 
                     batch_data.push(data);

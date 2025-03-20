@@ -28,7 +28,10 @@ use crate::storage::journal::shard::ShardStorage;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct JournalCacheManager {
+    //（cluster_name_namespace_shard_name, JournalShard）
     shard_list: DashMap<String, JournalShard>,
+
+    // ()
     segment_list: DashMap<String, DashMap<u32, JournalSegment>>,
     segment_meta_list: DashMap<String, DashMap<u32, JournalSegmentMetadata>>,
     wait_delete_shard_list: DashMap<String, JournalShard>,
@@ -46,6 +49,7 @@ impl JournalCacheManager {
         }
     }
 
+    // Shard
     pub fn get_shard(
         &self,
         cluster_name: &str,

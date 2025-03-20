@@ -16,9 +16,13 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use bridge::core::start_connector_thread;
+use bridge::manager::ConnectorManager;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
 use common_base::tools::now_second;
+use delay_message::{start_build_delay_queue, start_delay_message_pop, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
 use handler::acl::UpdateAclCache;
 use handler::cache::CacheManager;
@@ -30,10 +34,10 @@ use handler::user::{init_system_user, UpdateUserCache};
 use lazy_static::lazy_static;
 use log::{error, info};
 use observability::start_opservability;
+use schema_register::schema::SchemaRegisterManager;
 use security::AuthDriver;
 use server::connection_manager::ConnectionManager;
 use server::grpc::server::GrpcServer;
-use server::http::server::{start_http_server, HttpServerState};
 use server::tcp::server::start_tcp_server;
 use server::websocket::server::{websocket_server, websockets_server, WebSocketServerState};
 use storage::cluster::ClusterStorage;
@@ -41,6 +45,7 @@ use storage_adapter::memory::MemoryStorageAdapter;
 // use storage_adapter::mysql::MySQLStorageAdapter;
 // use storage_adapter::rocksdb::RocksDBStorageAdapter;
 use crate::handler::flapping_detect::UpdateFlappingDetectCache;
+use crate::server::quic::server::start_quic_server;
 use storage_adapter::storage::StorageAdapter;
 use storage_adapter::StorageType;
 use subscribe::exclusive_push::ExclusivePush;
@@ -56,11 +61,12 @@ lazy_static! {
     pub static ref BROKER_START_TIME: u64 = now_second();
 }
 
+pub mod admin;
 pub mod bridge;
 pub mod handler;
 pub mod observability;
 pub mod security;
-mod server;
+pub mod server;
 pub mod storage;
 mod subscribe;
 
@@ -114,7 +120,10 @@ pub struct MqttBroker<S> {
     message_storage_adapter: Arc<S>,
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
+    connector_manager: Arc<ConnectorManager>,
     auth_driver: Arc<AuthDriver>,
+    delay_message_manager: Arc<DelayMessageManager<S>>,
+    schema_manager: Arc<SchemaRegisterManager>,
 }
 
 impl<S> MqttBroker<S>
@@ -133,18 +142,26 @@ where
         );
 
         let subscribe_manager = Arc::new(SubscribeManager::new());
-
+        let connector_manager = Arc::new(ConnectorManager::new());
         let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
-
         let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_pool.clone()));
+        let delay_message_manager = Arc::new(DelayMessageManager::new(
+            conf.cluster_name.clone(),
+            3,
+            message_storage_adapter.clone(),
+        ));
+        let schema_manager = Arc::new(SchemaRegisterManager::new());
         MqttBroker {
             runtime,
             cache_manager,
             client_pool,
             message_storage_adapter,
             subscribe_manager,
+            connector_manager,
             connection_manager,
             auth_driver,
+            delay_message_manager,
+            schema_manager,
         }
     }
 
@@ -156,20 +173,17 @@ where
 
         self.start_push_server(stop_send.clone());
 
-        self.start_http_server();
-
         self.start_grpc_server();
 
         self.start_mqtt_server(stop_send.clone());
+        self.start_quic_server(stop_send.clone());
         self.start_websocket_server(stop_send.clone());
         self.start_keep_alive_thread(stop_send.clone());
-
-        self.start_update_user_cache_thread(stop_send.clone());
-        self.start_update_acl_cache_thread(stop_send.clone());
-        self.start_update_flapping_detect_cache_thread(stop_send.clone());
-
+        self.start_delay_message_thread();
+        self.start_update_cache_thread(stop_send.clone());
         self.start_system_topic_thread(stop_send.clone());
-
+        self.start_prometheus();
+        self.start_connector_thread(stop_send.clone());
         self.awaiting_stop(stop_send);
     }
 
@@ -185,6 +199,8 @@ where
         let client_pool = self.client_pool.clone();
         let connection_manager = self.connection_manager.clone();
         let auth_driver = self.auth_driver.clone();
+        let delay_message_manager = self.delay_message_manager.clone();
+        let schema_manager = self.schema_manager.clone();
 
         self.runtime.spawn(async move {
             start_tcp_server(
@@ -192,9 +208,45 @@ where
                 cache,
                 connection_manager,
                 message_storage_adapter,
+                delay_message_manager,
+                schema_manager,
                 client_pool,
                 stop_send,
                 auth_driver,
+            )
+            .await
+        });
+    }
+
+    fn start_prometheus(&self) {
+        let conf = broker_mqtt_conf();
+        if conf.prometheus.enable {
+            self.runtime.spawn(async move {
+                register_prometheus_export(conf.prometheus.port).await;
+            });
+        }
+    }
+
+    fn start_quic_server(&self, stop_send: broadcast::Sender<bool>) {
+        let cache = self.cache_manager.clone();
+        let message_storage_adapter = self.message_storage_adapter.clone();
+        let subscribe_manager = self.subscribe_manager.clone();
+        let client_pool = self.client_pool.clone();
+        let connection_manager = self.connection_manager.clone();
+        let auth_driver = self.auth_driver.clone();
+        let delay_message_manager = self.delay_message_manager.clone();
+        let schema_manager = self.schema_manager.clone();
+        self.runtime.spawn(async move {
+            start_quic_server(
+                subscribe_manager,
+                cache,
+                connection_manager,
+                message_storage_adapter,
+                delay_message_manager,
+                client_pool,
+                stop_send,
+                auth_driver,
+                schema_manager,
             )
             .await
         });
@@ -205,8 +257,10 @@ where
         let server = GrpcServer::new(
             conf.grpc_port,
             self.cache_manager.clone(),
+            self.connector_manager.clone(),
             self.subscribe_manager.clone(),
             self.connection_manager.clone(),
+            self.schema_manager.clone(),
             self.client_pool.clone(),
             self.message_storage_adapter.clone(),
         );
@@ -220,24 +274,14 @@ where
         });
     }
 
-    fn start_http_server(&self) {
-        let http_state = HttpServerState::new();
-        self.runtime.spawn(async move {
-            match start_http_server(http_state).await {
-                Ok(_) => {}
-                Err(e) => {
-                    panic!("{}", e.to_string());
-                }
-            }
-        });
-    }
-
     fn start_websocket_server(&self, stop_send: broadcast::Sender<bool>) {
         let ws_state = WebSocketServerState::new(
             self.subscribe_manager.clone(),
             self.cache_manager.clone(),
             self.connection_manager.clone(),
             self.message_storage_adapter.clone(),
+            self.delay_message_manager.clone(),
+            self.schema_manager.clone(),
             self.client_pool.clone(),
             self.auth_driver.clone(),
             stop_send.clone(),
@@ -250,6 +294,8 @@ where
             self.cache_manager.clone(),
             self.connection_manager.clone(),
             self.message_storage_adapter.clone(),
+            self.delay_message_manager.clone(),
+            self.schema_manager.clone(),
             self.client_pool.clone(),
             self.auth_driver.clone(),
             stop_send.clone(),
@@ -263,6 +309,14 @@ where
         let client_pool = self.client_pool.clone();
         self.runtime.spawn(async move {
             report_heartbeat(&client_pool, stop_send).await;
+        });
+    }
+
+    fn start_connector_thread(&self, stop_send: broadcast::Sender<bool>) {
+        let message_storage = self.message_storage_adapter.clone();
+        let connector_manager = self.connector_manager.clone();
+        self.runtime.spawn(async move {
+            start_connector_thread(message_storage, connector_manager, stop_send).await;
         });
     }
 
@@ -327,25 +381,52 @@ where
         });
     }
 
-    fn start_update_user_cache_thread(&self, stop_send: broadcast::Sender<bool>) {
-        let update_user_cache = UpdateUserCache::new(stop_send, self.auth_driver.clone());
+    fn start_delay_message_thread(&self) {
+        let delay_message_manager = self.delay_message_manager.clone();
+        let message_storage_adapter = self.message_storage_adapter.clone();
+        self.runtime.spawn(async move {
+            // Initialize the delay message manager
+            if let Err(e) = delay_message_manager.init().await {
+                panic!("{}", e.to_string());
+            }
+
+            // Start the delayed message index building thread
+            let conf = broker_mqtt_conf();
+            let shard_num = 1;
+            start_build_delay_queue(
+                conf.cluster_name.clone(),
+                delay_message_manager.clone(),
+                message_storage_adapter.clone(),
+                shard_num,
+            )
+            .await;
+
+            // Start the delay message pop thread
+            start_delay_message_pop(
+                conf.cluster_name.clone(),
+                message_storage_adapter,
+                delay_message_manager,
+                shard_num,
+            )
+            .await;
+        });
+    }
+
+    fn start_update_cache_thread(&self, stop_send: broadcast::Sender<bool>) {
+        let update_user_cache = UpdateUserCache::new(stop_send.clone(), self.auth_driver.clone());
 
         self.runtime.spawn(async move {
             update_user_cache.start_update().await;
         });
-    }
 
-    fn start_update_acl_cache_thread(&self, stop_send: broadcast::Sender<bool>) {
-        let update_acl_cache = UpdateAclCache::new(stop_send, self.auth_driver.clone());
+        let update_acl_cache = UpdateAclCache::new(stop_send.clone(), self.auth_driver.clone());
 
         self.runtime.spawn(async move {
             update_acl_cache.start_update().await;
         });
-    }
 
-    fn start_update_flapping_detect_cache_thread(&self, stop_send: broadcast::Sender<bool>) {
         let update_flapping_detect_cache =
-            UpdateFlappingDetectCache::new(stop_send, self.cache_manager.clone());
+            UpdateFlappingDetectCache::new(stop_send.clone(), self.cache_manager.clone());
         self.runtime.spawn(async move {
             update_flapping_detect_cache.start_update().await;
         });
@@ -395,7 +476,14 @@ where
     fn register_node(&self) {
         self.runtime.block_on(async move {
             init_system_user(&self.cache_manager, &self.client_pool).await;
-            load_metadata_cache(&self.cache_manager, &self.client_pool, &self.auth_driver).await;
+            load_metadata_cache(
+                &self.cache_manager,
+                &self.client_pool,
+                &self.auth_driver,
+                &self.connector_manager,
+                &self.schema_manager,
+            )
+            .await;
 
             let config = broker_mqtt_conf();
             match register_node(&self.client_pool).await {
@@ -413,6 +501,7 @@ where
         let cluster_storage = ClusterStorage::new(self.client_pool.clone());
         let config = broker_mqtt_conf();
         common_base::telemetry::trace::stop_tracer_provider().await;
+        let _ = self.delay_message_manager.stop().await;
         match cluster_storage.unregister_node(config).await {
             Ok(()) => {
                 info!("Node {} exits successfully", config.broker_id);

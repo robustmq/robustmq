@@ -19,7 +19,6 @@ use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use rocksdb_engine::RocksDBEngine;
-use serde::{Deserialize, Serialize};
 use tokio::{
     select,
     sync::{
@@ -30,7 +29,7 @@ use tokio::{
     time::{sleep, timeout},
 };
 
-use crate::storage::{ShardConfig, ShardOffset, StorageAdapter};
+use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 
 const DB_COLUMN_FAMILY: &str = "db";
 
@@ -54,13 +53,6 @@ struct WriteThreadData {
 struct ThreadWriteHandle {
     data_sender: mpsc::Sender<WriteThreadData>,
     stop_sender: broadcast::Sender<bool>,
-}
-
-#[derive(Serialize, Deserialize)]
-struct ShardConfigStore {
-    namespace: String,
-    shard_name: String,
-    shard_config: ShardConfig,
 }
 
 impl WriteThreadData {
@@ -140,8 +132,8 @@ impl RocksDBStorageAdapter {
     }
 
     #[inline(always)]
-    pub fn shard_config_key<S1: Display>(namespace: &S1, shard: &S1) -> String {
-        format!("/shard_config/{}/{}", namespace, shard)
+    pub fn shard_info<S1: Display>(namespace: &S1, shard: &S1) -> String {
+        format!("/shard/{}/{}", namespace, shard)
     }
 }
 
@@ -319,12 +311,10 @@ impl RocksDBStorageAdapter {
 #[async_trait]
 impl StorageAdapter for RocksDBStorageAdapter {
     /// create a shard by inserting an offset 0
-    async fn create_shard(
-        &self,
-        namespace: String,
-        shard_name: String,
-        shard_config: ShardConfig,
-    ) -> Result<(), CommonError> {
+    async fn create_shard(&self, shard: ShardInfo) -> Result<(), CommonError> {
+        let namespace = shard.namespace.clone();
+        let shard_name = shard.shard_name.clone();
+
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
         let shard_offset_key = Self::shard_offset_key(&namespace, &shard_name);
@@ -344,18 +334,20 @@ impl StorageAdapter for RocksDBStorageAdapter {
         self.db
             .write(cf.clone(), shard_offset_key.as_str(), &0_u64)?;
 
-        let shard_config_store = ShardConfigStore {
-            namespace: namespace.clone(),
-            shard_name: shard_name.clone(),
-            shard_config,
-        };
-
         // store shard config
         self.db.write(
             cf,
-            Self::shard_config_key(&namespace, &shard_name).as_str(),
-            &serde_json::to_vec(&shard_config_store)?,
+            Self::shard_info(&namespace, &shard_name).as_str(),
+            &serde_json::to_vec(&shard)?,
         )
+    }
+
+    async fn list_shard(
+        &self,
+        _namespace: String,
+        _shard_name: String,
+    ) -> Result<Vec<ShardInfo>, CommonError> {
+        Ok(Vec::new())
     }
 
     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
@@ -580,14 +572,14 @@ impl StorageAdapter for RocksDBStorageAdapter {
 mod tests {
     use std::{collections::HashMap, sync::Arc, vec};
 
-    use common_base::tools::unique_id;
+    use common_base::{tools::unique_id, utils::crc::calc_crc32};
     use futures::future;
     use metadata_struct::adapter::{
         read_config::ReadConfig,
         record::{Header, Record},
     };
 
-    use crate::storage::{ShardConfig, StorageAdapter};
+    use crate::storage::{ShardInfo, StorageAdapter};
 
     use super::RocksDBStorageAdapter;
     #[tokio::test]
@@ -600,11 +592,11 @@ mod tests {
 
         // step 1: create shard
         storage_adapter
-            .create_shard(
-                namespace.clone(),
-                shard_name.clone(),
-                ShardConfig::default(),
-            )
+            .create_shard(ShardInfo {
+                namespace: namespace.clone(),
+                shard_name: shard_name.clone(),
+                replica_num: 1,
+            })
             .await
             .unwrap();
 
@@ -822,11 +814,11 @@ mod tests {
         // create shards
         for i in 0..shards.len() {
             storage_adapter
-                .create_shard(
-                    namespace.clone(),
-                    shards.get(i).unwrap().clone(),
-                    ShardConfig::default(),
-                )
+                .create_shard(ShardInfo {
+                    namespace: namespace.clone(),
+                    shard_name: shards.get(i).unwrap().clone(),
+                    replica_num: 1,
+                })
                 .await
                 .unwrap();
         }
@@ -848,13 +840,16 @@ mod tests {
                 let mut batch_data = Vec::new();
 
                 for idx in 0..100 {
+                    let value = format!("data-{}-{}", tid, idx).as_bytes().to_vec();
                     let data = Record {
                         offset: None,
                         header: header.clone(),
                         key: format!("key-{}-{}", tid, idx),
-                        data: format!("data-{}-{}", tid, idx).as_bytes().to_vec(),
+                        data: value.clone(),
                         tags: vec![format!("task-{}", tid)],
                         timestamp: 0,
+                        delay_timestamp: 0,
+                        crc_num: calc_crc32(&value),
                     };
 
                     batch_data.push(data);

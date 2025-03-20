@@ -16,6 +16,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use common_base::tools::now_second;
+use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use log::{error, warn};
 use protocol::mqtt::common::{
@@ -26,6 +27,7 @@ use protocol::mqtt::common::{
     PublishProperties, QoS, Subscribe, SubscribeProperties, SubscribeReasonCode, UnsubAckReason,
     Unsubscribe, UnsubscribeProperties,
 };
+use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
 
 use super::connection::disconnect_connection;
@@ -72,7 +74,9 @@ pub struct MqttService<S> {
     cache_manager: Arc<CacheManager>,
     connection_manager: Arc<ConnectionManager>,
     message_storage_adapter: Arc<S>,
+    delay_message_manager: Arc<DelayMessageManager<S>>,
     subscribe_manager: Arc<SubscribeManager>,
+    schema_manager: Arc<SchemaRegisterManager>,
     client_pool: Arc<ClientPool>,
     auth_driver: Arc<AuthDriver>,
 }
@@ -81,12 +85,15 @@ impl<S> MqttService<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         protocol: MqttProtocol,
         cache_manager: Arc<CacheManager>,
         connection_manager: Arc<ConnectionManager>,
         message_storage_adapter: Arc<S>,
+        delay_message_manager: Arc<DelayMessageManager<S>>,
         subscribe_manager: Arc<SubscribeManager>,
+        schema_manager: Arc<SchemaRegisterManager>,
         client_pool: Arc<ClientPool>,
         auth_driver: Arc<AuthDriver>,
     ) -> Self {
@@ -95,9 +102,11 @@ where
             cache_manager,
             connection_manager,
             message_storage_adapter,
+            delay_message_manager,
             subscribe_manager,
             client_pool,
             auth_driver,
+            schema_manager,
         }
     }
 
@@ -395,6 +404,28 @@ where
             }
         };
 
+        if self.schema_manager.is_check_schema(&topic_name) {
+            if let Err(e) = self.schema_manager.validate(&topic_name, &publish.payload) {
+                if is_puback {
+                    return Some(response_packet_mqtt_puback_fail(
+                        &self.protocol,
+                        &connection,
+                        publish.pkid,
+                        PubAckReason::UnspecifiedError,
+                        Some(e.to_string()),
+                    ));
+                } else {
+                    return Some(response_packet_mqtt_pubrec_fail(
+                        &self.protocol,
+                        &connection,
+                        publish.pkid,
+                        PubRecReason::UnspecifiedError,
+                        Some(e.to_string()),
+                    ));
+                }
+            }
+        }
+
         let client_id = connection.client_id.clone();
 
         // Persisting retain message data
@@ -433,6 +464,7 @@ where
         // Persisting stores message data
         let offset = match save_message(
             &self.message_storage_adapter,
+            &self.delay_message_manager,
             &self.cache_manager,
             &publish,
             &publish_properties,

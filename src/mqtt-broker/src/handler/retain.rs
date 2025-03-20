@@ -147,8 +147,12 @@ async fn send_retain_message(
             return Ok(());
         }
 
-        let is_new_sub = *is_new_subs.get(&filter.path).unwrap();
-        println!("is_new_sub:{}", is_new_sub);
+        let is_new_sub = if let Some(bol) = is_new_subs.get(&filter.path) {
+            bol.to_owned()
+        } else {
+            true
+        };
+
         if filter.retain_forward_rule == RetainForwardRule::OnNewSubscribe && !is_new_sub {
             return Ok(());
         }

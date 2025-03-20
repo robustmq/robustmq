@@ -16,7 +16,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use grpc_clients::pool::ClientPool;
-use log::{debug, error};
+use log::{debug, error, info};
 use protocol::journal_server::codec::JournalEnginePacket;
 use protocol::journal_server::journal_engine::{
     ApiKey, ApiVersion, CreateShardResp, CreateShardRespBody, DeleteShardResp, DeleteShardRespBody,
@@ -100,6 +100,7 @@ impl Command {
 
             /* Shard Handler */
             JournalEnginePacket::CreateShardReq(request) => {
+                info!("recv create shard request: {:?}", request);
                 let mut resp = CreateShardResp::default();
                 let mut header = RespHeader {
                     api_key: ApiKey::CreateShard.into(),
@@ -123,6 +124,7 @@ impl Command {
             }
 
             JournalEnginePacket::DeleteShardReq(request) => {
+                info!("recv delete shard request: {:?}", request);
                 let mut resp = DeleteShardResp::default();
                 let mut header = RespHeader {
                     api_key: ApiKey::DeleteShard.into(),

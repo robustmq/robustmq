@@ -19,6 +19,9 @@ pub const DEFAULT_DYNAMIC_CONFIG_SLOW_SUB: &str = "slow_sub";
 pub const DEFAULT_DYNAMIC_CONFIG_FLAPPING_DETECT: &str = "flapping_detect";
 pub const DEFAULT_DYNAMIC_CONFIG_PROTOCOL: &str = "protocol";
 pub const DEFAULT_DYNAMIC_CONFIG_OFFLINE_MESSAGE: &str = "offline_message";
+pub const DEFAULT_DYNAMIC_CONFIG_FEATURE: &str = "feature";
+pub const DEFAULT_DYNAMIC_CONFIG_SECURITY: &str = "security";
+pub const DEFAULT_DYNAMIC_CONFIG_NETWORK: &str = "network";
 
 // Dynamic configuration of MQTT cluster latitude
 #[derive(Serialize, Deserialize, Default, Clone)]

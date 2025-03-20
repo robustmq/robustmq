@@ -23,7 +23,7 @@ use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 use offset::PlaceOffsetManager;
 
-use crate::storage::{ShardConfig, ShardOffset, StorageAdapter};
+use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 
 pub mod offset;
 
@@ -56,20 +56,23 @@ impl JournalStorageAdapter {
 
 #[async_trait]
 impl StorageAdapter for JournalStorageAdapter {
-    async fn create_shard(
-        &self,
-        namespace: String,
-        shard_name: String,
-        shard_config: ShardConfig,
-    ) -> Result<(), CommonError> {
+    async fn create_shard(&self, shard: ShardInfo) -> Result<(), CommonError> {
         if let Err(e) = self
             .client
-            .create_shard(&namespace, &shard_name, shard_config.replica_num)
+            .create_shard(&shard.namespace, &shard.shard_name, shard.replica_num)
             .await
         {
             return Err(CommonError::CommonError(e.to_string()));
         }
         return Ok(());
+    }
+
+    async fn list_shard(
+        &self,
+        _namespace: String,
+        _shard_name: String,
+    ) -> Result<Vec<ShardInfo>, CommonError> {
+        Ok(Vec::new())
     }
 
     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {

@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::broker_mqtt::{Network, OfflineMessage, System, TcpThread};
+use super::broker_mqtt::{
+    ConfigAvailableFlag, MqttClusterDynamicConfigFeature, MqttClusterDynamicConfigNetwork,
+    MqttClusterDynamicConfigProtocol, MqttClusterDynamicConfigSecurity,
+    MqttClusterDynamicFlappingDetect, MqttClusterDynamicSlowSub, Network, OfflineMessage, System,
+    TcpThread,
+};
 use super::common::{Auth, Log, Storage, Telemetry};
 
 pub fn default_grpc_port() -> u32 {
     9981
-}
-
-pub fn default_http_port() -> usize {
-    9982
 }
 
 pub fn default_placement_center() -> Vec<String> {
@@ -113,5 +114,65 @@ pub fn default_telemetry() -> Telemetry {
         enable: false,
         exporter_endpoint: "grpc://127.0.0.1:4317".to_string(),
         exporter_type: "otlp".to_string(),
+    }
+}
+
+pub fn default_mqtt_cluster_dynamic_feature() -> MqttClusterDynamicConfigFeature {
+    MqttClusterDynamicConfigFeature {
+        retain_available: ConfigAvailableFlag::Enable,
+        wildcard_subscription_available: ConfigAvailableFlag::Enable,
+        subscription_identifiers_available: ConfigAvailableFlag::Enable,
+        shared_subscription_available: ConfigAvailableFlag::Enable,
+        exclusive_subscription_available: ConfigAvailableFlag::Enable,
+    }
+}
+
+pub fn default_mqtt_cluster_dynamic_security() -> MqttClusterDynamicConfigSecurity {
+    MqttClusterDynamicConfigSecurity {
+        secret_free_login: false,
+        is_self_protection_status: false,
+    }
+}
+
+pub fn default_mqtt_cluster_dynamic_protocol() -> MqttClusterDynamicConfigProtocol {
+    MqttClusterDynamicConfigProtocol {
+        session_expiry_interval: 1800,
+        topic_alias_max: 65535,
+        max_qos: 2,
+        max_packet_size: 1024 * 1024 * 10,
+        max_server_keep_alive: 3600,
+        default_server_keep_alive: 60,
+        receive_max: 65535,
+        client_pkid_persistent: false,
+        max_message_expiry_interval: 3600,
+    }
+}
+
+pub fn default_mqtt_cluster_dynamic_slow_sub() -> MqttClusterDynamicSlowSub {
+    MqttClusterDynamicSlowSub {
+        enable: false,
+        whole_ms: 0,
+        internal_ms: 0,
+        response_ms: 0,
+    }
+}
+
+pub fn default_mqtt_cluster_dynamic_flapping_detect() -> MqttClusterDynamicFlappingDetect {
+    MqttClusterDynamicFlappingDetect {
+        enable: false,
+        window_time: 1,
+        max_client_connections: 15,
+        ban_time: 5,
+    }
+}
+
+pub fn default_mqtt_cluster_dynamic_network() -> MqttClusterDynamicConfigNetwork {
+    MqttClusterDynamicConfigNetwork {
+        tcp_max_connection_num: 1000,
+        tcps_max_connection_num: 1000,
+        websocket_max_connection_num: 1000,
+        websockets_max_connection_num: 1000,
+        response_max_try_mut_times: 128,
+        response_try_mut_sleep_time_ms: 100,
     }
 }

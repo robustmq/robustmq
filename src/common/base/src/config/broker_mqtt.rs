@@ -12,33 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
- * Copyright (c) 2023 RobustMQ Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
 
-use super::common::{override_default_by_env, Auth, Log, Storage, Telemetry};
+use super::common::{
+    default_prometheus, override_default_by_env, Auth, Log, Prometheus, Storage, Telemetry,
+};
 use super::default_mqtt::{
-    default_auth, default_grpc_port, default_http_port, default_log, default_network,
-    default_network_quic_port, default_network_tcp_port, default_network_tcps_port,
-    default_network_websocket_port, default_network_websockets_port, default_offline_message,
-    default_placement_center, default_storage, default_system, default_tcp_thread,
-    default_telemetry,
+    default_auth, default_grpc_port, default_log, default_mqtt_cluster_dynamic_feature,
+    default_mqtt_cluster_dynamic_flapping_detect, default_mqtt_cluster_dynamic_network,
+    default_mqtt_cluster_dynamic_protocol, default_mqtt_cluster_dynamic_security,
+    default_mqtt_cluster_dynamic_slow_sub, default_network, default_network_quic_port,
+    default_network_tcp_port, default_network_tcps_port, default_network_websocket_port,
+    default_network_websockets_port, default_offline_message, default_placement_center,
+    default_storage, default_system, default_tcp_thread, default_telemetry,
 };
 use crate::tools::{read_file, try_create_fold};
 
@@ -48,8 +36,6 @@ pub struct BrokerMqttConfig {
     pub broker_id: u64,
     #[serde(default = "default_grpc_port")]
     pub grpc_port: u32,
-    #[serde(default = "default_http_port")]
-    pub http_port: usize,
     #[serde(default = "default_placement_center")]
     pub placement_center: Vec<String>,
     #[serde(default = "default_network")]
@@ -68,6 +54,114 @@ pub struct BrokerMqttConfig {
     pub offline_messages: OfflineMessage,
     #[serde(default = "default_telemetry")]
     pub telemetry: Telemetry,
+    #[serde(default = "default_prometheus")]
+    pub prometheus: Prometheus,
+
+    #[serde(default = "default_mqtt_cluster_dynamic_slow_sub")]
+    pub cluster_dynamic_config_slow_sub: MqttClusterDynamicSlowSub,
+    #[serde(default = "default_mqtt_cluster_dynamic_flapping_detect")]
+    pub cluster_dynamic_config_flapping_detect: MqttClusterDynamicFlappingDetect,
+    #[serde(default = "default_mqtt_cluster_dynamic_protocol")]
+    pub cluster_dynamic_config_protocol: MqttClusterDynamicConfigProtocol,
+    #[serde(default = "default_mqtt_cluster_dynamic_feature")]
+    pub cluster_dynamic_config_feature: MqttClusterDynamicConfigFeature,
+    #[serde(default = "default_mqtt_cluster_dynamic_security")]
+    pub cluster_dynamic_config_security: MqttClusterDynamicConfigSecurity,
+    #[serde(default = "default_mqtt_cluster_dynamic_network")]
+    pub cluster_dynamic_config_network: MqttClusterDynamicConfigNetwork,
+}
+
+// MQTT cluster protocol related dynamic configuration
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct MqttClusterDynamicConfigProtocol {
+    pub session_expiry_interval: u32,
+    pub topic_alias_max: u16,
+    pub max_qos: u8,
+    pub max_packet_size: u32,
+    pub max_server_keep_alive: u16,
+    pub default_server_keep_alive: u16,
+    pub receive_max: u16,
+    pub max_message_expiry_interval: u64,
+    pub client_pkid_persistent: bool,
+}
+
+impl MqttClusterDynamicConfigProtocol {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
+    }
+}
+
+// MQTT cluster security related dynamic configuration
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct MqttClusterDynamicConfigSecurity {
+    pub is_self_protection_status: bool,
+    pub secret_free_login: bool,
+}
+
+impl MqttClusterDynamicConfigSecurity {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
+    }
+}
+
+// MQTT cluster network related dynamic configuration
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct MqttClusterDynamicConfigNetwork {
+    pub tcp_max_connection_num: u64,
+    pub tcps_max_connection_num: u64,
+    pub websocket_max_connection_num: u64,
+    pub websockets_max_connection_num: u64,
+    pub response_max_try_mut_times: u64,
+    pub response_try_mut_sleep_time_ms: u64,
+}
+
+// MQTT cluster Feature related dynamic configuration
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct MqttClusterDynamicConfigFeature {
+    pub retain_available: ConfigAvailableFlag,
+    pub wildcard_subscription_available: ConfigAvailableFlag,
+    pub subscription_identifiers_available: ConfigAvailableFlag,
+    pub shared_subscription_available: ConfigAvailableFlag,
+    pub exclusive_subscription_available: ConfigAvailableFlag,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct MqttClusterDynamicSlowSub {
+    pub enable: bool,
+    pub whole_ms: u64,
+    pub internal_ms: u32,
+    pub response_ms: u32,
+}
+impl MqttClusterDynamicSlowSub {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct MqttClusterDynamicFlappingDetect {
+    pub enable: bool,
+    pub window_time: u32,
+    pub max_client_connections: u64,
+    pub ban_time: u32,
+}
+
+impl MqttClusterDynamicFlappingDetect {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct MqttClusterDynamicOfflineMessage {
+    pub enable: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Default, Clone)]
+pub enum ConfigAvailableFlag {
+    #[default]
+    Disable,
+    Enable,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
@@ -198,7 +292,6 @@ mod tests {
         assert_eq!(config.cluster_name, "mqtt-broker".to_string());
         assert_eq!(config.placement_center.len(), 1);
         assert_eq!(config.grpc_port, 9981);
-        assert_eq!(config.http_port, 9982);
 
         assert_eq!(config.network.tcp_port, 1883);
         assert_eq!(config.network.tcps_port, 8883);
@@ -249,7 +342,6 @@ mod tests {
             "[\"127.0.0.1:1228\",\"127.0.0.1:1228\",\"127.0.0.1:1228\"]",
         );
         std::env::set_var("MQTT_SERVER_GRPC_PORT", "99810");
-        std::env::set_var("MQTT_SERVER_HTTP_PORT", "99820");
         std::env::set_var("MQTT_SERVER_NETWORK_TCP_PORT", "18830");
         std::env::set_var("MQTT_SERVER_NETWORK_TCPS_PORT", "88830");
         std::env::set_var("MQTT_SERVER_NETWORK_WEBSOCKET_PORT", "80930");
@@ -300,7 +392,6 @@ mod tests {
         assert_eq!(config.cluster_name, "mqtt-broker-env".to_string());
         assert_eq!(config.placement_center.len(), 3);
         assert_eq!(config.grpc_port, 99810);
-        assert_eq!(config.http_port, 99820);
 
         assert_eq!(config.network.tcp_port, 18830);
         assert_eq!(config.network.tcps_port, 88830);
@@ -355,7 +446,6 @@ mod tests {
         assert_eq!(config.cluster_name, "mqtt-broker".to_string());
         assert_eq!(config.placement_center.len(), 1);
         assert_eq!(config.grpc_port, 9981);
-        assert_eq!(config.http_port, 9982);
 
         assert_eq!(config.network.tcp_port, 1883);
         assert_eq!(config.network.tcps_port, 8883);

@@ -59,7 +59,7 @@ impl SegmentMetadataStorage {
             key_segment_metadata(cluster_name, namespace, shard_name, segment_seq);
 
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), shard_key)? {
-            return Ok(Some(serde_json::from_slice::<JournalSegmentMetadata>(
+            return Ok(Some(serde_json::from_str::<JournalSegmentMetadata>(
                 &data.data,
             )?));
         }
@@ -72,7 +72,7 @@ impl SegmentMetadataStorage {
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_slice::<JournalSegmentMetadata>(&raw.data)?);
+            results.push(serde_json::from_str::<JournalSegmentMetadata>(&raw.data)?);
         }
         Ok(results)
     }
@@ -85,7 +85,7 @@ impl SegmentMetadataStorage {
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_slice::<JournalSegmentMetadata>(&raw.data)?);
+            results.push(serde_json::from_str::<JournalSegmentMetadata>(&raw.data)?);
         }
         Ok(results)
     }
@@ -99,7 +99,7 @@ impl SegmentMetadataStorage {
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_slice::<JournalSegmentMetadata>(&raw.data)?);
+            results.push(serde_json::from_str::<JournalSegmentMetadata>(&raw.data)?);
         }
         Ok(results)
     }
@@ -114,7 +114,7 @@ impl SegmentMetadataStorage {
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            results.push(serde_json::from_slice::<JournalSegmentMetadata>(&raw.data)?);
+            results.push(serde_json::from_str::<JournalSegmentMetadata>(&raw.data)?);
         }
         Ok(results)
     }
