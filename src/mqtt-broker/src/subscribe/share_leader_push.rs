@@ -26,8 +26,8 @@ use tokio::sync::broadcast::{self, Sender};
 use tokio::time::sleep;
 
 use super::sub_common::{
-    loop_commit_offset, min_qos, publish_message_qos0, publish_message_to_client,
-    qos2_send_publish, qos2_send_pubrel, wait_packet_ack,
+    loop_commit_offset, min_qos, publish_message_qos, publish_message_to_client, qos2_send_pubrel,
+    wait_packet_ack,
 };
 use super::subscribe_manager::{ShareLeaderSubscribeData, SubscribeManager};
 use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
@@ -348,7 +348,7 @@ where
 {
     match sub_pub_param.publish.qos {
         QoS::AtMostOnce => {
-            publish_message_qos0(cache_manager, connection_manager, &sub_pub_param, stop_sx).await;
+            publish_message_qos(cache_manager, connection_manager, &sub_pub_param, stop_sx).await;
             true
         }
 
@@ -560,7 +560,7 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     // 1. send Publish to Client
-    qos2_send_publish(connection_manager, cache_manager, sub_pub_param, stop_sx).await?;
+    publish_message_qos(cache_manager, connection_manager, sub_pub_param, stop_sx).await;
 
     // 2. wait pub rec
     loop {

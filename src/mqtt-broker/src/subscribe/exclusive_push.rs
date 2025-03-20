@@ -20,23 +20,22 @@ use common_base::tools::now_second;
 use log::{debug, error, info};
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
-use protocol::mqtt::common::{MqttPacket, MqttProtocol, Publish, PublishProperties, QoS};
+use protocol::mqtt::common::{Publish, PublishProperties, QoS};
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
 
 use super::sub_common::{
-    loop_commit_offset, min_qos, publish_message_qos0, publish_message_to_client,
-    qos2_send_publish, qos2_send_pubrel, wait_packet_ack,
+    loop_commit_offset, min_qos, publish_message_qos, qos2_send_pubrel, wait_pub_ack,
+    wait_pub_comp, wait_pub_rec,
 };
 use super::subscribe_manager::SubscribeManager;
 use super::subscriber::Subscriber;
-use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
+use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPacketInfo};
 use crate::handler::error::MqttBrokerError;
 use crate::handler::message::is_message_expire;
 use crate::server::connection_manager::ConnectionManager;
-use crate::server::packet::ResponsePackage;
 use crate::storage::message::MessageStorage;
 use crate::subscribe::subscriber::SubPublishParam;
 
@@ -235,7 +234,7 @@ where
         let pkid = sub_pub_param.pkid;
         match qos {
             QoS::AtMostOnce => {
-                publish_message_qos0(
+                publish_message_qos(
                     cache_manager,
                     connection_manager,
                     &sub_pub_param,
@@ -262,7 +261,7 @@ where
                     sub_thread_stop_sx,
                     &wait_puback_sx,
                 )
-                .await?;
+                .await;
 
                 cache_manager.remove_pkid_info(&client_id, pkid);
                 cache_manager.remove_ack_packet(&client_id, pkid);
@@ -286,7 +285,7 @@ where
                     sub_thread_stop_sx,
                     &wait_ack_sx,
                 )
-                .await?;
+                .await;
 
                 cache_manager.remove_pkid_info(&client_id, pkid);
                 cache_manager.remove_ack_packet(&client_id, pkid);
@@ -378,72 +377,19 @@ pub async fn exclusive_publish_message_qos1(
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
     wait_puback_sx: &broadcast::Sender<QosAckPackageData>,
-) -> Result<(), MqttBrokerError> {
-    let mut retry_times = 0;
-    let mut publish = sub_pub_param.publish.clone();
-    loop {
-        if let Ok(flag) = stop_sx.subscribe().try_recv() {
-            if flag {
-                return Ok(());
-            }
-        }
+) {
+    // 1. send Publish to Client
+    publish_message_qos(metadata_cache, connection_manager, sub_pub_param, stop_sx).await;
 
-        let connect_id =
-            if let Some(id) = metadata_cache.get_connect_id(&sub_pub_param.subscribe.client_id) {
-                id
-            } else {
-                sleep(Duration::from_secs(1)).await;
-                continue;
-            };
-
-        if let Some(conn) = metadata_cache.get_connection(connect_id) {
-            if publish.payload.len() > (conn.max_packet_size as usize) {
-                return Ok(());
-            }
-        }
-
-        retry_times += 1;
-        publish.dup = retry_times >= 2;
-
-        let mut contain_properties = false;
-        if let Some(protocol) = connection_manager.get_connect_protocol(connect_id) {
-            if MqttProtocol::is_mqtt5(&protocol) {
-                contain_properties = true;
-            }
-        }
-
-        let resp = if contain_properties {
-            ResponsePackage {
-                connection_id: connect_id,
-                packet: MqttPacket::Publish(publish.clone(), sub_pub_param.properties.clone()),
-            }
-        } else {
-            ResponsePackage {
-                connection_id: connect_id,
-                packet: MqttPacket::Publish(publish.clone(), None),
-            }
-        };
-
-        match publish_message_to_client(resp, sub_pub_param, connection_manager, metadata_cache)
-            .await
-        {
-            Ok(_) => {
-                if let Some(data) = wait_packet_ack(wait_puback_sx).await {
-                    if data.ack_type == QosAckPackageType::PubAck && data.pkid == sub_pub_param.pkid
-                    {
-                        return Ok(());
-                    }
-                }
-            }
-            Err(e) => {
-                error!(
-                    "Failed to write QOS1 Publish message to response queue, failure message: {}",
-                    e
-                );
-                sleep(Duration::from_secs(1)).await;
-            }
-        }
-    }
+    // 2. wait PubAck ack
+    wait_pub_ack(
+        metadata_cache,
+        connection_manager,
+        sub_pub_param,
+        stop_sx,
+        wait_puback_sx,
+    )
+    .await;
 }
 
 // send publish message
@@ -456,47 +402,32 @@ pub async fn exclusive_publish_message_qos2(
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
     wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
-) -> Result<(), MqttBrokerError> {
+) {
     // 1. send Publish to Client
-    qos2_send_publish(connection_manager, metadata_cache, sub_pub_param, stop_sx).await?;
+    publish_message_qos(metadata_cache, connection_manager, sub_pub_param, stop_sx).await;
 
     // 2. wait PubRec ack
-    loop {
-        if let Ok(flag) = stop_sx.subscribe().try_recv() {
-            if flag {
-                return Ok(());
-            }
-        }
-        if let Some(data) = wait_packet_ack(wait_ack_sx).await {
-            if data.ack_type == QosAckPackageType::PubRec && data.pkid == sub_pub_param.pkid {
-                break;
-            }
-        } else {
-            qos2_send_publish(connection_manager, metadata_cache, sub_pub_param, stop_sx).await?;
-        }
-        sleep(Duration::from_millis(1)).await;
-    }
+    wait_pub_rec(
+        metadata_cache,
+        connection_manager,
+        sub_pub_param,
+        stop_sx,
+        wait_ack_sx,
+    )
+    .await;
 
     // 3. send PubRel to Client
     qos2_send_pubrel(metadata_cache, sub_pub_param, connection_manager, stop_sx).await;
 
-    // 4. wait pub comp
-    loop {
-        if let Ok(flag) = stop_sx.subscribe().try_recv() {
-            if flag {
-                break;
-            }
-        }
-        if let Some(data) = wait_packet_ack(wait_ack_sx).await {
-            if data.ack_type == QosAckPackageType::PubComp && data.pkid == sub_pub_param.pkid {
-                break;
-            }
-        } else {
-            qos2_send_pubrel(metadata_cache, sub_pub_param, connection_manager, stop_sx).await;
-        }
-        sleep(Duration::from_millis(1)).await;
-    }
-    Ok(())
+    // 4. wait PubComp ack
+    wait_pub_comp(
+        metadata_cache,
+        connection_manager,
+        sub_pub_param,
+        stop_sx,
+        wait_ack_sx,
+    )
+    .await;
 }
 
 fn build_group_name(subscriber: &Subscriber) -> String {

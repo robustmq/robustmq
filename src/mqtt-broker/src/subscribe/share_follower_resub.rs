@@ -36,8 +36,8 @@ use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
 
 use super::sub_common::{
-    get_share_sub_leader, publish_message_qos0, publish_message_to_client, qos2_send_publish,
-    qos2_send_pubrel, wait_packet_ack,
+    get_share_sub_leader, publish_message_qos, publish_message_to_client, qos2_send_pubrel,
+    wait_packet_ack,
 };
 use super::subscribe_manager::SubscribeManager;
 use super::subscriber::SubPublishParam;
@@ -358,7 +358,7 @@ async fn process_packet(
                     // 1. leader publish to resub thread
                     protocol::mqtt::common::QoS::AtMostOnce => {
                         publish.dup = false;
-                        publish_message_qos0(
+                        publish_message_qos(
                             &cache_manager,
                             &connection_manager,
                             &sub_pub_param,
@@ -610,7 +610,7 @@ pub async fn resub_publish_message_qos2(
     let current_message_pkid = sub_pub_param.publish.pkid;
 
     // 2. Send publish message to mqtt client
-    qos2_send_publish(connection_manager, metadata_cache, sub_pub_param, stop_sx).await?;
+    publish_message_qos(metadata_cache, connection_manager, sub_pub_param, stop_sx).await;
 
     let mut stop_rx = stop_sx.subscribe();
     loop {
