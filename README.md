@@ -9,7 +9,11 @@
   <img alt="License" src="https://img.shields.io/github/license/robustmq/robustmq?style=flat">
   <img alt="GitHub issues" src="https://img.shields.io/github/issues/robustmq/robustmq?style=flat">
   <img alt="GitHub stars" src="https://img.shields.io/github/stars/robustmq/robustmq?style=flat">
+  <a href="https://codecov.io/gh/robustmq/robustmq" > 
+  <img src="https://codecov.io/gh/robustmq/robustmq/graph/badge.svg?token=MRFFAX9QZO"/> 
+ </a>
 </p>
+
 
 <h3 align="center">
     Next generation cloud-native converged message queue.
