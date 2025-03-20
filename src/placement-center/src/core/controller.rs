@@ -13,11 +13,13 @@
 // limitations under the License.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use common_base::config::placement_center::placement_center_conf;
 use grpc_clients::pool::ClientPool;
 use tokio::select;
 use tokio::sync::broadcast;
+use tokio::time::sleep;
 
 use super::heartbeat::BrokerHeartbeat;
 use crate::core::cache::PlacementCacheManager;
@@ -59,7 +61,6 @@ impl ClusterController {
         let config = placement_center_conf();
         let mut heartbeat = BrokerHeartbeat::new(
             config.heartbeat.heartbeat_timeout_ms,
-            config.heartbeat.heartbeat_check_time_ms,
             self.cluster_cache.clone(),
             self.placement_center_storage.clone(),
             self.client_pool.clone(),
@@ -75,7 +76,9 @@ impl ClusterController {
                         }
                     }
                 }
-                _ = heartbeat.start()=>{}
+                _ = heartbeat.start()=>{
+                    sleep(Duration::from_millis(config.heartbeat.heartbeat_check_time_ms)).await;
+                }
             }
         }
     }

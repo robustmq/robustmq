@@ -29,6 +29,7 @@ struct ArgsParams {
 }
 
 fn main() {
+    console_subscriber::init();
     let args = ArgsParams::parse();
     init_broker_mqtt_conf_by_path(&args.conf);
     init_broker_mqtt_log();

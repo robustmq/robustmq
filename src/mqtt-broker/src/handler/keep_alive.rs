@@ -59,17 +59,18 @@ impl ClientKeepAlive {
         loop {
             let mut stop_rx = self.stop_send.subscribe();
             select! {
-                val = stop_rx.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
-                            info!("{}","Heartbeat check thread stopped successfully.");
-                            break;
+                    val = stop_rx.recv() =>{
+                        if let Ok(flag) = val {
+                            if flag {
+                                info!("{}","Heartbeat check thread stopped successfully.");
+                                break;
+                            }
                         }
                     }
+                    _ = self.keep_alive()=>{
+            sleep(Duration::from_secs(1)).await;
+                    }
                 }
-                _ = self.keep_alive()=>{
-                }
-            }
         }
     }
 
@@ -177,7 +178,6 @@ impl ClientKeepAlive {
                 self.cache_manager.heartbeat_data.remove(&client_id);
             }
         }
-        sleep(Duration::from_secs(1)).await;
     }
 
     async fn get_expire_connection(&self) -> Vec<u64> {
