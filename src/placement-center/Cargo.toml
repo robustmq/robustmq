@@ -44,3 +44,4 @@ tower.workspace = true
 futures.workspace = true
 prometheus-client.workspace = true
 prost-validate = { workspace = true, features = ["derive"] }
+tempfile.workspace = true
