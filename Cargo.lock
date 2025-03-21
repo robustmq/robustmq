@@ -3341,7 +3341,7 @@ dependencies = [
  "rocksdb-engine",
  "serde",
  "serde_json",
-    "tempfile",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tonic",
