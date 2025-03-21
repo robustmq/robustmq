@@ -69,3 +69,56 @@ impl NodeStorage {
         Ok(results)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use protocol::placement_center::placement_center_inner::ClusterType;
+    use tempfile::tempdir;
+
+    fn setup_kv_storage() -> NodeStorage {
+        let temp_dir = tempdir().unwrap();
+        let engine = RocksDBEngine::new(
+            temp_dir.path().to_str().unwrap(),
+            100,
+            vec!["cluster".to_string()],
+        );
+        NodeStorage::new(Arc::new(engine))
+    }
+
+    fn get_test_node() -> BrokerNode {
+        let node = BrokerNode {
+            cluster_name: "test_cluster".to_string(),
+            node_id: 1,
+            node_ip: "127.0.0.1".to_string(),
+            cluster_type: ClusterType::PlacementCenter.as_str_name().to_string(),
+            ..Default::default()
+        };
+        node
+    }
+
+    #[test]
+    fn test_save_and_get() {
+        let kv = setup_kv_storage();
+        let node = get_test_node();
+        kv.save(&node).unwrap();
+        let test_node = kv.get("test_cluster", 1).unwrap().unwrap();
+        assert_eq!(test_node.cluster_name, node.cluster_name);
+    }
+
+    #[test]
+    fn test_delete_existing() {
+        let kv = setup_kv_storage();
+        let node = get_test_node();
+        kv.save(&node).unwrap();
+        kv.delete("test_cluster", 1).unwrap();
+        let option = kv.get("test_cluster", 1).unwrap();
+        assert!(option.is_none());
+    }
+
+    #[test]
+    fn test_delete_non_existent() {
+        let kv = setup_kv_storage();
+        kv.delete("test_cluster", 1).unwrap();
+    }
+}
