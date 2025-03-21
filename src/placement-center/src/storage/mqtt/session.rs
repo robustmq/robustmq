@@ -69,7 +69,7 @@ impl MqttSessionStorage {
     ) -> Result<Option<MqttSession>, CommonError> {
         let key: String = storage_key_mqtt_session(cluster_name, client_id);
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
-            return Ok(Some(serde_json::from_slice::<MqttSession>(&data.data)?));
+            return Ok(Some(serde_json::from_str::<MqttSession>(&data.data)?));
         }
         Ok(None)
     }
@@ -92,7 +92,7 @@ mod tests {
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     #[tokio::test]
-    async fn topic_storage_test() {
+    async fn session_storage_test() {
         let config = placement_center_test_conf();
         let rs = Arc::new(RocksDBEngine::new(
             &config.rocksdb.data_path,

@@ -17,6 +17,7 @@ use std::sync::Arc;
 use common_base::utils::time_util::get_current_millisecond_timestamp;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
@@ -24,12 +25,14 @@ use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use prost::Message as _;
+use protocol::mqtt::common::{qos, retain_forward_rule, Error, QoS, RetainForwardRule};
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclRequest, CreateBlacklistRequest, CreateConnectorRequest, CreateSessionRequest,
     CreateTopicRequest, CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
-    DeleteBlacklistRequest, DeleteConnectorRequest, DeleteSessionRequest, DeleteSubscribeRequest,
-    DeleteTopicRequest, DeleteTopicRewriteRuleRequest, DeleteUserRequest,
-    SaveLastWillMessageRequest, SetSubscribeRequest, UpdateSessionRequest,
+    DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteConnectorRequest,
+    DeleteSessionRequest, DeleteSubscribeRequest, DeleteTopicRequest,
+    DeleteTopicRewriteRuleRequest, DeleteUserRequest, SaveLastWillMessageRequest,
+    SetAutoSubscribeRuleRequest, SetSubscribeRequest, UpdateSessionRequest,
 };
 
 use crate::core::error::PlacementCenterError;
@@ -112,7 +115,7 @@ impl DataRouteMqtt {
     pub fn create_session(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let req = CreateSessionRequest::decode(value.as_ref())?;
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
-        let session = serde_json::from_slice::<MqttSession>(&req.session)?;
+        let session = serde_json::from_str::<MqttSession>(&req.session)?;
         storage.save(&req.cluster_name, &req.client_id, session)?;
         Ok(())
     }
@@ -253,5 +256,48 @@ impl DataRouteMqtt {
         let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
         blacklist_storage.delete(&req.cluster_name, &req.blacklist_type, &req.resource_name)?;
         Ok(())
+    }
+
+    // AutoSubscribeRule
+    pub fn set_auto_subscribe_rule(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+        let req = SetAutoSubscribeRuleRequest::decode(value.as_ref())?;
+        let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
+        let mut _qos: Option<QoS> = None;
+        if req.qos <= u8::MAX as u32 {
+            _qos = qos(req.qos as u8);
+        } else {
+            return Err(PlacementCenterError::CommonError(
+                Error::InvalidRemainingLength(req.qos as usize).to_string(),
+            ));
+        };
+
+        let mut _retained_handling: Option<RetainForwardRule> = None;
+        if req.retained_handling <= u8::MAX as u32 {
+            _retained_handling = retain_forward_rule(req.retained_handling as u8);
+        } else {
+            return Err(PlacementCenterError::CommonError(
+                Error::InvalidRemainingLength(req.retained_handling as usize).to_string(),
+            ));
+        };
+
+        let auto_subscribe_rule: MqttAutoSubscribeRule = MqttAutoSubscribeRule {
+            cluster: req.cluster_name.clone(),
+            topic: req.topic.clone(),
+            qos: _qos.ok_or(PlacementCenterError::CommonError(
+                Error::InvalidQoS(req.qos as u8).to_string(),
+            ))?,
+            no_local: req.no_local,
+            retain_as_published: req.retain_as_published,
+            retained_handling: _retained_handling.ok_or(PlacementCenterError::CommonError(
+                Error::InvalidRetainForwardRule(req.retained_handling as u8).to_string(),
+            ))?,
+        };
+        storage.save_auto_subscribe_rule(&req.cluster_name, &req.topic, auto_subscribe_rule)
+    }
+
+    pub fn delete_auto_subscribe_rule(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+        let req = DeleteAutoSubscribeRuleRequest::decode(value.as_ref())?;
+        let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
+        storage.delete_auto_subscribe_rule(&req.cluster_name, &req.topic)
     }
 }

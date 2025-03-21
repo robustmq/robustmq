@@ -17,19 +17,21 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
     CreateBlacklistReply, CreateBlacklistRequest, CreateTopicRewriteRuleReply,
     CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
-    DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
+    DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
+    DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
     DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
     EnableFlappingDetectRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
-    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
-    ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
-    ListTopicRequest, ListUserReply, ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest,
+    ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
+    ListBlacklistReply, ListBlacklistRequest, ListConnectionReply, ListConnectionRequest,
+    ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest,
+    ListUserReply, ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest,
     MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttCreateSchemaReply,
     MqttCreateSchemaRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
     MqttDeleteSchemaReply, MqttDeleteSchemaRequest, MqttListBindSchemaReply,
     MqttListBindSchemaRequest, MqttListConnectorReply, MqttListConnectorRequest,
     MqttListSchemaReply, MqttListSchemaRequest, MqttUnbindSchemaReply, MqttUnbindSchemaRequest,
     MqttUpdateConnectorReply, MqttUpdateConnectorRequest, MqttUpdateSchemaReply,
-    MqttUpdateSchemaRequest,
+    MqttUpdateSchemaRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
 };
 
 use crate::pool::ClientPool;
@@ -243,4 +245,25 @@ generate_mqtt_admin_service_call!(
     MqttUnbindSchemaRequest,
     MqttUnbindSchemaReply,
     MqttUnbindSchema
+);
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_set_auto_subscribe_rule,
+    SetAutoSubscribeRuleRequest,
+    SetAutoSubscribeRuleReply,
+    SetAutoSubscribeRule
+);
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_delete_auto_subscribe_rule,
+    DeleteAutoSubscribeRuleRequest,
+    DeleteAutoSubscribeRuleReply,
+    DeleteAutoSubscribeRule
+);
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_list_auto_subscribe_rule,
+    ListAutoSubscribeRuleRequest,
+    ListAutoSubscribeRuleReply,
+    ListAutoSubscribeRule
 );

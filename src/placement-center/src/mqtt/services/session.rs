@@ -12,17 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::session::MqttSession;
-use prost::Message;
-use protocol::placement_center::placement_center_mqtt::{
-    CreateSessionReply, CreateSessionRequest, DeleteSessionReply, DeleteSessionRequest,
-    ListSessionReply, ListSessionRequest, UpdateSessionReply, UpdateSessionRequest,
-};
-use rocksdb_engine::RocksDBEngine;
-use std::sync::Arc;
-use tonic::{Request, Response, Status};
-
 use crate::{
     mqtt::controller::call_broker::{
         update_cache_by_add_session, update_cache_by_delete_session, MQTTInnerCallManager,
@@ -33,6 +22,16 @@ use crate::{
     },
     storage::mqtt::session::MqttSessionStorage,
 };
+use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::session::MqttSession;
+use prost::Message;
+use protocol::placement_center::placement_center_mqtt::{
+    CreateSessionReply, CreateSessionRequest, DeleteSessionReply, DeleteSessionRequest,
+    ListSessionReply, ListSessionRequest, UpdateSessionReply, UpdateSessionRequest,
+};
+use rocksdb_engine::RocksDBEngine;
+use std::sync::Arc;
+use tonic::{Request, Response, Status};
 
 pub fn list_session_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -76,7 +75,7 @@ pub async fn create_session_by_req(
         return Err(Status::cancelled(e.to_string()));
     };
 
-    let session = match serde_json::from_slice::<MqttSession>(&req.session) {
+    let session = match serde_json::from_str::<MqttSession>(&req.session) {
         Ok(session) => session,
         Err(e) => {
             return Err(Status::cancelled(e.to_string()));

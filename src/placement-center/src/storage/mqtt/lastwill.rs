@@ -53,7 +53,7 @@ impl MqttLastWillStorage {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
         let result = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
         if let Some(data) = result {
-            return Ok(Some(serde_json::from_slice::<LastWillData>(&data.data)?));
+            return Ok(Some(serde_json::from_str::<LastWillData>(&data.data)?));
         }
         Ok(None)
     }

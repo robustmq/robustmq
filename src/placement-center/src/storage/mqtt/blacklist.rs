@@ -48,7 +48,7 @@ impl MqttBlackListStorage {
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            let blacklist = serde_json::from_slice::<MqttAclBlackList>(&raw.data)?;
+            let blacklist = serde_json::from_str::<MqttAclBlackList>(&raw.data)?;
             results.push(blacklist);
         }
         Ok(results)

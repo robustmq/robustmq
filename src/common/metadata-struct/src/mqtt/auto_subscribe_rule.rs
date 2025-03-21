@@ -12,20 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::tools::now_second;
+use protocol::mqtt::common::{QoS, RetainForwardRule};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct StorageDataWrap {
-    pub data: String,
-    pub create_time: u64,
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub struct MqttAutoSubscribeRule {
+    pub cluster: String,
+    pub topic: String,
+    pub qos: QoS,
+    pub no_local: bool,
+    pub retain_as_published: bool,
+    pub retained_handling: RetainForwardRule,
 }
 
-impl StorageDataWrap {
-    pub fn new(data: String) -> Self {
-        StorageDataWrap {
-            data,
-            create_time: now_second(),
-        }
+impl MqttAutoSubscribeRule {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
     }
 }

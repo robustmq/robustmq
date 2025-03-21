@@ -20,17 +20,20 @@ use protocol::placement_center::placement_center_mqtt::{
     CreateBlacklistReply, CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest,
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
     CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest,
-    DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
-    DeleteConnectorReply, DeleteConnectorRequest, DeleteSessionReply, DeleteSessionRequest,
-    DeleteSubscribeReply, DeleteSubscribeRequest, DeleteTopicReply, DeleteTopicRequest,
-    DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest,
-    GetShareSubLeaderReply, GetShareSubLeaderRequest, ListAclReply, ListAclRequest,
-    ListBlacklistReply, ListBlacklistRequest, ListConnectorReply, ListConnectorRequest,
-    ListSessionReply, ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply,
-    ListTopicRequest, ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply,
-    ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest, SetSubscribeReply,
-    SetSubscribeRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
-    UpdateConnectorReply, UpdateConnectorRequest, UpdateSessionReply, UpdateSessionRequest,
+    DeleteAclReply, DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
+    DeleteBlacklistReply, DeleteBlacklistRequest, DeleteConnectorReply, DeleteConnectorRequest,
+    DeleteSessionReply, DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest,
+    DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
+    GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply,
+    ListAutoSubscribeRuleRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectorReply,
+    ListConnectorRequest, ListSessionReply, ListSessionRequest, ListSubscribeReply,
+    ListSubscribeRequest, ListTopicReply, ListTopicRequest, ListTopicRewriteRuleReply,
+    ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest, SaveLastWillMessageReply,
+    SaveLastWillMessageRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
+    SetSubscribeReply, SetSubscribeRequest, SetTopicRetainMessageReply,
+    SetTopicRetainMessageRequest, UpdateConnectorReply, UpdateConnectorRequest, UpdateSessionReply,
+    UpdateSessionRequest,
 };
 use tonic::transport::Channel;
 
@@ -341,5 +344,32 @@ impl_retriable_request!(
     ConnectorHeartbeatReply,
     placement_center_mqtt_services_client,
     connector_heartbeat,
+    true
+);
+
+impl_retriable_request!(
+    ListAutoSubscribeRuleRequest,
+    MqttServiceClient<Channel>,
+    ListAutoSubscribeRuleReply,
+    placement_center_mqtt_services_client,
+    list_auto_subscribe_rule,
+    true
+);
+
+impl_retriable_request!(
+    SetAutoSubscribeRuleRequest,
+    MqttServiceClient<Channel>,
+    SetAutoSubscribeRuleReply,
+    placement_center_mqtt_services_client,
+    set_auto_subscribe_rule,
+    true
+);
+
+impl_retriable_request!(
+    DeleteAutoSubscribeRuleRequest,
+    MqttServiceClient<Channel>,
+    DeleteAutoSubscribeRuleReply,
+    placement_center_mqtt_services_client,
+    delete_auto_subscribe_rule,
     true
 );

@@ -20,7 +20,10 @@ use clap::builder::{
 use clap::{arg, Parser};
 use cli_command::mqtt::MqttActionType;
 use common_base::enum_type::sort_type::SortType;
-use protocol::broker_mqtt::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    CreateUserRequest, DeleteAutoSubscribeRuleRequest, DeleteUserRequest,
+    ListAutoSubscribeRuleRequest, SetAutoSubscribeRuleRequest,
+};
 use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
 };
@@ -260,6 +263,75 @@ pub fn process_user_args(args: MqttUserCommand) -> MqttActionType {
             MqttUserActionType::Delete(arg) => MqttActionType::DeleteUser(DeleteUserRequest {
                 username: arg.username,
             }),
+        },
+        None => unreachable!(),
+    }
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="related operations of mqtt auto subscribe, such as listing, setting, and deleting ", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct MqttAutoSubscribeRuleCommand {
+    #[command(subcommand)]
+    pub action: Option<MqttAutoSubscribeRuleActionType>,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum MqttAutoSubscribeRuleActionType {
+    #[command(author="RobustMQ", about="action: user list", long_about = None)]
+    List,
+    Delete(DeleteAutoSubscribeRuleArgs),
+    Set(SetAutoSubscribeRuleArgs),
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="action: set auto subscribe rule", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct SetAutoSubscribeRuleArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) topic: String,
+
+    #[arg(short, long, default_value_t = 0)]
+    pub(crate) qos: u8,
+
+    #[arg(short, long, default_value_t = false)]
+    pub(crate) no_local: bool,
+
+    #[arg(short = 'r', long, default_value_t = false)]
+    pub(crate) retain_as_published: bool,
+
+    #[arg(short = 'R', long, default_value_t = 0)]
+    pub(crate) retained_handling: u8,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="action: delete auto subscribe rule", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct DeleteAutoSubscribeRuleArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) topic: String,
+}
+
+pub fn process_auto_subscribe_args(args: MqttAutoSubscribeRuleCommand) -> MqttActionType {
+    match args.action {
+        Some(auto_subscribe_action) => match auto_subscribe_action {
+            MqttAutoSubscribeRuleActionType::List => {
+                MqttActionType::ListAutoSubscribeRule(ListAutoSubscribeRuleRequest::default())
+            }
+            MqttAutoSubscribeRuleActionType::Set(arg) => {
+                MqttActionType::SetAutoSubscribeRule(SetAutoSubscribeRuleRequest {
+                    topic: arg.topic,
+                    qos: arg.qos as u32,
+                    no_local: arg.no_local,
+                    retain_as_published: arg.retain_as_published,
+                    retained_handling: arg.retained_handling as u32,
+                })
+            }
+            MqttAutoSubscribeRuleActionType::Delete(arg) => {
+                MqttActionType::DeleteAutoSubscribeRule(DeleteAutoSubscribeRuleRequest {
+                    topic: arg.topic,
+                })
+            }
         },
         None => unreachable!(),
     }

@@ -60,7 +60,7 @@ impl MqttConnectorStorage {
         let prefix_key = storage_key_mqtt_connector_prefix(cluster_name);
         let mut results = Vec::new();
         for raw in engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)? {
-            if let Ok(data) = serde_json::from_slice::<MQTTConnector>(&raw.data) {
+            if let Ok(data) = serde_json::from_str::<MQTTConnector>(&raw.data) {
                 results.push(data);
             }
         }
@@ -74,7 +74,7 @@ impl MqttConnectorStorage {
     ) -> Result<Option<MQTTConnector>, CommonError> {
         let key = storage_key_mqtt_connector(cluster_name, connector_name);
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
-            return Ok(Some(serde_json::from_slice::<MQTTConnector>(&data.data)?));
+            return Ok(Some(serde_json::from_str::<MQTTConnector>(&data.data)?));
         }
         Ok(None)
     }

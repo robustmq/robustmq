@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
@@ -21,7 +20,6 @@ use log::{error, info};
 use metadata_struct::placement::node::str_to_cluster_type;
 use protocol::placement_center::placement_center_inner::UnRegisterNodeRequest;
 use serde::{Deserialize, Serialize};
-use tokio::time::sleep;
 
 use super::cluster::un_register_node_by_req;
 use crate::core::cache::PlacementCacheManager;
@@ -38,7 +36,6 @@ pub struct NodeHeartbeatData {
 
 pub struct BrokerHeartbeat {
     timeout_ms: u64,
-    check_time_ms: u64,
     cluster_cache: Arc<PlacementCacheManager>,
     raft_machine_apply: Arc<RaftMachineApply>,
     client_pool: Arc<ClientPool>,
@@ -49,7 +46,6 @@ pub struct BrokerHeartbeat {
 impl BrokerHeartbeat {
     pub fn new(
         timeout_ms: u64,
-        check_time_ms: u64,
         cluster_cache: Arc<PlacementCacheManager>,
         raft_machine_apply: Arc<RaftMachineApply>,
         client_pool: Arc<ClientPool>,
@@ -58,7 +54,6 @@ impl BrokerHeartbeat {
     ) -> Self {
         BrokerHeartbeat {
             timeout_ms,
-            check_time_ms,
             cluster_cache,
             raft_machine_apply,
             client_pool,
@@ -113,7 +108,5 @@ impl BrokerHeartbeat {
                 }
             }
         }
-
-        sleep(Duration::from_millis(self.check_time_ms)).await;
     }
 }

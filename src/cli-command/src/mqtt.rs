@@ -18,26 +18,30 @@ use common_base::enum_type::sort_type::SortType;
 use common_base::tools::unique_id;
 use grpc_clients::mqtt::admin::call::{
     mqtt_broker_bind_schema, mqtt_broker_cluster_status, mqtt_broker_create_connector,
-    mqtt_broker_create_schema, mqtt_broker_create_user, mqtt_broker_delete_connector,
-    mqtt_broker_delete_schema, mqtt_broker_delete_user, mqtt_broker_enable_flapping_detect,
-    mqtt_broker_enable_slow_subscribe, mqtt_broker_list_bind_schema, mqtt_broker_list_connection,
-    mqtt_broker_list_connector, mqtt_broker_list_schema, mqtt_broker_list_slow_subscribe,
-    mqtt_broker_list_topic, mqtt_broker_list_user, mqtt_broker_unbind_schema,
-    mqtt_broker_update_connector, mqtt_broker_update_schema,
+    mqtt_broker_create_schema, mqtt_broker_create_user, mqtt_broker_delete_auto_subscribe_rule,
+    mqtt_broker_delete_connector, mqtt_broker_delete_schema, mqtt_broker_delete_user,
+    mqtt_broker_enable_flapping_detect, mqtt_broker_enable_slow_subscribe,
+    mqtt_broker_list_auto_subscribe_rule, mqtt_broker_list_bind_schema,
+    mqtt_broker_list_connection, mqtt_broker_list_connector, mqtt_broker_list_schema,
+    mqtt_broker_list_slow_subscribe, mqtt_broker_list_topic, mqtt_broker_list_user,
+    mqtt_broker_set_auto_subscribe_rule, mqtt_broker_unbind_schema, mqtt_broker_update_connector,
+    mqtt_broker_update_schema,
 };
 use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::schema::SchemaData;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, EnableFlappingDetectRequest,
-    EnableSlowSubscribeRequest, ListConnectionRequest, ListSlowSubscribeRequest, ListTopicRequest,
-    ListUserRequest, MqttBindSchemaRequest, MqttCreateConnectorRequest, MqttCreateSchemaRequest,
+    ClusterStatusRequest, CreateUserRequest, DeleteAutoSubscribeRuleRequest, DeleteUserRequest,
+    EnableFlappingDetectRequest, EnableSlowSubscribeRequest, ListAutoSubscribeRuleRequest,
+    ListConnectionRequest, ListSlowSubscribeRequest, ListTopicRequest, ListUserRequest,
+    MqttBindSchemaRequest, MqttCreateConnectorRequest, MqttCreateSchemaRequest,
     MqttDeleteConnectorRequest, MqttDeleteSchemaRequest, MqttListBindSchemaRequest,
     MqttListConnectorRequest, MqttListSchemaRequest, MqttUnbindSchemaRequest,
-    MqttUpdateConnectorRequest, MqttUpdateSchemaRequest,
+    MqttUpdateConnectorRequest, MqttUpdateSchemaRequest, SetAutoSubscribeRuleRequest,
 };
 use std::str::FromStr;
 use std::sync::Arc;
@@ -92,6 +96,11 @@ pub enum MqttActionType {
     ListBindSchema(MqttListBindSchemaRequest),
     BindSchema(MqttBindSchemaRequest),
     UnbindSchema(MqttUnbindSchemaRequest),
+
+    //auto subscribe
+    ListAutoSubscribeRule(ListAutoSubscribeRuleRequest),
+    SetAutoSubscribeRule(SetAutoSubscribeRuleRequest),
+    DeleteAutoSubscribeRule(DeleteAutoSubscribeRuleRequest),
 }
 
 pub struct MqttBrokerCommand {}
@@ -191,7 +200,6 @@ impl MqttBrokerCommand {
                 self.bind_schema(&client_pool, params.clone(), request.clone())
                     .await;
             }
-
             MqttActionType::UnbindSchema(ref request) => {
                 self.unbind_schema(&client_pool, params.clone(), request.clone())
                     .await;
@@ -199,6 +207,20 @@ impl MqttBrokerCommand {
 
             MqttActionType::ListBindSchema(ref request) => {
                 self.list_bind_schema(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+
+            //auto subscribe
+            MqttActionType::ListAutoSubscribeRule(ref request) => {
+                self.list_auto_subscribe_rule(&client_pool, params.clone(), *request)
+                    .await;
+            }
+            MqttActionType::SetAutoSubscribeRule(ref request) => {
+                self.set_auto_subscribe_rule(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::DeleteAutoSubscribeRule(ref request) => {
+                self.delete_auto_subscribe_rule(&client_pool, params.clone(), request.clone())
                     .await;
             }
         }
@@ -850,6 +872,101 @@ impl MqttBrokerCommand {
             }
             Err(e) => {
                 println!("MQTT broker list bind schema exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    // ------------------ auto subscribe ----------------
+    async fn set_auto_subscribe_rule(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: SetAutoSubscribeRuleRequest,
+    ) {
+        match mqtt_broker_set_auto_subscribe_rule(
+            client_pool,
+            &grpc_addr(params.server),
+            cli_request,
+        )
+        .await
+        {
+            Ok(_) => {
+                println!("Created successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker set auto subscribe rule normal exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn delete_auto_subscribe_rule(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: DeleteAutoSubscribeRuleRequest,
+    ) {
+        match mqtt_broker_delete_auto_subscribe_rule(
+            client_pool,
+            &grpc_addr(params.server),
+            cli_request,
+        )
+        .await
+        {
+            Ok(_) => {
+                println!("Deleted successfully!");
+            }
+            Err(e) => {
+                println!("MQTT broker delete auto subscribe rule normal exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn list_auto_subscribe_rule(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: ListAutoSubscribeRuleRequest,
+    ) {
+        let _ = cli_request;
+        let request = ListAutoSubscribeRuleRequest {};
+        match mqtt_broker_list_auto_subscribe_rule(client_pool, &grpc_addr(params.server), request)
+            .await
+        {
+            Ok(data) => {
+                // format table
+                let mut table = Table::new();
+                table.add_row(row![
+                    "topic",
+                    "qos",
+                    "no_local",
+                    "retain_as_published",
+                    "retained_handling",
+                ]);
+                for rule in data.auto_subscribe_rules {
+                    let mqtt_auto_subscribe_rule =
+                        match serde_json::from_slice::<MqttAutoSubscribeRule>(rule.as_slice()) {
+                            Ok(rule) => rule,
+                            Err(e) => {
+                                error_info(e.to_string());
+                                continue;
+                            }
+                        };
+                    table.add_row(row![
+                        mqtt_auto_subscribe_rule.topic,
+                        Into::<u8>::into(mqtt_auto_subscribe_rule.qos),
+                        mqtt_auto_subscribe_rule.no_local,
+                        mqtt_auto_subscribe_rule.retain_as_published,
+                        Into::<u8>::into(mqtt_auto_subscribe_rule.retained_handling)
+                    ]);
+                }
+                // output cmd
+                table.printstd()
+            }
+            Err(e) => {
+                println!("MQTT broker list auto subscribe rule exception");
                 error_info(e.to_string());
             }
         }

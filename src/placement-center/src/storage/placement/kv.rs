@@ -44,7 +44,7 @@ impl KvStorage {
 
     pub fn get(&self, key: String) -> Result<Option<String>, CommonError> {
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
-            return Ok(Some(serde_json::from_slice::<String>(&data.data)?));
+            return Ok(Some(serde_json::from_str::<String>(&data.data)?));
         }
         Ok(None)
     }
@@ -58,11 +58,98 @@ impl KvStorage {
             Ok(data) => {
                 let mut result = Vec::new();
                 for item in data {
-                    result.push(serde_json::from_slice(&item.data)?);
+                    result.push(serde_json::from_str(&item.data)?);
                 }
                 Ok(result)
             }
             Err(e) => Err(e),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    fn setup_kv_storage() -> KvStorage {
+        let temp_dir = tempdir().unwrap();
+        let engine = RocksDBEngine::new(
+            temp_dir.path().to_str().unwrap(),
+            100,
+            vec!["cluster".to_string()],
+        );
+        KvStorage::new(Arc::new(engine))
+    }
+
+    #[test]
+    fn test_set_and_get() {
+        let kv = setup_kv_storage();
+        kv.set("key1".to_string(), "value1".to_string()).unwrap();
+        assert_eq!(
+            kv.get("key1".to_string()).unwrap(),
+            Some("value1".to_string())
+        );
+    }
+
+    #[test]
+    fn test_set_overwrite() {
+        let kv = setup_kv_storage();
+        kv.set("key1".to_string(), "value1".to_string()).unwrap();
+        kv.set("key1".to_string(), "value2".to_string()).unwrap();
+        assert_eq!(
+            kv.get("key1".to_string()).unwrap(),
+            Some("value2".to_string())
+        );
+    }
+
+    #[test]
+    fn test_get_non_existent() {
+        let kv = setup_kv_storage();
+        assert_eq!(kv.get("nonexistent".to_string()).unwrap(), None);
+    }
+
+    #[test]
+    fn test_delete_existing() {
+        let kv = setup_kv_storage();
+        kv.set("key1".to_string(), "value1".to_string()).unwrap();
+        kv.delete("key1".to_string()).unwrap();
+        assert!(!kv.exists("key1".to_string()).unwrap());
+    }
+
+    #[test]
+    fn test_delete_non_existent() {
+        let kv = setup_kv_storage();
+        kv.delete("nonexistent".to_string()).unwrap();
+    }
+
+    #[test]
+    fn test_exists() {
+        let kv = setup_kv_storage();
+        assert!(!kv.exists("key1".to_string()).unwrap());
+        kv.set("key1".to_string(), "value1".to_string()).unwrap();
+        assert!(kv.exists("key1".to_string()).unwrap());
+    }
+
+    #[test]
+    fn test_get_prefix() {
+        let kv = setup_kv_storage();
+        kv.set("prefix/key1".to_string(), "value1".to_string())
+            .unwrap();
+        kv.set("prefix/key2".to_string(), "value2".to_string())
+            .unwrap();
+        kv.set("other/key3".to_string(), "value3".to_string())
+            .unwrap();
+
+        let mut result = kv.get_prefix("prefix/".to_string()).unwrap();
+        result.sort();
+        assert_eq!(result, vec!["value1".to_string(), "value2".to_string()]);
+    }
+
+    #[test]
+    fn test_get_prefix_non_existent() {
+        let kv = setup_kv_storage();
+        let result = kv.get_prefix("nonexistent/".to_string()).unwrap();
+        assert!(result.is_empty());
     }
 }
