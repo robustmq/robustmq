@@ -216,6 +216,7 @@ mod tests {
         let res = consumer_cli.subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None);
         println!("{:?}", res);
         assert!(res.is_ok());
+        distinct_conn(consumer_cli);
     }
 
     #[tokio::test]
@@ -254,13 +255,15 @@ mod tests {
         let res = rx.recv_timeout(Duration::from_secs(5));
         println!("{:?}", res);
         assert!(res.is_ok());
+        distinct_conn(consumer_cli);
+        distinct_conn(cli);
     }
 
     async fn recv_retain_msg(message_content: String, rx: paho_mqtt::Receiver<Option<Message>>) {
         for msg in rx.iter() {
             let msg = msg.unwrap();
             let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-            println!("{}", payload.clone());
+            println!("retain message:{}", payload.clone());
             if payload == message_content {
                 if let Some(raw) = msg
                     .properties()

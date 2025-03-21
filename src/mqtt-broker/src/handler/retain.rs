@@ -287,6 +287,10 @@ async fn send_retain_message(
             };
 
             record_retain_sent_metrics(qos);
+            info!(
+                "Send reservation message successfully, client: {}",
+                client_id
+            );
         }
     }
     Ok(())

@@ -80,8 +80,17 @@ where
                 .subscribe_manager
                 .exclusive_push
                 .contains_key(&exclusive_key)
-                && sx.send(true).is_ok()
             {
+                if let Err(e) = sx.send(true) {
+                    error!(
+                        "exclusive push thread gc failed, exclusive_key: {:?}, error: {:?}",
+                        exclusive_key, e
+                    );
+                }
+                info!(
+                    "exclusive push thread gc success, exclusive_key: {:?}",
+                    exclusive_key
+                );
                 self.subscribe_manager
                     .exclusive_push_thread
                     .remove(&exclusive_key);

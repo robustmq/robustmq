@@ -15,7 +15,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use common_base::tools::{now_second, unique_id};
+use common_base::tools::unique_id;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
@@ -119,23 +119,16 @@ pub async fn disconnect_connection(
 ) -> Result<(), MqttBrokerError> {
     // Remove the connection cache
     cache_manager.remove_connection(connect_id);
-    // Remove the client id bound connection information
-    cache_manager.update_session_connect_id(client_id, None);
+
+    // Remove the session cache
+    cache_manager.remove_session(client_id);
 
     // Remove the client id bound subscription information
     subscribe_manager.remove_client_id(client_id);
 
     // Remove the Connect id of the Session in the Placement Center
     let session_storage = SessionStorage::new(client_pool.clone());
-    match session_storage
-        .update_session(client_id.to_owned(), 0, 0, 0, now_second())
-        .await
-    {
-        Ok(_) => {}
-        Err(e) => {
-            return Err(MqttBrokerError::CommonError(e.to_string()));
-        }
-    }
+    session_storage.delete_session(client_id.to_owned()).await?;
 
     // Close the real network connection
     connection_manager.close_connect(connect_id).await;

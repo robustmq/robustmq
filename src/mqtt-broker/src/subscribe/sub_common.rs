@@ -482,6 +482,10 @@ pub async fn publish_message_qos(
     stop_sx: &broadcast::Sender<bool>,
 ) {
     let push_to_connect = async |client_id: String| -> Result<(), MqttBrokerError> {
+        if metadata_cache.get_session_info(&client_id).is_none() {
+            return Ok(());
+        }
+
         let connect_id_op = metadata_cache.get_connect_id(&client_id);
         if connect_id_op.is_none() {
             return Err(MqttBrokerError::ClientNoAvailableCOnnection(client_id));
@@ -541,7 +545,7 @@ pub async fn publish_message_qos(
             val = push_to_connect(sub_pub_param.subscribe.client_id.clone()) => {
                 if let Err(e) = val{
                     error!(
-                        "Push Qos 0 message to client {} failed, error message :{:?}",
+                        "Push Qos message to client {} failed, error message :{:?}",
                         sub_pub_param.subscribe.client_id, e
                     );
                     sleep(Duration::from_secs(1)).await;
