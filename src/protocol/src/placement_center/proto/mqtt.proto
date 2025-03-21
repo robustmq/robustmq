@@ -252,6 +252,37 @@ service MqttService {
   rpc DeleteConnector(DeleteConnectorRequest) returns(DeleteConnectorReply) {}
 
   rpc ConnectorHeartbeat(ConnectorHeartbeatRequest) returns(ConnectorHeartbeatReply) {}
+
+  //Sets a auto subscribe rule for the cluster
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `topic: String`: The name of the topic.
+  // - `qos: u8`: The qos of this subscribe.
+  // - `no_local: bool`: If you subscribe to a topic from which you publish messages, you will receive all messages you publish.
+  // - `retain_as_published: bool`: This option specifies whether the server should retain the RETAIN flag when forwarding messages to clients.
+  // - `retained_handling: u8`: This option specifies whether the server should retain the RETAIN flag when forwarding messages to clients.
+  //
+  //Returns: An empty struct.
+  rpc SetAutoSubscribeRule(SetAutoSubscribeRuleRequest) returns(SetAutoSubscribeRuleReply) {}
+
+  //Delete a auto subscribe rule.
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `topic: String`: The topic of the auto subscribe rule.
+  //
+  //Returns: An empty struct.
+  rpc DeleteAutoSubscribeRule(DeleteAutoSubscribeRuleRequest) returns(DeleteAutoSubscribeRuleReply) {}
+
+  //List auto subscribe rules.
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  //
+  //Returns:
+  // - `auto_subscribe_rules Vec<MQTTAutoSubscribeRule>`: It's the result of encoding a `Vec<MQTTAutoSubscribeRule>` into a binary format.
+  rpc ListAutoSubscribeRule(ListAutoSubscribeRuleRequest) returns(ListAutoSubscribeRuleReply) {}
 }
 
 message GetShareSubLeaderRequest{
@@ -651,4 +682,50 @@ message ConnectorHeartbeatRaw{
 
 message ConnectorHeartbeatReply{
 
+}
+
+message SetAutoSubscribeRuleRequest{
+  //The cluster of the auto subscribe rule
+  string cluster_name = 1;
+
+  //The topic of the auto subscribe rule.
+  string topic = 2;
+
+  //The qos of the auto subscribe rule.
+  uint32 qos = 3;
+
+  //The no local of the auto subscribe rule.
+  bool no_local = 4;
+
+  //The retain sa published of the auto subscribe rule.
+  bool retain_as_published = 5;
+
+  //The retained handling of the auto subscribe rule.
+  uint32 retained_handling = 6;
+}
+
+message SetAutoSubscribeRuleReply{
+
+}
+
+message DeleteAutoSubscribeRuleRequest{
+  //The cluster of the auto subscribe rule.
+  string cluster_name = 1;
+
+  //The topic of the auto subscribe rule.
+  string topic = 2;
+}
+
+message DeleteAutoSubscribeRuleReply{
+
+}
+
+message ListAutoSubscribeRuleRequest{
+  //The name of the cluster.
+  string cluster_name = 1;
+}
+
+message ListAutoSubscribeRuleReply{
+  //The parameter contains a list of users, encoded from a `Vec<MQTTAutoSubscribeRule>` into a binary format.
+  repeated bytes auto_subscribe_rules = 1;
 }

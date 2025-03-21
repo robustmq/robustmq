@@ -54,6 +54,13 @@ service MQTTBrokerAdminService {
     rpc mqtt_broker_list_bind_schema(MqttListBindSchemaRequest) returns(MqttListBindSchemaReply){}
     rpc mqtt_broker_bind_schema(MqttBindSchemaRequest) returns(MqttBindSchemaReply){}
     rpc mqtt_broker_unbind_schema(MqttUnbindSchemaRequest) returns(MqttUnbindSchemaReply){}
+
+    // auto subscribe
+    rpc mqtt_broker_set_auto_subscribe_rule(SetAutoSubscribeRuleRequest) returns(SetAutoSubscribeRuleReply){}
+
+    rpc mqtt_broker_delete_auto_subscribe_rule(DeleteAutoSubscribeRuleRequest) returns(DeleteAutoSubscribeRuleReply){}
+
+    rpc mqtt_broker_list_auto_subscribe_rule(ListAutoSubscribeRuleRequest) returns(ListAutoSubscribeRuleReply){}
 }
 
 // --------- cluster --------
@@ -359,3 +366,42 @@ message MqttUnbindSchemaRequest {
 }
 
 message MqttUnbindSchemaReply {}
+
+// --------- auto subscribe --------
+message ListAutoSubscribeRuleRequest {
+
+}
+
+message ListAutoSubscribeRuleReply {
+    repeated bytes auto_subscribe_rules = 1;
+}
+
+message SetAutoSubscribeRuleRequest {
+    //The topic of the auto subscribe rule.
+    string topic = 1;
+
+    //The qos of the auto subscribe rule.
+    uint32 qos = 2;
+
+    //The no local of the auto subscribe rule.
+    bool no_local = 3;
+
+    //The retain sa published of the auto subscribe rule.
+    bool retain_as_published = 4;
+
+    //The retained handling of the auto subscribe rule.
+    uint32 retained_handling = 5;
+}
+
+message SetAutoSubscribeRuleReply {
+
+}
+
+message DeleteAutoSubscribeRuleRequest {
+    //The topic of the auto subscribe rule.
+    string topic = 1;
+}
+
+message DeleteAutoSubscribeRuleReply {
+
+}

@@ -243,7 +243,16 @@ where
             );
         }
 
-        if let Err(e) = start_auto_subscribe().await {
+        if let Err(e) = start_auto_subscribe(
+            client_id.clone(),
+            login,
+            &self.protocol,
+            &self.client_pool,
+            &self.cache_manager,
+            &self.subscribe_manager,
+        )
+        .await
+        {
             return response_packet_mqtt_connect_fail(
                 &self.protocol,
                 ConnectReturnCode::UnspecifiedError,
