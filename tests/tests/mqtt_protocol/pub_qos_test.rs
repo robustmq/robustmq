@@ -14,8 +14,6 @@
 
 use std::collections::HashMap;
 
-use common_base::tools::unique_id;
-
 use paho_mqtt::{Message, MessageBuilder, Properties, PropertyCode};
 
 use opentelemetry::{global, propagation::Injector};
