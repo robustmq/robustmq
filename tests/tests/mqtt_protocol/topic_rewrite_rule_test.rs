@@ -122,7 +122,7 @@ mod tests {
         let sub_qos = &[0];
         let uuid = unique_id();
         let topic = format!("/test_r3/{}", uuid);
-        let sub_topic = format!("g3{}", topic);
+        let sub_topic = format!("{}", topic);
         simple_test(
             topic.clone(),
             sub_topic.clone(),
