@@ -63,7 +63,7 @@ cross_build(){
 
     mkdir -p ${package_path}/{bin,libs,config}
 
-    binaries=(mqtt-server placement-center journal-server cli-command-mqtt cli-command-placement)
+    binaries=(mqtt-server placement-center journal-server cli-command)
 
     for binary in "${binaries[@]}"; do
         local bin_path="target/${arc}/release/${binary}"
@@ -81,7 +81,7 @@ cross_build(){
 
     # Recommended to use the 755 in the production environment
     chmod -R 777 ${package_path}/bin/*
-    
+
     # Compress the package
     (cd ${build_dir} && tar zcvf ${package_name}.tar.gz ${package_name} && rm -rf ${package_name})
     cd ..
@@ -155,7 +155,7 @@ build_local(){
 
     mkdir -p ${package_path}/{bin,libs,config}
 
-    binaries=(mqtt-server placement-center journal-server cli-command-mqtt cli-command-placement)
+    binaries=(mqtt-server placement-center journal-server cli-command)
 
     for binary in "${binaries[@]}"; do
         local bin_path="target/debug/${binary}"
