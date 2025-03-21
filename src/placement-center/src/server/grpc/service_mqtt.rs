@@ -13,13 +13,12 @@
 // limitations under the License.
 
 use crate::core::cache::PlacementCacheManager;
-use crate::core::error::PlacementCenterError;
 use crate::mqtt::cache::MqttCacheManager;
-use crate::mqtt::connector::request::connector_heartbeat_by_req;
-use crate::mqtt::connector::status::save_connector;
-use crate::mqtt::controller::call_broker::{
-    update_cache_by_delete_connector, MQTTInnerCallManager,
+use crate::mqtt::connector::request::{
+    connector_heartbeat_by_req, create_connector_by_req, delete_connector_by_req,
+    list_connectors_by_req, update_connector_by_req,
 };
+use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
 use crate::mqtt::services::acl::{
     create_acl_by_req, create_blacklist_by_req, delete_acl_by_req, delete_blacklist_by_req,
     list_acl_by_req, list_blacklist_by_req,
@@ -39,7 +38,6 @@ use crate::mqtt::services::topic::{
 use crate::mqtt::services::user::{create_user_by_req, delete_user_by_req, list_user_by_req};
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
-use crate::storage::mqtt::connector::MqttConnectorStorage;
 use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 use grpc_clients::pool::ClientPool;
@@ -351,118 +349,49 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<ListConnectorRequest>,
     ) -> Result<Response<ListConnectorReply>, Status> {
-        let req = request.into_inner();
-        let storage = MqttConnectorStorage::new(self.rocksdb_engine_handler.clone());
-
-        if !req.connector_name.is_empty() {
-            if let Some(data) = storage.get(&req.cluster_name, &req.connector_name)? {
-                let data = vec![data.encode()];
-                return Ok(Response::new(ListConnectorReply { connectors: data }));
-            }
-        } else {
-            let data = storage.list(&req.cluster_name)?;
-            let mut result = Vec::new();
-            for raw in data {
-                result.push(raw.encode());
-            }
-            return Ok(Response::new(ListConnectorReply { connectors: result }));
-        }
-        Ok(Response::new(ListConnectorReply {
-            connectors: Vec::new(),
-        }))
+        list_connectors_by_req(&self.rocksdb_engine_handler, request)
     }
 
     async fn create_connector(
         &self,
         request: Request<CreateConnectorRequest>,
     ) -> Result<Response<CreateConnectorReply>, Status> {
-        let req = request.into_inner();
-        let storage = MqttConnectorStorage::new(self.rocksdb_engine_handler.clone());
-        let connector = storage.get(&req.cluster_name, &req.connector_name)?;
-        if connector.is_some() {
-            return Err(Status::cancelled(
-                PlacementCenterError::ConnectorAlreadyExist(req.connector_name).to_string(),
-            ));
-        }
-
-        if let Err(e) = save_connector(
+        create_connector_by_req(
+            &self.rocksdb_engine_handler,
             &self.raft_machine_apply,
-            req,
             &self.mqtt_call_manager,
             &self.client_pool,
+            request,
         )
         .await
-        {
-            return Err(Status::cancelled(e.to_string()));
-        };
-        Ok(Response::new(CreateConnectorReply::default()))
     }
 
     async fn update_connector(
         &self,
         request: Request<UpdateConnectorRequest>,
     ) -> Result<Response<UpdateConnectorReply>, Status> {
-        let req = request.into_inner();
-        let storage = MqttConnectorStorage::new(self.rocksdb_engine_handler.clone());
-        let connector = storage.get(&req.cluster_name, &req.connector_name)?;
-        if connector.is_none() {
-            return Err(Status::cancelled(
-                PlacementCenterError::ConnectorNotFound(req.connector_name).to_string(),
-            ));
-        }
-
-        let create_req = CreateConnectorRequest {
-            cluster_name: req.cluster_name.clone(),
-            connector_name: req.connector_name.clone(),
-            connector: req.connector.clone(),
-        };
-
-        if let Err(e) = save_connector(
+        update_connector_by_req(
+            &self.rocksdb_engine_handler,
             &self.raft_machine_apply,
-            create_req,
             &self.mqtt_call_manager,
             &self.client_pool,
+            request,
         )
         .await
-        {
-            return Err(Status::cancelled(e.to_string()));
-        };
-
-        Ok(Response::new(UpdateConnectorReply::default()))
     }
 
     async fn delete_connector(
         &self,
         request: Request<DeleteConnectorRequest>,
     ) -> Result<Response<DeleteConnectorReply>, Status> {
-        let req = request.into_inner();
-        let storage = MqttConnectorStorage::new(self.rocksdb_engine_handler.clone());
-        let connector = storage.get(&req.cluster_name, &req.connector_name)?;
-        if connector.is_none() {
-            return Err(Status::cancelled(
-                PlacementCenterError::ConnectorNotFound(req.connector_name).to_string(),
-            ));
-        }
-        let data = StorageData::new(
-            StorageDataType::MqttDeleteConnector,
-            DeleteConnectorRequest::encode_to_vec(&req),
-        );
-        if let Err(e) = self.raft_machine_apply.client_write(data).await {
-            return Err(Status::cancelled(e.to_string()));
-        };
-
-        if let Err(e) = update_cache_by_delete_connector(
-            &req.cluster_name,
+        delete_connector_by_req(
+            &self.rocksdb_engine_handler,
+            &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
-            connector.unwrap(),
+            request,
         )
         .await
-        {
-            return Err(Status::cancelled(e.to_string()));
-        };
-
-        Ok(Response::new(DeleteConnectorReply::default()))
     }
 
     async fn connector_heartbeat(
