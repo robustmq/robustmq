@@ -28,11 +28,13 @@ use crate::handler::connection::disconnect_connection;
 use crate::observability::metrics::server::{metrics_request_queue, metrics_response_queue};
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub(crate) async fn response_process(
     response_process_num: usize,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
+    subscribe_manager: Arc<SubscribeManager>,
     mut response_queue_rx: Receiver<ResponsePackage>,
     client_pool: Arc<ClientPool>,
     stop_sx: broadcast::Sender<bool>,
@@ -45,6 +47,7 @@ pub(crate) async fn response_process(
             &mut process_handler,
             stop_sx.clone(),
             connection_manager,
+            subscribe_manager,
             cache_manager,
             client_pool,
         );
@@ -98,6 +101,7 @@ pub(crate) fn response_child_process(
     process_handler: &mut HashMap<usize, Sender<ResponsePackage>>,
     stop_sx: broadcast::Sender<bool>,
     connection_manager: Arc<ConnectionManager>,
+    subscribe_manager: Arc<SubscribeManager>,
     cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
 ) {
@@ -109,6 +113,7 @@ pub(crate) fn response_child_process(
         let raw_connect_manager = connection_manager.clone();
         let raw_cache_manager = cache_manager.clone();
         let raw_client_pool = client_pool.clone();
+        let raw_subscribe_manager = subscribe_manager.clone();
         tokio::spawn(async move {
             debug!("Quic Server response process thread {index} start successfully.");
 
@@ -153,6 +158,7 @@ pub(crate) fn response_child_process(
                                         &raw_cache_manager,
                                         &raw_client_pool,
                                         &raw_connect_manager,
+                                        &raw_subscribe_manager,
                                     ).await{
                                         Ok(()) => {},
                                         Err(e) => error!("{}",e)

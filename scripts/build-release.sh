@@ -63,9 +63,10 @@ cross_build(){
 
     mkdir -p ${package_path}/{bin,libs,config}
 
+
     binaries=(mqtt-server placement-center journal-server cli-command)
 
-    for binary in "${binaries[@]}"; do
+    for binary in ${binaries}; do
         local bin_path="target/${arc}/release/${binary}"
         if [ -f "${bin_path}" ]; then
         cp "${bin_path}" ${package_path}/libs/
@@ -157,7 +158,7 @@ build_local(){
 
     binaries=(mqtt-server placement-center journal-server cli-command)
 
-    for binary in "${binaries[@]}"; do
+    for binary in ${binaries}; do
         local bin_path="target/debug/${binary}"
         if [ -f "${bin_path}" ]; then
             cp "${bin_path}" ${package_path}/libs/

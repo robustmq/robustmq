@@ -14,3 +14,5 @@ robust-data*
 /docs/.vitepress/dist/
 /docs/.vitepress/cache/
 /node_modules/
+jn-1.log
+pc-1.log

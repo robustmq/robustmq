@@ -14,7 +14,9 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::mqtt_protocol::common::{broker_addr, connect_server5, distinct_conn};
+    use crate::mqtt_protocol::common::{
+        broker_addr, build_client_id, connect_server5, distinct_conn,
+    };
     use common_base::tools::unique_id;
     use paho_mqtt::{Message, RetainHandling, SubscribeOptions, QOS_1};
 
@@ -33,7 +35,7 @@ mod tests {
             RetainHandling::DontSendRetained,
         )];
 
-        let client_id = unique_id();
+        let client_id = build_client_id("sub_exclusive_test");
         let cli = connect_server5(&client_id, &addr, false, false);
 
         // publish
@@ -47,21 +49,21 @@ mod tests {
         }
 
         // subscribe exclusive topic
-        let consumer_client_id = unique_id();
+        let consumer_client_id = build_client_id("sub_exclusive_test");
         let consumer_cli = connect_server5(&consumer_client_id, &addr, false, false);
         let result =
             consumer_cli.subscribe_many_with_options(sub_exclusive_topics, sub_qos, sub_opts, None);
         assert!(result.is_ok());
 
         // subscribe topic success
-        let consumer_client_id3 = unique_id();
+        let consumer_client_id3 = build_client_id("sub_exclusive_test");
         let consumer_cli3 = connect_server5(&consumer_client_id3, &addr, false, false);
         assert!(consumer_cli3
             .subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None)
             .is_ok());
 
         // subscribe exclusive topic fail
-        let consumer_client_id2 = unique_id();
+        let consumer_client_id2 = build_client_id("sub_exclusive_test");
         let consumer_cli2 = connect_server5(&consumer_client_id2, &addr, false, false);
         assert!(consumer_cli2
             .subscribe_many_with_options(sub_exclusive_topics, sub_qos, sub_opts, None)

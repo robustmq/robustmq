@@ -60,6 +60,9 @@ pub enum MqttBrokerError {
     #[error("Connection ID [0] information not found in cache.")]
     NotFoundConnectionInCache(u64),
 
+    #[error("Client {0} has no connection available")]
+    ClientNoAvailableCOnnection(String),
+
     #[error("There is a problem with the length [{0}] of the Packet. Please check the length of the request packet")]
     PacketLengthError(usize),
 

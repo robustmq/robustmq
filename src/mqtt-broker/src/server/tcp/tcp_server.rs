@@ -76,6 +76,7 @@ pub(crate) async fn acceptor_process(
                             }
                         }
                     }
+
                     val = listener.accept()=>{
                         match val{
                             Ok((stream, addr)) => {
@@ -96,6 +97,7 @@ pub(crate) async fn acceptor_process(
                                     addr,
                                     Some(connection_stop_sx.clone())
                                 );
+
                                 connection_manager.add_connection(connection.clone());
                                 connection_manager.add_tcp_write(connection.connection_id, write_frame_stream);
 

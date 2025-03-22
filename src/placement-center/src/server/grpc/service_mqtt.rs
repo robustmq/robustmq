@@ -204,6 +204,7 @@ impl MqttService for GrpcMqttService {
             &self.mqtt_call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
+            &self.mqtt_cache,
             req,
         )
         .await
