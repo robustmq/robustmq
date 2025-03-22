@@ -114,6 +114,14 @@ impl SubscribeManager {
         self.subscribe_list.remove(&key);
     }
 
+    pub fn remove_subscriber_by_client_id(&self, client_id: &str) {
+        for (key, subscribe) in self.subscribe_list.clone() {
+            if subscribe.client_id == *client_id {
+                self.subscribe_list.remove(&key);
+            }
+        }
+    }
+
     // push by exclusive subscribe
     pub fn add_exclusive_push(&self, client_id: &str, path: &str, topic_id: &str, sub: Subscriber) {
         let key = self.exclusive_key(client_id, path, topic_id);
@@ -256,6 +264,7 @@ impl SubscribeManager {
         self.remove_share_subscribe_leader_by_client_id(client_id);
         self.remove_share_subscribe_follower_by_client_id(client_id);
         self.remove_exclusive_subscribe_by_client_id(client_id);
+        self.remove_subscriber_by_client_id(client_id);
     }
 
     // key

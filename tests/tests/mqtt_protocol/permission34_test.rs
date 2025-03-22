@@ -25,13 +25,13 @@ mod tests {
 
     use crate::mqtt_protocol::common::{
         broker_addr, broker_grpc_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr,
-        build_create_pros, build_v3_conn_pros_by_user_information, distinct_conn,
+        build_client_id, build_create_pros, build_v3_conn_pros_by_user_information, distinct_conn,
     };
 
     #[tokio::test]
     async fn client3_permission_test() {
         let mqtt_version = 3;
-        let client_id = unique_id();
+        let client_id = build_client_id("client3_permission_test");
         let addr = broker_addr();
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
@@ -85,7 +85,7 @@ mod tests {
     #[tokio::test]
     async fn client4_permission_test() {
         let mqtt_version = 4;
-        let client_id = unique_id();
+        let client_id = build_client_id("client4_permission_test");
         let addr = broker_addr();
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));

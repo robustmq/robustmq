@@ -26,12 +26,13 @@ mod tests {
 
     use crate::mqtt_protocol::common::{
         broker_addr, broker_grpc_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr,
-        build_create_pros, build_v5_conn_pros_by_user_information, build_v5_pros, distinct_conn,
+        build_client_id, build_create_pros, build_v5_conn_pros_by_user_information, build_v5_pros,
+        distinct_conn,
     };
 
     #[tokio::test]
     async fn client5_permission_test() {
-        let client_id = unique_id();
+        let client_id = build_client_id("client5_permission_test");
         let addr = broker_addr();
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));

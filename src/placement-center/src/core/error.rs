@@ -110,8 +110,8 @@ pub enum PlacementCenterError {
     #[error("Request parameters [{0}] cannot be null")]
     RequestParamsNotEmpty(String),
 
-    #[error("Session does not exist")]
-    SessionDoesNotExist,
+    #[error("Session {0} does not exist")]
+    SessionDoesNotExist(String),
 
     #[error("Number of replicas is incorrect; {0} is needed, but {1} is obtained")]
     NumberOfReplicasIsIncorrect(u32, usize),

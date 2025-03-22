@@ -373,6 +373,7 @@ where
         let mut keep_alive = ClientKeepAlive::new(
             self.client_pool.clone(),
             self.connection_manager.clone(),
+            self.subscribe_manager.clone(),
             self.cache_manager.clone(),
             stop_send,
         );

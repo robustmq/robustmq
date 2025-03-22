@@ -16,10 +16,15 @@ use std::process;
 use std::time::Duration;
 
 use crate::mqtt_protocol::connect_suite::ClientTestProperties;
+use common_base::tools::unique_id;
 use paho_mqtt::{
     Client, ConnectOptions, ConnectOptionsBuilder, CreateOptions, CreateOptionsBuilder,
     DisconnectOptionsBuilder, Properties, PropertyCode, ReasonCode, SslOptionsBuilder,
 };
+
+pub fn build_client_id(name: &str) -> String {
+    format!("{}-{}", name, unique_id())
+}
 
 #[allow(dead_code)]
 pub fn broker_addr() -> String {

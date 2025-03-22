@@ -18,7 +18,8 @@ mod tests {
     use paho_mqtt::{Message, MessageBuilder, Properties, PropertyCode, QOS_1};
 
     use crate::mqtt_protocol::common::{
-        broker_addr, connect_server5, connect_server5_response_information, distinct_conn,
+        broker_addr, build_client_id, connect_server5, connect_server5_response_information,
+        distinct_conn,
     };
 
     #[tokio::test]
@@ -91,7 +92,7 @@ mod tests {
         correlation_data: Option<String>,
         connect_response_information: bool,
     ) {
-        let client_id = unique_id();
+        let client_id = build_client_id("req_resp_test_client");
         let addr = broker_addr();
         let sub_topics = &[request_topic.clone(), response_topic.clone()];
 

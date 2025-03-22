@@ -34,7 +34,8 @@ mod tests {
     };
 
     use crate::mqtt_protocol::common::{
-        broker_addr, broker_grpc_addr, connect_server5_by_user_information, distinct_conn,
+        broker_addr, broker_grpc_addr, build_client_id, connect_server5_by_user_information,
+        distinct_conn,
     };
 
     #[tokio::test]
@@ -119,7 +120,7 @@ mod tests {
 
     #[tokio::test]
     async fn user_publish_authorization_test() {
-        let client_id = unique_id();
+        let client_id = build_client_id("user_publish_authorization_test");
         let addr = broker_addr();
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
@@ -178,7 +179,7 @@ mod tests {
 
     #[tokio::test]
     async fn client_publish_authorization_test() {
-        let client_id = unique_id();
+        let client_id = build_client_id("client_publish_authorization_test");
         let addr = broker_addr();
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));

@@ -32,24 +32,28 @@ use super::cache::{CacheManager, ConnectionLiveTime};
 use super::connection::disconnect_connection;
 use super::response::response_packet_mqtt_distinct_by_reason;
 use crate::server::connection_manager::ConnectionManager;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub struct ClientKeepAlive {
     cache_manager: Arc<CacheManager>,
     stop_send: broadcast::Sender<bool>,
     client_pool: Arc<ClientPool>,
     connection_manager: Arc<ConnectionManager>,
+    subscribe_manager: Arc<SubscribeManager>,
 }
 
 impl ClientKeepAlive {
     pub fn new(
         client_pool: Arc<ClientPool>,
         connection_manager: Arc<ConnectionManager>,
+        subscribe_manager: Arc<SubscribeManager>,
         cache_manager: Arc<CacheManager>,
         stop_send: broadcast::Sender<bool>,
     ) -> Self {
         ClientKeepAlive {
             client_pool,
             connection_manager,
+            subscribe_manager,
             cache_manager,
             stop_send,
         }
@@ -104,6 +108,7 @@ impl ClientKeepAlive {
                                     &self.cache_manager,
                                     &self.client_pool,
                                     &self.connection_manager,
+                                    &self.subscribe_manager,
                                 )
                                 .await
                                 {
@@ -150,6 +155,7 @@ impl ClientKeepAlive {
                                     &self.cache_manager,
                                     &self.client_pool,
                                     &self.connection_manager,
+                                    &self.subscribe_manager,
                                 )
                                 .await
                                 {
@@ -245,6 +251,7 @@ mod test {
     use crate::handler::cache::CacheManager;
     use crate::handler::keep_alive::ClientKeepAlive;
     use crate::server::connection_manager::ConnectionManager;
+    use crate::subscribe::subscribe_manager::SubscribeManager;
 
     #[tokio::test]
     pub async fn keep_live_time_test() {
@@ -271,9 +278,11 @@ mod test {
         ));
 
         let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
+        let subscribe_manager = Arc::new(SubscribeManager::new());
         let alive = ClientKeepAlive::new(
             client_pool,
             connection_manager,
+            subscribe_manager,
             cache_manager.clone(),
             stop_send,
         );

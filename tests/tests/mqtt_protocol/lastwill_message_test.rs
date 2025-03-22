@@ -23,13 +23,13 @@ mod tests {
     };
 
     use crate::mqtt_protocol::common::{
-        broker_addr, build_create_pros, build_v5_pros, connect_server5, distinct_conn, password,
-        username,
+        broker_addr, build_client_id, build_create_pros, build_v5_pros, connect_server5,
+        distinct_conn, password, username,
     };
 
     #[tokio::test]
     async fn last_will_message_test() {
-        let client_id = unique_id();
+        let client_id = build_client_id("last_will_message_test");
         let addr = broker_addr();
 
         // create connection
@@ -76,7 +76,7 @@ mod tests {
         // sub will message topic
         let start = now_second();
         let sub_topics = &[will_topic.clone()];
-        let client_id = unique_id();
+        let client_id = build_client_id("last_will_message_test");
         let cli = connect_server5(&client_id, &addr, false, false);
         let sub_qos = &[1];
         let rx = cli.start_consuming();

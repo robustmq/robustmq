@@ -22,7 +22,9 @@ mod tests {
     use paho_mqtt::{Message, QOS_1};
     use protocol::broker_mqtt::broker_mqtt_admin::CreateTopicRewriteRuleRequest;
 
-    use crate::mqtt_protocol::common::{broker_addr, connect_server5, distinct_conn};
+    use crate::mqtt_protocol::common::{
+        broker_addr, build_client_id, connect_server5, distinct_conn,
+    };
 
     #[tokio::test]
     async fn client5_rewrite_pub_test() {
@@ -49,7 +51,7 @@ mod tests {
         let uuid = unique_id();
         let topic = format!("/tests_r1/{}", uuid);
         let rewrite_topic = format!("/test_rewrite/{}", uuid);
-        let sub_topic = format!("$share/g1{}", rewrite_topic);
+        let sub_topic = format!("{:?}", rewrite_topic);
         simple_test(
             topic.clone(),
             sub_topic.clone(),
@@ -85,7 +87,7 @@ mod tests {
         let uuid = unique_id();
         let topic = format!("/testsub/{}", uuid);
         let rewrite_topic = format!("/tests_r2/{}", uuid);
-        let sub_topic = format!("$share/g2{}", rewrite_topic);
+        let sub_topic = format!("{:?}", rewrite_topic);
         simple_test(
             topic.clone(),
             sub_topic.clone(),
@@ -120,7 +122,7 @@ mod tests {
         let sub_qos = &[0];
         let uuid = unique_id();
         let topic = format!("/test_r3/{}", uuid);
-        let sub_topic = format!("$share/g3{}", topic);
+        let sub_topic = format!("{:?}", topic);
         simple_test(
             topic.clone(),
             sub_topic.clone(),
@@ -138,7 +140,7 @@ mod tests {
         payload_flag: String,
         unsub_topic: String,
     ) {
-        let client_id = unique_id();
+        let client_id = build_client_id("topic_rewrite_rule_test");
         let addr = broker_addr();
         let sub_topics = &[sub_topic.clone()];
 

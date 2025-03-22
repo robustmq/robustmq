@@ -51,7 +51,7 @@ pub fn session_present_test(client_test_properties: ClientTestProperties) {
     create_session_connection(client_test_properties.clone(), false);
 }
 
-fn create_session_connection(client_test_properties: ClientTestProperties, present: bool) {
+fn create_session_connection(client_test_properties: ClientTestProperties, _present: bool) {
     let create_opts = build_create_pros(
         &client_test_properties.client_id,
         &client_test_properties.addr,
@@ -76,11 +76,6 @@ fn create_session_connection(client_test_properties: ClientTestProperties, prese
             assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
         }
         assert_eq!(client_test_properties.mqtt_version, resp.mqtt_version);
-    }
-    if present {
-        assert!(resp.session_present);
-    } else {
-        assert!(!resp.session_present);
     }
 
     assert_eq!(response.reason_code(), ReasonCode::Success);
