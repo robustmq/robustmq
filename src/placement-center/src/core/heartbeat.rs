@@ -90,7 +90,7 @@ impl BrokerHeartbeat {
                         )
                         .await
                         {
-                            error!("Heartbeat timeout, failed to delete node {} in cluster {}, error message :{},now time:{},report time:{}", 
+                            error!("Heartbeat timeout, failed to delete node {} in cluster {}, error message :{},now time:{},report time:{}",
                              node.node_id,cluster_name,e,now_time,heart_data.time);
                             continue;
                         }

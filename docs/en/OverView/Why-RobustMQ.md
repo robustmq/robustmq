@@ -18,7 +18,7 @@ In doing this, we found two types of problems:
 - Native architecture defects lead to high complexity of the transformation, requiring a lot of human and material resources, and low revenue.
 - It is not compatible with the community after the transformation, it cannot follow the evolution of the community, and it cannot be maintained in the long run.
 - Each company will have its own version of the transformation, unable to form unity and synergy, repeated investment.
-- 
+-
 
 ## What do we wish we were
 - is a pure message queuing component that doesn't bother to do anything around it until it's done with the core message queuing functionality.
@@ -26,7 +26,7 @@ In doing this, we found two types of problems:
 - Is a fully Serverless message queue, fully resilient, capable of unperceived horizontal scaling and horizontal scaling.
 - It is a pluggable message queue that can support different storage requirements in different scenarios. It can be configured to switch between different storage engines, such as S3, HDFS, Bookeeper, etc.
 - Is a high performance, stable, reliable message queue, able to support a large number of connections, QPS, throughput.
- 
+
 
 ## And existing message queues
 Not yet dare to say the difference, salute the community. But as we continue to try, we will be able to make a message queue product that is better than the current open source components.
@@ -41,7 +41,7 @@ The key words are: multi-protocol, Serverless, plug-in storage. That is:
 >  Based on Rust language, create a message queue product that supports multi-protocol, supports complete Serverless capabilities in the architecture, and has plug-in storage capabilities.
 
 This definition will be refined over time, and the combination of MQ and AI will be explored next. And there are some explorations in the financial level Message Queue.
- 
+
 
 ## Expectation
 I hope we stand on the shoulders of giants, look up at the sky, walk with heads down, work at ease, and build the best MQ Infra component.

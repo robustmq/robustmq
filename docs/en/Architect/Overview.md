@@ -17,7 +17,7 @@ Journal Engine consumes Offset information, etc.
   - Independent storage: The storage layer is implemented by the built-in RobustMQ Journal Engine without relying on external components. The underlying storage medium is a hard drive (hard disk, SSD, NVME, etc.) or a cloud drive. The benefits of this deployment method are simple, no additional dependencies, low system complexity and operation and maintenance costs, and Serverless features.
 
   - Shared storage: The storage layer relies on various existing remote storage (e.g. HDFS, S3, OSS, GCS, Azure Blob, COS, BOS, MinIO...) The completion of. The advantage of this deployment method is that the cost under large-scale traffic will be much lower than the independent deployment scheme, which is suitable for customers with strong demands for cost under large traffic and cloud architecture deployment scenarios.
-  
+
 ## 2. Standalone deployment architecture [Default]
 
 The standalone deployment architecture refers to the form in which RobustMQ is deployed without relying on any external components. Its storage layer is implemented by the built-in RobustMQ Journal Engine without relying on external components. The underlying storage medium is a hard drive (hard disk, SSD, NVME, etc.) or a cloud drive.
