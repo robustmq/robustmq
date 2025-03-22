@@ -352,7 +352,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let prefix_key = if namespace.is_empty() {
             "/shard/".to_string()
         } else {
-            format!("/shard/{}/{}", namespace, shard_name)
+            Self::shard_info_key(&namespace, &shard_name)
         };
 
         let raw_shard_info = self.db.read_prefix(cf.clone(), &prefix_key)?;
