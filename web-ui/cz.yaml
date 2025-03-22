@@ -12,20 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[default.extend-identifiers-re]
-
-
-[default.extend-words]
-# This words is a spelling error for paho-mqtt package.
-# we need to ignore it.
-Identifer = "Identifer"
-
-# Ignore the unsubscribe term as it's used in the MQTT context.
-# todo fix spelling error
-UNSUBSCRIBE = "UNSUBSCRIBE"
-unsubscrible = "unsubscrible"
-SUBSCRIBLE = "SUBSCRIBLE"
-
-
-[files]
-extend-exclude = ["web-ui/*"]
+---
+commitizen:
+  name: cz_conventional_commits
+  tag_format: v$version
+  update_changelog_on_bump: true
+  version_provider: npm
+  version_scheme: semver
