@@ -81,7 +81,7 @@ cross_build(){
 
     # Recommended to use the 755 in the production environment
     chmod -R 777 ${package_path}/bin/*
-    
+
     # Compress the package
     (cd ${build_dir} && tar zcvf ${package_name}.tar.gz ${package_name} && rm -rf ${package_name})
     cd ..

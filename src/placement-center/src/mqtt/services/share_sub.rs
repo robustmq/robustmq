@@ -204,7 +204,7 @@ pub fn get_share_sub_leader_by_req(
     request: Request<GetShareSubLeaderRequest>,
 ) -> Result<Response<GetShareSubLeaderReply>, Status> {
     let req = request.into_inner();
-    let _ = req.validate_ext()?;
+    req.validate_ext()?;
     let cluster_name = req.cluster_name;
     let group_name = req.group_name;
     let mut reply = GetShareSubLeaderReply::default();
