@@ -79,6 +79,6 @@ else
 
   cargo nextest run --profile ci --package grpc-clients --test mod -- mqtt && \
   cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt_server
-#   cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt_protocol
+  cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt_protocol
 
 fi
