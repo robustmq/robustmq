@@ -83,6 +83,29 @@ impl RocksDBStorageAdapter {
         }
     }
 
+    pub fn ensure_shard_exists(
+        &self,
+        namespace: impl AsRef<str>,
+        shard: impl AsRef<str>,
+    ) -> Result<(), CommonError> {
+        let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
+        let shard_offset_key = Self::shard_offset_key(&namespace.as_ref(), &shard.as_ref());
+
+        if self
+            .db
+            .read::<u64>(cf.clone(), shard_offset_key.as_str())?
+            .is_none()
+        {
+            return Err(CommonError::CommonError(format!(
+                "shard {} under namespace {} not exists",
+                shard.as_ref(),
+                namespace.as_ref()
+            )));
+        }
+
+        Ok(())
+    }
+
     #[inline(always)]
     pub fn shard_record_key<S1: Display>(namespace: &S1, shard: &S1, record_offset: u64) -> String {
         format!(
@@ -368,23 +391,12 @@ impl StorageAdapter for RocksDBStorageAdapter {
     }
 
     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
+        self.ensure_shard_exists(&namespace, &shard_name)?;
+
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
-        let shard_offset_key = Self::shard_offset_key(&namespace, &shard_name);
-
-        // check whether the shard exists
-        if self
-            .db
-            .read::<u64>(cf.clone(), shard_offset_key.as_str())?
-            .is_none()
-        {
-            return Err(CommonError::CommonError(format!(
-                "shard {} under namespace {} not exists",
-                &shard_name, &namespace
-            )));
-        }
-
-        self.db.delete(cf.clone(), &shard_offset_key)?;
+        self.db
+            .delete(cf.clone(), &Self::shard_offset_key(&namespace, &shard_name))?;
 
         // also delete the shard info
         self.db
@@ -397,6 +409,8 @@ impl StorageAdapter for RocksDBStorageAdapter {
         shard_name: String,
         message: Record,
     ) -> Result<u64, CommonError> {
+        self.ensure_shard_exists(&namespace, &shard_name)?;
+
         self.handle_write_request(namespace, shard_name, vec![message])
             .await
             .map(|offsets| offsets.first().cloned().unwrap()) // unwrap is safe here because we know the vector is not empty
@@ -408,6 +422,8 @@ impl StorageAdapter for RocksDBStorageAdapter {
         shard_name: String,
         messages: Vec<Record>,
     ) -> Result<Vec<u64>, CommonError> {
+        self.ensure_shard_exists(&namespace, &shard_name)?;
+
         self.handle_write_request(namespace, shard_name, messages)
             .await
     }
@@ -419,11 +435,15 @@ impl StorageAdapter for RocksDBStorageAdapter {
         offset: u64,
         read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
+        self.ensure_shard_exists(&namespace, &shard_name)?;
+
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
         let mut records = Vec::new();
 
-        for i in offset..offset + read_config.max_record_num {
+        let mut total_size = 0;
+
+        for i in offset..offset.saturating_add(read_config.max_record_num) {
             let shard_record_key = Self::shard_record_key(&namespace, &shard_name, i);
             let record = self.db.read::<Record>(cf.clone(), &shard_record_key)?;
 
@@ -431,6 +451,13 @@ impl StorageAdapter for RocksDBStorageAdapter {
                 break;
             }
 
+            let record_bytes = record.as_ref().unwrap().data.len() as u64;
+
+            if total_size + record_bytes > read_config.max_size {
+                break;
+            }
+
+            total_size += record_bytes;
             records.push(record.unwrap());
         }
 
@@ -445,6 +472,8 @@ impl StorageAdapter for RocksDBStorageAdapter {
         tag: String,
         read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
+        self.ensure_shard_exists(&namespace, &shard_name)?;
+
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
         let tag_offset_key_preix = Self::tag_offsets_key_prefix(&namespace, &shard_name, &tag);
@@ -462,6 +491,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         }
 
         let mut records = Vec::new();
+        let mut total_size = 0;
 
         for offset in offsets {
             let shard_record_key = Self::shard_record_key(&namespace, &shard_name, offset);
@@ -470,6 +500,12 @@ impl StorageAdapter for RocksDBStorageAdapter {
                 .read::<Record>(cf.clone(), &shard_record_key)?
                 .ok_or(CommonError::CommonError("Record not found".to_string()))?;
 
+            let record_bytes = record.data.len() as u64;
+            if total_size + record_bytes > read_config.max_size {
+                break;
+            }
+
+            total_size += record_bytes;
             records.push(record);
         }
 
@@ -484,6 +520,8 @@ impl StorageAdapter for RocksDBStorageAdapter {
         key: String,
         read_config: ReadConfig,
     ) -> Result<Vec<Record>, CommonError> {
+        self.ensure_shard_exists(&namespace, &shard_name)?;
+
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
         let key_offset_key = Self::key_offset_key(&namespace, &shard_name, &key);
@@ -495,6 +533,10 @@ impl StorageAdapter for RocksDBStorageAdapter {
                     .db
                     .read::<Record>(cf.clone(), &shard_record_key)?
                     .ok_or(CommonError::CommonError("Record not found".to_string()))?;
+
+                if record.data.len() as u64 > read_config.max_size {
+                    return Ok(Vec::new());
+                }
 
                 return Ok(vec![record]);
             }
@@ -508,6 +550,8 @@ impl StorageAdapter for RocksDBStorageAdapter {
         shard_name: String,
         timestamp: u64,
     ) -> Result<Option<ShardOffset>, CommonError> {
+        self.ensure_shard_exists(&namespace, &shard_name)?;
+
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY).unwrap();
 
         let shard_record_key_prefix = Self::shard_record_key_prefix(&namespace, &shard_name);
@@ -656,8 +700,8 @@ mod tests {
                     shard_name.clone(),
                     0,
                     ReadConfig {
-                        max_record_num: 10,
-                        max_size: 1024,
+                        max_record_num: u64::MAX,
+                        max_size: u64::MAX,
                     }
                 )
                 .await
@@ -686,8 +730,8 @@ mod tests {
                 shard_name.clone(),
                 2,
                 ReadConfig {
-                    max_record_num: 10,
-                    max_size: 1024,
+                    max_record_num: u64::MAX,
+                    max_size: u64::MAX,
                 },
             )
             .await
@@ -698,10 +742,10 @@ mod tests {
         assert_eq!(result_read.len(), 2);
 
         // test group functionalities
-        let group_id = "test_group_id".to_string();
+        let group_id = unique_id();
         let read_config = ReadConfig {
             max_record_num: 1,
-            ..Default::default()
+            max_size: u64::MAX,
         };
 
         // read m1
@@ -836,6 +880,8 @@ mod tests {
             .unwrap();
 
         assert_eq!(shards.len(), 0);
+
+        storage_adapter.close().await.unwrap();
 
         let _ = std::fs::remove_dir_all(&db_path);
     }
@@ -998,6 +1044,8 @@ mod tests {
             .unwrap();
 
         assert_eq!(list_res.len(), 0);
+
+        storage_adapter.close().await.unwrap();
 
         let _ = std::fs::remove_dir_all(&db_path);
     }
