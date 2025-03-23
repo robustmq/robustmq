@@ -86,7 +86,7 @@ pub async fn create_schema_req(
         ));
     }
     let schema_storage = SchemaStorage::new(rocksdb_engine_handler.clone());
-    if let Some(data) = schema_storage.get(&req.cluster_name, &req.schema_name)? {
+    if let Some(_data) = schema_storage.get(&req.cluster_name, &req.schema_name)? {
         Err(PlacementCenterError::SchemaAlreadyExist(
           "schema_name".to_string(),
         ))
