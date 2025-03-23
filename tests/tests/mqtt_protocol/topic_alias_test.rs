@@ -17,11 +17,13 @@ mod tests {
     use common_base::tools::unique_id;
     use paho_mqtt::{MessageBuilder, Properties, PropertyCode, QOS_1};
 
-    use crate::mqtt_protocol::common::{broker_addr, connect_server5, distinct_conn};
+    use crate::mqtt_protocol::common::{
+        broker_addr, build_client_id, connect_server5, distinct_conn,
+    };
 
     #[tokio::test]
     async fn topic_alias_test() {
-        let client_id = unique_id();
+        let client_id = build_client_id("topic_alias_test");
         let addr = broker_addr();
         let topic_alias = 1;
         let topic = format!("/tests/{}", unique_id());

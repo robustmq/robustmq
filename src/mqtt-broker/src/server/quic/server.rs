@@ -112,6 +112,7 @@ pub async fn start_quic_server<S>(
         response_thread_num,
         connection_manager.clone(),
         cache_manager.clone(),
+        subscribe_manager.clone(),
         response_queue_rx,
         client_pool.clone(),
         stop_sx.clone(),

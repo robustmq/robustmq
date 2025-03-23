@@ -41,6 +41,7 @@ use crate::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 use grpc_clients::pool::ClientPool;
+use log::warn;
 use prost::Message;
 use protocol::placement_center::placement_center_mqtt::mqtt_service_server::MqttService;
 use protocol::placement_center::placement_center_mqtt::{
@@ -176,6 +177,7 @@ impl MqttService for GrpcMqttService {
             &self.mqtt_call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
+            &self.mqtt_cache,
             request,
         )
         .await

@@ -948,6 +948,7 @@ where
             &self.cache_manager,
             &self.client_pool,
             &self.connection_manager,
+            &self.subscribe_manager,
         )
         .await
         {

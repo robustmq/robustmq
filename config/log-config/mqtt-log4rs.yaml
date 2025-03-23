@@ -49,7 +49,7 @@ appenders:
         count: 50
 
 root:
-  level: warn
+  level: info
   appenders:
     - stdout
     - server
@@ -57,7 +57,7 @@ root:
 
 loggers:
   mqtt-broker::observability::slow:
-    level: warn
+    level: info
     appenders:
       - slow_sub
     additive: false

@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::error::PlacementCenterError;
+use crate::mqtt::cache::MqttCacheManager;
+use crate::mqtt::controller::session_expire::ExpireLastWill;
+use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::{
     mqtt::controller::call_broker::{
         update_cache_by_add_session, update_cache_by_delete_session, MQTTInnerCallManager,
@@ -22,7 +26,9 @@ use crate::{
     },
     storage::mqtt::session::MqttSessionStorage,
 };
+use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::lastwill::LastWillData;
 use metadata_struct::mqtt::session::MqttSession;
 use prost::Message;
 use protocol::placement_center::placement_center_mqtt::{
@@ -123,25 +129,54 @@ pub async fn delete_session_by_req(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    mqtt_cache_manager: &Arc<MqttCacheManager>,
     request: Request<DeleteSessionRequest>,
 ) -> Result<Response<DeleteSessionReply>, Status> {
     let req = request.into_inner();
+
     let data = StorageData::new(
         StorageDataType::MqttDeleteSession,
         DeleteSessionRequest::encode_to_vec(&req),
     );
+
     if let Err(e) = raft_machine_apply.client_write(data).await {
         return Err(Status::cancelled(e.to_string()));
     };
 
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
-    if let Some(session) = storage.get(&req.cluster_name, &req.client_id)? {
-        if let Err(e) =
-            update_cache_by_delete_session(&req.cluster_name, call_manager, client_pool, session)
-                .await
-        {
-            return Err(Status::cancelled(e.to_string()));
-        };
+    let session_opt = storage.get(&req.cluster_name, &req.client_id)?;
+    if session_opt.is_none() {
+        return Err(todo!());
+    }
+
+    let session = session_opt.unwrap();
+    if let Err(e) = update_cache_by_delete_session(
+        &req.cluster_name,
+        call_manager,
+        client_pool,
+        session.clone(),
+    )
+    .await
+    {
+        return Err(todo!());
+    }
+
+    let storage = MqttLastWillStorage::new(rocksdb_engine_handler.clone());
+    match storage.get(&req.cluster_name, &req.client_id) {
+        Ok(Some(will_message)) => {
+            let delay = session.last_will_delay_interval.unwrap_or_default();
+            mqtt_cache_manager.add_expire_last_will(ExpireLastWill {
+                client_id: will_message.client_id.clone(),
+                delay_sec: now_second() + delay,
+                cluster_name: req.cluster_name.to_owned(),
+            });
+        }
+        Ok(None) => {
+            todo!()
+        }
+        Err(_) => {
+            todo!()
+        }
     }
     Ok(Response::new(DeleteSessionReply::default()))
 }

@@ -18,7 +18,7 @@ mod tests {
     use paho_mqtt::{MessageBuilder, QOS_1};
 
     use crate::mqtt_protocol::common::{
-        broker_addr, broker_ssl_addr, connect_server5_packet_size, distinct_conn,
+        broker_addr, broker_ssl_addr, build_client_id, connect_server5_packet_size, distinct_conn,
     };
 
     #[tokio::test]
@@ -38,7 +38,7 @@ mod tests {
     }
 
     async fn simple_test(addr: String, topic: String, sub_qos: i32, packet_size: i32, ssl: bool) {
-        let client_id = unique_id();
+        let client_id = build_client_id("connect_packet_size_test");
         let cli = connect_server5_packet_size(&client_id, &addr, packet_size, false, ssl);
 
         let message_content = vec!['a'; (packet_size + 1) as usize]

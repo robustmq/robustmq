@@ -21,8 +21,8 @@ mod tests {
     use tokio::time::{sleep, timeout};
 
     use crate::mqtt_protocol::common::{
-        broker_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr, connect_server5,
-        distinct_conn,
+        broker_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr, build_client_id,
+        connect_server5, distinct_conn,
     };
 
     #[tokio::test]
@@ -117,7 +117,7 @@ mod tests {
         ws: bool,
         ssl: bool,
     ) {
-        let client_id = unique_id();
+        let client_id = build_client_id("sub_identifier_test");
 
         let cli = connect_server5(&client_id, &addr, ws, ssl);
 

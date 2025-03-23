@@ -130,7 +130,7 @@ impl PlacementStorageAdapter {
     }
 
     #[inline(always)]
-    pub fn shard_info<S1: Display>(namespace: &S1, shard: &S1) -> String {
+    pub fn shard_info_key<S1: Display>(namespace: &S1, shard: &S1) -> String {
         format!("/shard/{}/{}", namespace, shard)
     }
 }
@@ -375,7 +375,7 @@ impl StorageAdapter for PlacementStorageAdapter {
             &self.client_pool,
             &self.addrs,
             SetRequest {
-                key: Self::shard_info(&namespace, &shard_name),
+                key: Self::shard_info_key(&namespace, &shard_name),
                 value: serde_json::to_string(&shard)?,
             },
         )
@@ -386,13 +386,27 @@ impl StorageAdapter for PlacementStorageAdapter {
 
     async fn list_shard(
         &self,
-        _namespace: String,
-        _shard_name: String,
+        namespace: String,
+        shard_name: String,
     ) -> Result<Vec<ShardInfo>, CommonError> {
-        Err(CommonError::NotSupportFeature(
-            "PlacementStorageAdapter".to_string(),
-            "list_shard".to_string(),
-        ))
+        let prefix = if namespace.is_empty() {
+            "/shard/".to_string()
+        } else {
+            Self::shard_info_key(&namespace, &shard_name)
+        };
+
+        let reply =
+            placement_get_prefix(&self.client_pool, &self.addrs, GetPrefixRequest { prefix })
+                .await?;
+
+        let mut shards = Vec::new();
+
+        for val in reply.values {
+            let shard_info = serde_json::from_str::<ShardInfo>(&val)?;
+            shards.push(shard_info);
+        }
+
+        Ok(shards)
     }
 
     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
@@ -417,6 +431,15 @@ impl StorageAdapter for PlacementStorageAdapter {
             &self.addrs,
             DeleteRequest {
                 key: Self::shard_offset_key(&namespace, &shard_name),
+            },
+        )
+        .await?;
+
+        placement_delete(
+            &self.client_pool,
+            &self.addrs,
+            DeleteRequest {
+                key: Self::shard_info_key(&namespace, &shard_name),
             },
         )
         .await?;
@@ -718,6 +741,17 @@ mod tests {
             .await
             .unwrap();
 
+        // step 2: list the shard just created
+        let shards = storage_adapter
+            .list_shard(namespace.clone(), shard_name.clone())
+            .await
+            .unwrap();
+
+        assert_eq!(shards.len(), 1);
+        assert_eq!(shards.first().unwrap().shard_name, shard_name);
+        assert_eq!(shards.first().unwrap().namespace, namespace);
+        assert_eq!(shards.first().unwrap().replica_num, 1);
+
         // insert two records (no key or tag) into the shard
         let ms1 = "test1".to_string();
         let ms2 = "test2".to_string();
@@ -914,9 +948,17 @@ mod tests {
 
         // delete shard
         storage_adapter
-            .delete_shard(namespace, shard_name)
+            .delete_shard(namespace.clone(), shard_name.clone())
             .await
             .unwrap();
+
+        // check if the shard is deleted
+        let shards = storage_adapter
+            .list_shard(namespace, shard_name)
+            .await
+            .unwrap();
+
+        assert_eq!(shards.len(), 0);
     }
 
     #[tokio::test]
@@ -941,6 +983,14 @@ mod tests {
                 .await
                 .unwrap();
         }
+
+        // list the shard we just created
+        let list_res = storage_adapter
+            .list_shard(namespace.clone(), "".to_string())
+            .await
+            .unwrap();
+
+        assert_eq!(list_res.len(), 4);
 
         let header = vec![Header {
             name: "name".to_string(),
@@ -1053,5 +1103,21 @@ mod tests {
 
             assert_eq!(len, (100 / shards.len()) * 100);
         }
+
+        // delete all shards
+        for shard in shards.iter() {
+            storage_adapter
+                .delete_shard(namespace.clone(), shard.clone())
+                .await
+                .unwrap();
+        }
+
+        // check if the shards are deleted
+        let list_res = storage_adapter
+            .list_shard(namespace.clone(), "".to_string())
+            .await
+            .unwrap();
+
+        assert_eq!(list_res.len(), 0);
     }
 }

@@ -17,7 +17,9 @@ mod tests {
     use common_base::tools::unique_id;
     use paho_mqtt::{Message, QOS_1};
 
-    use crate::mqtt_protocol::common::{broker_addr, connect_server34, distinct_conn};
+    use crate::mqtt_protocol::common::{
+        broker_addr, build_client_id, connect_server34, distinct_conn,
+    };
 
     #[tokio::test]
     async fn client34_simple_subscribe_test() {
@@ -97,7 +99,7 @@ mod tests {
         sub_qos: &[i32],
         payload_flag: String,
     ) {
-        let client_id = unique_id();
+        let client_id = build_client_id("sub34_qos_test");
         let addr = broker_addr();
         let sub_topics = &[sub_topic.clone()];
 
