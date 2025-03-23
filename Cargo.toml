@@ -102,7 +102,9 @@ prost-validate-build = "0.2.6"
 # tonic
 tonic = "0.12.3"
 tonic-build = "0.12.3"
+tonic-web = "0.12.3"
 tower = "0.5.2"
+tower-http = "0.5.2"
 # quic
 quinn = "0.11.6"
 rcgen = "0.13.2"
@@ -168,6 +170,7 @@ third-driver = { path = "src/common/third-driver" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }
 tempfile = "3.9.0"
+
 [profile.dev]
 overflow-checks = false
 incremental = true

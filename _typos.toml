@@ -28,4 +28,4 @@ SUBSCRIBLE = "SUBSCRIBLE"
 
 
 [files]
-extend-exclude = []
+extend-exclude = ["packages/*"]

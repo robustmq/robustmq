@@ -1,0 +1,15 @@
+{
+  "name": "@robustmq/grpc-web-services",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Grpc web service for RobustMQ",
+  "scripts": {
+    "gen": "bash ./scripts/rpc.sh"
+  },
+  "author": "RobustMQ Team",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "google-protobuf": "^3.21.4",
+    "grpc-web": "^1.5.0"
+  }
+}
