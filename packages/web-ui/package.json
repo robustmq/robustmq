@@ -4,16 +4,17 @@
   "version": "1.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "rsbuild dev",
+    "build": "rsbuild build",
     "lint": "eslint .",
-    "preview": "vite preview",
+    "preview": "rsbuild preview",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
     "knip": "knip"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
+    "@originjs/vite-plugin-commonjs": "^1.0.3",
     "@radix-ui/react-alert-dialog": "^1.1.2",
     "@radix-ui/react-avatar": "^1.1.1",
     "@radix-ui/react-checkbox": "^1.1.2",
@@ -33,6 +34,7 @@
     "@radix-ui/react-toast": "^1.2.2",
     "@radix-ui/react-tooltip": "^1.1.4",
     "@radix-ui/react-visually-hidden": "^1.1.0",
+    "@robustmq/grpc-web-services": "workspace:*",
     "@tabler/icons-react": "^3.24.0",
     "@tanstack/react-query": "^5.62.3",
     "@tanstack/react-router": "^1.86.1",
@@ -42,6 +44,7 @@
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
     "date-fns": "^4.1.0",
+    "grpc-web": "^1.5.0",
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
@@ -66,7 +69,8 @@
     "@types/node": "^22.10.1",
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.1",
-    "@vitejs/plugin-react-swc": "^3.7.2",
+    "@rsbuild/core": "^1.2.19",
+    "@rsbuild/plugin-react": "^1.1.1",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.16.0",
     "eslint-plugin-react-hooks": "^5.1.0",
@@ -78,7 +82,6 @@
     "prettier-plugin-tailwindcss": "^0.6.9",
     "tailwindcss": "^3.4.16",
     "typescript": "~5.7.2",
-    "typescript-eslint": "^8.17.0",
-    "vite": "^6.0.9"
+    "typescript-eslint": "^8.17.0"
   }
 }

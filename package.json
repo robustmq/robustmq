@@ -15,7 +15,7 @@
     "ui:build": "pnpm -r --filter=web-ui run build",
     "ui:preview": "pnpm -r --filter=web-ui run preview"
   },
-  "workspaces": ["web-ui"],
+  "workspaces": ["packages/*"],
   "keywords": ["MQ", "RobustMQ"],
   "author": "RobustMQ",
   "license": "Apache-2.0",

@@ -28,4 +28,4 @@ SUBSCRIBLE = "SUBSCRIBLE"
 
 
 [files]
-extend-exclude = ["web-ui/*"]
+extend-exclude = ["packages/*"]

@@ -102,7 +102,9 @@ prost-validate-build = "0.2.6"
 # tonic
 tonic = "0.12.3"
 tonic-build = "0.12.3"
+tonic-web = "0.12.3"
 tower = "0.5.2"
+tower-http = "0.5.2"
 # quic
 quinn = "0.11.6"
 rcgen = "0.13.2"

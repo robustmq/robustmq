@@ -4,6 +4,8 @@ import {
   IconSortAscendingLetters,
   IconSortDescendingLetters,
 } from '@tabler/icons-react'
+import { PlacementCenterServiceClient } from '@robustmq/grpc-web-services/protos/InnerServiceClientPb'
+import * as innerApi from '@robustmq/grpc-web-services/protos/inner_pb'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -46,6 +48,21 @@ export default function Apps() {
           : true
     )
     .filter((app) => app.name.toLowerCase().includes(searchTerm.toLowerCase()))
+
+  const service = new PlacementCenterServiceClient(
+    'http://127.0.0.1:1228',
+    null,
+    null
+  )
+
+  service.clusterStatus(new innerApi.ClusterStatusRequest(), null, (err, response) => {
+    if (err) {
+      console.log(err)
+    } else {
+      const ret = response.getContent();
+      console.log(JSON.parse(ret))
+    }
+  })
 
   return (
     <>

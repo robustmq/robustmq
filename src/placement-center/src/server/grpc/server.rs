@@ -99,8 +99,14 @@ pub async fn start_grpc_server(
         .layer(BaseMiddlewareLayer::default())
         .into_inner();
 
+    // allow cors for development or production(maybe)?
+    let cors_layer = tower_http::cors::CorsLayer::very_permissive();
+
     info!("RobustMQ Meta Grpc Server start success. bind addr:{}", ip);
     Server::builder()
+        .accept_http1(true)
+        .layer(cors_layer)
+        .layer(tonic_web::GrpcWebLayer::new())
         .layer(layer)
         .add_service(pc_svc)
         .add_service(kv_svc)
