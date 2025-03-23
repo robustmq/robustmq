@@ -121,3 +121,110 @@ impl AclStorage {
         false
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::fs::remove_dir_all;
+    use std::sync::Arc;
+
+    use common_base::config::placement_center::placement_center_test_conf;
+    use metadata_struct::acl::mqtt_acl::{
+        MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
+    };
+
+    use crate::storage::{
+        mqtt::acl::AclStorage,
+        rocksdb::{column_family_list, RocksDBEngine},
+    };
+
+    #[tokio::test]
+    async fn acl_storage_test() {
+        let config = placement_center_test_conf();
+        let rs = Arc::new(RocksDBEngine::new(
+            &config.rocksdb.data_path,
+            config.rocksdb.max_open_files.unwrap(),
+            column_family_list(),
+        ));
+        let acl_storage = AclStorage::new(rs);
+        let cluster_name = "test_cluster".to_string();
+
+        let resource_type = MqttAclResourceType::User;
+        let resource_name = "test_resource".to_string();
+        let topic = "test_topic".to_string();
+        let ip = "localhost".to_string();
+        let action = MqttAclAction::PubSub;
+        let permission = MqttAclPermission::Allow;
+
+        let acl = MqttAcl {
+            resource_type: resource_type.clone(),
+            resource_name: resource_name.clone(),
+            topic: topic.clone(),
+            ip: ip.clone(),
+            action: action.clone(),
+            permission: permission.clone(),
+        };
+
+        acl_storage.save(&cluster_name, acl.clone()).unwrap();
+
+        // save a duplicate acl
+        acl_storage.save(&cluster_name, acl.clone()).unwrap();
+
+        let res = acl_storage.list(&cluster_name).unwrap();
+        assert_eq!(res.len(), 1);
+
+        let acl2 = MqttAcl {
+            resource_type: resource_type.clone(),
+            resource_name: "test_resource2".to_string(),
+            topic: "test_topic2".to_string(),
+            ip: "localhost2".to_string(),
+            action: MqttAclAction::Publish,
+            permission: MqttAclPermission::Deny,
+        };
+
+        acl_storage.save(&cluster_name, acl2.clone()).unwrap();
+
+        let res = acl_storage.list(&cluster_name).unwrap();
+        assert_eq!(res.len(), 2);
+
+        let res = acl_storage
+            .get(
+                &cluster_name,
+                resource_type.to_string().as_str(),
+                &resource_name,
+            )
+            .unwrap();
+
+        assert_eq!(res.len(), 1);
+
+        acl_storage.delete(&cluster_name, &acl).unwrap();
+
+        let res = acl_storage
+            .get(
+                &cluster_name,
+                resource_type.to_string().as_str(),
+                &resource_name,
+            )
+            .unwrap();
+
+        assert_eq!(res.len(), 0);
+
+        let res = acl_storage.list(&cluster_name).unwrap();
+        assert_eq!(res.len(), 1);
+
+        acl_storage.delete(&cluster_name, &acl2).unwrap();
+        let res = acl_storage
+            .get(
+                &cluster_name,
+                resource_type.to_string().as_str(),
+                "test_resource2",
+            )
+            .unwrap();
+
+        assert_eq!(res.len(), 0);
+
+        let res = acl_storage.list(&cluster_name).unwrap();
+        assert_eq!(res.len(), 0);
+
+        remove_dir_all(config.rocksdb.data_path).unwrap();
+    }
+}
