@@ -398,7 +398,7 @@ impl PlacementCenterService for GrpcPlacementService {
             &self.mqtt_call_manager,
             &self.client_pool,
             &req,
-            &self.rocksdb_engine_handler
+            &self.rocksdb_engine_handler,
         )
         .await
         {

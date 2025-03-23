@@ -88,7 +88,7 @@ pub async fn create_schema_req(
     let schema_storage = SchemaStorage::new(rocksdb_engine_handler.clone());
     if let Some(_data) = schema_storage.get(&req.cluster_name, &req.schema_name)? {
         Err(PlacementCenterError::SchemaAlreadyExist(
-          "schema_name".to_string(),
+            "schema_name".to_string(),
         ))
     } else {
         let data = StorageData::new(
@@ -96,12 +96,11 @@ pub async fn create_schema_req(
             CreateSchemaRequest::encode_to_vec(req),
         );
         raft_machine_apply.client_write(data).await?;
-    
+
         let schema = serde_json::from_slice::<SchemaData>(&req.schema)?;
         update_cache_by_add_schema(&req.cluster_name, call_manager, client_pool, schema).await?;
-        Ok(())   
+        Ok(())
     }
-
 }
 
 pub async fn update_schema_req(
