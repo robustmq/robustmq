@@ -20,11 +20,11 @@ use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::placement_center::placement_center_inner::ClusterType;
 
-use super::connector::request::ConnectorHeartbeat;
 use super::controller::session_expire::ExpireLastWill;
 use super::is_send_last_will;
 use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
+use crate::mqtt::services::connector::ConnectorHeartbeat;
 use crate::storage::mqtt::connector::MqttConnectorStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::mqtt::user::MqttUserStorage;

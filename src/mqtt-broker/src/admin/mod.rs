@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod acl;
+pub mod connector;
 pub mod subscribe;
 pub mod topic;
 pub mod user;

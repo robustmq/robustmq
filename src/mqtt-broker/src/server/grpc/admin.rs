@@ -18,6 +18,10 @@ use crate::admin::acl::{
     create_acl_by_req, create_blacklist_by_req, delete_acl_by_req, delete_blacklist_by_req,
     list_acl_by_req, list_blacklist_by_req,
 };
+use crate::admin::connector::{
+    create_connector_by_req, delete_connector_by_req, list_connector_by_req,
+    update_connector_by_req,
+};
 use crate::admin::subscribe::{
     delete_auto_subscribe_rule, list_auto_subscribe_rule_by_req, set_auto_subscribe_rule,
 };
@@ -28,10 +32,6 @@ use crate::admin::user::{create_user_by_req, delete_user_by_req, list_user_by_re
 use crate::admin::{
     cluster_status_by_req, enable_flapping_detect_by_req, enable_slow_subscribe_by_req,
     list_connection_by_req, list_slow_subscribe_by_req,
-};
-use crate::bridge::request::{
-    create_connector_by_req, delete_connector_by_req, list_connector_by_req,
-    update_connector_by_req,
 };
 use crate::handler::cache::CacheManager;
 use crate::server::connection_manager::ConnectionManager;

@@ -12,26 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{handler::error::MqttBrokerError, storage::connector::ConnectorStorage};
-use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::now_second};
-use grpc_clients::{placement::mqtt::call::placement_list_connector, pool::ClientPool};
-use metadata_struct::mqtt::bridge::{
-    config_kafka::KafkaConnectorConfig, config_local_file::LocalFileConnectorConfig,
-    connector::MQTTConnector, connector_type::ConnectorType, status::MQTTStatus,
-};
+use crate::handler::error::MqttBrokerError;
+use crate::storage::connector::ConnectorStorage;
+use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::tools::now_second;
+use grpc_clients::placement::mqtt::call::placement_list_connector;
+use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::bridge::config_kafka::KafkaConnectorConfig;
+use metadata_struct::mqtt::bridge::config_local_file::LocalFileConnectorConfig;
+use metadata_struct::mqtt::bridge::connector::MQTTConnector;
+use metadata_struct::mqtt::bridge::connector_type::ConnectorType;
+use metadata_struct::mqtt::bridge::status::MQTTStatus;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    MqttCreateConnectorReply, MqttDeleteConnectorReply, MqttListConnectorReply,
-    MqttUpdateConnectorReply,
+    MqttConnectorType, MqttCreateConnectorReply, MqttCreateConnectorRequest,
+    MqttDeleteConnectorReply, MqttDeleteConnectorRequest, MqttListConnectorReply,
+    MqttListConnectorRequest, MqttUpdateConnectorReply, MqttUpdateConnectorRequest,
 };
-use protocol::{
-    broker_mqtt::broker_mqtt_admin::{
-        MqttConnectorType, MqttCreateConnectorRequest, MqttDeleteConnectorRequest,
-        MqttListConnectorRequest, MqttUpdateConnectorRequest,
-    },
-    placement_center::placement_center_mqtt::ListConnectorRequest,
-};
+use protocol::placement_center::placement_center_mqtt::ListConnectorRequest;
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
+
 pub async fn list_connector_by_req(
     client_pool: &Arc<ClientPool>,
     request: Request<MqttListConnectorRequest>,

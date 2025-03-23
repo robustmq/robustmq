@@ -14,14 +14,14 @@
 
 use crate::core::cache::PlacementCacheManager;
 use crate::mqtt::cache::MqttCacheManager;
-use crate::mqtt::connector::request::{
-    connector_heartbeat_by_req, create_connector_by_req, delete_connector_by_req,
-    list_connectors_by_req, update_connector_by_req,
-};
 use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
 use crate::mqtt::services::acl::{
     create_acl_by_req, create_blacklist_by_req, delete_acl_by_req, delete_blacklist_by_req,
     list_acl_by_req, list_blacklist_by_req,
+};
+use crate::mqtt::services::connector::{
+    connector_heartbeat_by_req, create_connector_by_req, delete_connector_by_req,
+    list_connectors_by_req, update_connector_by_req,
 };
 use crate::mqtt::services::session::{
     create_session_by_req, delete_session_by_req, list_session_by_req, update_session_by_req,
