@@ -40,6 +40,10 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 use crate::core::cache::PlacementCacheManager;
+use crate::mqtt::services::subscribe::{
+    delete_auto_subscribe_rule_by_req, list_auto_subscribe_rule_by_req,
+    set_auto_subscribe_rule_by_req,
+};
 
 use crate::mqtt::cache::MqttCacheManager;
 use crate::mqtt::connector::request::{
@@ -655,12 +659,7 @@ impl MqttService for GrpcMqttService {
         request: Request<SetAutoSubscribeRuleRequest>,
     ) -> Result<Response<SetAutoSubscribeRuleReply>, Status> {
         let req = request.into_inner();
-        let data = StorageData::new(
-            StorageDataType::MqttSetAutoSubscribeRule,
-            SetAutoSubscribeRuleRequest::encode_to_vec(&req),
-        );
-
-        match self.raft_machine_apply.client_write(data).await {
+        match set_auto_subscribe_rule_by_req(&self.raft_machine_apply, req).await {
             Ok(_) => Ok(Response::new(SetAutoSubscribeRuleReply::default())),
             Err(e) => Err(Status::cancelled(e.to_string())),
         }
@@ -671,12 +670,7 @@ impl MqttService for GrpcMqttService {
         request: Request<DeleteAutoSubscribeRuleRequest>,
     ) -> Result<Response<DeleteAutoSubscribeRuleReply>, Status> {
         let req = request.into_inner();
-        let data = StorageData::new(
-            StorageDataType::MqttDeleteAutoSubscribeRule,
-            DeleteAutoSubscribeRuleRequest::encode_to_vec(&req),
-        );
-
-        match self.raft_machine_apply.client_write(data).await {
+        match delete_auto_subscribe_rule_by_req(&self.raft_machine_apply, req).await {
             Ok(_) => Ok(Response::new(DeleteAutoSubscribeRuleReply::default())),
             Err(e) => Err(Status::cancelled(e.to_string())),
         }
@@ -687,8 +681,7 @@ impl MqttService for GrpcMqttService {
         request: Request<ListAutoSubscribeRuleRequest>,
     ) -> Result<Response<ListAutoSubscribeRuleReply>, Status> {
         let req = request.into_inner();
-        let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.list_auto_subscribe_rule(&req.cluster_name) {
+        match list_auto_subscribe_rule_by_req(&self.rocksdb_engine_handler, req).await {
             Ok(data) => {
                 let mut result = Vec::new();
                 for raw in data {
