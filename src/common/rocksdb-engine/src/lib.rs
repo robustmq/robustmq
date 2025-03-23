@@ -56,16 +56,15 @@ impl RocksDBEngine {
         key: &str,
         value: &T,
     ) -> Result<(), CommonError> {
-        match serde_json::to_vec(&value) {
-            Ok(serialized) => match self.db.put_cf(&cf.clone(), key, serialized) {
-                Ok(()) => {}
-                Err(e) => {
+        match serde_json::to_string(&value) {
+            Ok(serialized) => {
+                if let Err(e) = self.db.put_cf(&cf.clone(), key, serialized) {
                     return Err(CommonError::CommonError(format!(
                         "Failed to put to ColumnFamily:{:?}",
                         e
                     )));
                 }
-            },
+            }
             Err(err) => {
                 return Err(CommonError::CommonError(format!(
                     "Failed to serialize to String. T: {:?}, err: {:?}",
@@ -92,22 +91,20 @@ impl RocksDBEngine {
         key: &str,
     ) -> Result<Option<T>, CommonError> {
         match self.db.get_cf(&cf, key) {
-            Ok(opt) => match opt {
-                Some(found) => {
-                    if !found.is_empty() {
-                        match serde_json::from_slice::<T>(&found) {
-                            Ok(t) => Ok(Some(t)),
-                            Err(err) => Err(CommonError::CommonError(format!(
-                                "Failed to deserialize: {:?}",
-                                err
-                            ))),
-                        }
-                    } else {
-                        Ok(None)
-                    }
+            Ok(Some(found)) => {
+                if found.is_empty() {
+                    return Ok(None);
                 }
-                None => Ok(None),
-            },
+
+                match serde_json::from_slice::<T>(&found) {
+                    Ok(t) => Ok(Some(t)),
+                    Err(err) => Err(CommonError::CommonError(format!(
+                        "Failed to deserialize: {:?}",
+                        err
+                    ))),
+                }
+            }
+            Ok(None) => Ok(None),
             Err(err) => Err(CommonError::CommonError(format!(
                 "Failed to get from ColumnFamily: {:?}",
                 err
@@ -281,7 +278,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn init_family() {
+    async fn base_rw() {
         let config = placement_center_test_conf();
 
         let rs = RocksDBEngine::new(

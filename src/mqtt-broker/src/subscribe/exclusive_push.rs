@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use common_base::tools::now_second;
-use log::{debug, error, info};
+use log::{error, info, warn};
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{Publish, PublishProperties, QoS};
@@ -217,10 +217,6 @@ where
         .read_topic_message(&subscriber.topic_id, offset, record_num)
         .await?;
 
-    if results.is_empty() {
-        return Ok(None);
-    }
-
     for record in results.iter() {
         let record_offset = record.offset.unwrap();
 
@@ -325,11 +321,15 @@ async fn build_pub_message(
     let msg = MqttMessage::decode_record(record.clone())?;
 
     if is_message_expire(&msg) {
-        debug!("message expires, is not pushed to the client, and is discarded");
+        warn!("Message dropping: message expires, is not pushed to the client, and is discarded");
         return Ok(None);
     }
 
     if subscriber.nolocal && (subscriber.client_id == msg.client_id) {
+        warn!(
+            "Message dropping: message is not pushed to the client, because the client_id is the same as the subscriber, client_id: {}, topic_id: {}",
+            subscriber.client_id, subscriber.topic_id
+        );
         return Ok(None);
     }
 

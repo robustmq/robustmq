@@ -27,6 +27,7 @@ log.workspace = true
 rocksdb.workspace = true
 dashmap.workspace = true
 futures.workspace = true
+metadata-struct.workspace = true
 
 [dev-dependencies]
 tokio.workspace = true

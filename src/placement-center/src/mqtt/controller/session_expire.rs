@@ -123,6 +123,7 @@ impl SessionExpire {
             if !result_key.starts_with(&search_key) {
                 break;
             }
+
             let result_value = value.unwrap();
             let session = match serde_json::from_slice::<StorageDataWrap>(result_value) {
                 Ok(data) => match serde_json::from_str::<MqttSession>(&data.data) {
@@ -138,10 +139,10 @@ impl SessionExpire {
                 },
                 Err(e) => {
                     error!(
-                        "Session expired, failed to parse Session data, error message :{}",
-                        e.to_string()
+                        "Session expired, failed to parse Session data, error message :{},key:{}",
+                        e.to_string(),
+                        result_key
                     );
-                    println!("{:?}", result_value);
                     iter.next();
                     continue;
                 }
