@@ -21,6 +21,8 @@ license.workspace = true
 [dependencies]
 tokio.workspace = true
 tonic.workspace = true
+tonic-web.workspace = true
+tower-http = { workspace = true, features = ["cors"] }
 common-base.workspace = true
 protocol.workspace = true
 thiserror.workspace = true
