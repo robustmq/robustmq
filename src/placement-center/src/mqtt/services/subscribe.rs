@@ -12,15 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
-use prost::Message;
-use protocol::placement_center::placement_center_mqtt::{
-    DeleteSubscribeRequest, SetSubscribeRequest,
-};
-use rocksdb_engine::RocksDBEngine;
-use std::sync::Arc;
-
 use crate::{
     core::error::PlacementCenterError,
     mqtt::controller::call_broker::{
@@ -32,6 +23,16 @@ use crate::{
     },
     storage::mqtt::subscribe::MqttSubscribeStorage,
 };
+use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
+use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
+use prost::Message;
+use protocol::placement_center::placement_center_mqtt::{
+    DeleteAutoSubscribeRuleRequest, DeleteSubscribeRequest, ListAutoSubscribeRuleRequest,
+    SetAutoSubscribeRuleRequest, SetSubscribeRequest,
+};
+use rocksdb_engine::RocksDBEngine;
+use std::sync::Arc;
 
 pub async fn save_subscribe_by_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
@@ -82,4 +83,38 @@ pub async fn delete_subscribe_by_req(
         }
     }
     Ok(())
+}
+
+pub async fn set_auto_subscribe_rule_by_req(
+    raft_machine_apply: &Arc<RaftMachineApply>,
+    req: SetAutoSubscribeRuleRequest,
+) -> Result<(), PlacementCenterError> {
+    let data = StorageData::new(
+        StorageDataType::MqttSetAutoSubscribeRule,
+        SetAutoSubscribeRuleRequest::encode_to_vec(&req),
+    );
+
+    raft_machine_apply.client_write(data).await?;
+    Ok(())
+}
+
+pub async fn delete_auto_subscribe_rule_by_req(
+    raft_machine_apply: &Arc<RaftMachineApply>,
+    req: DeleteAutoSubscribeRuleRequest,
+) -> Result<(), PlacementCenterError> {
+    let data = StorageData::new(
+        StorageDataType::MqttDeleteAutoSubscribeRule,
+        DeleteAutoSubscribeRuleRequest::encode_to_vec(&req),
+    );
+    raft_machine_apply.client_write(data).await?;
+    Ok(())
+}
+
+pub async fn list_auto_subscribe_rule_by_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    req: ListAutoSubscribeRuleRequest,
+) -> Result<Vec<MqttAutoSubscribeRule>, PlacementCenterError> {
+    let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
+    let subscribes = storage.list_auto_subscribe_rule(&req.cluster_name)?;
+    Ok(subscribes)
 }
