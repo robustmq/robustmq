@@ -139,4 +139,7 @@ pub enum PlacementCenterError {
 
     #[error("Schema {0} Not found")]
     SchemaNotFound(String),
+
+    #[error("Will Message {0} does not exist")]
+    WillMessageDoesNotExist(String),
 }

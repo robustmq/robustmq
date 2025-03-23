@@ -28,7 +28,6 @@ use crate::{
 };
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::lastwill::LastWillData;
 use metadata_struct::mqtt::session::MqttSession;
 use prost::Message;
 use protocol::placement_center::placement_center_mqtt::{
@@ -146,7 +145,9 @@ pub async fn delete_session_by_req(
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
     let session_opt = storage.get(&req.cluster_name, &req.client_id)?;
     if session_opt.is_none() {
-        return Err(todo!());
+        return Err(Status::cancelled(
+            PlacementCenterError::SessionDoesNotExist(req.client_id).to_string(),
+        ));
     }
 
     let session = session_opt.unwrap();
@@ -158,7 +159,7 @@ pub async fn delete_session_by_req(
     )
     .await
     {
-        return Err(todo!());
+        return Err(Status::cancelled(e.to_string()));
     }
 
     let storage = MqttLastWillStorage::new(rocksdb_engine_handler.clone());
@@ -172,10 +173,12 @@ pub async fn delete_session_by_req(
             });
         }
         Ok(None) => {
-            todo!()
+            return Err(Status::cancelled(
+                PlacementCenterError::WillMessageDoesNotExist(req.client_id).to_string(),
+            ));
         }
-        Err(_) => {
-            todo!()
+        Err(e) => {
+            return Err(Status::cancelled(e.to_string()));
         }
     }
     Ok(Response::new(DeleteSessionReply::default()))
