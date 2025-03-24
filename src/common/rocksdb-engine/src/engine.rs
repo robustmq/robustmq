@@ -155,3 +155,67 @@ pub fn rocksdb_engine_prefix_map(
     }
     Ok(results)
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{fs::remove_dir_all, sync::Arc};
+
+    use metadata_struct::mqtt::session::MqttSession;
+
+    use crate::{
+        engine::{
+            rocksdb_engine_delete, rocksdb_engine_exists, rocksdb_engine_get, rocksdb_engine_save,
+        },
+        RocksDBEngine,
+    };
+
+    #[tokio::test]
+    async fn base_rw_str_test() {
+        let path = "/tmp/test";
+        let rocksdb_engine_handler =
+            Arc::new(RocksDBEngine::new(path, 100, vec!["default".to_string()]));
+        let key = "test_key".to_string();
+        let value = "test_value".to_string();
+        let result = rocksdb_engine_save(
+            rocksdb_engine_handler.clone(),
+            "default",
+            key.clone(),
+            value,
+        );
+        assert!(result.is_ok());
+        let result = rocksdb_engine_get(rocksdb_engine_handler.clone(), "default", key.clone());
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_some());
+        let result = rocksdb_engine_delete(rocksdb_engine_handler.clone(), "default", key.clone());
+        assert!(result.is_ok());
+        let result = rocksdb_engine_exists(rocksdb_engine_handler.clone(), "default", key.clone());
+        assert!(result.is_ok());
+        assert!(!result.unwrap());
+        remove_dir_all(path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn base_rw_session_test() {
+        let path = "/tmp/test";
+        let rocksdb_engine_handler =
+            Arc::new(RocksDBEngine::new(path, 100, vec!["default".to_string()]));
+        let key = "test_key".to_string();
+        let value = MqttSession::default();
+        let result = rocksdb_engine_save(
+            rocksdb_engine_handler.clone(),
+            "default",
+            key.clone(),
+            value,
+        );
+        assert!(result.is_ok());
+        let result = rocksdb_engine_get(rocksdb_engine_handler.clone(), "default", key.clone());
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_some());
+        let result = rocksdb_engine_delete(rocksdb_engine_handler.clone(), "default", key.clone());
+        assert!(result.is_ok());
+        let result = rocksdb_engine_exists(rocksdb_engine_handler.clone(), "default", key.clone());
+        assert!(result.is_ok());
+        assert!(!result.unwrap());
+        remove_dir_all(path).unwrap();
+    }
+}

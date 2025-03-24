@@ -22,7 +22,7 @@ use common_base::error::common::CommonError;
 use common_base::tools::now_mills;
 use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
 use grpc_clients::pool::ClientPool;
-use log::error;
+use log::{error, warn};
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{MqttPacket, MqttProtocol, PubRel, QoS};
 use protocol::placement_center::placement_center_mqtt::{
@@ -483,6 +483,7 @@ pub async fn publish_message_qos(
 ) {
     let push_to_connect = async |client_id: String| -> Result<(), MqttBrokerError> {
         if metadata_cache.get_session_info(&client_id).is_none() {
+            warn!("Client {} is not online, skip push message", client_id);
             return Ok(());
         }
 

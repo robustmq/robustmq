@@ -51,7 +51,7 @@ mod tests {
         let uuid = unique_id();
         let topic = format!("/tests_r1/{}", uuid);
         let rewrite_topic = format!("/test_rewrite/{}", uuid);
-        let sub_topic = format!("{:?}", rewrite_topic);
+        let sub_topic = rewrite_topic;
         simple_test(
             topic.clone(),
             sub_topic.clone(),
@@ -87,7 +87,7 @@ mod tests {
         let uuid = unique_id();
         let topic = format!("/testsub/{}", uuid);
         let rewrite_topic = format!("/tests_r2/{}", uuid);
-        let sub_topic = format!("{:?}", rewrite_topic);
+        let sub_topic = rewrite_topic;
         simple_test(
             topic.clone(),
             sub_topic.clone(),
@@ -122,7 +122,7 @@ mod tests {
         let sub_qos = &[0];
         let uuid = unique_id();
         let topic = format!("/test_r3/{}", uuid);
-        let sub_topic = format!("{:?}", topic);
+        let sub_topic = topic.clone();
         simple_test(
             topic.clone(),
             sub_topic.clone(),

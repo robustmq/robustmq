@@ -764,7 +764,6 @@ where
 
         let new_subs = is_new_sub(&connection.client_id, &subscribe, &self.subscribe_manager).await;
         process_sub_topic_rewrite(&mut subscribe, &self.cache_manager.topic_rewrite_rule);
-
         if let Err(e) = save_subscribe(
             &connection.client_id,
             &self.protocol,
