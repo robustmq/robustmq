@@ -237,10 +237,52 @@ impl StorageAdapter for MySQLStorageAdapter {
 
     async fn list_shard(
         &self,
-        _namespace: String,
-        _shard_name: String,
+        namespace: String,
+        shard_name: String,
     ) -> Result<Vec<ShardInfo>, CommonError> {
-        Ok(Vec::new())
+        let mut conn = self.pool.get_conn()?;
+
+        if namespace.is_empty() {
+            let sql = format!("SELECT info FROM `{}`;", Self::shard_info_table_name());
+            let res = conn.query_map(sql, |info: Vec<u8>| {
+                serde_json::from_slice::<ShardInfo>(&info).unwrap()
+            })?;
+
+            return Ok(res);
+        }
+
+        if shard_name.is_empty() {
+            let sql = format!(
+                "SELECT info FROM `{}` WHERE namespace = :namespace;",
+                Self::shard_info_table_name()
+            );
+
+            let res = conn.exec_map(
+                sql,
+                params! {
+                    "namespace" => namespace,
+                },
+                |info: Vec<u8>| serde_json::from_slice::<ShardInfo>(&info).unwrap(),
+            )?;
+
+            return Ok(res);
+        }
+
+        let sql = format!(
+            "SELECT info FROM `{}` WHERE namespace = :namespace AND shard = :shard;",
+            Self::shard_info_table_name()
+        );
+
+        let res = conn.exec_map(
+            sql,
+            params! {
+                "namespace" => namespace,
+                "shard" => shard_name,
+            },
+            |info: Vec<u8>| serde_json::from_slice::<ShardInfo>(&info).unwrap(),
+        )?;
+
+        Ok(res)
     }
 
     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
@@ -263,6 +305,19 @@ impl StorageAdapter for MySQLStorageAdapter {
         let drop_table_sql = format!("DROP TABLE IF EXISTS `{}`", table_name);
 
         conn.query_drop(drop_table_sql)?;
+
+        let drop_shard_info_sql = format!(
+            "DELETE FROM `{}` WHERE namespace = :namespace AND shard = :shard",
+            Self::shard_info_table_name()
+        );
+
+        conn.exec_drop(
+            drop_shard_info_sql,
+            params! {
+                "namespace" => namespace,
+                "shard" => shard_name,
+            },
+        )?;
 
         Ok(())
     }
@@ -694,6 +749,16 @@ mod tests {
             .await
             .unwrap();
 
+        let shards = mysql_adapter
+            .list_shard(namespace.clone(), shard_name.clone())
+            .await
+            .unwrap();
+
+        assert_eq!(shards.len(), 1);
+        assert_eq!(shards.first().unwrap().shard_name, shard_name);
+        assert_eq!(shards.first().unwrap().namespace, namespace);
+        assert_eq!(shards.first().unwrap().replica_num, 1);
+
         // insert two records (no key or tag) into the shard
         let ms1 = "test1".to_string();
         let ms2 = "test2".to_string();
@@ -760,7 +825,7 @@ mod tests {
         assert_eq!(result_read.len(), 2);
 
         // test group functionalities
-        let group_id = "test_group_id".to_string();
+        let group_id = unique_id();
         let read_config = ReadConfig {
             max_record_num: 1,
             ..Default::default()
@@ -887,9 +952,19 @@ mod tests {
 
         // delete shard
         mysql_adapter
-            .delete_shard(namespace, shard_name)
+            .delete_shard(namespace.clone(), shard_name.clone())
             .await
             .unwrap();
+
+        // check if the shard is deleted
+        let shards = mysql_adapter
+            .list_shard(namespace, shard_name)
+            .await
+            .unwrap();
+
+        assert_eq!(shards.len(), 0);
+
+        mysql_adapter.close().await.unwrap();
 
         clean_resources(pool).await;
     }
