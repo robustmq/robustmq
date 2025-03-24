@@ -55,3 +55,55 @@ impl ClusterStorage {
         Ok(results)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::sync::Arc;
+
+    use metadata_struct::placement::cluster::ClusterInfo;
+    use protocol::placement_center::placement_center_inner::ClusterType;
+    use rocksdb_engine::RocksDBEngine;
+    use tempfile::tempdir;
+
+    use super::ClusterStorage;
+
+    #[test]
+    fn cluster_storage_test() {
+        let rocksdb_engine = Arc::new(RocksDBEngine::new(
+            tempdir().unwrap().path().to_str().unwrap(),
+            100,
+            vec!["cluster".to_string()],
+        ));
+        let cluster_storage = ClusterStorage::new(rocksdb_engine);
+
+        for i in 0..10 {
+            let cluster_type = if i % 2 == 0 {
+                ClusterType::PlacementCenter.as_str_name().to_string()
+            } else {
+                ClusterType::JournalServer.as_str_name().to_string()
+            };
+
+            let cluster_info = ClusterInfo {
+                cluster_name: format!("cluster_{}", i),
+                cluster_type,
+                ..Default::default()
+            };
+
+            cluster_storage.save(&cluster_info).unwrap();
+        }
+
+        let placement_clusters = cluster_storage
+            .list(Some(ClusterType::PlacementCenter.as_str_name().to_string()))
+            .unwrap();
+
+        assert_eq!(placement_clusters.len(), 5);
+
+        let journal_clusters = cluster_storage
+            .list(Some(ClusterType::JournalServer.as_str_name().to_string()))
+            .unwrap();
+        assert_eq!(journal_clusters.len(), 5);
+
+        let all_clusters = cluster_storage.list(None).unwrap();
+        assert_eq!(all_clusters.len(), 10);
+    }
+}
