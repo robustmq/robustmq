@@ -104,13 +104,12 @@ mod tests {
             } else {
                 assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
             }
+        } else if client_properties.ssl {
+            assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
         } else {
-            if client_properties.ssl {
-                assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-            } else {
-                assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-            }
+            assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
         }
+
         println!("client_properties:{:?},resp:{:?}", client_properties, resp);
 
         if present {
