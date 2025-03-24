@@ -4202,6 +4202,7 @@ dependencies = [
  "dashmap",
  "futures",
  "log",
+ "metadata-struct",
  "rocksdb",
  "serde",
  "serde_json",

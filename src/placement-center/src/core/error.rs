@@ -142,4 +142,7 @@ pub enum PlacementCenterError {
 
     #[error("Will Message {0} does not exist")]
     WillMessageDoesNotExist(String),
+
+    #[error("Schema [{0}] already exist")]
+    SchemaAlreadyExist(String),
 }
