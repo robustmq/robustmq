@@ -30,7 +30,7 @@ use protocol::mqtt::common::{
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
 
-use super::connection::disconnect_connection;
+use super::connection::{disconnect_connection, is_delete_session};
 use super::offline_message::save_message;
 use super::retain::{is_new_sub, try_send_retain_message};
 use super::sub_auto::start_auto_subscribe;
@@ -919,7 +919,7 @@ where
         &self,
         connect_id: u64,
         disconnect: Disconnect,
-        _: Option<DisconnectProperties>,
+        disconnect_properties: Option<DisconnectProperties>,
     ) -> Option<MqttPacket> {
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
             se.clone()
@@ -941,6 +941,12 @@ where
             .await;
         }
 
+        let delete_session = if let Some(properties) = disconnect_properties {
+            is_delete_session(properties.user_properties)
+        } else {
+            false
+        };
+
         match disconnect_connection(
             &connection.client_id,
             connect_id,
@@ -948,6 +954,7 @@ where
             &self.client_pool,
             &self.connection_manager,
             &self.subscribe_manager,
+            delete_session,
         )
         .await
         {
