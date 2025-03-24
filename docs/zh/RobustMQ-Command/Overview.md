@@ -5,7 +5,7 @@
 RobustMQ Command 是 RobustMQ 提供的命令行工具，用于集群相关操作。目前包含 mqtt、place、journal 三个模块，分别对应 RobustMQ 的 MQTT Broker、元数据服务 Placement Center、存储层 Journal Server 三个组件。
 
 ```
-$ ./bin/robust-ctl.sh
+$ ./bin/robust-ctl
 Command line tool for RobustMQ
 
 Usage: robust-ctl <COMMAND>
@@ -32,7 +32,7 @@ Options:
 负责 MQTT Broker 服务相关的操作
 
 ```
-$ ./bin/robust-ctl.sh mqtt -h
+$ ./bin/robust-ctl mqtt -h
 Command line tool for mqtt broker
 
 Usage: robust-ctl mqtt [OPTIONS] <COMMAND>
@@ -67,7 +67,7 @@ Options:
 负责 Placement Center 服务相关的操作
 
 ```
-$ ./bin/robust-ctl.sh place -h
+$ ./bin/robust-ctl place -h
 Command line tool for placement center
 
 Usage: robust-ctl place [OPTIONS] <COMMAND>
@@ -94,7 +94,7 @@ Options:
 负责 Journal Server 服务相关的操作
 
 ```
-$ ./bin/robust-ctl.sh journal -h
+$ ./bin/robust-ctl journal -h
 Command line tool for journal engine
 
 Usage: robust-ctl journal [OPTIONS]

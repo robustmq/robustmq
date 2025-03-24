@@ -88,8 +88,8 @@ build/
 $ tree robustmq-0.1.14
 robustmq-0.1.14
 ├── bin #  可执行文件目录
-│   ├── robust-ctl.sh  # RobustMQ Command 入口文件
-│   └── robust-server.sh # RobustMQ Server 入口文件
+│   ├── robust-ctl  # RobustMQ Command 入口文件
+│   └── robust-server # RobustMQ Server 入口文件
 ├── config # 配置文件目录
 │   ├── example
 │   │   ├── certs
