@@ -18,7 +18,7 @@ use crate::mqtt_protocol::common::{
 };
 use paho_mqtt::{Client, ReasonCode};
 
-#[derive(Debug, Clone,Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ClientTestProperties {
     pub(crate) mqtt_version: u32,
     pub(crate) client_id: String,
@@ -29,10 +29,7 @@ pub struct ClientTestProperties {
 }
 
 pub fn wrong_password_test(client_properties: ClientTestProperties) {
-    let create_opts = build_create_pros(
-        &client_properties.client_id,
-        &client_properties.addr,
-    );
+    let create_opts = build_create_pros(&client_properties.client_id, &client_properties.addr);
 
     let cli_res = Client::new(create_opts);
     assert!(cli_res.is_ok());

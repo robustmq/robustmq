@@ -226,6 +226,7 @@ mod tests {
 
             let conn_opts = build_conn_pros(client_properties.clone(), false);
             let result = cli.connect(conn_opts);
+            println!("{:?}", result);
             assert!(result.is_ok());
             let response = result.unwrap();
             assert_eq!(response.reason_code(), ReasonCode::Success);

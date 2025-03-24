@@ -67,7 +67,8 @@ pub fn build_conn_pros(
     } else {
         let mut props = build_v5_pros();
         if client_test_properties.request_response {
-            props.push_val(PropertyCode::RequestResponseInformation, 1)
+            props
+                .push_val(PropertyCode::RequestResponseInformation, 1)
                 .unwrap();
         }
         build_v5_conn_pros(
