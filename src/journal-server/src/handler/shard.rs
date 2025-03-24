@@ -20,7 +20,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
 use protocol::journal_server::journal_engine::{
     ClientSegmentMetadata, CreateShardReq, DeleteShardReq, GetShardMetadataReq,
-    GetShardMetadataRespShard,
+    GetShardMetadataRespShard, ListShardReq,
 };
 use protocol::placement_center::placement_center_journal::{
     CreateNextSegmentRequest, UpdateSegmentStatusRequest,
@@ -93,6 +93,42 @@ impl ShardHandler {
         .await?;
 
         Ok(())
+    }
+
+    pub async fn list_shard(
+        &self,
+        request: ListShardReq,
+    ) -> Result<Vec<Vec<u8>>, JournalServerError> {
+        if request.body.is_none() {
+            return Err(JournalServerError::RequestBodyNotEmpty(
+                "list_shard".to_string(),
+            ));
+        }
+
+        let req_body = request.body.unwrap();
+
+        // directly get from cache
+        let shards = if req_body.namespace.is_empty() {
+            self.cache_manager.get_shards()
+        } else if req_body.shard_name.is_empty() {
+            self.cache_manager
+                .get_shards_by_namespace(&req_body.namespace)
+        } else if let Some(shard_info) = self
+            .cache_manager
+            .get_shard(&req_body.namespace, &req_body.shard_name)
+        {
+            vec![shard_info]
+        } else {
+            vec![]
+        };
+
+        let mut res = Vec::new();
+
+        for shard in shards {
+            res.push(serde_json::to_vec(&shard)?)
+        }
+
+        Ok(res)
     }
 
     pub async fn get_shard_metadata(

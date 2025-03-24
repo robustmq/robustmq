@@ -19,8 +19,9 @@ use protocol::journal_server::journal_engine::{
     ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, CreateShardRespBody, DeleteShardReq,
     DeleteShardReqBody, DeleteShardRespBody, FetchOffsetReq, FetchOffsetReqBody,
     FetchOffsetRespBody, GetClusterMetadataReq, GetClusterMetadataRespBody, GetShardMetadataReq,
-    GetShardMetadataReqBody, GetShardMetadataReqShard, GetShardMetadataRespBody, ReadReq,
-    ReadReqBody, ReadRespBody, ReqHeader, WriteReq, WriteReqBody, WriteRespBody,
+    GetShardMetadataReqBody, GetShardMetadataReqShard, GetShardMetadataRespBody, ListShardReq,
+    ListShardReqBody, ListShardRespBody, ReadReq, ReadReqBody, ReadRespBody, ReqHeader, WriteReq,
+    WriteReqBody, WriteRespBody,
 };
 
 use crate::connection::ConnectionManager;
@@ -132,6 +133,36 @@ pub(crate) async fn delete_shard(
     let resp_packet = connection_manager.admin_send(req_packet.clone()).await?;
 
     if let JournalEnginePacket::DeleteShardResp(data) = resp_packet {
+        resp_header_error(&data.header, req_packet.clone())?;
+        if let Some(body) = data.body {
+            return Ok(body);
+        }
+        return Err(JournalClientError::ReceivedPacketNotContainBody(
+            req_packet.to_string(),
+        ));
+    }
+
+    Err(JournalClientError::ReceivedPacketTypeError(
+        req_packet.to_string(),
+        resp_packet.to_string(),
+    ))
+}
+
+pub(crate) async fn list_shard(
+    connection_manager: &Arc<ConnectionManager>,
+    shard: ListShardReqBody,
+) -> Result<ListShardRespBody, JournalClientError> {
+    let req_packet = JournalEnginePacket::ListShardReq(ListShardReq {
+        header: Some(ReqHeader {
+            api_key: ApiKey::ListShard.into(),
+            api_version: ApiVersion::V0.into(),
+        }),
+        body: Some(shard),
+    });
+
+    let resp_packet = connection_manager.admin_send(req_packet.clone()).await?;
+
+    if let JournalEnginePacket::ListShardResp(data) = resp_packet {
         resp_header_error(&data.header, req_packet.clone())?;
         if let Some(body) = data.body {
             return Ok(body);

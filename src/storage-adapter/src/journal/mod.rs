@@ -69,10 +69,28 @@ impl StorageAdapter for JournalStorageAdapter {
 
     async fn list_shard(
         &self,
-        _namespace: String,
-        _shard_name: String,
+        namespace: String,
+        shard_name: String,
     ) -> Result<Vec<ShardInfo>, CommonError> {
-        Ok(Vec::new())
+        let reply = self
+            .client
+            .list_shard(namespace.as_str(), shard_name.as_str())
+            .await
+            .map_err(|e| CommonError::CommonError(e.to_string()))?;
+
+        let mut res = Vec::new();
+
+        for shard in reply {
+            let shard_info = ShardInfo {
+                namespace: shard.namespace,
+                shard_name: shard.shard_name,
+                ..Default::default()
+            };
+
+            res.push(shard_info);
+        }
+
+        Ok(res)
     }
 
     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
