@@ -217,6 +217,10 @@ where
         .read_topic_message(&subscriber.topic_id, offset, record_num)
         .await?;
 
+    if results.is_empty() {
+        return Ok(None);
+    }
+
     for record in results.iter() {
         let record_offset = record.offset.unwrap();
 

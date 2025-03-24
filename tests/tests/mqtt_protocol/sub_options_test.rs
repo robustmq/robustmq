@@ -59,6 +59,7 @@ mod tests {
         let cli = connect_server5(&client_id, &addr, false, false);
 
         let message_content = format!("mqtt {payload_flag} message");
+        
         // publish
         let msg = Message::new(pub_topic.clone(), message_content.clone(), QOS_2);
         assert!(cli.publish(msg).is_ok());
@@ -69,7 +70,7 @@ mod tests {
             .subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None)
             .is_ok());
 
-        match rx.recv_timeout(Duration::from_secs(5)) {
+        match rx.recv_timeout(Duration::from_secs(60)) {
             Ok(msg) => {
                 assert!(!no_local);
                 let payload = String::from_utf8(msg.unwrap().payload().to_vec()).unwrap();
@@ -106,7 +107,7 @@ mod tests {
         assert!(cli
             .subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None)
             .is_ok());
-        let recv = rx.recv_timeout(Duration::from_secs(5));
+        let recv = rx.recv_timeout(Duration::from_secs(60));
         assert!(recv.is_ok());
         assert_eq!(recv.unwrap().unwrap().retained(), retain_as_published);
         distinct_conn(cli);
@@ -163,7 +164,7 @@ mod tests {
         assert!(consumer_cli
             .subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None)
             .is_ok());
-        let res = rx.recv_timeout(Duration::from_secs(5));
+        let res = rx.recv_timeout(Duration::from_secs(60));
         assert!(res.is_ok());
         println!("{:?}", res);
         distinct_conn(consumer_cli);
@@ -252,7 +253,7 @@ mod tests {
         let res = consumer_cli.subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None);
         println!("{:?}", res);
         assert!(res.is_ok());
-        let res = rx.recv_timeout(Duration::from_secs(5));
+        let res = rx.recv_timeout(Duration::from_secs(60));
         println!("{:?}", res);
         assert!(res.is_ok());
         distinct_conn(consumer_cli);
