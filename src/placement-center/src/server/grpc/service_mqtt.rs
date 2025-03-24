@@ -28,7 +28,8 @@ use crate::mqtt::services::session::{
 };
 use crate::mqtt::services::share_sub::get_share_sub_leader_by_req;
 use crate::mqtt::services::subscribe::{
-    delete_subscribe_by_req, list_subscribe_by_req, set_subscribe_by_req,
+    delete_auto_subscribe_rule_by_req, delete_subscribe_by_req, list_auto_subscribe_rule_by_req,
+    list_subscribe_by_req, set_auto_subscribe_rule_by_req, set_subscribe_by_req,
 };
 use crate::mqtt::services::topic::{
     create_topic_by_req, create_topic_rewrite_rule_by_req, delete_topic_by_req,
@@ -407,51 +408,20 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<SetAutoSubscribeRuleRequest>,
     ) -> Result<Response<SetAutoSubscribeRuleReply>, Status> {
-        let req = request.into_inner();
-        let data = StorageData::new(
-            StorageDataType::MqttSetAutoSubscribeRule,
-            SetAutoSubscribeRuleRequest::encode_to_vec(&req),
-        );
-
-        match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => Ok(Response::new(SetAutoSubscribeRuleReply::default())),
-            Err(e) => Err(Status::cancelled(e.to_string())),
-        }
+        set_auto_subscribe_rule_by_req(&self.raft_machine_apply, request).await
     }
 
     async fn delete_auto_subscribe_rule(
         &self,
         request: Request<DeleteAutoSubscribeRuleRequest>,
     ) -> Result<Response<DeleteAutoSubscribeRuleReply>, Status> {
-        let req = request.into_inner();
-        let data = StorageData::new(
-            StorageDataType::MqttDeleteAutoSubscribeRule,
-            DeleteAutoSubscribeRuleRequest::encode_to_vec(&req),
-        );
-
-        match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => Ok(Response::new(DeleteAutoSubscribeRuleReply::default())),
-            Err(e) => Err(Status::cancelled(e.to_string())),
-        }
+        delete_auto_subscribe_rule_by_req(&self.raft_machine_apply, request).await
     }
 
     async fn list_auto_subscribe_rule(
         &self,
         request: Request<ListAutoSubscribeRuleRequest>,
     ) -> Result<Response<ListAutoSubscribeRuleReply>, Status> {
-        let req = request.into_inner();
-        let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.list_auto_subscribe_rule(&req.cluster_name) {
-            Ok(data) => {
-                let mut result = Vec::new();
-                for raw in data {
-                    result.push(raw.encode());
-                }
-                Ok(Response::new(ListAutoSubscribeRuleReply {
-                    auto_subscribe_rules: result,
-                }))
-            }
-            Err(e) => Err(Status::cancelled(e.to_string())),
-        }
+        list_auto_subscribe_rule_by_req(&self.rocksdb_engine_handler, request)
     }
 }

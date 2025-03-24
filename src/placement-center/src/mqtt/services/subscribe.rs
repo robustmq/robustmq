@@ -28,8 +28,10 @@ use log::warn;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use prost::Message;
 use protocol::placement_center::placement_center_mqtt::{
-    DeleteSubscribeReply, DeleteSubscribeRequest, ListSubscribeReply, ListSubscribeRequest,
-    SetSubscribeReply, SetSubscribeRequest,
+    DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest, DeleteSubscribeReply,
+    DeleteSubscribeRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
+    ListSubscribeReply, ListSubscribeRequest, SetAutoSubscribeRuleReply,
+    SetAutoSubscribeRuleRequest, SetSubscribeReply, SetSubscribeRequest,
 };
 use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
@@ -143,4 +145,56 @@ pub async fn set_subscribe_by_req(
         return Err(Status::cancelled(e.to_string()));
     }
     Ok(Response::new(SetSubscribeReply::default()))
+}
+
+pub async fn set_auto_subscribe_rule_by_req(
+    raft_machine_apply: &Arc<RaftMachineApply>,
+    request: Request<SetAutoSubscribeRuleRequest>,
+) -> Result<Response<SetAutoSubscribeRuleReply>, Status> {
+    let req = request.into_inner();
+    let data = StorageData::new(
+        StorageDataType::MqttSetAutoSubscribeRule,
+        SetAutoSubscribeRuleRequest::encode_to_vec(&req),
+    );
+
+    match raft_machine_apply.client_write(data).await {
+        Ok(_) => Ok(Response::new(SetAutoSubscribeRuleReply::default())),
+        Err(e) => Err(Status::cancelled(e.to_string())),
+    }
+}
+
+pub async fn delete_auto_subscribe_rule_by_req(
+    raft_machine_apply: &Arc<RaftMachineApply>,
+    request: Request<DeleteAutoSubscribeRuleRequest>,
+) -> Result<Response<DeleteAutoSubscribeRuleReply>, Status> {
+    let req = request.into_inner();
+    let data = StorageData::new(
+        StorageDataType::MqttDeleteAutoSubscribeRule,
+        DeleteAutoSubscribeRuleRequest::encode_to_vec(&req),
+    );
+
+    match raft_machine_apply.client_write(data).await {
+        Ok(_) => Ok(Response::new(DeleteAutoSubscribeRuleReply::default())),
+        Err(e) => Err(Status::cancelled(e.to_string())),
+    }
+}
+
+pub fn list_auto_subscribe_rule_by_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    request: Request<ListAutoSubscribeRuleRequest>,
+) -> Result<Response<ListAutoSubscribeRuleReply>, Status> {
+    let req = request.into_inner();
+    let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
+    match storage.list_auto_subscribe_rule(&req.cluster_name) {
+        Ok(data) => {
+            let mut result = Vec::new();
+            for raw in data {
+                result.push(raw.encode());
+            }
+            Ok(Response::new(ListAutoSubscribeRuleReply {
+                auto_subscribe_rules: result,
+            }))
+        }
+        Err(e) => Err(Status::cancelled(e.to_string())),
+    }
 }
