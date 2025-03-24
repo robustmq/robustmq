@@ -89,6 +89,7 @@ mod tests {
 
             let conn_opts = build_conn_pros(client_properties.clone(), false);
             let result = cli.connect(conn_opts);
+            println!("{:?}", result);
             assert!(result.is_ok());
             let response = result.unwrap();
             assert_eq!(response.reason_code(), ReasonCode::Success);
@@ -221,6 +222,7 @@ mod tests {
             let cli_res = Client::new(create_opts);
             assert!(cli_res.is_ok());
             let cli = cli_res.unwrap();
+            println!("{:?}", client_properties);
 
             let conn_opts = build_conn_pros(client_properties.clone(), false);
             let result = cli.connect(conn_opts);
