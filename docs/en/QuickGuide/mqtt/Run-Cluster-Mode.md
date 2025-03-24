@@ -1,6 +1,6 @@
 # Cluster mode
 
-1. The front part is the same as the stand-alone mode，Reference[Standalone Mode](./Run-Standalone-Mode.md)。Cluster mode also starts two components ：Placement-Center and MQTT-Broker。
+1. The front part is the same as the stand-alone mode，Reference[Standalone Mode](./Run-Standalone-Mode.md)。Cluster mode also starts two components ：Placement-Center and MQTT-Broker.
 
 > The difference between cluster mode and standalone mode is that cluster mode needs to launch multiple Placement Center and MQTT Broker nodes. When multiple nodes are started, they are automatically formed into a highly available cluster.
 
@@ -55,4 +55,4 @@ node list:
 MQTT broker cluster up and running
 ```
 
-5.MQTT validation, view log, stop service ，Reference[Standalone Mode](./Run-Standalone-Mode.md)。
+5.MQTT validation, view log, stop service ，Reference[Standalone Mode](./Run-Standalone-Mode.md).
