@@ -17,7 +17,7 @@ mod tests {
     use crate::mqtt_protocol::common::{
         broker_addr, broker_grpc_addr, build_conn_pros, build_create_pros, distinct_conn,
     };
-    use crate::mqtt_protocol::connect_suite::ClientTestProperties;
+    use crate::mqtt_protocol::ClientTestProperties;
     use common_base::tools::unique_id;
     use grpc_clients::mqtt::admin::call::mqtt_broker_enable_flapping_detect;
     use grpc_clients::pool::ClientPool;

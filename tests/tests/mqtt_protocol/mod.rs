@@ -12,12 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[derive(Debug, Clone, Default)]
+pub struct ClientTestProperties {
+    pub(crate) mqtt_version: u32,
+    pub(crate) client_id: String,
+    pub(crate) addr: String,
+    pub(crate) ws: bool,
+    pub(crate) ssl: bool,
+    pub(crate) request_response: bool,
+}
 // pub mod acl_authorization_test;
 pub mod common;
 pub mod connect5_test;
 pub mod connect_test;
 // pub mod connect_packet_size_test;
-mod connect_suite;
 mod flapping_detect_test;
 // pub mod keep_alive_test;
 // pub mod lastwill_message_test;

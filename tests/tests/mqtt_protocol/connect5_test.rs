@@ -24,7 +24,7 @@ mod tests {
             broker_addr_by_type, build_client_id, build_conn_pros, build_create_pros,
             distinct_conn, network_types, ssl_by_type, ws_by_type,
         },
-        connect_suite::ClientTestProperties,
+        ClientTestProperties,
     };
 
     #[tokio::test]

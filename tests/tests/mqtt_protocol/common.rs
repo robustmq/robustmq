@@ -15,7 +15,7 @@
 use std::process;
 use std::time::Duration;
 
-use crate::mqtt_protocol::connect_suite::ClientTestProperties;
+use crate::mqtt_protocol::ClientTestProperties;
 use common_base::tools::unique_id;
 use paho_mqtt::{
     Client, ConnectOptions, ConnectOptionsBuilder, CreateOptions, CreateOptionsBuilder,
