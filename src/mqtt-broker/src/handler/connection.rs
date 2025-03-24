@@ -15,7 +15,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use common_base::tools::unique_id;
+use common_base::tools::{now_second, unique_id};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
@@ -29,6 +29,7 @@ use crate::storage::session::SessionStorage;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/sys/request_response/";
+pub const DISCONNECT_FLAG_NOT_DELETE_SESSION: &str = "DISCONNECT_FLAG_NOT_DELETE_SESSION";
 
 pub fn build_connection(
     connect_id: u64,
@@ -109,6 +110,15 @@ pub fn response_information(connect_properties: &Option<ConnectProperties>) -> O
     None
 }
 
+pub fn is_delete_session(user_properties: Vec<(String, String)>) -> bool {
+    for (key, value) in user_properties {
+        if key == *DISCONNECT_FLAG_NOT_DELETE_SESSION && value == "true" {
+            return false;
+        }
+    }
+    true
+}
+
 pub async fn disconnect_connection(
     client_id: &str,
     connect_id: u64,
@@ -116,22 +126,22 @@ pub async fn disconnect_connection(
     client_pool: &Arc<ClientPool>,
     connection_manager: &Arc<ConnectionManager>,
     subscribe_manager: &Arc<SubscribeManager>,
+    delete_session: bool,
 ) -> Result<(), MqttBrokerError> {
-    // Remove the connection cache
-    cache_manager.remove_connection(connect_id);
-
-    // Remove the session cache
-    cache_manager.remove_session(client_id);
-
-    // Remove the client id bound subscription information
-    subscribe_manager.remove_client_id(client_id);
-
-    // Remove the Connect id of the Session in the Placement Center
     let session_storage = SessionStorage::new(client_pool.clone());
-    session_storage.delete_session(client_id.to_owned()).await?;
+    if delete_session {
+        session_storage.delete_session(client_id.to_owned()).await?;
+        cache_manager.remove_session(client_id);
+        subscribe_manager.remove_client_id(client_id);
+    } else {
+        cache_manager.update_session_connect_id(client_id, None);
+        session_storage
+            .update_session(client_id.to_owned(), 0, 0, 0, now_second())
+            .await?;
+    }
 
-    // Close the real network connection
     connection_manager.close_connect(connect_id).await;
+    cache_manager.remove_connection(connect_id);
     Ok(())
 }
 

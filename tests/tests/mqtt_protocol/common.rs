@@ -65,7 +65,11 @@ pub fn build_conn_pros(
     if client_test_properties.mqtt_version == 4 || client_test_properties.mqtt_version == 3 {
         build_v34_conn_pros(client_test_properties.clone(), err_pwd)
     } else {
-        let props = build_v5_pros();
+        let mut props = build_v5_pros();
+        if client_test_properties.request_response {
+            props.push_val(PropertyCode::RequestResponseInformation, 1)
+                .unwrap();
+        }
         build_v5_conn_pros(
             props,
             err_pwd,
@@ -323,10 +327,22 @@ pub fn build_create_pros(client_id: &str, addr: &str) -> CreateOptions {
 
 #[allow(dead_code)]
 pub fn distinct_conn(cli: Client) {
+    let mut props = Properties::new();
+
+    props
+        .push_string_pair(
+            PropertyCode::UserProperty,
+            "DISCONNECT_FLAG_NOT_DELETE_SESSION",
+            "true",
+        )
+        .unwrap();
+
     let disconnect_opts = DisconnectOptionsBuilder::new()
         .reason_code(ReasonCode::DisconnectWithWillMessage)
+        .properties(props)
         .finalize();
-    cli.disconnect(disconnect_opts).unwrap();
+    let res = cli.disconnect(disconnect_opts);
+    assert!(res.is_ok());
 }
 
 #[allow(dead_code)]

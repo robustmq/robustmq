@@ -39,6 +39,7 @@ mod tests {
                     addr,
                     ws: ws_by_type(&network),
                     ssl: ssl_by_type(&network),
+                    ..Default::default()
                 };
                 wrong_password_test(client_properties);
             }
@@ -63,6 +64,7 @@ mod tests {
                     addr,
                     ws: ws_by_type(&network),
                     ssl: ssl_by_type(&network),
+                    ..Default::default()
                 };
 
                 create_session_connection(&client_properties, true);

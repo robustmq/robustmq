@@ -18,35 +18,36 @@ use crate::mqtt_protocol::common::{
 };
 use paho_mqtt::{Client, ReasonCode};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone,Default)]
 pub struct ClientTestProperties {
     pub(crate) mqtt_version: u32,
     pub(crate) client_id: String,
     pub(crate) addr: String,
     pub(crate) ws: bool,
     pub(crate) ssl: bool,
+    pub(crate) request_response: bool,
 }
 
-pub fn wrong_password_test(client_test_properties: ClientTestProperties) {
+pub fn wrong_password_test(client_properties: ClientTestProperties) {
     let create_opts = build_create_pros(
-        &client_test_properties.client_id,
-        &client_test_properties.addr,
+        &client_properties.client_id,
+        &client_properties.addr,
     );
 
     let cli_res = Client::new(create_opts);
     assert!(cli_res.is_ok());
     let cli = cli_res.unwrap();
 
-    let conn_opts = build_conn_pros(client_test_properties.clone(), true);
+    let conn_opts = build_conn_pros(client_properties.clone(), true);
     let result = cli.connect(conn_opts);
     println!(
         "client_test_properties:{:?},result:{:?}",
-        client_test_properties, result
+        client_properties, result
     );
     assert!(result.is_err());
 }
 
-pub fn create_session_connection(client_properties: &ClientTestProperties, _present: bool) {
+pub fn create_session_connection(client_properties: &ClientTestProperties, present: bool) {
     let create_opts = build_create_pros(&client_properties.client_id, &client_properties.addr);
     let cli = Client::new(create_opts).unwrap();
 
@@ -69,6 +70,11 @@ pub fn create_session_connection(client_properties: &ClientTestProperties, _pres
     }
     println!("client_properties:{:?},resp:{:?}", client_properties, resp);
 
+    if present {
+        assert!(resp.session_present);
+    } else {
+        assert!(!resp.session_present);
+    }
     assert_eq!(client_properties.mqtt_version, resp.mqtt_version);
     assert_eq!(response.reason_code(), ReasonCode::Success);
 

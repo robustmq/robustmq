@@ -37,6 +37,7 @@ mod tests {
             addr: broker_addr(),
             ws: false,
             ssl: false,
+            ..Default::default()
         };
 
         for _i in 0..20 {
