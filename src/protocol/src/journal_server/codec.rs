@@ -23,9 +23,9 @@ use super::journal_engine::{
     DeleteShardReq, DeleteShardReqBody, DeleteShardResp, DeleteShardRespBody, FetchOffsetReq,
     FetchOffsetReqBody, FetchOffsetResp, FetchOffsetRespBody, GetClusterMetadataReq,
     GetClusterMetadataResp, GetClusterMetadataRespBody, GetShardMetadataReq,
-    GetShardMetadataReqBody, GetShardMetadataResp, GetShardMetadataRespBody, ReadReq, ReadReqBody,
-    ReadResp, ReadRespBody, ReqHeader, RespHeader, WriteReq, WriteReqBody, WriteResp,
-    WriteRespBody,
+    GetShardMetadataReqBody, GetShardMetadataResp, GetShardMetadataRespBody, ListShardReq,
+    ListShardReqBody, ListShardResp, ListShardRespBody, ReadReq, ReadReqBody, ReadResp,
+    ReadRespBody, ReqHeader, RespHeader, WriteReq, WriteReqBody, WriteResp, WriteRespBody,
 };
 use super::Error;
 
@@ -61,6 +61,10 @@ pub enum JournalEnginePacket {
     // DeleteShard
     DeleteShardReq(DeleteShardReq),
     DeleteShardResp(DeleteShardResp),
+
+    // ListShard
+    ListShardReq(ListShardReq),
+    ListShardResp(ListShardResp),
 }
 
 impl fmt::Display for JournalEnginePacket {
@@ -80,6 +84,8 @@ impl fmt::Display for JournalEnginePacket {
             JournalEnginePacket::CreateShardResp(_) => write!(f, "CreateShardResp"),
             JournalEnginePacket::DeleteShardReq(_) => write!(f, "DeleteShardReq"),
             JournalEnginePacket::DeleteShardResp(_) => write!(f, "DeleteShardResp"),
+            JournalEnginePacket::ListShardReq(_) => write!(f, "ListShardReq"),
+            JournalEnginePacket::ListShardResp(_) => write!(f, "ListShardResp"),
         }
     }
 }
@@ -212,6 +218,22 @@ impl codec::Encoder<JournalEnginePacket> for JournalServerCodec {
                 let body = data.body.unwrap();
                 header_byte = RespHeader::encode_to_vec(&header);
                 body_byte = DeleteShardRespBody::encode_to_vec(&body);
+            }
+
+            // ListShard
+            JournalEnginePacket::ListShardReq(data) => {
+                let header = data.header.unwrap();
+                let body = data.body.unwrap();
+                header_byte = ReqHeader::encode_to_vec(&header);
+                body_byte = ListShardReqBody::encode_to_vec(&body);
+                req_type = 1;
+            }
+
+            JournalEnginePacket::ListShardResp(data) => {
+                let header = data.header.unwrap();
+                let body = data.body.unwrap();
+                header_byte = RespHeader::encode_to_vec(&header);
+                body_byte = ListShardRespBody::encode_to_vec(&body);
             }
         }
 

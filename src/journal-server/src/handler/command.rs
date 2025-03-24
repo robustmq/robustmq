@@ -21,8 +21,8 @@ use protocol::journal_server::codec::JournalEnginePacket;
 use protocol::journal_server::journal_engine::{
     ApiKey, ApiVersion, CreateShardResp, CreateShardRespBody, DeleteShardResp, DeleteShardRespBody,
     FetchOffsetResp, FetchOffsetRespBody, GetClusterMetadataResp, GetClusterMetadataRespBody,
-    GetShardMetadataResp, GetShardMetadataRespBody, JournalEngineError, ReadResp, ReadRespBody,
-    RespHeader, WriteResp, WriteRespBody,
+    GetShardMetadataResp, GetShardMetadataRespBody, JournalEngineError, ListShardResp,
+    ListShardRespBody, ReadResp, ReadRespBody, RespHeader, WriteResp, WriteRespBody,
 };
 use rocksdb_engine::RocksDBEngine;
 
@@ -145,6 +145,28 @@ impl Command {
                 }
                 resp.header = Some(header);
                 return Some(JournalEnginePacket::DeleteShardResp(resp));
+            }
+
+            JournalEnginePacket::ListShardReq(request) => {
+                info!("recv list shard request: {:?}", request);
+                let mut resp = ListShardResp::default();
+                let mut header = RespHeader {
+                    api_key: ApiKey::ListShard.into(),
+                    api_version: ApiVersion::V0.into(),
+                    ..Default::default()
+                };
+                match self.shard_handler.list_shard(request).await {
+                    Ok(shards) => resp.body = Some(ListShardRespBody { shards }),
+                    Err(e) => {
+                        header.error = Some(JournalEngineError {
+                            code: get_journal_server_code(&e),
+                            error: e.to_string(),
+                        });
+                        resp.body = Some(ListShardRespBody::default());
+                    }
+                }
+                resp.header = Some(header);
+                return Some(JournalEnginePacket::ListShardResp(resp));
             }
 
             JournalEnginePacket::GetShardMetadataReq(request) => {
