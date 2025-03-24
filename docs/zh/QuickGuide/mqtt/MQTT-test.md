@@ -1,6 +1,7 @@
- ## 查看用户
+## 查看用户
+
 ```console
-% bin/robust-ctl mqtt user list
+% bin/robust-ctl.sh mqtt user list
 +----------+--------------+
 | username | is_superuser |
 +----------+--------------+
@@ -9,8 +10,9 @@
 ```
 
 ## 发布消息
+
 ```console
- % bin/robust-ctl mqtt --server=127.0.0.1:1883 publish --username=admin --password=pwd123 --topic=test/topic1 --qos=0
+ % bin/robust-ctl.sh mqtt --server=127.0.0.1:1883 publish --username=admin --password=pwd123 --topic=test/topic1 --qos=0
  able to connect: "127.0.0.1:1883"
  you can post a message on the terminal:
 1
@@ -27,8 +29,9 @@
 ```
 
 ## 订阅消息
+
 ```console
-% bin/robust-ctl mqtt --server=127.0.0.1:1883 subscribe --username=admin --password=pwd123 --topic=test/topic1 --qos=0
+% bin/robust-ctl.sh mqtt --server=127.0.0.1:1883 subscribe --username=admin --password=pwd123 --topic=test/topic1 --qos=0
 able to connect: "127.0.0.1:1883"
 subscribe success
 payload: 1
