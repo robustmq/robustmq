@@ -109,6 +109,7 @@ impl ClientKeepAlive {
                                     &self.client_pool,
                                     &self.connection_manager,
                                     &self.subscribe_manager,
+                                    false,
                                 )
                                 .await
                                 {
@@ -156,6 +157,7 @@ impl ClientKeepAlive {
                                     &self.client_pool,
                                     &self.connection_manager,
                                     &self.subscribe_manager,
+                                    false,
                                 )
                                 .await
                                 {
