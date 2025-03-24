@@ -19,8 +19,12 @@ use crate::mqtt_protocol::ClientTestProperties;
 use common_base::tools::unique_id;
 use paho_mqtt::{
     Client, ConnectOptions, ConnectOptionsBuilder, CreateOptions, CreateOptionsBuilder,
-    DisconnectOptionsBuilder, Properties, PropertyCode, ReasonCode, SslOptionsBuilder,
+    DisconnectOptionsBuilder, Message, Properties, PropertyCode, ReasonCode, SslOptionsBuilder,
 };
+
+pub fn qos_list() -> Vec<i32> {
+    vec![0, 1, 2]
+}
 
 pub fn protocol_versions() -> Vec<u32> {
     vec![3, 4, 5]
@@ -71,12 +75,67 @@ pub fn build_conn_pros(
                 .push_val(PropertyCode::RequestResponseInformation, 1)
                 .unwrap();
         }
+        props
+            .push_int(PropertyCode::MaximumPacketSize, 128)
+            .unwrap();
         build_v5_conn_pros(
             props,
             err_pwd,
             client_test_properties.ws,
             client_test_properties.ssl,
         )
+    }
+}
+
+pub fn connect_server(client_id: &str, network: &str) -> Client {
+    let client_properties = ClientTestProperties {
+        mqtt_version: 5,
+        client_id: client_id.to_string(),
+        addr: broker_addr_by_type(network),
+        ws: ws_by_type(network),
+        ssl: ssl_by_type(network),
+        ..Default::default()
+    };
+
+    let create_opts = build_create_pros(&client_properties.client_id, &client_properties.addr);
+
+    let cli_res = Client::new(create_opts);
+    assert!(cli_res.is_ok());
+    let cli = cli_res.unwrap();
+
+    let conn_opts = build_conn_pros(client_properties.clone(), false);
+    let result = cli.connect(conn_opts);
+    assert!(result.is_ok());
+    return cli;
+}
+
+pub fn publish_data(cli: &Client, message: Message, is_err: bool) {
+    let err = cli.publish(message);
+    println!("{:?}", err);
+    if is_err {
+        assert!(err.is_err());
+    } else {
+        assert!(err.is_ok());
+    }
+}
+
+pub fn subscribe_data_by_qos<T>(cli: &Client, sub_topic: &str, sub_qos: i32, call_fn: T)
+where
+    T: Fn(Message) -> bool,
+{
+    let rx = cli.start_consuming();
+    let res = cli.subscribe(sub_topic, sub_qos);
+    assert!(res.is_ok());
+
+    loop {
+        let res = rx.recv_timeout(Duration::from_secs(10));
+        assert!(res.is_ok());
+        let msg_opt = res.unwrap();
+        assert!(msg_opt.is_some());
+        let msg = msg_opt.unwrap();
+        if call_fn(msg) {
+            break;
+        }
     }
 }
 
