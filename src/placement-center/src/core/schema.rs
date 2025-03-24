@@ -66,6 +66,7 @@ pub async fn create_schema_req(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateSchemaRequest,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
 ) -> Result<(), PlacementCenterError> {
     if req.cluster_name.is_empty() {
         return Err(PlacementCenterError::RequestParamsNotEmpty(
@@ -84,16 +85,22 @@ pub async fn create_schema_req(
             "schema".to_string(),
         ));
     }
+    let schema_storage = SchemaStorage::new(rocksdb_engine_handler.clone());
+    if let Some(_data) = schema_storage.get(&req.cluster_name, &req.schema_name)? {
+        Err(PlacementCenterError::SchemaAlreadyExist(
+            "schema_name".to_string(),
+        ))
+    } else {
+        let data = StorageData::new(
+            StorageDataType::SchemaSet,
+            CreateSchemaRequest::encode_to_vec(req),
+        );
+        raft_machine_apply.client_write(data).await?;
 
-    let data = StorageData::new(
-        StorageDataType::SchemaSet,
-        CreateSchemaRequest::encode_to_vec(req),
-    );
-    raft_machine_apply.client_write(data).await?;
-
-    let schema = serde_json::from_slice::<SchemaData>(&req.schema)?;
-    update_cache_by_add_schema(&req.cluster_name, call_manager, client_pool, schema).await?;
-    Ok(())
+        let schema = serde_json::from_slice::<SchemaData>(&req.schema)?;
+        update_cache_by_add_schema(&req.cluster_name, call_manager, client_pool, schema).await?;
+        Ok(())
+    }
 }
 
 pub async fn update_schema_req(
