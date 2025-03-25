@@ -133,15 +133,6 @@ pub async fn delete_session_by_req(
 ) -> Result<Response<DeleteSessionReply>, Status> {
     let req = request.into_inner();
 
-    let data = StorageData::new(
-        StorageDataType::MqttDeleteSession,
-        DeleteSessionRequest::encode_to_vec(&req),
-    );
-
-    if let Err(e) = raft_machine_apply.client_write(data).await {
-        return Err(Status::cancelled(e.to_string()));
-    };
-
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
     let session_opt = storage.get(&req.cluster_name, &req.client_id)?;
     if session_opt.is_none() {
@@ -172,14 +163,20 @@ pub async fn delete_session_by_req(
                 cluster_name: req.cluster_name.to_owned(),
             });
         }
-        Ok(None) => {
-            return Err(Status::cancelled(
-                PlacementCenterError::WillMessageDoesNotExist(req.client_id).to_string(),
-            ));
-        }
+        Ok(None) => {}
         Err(e) => {
             return Err(Status::cancelled(e.to_string()));
         }
     }
+
+    let data = StorageData::new(
+        StorageDataType::MqttDeleteSession,
+        DeleteSessionRequest::encode_to_vec(&req),
+    );
+
+    if let Err(e) = raft_machine_apply.client_write(data).await {
+        return Err(Status::cancelled(e.to_string()));
+    };
+
     Ok(Response::new(DeleteSessionReply::default()))
 }

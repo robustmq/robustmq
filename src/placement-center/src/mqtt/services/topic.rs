@@ -45,12 +45,8 @@ pub fn list_topic_by_req(
                 let topics = vec![topic.encode()];
                 Ok(Response::new(ListTopicReply { topics }))
             }
-            Ok(None) => Err(Status::cancelled(
-                PlacementCenterError::TopicDoesNotExist(req.topic_name).to_string(),
-            )),
-            Err(_) => Err(Status::cancelled(
-                PlacementCenterError::TopicDoesNotExist(req.topic_name).to_string(),
-            )),
+            Ok(None) => Ok(Response::new(ListTopicReply { topics: vec![] })),
+            Err(e) => Err(Status::cancelled(e.to_string())),
         }
     } else {
         let data = match storage.list(&req.cluster_name) {

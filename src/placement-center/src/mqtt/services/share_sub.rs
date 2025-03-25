@@ -223,7 +223,7 @@ pub fn get_share_sub_leader_by_req(
         reply.extend_info = node.extend;
     }
 
-    Ok(Response::new(GetShareSubLeaderReply::default()))
+    Ok(Response::new(reply))
 }
 
 #[cfg(test)]
