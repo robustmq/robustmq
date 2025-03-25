@@ -12,21 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use axum::async_trait;
 use common_base::{error::common::CommonError, utils::crc::calc_crc32};
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use mysql::{params, prelude::Queryable, Pool, Row};
+use tokio::{
+    sync::mpsc::{self, Receiver},
+    time::sleep,
+};
 
 use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 
 pub struct MySQLStorageAdapter {
     pool: Pool,
+    stop_send: mpsc::Sender<bool>,
 }
 
 impl MySQLStorageAdapter {
-    pub fn new(pool: Pool) -> Result<Self, CommonError> {
+    pub async fn new(pool: Pool) -> Result<Self, CommonError> {
         // init tags and groups table
         let mut conn = pool.get_conn()?;
 
@@ -70,7 +75,11 @@ impl MySQLStorageAdapter {
 
         conn.query_drop(create_shard_info_table_sql)?;
 
-        Ok(MySQLStorageAdapter { pool })
+        let (stop_send, stop_recv) = mpsc::channel(1);
+
+        Self::spawn_clean_thread(pool.clone(), stop_recv).await;
+
+        Ok(MySQLStorageAdapter { pool, stop_send })
     }
 
     #[inline(always)]
@@ -141,8 +150,8 @@ impl MySQLStorageAdapter {
                     "offset" => offset - 1,   // offset is 1-based in the mysql AUTO_INCREMENT column
                     "key" => message.key,
                     "data" => message.data,
-                    "header" => serde_json::to_vec(&message.header).unwrap(),
-                    "tags" => serde_json::to_vec(&message.tags).unwrap(),
+                    "header" => serde_json::to_vec(&message.header)?,
+                    "tags" => serde_json::to_vec(&message.tags)?,
                     "ts" => message.timestamp,
                 },
             )?;
@@ -169,6 +178,45 @@ impl MySQLStorageAdapter {
         }
 
         Ok(offsets)
+    }
+
+    async fn spawn_clean_thread(pool: Pool, mut stop_recv: Receiver<bool>) {
+        tokio::spawn(async move {
+            loop {
+                if let Ok(true) = stop_recv.try_recv() {
+                    break;
+                }
+
+                let mut conn = pool.get_conn().unwrap();
+
+                let sql = format!("SELECT info FROM `{}`;", Self::shard_info_table_name());
+                let query_res = conn
+                    .query_map(sql, |info: Vec<u8>| {
+                        serde_json::from_slice::<ShardInfo>(&info).unwrap()
+                    })
+                    .unwrap();
+
+                // Clean up the increment_id table every 10 minutes
+                for shard_info in query_res {
+                    let incr_id_table_name = Self::increment_id_table_name(
+                        shard_info.namespace.clone(),
+                        shard_info.shard_name.clone(),
+                    );
+                    conn.query_drop(format!(
+                        "DELETE FROM `{}` WHERE `offset` < (
+                            SELECT max_offset FROM (
+                                SELECT MAX(offset) - 10 AS max_offset FROM `{}`
+                            ) AS subquery
+                        );",
+                        incr_id_table_name.clone(),
+                        incr_id_table_name
+                    ))
+                    .unwrap();
+                }
+
+                sleep(Duration::from_secs(600)).await;
+            }
+        });
     }
 }
 
@@ -218,7 +266,7 @@ impl StorageAdapter for MySQLStorageAdapter {
             params! {
                 "namespace" => shard.namespace.clone(),
                 "shard" => shard.shard_name.clone(),
-                "info" => serde_json::to_vec(&shard).unwrap(),
+                "info" => serde_json::to_vec(&shard)?,
             },
         )?;
 
@@ -588,6 +636,9 @@ impl StorageAdapter for MySQLStorageAdapter {
     }
 
     async fn close(&self) -> Result<(), CommonError> {
+        self.stop_send.send(true).await.map_err(|err| {
+            CommonError::CommonError(format!("Failed to send stop signal: {}", err))
+        })?;
         Ok(())
     }
 }
@@ -627,7 +678,7 @@ mod tests {
         let addr = "mysql://root@127.0.0.1:3306/mqtt";
         let pool = build_mysql_conn_pool(addr).unwrap();
 
-        let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).unwrap();
+        let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).await.unwrap();
         let shard_name = String::from("test");
         let namespace = unique_id();
         mysql_adapter
@@ -652,7 +703,7 @@ mod tests {
     async fn mysql_batch_write() {
         let addr = "mysql://root@127.0.0.1:3306/mqtt";
         let pool = build_mysql_conn_pool(addr).unwrap();
-        let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).unwrap();
+        let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).await.unwrap();
         let shard_name = String::from("test");
         let namespace = unique_id();
         mysql_adapter
@@ -734,7 +785,7 @@ mod tests {
         let addr = "mysql://root@127.0.0.1:3306/mqtt";
         let pool = build_mysql_conn_pool(addr).unwrap();
 
-        let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).unwrap();
+        let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).await.unwrap();
 
         let namespace = unique_id();
         let shard_name = "test-11".to_string();
@@ -975,7 +1026,7 @@ mod tests {
         let addr = "mysql://root@127.0.0.1:3306/mqtt";
         let pool = build_mysql_conn_pool(addr).unwrap();
 
-        let mysql_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()).unwrap());
+        let mysql_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()).await.unwrap());
 
         let namespace = unique_id();
         let shard_name = "test-concurrent".to_string();
@@ -992,8 +1043,8 @@ mod tests {
 
         let mut handles = Vec::new();
 
-        // spawn 10 tasks to write data concurrently
-        for tid in 0..10 {
+        // spawn 100 tasks to write data concurrently
+        for tid in 0..100 {
             let mysql_adapter = mysql_adapter.clone();
             let namespace = namespace.clone();
             let shard_name = shard_name.clone();
@@ -1005,8 +1056,8 @@ mod tests {
                     value: "v1".to_string(),
                 }];
 
-                // push 10 records for each task
-                for i in 0..10 {
+                // push 100 records for each task
+                for i in 0..100 {
                     let value = format!("test-{}-{}", tid, i).as_bytes().to_vec();
                     data.push(Record {
                         data: value.clone(),
@@ -1025,7 +1076,7 @@ mod tests {
                     .await
                     .unwrap();
 
-                assert_eq!(offsets.len(), 10);
+                assert_eq!(offsets.len(), 100);
 
                 // read the records back
                 for (idx, offset) in offsets.into_iter().enumerate() {
