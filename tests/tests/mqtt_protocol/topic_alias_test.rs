@@ -14,109 +14,68 @@
 
 #[cfg(test)]
 mod tests {
-    use common_base::tools::unique_id;
-    use paho_mqtt::{MessageBuilder, Properties, PropertyCode, QOS_1};
-
     use crate::mqtt_protocol::common::{
-        broker_addr, build_client_id, connect_server5, distinct_conn,
+        build_client_id, connect_server_5, distinct_conn, network_types, publish_data, qos_list,
+        subscribe_data_by_qos,
     };
+    use common_base::tools::unique_id;
+    use paho_mqtt::{Message, MessageBuilder, Properties, PropertyCode, QOS_1};
 
     #[tokio::test]
     async fn topic_alias_test() {
-        let client_id = build_client_id("topic_alias_test");
-        let addr = broker_addr();
-        let topic_alias = 1;
-        let topic = format!("/tests/{}", unique_id());
-        let sub_topics = &[topic.clone()];
+        for network in network_types() {
+            for qos in qos_list() {
+                let topic = format!("/tests/{}/{}/{}", unique_id(), network, qos);
+                let client_id =
+                    build_client_id(format!("topic_alias_test_{}_{}", network, qos).as_str());
+                let cli = connect_server_5(&client_id, &network);
 
-        let cli = connect_server5(&client_id, &addr, false, false);
-        let message_content1 = "mqtt message".to_string();
+                // publish first data
+                let topic_alias = 1;
+                let message_content = "mqtt message".to_string();
+                let mut props = Properties::new();
+                props
+                    .push_u16(PropertyCode::TopicAlias, topic_alias)
+                    .unwrap();
 
-        // publish to topic
-        let mut props = Properties::new();
-        props
-            .push_u32(PropertyCode::MessageExpiryInterval, 50)
-            .unwrap();
-        props
-            .push_string_pair(PropertyCode::UserProperty, "age", "1")
-            .unwrap();
-        props
-            .push_string_pair(PropertyCode::UserProperty, "name", "robustmq")
-            .unwrap();
-        props
-            .push_u16(PropertyCode::TopicAlias, topic_alias)
-            .unwrap();
+                let msg = MessageBuilder::new()
+                    .properties(props.clone())
+                    .payload(message_content.clone())
+                    .topic(topic.clone())
+                    .qos(qos)
+                    .retained(false)
+                    .finalize();
+                publish_data(&cli, msg, false);
 
-        let msg = MessageBuilder::new()
-            .properties(props.clone())
-            .payload(message_content1.clone())
-            .topic(topic.clone())
-            .qos(QOS_1)
-            .retained(false)
-            .finalize();
-        match cli.publish(msg) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{:?}", e);
+                // publish 1 success
+                let message_content2 = "mqtt message alias".to_string();
+                let msg = MessageBuilder::new()
+                    .properties(props.clone())
+                    .payload(message_content2.clone())
+                    .qos(QOS_1)
+                    .retained(false)
+                    .finalize();
+                publish_data(&cli, msg, false);
+
+                // publisb 2 fail
+                props.push_u16(PropertyCode::TopicAlias, 2).unwrap();
+                let msg = MessageBuilder::new()
+                    .properties(props.clone())
+                    .payload(message_content2.clone())
+                    .qos(QOS_1)
+                    .retained(false)
+                    .finalize();
+                publish_data(&cli, msg, true);
+
+                // subscribe
+                let call_fn = |msg: Message| {
+                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                    payload == message_content2
+                };
+
+                subscribe_data_by_qos(&cli, &topic, qos, call_fn);
+                distinct_conn(cli);
             }
         }
-
-        let message_content2 = "mqtt message alias".to_string();
-
-        // publish to topic alias
-        let msg = MessageBuilder::new()
-            .properties(props.clone())
-            .payload(message_content2.clone())
-            .qos(QOS_1)
-            .retained(false)
-            .finalize();
-        match cli.publish(msg) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
-
-        let msg = MessageBuilder::new()
-            .properties(props.clone())
-            .payload(message_content2.clone())
-            .qos(QOS_1)
-            .retained(false)
-            .finalize();
-        match cli.publish(msg) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
-
-        props.push_u16(PropertyCode::TopicAlias, 2).unwrap();
-        let msg = MessageBuilder::new()
-            .properties(props.clone())
-            .payload(message_content2.clone())
-            .qos(QOS_1)
-            .retained(false)
-            .finalize();
-        let result = cli.publish(msg);
-        assert!(result.is_err());
-
-        // subscribe
-        let sub_qos = &[1];
-        let rx = cli.start_consuming();
-        match cli.subscribe_many(sub_topics, sub_qos) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{}", e)
-            }
-        }
-        for msg in rx.iter() {
-            let msg = msg.unwrap();
-            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-            println!("recv message: {}", payload);
-            if payload == message_content2 {
-                break;
-            }
-        }
-        distinct_conn(cli);
     }
 }
