@@ -3730,6 +3730,7 @@ dependencies = [
  "prost-build",
  "prost-validate",
  "prost-validate-build",
+ "robustmq-proto-build",
  "robustmq-test",
  "serde",
  "thiserror 1.0.69",
@@ -4156,6 +4157,16 @@ name = "rle-decode-fast"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3582f63211428f83597b51b2ddb88e2a91a9d52d12831f9d08f5e624e8977422"
+
+[[package]]
+name = "robustmq-proto-build"
+version = "0.1.0"
+source = "git+https://github.com/robustmq/robustmq-proto.git?branch=main#0a513a7b7608863a8d300f6363c1648cc7ae8bc9"
+dependencies = [
+ "prost-build",
+ "prost-validate-build",
+ "tonic-build",
+]
 
 [[package]]
 name = "robustmq-test"

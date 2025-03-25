@@ -42,3 +42,4 @@ robustmq-test.workspace = true
 prost-build.workspace = true
 prost-validate-build.workspace = true
 tonic-build.workspace = true
+robustmq-proto-build.workspace = true
