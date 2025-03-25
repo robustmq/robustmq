@@ -19,8 +19,12 @@ use crate::mqtt_protocol::ClientTestProperties;
 use common_base::tools::unique_id;
 use paho_mqtt::{
     Client, ConnectOptions, ConnectOptionsBuilder, CreateOptions, CreateOptionsBuilder,
-    DisconnectOptionsBuilder, Properties, PropertyCode, ReasonCode, SslOptionsBuilder,
+    DisconnectOptionsBuilder, Message, Properties, PropertyCode, ReasonCode, SslOptionsBuilder,
 };
+
+pub fn qos_list() -> Vec<i32> {
+    vec![0, 1, 2]
+}
 
 pub fn protocol_versions() -> Vec<u32> {
     vec![3, 4, 5]
@@ -71,12 +75,72 @@ pub fn build_conn_pros(
                 .push_val(PropertyCode::RequestResponseInformation, 1)
                 .unwrap();
         }
+        props
+            .push_int(PropertyCode::MaximumPacketSize, 128)
+            .unwrap();
         build_v5_conn_pros(
             props,
             err_pwd,
             client_test_properties.ws,
             client_test_properties.ssl,
         )
+    }
+}
+
+pub fn connect_server_5(client_id: &str, network: &str) -> Client {
+    connect_server(client_id, network, 5)
+}
+
+pub fn connect_server(client_id: &str, network: &str, mqtt_version: u32) -> Client {
+    let client_properties = ClientTestProperties {
+        mqtt_version,
+        client_id: client_id.to_string(),
+        addr: broker_addr_by_type(network),
+        ws: ws_by_type(network),
+        ssl: ssl_by_type(network),
+        ..Default::default()
+    };
+
+    let create_opts = build_create_pros(&client_properties.client_id, &client_properties.addr);
+
+    let cli_res = Client::new(create_opts);
+    assert!(cli_res.is_ok());
+    let cli = cli_res.unwrap();
+
+    let conn_opts = build_conn_pros(client_properties.clone(), false);
+    let result = cli.connect(conn_opts);
+    assert!(result.is_ok());
+    cli
+}
+
+pub fn publish_data(cli: &Client, message: Message, is_err: bool) {
+    let err = cli.publish(message);
+    println!("{:?}", err);
+    if is_err {
+        assert!(err.is_err());
+    } else {
+        assert!(err.is_ok());
+    }
+}
+
+pub fn subscribe_data_by_qos<T>(cli: &Client, sub_topic: &str, sub_qos: i32, call_fn: T)
+where
+    T: Fn(Message) -> bool,
+{
+    let rx = cli.start_consuming();
+    let res = cli.subscribe(sub_topic, sub_qos);
+    assert!(res.is_ok());
+
+    loop {
+        let res = rx.recv_timeout(Duration::from_secs(10));
+        println!("{:?}", res);
+        assert!(res.is_ok());
+        let msg_opt = res.unwrap();
+        assert!(msg_opt.is_some());
+        let msg = msg_opt.unwrap();
+        if call_fn(msg) {
+            break;
+        }
     }
 }
 
@@ -176,6 +240,43 @@ pub fn build_v5_conn_pros(props: Properties, err_pwd: bool, ws: bool, ssl: bool)
         .clean_start(true)
         .connect_timeout(Duration::from_secs(60))
         .properties(props.clone())
+        .user_name(username())
+        .password(pwd)
+        .finalize()
+}
+
+#[allow(dead_code)]
+pub fn build_v5_conn_pros_by_will(
+    props: Properties,
+    err_pwd: bool,
+    ws: bool,
+    ssl: bool,
+    will: Message,
+) -> ConnectOptions {
+    let pwd = if err_pwd { err_password() } else { password() };
+    let mut conn_opts = if ws {
+        ConnectOptionsBuilder::new_ws_v5()
+    } else {
+        ConnectOptionsBuilder::new_v5()
+    };
+    if ssl {
+        let ssl_opts = SslOptionsBuilder::new()
+            .trust_store(format!(
+                "{}/../config/example/certs/ca.pem",
+                env!("CARGO_MANIFEST_DIR")
+            ))
+            .unwrap()
+            .verify(false)
+            .disable_default_trust_store(false)
+            .finalize();
+        conn_opts.ssl_options(ssl_opts);
+    }
+    conn_opts
+        .keep_alive_interval(Duration::from_secs(600))
+        .clean_start(true)
+        .connect_timeout(Duration::from_secs(60))
+        .properties(props.clone())
+        .will_message(will)
         .user_name(username())
         .password(pwd)
         .finalize()
@@ -335,6 +436,26 @@ pub fn distinct_conn(cli: Client) {
             PropertyCode::UserProperty,
             "DISCONNECT_FLAG_NOT_DELETE_SESSION",
             "true",
+        )
+        .unwrap();
+
+    let disconnect_opts = DisconnectOptionsBuilder::new()
+        .reason_code(ReasonCode::DisconnectWithWillMessage)
+        .properties(props)
+        .finalize();
+    let res = cli.disconnect(disconnect_opts);
+    assert!(res.is_ok());
+}
+
+#[allow(dead_code)]
+pub fn distinct_conn_close(cli: Client) {
+    let mut props = Properties::new();
+
+    props
+        .push_string_pair(
+            PropertyCode::UserProperty,
+            "DISCONNECT_FLAG_NOT_DELETE_SESSION",
+            "false",
         )
         .unwrap();
 

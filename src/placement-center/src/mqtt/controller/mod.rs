@@ -81,7 +81,7 @@ impl MqttController {
     pub async fn check_start_thread(&self) {
         for cluster_name in self.placement_center_cache.get_all_cluster_name() {
             if self.thread_running_info.contains_key(&cluster_name) {
-                sleep(Duration::from_secs(5)).await;
+                sleep(Duration::from_secs(1)).await;
                 continue;
             }
             // Periodically check if the session has expired
@@ -182,6 +182,6 @@ impl MqttController {
             });
             self.thread_running_info.insert(cluster_name.clone(), true);
         }
-        sleep(Duration::from_secs(5)).await;
+        sleep(Duration::from_secs(1)).await;
     }
 }

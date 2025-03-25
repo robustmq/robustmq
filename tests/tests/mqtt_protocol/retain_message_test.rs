@@ -18,180 +18,54 @@ mod tests {
     use mqtt_broker::handler::constant::{
         SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE,
     };
-    use paho_mqtt::{MessageBuilder, PropertyCode, QOS_1};
+    use paho_mqtt::{Message, MessageBuilder, PropertyCode};
 
     use crate::mqtt_protocol::common::{
-        broker_addr, build_client_id, connect_server5, distinct_conn,
+        build_client_id, connect_server_5, distinct_conn, network_types, publish_data, qos_list,
+        subscribe_data_by_qos,
     };
 
     #[tokio::test]
-    async fn retain_message_sub_qos0_test() {
-        let client_id = build_client_id("retain_message_sub_qos0_test");
-        let addr = broker_addr();
-        let topic = format!("/tests/{}", unique_id());
-        let sub_topics = &[topic.clone()];
+    async fn retain_message_sub_test() {
+        for network in network_types() {
+            for qos in qos_list() {
+                let topic = format!("/tests/{}/{}/{}", unique_id(), network, qos);
+                let client_id = build_client_id(
+                    format!("retain_message_sub_test_{}_{}", network, qos).as_str(),
+                );
+                let cli = connect_server_5(&client_id, &network);
 
-        let cli = connect_server5(&client_id, &addr, false, false);
-        let message_content = "mqtt message".to_string();
+                // publish
+                let message = "mqtt message".to_string();
+                let msg = MessageBuilder::new()
+                    .payload(message.clone())
+                    .topic(topic.clone())
+                    .qos(qos)
+                    .retained(true)
+                    .finalize();
+                publish_data(&cli, msg, false);
 
-        let msg = MessageBuilder::new()
-            .payload(message_content.clone())
-            .topic(topic.clone())
-            .qos(QOS_1)
-            .retained(true)
-            .finalize();
-        match cli.publish(msg) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
-
-        distinct_conn(cli);
-
-        // subscribe
-        let client_id = build_client_id("retain_message_sub_qos0_test");
-        let cli = connect_server5(&client_id, &addr, false, false);
-        let sub_qos = &[0];
-        let rx = cli.start_consuming();
-        match cli.subscribe_many(sub_topics, sub_qos) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{}", e)
-            }
-        }
-
-        for msg in rx.iter() {
-            let msg = msg.unwrap();
-            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-            println!("{}", payload.clone());
-            if payload == message_content {
-                if let Some(raw) = msg
-                    .properties()
-                    .get_string_pair_at(PropertyCode::UserProperty, 0)
-                {
-                    if raw.0 == *SUB_RETAIN_MESSAGE_PUSH_FLAG
-                        && raw.1 == *SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE
-                    {
-                        break;
+                // subscribe
+                let call_fn = |msg: Message| {
+                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                    if payload == message {
+                        if let Some(raw) = msg
+                            .properties()
+                            .get_string_pair_at(PropertyCode::UserProperty, 0)
+                        {
+                            if raw.0 == *SUB_RETAIN_MESSAGE_PUSH_FLAG
+                                && raw.1 == *SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE
+                            {
+                                return true;
+                            }
+                        }
                     }
-                }
+                    false
+                };
+
+                subscribe_data_by_qos(&cli, &topic, qos, call_fn);
+                distinct_conn(cli);
             }
         }
-        distinct_conn(cli);
-    }
-
-    #[tokio::test]
-    async fn retain_message_sub_qos1_test() {
-        let client_id = build_client_id("retain_message_sub_qos1_test");
-        let addr = broker_addr();
-        let topic = format!("/tests/{}", unique_id());
-        let sub_topics = &[topic.clone()];
-
-        let cli = connect_server5(&client_id, &addr, false, false);
-        let message_content = "mqtt message".to_string();
-
-        let msg = MessageBuilder::new()
-            .payload(message_content.clone())
-            .topic(topic.clone())
-            .qos(QOS_1)
-            .retained(true)
-            .finalize();
-        match cli.publish(msg) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
-
-        distinct_conn(cli);
-
-        // subscribe
-        let client_id = build_client_id("retain_message_sub_qos1_test");
-        let cli = connect_server5(&client_id, &addr, false, false);
-        let sub_qos = &[1];
-        let rx = cli.start_consuming();
-        match cli.subscribe_many(sub_topics, sub_qos) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{}", e)
-            }
-        }
-
-        for msg in rx.iter() {
-            let msg = msg.unwrap();
-            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-            println!("{}", payload.clone());
-            if payload == message_content {
-                if let Some(raw) = msg
-                    .properties()
-                    .get_string_pair_at(PropertyCode::UserProperty, 0)
-                {
-                    if raw.0 == *SUB_RETAIN_MESSAGE_PUSH_FLAG
-                        && raw.1 == *SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-        distinct_conn(cli);
-    }
-
-    #[tokio::test]
-    async fn retain_message_sub_qos2_test() {
-        let client_id = build_client_id("retain_message_sub_qos2_test");
-        let addr = broker_addr();
-        let topic = format!("/tests/{}", unique_id());
-        let sub_topics = &[topic.clone()];
-
-        let cli = connect_server5(&client_id, &addr, false, false);
-        let message_content = "mqtt message".to_string();
-
-        let msg = MessageBuilder::new()
-            .payload(message_content.clone())
-            .topic(topic.clone())
-            .qos(QOS_1)
-            .retained(true)
-            .finalize();
-        match cli.publish(msg) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
-
-        distinct_conn(cli);
-
-        // subscribe
-        let client_id = build_client_id("retain_message_sub_qos2_test");
-        let cli = connect_server5(&client_id, &addr, false, false);
-        let sub_qos = &[2];
-        let rx = cli.start_consuming();
-        match cli.subscribe_many(sub_topics, sub_qos) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{}", e)
-            }
-        }
-
-        for msg in rx.iter() {
-            let msg = msg.unwrap();
-            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-            println!("{}", payload.clone());
-            if payload == message_content {
-                if let Some(raw) = msg
-                    .properties()
-                    .get_string_pair_at(PropertyCode::UserProperty, 0)
-                {
-                    if raw.0 == *SUB_RETAIN_MESSAGE_PUSH_FLAG
-                        && raw.1 == *SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-        distinct_conn(cli);
     }
 }
