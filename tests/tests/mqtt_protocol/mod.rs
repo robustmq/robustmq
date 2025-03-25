@@ -42,5 +42,3 @@ pub mod retain_message_test;
 // pub mod topic_alias_test;
 // mod topic_rewrite_rule_test;
 // pub mod user_properties_test;
-// pub mod ws_sub_pub_test;
-// pub mod wss_sub_pub_test;
