@@ -169,6 +169,9 @@ metadata-struct = { path = "src/common/metadata-struct" }
 third-driver = { path = "src/common/third-driver" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }
+robustmq-proto-build = { git = "https://github.com/robustmq/robustmq-proto.git", branch = "main" }
+
+# other
 tempfile = "3.9.0"
 
 [profile.dev]
