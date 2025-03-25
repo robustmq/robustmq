@@ -1,4 +1,5 @@
 ## Cluster Status
+
 See the Placement cluster for operational information.
 
 ```

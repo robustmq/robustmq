@@ -12,3 +12,4 @@
 *.{bat,[bB][aA][tT]} text eol=crlf
 
 Cargo.lock text
+/bin/* text eol=lf

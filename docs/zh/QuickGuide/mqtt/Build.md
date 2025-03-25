@@ -4,7 +4,7 @@ RobustMQ 可以通过项目自带的 Make 命令打包。
 
 ```
 Build
-  build                           Build local machine version robustmq.
+  build                          Build local machine version robustmq.
   build-mac-x86_64-release       Build mac x86_64 version robustmq.
   build-mac-arm64-release        Build mac arm64 version robustmq.
   build-linux-x86_64-release     Build linux x86_64 version robustmq.
@@ -76,17 +76,17 @@ make build-win-arm64-release
 
 打包生成后的二进制安装包位于 build 目录下：
 
-```
+```shell
 $ tree build/
 build/
-├── robustmq-0.1.6.tar.gz
+├── robustmq-0.1.14.tar.gz
 ```
 
 解压后结构如下：
 
-```
-$ tree robustmq-0.1.6
-robustmq-0.1.6
+```shell
+$ tree robustmq-0.1.14
+robustmq-0.1.14
 ├── bin #  可执行文件目录
 │   ├── robust-ctl  # RobustMQ Command 入口文件
 │   └── robust-server # RobustMQ Server 入口文件
