@@ -15,7 +15,7 @@
 #[cfg(test)]
 mod tests {
     use crate::mqtt_protocol::common::{
-        build_client_id, connect_server, distinct_conn, network_types, publish_data,
+        build_client_id, connect_server_5, distinct_conn, network_types, publish_data,
         subscribe_data_by_qos,
     };
     use common_base::tools::unique_id;
@@ -28,7 +28,7 @@ mod tests {
 
             let client_id =
                 build_client_id(format!("client5_packet_size_test_{}", network).as_str());
-            let cli = connect_server(&client_id, &network);
+            let cli = connect_server_5(&client_id, &network);
 
             let packet_size = 128;
 

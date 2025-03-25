@@ -87,9 +87,13 @@ pub fn build_conn_pros(
     }
 }
 
-pub fn connect_server(client_id: &str, network: &str) -> Client {
+pub fn connect_server_5(client_id: &str, network: &str) -> Client {
+    connect_server(client_id, network, 5)
+}
+
+pub fn connect_server(client_id: &str, network: &str, mqtt_version: u32) -> Client {
     let client_properties = ClientTestProperties {
-        mqtt_version: 5,
+        mqtt_version,
         client_id: client_id.to_string(),
         addr: broker_addr_by_type(network),
         ws: ws_by_type(network),

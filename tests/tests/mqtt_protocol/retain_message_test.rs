@@ -21,7 +21,7 @@ mod tests {
     use paho_mqtt::{Message, MessageBuilder, PropertyCode};
 
     use crate::mqtt_protocol::common::{
-        build_client_id, connect_server, distinct_conn, network_types, publish_data, qos_list,
+        build_client_id, connect_server_5, distinct_conn, network_types, publish_data, qos_list,
         subscribe_data_by_qos,
     };
 
@@ -30,9 +30,10 @@ mod tests {
         for network in network_types() {
             for qos in qos_list() {
                 let topic = format!("/tests/{}/{}/{}", unique_id(), network, qos);
-                let client_id =
-                    build_client_id(format!("retain_message_sub_test_{}", network).as_str());
-                let cli = connect_server(&client_id, &network);
+                let client_id = build_client_id(
+                    format!("retain_message_sub_test_{}_{}", network, qos).as_str(),
+                );
+                let cli = connect_server_5(&client_id, &network);
 
                 // publish
                 let message = "mqtt message".to_string();
