@@ -15,7 +15,7 @@
 use protocol::mqtt::common::{Filter, MqttProtocol, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, Default, Debug, PartialEq)]
 pub struct MqttSubscribe {
     pub client_id: String,
     pub path: String,
