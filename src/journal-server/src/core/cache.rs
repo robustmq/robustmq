@@ -156,6 +156,17 @@ impl CacheManager {
         results
     }
 
+    pub fn get_shards_by_namespace(&self, namespace: &str) -> Vec<JournalShard> {
+        let mut results = Vec::new();
+        let prefix = format!("{},", namespace);
+        for raw in self.shards.iter() {
+            if raw.key().starts_with(&prefix) {
+                results.push(raw.value().clone());
+            }
+        }
+        results
+    }
+
     pub fn get_active_segment(&self, namespace: &str, shard_name: &str) -> Option<JournalSegment> {
         let key = shard_name_iden(namespace, shard_name);
         if let Some(shard) = self.shards.get(&key) {

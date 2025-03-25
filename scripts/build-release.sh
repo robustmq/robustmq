@@ -14,10 +14,14 @@
 # limitations under the License.
 
 set -e
+# Get the directory of the script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the project root directory
+PROJECT_ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 platform=$1
 version=$2
-build_dir="../build"
+build_dir="${PROJECT_ROOT_DIR}/build"
 target="robustmq"
 
 timestamp() {
@@ -76,9 +80,9 @@ cross_build(){
         fi
     done
 
-    cp -rf bin/* ${package_path}/bin/
-    cp -rf config/* ${package_path}/config/
-    cp -rf example/* ${package_path}/config/example
+    cp -rf "${PROJECT_ROOT_DIR}/bin/"* ${package_path}/bin/
+    cp -rf "${PROJECT_ROOT_DIR}/config/"* ${package_path}/config/
+    cp -rf "${PROJECT_ROOT_DIR}/example/"* ${package_path}/config/example
 
     # Recommended to use the 755 in the production environment
     chmod -R 777 ${package_path}/bin/*
@@ -168,7 +172,7 @@ build_local(){
         fi
     done
 
-    cp -rf bin/* ${package_path}/bin/
+    cp -rf "${PROJECT_ROOT_DIR}/bin/"* ${package_path}/bin/
     cp -rf config/* ${package_path}/config/
     cp -rf example/* ${package_path}/config/example
 

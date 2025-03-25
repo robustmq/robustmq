@@ -424,10 +424,10 @@ async fn call_mqtt_update_cache(
 
     match broker_mqtt_update_cache(&client_pool, &[addr], request).await {
         Ok(resp) => {
-            debug!("Calling Journal Engine returns information:{:?}", resp);
+            debug!("Calling MQTT Broker returns information:{:?}", resp);
         }
         Err(e) => {
-            error!("Calling Journal Engine to update cache failed,{}", e);
+            error!("Calling MQTT Broker to update cache failed,{}", e);
         }
     };
 }

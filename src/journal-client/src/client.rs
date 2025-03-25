@@ -18,8 +18,10 @@ use common_base::error::common::CommonError;
 use common_base::utils::crc::calc_crc32;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
+use metadata_struct::journal::shard::JournalShard;
 use protocol::journal_server::journal_engine::{
     CreateShardReqBody, DeleteShardReqBody, GetClusterMetadataNode, GetShardMetadataRespShard,
+    ListShardReqBody,
 };
 use tokio::sync::broadcast::{self, Sender};
 
@@ -32,7 +34,7 @@ use crate::async_reader::{
 };
 use crate::async_writer::{AsyncWriter, SenderMessage, SenderMessageResp};
 use crate::cache::get_active_segment;
-use crate::service::{create_shard, delete_shard};
+use crate::service::{create_shard, delete_shard, list_shard};
 
 #[derive(Default, Clone)]
 pub struct JournalClientWriteData {
@@ -107,6 +109,28 @@ impl JournalClient {
         };
         let _ = delete_shard(&self.connection_manager, body).await?;
         Ok(())
+    }
+
+    pub async fn list_shard(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+    ) -> Result<Vec<JournalShard>, JournalClientError> {
+        let body = ListShardReqBody {
+            namespace: namespace.to_string(),
+            shard_name: shard_name.to_string(),
+        };
+
+        let resp = list_shard(&self.connection_manager, body).await?;
+
+        let mut res = Vec::new();
+
+        for raw in resp.shards {
+            let shard = serde_json::from_slice::<JournalShard>(&raw)?;
+            res.push(shard);
+        }
+
+        Ok(res)
     }
 
     pub async fn batch_write(

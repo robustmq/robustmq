@@ -49,7 +49,7 @@ appenders:
         count: 50
 
 root:
-  level: error
+  level: info
   appenders:
     - stdout
     - server

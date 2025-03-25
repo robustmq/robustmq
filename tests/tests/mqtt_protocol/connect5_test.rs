@@ -14,392 +14,235 @@
 
 #[cfg(test)]
 mod tests {
-    use std::process;
 
     use common_base::tools::unique_id;
     use mqtt_broker::handler::connection::REQUEST_RESPONSE_PREFIX_NAME;
     use paho_mqtt::{Client, PropertyCode, ReasonCode};
 
-    use crate::mqtt_protocol::common::{
-        broker_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr, build_client_id,
-        build_create_pros, build_v5_conn_pros, build_v5_pros, distinct_conn,
+    use crate::mqtt_protocol::{
+        common::{
+            broker_addr_by_type, build_client_id, build_conn_pros, build_create_pros,
+            distinct_conn, network_types, ssl_by_type, ws_by_type,
+        },
+        ClientTestProperties,
     };
 
     #[tokio::test]
-    async fn client5_connect_test() {
-        let client_id = build_client_id("connect_test");
+    async fn assigned_client_id_test() {
+        for network in network_types() {
+            let addr = broker_addr_by_type(&network);
+            let client_properties = ClientTestProperties {
+                mqtt_version: 5,
+                client_id: "".to_string(),
+                addr,
+                ws: ws_by_type(&network),
+                ssl: ssl_by_type(&network),
+                ..Default::default()
+            };
+            let create_opts =
+                build_create_pros(&client_properties.client_id, &client_properties.addr);
 
-        let addr = broker_addr();
-        v5_wrong_password_test(&client_id, &addr, false, false);
-        v5_session_present_test(&client_id, &addr, false, false);
-        v5_response_test(&client_id, &addr, false, false);
-        v5_assigned_client_id_test(&addr, false, false);
-        v5_request_response_test(&client_id, &addr, false, false);
-    }
+            let cli_res = Client::new(create_opts);
+            assert!(cli_res.is_ok());
+            let cli = cli_res.unwrap();
 
-    #[tokio::test]
-    async fn client5_connect_ssl_test() {
-        let client_id = build_client_id("client5_connect_ssl_test");
-        let addr = broker_ssl_addr();
-        v5_wrong_password_test(&client_id, &addr, false, true);
-        v5_session_present_test(&client_id, &addr, false, true);
-        v5_response_test(&client_id, &addr, false, true);
-        v5_assigned_client_id_test(&addr, false, true);
-        v5_request_response_test(&client_id, &addr, false, true);
-    }
+            let conn_opts = build_conn_pros(client_properties.clone(), false);
+            let result = cli.connect(conn_opts);
+            assert!(result.is_ok());
+            let response = result.unwrap();
+            assert_eq!(response.reason_code(), ReasonCode::Success);
 
-    #[tokio::test]
-    async fn client5_connect_ws_test() {
-        let client_id = build_client_id("client5_connect_ws_test");
-        let addr = broker_ws_addr();
-        v5_wrong_password_test(&client_id, &addr, true, false);
-        v5_session_present_test(&client_id, &addr, true, false);
-        v5_response_test(&client_id, &addr, true, false);
-        v5_assigned_client_id_test(&addr, true, false);
-        v5_request_response_test(&client_id, &addr, true, false);
-    }
+            let resp_pros = response.properties();
+            let assign_client_id = resp_pros
+                .get(PropertyCode::AssignedClientIdentifer)
+                .unwrap()
+                .get_string()
+                .unwrap();
+            println!("{:?}", assign_client_id);
+            assert!(!assign_client_id.is_empty());
+            assert_eq!(assign_client_id.len(), unique_id().len());
 
-    #[tokio::test]
-    async fn client5_connect_wss_test() {
-        let client_id = build_client_id("client5_connect_wss_test");
-        let addr = broker_wss_addr();
-        v5_wrong_password_test(&client_id, &addr, true, true);
-        v5_session_present_test(&client_id, &addr, true, true);
-        v5_response_test(&client_id, &addr, true, true);
-        v5_assigned_client_id_test(&addr, true, true);
-        v5_request_response_test(&client_id, &addr, true, true);
-    }
-
-    fn v5_wrong_password_test(client_id: &str, addr: &str, ws: bool, ssl: bool) {
-        let create_opts = build_create_pros(client_id, addr);
-
-        let cli = Client::new(create_opts).unwrap_or_else(|err| {
-            println!("Error creating the client: {:?}", err);
-            process::exit(1);
-        });
-
-        let props = build_v5_pros();
-        let conn_opts = build_v5_conn_pros(props, true, ws, ssl);
-        let err = cli.connect(conn_opts).unwrap_err();
-        println!("Unable to connect:\n\t{:?}", err);
-    }
-
-    fn v5_session_present_test(client_id: &str, addr: &str, ws: bool, ssl: bool) {
-        let mqtt_version = 5;
-        let props = build_v5_pros();
-
-        let create_opts = build_create_pros(client_id, addr);
-        let cli = Client::new(create_opts).unwrap_or_else(|err| {
-            println!("Error creating the client: {:?}", err);
-            process::exit(1);
-        });
-
-        let conn_opts = build_v5_conn_pros(props.clone(), false, ws, ssl);
-        match cli.connect(conn_opts) {
-            Ok(response) => {
-                let resp = response.connect_response().unwrap();
-                if ws {
-                    if ssl {
-                        assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
-                    } else {
-                        assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
-                    }
-                } else if ssl {
-                    assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-                } else {
-                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-                }
-                assert_eq!(mqtt_version, resp.mqtt_version);
-                // assert!(!resp.session_present);
-                assert_eq!(response.reason_code(), ReasonCode::Success);
-            }
-            Err(e) => {
-                println!("Unable to connect:\n\t{:?}", e);
-                process::exit(1);
-            }
+            distinct_conn(cli);
         }
-        distinct_conn(cli);
-
-        let create_opts = build_create_pros(client_id, addr);
-        let cli = Client::new(create_opts).unwrap_or_else(|err| {
-            println!("Error creating the client: {:?}", err);
-            process::exit(1);
-        });
-
-        let conn_opts = build_v5_conn_pros(props.clone(), false, ws, ssl);
-
-        match cli.connect(conn_opts) {
-            Ok(response) => {
-                let resp = response.connect_response().unwrap();
-                if ws {
-                    if ssl {
-                        assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
-                    } else {
-                        assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
-                    }
-                } else if ssl {
-                    assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-                } else {
-                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-                }
-                assert_eq!(mqtt_version, resp.mqtt_version);
-                // assert!(!resp.session_present);
-                assert_eq!(response.reason_code(), ReasonCode::Success);
-            }
-            Err(e) => {
-                println!("Unable to connect:\n\t{:?}", e);
-                process::exit(1);
-            }
-        }
-        distinct_conn(cli);
     }
 
-    fn v5_assigned_client_id_test(addr: &str, ws: bool, ssl: bool) {
-        let mqtt_version = 5;
-        let client_id = "".to_string();
-        let props = build_v5_pros();
+    #[tokio::test]
+    async fn response_properties_check_test() {
+        for network in network_types() {
+            let addr = broker_addr_by_type(&network);
+            let client_id =
+                build_client_id(format!("response_properties_check_test_{}", network).as_str());
+            let client_properties = ClientTestProperties {
+                mqtt_version: 5,
+                client_id,
+                addr,
+                ws: ws_by_type(&network),
+                ssl: ssl_by_type(&network),
+                ..Default::default()
+            };
+            let create_opts =
+                build_create_pros(&client_properties.client_id, &client_properties.addr);
 
-        let create_opts = build_create_pros(&client_id, addr);
-        let cli = Client::new(create_opts).unwrap_or_else(|err| {
-            println!("Error creating the client: {:?}", err);
-            process::exit(1);
-        });
+            let cli_res = Client::new(create_opts);
+            assert!(cli_res.is_ok());
+            let cli = cli_res.unwrap();
 
-        let conn_opts = build_v5_conn_pros(props.clone(), false, ws, ssl);
-        match cli.connect(conn_opts) {
-            Ok(response) => {
-                let resp = response.connect_response().unwrap();
-                if ws {
-                    if ssl {
-                        assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
-                    } else {
-                        assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
-                    }
-                } else if ssl {
-                    assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-                } else {
-                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-                }
-                assert_eq!(mqtt_version, resp.mqtt_version);
-                // assert!(resp.session_present);
-                assert_eq!(response.reason_code(), ReasonCode::Success);
+            let conn_opts = build_conn_pros(client_properties.clone(), false);
+            let result = cli.connect(conn_opts);
+            println!("{:?}", result);
+            assert!(result.is_ok());
+            let response = result.unwrap();
+            assert_eq!(response.reason_code(), ReasonCode::Success);
 
-                let resp_pros = response.properties();
-                let assign_client_id = resp_pros
-                    .get(PropertyCode::AssignedClientIdentifer)
+            let resp_pros = response.properties();
+            println!("{:?}", resp_pros);
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::SessionExpiryInterval)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                3
+            );
+
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::ReceiveMaximum)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                65535
+            );
+
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::MaximumQos)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                2
+            );
+
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::RetainAvailable)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                1
+            );
+
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::MaximumPacketSize)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                10485760
+            );
+
+            assert!(resp_pros
+                .get(PropertyCode::AssignedClientIdentifer)
+                .is_none());
+
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::TopicAliasMaximum)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                65535
+            );
+
+            assert!(resp_pros.get(PropertyCode::ReasonString).is_none());
+
+            assert!(resp_pros.get(PropertyCode::UserProperty).is_none());
+
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::WildcardSubscriptionAvailable)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                1
+            );
+
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::SubscriptionIdentifiersAvailable)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                1
+            );
+
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::SharedSubscriptionAvailable)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                1
+            );
+
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::ServerKeepAlive)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                1200
+            );
+
+            assert!(resp_pros.get(PropertyCode::ResponseInformation).is_none());
+            assert!(resp_pros.get(PropertyCode::ServerReference).is_none());
+            assert!(resp_pros.get(PropertyCode::AuthenticationMethod).is_none());
+            assert!(resp_pros.get(PropertyCode::AuthenticationData).is_none());
+
+            distinct_conn(cli);
+        }
+    }
+
+    #[tokio::test]
+    async fn request_response_test() {
+        for network in network_types() {
+            let addr = broker_addr_by_type(&network);
+            let client_id = build_client_id(format!("request_response_test_{}", network).as_str());
+            let client_properties = ClientTestProperties {
+                mqtt_version: 5,
+                client_id,
+                addr,
+                ws: ws_by_type(&network),
+                ssl: ssl_by_type(&network),
+                request_response: true,
+            };
+            let create_opts =
+                build_create_pros(&client_properties.client_id, &client_properties.addr);
+
+            let cli_res = Client::new(create_opts);
+            assert!(cli_res.is_ok());
+            let cli = cli_res.unwrap();
+            println!("{:?}", client_properties);
+
+            let conn_opts = build_conn_pros(client_properties.clone(), false);
+            let result = cli.connect(conn_opts);
+            println!("{:?}", result);
+            assert!(result.is_ok());
+            let response = result.unwrap();
+            assert_eq!(response.reason_code(), ReasonCode::Success);
+
+            let resp_pros = response.properties();
+            println!("{:?}", resp_pros);
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::ResponseInformation)
                     .unwrap()
                     .get_string()
-                    .unwrap();
-                assert!(!assign_client_id.is_empty());
-                assert_eq!(assign_client_id.len(), unique_id().len());
-            }
-            Err(e) => {
-                println!("Unable to connect:\n\t{:?}", e);
-                process::exit(1);
-            }
+                    .unwrap(),
+                REQUEST_RESPONSE_PREFIX_NAME.to_string()
+            );
+
+            distinct_conn(cli);
         }
-        distinct_conn(cli);
-    }
-
-    fn v5_request_response_test(client_id: &str, addr: &str, ws: bool, ssl: bool) {
-        let mqtt_version = 5;
-
-        let pros = build_v5_pros();
-
-        let create_opts = build_create_pros(client_id, addr);
-
-        let cli = Client::new(create_opts).unwrap_or_else(|err| {
-            println!("Error creating the client: {:?}", err);
-            process::exit(1);
-        });
-
-        let conn_opts = build_v5_conn_pros(pros.clone(), false, ws, ssl);
-
-        match cli.connect(conn_opts) {
-            Ok(response) => {
-                let resp = response.connect_response().unwrap();
-                // response
-                if ws {
-                    if ssl {
-                        assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
-                    } else {
-                        assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
-                    }
-                } else if ssl {
-                    assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-                } else {
-                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-                }
-                assert_eq!(mqtt_version, resp.mqtt_version);
-                assert_eq!(response.reason_code(), ReasonCode::Success);
-
-                // properties
-                let resp_pros = response.properties();
-                assert!(resp_pros
-                    .get_string(PropertyCode::ResponseInformation)
-                    .is_none());
-            }
-            Err(e) => {
-                println!("Unable to connect:\n\t{:?}", e);
-                process::exit(1);
-            }
-        }
-        distinct_conn(cli);
-    }
-
-    fn v5_response_test(client_id: &str, addr: &str, ws: bool, ssl: bool) {
-        let mqtt_version = 5;
-
-        let mut pros = build_v5_pros();
-        pros.push_val(PropertyCode::RequestResponseInformation, 1)
-            .unwrap();
-
-        let create_opts = build_create_pros(client_id, addr);
-
-        let cli = Client::new(create_opts).unwrap_or_else(|err| {
-            println!("Error creating the client: {:?}", err);
-            process::exit(1);
-        });
-
-        let conn_opts = build_v5_conn_pros(pros.clone(), false, ws, ssl);
-
-        match cli.connect(conn_opts) {
-            Ok(response) => {
-                let resp = response.connect_response().unwrap();
-                // response
-                if ws {
-                    if ssl {
-                        assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
-                    } else {
-                        assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
-                    }
-                } else if ssl {
-                    assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-                } else {
-                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-                }
-                assert_eq!(mqtt_version, resp.mqtt_version);
-                assert_eq!(response.reason_code(), ReasonCode::Success);
-
-                // properties
-                let resp_pros = response.properties();
-                assert_eq!(
-                    resp_pros
-                        .get(PropertyCode::SessionExpiryInterval)
-                        .unwrap()
-                        .get_int()
-                        .unwrap(),
-                    3
-                );
-
-                assert_eq!(
-                    resp_pros
-                        .get(PropertyCode::ReceiveMaximum)
-                        .unwrap()
-                        .get_int()
-                        .unwrap(),
-                    65535
-                );
-
-                assert_eq!(
-                    resp_pros
-                        .get(PropertyCode::MaximumQos)
-                        .unwrap()
-                        .get_int()
-                        .unwrap(),
-                    2
-                );
-
-                assert_eq!(
-                    resp_pros
-                        .get(PropertyCode::RetainAvailable)
-                        .unwrap()
-                        .get_int()
-                        .unwrap(),
-                    1
-                );
-
-                assert_eq!(
-                    resp_pros
-                        .get(PropertyCode::MaximumPacketSize)
-                        .unwrap()
-                        .get_int()
-                        .unwrap(),
-                    10485760
-                );
-
-                assert!(resp_pros
-                    .get(PropertyCode::AssignedClientIdentifer)
-                    .is_none());
-
-                assert_eq!(
-                    resp_pros
-                        .get(PropertyCode::TopicAliasMaximum)
-                        .unwrap()
-                        .get_int()
-                        .unwrap(),
-                    65535
-                );
-
-                assert!(resp_pros.get(PropertyCode::ReasonString).is_none());
-
-                assert!(resp_pros.get(PropertyCode::UserProperty).is_none());
-
-                assert_eq!(
-                    resp_pros
-                        .get(PropertyCode::WildcardSubscriptionAvailable)
-                        .unwrap()
-                        .get_int()
-                        .unwrap(),
-                    1
-                );
-
-                assert_eq!(
-                    resp_pros
-                        .get(PropertyCode::SubscriptionIdentifiersAvailable)
-                        .unwrap()
-                        .get_int()
-                        .unwrap(),
-                    1
-                );
-
-                assert_eq!(
-                    resp_pros
-                        .get(PropertyCode::SharedSubscriptionAvailable)
-                        .unwrap()
-                        .get_int()
-                        .unwrap(),
-                    1
-                );
-
-                assert_eq!(
-                    resp_pros
-                        .get(PropertyCode::ServerKeepAlive)
-                        .unwrap()
-                        .get_int()
-                        .unwrap(),
-                    1200
-                );
-
-                assert_eq!(
-                    resp_pros
-                        .get(PropertyCode::ResponseInformation)
-                        .unwrap()
-                        .get_string()
-                        .unwrap(),
-                    REQUEST_RESPONSE_PREFIX_NAME.to_string()
-                );
-
-                assert!(resp_pros.get(PropertyCode::ServerReference).is_none());
-
-                assert!(resp_pros.get(PropertyCode::AuthenticationMethod).is_none());
-                assert!(resp_pros.get(PropertyCode::AuthenticationData).is_none());
-            }
-            Err(e) => {
-                println!("Unable to connect:\n\t{:?}", e);
-                process::exit(1);
-            }
-        }
-        distinct_conn(cli);
     }
 }

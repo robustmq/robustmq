@@ -83,4 +83,7 @@ pub enum JournalClientError {
 
     #[error("Sending a request packet, receiving a request returns a timeout")]
     SendPacketTimeout,
+
+    #[error("{0}")]
+    SerdeJsonError(#[from] serde_json::Error),
 }

@@ -16,13 +16,14 @@ enum ApiKey{
     // shard
     CreateShard = 3;
     DeleteShard = 4;
-    
+    ListShard = 5;
+
     // metadata
-    GetShardMetadata = 5;
-    GetClusterMetadata = 6;
+    GetShardMetadata = 6;
+    GetClusterMetadata = 7;
 
     // Offset
-    FetchOffset = 7;
+    FetchOffset = 8;
 }
 
 enum ApiVersion{
@@ -121,6 +122,26 @@ message DeleteShardResp{
     DeleteShardRespBody body = 2;
 }
 
+/** List Shard **/
+message ListShardReqBody {
+    string namespace = 1;
+    string shard_name = 2;
+}
+
+message ListShardRespBody {
+    repeated bytes shards = 1;
+}
+
+message ListShardReq {
+    ReqHeader header = 1;
+    ListShardReqBody body = 2;
+}
+
+message ListShardResp {
+    RespHeader header = 1;
+    ListShardRespBody body = 2;
+}
+
 
 /** Get Shard Metadata **/
 message GetShardMetadataReqBody{
@@ -145,7 +166,7 @@ message GetShardMetadataRespBody{
 message GetShardMetadataRespShard{
     string namespace = 1;
     string shard = 2;
-    int32 active_segment = 3; 
+    int32 active_segment = 3;
     int64 active_segment_leader = 4;
     repeated ClientSegmentMetadata segments = 5;
 }
