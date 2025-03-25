@@ -59,7 +59,7 @@ mod tests {
         let cli = connect_server5(&client_id, &addr, false, false);
 
         let message_content = format!("mqtt {payload_flag} message");
-        
+
         // publish
         let msg = Message::new(pub_topic.clone(), message_content.clone(), QOS_2);
         assert!(cli.publish(msg).is_ok());

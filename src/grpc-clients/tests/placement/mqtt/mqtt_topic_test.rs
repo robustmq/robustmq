@@ -83,14 +83,18 @@ mod tests {
         let retain_message = MqttMessage::build_message(&client_id, &publish, &None, 600).encode();
         let retain_message_expired_at: u64 = 10000;
 
-        let mqtt_topic = MqttTopic {
-            topic_id: topic_id.clone(),
-            topic_name: topic_name.clone(),
-            cluster_name: cluster_name.clone(),
-            retain_message: Some(retain_message.clone()),
-            retain_message_expired_at: Some(retain_message_expired_at),
-            create_time: now_second(),
-        };
+        // let mqtt_topic = MqttTopic {
+        //     topic_id: topic_id.clone(),
+        //     topic_name: topic_name.clone(),
+        //     cluster_name: cluster_name.clone(),
+        //     retain_message: Some(retain_message.clone()),
+        //     retain_message_expired_at: Some(retain_message_expired_at),
+        //     create_time: now_second(),
+        // };
+
+        let mut set_topic_retain_message_topic = mqtt_topic.clone();
+        set_topic_retain_message_topic.retain_message = Some(retain_message.clone());
+        set_topic_retain_message_topic.retain_message_expired_at = Some(retain_message_expired_at);
 
         let request = SetTopicRetainMessageRequest {
             cluster_name: cluster_name.clone(),
@@ -108,7 +112,7 @@ mod tests {
             topic_name.clone(),
             &client_pool,
             &addrs,
-            mqtt_topic.clone(),
+            set_topic_retain_message_topic.clone(),
             true,
         )
         .await;
@@ -152,7 +156,6 @@ mod tests {
         let mut flag: bool = false;
         for raw in data.topics.clone() {
             let topic = serde_json::from_slice::<MqttTopic>(raw.as_slice()).unwrap();
-
             if topic == mqtt_topic {
                 flag = true;
             }

@@ -134,8 +134,14 @@ pub enum PlacementCenterError {
     #[error("Schema [{0}] does not exist")]
     SchemaDoesNotExist(String),
 
+    #[error("Subscribe [{0}] does not exist")]
+    SubscribeDoesNotExist(String),
+
     #[error("Schema {0} Not found")]
     SchemaNotFound(String),
+
+    #[error("Will Message {0} does not exist")]
+    WillMessageDoesNotExist(String),
 
     #[error("Schema [{0}] already exist")]
     SchemaAlreadyExist(String),

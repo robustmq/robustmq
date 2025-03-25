@@ -5,7 +5,7 @@ In traditional message queues, only a single storage is supported, such as Kafka
 In the cloud-native scenario, we want to use a cloud-native Storage system, such as Object Storage(S3), to store our message data. In our build-in scenario, we want to use our own storage system, such as HDFS, to store the message data. In this case, we need a unified storage semantics to shield the differences between different storage systems.
 
 To address this issue, RobustMQ provides a unified Storage semantics through Storage Adapter, and interfaces with different storage systems at the underlying level, thus hiding the differences between different storage systems. Thus, it can meet the flexible demands of different scene selection, cost, performance and stability.
- 
+
 
 ## Design
 ![image](../../images/storage-adapter.png)
@@ -23,14 +23,14 @@ The Storage Adapter is a lib, not a Service. It defines the following semantics 
 - get_offset_by_group: Get the Offset by Group
 - commit_offset: Commits the Offset
 - close: The Storage Adapter is closed
- 
+
 
 > StorageAdapter file path：src/storage-adapter/src/storage.rs
 
 If you need to adapt to any storage system (HDFS, Ceph, S3, etc.), you just need to implement the StorageAdapter trait. See the StorageAdapter plugins for details.
 
 The available storage systems are:
- 
+
 - Journal Engine
 - Memory
 - Minio

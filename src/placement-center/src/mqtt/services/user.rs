@@ -17,12 +17,12 @@ use std::sync::Arc;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::placement_center::placement_center_mqtt::{
-    CreateUserRequest, DeleteUserRequest, ListUserRequest,
+    CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListUserReply,
+    ListUserRequest,
 };
 use rocksdb_engine::RocksDBEngine;
 
 use crate::{
-    core::error::PlacementCenterError,
     mqtt::controller::call_broker::{
         update_cache_by_add_user, update_cache_by_delete_user, MQTTInnerCallManager,
     },
@@ -33,45 +33,62 @@ use crate::{
     storage::mqtt::user::MqttUserStorage,
 };
 use prost::Message;
+use tonic::{Request, Response, Status};
 
-pub async fn list_user_by_req(
+pub fn list_user_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    req: ListUserRequest,
-) -> Result<Vec<Vec<u8>>, PlacementCenterError> {
+    request: Request<ListUserRequest>,
+) -> Result<Response<ListUserReply>, Status> {
+    let req = request.into_inner();
+
     let storage = MqttUserStorage::new(rocksdb_engine_handler.clone());
 
     if !req.cluster_name.is_empty() && !req.user_name.is_empty() {
         if let Some(data) = storage.get(&req.cluster_name, &req.user_name)? {
-            return Ok(vec![data.encode()]);
+            let users = vec![data.encode()];
+            return Ok(Response::new(ListUserReply { users }));
         }
     }
 
     if !req.cluster_name.is_empty() && req.user_name.is_empty() {
         let data = storage.list(&req.cluster_name)?;
-        let mut result = Vec::new();
+        let mut users = Vec::new();
         for raw in data {
-            result.push(raw.encode());
+            users.push(raw.encode());
         }
-        return Ok(result);
+        return Ok(Response::new(ListUserReply { users }));
     }
-    Ok(Vec::new())
+    Ok(Response::new(ListUserReply { users: Vec::new() }))
 }
 
-pub async fn save_user_by_req(
+pub async fn create_user_by_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-    req: CreateUserRequest,
-) -> Result<(), PlacementCenterError> {
+    request: Request<CreateUserRequest>,
+) -> Result<Response<CreateUserReply>, Status> {
+    let req = request.into_inner();
+
     let data = StorageData::new(
         StorageDataType::MqttSetUser,
         CreateUserRequest::encode_to_vec(&req),
     );
-    raft_machine_apply.client_write(data).await?;
+    if let Err(e) = raft_machine_apply.client_write(data).await {
+        return Err(Status::cancelled(e.to_string()));
+    };
 
-    let user = serde_json::from_slice::<MqttUser>(&req.content)?;
-    update_cache_by_add_user(&req.cluster_name, call_manager, client_pool, user).await?;
-    Ok(())
+    let user = match serde_json::from_slice::<MqttUser>(&req.content) {
+        Ok(user) => user,
+        Err(e) => {
+            return Err(Status::cancelled(e.to_string()));
+        }
+    };
+    if let Err(e) =
+        update_cache_by_add_user(&req.cluster_name, call_manager, client_pool, user).await
+    {
+        return Err(Status::cancelled(e.to_string()));
+    };
+    Ok(Response::new(CreateUserReply::default()))
 }
 
 pub async fn delete_user_by_req(
@@ -79,16 +96,25 @@ pub async fn delete_user_by_req(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    req: DeleteUserRequest,
-) -> Result<(), PlacementCenterError> {
+    request: Request<DeleteUserRequest>,
+) -> Result<Response<DeleteUserReply>, Status> {
+    let req = request.into_inner();
     let data = StorageData::new(
         StorageDataType::MqttDeleteUser,
         DeleteUserRequest::encode_to_vec(&req),
     );
-    raft_machine_apply.client_write(data).await?;
+    if let Err(e) = raft_machine_apply.client_write(data).await {
+        return Err(Status::cancelled(e.to_string()));
+    };
     let storage = MqttUserStorage::new(rocksdb_engine_handler.clone());
+
     if let Some(user) = storage.get(&req.cluster_name, &req.user_name)? {
-        update_cache_by_delete_user(&req.cluster_name, call_manager, client_pool, user).await?;
+        if let Err(e) =
+            update_cache_by_delete_user(&req.cluster_name, call_manager, client_pool, user).await
+        {
+            return Err(Status::cancelled(e.to_string()));
+        };
     }
-    Ok(())
+
+    Ok(Response::new(DeleteUserReply::default()))
 }
