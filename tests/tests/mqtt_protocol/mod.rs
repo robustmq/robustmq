@@ -32,7 +32,7 @@ pub mod lastwill_message_test;
 // pub mod permission34_test;
 // pub mod permission5_test;
 pub mod qos_test;
-// pub mod req_resp_test;
+pub mod req_resp_test;
 pub mod retain_message_test;
 // pub mod trace_test;
 // // pub mod share_sub_test;
