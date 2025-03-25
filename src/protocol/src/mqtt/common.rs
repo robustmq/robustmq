@@ -872,7 +872,7 @@ pub struct Subscribe {
 }
 
 /// Subscription filter
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Filter {
     //  in mqtt v4, there are only path and qos valid
     pub path: String,
