@@ -54,7 +54,7 @@ mod tests {
 
             let call_fn = |msg: Message| {
                 let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                message2.to_owned() == payload
+                message2 == payload
             };
 
             subscribe_data_by_qos(&cli, &topic, 1, call_fn);

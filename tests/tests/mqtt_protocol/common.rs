@@ -110,7 +110,7 @@ pub fn connect_server(client_id: &str, network: &str, mqtt_version: u32) -> Clie
     let conn_opts = build_conn_pros(client_properties.clone(), false);
     let result = cli.connect(conn_opts);
     assert!(result.is_ok());
-    return cli;
+    cli
 }
 
 pub fn publish_data(cli: &Client, message: Message, is_err: bool) {

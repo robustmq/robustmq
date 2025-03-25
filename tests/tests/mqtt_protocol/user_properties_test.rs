@@ -61,15 +61,15 @@ mod tests {
                         .properties()
                         .get_string_pair_at(PropertyCode::UserProperty, 0)
                         .unwrap();
-                    let bl1 = user_properties.0 == "age".to_string();
-                    let bl2 = user_properties.1 == "1".to_string();
+                    let bl1 = user_properties.0 == *"age";
+                    let bl2 = user_properties.1 == *"1";
 
                     let user_properties = msg
                         .properties()
                         .get_string_pair_at(PropertyCode::UserProperty, 1)
                         .unwrap();
-                    let bl3 = user_properties.0 == "name".to_string();
-                    let bl4 = user_properties.1 == "robustmq".to_string();
+                    let bl3 = user_properties.0 == *"name";
+                    let bl4 = user_properties.1 == *"robustmq";
 
                     bl0 && bl1 && bl2 && bl3 && bl4
                 };
