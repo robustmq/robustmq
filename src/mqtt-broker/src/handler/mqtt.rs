@@ -946,7 +946,6 @@ where
         } else {
             false
         };
-
         match disconnect_connection(
             &connection.client_id,
             connect_id,

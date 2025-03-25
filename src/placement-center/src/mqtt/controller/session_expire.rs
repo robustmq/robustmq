@@ -82,7 +82,7 @@ impl SessionExpire {
             self.send_expire_lastwill_message(lastwill_list).await;
         }
 
-        sleep(Duration::from_secs(10)).await;
+        sleep(Duration::from_secs(1)).await;
     }
 
     async fn get_expire_session_list(&self) -> Vec<MqttSession> {

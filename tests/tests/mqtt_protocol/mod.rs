@@ -28,7 +28,7 @@ pub mod connect_packet_size_test;
 pub mod connect_test;
 // mod flapping_detect_test;
 // pub mod keep_alive_test;
-// pub mod lastwill_message_test;
+pub mod lastwill_message_test;
 // pub mod permission34_test;
 // pub mod permission5_test;
 pub mod qos_test;

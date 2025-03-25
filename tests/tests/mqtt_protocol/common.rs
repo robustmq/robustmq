@@ -245,6 +245,43 @@ pub fn build_v5_conn_pros(props: Properties, err_pwd: bool, ws: bool, ssl: bool)
 }
 
 #[allow(dead_code)]
+pub fn build_v5_conn_pros_by_will(
+    props: Properties,
+    err_pwd: bool,
+    ws: bool,
+    ssl: bool,
+    will: Message,
+) -> ConnectOptions {
+    let pwd = if err_pwd { err_password() } else { password() };
+    let mut conn_opts = if ws {
+        ConnectOptionsBuilder::new_ws_v5()
+    } else {
+        ConnectOptionsBuilder::new_v5()
+    };
+    if ssl {
+        let ssl_opts = SslOptionsBuilder::new()
+            .trust_store(format!(
+                "{}/../config/example/certs/ca.pem",
+                env!("CARGO_MANIFEST_DIR")
+            ))
+            .unwrap()
+            .verify(false)
+            .disable_default_trust_store(false)
+            .finalize();
+        conn_opts.ssl_options(ssl_opts);
+    }
+    conn_opts
+        .keep_alive_interval(Duration::from_secs(600))
+        .clean_start(true)
+        .connect_timeout(Duration::from_secs(60))
+        .properties(props.clone())
+        .will_message(will)
+        .user_name(username())
+        .password(pwd)
+        .finalize()
+}
+
+#[allow(dead_code)]
 pub fn build_v5_conn_pros_by_user_information(
     props: Properties,
     username: String,
@@ -398,6 +435,26 @@ pub fn distinct_conn(cli: Client) {
             PropertyCode::UserProperty,
             "DISCONNECT_FLAG_NOT_DELETE_SESSION",
             "true",
+        )
+        .unwrap();
+
+    let disconnect_opts = DisconnectOptionsBuilder::new()
+        .reason_code(ReasonCode::DisconnectWithWillMessage)
+        .properties(props)
+        .finalize();
+    let res = cli.disconnect(disconnect_opts);
+    assert!(res.is_ok());
+}
+
+#[allow(dead_code)]
+pub fn distinct_conn_close(cli: Client) {
+    let mut props = Properties::new();
+
+    props
+        .push_string_pair(
+            PropertyCode::UserProperty,
+            "DISCONNECT_FLAG_NOT_DELETE_SESSION",
+            "false",
         )
         .unwrap();
 
