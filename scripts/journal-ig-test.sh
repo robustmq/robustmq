@@ -76,7 +76,7 @@ if [ "$1" = "dev" ]; then
 else
     if [ "$2" = "grpc" ]; then
         cargo nextest run --profile ci --package grpc-clients --test mod -- journal
-    else if [ "$2" = "base" ]; then
+    elif [ "$2" = "base" ]; then
         cargo nextest run --profile ci --package robustmq-test --test mod -- journal_client
     else
         cargo nextest run --profile ci --package robustmq-test --test mod -- journal_server
