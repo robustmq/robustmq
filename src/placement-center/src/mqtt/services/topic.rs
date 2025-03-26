@@ -233,10 +233,11 @@ pub async fn delete_topic_rewrite_rule_by_req(
         DeleteTopicRewriteRuleRequest::encode_to_vec(&req),
     );
 
-    match raft_machine_apply.client_write(data).await {
-        Ok(_) => Ok(Response::new(DeleteTopicRewriteRuleReply::default())),
-        Err(e) => Err(Status::cancelled(e.to_string())),
+    if let Err(e) = raft_machine_apply.client_write(data).await {
+        return Err(Status::cancelled(e.to_string()));
     }
+
+    Ok(Response::new(DeleteTopicRewriteRuleReply::default()))
 }
 
 pub fn list_topic_rewrite_rule_by_req(
