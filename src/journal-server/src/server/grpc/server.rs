@@ -57,6 +57,9 @@ impl GrpcServer {
         );
 
         Server::builder()
+            .accept_http1(true)
+            .layer(tower_http::cors::CorsLayer::very_permissive())
+            .layer(tonic_web::GrpcWebLayer::new())
             .add_service(JournalServerAdminServiceServer::new(admin_handler))
             .add_service(JournalServerInnerServiceServer::new(inner_handler))
             .serve(addr)
