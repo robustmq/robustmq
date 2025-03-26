@@ -64,7 +64,7 @@ impl OffsetStorage {
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, offset_data)
     }
 
-    pub fn _delete(
+    pub fn delete(
         &self,
         cluster_name: &str,
         group: &str,
@@ -126,7 +126,7 @@ mod test {
         assert_eq!(offset_list1[1].offset, 200);
 
         offset_storage
-            ._delete(&cluster_name, &group, &namespace2, &shard_name)
+            .delete(&cluster_name, &group, &namespace2, &shard_name)
             .unwrap();
 
         let offset_list2 = offset_storage.group_offset(&cluster_name, &group).unwrap();
