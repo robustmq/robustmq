@@ -64,6 +64,7 @@ impl OffsetStorage {
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, offset_data)
     }
 
+    #[allow(dead_code)]
     pub fn delete(
         &self,
         cluster_name: &str,
