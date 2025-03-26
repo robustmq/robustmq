@@ -64,3 +64,56 @@ impl ResourceConfigStorage {
         Ok(None)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::ResourceConfigStorage;
+    use crate::storage::rocksdb::RocksDBEngine;
+    use std::sync::Arc;
+    use tempfile::tempdir;
+
+    #[test]
+    fn resource_config_storage_test() {
+        let rocksdb_engine = Arc::new(RocksDBEngine::new(
+            tempdir().unwrap().path().to_str().unwrap(),
+            100,
+            vec!["cluster".to_string()],
+        ));
+        let resource_storage = ResourceConfigStorage::new(rocksdb_engine);
+
+        let cluster_name = "cluster1".to_string();
+        let resource_key = vec!["config".to_string(), "sub_config".to_string()];
+        let config_data = vec![1, 2, 3, 4, 5];
+
+        assert!(resource_storage
+            .save(
+                cluster_name.clone(),
+                resource_key.clone(),
+                config_data.clone()
+            )
+            .is_ok());
+
+        let retrieved_config = resource_storage
+            .get(cluster_name.clone(), resource_key.clone())
+            .unwrap();
+        assert!(retrieved_config.is_some());
+        assert_eq!(retrieved_config.unwrap(), config_data);
+
+        assert!(resource_storage
+            .delete(cluster_name.clone(), resource_key.clone())
+            .is_ok());
+
+        let deleted_config = resource_storage
+            .get(cluster_name.clone(), resource_key.clone())
+            .unwrap();
+        assert!(deleted_config.is_none());
+
+        let nonexistent_config = resource_storage
+            .get(
+                "nonexistent_cluster".to_string(),
+                vec!["nonexistent".to_string()],
+            )
+            .unwrap();
+        assert!(nonexistent_config.is_none());
+    }
+}
