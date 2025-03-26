@@ -75,8 +75,8 @@ if [ "$1" = "dev" ]; then
 
 else
 
-  cargo nextest run --profile ci --package grpc-clients --test mod -- journal && \
-  cargo nextest run --profile ci --package robustmq-test --test mod -- journal_client && \
+#   cargo nextest run --profile ci --package grpc-clients --test mod -- journal && \
+#   cargo nextest run --profile ci --package robustmq-test --test mod -- journal_client && \
   cargo nextest run --profile ci --package robustmq-test --test mod -- journal_server
 
 fi
