@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use paho_mqtt::Message;
+
 #[derive(Debug, Clone, Default)]
 pub struct ClientTestProperties {
     pub(crate) mqtt_version: u32,
@@ -20,6 +22,11 @@ pub struct ClientTestProperties {
     pub(crate) ws: bool,
     pub(crate) ssl: bool,
     pub(crate) request_response: bool,
+    pub(crate) user_name: String,
+    pub(crate) password: String,
+    pub(crate) will: Option<Message>,
+    pub(crate) err_pwd: bool,
+    pub(crate) conn_is_err: bool,
 }
 // pub mod acl_authorization_test;
 pub mod common;
@@ -27,12 +34,11 @@ pub mod connect5_test;
 pub mod connect_packet_size_test;
 pub mod connect_test;
 // mod flapping_detect_test;
-// pub mod keep_alive_test;
+pub mod auth_test;
+pub mod keep_alive_test;
 pub mod lastwill_message_test;
-// pub mod permission34_test;
-// pub mod permission5_test;
 pub mod qos_test;
-pub mod req_resp_test;
+// pub mod req_resp_test;
 pub mod retain_message_test;
 // pub mod trace_test;
 // // pub mod share_sub_test;

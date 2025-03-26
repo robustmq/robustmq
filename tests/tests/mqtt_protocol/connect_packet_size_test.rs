@@ -14,9 +14,12 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::mqtt_protocol::common::{
-        build_client_id, connect_server_5, distinct_conn, network_types, publish_data,
-        subscribe_data_by_qos,
+    use crate::mqtt_protocol::{
+        common::{
+            broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
+            publish_data, ssl_by_type, subscribe_data_by_qos, ws_by_type,
+        },
+        ClientTestProperties,
     };
     use common_base::tools::unique_id;
     use paho_mqtt::{Message, MessageBuilder, QOS_1};
@@ -28,7 +31,16 @@ mod tests {
 
             let client_id =
                 build_client_id(format!("client5_packet_size_test_{}", network).as_str());
-            let cli = connect_server_5(&client_id, &network);
+
+            let client_properties = ClientTestProperties {
+                mqtt_version: 5,
+                client_id: client_id.to_string(),
+                addr: broker_addr_by_type(&network),
+                ws: ws_by_type(&network),
+                ssl: ssl_by_type(&network),
+                ..Default::default()
+            };
+            let cli = connect_server(&client_properties);
 
             let packet_size = 128;
 

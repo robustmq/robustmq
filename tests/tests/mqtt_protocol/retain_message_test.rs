@@ -20,9 +20,12 @@ mod tests {
     };
     use paho_mqtt::{Message, MessageBuilder, PropertyCode};
 
-    use crate::mqtt_protocol::common::{
-        build_client_id, connect_server_5, distinct_conn, network_types, publish_data, qos_list,
-        subscribe_data_by_qos,
+    use crate::mqtt_protocol::{
+        common::{
+            broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
+            publish_data, qos_list, ssl_by_type, subscribe_data_by_qos, ws_by_type,
+        },
+        ClientTestProperties,
     };
 
     #[tokio::test]
@@ -33,7 +36,16 @@ mod tests {
                 let client_id = build_client_id(
                     format!("retain_message_sub_test_{}_{}", network, qos).as_str(),
                 );
-                let cli = connect_server_5(&client_id, &network);
+
+                let client_properties = ClientTestProperties {
+                    mqtt_version: 5,
+                    client_id: client_id.to_string(),
+                    addr: broker_addr_by_type(&network),
+                    ws: ws_by_type(&network),
+                    ssl: ssl_by_type(&network),
+                    ..Default::default()
+                };
+                let cli = connect_server(&client_properties);
 
                 // publish
                 let message = "mqtt message".to_string();
