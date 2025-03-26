@@ -49,7 +49,7 @@ mod tests {
                     }
                 }
             }
-            sleep(Duration::from_secs(1)).await;
+            sleep(Duration::from_millis(10)).await;
         }
         let ts = now.elapsed().as_secs();
         println!("{}", ts);
@@ -71,7 +71,7 @@ mod tests {
         });
 
         let connect: Connect = Connect {
-            keep_alive: 5, // 30 seconds
+            keep_alive: 5,
             client_id,
             clean_session: true,
         };

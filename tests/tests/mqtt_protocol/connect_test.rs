@@ -16,7 +16,7 @@
 mod tests {
     use crate::mqtt_protocol::common::{
         broker_addr, broker_addr_by_type, broker_ssl_addr, broker_ws_addr, broker_wss_addr,
-        build_client_id, build_conn_pros, build_create_pros, distinct_conn, network_types,
+        build_client_id, build_conn_pros, build_create_conn_pros, distinct_conn, network_types,
         protocol_versions, ssl_by_type, ws_by_type,
     };
     use crate::mqtt_protocol::ClientTestProperties;
@@ -75,7 +75,8 @@ mod tests {
     }
 
     fn wrong_password_test(client_properties: ClientTestProperties) {
-        let create_opts = build_create_pros(&client_properties.client_id, &client_properties.addr);
+        let create_opts =
+            build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
 
         let cli_res = Client::new(create_opts);
         assert!(cli_res.is_ok());
@@ -91,7 +92,8 @@ mod tests {
     }
 
     fn create_session_connection(client_properties: &ClientTestProperties, present: bool) {
-        let create_opts = build_create_pros(&client_properties.client_id, &client_properties.addr);
+        let create_opts =
+            build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
         let cli = Client::new(create_opts).unwrap();
 
         let conn_opts = build_conn_pros(client_properties.clone(), false);
