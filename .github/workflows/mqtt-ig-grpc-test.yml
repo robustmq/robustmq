@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Placement Center Ig Test
+name: MQTT Server GRPC Ig Test
 
 on:
   push:
@@ -47,11 +47,10 @@ jobs:
       - name: Install cargo-nextest
         uses: baptiste0928/cargo-install@v1
         with:
-          crate: cargo-nextest
+          crate: cargo-nextest 
           args: --locked
-      - uses: actions/checkout@v3
       - name: Run tests
-        run: sh ./scripts/place-ig-test.sh ci
+        run: sh ./scripts/mqtt-ig-test.sh ci grpc
         # we need change shell scripts to product only one junit.xml
 #      - name: Upload JUnit report
 #        # Run this step even if the test step fails. Upload it right now because

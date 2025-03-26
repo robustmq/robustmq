@@ -64,6 +64,9 @@ jobs:
         with:
           tool: cargo-llvm-cov
 
+      - name: Run tests
+        run: sh ./scripts/unit-test.sh ci
+
       - name: Collect coverage data
           # Generate separate reports for nextest and doctests, and combine them.
         run: |
