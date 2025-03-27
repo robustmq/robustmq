@@ -169,11 +169,16 @@ mod tests {
         RocksDBEngine,
     };
 
+    use tempfile::tempdir;
+
     #[tokio::test]
     async fn base_rw_str_test() {
-        let path = "/tmp/test";
-        let rocksdb_engine_handler =
-            Arc::new(RocksDBEngine::new(path, 100, vec!["default".to_string()]));
+        let path = tempdir().unwrap().path().to_str().unwrap().to_string();
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
+            path.as_str(),
+            100,
+            vec!["default".to_string()],
+        ));
         let key = "test_key".to_string();
         let value = "test_value".to_string();
         let result = rocksdb_engine_save(
@@ -196,9 +201,12 @@ mod tests {
 
     #[tokio::test]
     async fn base_rw_session_test() {
-        let path = "/tmp/test";
-        let rocksdb_engine_handler =
-            Arc::new(RocksDBEngine::new(path, 100, vec!["default".to_string()]));
+        let path = tempdir().unwrap().path().to_str().unwrap().to_string();
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
+            path.as_str(),
+            100,
+            vec!["default".to_string()],
+        ));
         let key = "test_key".to_string();
         let value = MqttSession::default();
         let result = rocksdb_engine_save(
