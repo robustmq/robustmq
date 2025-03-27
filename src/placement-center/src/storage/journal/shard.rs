@@ -106,3 +106,102 @@ impl ShardStorage {
         Ok(results)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use common_base::tools::unique_id;
+    use metadata_struct::journal::shard::{JournalShard, JournalShardStatus};
+    use rocksdb_engine::RocksDBEngine;
+    use std::sync::Arc;
+    use tempfile::tempdir;
+
+    use super::ShardStorage;
+
+    #[test]
+    fn shard_storage_test() {
+        let rocksdb_engine = Arc::new(RocksDBEngine::new(
+            tempdir().unwrap().path().to_str().unwrap(),
+            100,
+            vec!["cluster".to_string()],
+        ));
+
+        let num_clusters = 5;
+        let num_namespace_per_cluster = 5;
+        let num_shards_per_namespace = 10;
+
+        let shard_storage = ShardStorage::new(rocksdb_engine.clone());
+
+        let clusters = (0..num_clusters)
+            .map(|i| format!("cluster_{}", i))
+            .collect::<Vec<_>>();
+
+        let namespaces = (0..num_namespace_per_cluster)
+            .map(|_| unique_id())
+            .collect::<Vec<_>>();
+
+        let shards = (0..num_shards_per_namespace)
+            .map(|i| format!("shard_{}", i))
+            .collect::<Vec<_>>();
+
+        for cluster in clusters.iter() {
+            for namespace in namespaces.iter() {
+                for shard in shards.iter() {
+                    let segment = JournalShard {
+                        shard_uid: unique_id(),
+                        cluster_name: cluster.clone(),
+                        namespace: namespace.clone(),
+                        shard_name: shard.clone(),
+                        start_segment_seq: 0,
+                        active_segment_seq: 0,
+                        last_segment_seq: 0,
+                        status: JournalShardStatus::Run,
+                        ..Default::default()
+                    };
+
+                    shard_storage.save(&segment.clone()).unwrap();
+                }
+            }
+        }
+        let all_segs = shard_storage.all_shard().unwrap();
+        assert_eq!(
+            all_segs.len() as u32,
+            num_clusters * num_namespace_per_cluster * num_shards_per_namespace
+        );
+
+        for cluster in clusters.iter() {
+            let cluster_segs = shard_storage.list_by_cluster(cluster).unwrap();
+            assert_eq!(
+                cluster_segs.len() as u32,
+                num_namespace_per_cluster * num_shards_per_namespace
+            );
+
+            for namespace in namespaces.iter() {
+                let namespace_segs = shard_storage
+                    .list_by_cluster_namespace(cluster, namespace)
+                    .unwrap();
+                assert_eq!(namespace_segs.len() as u32, num_shards_per_namespace);
+                for shard in shards.iter() {
+                    let shard_segs = shard_storage
+                        .get(cluster, namespace, shard)
+                        .unwrap()
+                        .unwrap();
+                    assert_eq!(shard_segs.cluster_name, *cluster);
+                    assert_eq!(shard_segs.namespace, *namespace);
+                    assert_eq!(shard_segs.shard_name, *shard);
+                }
+            }
+        }
+        shard_storage
+            .delete(
+                clusters[0].as_str(),
+                namespaces[0].as_str(),
+                shards[0].as_str(),
+            )
+            .unwrap();
+        let all_segs = shard_storage.all_shard().unwrap();
+        assert_eq!(
+            all_segs.len() as u32,
+            num_clusters * num_namespace_per_cluster * num_shards_per_namespace - 1
+        );
+    }
+}
