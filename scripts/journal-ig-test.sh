@@ -65,11 +65,10 @@ sleep 10
 
 if [ "$1" = "dev" ]; then
 
-  cargo nextest run  --package grpc-clients --test mod -- journal && \
-  cargo nextest run  --package robustmq-test --test mod -- journal_client && \
-  cargo nextest run  --package robustmq-test --test mod -- journal_server
+    cargo nextest run  --package grpc-clients --test mod -- journal && \
+    cargo nextest run  --package robustmq-test --test mod -- journal_client && \
+    cargo nextest run  --package robustmq-test --test mod -- journal_server
 
-    # Stop Server
     stop_placement_server
     stop_journal_server
 
