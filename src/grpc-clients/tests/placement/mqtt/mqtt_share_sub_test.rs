@@ -16,6 +16,7 @@
 mod tests {
     use std::sync::Arc;
 
+    use common_base::tools::unique_id;
     use grpc_clients::placement::inner::call::register_node;
     use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
     use grpc_clients::pool::ClientPool;
@@ -29,7 +30,7 @@ mod tests {
     async fn mqtt_share_sub_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
-        let cluster_name: String = "test_cluster".to_string();
+        let cluster_name: String = unique_id();
         let group_name: String = "test_group".to_string();
         let node_ip: String = "127.0.0.1".to_string();
         let node_id: u64 = 1;
