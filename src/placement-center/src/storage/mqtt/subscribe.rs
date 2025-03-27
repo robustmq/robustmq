@@ -178,7 +178,6 @@ mod tests {
     use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
     use protocol::mqtt::common::{Filter, QoS, RetainForwardRule};
     use rocksdb_engine::RocksDBEngine;
-    use std::fs::remove_dir_all;
     use std::sync::Arc;
 
     #[tokio::test]
@@ -257,8 +256,6 @@ mod tests {
             .list_by_client_id(&cluster, &client2)
             .unwrap()
             .is_empty());
-
-        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 
     #[tokio::test]

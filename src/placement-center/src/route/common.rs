@@ -166,7 +166,6 @@ impl DataRouteCluster {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::remove_dir_all;
     use std::sync::Arc;
 
     use common_base::config::placement_center::placement_center_test_conf;
@@ -214,7 +213,5 @@ mod tests {
         let _ = node_storage.delete(&cluster_name, node_id);
         let res = node_storage.get(&cluster_name, node_id).unwrap();
         assert!(res.is_none());
-
-        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 }

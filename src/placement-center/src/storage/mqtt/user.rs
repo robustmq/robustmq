@@ -71,10 +71,10 @@ impl MqttUserStorage {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::remove_dir_all;
     use std::sync::Arc;
 
     use common_base::config::placement_center::placement_center_test_conf;
+    use common_base::utils::file_utils::test_temp_dir;
     use metadata_struct::mqtt::user::MqttUser;
 
     use crate::storage::mqtt::user::MqttUserStorage;
@@ -85,7 +85,7 @@ mod tests {
         let config = placement_center_test_conf();
 
         let rs = Arc::new(RocksDBEngine::new(
-            config.rocksdb.data_path.as_str(),
+            &test_temp_dir(),
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));
@@ -118,7 +118,5 @@ mod tests {
 
         let res = user_storage.get(&cluster_name, "lobo1").unwrap();
         assert!(res.is_none());
-
-        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 }

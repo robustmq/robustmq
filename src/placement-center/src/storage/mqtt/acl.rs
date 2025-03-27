@@ -124,10 +124,11 @@ impl AclStorage {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::remove_dir_all;
     use std::sync::Arc;
 
-    use common_base::{config::placement_center::placement_center_test_conf, utils::file_utils::test_temp_dir};
+    use common_base::{
+        config::placement_center::placement_center_test_conf, utils::file_utils::test_temp_dir,
+    };
     use metadata_struct::acl::mqtt_acl::{
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
@@ -224,7 +225,5 @@ mod tests {
 
         let res = acl_storage.list(&cluster_name).unwrap();
         assert_eq!(res.len(), 0);
-
-        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 }

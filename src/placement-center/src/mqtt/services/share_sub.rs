@@ -228,7 +228,6 @@ pub fn get_share_sub_leader_by_req(
 
 #[cfg(test)]
 mod tests {
-    use std::fs::remove_dir_all;
     use std::sync::Arc;
 
     use common_base::config::placement_center::placement_center_test_conf;
@@ -289,8 +288,6 @@ mod tests {
         share_sub.delete_node(&cluster_name, broker_id).unwrap();
         let result = share_sub.read_node_sub_info(&cluster_name).unwrap();
         assert!(!result.contains_key(&broker_id));
-
-        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 
     #[test]
@@ -361,7 +358,5 @@ mod tests {
             .get_leader_node(&cluster_name, &group_name)
             .unwrap();
         assert_eq!(node, 1);
-
-        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 }
