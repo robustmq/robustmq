@@ -127,7 +127,7 @@ mod tests {
     use std::fs::remove_dir_all;
     use std::sync::Arc;
 
-    use common_base::config::placement_center::placement_center_test_conf;
+    use common_base::{config::placement_center::placement_center_test_conf, utils::file_utils::test_temp_dir};
     use metadata_struct::acl::mqtt_acl::{
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
@@ -141,7 +141,7 @@ mod tests {
     async fn acl_storage_test() {
         let config = placement_center_test_conf();
         let rs = Arc::new(RocksDBEngine::new(
-            &config.rocksdb.data_path,
+            &test_temp_dir(),
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));

@@ -171,6 +171,7 @@ mod tests {
 
     use common_base::config::placement_center::placement_center_test_conf;
     use common_base::tools::unique_id;
+    use common_base::utils::file_utils::test_temp_dir;
     use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::ClusterType;
 
@@ -196,7 +197,7 @@ mod tests {
         };
         let data = serde_json::to_vec(&node).unwrap();
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
-            &config.rocksdb.data_path,
+            &test_temp_dir(),
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));

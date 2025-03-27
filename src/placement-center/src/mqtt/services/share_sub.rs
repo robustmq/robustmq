@@ -233,6 +233,7 @@ mod tests {
 
     use common_base::config::placement_center::placement_center_test_conf;
     use common_base::tools::{now_mills, unique_id};
+    use common_base::utils::file_utils::test_temp_dir;
     use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::ClusterType;
 
@@ -245,7 +246,7 @@ mod tests {
         let config = placement_center_test_conf();
 
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &config.rocksdb.data_path,
+            &test_temp_dir(),
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));
@@ -298,7 +299,7 @@ mod tests {
 
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &config.rocksdb.data_path,
+            &test_temp_dir(),
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));
