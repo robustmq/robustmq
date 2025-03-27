@@ -58,7 +58,7 @@ stop_mqtt_server
 
 # Start Server
 start_placement_server
-sleep 5
+sleep 30
 start_mqtt_server
 
 sleep 10

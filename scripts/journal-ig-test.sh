@@ -57,7 +57,7 @@ stop_placement_server
 stop_journal_server
 
 start_placement_server
-sleep 5
+sleep 30
 start_journal_server
 sleep 10
 
