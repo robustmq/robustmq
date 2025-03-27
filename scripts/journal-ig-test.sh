@@ -56,8 +56,9 @@ stop_journal_server(){
 stop_placement_server
 stop_journal_server
 
+# Start Server
 start_placement_server
-sleep 30
+sleep 60
 start_journal_server
 sleep 10
 

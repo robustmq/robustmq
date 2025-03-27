@@ -58,9 +58,8 @@ stop_mqtt_server
 
 # Start Server
 start_placement_server
-sleep 30
+sleep 60
 start_mqtt_server
-
 sleep 10
 
 if [ "$1" = "dev" ]; then
