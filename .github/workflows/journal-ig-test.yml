@@ -51,11 +51,7 @@ jobs:
           args: --locked
       - uses: actions/checkout@v3
       - name: Run tests
-        run: sh ./scripts/journal-ig-test.sh dev base
-      - name: Run tests
-        run: sh ./scripts/journal-ig-test.sh dev grpc
-      - name: Run tests
-        run: sh ./scripts/journal-ig-test.sh dev protocol
+        run: sh ./scripts/journal-ig-test.sh dev
         # we need change shell scripts to product only one junit.xml
 #      - name: Upload JUnit report
 #        # Run this step even if the test step fails. Upload it right now because
