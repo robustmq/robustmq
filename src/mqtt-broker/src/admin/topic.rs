@@ -14,8 +14,7 @@
 
 use crate::handler::cache::CacheManager;
 use crate::storage::topic::TopicStorage;
-use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::utils::time_util::get_current_millisecond_timestamp;
+use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::now_mills};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -80,12 +79,11 @@ pub async fn delete_topic_rewrite_rule_by_req(
     {
         Ok(_) => {
             let config = broker_mqtt_conf();
-            let key = cache_manager.topic_rewrite_rule_key(
+            cache_manager.delete_topic_rewrite_rule(
                 &config.cluster_name,
                 &req.action,
                 &req.source_topic,
             );
-            cache_manager.topic_rewrite_rule.remove(&key);
             Ok(Response::new(DeleteTopicRewriteRuleReply::default()))
         }
         Err(e) => Err(Status::cancelled(e.to_string())),
@@ -101,11 +99,11 @@ pub async fn create_topic_rewrite_rule_by_req(
     let config = broker_mqtt_conf();
     let topic_rewrite_rule = MqttTopicRewriteRule {
         cluster: config.cluster_name.clone(),
-        action: req.action.clone(),
-        source_topic: req.source_topic.clone(),
-        dest_topic: req.dest_topic.clone(),
-        regex: req.regex.clone(),
-        timestamp: get_current_millisecond_timestamp(),
+        action: req.action,
+        source_topic: req.source_topic,
+        dest_topic: req.dest_topic,
+        regex: req.regex,
+        timestamp: now_mills(),
     };
     let topic_storage = TopicStorage::new(client_pool.clone());
     match topic_storage
@@ -113,14 +111,7 @@ pub async fn create_topic_rewrite_rule_by_req(
         .await
     {
         Ok(_) => {
-            let key = cache_manager.topic_rewrite_rule_key(
-                &config.cluster_name,
-                &req.action,
-                &req.source_topic,
-            );
-            cache_manager
-                .topic_rewrite_rule
-                .insert(key, topic_rewrite_rule);
+            cache_manager.add_topic_rewrite_rule(topic_rewrite_rule);
             Ok(Response::new(CreateTopicRewriteRuleReply::default()))
         }
         Err(e) => Err(Status::cancelled(e.to_string())),

@@ -62,3 +62,53 @@ impl IdempotentStorage {
         engine_exists_by_cluster(self.rocksdb_engine_handler.clone(), key)
     }
 }
+
+#[cfg(test)]
+mod test {
+
+    use crate::storage::placement::idempotent::IdempotentStorage;
+    use crate::storage::rocksdb::RocksDBEngine;
+    use std::sync::Arc;
+    use tempfile::tempdir;
+
+    #[test]
+    fn idempotent_storage_test() {
+        let rocksdb_engine = Arc::new(RocksDBEngine::new(
+            tempdir().unwrap().path().to_str().unwrap(),
+            100,
+            vec!["cluster".to_string()],
+        ));
+        let idempotent_storage = IdempotentStorage::new(rocksdb_engine);
+
+        let cluster_name = "cluster1".to_string();
+        let producer_id = "producer1".to_string();
+
+        idempotent_storage
+            .save(&cluster_name, &producer_id, 100)
+            .unwrap();
+        idempotent_storage
+            .save(&cluster_name, &producer_id, 200)
+            .unwrap();
+
+        let exists = idempotent_storage
+            .exists(&cluster_name, &producer_id, 100)
+            .unwrap();
+        assert!(exists);
+        let exists = idempotent_storage
+            .exists(&cluster_name, &producer_id, 200)
+            .unwrap();
+        assert!(exists);
+        let exists = idempotent_storage
+            .exists(&cluster_name, &producer_id, 300)
+            .unwrap();
+        assert!(!exists);
+
+        idempotent_storage
+            .delete(&cluster_name, &producer_id, 100)
+            .unwrap();
+        let exists = idempotent_storage
+            .exists(&cluster_name, &producer_id, 100)
+            .unwrap();
+        assert!(!exists);
+    }
+}

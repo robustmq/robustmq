@@ -21,7 +21,7 @@ mod tests {
 
     use crate::mqtt_protocol::{
         common::{
-            broker_addr_by_type, build_client_id, build_conn_pros, build_create_pros,
+            broker_addr_by_type, build_client_id, build_conn_pros, build_create_conn_pros,
             distinct_conn, network_types, ssl_by_type, ws_by_type,
         },
         ClientTestProperties,
@@ -40,7 +40,7 @@ mod tests {
                 ..Default::default()
             };
             let create_opts =
-                build_create_pros(&client_properties.client_id, &client_properties.addr);
+                build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
 
             let cli_res = Client::new(create_opts);
             assert!(cli_res.is_ok());
@@ -81,7 +81,7 @@ mod tests {
                 ..Default::default()
             };
             let create_opts =
-                build_create_pros(&client_properties.client_id, &client_properties.addr);
+                build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
 
             let cli_res = Client::new(create_opts);
             assert!(cli_res.is_ok());
@@ -215,9 +215,10 @@ mod tests {
                 ws: ws_by_type(&network),
                 ssl: ssl_by_type(&network),
                 request_response: true,
+                ..Default::default()
             };
             let create_opts =
-                build_create_pros(&client_properties.client_id, &client_properties.addr);
+                build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
 
             let cli_res = Client::new(create_opts);
             assert!(cli_res.is_ok());

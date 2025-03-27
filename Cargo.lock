@@ -2207,6 +2207,8 @@ dependencies = [
  "tokio-rustls 0.26.0",
  "tokio-util",
  "tonic",
+ "tonic-web",
+ "tower-http",
 ]
 
 [[package]]
@@ -2647,6 +2649,8 @@ dependencies = [
  "tokio-rustls 0.26.0",
  "tokio-util",
  "tonic",
+ "tonic-web",
+ "tower-http",
 ]
 
 [[package]]

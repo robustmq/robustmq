@@ -84,6 +84,9 @@ where
             self.connection_manager.clone(),
         );
         Server::builder()
+            .accept_http1(true)
+            .layer(tower_http::cors::CorsLayer::very_permissive())
+            .layer(tonic_web::GrpcWebLayer::new())
             .add_service(MqttBrokerInnerServiceServer::new(inner_handler))
             .add_service(MqttBrokerAdminServiceServer::new(admin_handler))
             .serve(addr)

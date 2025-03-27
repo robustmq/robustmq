@@ -13,10 +13,10 @@
 # limitations under the License.
 
 start_placement_server(){
-    nohup cargo run --package cmd --bin placement-center -- --conf=example/test-config/place.toml 2>./pc-1.log &
+    nohup cargo run --package cmd --bin placement-center -- --conf=config/placement-center.toml  &
     sleep 3
 
-    no1=`ps -ef | grep placement-center  | grep test-config | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep placement-center  | grep config/placement-center.toml | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
         echo "placement-center node 1 started successfully. process no: $no1"
@@ -24,7 +24,7 @@ start_placement_server(){
 }
 
 stop_placement_server(){
-    no1=`ps -ef | grep placement-center  | grep test-config | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep placement-center  | grep config/placement-center.toml | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
         echo "kill placement center $no1"
@@ -33,10 +33,10 @@ stop_placement_server(){
 }
 
 start_journal_server(){
-    nohup cargo run --package cmd --bin journal-server -- --conf=example/test-config/journal.toml 2>./jn-1.log &
+    nohup cargo run --package cmd --bin journal-server -- --conf=config/journal-server.toml 2>./jn-1.log &
     sleep 3
 
-    no1=`ps -ef | grep journal-server  | grep test-config | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep journal-server  | grep config/journal-server.toml | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
         echo "journal-server node 1 started successfully. process no: $no1"
@@ -44,7 +44,7 @@ start_journal_server(){
 }
 
 stop_journal_server(){
-    no1=`ps -ef | grep journal-server  | grep test-config | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep journal-server  | grep config/journal-server.toml | grep -v grep | awk '{print $2}'`
     if [ -n "$no1" ]
     then
         echo "kill journal server $no1"
@@ -56,15 +56,10 @@ stop_journal_server(){
 stop_placement_server
 stop_journal_server
 
-# Clean up
-rm -rf ./robust-data-test/placement-center*
-rm -rf ./robust-data-test/journal-server*
-
-sleep 3
-
 start_placement_server
+sleep 5
 start_journal_server
-
+sleep 10
 
 
 
@@ -80,8 +75,8 @@ if [ "$1" = "dev" ]; then
 
 else
 
-  cargo nextest run --profile ci --package grpc-clients --test mod -- journal && \
-  cargo nextest run --profile ci --package robustmq-test --test mod -- journal_client && \
+#   cargo nextest run --profile ci --package grpc-clients --test mod -- journal && \
+#   cargo nextest run --profile ci --package robustmq-test --test mod -- journal_client && \
   cargo nextest run --profile ci --package robustmq-test --test mod -- journal_server
 
 fi

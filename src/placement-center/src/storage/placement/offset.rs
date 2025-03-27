@@ -64,7 +64,8 @@ impl OffsetStorage {
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, offset_data)
     }
 
-    pub fn _delete(
+    #[allow(dead_code)]
+    pub fn delete(
         &self,
         cluster_name: &str,
         group: &str,
@@ -88,5 +89,49 @@ impl OffsetStorage {
             results.push(serde_json::from_str::<OffsetData>(&raw.data)?);
         }
         Ok(results)
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use crate::storage::placement::offset::OffsetStorage;
+    use crate::storage::rocksdb::RocksDBEngine;
+    use std::sync::Arc;
+    use tempfile::tempdir;
+
+    #[test]
+    fn offset_storage_test() {
+        let rocksdb_engine = Arc::new(RocksDBEngine::new(
+            tempdir().unwrap().path().to_str().unwrap(),
+            100,
+            vec!["cluster".to_string()],
+        ));
+        let offset_storage = OffsetStorage::new(rocksdb_engine);
+
+        let cluster_name = "cluster1".to_string();
+        let group = "group1".to_string();
+        let namespace1 = "namespace1".to_string();
+        let namespace2 = "namespace2".to_string();
+        let shard_name = "shard1".to_string();
+
+        offset_storage
+            .save(&cluster_name, &group, &namespace1, &shard_name, 100)
+            .unwrap();
+        offset_storage
+            .save(&cluster_name, &group, &namespace2, &shard_name, 200)
+            .unwrap();
+
+        let offset_list1 = offset_storage.group_offset(&cluster_name, &group).unwrap();
+        assert_eq!(offset_list1.len(), 2);
+        assert_eq!(offset_list1[1].offset, 200);
+
+        offset_storage
+            .delete(&cluster_name, &group, &namespace2, &shard_name)
+            .unwrap();
+
+        let offset_list2 = offset_storage.group_offset(&cluster_name, &group).unwrap();
+        assert_eq!(offset_list2.len(), 1);
+        assert_eq!(offset_list2[0].offset, 100);
     }
 }
