@@ -98,11 +98,10 @@ impl MessageExpire {
                 if delete {
                     value.retain_message = None;
                     value.retain_message_expired_at = None;
-                    match topic_storage.save(&self.cluster_name, &value.topic_name.clone(), value) {
-                        Ok(()) => {}
-                        Err(e) => {
-                            error!("{}", e);
-                        }
+                    if let Err(e) =
+                        topic_storage.save(&self.cluster_name, &value.topic_name.clone(), value)
+                    {
+                        error!("{}", e);
                     }
                 }
             }
@@ -127,6 +126,7 @@ impl MessageExpire {
             );
             return;
         };
+
         let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
         iter.seek(search_key.clone());
         while iter.valid() {
@@ -161,11 +161,8 @@ impl MessageExpire {
                 };
 
                 if delete {
-                    match lastwill_storage.delete(&self.cluster_name, &value.client_id) {
-                        Ok(()) => {}
-                        Err(e) => {
-                            error!("{}", e);
-                        }
+                    if let Err(e) = lastwill_storage.delete(&self.cluster_name, &value.client_id) {
+                        error!("{}", e);
                     }
                 }
             }
