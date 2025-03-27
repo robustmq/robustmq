@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_base::utils::time_util::get_current_millisecond_timestamp;
+use common_base::tools::now_mills;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -170,7 +170,7 @@ impl DataRouteMqtt {
             source_topic: req.source_topic.clone(),
             dest_topic: req.dest_topic.clone(),
             regex: req.regex.clone(),
-            timestamp: get_current_millisecond_timestamp(),
+            timestamp: now_mills(),
         };
         storage.save_topic_rewrite_rule(
             &req.cluster_name,
