@@ -50,3 +50,4 @@ opentelemetry-otlp.workspace = true
 valico.workspace = true
 apache-avro.workspace = true
 crc32fast.workspace = true
+tempfile.workspace = true

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: MQTT Server GRPC Ig Test
+name: MQTT Server Protocol Ig Test
 
 on:
   push:
@@ -50,7 +50,7 @@ jobs:
           crate: cargo-nextest 
           args: --locked
       - name: Run tests
-        run: sh ./scripts/mqtt-ig-test.sh ci grpc
+        run: sh ./scripts/mqtt-ig-test.sh ci
         # we need change shell scripts to product only one junit.xml
 #      - name: Upload JUnit report
 #        # Run this step even if the test step fails. Upload it right now because

@@ -174,17 +174,15 @@ impl MessageExpire {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::remove_dir_all;
-    use std::sync::Arc;
-    use std::time::Duration;
-
-    use common_base::config::placement_center::placement_center_test_conf;
     use common_base::tools::{now_second, unique_id};
+    use common_base::utils::file_utils::test_temp_dir;
     use metadata_struct::mqtt::lastwill::LastWillData;
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::mqtt::session::MqttSession;
     use metadata_struct::mqtt::topic::MqttTopic;
     use protocol::mqtt::common::{LastWillProperties, Publish};
+    use std::sync::Arc;
+    use std::time::Duration;
     use tokio::time::sleep;
 
     use super::MessageExpire;
@@ -195,12 +193,10 @@ mod tests {
 
     #[tokio::test]
     async fn retain_message_expire_test() {
-        let config = placement_center_test_conf();
-
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &config.rocksdb.data_path,
-            config.rocksdb.max_open_files.unwrap(),
+            &test_temp_dir(),
+            1000,
             column_family_list(),
         ));
         let mut message_expire =
@@ -232,18 +228,14 @@ mod tests {
 
         let ms = now_second() - start;
         assert!(ms == 3 || ms == 4);
-
-        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 
     #[tokio::test]
     async fn last_will_message_expire_test() {
-        let config = placement_center_test_conf();
-
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &config.rocksdb.data_path,
-            config.rocksdb.max_open_files.unwrap(),
+            &test_temp_dir(),
+            1000,
             column_family_list(),
         ));
         let lastwill_storage = MqttLastWillStorage::new(rocksdb_engine_handler.clone());
@@ -289,7 +281,5 @@ mod tests {
 
         let ms = now_second() - start;
         assert!(ms == 3 || ms == 4);
-
-        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 }
