@@ -37,7 +37,10 @@ use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
 };
 
-use crate::mqtt::admin::{process_slow_sub_args, process_user_args, AclArgs, BlacklistArgs, FlappingDetectArgs, SlowSubArgs, UserArgs};
+use crate::mqtt::admin::{
+    process_acl_args, process_blacklist_args, process_slow_sub_args, process_user_args, AclArgs,
+    BlacklistArgs, FlappingDetectArgs, SlowSubArgs, UserArgs,
+};
 use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 
 #[derive(Parser)] // requires `derive` feature
@@ -216,6 +219,8 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             MQTTAction::User(args) => process_user_args(args),
             // access control list admin
             MQTTAction::Acl(args) => process_acl_args(args),
+            // blacklist admin
+            MQTTAction::Blacklist(args) => process_blacklist_args(args),
             MQTTAction::ListConnection => MqttActionType::ListConnection,
             MQTTAction::ListTopic(args) => MqttActionType::ListTopic(ListTopicRequest {
                 topic_name: args.topic_name,

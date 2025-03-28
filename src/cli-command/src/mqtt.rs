@@ -17,15 +17,16 @@ use crate::{connect_server5, error_info, grpc_addr};
 use common_base::enum_type::sort_type::SortType;
 use common_base::tools::unique_id;
 use grpc_clients::mqtt::admin::call::{
-    mqtt_broker_bind_schema, mqtt_broker_cluster_status, mqtt_broker_create_connector,
-    mqtt_broker_create_schema, mqtt_broker_create_user, mqtt_broker_delete_auto_subscribe_rule,
-    mqtt_broker_delete_connector, mqtt_broker_delete_schema, mqtt_broker_delete_user,
-    mqtt_broker_enable_flapping_detect, mqtt_broker_enable_slow_subscribe,
-    mqtt_broker_list_auto_subscribe_rule, mqtt_broker_list_bind_schema,
-    mqtt_broker_list_connection, mqtt_broker_list_connector, mqtt_broker_list_schema,
-    mqtt_broker_list_slow_subscribe, mqtt_broker_list_topic, mqtt_broker_list_user,
-    mqtt_broker_set_auto_subscribe_rule, mqtt_broker_unbind_schema, mqtt_broker_update_connector,
-    mqtt_broker_update_schema,
+    mqtt_broker_bind_schema, mqtt_broker_cluster_status, mqtt_broker_create_acl,
+    mqtt_broker_create_blacklist, mqtt_broker_create_connector, mqtt_broker_create_schema,
+    mqtt_broker_create_user, mqtt_broker_delete_acl, mqtt_broker_delete_auto_subscribe_rule,
+    mqtt_broker_delete_blacklist, mqtt_broker_delete_connector, mqtt_broker_delete_schema,
+    mqtt_broker_delete_user, mqtt_broker_enable_flapping_detect, mqtt_broker_enable_slow_subscribe,
+    mqtt_broker_list_acl, mqtt_broker_list_auto_subscribe_rule, mqtt_broker_list_bind_schema,
+    mqtt_broker_list_blacklist, mqtt_broker_list_connection, mqtt_broker_list_connector,
+    mqtt_broker_list_schema, mqtt_broker_list_slow_subscribe, mqtt_broker_list_topic,
+    mqtt_broker_list_user, mqtt_broker_set_auto_subscribe_rule, mqtt_broker_unbind_schema,
+    mqtt_broker_update_connector, mqtt_broker_update_schema,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -35,17 +36,21 @@ use metadata_struct::schema::SchemaData;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusRequest, CreateUserRequest, DeleteAutoSubscribeRuleRequest, DeleteUserRequest,
-    EnableFlappingDetectRequest, EnableSlowSubscribeRequest, ListAutoSubscribeRuleRequest,
-    ListConnectionRequest, ListSlowSubscribeRequest, ListTopicRequest, ListUserRequest,
-    MqttBindSchemaRequest, MqttCreateConnectorRequest, MqttCreateSchemaRequest,
-    MqttDeleteConnectorRequest, MqttDeleteSchemaRequest, MqttListBindSchemaRequest,
-    MqttListConnectorRequest, MqttListSchemaRequest, MqttUnbindSchemaRequest,
-    MqttUpdateConnectorRequest, MqttUpdateSchemaRequest, SetAutoSubscribeRuleRequest,
+    ClusterStatusRequest, CreateAclRequest, CreateBlacklistRequest, CreateUserRequest,
+    DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteUserRequest,
+    EnableFlappingDetectRequest, EnableSlowSubscribeRequest, ListAclRequest,
+    ListAutoSubscribeRuleRequest, ListBlacklistRequest, ListConnectionRequest,
+    ListSlowSubscribeRequest, ListTopicRequest, ListUserRequest, MqttBindSchemaRequest,
+    MqttCreateConnectorRequest, MqttCreateSchemaRequest, MqttDeleteConnectorRequest,
+    MqttDeleteSchemaRequest, MqttListBindSchemaRequest, MqttListConnectorRequest,
+    MqttListSchemaRequest, MqttUnbindSchemaRequest, MqttUpdateConnectorRequest,
+    MqttUpdateSchemaRequest, SetAutoSubscribeRuleRequest,
 };
 use std::str::FromStr;
 use std::sync::Arc;
 
+use metadata_struct::acl::mqtt_acl::MqttAcl;
+use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use tokio::io::{self, AsyncBufReadExt, BufReader};
 use tokio::{select, signal};
 
@@ -66,9 +71,14 @@ pub enum MqttActionType {
     DeleteUser(DeleteUserRequest),
 
     // access control list admin
-    // ListACL,
-    // CreateACL(CreateACLRequest),
-    // DeleteACL(DeleteACLRequest),
+    ListAcl,
+    CreateAcl(CreateAclRequest),
+    DeleteAcl(DeleteAclRequest),
+
+    // blacklist admin
+    ListBlacklist,
+    CreateBlacklist(CreateBlacklistRequest),
+    DeleteBlacklist(DeleteBlacklistRequest),
 
     // connection
     ListConnection,
@@ -125,8 +135,13 @@ impl MqttBrokerCommand {
     pub async fn start(&self, params: MqttCliCommandParam) {
         let client_pool = Arc::new(ClientPool::new(100));
         match params.action {
+            // cluster status
             MqttActionType::Status => {
                 self.status(&client_pool, params.clone()).await;
+            }
+            // user admin
+            MqttActionType::ListUser => {
+                self.list_user(&client_pool, params.clone()).await;
             }
             MqttActionType::CreateUser(ref request) => {
                 self.create_user(&client_pool, params.clone(), request.clone())
@@ -136,9 +151,31 @@ impl MqttBrokerCommand {
                 self.delete_user(&client_pool, params.clone(), request.clone())
                     .await;
             }
-            MqttActionType::ListUser => {
-                self.list_user(&client_pool, params.clone()).await;
+            // access control list admin
+            MqttActionType::ListAcl => {
+                self.list_acl(&client_pool, params.clone()).await;
             }
+            MqttActionType::CreateAcl(ref request) => {
+                self.create_acl(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::DeleteAcl(ref request) => {
+                self.delete_acl(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            // blacklist admin
+            MqttActionType::ListBlacklist => {
+                self.list_blacklist(&client_pool, params.clone()).await;
+            }
+            MqttActionType::CreateBlacklist(ref request) => {
+                self.create_blacklist(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::DeleteBlacklist(ref request) => {
+                self.delete_blacklist(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            // connection
             MqttActionType::ListConnection => {
                 self.list_connections(&client_pool, params.clone()).await;
             }
@@ -186,22 +223,18 @@ impl MqttBrokerCommand {
                 self.list_schema(&client_pool, params.clone(), request.clone())
                     .await;
             }
-
             MqttActionType::CreateSchema(ref request) => {
                 self.create_schema(&client_pool, params.clone(), request.clone())
                     .await;
             }
-
             MqttActionType::UpdateSchema(ref request) => {
                 self.update_schema(&client_pool, params.clone(), request.clone())
                     .await;
             }
-
             MqttActionType::DeleteSchema(ref request) => {
                 self.delete_schema(&client_pool, params.clone(), request.clone())
                     .await;
             }
-
             MqttActionType::BindSchema(ref request) => {
                 self.bind_schema(&client_pool, params.clone(), request.clone())
                     .await;
@@ -210,7 +243,6 @@ impl MqttBrokerCommand {
                 self.unbind_schema(&client_pool, params.clone(), request.clone())
                     .await;
             }
-
             MqttActionType::ListBindSchema(ref request) => {
                 self.list_bind_schema(&client_pool, params.clone(), request.clone())
                     .await;
@@ -431,6 +463,140 @@ impl MqttBrokerCommand {
             }
             Err(e) => {
                 println!("MQTT broker list user exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn create_acl(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: CreateAclRequest,
+    ) {
+        match mqtt_broker_create_acl(client_pool, &grpc_addr(params.server), cli_request).await {
+            Ok(_) => {
+                println!("Created successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker create acl normal exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn delete_acl(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: DeleteAclRequest,
+    ) {
+        match mqtt_broker_delete_acl(client_pool, &grpc_addr(params.server), cli_request).await {
+            Ok(_) => {
+                println!("Deleted successfully!");
+            }
+            Err(e) => {
+                println!("MQTT broker delete acl normal exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn list_acl(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
+        let request = ListAclRequest::default();
+        match mqtt_broker_list_acl(client_pool, &grpc_addr(params.server), request).await {
+            Ok(data) => {
+                // format table
+                let mut table = Table::new();
+                table.add_row(row![
+                    "resource_type",
+                    "resource_name",
+                    "topic",
+                    "ip",
+                    "action",
+                    "permission"
+                ]);
+                for acl in data.acls {
+                    let mqtt_acl = serde_json::from_slice::<MqttAcl>(acl.as_slice()).unwrap();
+                    table.add_row(row![
+                        mqtt_acl.resource_type,
+                        mqtt_acl.resource_name,
+                        mqtt_acl.topic,
+                        mqtt_acl.ip,
+                        mqtt_acl.action,
+                        mqtt_acl.permission
+                    ]);
+                }
+                // output cmd
+                table.printstd()
+            }
+            Err(e) => {
+                println!("MQTT broker list acl exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn create_blacklist(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: CreateBlacklistRequest,
+    ) {
+        match mqtt_broker_create_blacklist(client_pool, &grpc_addr(params.server), cli_request)
+            .await
+        {
+            Ok(_) => {
+                println!("Created successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker create blacklist normal exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn delete_blacklist(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: DeleteBlacklistRequest,
+    ) {
+        match mqtt_broker_delete_blacklist(client_pool, &grpc_addr(params.server), cli_request)
+            .await
+        {
+            Ok(_) => {
+                println!("Deleted successfully!");
+            }
+            Err(e) => {
+                println!("MQTT broker delete blacklist normal exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn list_blacklist(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
+        let request = ListBlacklistRequest::default();
+        match mqtt_broker_list_blacklist(client_pool, &grpc_addr(params.server), request).await {
+            Ok(data) => {
+                // format table
+                let mut table = Table::new();
+                table.add_row(row!["blacklist_type", "resource_name", "end_time", "desc"]);
+                for blacklist in data.blacklists {
+                    let mqtt_acl_blacklist =
+                        serde_json::from_slice::<MqttAclBlackList>(blacklist.as_slice()).unwrap();
+                    table.add_row(row![
+                        mqtt_acl_blacklist.blacklist_type,
+                        mqtt_acl_blacklist.resource_name,
+                        mqtt_acl_blacklist.end_time,
+                        mqtt_acl_blacklist.blacklist_type
+                    ]);
+                }
+                // output cmd
+                table.printstd()
+            }
+            Err(e) => {
+                println!("MQTT broker list blacklist exception");
                 error_info(e.to_string());
             }
         }

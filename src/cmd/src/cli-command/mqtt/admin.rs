@@ -20,13 +20,13 @@ use cli_command::mqtt::MqttActionType;
 use common_base::enum_type::sort_type::SortType;
 use core::option::Option::Some;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateUserRequest, DeleteAutoSubscribeRuleRequest, DeleteUserRequest,
+    CreateAclRequest, CreateBlacklistRequest, CreateUserRequest, DeleteAclRequest,
+    DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteUserRequest,
     ListAutoSubscribeRuleRequest, SetAutoSubscribeRuleRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
 };
-use std::fs::Permissions;
 
 #[derive(clap::Args, Debug)]
 #[command(author="RobustMQ", about="related operations of mqtt users, such as listing, creating, and deleting", long_about = None)]
@@ -90,11 +90,9 @@ pub enum AclActionType {
 #[command(next_line_help = true)]
 pub(crate) struct CreateAclArgs {
     #[arg(short, long, required = true)]
-    pub(crate) username: String,
+    pub(crate) cluster_name: String,
     #[arg(short, long, required = true)]
-    pub(crate) topic: String,
-    #[arg(short, long, default_value_t = false)]
-    pub(crate) permission: String,
+    pub(crate) acl: String,
 }
 
 #[derive(clap::Args, Debug)]
@@ -102,9 +100,9 @@ pub(crate) struct CreateAclArgs {
 #[command(next_line_help = true)]
 pub(crate) struct DeleteAclArgs {
     #[arg(short, long, required = true)]
-    pub(crate) username: String,
+    pub(crate) cluster_name: String,
     #[arg(short, long, required = true)]
-    pub(crate) topic: String,
+    pub(crate) acl: String,
 }
 
 #[derive(clap::Args, Debug)]
@@ -130,7 +128,9 @@ pub enum BlackListActionType {
 #[command(next_line_help = true)]
 pub(crate) struct CreateBlacklistArgs {
     #[arg(short, long, required = true)]
-    pub(crate) identifier: String,
+    pub(crate) cluster_name: String,
+    #[arg(short, long, required = true)]
+    pub(crate) blacklist: String,
 }
 
 #[derive(clap::Args, Debug)]
@@ -138,7 +138,11 @@ pub(crate) struct CreateBlacklistArgs {
 #[command(next_line_help = true)]
 pub(crate) struct DeleteBlacklistArgs {
     #[arg(short, long, required = true)]
-    pub(crate) identifier: String,
+    pub(crate) cluster_name: String,
+    #[arg(short, long, required = true)]
+    pub(crate) blacklist_type: String,
+    #[arg(short, long, required = true)]
+    pub(crate) resource_name: String,
 }
 
 // flapping detect feat
@@ -342,23 +346,44 @@ pub fn process_user_args(args: UserArgs) -> MqttActionType {
     }
 }
 
-// pub fn process_acl_args(args: AclArgs) -> MqttActionType {
-//     match args.action {
-//         Some(acl_action) => match acl_action {
-//             AclActionType::List => MqttActionType::ListAcl,
-//             AclActionType::Create(arg) => MqttActionType::CreateAcl(CreateAclArgs {
-//                 username: arg.username,
-//                 topic: arg.topic,
-//                 permission: arg.permission,
-//             }),
-//             AclActionType::Delete(arg) => MqttActionType::DeleteAcl(DeleteAclArgs {
-//                 username: arg.username,
-//                 topic: arg.topic,
-//             }),
-//         },
-//         None => unreachable!(),
-//     }
-// }
+pub fn process_acl_args(args: AclArgs) -> MqttActionType {
+    match args.action {
+        Some(acl_action) => match acl_action {
+            AclActionType::List => MqttActionType::ListAcl,
+            AclActionType::Create(arg) => MqttActionType::CreateAcl(CreateAclRequest {
+                cluster_name: arg.cluster_name,
+                acl: Vec::from(arg.acl),
+            }),
+            AclActionType::Delete(arg) => MqttActionType::DeleteAcl(DeleteAclRequest {
+                cluster_name: arg.cluster_name,
+                acl: Vec::from(arg.acl),
+            }),
+        },
+        None => unreachable!(),
+    }
+}
+
+pub fn process_blacklist_args(args: BlacklistArgs) -> MqttActionType {
+    match args.action {
+        Some(blacklist_action) => match blacklist_action {
+            BlackListActionType::List => MqttActionType::ListBlacklist,
+            BlackListActionType::Create(arg) => {
+                MqttActionType::CreateBlacklist(CreateBlacklistRequest {
+                    cluster_name: arg.cluster_name,
+                    blacklist: Vec::from(arg.blacklist),
+                })
+            }
+            BlackListActionType::Delete(arg) => {
+                MqttActionType::DeleteBlacklist(DeleteBlacklistRequest {
+                    cluster_name: arg.cluster_name,
+                    blacklist_type: arg.blacklist_type,
+                    resource_name: arg.resource_name,
+                })
+            }
+        },
+        None => unreachable!(),
+    }
+}
 
 #[derive(clap::Args, Debug)]
 #[command(author="RobustMQ", about="related operations of mqtt auto subscribe, such as listing, setting, and deleting ", long_about = None)]
