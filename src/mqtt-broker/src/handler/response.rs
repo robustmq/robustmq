@@ -234,6 +234,7 @@ pub fn response_packet_mqtt_pubrec_fail(
     if !protocol.is_mqtt5() {
         return MqttPacket::PubRec(PubRec { pkid, reason: None }, None);
     }
+
     let pub_ack = PubRec {
         pkid,
         reason: Some(reason),

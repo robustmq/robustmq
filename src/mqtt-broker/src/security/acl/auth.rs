@@ -177,6 +177,7 @@ fn is_acl_deny(
             }
         }
     }
+
     // check client id acl
     if let Some(client_id_list) = cache_mamanger
         .acl_metadata
