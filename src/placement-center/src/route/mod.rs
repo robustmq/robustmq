@@ -367,18 +367,33 @@ mod test {
 
         let data_route = DataRoute::new(
             rocksdb_engine.clone(),
+            cluster_cache.clone(),
+            engine_cache.clone(),
+            mqtt_cache.clone(),
+        );
+
+        let snapshot = data_route.build_snapshot();
+
+        // GET A NEW ONE
+
+        let new_rocksdb_engine = Arc::new(RocksDBEngine::new(
+            tempdir().unwrap().path().to_str().unwrap(),
+            100,
+            vec![DB_COLUMN_FAMILY_CLUSTER.to_string()],
+        ));
+
+        let new_data_route = DataRoute::new(
+            new_rocksdb_engine.clone(),
             cluster_cache,
             engine_cache,
             mqtt_cache,
         );
 
-        let snapshot = data_route.build_snapshot();
-
-        data_route.recover_snapshot(snapshot).unwrap();
+        new_data_route.recover_snapshot(snapshot).unwrap();
 
         // check value again
         for i in 0..10 {
-            let value = rocksdb_engine
+            let value = new_rocksdb_engine
                 .read::<i32>(cf.clone(), format!("key-{}", i).as_str())
                 .unwrap()
                 .unwrap();
