@@ -391,6 +391,10 @@ mod test {
 
         new_data_route.recover_snapshot(snapshot).unwrap();
 
+        let cf = new_rocksdb_engine
+            .cf_handle(DB_COLUMN_FAMILY_CLUSTER)
+            .unwrap();
+
         // check value again
         for i in 0..10 {
             let value = new_rocksdb_engine
