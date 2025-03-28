@@ -49,9 +49,6 @@ use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 #[command(author="RobustMQ", version="0.0.1", about="Command line tool for RobustMQ", long_about = None)]
 #[command(next_line_help = true)]
 struct RobustMQCli {
-    // Mqtt(MqttArgs),
-    // Place(PlacementArgs),
-    // Journal(JournalArgs),
     #[command(subcommand)]
     command: RobustMQCliCommand,
 }
@@ -88,11 +85,11 @@ enum MQTTAction {
     Status,
     // User admin
     User(MqttUserCommand),
+
     // Connections
     ListConnection,
 
     // flapping detect feat
-    #[clap(name = "flapping-detect")]
     FlappingDetect(FlappingDetectArgs),
 
     ListTopic(ListTopicArgs),
@@ -101,37 +98,24 @@ enum MQTTAction {
 
     Subscribe(PubSubArgs),
     // observability: slow-sub feat
-    #[clap(name = "slow-sub")]
     SlowSub(SlowSubArgs),
 
     // connector
-    #[clap(name = "list-connector")]
     ListConnector(ListConnectorArgs),
-    #[clap(name = "create-connector")]
     CreateConnector(CreateConnectorArgs),
-    #[clap(name = "update-connector")]
     UpdateConnector(UpdateConnectorArgs),
-    #[clap(name = "delete-connector")]
     DeleteConnector(DeleteConnectorArgs),
 
     // schema
-    #[clap(name = "list-schema")]
     ListSchema(ListSchemaArgs),
-    #[clap(name = "create-schema")]
     CreateSchema(CreateSchemaArgs),
-    #[clap(name = "update-schema")]
     UpdateSchema(UpdateSchemaArgs),
-    #[clap(name = "delete-schema")]
     DeleteSchema(DeleteSchemaArgs),
-    #[clap(name = "list-bind-schema")]
     ListBindSchema(ListBindSchemaArgs),
-    #[clap(name = "bind-schema")]
     BindSchema(BindSchemaArgs),
-    #[clap(name = "unbind-schema")]
     UnbindSchema(UnbindSchemaArgs),
 
     //auto subscribe
-    #[clap(name = "auto-subscribe-rule")]
     AutoSubscribeRule(MqttAutoSubscribeRuleCommand),
 }
 
@@ -223,8 +207,13 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
     let params = MqttCliCommandParam {
         server: args.server,
         action: match args.action {
+            // cluster status
             MQTTAction::Status => MqttActionType::Status,
+
+            // user
             MQTTAction::User(args) => process_user_args(args),
+
+
             MQTTAction::ListConnection => MqttActionType::ListConnection,
             MQTTAction::ListTopic(args) => MqttActionType::ListTopic(ListTopicRequest {
                 topic_name: args.topic_name,
