@@ -304,14 +304,12 @@ pub async fn send_last_will(
 
 #[cfg(test)]
 mod tests {
-    use std::fs::remove_dir_all;
-    use std::sync::Arc;
-    use std::time::Duration;
-
-    use common_base::config::placement_center::placement_center_test_conf;
     use common_base::tools::{now_second, unique_id};
+    use common_base::utils::file_utils::test_temp_dir;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
+    use std::sync::Arc;
+    use std::time::Duration;
     use tokio::time::sleep;
 
     use super::{ExpireLastWill, SessionExpire};
@@ -323,12 +321,10 @@ mod tests {
 
     #[test]
     fn is_session_expire_test() {
-        let config = placement_center_test_conf();
-
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &config.rocksdb.data_path,
-            config.rocksdb.max_open_files.unwrap(),
+            &test_temp_dir(),
+            1000,
             column_family_list(),
         ));
         let placement_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
@@ -358,18 +354,14 @@ mod tests {
             ..Default::default()
         };
         assert!(!session_expire.is_session_expire(&session));
-
-        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 
     #[tokio::test]
     async fn get_expire_session_list_test() {
-        let config = placement_center_test_conf();
-
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &config.rocksdb.data_path,
-            config.rocksdb.max_open_files.unwrap(),
+            &test_temp_dir(),
+            1000,
             column_family_list(),
         ));
         let placement_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
@@ -419,8 +411,6 @@ mod tests {
         let esp = now_second() - start;
         println!("{}", esp);
         assert!((3..=5).contains(&esp));
-
-        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 
     #[tokio::test]
@@ -443,8 +433,6 @@ mod tests {
 
     #[tokio::test]
     async fn get_expire_lastwill_message_test() {
-        let config = placement_center_test_conf();
-
         let cluster_name = unique_id();
         let mqtt_cache_manager = Arc::new(MqttCacheManager::new());
 
@@ -477,7 +465,5 @@ mod tests {
         }
 
         assert_eq!((now_second() - start), 3);
-
-        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 }

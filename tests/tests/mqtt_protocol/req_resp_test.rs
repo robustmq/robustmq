@@ -15,191 +15,162 @@
 #[cfg(test)]
 mod tests {
     use common_base::tools::unique_id;
-    use paho_mqtt::{Message, MessageBuilder, Properties, PropertyCode, QOS_1};
+    use paho_mqtt::{Message, MessageBuilder, Properties, PropertyCode};
 
-    use crate::mqtt_protocol::common::{
-        broker_addr, build_client_id, connect_server5, connect_server5_response_information,
-        distinct_conn,
+    use crate::mqtt_protocol::{
+        common::{
+            broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
+            publish_data, qos_list, ssl_by_type, subscribe_data_by_qos, ws_by_type,
+        },
+        ClientTestProperties,
     };
 
     #[tokio::test]
     async fn client5_request_response_test() {
-        let sub_qos = &[0, 0];
+        for network in network_types() {
+            for qos in qos_list() {
+                let client_id = build_client_id(
+                    format!("user_properties_test_{}_{}_{}", network, qos, unique_id()).as_str(),
+                );
 
-        let topic = unique_id();
-        let request_topic = format!("/request/{}", topic);
-        let response_topic = format!("/response/{}", topic);
-        simple_test(
-            request_topic,
-            response_topic,
-            sub_qos,
-            "2".to_string(),
-            None,
-            false,
-        )
-        .await;
+                let client_properties = ClientTestProperties {
+                    mqtt_version: 5,
+                    client_id: client_id.to_string(),
+                    addr: broker_addr_by_type(&network),
+                    ws: ws_by_type(&network),
+                    ssl: ssl_by_type(&network),
+                    request_response: true,
+                    ..Default::default()
+                };
+                let cli = connect_server(&client_properties);
 
-        // correlation data
-        let topic = unique_id();
-        let request_topic = format!("/request/{}", topic);
-        let response_topic = format!("/response/{}", topic);
-        let data = "123456".to_string();
-        simple_test(
-            request_topic,
-            response_topic,
-            sub_qos,
-            "2".to_string(),
-            Some(data),
-            false,
-        )
-        .await;
+                let request_topic = format!("/{}/request/{}/{}", unique_id(), network, qos);
+                let response_topic = format!("/{}/response/{}/{}", unique_id(), network, qos);
+                let correlation_data = "correlation_data_123456".to_string();
 
-        // connect response information
-        let topic = unique_id();
-        let request_topic = format!("/request/{}", topic);
-        let response_topic = format!("/response/{}", topic);
-        simple_test(
-            request_topic,
-            response_topic,
-            sub_qos,
-            "2".to_string(),
-            None,
-            true,
-        )
-        .await;
+                // publish
+                let mut props: Properties = Properties::new();
+                props
+                    .push_string(PropertyCode::ResponseTopic, response_topic.as_str())
+                    .unwrap();
 
-        // connect response information correlation data
-        let topic = unique_id();
-        let request_topic = format!("/request/{}", topic);
-        let response_topic = format!("/response/{}", topic);
-        let data = "123456".to_string();
-        simple_test(
-            request_topic,
-            response_topic,
-            sub_qos,
-            "2".to_string(),
-            Some(data),
-            true,
-        )
-        .await;
-    }
+                props
+                    .push_binary(
+                        PropertyCode::CorrelationData,
+                        serde_json::to_vec(&correlation_data).unwrap(),
+                    )
+                    .unwrap();
 
-    async fn simple_test(
-        request_topic: String,
-        response_topic: String,
-        sub_qos: &[i32],
-        payload_flag: String,
-        correlation_data: Option<String>,
-        connect_response_information: bool,
-    ) {
-        let client_id = build_client_id("req_resp_test_client");
-        let addr = broker_addr();
-        let sub_topics = &[request_topic.clone(), response_topic.clone()];
+                let message_content = "message_content mqtt message".to_string();
+                let msg = MessageBuilder::new()
+                    .properties(props)
+                    .topic(request_topic.clone())
+                    .payload(message_content.clone())
+                    .qos(qos)
+                    .finalize();
+                publish_data(&cli, msg, false);
+                distinct_conn(cli);
 
-        let (cli, response_topic) = match connect_response_information {
-            true => {
-                let (cli, response_information) =
-                    connect_server5_response_information(&client_id, &addr);
-                (
-                    cli,
-                    format!("{response_information}{}", &response_topic[1..]),
-                )
-            }
-            false => (
-                connect_server5(&client_id, &addr, false, false),
-                response_topic,
-            ),
-        };
+                // subscribe request topic
+                let client_id = build_client_id(
+                    format!(
+                        "user_properties_test_request_{}_{}_{}",
+                        network,
+                        qos,
+                        unique_id()
+                    )
+                    .as_str(),
+                );
+                let client_properties = ClientTestProperties {
+                    mqtt_version: 5,
+                    client_id: client_id.to_string(),
+                    addr: broker_addr_by_type(&network),
+                    ws: ws_by_type(&network),
+                    ssl: ssl_by_type(&network),
+                    request_response: true,
+                    ..Default::default()
+                };
+                let cli = connect_server(&client_properties);
+                let call_fn = |msg: Message| {
+                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                    let res = payload == message_content;
 
-        let message_content = format!("mqtt {payload_flag} message");
+                    if res {
+                        let topic = msg
+                            .properties()
+                            .get_string(PropertyCode::ResponseTopic)
+                            .unwrap();
+                        assert_eq!(topic, response_topic);
 
-        // publish
-        let mut props: Properties = Properties::new();
-        props
-            .push_string(PropertyCode::ResponseTopic, response_topic.as_str())
-            .unwrap();
-        if let Some(correlation_data) = correlation_data.as_ref() {
-            props
-                .push_val(PropertyCode::CorrelationData, correlation_data.clone())
-                .unwrap();
-        }
-        let msg = MessageBuilder::new()
-            .properties(props)
-            .topic(request_topic.clone())
-            .payload(message_content.clone())
-            .qos(QOS_1)
-            .finalize();
+                        let c_data: Vec<u8> = msg
+                            .properties()
+                            .get_binary(PropertyCode::CorrelationData)
+                            .unwrap();
+                        let c_data_1 = serde_json::from_slice::<String>(&c_data).unwrap();
 
-        match cli.publish(msg) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
+                        let client_id = build_client_id(
+                            format!("user_properties_test_{}_{}_{}", network, qos, unique_id())
+                                .as_str(),
+                        );
+                        let client_properties = ClientTestProperties {
+                            mqtt_version: 5,
+                            client_id: client_id.to_string(),
+                            addr: broker_addr_by_type(&network),
+                            ws: ws_by_type(&network),
+                            ssl: ssl_by_type(&network),
+                            request_response: true,
+                            ..Default::default()
+                        };
+                        let cli = connect_server(&client_properties);
 
-        // subscribe
-        let rx = cli.start_consuming();
-        match cli.subscribe(request_topic.as_str(), sub_qos[0]) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{}", e)
-            }
-        }
+                        let msg = MessageBuilder::new()
+                            .topic(topic)
+                            .payload(c_data_1)
+                            .qos(qos)
+                            .finalize();
 
-        if let Some(msg) = rx.iter().next() {
-            let msg = msg.unwrap();
-            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-            assert_eq!(payload, message_content);
+                        publish_data(&cli, msg, false);
+                        distinct_conn(cli);
+                    }
+                    res
+                };
+                subscribe_data_by_qos(&cli, &request_topic, qos, call_fn);
+                distinct_conn(cli);
 
-            let topic = msg
-                .properties()
-                .get_string(PropertyCode::ResponseTopic)
-                .unwrap();
-            assert_eq!(topic, response_topic);
+                // subscribe request topic
+                let client_id = build_client_id(
+                    format!(
+                        "user_properties_test_response_{}_{}_{}",
+                        network,
+                        qos,
+                        unique_id()
+                    )
+                    .as_str(),
+                );
 
-            println!("{msg:?}");
-            println!("{topic:?}");
+                let client_properties = ClientTestProperties {
+                    mqtt_version: 5,
+                    client_id: client_id.to_string(),
+                    addr: broker_addr_by_type(&network),
+                    ws: ws_by_type(&network),
+                    ssl: ssl_by_type(&network),
+                    request_response: true,
+                    ..Default::default()
+                };
 
-            let msg = match msg.properties().get_binary(PropertyCode::CorrelationData) {
-                Some(data) => {
-                    let mut props: Properties = Properties::new();
-                    props.push_val(PropertyCode::CorrelationData, data).unwrap();
-                    MessageBuilder::new()
-                        .topic(topic)
-                        .payload(payload.clone())
-                        .qos(QOS_1)
-                        .properties(props)
-                        .finalize()
-                }
-                _ => Message::new(topic, payload.clone(), QOS_1),
-            };
-            cli.publish(msg).unwrap();
-        }
+                let cli = connect_server(&client_properties);
 
-        // subscribe
-        let rx = cli.start_consuming();
-        match cli.subscribe(response_topic.as_str(), sub_qos[1]) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{}", e)
+                // publish
+                // sub no_local
+
+                let call_fn = |msg: Message| {
+                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                    payload == correlation_data
+                };
+
+                subscribe_data_by_qos(&cli, &response_topic, qos, call_fn);
+                distinct_conn(cli);
             }
         }
-
-        if let Some(msg) = rx.iter().next() {
-            let msg = msg.unwrap();
-            println!("{msg:?}");
-
-            if connect_response_information {
-                assert!(!msg.topic().starts_with(&sub_topics[1]))
-            }
-
-            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-            assert_eq!(payload, message_content);
-            assert_eq!(
-                correlation_data.map(|v| v.as_bytes().to_vec()),
-                msg.properties().get_binary(PropertyCode::CorrelationData)
-            );
-        }
-        distinct_conn(cli);
     }
 }

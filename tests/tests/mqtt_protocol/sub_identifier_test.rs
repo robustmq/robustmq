@@ -14,218 +14,142 @@
 
 #[cfg(test)]
 mod tests {
-    use std::time::{Duration, Instant};
-
-    use common_base::tools::unique_id;
-    use paho_mqtt::{MessageBuilder, Properties, PropertyCode, SubscribeOptions, QOS_1};
-    use tokio::time::{sleep, timeout};
-
-    use crate::mqtt_protocol::common::{
-        broker_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr, build_client_id,
-        connect_server5, distinct_conn,
+    use crate::mqtt_protocol::{
+        common::{
+            broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
+            publish_data, qos_list, ssl_by_type, ws_by_type,
+        },
+        ClientTestProperties,
     };
+    use common_base::tools::unique_id;
+    use paho_mqtt::{MessageBuilder, Properties, PropertyCode, SubscribeOptions};
 
     #[tokio::test]
-    async fn client5_sub_identifier_test_tcp() {
-        let topic = unique_id();
+    async fn sub_identifier_test() {
+        for network in network_types() {
+            for qos in qos_list() {
+                let client_id =
+                    build_client_id(format!("user_properties_test_{}_{}", network, qos).as_str());
 
-        let topic1 = format!("/test_tcp/{}/+", topic);
-        let topic2 = format!("/test_tcp/{}/test", topic);
-        let topic3 = format!("/test_tcp/{}/test_one", topic);
+                let topic = unique_id();
+                let topic1 = format!("/test_tcp/{}/+", topic);
+                let topic2 = format!("/test_tcp/{}/test", topic);
+                let topic3 = format!("/test_tcp/{}/test_one", topic);
 
-        let addr = broker_addr();
-        let now = Instant::now();
-        timeout(
-            Duration::from_secs(3),
-            simple_test(addr, topic1, topic2, topic3, "2".to_string(), false, false),
-        )
-        .await
-        .unwrap();
+                // publish
+                let client_properties = ClientTestProperties {
+                    mqtt_version: 5,
+                    client_id: client_id.to_string(),
+                    addr: broker_addr_by_type(&network),
+                    ws: ws_by_type(&network),
+                    ssl: ssl_by_type(&network),
+                    ..Default::default()
+                };
 
-        println!("{}", now.elapsed().as_secs());
-    }
+                let cli = connect_server(&client_properties);
+                let message_content = format!("mqtt  message");
+                let msg = MessageBuilder::new()
+                    .topic(topic2.clone())
+                    .payload(message_content.clone())
+                    .qos(qos)
+                    .finalize();
+                publish_data(&cli, msg, false);
+                distinct_conn(cli);
 
-    #[tokio::test]
-    async fn client5_sub_identifier_test_tcp_ssl() {
-        let topic = unique_id();
+                // subscribe
+                let client_id =
+                    build_client_id(format!("user_properties_test_{}_{}", network, qos).as_str());
 
-        let topic1 = format!("/test_ssl/{}/+", topic);
-        let topic2 = format!("/test_ssl/{}/test", topic);
-        let topic3 = format!("/test_ssl/{}/test_one", topic);
+                let client_properties = ClientTestProperties {
+                    mqtt_version: 5,
+                    client_id: client_id.to_string(),
+                    addr: broker_addr_by_type(&network),
+                    ws: ws_by_type(&network),
+                    ssl: ssl_by_type(&network),
+                    ..Default::default()
+                };
 
-        let addr = broker_ssl_addr();
-        timeout(
-            Duration::from_secs(60),
-            simple_test(addr, topic1, topic2, topic3, "2".to_string(), false, true),
-        )
-        .await
-        .unwrap();
-    }
+                // sub1
+                let cli = connect_server(&client_properties);
+                let mut props: Properties = Properties::new();
+                props
+                    .push_int(PropertyCode::SubscriptionIdentifier, 1)
+                    .unwrap();
+                let res = cli.subscribe_many_with_options(
+                    &[topic1.clone()],
+                    &[qos],
+                    &[SubscribeOptions::default()],
+                    Some(props),
+                );
+                assert!(res.is_ok());
 
-    #[tokio::test]
-    async fn client5_sub_identifier_test_ws() {
-        let topic = unique_id();
-
-        let topic1 = format!("/test_ws/{}/+", topic);
-        let topic2 = format!("/test_ws/{}/test", topic);
-        let topic3 = format!("/test_ws/{}/test_one", topic);
-
-        let addr = broker_ws_addr();
-        timeout(
-            Duration::from_secs(60),
-            simple_test(addr, topic1, topic2, topic3, "2".to_string(), true, false),
-        )
-        .await
-        .unwrap();
-    }
-
-    #[tokio::test]
-    async fn client5_sub_identifier_test_wss() {
-        let topic = unique_id();
-
-        let topic1 = format!("/test_wss/{}/+", topic);
-        let topic2 = format!("/test_wss/{}/test", topic);
-        let topic3 = format!("/test_wss/{}/test_one", topic);
-
-        let addr = broker_wss_addr();
-
-        timeout(
-            Duration::from_secs(60),
-            simple_test(addr, topic1, topic2, topic3, "2".to_string(), true, true),
-        )
-        .await
-        .unwrap();
-    }
-
-    #[tokio::test]
-    async fn tokio_timeout_test() {
-        let now = Instant::now();
-        timeout(Duration::from_secs(3), async {
-            sleep(Duration::from_secs(5)).await;
-        })
-        .await
-        .unwrap_err();
-        assert_eq!(now.elapsed().as_secs(), 3);
-    }
-
-    async fn simple_test(
-        addr: String,
-        topic1: String,
-        topic2: String,
-        topic3: String,
-        payload_flag: String,
-        ws: bool,
-        ssl: bool,
-    ) {
-        let client_id = build_client_id("sub_identifier_test");
-
-        let cli = connect_server5(&client_id, &addr, ws, ssl);
-
-        let message_content = format!("mqtt {payload_flag} message");
-        let msg = MessageBuilder::new()
-            .topic(topic2.clone())
-            .payload(message_content.clone())
-            .qos(QOS_1)
-            .finalize();
-
-        match cli.publish(msg) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
-
-        let sub_qos = &[0];
-
-        let mut props: Properties = Properties::new();
-        props
-            .push_int(PropertyCode::SubscriptionIdentifier, 1)
-            .unwrap();
-
-        match cli.subscribe_many_with_options(
-            &[topic1.clone()],
-            sub_qos,
-            &[SubscribeOptions::default()],
-            Some(props),
-        ) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{}", e)
-            }
-        }
-
-        let mut props: Properties = Properties::new();
-        props
-            .push_int(PropertyCode::SubscriptionIdentifier, 2)
-            .unwrap();
-
-        match cli.subscribe_many_with_options(
-            &[topic2.clone()],
-            sub_qos,
-            &[SubscribeOptions::default()],
-            Some(props),
-        ) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{}", e)
-            }
-        }
-
-        let mut r_one = false;
-        let mut r_two = false;
-        let rx = cli.start_consuming();
-
-        for message in rx.iter() {
-            if let Some(msg) = message {
-                let sub_identifier = msg
-                    .properties()
-                    .get_int(PropertyCode::SubscriptionIdentifier)
+                // sub2
+                let mut props: Properties = Properties::new();
+                props
+                    .push_int(PropertyCode::SubscriptionIdentifier, 2)
                     .unwrap();
 
-                println!("{:?} sub_identifier: {}", msg, sub_identifier);
+                let res = cli.subscribe_many_with_options(
+                    &[topic2.clone()],
+                    &[qos],
+                    &[SubscribeOptions::default()],
+                    Some(props),
+                );
+                assert!(res.is_ok());
 
-                match sub_identifier {
-                    1 => {
-                        r_one = true;
+                // sub data
+                let mut r_one = false;
+                let mut r_two = false;
+                let rx = cli.start_consuming();
+
+                for message in rx.iter() {
+                    if let Some(msg) = message {
+                        let sub_identifier = msg
+                            .properties()
+                            .get_int(PropertyCode::SubscriptionIdentifier)
+                            .unwrap();
+
+                        println!("{:?} sub_identifier: {}", msg, sub_identifier);
+
+                        match sub_identifier {
+                            1 => {
+                                r_one = true;
+                            }
+                            2 => {
+                                r_two = true;
+                            }
+                            _ => {
+                                panic!("sub_identifier error");
+                            }
+                        }
                     }
-                    2 => {
-                        r_two = true;
-                    }
-                    _ => {
-                        panic!("sub_identifier error");
+                    if r_one && r_two {
+                        break;
                     }
                 }
-            }
-            if r_one && r_two {
-                break;
+
+                // publish data
+                let msg = MessageBuilder::new()
+                    .topic(topic3.clone())
+                    .payload(message_content.clone())
+                    .qos(qos)
+                    .finalize();
+                publish_data(&cli, msg, false);
+
+                if let Some(msg) = rx.iter().flatten().next() {
+                    let sub_identifier = msg
+                        .properties()
+                        .get_int(PropertyCode::SubscriptionIdentifier)
+                        .unwrap();
+
+                    assert_eq!(sub_identifier, 1);
+
+                    println!("{msg:?}");
+                    println!("{sub_identifier:?}");
+                }
+
+                distinct_conn(cli);
             }
         }
-
-        let msg = MessageBuilder::new()
-            .topic(topic3.clone())
-            .payload(message_content.clone())
-            .qos(QOS_1)
-            .finalize();
-
-        match cli.publish(msg) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
-
-        if let Some(msg) = rx.iter().flatten().next() {
-            let sub_identifier = msg
-                .properties()
-                .get_int(PropertyCode::SubscriptionIdentifier)
-                .unwrap();
-
-            assert_eq!(sub_identifier, 1);
-
-            println!("{msg:?}");
-            println!("{sub_identifier:?}");
-        }
-
-        distinct_conn(cli);
     }
 }

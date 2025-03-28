@@ -38,6 +38,7 @@ stop_server
 
 # Start Server
 start_server
+sleep 10
 
 # Run Placement integration Test
 if [ "$1" = "dev" ]; then
@@ -50,8 +51,8 @@ if [ "$1" = "dev" ]; then
   stop_server
 
 else
-
-   cargo nextest run --profile ci --package grpc-clients --package robustmq-test --test mod -- placement && \
-   cargo nextest run --profile ci --package robustmq-test --test mod -- place_server
+cargo nextest run --package grpc-clients --package robustmq-test --test mod -- placement && \
+  cargo nextest run --package robustmq-test --test mod -- place_server && \
+  cargo nextest run --package storage-adapter --lib -- placement
 
 fi

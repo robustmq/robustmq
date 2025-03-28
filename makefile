@@ -42,33 +42,17 @@ build-win-arm64-release: ## Build windows arm64 version robustmq.
 test:  ## Unit testing for Robustmq
 	sh ./scripts/unit-test.sh dev
 
-.PHONY: test-ci
-test-ci:
-	sh ./scripts/unit-test.sh ci
-
 .PHONY: mqtt-ig-test
 mqtt-ig-test:  ## Integration testing for MQTT Broker
 	sh ./scripts/mqtt-ig-test.sh dev
-
-.PHONY: mqtt-ig-test-ci
-mqtt-ig-test-ci:
-	sh ./scripts/mqtt-ig-test.sh ci
 
 .PHONY: place-ig-test
 place-ig-test:  ## Integration testing for Placement Center
 	sh ./scripts/place-ig-test.sh dev
 
-.PHONY: place-ig-test-ci
-place-ig-test-ci:
-	sh ./scripts/place-ig-test.sh ci
-
 .PHONY: journal-ig-test
 journal-ig-test:  ## Integration testing for Journal Engine
 	sh ./scripts/journal-ig-test.sh dev
-
-.PHONY: journal-ig-test-ci
-journal-ig-test-ci:
-	sh ./scripts/journal-ig-test.sh ci
 
 ##@ Other
 .PHONY: clean

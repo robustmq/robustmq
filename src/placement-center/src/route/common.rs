@@ -166,11 +166,11 @@ impl DataRouteCluster {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::remove_dir_all;
     use std::sync::Arc;
 
     use common_base::config::placement_center::placement_center_test_conf;
     use common_base::tools::unique_id;
+    use common_base::utils::file_utils::test_temp_dir;
     use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::ClusterType;
 
@@ -196,7 +196,7 @@ mod tests {
         };
         let data = serde_json::to_vec(&node).unwrap();
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
-            &config.rocksdb.data_path,
+            &test_temp_dir(),
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));
@@ -213,7 +213,5 @@ mod tests {
         let _ = node_storage.delete(&cluster_name, node_id);
         let res = node_storage.get(&cluster_name, node_id).unwrap();
         assert!(res.is_none());
-
-        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 }
