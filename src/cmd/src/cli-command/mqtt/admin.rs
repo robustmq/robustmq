@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use core::option::Option::Some;
-
 use clap::builder::{
     ArgAction, BoolishValueParser, EnumValueParser, NonEmptyStringValueParser, RangedU64ValueParser,
 };
 use clap::{arg, Parser};
 use cli_command::mqtt::MqttActionType;
 use common_base::enum_type::sort_type::SortType;
+use core::option::Option::Some;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateUserRequest, DeleteAutoSubscribeRuleRequest, DeleteUserRequest,
     ListAutoSubscribeRuleRequest, SetAutoSubscribeRuleRequest,
@@ -27,9 +26,10 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
 };
+use std::fs::Permissions;
 
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="related operations of mqtt users, such as listing, creating, and deleting ", long_about = None)]
+#[command(author="RobustMQ", about="related operations of mqtt users, such as listing, creating, and deleting", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct UserArgs {
     #[command(subcommand)]
@@ -65,6 +65,46 @@ pub(crate) struct CreateUserArgs {
 pub(crate) struct DeleteUserArgs {
     #[arg(short, long, required = true)]
     pub(crate) username: String,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="related operations of access control list, such as listing, creating, and deleting", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct AclArgs {
+    #[command(subcommand)]
+    pub action: Option<AclActionType>,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum AclActionType {
+    #[command(author="RobustMQ", about="action: acl list", long_about = None)]
+    List,
+    #[command(author="RobustMQ", about="action: create acl", long_about = None)]
+    Create(CreateAclArgs),
+    #[command(author="RobustMQ", about="action: delete acl", long_about = None)]
+    Delete(DeleteAclArgs),
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="action: create acl", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct CreateAclArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) username: String,
+    #[arg(short, long, required = true)]
+    pub(crate) topic: String,
+    #[arg(short, long, default_value_t = false)]
+    pub(crate) permission: String,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="action: delete acl", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct DeleteAclArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) username: String,
+    #[arg(short, long, required = true)]
+    pub(crate) topic: String,
 }
 
 // flapping detect feat

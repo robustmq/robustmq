@@ -38,7 +38,7 @@ use protocol::placement_center::placement_center_openraft::{
 };
 
 use crate::mqtt::admin::{
-    process_slow_sub_args, process_user_args, FlappingDetectArgs, UserArgs, SlowSubArgs,
+    process_slow_sub_args, process_user_args, AclArgs, FlappingDetectArgs, SlowSubArgs, UserArgs,
 };
 use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 
@@ -82,9 +82,12 @@ struct MqttArgs {
 
 #[derive(Debug, Subcommand)]
 enum MQTTAction {
+    // cluster status
     Status,
     // user admin
     User(UserArgs),
+    // access control list admin
+    Acl(AclArgs),
 
     // Connections
     ListConnection,
@@ -212,7 +215,6 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
 
             // user
             MQTTAction::User(args) => process_user_args(args),
-
 
             MQTTAction::ListConnection => MqttActionType::ListConnection,
             MQTTAction::ListTopic(args) => MqttActionType::ListTopic(ListTopicRequest {
