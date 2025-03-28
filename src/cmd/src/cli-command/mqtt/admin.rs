@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use core::option::Option::Some;
-
 use clap::builder::{
     ArgAction, BoolishValueParser, EnumValueParser, NonEmptyStringValueParser, RangedU64ValueParser,
 };
 use clap::{arg, Parser};
 use cli_command::mqtt::MqttActionType;
 use common_base::enum_type::sort_type::SortType;
+use core::option::Option::Some;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateUserRequest, DeleteAutoSubscribeRuleRequest, DeleteUserRequest,
+    CreateAclRequest, CreateBlacklistRequest, CreateUserRequest, DeleteAclRequest,
+    DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteUserRequest,
     ListAutoSubscribeRuleRequest, SetAutoSubscribeRuleRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -29,19 +29,21 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 };
 
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="related operations of mqtt users, such as listing, creating, and deleting ", long_about = None)]
+#[command(author="RobustMQ", about="related operations of mqtt users, such as listing, creating, and deleting", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct MqttUserCommand {
+pub(crate) struct UserArgs {
     #[command(subcommand)]
-    pub action: Option<MqttUserActionType>,
+    pub action: Option<UserActionType>,
 }
 
 #[derive(Debug, clap::Subcommand)]
-pub enum MqttUserActionType {
-    #[command(author="RobustMQ", about="action: user list", long_about = None)]
+pub enum UserActionType {
+    #[command(author="RobustMQ", about="action: list users", long_about = None)]
     List,
-    Delete(DeleteUserArgs),
+    #[command(author="RobustMQ", about="action: create user", long_about = None)]
     Create(CreateUserArgs),
+    #[command(author="RobustMQ", about="action: delete user", long_about = None)]
+    Delete(DeleteUserArgs),
 }
 
 // security: user feat
@@ -51,10 +53,8 @@ pub enum MqttUserActionType {
 pub(crate) struct CreateUserArgs {
     #[arg(short, long, required = true)]
     pub(crate) username: String,
-
     #[arg(short, long, required = true)]
     pub(crate) password: String,
-
     #[arg(short, long, default_value_t = false)]
     pub(crate) is_superuser: bool,
 }
@@ -65,6 +65,84 @@ pub(crate) struct CreateUserArgs {
 pub(crate) struct DeleteUserArgs {
     #[arg(short, long, required = true)]
     pub(crate) username: String,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="related operations of access control list, such as listing, creating, and deleting", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct AclArgs {
+    #[command(subcommand)]
+    pub action: Option<AclActionType>,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum AclActionType {
+    #[command(author="RobustMQ", about="action: acl list", long_about = None)]
+    List,
+    #[command(author="RobustMQ", about="action: create acl", long_about = None)]
+    Create(CreateAclArgs),
+    #[command(author="RobustMQ", about="action: delete acl", long_about = None)]
+    Delete(DeleteAclArgs),
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="action: create acl", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct CreateAclArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) cluster_name: String,
+    #[arg(short, long, required = true)]
+    pub(crate) acl: String,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="action: delete acl", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct DeleteAclArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) cluster_name: String,
+    #[arg(short, long, required = true)]
+    pub(crate) acl: String,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="related operations of blacklist, such as listing, creating, and deleting", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct BlacklistArgs {
+    #[command(subcommand)]
+    pub action: Option<BlackListActionType>,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum BlackListActionType {
+    #[command(author="RobustMQ", about="action: blacklist list", long_about = None)]
+    List,
+    #[command(author="RobustMQ", about="action: create blacklist", long_about = None)]
+    Create(CreateBlacklistArgs),
+    #[command(author="RobustMQ", about="action: delete blacklist", long_about = None)]
+    Delete(DeleteBlacklistArgs),
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="action: create blacklist", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct CreateBlacklistArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) cluster_name: String,
+    #[arg(short, long, required = true)]
+    pub(crate) blacklist: String,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="action: delete blacklist", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct DeleteBlacklistArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) cluster_name: String,
+    #[arg(short, long, required = true)]
+    pub(crate) blacklist_type: String,
+    #[arg(short, long, required = true)]
+    pub(crate) resource_name: String,
 }
 
 // flapping detect feat
@@ -251,18 +329,57 @@ pub fn process_slow_sub_args(args: SlowSubArgs) -> MqttActionType {
     }
 }
 
-pub fn process_user_args(args: MqttUserCommand) -> MqttActionType {
+pub fn process_user_args(args: UserArgs) -> MqttActionType {
     match args.action {
         Some(user_action) => match user_action {
-            MqttUserActionType::List => MqttActionType::ListUser,
-            MqttUserActionType::Create(arg) => MqttActionType::CreateUser(CreateUserRequest {
+            UserActionType::List => MqttActionType::ListUser,
+            UserActionType::Create(arg) => MqttActionType::CreateUser(CreateUserRequest {
                 username: arg.username,
                 password: arg.password,
                 is_superuser: arg.is_superuser,
             }),
-            MqttUserActionType::Delete(arg) => MqttActionType::DeleteUser(DeleteUserRequest {
+            UserActionType::Delete(arg) => MqttActionType::DeleteUser(DeleteUserRequest {
                 username: arg.username,
             }),
+        },
+        None => unreachable!(),
+    }
+}
+
+pub fn process_acl_args(args: AclArgs) -> MqttActionType {
+    match args.action {
+        Some(acl_action) => match acl_action {
+            AclActionType::List => MqttActionType::ListAcl,
+            AclActionType::Create(arg) => MqttActionType::CreateAcl(CreateAclRequest {
+                cluster_name: arg.cluster_name,
+                acl: Vec::from(arg.acl),
+            }),
+            AclActionType::Delete(arg) => MqttActionType::DeleteAcl(DeleteAclRequest {
+                cluster_name: arg.cluster_name,
+                acl: Vec::from(arg.acl),
+            }),
+        },
+        None => unreachable!(),
+    }
+}
+
+pub fn process_blacklist_args(args: BlacklistArgs) -> MqttActionType {
+    match args.action {
+        Some(blacklist_action) => match blacklist_action {
+            BlackListActionType::List => MqttActionType::ListBlacklist,
+            BlackListActionType::Create(arg) => {
+                MqttActionType::CreateBlacklist(CreateBlacklistRequest {
+                    cluster_name: arg.cluster_name,
+                    blacklist: Vec::from(arg.blacklist),
+                })
+            }
+            BlackListActionType::Delete(arg) => {
+                MqttActionType::DeleteBlacklist(DeleteBlacklistRequest {
+                    cluster_name: arg.cluster_name,
+                    blacklist_type: arg.blacklist_type,
+                    resource_name: arg.resource_name,
+                })
+            }
         },
         None => unreachable!(),
     }
