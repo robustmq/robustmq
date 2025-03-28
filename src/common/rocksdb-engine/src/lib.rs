@@ -84,6 +84,21 @@ impl RocksDBEngine {
         self.write(cf, key, &value)
     }
 
+    pub fn write_raw(
+        &self,
+        cf: Arc<BoundColumnFamily>,
+        key: &str,
+        value: &[u8],
+    ) -> Result<(), CommonError> {
+        if let Err(e) = self.db.put_cf(&cf.clone(), key, value) {
+            return Err(CommonError::CommonError(format!(
+                "Failed to put to ColumnFamily:{:?}",
+                e
+            )));
+        }
+        Ok(())
+    }
+
     // Read data from the RocksDB
     pub fn read<T: DeserializeOwned>(
         &self,
