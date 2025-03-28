@@ -31,17 +31,19 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 #[derive(clap::Args, Debug)]
 #[command(author="RobustMQ", about="related operations of mqtt users, such as listing, creating, and deleting ", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct MqttUserCommand {
+pub(crate) struct UserArgs {
     #[command(subcommand)]
-    pub action: Option<MqttUserActionType>,
+    pub action: Option<UserActionType>,
 }
 
 #[derive(Debug, clap::Subcommand)]
-pub enum MqttUserActionType {
-    #[command(author="RobustMQ", about="action: user list", long_about = None)]
+pub enum UserActionType {
+    #[command(author="RobustMQ", about="action: list users", long_about = None)]
     List,
-    Delete(DeleteUserArgs),
+    #[command(author="RobustMQ", about="action: create user", long_about = None)]
     Create(CreateUserArgs),
+    #[command(author="RobustMQ", about="action: delete user", long_about = None)]
+    Delete(DeleteUserArgs),
 }
 
 // security: user feat
@@ -51,10 +53,8 @@ pub enum MqttUserActionType {
 pub(crate) struct CreateUserArgs {
     #[arg(short, long, required = true)]
     pub(crate) username: String,
-
     #[arg(short, long, required = true)]
     pub(crate) password: String,
-
     #[arg(short, long, default_value_t = false)]
     pub(crate) is_superuser: bool,
 }
@@ -251,16 +251,16 @@ pub fn process_slow_sub_args(args: SlowSubArgs) -> MqttActionType {
     }
 }
 
-pub fn process_user_args(args: MqttUserCommand) -> MqttActionType {
+pub fn process_user_args(args: UserArgs) -> MqttActionType {
     match args.action {
         Some(user_action) => match user_action {
-            MqttUserActionType::List => MqttActionType::ListUser,
-            MqttUserActionType::Create(arg) => MqttActionType::CreateUser(CreateUserRequest {
+            UserActionType::List => MqttActionType::ListUser,
+            UserActionType::Create(arg) => MqttActionType::CreateUser(CreateUserRequest {
                 username: arg.username,
                 password: arg.password,
                 is_superuser: arg.is_superuser,
             }),
-            MqttUserActionType::Delete(arg) => MqttActionType::DeleteUser(DeleteUserRequest {
+            UserActionType::Delete(arg) => MqttActionType::DeleteUser(DeleteUserRequest {
                 username: arg.username,
             }),
         },

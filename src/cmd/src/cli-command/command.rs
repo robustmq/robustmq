@@ -38,7 +38,7 @@ use protocol::placement_center::placement_center_openraft::{
 };
 
 use crate::mqtt::admin::{
-    process_slow_sub_args, process_user_args, FlappingDetectArgs, MqttUserCommand, SlowSubArgs,
+    process_slow_sub_args, process_user_args, FlappingDetectArgs, UserArgs, SlowSubArgs,
 };
 use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 
@@ -83,8 +83,8 @@ struct MqttArgs {
 #[derive(Debug, Subcommand)]
 enum MQTTAction {
     Status,
-    // User admin
-    User(MqttUserCommand),
+    // user admin
+    User(UserArgs),
 
     // Connections
     ListConnection,
