@@ -218,14 +218,16 @@ impl AuthDriver {
         retain: bool,
         qos: QoS,
     ) -> bool {
-        is_allow_acl(
+        let res = is_allow_acl(
             &self.cache_manager,
             connection,
             topic_name,
             MqttAclAction::Publish,
             retain,
             qos,
-        )
+        );
+        println!("allow_publish: {:?}", res);
+        res
     }
 
     pub async fn allow_subscribe(
