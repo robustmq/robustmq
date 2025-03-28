@@ -107,6 +107,40 @@ pub(crate) struct DeleteAclArgs {
     pub(crate) topic: String,
 }
 
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="related operations of blacklist, such as listing, creating, and deleting", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct BlacklistArgs {
+    #[command(subcommand)]
+    pub action: Option<BlackListActionType>,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum BlackListActionType {
+    #[command(author="RobustMQ", about="action: blacklist list", long_about = None)]
+    List,
+    #[command(author="RobustMQ", about="action: create blacklist", long_about = None)]
+    Create(CreateBlacklistArgs),
+    #[command(author="RobustMQ", about="action: delete blacklist", long_about = None)]
+    Delete(DeleteBlacklistArgs),
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="action: create blacklist", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct CreateBlacklistArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) identifier: String,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="action: delete blacklist", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct DeleteBlacklistArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) identifier: String,
+}
+
 // flapping detect feat
 #[derive(Debug, Parser)]
 #[command(author="RobustMQ", about="", long_about = None)]
@@ -307,6 +341,24 @@ pub fn process_user_args(args: UserArgs) -> MqttActionType {
         None => unreachable!(),
     }
 }
+
+// pub fn process_acl_args(args: AclArgs) -> MqttActionType {
+//     match args.action {
+//         Some(acl_action) => match acl_action {
+//             AclActionType::List => MqttActionType::ListAcl,
+//             AclActionType::Create(arg) => MqttActionType::CreateAcl(CreateAclArgs {
+//                 username: arg.username,
+//                 topic: arg.topic,
+//                 permission: arg.permission,
+//             }),
+//             AclActionType::Delete(arg) => MqttActionType::DeleteAcl(DeleteAclArgs {
+//                 username: arg.username,
+//                 topic: arg.topic,
+//             }),
+//         },
+//         None => unreachable!(),
+//     }
+// }
 
 #[derive(clap::Args, Debug)]
 #[command(author="RobustMQ", about="related operations of mqtt auto subscribe, such as listing, setting, and deleting ", long_about = None)]

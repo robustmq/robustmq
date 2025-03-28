@@ -57,12 +57,18 @@ pub struct MqttCliCommandParam {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MqttActionType {
+    // cluster status
     Status,
 
-    // User admin
+    // user admin
+    ListUser,
     CreateUser(CreateUserRequest),
     DeleteUser(DeleteUserRequest),
-    ListUser,
+
+    // access control list admin
+    // ListACL,
+    // CreateACL(CreateACLRequest),
+    // DeleteACL(DeleteACLRequest),
 
     // connection
     ListConnection,
