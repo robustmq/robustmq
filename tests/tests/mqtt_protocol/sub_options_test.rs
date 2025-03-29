@@ -17,8 +17,8 @@
 #[cfg(test)]
 mod tests {
     use crate::mqtt_protocol::common::{
-        broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
-        qos_list, ssl_by_type, ws_by_type,
+        broker_addr_by_type, build_client_id, connect_server, network_types, qos_list, ssl_by_type,
+        ws_by_type,
     };
     use crate::mqtt_protocol::ClientTestProperties;
     use common_base::tools::unique_id;
@@ -54,6 +54,8 @@ mod tests {
                     .finalize();
                 assert!(cli.publish(msg).is_ok());
 
+                let receiver = cli.start_consuming();
+
                 assert!(cli
                     .subscribe_with_options(&topic, qos, subscribe_options, None)
                     .is_ok());
@@ -68,7 +70,7 @@ mod tests {
                 assert!(cli.publish(msg).is_ok());
 
                 let mut is_no_local = true;
-                if let Ok(Some(msg)) = cli.start_consuming().recv_timeout(Duration::from_secs(5)) {
+                if let Ok(Some(msg)) = receiver.recv_timeout(Duration::from_secs(5)) {
                     is_no_local = false;
                     assert_eq!(
                         String::from_utf8(msg.payload().to_vec()).unwrap(),
@@ -115,7 +117,6 @@ mod tests {
                 assert!(cli
                     .subscribe_with_options(&topic, qos, subscribe_options, None)
                     .is_ok());
-                let receiver = cli.start_consuming();
 
                 let message_content = "mqtt message".to_string();
                 let msg = MessageBuilder::new()
@@ -241,14 +242,16 @@ mod tests {
                             String::from_utf8(msg.payload().to_vec()).unwrap(),
                             message_content
                         );
-                        if let Some(raw) = msg
+                        match msg
                             .properties()
                             .get_string_pair_at(PropertyCode::UserProperty, 0)
                         {
-                            if raw.0 == *SUB_RETAIN_MESSAGE_PUSH_FLAG
-                                && raw.1 == *SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE
-                            {
-                                return;
+                            None => {
+                                panic!("no user property received");
+                            }
+                            Some(raw) => {
+                                assert_eq!(raw.0, *SUB_RETAIN_MESSAGE_PUSH_FLAG);
+                                assert_eq!(raw.1, *SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE);
                             }
                         }
                     }
@@ -353,14 +356,14 @@ mod tests {
                 });
 
                 assert!(sub_cli.unsubscribe(&topic).is_ok());
+                let receiver = sub_cli.start_consuming();
 
                 assert!(sub_cli
                     .subscribe_with_options(&topic, qos, subscribe_options, None)
                     .is_ok());
 
-                let receiver = sub_cli.start_consuming();
                 let mut re_send_retain_message = false;
-                if let Ok(Some(_msg)) = cli.start_consuming().recv_timeout(Duration::from_secs(5)) {
+                if let Ok(Some(_msg)) = receiver.recv_timeout(Duration::from_secs(5)) {
                     re_send_retain_message = true;
                 };
                 assert!(!re_send_retain_message);
@@ -410,7 +413,7 @@ mod tests {
                 let receiver = sub_cli.start_consuming();
 
                 let mut re_send_retain_message = false;
-                if let Ok(Some(_msg)) = cli.start_consuming().recv_timeout(Duration::from_secs(5)) {
+                if let Ok(Some(_msg)) = receiver.recv_timeout(Duration::from_secs(5)) {
                     re_send_retain_message = true;
                 };
                 assert!(!re_send_retain_message);
