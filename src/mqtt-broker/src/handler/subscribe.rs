@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::Path;
 use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
@@ -291,8 +290,6 @@ fn add_exclusive_push(
     sub_identifier: &Option<usize>,
     filter: &Filter,
 ) {
-    let regex_match = path_regex_match(&topic.topic_name, &filter.path);
-
     if path_regex_match(&topic.topic_name, &filter.path) {
         let sub = Subscriber {
             protocol: protocol.to_owned(),
@@ -308,10 +305,6 @@ fn add_exclusive_push(
             sub_path: filter.path.to_owned(),
         };
         subscribe_manager.add_topic_subscribe(&topic.topic_name, client_id, &filter.path);
-        let option = subscribe_manager
-            .topic_subscribe_list
-            .get(&topic.topic_name);
-        let bool_option = option.is_some();
         subscribe_manager.add_exclusive_push(client_id, &filter.path, &topic.topic_id, sub);
     }
 }

@@ -30,8 +30,6 @@ use protocol::mqtt::common::{Publish, PublishProperties};
 use storage_adapter::storage::StorageAdapter;
 
 pub fn is_exist_subscribe(subscribe_manager: &Arc<SubscribeManager>, topic: &str) -> bool {
-    let option = subscribe_manager.topic_subscribe_list.get(topic);
-    let s = option.is_some();
     subscribe_manager.contain_topic_subscribe(topic)
 }
 
