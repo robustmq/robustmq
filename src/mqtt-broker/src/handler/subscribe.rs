@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
 use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
@@ -60,9 +61,10 @@ pub async fn save_subscribe(
     subscribe_properties: &Option<SubscribeProperties>,
 ) -> Result<(), MqttBrokerError> {
     let conf = broker_mqtt_conf();
+    let filters = &subscribe.filters;
 
-    for filter in subscribe.filters.clone() {
-        let sucscribe_data = MqttSubscribe {
+    for filter in filters {
+        let subscribe_data = MqttSubscribe {
             client_id: client_id.to_owned(),
             path: filter.path.clone(),
             cluster_name: conf.cluster_name.to_owned(),
@@ -78,17 +80,24 @@ pub async fn save_subscribe(
             cluster_name: conf.cluster_name.to_owned(),
             client_id: client_id.to_owned(),
             path: filter.path.clone(),
-            subscribe: sucscribe_data.encode(),
+            subscribe: subscribe_data.encode(),
         };
-        placement_set_subscribe(client_pool, &conf.placement_center, request).await?;
-
-        // add susribe by cache
-        subscribe_manager.add_subscribe(sucscribe_data.clone());
+        if let Err(e) = placement_set_subscribe(client_pool, &conf.placement_center, request).await
+        {
+            error!(
+                "Failed to set subscribe to placement center, error message: {}",
+                e
+            );
+            return Err(MqttBrokerError::CommonError(e.to_string()));
+        }
+        // add subscribe by cache
+        subscribe_manager.add_subscribe(subscribe_data);
     }
 
     // parse subscribe
-    for (_, topic) in cache_manager.topic_info.clone() {
-        for filter in subscribe.filters.clone() {
+    let topic_info = cache_manager.topic_info.clone();
+    for (_, topic) in topic_info {
+        for filter in filters {
             parse_subscribe(
                 client_pool,
                 cache_manager,
@@ -97,10 +106,10 @@ pub async fn save_subscribe(
                 &topic,
                 protocol,
                 subscribe.packet_identifier,
-                &filter,
+                filter,
                 subscribe_properties,
             )
-            .await;
+            .await
         }
     }
 
@@ -282,6 +291,8 @@ fn add_exclusive_push(
     sub_identifier: &Option<usize>,
     filter: &Filter,
 ) {
+    let regex_match = path_regex_match(&topic.topic_name, &filter.path);
+
     if path_regex_match(&topic.topic_name, &filter.path) {
         let sub = Subscriber {
             protocol: protocol.to_owned(),
@@ -297,6 +308,10 @@ fn add_exclusive_push(
             sub_path: filter.path.to_owned(),
         };
         subscribe_manager.add_topic_subscribe(&topic.topic_name, client_id, &filter.path);
+        let option = subscribe_manager
+            .topic_subscribe_list
+            .get(&topic.topic_name);
+        let bool_option = option.is_some();
         subscribe_manager.add_exclusive_push(client_id, &filter.path, &topic.topic_id, sub);
     }
 }
