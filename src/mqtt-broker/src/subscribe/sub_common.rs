@@ -94,7 +94,13 @@ pub fn path_regex_match(topic_name: &str, sub_path: &str) -> bool {
     }
 
     if path.contains("+") {
-        let sub_regex = path.replace("+", "[^+*/]+");
+        let mut sub_regex = path.replace("+", "[^+*/]+");
+        if path.contains("#") {
+            if path.split("/").last().unwrap() != "#" {
+                return false;
+            }
+            sub_regex = sub_regex.replace("#", "[^+#]+");
+        }
         let re = Regex::new(&sub_regex.to_string()).unwrap();
         return re.is_match(&topic);
     }
@@ -231,7 +237,7 @@ pub async fn wait_pub_ack(
     stop_sx: &broadcast::Sender<bool>,
     wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
 ) {
-    let wait_pub_rec_fn = async || -> Result<(), MqttBrokerError> {
+    let wait_pub_rec_fn = || async  {
         match timeout(Duration::from_secs(30), wait_packet_ack(wait_ack_sx)).await {
             Ok(Some(data)) => {
                 if data.ack_type == QosAckPackageType::PubAck && data.pkid == sub_pub_param.pkid {
@@ -287,7 +293,7 @@ pub async fn wait_pub_rec(
     stop_sx: &broadcast::Sender<bool>,
     wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
 ) {
-    let wait_pub_rec_fn = async || -> Result<(), MqttBrokerError> {
+    let wait_pub_rec_fn = || async {
         match timeout(Duration::from_secs(30), wait_packet_ack(wait_ack_sx)).await {
             Ok(Some(data)) => {
                 if data.ack_type == QosAckPackageType::PubRec && data.pkid == sub_pub_param.pkid {
@@ -343,7 +349,7 @@ pub async fn wait_pub_comp(
     stop_sx: &broadcast::Sender<bool>,
     wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
 ) {
-    let wait_pub_rec_fn = async || -> Result<(), MqttBrokerError> {
+    let wait_pub_rec_fn = || async {
         match timeout(Duration::from_secs(30), wait_packet_ack(wait_ack_sx)).await {
             Ok(Some(data)) => {
                 if data.ack_type == QosAckPackageType::PubComp && data.pkid == sub_pub_param.pkid {
@@ -481,7 +487,7 @@ pub async fn publish_message_qos(
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
 ) {
-    let push_to_connect = async |client_id: String| -> Result<(), MqttBrokerError> {
+    let push_to_connect = |client_id: String| async {
         if metadata_cache.get_session_info(&client_id).is_none() {
             warn!("Client {} is not online, skip push message", client_id);
             return Ok(());
@@ -669,6 +675,10 @@ mod tests {
 
         let topic_name = r"/sensor/temperature3/tmpq".to_string();
         let sub_regex = r"$share/groupname/sensor/#".to_string();
+        assert!(path_regex_match(&topic_name, &sub_regex));
+        
+        let topic_name = r"y/a/z/b".to_string(); 
+        let sub_regex = r"y/+/z/#".to_string();
         assert!(path_regex_match(&topic_name, &sub_regex));
     }
 
