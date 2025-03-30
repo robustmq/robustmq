@@ -84,6 +84,21 @@ impl RocksDBEngine {
         self.write(cf, key, &value)
     }
 
+    pub fn write_raw(
+        &self,
+        cf: Arc<BoundColumnFamily>,
+        key: &str,
+        value: &[u8],
+    ) -> Result<(), CommonError> {
+        if let Err(e) = self.db.put_cf(&cf.clone(), key, value) {
+            return Err(CommonError::CommonError(format!(
+                "Failed to put to ColumnFamily:{:?}",
+                e
+            )));
+        }
+        Ok(())
+    }
+
     // Read data from the RocksDB
     pub fn read<T: DeserializeOwned>(
         &self,
@@ -221,10 +236,11 @@ impl RocksDBEngine {
 mod tests {
     use std::sync::Arc;
 
-    use common_base::config::placement_center::placement_center_test_conf;
+    use common_base::{
+        config::placement_center::placement_center_test_conf, utils::file_utils::test_temp_dir,
+    };
     use futures::future;
     use serde::{Deserialize, Serialize};
-    use tokio::fs::{remove_dir, remove_dir_all};
 
     use super::RocksDBEngine;
 
@@ -243,7 +259,7 @@ mod tests {
         let config = placement_center_test_conf();
 
         let rs_handler = Arc::new(RocksDBEngine::new(
-            &config.rocksdb.data_path,
+            &test_temp_dir(),
             config.rocksdb.max_open_files.unwrap(),
             vec![cf_name()],
         ));
@@ -273,8 +289,6 @@ mod tests {
 
         // 等待所有任务完成
         let _ = future::join_all(tasks).await;
-
-        remove_dir_all(config.rocksdb.data_path).await.unwrap();
     }
 
     #[tokio::test]
@@ -282,7 +296,7 @@ mod tests {
         let config = placement_center_test_conf();
 
         let rs = RocksDBEngine::new(
-            &config.rocksdb.data_path,
+            &test_temp_dir(),
             config.rocksdb.max_open_files.unwrap(),
             vec!["cluster".to_string()],
         );
@@ -306,13 +320,6 @@ mod tests {
 
         let res6 = rs.delete(cf.clone(), key);
         assert!(res6.is_ok());
-
-        match remove_dir(config.rocksdb.data_path).await {
-            Ok(_) => {}
-            Err(err) => {
-                println!("{:?}", err)
-            }
-        }
     }
 
     #[tokio::test]
@@ -320,7 +327,7 @@ mod tests {
         let config = placement_center_test_conf();
 
         let rs = RocksDBEngine::new(
-            &config.rocksdb.data_path,
+            &test_temp_dir(),
             config.rocksdb.max_open_files.unwrap(),
             vec!["cluster".to_string()],
         );
@@ -347,8 +354,6 @@ mod tests {
             let res1 = rs.read::<String>(cf.clone(), &key).unwrap().unwrap();
             assert_eq!(index.to_string(), res1);
         }
-
-        remove_dir_all(config.rocksdb.data_path).await.unwrap();
     }
 
     #[tokio::test]
@@ -356,7 +361,7 @@ mod tests {
         let config = placement_center_test_conf();
 
         let rs = RocksDBEngine::new(
-            &config.rocksdb.data_path,
+            &test_temp_dir(),
             config.rocksdb.max_open_files.unwrap(),
             vec!["cluster".to_string()],
         );
@@ -393,7 +398,5 @@ mod tests {
 
         let result = rs.read_prefix(cf.clone(), "/v4").unwrap();
         assert_eq!(result.len(), 1);
-
-        remove_dir_all(config.rocksdb.data_path).await.unwrap();
     }
 }

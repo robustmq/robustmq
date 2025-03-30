@@ -228,11 +228,11 @@ pub fn get_share_sub_leader_by_req(
 
 #[cfg(test)]
 mod tests {
-    use std::fs::remove_dir_all;
     use std::sync::Arc;
 
     use common_base::config::placement_center::placement_center_test_conf;
     use common_base::tools::{now_mills, unique_id};
+    use common_base::utils::file_utils::test_temp_dir;
     use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::ClusterType;
 
@@ -245,7 +245,7 @@ mod tests {
         let config = placement_center_test_conf();
 
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &config.rocksdb.data_path,
+            &test_temp_dir(),
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));
@@ -288,8 +288,6 @@ mod tests {
         share_sub.delete_node(&cluster_name, broker_id).unwrap();
         let result = share_sub.read_node_sub_info(&cluster_name).unwrap();
         assert!(!result.contains_key(&broker_id));
-
-        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 
     #[test]
@@ -298,7 +296,7 @@ mod tests {
 
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &config.rocksdb.data_path,
+            &test_temp_dir(),
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));
@@ -360,7 +358,5 @@ mod tests {
             .get_leader_node(&cluster_name, &group_name)
             .unwrap();
         assert_eq!(node, 1);
-
-        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 }

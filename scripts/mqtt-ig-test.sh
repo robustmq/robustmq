@@ -58,9 +58,8 @@ stop_mqtt_server
 
 # Start Server
 start_placement_server
-sleep 5
+sleep 30
 start_mqtt_server
-
 sleep 10
 
 if [ "$1" = "dev" ]; then
@@ -74,9 +73,7 @@ if [ "$1" = "dev" ]; then
   stop_mqtt_server
 
 else
-
-#   cargo nextest run --profile ci --package grpc-clients --test mod -- mqtt && \
-#   cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt_server
-  cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt_protocol
-
+  cargo nextest run --package grpc-clients --test mod -- mqtt && \
+  cargo nextest run --package robustmq-test --test mod -- mqtt_server && \
+  cargo nextest run --package robustmq-test --test mod -- mqtt_protocol
 fi

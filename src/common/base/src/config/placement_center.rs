@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::env::temp_dir;
 use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
@@ -25,7 +26,7 @@ use super::default_placement_center::{
     default_local_ip, default_log, default_max_open_files, default_network, default_node,
     default_node_id, default_nodes, default_rocksdb, default_runtime_work_threads, default_system,
 };
-use crate::tools::{read_file, try_create_fold, unique_id};
+use crate::tools::{read_file, try_create_fold};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct PlacementCenterConfig {
@@ -148,7 +149,7 @@ pub fn placement_center_conf() -> &'static PlacementCenterConfig {
 
 pub fn placement_center_test_conf() -> PlacementCenterConfig {
     let rocksdb = Rocksdb {
-        data_path: format!("/tmp/{}", unique_id()),
+        data_path: temp_dir().to_str().unwrap().to_string(),
         max_open_files: Some(10),
     };
 

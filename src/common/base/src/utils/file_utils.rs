@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::env::temp_dir;
 use std::fs::read_dir;
 use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::{env, io};
+
+use crate::tools::unique_id;
 
 /// Get the project root (relative to closest Cargo.lock file)
 pub fn get_project_root() -> io::Result<PathBuf> {
@@ -35,11 +38,17 @@ pub fn get_project_root() -> io::Result<PathBuf> {
     ))
 }
 
+pub fn test_temp_dir() -> String {
+    format!("{}{}/", temp_dir().to_str().unwrap(), unique_id())
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs::read_to_string;
 
     use crate::utils::file_utils::get_project_root;
+
+    use super::test_temp_dir;
 
     #[test]
     fn it_should_find_our_project_root() {
@@ -51,5 +60,13 @@ mod tests {
         let toml_string = read_to_string(toml_path).unwrap();
 
         assert!(toml_string.contains(crate_name));
+    }
+
+    #[test]
+    fn test_temp_dir_test() {
+        let path = test_temp_dir();
+        println!("{}", path);
+        let path = test_temp_dir();
+        println!("{}", path);
     }
 }
