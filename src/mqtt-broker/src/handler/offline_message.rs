@@ -47,11 +47,21 @@ pub async fn save_message<S>(
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
-    // If Topic is not subscribed and offline messaging is not enabled. The message is not saved.
-    if !is_exist_subscribe(subscribe_manager, &topic.topic_name)
-        && !cache_manager.get_cluster_info().offline_message.enable
-    {
+    let offline_message_disabled = !cache_manager.get_cluster_info().offline_message.enable;
+    if offline_message_disabled {
+        return Ok(None);
+    }
+
+    // todo new topic subscribe will be handler later for this function
+    // it will cause the message not to be saved in cache
+    // for this problem is subscribe function didn't handle the new topic
+    let not_exist_subscribe = !is_exist_subscribe(subscribe_manager, &topic.topic_name);
+    if not_exist_subscribe {
         record_messages_dropped_no_subscribers_metrics(publish.qos);
+        return Ok(None);
+    }
+
+    if publish.retain {
         return Ok(None);
     }
 

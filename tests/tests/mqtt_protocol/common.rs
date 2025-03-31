@@ -130,7 +130,7 @@ where
 }
 
 pub fn build_client_id(name: &str) -> String {
-    format!("{}-{}", name, unique_id())
+    format!("{}_{}", name, unique_id())
 }
 
 pub fn broker_addr() -> String {
@@ -229,9 +229,10 @@ pub fn build_v5_conn_pros(
     };
 
     conn_opts
-        .keep_alive_interval(Duration::from_secs(600))
+        .keep_alive_interval(Duration::from_secs(2))
         .clean_start(true)
         .connect_timeout(Duration::from_secs(60))
+        .automatic_reconnect(Duration::from_secs(1), Duration::from_secs(5))
         .properties(props.clone())
         .user_name(uname)
         .password(password);

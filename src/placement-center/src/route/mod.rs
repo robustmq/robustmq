@@ -320,7 +320,7 @@ impl DataRoute {
 
         for raw in records {
             self.rocksdb_engine_handler
-                .write(cf.clone(), &raw.0, &raw.1)?;
+                .write_raw(cf.clone(), &raw.0, &raw.1)?;
         }
 
         info!(
@@ -329,5 +329,80 @@ impl DataRoute {
             now.elapsed().as_millis()
         );
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use rocksdb_engine::RocksDBEngine;
+    use std::sync::Arc;
+    use tempfile::tempdir;
+
+    use crate::{
+        core::cache::PlacementCacheManager, journal::cache::JournalCacheManager,
+        mqtt::cache::MqttCacheManager, storage::rocksdb::DB_COLUMN_FAMILY_CLUSTER,
+    };
+
+    use super::DataRoute;
+
+    #[test]
+    pub fn snapshot_test() {
+        let rocksdb_engine = Arc::new(RocksDBEngine::new(
+            tempdir().unwrap().path().to_str().unwrap(),
+            100,
+            vec![DB_COLUMN_FAMILY_CLUSTER.to_string()],
+        ));
+
+        let cf = rocksdb_engine.cf_handle(DB_COLUMN_FAMILY_CLUSTER).unwrap();
+
+        for i in 0..10 {
+            rocksdb_engine
+                .write(cf.clone(), format!("key-{}", i).as_str(), &i)
+                .unwrap();
+        }
+
+        let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine.clone()));
+        let engine_cache = Arc::new(JournalCacheManager::new());
+        let mqtt_cache = Arc::new(MqttCacheManager::new());
+
+        let data_route = DataRoute::new(
+            rocksdb_engine.clone(),
+            cluster_cache.clone(),
+            engine_cache.clone(),
+            mqtt_cache.clone(),
+        );
+
+        let snapshot = data_route.build_snapshot();
+
+        // GET A NEW ONE
+
+        let new_rocksdb_engine = Arc::new(RocksDBEngine::new(
+            tempdir().unwrap().path().to_str().unwrap(),
+            100,
+            vec![DB_COLUMN_FAMILY_CLUSTER.to_string()],
+        ));
+
+        let new_data_route = DataRoute::new(
+            new_rocksdb_engine.clone(),
+            cluster_cache,
+            engine_cache,
+            mqtt_cache,
+        );
+
+        new_data_route.recover_snapshot(snapshot).unwrap();
+
+        let cf = new_rocksdb_engine
+            .cf_handle(DB_COLUMN_FAMILY_CLUSTER)
+            .unwrap();
+
+        // check value again
+        for i in 0..10 {
+            let value = new_rocksdb_engine
+                .read::<i32>(cf.clone(), format!("key-{}", i).as_str())
+                .unwrap()
+                .unwrap();
+
+            assert_eq!(i, value);
+        }
     }
 }

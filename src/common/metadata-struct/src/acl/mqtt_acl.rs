@@ -66,8 +66,38 @@ pub enum MqttAclAction {
     Qos,
 }
 
+impl fmt::Display for MqttAclAction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                MqttAclAction::All => "All",
+                MqttAclAction::Subscribe => "Subscribe",
+                MqttAclAction::Publish => "Publish",
+                MqttAclAction::PubSub => "PubSub",
+                MqttAclAction::Retain => "Retain",
+                MqttAclAction::Qos => "Qos",
+            }
+        )
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
 pub enum MqttAclPermission {
     Allow,
     Deny,
+}
+
+impl fmt::Display for MqttAclPermission {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                MqttAclPermission::Allow => "Allow",
+                MqttAclPermission::Deny => "Deny",
+            }
+        )
+    }
 }
