@@ -14,6 +14,7 @@
 
 pub mod acl;
 pub mod connector;
+pub mod schema;
 pub mod subscribe;
 pub mod topic;
 pub mod user;
