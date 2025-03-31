@@ -20,17 +20,15 @@ use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
 use mqtt::admin::{
-    process_auto_subscribe_args, BindSchemaArgs, CreateConnectorArgs, CreateSchemaArgs,
-    DeleteConnectorArgs, DeleteSchemaArgs, ListBindSchemaArgs, ListConnectorArgs, ListSchemaArgs,
-    MqttAutoSubscribeRuleCommand, UnbindSchemaArgs, UpdateConnectorArgs, UpdateSchemaArgs,
+    process_auto_subscribe_args, BindSchemaArgs, CreateSchemaArgs, DeleteSchemaArgs,
+    ListBindSchemaArgs, ListSchemaArgs, MqttAutoSubscribeRuleCommand, UnbindSchemaArgs,
+    UpdateSchemaArgs,
 };
 use mqtt::publish::process_subscribe_args;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    EnableFlappingDetectRequest, ListTopicRequest, MqttBindSchemaRequest,
-    MqttCreateConnectorRequest, MqttCreateSchemaRequest, MqttDeleteConnectorRequest,
-    MqttDeleteSchemaRequest, MqttListBindSchemaRequest, MqttListConnectorRequest,
-    MqttListSchemaRequest, MqttUnbindSchemaRequest, MqttUpdateConnectorRequest,
-    MqttUpdateSchemaRequest,
+    EnableFlappingDetectRequest, ListTopicRequest, MqttBindSchemaRequest, MqttCreateSchemaRequest,
+    MqttDeleteSchemaRequest, MqttListBindSchemaRequest, MqttListSchemaRequest,
+    MqttUnbindSchemaRequest, MqttUpdateSchemaRequest,
 };
 
 use protocol::placement_center::placement_center_openraft::{
@@ -38,8 +36,9 @@ use protocol::placement_center::placement_center_openraft::{
 };
 
 use crate::mqtt::admin::{
-    process_acl_args, process_blacklist_args, process_slow_sub_args, process_user_args, AclArgs,
-    BlacklistArgs, FlappingDetectArgs, SlowSubArgs, UserArgs,
+    process_acl_args, process_blacklist_args, process_connector_args, process_slow_sub_args,
+    process_topic_rewrite_args, process_user_args, AclArgs, BlacklistArgs, ConnectorArgs,
+    FlappingDetectArgs, SlowSubArgs, TopicRewriteArgs, UserArgs,
 };
 use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 
@@ -100,13 +99,9 @@ enum MQTTAction {
     // list topic
     ListTopic(ListTopicArgs),
     // topic rewrite rule
-    // TopicRewriteRule(TopicRewriteArgs),
-
+    TopicRewriteRule(TopicRewriteArgs),
     // connector
-    ListConnector(ListConnectorArgs),
-    CreateConnector(CreateConnectorArgs),
-    UpdateConnector(UpdateConnectorArgs),
-    DeleteConnector(DeleteConnectorArgs),
+    Connector(ConnectorArgs),
 
     // schema
     ListSchema(ListSchemaArgs),
@@ -231,6 +226,8 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             }
             // Connections
             MQTTAction::ListConnection => MqttActionType::ListConnection,
+            // connector
+            MQTTAction::Connector(args) => process_connector_args(args),
             // list topic
             MQTTAction::ListTopic(args) => MqttActionType::ListTopic(ListTopicRequest {
                 topic_name: args.topic_name,
@@ -240,36 +237,12 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
                     MatchOption::S => 2,
                 },
             }),
-
-
-
+            MQTTAction::TopicRewriteRule(args) => process_topic_rewrite_args(args),
             MQTTAction::SlowSub(args) => process_slow_sub_args(args),
 
             MQTTAction::Publish(args) => process_publish_args(args),
             MQTTAction::Subscribe(args) => process_subscribe_args(args),
-            MQTTAction::ListConnector(args) => {
-                MqttActionType::ListConnector(MqttListConnectorRequest {
-                    connector_name: args.connector_name,
-                })
-            }
-            MQTTAction::CreateConnector(args) => {
-                MqttActionType::CreateConnector(MqttCreateConnectorRequest {
-                    connector_name: args.connector_name,
-                    connector_type: args.connector_type,
-                    config: args.config,
-                    topic_id: args.topic_id,
-                })
-            }
-            MQTTAction::UpdateConnector(args) => {
-                MqttActionType::UpdateConnector(MqttUpdateConnectorRequest {
-                    connector: args.connector,
-                })
-            }
-            MQTTAction::DeleteConnector(args) => {
-                MqttActionType::DeleteConnector(MqttDeleteConnectorRequest {
-                    connector_name: args.connector_name,
-                })
-            }
+
             MQTTAction::ListSchema(args) => MqttActionType::ListSchema(MqttListSchemaRequest {
                 schema_name: args.schema_name,
             }),

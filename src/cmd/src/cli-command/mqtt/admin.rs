@@ -20,9 +20,12 @@ use cli_command::mqtt::MqttActionType;
 use common_base::enum_type::sort_type::SortType;
 use core::option::Option::Some;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateAclRequest, CreateBlacklistRequest, CreateUserRequest, DeleteAclRequest,
-    DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteUserRequest,
-    ListAutoSubscribeRuleRequest, SetAutoSubscribeRuleRequest,
+    CreateAclRequest, CreateBlacklistRequest, CreateTopicRewriteRuleReply,
+    CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
+    DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
+    DeleteTopicRewriteRuleRequest, DeleteUserRequest, ListAutoSubscribeRuleRequest,
+    MqttCreateConnectorRequest, MqttDeleteConnectorRequest, MqttListConnectorRequest,
+    MqttUpdateConnectorRequest, SetAutoSubscribeRuleRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
@@ -273,36 +276,103 @@ pub(crate) struct SlowSubArgs {
     pub(crate) client_id: Option<String>,
 }
 
-
-#[derive(Debug, Parser)]
-#[command(author="RobustMQ", about="", long_about = None)]
+// topic rewrite rule
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "related operations of topic rewrite, such as  creating and deleting", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct ListConnectorArgs {
-    pub(crate) connector_name: String,
+pub(crate) struct TopicRewriteArgs {
+    #[command(subcommand)]
+    pub action: Option<TopicRewriteActionType>,
 }
 
-#[derive(Debug, Parser)]
-#[command(author="RobustMQ", about="", long_about = None)]
+#[derive(Debug, clap::Subcommand)]
+pub enum TopicRewriteActionType {
+    #[command(author = "RobustMQ", about = "action: create topic rewrite", long_about = None)]
+    Create(CreateTopicRewriteArgs),
+    #[command(author = "RobustMQ", about = "action: delete topic rewrite", long_about = None)]
+    Delete(DeleteTopicRewriteArgs),
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: create topic rewrite", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct CreateTopicRewriteArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) action: String,
+    #[arg(short, long, required = true)]
+    pub(crate) source_topic: String,
+    #[arg(short, long, required = true)]
+    pub(crate) dest_topic: String,
+    #[arg(short, long, required = true)]
+    pub(crate) regex: String,
+}
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: delete topic rewrite", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct DeleteTopicRewriteArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) action: String,
+    #[arg(short, long, required = true)]
+    pub(crate) source_topic: String,
+}
+
+// connector feat
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "related operations of connector, such as listing, creating, updating and deleting", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct ConnectorArgs {
+    #[command(subcommand)]
+    pub action: Option<ConnectorActionType>,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum ConnectorActionType {
+    #[command(author = "RobustMQ", about = "action: list connectors", long_about = None)]
+    List(ListConnectorArgs),
+    #[command(author = "RobustMQ", about = "action: create connector", long_about = None)]
+    Create(CreateConnectorArgs),
+    #[command(author = "RobustMQ", about = "action: delete connector", long_about = None)]
+    Delete(DeleteConnectorArgs),
+    #[command(author = "RobustMQ", about = "action: update connector", long_about = None)]
+    Update(UpdateConnectorArgs),
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: create connector", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct CreateConnectorArgs {
+    #[arg(short, long, required = true)]
     pub(crate) connector_name: String,
-    pub(crate) connector_type: i32,
+    #[arg(short, long, required = true)]
+    pub(crate) connector_type: String,
+    #[arg(short, long, required = true)]
     pub(crate) config: String,
+    #[arg(short, long, required = true)]
     pub(crate) topic_id: String,
 }
 
-#[derive(Debug, Parser)]
-#[command(author="RobustMQ", about="", long_about = None)]
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: list connector", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct UpdateConnectorArgs {
-    pub(crate) connector: Vec<u8>,
+pub(crate) struct ListConnectorArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) connector_name: String,
 }
 
-#[derive(Debug, Parser)]
-#[command(author="RobustMQ", about="", long_about = None)]
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: delete connector", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct DeleteConnectorArgs {
+    #[arg(short, long, required = true)]
     pub(crate) connector_name: String,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: update connector", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct UpdateConnectorArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) connector: String,
 }
 
 // schema
@@ -433,6 +503,59 @@ pub fn process_blacklist_args(args: BlacklistArgs) -> MqttActionType {
                     cluster_name: arg.cluster_name,
                     blacklist_type: arg.blacklist_type,
                     resource_name: arg.resource_name,
+                })
+            }
+        },
+        None => unreachable!(),
+    }
+}
+
+pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
+    match args.action {
+        Some(connector_action) => match connector_action {
+            ConnectorActionType::List(arg) => {
+                MqttActionType::ListConnector(MqttListConnectorRequest {
+                    connector_name: arg.connector_name,
+                })
+            }
+            ConnectorActionType::Create(arg) => {
+                MqttActionType::CreateConnector(MqttCreateConnectorRequest {
+                    connector_name: arg.connector_name,
+                    connector_type: arg.connector_type.parse().unwrap(),
+                    config: arg.config,
+                    topic_id: arg.topic_id,
+                })
+            }
+            ConnectorActionType::Delete(arg) => {
+                MqttActionType::DeleteConnector(MqttDeleteConnectorRequest {
+                    connector_name: arg.connector_name,
+                })
+            }
+            ConnectorActionType::Update(arg) => {
+                MqttActionType::UpdateConnector(MqttUpdateConnectorRequest {
+                    connector: Vec::from(arg.connector),
+                })
+            }
+        },
+        None => unreachable!(),
+    }
+}
+
+pub fn process_topic_rewrite_args(args: TopicRewriteArgs) -> MqttActionType {
+    match args.action {
+        Some(topic_rewrite_action) => match topic_rewrite_action {
+            TopicRewriteActionType::Create(arg) => {
+                MqttActionType::CreateTopicRewriteRule(CreateTopicRewriteRuleRequest {
+                    action: arg.action,
+                    source_topic: arg.source_topic,
+                    dest_topic: arg.dest_topic,
+                    regex: arg.regex,
+                })
+            }
+            TopicRewriteActionType::Delete(arg) => {
+                MqttActionType::DeleteTopicRewriteRule(DeleteTopicRewriteRuleRequest {
+                    action: arg.action,
+                    source_topic: arg.source_topic,
                 })
             }
         },

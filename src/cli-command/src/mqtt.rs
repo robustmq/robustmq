@@ -36,15 +36,15 @@ use metadata_struct::schema::SchemaData;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusRequest, CreateAclRequest, CreateBlacklistRequest, CreateUserRequest,
-    DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteUserRequest,
-    EnableFlappingDetectRequest, EnableSlowSubscribeRequest, ListAclRequest,
-    ListAutoSubscribeRuleRequest, ListBlacklistRequest, ListConnectionRequest,
-    ListSlowSubscribeRequest, ListTopicRequest, ListUserRequest, MqttBindSchemaRequest,
-    MqttCreateConnectorRequest, MqttCreateSchemaRequest, MqttDeleteConnectorRequest,
-    MqttDeleteSchemaRequest, MqttListBindSchemaRequest, MqttListConnectorRequest,
-    MqttListSchemaRequest, MqttUnbindSchemaRequest, MqttUpdateConnectorRequest,
-    MqttUpdateSchemaRequest, SetAutoSubscribeRuleRequest,
+    ClusterStatusRequest, CreateAclRequest, CreateBlacklistRequest, CreateTopicRewriteRuleRequest,
+    CreateUserRequest, DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest,
+    DeleteTopicRewriteRuleRequest, DeleteUserRequest, EnableFlappingDetectRequest,
+    EnableSlowSubscribeRequest, ListAclRequest, ListAutoSubscribeRuleRequest, ListBlacklistRequest,
+    ListConnectionRequest, ListSlowSubscribeRequest, ListTopicRequest, ListUserRequest,
+    MqttBindSchemaRequest, MqttCreateConnectorRequest, MqttCreateSchemaRequest,
+    MqttDeleteConnectorRequest, MqttDeleteSchemaRequest, MqttListBindSchemaRequest,
+    MqttListConnectorRequest, MqttListSchemaRequest, MqttUnbindSchemaRequest,
+    MqttUpdateConnectorRequest, MqttUpdateSchemaRequest, SetAutoSubscribeRuleRequest,
 };
 use std::str::FromStr;
 use std::sync::Arc;
@@ -89,6 +89,10 @@ pub enum MqttActionType {
 
     // flapping detect
     EnableFlappingDetect(EnableFlappingDetectRequest),
+
+    // topic rewrite rule
+    CreateTopicRewriteRule(CreateTopicRewriteRuleRequest),
+    DeleteTopicRewriteRule(DeleteTopicRewriteRuleRequest),
 
     // publish
     Publish(PublishArgsRequest),
@@ -175,9 +179,35 @@ impl MqttBrokerCommand {
                 self.delete_blacklist(&client_pool, params.clone(), request.clone())
                     .await;
             }
-            // connection
+            // list connection
             MqttActionType::ListConnection => {
                 self.list_connections(&client_pool, params.clone()).await;
+            }
+            // connector
+            MqttActionType::ListConnector(ref request) => {
+                self.list_connectors(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::CreateConnector(ref request) => {
+                self.create_connector(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::DeleteConnector(ref request) => {
+                self.delete_connector(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::UpdateConnector(ref request) => {
+                self.update_connector(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            // topic rewrite rule
+            MqttActionType::CreateTopicRewriteRule(ref request) => {
+                self.create_topic_rewrite_rule(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::DeleteTopicRewriteRule(ref request) => {
+                self.delete_topic_rewrite_rule(&client_pool, params.clone(), request.clone())
+                    .await;
             }
             MqttActionType::EnableSlowSubscribe(ref request) => {
                 self.enable_slow_subscribe(&client_pool, params.clone(), *request)
@@ -200,22 +230,6 @@ impl MqttBrokerCommand {
             }
             MqttActionType::Subscribe(ref request) => {
                 self.subscribe(params.clone(), request.clone()).await;
-            }
-            MqttActionType::ListConnector(ref request) => {
-                self.list_connectors(&client_pool, params.clone(), request.clone())
-                    .await;
-            }
-            MqttActionType::CreateConnector(ref request) => {
-                self.create_connector(&client_pool, params.clone(), request.clone())
-                    .await;
-            }
-            MqttActionType::DeleteConnector(ref request) => {
-                self.delete_connector(&client_pool, params.clone(), request.clone())
-                    .await;
-            }
-            MqttActionType::UpdateConnector(ref request) => {
-                self.update_connector(&client_pool, params.clone(), request.clone())
-                    .await;
             }
 
             // schema
