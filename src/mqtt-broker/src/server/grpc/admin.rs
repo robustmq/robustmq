@@ -22,6 +22,10 @@ use crate::admin::connector::{
     create_connector_by_req, delete_connector_by_req, list_connector_by_req,
     update_connector_by_req,
 };
+use crate::admin::schema::{
+    bind_schema_by_req, create_schema_by_req, delete_schema_by_req, list_bind_schema_by_req,
+    list_schema_by_req, unbind_schema_by_req, update_schema_by_req,
+};
 use crate::admin::subscribe::{
     delete_auto_subscribe_rule, list_auto_subscribe_rule_by_req, set_auto_subscribe_rule,
 };
@@ -35,10 +39,6 @@ use crate::admin::{
 };
 use crate::handler::cache::CacheManager;
 use crate::server::connection_manager::ConnectionManager;
-use crate::storage::schema::{
-    bind_schema_by_req, create_schema_by_req, delete_schema_by_req, list_bind_schema_by_req,
-    list_schema_by_req, unbind_schema_by_req, update_schema_by_req,
-};
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
 use protocol::broker_mqtt::broker_mqtt_admin::{
