@@ -47,7 +47,7 @@ jobs:
       - name: Install cargo-nextest
         uses: baptiste0928/cargo-install@v1
         with:
-          crate: cargo-nextest 
+          crate: cargo-nextest
           args: --locked
       - name: Run tests
         run: sh ./scripts/mqtt-ig-test.sh ci

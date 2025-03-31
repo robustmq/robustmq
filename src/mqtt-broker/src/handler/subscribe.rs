@@ -60,9 +60,10 @@ pub async fn save_subscribe(
     subscribe_properties: &Option<SubscribeProperties>,
 ) -> Result<(), MqttBrokerError> {
     let conf = broker_mqtt_conf();
+    let filters = &subscribe.filters;
 
-    for filter in subscribe.filters.clone() {
-        let sucscribe_data = MqttSubscribe {
+    for filter in filters {
+        let subscribe_data = MqttSubscribe {
             client_id: client_id.to_owned(),
             path: filter.path.clone(),
             cluster_name: conf.cluster_name.to_owned(),
@@ -78,17 +79,24 @@ pub async fn save_subscribe(
             cluster_name: conf.cluster_name.to_owned(),
             client_id: client_id.to_owned(),
             path: filter.path.clone(),
-            subscribe: sucscribe_data.encode(),
+            subscribe: subscribe_data.encode(),
         };
-        placement_set_subscribe(client_pool, &conf.placement_center, request).await?;
-
-        // add susribe by cache
-        subscribe_manager.add_subscribe(sucscribe_data.clone());
+        if let Err(e) = placement_set_subscribe(client_pool, &conf.placement_center, request).await
+        {
+            error!(
+                "Failed to set subscribe to placement center, error message: {}",
+                e
+            );
+            return Err(MqttBrokerError::CommonError(e.to_string()));
+        }
+        // add subscribe by cache
+        subscribe_manager.add_subscribe(subscribe_data);
     }
 
     // parse subscribe
-    for (_, topic) in cache_manager.topic_info.clone() {
-        for filter in subscribe.filters.clone() {
+    let topic_info = cache_manager.topic_info.clone();
+    for (_, topic) in topic_info {
+        for filter in filters {
             parse_subscribe(
                 client_pool,
                 cache_manager,
@@ -97,10 +105,10 @@ pub async fn save_subscribe(
                 &topic,
                 protocol,
                 subscribe.packet_identifier,
-                &filter,
+                filter,
                 subscribe_properties,
             )
-            .await;
+            .await
         }
     }
 
