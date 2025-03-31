@@ -237,12 +237,13 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
                     MatchOption::S => 2,
                 },
             }),
+            // topic rewrite rule
             MQTTAction::TopicRewriteRule(args) => process_topic_rewrite_args(args),
             MQTTAction::SlowSub(args) => process_slow_sub_args(args),
 
             MQTTAction::Publish(args) => process_publish_args(args),
             MQTTAction::Subscribe(args) => process_subscribe_args(args),
-
+            // schema
             MQTTAction::ListSchema(args) => MqttActionType::ListSchema(MqttListSchemaRequest {
                 schema_name: args.schema_name,
             }),
