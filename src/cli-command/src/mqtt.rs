@@ -19,8 +19,9 @@ use common_base::tools::unique_id;
 use grpc_clients::mqtt::admin::call::{
     mqtt_broker_bind_schema, mqtt_broker_cluster_status, mqtt_broker_create_acl,
     mqtt_broker_create_blacklist, mqtt_broker_create_connector, mqtt_broker_create_schema,
-    mqtt_broker_create_user, mqtt_broker_delete_acl, mqtt_broker_delete_auto_subscribe_rule,
-    mqtt_broker_delete_blacklist, mqtt_broker_delete_connector, mqtt_broker_delete_schema,
+    mqtt_broker_create_topic_rewrite_rule, mqtt_broker_create_user, mqtt_broker_delete_acl,
+    mqtt_broker_delete_auto_subscribe_rule, mqtt_broker_delete_blacklist,
+    mqtt_broker_delete_connector, mqtt_broker_delete_schema, mqtt_broker_delete_topic_rewrite_rule,
     mqtt_broker_delete_user, mqtt_broker_enable_flapping_detect, mqtt_broker_enable_slow_subscribe,
     mqtt_broker_list_acl, mqtt_broker_list_auto_subscribe_rule, mqtt_broker_list_bind_schema,
     mqtt_broker_list_blacklist, mqtt_broker_list_connection, mqtt_broker_list_connector,
@@ -409,6 +410,7 @@ impl MqttBrokerCommand {
             }
         }
     }
+    // ------------ cluster status ------------
     async fn status(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
         let request = ClusterStatusRequest {};
         match mqtt_broker_cluster_status(client_pool, &grpc_addr(params.server), request).await {
@@ -426,6 +428,7 @@ impl MqttBrokerCommand {
             }
         }
     }
+    // ------------ user admin ------------
 
     async fn create_user(
         &self,
@@ -481,6 +484,7 @@ impl MqttBrokerCommand {
             }
         }
     }
+    // -------------- acl admin --------------
 
     async fn create_acl(
         &self,
@@ -551,6 +555,7 @@ impl MqttBrokerCommand {
         }
     }
 
+    // -------------- blacklist admin --------------
     async fn create_blacklist(
         &self,
         client_pool: &ClientPool,
@@ -616,6 +621,7 @@ impl MqttBrokerCommand {
         }
     }
 
+    // -------------- list connections --------------
     async fn list_connections(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
         let request = ListConnectionRequest {};
         match mqtt_broker_list_connection(client_pool, &grpc_addr(params.server), request).await {
@@ -650,7 +656,7 @@ impl MqttBrokerCommand {
         }
     }
 
-    // flapping detect
+    // -------------- flapping detect --------------
     async fn enable_flapping_detect(
         &self,
         client_pool: &ClientPool,
@@ -902,6 +908,53 @@ impl MqttBrokerCommand {
             }
             Err(e) => {
                 println!("MQTT broker update connector exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    // ------------------ topic rewrite rule ----------------
+    async fn create_topic_rewrite_rule(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: CreateTopicRewriteRuleRequest,
+    ) {
+        match mqtt_broker_create_topic_rewrite_rule(
+            client_pool,
+            &grpc_addr(params.server),
+            cli_request,
+        )
+        .await
+        {
+            Ok(_) => {
+                println!("Created successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker create topic rewrite rule exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn delete_topic_rewrite_rule(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: DeleteTopicRewriteRuleRequest,
+    ) {
+        match mqtt_broker_delete_topic_rewrite_rule(
+            client_pool,
+            &grpc_addr(params.server),
+            cli_request,
+        )
+        .await
+        {
+            Ok(_) => {
+                println!("Deleted successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker delete topic rewrite rule exception");
                 error_info(e.to_string());
             }
         }

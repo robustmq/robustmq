@@ -20,9 +20,8 @@ use cli_command::mqtt::MqttActionType;
 use common_base::enum_type::sort_type::SortType;
 use core::option::Option::Some;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateAclRequest, CreateBlacklistRequest, CreateTopicRewriteRuleReply,
-    CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
-    DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
+    CreateAclRequest, CreateBlacklistRequest, CreateTopicRewriteRuleRequest, CreateUserRequest,
+    DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest,
     DeleteTopicRewriteRuleRequest, DeleteUserRequest, ListAutoSubscribeRuleRequest,
     MqttCreateConnectorRequest, MqttDeleteConnectorRequest, MqttListConnectorRequest,
     MqttUpdateConnectorRequest, SetAutoSubscribeRuleRequest,
@@ -278,7 +277,7 @@ pub(crate) struct SlowSubArgs {
 
 // topic rewrite rule
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of topic rewrite, such as  creating and deleting", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of topic rewrite, such as creating and deleting", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct TopicRewriteArgs {
     #[command(subcommand)]
