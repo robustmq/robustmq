@@ -237,7 +237,7 @@ pub async fn wait_pub_ack(
     stop_sx: &broadcast::Sender<bool>,
     wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
 ) {
-    let wait_pub_rec_fn = || async  {
+    let wait_pub_rec_fn = || async {
         match timeout(Duration::from_secs(30), wait_packet_ack(wait_ack_sx)).await {
             Ok(Some(data)) => {
                 if data.ack_type == QosAckPackageType::PubAck && data.pkid == sub_pub_param.pkid {
@@ -676,8 +676,8 @@ mod tests {
         let topic_name = r"/sensor/temperature3/tmpq".to_string();
         let sub_regex = r"$share/groupname/sensor/#".to_string();
         assert!(path_regex_match(&topic_name, &sub_regex));
-        
-        let topic_name = r"y/a/z/b".to_string(); 
+
+        let topic_name = r"y/a/z/b".to_string();
         let sub_regex = r"y/+/z/#".to_string();
         assert!(path_regex_match(&topic_name, &sub_regex));
     }

@@ -75,15 +75,15 @@ fn unsubscribe_by_path(
                 // share leader
                 for (key, data) in subscribe_manager.share_leader_push.clone() {
                     let mut flag = false;
-                    for (sub_key, share_sub) in data.sub_list {
+                    for (index, share_sub) in data.sub_list.iter().enumerate() {
                         if share_sub.client_id == *client_id
                             && (share_sub.group_name.is_some()
-                                && share_sub.group_name.unwrap() == group_name)
+                                && share_sub.clone().group_name.unwrap() == group_name)
                             && share_sub.sub_path == sub_name
                         {
-                            let mut_data =
+                            let mut mut_data =
                                 subscribe_manager.share_leader_push.get_mut(&key).unwrap();
-                            mut_data.sub_list.remove(&sub_key);
+                            mut_data.sub_list.remove(index);
                             subscribe_manager.remove_topic_subscribe_by_path(
                                 &share_sub.topic_name,
                                 &share_sub.sub_path,
