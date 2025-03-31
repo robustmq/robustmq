@@ -91,20 +91,16 @@ enum MQTTAction {
     Acl(AclArgs),
     // blacklist admin
     Blacklist(BlacklistArgs),
-
-    // Connections
-    ListConnection,
-
     // flapping detect feat
     FlappingDetect(FlappingDetectArgs),
-
-    ListTopic(ListTopicArgs),
-
-    Publish(PubSubArgs),
-
-    Subscribe(PubSubArgs),
+    // Connections
+    ListConnection,
     // observability: slow-sub feat
     SlowSub(SlowSubArgs),
+    // list topic
+    ListTopic(ListTopicArgs),
+    // topic rewrite rule
+    // TopicRewriteRule(TopicRewriteArgs),
 
     // connector
     ListConnector(ListConnectorArgs),
@@ -123,6 +119,9 @@ enum MQTTAction {
 
     //auto subscribe
     AutoSubscribeRule(MqttAutoSubscribeRuleCommand),
+
+    Publish(PubSubArgs),
+    Subscribe(PubSubArgs),
 }
 
 #[derive(ValueEnum, Clone, Debug)]
@@ -221,16 +220,7 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             MQTTAction::Acl(args) => process_acl_args(args),
             // blacklist admin
             MQTTAction::Blacklist(args) => process_blacklist_args(args),
-            MQTTAction::ListConnection => MqttActionType::ListConnection,
-            MQTTAction::ListTopic(args) => MqttActionType::ListTopic(ListTopicRequest {
-                topic_name: args.topic_name,
-                match_option: match args.match_option {
-                    MatchOption::E => 0,
-                    MatchOption::P => 1,
-                    MatchOption::S => 2,
-                },
-            }),
-            MQTTAction::SlowSub(args) => process_slow_sub_args(args),
+            // flapping detect
             MQTTAction::FlappingDetect(args) => {
                 MqttActionType::EnableFlappingDetect(EnableFlappingDetectRequest {
                     is_enable: args.is_enable.unwrap_or(false),
@@ -239,6 +229,22 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
                     ban_time: args.ban_time.unwrap_or(5),
                 })
             }
+            // Connections
+            MQTTAction::ListConnection => MqttActionType::ListConnection,
+            // list topic
+            MQTTAction::ListTopic(args) => MqttActionType::ListTopic(ListTopicRequest {
+                topic_name: args.topic_name,
+                match_option: match args.match_option {
+                    MatchOption::E => 0,
+                    MatchOption::P => 1,
+                    MatchOption::S => 2,
+                },
+            }),
+
+
+
+            MQTTAction::SlowSub(args) => process_slow_sub_args(args),
+
             MQTTAction::Publish(args) => process_publish_args(args),
             MQTTAction::Subscribe(args) => process_subscribe_args(args),
             MQTTAction::ListConnector(args) => {

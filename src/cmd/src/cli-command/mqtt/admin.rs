@@ -28,8 +28,9 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
 };
 
+// security: user feat
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="related operations of mqtt users, such as listing, creating, and deleting", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of mqtt users, such as listing, creating, and deleting", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct UserArgs {
     #[command(subcommand)]
@@ -38,17 +39,16 @@ pub(crate) struct UserArgs {
 
 #[derive(Debug, clap::Subcommand)]
 pub enum UserActionType {
-    #[command(author="RobustMQ", about="action: list users", long_about = None)]
+    #[command(author = "RobustMQ", about = "action: list users", long_about = None)]
     List,
-    #[command(author="RobustMQ", about="action: create user", long_about = None)]
+    #[command(author = "RobustMQ", about = "action: create user", long_about = None)]
     Create(CreateUserArgs),
-    #[command(author="RobustMQ", about="action: delete user", long_about = None)]
+    #[command(author = "RobustMQ", about = "action: delete user", long_about = None)]
     Delete(DeleteUserArgs),
 }
 
-// security: user feat
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="action: create user", long_about = None)]
+#[command(author = "RobustMQ", about = "action: create user", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct CreateUserArgs {
     #[arg(short, long, required = true)]
@@ -60,15 +60,16 @@ pub(crate) struct CreateUserArgs {
 }
 
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="action: delete user", long_about = None)]
+#[command(author = "RobustMQ", about = "action: delete user", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct DeleteUserArgs {
     #[arg(short, long, required = true)]
     pub(crate) username: String,
 }
 
+// acl feat
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="related operations of access control list, such as listing, creating, and deleting", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of access control list, such as listing, creating, and deleting", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct AclArgs {
     #[command(subcommand)]
@@ -77,16 +78,16 @@ pub(crate) struct AclArgs {
 
 #[derive(Debug, clap::Subcommand)]
 pub enum AclActionType {
-    #[command(author="RobustMQ", about="action: acl list", long_about = None)]
+    #[command(author = "RobustMQ", about = "action: acl list", long_about = None)]
     List,
-    #[command(author="RobustMQ", about="action: create acl", long_about = None)]
+    #[command(author = "RobustMQ", about = "action: create acl", long_about = None)]
     Create(CreateAclArgs),
-    #[command(author="RobustMQ", about="action: delete acl", long_about = None)]
+    #[command(author = "RobustMQ", about = "action: delete acl", long_about = None)]
     Delete(DeleteAclArgs),
 }
 
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="action: create acl", long_about = None)]
+#[command(author = "RobustMQ", about = "action: create acl", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct CreateAclArgs {
     #[arg(short, long, required = true)]
@@ -96,7 +97,7 @@ pub(crate) struct CreateAclArgs {
 }
 
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="action: delete acl", long_about = None)]
+#[command(author = "RobustMQ", about = "action: delete acl", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct DeleteAclArgs {
     #[arg(short, long, required = true)]
@@ -105,8 +106,9 @@ pub(crate) struct DeleteAclArgs {
     pub(crate) acl: String,
 }
 
+// blacklist feat
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="related operations of blacklist, such as listing, creating, and deleting", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of blacklist, such as listing, creating, and deleting", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct BlacklistArgs {
     #[command(subcommand)]
@@ -115,16 +117,16 @@ pub(crate) struct BlacklistArgs {
 
 #[derive(Debug, clap::Subcommand)]
 pub enum BlackListActionType {
-    #[command(author="RobustMQ", about="action: blacklist list", long_about = None)]
+    #[command(author = "RobustMQ", about = "action: blacklist list", long_about = None)]
     List,
-    #[command(author="RobustMQ", about="action: create blacklist", long_about = None)]
+    #[command(author = "RobustMQ", about = "action: create blacklist", long_about = None)]
     Create(CreateBlacklistArgs),
-    #[command(author="RobustMQ", about="action: delete blacklist", long_about = None)]
+    #[command(author = "RobustMQ", about = "action: delete blacklist", long_about = None)]
     Delete(DeleteBlacklistArgs),
 }
 
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="action: create blacklist", long_about = None)]
+#[command(author = "RobustMQ", about = "action: create blacklist", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct CreateBlacklistArgs {
     #[arg(short, long, required = true)]
@@ -134,7 +136,7 @@ pub(crate) struct CreateBlacklistArgs {
 }
 
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="action: delete blacklist", long_about = None)]
+#[command(author = "RobustMQ", about = "action: delete blacklist", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct DeleteBlacklistArgs {
     #[arg(short, long, required = true)]
@@ -146,78 +148,131 @@ pub(crate) struct DeleteBlacklistArgs {
 }
 
 // flapping detect feat
-#[derive(Debug, Parser)]
-#[command(author="RobustMQ", about="", long_about = None)]
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: flapping detect feat", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct FlappingDetectArgs {
-    #[arg(long = "enable")]
-    #[arg(value_parser =  BoolishValueParser::new())]
-    #[arg(default_missing_value = "false")]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
-    #[arg(required = true, require_equals = true, exclusive = true)]
-    #[arg(help = "Enable or disable the feature")]
+    #[arg(
+        long = "enable",
+        value_parser = BoolishValueParser::new(),
+        default_missing_value = "false",
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        required = true,
+        require_equals = true,
+        exclusive = true,
+        help = "Enable or disable the feature"
+    )]
     pub(crate) is_enable: Option<bool>,
-    #[arg(long = "window-time")]
-    #[arg(value_parser = RangedU64ValueParser::<u32>::new())]
-    #[arg(default_missing_value = "1")]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
-    #[arg(require_equals = true)]
-    #[arg(help = "unit is minutes")]
+    #[arg(
+        long = "window-time",
+        value_parser = RangedU64ValueParser::<u32>::new(),
+        default_missing_value = "1",
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        require_equals = true,
+        help = "Unit is minutes"
+    )]
     pub(crate) window_time: Option<u32>,
-    #[arg(long = "max-client-connections")]
-    #[arg(value_parser = RangedU64ValueParser::<u32>::new())]
-    #[arg(default_missing_value = "15")]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
+    #[arg(
+        long = "max-client-connections",
+        value_parser = RangedU64ValueParser::<u32>::new(),
+        default_missing_value = "15",
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        help = "Max client connections"
+    )]
     pub(crate) max_client_connections: Option<u32>,
-    #[arg(long = "ban-time")]
-    #[arg(value_parser = RangedU64ValueParser::<u32>::new())]
-    #[arg(default_missing_value = "5")]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
-    #[arg(help = "unit is minutes")]
+    #[arg(
+        long = "ban-time",
+        value_parser = RangedU64ValueParser::<u32>::new(),
+        default_missing_value = "5",
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        help = "Unit is minutes"
+    )]
     pub(crate) ban_time: Option<u32>,
 }
 
 // observability: slow-sub feat
-#[derive(Debug, Parser)]
-#[command(author="RobustMQ", about="", long_about = None)]
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: slow-sub", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct SlowSubArgs {
-    #[arg(long = "enable")]
-    #[arg(value_parser =  BoolishValueParser::new())]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
-    #[arg(required = false, require_equals = true, exclusive = true)]
-    #[arg(conflicts_with_all = ["list", "sort", "topic", "sub_name", "client_id"])]
-    #[arg(help = "Enable or disable the feature")]
-    is_enable: Option<bool>,
-    #[arg(long = "list")]
-    #[arg(value_parser = RangedU64ValueParser::<u64>::new())]
-    #[arg(default_missing_value = "100")]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
-    #[arg(require_equals = true)]
-    list: Option<u64>,
-    #[arg(long = "sort")]
-    #[arg(required = false, requires = "list", require_equals = true)]
-    #[arg(value_parser = EnumValueParser::<SortType>::new())]
-    #[arg(default_missing_value = "DESC", ignore_case = true)]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
-    #[arg(help = "Sort the results")]
-    sort: Option<SortType>,
-    #[arg(long = "topic")]
-    #[arg(required = false, requires = "list", require_equals = true)]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
-    #[arg(value_parser = NonEmptyStringValueParser::new())]
-    topic: Option<String>,
-    #[arg(long = "sub-name")]
-    #[arg(required = false, requires = "list", require_equals = true)]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
-    #[arg(value_parser = NonEmptyStringValueParser::new())]
-    sub_name: Option<String>,
-    #[arg(long = "client-id")]
-    #[arg(required = false, requires = "list", require_equals = true)]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
-    #[arg(value_parser = NonEmptyStringValueParser::new())]
-    client_id: Option<String>,
+    #[arg(
+        long = "enable",
+        value_parser = BoolishValueParser::new(),
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        required = false,
+        require_equals = true,
+        exclusive = true,
+        conflicts_with_all = ["list", "sort", "topic", "sub_name", "client_id"],
+        help = "Enable or disable the feature"
+    )]
+    pub(crate) is_enable: Option<bool>,
+    #[arg(
+        long = "list",
+        value_parser = RangedU64ValueParser::<u64>::new(),
+        default_missing_value = "100",
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        require_equals = true,
+        help = "List the slow subscriptions"
+    )]
+    pub(crate) list: Option<u64>,
+
+    #[arg(
+        long = "sort",
+        required = false,
+        requires = "list",
+        require_equals = true,
+        value_parser = EnumValueParser::<SortType>::new(),
+        default_missing_value = "DESC",
+        ignore_case = true,
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        help = "Sort the results"
+    )]
+    pub(crate) sort: Option<SortType>,
+
+    #[arg(
+        long = "topic",
+        required = false,
+        requires = "list",
+        require_equals = true,
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        value_parser = NonEmptyStringValueParser::new(),
+        help = "Filter the results by topic"
+    )]
+    pub(crate) topic: Option<String>,
+
+    #[arg(
+        long = "sub-name",
+        required = false,
+        requires = "list",
+        require_equals = true,
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        value_parser = NonEmptyStringValueParser::new(),
+        help = "Filter the results by subscription name"
+    )]
+    pub(crate) sub_name: Option<String>,
+
+    #[arg(
+        long = "client-id",
+        required = false,
+        requires = "list",
+        require_equals = true,
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        value_parser = NonEmptyStringValueParser::new(),
+        help = "Filter the results by client ID"
+    )]
+    pub(crate) client_id: Option<String>,
 }
+
 
 #[derive(Debug, Parser)]
 #[command(author="RobustMQ", about="", long_about = None)]
