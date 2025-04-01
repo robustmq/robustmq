@@ -20,9 +20,8 @@ use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
 use mqtt::admin::{
-    process_auto_subscribe_args, BindSchemaArgs, CreateSchemaArgs, DeleteSchemaArgs,
-    ListBindSchemaArgs, ListSchemaArgs, MqttAutoSubscribeRuleCommand, UnbindSchemaArgs,
-    UpdateSchemaArgs,
+    process_auto_subscribe_args, AutoSubscribeRuleCommand, BindSchemaArgs, CreateSchemaArgs,
+    DeleteSchemaArgs, ListBindSchemaArgs, ListSchemaArgs, UnbindSchemaArgs, UpdateSchemaArgs,
 };
 use mqtt::publish::process_subscribe_args;
 use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -113,7 +112,7 @@ enum MQTTAction {
     UnbindSchema(UnbindSchemaArgs),
 
     //auto subscribe
-    AutoSubscribeRule(MqttAutoSubscribeRuleCommand),
+    AutoSubscribeRule(AutoSubscribeRuleCommand),
 
     Publish(PubSubArgs),
     Subscribe(PubSubArgs),

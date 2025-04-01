@@ -1,6 +1,6 @@
 # MQTT Broker Command
 
-## 1. cluster status
+## 1. Cluster status
 
 MQTT offered cluster status query function, which allows users to check the health status of the cluster, node information, and more through the command line tool.
 
@@ -267,3 +267,9 @@ connection list:
 | connection_id | connection_type | protocol | source_addr | info |
 +---------------+-----------------+----------+-------------+------+
 ```
+
+## 10. Topic List
+
+The topic list command is used to query the current topic status of the MQTT Broker. It provides information about the topic name, type, and other relevant details.
+
+```console
