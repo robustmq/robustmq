@@ -226,7 +226,6 @@ impl AuthDriver {
             retain,
             qos,
         );
-        println!("allow_publish: {:?}", res);
         res
     }
 
