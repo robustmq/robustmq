@@ -1,9 +1,15 @@
-## 1. User
+# MQTT Broker Command
+
+## 1. User Management
+
+MQTT Broker has enabled user authentication. Clients must provide valid usernames and passwords before publishing or subscribing to messages to pass the authentication. Clients that fail authentication will not be able to communicate with the Broker. This feature enhances system security and prevents unauthorized access.
 
 ### 1.1 Create User
 
+Create a new MQTT Broker user.
+
 ```console
-% ./bin/robust-ctl mqtt mqtt user create --username=testp --password=7355608
+% ./bin/robust-ctl mqtt mqtt user create --username=testp --password=7355608 --is_superuser=false
 Created successfully!
 ```
 
@@ -75,20 +81,94 @@ helloworld!
 published retained message
 ```
 
-## 3. Slow Subscription
+## 3. ACL (Access Control List) Management
+
+### 3.1 Create ACL
+
+Create a new ACL rule.
+
+```console
+% ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 acl create --cluster-name=admin --acl=xxx
+able to connect: "127.0.0.1:1883"
+Created successfully!
+```
+
+### 3.2 Delete ACL
+
+Delete an existing ACL rule.
+
+```console
+% ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 acl delete --cluster-name=admin --acl=xxx
+able to connect: "127.0.0.1:1883"
+Deleted successfully!
+```
+
+### 3.3 ACL List
+
+List all created ACL rules.
+
+```console
+% ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 acl list
++---------------+---------------+-------+----+--------+------------+
+| resource_type | resource_name | topic | ip | action | permission |
++---------------+---------------+-------+----+--------+------------+
+```
+
+## 4. Blacklist Management
+
+### 4.1 Create Blacklist
+
+Create a new blacklist rule.
+
+```console
+% ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 blacklist create --cluster-name=admin --blacklist=client_id
+able to connect: "127.0.0.1:1883"
+Created successfully!
+```
+
+### 4.2 Delete Blacklist
+
+Delete an existing blacklist rule.
+
+```console
+% ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 blacklist delete --cluster-name=admin --blacklist-type=client_id --resource-name=client1
+able to connect: "127.0.0.1:1883"
+Deleted successfully!
+```
+
+### 4.3 Blacklist List
+
+List all created blacklist rules.
+
+```console
+```console
+% ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 blacklist list
++----------------+---------------+----------+----------------+
+| blacklist_type | resource_name | end_time | blacklist_type |
++----------------+---------------+----------+----------------+
+```
+
+## 5. Slow Subscription
 
 The slow subscription statistics function is mainly used to calculate the time (latency) it takes for the Broker to complete message processing and transmission after the message arrives at the Broker. If the latency exceeds the threshold, we will record a related piece of information in the cluster's slow subscription log. Operations personnel can query slow subscription records across the entire cluster using commands to address issues based on this information
 
-### 3.1 Enable Slow Subscription
+### 5.1 Enable Slow Subscription
 
-Enable slow subscription
+- Enable slow subscription
 
 ```console
 % ./bin/robust-ctl mqtt mqtt slow-sub --enable=true
 The slow subscription feature has been successfully enabled.
 ```
 
-### 3.2 View slow subscription records
+- Close slow subscription
+
+```console
+% ./bin/robust-ctl mqtt mqtt slow-sub --enable=false
+The slow subscription feature has been successfully closed.
+```
+
+### 5.2 View slow subscription records
 
 After enabling the slow subscription statistics function, the cluster begins recording slow subscriptions. To query corresponding slow subscription records, clients can enter the following command:
 
@@ -99,7 +179,7 @@ After enabling the slow subscription statistics function, the cluster begins rec
 +-----------+-------+----------+---------+-------------+
 ```
 
-### 3.3 Sorting Functionality
+### 5.3 Sorting Functionality
 
 To obtain more slow subscription records and sort them in ascending order from smallest to largest, you can use the following command:
 
@@ -110,7 +190,7 @@ To obtain more slow subscription records and sort them in ascending order from s
 +-----------+-------+----------+---------+-------------+
 ```
 
-### 3.4 Filtering Query Functionality
+### 5.4 Filtering Query Functionality
 
 For slow subscription queries, filtering queries are also supported. You can retrieve filtered results by fields such as topic, sub_name, and client_id. By default, the results are sorted in descending order from largest to smallest. Refer to the usage command below:
 
