@@ -116,9 +116,9 @@ pub fn process_publish_topic_rewrite(
 
 #[cfg(test)]
 mod tests {
-    use protocol::mqtt::common::{Filter, QoS, RetainForwardRule, Subscribe};
-    use common_base::tools;
     use super::*;
+    use common_base::tools;
+    use protocol::mqtt::common::{Filter, QoS, RetainForwardRule, Subscribe};
 
     /// Assume that the following topic rewrite rules have been added to the conf file:
     /// ```bash
@@ -168,14 +168,12 @@ mod tests {
 
     #[test]
     fn sub_topic_rewrite_test() {
-        let filters = SRC_TOPICS.map(|src_topic| {
-            Filter {
-                path: src_topic.to_string(),
-                qos: QoS::AtMostOnce,
-                nolocal: false,
-                preserve_retain: false,
-                retain_forward_rule: RetainForwardRule::Never,
-            }
+        let filters = SRC_TOPICS.map(|src_topic| Filter {
+            path: src_topic.to_string(),
+            qos: QoS::AtMostOnce,
+            nolocal: false,
+            preserve_retain: false,
+            retain_forward_rule: RetainForwardRule::Never,
         });
         let mut subscribe = Subscribe {
             packet_identifier: 0,
@@ -192,11 +190,8 @@ mod tests {
 
     #[test]
     fn unsub_topic_rewrite_test() {
-        let filters = SRC_TOPICS.map(|src_topic| {src_topic.to_string()}).to_vec();
-        let mut unsub = Unsubscribe{
-            pkid: 0,
-            filters,
-        };
+        let filters = SRC_TOPICS.map(|src_topic| src_topic.to_string()).to_vec();
+        let mut unsub = Unsubscribe { pkid: 0, filters };
 
         let rules = build_rules();
         process_unsub_topic_rewrite(&mut unsub, &rules);
@@ -205,7 +200,6 @@ mod tests {
         for (index, filter) in unsub.filters.iter().enumerate() {
             assert_eq!(filter, DST_TOPICS[index]);
         }
-
     }
 
     #[test]
@@ -215,7 +209,7 @@ mod tests {
             let result = process_publish_topic_rewrite(src_topic.to_string(), &rules);
             assert!(result.is_ok());
             let option = result.unwrap();
-            
+
             let matches = REGEX_MATCHES[index];
             assert_eq!(option.is_some(), matches);
             if matches {
@@ -224,7 +218,6 @@ mod tests {
             } else {
                 assert!(option.is_none());
             }
-
         }
     }
 
@@ -232,7 +225,7 @@ mod tests {
         let rules = vec![
             SimpleRule::new(r"y/+/z/#", r"y/z/$2", r"^y/(.+)/z/(.+)$"),
             SimpleRule::new(r"x/#", r"z/y/x/$1", r"^x/y/(.+)$"),
-            SimpleRule::new(r"x/y/+", r"z/y/$1",r"^x/y/(\d+)$")
+            SimpleRule::new(r"x/y/+", r"z/y/$1", r"^x/y/(\d+)$"),
         ];
 
         let map = DashMap::with_capacity(rules.len());
@@ -245,7 +238,7 @@ mod tests {
                 regex: rule.regex.to_string(),
                 timestamp: tools::now_nanos(),
             };
-            map.insert(format!("rule{}",index), rule);
+            map.insert(format!("rule{}", index), rule);
         }
         map
     }

@@ -581,7 +581,12 @@ impl MqttBrokerCommand {
             Ok(data) => {
                 // format table
                 let mut table = Table::new();
-                table.add_row(row!["blacklist_type", "resource_name", "end_time", "desc"]);
+                table.add_row(row![
+                    "blacklist_type",
+                    "resource_name",
+                    "end_time",
+                    "blacklist_type"
+                ]);
                 for blacklist in data.blacklists {
                     let mqtt_acl_blacklist =
                         serde_json::from_slice::<MqttAclBlackList>(blacklist.as_slice()).unwrap();
