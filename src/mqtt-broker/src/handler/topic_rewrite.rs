@@ -146,21 +146,21 @@ mod tests {
     /// At this time we subscribe to five topics: `y/a/z/b`, `y/def`, `x/1/2`, `x/y/2`, and `x/y/z`:
     ///
     /// - `y/def` does not match any of the topic filters, so it does not perform topic rewriting,
-    /// and just subscribes to `y/def` topics.
-    /// - `y/a/z/b` matches t   1he `y/+/z/#` topic filter, executes the first rule, and matches
-    /// the element \[a、b\] through a regular expression, brings the matched second element
-    /// into `y/z/$2`, and actually subscribes to the topic `y/z/b`.
+    ///   and just subscribes to `y/def` topics.
+    /// - `y/a/z/b` matches the `y/+/z/#` topic filter, executes the first rule, and matches
+    ///   the element [a, b] through a regular expression, brings the matched second element
+    ///   into `y/z/$2`, and actually subscribes to the topic `y/z/b`.
     /// - `x/1/2` matches `x/#` topic filter, executes the second rule. It does not match
-    /// elements through regular expressions, does not perform topic rewrite, and actually
-    /// subscribes to the topic of `x/1/2`.
-    /// - `x/y/2` matches two topic filters of `x/#` and `x/y/`+ at the same time, reads the
-    /// configuration in reverse order, so it matches the third preferentially. Through
-    /// regular replacement, it actually subscribed to the `z/y/2` topic.
+    ///   elements through regular expressions, does not perform topic rewrite, and actually
+    ///   subscribes to the topic of `x/1/2`.
+    /// - `x/y/2` matches two topic filters of `x/#` and `x/y/+` at the same time, reads the
+    ///   configuration in reverse order, so it matches the third preferentially. Through
+    ///   regular replacement, it actually subscribed to the `z/y/2` topic.
     /// - `x/y/z` matches two topic filters of `x/#` and `x/y/+` at the same time, reads the
-    /// configuration in reverse order, so it matches the third preferentially. The element is
-    /// not matched through the regular expression, the topic rewrite is not performed, and it
-    /// actually subscribes to the `x/y/z` topic. It should be noted that even if the regular
-    /// expression matching of the third fails, it will not match the rules of the second again.
+    ///   configuration in reverse order, so it matches the third preferentially. The element is
+    ///   not matched through the regular expression, the topic rewrite is not performed, and it
+    ///   actually subscribes to the `x/y/z` topic. It should be noted that even if the regular
+    ///   expression matching of the third fails, it will not match the rules of the second again.
     ///
     const SRC_TOPICS: [&str; 5] = ["y/a/z/b", "y/def", "x/1/2", "x/y/2", "x/y/z"];
     const DST_TOPICS: [&str; 5] = ["y/z/b", "y/def", "x/1/2", "z/y/2", "x/y/z"];
