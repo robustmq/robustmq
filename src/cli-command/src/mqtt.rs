@@ -19,8 +19,9 @@ use common_base::tools::unique_id;
 use grpc_clients::mqtt::admin::call::{
     mqtt_broker_bind_schema, mqtt_broker_cluster_status, mqtt_broker_create_acl,
     mqtt_broker_create_blacklist, mqtt_broker_create_connector, mqtt_broker_create_schema,
-    mqtt_broker_create_user, mqtt_broker_delete_acl, mqtt_broker_delete_auto_subscribe_rule,
-    mqtt_broker_delete_blacklist, mqtt_broker_delete_connector, mqtt_broker_delete_schema,
+    mqtt_broker_create_topic_rewrite_rule, mqtt_broker_create_user, mqtt_broker_delete_acl,
+    mqtt_broker_delete_auto_subscribe_rule, mqtt_broker_delete_blacklist,
+    mqtt_broker_delete_connector, mqtt_broker_delete_schema, mqtt_broker_delete_topic_rewrite_rule,
     mqtt_broker_delete_user, mqtt_broker_enable_flapping_detect, mqtt_broker_enable_slow_subscribe,
     mqtt_broker_list_acl, mqtt_broker_list_auto_subscribe_rule, mqtt_broker_list_bind_schema,
     mqtt_broker_list_blacklist, mqtt_broker_list_connection, mqtt_broker_list_connector,
@@ -36,15 +37,15 @@ use metadata_struct::schema::SchemaData;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusRequest, CreateAclRequest, CreateBlacklistRequest, CreateUserRequest,
-    DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteUserRequest,
-    EnableFlappingDetectRequest, EnableSlowSubscribeRequest, ListAclRequest,
-    ListAutoSubscribeRuleRequest, ListBlacklistRequest, ListConnectionRequest,
-    ListSlowSubscribeRequest, ListTopicRequest, ListUserRequest, MqttBindSchemaRequest,
-    MqttCreateConnectorRequest, MqttCreateSchemaRequest, MqttDeleteConnectorRequest,
-    MqttDeleteSchemaRequest, MqttListBindSchemaRequest, MqttListConnectorRequest,
-    MqttListSchemaRequest, MqttUnbindSchemaRequest, MqttUpdateConnectorRequest,
-    MqttUpdateSchemaRequest, SetAutoSubscribeRuleRequest,
+    ClusterStatusRequest, CreateAclRequest, CreateBlacklistRequest, CreateTopicRewriteRuleRequest,
+    CreateUserRequest, DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest,
+    DeleteTopicRewriteRuleRequest, DeleteUserRequest, EnableFlappingDetectRequest,
+    EnableSlowSubscribeRequest, ListAclRequest, ListAutoSubscribeRuleRequest, ListBlacklistRequest,
+    ListConnectionRequest, ListSlowSubscribeRequest, ListTopicRequest, ListUserRequest,
+    MqttBindSchemaRequest, MqttCreateConnectorRequest, MqttCreateSchemaRequest,
+    MqttDeleteConnectorRequest, MqttDeleteSchemaRequest, MqttListBindSchemaRequest,
+    MqttListConnectorRequest, MqttListSchemaRequest, MqttUnbindSchemaRequest,
+    MqttUpdateConnectorRequest, MqttUpdateSchemaRequest, SetAutoSubscribeRuleRequest,
 };
 use std::str::FromStr;
 use std::sync::Arc;
@@ -89,6 +90,10 @@ pub enum MqttActionType {
 
     // flapping detect
     EnableFlappingDetect(EnableFlappingDetectRequest),
+
+    // topic rewrite rule
+    CreateTopicRewriteRule(CreateTopicRewriteRuleRequest),
+    DeleteTopicRewriteRule(DeleteTopicRewriteRuleRequest),
 
     // publish
     Publish(PublishArgsRequest),
@@ -175,9 +180,35 @@ impl MqttBrokerCommand {
                 self.delete_blacklist(&client_pool, params.clone(), request.clone())
                     .await;
             }
-            // connection
+            // list connection
             MqttActionType::ListConnection => {
                 self.list_connections(&client_pool, params.clone()).await;
+            }
+            // connector
+            MqttActionType::ListConnector(ref request) => {
+                self.list_connectors(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::CreateConnector(ref request) => {
+                self.create_connector(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::DeleteConnector(ref request) => {
+                self.delete_connector(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::UpdateConnector(ref request) => {
+                self.update_connector(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            // topic rewrite rule
+            MqttActionType::CreateTopicRewriteRule(ref request) => {
+                self.create_topic_rewrite_rule(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::DeleteTopicRewriteRule(ref request) => {
+                self.delete_topic_rewrite_rule(&client_pool, params.clone(), request.clone())
+                    .await;
             }
             MqttActionType::EnableSlowSubscribe(ref request) => {
                 self.enable_slow_subscribe(&client_pool, params.clone(), *request)
@@ -200,22 +231,6 @@ impl MqttBrokerCommand {
             }
             MqttActionType::Subscribe(ref request) => {
                 self.subscribe(params.clone(), request.clone()).await;
-            }
-            MqttActionType::ListConnector(ref request) => {
-                self.list_connectors(&client_pool, params.clone(), request.clone())
-                    .await;
-            }
-            MqttActionType::CreateConnector(ref request) => {
-                self.create_connector(&client_pool, params.clone(), request.clone())
-                    .await;
-            }
-            MqttActionType::DeleteConnector(ref request) => {
-                self.delete_connector(&client_pool, params.clone(), request.clone())
-                    .await;
-            }
-            MqttActionType::UpdateConnector(ref request) => {
-                self.update_connector(&client_pool, params.clone(), request.clone())
-                    .await;
             }
 
             // schema
@@ -395,6 +410,7 @@ impl MqttBrokerCommand {
             }
         }
     }
+    // ------------ cluster status ------------
     async fn status(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
         let request = ClusterStatusRequest {};
         match mqtt_broker_cluster_status(client_pool, &grpc_addr(params.server), request).await {
@@ -412,6 +428,7 @@ impl MqttBrokerCommand {
             }
         }
     }
+    // ------------ user admin ------------
 
     async fn create_user(
         &self,
@@ -467,6 +484,7 @@ impl MqttBrokerCommand {
             }
         }
     }
+    // -------------- acl admin --------------
 
     async fn create_acl(
         &self,
@@ -537,6 +555,7 @@ impl MqttBrokerCommand {
         }
     }
 
+    // -------------- blacklist admin --------------
     async fn create_blacklist(
         &self,
         client_pool: &ClientPool,
@@ -581,7 +600,12 @@ impl MqttBrokerCommand {
             Ok(data) => {
                 // format table
                 let mut table = Table::new();
-                table.add_row(row!["blacklist_type", "resource_name", "end_time", "desc"]);
+                table.add_row(row![
+                    "blacklist_type",
+                    "resource_name",
+                    "end_time",
+                    "blacklist_type"
+                ]);
                 for blacklist in data.blacklists {
                     let mqtt_acl_blacklist =
                         serde_json::from_slice::<MqttAclBlackList>(blacklist.as_slice()).unwrap();
@@ -602,6 +626,7 @@ impl MqttBrokerCommand {
         }
     }
 
+    // -------------- list connections --------------
     async fn list_connections(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
         let request = ListConnectionRequest {};
         match mqtt_broker_list_connection(client_pool, &grpc_addr(params.server), request).await {
@@ -636,7 +661,7 @@ impl MqttBrokerCommand {
         }
     }
 
-    // flapping detect
+    // -------------- flapping detect --------------
     async fn enable_flapping_detect(
         &self,
         client_pool: &ClientPool,
@@ -888,6 +913,53 @@ impl MqttBrokerCommand {
             }
             Err(e) => {
                 println!("MQTT broker update connector exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    // ------------------ topic rewrite rule ----------------
+    async fn create_topic_rewrite_rule(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: CreateTopicRewriteRuleRequest,
+    ) {
+        match mqtt_broker_create_topic_rewrite_rule(
+            client_pool,
+            &grpc_addr(params.server),
+            cli_request,
+        )
+        .await
+        {
+            Ok(_) => {
+                println!("Created successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker create topic rewrite rule exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn delete_topic_rewrite_rule(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: DeleteTopicRewriteRuleRequest,
+    ) {
+        match mqtt_broker_delete_topic_rewrite_rule(
+            client_pool,
+            &grpc_addr(params.server),
+            cli_request,
+        )
+        .await
+        {
+            Ok(_) => {
+                println!("Deleted successfully!")
+            }
+            Err(e) => {
+                println!("MQTT broker delete topic rewrite rule exception");
                 error_info(e.to_string());
             }
         }
