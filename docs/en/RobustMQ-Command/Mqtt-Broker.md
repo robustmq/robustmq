@@ -273,3 +273,9 @@ connection list:
 The topic list command is used to query the current topic status of the MQTT Broker. It provides information about the topic name, type, and other relevant details.
 
 ```console
+% ./bin/robust-ctl mqtt mqtt list-connection
+connection list:
++---------------+-----------------+----------+-------------+------+
+| connection_id | connection_type | protocol | source_addr | info |
++---------------+-----------------+----------+-------------+------+
+```
