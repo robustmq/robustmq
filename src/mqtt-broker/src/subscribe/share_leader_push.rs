@@ -118,12 +118,9 @@ where
                 .share_leader_push_thread
                 .contains_key(&share_leader_key)
             {
-                self.push_by_round_robin(
-                    share_leader_key,
-                    sub_data,
-                    self.subscribe_manager.clone(),
-                )
-                .await;
+                if let Err(e) = self.push_by_round_robin(share_leader_key, sub_data).await {
+                    error!("{:?}", e);
+                }
             }
         }
     }
@@ -132,26 +129,16 @@ where
         &self,
         share_leader_key: String,
         sub_data: ShareLeaderSubscribeData,
-        subscribe_manager: Arc<SubscribeManager>,
-    ) {
+    ) -> Result<(), MqttBrokerError> {
         let (sub_thread_stop_sx, mut sub_thread_stop_rx) = broadcast::channel(1);
-
         let group_id = format!(
             "system_sub_{}_{}_{}",
             sub_data.group_name, sub_data.sub_name, sub_data.topic_id
         );
-        let cursor_point = 0;
-
-        let message_storage = MessageStorage::new(self.message_storage.clone());
 
         // get current offset by group
-        let mut offset = match message_storage.get_group_offset(&group_id).await {
-            Ok(offset) => offset,
-            Err(e) => {
-                error!("{}", e);
-                return;
-            }
-        };
+        let message_storage = MessageStorage::new(self.message_storage.clone());
+        let mut offset = message_storage.get_group_offset(&group_id).await?;
 
         // save push thread
         self.subscribe_manager
@@ -160,6 +147,7 @@ where
 
         let connection_manager = self.connection_manager.clone();
         let cache_manager = self.cache_manager.clone();
+        let subscribe_manager = self.subscribe_manager.clone();
 
         tokio::spawn(async move {
             info!(
@@ -167,9 +155,6 @@ where
                 sub_data.group_name, sub_data.sub_name, sub_data.topic_name
             );
 
-            let mut sub_list: Vec<Subscriber> =
-                build_share_leader_sub_list(&subscribe_manager, &share_leader_key);
-            let mut pre_times = now_second();
             loop {
                 select! {
                     val = sub_thread_stop_rx.recv() =>{
@@ -187,10 +172,10 @@ where
                         &connection_manager,
                         &cache_manager,
                         &message_storage,
+                        &subscribe_manager,
+                        &share_leader_key,
                         &sub_data,
-                        &sub_list,
                         &group_id,
-                        cursor_point,
                         offset,
                         &sub_thread_stop_sx
                     ) =>{
@@ -211,12 +196,6 @@ where
                                 sleep(Duration::from_millis(100)).await;
                             }
                         }
-
-                        // Refresh the subscriber list of shared subscriptions every second to ensure that new subscribers can get messages in time.
-                        if now_second() - pre_times >= 1{
-                            sub_list = build_share_leader_sub_list(&subscribe_manager, &share_leader_key);
-                            pre_times = now_second();
-                        }
                     }
                 }
             }
@@ -225,6 +204,7 @@ where
                 .share_leader_push_thread
                 .remove(&share_leader_key);
         });
+        Ok(())
     }
 }
 
@@ -233,20 +213,18 @@ async fn read_message_process<S>(
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<CacheManager>,
     message_storage: &MessageStorage<S>,
+    subscribe_manager: &Arc<SubscribeManager>,
+    share_leader_key: &str,
     sub_data: &ShareLeaderSubscribeData,
-    sub_list: &[Subscriber],
     group_id: &str,
-    mut cursor_point: usize,
     offset: u64,
     stop_sx: &Sender<bool>,
 ) -> Result<Option<u64>, MqttBrokerError>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
-    let record_num = calc_record_num(sub_list.len());
-
     let results = message_storage
-        .read_topic_message(&sub_data.topic_id, offset, record_num as u64)
+        .read_topic_message(&sub_data.topic_id, offset, 100)
         .await?;
 
     if results.is_empty() {
@@ -260,17 +238,16 @@ where
             continue;
         }
 
-        let mut loop_times = 0;
         loop {
-            if loop_times > try_loop_times(sub_list.len()) {
-                error!("Share subscription push message fails, dropping the message, possibly because no subscriber is available");
-                break;
-            }
-
-            cursor_point = choose_available_sub(cursor_point, sub_list);
-            let subscribe = if let Some(sub) = sub_list.get(cursor_point) {
-                sub.clone()
+            let subscribe = if let Some(subscrbie) =
+                get_subscribe(subscribe_manager, share_leader_key, record.offset.unwrap())
+            {
+                subscrbie
             } else {
+                info!(
+                    "Not subscribed to the topic {}, and the message will not be sent.",
+                    &sub_data.topic_name
+                );
                 continue;
             };
 
@@ -307,7 +284,6 @@ where
                     break;
                 }
             }
-            loop_times += 1;
         }
 
         // commit offset
@@ -320,19 +296,6 @@ where
         .await;
     }
     Ok(results.last().unwrap().offset)
-}
-
-fn try_loop_times(sub_len: usize) -> usize {
-    sub_len * 2
-}
-
-fn choose_available_sub(cursor_point: usize, sub_list: &[Subscriber]) -> usize {
-    let current_point = cursor_point + 1;
-    if current_point < sub_list.len() {
-        current_point
-    } else {
-        0
-    }
 }
 
 async fn qos_publish<S>(
@@ -616,33 +579,19 @@ where
     Ok(())
 }
 
-fn build_share_leader_sub_list(
+fn get_subscribe(
     subscribe_manager: &Arc<SubscribeManager>,
-    key: &str,
-) -> Vec<Subscriber> {
-    let sub_list = if let Some(sub) = subscribe_manager.share_leader_push.get(key) {
-        sub.sub_list.clone()
-    } else {
-        return Vec::new();
-    };
-
-    let mut result = Vec::new();
-    for (_, sub) in sub_list {
-        result.push(sub);
-    }
-    result
-}
-
-fn calc_record_num(sub_len: usize) -> usize {
-    if sub_len == 0 {
-        return 100;
+    share_leader_key: &str,
+    record_num: u64,
+) -> Option<Subscriber> {
+    if let Some(sub_list) = subscribe_manager.share_leader_push.get(share_leader_key) {
+        let index = record_num % (sub_list.sub_list.len() as u64);
+        if let Some(subscribe) = sub_list.sub_list.get(index as usize) {
+            return Some(subscribe.clone());
+        }
     }
 
-    let num = sub_len * 5;
-    if num > 1000 {
-        return 1000;
-    }
-    num
+    None
 }
 
 #[cfg(test)]

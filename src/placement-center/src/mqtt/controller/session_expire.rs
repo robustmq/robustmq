@@ -245,6 +245,7 @@ pub async fn delete_sessions(
                 Ok(_) => {}
                 Err(e) => {
                     success = false;
+                    sleep(Duration::from_secs(1)).await;
                     warn!("{}", e);
                 }
             }

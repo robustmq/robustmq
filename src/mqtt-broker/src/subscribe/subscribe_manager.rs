@@ -37,7 +37,7 @@ pub struct ShareLeaderSubscribeData {
     pub topic_name: String,
     pub sub_name: String,
     // (client_id_sub_path, subscriber)
-    pub sub_list: DashMap<String, Subscriber>,
+    pub sub_list: Vec<Subscriber>,
 }
 
 #[derive(Clone)]
@@ -144,33 +144,32 @@ impl SubscribeManager {
     pub fn add_share_subscribe_leader(&self, sub_name: &str, sub: Subscriber) {
         let group_name = sub.group_name.clone().unwrap();
         let share_leader_key = self.share_leader_key(&group_name, sub_name, &sub.topic_id);
-        let leader_sub_key = self.share_leader_sub_key(&sub.client_id, sub_name);
 
-        if let Some(share_sub) = self.share_leader_push.get_mut(&share_leader_key) {
-            share_sub.sub_list.insert(leader_sub_key, sub);
+        if let Some(mut share_sub) = self.share_leader_push.get_mut(&share_leader_key) {
+            share_sub.sub_list.push(sub);
         } else {
-            let sub_list = DashMap::with_capacity(8);
-            sub_list.insert(leader_sub_key, sub.clone());
-
-            let data = ShareLeaderSubscribeData {
-                group_name: group_name.to_owned(),
-                topic_id: sub.topic_id.to_owned(),
-                topic_name: sub.topic_name.to_owned(),
-                sub_name: sub_name.to_owned(),
-                sub_list,
-            };
-
-            self.share_leader_push
-                .insert(share_leader_key.clone(), data);
+            self.share_leader_push.insert(
+                share_leader_key.clone(),
+                ShareLeaderSubscribeData {
+                    group_name: group_name.to_owned(),
+                    topic_id: sub.topic_id.to_owned(),
+                    topic_name: sub.topic_name.to_owned(),
+                    sub_name: sub_name.to_owned(),
+                    sub_list: vec![sub],
+                },
+            );
         }
     }
 
     fn remove_share_subscribe_leader_by_client_id(&self, client_id: &str) {
         for (key, share_sub) in self.share_leader_push.clone() {
-            for (sub_key, subscriber) in share_sub.sub_list {
+            for (i, subscriber) in share_sub.sub_list.iter().enumerate() {
                 if subscriber.client_id == *client_id {
-                    let mut_data = self.share_leader_push.get_mut(&key).unwrap();
-                    mut_data.sub_list.remove(&sub_key);
+                    if let Some(mut mut_data) = self.share_leader_push.get_mut(&key) {
+                        if mut_data.sub_list.get(i).is_some() {
+                            mut_data.sub_list.remove(i);
+                        }
+                    }
                     self.remove_topic_subscribe_by_client_id(
                         &subscriber.topic_name,
                         &subscriber.client_id,
@@ -279,11 +278,6 @@ impl SubscribeManager {
     fn share_leader_key(&self, group_name: &str, sub_name: &str, topic_id: &str) -> String {
         format!("{}_{}_{}", group_name, sub_name, topic_id)
     }
-
-    fn share_leader_sub_key(&self, client_id: &str, sub_path: &str) -> String {
-        format!("{}_{}", client_id, sub_path)
-    }
-
     fn share_follower_key(&self, client_id: &str, group_name: &str, topic_id: &str) -> String {
         format!("{}_{}_{}", client_id, group_name, topic_id)
     }
