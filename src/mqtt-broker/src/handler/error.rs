@@ -104,6 +104,9 @@ pub enum MqttBrokerError {
     #[error("topicRewriteRule has been existed")]
     TopicRewriteRuleAlreadyExist,
 
+    #[error("Failed to build Message")]
+    FailedToBuildMessage,
+
     #[error("Publish message was delayed, the target Topic failed to resolve, Topic name {0}")]
     DelayPublishDecodeTopicNameFail(String),
 
