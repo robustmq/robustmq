@@ -26,6 +26,7 @@ use tokio::{select, sync::broadcast, time::sleep};
 
 use super::{file::FileBridgePlugin, manager::ConnectorManager};
 
+#[derive(Clone)]
 pub struct BridgePluginReadConfig {
     pub topic_id: String,
     pub record_num: u64,

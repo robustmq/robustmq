@@ -2644,6 +2644,7 @@ dependencies = [
  "serde",
  "serde_json",
  "storage-adapter",
+ "tempfile",
  "third-driver",
  "thiserror 1.0.69",
  "tokio",
