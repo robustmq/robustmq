@@ -175,14 +175,11 @@ pub async fn get_share_sub_leader(
 }
 
 pub async fn wait_packet_ack(sx: &Sender<QosAckPackageData>) -> Option<QosAckPackageData> {
-    let res = timeout(Duration::from_secs(120), async {
-        match sx.subscribe().recv().await {
-            Ok(data) => Some(data),
-            Err(_) => None,
-        }
-    });
-
-    (res.await).unwrap_or_default()
+    timeout(Duration::from_secs(120), async {
+        (sx.subscribe().recv().await).ok()
+    })
+    .await
+    .unwrap_or_default()
 }
 
 pub async fn publish_message_to_client(
