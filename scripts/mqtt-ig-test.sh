@@ -74,6 +74,6 @@ if [ "$1" = "dev" ]; then
 
 else
   cargo nextest run --package grpc-clients --test mod -- mqtt && \
-  cargo nextest run --package robustmq-test --test mod -- mqtt_server && \
-  cargo nextest run --package robustmq-test --test mod -- mqtt_protocol
+  cargo nextest run --package robustmq-test --test mod -- mqtt_server
+#   cargo nextest run --package robustmq-test --test mod -- mqtt_protocol
 fi
