@@ -12,11 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-build_server(){
-    make build
-}
-
-build_server
+make build
 sleep 5
 
 cd build
