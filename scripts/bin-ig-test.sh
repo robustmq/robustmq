@@ -15,6 +15,7 @@
 make build
 sleep 5
 
+make clean
 cd build
 tar -xzvf robustmq-0.1.14.tar.gz
 cd robustmq-0.1.14
@@ -30,6 +31,7 @@ bin/robust-server mqtt start
 sleep 10
 bin/robust-server journal start
 
+
 # place
 cargo nextest run --package grpc-clients --package robustmq-test --test mod -- placement && \
 cargo nextest run --package robustmq-test --test mod -- place_server && \
@@ -39,6 +41,11 @@ cargo nextest run --package storage-adapter --lib -- placement
 cargo nextest run  --package grpc-clients --test mod -- journal && \
 cargo nextest run  --package robustmq-test --test mod -- journal_client && \
 cargo nextest run  --package robustmq-test --test mod -- journal_server
+
+# mqtt
+cargo nextest run --package grpc-clients --test mod -- mqtt && \
+cargo nextest run --package robustmq-test --test mod -- mqtt_server && \
+cargo nextest run --package robustmq-test --test mod -- mqtt_protocol
 
 sleep 10
 bin/robust-server place stop
