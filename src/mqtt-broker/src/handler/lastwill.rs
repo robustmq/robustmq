@@ -206,7 +206,7 @@ mod test {
         assert_eq!(p_tmp.payload, Bytes::from(message.clone()));
         assert_eq!(p_tmp.qos, protocol::mqtt::common::QoS::AtLeastOnce);
         assert!(!p_tmp.retain);
-        assert_eq!(p_tmp.pkid, 0);
+        assert!(p_tmp.pkid > 0);
         assert!(!p_tmp.dup);
         assert!(pp.is_none());
 
@@ -228,7 +228,7 @@ mod test {
         assert_eq!(p_tmp.payload, Bytes::from(message.clone()));
         assert_eq!(p_tmp.qos, protocol::mqtt::common::QoS::AtLeastOnce);
         assert!(!p_tmp.retain);
-        assert_eq!(p_tmp.pkid, 0);
+        assert!(p_tmp.pkid > 0);
         assert!(!p_tmp.dup);
         assert!(pp.is_some());
 
