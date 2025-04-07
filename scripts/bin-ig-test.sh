@@ -12,14 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+VERSION=`grep '^version = ' Cargo.toml | head -n1 | cut -d'"' -f2`
+echo "Version: ${VERSION}"
+
 make build
 sleep 5
 
 cargo clean
 
 cd build
-tar -xzvf robustmq-0.1.14.tar.gz
-cd robustmq-0.1.14
+tar -xzvf robustmq-${VERSION}.tar.gz
+cd robustmq-${VERSION}
 pwd
 bin/robust-server place stop
 bin/robust-server mqtt stop
@@ -41,6 +44,8 @@ cargo nextest run --package storage-adapter --lib -- placement
 if [ $? -ne 0 ]; then
     echo "place test failed"
     exit 1
+else
+    echo "place test passed"
 fi
 
 # journal
@@ -51,6 +56,8 @@ cargo nextest run  --package robustmq-test --test mod -- journal_server
 if [ $? -ne 0 ]; then
     echo "journal test failed"
     exit 1
+else
+    echo "journal test passed"
 fi
 
 # mqtt
@@ -61,6 +68,8 @@ cargo nextest run --package robustmq-test --test mod -- mqtt_protocol
 if [ $? -ne 0 ]; then
     echo "mqtt test failed"
     exit 1
+else
+    echo "mqtt test passed"
 fi
 
 sleep 10
