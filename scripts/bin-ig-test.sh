@@ -24,14 +24,14 @@ pwd
 bin/robust-server place stop
 bin/robust-server mqtt stop
 bin/robust-server journal stop
-sleep 10
 
+sleep 10
 bin/robust-server place start
 sleep 10
 bin/robust-server mqtt start
 sleep 10
 bin/robust-server journal start
-
+sleep 10
 
 # place
 cargo nextest run --package grpc-clients --package robustmq-test --test mod -- placement && \
