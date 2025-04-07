@@ -15,7 +15,8 @@
 make build
 sleep 5
 
-make clean
+cargo clean
+
 cd build
 tar -xzvf robustmq-0.1.14.tar.gz
 cd robustmq-0.1.14
