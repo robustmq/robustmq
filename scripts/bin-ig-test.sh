@@ -38,15 +38,30 @@ cargo nextest run --package grpc-clients --package robustmq-test --test mod -- p
 cargo nextest run --package robustmq-test --test mod -- place_server && \
 cargo nextest run --package storage-adapter --lib -- placement
 
+if [ $? -ne 0 ]; then
+    echo "place test failed"
+    exit 1
+fi
+
 # journal
 cargo nextest run  --package grpc-clients --test mod -- journal && \
 cargo nextest run  --package robustmq-test --test mod -- journal_client && \
 cargo nextest run  --package robustmq-test --test mod -- journal_server
 
+if [ $? -ne 0 ]; then
+    echo "journal test failed"
+    exit 1
+fi
+
 # mqtt
 cargo nextest run --package grpc-clients --test mod -- mqtt && \
 cargo nextest run --package robustmq-test --test mod -- mqtt_server && \
 cargo nextest run --package robustmq-test --test mod -- mqtt_protocol
+
+if [ $? -ne 0 ]; then
+    echo "mqtt test failed"
+    exit 1
+fi
 
 sleep 10
 bin/robust-server place stop
