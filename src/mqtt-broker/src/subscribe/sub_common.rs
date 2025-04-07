@@ -50,6 +50,10 @@ pub fn path_contain_sub(_: &str) -> bool {
     true
 }
 
+pub fn get_pkid() -> u16 {
+    (now_mills() % 65535) as u16
+}
+
 pub fn sub_path_validator(sub_path: String) -> bool {
     let regex = Regex::new(r"^[\$a-zA-Z0-9_#+/]+$").unwrap();
 
@@ -330,6 +334,9 @@ pub async fn wait_pub_rec(
             val = wait_pub_rec_fn() => {
                 if let Err(e) = val {
                     error!("{:?}",e);
+                    if e.to_string().contains("wait pubrec timeout"){
+                        break;
+                    }
                     sleep(Duration::from_secs(1)).await;
                     continue;
                 }
@@ -385,6 +392,9 @@ pub async fn wait_pub_comp(
             val = wait_pub_rec_fn() => {
                 if let Err(e) = val {
                     error!("{:?}",e);
+                    if e.to_string().contains("wait PubComp timeout"){
+                        break;
+                    }
                     sleep(Duration::from_secs(1)).await;
                     continue;
                 }
@@ -565,6 +575,8 @@ pub async fn publish_message_qos(
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
+    use std::thread::sleep;
+    use std::time::Duration;
 
     use common_base::tools::unique_id;
     use grpc_clients::pool::ClientPool;
@@ -573,8 +585,8 @@ mod tests {
 
     use crate::handler::cache::CacheManager;
     use crate::subscribe::sub_common::{
-        decode_share_info, get_sub_topic_id_list, is_share_sub, min_qos, path_regex_match,
-        sub_path_validator,
+        decode_share_info, get_pkid, get_sub_topic_id_list, is_share_sub, min_qos,
+        path_regex_match, sub_path_validator,
     };
 
     #[tokio::test]
@@ -732,5 +744,14 @@ mod tests {
 
         let path = "$share/loboxu/*test".to_string();
         assert!(!sub_path_validator(path));
+    }
+
+    #[tokio::test]
+    async fn get_pkid_test() {
+        for _i in 0..20 {
+            let id = get_pkid();
+            println!("{}", id);
+            sleep(Duration::from_secs(1));
+        }
     }
 }

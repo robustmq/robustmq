@@ -14,6 +14,8 @@
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use crate::mqtt_protocol::{
         common::{
             broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
@@ -28,8 +30,9 @@ mod tests {
     async fn sub_identifier_test() {
         for network in network_types() {
             for qos in qos_list() {
-                let client_id =
-                    build_client_id(format!("user_properties_test_{}_{}", network, qos).as_str());
+                let client_id = build_client_id(
+                    format!("sub_identifier_test_pub_{}_{}", network, qos).as_str(),
+                );
 
                 let topic = unique_id();
                 let topic1 = format!("/test_tcp/{}/+", topic);
@@ -57,8 +60,9 @@ mod tests {
                 distinct_conn(cli);
 
                 // subscribe
-                let client_id =
-                    build_client_id(format!("user_properties_test_{}_{}", network, qos).as_str());
+                let client_id = build_client_id(
+                    format!("sub_identifier_test_sub_{}_{}", network, qos).as_str(),
+                );
 
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,
@@ -102,14 +106,17 @@ mod tests {
                 let mut r_two = false;
                 let rx = cli.start_consuming();
 
-                for message in rx.iter() {
+                loop {
+                    let res_opt = rx.recv_timeout(Duration::from_secs(10));
+                    let message = res_opt.unwrap();
+                    println!("message: {:?}", message);
                     if let Some(msg) = message {
                         let sub_identifier = msg
                             .properties()
                             .get_int(PropertyCode::SubscriptionIdentifier)
                             .unwrap();
 
-                        println!("{:?} sub_identifier: {}", msg, sub_identifier);
+                        println!("sub_identifier: {}", sub_identifier);
 
                         match sub_identifier {
                             1 => {
@@ -123,6 +130,7 @@ mod tests {
                             }
                         }
                     }
+                    println!("r_one: {}, r_two: {}", r_one, r_two);
                     if r_one && r_two {
                         break;
                     }
