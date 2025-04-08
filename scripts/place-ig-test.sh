@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+source scripts/check-place-status.sh
 
 start_server(){
     nohup cargo run --package cmd --bin placement-center -- --conf=config/placement-center.toml 2>/tmp/1.log &
@@ -38,7 +39,7 @@ stop_server
 
 # Start Server
 start_server
-sleep 10
+check_status
 
 # Run Placement integration Test
 if [ "$1" = "dev" ]; then
