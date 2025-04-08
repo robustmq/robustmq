@@ -5,7 +5,7 @@
 MQTT Broker 提供了集群状态查询功能，可以通过命令行工具查看集群的健康状态、节点信息等。
 
 ```console
-% ./bin/robust-ctl mqtt mqtt status
+% ./bin/robust-ctl mqtt status
 cluster name: example_cluster
 node list:
 - node1
@@ -26,7 +26,7 @@ MQTT Broker 启用了用户验证功能，客户端在发布或订阅消息前�
 创建新的 MQTT Broker 用户。
 
 ```console
-% ./bin/robust-ctl mqtt mqtt user create --username=testp --password=7355608 --is_superuser=false
+% ./bin/robust-ctl mqtt user create --username=testp --password=7355608 --is_superuser=false
 Created successfully!
 ```
 
@@ -35,7 +35,7 @@ Created successfully!
 删除已有的 MQTT Broker 用户。
 
 ```console
-% ./bin/robust-ctl mqtt mqtt user delete --username=testp
+% ./bin/robust-ctl mqtt user delete --username=testp
 Deleted successfully!
 ```
 
@@ -44,7 +44,7 @@ Deleted successfully!
 列出所有已创建的用户。
 
 ```console
-% ./bin/robust-ctl mqtt mqtt user list
+% ./bin/robust-ctl mqtt user list
 +----------+--------------+
 | username | is_superuser |
 +----------+--------------+
@@ -59,7 +59,7 @@ Deleted successfully!
 ### 3.1 发布 MQTT 消息
 
 ```console
-% ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 publish --username=admin --password=pwd123 --topic=test/topic1 --qos=0
+% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 publish --username=admin --password=pwd123 --topic=test/topic1 --qos=0
 able to connect: "127.0.0.1:1883"
 you can post a message on the terminal:
 1
@@ -78,7 +78,7 @@ you can post a message on the terminal:
 ### 3.2 订阅 MQTT 消息
 
 ```console
-% ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 subscribe --username=admin --password=pwd123 --topic=test/topic1 --qos=0
+% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 subscribe --username=admin --password=pwd123 --topic=test/topic1 --qos=0
 
 able to connect: "127.0.0.1:1883"
 subscribe success
@@ -94,7 +94,7 @@ End of input stream.
 ### 3.3 发布保留消息
 
 ```console
-% ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 publish --username=admin --password=pwd123 --topic=\$share/group1/test/topic1 --qos=1 --retained
+% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 publish --username=admin --password=pwd123 --topic=\$share/group1/test/topic1 --qos=1 --retained
 able to connect: "127.0.0.1:1883"
 you can post a message on the terminal:
 helloworld!
@@ -103,7 +103,7 @@ published retained message
 ```
 
 ```console
-% ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 subscribe --username=admin --password=pwd123 --topic=\$share/group1/test/topic1 --qos=0
+% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 subscribe --username=admin --password=pwd123 --topic=\$share/group1/test/topic1 --qos=0
 able to connect: "127.0.0.1:1883"
 subscribe success
 Retain message: helloworld!
@@ -116,7 +116,7 @@ Retain message: helloworld!
 创建新的 ACL 规则。
 
 ```console
-% ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 acl create --cluster-name=admin --acl=xxx
+% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 acl create --cluster-name=admin --acl=xxx
 able to connect: "127.0.0.1:1883"
 Created successfully!
 ```
@@ -126,7 +126,7 @@ Created successfully!
 删除已有的 ACL 规则。
 
 ```console
-% ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 acl delete --cluster-name=admin --acl=xxx
+% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 acl delete --cluster-name=admin --acl=xxx
 able to connect: "127.0.0.1:1883"
 Deleted successfully!
 ```
@@ -136,7 +136,7 @@ Deleted successfully!
 列出所有已创建的 ACL 规则。
 
 ```console
-% ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 acl list
+% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 acl list
 +---------------+---------------+-------+----+--------+------------+
 | resource_type | resource_name | topic | ip | action | permission |
 +---------------+---------------+-------+----+--------+------------+
@@ -149,16 +149,17 @@ Deleted successfully!
 创建新的黑名单规则。
 
 ```console
-% ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 blacklist create --cluster-name=admin --blacklist=client_id
+% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 blacklist create --cluster-name=admin --blacklist=client_id
 able to connect: "127.0.0.1:1883"
 Created successfully!
 ```
+
 ### 5.2 删除黑名单
 
 删除已有的黑名单规则。
 
 ```console
-% ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 blacklist delete --cluster-name=admin --blacklist-type=client_id --resource-name=client1
+% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 blacklist delete --cluster-name=admin --blacklist-type=client_id --resource-name=client1
 able to connect: "127.0.0.1:1883"
 Deleted successfully!
 ```
@@ -168,7 +169,7 @@ Deleted successfully!
 列出所有已创建的黑名单规则。
 
 ```console
-% ./bin/robust-ctl mqtt mqtt --server=127.0.0.1:1883 blacklist list
+% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 blacklist list
 +----------------+---------------+----------+------+
 | blacklist_type | resource_name | end_time | desc |
 +----------------+---------------+----------+------+
@@ -187,14 +188,14 @@ Broker 来计算完成消息处理以及传输整个流程所消耗的时间(时
 - 开启慢订阅
 
 ```console
-% ./bin/robust-ctl mqtt mqtt slow-sub --enable=true
+% ./bin/robust-ctl mqtt slow-sub --enable=true
 The slow subscription feature has been successfully enabled.
 ```
 
 - 关闭慢订阅
 
 ```console
-% ./bin/robust-ctl mqtt mqtt slow-sub --enable=false
+% ./bin/robust-ctl mqtt slow-sub --enable=false
 The slow subscription feature has been successfully closed.
 ```
 
@@ -205,7 +206,7 @@ The slow subscription feature has been successfully closed.
 如果我们想要查看慢订阅记录，客户端可以输入如下命令
 
 ```console
-% ./bin/robust-ctl mqtt mqtt slow-sub --query=true
+% ./bin/robust-ctl mqtt slow-sub --query=true
 +-----------+-------+----------+---------+-------------+
 | client_id | topic | sub_name | time_ms | create_time |
 +-----------+-------+----------+---------+-------------+
@@ -216,7 +217,7 @@ The slow subscription feature has been successfully closed.
 那么可以使用如下的命令
 
 ```console
-% ./bin/robust-ctl mqtt mqtt slow-sub --list=200 --sort=asc
+% ./bin/robust-ctl mqtt slow-sub --list=200 --sort=asc
 +-----------+-------+----------+---------+-------------+
 | client_id | topic | sub_name | time_ms | create_time |
 +-----------+-------+----------+---------+-------------+
@@ -227,7 +228,7 @@ sub_name 以及 client_id 的方式来获取不同字段过滤后的结果，
 其结果默认从大到小倒序排序，参考使用命令如下
 
 ```console
-% ./bin/robust-ctl mqtt mqtt slow-sub --topic=topic_test1 --list=200
+% ./bin/robust-ctl mqtt slow-sub --topic=topic_test1 --list=200
 +-----------+-------+----------+---------+-------------+
 | client_id | topic | sub_name | time_ms | create_time |
 +-----------+-------+----------+---------+-------------+
@@ -242,13 +243,14 @@ sub_name 以及 client_id 的方式来获取不同字段过滤后的结果，
 ### 7.1 创建主题重写规则
 
 ```console
-% ./bin/robust-ctl mqtt mqtt topic-rewrite create --action=xxx --source-topic=xxx --dest-topic=xxx --regex=xxx
+% ./bin/robust-ctl mqtt topic-rewrite create --action=xxx --source-topic=xxx --dest-topic=xxx --regex=xxx
 Created successfully!
 ```
+
 ### 7.2 删除主题重写规则
 
 ```console
-% ./bin/robust-ctl mqtt mqtt topic-rewrite delete --action=xxx --source-topic=xxx
+% ./bin/robust-ctl mqtt topic-rewrite delete --action=xxx --source-topic=xxx
 Deleted successfully!
 ```
 
@@ -259,14 +261,14 @@ Deleted successfully!
 - 开启连接抖动检测
 
 ```console
-% ./bin/robust-ctl mqtt mqtt flaping-detect --is-enable=false --window-time=1 --max-client-connections=15 --ban-time=5
+% ./bin/robust-ctl mqtt flaping-detect --is-enable=false --window-time=1 --max-client-connections=15 --ban-time=5
 The flapping detect feature has been successfully enabled.
 ```
 
 - 关闭连接抖动检测
 
 ```console
-% ./bin/robust-ctl mqtt mqtt flaping-detect --is-enable=false
+% ./bin/robust-ctl mqtt flaping-detect --is-enable=false
 The flapping detect feature has been successfully closed.
 ```
 
@@ -275,7 +277,7 @@ The flapping detect feature has been successfully closed.
 连接列表命令用于查询 MQTT Broker 当前的连接状态，提供连接 ID、类型、协议、源地址等相关信息。
 
 ```console
-% ./bin/robust-ctl mqtt mqtt list-connection
+% ./bin/robust-ctl mqtt list-connection
 connection list:
 +---------------+-----------------+----------+-------------+------+
 | connection_id | connection_type | protocol | source_addr | info |

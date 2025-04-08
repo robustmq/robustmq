@@ -27,6 +27,39 @@ Options:
           Print version
 ```
 
+## Special Note
+
+The `robust-ctl` command is executed based on the final build artifact, so you need to build it first before executing the above commands.
+
+```bash
+# Build
+make build
+
+# Extract the archive
+tar -zxvf build/robustmq-xxx.tar.gz
+
+# Use
+./build/robustmq-xxx/bin/robust-ctl
+```
+
+This is just for demonstration purposes. In subsequent commands, we'll use ./bin/robust-ctl to refer to the current command.
+
+### Using cargo to execute
+
+During local development, you can simplify this process by using cargo to execute.
+
+```bash
+cargo run --package cmd --bin cli-command
+```
+
+If you need to specify parameters, execute as follows:
+
+```bash
+cargo run --package cmd --bin cli-command -- arg1 arg2 ...
+```
+
+This is just for demonstration purposes. In subsequent commands, we'll use ./bin/robust-ctl to refer to the current command.
+
 ## MQTT Broker
 
 Responsible for MQTT Broker service related operations
