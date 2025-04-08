@@ -38,7 +38,7 @@ use crate::storage::topic::TopicStorage;
 use crate::subscribe::exclusive_push::{
     exclusive_publish_message_qos1, exclusive_publish_message_qos2,
 };
-use crate::subscribe::sub_common::{get_sub_topic_id_list, min_qos, publish_message_qos};
+use crate::subscribe::sub_common::{get_pkid, get_sub_topic_id_list, min_qos, publish_message_qos};
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use crate::subscribe::subscriber::SubPublishParam;
 use crate::subscribe::subscriber::Subscriber;
@@ -202,11 +202,7 @@ async fn send_retain_message(
                 content_type: msg.content_type,
             };
 
-            let pkid = if qos != QoS::AtMostOnce {
-                cache_manager.get_pkid(client_id).await
-            } else {
-                0
-            };
+            let pkid = get_pkid();
 
             let publish = Publish {
                 dup: false,
@@ -257,7 +253,6 @@ async fn send_retain_message(
                     )
                     .await;
 
-                    cache_manager.remove_pkid_info(client_id, pkid);
                     cache_manager.remove_ack_packet(client_id, pkid);
                 }
 
@@ -281,7 +276,6 @@ async fn send_retain_message(
                     )
                     .await;
 
-                    cache_manager.remove_pkid_info(client_id, pkid);
                     cache_manager.remove_ack_packet(client_id, pkid);
                 }
             };

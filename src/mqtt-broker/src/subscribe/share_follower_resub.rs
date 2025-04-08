@@ -45,6 +45,7 @@ use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, 
 use crate::handler::error::MqttBrokerError;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
+use crate::subscribe::sub_common::get_pkid;
 use crate::subscribe::subscribe_manager::ShareSubShareSub;
 use crate::subscribe::subscriber::Subscriber;
 
@@ -342,7 +343,7 @@ async fn process_packet(
                     ..Default::default()
                 };
 
-                let publish_to_client_pkid: u16 = cache_manager.get_pkid(&mqtt_client_id).await;
+                let publish_to_client_pkid = get_pkid();
                 publish.pkid = publish_to_client_pkid;
 
                 let sub_pub_param = SubPublishParam::new(
@@ -390,8 +391,6 @@ async fn process_packet(
                         {
                             Ok(()) => {
                                 cache_manager
-                                    .remove_pkid_info(&mqtt_client_id, publish_to_client_pkid);
-                                cache_manager
                                     .remove_ack_packet(&mqtt_client_id, publish_to_client_pkid);
                             }
                             Err(e) => {
@@ -434,8 +433,6 @@ async fn process_packet(
                         .await
                         {
                             Ok(()) => {
-                                cache_manager
-                                    .remove_pkid_info(&mqtt_client_id, publish_to_client_pkid);
                                 cache_manager
                                     .remove_ack_packet(&mqtt_client_id, publish_to_client_pkid);
                                 cache_manager.remove_ack_packet(

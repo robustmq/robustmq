@@ -22,7 +22,7 @@ use paho_mqtt::{
 };
 
 pub fn qos_list() -> Vec<i32> {
-    vec![0, 1, 2]
+    vec![0]
 }
 
 pub fn protocol_versions() -> Vec<u32> {
@@ -32,8 +32,8 @@ pub fn protocol_versions() -> Vec<u32> {
 pub fn network_types() -> Vec<String> {
     vec![
         "tcp".to_string(),
-        "ws".to_string(),
-        "wss".to_string(),
+        // "ws".to_string(),
+        // "wss".to_string(),
         "ssl".to_string(),
     ]
 }
@@ -229,7 +229,7 @@ pub fn build_v5_conn_pros(
     };
 
     conn_opts
-        .keep_alive_interval(Duration::from_secs(2))
+        .keep_alive_interval(Duration::from_secs(600))
         .clean_start(true)
         .connect_timeout(Duration::from_secs(60))
         .automatic_reconnect(Duration::from_secs(1), Duration::from_secs(5))

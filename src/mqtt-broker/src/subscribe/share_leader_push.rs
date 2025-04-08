@@ -26,8 +26,8 @@ use tokio::sync::broadcast::{self, Sender};
 use tokio::time::sleep;
 
 use super::sub_common::{
-    loop_commit_offset, min_qos, publish_message_qos, publish_message_to_client, qos2_send_pubrel,
-    wait_packet_ack,
+    get_pkid, loop_commit_offset, min_qos, publish_message_qos, publish_message_to_client,
+    qos2_send_pubrel, wait_packet_ack,
 };
 use super::subscribe_manager::{ShareLeaderSubscribeData, SubscribeManager};
 use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
@@ -254,11 +254,7 @@ where
             if let Some((mut publish, properties)) =
                 build_publish(cache_manager, &subscribe, &sub_data.topic_name, &msg)
             {
-                let pkid = if publish.qos != QoS::AtMostOnce {
-                    cache_manager.get_pkid(&subscribe.client_id).await
-                } else {
-                    0
-                };
+                let pkid = get_pkid();
 
                 publish.pkid = pkid;
 
@@ -336,8 +332,6 @@ where
             {
                 Ok(()) => {
                     // remove data
-                    cache_manager
-                        .remove_pkid_info(&sub_pub_param.subscribe.client_id, sub_pub_param.pkid);
                     cache_manager
                         .remove_ack_packet(&sub_pub_param.subscribe.client_id, sub_pub_param.pkid);
                     true
@@ -565,8 +559,6 @@ where
         }
         if let Some(data) = wait_packet_ack(wait_ack_sx).await {
             if data.ack_type == QosAckPackageType::PubComp && data.pkid == sub_pub_param.pkid {
-                cache_manager
-                    .remove_pkid_info(&sub_pub_param.subscribe.client_id, sub_pub_param.pkid);
                 cache_manager
                     .remove_ack_packet(&sub_pub_param.subscribe.client_id, sub_pub_param.pkid);
                 break;

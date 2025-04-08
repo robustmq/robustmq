@@ -27,7 +27,7 @@ use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
 
 use super::sub_common::{
-    loop_commit_offset, min_qos, publish_message_qos, qos2_send_pubrel, wait_pub_ack,
+    get_pkid, loop_commit_offset, min_qos, publish_message_qos, qos2_send_pubrel, wait_pub_ack,
     wait_pub_comp, wait_pub_rec,
 };
 use super::subscribe_manager::SubscribeManager;
@@ -225,15 +225,8 @@ where
         let record_offset = record.offset.unwrap();
 
         // build publish params
-        let sub_pub_param = if let Some(params) = build_pub_message(
-            record.to_owned(),
-            group_id,
-            qos,
-            subscriber,
-            cache_manager,
-            sub_ids,
-        )
-        .await?
+        let sub_pub_param = if let Some(params) =
+            build_pub_message(record.to_owned(), group_id, qos, subscriber, sub_ids).await?
         {
             params
         } else {
@@ -272,7 +265,6 @@ where
                 )
                 .await;
 
-                cache_manager.remove_pkid_info(&client_id, pkid);
                 cache_manager.remove_ack_packet(&client_id, pkid);
             }
 
@@ -296,7 +288,6 @@ where
                 )
                 .await;
 
-                cache_manager.remove_pkid_info(&client_id, pkid);
                 cache_manager.remove_ack_packet(&client_id, pkid);
             }
         }
@@ -319,7 +310,6 @@ async fn build_pub_message(
     group_id: &str,
     qos: &QoS,
     subscriber: &Subscriber,
-    cache_manager: &Arc<CacheManager>,
     sub_ids: &[usize],
 ) -> Result<Option<SubPublishParam>, MqttBrokerError> {
     let msg = MqttMessage::decode_record(record.clone())?;
@@ -346,7 +336,7 @@ async fn build_pub_message(
     let mut publish = Publish {
         dup: false,
         qos: qos.to_owned(),
-        pkid: 0,
+        pkid: (now_second() % 65535) as u16,
         retain,
         topic: Bytes::from(subscriber.topic_name.clone()),
         payload: msg.payload,
@@ -363,11 +353,7 @@ async fn build_pub_message(
         content_type: msg.content_type,
     };
 
-    let pkid = if *qos != QoS::AtMostOnce {
-        cache_manager.get_pkid(&subscriber.client_id).await
-    } else {
-        0
-    };
+    let pkid = get_pkid();
     publish.pkid = pkid;
 
     let sub_pub_param = SubPublishParam::new(
@@ -464,4 +450,11 @@ fn build_sub_ids(subscriber: &Subscriber) -> Vec<usize> {
 }
 
 #[cfg(test)]
-mod test {}
+mod test {
+    use common_base::tools::now_second;
+
+    #[tokio::test]
+    async fn pkid_test() {
+        println!("{}", (now_second() % 65535) as u16)
+    }
+}
