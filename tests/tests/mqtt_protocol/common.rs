@@ -22,7 +22,7 @@ use paho_mqtt::{
 };
 
 pub fn qos_list() -> Vec<i32> {
-    vec![0,1,2]
+    vec![0, 1, 2]
 }
 
 pub fn protocol_versions() -> Vec<u32> {
