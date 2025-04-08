@@ -15,17 +15,11 @@
 use clap::builder::{
     ArgAction, BoolishValueParser, EnumValueParser, NonEmptyStringValueParser, RangedU64ValueParser,
 };
-use clap::{arg, Parser};
+use clap::{arg, Parser, ValueEnum};
 use cli_command::mqtt::MqttActionType;
 use common_base::enum_type::sort_type::SortType;
 use core::option::Option::Some;
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateAclRequest, CreateBlacklistRequest, CreateTopicRewriteRuleRequest, CreateUserRequest,
-    DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest,
-    DeleteTopicRewriteRuleRequest, DeleteUserRequest, ListAutoSubscribeRuleRequest,
-    MqttCreateConnectorRequest, MqttDeleteConnectorRequest, MqttListConnectorRequest,
-    MqttUpdateConnectorRequest, SetAutoSubscribeRuleRequest,
-};
+use protocol::broker_mqtt::broker_mqtt_admin::{CreateAclRequest, CreateBlacklistRequest, CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteTopicRewriteRuleRequest, DeleteUserRequest, ListAutoSubscribeRuleRequest, ListTopicRequest, MqttCreateConnectorRequest, MqttDeleteConnectorRequest, MqttListConnectorRequest, MqttUpdateConnectorRequest, SetAutoSubscribeRuleRequest};
 use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
 };
@@ -36,7 +30,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 #[command(next_line_help = true)]
 pub(crate) struct UserArgs {
     #[command(subcommand)]
-    pub action: Option<UserActionType>,
+    pub action: UserActionType,
 }
 
 #[derive(Debug, clap::Subcommand)]
@@ -75,7 +69,7 @@ pub(crate) struct DeleteUserArgs {
 #[command(next_line_help = true)]
 pub(crate) struct AclArgs {
     #[command(subcommand)]
-    pub action: Option<AclActionType>,
+    pub action: AclActionType,
 }
 
 #[derive(Debug, clap::Subcommand)]
@@ -114,7 +108,7 @@ pub(crate) struct DeleteAclArgs {
 #[command(next_line_help = true)]
 pub(crate) struct BlacklistArgs {
     #[command(subcommand)]
-    pub action: Option<BlackListActionType>,
+    pub action: BlackListActionType,
 }
 
 #[derive(Debug, clap::Subcommand)]
@@ -281,7 +275,7 @@ pub(crate) struct SlowSubArgs {
 #[command(next_line_help = true)]
 pub(crate) struct TopicRewriteArgs {
     #[command(subcommand)]
-    pub action: Option<TopicRewriteActionType>,
+    pub action: TopicRewriteActionType,
 }
 
 #[derive(Debug, clap::Subcommand)]
@@ -321,7 +315,7 @@ pub(crate) struct DeleteTopicRewriteArgs {
 #[command(next_line_help = true)]
 pub(crate) struct ConnectorArgs {
     #[command(subcommand)]
-    pub action: Option<ConnectorActionType>,
+    pub action: ConnectorActionType,
 }
 
 #[derive(Debug, clap::Subcommand)]
@@ -372,6 +366,24 @@ pub(crate) struct DeleteConnectorArgs {
 pub(crate) struct UpdateConnectorArgs {
     #[arg(short, long, required = true)]
     pub(crate) connector: String,
+}
+
+// list-topic
+#[derive(ValueEnum, Clone, Debug)]
+pub(crate) enum MatchOption {
+    E,
+    P,
+    S,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="action: list topics", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct ListTopicArgs {
+    #[arg(short, long, requires = "match_option")]
+    pub(crate) topic_name: Option<String>,
+    #[arg(short, long, requires = "topic_name", default_value = "e")]
+    pub(crate) match_option: MatchOption,
 }
 
 // schema
@@ -455,63 +467,76 @@ pub fn process_slow_sub_args(args: SlowSubArgs) -> MqttActionType {
 
 pub fn process_user_args(args: UserArgs) -> MqttActionType {
     match args.action {
-        Some(user_action) => match user_action {
-            UserActionType::List => MqttActionType::ListUser,
-            UserActionType::Create(arg) => MqttActionType::CreateUser(CreateUserRequest {
-                username: arg.username,
-                password: arg.password,
-                is_superuser: arg.is_superuser,
-            }),
-            UserActionType::Delete(arg) => MqttActionType::DeleteUser(DeleteUserRequest {
-                username: arg.username,
-            }),
-        },
-        None => unreachable!(),
+        UserActionType::List => MqttActionType::ListUser,
+        UserActionType::Create(arg) => MqttActionType::CreateUser(CreateUserRequest {
+            username: arg.username,
+            password: arg.password,
+            is_superuser: arg.is_superuser,
+        }),
+        UserActionType::Delete(arg) => MqttActionType::DeleteUser(DeleteUserRequest {
+            username: arg.username,
+        }),
     }
 }
 
 pub fn process_acl_args(args: AclArgs) -> MqttActionType {
     match args.action {
-        Some(acl_action) => match acl_action {
-            AclActionType::List => MqttActionType::ListAcl,
-            AclActionType::Create(arg) => MqttActionType::CreateAcl(CreateAclRequest {
-                cluster_name: arg.cluster_name,
-                acl: Vec::from(arg.acl),
-            }),
-            AclActionType::Delete(arg) => MqttActionType::DeleteAcl(DeleteAclRequest {
-                cluster_name: arg.cluster_name,
-                acl: Vec::from(arg.acl),
-            }),
-        },
-        None => unreachable!(),
+        AclActionType::List => MqttActionType::ListAcl,
+        AclActionType::Create(arg) => MqttActionType::CreateAcl(CreateAclRequest {
+            cluster_name: arg.cluster_name,
+            acl: Vec::from(arg.acl),
+        }),
+        AclActionType::Delete(arg) => MqttActionType::DeleteAcl(DeleteAclRequest {
+            cluster_name: arg.cluster_name,
+            acl: Vec::from(arg.acl),
+        }),
     }
 }
 
 pub fn process_blacklist_args(args: BlacklistArgs) -> MqttActionType {
     match args.action {
-        Some(blacklist_action) => match blacklist_action {
-            BlackListActionType::List => MqttActionType::ListBlacklist,
-            BlackListActionType::Create(arg) => {
-                MqttActionType::CreateBlacklist(CreateBlacklistRequest {
-                    cluster_name: arg.cluster_name,
-                    blacklist: Vec::from(arg.blacklist),
-                })
-            }
-            BlackListActionType::Delete(arg) => {
-                MqttActionType::DeleteBlacklist(DeleteBlacklistRequest {
-                    cluster_name: arg.cluster_name,
-                    blacklist_type: arg.blacklist_type,
-                    resource_name: arg.resource_name,
-                })
-            }
-        },
-        None => unreachable!(),
+        BlackListActionType::List => MqttActionType::ListBlacklist,
+        BlackListActionType::Create(arg) => {
+            MqttActionType::CreateBlacklist(CreateBlacklistRequest {
+                cluster_name: arg.cluster_name,
+                blacklist: Vec::from(arg.blacklist),
+            })
+        }
+        BlackListActionType::Delete(arg) => {
+            MqttActionType::DeleteBlacklist(DeleteBlacklistRequest {
+                cluster_name: arg.cluster_name,
+                blacklist_type: arg.blacklist_type,
+                resource_name: arg.resource_name,
+            })
+        }
+    }
+}
+
+pub fn process_list_topic_args(args: ListTopicArgs) -> MqttActionType {
+    match (args.topic_name, args.match_option) {
+        (Some(topic_name), MatchOption::E) => MqttActionType::ListTopic(ListTopicRequest {
+            topic_name,
+            match_option: 0,
+        }),
+        (Some(topic_name), MatchOption::P) => MqttActionType::ListTopic(ListTopicRequest {
+            topic_name,
+            match_option: 1,
+        }),
+        (Some(topic_name), MatchOption::S) => MqttActionType::ListTopic(ListTopicRequest {
+            topic_name,
+            match_option: 2,
+        }),
+        // if the user does not provide any arguments, the default val of match option is e, then return all the topics
+        (None, MatchOption::E) => MqttActionType::ListTopic(ListTopicRequest {
+            topic_name: "".to_string(),
+            match_option: 0,
+        }),
+        _ => unreachable!()
     }
 }
 
 pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
     match args.action {
-        Some(connector_action) => match connector_action {
             ConnectorActionType::List(arg) => {
                 MqttActionType::ListConnector(MqttListConnectorRequest {
                     connector_name: arg.connector_name,
@@ -535,30 +560,25 @@ pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
                     connector: Vec::from(arg.connector),
                 })
             }
-        },
-        None => unreachable!(),
     }
 }
 
 pub fn process_topic_rewrite_args(args: TopicRewriteArgs) -> MqttActionType {
     match args.action {
-        Some(topic_rewrite_action) => match topic_rewrite_action {
-            TopicRewriteActionType::Create(arg) => {
-                MqttActionType::CreateTopicRewriteRule(CreateTopicRewriteRuleRequest {
-                    action: arg.action,
-                    source_topic: arg.source_topic,
-                    dest_topic: arg.dest_topic,
-                    regex: arg.regex,
-                })
-            }
-            TopicRewriteActionType::Delete(arg) => {
-                MqttActionType::DeleteTopicRewriteRule(DeleteTopicRewriteRuleRequest {
-                    action: arg.action,
-                    source_topic: arg.source_topic,
-                })
-            }
-        },
-        None => unreachable!(),
+        TopicRewriteActionType::Create(arg) => {
+            MqttActionType::CreateTopicRewriteRule(CreateTopicRewriteRuleRequest {
+                action: arg.action,
+                source_topic: arg.source_topic,
+                dest_topic: arg.dest_topic,
+                regex: arg.regex,
+            })
+        }
+        TopicRewriteActionType::Delete(arg) => {
+            MqttActionType::DeleteTopicRewriteRule(DeleteTopicRewriteRuleRequest {
+                action: arg.action,
+                source_topic: arg.source_topic,
+            })
+        }
     }
 }
 
@@ -567,7 +587,7 @@ pub fn process_topic_rewrite_args(args: TopicRewriteArgs) -> MqttActionType {
 #[command(next_line_help = true)]
 pub(crate) struct AutoSubscribeRuleCommand {
     #[command(subcommand)]
-    pub action: Option<AutoSubscribeRuleActionType>,
+    pub action: AutoSubscribeRuleActionType,
 }
 
 #[derive(Debug, clap::Subcommand)]
@@ -606,26 +626,23 @@ pub(crate) struct DeleteAutoSubscribeRuleArgs {
 
 pub fn process_auto_subscribe_args(args: AutoSubscribeRuleCommand) -> MqttActionType {
     match args.action {
-        Some(auto_subscribe_action) => match auto_subscribe_action {
-            AutoSubscribeRuleActionType::List => {
-                MqttActionType::ListAutoSubscribeRule(ListAutoSubscribeRuleRequest::default())
-            }
-            AutoSubscribeRuleActionType::Set(arg) => {
-                MqttActionType::SetAutoSubscribeRule(SetAutoSubscribeRuleRequest {
-                    topic: arg.topic,
-                    qos: arg.qos as u32,
-                    no_local: arg.no_local,
-                    retain_as_published: arg.retain_as_published,
-                    retained_handling: arg.retained_handling as u32,
-                })
-            }
-            AutoSubscribeRuleActionType::Delete(arg) => {
-                MqttActionType::DeleteAutoSubscribeRule(DeleteAutoSubscribeRuleRequest {
-                    topic: arg.topic,
-                })
-            }
-        },
-        None => unreachable!(),
+        AutoSubscribeRuleActionType::List => {
+            MqttActionType::ListAutoSubscribeRule(ListAutoSubscribeRuleRequest::default())
+        }
+        AutoSubscribeRuleActionType::Set(arg) => {
+            MqttActionType::SetAutoSubscribeRule(SetAutoSubscribeRuleRequest {
+                topic: arg.topic,
+                qos: arg.qos as u32,
+                no_local: arg.no_local,
+                retain_as_published: arg.retain_as_published,
+                retained_handling: arg.retained_handling as u32,
+            })
+        }
+        AutoSubscribeRuleActionType::Delete(arg) => {
+            MqttActionType::DeleteAutoSubscribeRule(DeleteAutoSubscribeRuleRequest {
+                topic: arg.topic,
+            })
+        }
     }
 }
 
