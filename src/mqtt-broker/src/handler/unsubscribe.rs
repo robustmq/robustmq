@@ -12,11 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{
-    cache::CacheManager, error::MqttBrokerError, sub_exclusive::remove_exclusive_subscribe,
-};
+use super::{cache::CacheManager, error::MqttBrokerError};
 use crate::subscribe::{
-    sub_common::{decode_share_info, is_share_sub, path_regex_match},
+    sub_common::{decode_share_info, is_queue_sub, is_share_sub, path_regex_match},
     subscribe_manager::SubscribeManager,
 };
 use common_base::config::broker_mqtt::broker_mqtt_conf;
@@ -41,12 +39,11 @@ pub async fn remove_subscribe(
             client_id: client_id.to_owned(),
             path: path.clone(),
         };
+
         placement_delete_subscribe(client_pool, &conf.placement_center, request).await?;
 
         subscribe_manager.remove_subscribe(client_id, &path);
     }
-
-    remove_exclusive_subscribe(subscribe_manager, un_subscribe.clone());
 
     unsubscribe_by_path(
         cache_manager,
@@ -66,11 +63,12 @@ fn unsubscribe_by_path(
 ) -> Result<(), MqttBrokerError> {
     for (topic_name, _) in cache_manager.topic_info.clone() {
         for path in filter_path {
-            if !path_regex_match(&topic_name, path) {
+            let re = path_regex_match(&topic_name, path);
+            if !re {
                 continue;
             }
 
-            if is_share_sub(path) {
+            if is_share_sub(path) && is_queue_sub(path) {
                 let (group_name, sub_name) = decode_share_info(path);
                 // share leader
                 for (key, data) in subscribe_manager.share_leader_push.clone() {
@@ -86,6 +84,7 @@ fn unsubscribe_by_path(
                             mut_data.sub_list.remove(index);
                             subscribe_manager.remove_topic_subscribe_by_path(
                                 &share_sub.topic_name,
+                                client_id,
                                 &share_sub.sub_path,
                             );
                             flag = true;
@@ -115,8 +114,10 @@ fn unsubscribe_by_path(
                             sx.send(true)?;
                             subscribe_manager.exclusive_push.remove(&key);
                         }
+                        println!("{:?}", subscriber);
                         subscribe_manager.remove_topic_subscribe_by_path(
                             &subscriber.topic_name,
+                            client_id,
                             &subscriber.sub_path,
                         );
                     }

@@ -41,7 +41,7 @@ use super::response::{
     response_packet_mqtt_puback_fail, response_packet_mqtt_pubrec_fail,
     response_packet_mqtt_suback, response_packet_mqtt_unsuback,
 };
-use super::sub_exclusive::check_exclusive_subscribe;
+use super::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_subscribe};
 use super::topic::topic_name_validator;
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
@@ -440,7 +440,17 @@ pub async fn subscribe_validator(
         ));
     }
 
-    if !check_exclusive_subscribe(metadata_cache, subscribe_manager, subscribe) {
+    if !allow_exclusive_subscribe(metadata_cache, subscribe) {
+        return Some(response_packet_mqtt_suback(
+            protocol,
+            connection,
+            subscribe.packet_identifier,
+            vec![SubscribeReasonCode::ExclusiveSubscriptionDisabled],
+            None,
+        ));
+    }
+
+    if already_exclusive_subscribe(subscribe_manager, subscribe) {
         return Some(response_packet_mqtt_suback(
             protocol,
             connection,

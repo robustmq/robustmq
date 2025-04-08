@@ -17,69 +17,121 @@ use crate::subscribe::subscribe_manager::SubscribeManager;
 use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
 
 use metadata_struct::mqtt::cluster::AvailableFlag;
-use protocol::mqtt::common::{Subscribe, Unsubscribe};
+use protocol::mqtt::common::Subscribe;
 use std::sync::Arc;
 
-pub fn check_exclusive_subscribe(
+pub fn allow_exclusive_subscribe(
     metadata_cache: &Arc<CacheManager>,
-    subscribe_manager: &Arc<SubscribeManager>,
     subscribe: &Subscribe,
 ) -> bool {
-    if metadata_cache
+    let enable = metadata_cache
         .get_cluster_info()
         .feature
         .exclusive_subscription_available
-        == AvailableFlag::Disable
-    {
-        return false;
-    }
+        == AvailableFlag::Disable;
 
     for filter in subscribe.filters.clone() {
         if !is_exclusive_sub(&filter.path) {
             continue;
         }
 
-        let topic_name = decode_exclusive_sub_path_to_topic_name(&filter.path);
-        if subscribe_manager.is_exclusive_subscribe(topic_name) {
+        if enable {
             return false;
         }
     }
-
     true
 }
 
-pub fn add_exclusive_subscribe(
+pub fn already_exclusive_subscribe(
     subscribe_manager: &Arc<SubscribeManager>,
-    path: &str,
-    client_id: &str,
-) {
-    if !is_exclusive_sub(path) {
-        return;
-    }
-
-    let topic_name = decode_exclusive_sub_path_to_topic_name(path);
-    subscribe_manager.add_exclusive_subscribe(topic_name, client_id);
-}
-
-pub fn remove_exclusive_subscribe(
-    subscribe_manager: &Arc<SubscribeManager>,
-    un_subscribe: Unsubscribe,
-) {
-    for path in un_subscribe.filters {
-        if !is_exclusive_sub(&path) {
-            return;
+    subscribe: &Subscribe,
+) -> bool {
+    for filter in subscribe.filters.clone() {
+        if !is_exclusive_sub(&filter.path) {
+            continue;
         }
-
-        let topic_name = decode_exclusive_sub_path_to_topic_name(&path);
-        subscribe_manager.remove_exclusive_subscribe_by_topic(topic_name);
+        let topic_name = decode_exclusive_sub_path_to_topic_name(&filter.path);
+        if subscribe_manager.is_exclusive_subscribe(topic_name) {
+            return true;
+        }
     }
+
+    false
 }
 
-pub fn remove_exclusive_subscribe_by_path(subscribe_manager: &Arc<SubscribeManager>, path: &str) {
-    if !is_exclusive_sub(path) {
-        return;
+#[cfg(test)]
+mod tests {
+
+    use common_base::tools::unique_id;
+    use grpc_clients::pool::ClientPool;
+    use metadata_struct::mqtt::cluster::{AvailableFlag, MqttClusterDynamicConfig};
+    use protocol::mqtt::common::{Filter, Subscribe};
+    use std::sync::Arc;
+
+    use crate::{
+        handler::{cache::CacheManager, sub_exclusive::already_exclusive_subscribe},
+        subscribe::subscribe_manager::SubscribeManager,
+    };
+
+    use super::allow_exclusive_subscribe;
+
+    #[test]
+    fn allow_exclusive_subscribe_test() {
+        let ex_path = "$exclusive/topic/1/2";
+        let no_ex_path = "/topic/1/2";
+
+        let subscribe = Subscribe {
+            packet_identifier: 0,
+            filters: vec![
+                Filter {
+                    path: ex_path.to_string(),
+                    ..Default::default()
+                },
+                Filter {
+                    path: no_ex_path.to_string(),
+                    ..Default::default()
+                },
+            ],
+        };
+
+        let client_poll = Arc::new(ClientPool::new(100));
+        let metadata_cache = Arc::new(CacheManager::new(client_poll, unique_id()));
+        let mut cluster_config = MqttClusterDynamicConfig::default();
+        cluster_config.feature.exclusive_subscription_available = AvailableFlag::Enable;
+        metadata_cache.set_cluster_info(cluster_config);
+        assert!(allow_exclusive_subscribe(&metadata_cache, &subscribe));
+
+        let mut cluster_config = MqttClusterDynamicConfig::default();
+        cluster_config.feature.exclusive_subscription_available = AvailableFlag::Disable;
+        metadata_cache.set_cluster_info(cluster_config);
+        assert!(!allow_exclusive_subscribe(&metadata_cache, &subscribe));
     }
 
-    let topic_name = decode_exclusive_sub_path_to_topic_name(path);
-    subscribe_manager.remove_exclusive_subscribe_by_topic(topic_name);
+    #[test]
+    fn already_exclusive_subscribe_test() {
+        let ex_path = "$exclusive/topic/1/2";
+        let no_ex_path = "/no_topic/1/2";
+        let topic_name = "/topic/1/2";
+        let client_id = unique_id();
+
+        let subscribe = Subscribe {
+            packet_identifier: 0,
+            filters: vec![
+                Filter {
+                    path: ex_path.to_string(),
+                    ..Default::default()
+                },
+                Filter {
+                    path: no_ex_path.to_string(),
+                    ..Default::default()
+                },
+            ],
+        };
+
+        let subscribe_manager = Arc::new(SubscribeManager::new());
+        assert!(!already_exclusive_subscribe(&subscribe_manager, &subscribe));
+
+        subscribe_manager.add_topic_subscribe(topic_name, &client_id, ex_path);
+        assert!(already_exclusive_subscribe(&subscribe_manager, &subscribe))
+    }
 }

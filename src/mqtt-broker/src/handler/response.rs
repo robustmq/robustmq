@@ -325,6 +325,9 @@ pub fn response_packet_mqtt_unsuback(
     reasons: Vec<UnsubAckReason>,
     reason_string: Option<String>,
 ) -> MqttPacket {
+    if reason_string.is_some() {
+        warn!("{reasons:?},{reason_string:?}");
+    }
     let unsub_ack = UnsubAck { pkid, reasons };
     let mut properties = UnsubAckProperties::default();
     if connection.is_response_problem_info() {
