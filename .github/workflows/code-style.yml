@@ -44,8 +44,6 @@ jobs:
       - name: install rustfmt
         run:  rustup component add rustfmt
       - name: cargo rust-fmt
-        env:
-          RUSTC_WRAPPER: ""
         run: cargo fmt --all -- --check
 
   deny:
@@ -78,8 +76,6 @@ jobs:
           RUSTC_WRAPPER: ""
         run: cargo install typos-cli@1.27.3
       - name: typos check
-        env:
-          RUSTC_WRAPPER: ""
         run: typos
 
   # this is compiling check
