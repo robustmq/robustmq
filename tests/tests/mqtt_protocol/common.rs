@@ -22,7 +22,7 @@ use paho_mqtt::{
 };
 
 pub fn qos_list() -> Vec<i32> {
-    vec![0]
+    vec![0,1,2]
 }
 
 pub fn protocol_versions() -> Vec<u32> {
@@ -32,8 +32,8 @@ pub fn protocol_versions() -> Vec<u32> {
 pub fn network_types() -> Vec<String> {
     vec![
         "tcp".to_string(),
-        // "ws".to_string(),
-        // "wss".to_string(),
+        "ws".to_string(),
+        "wss".to_string(),
         "ssl".to_string(),
     ]
 }
