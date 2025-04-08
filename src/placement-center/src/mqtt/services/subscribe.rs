@@ -48,7 +48,7 @@ pub async fn delete_subscribe_by_req(
 
     let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
     let subscribes = if !req.path.is_empty() {
-        let subscribe = match storage.get(&req.cluster_name, &req.client_id, &req.path) {
+        match storage.get(&req.cluster_name, &req.client_id, &req.path) {
             Ok(Some(subscribe)) => vec![subscribe],
             Ok(None) => {
                 return Err(Status::cancelled(
@@ -58,8 +58,7 @@ pub async fn delete_subscribe_by_req(
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
-        };
-        subscribe
+        }
     } else {
         storage.list_by_client_id(&req.cluster_name, &req.client_id)?
     };
@@ -67,7 +66,7 @@ pub async fn delete_subscribe_by_req(
     if subscribes.is_empty() {
         return Ok(Response::new(DeleteSubscribeReply::default()));
     }
-    
+
     let data = StorageData::new(
         StorageDataType::MqttDeleteSubscribe,
         DeleteSubscribeRequest::encode_to_vec(&req),

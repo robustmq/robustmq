@@ -760,10 +760,8 @@ mod tests {
         let path = "$queue/topic1/1".to_string();
         assert_eq!(decode_sub_path(&path), "/topic1/1".to_string());
 
-
         let path = "/topic1/1".to_string();
         assert_eq!(decode_sub_path(&path), "/topic1/1".to_string());
-
 
         let path = "$exclusive/topic1/1".to_string();
         assert_eq!(decode_sub_path(&path), "/topic1/1".to_string());
