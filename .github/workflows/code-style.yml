@@ -57,6 +57,8 @@ jobs:
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-builder
       - name: Install cargo-deny
+        env:
+          RUSTC_WRAPPER: ""
         run: cargo install cargo-deny@0.16.2
       - name: cargo deny check
         env:
@@ -72,6 +74,8 @@ jobs:
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-builder
       - name: Install typos
+        env:
+          RUSTC_WRAPPER: ""
         run: cargo install typos-cli@1.27.3
       - name: typos check
         env:
