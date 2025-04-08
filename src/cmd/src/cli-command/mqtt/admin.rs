@@ -19,7 +19,13 @@ use clap::{arg, Parser, ValueEnum};
 use cli_command::mqtt::MqttActionType;
 use common_base::enum_type::sort_type::SortType;
 use core::option::Option::Some;
-use protocol::broker_mqtt::broker_mqtt_admin::{CreateAclRequest, CreateBlacklistRequest, CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteTopicRewriteRuleRequest, DeleteUserRequest, ListAutoSubscribeRuleRequest, ListTopicRequest, MqttCreateConnectorRequest, MqttDeleteConnectorRequest, MqttListConnectorRequest, MqttUpdateConnectorRequest, SetAutoSubscribeRuleRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    CreateAclRequest, CreateBlacklistRequest, CreateTopicRewriteRuleRequest, CreateUserRequest,
+    DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest,
+    DeleteTopicRewriteRuleRequest, DeleteUserRequest, ListAutoSubscribeRuleRequest,
+    ListTopicRequest, MqttCreateConnectorRequest, MqttDeleteConnectorRequest,
+    MqttListConnectorRequest, MqttUpdateConnectorRequest, SetAutoSubscribeRuleRequest,
+};
 use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
 };
@@ -531,35 +537,33 @@ pub fn process_list_topic_args(args: ListTopicArgs) -> MqttActionType {
             topic_name: "".to_string(),
             match_option: 0,
         }),
-        _ => unreachable!()
+        _ => unreachable!(),
     }
 }
 
 pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
     match args.action {
-            ConnectorActionType::List(arg) => {
-                MqttActionType::ListConnector(MqttListConnectorRequest {
-                    connector_name: arg.connector_name,
-                })
-            }
-            ConnectorActionType::Create(arg) => {
-                MqttActionType::CreateConnector(MqttCreateConnectorRequest {
-                    connector_name: arg.connector_name,
-                    connector_type: arg.connector_type.parse().unwrap(),
-                    config: arg.config,
-                    topic_id: arg.topic_id,
-                })
-            }
-            ConnectorActionType::Delete(arg) => {
-                MqttActionType::DeleteConnector(MqttDeleteConnectorRequest {
-                    connector_name: arg.connector_name,
-                })
-            }
-            ConnectorActionType::Update(arg) => {
-                MqttActionType::UpdateConnector(MqttUpdateConnectorRequest {
-                    connector: Vec::from(arg.connector),
-                })
-            }
+        ConnectorActionType::List(arg) => MqttActionType::ListConnector(MqttListConnectorRequest {
+            connector_name: arg.connector_name,
+        }),
+        ConnectorActionType::Create(arg) => {
+            MqttActionType::CreateConnector(MqttCreateConnectorRequest {
+                connector_name: arg.connector_name,
+                connector_type: arg.connector_type.parse().unwrap(),
+                config: arg.config,
+                topic_id: arg.topic_id,
+            })
+        }
+        ConnectorActionType::Delete(arg) => {
+            MqttActionType::DeleteConnector(MqttDeleteConnectorRequest {
+                connector_name: arg.connector_name,
+            })
+        }
+        ConnectorActionType::Update(arg) => {
+            MqttActionType::UpdateConnector(MqttUpdateConnectorRequest {
+                connector: Vec::from(arg.connector),
+            })
+        }
     }
 }
 
