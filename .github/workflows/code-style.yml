@@ -89,6 +89,7 @@ jobs:
         uses: ./.github/actions/setup-builder
       - name: cargo check
         env:
+          RUSTC_WRAPPER: ""
         run:  cargo check --all
 
   clippy:
