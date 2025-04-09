@@ -233,7 +233,7 @@ impl AuthDriver {
         connection: &MQTTConnection,
         subscribe: &Subscribe,
     ) -> bool {
-        for filter in subscribe.filters.clone() {
+        for filter in subscribe.filters.iter() {
             let topic_list = get_sub_topic_id_list(&self.cache_manager, &filter.path).await;
             for topic in topic_list {
                 if !is_allow_acl(

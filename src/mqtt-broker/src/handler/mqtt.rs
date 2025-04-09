@@ -302,7 +302,7 @@ where
         publish: Publish,
         publish_properties: Option<PublishProperties>,
     ) -> Option<MqttPacket> {
-        let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
+        let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
             se.clone()
         } else {
             return Some(response_packet_mqtt_distinct_by_reason(
@@ -578,7 +578,7 @@ where
         pub_ack: PubAck,
         _: Option<PubAckProperties>,
     ) -> Option<MqttPacket> {
-        if let Some(conn) = self.cache_manager.connection_info.get(&connect_id) {
+        if let Some(conn) = self.cache_manager.get_connection(connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_ack.pkid;
             if let Some(data) = self.cache_manager.get_ack_packet(client_id.clone(), pkid) {
@@ -606,7 +606,7 @@ where
         pub_rec: PubRec,
         _: Option<PubRecProperties>,
     ) -> Option<MqttPacket> {
-        if let Some(conn) = self.cache_manager.connection_info.get(&connect_id) {
+        if let Some(conn) = self.cache_manager.get_connection(connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_rec.pkid;
             if let Some(data) = self.cache_manager.get_ack_packet(client_id.clone(), pkid) {
@@ -638,7 +638,7 @@ where
         pub_comp: PubComp,
         _: Option<PubCompProperties>,
     ) -> Option<MqttPacket> {
-        if let Some(conn) = self.cache_manager.connection_info.get(&connect_id) {
+        if let Some(conn) = self.cache_manager.get_connection(connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_comp.pkid;
             if let Some(data) = self.cache_manager.get_ack_packet(client_id.clone(), pkid) {
@@ -665,7 +665,7 @@ where
         pub_rel: PubRel,
         _: Option<PubRelProperties>,
     ) -> MqttPacket {
-        let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
+        let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
             se.clone()
         } else {
             return response_packet_mqtt_distinct_by_reason(
@@ -739,7 +739,7 @@ where
         mut subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
     ) -> MqttPacket {
-        let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
+        let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
             se.clone()
         } else {
             return response_packet_mqtt_distinct_by_reason(
@@ -762,7 +762,9 @@ where
         }
 
         let new_subs = is_new_sub(&connection.client_id, &subscribe, &self.subscribe_manager).await;
+
         process_sub_topic_rewrite(&mut subscribe, &self.cache_manager.topic_rewrite_rule);
+
         if let Err(e) = save_subscribe(
             &connection.client_id,
             &self.protocol,
@@ -856,7 +858,7 @@ where
         mut un_subscribe: Unsubscribe,
         _: Option<UnsubscribeProperties>,
     ) -> MqttPacket {
-        let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
+        let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
             se.clone()
         } else {
             return response_packet_mqtt_distinct_by_reason(

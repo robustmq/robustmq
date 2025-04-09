@@ -14,7 +14,7 @@
 
 use super::{cache::CacheManager, error::MqttBrokerError};
 use crate::subscribe::{
-    sub_common::{decode_share_info, is_queue_sub, is_share_sub, path_regex_match},
+    sub_common::{build_sub_path_regex, decode_share_info, is_queue_sub, is_share_sub},
     subscribe_manager::SubscribeManager,
 };
 use common_base::config::broker_mqtt::broker_mqtt_conf;
@@ -61,10 +61,10 @@ fn unsubscribe_by_path(
     client_id: &str,
     filter_path: &[String],
 ) -> Result<(), MqttBrokerError> {
-    for (topic_name, _) in cache_manager.topic_info.clone() {
-        for path in filter_path {
-            let re = path_regex_match(&topic_name, path);
-            if !re {
+    for path in filter_path {
+        let regex = build_sub_path_regex(path)?;
+        for (topic_name, _) in cache_manager.topic_info.clone() {
+            if !regex.is_match(&topic_name) {
                 continue;
             }
 

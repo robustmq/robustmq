@@ -48,6 +48,7 @@ else
     echo "place test passed"
 fi
 
+cargo clean
 # journal
 cargo nextest run  --package grpc-clients --test mod -- journal && \
 cargo nextest run  --package robustmq-test --test mod -- journal_client && \
@@ -60,6 +61,7 @@ else
     echo "journal test passed"
 fi
 
+cargo clean
 # mqtt
 cargo nextest run --package grpc-clients --test mod -- mqtt && \
 cargo nextest run --package robustmq-test --test mod -- mqtt_server && \

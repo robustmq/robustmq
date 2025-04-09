@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
-use log::{debug, error};
+use log::{debug, error, info};
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::{sleep, timeout};
@@ -63,5 +63,7 @@ async fn report(client_pool: &Arc<ClientPool>) {
             }
         }
         error!("{}", e);
+    } else {
+        info!("heartbeat report success");
     }
 }

@@ -414,12 +414,14 @@ pub async fn subscribe_validator(
     subscribe: &Subscribe,
 ) -> Option<MqttPacket> {
     let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
+
     for filter in subscribe.filters.clone() {
-        if !sub_path_validator(filter.path) {
+        if sub_path_validator(&filter.path).is_err() {
             return_codes.push(SubscribeReasonCode::TopicFilterInvalid);
             continue;
         }
     }
+
     if !return_codes.is_empty() {
         return Some(response_packet_mqtt_suback(
             protocol,
@@ -480,8 +482,8 @@ pub async fn un_subscribe_validator(
     un_subscribe: &Unsubscribe,
 ) -> Option<MqttPacket> {
     let mut return_codes: Vec<UnsubAckReason> = Vec::new();
-    for filter in un_subscribe.filters.clone() {
-        if !sub_path_validator(filter) {
+    for path in un_subscribe.filters.clone() {
+        if sub_path_validator(&path).is_err() {
             return_codes.push(UnsubAckReason::TopicFilterInvalid);
             continue;
         }

@@ -29,8 +29,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::subscribe::{
     sub_common::{
-        decode_queue_info, decode_share_info, get_share_sub_leader, is_queue_sub, is_share_sub,
-        path_regex_match,
+        decode_queue_info, decode_share_info, get_share_sub_leader, is_match_sub_and_topic,
+        is_queue_sub, is_share_sub,
     },
     subscribe_manager::{ShareSubShareSub, SubscribeManager},
     subscriber::Subscriber,
@@ -209,7 +209,8 @@ async fn parse_share_queue_subscribe_common(
     req: &ParseShareQueueSubscribeRequest,
 ) {
     let conf = broker_mqtt_conf();
-    if path_regex_match(&req.topic_name, &req.sub_name) {
+
+    if is_match_sub_and_topic(&req.sub_name, &req.topic_name).is_ok() {
         match get_share_sub_leader(client_pool, &req.group_name).await {
             Ok(reply) => {
                 if reply.broker_id == conf.broker_id {
@@ -285,7 +286,8 @@ fn add_exclusive_push(
     } else {
         filter.path.to_owned()
     };
-    if path_regex_match(&topic.topic_name, &path) {
+
+    if is_match_sub_and_topic(&path, &topic.topic_name).is_ok() {
         let sub = Subscriber {
             protocol: protocol.to_owned(),
             client_id: client_id.to_owned(),
