@@ -67,6 +67,16 @@ pub struct Telemetry {
     pub exporter_endpoint: String,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
+pub struct Pprof {
+    #[serde(default = "default_false")]
+    pub enable: bool,
+    #[serde(default = "default_pprof_port")]
+    pub port: u16,
+    #[serde(default = "default_pprof_frequency")]
+    pub frequency: i32,
+}
+
 pub fn default_prometheus() -> Prometheus {
     Prometheus {
         enable: false,
@@ -78,8 +88,28 @@ pub fn default_prometheus() -> Prometheus {
     }
 }
 
+pub fn default_pprof() -> Pprof {
+    Pprof {
+        enable: false,
+        port: default_pprof_port(),
+        frequency: default_pprof_frequency(),
+    }
+}
+
 pub fn default_prometheus_port() -> u32 {
     9090
+}
+
+pub fn default_false() -> bool {
+    false
+}
+
+pub fn default_pprof_port() -> u16 {
+    6060
+}
+
+pub fn default_pprof_frequency() -> i32 {
+    100
 }
 
 /** `override_default_by_env` 根据环境变量覆盖内容

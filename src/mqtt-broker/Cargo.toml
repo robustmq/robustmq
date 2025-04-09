@@ -64,6 +64,7 @@ rustls-pki-types.workspace = true
 rustls.workspace = true
 bindgen.workspace = true
 rdkafka.workspace = true
+pprof-monitor.workspace = true
 
 
 [dev-dependencies]
