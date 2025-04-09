@@ -114,7 +114,6 @@ fn unsubscribe_by_path(
                             sx.send(true)?;
                             subscribe_manager.exclusive_push.remove(&key);
                         }
-                        println!("{:?}", subscriber);
                         subscribe_manager.remove_topic_subscribe_by_path(
                             &subscriber.topic_name,
                             client_id,

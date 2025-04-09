@@ -183,7 +183,7 @@ pub async fn update_cache_metadata(
             MqttBrokerUpdateCacheActionType::Set => {
                 match serde_json::from_str::<MqttSession>(&request.data) {
                     Ok(session) => {
-                        cache_manager.add_session(session.client_id.clone(), session);
+                        cache_manager.add_session(&session.client_id, &session);
                     }
                     Err(e) => {
                         error!("{}", e);

@@ -213,7 +213,7 @@ impl ClientKeepAlive {
 }
 
 pub fn keep_live_time(keep_alive: u16) -> u16 {
-    let new_keep_alive: u32 = (keep_alive as u32) * 2;
+    let new_keep_alive: u32 = (keep_alive as u32) * 3;
     if new_keep_alive > 65535 {
         return 65535;
     }
@@ -225,7 +225,7 @@ pub fn client_keep_live_time(cluster: &MqttClusterDynamicConfig, mut keep_alive:
         keep_alive = cluster.protocol.default_server_keep_alive;
     }
     if keep_alive > cluster.protocol.max_server_keep_alive {
-        keep_alive = cluster.protocol.max_server_keep_alive / 2;
+        keep_alive = cluster.protocol.max_server_keep_alive / 3;
     }
     keep_alive
 }
@@ -245,6 +245,7 @@ mod test {
     use common_base::config::broker_mqtt::BrokerMqttConfig;
     use common_base::tools::{now_second, unique_id};
     use grpc_clients::pool::ClientPool;
+    use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
     use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
     use metadata_struct::mqtt::session::MqttSession;
     use tokio::sync::broadcast;
@@ -252,16 +253,54 @@ mod test {
 
     use super::keep_live_time;
     use crate::handler::cache::CacheManager;
-    use crate::handler::keep_alive::ClientKeepAlive;
+    use crate::handler::keep_alive::{client_keep_live_time, ClientKeepAlive};
     use crate::server::connection_manager::ConnectionManager;
     use crate::subscribe::subscribe_manager::SubscribeManager;
 
     #[tokio::test]
+    pub async fn keep_live_test() {
+        let mut config = MqttClusterDynamicConfig::default();
+        config.protocol.default_server_keep_alive = 60;
+        config.protocol.max_server_keep_alive = 300;
+
+        let keep_alive = 0;
+        let client_live = client_keep_live_time(&config, keep_alive);
+        assert_eq!(client_live, 60);
+        assert_eq!(keep_live_time(client_live), 180);
+
+        let keep_alive = 50;
+        let client_live = client_keep_live_time(&config, keep_alive);
+        assert_eq!(client_live, 50);
+        assert_eq!(keep_live_time(client_live), 150);
+
+        let keep_alive = 100;
+        let client_live = client_keep_live_time(&config, keep_alive);
+        assert_eq!(client_live, 100);
+        assert_eq!(keep_live_time(client_live), 300);
+
+        let keep_alive = 500;
+        let client_live = client_keep_live_time(&config, keep_alive);
+        assert_eq!(client_live, 100);
+        assert_eq!(keep_live_time(client_live), 300);
+    }
+
+    #[tokio::test]
+    pub async fn client_keep_live_time_test() {
+        let mut config = MqttClusterDynamicConfig::default();
+        config.protocol.default_server_keep_alive = 60;
+        config.protocol.max_server_keep_alive = 300;
+
+        assert_eq!(client_keep_live_time(&config, 0), 60);
+        assert_eq!(client_keep_live_time(&config, 400), 100);
+        assert_eq!(client_keep_live_time(&config, 50), 50);
+    }
+
+    #[tokio::test]
     pub async fn keep_live_time_test() {
         let res = keep_live_time(3);
-        assert_eq!(res, 6);
+        assert_eq!(res, 9);
         let res = keep_live_time(1000);
-        assert_eq!(res, 2000);
+        assert_eq!(res, 3000);
         let res = keep_live_time(50000);
         assert_eq!(res, 65535);
     }
@@ -294,7 +333,7 @@ mod test {
         let connect_id = 1;
 
         let session = MqttSession::new(client_id.clone(), 60, false, None);
-        cache_manager.add_session(client_id.clone(), session);
+        cache_manager.add_session(&client_id, &session);
 
         let keep_alive = 2;
         let addr = "127.0.0.1".to_string();
