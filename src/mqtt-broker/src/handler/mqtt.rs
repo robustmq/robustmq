@@ -272,7 +272,6 @@ where
         self.cache_manager.add_session(&client_id, &session);
         self.cache_manager
             .add_connection(connect_id, connection.clone());
-
         st_report_connected_event(
             &self.message_storage_adapter,
             &self.cache_manager,
@@ -885,7 +884,6 @@ where
             &un_subscribe,
             &self.client_pool,
             &self.subscribe_manager,
-            &self.cache_manager,
         )
         .await
         {

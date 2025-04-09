@@ -62,7 +62,6 @@ pub async fn save_subscribe(
 ) -> Result<(), MqttBrokerError> {
     let conf = broker_mqtt_conf();
     let filters = &subscribe.filters;
-
     for filter in filters {
         let subscribe_data = MqttSubscribe {
             client_id: client_id.to_owned(),
@@ -94,25 +93,32 @@ pub async fn save_subscribe(
         // add subscribe by cache
         subscribe_manager.add_subscribe(subscribe_data);
     }
-
     // parse subscribe
+    let new_client_pool = client_pool.to_owned();
+    let new_subscribe_manager = subscribe_manager.clone();
     let topic_info = cache_manager.topic_info.clone();
-    for (_, topic) in topic_info {
-        for filter in filters {
-            parse_subscribe(
-                client_pool,
-                subscribe_manager,
-                client_id,
-                &topic,
-                protocol,
-                subscribe.packet_identifier,
-                filter,
-                subscribe_properties,
-            )
-            .await
+    let new_protocol = protocol.to_owned();
+    let new_client_id = client_id.to_owned();
+    let new_subscribe = subscribe.to_owned();
+    let new_subscribe_properties = subscribe_properties.to_owned();
+    let new_filters = filters.to_owned();
+    tokio::spawn(async move {
+        for (_, topic) in topic_info {
+            for filter in new_filters.clone() {
+                parse_subscribe(
+                    &new_client_pool,
+                    &new_subscribe_manager,
+                    &new_client_id,
+                    &topic,
+                    &new_protocol,
+                    new_subscribe.packet_identifier,
+                    &filter,
+                    &new_subscribe_properties,
+                )
+                .await;
+            }
         }
-    }
-
+    });
     Ok(())
 }
 

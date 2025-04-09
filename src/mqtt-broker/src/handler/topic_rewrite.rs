@@ -19,7 +19,7 @@ use protocol::mqtt::common::{Subscribe, Unsubscribe};
 
 use crate::handler::error::MqttBrokerError;
 use crate::handler::topic::gen_rewrite_topic;
-use crate::subscribe::sub_common::build_sub_path_regex;
+use crate::subscribe::sub_common::is_match_sub_and_topic;
 
 pub fn process_sub_topic_rewrite(
     subscribe: &mut Subscribe,
@@ -30,8 +30,8 @@ pub fn process_sub_topic_rewrite(
         .map(|entry| entry.value().clone())
         .collect();
     rules.sort_by_key(|rule| rule.timestamp);
+
     for filter in subscribe.filters.iter_mut() {
-        let regex = build_sub_path_regex(&filter.path).unwrap();
         for topic_rewrite_rule in rules.iter().rev() {
             if topic_rewrite_rule.action != TopicRewriteActionEnum::All.to_string()
                 && topic_rewrite_rule.action != TopicRewriteActionEnum::Subscribe.to_string()
@@ -39,7 +39,7 @@ pub fn process_sub_topic_rewrite(
                 continue;
             }
             // rewrite performed only for the first match
-            if regex.is_match(&topic_rewrite_rule.source_topic) {
+            if is_match_sub_and_topic(&filter.path, &topic_rewrite_rule.source_topic).is_ok() {
                 if let Some(val) = gen_rewrite_topic(
                     &filter.path,
                     &topic_rewrite_rule.regex,
@@ -63,7 +63,6 @@ pub fn process_unsub_topic_rewrite(
         .collect();
     rules.sort_by_key(|rule| rule.timestamp);
     for filter in un_subscribe.filters.iter_mut() {
-        let regex = build_sub_path_regex(filter).unwrap();
         for topic_rewrite_rule in rules.iter().rev() {
             if topic_rewrite_rule.action != TopicRewriteActionEnum::All.to_string()
                 && topic_rewrite_rule.action != TopicRewriteActionEnum::Subscribe.to_string()
@@ -71,7 +70,7 @@ pub fn process_unsub_topic_rewrite(
                 continue;
             }
             // rewrite performed only for the first match
-            if regex.is_match(&topic_rewrite_rule.source_topic) {
+            if is_match_sub_and_topic(filter, &topic_rewrite_rule.source_topic).is_ok() {
                 if let Some(val) = gen_rewrite_topic(
                     filter,
                     &topic_rewrite_rule.regex,
@@ -101,8 +100,7 @@ pub fn process_publish_topic_rewrite(
             continue;
         }
 
-        let regex = build_sub_path_regex(&topic_rewrite_rule.source_topic).unwrap();
-        if regex.is_match(&topic_name) {
+        if is_match_sub_and_topic(&topic_rewrite_rule.source_topic, &topic_name).is_ok() {
             let rewrite_topic = gen_rewrite_topic(
                 &topic_name,
                 &topic_rewrite_rule.regex,

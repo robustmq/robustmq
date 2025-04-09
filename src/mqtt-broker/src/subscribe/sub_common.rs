@@ -612,7 +612,7 @@ mod tests {
 
     use crate::handler::cache::CacheManager;
     use crate::subscribe::sub_common::{
-        decode_share_info, decode_sub_path, get_pkid, get_sub_topic_id_list,
+        build_sub_path_regex, decode_share_info, decode_sub_path, get_pkid, get_sub_topic_id_list,
         is_match_sub_and_topic, is_share_sub, is_wildcards, min_qos, sub_path_validator,
     };
 
@@ -691,7 +691,42 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn build_sub_path_regex_test() {}
+    async fn build_sub_path_regex_test() {
+        let topic_name = "/loboxu/test";
+        let sub_regex = "/loboxu/#";
+        let regex = build_sub_path_regex(sub_regex).unwrap();
+        assert!(regex.is_match(topic_name));
+
+        let topic_name = r"y/a/z/b";
+        let sub_regex = r"y/+/z/#";
+        let regex = build_sub_path_regex(sub_regex).unwrap();
+        assert!(regex.is_match(topic_name));
+
+        let topic_name = r"/sensor/1/temperature";
+        let sub_regex = r"$share/groupname/sensor/+/temperature";
+        let regex = build_sub_path_regex(sub_regex).unwrap();
+        assert!(regex.is_match(topic_name));
+
+        let topic_name = r"/sensor/1/2/temperature3";
+        let sub_regex = r"$share/groupname/sensor/+/temperature";
+        let regex = build_sub_path_regex(sub_regex).unwrap();
+        assert!(!regex.is_match(topic_name));
+
+        let topic_name = r"/sensor/temperature3";
+        let sub_regex = r"$share/groupname/sensor/+/temperature";
+        let regex = build_sub_path_regex(sub_regex).unwrap();
+        assert!(!regex.is_match(topic_name));
+
+        let topic_name = r"/sensor/temperature3";
+        let sub_regex = r"$share/groupname/sensor/+";
+        let regex = build_sub_path_regex(sub_regex).unwrap();
+        assert!(regex.is_match(topic_name));
+
+        let topic_name = r"/sensor/temperature3/tmpq";
+        let sub_regex = r"$share/groupname/sensor/#";
+        let regex = build_sub_path_regex(sub_regex).unwrap();
+        assert!(regex.is_match(topic_name));
+    }
 
     #[tokio::test]
     async fn is_share_sub_test() {
