@@ -34,8 +34,8 @@ use protocol::placement_center::placement_center_inner::ListSchemaRequest;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 
+use super::cache::CacheManager;
 use super::cluster_config::build_cluster_config;
-use super::{cache::CacheManager, sub_exclusive::remove_exclusive_subscribe_by_path};
 
 pub async fn load_metadata_cache(
     cache_manager: &Arc<CacheManager>,
@@ -183,7 +183,7 @@ pub async fn update_cache_metadata(
             MqttBrokerUpdateCacheActionType::Set => {
                 match serde_json::from_str::<MqttSession>(&request.data) {
                     Ok(session) => {
-                        cache_manager.add_session(session.client_id.clone(), session);
+                        cache_manager.add_session(&session.client_id, &session);
                     }
                     Err(e) => {
                         error!("{}", e);
@@ -237,11 +237,6 @@ pub async fn update_cache_metadata(
             MqttBrokerUpdateCacheActionType::Delete => {
                 match serde_json::from_str::<MqttSubscribe>(&request.data) {
                     Ok(subscribe) => {
-                        if let Some(_sub) =
-                            subscribe_manager.get_subscribe(&subscribe.client_id, &subscribe.path)
-                        {
-                            remove_exclusive_subscribe_by_path(subscribe_manager, &subscribe.path);
-                        }
                         subscribe_manager.remove_subscribe(&subscribe.client_id, &subscribe.path)
                     }
                     Err(e) => {

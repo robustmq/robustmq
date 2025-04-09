@@ -24,7 +24,6 @@ use protocol::mqtt::common::{
 };
 
 use super::connection::response_information;
-use super::keep_alive::keep_live_time;
 use super::validator::is_request_problem_info;
 
 #[allow(clippy::too_many_arguments)]
@@ -73,7 +72,7 @@ pub fn response_packet_mqtt_connect_success(
         shared_subscription_available: Some(
             cluster.feature.shared_subscription_available.clone() as u8
         ),
-        server_keep_alive: Some(keep_live_time(keep_alive)),
+        server_keep_alive: Some(keep_alive),
         response_information: response_information(connect_properties),
         server_reference: None,
         authentication_method: None,
@@ -325,6 +324,9 @@ pub fn response_packet_mqtt_unsuback(
     reasons: Vec<UnsubAckReason>,
     reason_string: Option<String>,
 ) -> MqttPacket {
+    if reason_string.is_some() {
+        warn!("{reasons:?},{reason_string:?}");
+    }
     let unsub_ack = UnsubAck { pkid, reasons };
     let mut properties = UnsubAckProperties::default();
     if connection.is_response_problem_info() {

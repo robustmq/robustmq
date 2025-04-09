@@ -265,11 +265,8 @@ where
             self.message_storage_adapter.clone(),
         );
         self.runtime.spawn(async move {
-            match server.start().await {
-                Ok(()) => {}
-                Err(e) => {
-                    panic!("{}", e.to_string());
-                }
+            if let Err(e) = server.start().await {
+                panic!("{}", e.to_string());
             }
         });
     }

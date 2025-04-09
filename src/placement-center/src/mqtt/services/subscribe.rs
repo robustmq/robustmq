@@ -45,18 +45,11 @@ pub async fn delete_subscribe_by_req(
     request: Request<DeleteSubscribeRequest>,
 ) -> Result<Response<DeleteSubscribeReply>, Status> {
     let req = request.into_inner();
-    let data = StorageData::new(
-        StorageDataType::MqttDeleteSubscribe,
-        DeleteSubscribeRequest::encode_to_vec(&req),
-    );
-    if let Err(e) = raft_machine_apply.client_write(data).await {
-        return Err(Status::cancelled(e.to_string()));
-    };
 
     let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
-    if !req.path.is_empty() {
-        let subscribe = match storage.get(&req.cluster_name, &req.client_id, &req.path) {
-            Ok(Some(subscribe)) => subscribe,
+    let subscribes = if !req.path.is_empty() {
+        match storage.get(&req.cluster_name, &req.client_id, &req.path) {
+            Ok(Some(subscribe)) => vec![subscribe],
             Ok(None) => {
                 return Err(Status::cancelled(
                     PlacementCenterError::SubscribeDoesNotExist(req.path).to_string(),
@@ -65,32 +58,30 @@ pub async fn delete_subscribe_by_req(
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
-        };
+        }
+    } else {
+        storage.list_by_client_id(&req.cluster_name, &req.client_id)?
+    };
 
-        if let Err(e) = update_cache_by_delete_subscribe(
-            &req.cluster_name,
-            mqtt_call_manager,
-            client_pool,
-            subscribe,
-        )
-        .await
+    if subscribes.is_empty() {
+        return Ok(Response::new(DeleteSubscribeReply::default()));
+    }
+
+    let data = StorageData::new(
+        StorageDataType::MqttDeleteSubscribe,
+        DeleteSubscribeRequest::encode_to_vec(&req),
+    );
+    if let Err(e) = raft_machine_apply.client_write(data).await {
+        return Err(Status::cancelled(e.to_string()));
+    };
+
+    for raw in subscribes {
+        if let Err(e) =
+            update_cache_by_delete_subscribe(&req.cluster_name, mqtt_call_manager, client_pool, raw)
+                .await
         {
             return Err(Status::cancelled(e.to_string()));
         };
-    } else {
-        let subscribes = storage.list_by_client_id(&req.cluster_name, &req.client_id)?;
-        for raw in subscribes {
-            if let Err(e) = update_cache_by_delete_subscribe(
-                &req.cluster_name,
-                mqtt_call_manager,
-                client_pool,
-                raw,
-            )
-            .await
-            {
-                return Err(Status::cancelled(e.to_string()));
-            };
-        }
     }
     Ok(Response::new(DeleteSubscribeReply::default()))
 }

@@ -40,7 +40,7 @@ pub struct ShareLeaderSubscribeData {
     pub sub_list: Vec<Subscriber>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TopicSubscribeInfo {
     pub client_id: String,
     pub path: String,
@@ -69,12 +69,6 @@ pub struct SubscribeManager {
     // (client_id_group_name_sub_name, Sender<bool>)
     pub share_follower_resub_thread: DashMap<String, Sender<bool>>,
 
-    // (identifier_id，client_id)
-    pub share_follower_identifier_id: DashMap<usize, String>,
-
-    //(topic, now)
-    pub exclusive_subscribe: DashMap<String, String>,
-
     //(topic_id, Vec<TopicSubscribeInfo>)
     pub topic_subscribe_list: DashMap<String, Vec<TopicSubscribeInfo>>,
 }
@@ -86,11 +80,9 @@ impl SubscribeManager {
             exclusive_push: DashMap::with_capacity(8),
             share_leader_push: DashMap::with_capacity(8),
             share_follower_resub: DashMap::with_capacity(8),
-            share_follower_identifier_id: DashMap::with_capacity(8),
             exclusive_push_thread: DashMap::with_capacity(8),
             share_leader_push_thread: DashMap::with_capacity(8),
             share_follower_resub_thread: DashMap::with_capacity(8),
-            exclusive_subscribe: DashMap::with_capacity(8),
             topic_subscribe_list: DashMap::with_capacity(8),
         }
     }
@@ -224,37 +216,26 @@ impl SubscribeManager {
         false
     }
 
+    pub fn is_exclusive_subscribe(&self, topic_name: &str) -> bool {
+        if let Some(list) = self.topic_subscribe_list.get(topic_name) {
+            for raw in list.iter() {
+                if raw.path.starts_with("$exclusive") {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     fn remove_topic_subscribe_by_client_id(&self, topic_name: &str, client_id: &str) {
         if let Some(mut list) = self.topic_subscribe_list.get_mut(topic_name) {
-            list.retain(|x| x.client_id == *client_id);
+            list.retain(|x| x.client_id != *client_id);
         }
     }
 
-    pub fn remove_topic_subscribe_by_path(&self, topic_name: &str, path: &str) {
+    pub fn remove_topic_subscribe_by_path(&self, topic_name: &str, client_id: &str, path: &str) {
         if let Some(mut list) = self.topic_subscribe_list.get_mut(topic_name) {
-            list.retain(|x| x.path == *path);
-        }
-    }
-
-    // exclusive subscribe
-    pub fn is_exclusive_subscribe(&self, topic: &str) -> bool {
-        self.exclusive_subscribe.contains_key(topic)
-    }
-
-    pub fn add_exclusive_subscribe(&self, topic: &str, client_id: &str) {
-        self.exclusive_subscribe
-            .insert(topic.to_owned(), client_id.to_owned());
-    }
-
-    pub fn remove_exclusive_subscribe_by_topic(&self, topic: &str) {
-        self.exclusive_subscribe.remove(topic);
-    }
-
-    fn remove_exclusive_subscribe_by_client_id(&self, client_id: &str) {
-        for (topic, cid) in self.exclusive_subscribe.clone() {
-            if cid == *client_id {
-                self.exclusive_subscribe.remove(&topic);
-            }
+            list.retain(|x| x.path != *path && x.client_id != *client_id);
         }
     }
 
@@ -262,7 +243,6 @@ impl SubscribeManager {
         self.remove_exclusive_push_by_client_id(client_id);
         self.remove_share_subscribe_leader_by_client_id(client_id);
         self.remove_share_subscribe_follower_by_client_id(client_id);
-        self.remove_exclusive_subscribe_by_client_id(client_id);
         self.remove_subscriber_by_client_id(client_id);
     }
 
@@ -280,5 +260,40 @@ impl SubscribeManager {
     }
     fn share_follower_key(&self, client_id: &str, group_name: &str, topic_id: &str) -> String {
         format!("{}_{}_{}", client_id, group_name, topic_id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use common_base::tools::unique_id;
+
+    use crate::subscribe::subscribe_manager::SubscribeManager;
+
+    #[test]
+    fn topic_subscribe_test() {
+        let subscribe_manager = Arc::new(SubscribeManager::new());
+        let topic_name = "t1";
+        let client_id = unique_id();
+        let path = "/topic/path";
+
+        subscribe_manager.add_topic_subscribe(topic_name, &client_id, path);
+        assert_eq!(subscribe_manager.topic_subscribe_list.len(), 1);
+        assert!(subscribe_manager.contain_topic_subscribe(topic_name));
+        assert!(!subscribe_manager.is_exclusive_subscribe(topic_name));
+        subscribe_manager.remove_topic_subscribe_by_client_id(topic_name, &client_id);
+        assert!(!subscribe_manager.contain_topic_subscribe(topic_name));
+        assert!(!subscribe_manager.is_exclusive_subscribe(topic_name));
+
+        let path = "$exclusive/path";
+        subscribe_manager.add_topic_subscribe(topic_name, &client_id, path);
+        assert_eq!(subscribe_manager.topic_subscribe_list.len(), 1);
+        assert!(subscribe_manager.contain_topic_subscribe(topic_name));
+        assert!(subscribe_manager.is_exclusive_subscribe(topic_name));
+
+        subscribe_manager.remove_topic_subscribe_by_path(topic_name, &client_id, path);
+        assert!(!subscribe_manager.contain_topic_subscribe(topic_name));
+        assert!(!subscribe_manager.is_exclusive_subscribe(topic_name));
     }
 }

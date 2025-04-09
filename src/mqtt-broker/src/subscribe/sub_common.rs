@@ -20,6 +20,7 @@ use bytes::BytesMut;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use common_base::tools::now_mills;
+use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
 use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
 use grpc_clients::pool::ClientPool;
 use log::{error, warn};
@@ -74,26 +75,9 @@ pub fn sub_path_validator(sub_path: String) -> bool {
 }
 
 pub fn path_regex_match(topic_name: &str, sub_path: &str) -> bool {
-    let path = if is_share_sub(sub_path) {
-        let (_, group_path) = decode_share_info(sub_path);
-        group_path
-    } else if is_queue_sub(sub_path) {
-        decode_queue_info(sub_path)
-    } else {
-        sub_path.to_owned()
-    };
+    let path = decode_sub_path(sub_path);
 
-    let topic = if is_share_sub(topic_name) {
-        let (_, group_path) = decode_share_info(topic_name);
-        group_path
-    } else if is_queue_sub(topic_name) {
-        decode_queue_info(topic_name)
-    } else {
-        topic_name.to_owned()
-    };
-
-    // Path perfect matching
-    if topic == path {
+    if *topic_name == path {
         return true;
     }
 
@@ -106,7 +90,7 @@ pub fn path_regex_match(topic_name: &str, sub_path: &str) -> bool {
             sub_regex = sub_regex.replace("#", "[^+#]+");
         }
         let re = Regex::new(&sub_regex.to_string()).unwrap();
-        return re.is_match(&topic);
+        return re.is_match(topic_name);
     }
 
     if path.contains("#") {
@@ -115,10 +99,23 @@ pub fn path_regex_match(topic_name: &str, sub_path: &str) -> bool {
         }
         let sub_regex = path.replace("#", "[^+#]+");
         let re = Regex::new(&sub_regex.to_string()).unwrap();
-        return re.is_match(&topic);
+        return re.is_match(topic_name);
     }
 
     false
+}
+
+pub fn decode_sub_path(sub_path: &str) -> String {
+    if is_share_sub(sub_path) {
+        let (_, group_path) = decode_share_info(sub_path);
+        group_path
+    } else if is_queue_sub(sub_path) {
+        decode_queue_info(sub_path)
+    } else if is_exclusive_sub(sub_path) {
+        decode_exclusive_sub_path_to_topic_name(sub_path).to_owned()
+    } else {
+        sub_path.to_owned()
+    }
 }
 
 pub fn min_qos(qos: QoS, sub_qos: QoS) -> QoS {
@@ -585,7 +582,7 @@ mod tests {
 
     use crate::handler::cache::CacheManager;
     use crate::subscribe::sub_common::{
-        decode_share_info, get_pkid, get_sub_topic_id_list, is_share_sub, min_qos,
+        decode_share_info, decode_sub_path, get_pkid, get_sub_topic_id_list, is_share_sub, min_qos,
         path_regex_match, sub_path_validator,
     };
 
@@ -753,5 +750,20 @@ mod tests {
             println!("{}", id);
             sleep(Duration::from_secs(1));
         }
+    }
+
+    #[tokio::test]
+    async fn decode_sub_path_sub_test() {
+        let path = "$share/group1/topic1/1".to_string();
+        assert_eq!(decode_sub_path(&path), "/topic1/1".to_string());
+
+        let path = "$queue/topic1/1".to_string();
+        assert_eq!(decode_sub_path(&path), "/topic1/1".to_string());
+
+        let path = "/topic1/1".to_string();
+        assert_eq!(decode_sub_path(&path), "/topic1/1".to_string());
+
+        let path = "$exclusive/topic1/1".to_string();
+        assert_eq!(decode_sub_path(&path), "/topic1/1".to_string());
     }
 }

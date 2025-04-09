@@ -269,8 +269,7 @@ where
         self.cache_manager
             .report_heartbeat(client_id.clone(), live_time);
 
-        self.cache_manager
-            .add_session(client_id.clone(), session.clone());
+        self.cache_manager.add_session(&client_id, &session);
         self.cache_manager
             .add_connection(connect_id, connection.clone());
 
@@ -832,7 +831,7 @@ where
     }
 
     pub async fn ping(&self, connect_id: u64, _: PingReq) -> MqttPacket {
-        let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
+        let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
             se.clone()
         } else {
             return response_packet_mqtt_distinct_by_reason(

@@ -176,7 +176,7 @@ pub(crate) fn read_tls_frame_process(
                         match pkg {
                             Ok(pack) => {
                                 record_received_metrics(&connection, &pack, &network_type);
-                                info!("revc tcp tls packet:{:?}", pack);
+                                info!("recv tcp tls packet:{:?}", pack);
                                 let package =
                                     RequestPackage::new(connection.connection_id, connection.addr, pack);
                                 match request_queue_sx.send(package).await {

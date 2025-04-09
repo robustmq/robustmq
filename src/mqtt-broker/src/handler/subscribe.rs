@@ -14,12 +14,13 @@
 
 use std::sync::Arc;
 
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::{
+    config::broker_mqtt::broker_mqtt_conf,
+    utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub},
+};
 use grpc_clients::{placement::mqtt::call::placement_set_subscribe, pool::ClientPool};
 use log::error;
-use metadata_struct::mqtt::{
-    cluster::AvailableFlag, subscribe_data::MqttSubscribe, topic::MqttTopic,
-};
+use metadata_struct::mqtt::{subscribe_data::MqttSubscribe, topic::MqttTopic};
 use protocol::{
     mqtt::common::{Filter, MqttProtocol, Subscribe, SubscribeProperties},
     placement_center::placement_center_mqtt::SetSubscribeRequest,
@@ -35,7 +36,7 @@ use crate::subscribe::{
     subscriber::Subscriber,
 };
 
-use super::{cache::CacheManager, error::MqttBrokerError, sub_exclusive::add_exclusive_subscribe};
+use super::{cache::CacheManager, error::MqttBrokerError};
 
 #[derive(Clone, Deserialize, Serialize)]
 struct ParseShareQueueSubscribeRequest {
@@ -81,6 +82,7 @@ pub async fn save_subscribe(
             path: filter.path.clone(),
             subscribe: subscribe_data.encode(),
         };
+
         if let Err(e) = placement_set_subscribe(client_pool, &conf.placement_center, request).await
         {
             error!(
@@ -99,7 +101,6 @@ pub async fn save_subscribe(
         for filter in filters {
             parse_subscribe(
                 client_pool,
-                cache_manager,
                 subscribe_manager,
                 client_id,
                 &topic,
@@ -118,7 +119,6 @@ pub async fn save_subscribe(
 #[allow(clippy::too_many_arguments)]
 pub async fn parse_subscribe(
     client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     client_id: &str,
     topic: &MqttTopic,
@@ -132,16 +132,6 @@ pub async fn parse_subscribe(
     } else {
         None
     };
-
-    let enable_exclusive_sub = metadata_cache
-        .get_cluster_info()
-        .feature
-        .exclusive_subscription_available
-        == AvailableFlag::Enable;
-
-    if enable_exclusive_sub {
-        add_exclusive_subscribe(subscribe_manager, &filter.path, client_id);
-    }
 
     if is_share_sub(&filter.path) {
         parse_share_subscribe(
@@ -290,7 +280,12 @@ fn add_exclusive_push(
     sub_identifier: &Option<usize>,
     filter: &Filter,
 ) {
-    if path_regex_match(&topic.topic_name, &filter.path) {
+    let path = if is_exclusive_sub(&filter.path) {
+        decode_exclusive_sub_path_to_topic_name(&filter.path).to_owned()
+    } else {
+        filter.path.to_owned()
+    };
+    if path_regex_match(&topic.topic_name, &path) {
         let sub = Subscriber {
             protocol: protocol.to_owned(),
             client_id: client_id.to_owned(),
@@ -302,9 +297,61 @@ fn add_exclusive_push(
             preserve_retain: filter.preserve_retain,
             retain_forward_rule: filter.retain_forward_rule.to_owned(),
             subscription_identifier: sub_identifier.to_owned(),
-            sub_path: filter.path.to_owned(),
+            sub_path: filter.path.clone(),
         };
         subscribe_manager.add_topic_subscribe(&topic.topic_name, client_id, &filter.path);
         subscribe_manager.add_exclusive_push(client_id, &filter.path, &topic.topic_id, sub);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::add_exclusive_push;
+    use crate::subscribe::subscribe_manager::SubscribeManager;
+    use common_base::tools::unique_id;
+    use metadata_struct::mqtt::topic::MqttTopic;
+    use protocol::mqtt::common::{Filter, MqttProtocol};
+    use std::sync::Arc;
+
+    #[test]
+    fn add_exclusive_push_test() {
+        let ex_path = "$exclusive/topic/1/2";
+        let subscribe_manager = Arc::new(SubscribeManager::new());
+        let topic = MqttTopic {
+            topic_name: "/topic/1/2".to_string(),
+            topic_id: "test-id".to_string(),
+            ..Default::default()
+        };
+        let client_id = unique_id();
+        let filter = Filter {
+            path: ex_path.to_owned(),
+            ..Default::default()
+        };
+        add_exclusive_push(
+            &subscribe_manager,
+            &topic,
+            &client_id,
+            &MqttProtocol::Mqtt3,
+            &Some(1),
+            &filter,
+        );
+        println!("{:?}", subscribe_manager.topic_subscribe_list);
+        println!("{:?}", subscribe_manager.exclusive_push);
+        assert_eq!(subscribe_manager.topic_subscribe_list.len(), 1);
+        assert_eq!(subscribe_manager.exclusive_push.len(), 1);
+
+        for (_, sub) in subscribe_manager.exclusive_push.clone() {
+            assert_eq!(sub.client_id, client_id);
+            assert_eq!(sub.sub_path, ex_path.to_owned());
+            assert_eq!(sub.topic_name, topic.topic_name.to_owned());
+        }
+
+        for (to, sub) in subscribe_manager.topic_subscribe_list.clone() {
+            for raw in sub {
+                assert_eq!(raw.client_id, client_id);
+                assert_eq!(raw.path, ex_path.to_owned());
+                assert_eq!(to, topic.topic_name.to_owned());
+            }
+        }
     }
 }

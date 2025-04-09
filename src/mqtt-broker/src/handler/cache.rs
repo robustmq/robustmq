@@ -150,8 +150,9 @@ impl CacheManager {
     }
 
     // session
-    pub fn add_session(&self, client_id: String, session: MqttSession) {
-        self.session_info.insert(client_id, session);
+    pub fn add_session(&self, client_id: &str, session: &MqttSession) {
+        self.session_info
+            .insert(client_id.to_owned(), session.to_owned());
     }
 
     pub fn get_session_info(&self, client_id: &str) -> Option<MqttSession> {

@@ -191,7 +191,7 @@ mod tests {
                     .unwrap()
                     .get_int()
                     .unwrap(),
-                1200
+                600
             );
 
             assert!(resp_pros.get(PropertyCode::ResponseInformation).is_none());
