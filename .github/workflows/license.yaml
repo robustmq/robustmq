@@ -29,7 +29,7 @@ on:
       - ".github/pull_request_template.md"
 jobs:
   license-header-check:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     name: license-header-check
     steps:
     - uses: actions/checkout@v2

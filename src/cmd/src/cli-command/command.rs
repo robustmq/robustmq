@@ -14,18 +14,19 @@
 
 pub(crate) mod mqtt;
 
-use clap::{arg, Parser, Subcommand, ValueEnum};
+use clap::{arg, Parser, Subcommand};
 use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
 use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
 use mqtt::admin::{
     process_auto_subscribe_args, AutoSubscribeRuleCommand, BindSchemaArgs, CreateSchemaArgs,
-    DeleteSchemaArgs, ListBindSchemaArgs, ListSchemaArgs, UnbindSchemaArgs, UpdateSchemaArgs,
+    DeleteSchemaArgs, ListBindSchemaArgs, ListSchemaArgs, ListTopicArgs, UnbindSchemaArgs,
+    UpdateSchemaArgs,
 };
 use mqtt::publish::process_subscribe_args;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    EnableFlappingDetectRequest, ListTopicRequest, MqttBindSchemaRequest, MqttCreateSchemaRequest,
+    EnableFlappingDetectRequest, MqttBindSchemaRequest, MqttCreateSchemaRequest,
     MqttDeleteSchemaRequest, MqttListBindSchemaRequest, MqttListSchemaRequest,
     MqttUnbindSchemaRequest, MqttUpdateSchemaRequest,
 };
@@ -35,9 +36,9 @@ use protocol::placement_center::placement_center_openraft::{
 };
 
 use crate::mqtt::admin::{
-    process_acl_args, process_blacklist_args, process_connector_args, process_slow_sub_args,
-    process_topic_rewrite_args, process_user_args, AclArgs, BlacklistArgs, ConnectorArgs,
-    FlappingDetectArgs, SlowSubArgs, TopicRewriteArgs, UserArgs,
+    process_acl_args, process_blacklist_args, process_connector_args, process_list_topic_args,
+    process_slow_sub_args, process_topic_rewrite_args, process_user_args, AclArgs, BlacklistArgs,
+    ConnectorArgs, FlappingDetectArgs, SlowSubArgs, TopicRewriteArgs, UserArgs,
 };
 use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 
@@ -116,24 +117,6 @@ enum MQTTAction {
 
     Publish(PubSubArgs),
     Subscribe(PubSubArgs),
-}
-
-#[derive(ValueEnum, Clone, Debug)]
-enum MatchOption {
-    E,
-    P,
-    S,
-}
-
-#[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="action: list topics", long_about = None)]
-#[command(next_line_help = true)]
-struct ListTopicArgs {
-    #[arg(short, long, required = true)]
-    topic_name: String,
-
-    #[arg(short, long, default_value = "e")]
-    match_option: MatchOption,
 }
 
 #[derive(clap::Args, Debug)]
@@ -228,14 +211,7 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             // connector
             MQTTAction::Connector(args) => process_connector_args(args),
             // list topic
-            MQTTAction::ListTopic(args) => MqttActionType::ListTopic(ListTopicRequest {
-                topic_name: args.topic_name,
-                match_option: match args.match_option {
-                    MatchOption::E => 0,
-                    MatchOption::P => 1,
-                    MatchOption::S => 2,
-                },
-            }),
+            MQTTAction::ListTopic(args) => process_list_topic_args(args),
             // topic rewrite rule
             MQTTAction::TopicRewriteRule(args) => process_topic_rewrite_args(args),
             MQTTAction::SlowSub(args) => process_slow_sub_args(args),

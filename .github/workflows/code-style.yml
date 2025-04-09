@@ -38,7 +38,7 @@ jobs:
     container:
       image: amd64/rust
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-builder
       - name: install rustfmt
@@ -51,12 +51,16 @@ jobs:
       image: amd64/rust
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-builder
       - name: Install cargo-deny
+        env:
+          RUSTC_WRAPPER: ""
         run: cargo install cargo-deny@0.16.2
       - name: cargo deny check
+        env:
+          RUSTC_WRAPPER: ""
         run: cargo-deny check licenses
 
   typos:
@@ -64,10 +68,12 @@ jobs:
       image: amd64/rust
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-builder
       - name: Install typos
+        env:
+          RUSTC_WRAPPER: ""
         run: cargo install typos-cli@1.27.3
       - name: typos check
         run: typos
@@ -78,10 +84,12 @@ jobs:
       image: amd64/rust
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-builder
       - name: cargo check
+        env:
+          RUSTC_WRAPPER: ""
         run:  cargo check --all
 
   clippy:
@@ -89,10 +97,12 @@ jobs:
       image: amd64/rust
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-builder
       - name: Install clippy
         run:  rustup component add clippy
       - name: cargo clippy check
+        env:
+          RUSTC_WRAPPER: ""
         run: cargo clippy --all-targets --all-features --tests --benches -- -D warnings
