@@ -37,7 +37,7 @@ bin/robust-server journal start
 sleep 10
 
 # place
-cargo nextest run --profile ci --package grpc-clients --package robustmq-test --test mod -- placement && \
+cargo nextest run --profile ci --package grpc-clients --package robustmq-test --test mod -- placement
 cargo nextest run --profile ci --package robustmq-test --test mod -- place_server
 
 if [ $? -ne 0 ]; then
@@ -50,7 +50,7 @@ fi
 cargo clean
 
 # journal
-cargo nextest run  --profile ci --package grpc-clients --test mod -- journal && \
+cargo nextest run  --profile ci --package grpc-clients --test mod -- journal
 cargo nextest run  --profile ci --package robustmq-test --test mod -- journal_client
 
 
@@ -63,7 +63,7 @@ fi
 
 cargo clean
 # mqtt
-cargo nextest run --profile ci --package grpc-clients --test mod -- mqtt && \
+cargo nextest run --profile ci --package grpc-clients --test mod -- mqtt
 cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt_server
 
 
