@@ -51,8 +51,8 @@ cargo clean
 
 # journal
 cargo nextest run  --profile ci --package grpc-clients --test mod -- journal && \
-cargo nextest run  --profile ci --package robustmq-test --test mod -- journal_client && \
-cargo nextest run  --profile ci --package robustmq-test --test mod -- journal_server
+cargo nextest run  --profile ci --package robustmq-test --test mod -- journal_client
+
 
 if [ $? -ne 0 ]; then
     echo "journal test failed"
@@ -64,8 +64,8 @@ fi
 cargo clean
 # mqtt
 cargo nextest run --profile ci --package grpc-clients --test mod -- mqtt && \
-cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt_server && \
-cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt_protocol
+cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt_server
+
 
 if [ $? -ne 0 ]; then
     echo "mqtt test failed"
@@ -77,6 +77,11 @@ fi
 cargo clean
 # storage-adapter
 cargo nextest run --profile ci --package storage-adapter --lib -- placement
+cargo nextest run  --profile ci --package robustmq-test --test mod -- journal_server
+
+cargo clean
+# mqtt protocol
+cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt_protocol
 
 sleep 10
 bin/robust-server place stop
