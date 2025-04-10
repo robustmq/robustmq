@@ -29,8 +29,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::subscribe::{
     sub_common::{
-        decode_queue_info, decode_share_info, get_share_sub_leader, is_queue_sub, is_share_sub,
-        path_regex_match,
+        decode_queue_info, decode_share_info, get_share_sub_leader, is_match_sub_and_topic,
+        is_queue_sub, is_share_sub,
     },
     subscribe_manager::{ShareSubShareSub, SubscribeManager},
     subscriber::Subscriber,
@@ -62,7 +62,6 @@ pub async fn save_subscribe(
 ) -> Result<(), MqttBrokerError> {
     let conf = broker_mqtt_conf();
     let filters = &subscribe.filters;
-
     for filter in filters {
         let subscribe_data = MqttSubscribe {
             client_id: client_id.to_owned(),
@@ -94,25 +93,32 @@ pub async fn save_subscribe(
         // add subscribe by cache
         subscribe_manager.add_subscribe(subscribe_data);
     }
-
     // parse subscribe
+    let new_client_pool = client_pool.to_owned();
+    let new_subscribe_manager = subscribe_manager.clone();
     let topic_info = cache_manager.topic_info.clone();
-    for (_, topic) in topic_info {
-        for filter in filters {
-            parse_subscribe(
-                client_pool,
-                subscribe_manager,
-                client_id,
-                &topic,
-                protocol,
-                subscribe.packet_identifier,
-                filter,
-                subscribe_properties,
-            )
-            .await
+    let new_protocol = protocol.to_owned();
+    let new_client_id = client_id.to_owned();
+    let new_subscribe = subscribe.to_owned();
+    let new_subscribe_properties = subscribe_properties.to_owned();
+    let new_filters = filters.to_owned();
+    tokio::spawn(async move {
+        for (_, topic) in topic_info {
+            for filter in new_filters.clone() {
+                parse_subscribe(
+                    &new_client_pool,
+                    &new_subscribe_manager,
+                    &new_client_id,
+                    &topic,
+                    &new_protocol,
+                    new_subscribe.packet_identifier,
+                    &filter,
+                    &new_subscribe_properties,
+                )
+                .await;
+            }
         }
-    }
-
+    });
     Ok(())
 }
 
@@ -209,7 +215,8 @@ async fn parse_share_queue_subscribe_common(
     req: &ParseShareQueueSubscribeRequest,
 ) {
     let conf = broker_mqtt_conf();
-    if path_regex_match(&req.topic_name, &req.sub_name) {
+
+    if is_match_sub_and_topic(&req.sub_name, &req.topic_name).is_ok() {
         match get_share_sub_leader(client_pool, &req.group_name).await {
             Ok(reply) => {
                 if reply.broker_id == conf.broker_id {
@@ -285,7 +292,8 @@ fn add_exclusive_push(
     } else {
         filter.path.to_owned()
     };
-    if path_regex_match(&topic.topic_name, &path) {
+
+    if is_match_sub_and_topic(&path, &topic.topic_name).is_ok() {
         let sub = Subscriber {
             protocol: protocol.to_owned(),
             client_id: client_id.to_owned(),

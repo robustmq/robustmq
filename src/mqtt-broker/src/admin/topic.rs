@@ -110,7 +110,7 @@ pub async fn create_topic_rewrite_rule_by_req(
 ) -> Result<Response<CreateTopicRewriteRuleReply>, Status> {
     let req = request.into_inner();
     let config = broker_mqtt_conf();
-    let topic_rewrite_rule = MqttTopicRewriteRule {
+    let rule = MqttTopicRewriteRule {
         cluster: config.cluster_name.clone(),
         action: req.action,
         source_topic: req.source_topic,
@@ -119,12 +119,9 @@ pub async fn create_topic_rewrite_rule_by_req(
         timestamp: now_mills(),
     };
     let topic_storage = TopicStorage::new(client_pool.clone());
-    match topic_storage
-        .create_topic_rewrite_rule(topic_rewrite_rule.clone())
-        .await
-    {
+    match topic_storage.create_topic_rewrite_rule(rule.clone()).await {
         Ok(_) => {
-            cache_manager.add_topic_rewrite_rule(topic_rewrite_rule);
+            cache_manager.add_topic_rewrite_rule(rule);
             Ok(Response::new(CreateTopicRewriteRuleReply::default()))
         }
         Err(e) => Err(Status::cancelled(e.to_string())),

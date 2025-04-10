@@ -281,6 +281,13 @@ impl CacheManager {
         self.topic_rewrite_rule.remove(&key);
     }
 
+    pub fn get_all_topic_rewrite_rule(&self) -> Vec<MqttTopicRewriteRule> {
+        self.topic_rewrite_rule
+            .iter()
+            .map(|entry| entry.value().clone())
+            .collect()
+    }
+
     pub fn login_success(&self, connect_id: u64, user_name: String) {
         if let Some(mut conn) = self.connection_info.get_mut(&connect_id) {
             conn.login_success(user_name)

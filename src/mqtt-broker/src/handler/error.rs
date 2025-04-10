@@ -31,6 +31,9 @@ pub enum MqttBrokerError {
     FromCommonError(#[from] CommonError),
 
     #[error("{0}")]
+    RegexError(#[from] regex::Error),
+
+    #[error("{0}")]
     ParseIntError(#[from] ParseIntError),
 
     #[error("{0}")]
@@ -97,6 +100,9 @@ pub enum MqttBrokerError {
 
     #[error("Invalid acl action")]
     InvalidAclAction,
+
+    #[error("Subscription path {0} is not available")]
+    InvalidSubPath(String),
 
     #[error("invalid acl permission")]
     InvalidAclPermission,

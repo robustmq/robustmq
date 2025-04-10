@@ -76,6 +76,7 @@ where
         if conf.cluster_name != req.cluster_name {
             return Ok(Response::new(UpdateMqttCacheReply::default()));
         }
+        debug!("update cache:{:?}", req);
         update_cache_metadata(
             &self.cache_manager,
             &self.connector_manager,

@@ -140,6 +140,13 @@ export const sidebar = [
         ],
     },
     {
+        text: "RobustMQ Dashboard",
+        collapsed: true,
+        items: [
+            { text: "概览", link: "" }
+        ],
+    },
+    {
         text: "贡献指南",
         collapsed: true,
         items: [
