@@ -25,6 +25,10 @@ export const enConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
 
         },
 
+        socialLinks: [
+            {icon: 'github', link: 'https://github.com/robustmq/robustmq'}
+        ]
+
     },
 
 }

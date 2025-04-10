@@ -24,6 +24,10 @@ export const zhConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
 
         },
 
+        socialLinks: [
+            {icon: 'github', link: 'https://github.com/robustmq/robustmq'}
+        ]
+
     },
 
 }
