@@ -26,6 +26,7 @@ mod tests {
         SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE,
     };
     use paho_mqtt::{Message, MessageBuilder, PropertyCode, RetainHandling, SubscribeOptions};
+    use std::cell::RefCell;
     use std::time::Duration;
 
     #[tokio::test]
@@ -114,19 +115,26 @@ mod tests {
                     .finalize();
                 publish_data(&cli, msg, false);
 
-                assert!(cli
-                    .subscribe_with_options(&topic, qos, subscribe_options, None)
-                    .is_ok());
-
-                let mut is_no_local = true;
-                let call_fn = |msg: Message| -> bool {
+                let is_no_local = RefCell::new(true);
+                let call_fn = |msg: Message| {
                     let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
                     if payload != message_content {
                         return false;
                     }
-                    is_no_local = false;
+                    *is_no_local.borrow_mut() = false;
                     true
                 };
+
+                let subscribe_test_data = SubscribeTestData {
+                    sub_topic: topic.clone(),
+                    sub_qos: qos,
+                    subscribe_options,
+                    subscribe_properties: None,
+                };
+
+                subscribe_data_with_options(&cli, subscribe_test_data, call_fn);
+
+                assert!(!*is_no_local.borrow())
             }
         }
     }
@@ -280,10 +288,6 @@ mod tests {
                 };
                 let cli = connect_server(&client_properties);
 
-                let message_content = "retain message".to_string();
-                let msg = Message::new_retained(topic.clone(), message_content.clone(), qos);
-                publish_data(&cli, msg, false);
-
                 let sub_cli = build_client_id(
                     format!("retain_handling_sub_1_test_{}_{}", network, qos).as_str(),
                 );
@@ -295,6 +299,10 @@ mod tests {
                     ssl: ssl_by_type(&network),
                     ..Default::default()
                 });
+
+                let message_content = "retain message".to_string();
+                let msg = Message::new_retained(topic.clone(), message_content.clone(), qos);
+                publish_data(&cli, msg, false);
 
                 let call_fn = |msg: Message| {
                     let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
