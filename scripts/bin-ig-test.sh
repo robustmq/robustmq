@@ -39,7 +39,6 @@ sleep 10
 # place
 cargo nextest run --profile ci --package grpc-clients --package robustmq-test --test mod -- placement && \
 cargo nextest run --profile ci --package robustmq-test --test mod -- place_server
-# cargo nextest run --profile ci --package storage-adapter --lib -- placement
 
 if [ $? -ne 0 ]; then
     echo "place test failed"
@@ -49,6 +48,7 @@ else
 fi
 
 cargo clean
+
 # journal
 cargo nextest run  --profile ci --package grpc-clients --test mod -- journal && \
 cargo nextest run  --profile ci --package robustmq-test --test mod -- journal_client && \
@@ -73,6 +73,10 @@ if [ $? -ne 0 ]; then
 else
     echo "mqtt test passed"
 fi
+
+cargo clean
+# storage-adapter
+cargo nextest run --profile ci --package storage-adapter --lib -- placement
 
 sleep 10
 bin/robust-server place stop
