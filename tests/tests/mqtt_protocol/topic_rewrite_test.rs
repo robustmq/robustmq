@@ -72,7 +72,7 @@ mod tests {
             .finalize();
         publish_data(&cli, msg, false);
 
-        // sub data
+        // sub data by rewrite_topic
         let call_fn = |msg: Message| {
             let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
             if payload == message {
@@ -81,6 +81,47 @@ mod tests {
             false
         };
         subscribe_data_by_qos(&cli, &rewrite_topic, qos, call_fn);
+        distinct_conn(cli);
+
+        // sub data by rewrite_topic
+        let prefix = format!("{}{}", "topic_rewrite_rule_test", unique_id());
+        let client_id = build_client_id(&prefix);
+        let client_properties = ClientTestProperties {
+            mqtt_version: protocol,
+            client_id: client_id.to_string(),
+            addr: broker_addr_by_type(network),
+            ws: ws_by_type(network),
+            ssl: ssl_by_type(network),
+            ..Default::default()
+        };
+        let cli = connect_server(&client_properties);
+        // sub data by rewrite_topic
+        let call_fn = |msg: Message| {
+            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+            if payload == message {
+                return true;
+            }
+            false
+        };
+        subscribe_data_by_qos(&cli, &source_topic, qos, call_fn);
+        distinct_conn(cli);
+
+        // unscriber
+        let prefix = format!("{}{}", "topic_rewrite_rule_test", unique_id());
+        let client_id = build_client_id(&prefix);
+        let client_properties = ClientTestProperties {
+            mqtt_version: protocol,
+            client_id: client_id.to_string(),
+            addr: broker_addr_by_type(network),
+            ws: ws_by_type(network),
+            ssl: ssl_by_type(network),
+            ..Default::default()
+        };
+        let cli = connect_server(&client_properties);
+        let res = cli.subscribe(&source_topic, qos);
+        assert!(res.is_ok());
+        let res = cli.unsubscribe(&source_topic);
+        assert!(res.is_ok());
         distinct_conn(cli);
     }
 }
