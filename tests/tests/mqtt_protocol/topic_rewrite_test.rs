@@ -29,13 +29,13 @@ mod tests {
     use std::sync::Arc;
 
     #[tokio::test]
-    async fn publish_rewrite_test() {
+    async fn pub_sub_rewrite_test() {
         let client_pool = Arc::new(ClientPool::new(3));
         let grpc_addr = vec![broker_grpc_addr()];
 
         let action: String = "All".to_string();
 
-        let prefix = format!("{}{}", "topic_rewrite_rule_test", unique_id());
+        let prefix = format!("{}{}", "pub_sub_rewrite_test", unique_id());
         let client_id = build_client_id(&prefix);
 
         let req = CreateTopicRewriteRuleRequest {
@@ -84,7 +84,7 @@ mod tests {
         distinct_conn(cli);
 
         // sub data by rewrite_topic
-        let prefix = format!("{}{}", "topic_rewrite_rule_test", unique_id());
+        let prefix = format!("{}{}", "pub_sub_rewrite_test", unique_id());
         let client_id = build_client_id(&prefix);
         let client_properties = ClientTestProperties {
             mqtt_version: protocol,
@@ -105,8 +105,32 @@ mod tests {
         };
         subscribe_data_by_qos(&cli, &source_topic, qos, call_fn);
         distinct_conn(cli);
+    }
 
-        // unscriber
+    #[tokio::test]
+    async fn un_sub_rewrite_test() {
+        let client_pool = Arc::new(ClientPool::new(3));
+        let grpc_addr = vec![broker_grpc_addr()];
+
+        let action: String = "All".to_string();
+
+        let prefix = format!("{}{}", "pub_sub_rewrite_test", unique_id());
+
+        let req = CreateTopicRewriteRuleRequest {
+            action: action.clone(),
+            source_topic: format!("{}y/+/z/#", prefix),
+            dest_topic: format!("{}y/z/$2", prefix),
+            regex: format!("^{}y/(.+)/z/(.+)$", prefix),
+        };
+        let res = mqtt_broker_create_topic_rewrite_rule(&client_pool, &grpc_addr, req).await;
+        assert!(res.is_ok());
+
+        let source_topic = format!("{}y/a/z/b", prefix);
+
+        let network = "tcp";
+        let protocol = 5;
+        let qos = 1;
+
         let prefix = format!("{}{}", "topic_rewrite_rule_test", unique_id());
         let client_id = build_client_id(&prefix);
         let client_properties = ClientTestProperties {

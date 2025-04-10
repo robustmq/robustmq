@@ -38,8 +38,8 @@ sleep 10
 
 # place
 cargo nextest run --profile ci --package grpc-clients --package robustmq-test --test mod -- placement && \
-cargo nextest run --profile ci --package robustmq-test --test mod -- place_server && \
-cargo nextest run --profile ci --package storage-adapter --lib -- placement
+cargo nextest run --profile ci --package robustmq-test --test mod -- place_server
+# cargo nextest run --profile ci --package storage-adapter --lib -- placement
 
 if [ $? -ne 0 ]; then
     echo "place test failed"

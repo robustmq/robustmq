@@ -97,7 +97,6 @@ pub fn process_publish_topic_rewrite(
 ) -> Result<String, MqttBrokerError> {
     let mut rules: Vec<MqttTopicRewriteRule> = cache_manager.get_all_topic_rewrite_rule();
     rules.sort_by_key(|rule| rule.timestamp);
-    println!("rules: {:?}", rules);
     let mut new_topic_name = topic_name.to_owned();
     for rule in rules.iter() {
         let allow = rule.action != TopicRewriteActionEnum::All.to_string()
