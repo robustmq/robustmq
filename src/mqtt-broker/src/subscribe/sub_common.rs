@@ -81,16 +81,17 @@ pub fn is_wildcards(sub_path: &str) -> bool {
     sub_path.contains(SUBSCRIBE_WILDCARDS_1) || sub_path.contains(SUBSCRIBE_WILDCARDS_2)
 }
 
-pub fn is_match_sub_and_topic(sub_path: &str, topic_name: &str) -> Result<(), MqttBrokerError> {
+pub fn is_match_sub_and_topic(sub_path: &str, topic: &str) -> Result<(), MqttBrokerError> {
     let path = decode_sub_path(sub_path);
+    let topic_name = decode_sub_path(topic);
 
-    if *path == *topic_name {
+    if *path == topic_name {
         return Ok(());
     }
 
     if is_wildcards(&path) {
         if let Ok(regex) = build_sub_path_regex(&path) {
-            if regex.is_match(topic_name) {
+            if regex.is_match(&topic_name) {
                 return Ok(());
             }
         }

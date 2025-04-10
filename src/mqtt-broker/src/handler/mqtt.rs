@@ -762,7 +762,15 @@ where
 
         let new_subs = is_new_sub(&connection.client_id, &subscribe, &self.subscribe_manager).await;
 
-        process_sub_topic_rewrite(&mut subscribe, &self.cache_manager.topic_rewrite_rule);
+        if let Err(e) = process_sub_topic_rewrite(&self.cache_manager, &mut subscribe) {
+            return response_packet_mqtt_suback(
+                &self.protocol,
+                &connection,
+                subscribe.packet_identifier,
+                vec![SubscribeReasonCode::Unspecified],
+                Some(e.to_string()),
+            );
+        }
 
         if let Err(e) = save_subscribe(
             &connection.client_id,
@@ -877,7 +885,14 @@ where
             return packet;
         }
 
-        process_unsub_topic_rewrite(&mut un_subscribe, &self.cache_manager.topic_rewrite_rule);
+        if let Err(e) = process_unsub_topic_rewrite(&self.cache_manager, &mut un_subscribe) {
+            return response_packet_mqtt_unsuback(
+                &connection,
+                un_subscribe.pkid,
+                vec![UnsubAckReason::UnspecifiedError],
+                Some(e.to_string()),
+            );
+        }
 
         if let Err(e) = remove_subscribe(
             &connection.client_id,
