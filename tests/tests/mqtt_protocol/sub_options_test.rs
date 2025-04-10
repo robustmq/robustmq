@@ -17,8 +17,8 @@
 #[cfg(test)]
 mod tests {
     use crate::mqtt_protocol::common::{
-        broker_addr_by_type, build_client_id, connect_server, network_types, qos_list, ssl_by_type,
-        ws_by_type,
+        broker_addr_by_type, build_client_id, connect_server, network_types, publish_data,
+        qos_list, ssl_by_type, subscribe_data_with_options, ws_by_type, SubscribeTestData,
     };
     use crate::mqtt_protocol::ClientTestProperties;
     use common_base::tools::unique_id;
@@ -52,7 +52,7 @@ mod tests {
                     .qos(qos)
                     .retained(false)
                     .finalize();
-                assert!(cli.publish(msg).is_ok());
+                publish_data(&cli, msg, false);
 
                 let receiver = cli.start_consuming();
 
@@ -112,36 +112,21 @@ mod tests {
                     .qos(qos)
                     .retained(false)
                     .finalize();
-                assert!(cli.publish(msg).is_ok());
+                publish_data(&cli, msg, false);
 
                 assert!(cli
                     .subscribe_with_options(&topic, qos, subscribe_options, None)
                     .is_ok());
 
-                let message_content = "mqtt message".to_string();
-                let msg = MessageBuilder::new()
-                    .payload(message_content.clone())
-                    .topic(topic.clone())
-                    .qos(qos)
-                    .retained(false)
-                    .finalize();
-                assert!(cli.publish(msg).is_ok());
-
                 let mut is_no_local = true;
-                let receiver = cli.start_consuming();
-                receiver.iter().take(1).for_each(|msg| match msg {
-                    None => {
-                        panic!("no message received");
+                let call_fn = |msg: Message| -> bool {
+                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                    if payload != message_content {
+                        return false;
                     }
-                    Some(msg) => {
-                        is_no_local = false;
-                        assert_eq!(
-                            String::from_utf8(msg.payload().to_vec()).unwrap(),
-                            message_content
-                        )
-                    }
-                });
-                assert!(!is_no_local);
+                    is_no_local = false;
+                    true
+                };
             }
         }
     }
@@ -168,25 +153,27 @@ mod tests {
 
                     let message_content = "retain message".to_string();
                     let msg = Message::new_retained(topic.clone(), message_content.clone(), qos);
-                    assert!(cli.publish(msg).is_ok());
+                    publish_data(&cli, msg, false);
 
-                    assert!(cli
-                        .subscribe_with_options(&topic, qos, subscribe_options, None)
-                        .is_ok());
+                    let call_fn = |msg: Message| {
+                        let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                        if payload != message_content {
+                            return false;
+                        }
+                        let test_retain_as_published = retain_as_published;
+                        if msg.retained() != test_retain_as_published {
+                            return false;
+                        }
+                        true
+                    };
 
-                    let receiver = cli.start_consuming();
-                    receiver.iter().take(1).for_each(|msg| match msg {
-                        None => {
-                            panic!("no message received");
-                        }
-                        Some(msg) => {
-                            assert_eq!(
-                                String::from_utf8(msg.payload().to_vec()).unwrap(),
-                                message_content
-                            );
-                            assert_eq!(msg.retained(), retain_as_published);
-                        }
-                    });
+                    let subscribe_test_data = SubscribeTestData {
+                        sub_topic: topic,
+                        sub_qos: qos,
+                        subscribe_options,
+                        subscribe_properties: None,
+                    };
+                    subscribe_data_with_options(&cli, subscribe_test_data, call_fn);
                 }
             }
         }
@@ -213,7 +200,7 @@ mod tests {
 
                 let message_content = "retain message".to_string();
                 let msg = Message::new_retained(topic.clone(), message_content.clone(), qos);
-                assert!(cli.publish(msg).is_ok());
+                publish_data(&cli, msg, false);
 
                 let sub_cli = build_client_id(
                     format!("retain_handling_sub_0_test_{}_{}", network, qos).as_str(),
@@ -227,64 +214,48 @@ mod tests {
                     ..Default::default()
                 });
 
-                assert!(sub_cli
-                    .subscribe_with_options(&topic, qos, subscribe_options, None)
-                    .is_ok());
-
-                let receiver = sub_cli.start_consuming();
-
-                receiver.iter().take(1).for_each(|msg| match msg {
-                    None => {
-                        panic!("no message received");
+                let call_fn = |msg: Message| {
+                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                    if payload != message_content {
+                        return false;
                     }
-                    Some(msg) => {
-                        assert_eq!(
-                            String::from_utf8(msg.payload().to_vec()).unwrap(),
-                            message_content
-                        );
-                        match msg
+                    if msg
+                        .properties()
+                        .get_string_pair_at(PropertyCode::UserProperty, 0)
+                        .is_some()
+                    {
+                        let raw = msg
                             .properties()
                             .get_string_pair_at(PropertyCode::UserProperty, 0)
+                            .unwrap();
+                        if raw.0 != *SUB_RETAIN_MESSAGE_PUSH_FLAG
+                            || raw.1 != *SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE
                         {
-                            None => {
-                                panic!("no user property received");
-                            }
-                            Some(raw) => {
-                                assert_eq!(raw.0, *SUB_RETAIN_MESSAGE_PUSH_FLAG);
-                                assert_eq!(raw.1, *SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE);
-                            }
+                            return false;
                         }
                     }
-                });
+                    true
+                };
+
+                let subscribe_test_data = SubscribeTestData {
+                    sub_topic: topic.clone(),
+                    sub_qos: qos,
+                    subscribe_options,
+                    subscribe_properties: None,
+                };
+
+                subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn);
+
                 assert!(sub_cli.unsubscribe(&topic).is_ok());
 
-                assert!(sub_cli
-                    .subscribe_with_options(&topic, qos, subscribe_options, None)
-                    .is_ok());
+                let subscribe_test_data = SubscribeTestData {
+                    sub_topic: topic.clone(),
+                    sub_qos: qos,
+                    subscribe_options,
+                    subscribe_properties: None,
+                };
 
-                receiver.iter().take(1).for_each(|msg| match msg {
-                    None => {
-                        panic!("no message received");
-                    }
-                    Some(msg) => {
-                        assert_eq!(
-                            String::from_utf8(msg.payload().to_vec()).unwrap(),
-                            message_content
-                        );
-                        match msg
-                            .properties()
-                            .get_string_pair_at(PropertyCode::UserProperty, 0)
-                        {
-                            None => {
-                                panic!("no user property received");
-                            }
-                            Some(raw) => {
-                                assert_eq!(raw.0, *SUB_RETAIN_MESSAGE_PUSH_FLAG);
-                                assert_eq!(raw.1, *SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE);
-                            }
-                        }
-                    }
-                });
+                subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn);
             }
         }
     }
@@ -311,7 +282,7 @@ mod tests {
 
                 let message_content = "retain message".to_string();
                 let msg = Message::new_retained(topic.clone(), message_content.clone(), qos);
-                assert!(cli.publish(msg).is_ok());
+                publish_data(&cli, msg, false);
 
                 let sub_cli = build_client_id(
                     format!("retain_handling_sub_1_test_{}_{}", network, qos).as_str(),
@@ -325,48 +296,63 @@ mod tests {
                     ..Default::default()
                 });
 
-                assert!(sub_cli
-                    .subscribe_with_options(&topic, qos, subscribe_options, None)
-                    .is_ok());
-
-                let receiver = sub_cli.start_consuming();
-
-                receiver.iter().take(1).for_each(|msg| match msg {
-                    None => {
-                        panic!("no message received");
+                let call_fn = |msg: Message| {
+                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                    if payload != message_content {
+                        return false;
                     }
-                    Some(msg) => {
-                        assert_eq!(
-                            String::from_utf8(msg.payload().to_vec()).unwrap(),
-                            message_content
-                        );
-                        match msg
+                    if msg
+                        .properties()
+                        .get_string_pair_at(PropertyCode::UserProperty, 0)
+                        .is_some()
+                    {
+                        let raw = msg
                             .properties()
                             .get_string_pair_at(PropertyCode::UserProperty, 0)
+                            .unwrap();
+                        if raw.0 != *SUB_RETAIN_MESSAGE_PUSH_FLAG
+                            || raw.1 != *SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE
                         {
-                            None => {
-                                panic!("no user property received");
-                            }
-                            Some(raw) => {
-                                assert_eq!(raw.0, *SUB_RETAIN_MESSAGE_PUSH_FLAG);
-                                assert_eq!(raw.1, *SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE);
-                            }
+                            return false;
                         }
                     }
-                });
+                    true
+                };
+
+                let subscribe_test_data = SubscribeTestData {
+                    sub_topic: topic.clone(),
+                    sub_qos: qos,
+                    subscribe_options,
+                    subscribe_properties: None,
+                };
+
+                subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn);
 
                 assert!(sub_cli.unsubscribe(&topic).is_ok());
-                let receiver = sub_cli.start_consuming();
 
-                assert!(sub_cli
-                    .subscribe_with_options(&topic, qos, subscribe_options, None)
-                    .is_ok());
-
-                let mut re_send_retain_message = false;
-                if let Ok(Some(_msg)) = receiver.recv_timeout(Duration::from_secs(5)) {
-                    re_send_retain_message = true;
+                let call_fn = |msg: Message| {
+                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                    if payload != message_content {
+                        return false;
+                    }
+                    if msg
+                        .properties()
+                        .get_string_pair_at(PropertyCode::UserProperty, 0)
+                        .is_some()
+                    {
+                        return false;
+                    }
+                    true
                 };
-                assert!(!re_send_retain_message);
+
+                let subscribe_test_data = SubscribeTestData {
+                    sub_topic: topic.clone(),
+                    sub_qos: qos,
+                    subscribe_options,
+                    subscribe_properties: None,
+                };
+
+                subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn);
             }
         }
     }
@@ -392,7 +378,7 @@ mod tests {
 
                 let message_content = "retain message".to_string();
                 let msg = Message::new_retained(topic.clone(), message_content.clone(), qos);
-                assert!(cli.publish(msg).is_ok());
+                publish_data(&cli, msg, false);
 
                 let sub_cli = build_client_id(
                     format!("retain_handling_sub_2_test_{}_{}", network, qos).as_str(),
@@ -406,17 +392,28 @@ mod tests {
                     ..Default::default()
                 });
 
-                assert!(sub_cli
-                    .subscribe_with_options(&topic, qos, subscribe_options, None)
-                    .is_ok());
-
-                let receiver = sub_cli.start_consuming();
-
-                let mut re_send_retain_message = false;
-                if let Ok(Some(_msg)) = receiver.recv_timeout(Duration::from_secs(5)) {
-                    re_send_retain_message = true;
+                let subscribe_test_data = SubscribeTestData {
+                    sub_topic: topic.clone(),
+                    sub_qos: qos,
+                    subscribe_options,
+                    subscribe_properties: None,
                 };
-                assert!(!re_send_retain_message);
+
+                let call_fn = |msg: Message| {
+                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                    if payload != message_content {
+                        return false;
+                    }
+                    if msg
+                        .properties()
+                        .get_string_pair_at(PropertyCode::UserProperty, 0)
+                        .is_some()
+                    {
+                        return false;
+                    }
+                    true
+                };
+                subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn);
             }
         }
     }
