@@ -34,6 +34,7 @@ use handler::user::{init_system_user, UpdateUserCache};
 use lazy_static::lazy_static;
 use log::{error, info};
 use observability::start_opservability;
+use pprof_monitor::pprof_monitor::start_pprof_monitor;
 use schema_register::schema::SchemaRegisterManager;
 use security::AuthDriver;
 use server::connection_manager::ConnectionManager;
@@ -184,6 +185,7 @@ where
         self.start_system_topic_thread(stop_send.clone());
         self.start_prometheus();
         self.start_connector_thread(stop_send.clone());
+        self.start_pprof_monitor();
         self.awaiting_stop(stop_send);
     }
 
@@ -223,6 +225,15 @@ where
         if conf.prometheus.enable {
             self.runtime.spawn(async move {
                 register_prometheus_export(conf.prometheus.port).await;
+            });
+        }
+    }
+
+    fn start_pprof_monitor(&self) {
+        let conf = broker_mqtt_conf();
+        if conf.pprof.enable {
+            self.runtime.spawn(async move {
+                start_pprof_monitor(conf.pprof.port, conf.pprof.frequency).await;
             });
         }
     }

@@ -64,3 +64,8 @@ storage_type = "memory"
 [log]
 log_config = "./config/log-config/mqtt-log4rs.yaml"
 log_path = "./robust-data/mqtt-broker/logs"
+
+[pprof]
+enable = false
+port = 6060
+frequency = 100
