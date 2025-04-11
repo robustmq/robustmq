@@ -30,12 +30,12 @@ pub struct ClientTestProperties {
 }
 
 pub mod acl_test;
+pub mod auth_test;
 pub mod common;
 pub mod connect5_test;
 pub mod connect_packet_size_test;
 pub mod connect_test;
-// mod flapping_detect_test;
-pub mod auth_test;
+mod flapping_detect_test;
 pub mod keep_alive_test;
 pub mod lastwill_message_test;
 pub mod qos_test;
