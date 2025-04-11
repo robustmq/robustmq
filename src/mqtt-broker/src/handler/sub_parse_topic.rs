@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{cache::CacheManager, subscribe::parse_subscribe};
+use super::{
+    cache::CacheManager, subscribe::parse_subscribe,
+    topic_rewrite::convert_sub_path_by_rewrite_rule,
+};
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::now_second};
 use grpc_clients::pool::ClientPool;
@@ -58,19 +61,28 @@ async fn parse_subscribe_by_new_topic(
     last_update_time: u64,
 ) {
     let conf = broker_mqtt_conf();
-    for (_, topic) in cache_manager.topic_info.clone() {
-        if topic.create_time < last_update_time {
+
+    for (_, subscribe) in subscribe_manager.subscribe_list.clone() {
+        if subscribe.broker_id != conf.broker_id {
             continue;
         }
-
-        for (_, subscribe) in subscribe_manager.subscribe_list.clone() {
-            if subscribe.broker_id != conf.broker_id {
+        let rewrite_sub_path =
+            match convert_sub_path_by_rewrite_rule(cache_manager, &subscribe.path) {
+                Ok(rewrite_sub_path) => rewrite_sub_path,
+                Err(e) => {
+                    error!(
+                        "Failed to convert sub path by rewrite rule, error message: {}",
+                        e
+                    );
+                    continue;
+                }
+            };
+        for (_, topic) in cache_manager.topic_info.clone() {
+            if topic.create_time < last_update_time {
                 continue;
             }
-
             if let Err(e) = parse_subscribe(
                 client_pool,
-                cache_manager,
                 subscribe_manager,
                 &subscribe.client_id,
                 &topic,
@@ -78,6 +90,7 @@ async fn parse_subscribe_by_new_topic(
                 subscribe.pkid,
                 &subscribe.filter,
                 &subscribe.subscribe_properties,
+                &rewrite_sub_path,
             )
             .await
             {

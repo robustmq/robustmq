@@ -99,7 +99,6 @@ pub async fn save_subscribe(
     // parse subscribe
     let new_client_pool = client_pool.to_owned();
     let new_subscribe_manager = subscribe_manager.clone();
-    let topic_info = cache_manager.topic_info.clone();
     let new_protocol = protocol.to_owned();
     let new_client_id = client_id.to_owned();
     let new_subscribe = subscribe.to_owned();
@@ -107,11 +106,22 @@ pub async fn save_subscribe(
     let new_filters = filters.to_owned();
     let new_cache_manager = cache_manager.to_owned();
     tokio::spawn(async move {
-        for (_, topic) in topic_info {
-            for filter in new_filters.clone() {
+        for filter in new_filters.clone() {
+            let rewrite_sub_path =
+                match convert_sub_path_by_rewrite_rule(&new_cache_manager, &filter.path) {
+                    Ok(rewrite_sub_path) => rewrite_sub_path,
+                    Err(e) => {
+                        error!(
+                            "Failed to convert sub path by rewrite rule, error message: {}",
+                            e
+                        );
+                        continue;
+                    }
+                };
+
+            for (_, topic) in new_cache_manager.topic_info.clone() {
                 if let Err(e) = parse_subscribe(
                     &new_client_pool,
-                    &new_cache_manager,
                     &new_subscribe_manager,
                     &new_client_id,
                     &topic,
@@ -119,6 +129,7 @@ pub async fn save_subscribe(
                     new_subscribe.packet_identifier,
                     &filter,
                     &new_subscribe_properties,
+                    &rewrite_sub_path,
                 )
                 .await
                 {
@@ -133,7 +144,6 @@ pub async fn save_subscribe(
 #[allow(clippy::too_many_arguments)]
 pub async fn parse_subscribe(
     client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<CacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     client_id: &str,
     topic: &MqttTopic,
@@ -141,6 +151,7 @@ pub async fn parse_subscribe(
     pkid: u16,
     filter: &Filter,
     subscribe_properties: &Option<SubscribeProperties>,
+    rewrite_sub_path: &Option<String>,
 ) -> Result<(), MqttBrokerError> {
     let sub_identifier = if let Some(properties) = subscribe_properties.clone() {
         properties.subscription_identifier
@@ -184,13 +195,13 @@ pub async fn parse_subscribe(
         .await
     } else {
         add_exclusive_push(
-            cache_manager,
             subscribe_manager,
             topic,
             client_id,
             protocol,
             &sub_identifier,
             filter,
+            rewrite_sub_path,
         )
     }
 }
@@ -294,21 +305,19 @@ async fn add_share_push_follower(
 }
 
 fn add_exclusive_push(
-    cache_manager: &Arc<CacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     topic: &MqttTopic,
     client_id: &str,
     protocol: &MqttProtocol,
     sub_identifier: &Option<usize>,
     filter: &Filter,
+    rewrite_sub_path: &Option<String>,
 ) -> Result<(), MqttBrokerError> {
     let path = if is_exclusive_sub(&filter.path) {
         decode_exclusive_sub_path_to_topic_name(&filter.path).to_owned()
     } else {
         filter.path.to_owned()
     };
-
-    let rewrite_sub_path = convert_sub_path_by_rewrite_rule(cache_manager, &path)?;
 
     let new_path = if let Some(sub_path) = rewrite_sub_path.clone() {
         sub_path
@@ -329,7 +338,7 @@ fn add_exclusive_push(
             retain_forward_rule: filter.retain_forward_rule.to_owned(),
             subscription_identifier: sub_identifier.to_owned(),
             sub_path: filter.path.clone(),
-            rewrite_sub_path,
+            rewrite_sub_path: rewrite_sub_path.clone(),
             create_time: now_second(),
         };
         subscribe_manager.add_topic_subscribe(&topic.topic_name, client_id, &filter.path);
@@ -341,9 +350,8 @@ fn add_exclusive_push(
 #[cfg(test)]
 mod tests {
     use super::add_exclusive_push;
-    use crate::{handler::cache::CacheManager, subscribe::subscribe_manager::SubscribeManager};
+    use crate::subscribe::subscribe_manager::SubscribeManager;
     use common_base::tools::unique_id;
-    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::topic::MqttTopic;
     use protocol::mqtt::common::{Filter, MqttProtocol};
     use std::sync::Arc;
@@ -352,8 +360,6 @@ mod tests {
     fn add_exclusive_push_test() {
         let ex_path = "$exclusive/topic/1/2";
         let subscribe_manager = Arc::new(SubscribeManager::new());
-        let client_poll = Arc::new(ClientPool::new(100));
-        let cache_manager = Arc::new(CacheManager::new(client_poll, unique_id()));
         let topic = MqttTopic {
             topic_name: "/topic/1/2".to_string(),
             topic_id: "test-id".to_string(),
@@ -365,13 +371,13 @@ mod tests {
             ..Default::default()
         };
         let res = add_exclusive_push(
-            &cache_manager,
             &subscribe_manager,
             &topic,
             &client_id,
             &MqttProtocol::Mqtt3,
             &Some(1),
             &filter,
+            &None,
         );
         assert!(res.is_ok());
         println!("{:?}", subscribe_manager.topic_subscribe_list);

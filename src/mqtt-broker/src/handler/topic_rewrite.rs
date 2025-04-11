@@ -15,6 +15,7 @@
 use std::sync::Arc;
 
 use common_base::enum_type::topic_rewrite_action_enum::TopicRewriteActionEnum;
+use log::info;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use regex::Regex;
 
@@ -60,6 +61,10 @@ fn gen_convert_rewrite_name(
     if new_topic_name.is_empty() {
         return Ok(None);
     }
+    info!(
+        "topic rewriteconvert topic name: {} to {}",
+        name, new_topic_name
+    );
     Ok(Some(new_topic_name))
 }
 
