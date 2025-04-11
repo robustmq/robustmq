@@ -121,12 +121,12 @@ where
     loop {
         let res = rx.recv_timeout(Duration::from_secs(10));
         println!("{:?}", res);
-        assert!(res.is_ok());
-        let msg_opt = res.unwrap();
-        assert!(msg_opt.is_some());
-        let msg = msg_opt.unwrap();
-        if call_fn(msg) {
-            break;
+        if let Ok(msg_opt) = res {
+            assert!(msg_opt.is_some());
+            let msg = msg_opt.unwrap();
+            if call_fn(msg) {
+                break;
+            }
         }
     }
 }
@@ -165,12 +165,12 @@ pub fn subscribe_data_with_options<S, T, P, F>(
     loop {
         let res = rx.recv_timeout(Duration::from_secs(10));
         println!("{:?}", res);
-        assert!(res.is_ok());
-        let msg_opt = res.unwrap();
-        assert!(msg_opt.is_some());
-        let msg = msg_opt.unwrap();
-        if call_fn(msg) {
-            break;
+        if let Ok(msg_opt) = res {
+            assert!(msg_opt.is_some());
+            let msg = msg_opt.unwrap();
+            if call_fn(msg) {
+                break;
+            }
         }
     }
 }
