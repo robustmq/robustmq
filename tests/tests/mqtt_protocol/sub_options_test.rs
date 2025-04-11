@@ -210,7 +210,6 @@ mod tests {
                     ..Default::default()
                 };
                 let cli = connect_server(&client_properties);
-
                 let message_content = "retain message".to_string();
                 let msg = Message::new_retained(topic.clone(), message_content.clone(), qos);
                 publish_data(&cli, msg, false);
