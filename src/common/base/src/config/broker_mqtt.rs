@@ -17,7 +17,8 @@ use std::sync::OnceLock;
 use serde::{Deserialize, Serialize};
 
 use super::common::{
-    default_prometheus, override_default_by_env, Auth, Log, Prometheus, Storage, Telemetry,
+    default_pprof, default_prometheus, override_default_by_env, Auth, Log, Pprof, Prometheus,
+    Storage, Telemetry,
 };
 use super::default_mqtt::{
     default_auth, default_grpc_port, default_log, default_mqtt_cluster_dynamic_feature,
@@ -56,6 +57,8 @@ pub struct BrokerMqttConfig {
     pub telemetry: Telemetry,
     #[serde(default = "default_prometheus")]
     pub prometheus: Prometheus,
+    #[serde(default = "default_pprof")]
+    pub pprof: Pprof,
 
     #[serde(default = "default_mqtt_cluster_dynamic_slow_sub")]
     pub cluster_dynamic_config_slow_sub: MqttClusterDynamicSlowSub,

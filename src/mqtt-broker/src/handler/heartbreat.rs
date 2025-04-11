@@ -48,7 +48,7 @@ pub async fn report_heartbeat(client_pool: &Arc<ClientPool>, stop_send: broadcas
                 if let Err(e) = val{
                     error!("Broker heartbeat report timeout, error message:{}",e);
                 }
-                sleep(Duration::from_secs(3)).await;
+                sleep(Duration::from_secs(1)).await;
             }
         }
     }
@@ -63,5 +63,7 @@ async fn report(client_pool: &Arc<ClientPool>) {
             }
         }
         error!("{}", e);
+    } else {
+        debug!("heartbeat report success");
     }
 }

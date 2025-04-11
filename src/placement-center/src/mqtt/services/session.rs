@@ -114,8 +114,7 @@ pub async fn update_session_by_req(
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
     if let Some(session) = storage.get(&req.cluster_name, &req.client_id)? {
         if let Err(e) =
-            update_cache_by_delete_session(&req.cluster_name, call_manager, client_pool, session)
-                .await
+            update_cache_by_add_session(&req.cluster_name, call_manager, client_pool, session).await
         {
             return Err(Status::cancelled(e.to_string()));
         };
