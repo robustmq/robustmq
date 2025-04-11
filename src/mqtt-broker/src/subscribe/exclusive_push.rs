@@ -35,6 +35,7 @@ use super::subscriber::Subscriber;
 use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPacketInfo};
 use crate::handler::error::MqttBrokerError;
 use crate::handler::message::is_message_expire;
+use crate::handler::sub_option::{get_retain_flag_by_retain_as_published, is_send_msg_by_bo_local};
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
 use crate::subscribe::subscriber::SubPublishParam;
@@ -319,7 +320,7 @@ async fn build_pub_message(
         return Ok(None);
     }
 
-    if subscriber.nolocal && (subscriber.client_id == msg.client_id) {
+    if !is_send_msg_by_bo_local(subscriber.nolocal, &subscriber.client_id, &msg.client_id) {
         warn!(
             "Message dropping: message is not pushed to the client, because the client_id is the same as the subscriber, client_id: {}, topic_id: {}",
             subscriber.client_id, subscriber.topic_id
@@ -327,11 +328,7 @@ async fn build_pub_message(
         return Ok(None);
     }
 
-    let retain = if subscriber.preserve_retain {
-        msg.retain
-    } else {
-        false
-    };
+    let retain = get_retain_flag_by_retain_as_published(subscriber.preserve_retain, msg.retain);
 
     let mut publish = Publish {
         dup: false,

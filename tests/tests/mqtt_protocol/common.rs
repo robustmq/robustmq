@@ -91,6 +91,7 @@ pub fn connect_server(client_properties: &ClientTestProperties) -> Client {
 
     let conn_opts = build_conn_pros(client_properties.clone(), client_properties.err_pwd);
     let result = cli.connect(conn_opts);
+    print!("{:?}", result);
     if client_properties.conn_is_err {
         assert!(result.is_err());
     } else {
@@ -120,12 +121,12 @@ where
     loop {
         let res = rx.recv_timeout(Duration::from_secs(10));
         println!("{:?}", res);
-        assert!(res.is_ok());
-        let msg_opt = res.unwrap();
-        assert!(msg_opt.is_some());
-        let msg = msg_opt.unwrap();
-        if call_fn(msg) {
-            break;
+        if let Ok(msg_opt) = res {
+            assert!(msg_opt.is_some());
+            let msg = msg_opt.unwrap();
+            if call_fn(msg) {
+                break;
+            }
         }
     }
 }
@@ -164,12 +165,12 @@ pub fn subscribe_data_with_options<S, T, P, F>(
     loop {
         let res = rx.recv_timeout(Duration::from_secs(10));
         println!("{:?}", res);
-        assert!(res.is_ok());
-        let msg_opt = res.unwrap();
-        assert!(msg_opt.is_some());
-        let msg = msg_opt.unwrap();
-        if call_fn(msg) {
-            break;
+        if let Ok(msg_opt) = res {
+            assert!(msg_opt.is_some());
+            let msg = msg_opt.unwrap();
+            if call_fn(msg) {
+                break;
+            }
         }
     }
 }

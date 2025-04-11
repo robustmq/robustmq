@@ -55,7 +55,6 @@ use crate::handler::response::{
 use crate::handler::retain::save_retain_message;
 use crate::handler::session::{build_session, save_session};
 use crate::handler::topic::{get_topic_name, try_init_topic};
-use crate::handler::topic_rewrite::{process_sub_topic_rewrite, process_unsub_topic_rewrite};
 use crate::handler::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
 };
@@ -330,8 +329,8 @@ where
         let is_puback = publish.qos != QoS::ExactlyOnce;
 
         let topic_name = match get_topic_name(
-            connect_id,
             &self.cache_manager,
+            connect_id,
             &publish,
             &publish_properties,
         ) {
@@ -735,7 +734,7 @@ where
     pub async fn subscribe(
         &self,
         connect_id: u64,
-        mut subscribe: Subscribe,
+        subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
     ) -> MqttPacket {
         let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
@@ -761,16 +760,6 @@ where
         }
 
         let new_subs = is_new_sub(&connection.client_id, &subscribe, &self.subscribe_manager).await;
-
-        if let Err(e) = process_sub_topic_rewrite(&self.cache_manager, &mut subscribe) {
-            return response_packet_mqtt_suback(
-                &self.protocol,
-                &connection,
-                subscribe.packet_identifier,
-                vec![SubscribeReasonCode::Unspecified],
-                Some(e.to_string()),
-            );
-        }
 
         if let Err(e) = save_subscribe(
             &connection.client_id,
@@ -862,7 +851,7 @@ where
     pub async fn un_subscribe(
         &self,
         connect_id: u64,
-        mut un_subscribe: Unsubscribe,
+        un_subscribe: Unsubscribe,
         _: Option<UnsubscribeProperties>,
     ) -> MqttPacket {
         let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
@@ -883,15 +872,6 @@ where
         .await
         {
             return packet;
-        }
-
-        if let Err(e) = process_unsub_topic_rewrite(&self.cache_manager, &mut un_subscribe) {
-            return response_packet_mqtt_unsuback(
-                &connection,
-                un_subscribe.pkid,
-                vec![UnsubAckReason::UnspecifiedError],
-                Some(e.to_string()),
-            );
         }
 
         if let Err(e) = remove_subscribe(

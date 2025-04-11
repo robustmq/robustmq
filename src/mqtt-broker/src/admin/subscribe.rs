@@ -21,7 +21,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest, ListAutoSubscribeRuleReply,
     SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
 };
-use protocol::mqtt::common::{qos, retain_forward_rule, Error, QoS, RetainForwardRule};
+use protocol::mqtt::common::{qos, retain_forward_rule, Error, QoS, RetainHandling};
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
@@ -41,7 +41,7 @@ pub async fn set_auto_subscribe_rule(
             Error::InvalidRemainingLength(req.qos as usize).to_string(),
         ));
     };
-    let mut _retained_handling: Option<RetainForwardRule> = None;
+    let mut _retained_handling: Option<RetainHandling> = None;
     if req.retained_handling <= u8::MAX as u32 {
         _retained_handling = retain_forward_rule(req.retained_handling as u8);
     } else {

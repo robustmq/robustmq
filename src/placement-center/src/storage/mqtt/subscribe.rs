@@ -176,7 +176,7 @@ mod tests {
     use common_base::utils::file_utils::test_temp_dir;
     use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
     use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
-    use protocol::mqtt::common::{Filter, QoS, RetainForwardRule};
+    use protocol::mqtt::common::{Filter, QoS, RetainHandling};
     use rocksdb_engine::RocksDBEngine;
     use std::sync::Arc;
 
@@ -278,7 +278,7 @@ mod tests {
             qos: QoS::AtLeastOnce,
             no_local: true,
             retain_as_published: false,
-            retained_handling: RetainForwardRule::OnEverySubscribe,
+            retained_handling: RetainHandling::OnEverySubscribe,
         };
 
         storage

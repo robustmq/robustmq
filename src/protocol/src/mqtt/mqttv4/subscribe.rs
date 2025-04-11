@@ -78,7 +78,7 @@ mod filter {
                 // the following options only valid in mqtt v5 and will be ignored in mqtt v4
                 nolocal: false,
                 preserve_retain: false,
-                retain_forward_rule: RetainForwardRule::OnEverySubscribe,
+                retain_handling: RetainHandling::OnEverySubscribe,
             });
         }
 
@@ -107,7 +107,7 @@ mod tests {
             qos: QoS::AtLeastOnce,
             nolocal: false, // invalid in mqtt v4, ignore here with default value
             preserve_retain: false, // invalid in mqtt v4, ignore here with default value
-            retain_forward_rule: RetainForwardRule::OnEverySubscribe, // invalid in mqtt v4, ignore here with default value
+            retain_handling: RetainHandling::OnEverySubscribe, // invalid in mqtt v4, ignore here with default value
         };
         filter::write(&topic_filter, &mut buffer);
 
@@ -133,7 +133,7 @@ mod tests {
             qos: QoS::AtLeastOnce,
             nolocal: false, // invalid in mqtt v4, ignore here with default value
             preserve_retain: false, // invalid in mqtt v4, ignore here with default value
-            retain_forward_rule: RetainForwardRule::OnEverySubscribe, // invalid in mqtt v4, ignore here with default value
+            retain_handling: RetainHandling::OnEverySubscribe, // invalid in mqtt v4, ignore here with default value
         };
 
         let vec = vec![topic_filter];

@@ -304,9 +304,9 @@ mod tests {
         assert!(!config.network.tls_cert.is_empty());
         assert!(!config.network.tls_key.is_empty());
 
-        assert_eq!(config.tcp_thread.accept_thread_num, 1);
-        assert_eq!(config.tcp_thread.handler_thread_num, 10);
-        assert_eq!(config.tcp_thread.response_thread_num, 1);
+        assert_eq!(config.tcp_thread.accept_thread_num, 5);
+        assert_eq!(config.tcp_thread.handler_thread_num, 32);
+        assert_eq!(config.tcp_thread.response_thread_num, 5);
         assert_eq!(config.tcp_thread.max_connection_num, 1000);
         assert_eq!(config.tcp_thread.request_queue_size, 2000);
         assert_eq!(config.tcp_thread.response_queue_size, 2000);
@@ -458,9 +458,9 @@ mod tests {
         assert!(!config.network.tls_cert.is_empty());
         assert!(!config.network.tls_key.is_empty());
 
-        assert_eq!(config.tcp_thread.accept_thread_num, 1);
-        assert_eq!(config.tcp_thread.handler_thread_num, 10);
-        assert_eq!(config.tcp_thread.response_thread_num, 1);
+        assert_eq!(config.tcp_thread.accept_thread_num, 5);
+        assert_eq!(config.tcp_thread.handler_thread_num, 32);
+        assert_eq!(config.tcp_thread.response_thread_num, 5);
         assert_eq!(config.tcp_thread.max_connection_num, 1000);
         assert_eq!(config.tcp_thread.request_queue_size, 2000);
         assert_eq!(config.tcp_thread.response_queue_size, 2000);

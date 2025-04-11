@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::mqtt::common::{QoS, RetainForwardRule};
+use protocol::mqtt::common::{QoS, RetainHandling};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
@@ -22,7 +22,7 @@ pub struct MqttAutoSubscribeRule {
     pub qos: QoS,
     pub no_local: bool,
     pub retain_as_published: bool,
-    pub retained_handling: RetainForwardRule,
+    pub retained_handling: RetainHandling,
 }
 
 impl MqttAutoSubscribeRule {

@@ -25,7 +25,7 @@ use storage_adapter::storage::{ShardInfo, StorageAdapter};
 
 use super::error::MqttBrokerError;
 use crate::handler::cache::CacheManager;
-use crate::handler::topic_rewrite::process_publish_topic_rewrite;
+use crate::handler::topic_rewrite::convert_publish_topic_by_rewrite_rule;
 use crate::storage::message::cluster_name;
 use crate::storage::topic::TopicStorage;
 
@@ -74,8 +74,8 @@ pub fn topic_name_validator(topic_name: &str) -> Result<(), MqttBrokerError> {
 }
 
 pub fn get_topic_name(
+    cache_manager: &Arc<CacheManager>,
     connect_id: u64,
-    metadata_cache: &Arc<CacheManager>,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
 ) -> Result<String, MqttBrokerError> {
@@ -92,7 +92,7 @@ pub fn get_topic_name(
     }
 
     let topic_name = if topic.is_empty() {
-        if let Some(tn) = metadata_cache.get_topic_alias(connect_id, topic_alias.unwrap()) {
+        if let Some(tn) = cache_manager.get_topic_alias(connect_id, topic_alias.unwrap()) {
             tn
         } else {
             return Err(MqttBrokerError::TopicNameInvalid());
@@ -103,10 +103,14 @@ pub fn get_topic_name(
     topic_name_validator(&topic_name)?;
 
     // topic rewrite
-    let rewrite_topic_name = process_publish_topic_rewrite(metadata_cache, &topic_name)?;
-    topic_name_validator(rewrite_topic_name.as_str())?;
+    if let Some(rewrite_topic_name) =
+        convert_publish_topic_by_rewrite_rule(cache_manager, &topic_name)?
+    {
+        topic_name_validator(rewrite_topic_name.as_str())?;
+        return Ok(rewrite_topic_name);
+    }
 
-    Ok(rewrite_topic_name)
+    Ok(topic_name)
 }
 
 pub async fn try_init_topic<S>(

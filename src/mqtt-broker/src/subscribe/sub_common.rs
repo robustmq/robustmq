@@ -577,6 +577,8 @@ pub async fn publish_message_qos(
     };
 
     let mut stop_recv = stop_sx.subscribe();
+    let mut fail = None;
+    let mut times = 0;
     loop {
         select! {
             val = stop_recv.recv() => {
@@ -588,17 +590,21 @@ pub async fn publish_message_qos(
             }
             val = push_to_connect(sub_pub_param.subscribe.client_id.clone()) => {
                 if let Err(e) = val{
-                    error!(
-                        "Push Qos message to client {} failed, error message :{:?}",
-                        sub_pub_param.subscribe.client_id, e
-                    );
+                    if times > 3 {
+                        fail = Some(format!("Push Qos message to client {} failed, error message :{:?}",
+                            sub_pub_param.subscribe.client_id, e));
+                        break;
+                    }
+                    times += 1;
                     sleep(Duration::from_secs(1)).await;
                     continue;
                 }
                 break;
             }
-
         }
+    }
+    if let Some(e) = fail {
+        warn!("{}", e);
     }
 }
 

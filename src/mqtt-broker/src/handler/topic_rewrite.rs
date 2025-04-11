@@ -17,7 +17,6 @@ use std::sync::Arc;
 use common_base::enum_type::topic_rewrite_action_enum::TopicRewriteActionEnum;
 use log::info;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
-use protocol::mqtt::common::{Subscribe, Unsubscribe};
 use regex::Regex;
 
 use crate::handler::error::MqttBrokerError;
@@ -25,79 +24,27 @@ use crate::subscribe::sub_common::{decode_sub_path, is_match_sub_and_topic};
 
 use super::cache::CacheManager;
 
-pub fn process_sub_topic_rewrite(
-    cache_manager: &Arc<CacheManager>,
-    subscribe: &mut Subscribe,
-) -> Result<(), MqttBrokerError> {
-    let mut rules: Vec<MqttTopicRewriteRule> = cache_manager.get_all_topic_rewrite_rule();
-    rules.sort_by_key(|rule| rule.timestamp);
-    for filter in subscribe.filters.iter_mut() {
-        let mut new_path = filter.path.clone();
-        for rule in rules.iter() {
-            let allow = rule.action != TopicRewriteActionEnum::All.to_string()
-                || rule.action != TopicRewriteActionEnum::Subscribe.to_string();
-
-            if !allow {
-                continue;
-            }
-            let is_match = is_match_sub_and_topic(&rule.source_topic, &filter.path).is_ok();
-
-            if is_match {
-                new_path = gen_rewrite_topic(&filter.path, &rule.regex, &rule.dest_topic)?;
-            }
-        }
-        if new_path != filter.path {
-            info!(
-                "Subscribe to topic rewriting, from {} to {}",
-                filter.path, new_path
-            );
-            filter.path = new_path;
-        }
-    }
-    Ok(())
-}
-
-pub fn process_unsub_topic_rewrite(
-    cache_manager: &Arc<CacheManager>,
-    un_subscribe: &mut Unsubscribe,
-) -> Result<(), MqttBrokerError> {
-    let mut rules: Vec<MqttTopicRewriteRule> = cache_manager.get_all_topic_rewrite_rule();
-    rules.sort_by_key(|rule| rule.timestamp);
-
-    for sub_path in un_subscribe.filters.iter_mut() {
-        let mut new_path = sub_path.to_owned();
-        for rule in rules.iter() {
-            let allow = rule.action != TopicRewriteActionEnum::All.to_string()
-                || rule.action != TopicRewriteActionEnum::Subscribe.to_string();
-
-            if !allow {
-                continue;
-            }
-
-            let is_match = is_match_sub_and_topic(&rule.source_topic, sub_path).is_ok();
-
-            if is_match {
-                new_path = gen_rewrite_topic(sub_path, &rule.regex, &rule.dest_topic)?;
-            }
-        }
-        if *sub_path != new_path {
-            info!(
-                "Unsubscribe to topic rewriting, from {} to {}",
-                sub_path, new_path
-            );
-            *sub_path = new_path;
-        }
-    }
-    Ok(())
-}
-
-pub fn process_publish_topic_rewrite(
+pub fn convert_publish_topic_by_rewrite_rule(
     cache_manager: &Arc<CacheManager>,
     topic_name: &str,
-) -> Result<String, MqttBrokerError> {
+) -> Result<Option<String>, MqttBrokerError> {
+    gen_convert_rewrite_name(cache_manager, topic_name)
+}
+
+pub fn convert_sub_path_by_rewrite_rule(
+    cache_manager: &Arc<CacheManager>,
+    path: &str,
+) -> Result<Option<String>, MqttBrokerError> {
+    gen_convert_rewrite_name(cache_manager, path)
+}
+
+fn gen_convert_rewrite_name(
+    cache_manager: &Arc<CacheManager>,
+    name: &str,
+) -> Result<Option<String>, MqttBrokerError> {
     let mut rules: Vec<MqttTopicRewriteRule> = cache_manager.get_all_topic_rewrite_rule();
     rules.sort_by_key(|rule| rule.timestamp);
-    let mut new_topic_name = topic_name.to_owned();
+    let mut new_topic_name = "".to_string();
     for rule in rules.iter() {
         let allow = rule.action != TopicRewriteActionEnum::All.to_string()
             || rule.action != TopicRewriteActionEnum::Publish.to_string();
@@ -106,17 +53,19 @@ pub fn process_publish_topic_rewrite(
             continue;
         }
 
-        if is_match_sub_and_topic(&rule.source_topic, topic_name).is_ok() {
-            new_topic_name = gen_rewrite_topic(topic_name, &rule.regex, &rule.dest_topic)?;
-            if *topic_name != new_topic_name {
-                info!(
-                    "Publish to topic rewriting, from {} to {}",
-                    topic_name, new_topic_name
-                );
-            }
+        if is_match_sub_and_topic(&rule.source_topic, name).is_ok() {
+            new_topic_name = gen_rewrite_topic(name, &rule.regex, &rule.dest_topic)?;
         }
     }
-    Ok(new_topic_name)
+
+    if new_topic_name.is_empty() {
+        return Ok(None);
+    }
+    info!(
+        "topic rewriteconvert topic name: {} to {}",
+        name, new_topic_name
+    );
+    Ok(Some(new_topic_name))
 }
 
 fn gen_rewrite_topic(
@@ -142,12 +91,10 @@ fn gen_rewrite_topic(
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
     use super::*;
     use common_base::tools::{self, unique_id};
     use grpc_clients::pool::ClientPool;
-    use protocol::mqtt::common::{Filter, QoS, RetainForwardRule, Subscribe};
+    use std::time::Duration;
     use tokio::time::sleep;
 
     /// * Assume that the following topic rewrite rules have been added to the conf file:
@@ -220,52 +167,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn sub_topic_rewrite_test() {
-        let filters = SRC_TOPICS.map(|src_topic| Filter {
-            path: src_topic.to_string(),
-            qos: QoS::AtMostOnce,
-            nolocal: false,
-            preserve_retain: false,
-            retain_forward_rule: RetainForwardRule::Never,
-        });
-        let mut subscribe = Subscribe {
-            packet_identifier: 0,
-            filters: filters.to_vec(),
-        };
-        let cache_manager = build_rules().await;
-        let res = process_sub_topic_rewrite(&cache_manager, &mut subscribe);
-        assert!(res.is_ok());
-
-        println!("{:?}", subscribe.filters);
-        // verify rewrote topics
-        for (index, filter) in subscribe.filters.iter().enumerate() {
-            assert_eq!(filter.path, DST_TOPICS[index]);
-        }
-    }
-
-    #[tokio::test]
-    async fn unsub_topic_rewrite_test() {
-        let filters = SRC_TOPICS.map(|src_topic| src_topic.to_string()).to_vec();
-        let mut unsub = Unsubscribe { pkid: 0, filters };
-
-        let cache_manager = build_rules().await;
-        let res = process_unsub_topic_rewrite(&cache_manager, &mut unsub);
-        assert!(res.is_ok());
-
-        // verify rewrote topics
-        for (index, path) in unsub.filters.iter().enumerate() {
-            assert_eq!(path, DST_TOPICS[index]);
-        }
-    }
-
-    #[tokio::test]
-    async fn publish_topic_rewrite_test() {
+    async fn gen_convert_rewrite_name_test() {
         let cache_manager = build_rules().await;
         for (index, src_topic) in SRC_TOPICS.iter().enumerate() {
-            let result = process_publish_topic_rewrite(&cache_manager, src_topic);
+            let result = convert_publish_topic_by_rewrite_rule(&cache_manager, src_topic);
             assert!(result.is_ok());
-            let dst_topic = result.unwrap();
-            assert_eq!(dst_topic, DST_TOPICS[index]);
+            if let Some(dst_topic) = result.unwrap() {
+                assert_eq!(dst_topic, DST_TOPICS[index]);
+            } else {
+                assert_eq!(src_topic.to_owned(), DST_TOPICS[index]);
+            }
         }
     }
 

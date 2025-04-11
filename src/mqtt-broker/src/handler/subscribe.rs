@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
+    tools::now_second,
     utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub},
 };
 use grpc_clients::{placement::mqtt::call::placement_set_subscribe, pool::ClientPool};
@@ -36,7 +37,9 @@ use crate::subscribe::{
     subscriber::Subscriber,
 };
 
-use super::{cache::CacheManager, error::MqttBrokerError};
+use super::{
+    cache::CacheManager, error::MqttBrokerError, topic_rewrite::convert_sub_path_by_rewrite_rule,
+};
 
 #[derive(Clone, Deserialize, Serialize)]
 struct ParseShareQueueSubscribeRequest {
@@ -96,16 +99,28 @@ pub async fn save_subscribe(
     // parse subscribe
     let new_client_pool = client_pool.to_owned();
     let new_subscribe_manager = subscribe_manager.clone();
-    let topic_info = cache_manager.topic_info.clone();
     let new_protocol = protocol.to_owned();
     let new_client_id = client_id.to_owned();
     let new_subscribe = subscribe.to_owned();
     let new_subscribe_properties = subscribe_properties.to_owned();
     let new_filters = filters.to_owned();
+    let new_cache_manager = cache_manager.to_owned();
     tokio::spawn(async move {
-        for (_, topic) in topic_info {
-            for filter in new_filters.clone() {
-                parse_subscribe(
+        for filter in new_filters.clone() {
+            let rewrite_sub_path =
+                match convert_sub_path_by_rewrite_rule(&new_cache_manager, &filter.path) {
+                    Ok(rewrite_sub_path) => rewrite_sub_path,
+                    Err(e) => {
+                        error!(
+                            "Failed to convert sub path by rewrite rule, error message: {}",
+                            e
+                        );
+                        continue;
+                    }
+                };
+
+            for (_, topic) in new_cache_manager.topic_info.clone() {
+                if let Err(e) = parse_subscribe(
                     &new_client_pool,
                     &new_subscribe_manager,
                     &new_client_id,
@@ -114,8 +129,12 @@ pub async fn save_subscribe(
                     new_subscribe.packet_identifier,
                     &filter,
                     &new_subscribe_properties,
+                    &rewrite_sub_path,
                 )
-                .await;
+                .await
+                {
+                    error!("Failed to parse subscribe, error message: {}", e);
+                }
             }
         }
     });
@@ -132,7 +151,8 @@ pub async fn parse_subscribe(
     pkid: u16,
     filter: &Filter,
     subscribe_properties: &Option<SubscribeProperties>,
-) {
+    rewrite_sub_path: &Option<String>,
+) -> Result<(), MqttBrokerError> {
     let sub_identifier = if let Some(properties) = subscribe_properties.clone() {
         properties.subscription_identifier
     } else {
@@ -155,7 +175,7 @@ pub async fn parse_subscribe(
                 group_name: "".to_string(),
             },
         )
-        .await;
+        .await
     } else if is_queue_sub(&filter.path) {
         parse_queue_subscribe(
             client_pool,
@@ -172,7 +192,7 @@ pub async fn parse_subscribe(
                 group_name: "".to_string(),
             },
         )
-        .await;
+        .await
     } else {
         add_exclusive_push(
             subscribe_manager,
@@ -181,7 +201,8 @@ pub async fn parse_subscribe(
             protocol,
             &sub_identifier,
             filter,
-        );
+            rewrite_sub_path,
+        )
     }
 }
 
@@ -189,24 +210,26 @@ async fn parse_share_subscribe(
     client_pool: &Arc<ClientPool>,
     subscribe_manager: &Arc<SubscribeManager>,
     req: &mut ParseShareQueueSubscribeRequest,
-) {
+) -> Result<(), MqttBrokerError> {
     let (group_name, sub_name) = decode_share_info(&req.filter.path);
     req.group_name = format!("{}_{}", group_name, sub_name);
     req.sub_name = sub_name;
     parse_share_queue_subscribe_common(client_pool, subscribe_manager, req).await;
+    Ok(())
 }
 
 async fn parse_queue_subscribe(
     client_pool: &Arc<ClientPool>,
     subscribe_manager: &Arc<SubscribeManager>,
     req: &mut ParseShareQueueSubscribeRequest,
-) {
+) -> Result<(), MqttBrokerError> {
     let sub_name = decode_queue_info(&req.filter.path);
     // queueSub is a special shareSub
     let group_name = format!("$queue_{}", sub_name);
     req.group_name = group_name;
     req.sub_name = sub_name;
     parse_share_queue_subscribe_common(client_pool, subscribe_manager, req).await;
+    Ok(())
 }
 
 async fn parse_share_queue_subscribe_common(
@@ -248,9 +271,11 @@ async fn add_share_push_leader(
         qos: req.filter.qos,
         nolocal: req.filter.nolocal,
         preserve_retain: req.filter.preserve_retain,
-        retain_forward_rule: req.filter.retain_forward_rule.clone(),
+        retain_forward_rule: req.filter.retain_handling.clone(),
         subscription_identifier: req.sub_identifier,
         sub_path: req.filter.path.clone(),
+        rewrite_sub_path: None,
+        create_time: now_second(),
     };
 
     subscribe_manager.add_topic_subscribe(&req.topic_name, &req.client_id, &req.filter.path);
@@ -286,14 +311,21 @@ fn add_exclusive_push(
     protocol: &MqttProtocol,
     sub_identifier: &Option<usize>,
     filter: &Filter,
-) {
+    rewrite_sub_path: &Option<String>,
+) -> Result<(), MqttBrokerError> {
     let path = if is_exclusive_sub(&filter.path) {
         decode_exclusive_sub_path_to_topic_name(&filter.path).to_owned()
     } else {
         filter.path.to_owned()
     };
 
-    if is_match_sub_and_topic(&path, &topic.topic_name).is_ok() {
+    let new_path = if let Some(sub_path) = rewrite_sub_path.clone() {
+        sub_path
+    } else {
+        path
+    };
+
+    if is_match_sub_and_topic(&new_path, &topic.topic_name).is_ok() {
         let sub = Subscriber {
             protocol: protocol.to_owned(),
             client_id: client_id.to_owned(),
@@ -303,13 +335,16 @@ fn add_exclusive_push(
             qos: filter.qos,
             nolocal: filter.nolocal,
             preserve_retain: filter.preserve_retain,
-            retain_forward_rule: filter.retain_forward_rule.to_owned(),
+            retain_forward_rule: filter.retain_handling.to_owned(),
             subscription_identifier: sub_identifier.to_owned(),
             sub_path: filter.path.clone(),
+            rewrite_sub_path: rewrite_sub_path.clone(),
+            create_time: now_second(),
         };
         subscribe_manager.add_topic_subscribe(&topic.topic_name, client_id, &filter.path);
         subscribe_manager.add_exclusive_push(client_id, &filter.path, &topic.topic_id, sub);
     }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -335,14 +370,16 @@ mod tests {
             path: ex_path.to_owned(),
             ..Default::default()
         };
-        add_exclusive_push(
+        let res = add_exclusive_push(
             &subscribe_manager,
             &topic,
             &client_id,
             &MqttProtocol::Mqtt3,
             &Some(1),
             &filter,
+            &None,
         );
+        assert!(res.is_ok());
         println!("{:?}", subscribe_manager.topic_subscribe_list);
         println!("{:?}", subscribe_manager.exclusive_push);
         assert_eq!(subscribe_manager.topic_subscribe_list.len(), 1);
