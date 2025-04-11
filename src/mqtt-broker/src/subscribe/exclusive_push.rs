@@ -320,7 +320,7 @@ async fn build_pub_message(
         return Ok(None);
     }
 
-    if is_send_msg_by_bo_local(subscriber.nolocal, &subscriber.client_id, &msg.client_id) {
+    if !is_send_msg_by_bo_local(subscriber.nolocal, &subscriber.client_id, &msg.client_id) {
         warn!(
             "Message dropping: message is not pushed to the client, because the client_id is the same as the subscriber, client_id: {}, topic_id: {}",
             subscriber.client_id, subscriber.topic_id

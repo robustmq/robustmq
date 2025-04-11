@@ -118,7 +118,7 @@ where
     assert!(res.is_ok());
 
     loop {
-        let res = rx.recv_timeout(Duration::from_secs(30));
+        let res = rx.recv_timeout(Duration::from_secs(10));
         println!("{:?}", res);
         assert!(res.is_ok());
         let msg_opt = res.unwrap();
