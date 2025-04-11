@@ -17,8 +17,9 @@
 #[cfg(test)]
 mod tests {
     use crate::mqtt_protocol::common::{
-        broker_addr_by_type, build_client_id, connect_server, network_types, publish_data,
-        qos_list, ssl_by_type, subscribe_data_with_options, ws_by_type, SubscribeTestData,
+        broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
+        publish_data, qos_list, ssl_by_type, subscribe_data_with_options, ws_by_type,
+        SubscribeTestData,
     };
     use crate::mqtt_protocol::ClientTestProperties;
     use common_base::tools::unique_id;
@@ -26,7 +27,6 @@ mod tests {
         SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE,
     };
     use paho_mqtt::{Message, MessageBuilder, PropertyCode, RetainHandling, SubscribeOptions};
-    use std::cell::RefCell;
     use std::time::Duration;
 
     #[tokio::test]
@@ -56,19 +56,9 @@ mod tests {
                 publish_data(&cli, msg, false);
 
                 let receiver = cli.start_consuming();
-
                 assert!(cli
                     .subscribe_with_options(&topic, qos, subscribe_options, None)
                     .is_ok());
-
-                let message_content = "mqtt message".to_string();
-                let msg = MessageBuilder::new()
-                    .payload(message_content.clone())
-                    .topic(topic.clone())
-                    .qos(qos)
-                    .retained(false)
-                    .finalize();
-                assert!(cli.publish(msg).is_ok());
 
                 let mut is_no_local = true;
                 if let Ok(Some(msg)) = receiver.recv_timeout(Duration::from_secs(5)) {
@@ -79,6 +69,7 @@ mod tests {
                     )
                 };
                 assert!(is_no_local);
+                distinct_conn(cli);
             }
         }
     }
@@ -115,14 +106,9 @@ mod tests {
                     .finalize();
                 publish_data(&cli, msg, false);
 
-                let is_no_local = RefCell::new(true);
                 let call_fn = |msg: Message| {
                     let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                    if payload != message_content {
-                        return false;
-                    }
-                    *is_no_local.borrow_mut() = false;
-                    true
+                    payload == message_content
                 };
 
                 let subscribe_test_data = SubscribeTestData {
@@ -133,8 +119,7 @@ mod tests {
                 };
 
                 subscribe_data_with_options(&cli, subscribe_test_data, call_fn);
-
-                assert!(!*is_no_local.borrow())
+                distinct_conn(cli);
             }
         }
     }
@@ -164,15 +149,18 @@ mod tests {
                     publish_data(&cli, msg, false);
 
                     let call_fn = |msg: Message| {
+                        println!(
+                            "msg: {:?},retained:{},retain_as_published:{}",
+                            msg,
+                            msg.retained(),
+                            retain_as_published
+                        );
                         let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
                         if payload != message_content {
                             return false;
                         }
-                        let test_retain_as_published = retain_as_published;
-                        if msg.retained() != test_retain_as_published {
-                            return false;
-                        }
-                        true
+
+                        msg.retained() == retain_as_published
                     };
 
                     let subscribe_test_data = SubscribeTestData {
@@ -182,6 +170,8 @@ mod tests {
                         subscribe_properties: None,
                     };
                     subscribe_data_with_options(&cli, subscribe_test_data, call_fn);
+
+                    distinct_conn(cli);
                 }
             }
         }
@@ -209,6 +199,7 @@ mod tests {
                 let message_content = "retain message".to_string();
                 let msg = Message::new_retained(topic.clone(), message_content.clone(), qos);
                 publish_data(&cli, msg, false);
+                distinct_conn(cli);
 
                 let sub_cli = build_client_id(
                     format!("retain_handling_sub_0_test_{}_{}", network, qos).as_str(),

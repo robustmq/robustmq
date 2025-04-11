@@ -15,7 +15,7 @@
 #[cfg(test)]
 mod tests {
     use crate::mqtt_protocol::common::{
-        broker_addr, broker_grpc_addr, build_conn_pros, build_create_conn_pros, distinct_conn
+        broker_addr, broker_grpc_addr, build_conn_pros, build_create_conn_pros, distinct_conn,
     };
     use crate::mqtt_protocol::ClientTestProperties;
     use common_base::tools::unique_id;
@@ -92,8 +92,7 @@ mod tests {
             ban_time: 1,
         };
 
-        let reply = mqtt_broker_enable_flapping_detect(&client_pool, &grpc_addr, request)
-            .await;
+        let reply = mqtt_broker_enable_flapping_detect(&client_pool, &grpc_addr, request).await;
         assert!(reply.is_ok());
     }
 
@@ -108,8 +107,7 @@ mod tests {
             ban_time: 1,
         };
 
-        let reply = mqtt_broker_enable_flapping_detect(&client_pool, &grpc_addr, request)
-            .await;
+        let reply = mqtt_broker_enable_flapping_detect(&client_pool, &grpc_addr, request).await;
         assert!(reply.is_ok());
     }
 }

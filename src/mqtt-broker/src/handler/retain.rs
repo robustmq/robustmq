@@ -21,8 +21,7 @@ use grpc_clients::pool::ClientPool;
 use log::info;
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{
-    MqttProtocol, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe,
-    SubscribeProperties,
+    MqttProtocol, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties,
 };
 use tokio::sync::broadcast::{self};
 
@@ -30,6 +29,10 @@ use super::cache::{CacheManager, QosAckPacketInfo};
 use super::constant::{SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE};
 use super::error::MqttBrokerError;
 use super::message::build_message_expire;
+use crate::handler::sub_option::{
+    get_retain_flag_by_retain_as_published, is_send_msg_by_bo_local,
+    is_send_retain_msg_by_retain_handling,
+};
 use crate::observability::metrics::packets::{
     record_retain_recv_metrics, record_retain_sent_metrics,
 };
@@ -143,23 +146,18 @@ async fn send_retain_message(
     }
 
     for filter in subscribe.filters.iter() {
-        if filter.retain_forward_rule == RetainForwardRule::Never {
-            return Ok(());
-        }
-
-        let is_new_sub = if let Some(bol) = is_new_subs.get(&filter.path) {
-            bol.to_owned()
-        } else {
-            true
-        };
-
-        if filter.retain_forward_rule == RetainForwardRule::OnNewSubscribe && !is_new_sub {
-            return Ok(());
+        if !is_send_retain_msg_by_retain_handling(
+            &filter.path,
+            &filter.retain_handling,
+            is_new_subs,
+        ) {
+            continue;
         }
 
         let topic_id_list = get_sub_topic_id_list(cache_manager, &filter.path).await;
         let topic_storage = TopicStorage::new(client_pool.clone());
         let cluster = cache_manager.get_cluster_info();
+
         for topic_id in topic_id_list.iter() {
             let topic_name = if let Some(topic_name) = cache_manager.topic_name_by_id(topic_id) {
                 topic_name
@@ -173,16 +171,11 @@ async fn send_retain_message(
                 continue;
             };
 
-            if filter.nolocal && *client_id == msg.client_id {
+            if !is_send_msg_by_bo_local(filter.nolocal, client_id, &msg.client_id) {
                 continue;
             }
 
-            let retain = if filter.preserve_retain {
-                msg.retain
-            } else {
-                false
-            };
-
+            let retain = get_retain_flag_by_retain_as_published(filter.preserve_retain, msg.retain);
             let qos = min_qos(cluster.protocol.max_qos, filter.qos);
 
             let mut user_properties = msg.user_properties;
@@ -213,13 +206,12 @@ async fn send_retain_message(
                 payload: msg.payload,
             };
 
-            let subscriber = Subscriber {
-                protocol: protocol.to_owned(),
-                client_id: client_id.clone(),
-                ..Default::default()
-            };
             let sub_pub_param = SubPublishParam::new(
-                subscriber,
+                Subscriber {
+                    protocol: protocol.to_owned(),
+                    client_id: client_id.clone(),
+                    ..Default::default()
+                },
                 publish,
                 Some(properties),
                 msg.create_time as u128,

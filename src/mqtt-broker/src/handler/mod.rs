@@ -35,6 +35,7 @@ pub mod retain;
 pub mod session;
 pub mod sub_auto;
 pub mod sub_exclusive;
+pub mod sub_option;
 pub mod sub_parse_topic;
 pub mod subscribe;
 pub mod topic;

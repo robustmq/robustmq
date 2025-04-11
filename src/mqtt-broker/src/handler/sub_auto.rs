@@ -55,7 +55,7 @@ pub async fn start_auto_subscribe(
             qos: auto_subscribe_rule.qos,
             nolocal: auto_subscribe_rule.no_local,
             preserve_retain: auto_subscribe_rule.retain_as_published,
-            retain_forward_rule: auto_subscribe_rule.retained_handling,
+            retain_handling: auto_subscribe_rule.retained_handling,
         });
     }
 

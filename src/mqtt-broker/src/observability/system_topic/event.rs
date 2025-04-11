@@ -214,7 +214,7 @@ pub async fn st_report_subscribed_event<S>(
             let subopts = SystemTopicSubscribedEventMessageSUbopts {
                 sub_props: HashMap::new(),
                 rh: if filter.preserve_retain { 1 } else { 0 },
-                rap: filter.retain_forward_rule.into(),
+                rap: filter.retain_handling.into(),
                 qos: filter.qos.into(),
                 nl: if filter.nolocal { 1 } else { 0 },
                 is_new: true,
