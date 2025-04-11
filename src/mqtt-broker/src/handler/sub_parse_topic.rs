@@ -16,7 +16,7 @@ use super::{cache::CacheManager, subscribe::parse_subscribe};
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::now_second};
 use grpc_clients::pool::ClientPool;
-use log::info;
+use log::{error, info};
 use std::{sync::Arc, time::Duration};
 use tokio::{select, sync::broadcast, time::sleep};
 
@@ -53,12 +53,12 @@ pub async fn start_parse_subscribe_by_new_topic_thread(
 
 async fn parse_subscribe_by_new_topic(
     client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
+    cache_manager: &Arc<CacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     last_update_time: u64,
 ) {
     let conf = broker_mqtt_conf();
-    for (_, topic) in metadata_cache.topic_info.clone() {
+    for (_, topic) in cache_manager.topic_info.clone() {
         if topic.create_time < last_update_time {
             continue;
         }
@@ -68,8 +68,9 @@ async fn parse_subscribe_by_new_topic(
                 continue;
             }
 
-            parse_subscribe(
+            if let Err(e) = parse_subscribe(
                 client_pool,
+                cache_manager,
                 subscribe_manager,
                 &subscribe.client_id,
                 &topic,
@@ -78,7 +79,10 @@ async fn parse_subscribe_by_new_topic(
                 &subscribe.filter,
                 &subscribe.subscribe_properties,
             )
-            .await;
+            .await
+            {
+                error!("Failed to parse subscribe, error message: {}", e);
+            }
         }
     }
 }
