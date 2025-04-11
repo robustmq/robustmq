@@ -424,11 +424,11 @@ mod tests {
                         return false;
                     }
 
-                    let user_propertie = msg
+                    let user_properties = msg
                         .properties()
                         .get_string_pair_at(PropertyCode::UserProperty, 0);
 
-                    user_propertie.is_none()
+                    user_properties.is_none()
                 };
                 subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn);
                 distinct_conn(sub_cli);
