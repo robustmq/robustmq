@@ -17,7 +17,7 @@ use std::{sync::Arc, time::Duration};
 use crate::DelayMessageManager;
 use common_base::error::common::CommonError;
 use futures::StreamExt;
-use log::error;
+use tracing::error;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use storage_adapter::storage::StorageAdapter;
 

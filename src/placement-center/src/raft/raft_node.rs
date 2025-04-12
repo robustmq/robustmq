@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use common_base::config::placement_center::placement_center_conf;
 use grpc_clients::pool::ClientPool;
-use log::info;
+use tracing::info;
 use openraft::{Config, Raft};
 
 use super::network::network::Network;

@@ -22,7 +22,7 @@ use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::connector::MqttConnectorStorage;
 use grpc_clients::pool::ClientPool;
-use log::warn;
+use tracing::warn;
 use prost::Message;
 use protocol::placement_center::placement_center_mqtt::{
     ConnectorHeartbeatReply, ConnectorHeartbeatRequest, CreateConnectorReply,

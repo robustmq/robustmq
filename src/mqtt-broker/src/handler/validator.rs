@@ -14,7 +14,7 @@
 
 use futures_util::SinkExt;
 use grpc_clients::pool::ClientPool;
-use log::error;
+use tracing::error;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};

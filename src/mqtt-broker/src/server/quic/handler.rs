@@ -16,7 +16,7 @@ use crate::handler::command::Command;
 use crate::handler::error::MqttBrokerError;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::{RequestPackage, ResponsePackage};
-use log::{debug, error, info};
+use tracing::{debug, error, info};
 use std::collections::HashMap;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;

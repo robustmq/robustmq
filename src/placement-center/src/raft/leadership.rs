@@ -23,7 +23,7 @@ use crate::{
 
 use super::typeconfig::TypeConfig;
 use grpc_clients::pool::ClientPool;
-use log::{error, info};
+use tracing::{error, info};
 use openraft::Raft;
 use rocksdb_engine::RocksDBEngine;
 use tokio::sync::broadcast::{self, Sender};

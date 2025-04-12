@@ -15,7 +15,7 @@
 use std::{sync::Arc, time::Duration};
 
 use axum::async_trait;
-use log::{error, info};
+use tracing::{error, info};
 use metadata_struct::{adapter::record::Record, mqtt::bridge::config_kafka::KafkaConnectorConfig};
 use rdkafka::producer::{FutureProducer, FutureRecord, Producer};
 use storage_adapter::storage::StorageAdapter;

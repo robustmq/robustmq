@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use gc::{gc_segment_thread, gc_shard_thread};
 use grpc_clients::pool::ClientPool;
-use log::info;
+use tracing::info;
 use preferred_election::PreferredElection;
 use tokio::time::sleep;
 

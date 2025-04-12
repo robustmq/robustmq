@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures_util::StreamExt;
-use log::{debug, error, info};
+use tracing::{debug, error, info};
 use protocol::journal_server::codec::JournalServerCodec;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;

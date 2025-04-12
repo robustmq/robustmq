@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::tools::now_mills;
-use log::{error, info};
+use tracing::{error, info};
 use protocol::mqtt::codec::parse_mqtt_packet_to_name;
 use serde::{Deserialize, Serialize};
 

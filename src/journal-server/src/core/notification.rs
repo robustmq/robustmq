@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use log::{error, info};
+use tracing::{error, info};
 use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;

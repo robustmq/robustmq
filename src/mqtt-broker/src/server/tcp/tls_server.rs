@@ -20,7 +20,7 @@ use std::time::Duration;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use futures_util::StreamExt;
-use log::{debug, error, info};
+use tracing::{debug, error, info};
 use protocol::mqtt::codec::MqttCodec;
 use rustls_pemfile::{certs, private_key};
 use tokio::net::TcpListener;

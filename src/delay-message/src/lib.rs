@@ -15,7 +15,7 @@
 use build::build_delay_queue;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use log::{debug, info};
+use tracing::{debug, info};
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use std::{
     sync::{atomic::AtomicU64, Arc},

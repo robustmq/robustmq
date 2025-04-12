@@ -16,7 +16,7 @@ use std::{sync::Arc, time::Duration};
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
-use log::{error, info};
+use tracing::{error, info};
 use protocol::placement_center::placement_center_mqtt::ConnectorHeartbeatRaw;
 use tokio::{select, sync::broadcast, time::sleep};
 

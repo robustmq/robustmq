@@ -19,7 +19,7 @@ use std::time::{Duration, Instant};
 
 use common_base::config::journal_server::journal_server_conf;
 use grpc_clients::pool::ClientPool;
-use log::{error, info};
+use tracing::{error, info};
 use metadata_struct::journal::shard::{shard_name_iden, JournalShardConfig};
 use protocol::journal_server::journal_inner::{
     DeleteShardFileRequest, GetShardDeleteStatusRequest,

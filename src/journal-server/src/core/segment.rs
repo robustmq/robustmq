@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use log::{error, info};
+use tracing::{error, info};
 use protocol::journal_server::journal_inner::GetSegmentDeleteStatusRequest;
 use rocksdb_engine::RocksDBEngine;
 

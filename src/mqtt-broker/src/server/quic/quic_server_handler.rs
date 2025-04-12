@@ -21,7 +21,7 @@ use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::RequestPackage;
 use crate::server::quic::quic_stream_wrapper::{QuicFramedReadStream, QuicFramedWriteStream};
-use log::{debug, error, info};
+use tracing::{debug, error, info};
 use protocol::mqtt::codec::MqttCodec;
 use quinn::Endpoint;
 use std::sync::Arc;

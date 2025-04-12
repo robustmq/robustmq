@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use grpc_clients::pool::ClientPool;
-use log::{debug, error};
+use tracing::{debug, error};
 use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::mqtt::common::MqttPacket;
 use tokio::select;

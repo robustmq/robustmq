@@ -20,7 +20,7 @@ use dashmap::DashMap;
 use grpc_clients::placement::inner::call::node_list;
 use grpc_clients::placement::journal::call::{list_segment, list_segment_meta, list_shard};
 use grpc_clients::pool::ClientPool;
-use log::{error, info};
+use tracing::{error, info};
 use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::{shard_name_iden, JournalShard};

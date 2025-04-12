@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
-use log::info;
+use tracing::info;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminServiceServer;
 use protocol::broker_mqtt::broker_mqtt_inner::mqtt_broker_inner_service_server::MqttBrokerInnerServiceServer;
 use schema_register::schema::SchemaRegisterManager;

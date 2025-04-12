@@ -27,7 +27,7 @@ use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
 use grpc_clients::pool::ClientPool;
 use index::engine::{column_family_list, storage_data_fold};
-use log::{error, info};
+use tracing::{error, info};
 use rocksdb_engine::RocksDBEngine;
 use segment::manager::{
     load_local_segment_cache, metadata_and_local_segment_diff_check, SegmentFileManager,

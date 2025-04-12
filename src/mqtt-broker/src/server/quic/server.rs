@@ -26,7 +26,7 @@ use crate::subscribe::subscribe_manager::SubscribeManager;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
-use log::info;
+use tracing::info;
 use quinn::{Connection, Endpoint, ServerConfig, VarInt};
 use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 use rustls_pki_types::PrivateKeyDer;

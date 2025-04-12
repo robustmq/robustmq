@@ -20,7 +20,7 @@ use common_base::tools::{now_second, unique_id};
 use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
 use grpc_clients::pool::ClientPool;
-use log::{error, info};
+use tracing::{error, info};
 use metadata_struct::mqtt::node_extend::MqttNodeExtend;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Login, MqttPacket, MqttProtocol, PingReq,

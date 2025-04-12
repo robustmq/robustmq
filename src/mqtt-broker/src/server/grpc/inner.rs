@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
-use log::{debug, info};
+use tracing::{debug, info};
 use metadata_struct::mqtt::lastwill::LastWillData;
 use protocol::broker_mqtt::broker_mqtt_inner::mqtt_broker_inner_service_server::MqttBrokerInnerService;
 use protocol::broker_mqtt::broker_mqtt_inner::{

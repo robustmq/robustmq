@@ -13,7 +13,7 @@
 // limitations under the License.
 
 pub mod logo;
-use log::error;
+use tracing::error;
 use logo::DEFAULT_PLACEMENT_CENTER_CONFIG;
 
 use crate::tools::read_file;

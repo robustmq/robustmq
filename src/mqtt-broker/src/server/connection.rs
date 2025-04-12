@@ -16,7 +16,7 @@ use std::fmt;
 use std::net::SocketAddr;
 use std::sync::atomic::AtomicU64;
 
-use log::error;
+use tracing::error;
 use protocol::mqtt::common::MqttProtocol;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;

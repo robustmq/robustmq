@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
-use log::error;
+use tracing::error;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use metadata_struct::mqtt::topic::MqttTopic;
 use rocksdb_engine::warp::StorageDataWrap;

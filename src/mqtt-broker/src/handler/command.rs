@@ -28,7 +28,7 @@ use crate::subscribe::subscribe_manager::SubscribeManager;
 use common_base::telemetry::trace::CustomContext;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
-use log::info;
+use tracing::info;
 use opentelemetry::global;
 use opentelemetry::trace::{Span, SpanKind, Tracer};
 use protocol::mqtt::common::{

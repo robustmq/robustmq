@@ -32,7 +32,7 @@ use handler::keep_alive::ClientKeepAlive;
 use handler::sub_parse_topic::start_parse_subscribe_by_new_topic_thread;
 use handler::user::{init_system_user, UpdateUserCache};
 use lazy_static::lazy_static;
-use log::{error, info};
+use tracing::{error, info};
 use observability::start_opservability;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
 use schema_register::schema::SchemaRegisterManager;

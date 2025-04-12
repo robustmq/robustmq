@@ -18,7 +18,7 @@ use bytes::Bytes;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
-use log::info;
+use tracing::info;
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{
     MqttProtocol, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties,

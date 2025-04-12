@@ -16,7 +16,7 @@ pub mod broker;
 pub mod registry;
 use axum::routing::get;
 use axum::Router;
-use log::info;
+use tracing::info;
 use prometheus_client::encoding::text::encode;
 
 // lazy_static::lazy_static! {

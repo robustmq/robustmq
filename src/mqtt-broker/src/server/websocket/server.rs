@@ -29,7 +29,7 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use delay_message::DelayMessageManager;
 use futures_util::stream::StreamExt;
 use grpc_clients::pool::ClientPool;
-use log::{error, info};
+use tracing::{error, info};
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{MqttPacket, MqttProtocol};
 use schema_register::schema::SchemaRegisterManager;

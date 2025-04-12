@@ -25,6 +25,6 @@ common-base.workspace = true
 serde_json.workspace = true
 protocol.workspace = true
 bytes.workspace = true
-log.workspace = true
+tracing.workspace = true
 dashmap.workspace = true
 crc32fast.workspace = true

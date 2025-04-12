@@ -19,7 +19,7 @@ use axum::extract::ws::{Message, WebSocket};
 use dashmap::DashMap;
 use futures::stream::SplitSink;
 use futures::SinkExt;
-use log::{debug, info};
+use tracing::{debug, info};
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::MqttProtocol;
 use tokio::time::sleep;

@@ -15,7 +15,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use log::{error, info};
+use tracing::{error, info};
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::sleep;

@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use common_base::tools::now_second;
-use log::{error, info};
+use tracing::{error, info};
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{MqttPacket, MqttProtocol, Publish, PublishProperties, QoS};
 use storage_adapter::storage::StorageAdapter;

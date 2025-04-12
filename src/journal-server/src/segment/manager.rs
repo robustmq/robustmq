@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use common_base::config::journal_server::journal_server_conf;
 use dashmap::DashMap;
-use log::{error, info};
+use tracing::{error, info};
 use metadata_struct::journal::segment::{segment_name, JournalSegment};
 use rocksdb_engine::RocksDBEngine;
 

@@ -18,7 +18,7 @@ use super::core::{BridgePlugin, BridgePluginReadConfig};
 use super::manager::ConnectorManager;
 use crate::{handler::error::MqttBrokerError, storage::message::MessageStorage};
 use axum::async_trait;
-use log::error;
+use tracing::error;
 use metadata_struct::{
     adapter::record::Record, mqtt::bridge::config_local_file::LocalFileConnectorConfig,
 };

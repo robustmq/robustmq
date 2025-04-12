@@ -17,7 +17,7 @@ use std::time::Duration;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use futures::SinkExt;
-use log::{debug, error, info};
+use tracing::{debug, error, info};
 use protocol::journal_server::codec::{JournalEnginePacket, JournalServerCodec};
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;

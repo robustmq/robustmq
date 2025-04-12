@@ -79,9 +79,7 @@ grep = "0.3.2"
 prometheus = "0.13.3"
 prometheus_exporter = "0.8"
 prometheus-client = "0.23.1"
-## log lib
-log4rs = "1.2.0"
-log = "0.4.0"
+## logging
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.0", features = ["env-filter"] }
 # opentelemetry

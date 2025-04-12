@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use common_base::tools::now_second;
-use log::error;
+use tracing::error;
 use metadata_struct::adapter::read_config::ReadConfig;
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;

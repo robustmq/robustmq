@@ -31,6 +31,6 @@ common-base.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 dashmap.workspace = true
-log.workspace = true
+tracing.workspace = true
 metadata-struct.workspace = true
 rand.workspace = true

@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use common_base::tools::now_second;
-use log::{debug, error, info, warn};
+use tracing::{debug, error, info, warn};
 use metadata_struct::journal::segment::SegmentStatus;
 use rocksdb_engine::engine::{
     rocksdb_engine_delete, rocksdb_engine_get, rocksdb_engine_prefix_map, rocksdb_engine_save,

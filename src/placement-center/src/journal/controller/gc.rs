@@ -19,7 +19,7 @@ use grpc_clients::journal::inner::call::{
     journal_inner_get_segment_delete_status, journal_inner_get_shard_delete_status,
 };
 use grpc_clients::pool::ClientPool;
-use log::{error, warn};
+use tracing::{error, warn};
 use metadata_struct::journal::segment::SegmentStatus;
 use metadata_struct::journal::shard::JournalShardStatus;
 use protocol::journal_server::journal_inner::{

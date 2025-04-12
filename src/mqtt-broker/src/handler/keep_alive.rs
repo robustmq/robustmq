@@ -19,7 +19,7 @@ use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
-use log::{error, info, warn};
+use tracing::{error, info, warn};
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{DisconnectReasonCode, MqttProtocol};

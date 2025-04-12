@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use common_base::config::placement_center::placement_center_conf;
 use grpc_clients::pool::ClientPool;
-use log::info;
+use tracing::info;
 use mqtt::cache::load_mqtt_cache;
 use mqtt::connector::scheduler::start_connector_scheduler;
 use mqtt::controller::call_broker::{mqtt_call_thread_manager, MQTTInnerCallManager};

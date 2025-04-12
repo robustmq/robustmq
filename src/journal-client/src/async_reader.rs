@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use common_base::tools::now_mills;
 use dashmap::DashMap;
-use log::error;
+use tracing::error;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::journal::segment::segment_name;
 use metadata_struct::journal::shard::shard_name_iden;

@@ -17,7 +17,7 @@ use std::path::{self, Path};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use local_ip_address::local_ip;
-use log::warn;
+use tracing::warn;
 use tonic::Status;
 use uuid::Uuid;
 

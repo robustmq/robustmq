@@ -19,7 +19,7 @@ use grep::matcher::Matcher;
 use grep::regex::RegexMatcher;
 use grep::searcher::sinks::UTF8;
 use grep::searcher::Searcher;
-use log::info;
+use tracing::info;
 use protocol::broker_mqtt::broker_mqtt_admin::ListSlowSubscribeRequest;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;

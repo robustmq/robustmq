@@ -15,7 +15,7 @@
 use crate::handler::error::MqttBrokerError;
 use axum::async_trait;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use log::{error, info};
+use tracing::{error, info};
 use metadata_struct::mqtt::bridge::{
     config_local_file::LocalFileConnectorConfig, connector::MQTTConnector,
     connector_type::ConnectorType, status::MQTTStatus,

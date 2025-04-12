@@ -15,7 +15,7 @@
 use std::io::Cursor;
 use std::sync::Arc;
 
-use log::warn;
+use tracing::warn;
 use openraft::storage::RaftStateMachine;
 use openraft::{
     AnyError, EntryPayload, ErrorSubject, ErrorVerb, LogId, OptionalSend, RaftSnapshotBuilder,

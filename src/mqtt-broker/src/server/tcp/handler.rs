@@ -15,7 +15,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use log::{debug, error, info};
+use tracing::{debug, error, info};
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast;

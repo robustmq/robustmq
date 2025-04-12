@@ -16,7 +16,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use common_base::{config::placement_center::placement_center_conf, tools::now_second};
 use grpc_clients::pool::ClientPool;
-use log::{info, warn};
+use tracing::{info, warn};
 use metadata_struct::mqtt::bridge::status::MQTTStatus;
 use protocol::placement_center::placement_center_mqtt::CreateConnectorRequest;
 use tokio::{select, sync::broadcast};
