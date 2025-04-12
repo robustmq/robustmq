@@ -48,6 +48,10 @@ pub fn default_grpc_port() -> u32 {
     1228
 }
 
+pub fn default_grpc_max_decoding_message_size() -> u32 {
+    1024 * 1024 * 16 // 16MB
+}
+
 pub fn default_http_port() -> u32 {
     1227
 }

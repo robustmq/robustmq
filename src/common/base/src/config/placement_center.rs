@@ -60,6 +60,8 @@ pub struct Network {
     pub local_ip: String,
     #[serde(default = "default_grpc_port")]
     pub grpc_port: u32,
+    #[serde(default = "default_grpc_max_decoding_message_size")]
+    pub grpc_max_decoding_message_size: u32,
     #[serde(default = "default_http_port")]
     pub http_port: u32,
 }
