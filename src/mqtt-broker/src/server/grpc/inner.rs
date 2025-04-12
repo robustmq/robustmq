@@ -16,7 +16,6 @@ use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
-use tracing::{debug, info};
 use metadata_struct::mqtt::lastwill::LastWillData;
 use protocol::broker_mqtt::broker_mqtt_inner::mqtt_broker_inner_service_server::MqttBrokerInnerService;
 use protocol::broker_mqtt::broker_mqtt_inner::{
@@ -26,6 +25,7 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
 use tonic::{Request, Response, Status};
+use tracing::{debug, info};
 
 use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::CacheManager;

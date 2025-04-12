@@ -20,9 +20,9 @@ use common_base::tools::now_second;
 use dashmap::DashMap;
 use grpc_clients::placement::journal::call::create_next_segment;
 use grpc_clients::pool::ClientPool;
-use tracing::{error, info};
 use protocol::placement_center::placement_center_journal::CreateNextSegmentRequest;
 use tokio::time::sleep;
+use tracing::{error, info};
 
 use super::file::open_segment_write;
 use super::manager::SegmentFileManager;

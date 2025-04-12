@@ -43,12 +43,15 @@ pub fn init_journal_server_log() -> Result<Vec<WorkerGuard>, LogConfigError> {
 
 /// Initializes the tracing subscriber with the specified log configuration file
 /// and log path.
-/// 
+///
 /// Returns a vector of `WorkerGuard` instances for the non-blocking file
 /// appender(s) if there is/are any. The guards manage the background thread
 /// that writes log events to the file and must be kept alive until the
 /// application terminates.
-pub fn init_tracing_subscriber(log_config_file: impl AsRef<Path>, log_path: impl AsRef<Path>) -> Result<Vec<WorkerGuard>, LogConfigError> {
+pub fn init_tracing_subscriber(
+    log_config_file: impl AsRef<Path>,
+    log_path: impl AsRef<Path>,
+) -> Result<Vec<WorkerGuard>, LogConfigError> {
     let log_config_file = log_config_file.as_ref();
     let log_path = log_path.as_ref();
 
@@ -77,10 +80,12 @@ pub fn init_tracing_subscriber(log_config_file: impl AsRef<Path>, log_path: impl
     init_tracing_subscriber_with_config(config)
 }
 
-fn init_tracing_subscriber_with_config(config: config::Config) -> Result<Vec<WorkerGuard>, LogConfigError> {
+fn init_tracing_subscriber_with_config(
+    config: config::Config,
+) -> Result<Vec<WorkerGuard>, LogConfigError> {
     let mut layers = Vec::with_capacity(config.appenders.len());
     let mut guards = Vec::with_capacity(config.appenders.len());
-    
+
     for (_name, appender_conf) in config.appenders {
         let (layer, guard) = appender_conf.try_into_layer()?;
         layers.push(layer);
@@ -89,8 +94,7 @@ fn init_tracing_subscriber_with_config(config: config::Config) -> Result<Vec<Wor
         }
     }
 
-    let registry = tracing_subscriber::registry()
-        .with(layers);
+    let registry = tracing_subscriber::registry().with(layers);
 
     #[cfg(tokio_console)]
     let registry = registry.with(console_subscriber::spawn());

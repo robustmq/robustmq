@@ -16,13 +16,13 @@ use crate::handler::command::Command;
 use crate::handler::error::MqttBrokerError;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::{RequestPackage, ResponsePackage};
-use tracing::{debug, error, info};
 use std::collections::HashMap;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{broadcast, mpsc};
+use tracing::{debug, error, info};
 
 pub(crate) async fn handler_process<S>(
     handler_process_num: usize,

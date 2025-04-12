@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use common_base::tools::now_second;
-use tracing::error;
 use metadata_struct::adapter::read_config::ReadConfig;
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
 use tokio::time::sleep;
+use tracing::error;
 
 use crate::{DelayMessageManager, DelayMessageRecord};
 

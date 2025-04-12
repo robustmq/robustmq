@@ -22,7 +22,6 @@ use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::connector::MqttConnectorStorage;
 use grpc_clients::pool::ClientPool;
-use tracing::warn;
 use prost::Message;
 use protocol::placement_center::placement_center_mqtt::{
     ConnectorHeartbeatReply, ConnectorHeartbeatRequest, CreateConnectorReply,
@@ -32,6 +31,7 @@ use protocol::placement_center::placement_center_mqtt::{
 use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
+use tracing::warn;
 
 #[derive(Debug, Clone)]
 pub struct ConnectorHeartbeat {

@@ -15,10 +15,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use tracing::{debug, error, info};
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
+use tracing::{debug, error, info};
 
 use crate::core::error::JournalServerError;
 use crate::handler::command::Command;

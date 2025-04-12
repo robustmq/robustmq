@@ -14,7 +14,6 @@
 
 use futures_util::SinkExt;
 use grpc_clients::pool::ClientPool;
-use tracing::error;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
@@ -29,6 +28,7 @@ use std::sync::Arc;
 use tokio::io::{AsyncWrite, AsyncWriteExt, WriteHalf};
 use tokio::net::TcpStream;
 use tokio_util::codec::FramedWrite;
+use tracing::error;
 
 use super::cache::CacheManager;
 use super::error::MqttBrokerError;

@@ -20,13 +20,13 @@ use common_base::{
     utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub},
 };
 use grpc_clients::{placement::mqtt::call::placement_set_subscribe, pool::ClientPool};
-use tracing::error;
 use metadata_struct::mqtt::{subscribe_data::MqttSubscribe, topic::MqttTopic};
 use protocol::{
     mqtt::common::{Filter, MqttProtocol, Subscribe, SubscribeProperties},
     placement_center::placement_center_mqtt::SetSubscribeRequest,
 };
 use serde::{Deserialize, Serialize};
+use tracing::error;
 
 use crate::subscribe::{
     sub_common::{

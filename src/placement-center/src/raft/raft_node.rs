@@ -19,8 +19,8 @@ use std::sync::Arc;
 
 use common_base::config::placement_center::placement_center_conf;
 use grpc_clients::pool::ClientPool;
-use tracing::info;
 use openraft::{Config, Raft};
+use tracing::info;
 
 use super::network::network::Network;
 use super::store::new_storage;

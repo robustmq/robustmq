@@ -16,8 +16,8 @@ use std::fmt;
 use std::net::SocketAddr;
 use std::sync::atomic::AtomicU64;
 
-use tracing::error;
 use tokio::sync::mpsc;
+use tracing::error;
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Clone, PartialEq, PartialOrd)]

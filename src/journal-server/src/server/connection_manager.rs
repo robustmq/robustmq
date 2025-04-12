@@ -17,10 +17,10 @@ use std::time::Duration;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use futures::SinkExt;
-use tracing::{debug, error, info};
 use protocol::journal_server::codec::{JournalEnginePacket, JournalServerCodec};
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
+use tracing::{debug, error, info};
 
 use super::connection::{NetworkConnection, NetworkConnectionType};
 

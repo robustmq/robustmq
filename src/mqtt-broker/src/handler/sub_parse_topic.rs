@@ -22,6 +22,7 @@ use grpc_clients::pool::ClientPool;
 use tracing::{error, info};
 use std::{sync::Arc, time::Duration};
 use tokio::{select, sync::broadcast, time::sleep};
+use tracing::info;
 
 pub async fn start_parse_subscribe_by_new_topic_thread(
     client_pool: &Arc<ClientPool>,

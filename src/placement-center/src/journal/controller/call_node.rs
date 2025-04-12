@@ -18,7 +18,6 @@ use std::time::Duration;
 use dashmap::DashMap;
 use grpc_clients::journal::inner::call::journal_inner_update_cache;
 use grpc_clients::pool::ClientPool;
-use tracing::{debug, error, info, warn};
 use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
@@ -29,6 +28,7 @@ use protocol::journal_server::journal_inner::{
 use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::sleep;
+use tracing::{debug, error, info, warn};
 
 use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;

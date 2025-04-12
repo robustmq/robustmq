@@ -15,7 +15,6 @@
 use build::build_delay_queue;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use tracing::{debug, info};
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use std::{
     sync::{atomic::AtomicU64, Arc},
@@ -28,6 +27,7 @@ use tokio::{
     time::{sleep, Instant},
 };
 use tokio_util::time::DelayQueue;
+use tracing::{debug, info};
 
 pub mod build;
 pub mod pop;

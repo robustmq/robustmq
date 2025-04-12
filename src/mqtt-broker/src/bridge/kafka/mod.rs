@@ -15,11 +15,11 @@
 use std::{sync::Arc, time::Duration};
 
 use axum::async_trait;
-use tracing::{error, info};
 use metadata_struct::{adapter::record::Record, mqtt::bridge::config_kafka::KafkaConnectorConfig};
 use rdkafka::producer::{FutureProducer, FutureRecord, Producer};
 use storage_adapter::storage::StorageAdapter;
 use tokio::{select, sync::broadcast, time::sleep};
+use tracing::{error, info};
 
 use crate::{handler::error::MqttBrokerError, storage::message::MessageStorage};
 

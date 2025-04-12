@@ -18,7 +18,6 @@ use std::sync::Arc;
 use common_base::tools::now_second;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
-use tracing::{error, warn};
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MqttPacket, MqttProtocol, PingReq,
@@ -29,6 +28,7 @@ use protocol::mqtt::common::{
 };
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
+use tracing::{error, warn};
 
 use super::connection::{disconnect_connection, is_delete_session};
 use super::offline_message::save_message;

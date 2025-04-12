@@ -16,10 +16,10 @@ use std::sync::Arc;
 
 use common_base::config::journal_server::journal_server_conf;
 use grpc_clients::pool::ClientPool;
-use tracing::info;
 use rocksdb_engine::RocksDBEngine;
 use tokio::net::TcpListener;
 use tokio::sync::{broadcast, mpsc};
+use tracing::info;
 
 use crate::core::cache::CacheManager;
 use crate::handler::command::Command;

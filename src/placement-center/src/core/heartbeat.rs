@@ -16,10 +16,10 @@ use std::sync::Arc;
 
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
-use tracing::{error, info};
 use metadata_struct::placement::node::str_to_cluster_type;
 use protocol::placement_center::placement_center_inner::UnRegisterNodeRequest;
 use serde::{Deserialize, Serialize};
+use tracing::{error, info};
 
 use super::cluster::un_register_node_by_req;
 use crate::core::cache::PlacementCacheManager;

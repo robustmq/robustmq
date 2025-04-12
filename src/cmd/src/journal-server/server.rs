@@ -30,7 +30,7 @@ struct ArgsParams {
 fn main() {
     let args = ArgsParams::parse();
     init_journal_server_conf_by_path(&args.conf);
-    
+
     // Need to keep the guard alive until the application terminates
     let _appender_guards = init_journal_server_log().unwrap();
 

@@ -13,12 +13,12 @@
 // limitations under the License.
 
 use std::fs;
-use std::path::{Path};
+use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use local_ip_address::local_ip;
-use tracing::warn;
 use tonic::Status;
+use tracing::warn;
 use uuid::Uuid;
 
 use crate::enum_type::time_unit_enum::TimeUnit;

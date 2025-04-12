@@ -19,13 +19,13 @@ use std::time::Duration;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
-use tracing::error;
 use protocol::journal_server::codec::{JournalEnginePacket, JournalServerCodec};
 use tokio::net::TcpStream;
 use tokio::select;
 use tokio::sync::broadcast::Receiver;
 use tokio::time::sleep;
 use tokio_util::codec::Framed;
+use tracing::error;
 
 use crate::cache::MetadataCache;
 use crate::consts::{ADMIN_NODE_ID, MODULE_ADMIN, MODULE_READ, MODULE_WRITE};

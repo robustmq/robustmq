@@ -20,7 +20,6 @@ use std::time::Duration;
 
 use common_base::config::journal_server::journal_server_conf;
 use futures_util::StreamExt;
-use tracing::{debug, error, info};
 use protocol::journal_server::codec::JournalServerCodec;
 use rustls_pemfile::{certs, private_key};
 use tokio::net::TcpListener;
@@ -32,6 +31,7 @@ use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::TlsAcceptor;
 use tokio_util::codec::{FramedRead, FramedWrite};
+use tracing::{debug, error, info};
 
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::connection_manager::ConnectionManager;

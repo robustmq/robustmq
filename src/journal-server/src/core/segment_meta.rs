@@ -17,8 +17,8 @@ use std::sync::Arc;
 use common_base::config::journal_server::journal_server_conf;
 use grpc_clients::placement::journal::call::update_segment_meta;
 use grpc_clients::pool::ClientPool;
-use tracing::warn;
 use protocol::placement_center::placement_center_journal::UpdateSegmentMetaRequest;
+use tracing::warn;
 
 use super::error::JournalServerError;
 use crate::segment::manager::SegmentFileManager;

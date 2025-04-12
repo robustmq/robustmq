@@ -19,7 +19,6 @@ use std::time::{Duration, Instant};
 
 use common_base::config::journal_server::journal_server_conf;
 use grpc_clients::pool::ClientPool;
-use tracing::{error, info};
 use metadata_struct::journal::shard::{shard_name_iden, JournalShardConfig};
 use protocol::journal_server::journal_inner::{
     DeleteShardFileRequest, GetShardDeleteStatusRequest,
@@ -29,6 +28,7 @@ use protocol::placement_center::placement_center_journal::{
 };
 use rocksdb_engine::RocksDBEngine;
 use tokio::time::sleep;
+use tracing::{error, info};
 
 use super::cache::CacheManager;
 use super::error::JournalServerError;

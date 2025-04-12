@@ -15,8 +15,8 @@
 use common_base::error::common::CommonError;
 use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
-use tracing::info;
 use mobc::{Connection, Pool};
+use tracing::info;
 
 use crate::journal::admin::JournalAdminServiceManager;
 use crate::journal::inner::JournalInnerServiceManager;

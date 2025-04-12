@@ -22,7 +22,6 @@ use crate::segment::manager::SegmentFileManager;
 use crate::segment::SegmentIdentity;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
-use tracing::{error, warn};
 use metadata_struct::journal::segment::SegmentStatus;
 use protocol::journal_server::journal_engine::{
     WriteReqBody, WriteRespMessage, WriteRespMessageStatus,
@@ -36,6 +35,7 @@ use tokio::select;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::sync::{broadcast, oneshot};
 use tokio::time::{sleep, timeout};
+use tracing::{error, warn};
 
 /// the write handle for a segment
 #[derive(Clone)]
