@@ -4326,7 +4326,7 @@ checksum = "3582f63211428f83597b51b2ddb88e2a91a9d52d12831f9d08f5e624e8977422"
 [[package]]
 name = "robustmq-proto-build"
 version = "0.1.0"
-source = "git+https://github.com/robustmq/robustmq-proto.git?branch=main#a8098320a9f4ac16e87c32ee995577be21a4f267"
+source = "git+https://github.com/robustmq/robustmq-proto.git?branch=main#8405369e7b08403277f55f6f1d3562e5fef93582"
 dependencies = [
  "prost-build",
  "prost-validate-build",
