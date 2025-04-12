@@ -36,6 +36,7 @@ pub fn default_network() -> Network {
     Network {
         local_ip: default_local_ip(),
         grpc_port: default_grpc_port(),
+        grpc_max_decoding_message_size: default_grpc_max_decoding_message_size(),
         http_port: default_http_port(),
     }
 }
@@ -49,7 +50,7 @@ pub fn default_grpc_port() -> u32 {
 }
 
 pub fn default_grpc_max_decoding_message_size() -> u32 {
-    1024 * 1024 * 16 // 16MB
+    16677216 // 16MB
 }
 
 pub fn default_http_port() -> u32 {
