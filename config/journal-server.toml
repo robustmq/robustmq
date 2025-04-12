@@ -56,5 +56,6 @@ shard_replica_num = 1
 max_segment_size = 1048576
 
 [log]
-log_config = "./config/log-config/journal-log4rs.yaml"
+# log_config = "./config/log-config/journal-log4rs.yaml"
+log_config = "./config/log-config/journal-tracing.toml"
 log_path = "./robust-data/journal-server/logs"

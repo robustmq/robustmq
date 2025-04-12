@@ -31,7 +31,9 @@ struct ArgsParams {
 fn main() {
     let args = ArgsParams::parse();
     init_broker_mqtt_conf_by_path(&args.conf);
-    init_broker_mqtt_log();
+
+    // Need to keep the guard alive until the application terminates
+    let _appender_guards = init_broker_mqtt_log().unwrap();
     let (stop_send, _) = broadcast::channel(2);
     start_mqtt_broker_server(stop_send);
 }

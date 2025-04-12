@@ -82,6 +82,7 @@ prometheus-client = "0.23.1"
 ## logging
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.0", features = ["env-filter"] }
+tracing-appender = { version = "0.2.0" }
 # opentelemetry
 opentelemetry = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = [
     "trace",

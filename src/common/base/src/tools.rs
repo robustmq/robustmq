@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::fs;
-use std::path::{self, Path};
+use std::path::{Path};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use local_ip_address::local_ip;
@@ -38,8 +38,9 @@ use crate::error::common::CommonError;
 ///
 /// # Possible errors
 /// If the directory creation fails, a 'CommonError' containing the reason for the error will be returned.
-pub fn try_create_fold(fold: &str) -> Result<(), CommonError> {
-    if !Path::new(fold).exists() {
+pub fn try_create_fold(fold: impl AsRef<Path>) -> Result<(), CommonError> {
+    let fold = fold.as_ref();
+    if !fold.exists() {
         fs::create_dir_all(fold)?
     }
     Ok(())
@@ -135,8 +136,8 @@ pub fn get_local_ip() -> String {
 ///
 /// # Return value
 /// Return a Boolean value indicating whether the file exists
-pub fn file_exists(path: &str) -> bool {
-    Path::new(path).exists()
+pub fn file_exists(path: impl AsRef<Path>) -> bool {
+    path.as_ref().exists()
 }
 
 /// Read the content of a text file
@@ -149,10 +150,11 @@ pub fn file_exists(path: &str) -> bool {
 ///
 /// # Error
 /// If the file does not exist, return a generic error indicating that the file does not exist
-pub fn read_file(path: &str) -> Result<String, CommonError> {
-    if !path::Path::new(path).exists() {
+pub fn read_file(path: impl AsRef<Path>) -> Result<String, CommonError> {
+    let path = path.as_ref();
+    if !path.exists() {
         return Err(CommonError::CommonError(format!(
-            "File {} does not exist",
+            "File {:?} does not exist",
             path
         )));
     }

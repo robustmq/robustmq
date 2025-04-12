@@ -13,3 +13,4 @@
 // limitations under the License.
 
 pub mod common;
+pub mod log_config;
