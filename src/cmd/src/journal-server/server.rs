@@ -15,7 +15,7 @@
 use clap::{command, Parser};
 use common_base::config::journal_server::init_journal_server_conf_by_path;
 use common_base::config::DEFAULT_JOURNAL_SERVER_CONFIG;
-use common_base::logs::init_journal_server_log;
+use common_base::logging::init_journal_server_log;
 use journal_server::JournalServer;
 use tokio::sync::broadcast;
 
