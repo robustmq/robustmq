@@ -24,7 +24,7 @@ pprof.workspace = true
 hyper.workspace = true
 axum.workspace = true
 bytes.workspace = true
-log.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true

@@ -3445,10 +3445,10 @@ dependencies = [
  "axum",
  "bytes",
  "hyper",
- "log",
  "mockall",
  "pprof",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
