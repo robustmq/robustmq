@@ -87,6 +87,6 @@ pub fn default_tcp_thread() -> TcpThread {
 pub fn default_log() -> Log {
     Log {
         log_path: "./logs".to_string(),
-        log_config: "./config/log4rs.yaml".to_string(),
+        log_config: "./config/log-config/journal-tracing.toml".to_string(),
     }
 }

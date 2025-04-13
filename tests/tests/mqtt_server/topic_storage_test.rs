@@ -30,7 +30,7 @@ mod tests {
     async fn topic_test() {
         let path = format!("{}/../config/mqtt-server.toml", env!("CARGO_MANIFEST_DIR"));
         let log_config = format!(
-            "{}/../config/log-config/mqtt-log4rs.yaml",
+            "{}/../config/log-config/mqtt-tracing.toml",
             env!("CARGO_MANIFEST_DIR")
         );
         let log_path = format!("{}/../logs/tests", env!("CARGO_MANIFEST_DIR"));
