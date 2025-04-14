@@ -20,7 +20,6 @@ use crate::{security::AuthDriver, subscribe::subscribe_manager::SubscribeManager
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::placement::inner::call::list_schema;
 use grpc_clients::pool::ClientPool;
-use log::error;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
@@ -33,6 +32,7 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
 use protocol::placement_center::placement_center_inner::ListSchemaRequest;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
+use tracing::error;
 
 use super::cache::CacheManager;
 use super::cluster_config::build_cluster_config;

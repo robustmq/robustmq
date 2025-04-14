@@ -18,12 +18,12 @@ use bytes::Bytes;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
-use log::info;
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{
     MqttProtocol, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties,
 };
 use tokio::sync::broadcast::{self};
+use tracing::info;
 
 use super::cache::{CacheManager, QosAckPacketInfo};
 use super::constant::{SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE};

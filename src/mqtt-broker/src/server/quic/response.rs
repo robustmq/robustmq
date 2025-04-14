@@ -16,12 +16,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use grpc_clients::pool::ClientPool;
-use log::{debug, error};
 use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::mqtt::common::MqttPacket;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
+use tracing::{debug, error};
 
 use crate::handler::cache::CacheManager;
 use crate::handler::connection::disconnect_connection;

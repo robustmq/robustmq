@@ -16,10 +16,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use grpc_clients::pool::ClientPool;
-use log::{debug, error};
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
+use tracing::{debug, error};
 
 use crate::core::cache::CacheManager;
 use crate::server::connection_manager::ConnectionManager;

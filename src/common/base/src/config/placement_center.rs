@@ -21,10 +21,11 @@ use toml::{Table, Value};
 
 use super::common::{override_default_by_env, Log};
 use super::default_placement_center::{
-    default_cluster_name, default_data_path, default_grpc_port, default_heartbeat,
-    default_heartbeat_check_time_ms, default_heartbeat_timeout_ms, default_http_port,
-    default_local_ip, default_log, default_max_open_files, default_network, default_node,
-    default_node_id, default_nodes, default_rocksdb, default_runtime_work_threads, default_system,
+    default_cluster_name, default_data_path, default_grpc_max_decoding_message_size,
+    default_grpc_port, default_heartbeat, default_heartbeat_check_time_ms,
+    default_heartbeat_timeout_ms, default_http_port, default_local_ip, default_log,
+    default_max_open_files, default_network, default_node, default_node_id, default_nodes,
+    default_rocksdb, default_runtime_work_threads, default_system,
 };
 use crate::tools::{read_file, try_create_fold};
 
@@ -60,6 +61,8 @@ pub struct Network {
     pub local_ip: String,
     #[serde(default = "default_grpc_port")]
     pub grpc_port: u32,
+    #[serde(default = "default_grpc_max_decoding_message_size")]
+    pub grpc_max_decoding_message_size: u32,
     #[serde(default = "default_http_port")]
     pub http_port: u32,
 }
@@ -203,7 +206,7 @@ mod tests {
             config.log,
             Log {
                 log_path: "./robust-data/placement-center/logs".to_string(),
-                log_config: "./config/log-config/place-log4rs.yaml".to_string(),
+                log_config: "./config/log-config/place-tracing.toml".to_string(),
             }
         );
         let mut nodes = Table::new();

@@ -18,8 +18,8 @@ use axum::http;
 use common_base::config::placement_center::placement_center_conf;
 use common_base::tools::now_mills;
 use grpc_clients::pool::ClientPool;
-use log::info;
 use rocksdb_engine::RocksDBEngine;
+use tracing::info;
 
 use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
@@ -42,6 +42,7 @@ use protocol::placement_center::placement_center_mqtt::mqtt_service_server::Mqtt
 use protocol::placement_center::placement_center_openraft::open_raft_service_server::OpenRaftServiceServer;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use tonic::codegen::InterceptedService;
 use tonic::{transport::Server, Request, Status};
 use tower::{Layer, Service};
 
@@ -89,11 +90,32 @@ pub async fn start_grpc_server(
         mqtt_call_manager.clone(),
         client_pool.clone(),
     );
-    let pc_svc = PlacementCenterServiceServer::with_interceptor(placement_handler, grpc_intercept);
-    let kv_svc = KvServiceServer::with_interceptor(kv_handler, grpc_intercept);
-    let mqtt_svc = MqttServiceServer::with_interceptor(mqtt_handler, grpc_intercept);
-    let engine_svc = EngineServiceServer::with_interceptor(engine_handler, grpc_intercept);
-    let openraft_svc = OpenRaftServiceServer::with_interceptor(openraft_handler, grpc_intercept);
+
+    let grpc_max_decoding_message_size = config.network.grpc_max_decoding_message_size as usize;
+    let pc_svc = InterceptedService::new(
+        PlacementCenterServiceServer::new(placement_handler)
+            .max_decoding_message_size(grpc_max_decoding_message_size),
+        grpc_intercept,
+    );
+    let kv_svc = InterceptedService::new(
+        KvServiceServer::new(kv_handler).max_decoding_message_size(grpc_max_decoding_message_size),
+        grpc_intercept,
+    );
+    let mqtt_svc = InterceptedService::new(
+        MqttServiceServer::new(mqtt_handler)
+            .max_decoding_message_size(grpc_max_decoding_message_size),
+        grpc_intercept,
+    );
+    let engine_svc = InterceptedService::new(
+        EngineServiceServer::new(engine_handler)
+            .max_decoding_message_size(grpc_max_decoding_message_size),
+        grpc_intercept,
+    );
+    let openraft_svc = InterceptedService::new(
+        OpenRaftServiceServer::new(openraft_handler)
+            .max_decoding_message_size(grpc_max_decoding_message_size),
+        grpc_intercept,
+    );
 
     let layer = tower::ServiceBuilder::new()
         .layer(BaseMiddlewareLayer::default())

@@ -20,7 +20,6 @@ use common_base::tools::{now_second, unique_id};
 use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
 use grpc_clients::pool::ClientPool;
-use log::{error, info};
 use metadata_struct::mqtt::node_extend::MqttNodeExtend;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Login, MqttPacket, MqttProtocol, PingReq,
@@ -34,6 +33,7 @@ use tokio::sync::broadcast::{self, Sender};
 use tokio::time::sleep;
 use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
+use tracing::{error, info};
 
 use super::sub_common::{
     get_share_sub_leader, publish_message_qos, publish_message_to_client, qos2_send_pubrel,

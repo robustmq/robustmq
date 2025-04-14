@@ -17,11 +17,11 @@ use std::time::Duration;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
-use log::{error, info};
 use metadata_struct::mqtt::user::MqttUser;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
+use tracing::{error, info};
 
 use crate::security::AuthDriver;
 use crate::storage::user::UserStorage;
