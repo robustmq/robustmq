@@ -27,7 +27,6 @@ use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
 use grpc_clients::pool::ClientPool;
 use index::engine::{column_family_list, storage_data_fold};
-use log::{error, info};
 use rocksdb_engine::RocksDBEngine;
 use segment::manager::{
     load_local_segment_cache, metadata_and_local_segment_diff_check, SegmentFileManager,
@@ -40,6 +39,7 @@ use tokio::runtime::Runtime;
 use tokio::signal;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
+use tracing::{error, info};
 
 mod core;
 mod handler;

@@ -18,9 +18,6 @@ use std::time::Duration;
 use dashmap::DashMap;
 use grpc_clients::mqtt::inner::call::broker_mqtt_update_cache;
 use grpc_clients::pool::ClientPool;
-use log::error;
-use log::info;
-use log::warn;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
@@ -32,6 +29,9 @@ use protocol::broker_mqtt::broker_mqtt_inner::MqttBrokerUpdateCacheResourceType;
 use protocol::broker_mqtt::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, UpdateMqttCacheRequest,
 };
+use tracing::error;
+use tracing::info;
+use tracing::warn;
 
 use tokio::select;
 use tokio::sync::broadcast::{self, Sender};

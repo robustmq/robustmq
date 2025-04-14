@@ -16,11 +16,11 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
-use log::error;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use metadata_struct::mqtt::topic::MqttTopic;
 use rocksdb_engine::warp::StorageDataWrap;
 use tokio::time::{self, Duration, Interval};
+use tracing::error;
 
 use crate::storage::keys::{
     storage_key_mqtt_last_will_prefix, storage_key_mqtt_topic_cluster_prefix,

@@ -323,7 +323,7 @@ mod tests {
 
         assert_eq!(
             config.log.log_config,
-            "./config/log-config/mqtt-log4rs.yaml"
+            "./config/log-config/mqtt-tracing.toml"
         );
 
         assert_eq!(
@@ -366,7 +366,7 @@ mod tests {
         std::env::set_var("MQTT_SERVER_STORAGE_STORAGE_TYPE", "\"memory-env\"");
         std::env::set_var(
             "MQTT_SERVER_LOG_LOG_CONFIG",
-            "\"./config/log-config/mqtt-log4rs.yaml-env\"",
+            "\"./config/log-config/mqtt-tracing.toml-env\"",
         );
         std::env::set_var(
             "MQTT_SERVER_LOG_LOG_PATH",
@@ -423,7 +423,7 @@ mod tests {
 
         assert_eq!(
             config.log.log_config,
-            "./config/log-config/mqtt-log4rs.yaml-env"
+            "./config/log-config/mqtt-tracing.toml-env"
         );
 
         assert_eq!(
@@ -481,7 +481,7 @@ mod tests {
         );
         assert_eq!(
             config.log.log_config,
-            "./config/log-config/mqtt-log4rs.yaml"
+            "./config/log-config/mqtt-tracing.toml"
         );
 
         assert_eq!(config.auth.storage_type, "placement".to_string());

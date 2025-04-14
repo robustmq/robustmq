@@ -26,7 +26,6 @@ use crate::subscribe::subscribe_manager::SubscribeManager;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
-use log::info;
 use quinn::{Connection, Endpoint, ServerConfig, VarInt};
 use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 use rustls_pki_types::PrivateKeyDer;
@@ -35,6 +34,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::{broadcast, mpsc};
+use tracing::info;
 
 pub fn generate_self_signed_cert() -> (Vec<CertificateDer<'static>>, PrivateKeyDer<'static>) {
     let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();

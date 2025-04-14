@@ -16,7 +16,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures_util::StreamExt;
-use log::{debug, error, info};
 use protocol::journal_server::codec::JournalServerCodec;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
@@ -24,6 +23,7 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::time::sleep;
 use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
+use tracing::{debug, error, info};
 
 use crate::core::cache::CacheManager;
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};

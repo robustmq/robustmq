@@ -12,22 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[package]
-name = "kafka-broker"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+[appenders.stdout]
+kind = "Console"
+level = "Info"
 
+[appenders.server]
+kind = "RollingFile"
+level = "Info"
+rotation = "Minutely"
+directory = "./logs/tests"
+prefix = "journal-server-"
+suffix = "log"
+max_log_files = 10
 
-[dependencies]
-bytes.workspace = true
-axum.workspace = true
-thiserror.workspace = true
-common-base.workspace = true
-storage-adapter.workspace = true
-metadata-struct.workspace = true
-dashmap.workspace = true
-tokio.workspace = true
-tokio-util.workspace = true
-tracing.workspace = true
-futures.workspace = true
+# [appenders.slow_sub]
+# kind = "RollingFile"
+# level = "Info"
+# rotation = "Minutely"
+# directory = "./logs/tests"
+# prefix = "journal-slow_sub-"
+# suffix = "log"
+# max_log_files = 10

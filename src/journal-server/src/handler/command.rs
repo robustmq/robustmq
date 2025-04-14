@@ -16,7 +16,6 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use grpc_clients::pool::ClientPool;
-use log::{debug, error, info};
 use protocol::journal_server::codec::JournalEnginePacket;
 use protocol::journal_server::journal_engine::{
     ApiKey, ApiVersion, CreateShardResp, CreateShardRespBody, DeleteShardResp, DeleteShardRespBody,
@@ -25,6 +24,7 @@ use protocol::journal_server::journal_engine::{
     ListShardRespBody, ReadResp, ReadRespBody, RespHeader, WriteResp, WriteRespBody,
 };
 use rocksdb_engine::RocksDBEngine;
+use tracing::{debug, error, info};
 
 use super::cluster::ClusterHandler;
 use super::data::DataHandler;

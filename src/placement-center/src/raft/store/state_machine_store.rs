@@ -15,13 +15,13 @@
 use std::io::Cursor;
 use std::sync::Arc;
 
-use log::warn;
 use openraft::storage::RaftStateMachine;
 use openraft::{
     AnyError, EntryPayload, ErrorSubject, ErrorVerb, LogId, OptionalSend, RaftSnapshotBuilder,
     Snapshot, SnapshotMeta, StorageError, StoredMembership,
 };
 use rocksdb::{BoundColumnFamily, DB};
+use tracing::warn;
 
 use super::{cf_raft_store, StorageResult, StoredSnapshot};
 use crate::raft::raft_node::{typ, NodeId};

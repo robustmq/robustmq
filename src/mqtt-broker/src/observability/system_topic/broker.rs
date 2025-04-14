@@ -17,10 +17,10 @@ use std::sync::Arc;
 
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
-use log::error;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
 use storage_adapter::storage::StorageAdapter;
+use tracing::error;
 
 use super::{
     replace_topic_name, write_topic_data, SYSTEM_TOPIC_BROKERS, SYSTEM_TOPIC_BROKERS_DATETIME,
