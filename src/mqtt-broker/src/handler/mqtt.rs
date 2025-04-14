@@ -18,7 +18,6 @@ use std::sync::Arc;
 use common_base::tools::now_second;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
-use log::{error, warn};
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MqttPacket, MqttProtocol, PingReq,
@@ -29,6 +28,7 @@ use protocol::mqtt::common::{
 };
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
+use tracing::{error, warn};
 
 use super::connection::{disconnect_connection, is_delete_session};
 use super::offline_message::save_message;
@@ -55,7 +55,6 @@ use crate::handler::response::{
 use crate::handler::retain::save_retain_message;
 use crate::handler::session::{build_session, save_session};
 use crate::handler::topic::{get_topic_name, try_init_topic};
-use crate::handler::topic_rewrite::{process_sub_topic_rewrite, process_unsub_topic_rewrite};
 use crate::handler::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
 };
@@ -269,11 +268,9 @@ where
         self.cache_manager
             .report_heartbeat(client_id.clone(), live_time);
 
-        self.cache_manager
-            .add_session(client_id.clone(), session.clone());
+        self.cache_manager.add_session(&client_id, &session);
         self.cache_manager
             .add_connection(connect_id, connection.clone());
-
         st_report_connected_event(
             &self.message_storage_adapter,
             &self.cache_manager,
@@ -303,7 +300,7 @@ where
         publish: Publish,
         publish_properties: Option<PublishProperties>,
     ) -> Option<MqttPacket> {
-        let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
+        let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
             se.clone()
         } else {
             return Some(response_packet_mqtt_distinct_by_reason(
@@ -332,8 +329,8 @@ where
         let is_puback = publish.qos != QoS::ExactlyOnce;
 
         let topic_name = match get_topic_name(
-            connect_id,
             &self.cache_manager,
+            connect_id,
             &publish,
             &publish_properties,
         ) {
@@ -579,7 +576,7 @@ where
         pub_ack: PubAck,
         _: Option<PubAckProperties>,
     ) -> Option<MqttPacket> {
-        if let Some(conn) = self.cache_manager.connection_info.get(&connect_id) {
+        if let Some(conn) = self.cache_manager.get_connection(connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_ack.pkid;
             if let Some(data) = self.cache_manager.get_ack_packet(client_id.clone(), pkid) {
@@ -607,7 +604,7 @@ where
         pub_rec: PubRec,
         _: Option<PubRecProperties>,
     ) -> Option<MqttPacket> {
-        if let Some(conn) = self.cache_manager.connection_info.get(&connect_id) {
+        if let Some(conn) = self.cache_manager.get_connection(connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_rec.pkid;
             if let Some(data) = self.cache_manager.get_ack_packet(client_id.clone(), pkid) {
@@ -639,7 +636,7 @@ where
         pub_comp: PubComp,
         _: Option<PubCompProperties>,
     ) -> Option<MqttPacket> {
-        if let Some(conn) = self.cache_manager.connection_info.get(&connect_id) {
+        if let Some(conn) = self.cache_manager.get_connection(connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_comp.pkid;
             if let Some(data) = self.cache_manager.get_ack_packet(client_id.clone(), pkid) {
@@ -666,7 +663,7 @@ where
         pub_rel: PubRel,
         _: Option<PubRelProperties>,
     ) -> MqttPacket {
-        let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
+        let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
             se.clone()
         } else {
             return response_packet_mqtt_distinct_by_reason(
@@ -737,10 +734,10 @@ where
     pub async fn subscribe(
         &self,
         connect_id: u64,
-        mut subscribe: Subscribe,
+        subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
     ) -> MqttPacket {
-        let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
+        let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
             se.clone()
         } else {
             return response_packet_mqtt_distinct_by_reason(
@@ -763,7 +760,7 @@ where
         }
 
         let new_subs = is_new_sub(&connection.client_id, &subscribe, &self.subscribe_manager).await;
-        process_sub_topic_rewrite(&mut subscribe, &self.cache_manager.topic_rewrite_rule);
+
         if let Err(e) = save_subscribe(
             &connection.client_id,
             &self.protocol,
@@ -832,7 +829,7 @@ where
     }
 
     pub async fn ping(&self, connect_id: u64, _: PingReq) -> MqttPacket {
-        let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
+        let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
             se.clone()
         } else {
             return response_packet_mqtt_distinct_by_reason(
@@ -854,10 +851,10 @@ where
     pub async fn un_subscribe(
         &self,
         connect_id: u64,
-        mut un_subscribe: Unsubscribe,
+        un_subscribe: Unsubscribe,
         _: Option<UnsubscribeProperties>,
     ) -> MqttPacket {
-        let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
+        let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
             se.clone()
         } else {
             return response_packet_mqtt_distinct_by_reason(
@@ -877,14 +874,11 @@ where
             return packet;
         }
 
-        process_unsub_topic_rewrite(&mut un_subscribe, &self.cache_manager.topic_rewrite_rule);
-
         if let Err(e) = remove_subscribe(
             &connection.client_id,
             &un_subscribe,
             &self.client_pool,
             &self.subscribe_manager,
-            &self.cache_manager,
         )
         .await
         {

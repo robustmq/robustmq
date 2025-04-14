@@ -53,9 +53,9 @@ pub fn read(
 
         let retain_forward_rule = (options >> 4) & 0b0000_0011;
         let retain_forward_rule = match retain_forward_rule {
-            0 => RetainForwardRule::OnEverySubscribe,
-            1 => RetainForwardRule::OnNewSubscribe,
-            2 => RetainForwardRule::Never,
+            0 => RetainHandling::OnEverySubscribe,
+            1 => RetainHandling::OnNewSubscribe,
+            2 => RetainHandling::Never,
             r => return Err(Error::InvalidRetainForwardRule(r)),
         };
 
@@ -64,7 +64,7 @@ pub fn read(
             qos: qos(requested_qos).ok_or(Error::InvalidQoS(requested_qos))?,
             nolocal,
             preserve_retain,
-            retain_forward_rule,
+            retain_handling: retain_forward_rule,
         });
     }
 
@@ -129,10 +129,10 @@ mod filter {
             options |= 0b0000_1000;
         }
 
-        options |= match filter.retain_forward_rule {
-            RetainForwardRule::OnEverySubscribe => 0b0000_0000,
-            RetainForwardRule::OnNewSubscribe => 0b0001_0000,
-            RetainForwardRule::Never => 0b0010_0000,
+        options |= match filter.retain_handling {
+            RetainHandling::OnEverySubscribe => 0b0000_0000,
+            RetainHandling::OnNewSubscribe => 0b0001_0000,
+            RetainHandling::Never => 0b0010_0000,
         };
 
         write_mqtt_string(buffer, filter.path.as_str());

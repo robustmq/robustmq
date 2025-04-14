@@ -15,7 +15,6 @@
 use crate::handler::error::MqttBrokerError;
 use axum::async_trait;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use log::{error, info};
 use metadata_struct::mqtt::bridge::{
     config_local_file::LocalFileConnectorConfig, connector::MQTTConnector,
     connector_type::ConnectorType, status::MQTTStatus,
@@ -23,9 +22,11 @@ use metadata_struct::mqtt::bridge::{
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
 use tokio::{select, sync::broadcast, time::sleep};
+use tracing::{error, info};
 
 use super::{file::FileBridgePlugin, manager::ConnectorManager};
 
+#[derive(Clone)]
 pub struct BridgePluginReadConfig {
     pub topic_id: String,
     pub record_num: u64,

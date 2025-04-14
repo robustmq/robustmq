@@ -18,8 +18,6 @@ use std::time::Duration;
 use dashmap::DashMap;
 use grpc_clients::mqtt::inner::call::broker_mqtt_update_cache;
 use grpc_clients::pool::ClientPool;
-use log::warn;
-use log::{debug, error, info};
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
@@ -31,6 +29,9 @@ use protocol::broker_mqtt::broker_mqtt_inner::MqttBrokerUpdateCacheResourceType;
 use protocol::broker_mqtt::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, UpdateMqttCacheRequest,
 };
+use tracing::error;
+use tracing::info;
+use tracing::warn;
 
 use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
@@ -422,13 +423,8 @@ async fn call_mqtt_update_cache(
         data: data.data.clone(),
     };
 
-    match broker_mqtt_update_cache(&client_pool, &[addr], request).await {
-        Ok(resp) => {
-            debug!("Calling MQTT Broker returns information:{:?}", resp);
-        }
-        Err(e) => {
-            error!("Calling MQTT Broker to update cache failed,{}", e);
-        }
+    if let Err(e) = broker_mqtt_update_cache(&client_pool, &[addr], request.clone()).await {
+        error!("Calling MQTT Broker to update cache failed,{},cluster_name:{},action_type:{},resource_type:{}", e,request.cluster_name,request.action_type,request.resource_type);
     };
 }
 

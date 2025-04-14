@@ -15,7 +15,6 @@
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
-use log::warn;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -29,9 +28,7 @@ use protocol::mqtt::common::{MqttProtocol, PublishProperties};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::broadcast::Sender;
-use tokio::time::sleep;
 
 use crate::security::acl::metadata::AclMetadata;
 
@@ -104,9 +101,6 @@ pub struct CacheManager {
     // (client_id, Session)
     pub session_info: DashMap<String, MqttSession>,
 
-    // (client_id, vec<pkid>)
-    pub publish_pkid_info: DashMap<String, Vec<u16>>,
-
     // (connect_id, Connection)
     pub connection_info: DashMap<u64, MQTTConnection>,
 
@@ -146,7 +140,6 @@ impl CacheManager {
             topic_info: DashMap::with_capacity(8),
             topic_id_name: DashMap::with_capacity(8),
             connection_info: DashMap::with_capacity(8),
-            publish_pkid_info: DashMap::with_capacity(8),
             heartbeat_data: DashMap::with_capacity(8),
             qos_ack_packet: DashMap::with_capacity(8),
             client_pkid_data: DashMap::with_capacity(8),
@@ -157,8 +150,9 @@ impl CacheManager {
     }
 
     // session
-    pub fn add_session(&self, client_id: String, session: MqttSession) {
-        self.session_info.insert(client_id, session);
+    pub fn add_session(&self, client_id: &str, session: &MqttSession) {
+        self.session_info
+            .insert(client_id.to_owned(), session.to_owned());
     }
 
     pub fn get_session_info(&self, client_id: &str) -> Option<MqttSession> {
@@ -179,7 +173,6 @@ impl CacheManager {
 
     pub fn remove_session(&self, client_id: &str) {
         self.session_info.remove(client_id);
-        self.publish_pkid_info.remove(client_id);
         self.heartbeat_data.remove(client_id);
 
         for (key, _) in self.qos_ack_packet.clone() {
@@ -288,6 +281,13 @@ impl CacheManager {
         self.topic_rewrite_rule.remove(&key);
     }
 
+    pub fn get_all_topic_rewrite_rule(&self) -> Vec<MqttTopicRewriteRule> {
+        self.topic_rewrite_rule
+            .iter()
+            .map(|entry| entry.value().clone())
+            .collect()
+    }
+
     pub fn login_success(&self, connect_id: u64, user_name: String) {
         if let Some(mut conn) = self.connection_info.get_mut(&connect_id) {
             conn.login_success(user_name)
@@ -332,42 +332,6 @@ impl CacheManager {
                     conn.topic_alias.insert(alias, topic_name.to_owned());
                 }
             }
-        }
-    }
-
-    // pkid
-    pub async fn get_pkid(&self, client_id: &str) -> u16 {
-        let pkid = self.get_available_pkid(client_id).await;
-        if let Some(mut pkid_list) = self.publish_pkid_info.get_mut(client_id) {
-            pkid_list.push(pkid);
-        } else {
-            self.publish_pkid_info
-                .insert(client_id.to_owned(), vec![pkid]);
-        }
-        pkid
-    }
-
-    async fn get_available_pkid(&self, client_id: &str) -> u16 {
-        loop {
-            if let Some(pkid_list) = self.publish_pkid_info.get(client_id) {
-                for i in 1..65535 {
-                    if pkid_list.contains(&i) {
-                        continue;
-                    }
-                    return i;
-                }
-            } else {
-                self.publish_pkid_info.insert(client_id.to_owned(), vec![1]);
-                return 1;
-            }
-            sleep(Duration::from_millis(10)).await;
-            warn!("{}", "No pkid available for client, wait 10ms.");
-        }
-    }
-
-    pub fn remove_pkid_info(&self, client_id: &str, pkid: u16) {
-        if let Some(mut pkid_list) = self.publish_pkid_info.get_mut(client_id) {
-            pkid_list.retain(|x| *x == pkid);
         }
     }
 

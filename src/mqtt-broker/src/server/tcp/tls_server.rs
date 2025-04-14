@@ -20,7 +20,6 @@ use std::time::Duration;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use futures_util::StreamExt;
-use log::{debug, error, info};
 use protocol::mqtt::codec::MqttCodec;
 use rustls_pemfile::{certs, private_key};
 use tokio::net::TcpListener;
@@ -28,6 +27,7 @@ use tokio::select;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{broadcast, mpsc};
 use tokio::time::sleep;
+use tracing::{debug, error, info};
 
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::ServerConfig;
@@ -176,7 +176,7 @@ pub(crate) fn read_tls_frame_process(
                         match pkg {
                             Ok(pack) => {
                                 record_received_metrics(&connection, &pack, &network_type);
-                                info!("revc tcp tls packet:{:?}", pack);
+                                info!("recv tcp tls packet:{:?}", pack);
                                 let package =
                                     RequestPackage::new(connection.connection_id, connection.addr, pack);
                                 match request_queue_sx.send(package).await {

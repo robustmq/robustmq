@@ -28,6 +28,7 @@ use super::retain::save_retain_message;
 use super::topic::try_init_topic;
 use crate::storage::message::MessageStorage;
 use crate::storage::session::SessionStorage;
+use crate::subscribe::sub_common::get_pkid;
 
 pub async fn send_last_will_message<S>(
     client_id: &str,
@@ -96,7 +97,7 @@ fn build_publish_message_by_lastwill(
         let publish = Publish {
             dup: false,
             qos: will.qos,
-            pkid: 0,
+            pkid: get_pkid(),
             retain: will.retain,
             topic: Bytes::from(topic_name.clone()),
             payload: will.message.clone(),
@@ -205,7 +206,7 @@ mod test {
         assert_eq!(p_tmp.payload, Bytes::from(message.clone()));
         assert_eq!(p_tmp.qos, protocol::mqtt::common::QoS::AtLeastOnce);
         assert!(!p_tmp.retain);
-        assert_eq!(p_tmp.pkid, 0);
+        assert!(p_tmp.pkid > 0);
         assert!(!p_tmp.dup);
         assert!(pp.is_none());
 
@@ -227,7 +228,7 @@ mod test {
         assert_eq!(p_tmp.payload, Bytes::from(message.clone()));
         assert_eq!(p_tmp.qos, protocol::mqtt::common::QoS::AtLeastOnce);
         assert!(!p_tmp.retain);
-        assert_eq!(p_tmp.pkid, 0);
+        assert!(p_tmp.pkid > 0);
         assert!(!p_tmp.dup);
         assert!(pp.is_some());
 

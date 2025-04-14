@@ -15,7 +15,7 @@
 use common_base::tools::now_second;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
 pub struct MqttTopic {
     pub topic_id: String,
     pub cluster_name: String,

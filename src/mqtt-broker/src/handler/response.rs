@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::{error, warn};
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
@@ -22,9 +21,9 @@ use protocol::mqtt::common::{
     PubRecProperties, PubRecReason, PubRel, PubRelProperties, PubRelReason, SubAck,
     SubAckProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
 };
+use tracing::{error, warn};
 
 use super::connection::response_information;
-use super::keep_alive::keep_live_time;
 use super::validator::is_request_problem_info;
 
 #[allow(clippy::too_many_arguments)]
@@ -73,7 +72,7 @@ pub fn response_packet_mqtt_connect_success(
         shared_subscription_available: Some(
             cluster.feature.shared_subscription_available.clone() as u8
         ),
-        server_keep_alive: Some(keep_live_time(keep_alive)),
+        server_keep_alive: Some(keep_alive),
         response_information: response_information(connect_properties),
         server_reference: None,
         authentication_method: None,
@@ -234,6 +233,7 @@ pub fn response_packet_mqtt_pubrec_fail(
     if !protocol.is_mqtt5() {
         return MqttPacket::PubRec(PubRec { pkid, reason: None }, None);
     }
+
     let pub_ack = PubRec {
         pkid,
         reason: Some(reason),
@@ -324,6 +324,9 @@ pub fn response_packet_mqtt_unsuback(
     reasons: Vec<UnsubAckReason>,
     reason_string: Option<String>,
 ) -> MqttPacket {
+    if reason_string.is_some() {
+        warn!("{reasons:?},{reason_string:?}");
+    }
     let unsub_ack = UnsubAck { pkid, reasons };
     let mut properties = UnsubAckProperties::default();
     if connection.is_response_problem_info() {

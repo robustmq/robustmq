@@ -14,7 +14,6 @@
 
 use std::sync::Arc;
 
-use log::{error, info};
 use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
@@ -22,6 +21,7 @@ use metadata_struct::placement::node::BrokerNode;
 use protocol::journal_server::journal_inner::{
     JournalUpdateCacheActionType, JournalUpdateCacheResourceType,
 };
+use tracing::{error, info};
 
 use super::cache::CacheManager;
 use crate::segment::manager::{create_local_segment, SegmentFileManager};

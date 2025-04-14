@@ -881,32 +881,32 @@ pub struct Filter {
     // the following options are only valid in mqtt v5
     pub nolocal: bool,
     pub preserve_retain: bool,
-    pub retain_forward_rule: RetainForwardRule,
+    pub retain_handling: RetainHandling,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum RetainForwardRule {
+pub enum RetainHandling {
     #[default]
     OnEverySubscribe,
     OnNewSubscribe,
     Never,
 }
 
-impl From<RetainForwardRule> for u8 {
-    fn from(value: RetainForwardRule) -> Self {
+impl From<RetainHandling> for u8 {
+    fn from(value: RetainHandling) -> Self {
         match value {
-            RetainForwardRule::OnEverySubscribe => 0,
-            RetainForwardRule::OnNewSubscribe => 1,
-            RetainForwardRule::Never => 2,
+            RetainHandling::OnEverySubscribe => 0,
+            RetainHandling::OnNewSubscribe => 1,
+            RetainHandling::Never => 2,
         }
     }
 }
 
-pub fn retain_forward_rule(num: u8) -> Option<RetainForwardRule> {
+pub fn retain_forward_rule(num: u8) -> Option<RetainHandling> {
     match num {
-        0 => Some(RetainForwardRule::OnEverySubscribe),
-        1 => Some(RetainForwardRule::OnNewSubscribe),
-        2 => Some(RetainForwardRule::Never),
+        0 => Some(RetainHandling::OnEverySubscribe),
+        1 => Some(RetainHandling::OnNewSubscribe),
+        2 => Some(RetainHandling::Never),
         _ => None,
     }
 }

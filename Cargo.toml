@@ -57,7 +57,7 @@ tokio-rustls = { version = "0.26", default-features = false, features = [
 rustls = { version = "0.23.23", default-features = false }
 rustls-pemfile = "2"
 ## axum
-axum = { version = "0.7.2", features = ["ws"] }
+axum = { version = "0.7.2", features = ["ws", "http1", "http2"] }
 axum-server = { version = "0.6.0", features = ["tls-rustls"] }
 axum-extra = { version = "0.9.3", features = ["typed-header"] }
 mysql = "*"
@@ -79,11 +79,10 @@ grep = "0.3.2"
 prometheus = "0.13.3"
 prometheus_exporter = "0.8"
 prometheus-client = "0.23.1"
-## log lib
-log4rs = "1.2.0"
-log = "0.4.0"
+## logging
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.0", features = ["env-filter"] }
+tracing-appender = { version = "0.2.0" }
 # opentelemetry
 opentelemetry = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = [
     "trace",
@@ -170,9 +169,16 @@ third-driver = { path = "src/common/third-driver" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }
 robustmq-proto-build = { git = "https://github.com/robustmq/robustmq-proto.git", branch = "main" }
+pprof-monitor = { path = "src/common/pprof-monitor" }
 
 # other
 tempfile = "3.9.0"
+
+#pprof
+pprof = { version = "0.14.0", features = ["flamegraph"] }
+
+#http
+hyper = { version = "1.6.0", features = ["server", "http1"] }
 
 [profile.dev]
 overflow-checks = false

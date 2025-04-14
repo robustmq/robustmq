@@ -67,10 +67,10 @@ impl MqttLastWillStorage {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::remove_dir_all;
     use std::sync::Arc;
 
     use common_base::config::placement_center::placement_center_test_conf;
+    use common_base::utils::file_utils::test_temp_dir;
     use metadata_struct::mqtt::lastwill::LastWillData;
     use metadata_struct::mqtt::session::MqttSession;
 
@@ -83,7 +83,7 @@ mod tests {
         let config = placement_center_test_conf();
 
         let rs = Arc::new(RocksDBEngine::new(
-            &config.rocksdb.data_path,
+            &test_temp_dir(),
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));
@@ -114,7 +114,5 @@ mod tests {
 
         let data = lastwill_storage.get(&cluster_name, &client_id).unwrap();
         assert!(data.is_none());
-
-        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 }

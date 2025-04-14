@@ -12,164 +12,384 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use core::option::Option::Some;
-
 use clap::builder::{
     ArgAction, BoolishValueParser, EnumValueParser, NonEmptyStringValueParser, RangedU64ValueParser,
 };
-use clap::{arg, Parser};
+use clap::{arg, Parser, ValueEnum};
 use cli_command::mqtt::MqttActionType;
 use common_base::enum_type::sort_type::SortType;
+use core::option::Option::Some;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateUserRequest, DeleteAutoSubscribeRuleRequest, DeleteUserRequest,
-    ListAutoSubscribeRuleRequest, SetAutoSubscribeRuleRequest,
+    CreateAclRequest, CreateBlacklistRequest, CreateTopicRewriteRuleRequest, CreateUserRequest,
+    DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest,
+    DeleteTopicRewriteRuleRequest, DeleteUserRequest, ListAutoSubscribeRuleRequest,
+    ListTopicRequest, MqttCreateConnectorRequest, MqttDeleteConnectorRequest,
+    MqttListConnectorRequest, MqttUpdateConnectorRequest, SetAutoSubscribeRuleRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
 };
 
+// security: user feat
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="related operations of mqtt users, such as listing, creating, and deleting ", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of mqtt users, such as listing, creating, and deleting", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct MqttUserCommand {
+pub(crate) struct UserArgs {
     #[command(subcommand)]
-    pub action: Option<MqttUserActionType>,
+    pub action: UserActionType,
 }
 
 #[derive(Debug, clap::Subcommand)]
-pub enum MqttUserActionType {
-    #[command(author="RobustMQ", about="action: user list", long_about = None)]
+pub enum UserActionType {
+    #[command(author = "RobustMQ", about = "action: list users", long_about = None)]
     List,
-    Delete(DeleteUserArgs),
+    #[command(author = "RobustMQ", about = "action: create user", long_about = None)]
     Create(CreateUserArgs),
+    #[command(author = "RobustMQ", about = "action: delete user", long_about = None)]
+    Delete(DeleteUserArgs),
 }
 
-// security: user feat
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="action: create user", long_about = None)]
+#[command(author = "RobustMQ", about = "action: create user", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct CreateUserArgs {
     #[arg(short, long, required = true)]
     pub(crate) username: String,
-
     #[arg(short, long, required = true)]
     pub(crate) password: String,
-
     #[arg(short, long, default_value_t = false)]
     pub(crate) is_superuser: bool,
 }
 
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="action: delete user", long_about = None)]
+#[command(author = "RobustMQ", about = "action: delete user", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct DeleteUserArgs {
     #[arg(short, long, required = true)]
     pub(crate) username: String,
 }
 
+// acl feat
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "related operations of access control list, such as listing, creating, and deleting", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct AclArgs {
+    #[command(subcommand)]
+    pub action: AclActionType,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum AclActionType {
+    #[command(author = "RobustMQ", about = "action: acl list", long_about = None)]
+    List,
+    #[command(author = "RobustMQ", about = "action: create acl", long_about = None)]
+    Create(CreateAclArgs),
+    #[command(author = "RobustMQ", about = "action: delete acl", long_about = None)]
+    Delete(DeleteAclArgs),
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: create acl", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct CreateAclArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) cluster_name: String,
+    #[arg(short, long, required = true)]
+    pub(crate) acl: String,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: delete acl", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct DeleteAclArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) cluster_name: String,
+    #[arg(short, long, required = true)]
+    pub(crate) acl: String,
+}
+
+// blacklist feat
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "related operations of blacklist, such as listing, creating, and deleting", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct BlacklistArgs {
+    #[command(subcommand)]
+    pub action: BlackListActionType,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum BlackListActionType {
+    #[command(author = "RobustMQ", about = "action: blacklist list", long_about = None)]
+    List,
+    #[command(author = "RobustMQ", about = "action: create blacklist", long_about = None)]
+    Create(CreateBlacklistArgs),
+    #[command(author = "RobustMQ", about = "action: delete blacklist", long_about = None)]
+    Delete(DeleteBlacklistArgs),
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: create blacklist", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct CreateBlacklistArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) cluster_name: String,
+    #[arg(short, long, required = true)]
+    pub(crate) blacklist: String,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: delete blacklist", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct DeleteBlacklistArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) cluster_name: String,
+    #[arg(short, long, required = true)]
+    pub(crate) blacklist_type: String,
+    #[arg(short, long, required = true)]
+    pub(crate) resource_name: String,
+}
+
 // flapping detect feat
-#[derive(Debug, Parser)]
-#[command(author="RobustMQ", about="", long_about = None)]
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: flapping detect feat", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct FlappingDetectArgs {
-    #[arg(long = "enable")]
-    #[arg(value_parser =  BoolishValueParser::new())]
-    #[arg(default_missing_value = "false")]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
-    #[arg(required = true, require_equals = true, exclusive = true)]
-    #[arg(help = "Enable or disable the feature")]
+    #[arg(
+        long = "enable",
+        value_parser = BoolishValueParser::new(),
+        default_missing_value = "false",
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        required = true,
+        require_equals = true,
+        exclusive = true,
+        help = "Enable or disable the feature"
+    )]
     pub(crate) is_enable: Option<bool>,
-    #[arg(long = "window-time")]
-    #[arg(value_parser = RangedU64ValueParser::<u32>::new())]
-    #[arg(default_missing_value = "1")]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
-    #[arg(require_equals = true)]
-    #[arg(help = "unit is minutes")]
+    #[arg(
+        long = "window-time",
+        value_parser = RangedU64ValueParser::<u32>::new(),
+        default_missing_value = "1",
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        require_equals = true,
+        help = "Unit is minutes"
+    )]
     pub(crate) window_time: Option<u32>,
-    #[arg(long = "max-client-connections")]
-    #[arg(value_parser = RangedU64ValueParser::<u32>::new())]
-    #[arg(default_missing_value = "15")]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
+    #[arg(
+        long = "max-client-connections",
+        value_parser = RangedU64ValueParser::<u32>::new(),
+        default_missing_value = "15",
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        help = "Max client connections"
+    )]
     pub(crate) max_client_connections: Option<u32>,
-    #[arg(long = "ban-time")]
-    #[arg(value_parser = RangedU64ValueParser::<u32>::new())]
-    #[arg(default_missing_value = "5")]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
-    #[arg(help = "unit is minutes")]
+    #[arg(
+        long = "ban-time",
+        value_parser = RangedU64ValueParser::<u32>::new(),
+        default_missing_value = "5",
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        help = "Unit is minutes"
+    )]
     pub(crate) ban_time: Option<u32>,
 }
 
 // observability: slow-sub feat
-#[derive(Debug, Parser)]
-#[command(author="RobustMQ", about="", long_about = None)]
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: slow-sub", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct SlowSubArgs {
-    #[arg(long = "enable")]
-    #[arg(value_parser =  BoolishValueParser::new())]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
-    #[arg(required = false, require_equals = true, exclusive = true)]
-    #[arg(conflicts_with_all = ["list", "sort", "topic", "sub_name", "client_id"])]
-    #[arg(help = "Enable or disable the feature")]
-    is_enable: Option<bool>,
-    #[arg(long = "list")]
-    #[arg(value_parser = RangedU64ValueParser::<u64>::new())]
-    #[arg(default_missing_value = "100")]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
-    #[arg(require_equals = true)]
-    list: Option<u64>,
-    #[arg(long = "sort")]
-    #[arg(required = false, requires = "list", require_equals = true)]
-    #[arg(value_parser = EnumValueParser::<SortType>::new())]
-    #[arg(default_missing_value = "DESC", ignore_case = true)]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
-    #[arg(help = "Sort the results")]
-    sort: Option<SortType>,
-    #[arg(long = "topic")]
-    #[arg(required = false, requires = "list", require_equals = true)]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
-    #[arg(value_parser = NonEmptyStringValueParser::new())]
-    topic: Option<String>,
-    #[arg(long = "sub-name")]
-    #[arg(required = false, requires = "list", require_equals = true)]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
-    #[arg(value_parser = NonEmptyStringValueParser::new())]
-    sub_name: Option<String>,
-    #[arg(long = "client-id")]
-    #[arg(required = false, requires = "list", require_equals = true)]
-    #[arg(action = ArgAction::Set, num_args = 0..=1)]
-    #[arg(value_parser = NonEmptyStringValueParser::new())]
-    client_id: Option<String>,
+    #[arg(
+        long = "enable",
+        value_parser = BoolishValueParser::new(),
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        required = false,
+        require_equals = true,
+        exclusive = true,
+        conflicts_with_all = ["list", "sort", "topic", "sub_name", "client_id"],
+        help = "Enable or disable the feature"
+    )]
+    pub(crate) is_enable: Option<bool>,
+    #[arg(
+        long = "list",
+        value_parser = RangedU64ValueParser::<u64>::new(),
+        default_missing_value = "100",
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        require_equals = true,
+        help = "List the slow subscriptions"
+    )]
+    pub(crate) list: Option<u64>,
+
+    #[arg(
+        long = "sort",
+        required = false,
+        requires = "list",
+        require_equals = true,
+        value_parser = EnumValueParser::<SortType>::new(),
+        default_missing_value = "DESC",
+        ignore_case = true,
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        help = "Sort the results"
+    )]
+    pub(crate) sort: Option<SortType>,
+
+    #[arg(
+        long = "topic",
+        required = false,
+        requires = "list",
+        require_equals = true,
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        value_parser = NonEmptyStringValueParser::new(),
+        help = "Filter the results by topic"
+    )]
+    pub(crate) topic: Option<String>,
+
+    #[arg(
+        long = "sub-name",
+        required = false,
+        requires = "list",
+        require_equals = true,
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        value_parser = NonEmptyStringValueParser::new(),
+        help = "Filter the results by subscription name"
+    )]
+    pub(crate) sub_name: Option<String>,
+
+    #[arg(
+        long = "client-id",
+        required = false,
+        requires = "list",
+        require_equals = true,
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        value_parser = NonEmptyStringValueParser::new(),
+        help = "Filter the results by client ID"
+    )]
+    pub(crate) client_id: Option<String>,
 }
 
-#[derive(Debug, Parser)]
-#[command(author="RobustMQ", about="", long_about = None)]
+// topic rewrite rule
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "related operations of topic rewrite, such as creating and deleting", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct ListConnectorArgs {
-    pub(crate) connector_name: String,
+pub(crate) struct TopicRewriteArgs {
+    #[command(subcommand)]
+    pub action: TopicRewriteActionType,
 }
 
-#[derive(Debug, Parser)]
-#[command(author="RobustMQ", about="", long_about = None)]
+#[derive(Debug, clap::Subcommand)]
+pub enum TopicRewriteActionType {
+    #[command(author = "RobustMQ", about = "action: create topic rewrite", long_about = None)]
+    Create(CreateTopicRewriteArgs),
+    #[command(author = "RobustMQ", about = "action: delete topic rewrite", long_about = None)]
+    Delete(DeleteTopicRewriteArgs),
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: create topic rewrite", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct CreateTopicRewriteArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) action: String,
+    #[arg(short, long, required = true)]
+    pub(crate) source_topic: String,
+    #[arg(short, long, required = true)]
+    pub(crate) dest_topic: String,
+    #[arg(short, long, required = true)]
+    pub(crate) regex: String,
+}
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: delete topic rewrite", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct DeleteTopicRewriteArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) action: String,
+    #[arg(short, long, required = true)]
+    pub(crate) source_topic: String,
+}
+
+// connector feat
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "related operations of connector, such as listing, creating, updating and deleting", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct ConnectorArgs {
+    #[command(subcommand)]
+    pub action: ConnectorActionType,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum ConnectorActionType {
+    #[command(author = "RobustMQ", about = "action: list connectors", long_about = None)]
+    List(ListConnectorArgs),
+    #[command(author = "RobustMQ", about = "action: create connector", long_about = None)]
+    Create(CreateConnectorArgs),
+    #[command(author = "RobustMQ", about = "action: delete connector", long_about = None)]
+    Delete(DeleteConnectorArgs),
+    #[command(author = "RobustMQ", about = "action: update connector", long_about = None)]
+    Update(UpdateConnectorArgs),
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: create connector", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct CreateConnectorArgs {
+    #[arg(short, long, required = true)]
     pub(crate) connector_name: String,
-    pub(crate) connector_type: i32,
+    #[arg(short, long, required = true)]
+    pub(crate) connector_type: String,
+    #[arg(short, long, required = true)]
     pub(crate) config: String,
+    #[arg(short, long, required = true)]
     pub(crate) topic_id: String,
 }
 
-#[derive(Debug, Parser)]
-#[command(author="RobustMQ", about="", long_about = None)]
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: list connector", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct UpdateConnectorArgs {
-    pub(crate) connector: Vec<u8>,
+pub(crate) struct ListConnectorArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) connector_name: String,
 }
 
-#[derive(Debug, Parser)]
-#[command(author="RobustMQ", about="", long_about = None)]
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: delete connector", long_about = None)]
 #[command(next_line_help = true)]
 pub(crate) struct DeleteConnectorArgs {
+    #[arg(short, long, required = true)]
     pub(crate) connector_name: String,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: update connector", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct UpdateConnectorArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) connector: String,
+}
+
+// list-topic
+#[derive(ValueEnum, Clone, Debug)]
+pub(crate) enum MatchOption {
+    E,
+    P,
+    S,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="action: list topics", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct ListTopicArgs {
+    #[arg(short, long, requires = "match_option")]
+    pub(crate) topic_name: Option<String>,
+    #[arg(short, long, requires = "topic_name", default_value = "e")]
+    pub(crate) match_option: MatchOption,
 }
 
 // schema
@@ -251,36 +471,136 @@ pub fn process_slow_sub_args(args: SlowSubArgs) -> MqttActionType {
     }
 }
 
-pub fn process_user_args(args: MqttUserCommand) -> MqttActionType {
+pub fn process_user_args(args: UserArgs) -> MqttActionType {
     match args.action {
-        Some(user_action) => match user_action {
-            MqttUserActionType::List => MqttActionType::ListUser,
-            MqttUserActionType::Create(arg) => MqttActionType::CreateUser(CreateUserRequest {
-                username: arg.username,
-                password: arg.password,
-                is_superuser: arg.is_superuser,
-            }),
-            MqttUserActionType::Delete(arg) => MqttActionType::DeleteUser(DeleteUserRequest {
-                username: arg.username,
-            }),
-        },
-        None => unreachable!(),
+        UserActionType::List => MqttActionType::ListUser,
+        UserActionType::Create(arg) => MqttActionType::CreateUser(CreateUserRequest {
+            username: arg.username,
+            password: arg.password,
+            is_superuser: arg.is_superuser,
+        }),
+        UserActionType::Delete(arg) => MqttActionType::DeleteUser(DeleteUserRequest {
+            username: arg.username,
+        }),
+    }
+}
+
+pub fn process_acl_args(args: AclArgs) -> MqttActionType {
+    match args.action {
+        AclActionType::List => MqttActionType::ListAcl,
+        AclActionType::Create(arg) => MqttActionType::CreateAcl(CreateAclRequest {
+            cluster_name: arg.cluster_name,
+            acl: Vec::from(arg.acl),
+        }),
+        AclActionType::Delete(arg) => MqttActionType::DeleteAcl(DeleteAclRequest {
+            cluster_name: arg.cluster_name,
+            acl: Vec::from(arg.acl),
+        }),
+    }
+}
+
+pub fn process_blacklist_args(args: BlacklistArgs) -> MqttActionType {
+    match args.action {
+        BlackListActionType::List => MqttActionType::ListBlacklist,
+        BlackListActionType::Create(arg) => {
+            MqttActionType::CreateBlacklist(CreateBlacklistRequest {
+                cluster_name: arg.cluster_name,
+                blacklist: Vec::from(arg.blacklist),
+            })
+        }
+        BlackListActionType::Delete(arg) => {
+            MqttActionType::DeleteBlacklist(DeleteBlacklistRequest {
+                cluster_name: arg.cluster_name,
+                blacklist_type: arg.blacklist_type,
+                resource_name: arg.resource_name,
+            })
+        }
+    }
+}
+
+pub fn process_list_topic_args(args: ListTopicArgs) -> MqttActionType {
+    match (args.topic_name, args.match_option) {
+        (Some(topic_name), MatchOption::E) => MqttActionType::ListTopic(ListTopicRequest {
+            topic_name,
+            match_option: 0,
+        }),
+        (Some(topic_name), MatchOption::P) => MqttActionType::ListTopic(ListTopicRequest {
+            topic_name,
+            match_option: 1,
+        }),
+        (Some(topic_name), MatchOption::S) => MqttActionType::ListTopic(ListTopicRequest {
+            topic_name,
+            match_option: 2,
+        }),
+        // if the user does not provide any arguments, the default val of match option is e, then return all the topics
+        (None, MatchOption::E) => MqttActionType::ListTopic(ListTopicRequest {
+            topic_name: "".to_string(),
+            match_option: 0,
+        }),
+        _ => unreachable!(),
+    }
+}
+
+pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
+    match args.action {
+        ConnectorActionType::List(arg) => MqttActionType::ListConnector(MqttListConnectorRequest {
+            connector_name: arg.connector_name,
+        }),
+        ConnectorActionType::Create(arg) => {
+            MqttActionType::CreateConnector(MqttCreateConnectorRequest {
+                connector_name: arg.connector_name,
+                connector_type: arg.connector_type.parse().unwrap(),
+                config: arg.config,
+                topic_id: arg.topic_id,
+            })
+        }
+        ConnectorActionType::Delete(arg) => {
+            MqttActionType::DeleteConnector(MqttDeleteConnectorRequest {
+                connector_name: arg.connector_name,
+            })
+        }
+        ConnectorActionType::Update(arg) => {
+            MqttActionType::UpdateConnector(MqttUpdateConnectorRequest {
+                connector: Vec::from(arg.connector),
+            })
+        }
+    }
+}
+
+pub fn process_topic_rewrite_args(args: TopicRewriteArgs) -> MqttActionType {
+    match args.action {
+        TopicRewriteActionType::Create(arg) => {
+            MqttActionType::CreateTopicRewriteRule(CreateTopicRewriteRuleRequest {
+                action: arg.action,
+                source_topic: arg.source_topic,
+                dest_topic: arg.dest_topic,
+                regex: arg.regex,
+            })
+        }
+        TopicRewriteActionType::Delete(arg) => {
+            MqttActionType::DeleteTopicRewriteRule(DeleteTopicRewriteRuleRequest {
+                action: arg.action,
+                source_topic: arg.source_topic,
+            })
+        }
     }
 }
 
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="related operations of mqtt auto subscribe, such as listing, setting, and deleting ", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of mqtt auto subscribe, such as listing, setting, and deleting", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct MqttAutoSubscribeRuleCommand {
+pub(crate) struct AutoSubscribeRuleCommand {
     #[command(subcommand)]
-    pub action: Option<MqttAutoSubscribeRuleActionType>,
+    pub action: AutoSubscribeRuleActionType,
 }
 
 #[derive(Debug, clap::Subcommand)]
-pub enum MqttAutoSubscribeRuleActionType {
-    #[command(author="RobustMQ", about="action: user list", long_about = None)]
+pub enum AutoSubscribeRuleActionType {
+    #[command(author = "RobustMQ", about = "action: auto subscribe rule list", long_about = None)]
     List,
+    #[command(author = "RobustMQ", about = "action: delete auto subscribe rule", long_about = None)]
     Delete(DeleteAutoSubscribeRuleArgs),
+    #[command(author = "RobustMQ", about = "action: set auto subscribe rule", long_about = None)]
     Set(SetAutoSubscribeRuleArgs),
 }
 
@@ -290,16 +610,12 @@ pub enum MqttAutoSubscribeRuleActionType {
 pub(crate) struct SetAutoSubscribeRuleArgs {
     #[arg(short, long, required = true)]
     pub(crate) topic: String,
-
     #[arg(short, long, default_value_t = 0)]
     pub(crate) qos: u8,
-
     #[arg(short, long, default_value_t = false)]
     pub(crate) no_local: bool,
-
     #[arg(short = 'r', long, default_value_t = false)]
     pub(crate) retain_as_published: bool,
-
     #[arg(short = 'R', long, default_value_t = 0)]
     pub(crate) retained_handling: u8,
 }
@@ -312,28 +628,25 @@ pub(crate) struct DeleteAutoSubscribeRuleArgs {
     pub(crate) topic: String,
 }
 
-pub fn process_auto_subscribe_args(args: MqttAutoSubscribeRuleCommand) -> MqttActionType {
+pub fn process_auto_subscribe_args(args: AutoSubscribeRuleCommand) -> MqttActionType {
     match args.action {
-        Some(auto_subscribe_action) => match auto_subscribe_action {
-            MqttAutoSubscribeRuleActionType::List => {
-                MqttActionType::ListAutoSubscribeRule(ListAutoSubscribeRuleRequest::default())
-            }
-            MqttAutoSubscribeRuleActionType::Set(arg) => {
-                MqttActionType::SetAutoSubscribeRule(SetAutoSubscribeRuleRequest {
-                    topic: arg.topic,
-                    qos: arg.qos as u32,
-                    no_local: arg.no_local,
-                    retain_as_published: arg.retain_as_published,
-                    retained_handling: arg.retained_handling as u32,
-                })
-            }
-            MqttAutoSubscribeRuleActionType::Delete(arg) => {
-                MqttActionType::DeleteAutoSubscribeRule(DeleteAutoSubscribeRuleRequest {
-                    topic: arg.topic,
-                })
-            }
-        },
-        None => unreachable!(),
+        AutoSubscribeRuleActionType::List => {
+            MqttActionType::ListAutoSubscribeRule(ListAutoSubscribeRuleRequest::default())
+        }
+        AutoSubscribeRuleActionType::Set(arg) => {
+            MqttActionType::SetAutoSubscribeRule(SetAutoSubscribeRuleRequest {
+                topic: arg.topic,
+                qos: arg.qos as u32,
+                no_local: arg.no_local,
+                retain_as_published: arg.retain_as_published,
+                retained_handling: arg.retained_handling as u32,
+            })
+        }
+        AutoSubscribeRuleActionType::Delete(arg) => {
+            MqttActionType::DeleteAutoSubscribeRule(DeleteAutoSubscribeRuleRequest {
+                topic: arg.topic,
+            })
+        }
     }
 }
 

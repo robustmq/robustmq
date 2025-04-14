@@ -14,6 +14,7 @@
 
 pub mod acl;
 pub mod connector;
+pub mod schema;
 pub mod subscribe;
 pub mod topic;
 pub mod user;
@@ -73,8 +74,8 @@ pub fn list_connection_by_req(
     let mut reply = ListConnectionReply::default();
     let mut list_connection_raw: Vec<ListConnectionRaw> = Vec::new();
     for (key, value) in connection_manager.list_connect() {
-        if let Some(mqtt_value) = cache_manager.connection_info.clone().get(&key) {
-            let mqtt_info = serialize_value(mqtt_value.value())?;
+        if let Some(mqtt_value) = cache_manager.get_connection(key) {
+            let mqtt_info = serialize_value(&mqtt_value)?;
             let raw = ListConnectionRaw {
                 connection_id: value.connection_id,
                 connection_type: value.connection_type.to_string(),

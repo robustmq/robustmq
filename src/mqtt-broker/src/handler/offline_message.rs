@@ -21,7 +21,7 @@ use super::{
     message::build_message_expire,
 };
 use crate::{
-    observability::metrics::packets::record_messages_dropped_no_subscribers_metrics,
+    observability::metrics::packets::record_messages_dropped_discard_metrics,
     storage::message::MessageStorage, subscribe::subscribe_manager::SubscribeManager,
 };
 use delay_message::DelayMessageManager;
@@ -47,11 +47,10 @@ pub async fn save_message<S>(
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
-    // If Topic is not subscribed and offline messaging is not enabled. The message is not saved.
-    if !is_exist_subscribe(subscribe_manager, &topic.topic_name)
-        && !cache_manager.get_cluster_info().offline_message.enable
-    {
-        record_messages_dropped_no_subscribers_metrics(publish.qos);
+    let offline_message_disabled = !cache_manager.get_cluster_info().offline_message.enable;
+    let not_exist_subscribe = !is_exist_subscribe(subscribe_manager, &topic.topic_name);
+    if offline_message_disabled && not_exist_subscribe {
+        record_messages_dropped_discard_metrics(publish.qos);
         return Ok(None);
     }
 
@@ -76,7 +75,7 @@ where
             Some(format!("{:?}", offsets))
         }
     } else {
-        None
+        return Err(MqttBrokerError::FailedToBuildMessage);
     };
     Ok(offset)
 }

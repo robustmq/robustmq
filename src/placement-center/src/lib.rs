@@ -17,7 +17,6 @@ use std::time::Duration;
 
 use common_base::config::placement_center::placement_center_conf;
 use grpc_clients::pool::ClientPool;
-use log::info;
 use mqtt::cache::load_mqtt_cache;
 use mqtt::connector::scheduler::start_connector_scheduler;
 use mqtt::controller::call_broker::{mqtt_call_thread_manager, MQTTInnerCallManager};
@@ -28,6 +27,7 @@ use storage::rocksdb::{column_family_list, storage_data_fold, RocksDBEngine};
 use tokio::signal;
 use tokio::sync::broadcast::Sender;
 use tokio::time::sleep;
+use tracing::info;
 
 use crate::core::cache::PlacementCacheManager;
 use crate::core::controller::ClusterController;

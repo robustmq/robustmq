@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::mqtt::common::{Filter, MqttProtocol, QoS, RetainForwardRule, SubscribeProperties};
+use protocol::mqtt::common::{Filter, MqttProtocol, QoS, RetainHandling, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 
 use protocol::mqtt::common::{Publish, PublishProperties};
@@ -22,14 +22,16 @@ pub struct Subscriber {
     pub protocol: MqttProtocol,
     pub client_id: String,
     pub sub_path: String,
+    pub rewrite_sub_path: Option<String>,
     pub topic_name: String,
     pub group_name: Option<String>,
     pub topic_id: String,
     pub qos: QoS,
     pub nolocal: bool,
     pub preserve_retain: bool,
-    pub retain_forward_rule: RetainForwardRule,
+    pub retain_forward_rule: RetainHandling,
     pub subscription_identifier: Option<usize>,
+    pub create_time: u64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

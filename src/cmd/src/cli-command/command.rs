@@ -14,23 +14,21 @@
 
 pub(crate) mod mqtt;
 
-use clap::{arg, Parser, Subcommand, ValueEnum};
+use clap::{arg, Parser, Subcommand};
 use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
 use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
 use mqtt::admin::{
-    process_auto_subscribe_args, BindSchemaArgs, CreateConnectorArgs, CreateSchemaArgs,
-    DeleteConnectorArgs, DeleteSchemaArgs, ListBindSchemaArgs, ListConnectorArgs, ListSchemaArgs,
-    MqttAutoSubscribeRuleCommand, UnbindSchemaArgs, UpdateConnectorArgs, UpdateSchemaArgs,
+    process_auto_subscribe_args, AutoSubscribeRuleCommand, BindSchemaArgs, CreateSchemaArgs,
+    DeleteSchemaArgs, ListBindSchemaArgs, ListSchemaArgs, ListTopicArgs, UnbindSchemaArgs,
+    UpdateSchemaArgs,
 };
 use mqtt::publish::process_subscribe_args;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    EnableFlappingDetectRequest, ListTopicRequest, MqttBindSchemaRequest,
-    MqttCreateConnectorRequest, MqttCreateSchemaRequest, MqttDeleteConnectorRequest,
-    MqttDeleteSchemaRequest, MqttListBindSchemaRequest, MqttListConnectorRequest,
-    MqttListSchemaRequest, MqttUnbindSchemaRequest, MqttUpdateConnectorRequest,
-    MqttUpdateSchemaRequest,
+    EnableFlappingDetectRequest, MqttBindSchemaRequest, MqttCreateSchemaRequest,
+    MqttDeleteSchemaRequest, MqttListBindSchemaRequest, MqttListSchemaRequest,
+    MqttUnbindSchemaRequest, MqttUpdateSchemaRequest,
 };
 
 use protocol::placement_center::placement_center_openraft::{
@@ -38,7 +36,9 @@ use protocol::placement_center::placement_center_openraft::{
 };
 
 use crate::mqtt::admin::{
-    process_slow_sub_args, process_user_args, FlappingDetectArgs, MqttUserCommand, SlowSubArgs,
+    process_acl_args, process_blacklist_args, process_connector_args, process_list_topic_args,
+    process_slow_sub_args, process_topic_rewrite_args, process_user_args, AclArgs, BlacklistArgs,
+    ConnectorArgs, FlappingDetectArgs, SlowSubArgs, TopicRewriteArgs, UserArgs,
 };
 use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 
@@ -49,9 +49,6 @@ use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 #[command(author="RobustMQ", version="0.0.1", about="Command line tool for RobustMQ", long_about = None)]
 #[command(next_line_help = true)]
 struct RobustMQCli {
-    // Mqtt(MqttArgs),
-    // Place(PlacementArgs),
-    // Journal(JournalArgs),
     #[command(subcommand)]
     command: RobustMQCliCommand,
 }
@@ -85,72 +82,41 @@ struct MqttArgs {
 
 #[derive(Debug, Subcommand)]
 enum MQTTAction {
+    // cluster status
     Status,
-    // User admin
-    User(MqttUserCommand),
+    // user admin
+    User(UserArgs),
+    // access control list admin
+    Acl(AclArgs),
+    // blacklist admin
+    Blacklist(BlacklistArgs),
+    // flapping detect feat
+    FlappingDetect(FlappingDetectArgs),
     // Connections
     ListConnection,
-
-    // flapping detect feat
-    #[clap(name = "flapping-detect")]
-    FlappingDetect(FlappingDetectArgs),
-
-    ListTopic(ListTopicArgs),
-
-    Publish(PubSubArgs),
-
-    Subscribe(PubSubArgs),
     // observability: slow-sub feat
-    #[clap(name = "slow-sub")]
     SlowSub(SlowSubArgs),
-
+    // list topic
+    ListTopic(ListTopicArgs),
+    // topic rewrite rule
+    TopicRewriteRule(TopicRewriteArgs),
     // connector
-    #[clap(name = "list-connector")]
-    ListConnector(ListConnectorArgs),
-    #[clap(name = "create-connector")]
-    CreateConnector(CreateConnectorArgs),
-    #[clap(name = "update-connector")]
-    UpdateConnector(UpdateConnectorArgs),
-    #[clap(name = "delete-connector")]
-    DeleteConnector(DeleteConnectorArgs),
+    Connector(ConnectorArgs),
 
     // schema
-    #[clap(name = "list-schema")]
     ListSchema(ListSchemaArgs),
-    #[clap(name = "create-schema")]
     CreateSchema(CreateSchemaArgs),
-    #[clap(name = "update-schema")]
     UpdateSchema(UpdateSchemaArgs),
-    #[clap(name = "delete-schema")]
     DeleteSchema(DeleteSchemaArgs),
-    #[clap(name = "list-bind-schema")]
     ListBindSchema(ListBindSchemaArgs),
-    #[clap(name = "bind-schema")]
     BindSchema(BindSchemaArgs),
-    #[clap(name = "unbind-schema")]
     UnbindSchema(UnbindSchemaArgs),
 
     //auto subscribe
-    #[clap(name = "auto-subscribe-rule")]
-    AutoSubscribeRule(MqttAutoSubscribeRuleCommand),
-}
+    AutoSubscribeRule(AutoSubscribeRuleCommand),
 
-#[derive(ValueEnum, Clone, Debug)]
-enum MatchOption {
-    E,
-    P,
-    S,
-}
-
-#[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="action: list topics", long_about = None)]
-#[command(next_line_help = true)]
-struct ListTopicArgs {
-    #[arg(short, long, required = true)]
-    topic_name: String,
-
-    #[arg(short, long, default_value = "e")]
-    match_option: MatchOption,
+    Publish(PubSubArgs),
+    Subscribe(PubSubArgs),
 }
 
 #[derive(clap::Args, Debug)]
@@ -223,18 +189,15 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
     let params = MqttCliCommandParam {
         server: args.server,
         action: match args.action {
+            // cluster status
             MQTTAction::Status => MqttActionType::Status,
+            // user admin
             MQTTAction::User(args) => process_user_args(args),
-            MQTTAction::ListConnection => MqttActionType::ListConnection,
-            MQTTAction::ListTopic(args) => MqttActionType::ListTopic(ListTopicRequest {
-                topic_name: args.topic_name,
-                match_option: match args.match_option {
-                    MatchOption::E => 0,
-                    MatchOption::P => 1,
-                    MatchOption::S => 2,
-                },
-            }),
-            MQTTAction::SlowSub(args) => process_slow_sub_args(args),
+            // access control list admin
+            MQTTAction::Acl(args) => process_acl_args(args),
+            // blacklist admin
+            MQTTAction::Blacklist(args) => process_blacklist_args(args),
+            // flapping detect
             MQTTAction::FlappingDetect(args) => {
                 MqttActionType::EnableFlappingDetect(EnableFlappingDetectRequest {
                     is_enable: args.is_enable.unwrap_or(false),
@@ -243,31 +206,19 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
                     ban_time: args.ban_time.unwrap_or(5),
                 })
             }
+            // Connections
+            MQTTAction::ListConnection => MqttActionType::ListConnection,
+            // connector
+            MQTTAction::Connector(args) => process_connector_args(args),
+            // list topic
+            MQTTAction::ListTopic(args) => process_list_topic_args(args),
+            // topic rewrite rule
+            MQTTAction::TopicRewriteRule(args) => process_topic_rewrite_args(args),
+            MQTTAction::SlowSub(args) => process_slow_sub_args(args),
+
             MQTTAction::Publish(args) => process_publish_args(args),
             MQTTAction::Subscribe(args) => process_subscribe_args(args),
-            MQTTAction::ListConnector(args) => {
-                MqttActionType::ListConnector(MqttListConnectorRequest {
-                    connector_name: args.connector_name,
-                })
-            }
-            MQTTAction::CreateConnector(args) => {
-                MqttActionType::CreateConnector(MqttCreateConnectorRequest {
-                    connector_name: args.connector_name,
-                    connector_type: args.connector_type,
-                    config: args.config,
-                    topic_id: args.topic_id,
-                })
-            }
-            MQTTAction::UpdateConnector(args) => {
-                MqttActionType::UpdateConnector(MqttUpdateConnectorRequest {
-                    connector: args.connector,
-                })
-            }
-            MQTTAction::DeleteConnector(args) => {
-                MqttActionType::DeleteConnector(MqttDeleteConnectorRequest {
-                    connector_name: args.connector_name,
-                })
-            }
+            // schema
             MQTTAction::ListSchema(args) => MqttActionType::ListSchema(MqttListSchemaRequest {
                 schema_name: args.schema_name,
             }),

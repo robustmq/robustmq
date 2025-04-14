@@ -27,6 +27,39 @@ Options:
           Print version
 ```
 
+## 特别注意
+
+`robust-ctl` 命令是基于最终构建产物进行执行的，因此在执行上述命令前需要先进行构建。
+
+```bash
+# 构建
+make build
+
+# 解压压缩包
+tar -zxvf build/robustmq-xxx.tar.gz
+
+# 使用
+./build/robustmq-xxx/bin/robust-ctl
+```
+
+此处仅作演示说明，后续命令都使用 `./bin/robust-ctl` 代指当前命令。
+
+### 使用 cargo 执行
+
+本地开发时，可以简化该流程使用 cargo 执行。
+
+```bash
+cargo run --package cmd --bin cli-command
+```
+
+如果需要指定参数则如下执行即可：
+
+```bash
+cargo run --package cmd --bin cli-command -- arg1 arg2 ...
+```
+
+此处仅作演示说明，后续命令都使用 `./bin/robust-ctl` 代指当前命令。
+
 ## MQTT Broker
 
 负责 MQTT Broker 服务相关的操作

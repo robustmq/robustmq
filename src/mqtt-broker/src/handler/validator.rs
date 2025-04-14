@@ -14,7 +14,6 @@
 
 use futures_util::SinkExt;
 use grpc_clients::pool::ClientPool;
-use log::error;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
@@ -29,6 +28,7 @@ use std::sync::Arc;
 use tokio::io::{AsyncWrite, AsyncWriteExt, WriteHalf};
 use tokio::net::TcpStream;
 use tokio_util::codec::FramedWrite;
+use tracing::error;
 
 use super::cache::CacheManager;
 use super::error::MqttBrokerError;
@@ -41,7 +41,7 @@ use super::response::{
     response_packet_mqtt_puback_fail, response_packet_mqtt_pubrec_fail,
     response_packet_mqtt_suback, response_packet_mqtt_unsuback,
 };
-use super::sub_exclusive::check_exclusive_subscribe;
+use super::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_subscribe};
 use super::topic::topic_name_validator;
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
@@ -414,12 +414,14 @@ pub async fn subscribe_validator(
     subscribe: &Subscribe,
 ) -> Option<MqttPacket> {
     let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
+
     for filter in subscribe.filters.clone() {
-        if !sub_path_validator(filter.path) {
+        if sub_path_validator(&filter.path).is_err() {
             return_codes.push(SubscribeReasonCode::TopicFilterInvalid);
             continue;
         }
     }
+
     if !return_codes.is_empty() {
         return Some(response_packet_mqtt_suback(
             protocol,
@@ -440,7 +442,17 @@ pub async fn subscribe_validator(
         ));
     }
 
-    if !check_exclusive_subscribe(metadata_cache, subscribe_manager, subscribe) {
+    if !allow_exclusive_subscribe(metadata_cache, subscribe) {
+        return Some(response_packet_mqtt_suback(
+            protocol,
+            connection,
+            subscribe.packet_identifier,
+            vec![SubscribeReasonCode::ExclusiveSubscriptionDisabled],
+            None,
+        ));
+    }
+
+    if already_exclusive_subscribe(subscribe_manager, subscribe) {
         return Some(response_packet_mqtt_suback(
             protocol,
             connection,
@@ -470,8 +482,8 @@ pub async fn un_subscribe_validator(
     un_subscribe: &Unsubscribe,
 ) -> Option<MqttPacket> {
     let mut return_codes: Vec<UnsubAckReason> = Vec::new();
-    for filter in un_subscribe.filters.clone() {
-        if !sub_path_validator(filter) {
+    for path in un_subscribe.filters.clone() {
+        if sub_path_validator(&path).is_err() {
             return_codes.push(UnsubAckReason::TopicFilterInvalid);
             continue;
         }

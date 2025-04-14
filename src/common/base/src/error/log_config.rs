@@ -12,12 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::time::SystemTime;
+#[derive(Debug, thiserror::Error)]
+pub enum LogConfigError {
+    #[error(transparent)]
+    Toml(#[from] toml::de::Error),
 
-pub fn get_current_millisecond_timestamp() -> u128 {
-    let start = SystemTime::now();
-    let since_the_epoch = start
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .expect("Time went backwards");
-    since_the_epoch.as_millis()
+    #[error("RollingFile appender requires a rotation")]
+    RollingFileMissingRotation,
+
+    #[error("RollingFile appender requires a directory")]
+    RollingFileMissingDirectory,
+
+    #[error(transparent)]
+    RollingFileAppenderInit(#[from] tracing_appender::rolling::InitError),
 }

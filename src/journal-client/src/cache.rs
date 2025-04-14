@@ -16,7 +16,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use dashmap::DashMap;
-use log::error;
 use metadata_struct::journal::segment::segment_name;
 use metadata_struct::journal::shard::shard_name_iden;
 use protocol::journal_server::journal_engine::{
@@ -27,6 +26,7 @@ use rand::Rng;
 use tokio::select;
 use tokio::sync::broadcast::Receiver;
 use tokio::time::sleep;
+use tracing::error;
 
 use crate::connection::ConnectionManager;
 use crate::error::JournalClientError;

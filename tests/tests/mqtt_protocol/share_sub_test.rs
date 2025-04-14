@@ -15,81 +15,90 @@
 #[cfg(test)]
 mod tests {
     use common_base::tools::unique_id;
-    use paho_mqtt::{Message, QOS_1};
+    use paho_mqtt::{Message, MessageBuilder};
 
-    use crate::mqtt_protocol::common::{broker_addr, connect_server5, distinct_conn};
+    use crate::mqtt_protocol::{
+        common::{
+            broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
+            publish_data, qos_list, ssl_by_type, subscribe_data_by_qos, ws_by_type,
+        },
+        ClientTestProperties,
+    };
 
     #[tokio::test]
-    async fn client5_subscribe_test() {
-        let sub_qos = &[0];
+    async fn share_single_subscribe_test() {
         let topic = format!("/tests/{}", unique_id());
         let sub_topic = format!("$share/g1{}", topic);
-        simple_test(topic.clone(), sub_topic.clone(), sub_qos, "2".to_string()).await;
-
-        let sub_qos = &[1];
-        let topic = format!("/tests/{}", unique_id());
-        let sub_topic = format!("$share/g1{}", topic);
-        simple_test(topic.clone(), sub_topic.clone(), sub_qos, "1".to_string()).await;
-
-        let sub_qos = &[2];
-        let topic = format!("/tests/{}", unique_id());
-        let sub_topic = format!("$share/g1{}", topic);
-        simple_test(topic.clone(), sub_topic.clone(), sub_qos, "3".to_string()).await;
+        single_test(topic, sub_topic).await;
     }
 
     #[tokio::test]
-    async fn client5_queue_subscribe_test() {
-        let sub_qos = &[0];
+    async fn share_multi_subscribe_test() {
         let topic = format!("/tests/{}", unique_id());
-        let sub_topic = format!("$queue{}", topic);
-        simple_test(topic.clone(), sub_topic.clone(), sub_qos, "2".to_string()).await;
-
-        let sub_qos = &[1];
-        let topic = format!("/tests/{}", unique_id());
-        let sub_topic = format!("$queue{}", topic);
-        simple_test(topic.clone(), sub_topic.clone(), sub_qos, "1".to_string()).await;
-
-        let sub_qos = &[2];
-        let topic = format!("/tests/{}", unique_id());
-        let sub_topic = format!("$queue{}", topic);
-        simple_test(topic.clone(), sub_topic.clone(), sub_qos, "3".to_string()).await;
+        let sub_topic = format!("$share/g1{}", topic);
+        single_test(topic.clone(), sub_topic.clone()).await;
     }
 
-    async fn simple_test(
-        pub_topic: String,
-        sub_topic: String,
-        sub_qos: &[i32],
-        payload_flag: String,
-    ) {
-        let client_id = unique_id();
-        let addr = broker_addr();
-        let sub_topics = &[sub_topic.clone()];
+    #[tokio::test]
+    async fn queue_single_subscribe_test() {
+        let topic = format!("/tests/{}", unique_id());
+        let sub_topic = format!("$queue{}", topic);
+        single_test(topic.clone(), sub_topic.clone()).await;
+    }
 
-        let cli = connect_server5(&client_id, &addr, false, false);
-        let message_content = format!("mqtt {payload_flag} message");
+    #[tokio::test]
+    async fn queue_multi_subscribe_test() {
+        let topic = format!("/tests/{}", unique_id());
+        let sub_topic = format!("$queue{}", topic);
+        single_test(topic.clone(), sub_topic.clone()).await;
+    }
 
-        // publish
-        let msg = Message::new(pub_topic.clone(), message_content.clone(), QOS_1);
-        match cli.publish(msg) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{:?}", e);
+    async fn single_test(pub_topic: String, sub_topic: String) {
+        for network in network_types() {
+            for qos in qos_list() {
+                let client_id = build_client_id(
+                    format!("share_multi_subscribe_test_{}_{}", network, qos).as_str(),
+                );
+
+                let client_properties = ClientTestProperties {
+                    mqtt_version: 5,
+                    client_id: client_id.to_string(),
+                    addr: broker_addr_by_type(&network),
+                    ws: ws_by_type(&network),
+                    ssl: ssl_by_type(&network),
+                    ..Default::default()
+                };
+                let cli = connect_server(&client_properties);
+
+                // publish
+                let message_content = "mqtt message".to_string();
+                let msg = MessageBuilder::new()
+                    .payload(message_content.clone())
+                    .topic(pub_topic.clone())
+                    .qos(qos)
+                    .retained(false)
+                    .finalize();
+                publish_data(&cli, msg, false);
+                distinct_conn(cli);
+
+                // subscribe
+                let client_properties = ClientTestProperties {
+                    mqtt_version: 5,
+                    client_id: client_id.to_string(),
+                    addr: broker_addr_by_type(&network),
+                    ws: ws_by_type(&network),
+                    ssl: ssl_by_type(&network),
+                    ..Default::default()
+                };
+                let cli = connect_server(&client_properties);
+                let call_fn = |msg: Message| {
+                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                    payload == message_content
+                };
+
+                subscribe_data_by_qos(&cli, &sub_topic, qos, call_fn);
+                distinct_conn(cli);
             }
         }
-
-        // subscribe
-        let rx = cli.start_consuming();
-        match cli.subscribe_many(sub_topics, sub_qos) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{}", e)
-            }
-        }
-        if let Some(msg) = rx.iter().next() {
-            let msg = msg.unwrap();
-            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-            assert_eq!(payload, message_content);
-        }
-        distinct_conn(cli);
     }
 }

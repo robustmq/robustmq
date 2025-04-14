@@ -16,7 +16,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures_util::StreamExt;
-use log::{debug, error, info};
 use protocol::mqtt::codec::MqttCodec;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
@@ -24,6 +23,7 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::time::sleep;
 use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
+use tracing::{debug, error, info};
 
 use crate::handler::cache::CacheManager;
 use crate::handler::validator::tcp_establish_connection_check;
@@ -139,7 +139,7 @@ fn read_frame_process(
                             Ok(pack) => {
                                 record_received_metrics(&connection, &pack, &network_type);
 
-                                info!("revc tcp packet:{:?}", pack);
+                                info!("recv tcp packet:{:?}", pack);
                                 let package =
                                     RequestPackage::new(connection.connection_id, connection.addr, pack);
 

@@ -12,270 +12,426 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// it has a problem from client, it will block in test case
+// I didn't know why
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
+    use crate::mqtt_protocol::common::{
+        broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
+        publish_data, qos_list, ssl_by_type, subscribe_data_with_options, ws_by_type,
+        SubscribeTestData,
+    };
+    use crate::mqtt_protocol::ClientTestProperties;
     use common_base::tools::unique_id;
     use mqtt_broker::handler::constant::{
         SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE,
     };
-    use paho_mqtt::{Message, PropertyCode, RetainHandling, SubscribeOptions, QOS_0, QOS_2};
-
-    use crate::mqtt_protocol::common::{
-        broker_addr, build_client_id, connect_server5, distinct_conn,
-    };
+    use paho_mqtt::{Message, MessageBuilder, PropertyCode, RetainHandling, SubscribeOptions};
+    use std::time::Duration;
 
     #[tokio::test]
-    async fn sub_options_no_local_test() {
-        let topic = format!("/tests/{}", unique_id());
-        no_local_test(topic.clone(), topic.clone(), true, "1".to_string()).await;
+    async fn mqtt5_should_not_recv_msg_when_no_local_is_true() {
+        let subscribe_options = SubscribeOptions::new(true, false, None);
+        for network in network_types() {
+            for qos in qos_list() {
+                let uid = unique_id();
+                let topic = format!(
+                    "/mqtt5_should_not_recv_msg_when_no_local_is_true/{}/{}/{}",
+                    uid, network, qos
+                );
+                let client_id = build_client_id(
+                    format!("mqtt5_should_not_recv_msg_when_no_local_is_true_{}", uid).as_str(),
+                );
+                let client_properties = ClientTestProperties {
+                    mqtt_version: 5,
+                    client_id: client_id.to_string(),
+                    addr: broker_addr_by_type(&network),
+                    ws: ws_by_type(&network),
+                    ssl: ssl_by_type(&network),
+                    ..Default::default()
+                };
+                let cli = connect_server(&client_properties);
+                let message_content = "construct topic".to_string();
+                let msg = MessageBuilder::new()
+                    .payload(message_content.clone())
+                    .topic(topic.clone())
+                    .qos(qos)
+                    .retained(false)
+                    .finalize();
+                publish_data(&cli, msg, false);
 
-        let topic = format!("/tests/{}", unique_id());
-        no_local_test(topic.clone(), topic.clone(), false, "0".to_string()).await;
-    }
+                let receiver = cli.start_consuming();
+                assert!(cli
+                    .subscribe_with_options(&topic, qos, subscribe_options, None)
+                    .is_ok());
 
-    #[tokio::test]
-    async fn sub_options_retain_as_published_test() {
-        let topic = format!("/tests/{}", unique_id());
-        retain_as_published_test(topic.clone(), topic.clone(), true, "1".to_string()).await;
-
-        let topic = format!("/tests/{}", unique_id());
-        retain_as_published_test(topic.clone(), topic.clone(), false, "0".to_string()).await;
-    }
-
-    async fn no_local_test(
-        pub_topic: String,
-        sub_topic: String,
-        no_local: bool,
-        payload_flag: String,
-    ) {
-        let client_id = build_client_id("no_local_test");
-        let addr = broker_addr();
-        let sub_topics = &[sub_topic.clone()];
-        let sub_qos = &[QOS_2];
-        let sub_opts = &[SubscribeOptions::new(no_local, false, None)];
-
-        let cli = connect_server5(&client_id, &addr, false, false);
-
-        let message_content = format!("mqtt {payload_flag} message");
-
-        // publish
-        let msg = Message::new(pub_topic.clone(), message_content.clone(), QOS_2);
-        assert!(cli.publish(msg).is_ok());
-
-        // subscribe
-        let rx = cli.start_consuming();
-        assert!(cli
-            .subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None)
-            .is_ok());
-
-        match rx.recv_timeout(Duration::from_secs(60)) {
-            Ok(msg) => {
-                assert!(!no_local);
-                let payload = String::from_utf8(msg.unwrap().payload().to_vec()).unwrap();
-                assert_eq!(payload, message_content);
+                let res = receiver.recv_timeout(Duration::from_secs(5));
+                assert!(res.is_err());
+                distinct_conn(cli);
             }
-            Err(_) => {
-                assert!(no_local);
-            }
-        };
-        distinct_conn(cli);
-    }
-
-    async fn retain_as_published_test(
-        pub_topic: String,
-        sub_topic: String,
-        retain_as_published: bool,
-        payload_flag: String,
-    ) {
-        let client_id = build_client_id("retain_as_published_test");
-        let addr = broker_addr();
-        let sub_topics = &[sub_topic.clone()];
-        let sub_qos = &[QOS_0];
-        let sub_opts = &[SubscribeOptions::new(false, retain_as_published, None)];
-
-        let cli = connect_server5(&client_id, &addr, false, false);
-
-        let message_content = format!("mqtt {payload_flag} message");
-        // publish
-        let msg = Message::new_retained(pub_topic.clone(), message_content.clone(), QOS_0);
-        assert!(cli.publish(msg).is_ok());
-
-        // subscribe
-        let rx = cli.start_consuming();
-        assert!(cli
-            .subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None)
-            .is_ok());
-        let recv = rx.recv_timeout(Duration::from_secs(60));
-        assert!(recv.is_ok());
-        assert_eq!(recv.unwrap().unwrap().retained(), retain_as_published);
-        distinct_conn(cli);
+        }
     }
 
     #[tokio::test]
-    async fn send_retained_on_subscribe_test() {
-        let topic = unique_id();
-        let pub_topic = topic.clone();
-        let sub_topic = topic.clone();
-        let retain_handling = RetainHandling::SendRetainedOnSubscribe;
-        let payload_flag = "111".to_string();
-        let client_id = build_client_id("send_retained_on_subscribe_test");
+    async fn mqtt5_should_recv_msg_when_no_local_is_false() {
+        let subscribe_options = SubscribeOptions::new(false, false, None);
 
-        println!("client_id:{:#?},topic:{:#?}", client_id, sub_topic.clone());
+        for network in network_types() {
+            for qos in qos_list() {
+                let uid = unique_id();
+                let topic = format!(
+                    "/mqtt5_should_recv_msg_when_no_local_is_false/{}/{}/{}",
+                    uid, network, qos
+                );
 
-        let addr = broker_addr();
-        let sub_topics = &[sub_topic.clone()];
-        let sub_qos = &[QOS_0];
-        let sub_opts = &[SubscribeOptions::new(true, false, retain_handling)];
+                // publish
+                let client_id = build_client_id(
+                    format!("mqtt5_should_recv_msg_when_no_local_is_false_{}", uid).as_str(),
+                );
 
-        let cli = connect_server5(&client_id, &addr, false, false);
+                let client_test_properties = ClientTestProperties {
+                    mqtt_version: 5,
+                    client_id: client_id.to_string(),
+                    addr: broker_addr_by_type(&network),
+                    ws: ws_by_type(&network),
+                    ssl: ssl_by_type(&network),
+                    ..Default::default()
+                };
 
-        let message_content = format!("mqtt {payload_flag} message");
-        // publish
-        let msg = Message::new_retained(pub_topic.clone(), message_content.clone(), QOS_0);
-        assert!(cli.publish(msg.clone()).is_ok());
+                let cli = connect_server(&client_test_properties);
+                let message_content = "construct topic".to_string();
+                let msg = MessageBuilder::new()
+                    .payload(message_content.clone())
+                    .topic(topic.clone())
+                    .qos(qos)
+                    .retained(false)
+                    .finalize();
+                publish_data(&cli, msg, false);
 
-        // subscribe
-        let consumer_client_id = build_client_id("send_retained_on_subscribe_test");
-        let consumer_cli = connect_server5(&consumer_client_id, &addr, false, false);
-        let rx = consumer_cli.start_consuming();
-        assert!(consumer_cli
-            .subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None)
-            .is_ok());
+                // subscribe
+                let call_fn = |msg: Message| {
+                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                    payload == message_content
+                };
 
-        for msg in rx.iter() {
-            let msg = msg.unwrap();
-            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-            println!("{}", payload.clone());
-            if payload == message_content {
-                if let Some(raw) = msg
-                    .properties()
-                    .get_string_pair_at(PropertyCode::UserProperty, 0)
-                {
-                    if raw.0 == *SUB_RETAIN_MESSAGE_PUSH_FLAG
-                        && raw.1 == *SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE
-                    {
-                        break;
-                    }
+                let subscribe_test_data = SubscribeTestData {
+                    sub_topic: topic.clone(),
+                    sub_qos: qos,
+                    subscribe_options,
+                    subscribe_properties: None,
+                };
+
+                subscribe_data_with_options(&cli, subscribe_test_data, call_fn);
+                distinct_conn(cli);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn mqtt5_should_recv_retain_message_with_retain_as_published() {
+        for retain_as_published in [true, false] {
+            let subscribe_options = SubscribeOptions::new(false, retain_as_published, None);
+            for network in network_types() {
+                for qos in qos_list() {
+                    let uid = unique_id();
+                    let topic = format!(
+                        "/mqtt5_should_recv_retain_message_with_retain_as_published/{}/{}/{}",
+                        uid, network, qos
+                    );
+
+                    // publish
+                    let client_id = build_client_id(
+                        format!(
+                            "mqtt5_should_recv_retain_message_with_retain_as_published_{}",
+                            uid
+                        )
+                        .as_str(),
+                    );
+                    let client_properties = ClientTestProperties {
+                        mqtt_version: 5,
+                        client_id: client_id.to_string(),
+                        addr: broker_addr_by_type(&network),
+                        ws: ws_by_type(&network),
+                        ssl: ssl_by_type(&network),
+                        ..Default::default()
+                    };
+                    let cli = connect_server(&client_properties);
+
+                    let message_content = "retain message".to_string();
+                    let msg = Message::new_retained(topic.clone(), message_content.clone(), qos);
+                    publish_data(&cli, msg, false);
+
+                    let call_fn = |msg: Message| {
+                        println!(
+                            "msg: {:?},retained:{},retain_as_published:{}",
+                            msg,
+                            msg.retained(),
+                            retain_as_published
+                        );
+                        let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                        if payload != message_content {
+                            return false;
+                        }
+
+                        msg.retained() == retain_as_published
+                    };
+
+                    let subscribe_test_data = SubscribeTestData {
+                        sub_topic: topic,
+                        sub_qos: qos,
+                        subscribe_options,
+                        subscribe_properties: None,
+                    };
+                    subscribe_data_with_options(&cli, subscribe_test_data, call_fn);
+
+                    distinct_conn(cli);
                 }
             }
         }
-        assert!(consumer_cli
-            .subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None)
-            .is_ok());
-        let res = rx.recv_timeout(Duration::from_secs(60));
-        assert!(res.is_ok());
-        println!("{:?}", res);
-        distinct_conn(consumer_cli);
-        distinct_conn(cli);
     }
 
     #[tokio::test]
-    async fn send_retained_on_new_test() {
-        let topic = unique_id();
-        let pub_topic = topic.clone();
-        let sub_topic = topic.clone();
-        let retain_handling = RetainHandling::SendRetainedOnNew;
-        let payload_flag = "111".to_string();
+    async fn mqtt5_should_recv_retain_message_every_subscribe_when_retain_handling_is_0() {
+        let subscribe_options =
+            SubscribeOptions::new(false, false, RetainHandling::SendRetainedOnSubscribe);
+        for network in network_types() {
+            for qos in qos_list() {
+                let uid = unique_id();
+                let topic = format!("/mqtt5_should_recv_retain_message_every_subscribe_when_retain_handling_is_0/{}/{}/{}", uid, network, qos);
 
-        let client_id = build_client_id("send_retained_on_new_test");
+                // publish
+                let client_id = build_client_id(format!("mqtt5_should_recv_retain_message_every_subscribe_when_retain_handling_is_0_{}", uid).as_str());
+                let client_properties = ClientTestProperties {
+                    mqtt_version: 5,
+                    client_id: client_id.to_string(),
+                    addr: broker_addr_by_type(&network),
+                    ws: ws_by_type(&network),
+                    ssl: ssl_by_type(&network),
+                    ..Default::default()
+                };
+                let cli = connect_server(&client_properties);
+                let message_content = "retain message".to_string();
+                let msg = Message::new_retained(topic.clone(), message_content.clone(), qos);
+                publish_data(&cli, msg, false);
+                distinct_conn(cli);
 
-        println!("client_id:{:#?},topic:{:#?}", client_id, sub_topic.clone());
+                // sub new
+                let sub_cli = build_client_id(
+                    format!("mqtt5_should_recv_retain_message_every_subscribe_when_retain_handling_is_0_{}_{}", network, qos).as_str(),
+                );
+                let sub_cli = connect_server(&ClientTestProperties {
+                    mqtt_version: 5,
+                    client_id: sub_cli.to_string(),
+                    addr: broker_addr_by_type(&network),
+                    ws: ws_by_type(&network),
+                    ssl: ssl_by_type(&network),
+                    ..Default::default()
+                });
 
-        let addr = broker_addr();
-        let sub_topics = &[sub_topic.clone()];
-        let sub_qos = &[QOS_0];
-        let sub_opts = &[SubscribeOptions::new(true, false, retain_handling)];
-
-        let cli = connect_server5(&client_id, &addr, false, false);
-
-        let message_content = format!("mqtt {payload_flag} message");
-
-        // publish
-        let msg = Message::new_retained(pub_topic.clone(), message_content.clone(), QOS_0);
-        assert!(cli.publish(msg.clone()).is_ok());
-
-        // new subscribe
-        let consumer_client_id = build_client_id("send_retained_on_new_test");
-        let consumer_cli = connect_server5(&consumer_client_id, &addr, false, false);
-        let rx: paho_mqtt::Receiver<Option<Message>> = consumer_cli.start_consuming();
-        assert!(consumer_cli
-            .subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None)
-            .is_ok());
-
-        recv_retain_msg(message_content.clone(), rx.clone()).await;
-
-        consumer_cli.unsubscribe_many(sub_topics).unwrap();
-
-        distinct_conn(cli);
-        distinct_conn(consumer_cli);
-
-        // old subscribe
-        let consumer_cli = connect_server5(&consumer_client_id, &addr, false, false);
-        let _ = consumer_cli.start_consuming();
-        let res = consumer_cli.subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None);
-        println!("{:?}", res);
-        assert!(res.is_ok());
-        distinct_conn(consumer_cli);
-    }
-
-    #[tokio::test]
-    async fn dont_send_retained_test() {
-        let topic = unique_id();
-        let pub_topic = topic.clone();
-        let sub_topic = topic.clone();
-        let retain_handling = RetainHandling::DontSendRetained;
-        let payload_flag = "111".to_string();
-
-        let client_id = build_client_id("dont_send_retained_test");
-
-        println!("client_id:{:#?},topic:{:#?}", client_id, sub_topic.clone());
-
-        let addr = broker_addr();
-        let sub_topics = &[sub_topic.clone()];
-        let sub_qos = &[QOS_0];
-        let sub_opts = &[SubscribeOptions::new(true, false, retain_handling)];
-
-        let cli = connect_server5(&client_id, &addr, false, false);
-
-        let message_content = format!("mqtt {payload_flag} message");
-
-        // publish
-        let msg = Message::new_retained(pub_topic.clone(), message_content.clone(), QOS_0);
-        assert!(cli.publish(msg.clone()).is_ok());
-
-        let consumer_client_id = build_client_id("dont_send_retained_test");
-
-        // new subscribe
-        let consumer_cli = connect_server5(&consumer_client_id, &addr, false, false);
-        let rx = consumer_cli.start_consuming();
-        let res = consumer_cli.subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None);
-        println!("{:?}", res);
-        assert!(res.is_ok());
-        let res = rx.recv_timeout(Duration::from_secs(60));
-        println!("{:?}", res);
-        assert!(res.is_ok());
-        distinct_conn(consumer_cli);
-        distinct_conn(cli);
-    }
-
-    async fn recv_retain_msg(message_content: String, rx: paho_mqtt::Receiver<Option<Message>>) {
-        for msg in rx.iter() {
-            let msg = msg.unwrap();
-            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-            println!("retain message:{}", payload.clone());
-            if payload == message_content {
-                if let Some(raw) = msg
-                    .properties()
-                    .get_string_pair_at(PropertyCode::UserProperty, 0)
-                {
-                    if raw.0 == *SUB_RETAIN_MESSAGE_PUSH_FLAG
-                        && raw.1 == *SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE
-                    {
-                        break;
+                let call_fn = |msg: Message| {
+                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                    if payload != message_content {
+                        return false;
                     }
-                }
+                    if msg
+                        .properties()
+                        .get_string_pair_at(PropertyCode::UserProperty, 0)
+                        .is_some()
+                    {
+                        let raw = msg
+                            .properties()
+                            .get_string_pair_at(PropertyCode::UserProperty, 0)
+                            .unwrap();
+                        if raw.0 == *SUB_RETAIN_MESSAGE_PUSH_FLAG
+                            || raw.1 == *SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE
+                        {
+                            return true;
+                        }
+                    }
+                    false
+                };
+
+                let subscribe_test_data = SubscribeTestData {
+                    sub_topic: topic.clone(),
+                    sub_qos: qos,
+                    subscribe_options,
+                    subscribe_properties: None,
+                };
+
+                subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn);
+
+                // sub old
+                assert!(sub_cli.unsubscribe(&topic).is_ok());
+
+                let subscribe_test_data = SubscribeTestData {
+                    sub_topic: topic.clone(),
+                    sub_qos: qos,
+                    subscribe_options,
+                    subscribe_properties: None,
+                };
+
+                subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn);
+                distinct_conn(sub_cli);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn mqtt5_should_not_recv_retain_message_new_subscribe_when_retain_handling_is_1() {
+        let subscribe_options =
+            SubscribeOptions::new(false, false, RetainHandling::SendRetainedOnNew);
+
+        for network in network_types() {
+            for qos in qos_list() {
+                let uid = unique_id();
+                let topic = format!("/mqtt5_should_not_recv_retain_message_new_subscribe_when_retain_handling_is_1/{}/{}/{}", uid, network, qos);
+
+                // publish
+                let client_id = build_client_id(format!("mqtt5_should_not_recv_retain_message_new_subscribe_when_retain_handling_is_1_{}", uid).as_str());
+                let client_properties = ClientTestProperties {
+                    mqtt_version: 5,
+                    client_id: client_id.to_string(),
+                    addr: broker_addr_by_type(&network),
+                    ws: ws_by_type(&network),
+                    ssl: ssl_by_type(&network),
+                    ..Default::default()
+                };
+                let cli = connect_server(&client_properties);
+                let message_content = "retain message".to_string();
+                let msg = Message::new_retained(topic.clone(), message_content.clone(), qos);
+                publish_data(&cli, msg, false);
+                distinct_conn(cli);
+
+                // sub new
+                let sub_cli = build_client_id(
+                    format!("mqtt5_should_not_recv_retain_message_new_subscribe_when_retain_handling_is_1_{}_{}", network, qos).as_str(),
+                );
+                let sub_cli = connect_server(&ClientTestProperties {
+                    mqtt_version: 5,
+                    client_id: sub_cli.to_string(),
+                    addr: broker_addr_by_type(&network),
+                    ws: ws_by_type(&network),
+                    ssl: ssl_by_type(&network),
+                    ..Default::default()
+                });
+
+                let call_fn = |msg: Message| {
+                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                    if payload != message_content {
+                        return false;
+                    }
+                    if msg
+                        .properties()
+                        .get_string_pair_at(PropertyCode::UserProperty, 0)
+                        .is_some()
+                    {
+                        let raw = msg
+                            .properties()
+                            .get_string_pair_at(PropertyCode::UserProperty, 0)
+                            .unwrap();
+                        if raw.0 == *SUB_RETAIN_MESSAGE_PUSH_FLAG
+                            || raw.1 == *SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE
+                        {
+                            return true;
+                        }
+                    }
+                    false
+                };
+
+                let subscribe_test_data = SubscribeTestData {
+                    sub_topic: topic.clone(),
+                    sub_qos: qos,
+                    subscribe_options,
+                    subscribe_properties: None,
+                };
+
+                subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn);
+
+                // sub old
+                assert!(sub_cli.unsubscribe(&topic).is_ok());
+
+                let call_fn = |msg: Message| {
+                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                    if payload != message_content {
+                        return false;
+                    }
+                    msg.properties()
+                        .get_string_pair_at(PropertyCode::UserProperty, 0)
+                        .is_none()
+                };
+
+                let subscribe_test_data = SubscribeTestData {
+                    sub_topic: topic.clone(),
+                    sub_qos: qos,
+                    subscribe_options,
+                    subscribe_properties: None,
+                };
+
+                subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn);
+                distinct_conn(sub_cli);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn mqtt5_should_not_recv_retain_message_every_subscribe_when_retain_handling_is_2() {
+        let subscribe_options =
+            SubscribeOptions::new(false, false, RetainHandling::DontSendRetained);
+        for network in network_types() {
+            for qos in qos_list() {
+                let uid = unique_id();
+                let topic = format!("/mqtt5_should_not_recv_retain_message_every_subscribe_when_retain_handling_is_2/{}/{}/{}", uid, network, qos);
+
+                // publish
+                let client_id = build_client_id(format!("mqtt5_should_not_recv_retain_message_every_subscribe_when_retain_handling_is_2_{}", uid).as_str());
+                let client_properties = ClientTestProperties {
+                    mqtt_version: 5,
+                    client_id: client_id.to_string(),
+                    addr: broker_addr_by_type(&network),
+                    ws: ws_by_type(&network),
+                    ssl: ssl_by_type(&network),
+                    ..Default::default()
+                };
+                let cli = connect_server(&client_properties);
+                let message_content = "retain message".to_string();
+                let msg = Message::new_retained(topic.clone(), message_content.clone(), qos);
+                publish_data(&cli, msg, false);
+                distinct_conn(cli);
+
+                // sub
+                let sub_client_id = build_client_id(
+                    format!("mqtt5_should_not_recv_retain_message_every_subscribe_when_retain_handling_is_2_{}_{}", network, qos).as_str(),
+                );
+                let sub_cli = connect_server(&ClientTestProperties {
+                    mqtt_version: 5,
+                    client_id: sub_client_id.to_string(),
+                    addr: broker_addr_by_type(&network),
+                    ws: ws_by_type(&network),
+                    ssl: ssl_by_type(&network),
+                    ..Default::default()
+                });
+
+                let subscribe_test_data = SubscribeTestData {
+                    sub_topic: topic.clone(),
+                    sub_qos: qos,
+                    subscribe_options,
+                    subscribe_properties: None,
+                };
+
+                let call_fn = |msg: Message| {
+                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                    if payload != message_content {
+                        return false;
+                    }
+
+                    let user_properties = msg
+                        .properties()
+                        .get_string_pair_at(PropertyCode::UserProperty, 0);
+
+                    user_properties.is_none()
+                };
+                subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn);
+                distinct_conn(sub_cli);
             }
         }
     }

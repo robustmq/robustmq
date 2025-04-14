@@ -4,71 +4,55 @@ VERSION:=$(shell grep '^version = ' Cargo.toml | head -n1 | cut -d'"' -f2)
 ##@ Build
 .PHONY: build
 build: ## Build local machine version robustmq.
-	sh scripts/build-release.sh local $(VERSION)
+	/bin/bash scripts/build-release.sh local $(VERSION)
 
 # MacOS
 .PHONY: build-mac-x86_64-release
 build-mac-x86_64-release: ## Build mac x86_64 version robustmq.
-	sh scripts/build-release.sh mac-x86_64 $(VERSION)
+	/bin/bash scripts/build-release.sh mac-x86_64 $(VERSION)
 
 .PHONY: build-mac-arm64-release
 build-mac-arm64-release: ## Build mac arm64 version robustmq.
-	sh scripts/build-release.sh mac-arm64 $(VERSION)
+	/bin/bash scripts/build-release.sh mac-arm64 $(VERSION)
 
 # Linux
 .PHONY: build-linux-x86_64-release
 build-linux-x86_64-release: ## Build linux x86_64 version robustmq.
-	sh scripts/build-release.sh linux-x86_64 $(VERSION)
+	/bin/bash scripts/build-release.sh linux-x86_64 $(VERSION)
 
 .PHONY: build-linux-arm64-release
 build-linux-arm64-release: ## Build linux arm64 version robustmq.
-	sh scripts/build-release.sh linux-arm64 $(VERSION)
+	/bin/bash scripts/build-release.sh linux-arm64 $(VERSION)
 
 # Windows
 .PHONY: build-win-x86_64-release
 build-win-x86_64-release: ## Build windows x86 64bit version robustmq.
-	sh scripts/build-release.sh win-x86_64 $(VERSION)
+	/bin/bash scripts/build-release.sh win-x86_64 $(VERSION)
 
 .PHONY: build-win-x86-release
 build-win-x86-release: ## Build windows x86 32bit version robustmq.
-	sh scripts/build-release.sh win-x86 $(VERSION)
+	/bin/bash scripts/build-release.sh win-x86 $(VERSION)
 
 .PHONY: build-win-arm64-release
 build-win-arm64-release: ## Build windows arm64 version robustmq.
-	sh scripts/build-release.sh win-arm64 $(VERSION)
+	/bin/bash scripts/build-release.sh win-arm64 $(VERSION)
 
 ##@ Test
 .PHONY: test
 test:  ## Unit testing for Robustmq
-	sh ./scripts/unit-test.sh dev
-
-.PHONY: test-ci
-test-ci:
-	sh ./scripts/unit-test.sh ci
+	/bin/bash ./scripts/unit-test.sh dev
 
 .PHONY: mqtt-ig-test
 mqtt-ig-test:  ## Integration testing for MQTT Broker
-	sh ./scripts/mqtt-ig-test.sh dev
-
-.PHONY: mqtt-ig-test-ci
-mqtt-ig-test-ci:
-	sh ./scripts/mqtt-ig-test.sh ci
+	/bin/bash ./scripts/mqtt-ig-test.sh dev
 
 .PHONY: place-ig-test
 place-ig-test:  ## Integration testing for Placement Center
-	sh ./scripts/place-ig-test.sh dev
-
-.PHONY: place-ig-test-ci
-place-ig-test-ci:
-	sh ./scripts/place-ig-test.sh ci
+	/bin/bash ./scripts/place-ig-test.sh dev
 
 .PHONY: journal-ig-test
 journal-ig-test:  ## Integration testing for Journal Engine
-	sh ./scripts/journal-ig-test.sh dev
-
-.PHONY: journal-ig-test-ci
-journal-ig-test-ci:
-	sh ./scripts/journal-ig-test.sh ci
+	/bin/bash ./scripts/journal-ig-test.sh dev
 
 ##@ Other
 .PHONY: clean

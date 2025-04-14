@@ -25,12 +25,9 @@ use storage_adapter::storage::{ShardInfo, StorageAdapter};
 
 use super::error::MqttBrokerError;
 use crate::handler::cache::CacheManager;
-use crate::handler::topic_rewrite::process_publish_topic_rewrite;
+use crate::handler::topic_rewrite::convert_publish_topic_by_rewrite_rule;
 use crate::storage::message::cluster_name;
 use crate::storage::topic::TopicStorage;
-use crate::subscribe::sub_common::{
-    decode_queue_info, decode_share_info, is_queue_sub, is_share_sub,
-};
 
 pub fn payload_format_validator(
     payload: &Bytes,
@@ -77,8 +74,8 @@ pub fn topic_name_validator(topic_name: &str) -> Result<(), MqttBrokerError> {
 }
 
 pub fn get_topic_name(
+    cache_manager: &Arc<CacheManager>,
     connect_id: u64,
-    metadata_cache: &Arc<CacheManager>,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
 ) -> Result<String, MqttBrokerError> {
@@ -95,7 +92,7 @@ pub fn get_topic_name(
     }
 
     let topic_name = if topic.is_empty() {
-        if let Some(tn) = metadata_cache.get_topic_alias(connect_id, topic_alias.unwrap()) {
+        if let Some(tn) = cache_manager.get_topic_alias(connect_id, topic_alias.unwrap()) {
             tn
         } else {
             return Err(MqttBrokerError::TopicNameInvalid());
@@ -104,13 +101,15 @@ pub fn get_topic_name(
         topic
     };
     topic_name_validator(&topic_name)?;
+
     // topic rewrite
-    let rewrite_topic_name =
-        process_publish_topic_rewrite(topic_name.clone(), &metadata_cache.topic_rewrite_rule)?;
-    if let Some(val) = rewrite_topic_name {
-        topic_name_validator(val.as_str())?;
-        return Ok(val);
+    if let Some(rewrite_topic_name) =
+        convert_publish_topic_by_rewrite_rule(cache_manager, &topic_name)?
+    {
+        topic_name_validator(rewrite_topic_name.as_str())?;
+        return Ok(rewrite_topic_name);
     }
+
     Ok(topic_name)
 }
 
@@ -158,34 +157,6 @@ where
     Ok(topic)
 }
 
-pub fn gen_rewrite_topic(input: &str, pattern: &str, template: &str) -> Option<String> {
-    let mut prefix = String::new();
-    let topic = if is_share_sub(input) {
-        let (group, group_path) = decode_share_info(input);
-        let share_prefix = format!("$share/{}", group);
-        prefix = share_prefix.clone();
-        group_path
-    } else if is_queue_sub(input) {
-        prefix = "$queue".to_string();
-        decode_queue_info(input)
-    } else {
-        input.to_string()
-    };
-    let re = Regex::new(pattern).ok()?;
-    let mut rewrite_topic = template.to_string();
-    if let Some(captures) = re.captures(topic.as_str()) {
-        for (i, capture) in captures.iter().skip(1).enumerate() {
-            let prefix = format!("${}", (i + 1)).to_string();
-            rewrite_topic = rewrite_topic
-                .replace(&prefix, capture.unwrap().as_str())
-                .clone();
-        }
-        Some(format!("{}{}", prefix, rewrite_topic))
-    } else {
-        None
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::topic_name_validator;
@@ -217,4 +188,7 @@ mod test {
             "/sys/request_response/response/1eb1f833e0de4169908acedec8eb62f7".to_string();
         topic_name_validator(&topic_name).unwrap();
     }
+
+    #[test]
+    pub fn gen_rewrite_topic_test() {}
 }

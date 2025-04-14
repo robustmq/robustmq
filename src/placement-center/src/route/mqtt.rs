@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_base::utils::time_util::get_current_millisecond_timestamp;
+use common_base::tools::now_mills;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -25,7 +25,7 @@ use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use prost::Message as _;
-use protocol::mqtt::common::{qos, retain_forward_rule, Error, QoS, RetainForwardRule};
+use protocol::mqtt::common::{qos, retain_forward_rule, Error, QoS, RetainHandling};
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclRequest, CreateBlacklistRequest, CreateConnectorRequest, CreateSessionRequest,
     CreateTopicRequest, CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
@@ -170,7 +170,7 @@ impl DataRouteMqtt {
             source_topic: req.source_topic.clone(),
             dest_topic: req.dest_topic.clone(),
             regex: req.regex.clone(),
-            timestamp: get_current_millisecond_timestamp(),
+            timestamp: now_mills(),
         };
         storage.save_topic_rewrite_rule(
             &req.cluster_name,
@@ -271,7 +271,7 @@ impl DataRouteMqtt {
             ));
         };
 
-        let mut _retained_handling: Option<RetainForwardRule> = None;
+        let mut _retained_handling: Option<RetainHandling> = None;
         if req.retained_handling <= u8::MAX as u32 {
             _retained_handling = retain_forward_rule(req.retained_handling as u8);
         } else {

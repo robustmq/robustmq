@@ -17,7 +17,8 @@ use std::sync::OnceLock;
 use serde::{Deserialize, Serialize};
 
 use super::common::{
-    default_prometheus, override_default_by_env, Auth, Log, Prometheus, Storage, Telemetry,
+    default_pprof, default_prometheus, override_default_by_env, Auth, Log, Pprof, Prometheus,
+    Storage, Telemetry,
 };
 use super::default_mqtt::{
     default_auth, default_grpc_port, default_log, default_mqtt_cluster_dynamic_feature,
@@ -56,6 +57,8 @@ pub struct BrokerMqttConfig {
     pub telemetry: Telemetry,
     #[serde(default = "default_prometheus")]
     pub prometheus: Prometheus,
+    #[serde(default = "default_pprof")]
+    pub pprof: Pprof,
 
     #[serde(default = "default_mqtt_cluster_dynamic_slow_sub")]
     pub cluster_dynamic_config_slow_sub: MqttClusterDynamicSlowSub,
@@ -301,9 +304,9 @@ mod tests {
         assert!(!config.network.tls_cert.is_empty());
         assert!(!config.network.tls_key.is_empty());
 
-        assert_eq!(config.tcp_thread.accept_thread_num, 1);
-        assert_eq!(config.tcp_thread.handler_thread_num, 10);
-        assert_eq!(config.tcp_thread.response_thread_num, 1);
+        assert_eq!(config.tcp_thread.accept_thread_num, 5);
+        assert_eq!(config.tcp_thread.handler_thread_num, 32);
+        assert_eq!(config.tcp_thread.response_thread_num, 5);
         assert_eq!(config.tcp_thread.max_connection_num, 1000);
         assert_eq!(config.tcp_thread.request_queue_size, 2000);
         assert_eq!(config.tcp_thread.response_queue_size, 2000);
@@ -320,7 +323,7 @@ mod tests {
 
         assert_eq!(
             config.log.log_config,
-            "./config/log-config/mqtt-log4rs.yaml"
+            "./config/log-config/mqtt-tracing.toml"
         );
 
         assert_eq!(
@@ -363,7 +366,7 @@ mod tests {
         std::env::set_var("MQTT_SERVER_STORAGE_STORAGE_TYPE", "\"memory-env\"");
         std::env::set_var(
             "MQTT_SERVER_LOG_LOG_CONFIG",
-            "\"./config/log-config/mqtt-log4rs.yaml-env\"",
+            "\"./config/log-config/mqtt-tracing.toml-env\"",
         );
         std::env::set_var(
             "MQTT_SERVER_LOG_LOG_PATH",
@@ -420,7 +423,7 @@ mod tests {
 
         assert_eq!(
             config.log.log_config,
-            "./config/log-config/mqtt-log4rs.yaml-env"
+            "./config/log-config/mqtt-tracing.toml-env"
         );
 
         assert_eq!(
@@ -455,9 +458,9 @@ mod tests {
         assert!(!config.network.tls_cert.is_empty());
         assert!(!config.network.tls_key.is_empty());
 
-        assert_eq!(config.tcp_thread.accept_thread_num, 1);
-        assert_eq!(config.tcp_thread.handler_thread_num, 10);
-        assert_eq!(config.tcp_thread.response_thread_num, 1);
+        assert_eq!(config.tcp_thread.accept_thread_num, 5);
+        assert_eq!(config.tcp_thread.handler_thread_num, 32);
+        assert_eq!(config.tcp_thread.response_thread_num, 5);
         assert_eq!(config.tcp_thread.max_connection_num, 1000);
         assert_eq!(config.tcp_thread.request_queue_size, 2000);
         assert_eq!(config.tcp_thread.response_queue_size, 2000);
@@ -478,7 +481,7 @@ mod tests {
         );
         assert_eq!(
             config.log.log_config,
-            "./config/log-config/mqtt-log4rs.yaml"
+            "./config/log-config/mqtt-tracing.toml"
         );
 
         assert_eq!(config.auth.storage_type, "placement".to_string());

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+source scripts/check-place-status.sh
 
 start_server(){
     nohup cargo run --package cmd --bin placement-center -- --conf=config/placement-center.toml 2>/tmp/1.log &
@@ -38,6 +39,7 @@ stop_server
 
 # Start Server
 start_server
+check_status
 
 # Run Placement integration Test
 if [ "$1" = "dev" ]; then
@@ -50,8 +52,8 @@ if [ "$1" = "dev" ]; then
   stop_server
 
 else
-
-   cargo nextest run --profile ci --package grpc-clients --package robustmq-test --test mod -- placement && \
-   cargo nextest run --profile ci --package robustmq-test --test mod -- place_server
+  cargo nextest run --package grpc-clients --package robustmq-test --test mod -- placement && \
+  cargo nextest run --package robustmq-test --test mod -- place_server && \
+  cargo nextest run --package storage-adapter --lib -- placement
 
 fi

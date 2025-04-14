@@ -16,12 +16,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
-use log::{debug, error};
 use tokio::select;
 use tokio::sync::broadcast;
-use tokio::time::sleep;
+use tokio::time::{sleep, timeout};
+use tracing::{debug, error};
 
 use super::error::MqttBrokerError;
 use crate::storage::cluster::ClusterStorage;
@@ -45,8 +44,11 @@ pub async fn report_heartbeat(client_pool: &Arc<ClientPool>, stop_send: broadcas
                     }
                 }
             }
-            _ = report(client_pool) => {
-                sleep(Duration::from_secs(3)).await;
+            val = timeout(Duration::from_secs(10),report(client_pool)) => {
+                if let Err(e) = val{
+                    error!("Broker heartbeat report timeout, error message:{}",e);
+                }
+                sleep(Duration::from_secs(1)).await;
             }
         }
     }
@@ -54,22 +56,14 @@ pub async fn report_heartbeat(client_pool: &Arc<ClientPool>, stop_send: broadcas
 
 async fn report(client_pool: &Arc<ClientPool>) {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
-    match cluster_storage.heartbeat().await {
-        Ok(()) => {
-            let config = broker_mqtt_conf();
-            debug!(
-                "Heartbeat reporting successfully,node:{},{}",
-                config.broker_id,
-                now_second()
-            );
-        }
-        Err(e) => {
-            if e.to_string().contains("Node") && e.to_string().contains("does not exist") {
-                if let Err(e) = register_node(client_pool).await {
-                    error!("{}", e);
-                }
+    if let Err(e) = cluster_storage.heartbeat().await {
+        if e.to_string().contains("Node") && e.to_string().contains("does not exist") {
+            if let Err(e) = register_node(client_pool).await {
+                error!("{}", e);
             }
-            error!("{}", e);
         }
+        error!("{}", e);
+    } else {
+        debug!("heartbeat report success");
     }
 }

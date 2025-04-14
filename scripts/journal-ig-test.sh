@@ -56,8 +56,9 @@ stop_journal_server(){
 stop_placement_server
 stop_journal_server
 
+# Start Server
 start_placement_server
-sleep 5
+sleep 30
 start_journal_server
 sleep 10
 
@@ -65,18 +66,15 @@ sleep 10
 
 if [ "$1" = "dev" ]; then
 
-  cargo nextest run  --package grpc-clients --test mod -- journal && \
-  cargo nextest run  --package robustmq-test --test mod -- journal_client && \
-  cargo nextest run  --package robustmq-test --test mod -- journal_server
+    cargo nextest run  --package grpc-clients --test mod -- journal && \
+    cargo nextest run  --package robustmq-test --test mod -- journal_client && \
+    cargo nextest run  --package robustmq-test --test mod -- journal_server
 
-    # Stop Server
     stop_placement_server
     stop_journal_server
 
 else
-
-#   cargo nextest run --profile ci --package grpc-clients --test mod -- journal && \
-#   cargo nextest run --profile ci --package robustmq-test --test mod -- journal_client && \
-  cargo nextest run --profile ci --package robustmq-test --test mod -- journal_server
-
+    cargo nextest run  --package grpc-clients --test mod -- journal && \
+    cargo nextest run  --package robustmq-test --test mod -- journal_client
+    cargo nextest run  --package robustmq-test --test mod -- journal_server
 fi

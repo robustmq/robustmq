@@ -15,7 +15,7 @@
 #[cfg(test)]
 mod tests {
     use crate::mqtt_protocol::common::{
-        broker_addr, broker_grpc_addr, build_conn_pros, build_create_pros, distinct_conn,
+        broker_addr, broker_grpc_addr, build_conn_pros, build_create_conn_pros, distinct_conn,
     };
     use crate::mqtt_protocol::ClientTestProperties;
     use common_base::tools::unique_id;
@@ -51,7 +51,7 @@ mod tests {
     }
 
     fn test_fail_connect(client_test_properties: &ClientTestProperties) {
-        let create_opts = build_create_pros(
+        let create_opts = build_create_conn_pros(
             &client_test_properties.client_id,
             &client_test_properties.addr,
         );
@@ -65,7 +65,7 @@ mod tests {
     }
 
     fn test_correct_connect(client_test_properties: &ClientTestProperties) {
-        let create_opts = build_create_pros(
+        let create_opts = build_create_conn_pros(
             &client_test_properties.client_id,
             &client_test_properties.addr,
         );
@@ -92,9 +92,8 @@ mod tests {
             ban_time: 1,
         };
 
-        let _reply = mqtt_broker_enable_flapping_detect(&client_pool, &grpc_addr, request)
-            .await
-            .unwrap();
+        let reply = mqtt_broker_enable_flapping_detect(&client_pool, &grpc_addr, request).await;
+        assert!(reply.is_ok());
     }
 
     async fn close_flapping_detect() {
@@ -108,8 +107,7 @@ mod tests {
             ban_time: 1,
         };
 
-        let _reply = mqtt_broker_enable_flapping_detect(&client_pool, &grpc_addr, request)
-            .await
-            .unwrap();
+        let reply = mqtt_broker_enable_flapping_detect(&client_pool, &grpc_addr, request).await;
+        assert!(reply.is_ok());
     }
 }

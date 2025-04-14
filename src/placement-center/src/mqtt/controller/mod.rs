@@ -17,12 +17,12 @@ use std::time::Duration;
 
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
-use log::info;
 use message_expire::MessageExpire;
 use session_expire::SessionExpire;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
+use tracing::info;
 
 use crate::core::cache::PlacementCacheManager;
 use crate::mqtt::cache::MqttCacheManager;

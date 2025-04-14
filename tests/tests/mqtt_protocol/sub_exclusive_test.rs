@@ -22,7 +22,7 @@ mod tests {
         ClientTestProperties,
     };
     use common_base::tools::unique_id;
-    use paho_mqtt::{Message, RetainHandling, SubscribeOptions, QOS_1};
+    use paho_mqtt::{Message, SubscribeOptions, QOS_1};
 
     #[tokio::test]
     async fn sub_exclusive_test() {
@@ -30,15 +30,11 @@ mod tests {
             for qos in qos_list() {
                 let topic = format!("/tests/{}", unique_id());
                 let sub_exclusive_topics: &[String; 1] = &[format!("$exclusive{}", topic.clone())];
-                let sub_opts = &[SubscribeOptions::new(
-                    true,
-                    false,
-                    RetainHandling::DontSendRetained,
-                )];
+                let sub_opts = &[SubscribeOptions::default()];
 
                 // publish
                 let client_id =
-                    build_client_id(format!("user_properties_test_{}_{}", network, qos).as_str());
+                    build_client_id(format!("sub_exclusive_test_{}_{}", network, qos).as_str());
 
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,

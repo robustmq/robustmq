@@ -86,22 +86,13 @@ pub async fn save_session(
     let conf = broker_mqtt_conf();
     let session_storage = SessionStorage::new(client_pool.clone());
     if new_session {
-        match session_storage.set_session(client_id, &session).await {
-            Ok(_) => {}
-            Err(e) => {
-                return Err(MqttBrokerError::CommonError(e.to_string()));
-            }
-        }
+        session_storage
+            .set_session(client_id.clone(), &session)
+            .await?;
     } else {
-        match session_storage
+        session_storage
             .update_session(client_id, connect_id, conf.broker_id, now_second(), 0)
-            .await
-        {
-            Ok(_) => {}
-            Err(e) => {
-                return Err(MqttBrokerError::CommonError(e.to_string()));
-            }
-        }
+            .await?;
     }
 
     Ok(())

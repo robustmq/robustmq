@@ -47,7 +47,7 @@ rustls-pemfile.workspace = true
 tokio-rustls.workspace = true
 mysql.workspace = true
 paho-mqtt.workspace = true
-log.workspace = true
+tracing.workspace = true
 ipnet.workspace = true
 os_info.workspace = true
 bincode.workspace = true
@@ -64,9 +64,11 @@ rustls-pki-types.workspace = true
 rustls.workspace = true
 bindgen.workspace = true
 rdkafka.workspace = true
+pprof-monitor.workspace = true
 
 
 [dev-dependencies]
 # test
 googletest.workspace = true
 robustmq-test.workspace = true
+tempfile.workspace = true

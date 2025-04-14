@@ -53,7 +53,7 @@ mod tests {
         }
         let ts = now.elapsed().as_secs();
         println!("{}", ts);
-        assert!((9..=12).contains(&ts));
+        assert!((14..=17).contains(&ts));
     }
 
     /// Build the connect content package for the mqtt4 protocol

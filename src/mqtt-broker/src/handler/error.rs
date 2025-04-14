@@ -31,6 +31,9 @@ pub enum MqttBrokerError {
     FromCommonError(#[from] CommonError),
 
     #[error("{0}")]
+    RegexError(#[from] regex::Error),
+
+    #[error("{0}")]
     ParseIntError(#[from] ParseIntError),
 
     #[error("{0}")]
@@ -98,11 +101,17 @@ pub enum MqttBrokerError {
     #[error("Invalid acl action")]
     InvalidAclAction,
 
+    #[error("Subscription path {0} is not available")]
+    InvalidSubPath(String),
+
     #[error("invalid acl permission")]
     InvalidAclPermission,
 
     #[error("topicRewriteRule has been existed")]
     TopicRewriteRuleAlreadyExist,
+
+    #[error("Failed to build Message")]
+    FailedToBuildMessage,
 
     #[error("Publish message was delayed, the target Topic failed to resolve, Topic name {0}")]
     DelayPublishDecodeTopicNameFail(String),

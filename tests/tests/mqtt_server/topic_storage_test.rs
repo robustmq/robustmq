@@ -18,7 +18,7 @@ mod tests {
 
     use bytes::Bytes;
     use common_base::config::broker_mqtt::{broker_mqtt_conf, init_broker_mqtt_conf_by_path};
-    use common_base::logs::init_log;
+    use common_base::logging::init_tracing_subscriber;
     use common_base::tools::unique_id;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
@@ -30,13 +30,13 @@ mod tests {
     async fn topic_test() {
         let path = format!("{}/../config/mqtt-server.toml", env!("CARGO_MANIFEST_DIR"));
         let log_config = format!(
-            "{}/../config/log-config/mqtt-log4rs.yaml",
+            "{}/../config/log-config/mqtt-tracing.toml",
             env!("CARGO_MANIFEST_DIR")
         );
         let log_path = format!("{}/../logs/tests", env!("CARGO_MANIFEST_DIR"));
 
         init_broker_mqtt_conf_by_path(&path);
-        init_log(&log_config, &log_path);
+        let guards = init_tracing_subscriber(&log_config, &log_path).unwrap();
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_pool);
@@ -71,6 +71,7 @@ mod tests {
         assert!(result.is_none());
 
         topic_storage.all().await.unwrap();
+        drop(guards)
     }
 
     #[tokio::test]

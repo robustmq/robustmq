@@ -1,8 +1,7 @@
 # Setting Up the Basic Development Environment
 
-# Setting Up the Mac Environment
-
-## Main Steps
+## Setting Up the Mac Environment
+### Main Steps
 
 ::: tip
 ⚠️ **Note**: The project currently includes a `rust-toolchain.toml` file by default, so it will use the Rust environment configured in that file. If you have installed Rust via Homebrew, you may encounter version conflicts. You will need to uninstall Rust and then set up the environment according to the instructions below.
@@ -14,7 +13,7 @@ To run the code, you need to set up the Rust development environment first. Afte
  - Reference Document: [https://course.rs/first-try/installation.html](https://course.rs/first-try/installation.html)
 
 - **Rust Version**
- - The current Rust version required is `stable`.
+The current Rust version required is `stable`.
   ```shell
   rustup install stable
   rustup default stable
@@ -22,28 +21,33 @@ To run the code, you need to set up the Rust development environment first. Afte
   ```
 
 - **Install Cmake**
- - Installation command for macOS:
+Installation command for macOS:
   ```shell
   brew install cmake
   ```
 
 - **Install RocksDB**
- - Reference Document: [https://github.com/rust-rocksdb/rust-rocksdb](https://github.com/rust-rocksdb/rust-rocksdb)
- - Installation command for macOS:
+Reference Document: [https://github.com/rust-rocksdb/rust-rocksdb](https://github.com/rust-rocksdb/rust-rocksdb). Installation command for macOS:
   ```shell
   brew install rocksdb
   ```
 
 - **Install Protoc**
- - Reference Document: [https://www.jianshu.com/p/341293ee1286](https://www.jianshu.com/p/341293ee1286)
- - Installation command for macOS:
+Reference Document: [https://www.jianshu.com/p/341293ee1286](https://www.jianshu.com/p/341293ee1286). Installation command for macOS:
   ```shell
   brew install protobuf
   ```
 
-### Configuring the pre-commit Plugin
+### Pre-Commit Plugin
 
-RobustMQ uses `pre-commit` by default for code pre-commit checks, so you need to install the specified version of the `pre-commit` tool.
+The [main RobustMQ repository](https://github.com/robustmq/robustmq) and the [RobustMQ PB protocol repository Robust-Proto](https://github.com/robustmq/robustmq-proto) both use `pre-commit` for code pre-commit by default, so you need to install a specified version of the `pre-commit` tool. For more information about `pre-commit`, refer to the [official documentation](https://pre-commit.com/).
+
+::: tip
+For [Robust-Proto](https://github.com/robustmq/robustmq-proto), you also need to install the [buf](https://github.com/bufbuild/buf) tool in advance:
+```shell
+brew install bufbuild/buf/buf
+````
+:::
 
 First, you need to create a virtual environment using `Python` (version 3.8 or higher). The installation command is as follows:
 ```shell

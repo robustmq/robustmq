@@ -15,7 +15,7 @@
 use clap::Parser;
 use common_base::config::placement_center::init_placement_center_conf_by_path;
 use common_base::config::DEFAULT_PLACEMENT_CENTER_CONFIG;
-use common_base::logs::init_placement_center_log;
+use common_base::logging::init_placement_center_log;
 use placement_center::PlacementCenter;
 use tokio::sync::broadcast;
 
@@ -31,7 +31,9 @@ struct ArgsParams {
 async fn main() {
     let args = ArgsParams::parse();
     init_placement_center_conf_by_path(&args.conf);
-    init_placement_center_log();
+
+    // Need to keep the guard alive until the application terminates
+    let _appender_guards = init_placement_center_log().unwrap();
     let (stop_send, _) = broadcast::channel(2);
     let mut pc = PlacementCenter::new();
     pc.start(stop_send).await;

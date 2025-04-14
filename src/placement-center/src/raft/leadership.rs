@@ -23,10 +23,10 @@ use crate::{
 
 use super::typeconfig::TypeConfig;
 use grpc_clients::pool::ClientPool;
-use log::{error, info};
 use openraft::Raft;
 use rocksdb_engine::RocksDBEngine;
 use tokio::sync::broadcast::{self, Sender};
+use tracing::{error, info};
 
 pub fn monitoring_leader_transition(
     raft: &Raft<TypeConfig>,

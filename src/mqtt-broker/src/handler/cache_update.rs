@@ -20,7 +20,6 @@ use crate::{security::AuthDriver, subscribe::subscribe_manager::SubscribeManager
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::placement::inner::call::list_schema;
 use grpc_clients::pool::ClientPool;
-use log::error;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
@@ -33,9 +32,10 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
 use protocol::placement_center::placement_center_inner::ListSchemaRequest;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
+use tracing::error;
 
+use super::cache::CacheManager;
 use super::cluster_config::build_cluster_config;
-use super::{cache::CacheManager, sub_exclusive::remove_exclusive_subscribe_by_path};
 
 pub async fn load_metadata_cache(
     cache_manager: &Arc<CacheManager>,
@@ -183,7 +183,7 @@ pub async fn update_cache_metadata(
             MqttBrokerUpdateCacheActionType::Set => {
                 match serde_json::from_str::<MqttSession>(&request.data) {
                     Ok(session) => {
-                        cache_manager.add_session(session.client_id.clone(), session);
+                        cache_manager.add_session(&session.client_id, &session);
                     }
                     Err(e) => {
                         error!("{}", e);
@@ -237,11 +237,6 @@ pub async fn update_cache_metadata(
             MqttBrokerUpdateCacheActionType::Delete => {
                 match serde_json::from_str::<MqttSubscribe>(&request.data) {
                     Ok(subscribe) => {
-                        if let Some(_sub) =
-                            subscribe_manager.get_subscribe(&subscribe.client_id, &subscribe.path)
-                        {
-                            remove_exclusive_subscribe_by_path(subscribe_manager, &subscribe.path);
-                        }
                         subscribe_manager.remove_subscribe(&subscribe.client_id, &subscribe.path)
                     }
                     Err(e) => {

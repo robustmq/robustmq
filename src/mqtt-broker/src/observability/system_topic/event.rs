@@ -17,13 +17,13 @@ use std::sync::Arc;
 
 use common_base::tools::{get_local_ip, now_mills};
 use grpc_clients::pool::ClientPool;
-use log::error;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::mqtt::session::MqttSession;
 use protocol::mqtt::common::{DisconnectReasonCode, MqttProtocol, Subscribe, Unsubscribe};
 use serde::{Deserialize, Serialize};
 use storage_adapter::storage::StorageAdapter;
+use tracing::error;
 
 use super::{
     write_topic_data, SYSTEM_TOPIC_BROKERS_CONNECTED, SYSTEM_TOPIC_BROKERS_DISCONNECTED,
@@ -214,7 +214,7 @@ pub async fn st_report_subscribed_event<S>(
             let subopts = SystemTopicSubscribedEventMessageSUbopts {
                 sub_props: HashMap::new(),
                 rh: if filter.preserve_retain { 1 } else { 0 },
-                rap: filter.retain_forward_rule.into(),
+                rap: filter.retain_handling.into(),
                 qos: filter.qos.into(),
                 nl: if filter.nolocal { 1 } else { 0 },
                 is_new: true,

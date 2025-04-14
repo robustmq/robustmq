@@ -18,11 +18,11 @@ use std::sync::Arc;
 
 use common_base::tools::now_second;
 use ipnet::IpNet;
-use log::info;
 use metadata_struct::acl::mqtt_acl::{MqttAclAction, MqttAclPermission};
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::QoS;
 use regex::Regex;
+use tracing::info;
 
 use crate::handler::cache::CacheManager;
 use crate::handler::constant::WILDCARD_RESOURCE;
@@ -177,6 +177,7 @@ fn is_acl_deny(
             }
         }
     }
+
     // check client id acl
     if let Some(client_id_list) = cache_mamanger
         .acl_metadata

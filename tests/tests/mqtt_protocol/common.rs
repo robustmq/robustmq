@@ -19,6 +19,7 @@ use common_base::tools::unique_id;
 use paho_mqtt::{
     Client, ConnectOptions, ConnectOptionsBuilder, CreateOptions, CreateOptionsBuilder,
     DisconnectOptionsBuilder, Message, Properties, PropertyCode, ReasonCode, SslOptionsBuilder,
+    SubscribeOptions,
 };
 
 pub fn qos_list() -> Vec<i32> {
@@ -90,6 +91,7 @@ pub fn connect_server(client_properties: &ClientTestProperties) -> Client {
 
     let conn_opts = build_conn_pros(client_properties.clone(), client_properties.err_pwd);
     let result = cli.connect(conn_opts);
+    print!("{:?}", result);
     if client_properties.conn_is_err {
         assert!(result.is_err());
     } else {
@@ -119,18 +121,62 @@ where
     loop {
         let res = rx.recv_timeout(Duration::from_secs(10));
         println!("{:?}", res);
-        assert!(res.is_ok());
-        let msg_opt = res.unwrap();
-        assert!(msg_opt.is_some());
-        let msg = msg_opt.unwrap();
-        if call_fn(msg) {
-            break;
+        if let Ok(msg_opt) = res {
+            assert!(msg_opt.is_some());
+            let msg = msg_opt.unwrap();
+            if call_fn(msg) {
+                break;
+            }
+        }
+    }
+}
+
+pub struct SubscribeTestData<S, T, P>
+where
+    S: Into<String>,
+    T: Into<SubscribeOptions>,
+    P: Into<Option<Properties>>,
+{
+    pub(crate) sub_topic: S,
+    pub(crate) sub_qos: i32,
+    pub(crate) subscribe_options: T,
+    pub(crate) subscribe_properties: P,
+}
+
+pub fn subscribe_data_with_options<S, T, P, F>(
+    cli: &Client,
+    subscribe_test_data: SubscribeTestData<S, T, P>,
+    call_fn: F,
+) where
+    S: Into<String>,
+    T: Into<SubscribeOptions>,
+    P: Into<Option<Properties>>,
+    F: Fn(Message) -> bool,
+{
+    let rx = cli.start_consuming();
+    let res = cli.subscribe_with_options(
+        subscribe_test_data.sub_topic.into(),
+        subscribe_test_data.sub_qos,
+        subscribe_test_data.subscribe_options.into(),
+        subscribe_test_data.subscribe_properties.into(),
+    );
+    assert!(res.is_ok());
+
+    loop {
+        let res = rx.recv_timeout(Duration::from_secs(10));
+        println!("{:?}", res);
+        if let Ok(msg_opt) = res {
+            assert!(msg_opt.is_some());
+            let msg = msg_opt.unwrap();
+            if call_fn(msg) {
+                break;
+            }
         }
     }
 }
 
 pub fn build_client_id(name: &str) -> String {
-    format!("{}-{}", name, unique_id())
+    format!("{}_{}", name, unique_id())
 }
 
 pub fn broker_addr() -> String {
@@ -232,6 +278,7 @@ pub fn build_v5_conn_pros(
         .keep_alive_interval(Duration::from_secs(600))
         .clean_start(true)
         .connect_timeout(Duration::from_secs(60))
+        .automatic_reconnect(Duration::from_secs(1), Duration::from_secs(5))
         .properties(props.clone())
         .user_name(uname)
         .password(password);

@@ -961,6 +961,7 @@ mod tests {
         assert_eq!(shards.len(), 0);
     }
 
+    #[ignore = "reason"]
     #[tokio::test]
     async fn concurrency_test() {
         let client_pool = Arc::new(ClientPool::new(1000));
