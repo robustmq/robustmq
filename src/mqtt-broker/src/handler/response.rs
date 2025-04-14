@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::{error, warn};
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
@@ -22,6 +21,7 @@ use protocol::mqtt::common::{
     PubRecProperties, PubRecReason, PubRel, PubRelProperties, PubRelReason, SubAck,
     SubAckProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
 };
+use tracing::{error, warn};
 
 use super::connection::response_information;
 use super::validator::is_request_problem_info;

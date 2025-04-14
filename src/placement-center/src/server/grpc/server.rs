@@ -18,8 +18,8 @@ use axum::http;
 use common_base::config::placement_center::placement_center_conf;
 use common_base::tools::now_mills;
 use grpc_clients::pool::ClientPool;
-use log::info;
 use rocksdb_engine::RocksDBEngine;
+use tracing::info;
 
 use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;

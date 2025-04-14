@@ -16,9 +16,9 @@ use axum::http::header;
 use axum::response::Response;
 use axum::{routing::get, Router};
 use bytes::Bytes;
-use log::{error, info};
 use pprof::ProfilerGuard;
 use std::{net::SocketAddr, sync::Arc};
+use tracing::{error, info};
 
 pub async fn start_pprof_monitor(port: u16, frequency: i32) -> Arc<ProfilerGuard<'static>> {
     info!("Starting pprof HTTP server...");

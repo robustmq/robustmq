@@ -19,9 +19,9 @@ use super::{
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::now_second};
 use grpc_clients::pool::ClientPool;
-use log::{error, info};
 use std::{sync::Arc, time::Duration};
 use tokio::{select, sync::broadcast, time::sleep};
+use tracing::{error, info};
 
 pub async fn start_parse_subscribe_by_new_topic_thread(
     client_pool: &Arc<ClientPool>,

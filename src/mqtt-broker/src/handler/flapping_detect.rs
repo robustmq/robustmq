@@ -17,7 +17,6 @@ use crate::handler::error::MqttBrokerError;
 use crate::observability::metrics::event_metrics;
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
-use log::{debug, error, info};
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
 use metadata_struct::mqtt::cluster::MqttClusterDynamicFlappingDetect;
 use protocol::broker_mqtt::broker_mqtt_admin::EnableFlappingDetectRequest;
@@ -26,6 +25,7 @@ use std::time::Duration;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
+use tracing::{debug, error, info};
 
 pub struct UpdateFlappingDetectCache {
     stop_send: broadcast::Sender<bool>,

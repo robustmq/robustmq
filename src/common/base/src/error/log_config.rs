@@ -12,5 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod common;
-pub mod log_config;
+#[derive(Debug, thiserror::Error)]
+pub enum LogConfigError {
+    #[error(transparent)]
+    Toml(#[from] toml::de::Error),
+
+    #[error("RollingFile appender requires a rotation")]
+    RollingFileMissingRotation,
+
+    #[error("RollingFile appender requires a directory")]
+    RollingFileMissingDirectory,
+
+    #[error(transparent)]
+    RollingFileAppenderInit(#[from] tracing_appender::rolling::InitError),
+}

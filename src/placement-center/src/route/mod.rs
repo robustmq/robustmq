@@ -24,7 +24,7 @@ use std::time::Instant;
 
 use bincode::{deserialize, serialize};
 use data::{StorageData, StorageDataType};
-use log::{error, info};
+use tracing::{error, info};
 
 use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;

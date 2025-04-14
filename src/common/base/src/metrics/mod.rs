@@ -16,8 +16,8 @@ pub mod broker;
 pub mod registry;
 use axum::routing::get;
 use axum::Router;
-use log::info;
 use prometheus_client::encoding::text::encode;
+use tracing::info;
 
 // lazy_static::lazy_static! {
 //     static ref APP_VERSION: IntGaugeVec =

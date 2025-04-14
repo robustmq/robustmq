@@ -15,7 +15,7 @@
 use clap::{command, Parser};
 use common_base::config::journal_server::init_journal_server_conf_by_path;
 use common_base::config::DEFAULT_JOURNAL_SERVER_CONFIG;
-use common_base::logs::init_journal_server_log;
+use common_base::logging::init_journal_server_log;
 use journal_server::JournalServer;
 use tokio::sync::broadcast;
 
@@ -30,7 +30,9 @@ struct ArgsParams {
 fn main() {
     let args = ArgsParams::parse();
     init_journal_server_conf_by_path(&args.conf);
-    init_journal_server_log();
+
+    // Need to keep the guard alive until the application terminates
+    let _appender_guards = init_journal_server_log().unwrap();
 
     let (stop_send, _) = broadcast::channel(2);
     let server = JournalServer::new(stop_send);
