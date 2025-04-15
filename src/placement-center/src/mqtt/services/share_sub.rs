@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::core::cache::PlacementCacheManager;
-use crate::server::grpc::validate::ValidateExt;
 use crate::storage::keys::storage_key_mqtt_node_sub_group_leader;
 use crate::storage::placement::kv::KvStorage;
 use crate::storage::rocksdb::RocksDBEngine;
@@ -204,7 +203,6 @@ pub fn get_share_sub_leader_by_req(
     request: Request<GetShareSubLeaderRequest>,
 ) -> Result<Response<GetShareSubLeaderReply>, Status> {
     let req = request.into_inner();
-    req.validate_ext()?;
     let cluster_name = req.cluster_name;
     let group_name = req.group_name;
     let mut reply = GetShareSubLeaderReply::default();
