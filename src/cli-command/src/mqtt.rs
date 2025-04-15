@@ -26,8 +26,8 @@ use grpc_clients::mqtt::admin::call::{
     mqtt_broker_list_acl, mqtt_broker_list_auto_subscribe_rule, mqtt_broker_list_bind_schema,
     mqtt_broker_list_blacklist, mqtt_broker_list_connection, mqtt_broker_list_connector,
     mqtt_broker_list_schema, mqtt_broker_list_slow_subscribe, mqtt_broker_list_topic,
-    mqtt_broker_list_user, mqtt_broker_set_auto_subscribe_rule, mqtt_broker_unbind_schema,
-    mqtt_broker_update_connector, mqtt_broker_update_schema,
+    mqtt_broker_list_user, mqtt_broker_set_auto_subscribe_rule, mqtt_broker_set_cluster_config,
+    mqtt_broker_unbind_schema, mqtt_broker_update_connector, mqtt_broker_update_schema,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -46,6 +46,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     MqttDeleteConnectorRequest, MqttDeleteSchemaRequest, MqttListBindSchemaRequest,
     MqttListConnectorRequest, MqttListSchemaRequest, MqttUnbindSchemaRequest,
     MqttUpdateConnectorRequest, MqttUpdateSchemaRequest, SetAutoSubscribeRuleRequest,
+    SetClusterConfigRequest,
 };
 use std::str::FromStr;
 use std::sync::Arc;
@@ -63,6 +64,9 @@ pub struct MqttCliCommandParam {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MqttActionType {
+    // common
+    SetClusterConfig(SetClusterConfigRequest),
+
     // cluster status
     Status,
 
@@ -276,6 +280,10 @@ impl MqttBrokerCommand {
                 self.delete_auto_subscribe_rule(&client_pool, params.clone(), request.clone())
                     .await;
             }
+            MqttActionType::SetClusterConfig(ref request) => {
+                self.set_cluster_config(&client_pool, params.clone(), request.clone())
+                    .await;
+            }
         }
     }
     async fn publish(&self, params: MqttCliCommandParam, args: PublishArgsRequest) {
@@ -410,6 +418,35 @@ impl MqttBrokerCommand {
             }
         }
     }
+
+    // ------------ common -------------
+    async fn set_cluster_config(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: SetClusterConfigRequest,
+    ) {
+        match mqtt_broker_set_cluster_config(client_pool, &grpc_addr(params.server), cli_request)
+            .await
+        {
+            Ok(reply) => {
+                let feature_name = reply.feature_name.as_str();
+                if reply.is_enable {
+                    println!("Enabled successfully! feature name: {}", feature_name);
+                } else {
+                    println!("Disabled successfully! feature name: {}", feature_name);
+                }
+            }
+            Err(e) => {
+                println!(
+                    "MQTT broker enable feature normal exception: {}",
+                    e.to_string()
+                );
+                error_info(e.to_string());
+            }
+        }
+    }
+
     // ------------ cluster status ------------
     async fn status(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
         let request = ClusterStatusRequest {};

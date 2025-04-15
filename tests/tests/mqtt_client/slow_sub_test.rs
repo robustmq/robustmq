@@ -14,15 +14,15 @@
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
+    use common_base::enum_type::feature_type::FeatureType;
     use grpc_clients::mqtt::admin::call::{
-        mqtt_broker_enable_slow_subscribe, mqtt_broker_list_slow_subscribe,
+        mqtt_broker_list_slow_subscribe, mqtt_broker_set_cluster_config,
     };
     use grpc_clients::pool::ClientPool;
     use protocol::broker_mqtt::broker_mqtt_admin::{
-        EnableSlowSubScribeReply, EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
+        ListSlowSubscribeRequest, SetClusterConfigReply, SetClusterConfigRequest,
     };
+    use std::sync::Arc;
 
     use crate::mqtt_protocol::common::broker_grpc_addr;
 
@@ -31,11 +31,17 @@ mod tests {
         let client_pool = Arc::new(ClientPool::new(3));
         let grpc_addr = vec![broker_grpc_addr()];
 
-        let request = EnableSlowSubscribeRequest { is_enable: true };
+        let request = SetClusterConfigRequest {
+            feature_name: FeatureType::SlowSubscribe.to_string(),
+            is_enable: true,
+        };
 
-        let reply = EnableSlowSubScribeReply { is_enable: true };
+        let reply = SetClusterConfigReply {
+            feature_name: FeatureType::SlowSubscribe.to_string(),
+            is_enable: true,
+        };
 
-        match mqtt_broker_enable_slow_subscribe(&client_pool, &grpc_addr, request).await {
+        match mqtt_broker_set_cluster_config(&client_pool, &grpc_addr, request).await {
             Ok(data) => {
                 assert_eq!(reply, data);
             }

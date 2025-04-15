@@ -18,6 +18,7 @@ use crate::admin::acl::{
     create_acl_by_req, create_blacklist_by_req, delete_acl_by_req, delete_blacklist_by_req,
     list_acl_by_req, list_blacklist_by_req,
 };
+use crate::admin::cluster::set_cluster_config_by_req;
 use crate::admin::connector::{
     create_connector_by_req, delete_connector_by_req, list_connector_by_req,
     update_connector_by_req,
@@ -60,6 +61,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     MqttListSchemaReply, MqttListSchemaRequest, MqttUnbindSchemaReply, MqttUnbindSchemaRequest,
     MqttUpdateConnectorReply, MqttUpdateConnectorRequest, MqttUpdateSchemaReply,
     MqttUpdateSchemaRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
+    SetClusterConfigReply, SetClusterConfigRequest,
 };
 use tonic::{Request, Response, Status};
 
@@ -85,6 +87,13 @@ impl GrpcAdminServices {
 
 #[tonic::async_trait]
 impl MqttBrokerAdminService for GrpcAdminServices {
+    async fn mqtt_broker_set_cluster_config(
+        &self,
+        request: Request<SetClusterConfigRequest>,
+    ) -> Result<Response<SetClusterConfigReply>, Status> {
+        set_cluster_config_by_req(&self.cache_manager, request).await
+    }
+
     // --- cluster ---
     async fn cluster_status(
         &self,

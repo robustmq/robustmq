@@ -17,6 +17,7 @@ use clap::builder::{
 };
 use clap::{arg, Parser, ValueEnum};
 use cli_command::mqtt::MqttActionType;
+use common_base::enum_type::feature_type::FeatureType;
 use common_base::enum_type::sort_type::SortType;
 use core::option::Option::Some;
 use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -25,6 +26,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteTopicRewriteRuleRequest, DeleteUserRequest, ListAutoSubscribeRuleRequest,
     ListTopicRequest, MqttCreateConnectorRequest, MqttDeleteConnectorRequest,
     MqttListConnectorRequest, MqttUpdateConnectorRequest, SetAutoSubscribeRuleRequest,
+    SetClusterConfigRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
@@ -465,7 +467,8 @@ pub fn process_slow_sub_args(args: SlowSubArgs) -> MqttActionType {
             })
         }
     } else {
-        MqttActionType::EnableSlowSubscribe(EnableSlowSubscribeRequest {
+        MqttActionType::SetClusterConfig(SetClusterConfigRequest {
+            feature_name: FeatureType::SlowSubscribe.to_string(),
             is_enable: args.is_enable.unwrap(),
         })
     }

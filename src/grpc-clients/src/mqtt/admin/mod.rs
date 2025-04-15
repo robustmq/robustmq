@@ -21,7 +21,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttDeleteConnectorReply,
     MqttDeleteConnectorRequest, MqttListConnectorReply, MqttListConnectorRequest,
     MqttUpdateConnectorReply, MqttUpdateConnectorRequest, SetAutoSubscribeRuleReply,
-    SetAutoSubscribeRuleRequest,
+    SetAutoSubscribeRuleRequest, SetClusterConfigReply, SetClusterConfigRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
@@ -60,23 +60,27 @@ impl Manager for MqttBrokerAdminServiceManager {
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
         match MqttBrokerAdminServiceClient::connect(format!("http://{}", self.addr.clone())).await {
-            Ok(client) => {
-                return Ok(client);
-            }
-            Err(err) => {
-                return Err(CommonError::CommonError(format!(
-                    "{},{}",
-                    err,
-                    self.addr.clone()
-                )))
-            }
-        };
+            Ok(client) => Ok(client),
+            Err(err) => Err(CommonError::CommonError(format!(
+                "{},{}",
+                err,
+                self.addr.clone()
+            ))),
+        }
     }
 
     async fn check(&self, conn: Self::Connection) -> Result<Self::Connection, Self::Error> {
         Ok(conn)
     }
 }
+
+impl_retriable_request!(
+    SetClusterConfigRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    SetClusterConfigReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_set_cluster_config
+);
 
 impl_retriable_request!(
     ClusterStatusRequest,

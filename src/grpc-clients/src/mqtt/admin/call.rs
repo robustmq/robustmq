@@ -32,6 +32,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     MqttListSchemaReply, MqttListSchemaRequest, MqttUnbindSchemaReply, MqttUnbindSchemaRequest,
     MqttUpdateConnectorReply, MqttUpdateConnectorRequest, MqttUpdateSchemaReply,
     MqttUpdateSchemaRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
+    SetClusterConfigReply, SetClusterConfigRequest,
 };
 
 use crate::pool::ClientPool;
@@ -47,6 +48,14 @@ macro_rules! generate_mqtt_admin_service_call {
         }
     };
 }
+
+// --- common ------
+generate_mqtt_admin_service_call!(
+    mqtt_broker_set_cluster_config,
+    SetClusterConfigRequest,
+    SetClusterConfigReply,
+    SetClusterConfig
+);
 
 // ---- cluster ------
 generate_mqtt_admin_service_call!(
