@@ -30,7 +30,6 @@ pub struct ClientTestProperties {
 }
 
 pub mod acl_test;
-pub mod auth_test;
 pub mod common;
 pub mod connect5_test;
 pub mod connect_packet_size_test;
@@ -41,6 +40,7 @@ pub mod lastwill_message_test;
 pub mod qos_test;
 pub mod req_resp_test;
 pub mod retain_message_test;
+pub mod user_test;
 // pub mod share_sub_test;
 pub mod blacklist_test;
 pub mod sub_exclusive_test;

@@ -355,6 +355,7 @@ impl PlacementCenterService for GrpcPlacementService {
         let _ = req
             .validate()
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
+
         let offset_storage = OffsetStorage::new(self.rocksdb_engine_handler.clone());
         let offset_data = match offset_storage.group_offset(&req.cluster_name, &req.group) {
             Ok(data) => data,
