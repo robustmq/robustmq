@@ -79,7 +79,6 @@ where
     };
     Ok(offset)
 }
-
 pub async fn enable_offline_message(
     cache_manager: &Arc<CacheManager>,
     is_enable: bool,

@@ -438,10 +438,7 @@ impl MqttBrokerCommand {
                 }
             }
             Err(e) => {
-                println!(
-                    "MQTT broker enable feature normal exception: {}",
-                    e.to_string()
-                );
+                println!("MQTT broker enable feature normal exception: {}", e);
                 error_info(e.to_string());
             }
         }
