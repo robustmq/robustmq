@@ -21,7 +21,6 @@ use std::str::FromStr;
 #[derive(Debug, Clone, Copy)]
 pub enum FeatureType {
     SlowSubscribe,
-    TopicRewrite,
     OfflineMessage,
 }
 
@@ -48,13 +47,12 @@ impl fmt::Display for FeatureType {
 }
 impl ValueEnum for FeatureType {
     fn value_variants<'a>() -> &'a [Self] {
-        &[Self::SlowSubscribe, Self::TopicRewrite]
+        &[Self::SlowSubscribe, Self::OfflineMessage]
     }
 
     fn to_possible_value(&self) -> Option<PossibleValue> {
         Some(match self {
             FeatureType::SlowSubscribe => PossibleValue::new("SlowSubscribe"),
-            FeatureType::TopicRewrite => PossibleValue::new("TopicRewrite"),
             FeatureType::OfflineMessage => PossibleValue::new("OfflineMessage"),
         })
     }

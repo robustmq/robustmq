@@ -79,3 +79,18 @@ where
     };
     Ok(offset)
 }
+
+pub async fn enable_offline_message(
+    cache_manager: &Arc<CacheManager>,
+    is_enable: bool,
+) -> Result<(), MqttBrokerError> {
+    let mut cluster_dynamic_offline_message = cache_manager.get_offline_message_config().clone();
+
+    cluster_dynamic_offline_message.enable = is_enable;
+
+    cache_manager
+        .set_offline_message_config(cluster_dynamic_offline_message)
+        .await?;
+
+    Ok(())
+}

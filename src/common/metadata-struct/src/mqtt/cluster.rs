@@ -121,6 +121,12 @@ pub struct MqttClusterDynamicOfflineMessage {
     pub enable: bool,
 }
 
+impl MqttClusterDynamicOfflineMessage {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
+    }
+}
+
 impl MqttClusterDynamicConfig {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()

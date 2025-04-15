@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
+use crate::handler::offline_message::enable_offline_message;
 use crate::observability::slow::sub::enable_slow_sub;
 use common_base::enum_type::feature_type::FeatureType;
 use protocol::broker_mqtt::broker_mqtt_admin::{SetClusterConfigReply, SetClusterConfigRequest};
@@ -26,9 +27,6 @@ pub async fn set_cluster_config_by_req(
 ) -> Result<Response<SetClusterConfigReply>, Status> {
     let cluster_config_request = request.into_inner();
     match FeatureType::from_str(cluster_config_request.feature_name.as_str()) {
-        Ok(FeatureType::TopicRewrite) => {
-            todo!()
-        }
         Ok(FeatureType::SlowSubscribe) => {
             match enable_slow_sub(cache_manager, cluster_config_request.is_enable).await {
                 Ok(_) => Ok(Response::new(SetClusterConfigReply {
@@ -39,7 +37,13 @@ pub async fn set_cluster_config_by_req(
             }
         }
         Ok(FeatureType::OfflineMessage) => {
-            todo!()
+            match enable_offline_message(cache_manager, cluster_config_request.is_enable).await {
+                Ok(_) => Ok(Response::new(SetClusterConfigReply {
+                    feature_name: cluster_config_request.feature_name,
+                    is_enable: cluster_config_request.is_enable,
+                })),
+                Err(e) => Err(Status::cancelled(e.to_string())),
+            }
         }
         Err(e) => Err(Status::invalid_argument(format!("Invalid feature : {}", e))),
     }
