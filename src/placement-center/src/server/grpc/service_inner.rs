@@ -339,26 +339,24 @@ impl PlacementCenterService for GrpcPlacementService {
     ) -> Result<Response<GetOffsetDataReply>, Status> {
         let req = request.into_inner();
 
-        let _ = req
-            .validate()
+        req.validate()
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
         let offset_storage = OffsetStorage::new(self.rocksdb_engine_handler.clone());
-        let offset_data = match offset_storage.group_offset(&req.cluster_name, &req.group) {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        };
-        let mut results = Vec::new();
-        for raw in offset_data {
-            results.push(GetOffsetDataReplyOffset {
-                namespace: raw.namespace,
-                shard_name: raw.shard_name,
-                offset: raw.offset,
-            });
-        }
-        return Ok(Response::new(GetOffsetDataReply { offsets: results }));
+        let offset_data = offset_storage
+            .group_offset(&req.cluster_name, &req.group)
+            .map_err(|e| Status::cancelled(e.to_string()))?;
+
+        return Ok(Response::new(GetOffsetDataReply {
+            offsets: offset_data
+                .into_iter()
+                .map(|offset| GetOffsetDataReplyOffset {
+                    namespace: offset.namespace,
+                    shard_name: offset.shard_name,
+                    offset: offset.offset,
+                })
+                .collect(),
+        }));
     }
 
     async fn list_schema(
