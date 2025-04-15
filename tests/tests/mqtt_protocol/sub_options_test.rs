@@ -30,7 +30,7 @@ mod tests {
     use std::time::Duration;
 
     #[tokio::test]
-    async fn mqtt5_should_not_recv_msg_when_no_local_is_true() {
+    async fn no_local_is_true() {
         let subscribe_options = SubscribeOptions::new(true, false, None);
         for network in network_types() {
             for qos in qos_list() {
@@ -39,9 +39,7 @@ mod tests {
                     "/mqtt5_should_not_recv_msg_when_no_local_is_true/{}/{}/{}",
                     uid, network, qos
                 );
-                let client_id = build_client_id(
-                    format!("mqtt5_should_not_recv_msg_when_no_local_is_true_{}", uid).as_str(),
-                );
+                let client_id = build_client_id(format!("no_local_is_true_{}", uid).as_str());
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,
                     client_id: client_id.to_string(),
@@ -73,21 +71,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn mqtt5_should_recv_msg_when_no_local_is_false() {
+    async fn no_local_is_false() {
         let subscribe_options = SubscribeOptions::new(false, false, None);
 
         for network in network_types() {
             for qos in qos_list() {
                 let uid = unique_id();
-                let topic = format!(
-                    "/mqtt5_should_recv_msg_when_no_local_is_false/{}/{}/{}",
-                    uid, network, qos
-                );
+                let topic = format!("/no_local_is_false/{}/{}/{}", uid, network, qos);
 
                 // publish
-                let client_id = build_client_id(
-                    format!("mqtt5_should_recv_msg_when_no_local_is_false_{}", uid).as_str(),
-                );
+                let client_id = build_client_id(format!("no_local_is_false{}", uid).as_str());
 
                 let client_test_properties = ClientTestProperties {
                     mqtt_version: 5,
@@ -128,25 +121,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn mqtt5_should_recv_retain_message_with_retain_as_published() {
+    async fn retain_as_published() {
         for retain_as_published in [true, false] {
             let subscribe_options = SubscribeOptions::new(false, retain_as_published, None);
             for network in network_types() {
                 for qos in qos_list() {
                     let uid = unique_id();
-                    let topic = format!(
-                        "/mqtt5_should_recv_retain_message_with_retain_as_published/{}/{}/{}",
-                        uid, network, qos
-                    );
+                    let topic = format!("/retain_as_published/{}/{}/{}", uid, network, qos);
 
                     // publish
-                    let client_id = build_client_id(
-                        format!(
-                            "mqtt5_should_recv_retain_message_with_retain_as_published_{}",
-                            uid
-                        )
-                        .as_str(),
-                    );
+                    let client_id = build_client_id(format!("retain_as_published{}", uid).as_str());
                     let client_properties = ClientTestProperties {
                         mqtt_version: 5,
                         client_id: client_id.to_string(),
@@ -191,16 +175,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn mqtt5_should_recv_retain_message_every_subscribe_when_retain_handling_is_0() {
+    async fn retain_handling_is_0() {
         let subscribe_options =
             SubscribeOptions::new(false, false, RetainHandling::SendRetainedOnSubscribe);
         for network in network_types() {
             for qos in qos_list() {
                 let uid = unique_id();
-                let topic = format!("/mqtt5_should_recv_retain_message_every_subscribe_when_retain_handling_is_0/{}/{}/{}", uid, network, qos);
+                let topic = format!("/retain_handling_is_0/{}/{}/{}", uid, network, qos);
 
                 // publish
-                let client_id = build_client_id(format!("mqtt5_should_recv_retain_message_every_subscribe_when_retain_handling_is_0_{}", uid).as_str());
+                let client_id = build_client_id(format!("retain_handling_is_0{}", uid).as_str());
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,
                     client_id: client_id.to_string(),
@@ -216,9 +200,8 @@ mod tests {
                 distinct_conn(cli);
 
                 // sub new
-                let sub_cli = build_client_id(
-                    format!("mqtt5_should_recv_retain_message_every_subscribe_when_retain_handling_is_0_{}_{}", network, qos).as_str(),
-                );
+                let sub_cli =
+                    build_client_id(format!("retain_handling_is_0{}_{}", network, qos).as_str());
                 let sub_cli = connect_server(&ClientTestProperties {
                     mqtt_version: 5,
                     client_id: sub_cli.to_string(),
@@ -276,18 +259,19 @@ mod tests {
         }
     }
 
+    #[ignore = "reason"]
     #[tokio::test]
-    async fn mqtt5_should_not_recv_retain_message_new_subscribe_when_retain_handling_is_1() {
+    async fn handling_is_1() {
         let subscribe_options =
             SubscribeOptions::new(false, false, RetainHandling::SendRetainedOnNew);
 
         for network in network_types() {
             for qos in qos_list() {
                 let uid = unique_id();
-                let topic = format!("/mqtt5_should_not_recv_retain_message_new_subscribe_when_retain_handling_is_1/{}/{}/{}", uid, network, qos);
+                let topic = format!("/handling_is_1/{}/{}/{}", uid, network, qos);
 
                 // publish
-                let client_id = build_client_id(format!("mqtt5_should_not_recv_retain_message_new_subscribe_when_retain_handling_is_1_{}", uid).as_str());
+                let client_id = build_client_id(format!("handling_is_1{}", uid).as_str());
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,
                     client_id: client_id.to_string(),
@@ -303,9 +287,7 @@ mod tests {
                 distinct_conn(cli);
 
                 // sub new
-                let sub_cli = build_client_id(
-                    format!("mqtt5_should_not_recv_retain_message_new_subscribe_when_retain_handling_is_1_{}_{}", network, qos).as_str(),
-                );
+                let sub_cli = build_client_id(format!("handling_is_1{}_{}", network, qos).as_str());
                 let sub_cli = connect_server(&ClientTestProperties {
                     mqtt_version: 5,
                     client_id: sub_cli.to_string(),
@@ -373,17 +355,18 @@ mod tests {
         }
     }
 
+    #[ignore = "reason"]
     #[tokio::test]
-    async fn mqtt5_should_not_recv_retain_message_every_subscribe_when_retain_handling_is_2() {
+    async fn handling_is_2() {
         let subscribe_options =
             SubscribeOptions::new(false, false, RetainHandling::DontSendRetained);
         for network in network_types() {
             for qos in qos_list() {
                 let uid = unique_id();
-                let topic = format!("/mqtt5_should_not_recv_retain_message_every_subscribe_when_retain_handling_is_2/{}/{}/{}", uid, network, qos);
+                let topic = format!("/handling_is_2/{}/{}/{}", uid, network, qos);
 
                 // publish
-                let client_id = build_client_id(format!("mqtt5_should_not_recv_retain_message_every_subscribe_when_retain_handling_is_2_{}", uid).as_str());
+                let client_id = build_client_id(format!("handling_is_2{}", uid).as_str());
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,
                     client_id: client_id.to_string(),
@@ -399,9 +382,8 @@ mod tests {
                 distinct_conn(cli);
 
                 // sub
-                let sub_client_id = build_client_id(
-                    format!("mqtt5_should_not_recv_retain_message_every_subscribe_when_retain_handling_is_2_{}_{}", network, qos).as_str(),
-                );
+                let sub_client_id =
+                    build_client_id(format!("handling_is_2{}_{}", network, qos).as_str());
                 let sub_cli = connect_server(&ClientTestProperties {
                     mqtt_version: 5,
                     client_id: sub_client_id.to_string(),

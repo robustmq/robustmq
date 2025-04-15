@@ -15,7 +15,7 @@
 use std::time::Duration;
 
 use crate::mqtt_protocol::ClientTestProperties;
-use common_base::tools::unique_id;
+use common_base::tools::{now_nanos, unique_id};
 use paho_mqtt::{
     Client, ConnectOptions, ConnectOptionsBuilder, CreateOptions, CreateOptionsBuilder,
     DisconnectOptionsBuilder, Message, Properties, PropertyCode, ReasonCode, SslOptionsBuilder,
@@ -176,7 +176,7 @@ pub fn subscribe_data_with_options<S, T, P, F>(
 }
 
 pub fn build_client_id(name: &str) -> String {
-    format!("{}_{}", name, unique_id())
+    format!("{}_{}_{}", name, unique_id(), now_nanos())
 }
 
 pub fn broker_addr() -> String {

@@ -45,7 +45,7 @@ impl MqttUserStorage {
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, user)
     }
 
-    pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttUser>, CommonError> {
+    pub fn list_by_cluster(&self, cluster_name: &str) -> Result<Vec<MqttUser>, CommonError> {
         let prefix_key = storage_key_mqtt_user_cluster_prefix(cluster_name);
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
@@ -107,7 +107,7 @@ mod tests {
         };
         user_storage.save(&cluster_name, &username, user).unwrap();
 
-        let res = user_storage.list(&cluster_name).unwrap();
+        let res = user_storage.list_by_cluster(&cluster_name).unwrap();
         assert_eq!(res.len(), 2);
 
         let res = user_storage.get(&cluster_name, "lobo1").unwrap();

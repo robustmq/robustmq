@@ -276,14 +276,13 @@ pub async fn wait_pub_ack(
                 }
             }
             Ok(None) => {}
-            Err(e) => {
+            Err(_) => {
                 publish_message_qos(metadata_cache, connection_manager, sub_pub_param, stop_sx)
                     .await;
                 return Err(MqttBrokerError::CommonError(
                     format!(
-                        "Push QOS1 Publish message to client {}, wait PubAck timeout, more than 30s, error message :{:?}",
-                        sub_pub_param.subscribe.client_id,
-                        e
+                        "Push QOS1 Publish message to client {}, wait PubAck timeout, more than 30s, error message",
+                        sub_pub_param.subscribe.client_id
                     )
                 ));
             }

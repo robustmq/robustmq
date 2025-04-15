@@ -14,6 +14,21 @@
 
 use std::sync::Arc;
 
+use crate::core::cache::PlacementCacheManager;
+use crate::core::cluster::{register_node_by_req, un_register_node_by_req};
+use crate::core::error::PlacementCenterError;
+use crate::core::schema::{
+    bind_schema_req, create_schema_req, delete_schema_req, list_bind_schema_req, list_schema_req,
+    un_bind_schema_req, update_schema_req,
+};
+use crate::journal::controller::call_node::JournalInnerCallManager;
+use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
+use crate::route::apply::RaftMachineApply;
+use crate::route::data::{StorageData, StorageDataType};
+use crate::storage::placement::config::ResourceConfigStorage;
+use crate::storage::placement::idempotent::IdempotentStorage;
+use crate::storage::placement::offset::OffsetStorage;
+use crate::storage::rocksdb::RocksDBEngine;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
@@ -35,23 +50,6 @@ use protocol::placement_center::placement_center_inner::{
 };
 use tonic::{Request, Response, Status};
 use tracing::{debug, info};
-
-use super::validate::ValidateExt;
-use crate::core::cache::PlacementCacheManager;
-use crate::core::cluster::{register_node_by_req, un_register_node_by_req};
-use crate::core::error::PlacementCenterError;
-use crate::core::schema::{
-    bind_schema_req, create_schema_req, delete_schema_req, list_bind_schema_req, list_schema_req,
-    un_bind_schema_req, update_schema_req,
-};
-use crate::journal::controller::call_node::JournalInnerCallManager;
-use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
-use crate::route::apply::RaftMachineApply;
-use crate::route::data::{StorageData, StorageDataType};
-use crate::storage::placement::config::ResourceConfigStorage;
-use crate::storage::placement::idempotent::IdempotentStorage;
-use crate::storage::placement::offset::OffsetStorage;
-use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct GrpcPlacementService {
     raft_machine_apply: Arc<RaftMachineApply>,
@@ -113,8 +111,6 @@ impl PlacementCenterService for GrpcPlacementService {
     ) -> Result<Response<NodeListReply>, Status> {
         let req = request.into_inner();
 
-        let _ = req.validate_ext()?;
-
         let mut nodes = Vec::new();
 
         for raw in self
@@ -132,8 +128,6 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<RegisterNodeRequest>,
     ) -> Result<Response<RegisterNodeReply>, Status> {
         let req = request.into_inner();
-
-        let _ = req.validate_ext()?;
 
         info!("register node:{:?}", req);
         match register_node_by_req(
@@ -157,7 +151,6 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<UnRegisterNodeRequest>,
     ) -> Result<Response<UnRegisterNodeReply>, Status> {
         let req = request.into_inner();
-        let _ = req.validate_ext()?;
 
         info!("un register node:{:?}", req);
         match un_register_node_by_req(
@@ -214,7 +207,6 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<SetResourceConfigRequest>,
     ) -> Result<Response<SetResourceConfigReply>, Status> {
         let req = request.into_inner();
-        let _ = req.validate_ext()?;
 
         let data = StorageData::new(
             StorageDataType::ResourceConfigSet,
@@ -234,7 +226,6 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<GetResourceConfigRequest>,
     ) -> Result<Response<GetResourceConfigReply>, Status> {
         let req = request.into_inner();
-        let _ = req.validate_ext()?;
 
         let storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
         match storage.get(req.cluster_name, req.resources) {
@@ -257,8 +248,6 @@ impl PlacementCenterService for GrpcPlacementService {
     ) -> Result<Response<DeleteResourceConfigReply>, Status> {
         let req = request.into_inner();
 
-        let _ = req.validate_ext()?;
-
         let data = StorageData::new(
             StorageDataType::ResourceConfigDelete,
             DeleteResourceConfigRequest::encode_to_vec(&req),
@@ -277,7 +266,6 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<SetIdempotentDataRequest>,
     ) -> Result<Response<SetIdempotentDataReply>, Status> {
         let req = request.into_inner();
-        let _ = req.validate_ext()?;
         let data = StorageData::new(
             StorageDataType::IdempotentDataSet,
             SetIdempotentDataRequest::encode_to_vec(&req),
@@ -297,8 +285,6 @@ impl PlacementCenterService for GrpcPlacementService {
     ) -> Result<Response<ExistsIdempotentDataReply>, Status> {
         let req = request.into_inner();
 
-        let _ = req.validate_ext()?;
-
         let storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
         match storage.exists(&req.cluster_name, &req.producer_id, req.seq_num) {
             Ok(flag) => {
@@ -315,7 +301,7 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<DeleteIdempotentDataRequest>,
     ) -> Result<Response<DeleteIdempotentDataReply>, Status> {
         let req = request.into_inner();
-        let _ = req.validate_ext()?;
+
         let data = StorageData::new(
             StorageDataType::IdempotentDataDelete,
             DeleteIdempotentDataRequest::encode_to_vec(&req),
@@ -352,25 +338,25 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<GetOffsetDataRequest>,
     ) -> Result<Response<GetOffsetDataReply>, Status> {
         let req = request.into_inner();
-        let _ = req
-            .validate()
+
+        req.validate()
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
+
         let offset_storage = OffsetStorage::new(self.rocksdb_engine_handler.clone());
-        let offset_data = match offset_storage.group_offset(&req.cluster_name, &req.group) {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        };
-        let mut results = Vec::new();
-        for raw in offset_data {
-            results.push(GetOffsetDataReplyOffset {
-                namespace: raw.namespace,
-                shard_name: raw.shard_name,
-                offset: raw.offset,
-            });
-        }
-        return Ok(Response::new(GetOffsetDataReply { offsets: results }));
+        let offset_data = offset_storage
+            .group_offset(&req.cluster_name, &req.group)
+            .map_err(|e| Status::cancelled(e.to_string()))?;
+
+        return Ok(Response::new(GetOffsetDataReply {
+            offsets: offset_data
+                .into_iter()
+                .map(|offset| GetOffsetDataReplyOffset {
+                    namespace: offset.namespace,
+                    shard_name: offset.shard_name,
+                    offset: offset.offset,
+                })
+                .collect(),
+        }));
     }
 
     async fn list_schema(
