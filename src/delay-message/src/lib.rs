@@ -112,7 +112,7 @@ where
             "send delay message to shard:{}, {},offset:{}",
             namespace, shard_name, offset
         );
-        
+
         let delay_message_record = DelayMessageRecord {
             shard_name,
             offset,

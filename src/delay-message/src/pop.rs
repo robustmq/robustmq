@@ -56,8 +56,11 @@ async fn send_delay_message_to_shard<S>(
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let mut times = 0;
-    info!("send_delay_message_to_shard start,namespace:{},shard_name:{},offset:{}", namespace, shard_name, offset);
-    
+    info!(
+        "send_delay_message_to_shard start,namespace:{},shard_name:{},offset:{}",
+        namespace, shard_name, offset
+    );
+
     loop {
         if times > 1000 {
             error!("send_delay_message_to_shard failed, times: {},namespace:{},shard_name:{},offset:{}", times, namespace, shard_name, offset);
