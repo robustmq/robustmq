@@ -66,6 +66,7 @@ where
                     topic.topic_name.clone(),
                 ));
             }
+            
             delay_message_manager.send_delay_message(record).await?;
             return Ok(None);
         } else {

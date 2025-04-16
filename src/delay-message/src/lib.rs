@@ -106,9 +106,13 @@ where
         let shard_name = self.get_delay_message_shard_name(shard_no);
         let offset = self
             .message_storage_adapter
-            .write(namespace, shard_name.clone(), data.clone())
+            .write(namespace.clone(), shard_name.clone(), data.clone())
             .await?;
-
+        info!(
+            "send delay message to shard:{}, {},offset:{}",
+            namespace, shard_name, offset
+        );
+        
         let delay_message_record = DelayMessageRecord {
             shard_name,
             offset,

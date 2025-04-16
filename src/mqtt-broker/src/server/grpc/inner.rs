@@ -78,7 +78,8 @@ where
         }
         info!(
             "update cache, resource_type:{:?},action_type:{:?}",
-            req.resource_type(), req.action_type()
+            req.resource_type(),
+            req.action_type()
         );
         update_cache_metadata(
             &self.cache_manager,

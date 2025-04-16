@@ -19,7 +19,7 @@ use common_base::error::common::CommonError;
 use futures::StreamExt;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
 use storage_adapter::storage::StorageAdapter;
-use tracing::error;
+use tracing::{error, info};
 
 pub async fn pop_delay_queue<S>(
     namespace: &str,
@@ -56,6 +56,8 @@ async fn send_delay_message_to_shard<S>(
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let mut times = 0;
+    info!("send_delay_message_to_shard start,namespace:{},shard_name:{},offset:{}", namespace, shard_name, offset);
+    
     loop {
         if times > 1000 {
             error!("send_delay_message_to_shard failed, times: {},namespace:{},shard_name:{},offset:{}", times, namespace, shard_name, offset);
@@ -75,10 +77,11 @@ async fn send_delay_message_to_shard<S>(
             };
 
         match message_storage_adapter
-            .write(namespace.to_owned(), shard_name.to_owned(), record)
+            .write(namespace.to_owned(), shard_name.to_owned(), record.clone())
             .await
         {
-            Ok(_) => {
+            Ok(id) => {
+                info!("Delay message: message was written to {:?} successfully, offset: {:?}, delay time: {}",shard_name,id, record.delay_timestamp);
                 break;
             }
             Err(e) => {
