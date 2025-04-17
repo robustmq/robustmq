@@ -20,6 +20,7 @@ use cli_command::mqtt::MqttActionType;
 use common_base::enum_type::feature_type::FeatureType;
 use common_base::enum_type::sort_type::SortType;
 use core::option::Option::Some;
+use protocol::broker_mqtt::broker_mqtt_admin::ListSlowSubscribeRequest;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateAclRequest, CreateBlacklistRequest, CreateTopicRewriteRuleRequest, CreateUserRequest,
     DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest,
@@ -27,9 +28,6 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     ListTopicRequest, MqttCreateConnectorRequest, MqttDeleteConnectorRequest,
     MqttListConnectorRequest, MqttUpdateConnectorRequest, SetAutoSubscribeRuleRequest,
     SetClusterConfigRequest,
-};
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    EnableSlowSubscribeRequest, ListSlowSubscribeRequest,
 };
 
 // security: user feat
@@ -670,7 +668,10 @@ mod tests {
 
         let action_type = process_slow_sub_args(args);
         assert_eq!(
-            MqttActionType::EnableSlowSubscribe(EnableSlowSubscribeRequest { is_enable: true }),
+            MqttActionType::SetClusterConfig(SetClusterConfigRequest {
+                feature_name: FeatureType::SlowSubscribe.to_string(),
+                is_enable: true,
+            }),
             action_type
         )
     }
