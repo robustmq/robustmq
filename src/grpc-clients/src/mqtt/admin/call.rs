@@ -20,11 +20,10 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
     DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
     DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
-    EnableFlappingDetectRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
-    ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
-    ListBlacklistReply, ListBlacklistRequest, ListConnectionReply, ListConnectionRequest,
-    ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest,
-    ListUserReply, ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest,
+    EnableFlappingDetectRequest, ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply,
+    ListAutoSubscribeRuleRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
+    ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
+    ListTopicRequest, ListUserReply, ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest,
     MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttCreateSchemaReply,
     MqttCreateSchemaRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
     MqttDeleteSchemaReply, MqttDeleteSchemaRequest, MqttListBindSchemaReply,
@@ -142,12 +141,6 @@ generate_mqtt_admin_service_call!(
 
 // --------- observability --------
 // --------- slow subscribe features ------
-generate_mqtt_admin_service_call!(
-    mqtt_broker_enable_slow_subscribe,
-    EnableSlowSubscribeRequest,
-    EnableSlowSubScribeReply,
-    EnableSlowSubscribe
-);
 
 generate_mqtt_admin_service_call!(
     mqtt_broker_list_slow_subscribe,

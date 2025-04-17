@@ -35,8 +35,8 @@ use crate::admin::topic::{
 };
 use crate::admin::user::{create_user_by_req, delete_user_by_req, list_user_by_req};
 use crate::admin::{
-    cluster_status_by_req, enable_flapping_detect_by_req, enable_slow_subscribe_by_req,
-    list_connection_by_req, list_slow_subscribe_by_req,
+    cluster_status_by_req, enable_flapping_detect_by_req, list_connection_by_req,
+    list_slow_subscribe_by_req,
 };
 use crate::handler::cache::CacheManager;
 use crate::server::connection_manager::ConnectionManager;
@@ -49,11 +49,10 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
     DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
     DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
-    EnableFlappingDetectRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
-    ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
-    ListBlacklistReply, ListBlacklistRequest, ListConnectionReply, ListConnectionRequest,
-    ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest,
-    ListUserReply, ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest,
+    EnableFlappingDetectRequest, ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply,
+    ListAutoSubscribeRuleRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
+    ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
+    ListTopicRequest, ListUserReply, ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest,
     MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttCreateSchemaReply,
     MqttCreateSchemaRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
     MqttDeleteSchemaReply, MqttDeleteSchemaRequest, MqttListBindSchemaReply,
@@ -182,13 +181,6 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         _: Request<ListConnectionRequest>,
     ) -> Result<Response<ListConnectionReply>, Status> {
         list_connection_by_req(&self.connection_manager, &self.cache_manager)
-    }
-
-    async fn mqtt_broker_enable_slow_subscribe(
-        &self,
-        request: Request<EnableSlowSubscribeRequest>,
-    ) -> Result<Response<EnableSlowSubScribeReply>, Status> {
-        enable_slow_subscribe_by_req(&self.cache_manager, request).await
     }
 
     async fn mqtt_broker_list_slow_subscribe(

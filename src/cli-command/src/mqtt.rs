@@ -22,12 +22,12 @@ use grpc_clients::mqtt::admin::call::{
     mqtt_broker_create_topic_rewrite_rule, mqtt_broker_create_user, mqtt_broker_delete_acl,
     mqtt_broker_delete_auto_subscribe_rule, mqtt_broker_delete_blacklist,
     mqtt_broker_delete_connector, mqtt_broker_delete_schema, mqtt_broker_delete_topic_rewrite_rule,
-    mqtt_broker_delete_user, mqtt_broker_enable_flapping_detect, mqtt_broker_enable_slow_subscribe,
-    mqtt_broker_list_acl, mqtt_broker_list_auto_subscribe_rule, mqtt_broker_list_bind_schema,
-    mqtt_broker_list_blacklist, mqtt_broker_list_connection, mqtt_broker_list_connector,
-    mqtt_broker_list_schema, mqtt_broker_list_slow_subscribe, mqtt_broker_list_topic,
-    mqtt_broker_list_user, mqtt_broker_set_auto_subscribe_rule, mqtt_broker_set_cluster_config,
-    mqtt_broker_unbind_schema, mqtt_broker_update_connector, mqtt_broker_update_schema,
+    mqtt_broker_delete_user, mqtt_broker_enable_flapping_detect, mqtt_broker_list_acl,
+    mqtt_broker_list_auto_subscribe_rule, mqtt_broker_list_bind_schema, mqtt_broker_list_blacklist,
+    mqtt_broker_list_connection, mqtt_broker_list_connector, mqtt_broker_list_schema,
+    mqtt_broker_list_slow_subscribe, mqtt_broker_list_topic, mqtt_broker_list_user,
+    mqtt_broker_set_auto_subscribe_rule, mqtt_broker_set_cluster_config, mqtt_broker_unbind_schema,
+    mqtt_broker_update_connector, mqtt_broker_update_schema,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -39,14 +39,13 @@ use prettytable::{row, Table};
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusRequest, CreateAclRequest, CreateBlacklistRequest, CreateTopicRewriteRuleRequest,
     CreateUserRequest, DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest,
-    DeleteTopicRewriteRuleRequest, DeleteUserRequest, EnableFlappingDetectRequest,
-    EnableSlowSubscribeRequest, ListAclRequest, ListAutoSubscribeRuleRequest, ListBlacklistRequest,
-    ListConnectionRequest, ListSlowSubscribeRequest, ListTopicRequest, ListUserRequest,
-    MqttBindSchemaRequest, MqttCreateConnectorRequest, MqttCreateSchemaRequest,
-    MqttDeleteConnectorRequest, MqttDeleteSchemaRequest, MqttListBindSchemaRequest,
-    MqttListConnectorRequest, MqttListSchemaRequest, MqttUnbindSchemaRequest,
-    MqttUpdateConnectorRequest, MqttUpdateSchemaRequest, SetAutoSubscribeRuleRequest,
-    SetClusterConfigRequest,
+    DeleteTopicRewriteRuleRequest, DeleteUserRequest, EnableFlappingDetectRequest, ListAclRequest,
+    ListAutoSubscribeRuleRequest, ListBlacklistRequest, ListConnectionRequest,
+    ListSlowSubscribeRequest, ListTopicRequest, ListUserRequest, MqttBindSchemaRequest,
+    MqttCreateConnectorRequest, MqttCreateSchemaRequest, MqttDeleteConnectorRequest,
+    MqttDeleteSchemaRequest, MqttListBindSchemaRequest, MqttListConnectorRequest,
+    MqttListSchemaRequest, MqttUnbindSchemaRequest, MqttUpdateConnectorRequest,
+    MqttUpdateSchemaRequest, SetAutoSubscribeRuleRequest, SetClusterConfigRequest,
 };
 use std::str::FromStr;
 use std::sync::Arc;
@@ -89,7 +88,6 @@ pub enum MqttActionType {
     ListConnection,
 
     // observability: slow-sub
-    EnableSlowSubscribe(EnableSlowSubscribeRequest),
     ListSlowSubscribe(ListSlowSubscribeRequest),
 
     // flapping detect
@@ -212,10 +210,6 @@ impl MqttBrokerCommand {
             }
             MqttActionType::DeleteTopicRewriteRule(ref request) => {
                 self.delete_topic_rewrite_rule(&client_pool, params.clone(), request.clone())
-                    .await;
-            }
-            MqttActionType::EnableSlowSubscribe(ref request) => {
-                self.enable_slow_subscribe(&client_pool, params.clone(), *request)
                     .await;
             }
             MqttActionType::ListTopic(ref request) => {
@@ -728,29 +722,6 @@ impl MqttBrokerCommand {
 
     // ---------------- observability ----------------
     // ------------ slow subscribe features ----------
-    async fn enable_slow_subscribe(
-        &self,
-        client_pool: &ClientPool,
-        params: MqttCliCommandParam,
-        cli_request: EnableSlowSubscribeRequest,
-    ) {
-        match mqtt_broker_enable_slow_subscribe(client_pool, &grpc_addr(params.server), cli_request)
-            .await
-        {
-            Ok(reply) => {
-                if reply.is_enable {
-                    println!("The slow subscription feature has been successfully enabled.");
-                } else {
-                    println!("The slow subscription feature has been successfully closed.");
-                }
-            }
-
-            Err(e) => {
-                println!("The slow subscription feature failed to enable, with the specific reason being:");
-                error_info(e.to_string());
-            }
-        }
-    }
 
     async fn list_slow_subscribe(
         &self,

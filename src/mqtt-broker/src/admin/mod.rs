@@ -30,9 +30,8 @@ use common_base::tools::serialize_value;
 use common_base::utils::file_utils::get_project_root;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusReply, EnableFlappingDetectReply, EnableFlappingDetectRequest,
-    EnableSlowSubScribeReply, EnableSlowSubscribeRequest, ListConnectionRaw, ListConnectionReply,
-    ListSlowSubScribeRaw, ListSlowSubscribeReply, ListSlowSubscribeRequest,
+    ClusterStatusReply, EnableFlappingDetectReply, EnableFlappingDetectRequest, ListConnectionRaw,
+    ListConnectionReply, ListSlowSubScribeRaw, ListSlowSubscribeReply, ListSlowSubscribeRequest,
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
@@ -92,20 +91,6 @@ pub fn list_connection_by_req(
     }
     reply.list_connection_raw = list_connection_raw;
     Ok(Response::new(reply))
-}
-
-pub async fn enable_slow_subscribe_by_req(
-    cache_manager: &Arc<CacheManager>,
-    request: Request<EnableSlowSubscribeRequest>,
-) -> Result<Response<EnableSlowSubScribeReply>, Status> {
-    let subscribe_request = request.into_inner();
-
-    match enable_slow_sub(cache_manager, subscribe_request.is_enable).await {
-        Ok(_) => Ok(Response::new(EnableSlowSubScribeReply {
-            is_enable: subscribe_request.is_enable,
-        })),
-        Err(e) => Err(Status::cancelled(e.to_string())),
-    }
 }
 
 pub fn list_slow_subscribe_by_req(

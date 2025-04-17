@@ -28,14 +28,13 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest,
     DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
     DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest,
-    EnableFlappingDetectReply, EnableFlappingDetectRequest, EnableSlowSubScribeReply,
-    EnableSlowSubscribeRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
-    ListBlacklistRequest, ListConnectionReply, ListConnectionRequest, ListSlowSubscribeReply,
-    ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-    MqttBindSchemaReply, MqttBindSchemaRequest, MqttCreateSchemaReply, MqttCreateSchemaRequest,
-    MqttDeleteSchemaReply, MqttDeleteSchemaRequest, MqttListBindSchemaReply,
-    MqttListBindSchemaRequest, MqttListSchemaReply, MqttListSchemaRequest, MqttUnbindSchemaReply,
-    MqttUnbindSchemaRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
+    EnableFlappingDetectReply, EnableFlappingDetectRequest, ListAclReply, ListAclRequest,
+    ListBlacklistReply, ListBlacklistRequest, ListConnectionReply, ListConnectionRequest,
+    ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest,
+    ListUserReply, ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest,
+    MqttCreateSchemaReply, MqttCreateSchemaRequest, MqttDeleteSchemaReply, MqttDeleteSchemaRequest,
+    MqttListBindSchemaReply, MqttListBindSchemaRequest, MqttListSchemaReply, MqttListSchemaRequest,
+    MqttUnbindSchemaReply, MqttUnbindSchemaRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
 };
 use tonic::transport::Channel;
 
@@ -176,14 +175,6 @@ impl_retriable_request!(
     EnableFlappingDetectReply,
     mqtt_broker_admin_services_client,
     mqtt_broker_enable_flapping_detect
-);
-
-impl_retriable_request!(
-    EnableSlowSubscribeRequest,
-    MqttBrokerAdminServiceClient<Channel>,
-    EnableSlowSubScribeReply,
-    mqtt_broker_admin_services_client,
-    mqtt_broker_enable_slow_subscribe
 );
 
 impl_retriable_request!(
