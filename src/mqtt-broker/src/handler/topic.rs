@@ -79,13 +79,13 @@ pub fn get_topic_name(
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
 ) -> Result<String, MqttBrokerError> {
+    let topic = String::from_utf8(publish.topic.to_vec())?;
+
     let topic_alias = if let Some(pub_properties) = publish_properties {
         pub_properties.topic_alias
     } else {
         None
     };
-
-    let topic = String::from_utf8(publish.topic.to_vec())?;
 
     if topic.is_empty() && topic_alias.is_none() {
         return Err(MqttBrokerError::TopicNameIsEmpty);
@@ -100,6 +100,7 @@ pub fn get_topic_name(
     } else {
         topic
     };
+
     topic_name_validator(&topic_name)?;
 
     // topic rewrite

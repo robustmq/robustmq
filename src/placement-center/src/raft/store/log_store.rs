@@ -24,7 +24,6 @@ use openraft::{
 use rocksdb::{BoundColumnFamily, Direction, DB};
 
 use super::{cf_raft_logs, cf_raft_store, id_to_bin, StorageResult};
-use crate::raft::raft_node::NodeId;
 use crate::raft::store::bin_to_id;
 use crate::raft::typeconfig::TypeConfig;
 
@@ -53,7 +52,7 @@ impl LogStore {
         Ok(())
     }
 
-    fn get_last_purged_(&self) -> StorageResult<Option<LogId<u64>>> {
+    fn get_last_purged_(&self) -> StorageResult<Option<LogId<TypeConfig>>> {
         Ok(self
             .db
             .get_cf(&self.store(), b"last_purged_log_id")
@@ -61,7 +60,7 @@ impl LogStore {
             .and_then(|v| serde_json::from_slice(&v).ok()))
     }
 
-    fn set_last_purged_(&self, log_id: LogId<u64>) -> StorageResult<()> {
+    fn set_last_purged_(&self, log_id: LogId<TypeConfig>) -> StorageResult<()> {
         self.db
             .put_cf(
                 &self.store(),
@@ -76,7 +75,7 @@ impl LogStore {
 
     fn set_committed_(
         &self,
-        committed: &Option<LogId<NodeId>>,
+        committed: &Option<LogId<TypeConfig>>,
     ) -> Result<(), StorageError<TypeConfig>> {
         let json = serde_json::to_vec(committed).unwrap();
 
@@ -88,7 +87,7 @@ impl LogStore {
         Ok(())
     }
 
-    fn get_committed_(&self) -> StorageResult<Option<LogId<NodeId>>> {
+    fn get_committed_(&self) -> StorageResult<Option<LogId<TypeConfig>>> {
         Ok(self
             .db
             .get_cf(&self.store(), b"committed")
@@ -96,7 +95,7 @@ impl LogStore {
             .and_then(|v| serde_json::from_slice(&v).ok()))
     }
 
-    fn set_vote_(&self, vote: &Vote<NodeId>) -> StorageResult<()> {
+    fn set_vote_(&self, vote: &Vote<TypeConfig>) -> StorageResult<()> {
         self.db
             .put_cf(&self.store(), b"vote", serde_json::to_vec(vote).unwrap())
             .map_err(|e| StorageError::write_vote(&e))?;
@@ -105,7 +104,7 @@ impl LogStore {
         Ok(())
     }
 
-    fn get_vote_(&self) -> StorageResult<Option<Vote<NodeId>>> {
+    fn get_vote_(&self) -> StorageResult<Option<Vote<TypeConfig>>> {
         Ok(self
             .db
             .get_cf(&self.store(), b"vote")
@@ -143,7 +142,7 @@ impl RaftLogReader<TypeConfig> for LogStore {
             .collect()
     }
 
-    async fn read_vote(&mut self) -> Result<Option<Vote<NodeId>>, StorageError<TypeConfig>> {
+    async fn read_vote(&mut self) -> Result<Option<Vote<TypeConfig>>, StorageError<TypeConfig>> {
         self.get_vote_()
     }
 }
@@ -179,19 +178,21 @@ impl RaftLogStorage<TypeConfig> for LogStore {
 
     async fn save_committed(
         &mut self,
-        _committed: Option<LogId<NodeId>>,
+        _committed: Option<LogId<TypeConfig>>,
     ) -> Result<(), StorageError<TypeConfig>> {
         self.set_committed_(&_committed)?;
         Ok(())
     }
 
-    async fn read_committed(&mut self) -> Result<Option<LogId<NodeId>>, StorageError<TypeConfig>> {
+    async fn read_committed(
+        &mut self,
+    ) -> Result<Option<LogId<TypeConfig>>, StorageError<TypeConfig>> {
         let c = self.get_committed_()?;
         Ok(c)
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
-    async fn save_vote(&mut self, vote: &Vote<NodeId>) -> Result<(), StorageError<TypeConfig>> {
+    async fn save_vote(&mut self, vote: &Vote<TypeConfig>) -> Result<(), StorageError<TypeConfig>> {
         self.set_vote_(vote)
     }
 
@@ -219,7 +220,7 @@ impl RaftLogStorage<TypeConfig> for LogStore {
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    async fn truncate(&mut self, log_id: LogId<NodeId>) -> StorageResult<()> {
+    async fn truncate(&mut self, log_id: LogId<TypeConfig>) -> StorageResult<()> {
         tracing::debug!("delete_log: [{:?}, +oo)", log_id);
 
         let from = id_to_bin(log_id.index);
@@ -230,7 +231,7 @@ impl RaftLogStorage<TypeConfig> for LogStore {
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    async fn purge(&mut self, log_id: LogId<NodeId>) -> Result<(), StorageError<TypeConfig>> {
+    async fn purge(&mut self, log_id: LogId<TypeConfig>) -> Result<(), StorageError<TypeConfig>> {
         tracing::debug!("delete_log: [0, {:?}]", log_id);
 
         self.set_last_purged_(log_id)?;

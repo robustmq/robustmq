@@ -148,7 +148,7 @@ where
         let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_pool.clone()));
         let delay_message_manager = Arc::new(DelayMessageManager::new(
             conf.cluster_name.clone(),
-            3,
+            1,
             message_storage_adapter.clone(),
         ));
         let schema_manager = Arc::new(SchemaRegisterManager::new());

@@ -22,7 +22,7 @@ use crate::subscribe::subscribe_manager::SubscribeManager;
 
 use super::{cache::CacheManager, error::MqttBrokerError, subscribe::save_subscribe};
 
-pub async fn start_auto_subscribe(
+pub async fn try_auto_subscribe(
     client_id: String,
     login: &Option<Login>,
     protocol: &MqttProtocol,

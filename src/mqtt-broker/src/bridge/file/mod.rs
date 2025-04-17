@@ -190,7 +190,6 @@ mod tests {
                 data: format!("test_data_{}", i).as_bytes().to_vec(),
                 tags: vec![],
                 timestamp: now_second(),
-                delay_timestamp: 0,
                 crc_num: calc_crc32(format!("test_data_{}", i).as_bytes()),
             };
 

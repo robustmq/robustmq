@@ -43,6 +43,5 @@ data_path = "./robust-data/placement-center/data"
 max_open_files = 10000
 
 [log]
-# log_config = "./config/log-config/place-log4rs.yaml"
 log_config = "./config/log-config/place-tracing.toml"
 log_path = "./robust-data/placement-center/logs"

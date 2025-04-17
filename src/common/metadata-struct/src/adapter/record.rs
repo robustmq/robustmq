@@ -29,7 +29,6 @@ pub struct Record {
     pub data: Vec<u8>,
     pub tags: Vec<String>,
     pub timestamp: u64,
-    pub delay_timestamp: u64,
     pub crc_num: u32,
 }
 
@@ -43,7 +42,6 @@ impl Record {
             tags: Vec::new(),
             timestamp: now_second(),
             header: Vec::new(),
-            delay_timestamp: 0,
             crc_num,
         }
     }
@@ -57,7 +55,6 @@ impl Record {
             tags: Vec::new(),
             timestamp: now_second(),
             header: Vec::new(),
-            delay_timestamp: 0,
             crc_num,
         }
     }

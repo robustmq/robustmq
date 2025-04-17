@@ -26,6 +26,31 @@ use tracing::{error, warn};
 use super::connection::response_information;
 use super::validator::is_request_problem_info;
 
+pub fn build_pub_ack_fail(
+    protocol: &MqttProtocol,
+    connection: &MQTTConnection,
+    pkid: u16,
+    reason_string: Option<String>,
+    is_puback: bool,
+) -> MqttPacket {
+    if is_puback {
+        return response_packet_mqtt_puback_fail(
+            protocol,
+            connection,
+            pkid,
+            PubAckReason::UnspecifiedError,
+            reason_string,
+        );
+    }
+    response_packet_mqtt_pubrec_fail(
+        protocol,
+        connection,
+        pkid,
+        PubRecReason::UnspecifiedError,
+        reason_string,
+    )
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn response_packet_mqtt_connect_success(
     protocol: &MqttProtocol,

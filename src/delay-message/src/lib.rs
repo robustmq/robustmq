@@ -15,7 +15,10 @@
 use build::build_delay_queue;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
+use metadata_struct::{
+    adapter::{read_config::ReadConfig, record::Record},
+    delay_info::DelayMessageInfo,
+};
 use std::{
     sync::{atomic::AtomicU64, Arc},
     time::Duration,
@@ -32,23 +35,18 @@ use tracing::{debug, info};
 pub mod build;
 pub mod pop;
 
-#[derive(Clone)]
-pub struct DelayMessageRecord {
-    shard_name: String,
-    offset: u64,
-    delay_timestamp: u64,
-}
-
 pub struct DelayMessageManager<S> {
     namespace: String,
     shard_num: u64,
     message_storage_adapter: Arc<S>,
     incr_no: AtomicU64,
-    delay_queue_list: DashMap<u64, DelayQueue<DelayMessageRecord>>,
+    delay_queue_list: DashMap<u64, DelayQueue<DelayMessageInfo>>,
     delay_queue_pop_thread: DashMap<u64, broadcast::Sender<bool>>,
 }
 
 const DELAY_MESSAGE_SHARD_NAME_PREFIX: &str = "$delay-message-shard-";
+const DELAY_QUEUE_INFO_SHARD_NAME: &str = "$delay-queue-info-shard";
+
 impl<S> DelayMessageManager<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
@@ -66,7 +64,7 @@ where
 
     pub async fn init(&self) -> Result<(), CommonError> {
         self.try_init_shard().await?;
-        self.init_delay_queue().await?;
+        self.build_delay_queue().await?;
         info!("DelayMessage service start");
         Ok(())
     }
@@ -78,6 +76,7 @@ where
                 .message_storage_adapter
                 .list_shard(self.namespace.clone(), shard_name.clone())
                 .await?;
+
             if results.is_empty() {
                 let shard = ShardInfo {
                     namespace: self.namespace.clone(),
@@ -92,7 +91,7 @@ where
         Ok(())
     }
 
-    async fn init_delay_queue(&self) -> Result<(), CommonError> {
+    async fn build_delay_queue(&self) -> Result<(), CommonError> {
         for shard_no in 0..self.shard_num {
             let delay_queue = DelayQueue::new();
             self.delay_queue_list.insert(shard_no, delay_queue);
@@ -100,22 +99,35 @@ where
         Ok(())
     }
 
-    pub async fn send_delay_message(&self, data: Record) -> Result<(), CommonError> {
+    pub async fn send_delay_message(
+        &self,
+        target_topic: &str,
+        delay_timestamp: u64,
+        data: Record,
+    ) -> Result<(), CommonError> {
+        // save delay message to shard
         let shard_no = self.get_target_shard_no();
         let namespace = self.namespace.clone();
-        let shard_name = self.get_delay_message_shard_name(shard_no);
+        let delay_shard_name = self.get_delay_message_shard_name(shard_no);
+
         let offset = self
             .message_storage_adapter
-            .write(namespace, shard_name.clone(), data.clone())
+            .write(namespace.clone(), delay_shard_name.clone(), data.clone())
             .await?;
 
-        let delay_message_record = DelayMessageRecord {
-            shard_name,
+        info!(
+            "send delay message to shard:{}, {},offset:{}",
+            namespace, delay_shard_name, offset
+        );
+
+        // delay info
+        let delay_info = DelayMessageInfo {
+            delay_shard_name: delay_shard_name.clone(),
+            target_shard_name: target_topic.to_string(),
             offset,
-            delay_timestamp: data.delay_timestamp,
+            delay_timestamp,
         };
-        self.send_to_delay_queue(shard_no, delay_message_record)
-            .await?;
+        self.send_to_delay_queue(shard_no, delay_info).await?;
         Ok(())
     }
 
@@ -135,13 +147,27 @@ where
     async fn send_to_delay_queue(
         &self,
         shard_no: u64,
-        delay_message_record: DelayMessageRecord,
+        delay_message_record: DelayMessageInfo,
     ) -> Result<(), CommonError> {
         if let Some(mut delay_queue) = self.delay_queue_list.get_mut(&shard_no) {
-            delay_queue.insert_at(
-                delay_message_record.clone(),
-                Instant::now() + Duration::from_secs(delay_message_record.delay_timestamp),
+            // into delay queue
+            let delay_t =
+                Instant::now() + Duration::from_secs(delay_message_record.delay_timestamp);
+            info!(
+                "into queue by delay message: {:?},delay_t:{:?}",
+                delay_message_record, delay_t
             );
+            delay_queue.insert_at(delay_message_record.clone(), delay_t);
+
+            // persist
+            let data = Record::build_byte(serde_json::to_vec(&delay_message_record)?);
+            self.message_storage_adapter
+                .write(
+                    self.namespace.clone(),
+                    DELAY_QUEUE_INFO_SHARD_NAME.to_string(),
+                    data,
+                )
+                .await?;
         }
         Ok(())
     }
