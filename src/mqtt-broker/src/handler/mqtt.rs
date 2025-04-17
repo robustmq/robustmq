@@ -347,10 +347,10 @@ where
             }
         };
 
-        let delay_info = if is_delay_topic(&topic_name) {
+        let mut delay_info = if is_delay_topic(&topic_name) {
             match decode_delay_topic(&topic_name) {
                 Ok(data) => {
-                    topic_name = data.target_topic.clone();
+                    topic_name = data.target_topic_name.clone();
                     Some(data)
                 }
                 Err(e) => {
@@ -410,6 +410,12 @@ where
                 ))
             }
         };
+
+        if delay_info.is_some() {
+            let mut new_delay_info = delay_info.unwrap();
+            new_delay_info.tagget_shard_name = Some(topic.topic_id.clone());
+            delay_info = Some(new_delay_info);
+        }
 
         if self.schema_manager.is_check_schema(&topic_name) {
             if let Err(e) = self.schema_manager.validate(&topic_name, &publish.payload) {

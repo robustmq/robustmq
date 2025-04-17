@@ -18,8 +18,8 @@ const DELAY_PUBLISH_MESSAGE_PREFIXED: &str = "$delayed";
 
 #[derive(Debug)]
 pub struct DelayPublishTopic {
-    pub source_topic: String,
-    pub target_topic: String,
+    pub target_topic_name: String,
+    pub tagget_shard_name: Option<String>,
     pub delay_timestamp: u64,
 }
 
@@ -28,10 +28,6 @@ pub fn is_delay_topic(topic: &str) -> bool {
 }
 
 pub fn decode_delay_topic(topic: &str) -> Result<DelayPublishTopic, MqttBrokerError> {
-    if !is_delay_topic(topic) {
-        return Err(MqttBrokerError::NotConformDeferredTopic(topic.to_string()));
-    }
-
     let mut str_slice: Vec<&str> = topic.split("/").collect();
     if str_slice.len() < 3 {
         return Err(MqttBrokerError::NotConformDeferredTopic(topic.to_string()));
@@ -40,11 +36,14 @@ pub fn decode_delay_topic(topic: &str) -> Result<DelayPublishTopic, MqttBrokerEr
     let delay_timestamp = str_slice[1].parse::<u64>()?;
     str_slice.remove(0);
     str_slice.remove(0);
+    let target_topic_name = format!("/{}", str_slice.join("/"));
+
     let msg = DelayPublishTopic {
-        source_topic: topic.to_string(),
-        target_topic: format!("/{}", str_slice.join("/")),
+        target_topic_name,
+        tagget_shard_name: None,
         delay_timestamp,
     };
+
     Ok(msg)
 }
 
@@ -66,8 +65,7 @@ mod test {
     pub fn decode_delay_message_test() {
         let topic_name = "$delayed/60/a/b";
         let msg = super::decode_delay_topic(topic_name).unwrap();
-        assert_eq!(msg.source_topic, topic_name);
-        assert_eq!(msg.target_topic, "/a/b");
+        assert_eq!(msg.target_topic_name, "/a/b");
         assert_eq!(msg.delay_timestamp, 60);
     }
 }

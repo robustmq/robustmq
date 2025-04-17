@@ -24,10 +24,7 @@ use crate::{
 };
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::{
-    delay_info::DelayMessageInfo,
-    mqtt::{message::MqttMessage, topic::MqttTopic},
-};
+use metadata_struct::mqtt::{message::MqttMessage, topic::MqttTopic};
 use protocol::mqtt::common::{Publish, PublishProperties};
 use storage_adapter::storage::StorageAdapter;
 
@@ -59,7 +56,7 @@ where
     }
 
     let message_expire = build_message_expire(cache_manager, publish_properties);
-    println!("{:?}", delay_info);
+
     if delay_info.is_some() {
         return save_delay_message(
             delay_message_manager,
@@ -108,8 +105,9 @@ where
     if let Some(record) =
         MqttMessage::build_record(client_id, publish, publish_properties, message_expire)
     {
+        let target_shard_name = delay_info.tagget_shard_name.as_ref().unwrap();
         delay_message_manager
-            .send_delay_message(&delay_info.target_topic, delay_info.delay_timestamp, record)
+            .send_delay_message(target_shard_name, delay_info.delay_timestamp, record)
             .await?;
         return Ok(None);
     }
