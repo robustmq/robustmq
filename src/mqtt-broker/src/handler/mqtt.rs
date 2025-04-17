@@ -31,9 +31,11 @@ use storage_adapter::storage::StorageAdapter;
 use tracing::{error, warn};
 
 use super::connection::{disconnect_connection, is_delete_session};
+use super::delay_message::{decode_delay_topic, is_delay_topic};
 use super::offline_message::save_message;
+use super::response::build_pub_ack_fail;
 use super::retain::{is_new_sub, try_send_retain_message};
-use super::sub_auto::start_auto_subscribe;
+use super::sub_auto::try_auto_subscribe;
 use super::subscribe::save_subscribe;
 use super::unsubscribe::remove_subscribe;
 use crate::handler::cache::{
@@ -52,7 +54,6 @@ use crate::handler::response::{
     response_packet_mqtt_pubrel_success, response_packet_mqtt_suback,
     response_packet_mqtt_unsuback,
 };
-use crate::handler::retain::save_retain_message;
 use crate::handler::session::{build_session, save_session};
 use crate::handler::topic::{get_topic_name, try_init_topic};
 use crate::handler::validator::{
@@ -242,7 +243,7 @@ where
             );
         }
 
-        if let Err(e) = start_auto_subscribe(
+        if let Err(e) = try_auto_subscribe(
             client_id.clone(),
             login,
             &self.protocol,
@@ -328,32 +329,42 @@ where
 
         let is_puback = publish.qos != QoS::ExactlyOnce;
 
-        let topic_name = match get_topic_name(
+        let mut topic_name = match get_topic_name(
             &self.cache_manager,
             connect_id,
             &publish,
             &publish_properties,
         ) {
-            Ok(da) => da,
+            Ok(topic_name) => topic_name,
             Err(e) => {
-                if is_puback {
-                    return Some(response_packet_mqtt_puback_fail(
+                return Some(build_pub_ack_fail(
+                    &self.protocol,
+                    &connection,
+                    publish.pkid,
+                    Some(e.to_string()),
+                    is_puback,
+                ))
+            }
+        };
+
+        let delay_info = if is_delay_topic(&topic_name) {
+            match decode_delay_topic(&topic_name) {
+                Ok(data) => {
+                    topic_name = data.target_topic.clone();
+                    Some(data)
+                }
+                Err(e) => {
+                    return Some(build_pub_ack_fail(
                         &self.protocol,
                         &connection,
                         publish.pkid,
-                        PubAckReason::UnspecifiedError,
                         Some(e.to_string()),
-                    ));
-                } else {
-                    return Some(response_packet_mqtt_pubrec_fail(
-                        &self.protocol,
-                        &connection,
-                        publish.pkid,
-                        PubRecReason::UnspecifiedError,
-                        Some(e.to_string()),
-                    ));
+                        is_puback,
+                    ))
                 }
             }
+        } else {
+            None
         };
 
         if !self
@@ -390,93 +401,42 @@ where
         {
             Ok(tp) => tp,
             Err(e) => {
-                if is_puback {
-                    return Some(response_packet_mqtt_puback_fail(
-                        &self.protocol,
-                        &connection,
-                        publish.pkid,
-                        PubAckReason::UnspecifiedError,
-                        Some(e.to_string()),
-                    ));
-                } else {
-                    return Some(response_packet_mqtt_pubrec_fail(
-                        &self.protocol,
-                        &connection,
-                        publish.pkid,
-                        PubRecReason::UnspecifiedError,
-                        Some(e.to_string()),
-                    ));
-                }
+                return Some(build_pub_ack_fail(
+                    &self.protocol,
+                    &connection,
+                    publish.pkid,
+                    Some(e.to_string()),
+                    is_puback,
+                ))
             }
         };
 
         if self.schema_manager.is_check_schema(&topic_name) {
             if let Err(e) = self.schema_manager.validate(&topic_name, &publish.payload) {
-                if is_puback {
-                    return Some(response_packet_mqtt_puback_fail(
-                        &self.protocol,
-                        &connection,
-                        publish.pkid,
-                        PubAckReason::UnspecifiedError,
-                        Some(e.to_string()),
-                    ));
-                } else {
-                    return Some(response_packet_mqtt_pubrec_fail(
-                        &self.protocol,
-                        &connection,
-                        publish.pkid,
-                        PubRecReason::UnspecifiedError,
-                        Some(e.to_string()),
-                    ));
-                }
+                return Some(build_pub_ack_fail(
+                    &self.protocol,
+                    &connection,
+                    publish.pkid,
+                    Some(e.to_string()),
+                    is_puback,
+                ));
             }
         }
 
         let client_id = connection.client_id.clone();
-
-        // Persisting retain message data
-        match save_retain_message(
-            &self.cache_manager,
-            &self.client_pool,
-            topic_name.clone(),
-            &client_id,
-            &publish,
-            &publish_properties,
-        )
-        .await
-        {
-            Ok(()) => {}
-            Err(e) => {
-                if is_puback {
-                    return Some(response_packet_mqtt_puback_fail(
-                        &self.protocol,
-                        &connection,
-                        publish.pkid,
-                        PubAckReason::UnspecifiedError,
-                        Some(e.to_string()),
-                    ));
-                } else {
-                    return Some(response_packet_mqtt_pubrec_fail(
-                        &self.protocol,
-                        &connection,
-                        publish.pkid,
-                        PubRecReason::UnspecifiedError,
-                        Some(e.to_string()),
-                    ));
-                }
-            }
-        }
 
         // Persisting stores message data
         let offset = match save_message(
             &self.message_storage_adapter,
             &self.delay_message_manager,
             &self.cache_manager,
+            &self.client_pool,
             &publish,
             &publish_properties,
             &self.subscribe_manager,
             &client_id,
             &topic,
+            &delay_info,
         )
         .await
         {
@@ -484,23 +444,13 @@ where
                 format!("{:?}", da)
             }
             Err(e) => {
-                if is_puback {
-                    return Some(response_packet_mqtt_puback_fail(
-                        &self.protocol,
-                        &connection,
-                        publish.pkid,
-                        PubAckReason::UnspecifiedError,
-                        Some(e.to_string()),
-                    ));
-                } else {
-                    return Some(response_packet_mqtt_pubrec_fail(
-                        &self.protocol,
-                        &connection,
-                        publish.pkid,
-                        PubRecReason::UnspecifiedError,
-                        Some(e.to_string()),
-                    ));
-                }
+                return Some(build_pub_ack_fail(
+                    &self.protocol,
+                    &connection,
+                    publish.pkid,
+                    Some(e.to_string()),
+                    is_puback,
+                ))
             }
         };
 
@@ -525,7 +475,7 @@ where
                 ))
             }
             QoS::ExactlyOnce => {
-                match pkid_save(
+                if let Err(e) = pkid_save(
                     &self.cache_manager,
                     &self.client_pool,
                     &client_id,
@@ -533,26 +483,13 @@ where
                 )
                 .await
                 {
-                    Ok(()) => {}
-                    Err(e) => {
-                        if is_puback {
-                            return Some(response_packet_mqtt_puback_fail(
-                                &self.protocol,
-                                &connection,
-                                publish.pkid,
-                                PubAckReason::UnspecifiedError,
-                                Some(e.to_string()),
-                            ));
-                        } else {
-                            return Some(response_packet_mqtt_pubrec_fail(
-                                &self.protocol,
-                                &connection,
-                                publish.pkid,
-                                PubRecReason::UnspecifiedError,
-                                Some(e.to_string()),
-                            ));
-                        }
-                    }
+                    return Some(build_pub_ack_fail(
+                        &self.protocol,
+                        &connection,
+                        publish.pkid,
+                        Some(e.to_string()),
+                        is_puback,
+                    ));
                 }
                 let reason_code = if path_contain_sub(&topic_name) {
                     PubRecReason::Success

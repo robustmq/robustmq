@@ -100,6 +100,7 @@ pub fn get_topic_name(
     } else {
         topic
     };
+
     topic_name_validator(&topic_name)?;
 
     // topic rewrite

@@ -433,7 +433,6 @@ impl StorageAdapter for MySQLStorageAdapter {
                     header: serde_json::from_slice(&header).unwrap(),
                     tags: serde_json::from_slice(&tags).unwrap(),
                     timestamp: ts,
-                    delay_timestamp: 0,
                     crc_num: calc_crc32(&data),
                 }
             },
@@ -487,7 +486,6 @@ impl StorageAdapter for MySQLStorageAdapter {
                     header: serde_json::from_slice(&header).unwrap(),
                     tags: serde_json::from_slice(&tags).unwrap(),
                     timestamp: ts,
-                    delay_timestamp: 0,
                     crc_num: calc_crc32(&data),
                 }
             },
@@ -539,7 +537,6 @@ impl StorageAdapter for MySQLStorageAdapter {
                     header: serde_json::from_slice(&header).unwrap(),
                     tags: serde_json::from_slice(&tags).unwrap(),
                     timestamp: ts,
-                    delay_timestamp: 0,
                     crc_num: calc_crc32(&data),
                 },
             )
@@ -728,7 +725,6 @@ mod tests {
             offset: None,
             timestamp: 1737600096,
             tags: vec![],
-            delay_timestamp: 0,
             crc_num: calc_crc32(&value),
         });
 
@@ -740,7 +736,6 @@ mod tests {
             offset: None,
             timestamp: 1737600097,
             tags: vec![],
-            delay_timestamp: 0,
             crc_num: calc_crc32(&value),
         });
 
@@ -1066,7 +1061,6 @@ mod tests {
                         offset: None,
                         timestamp: 1737600096,
                         tags: vec![],
-                        delay_timestamp: 0,
                         crc_num: calc_crc32(&value),
                     });
                 }

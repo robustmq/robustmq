@@ -1126,6 +1126,8 @@ dependencies = [
  "dashmap",
  "futures",
  "metadata-struct",
+ "serde",
+ "serde_json",
  "storage-adapter",
  "thiserror 1.0.69",
  "tokio",

@@ -193,7 +193,6 @@ impl JournalClient {
                 tags: raw.tags,
                 header: Vec::new(),
                 timestamp: raw.timestamp,
-                delay_timestamp: 0,
                 crc_num: calc_crc32(&raw.value),
             };
             results.push(record);
@@ -250,7 +249,6 @@ impl JournalClient {
                 tags: raw.tags,
                 header: Vec::new(),
                 timestamp: raw.timestamp,
-                delay_timestamp: 0,
                 crc_num: calc_crc32(&raw.value),
             };
             results.push(record);
@@ -289,7 +287,6 @@ impl JournalClient {
                 tags: raw.tags,
                 header: Vec::new(),
                 timestamp: raw.timestamp,
-                delay_timestamp: 0,
                 crc_num: calc_crc32(&raw.value),
             };
             results.push(record);

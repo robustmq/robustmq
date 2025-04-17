@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod acl;
-pub mod adapter;
-pub mod delay_info;
-pub mod journal;
-pub mod mqtt;
-pub mod placement;
-pub mod schema;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DelayMessageInfo {
+    pub delay_shard_name: String,
+    pub target_shard_name: String,
+    pub offset: u64,
+    pub delay_timestamp: u64,
+}
