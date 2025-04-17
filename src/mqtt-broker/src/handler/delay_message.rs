@@ -15,6 +15,9 @@
 use super::error::MqttBrokerError;
 
 const DELAY_PUBLISH_MESSAGE_PREFIXED: &str = "$delayed";
+pub const DELAY_MESSAGE_FLAG: &str = "delay_message_flag";
+pub const DELAY_MESSAGE_RECV_MS: &str = "delay_message_recv_ms";
+pub const DELAY_MESSAGE_TARGET_MS: &str = "delay_message_save_ms";
 
 #[derive(Debug)]
 pub struct DelayPublishTopic {

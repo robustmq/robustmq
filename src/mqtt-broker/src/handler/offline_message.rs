@@ -15,13 +15,19 @@
 use std::sync::Arc;
 
 use super::{
-    cache::CacheManager, delay_message::DelayPublishTopic, error::MqttBrokerError,
-    message::build_message_expire, retain::save_retain_message,
+    cache::CacheManager,
+    delay_message::{
+        DelayPublishTopic, DELAY_MESSAGE_FLAG, DELAY_MESSAGE_RECV_MS, DELAY_MESSAGE_TARGET_MS,
+    },
+    error::MqttBrokerError,
+    message::build_message_expire,
+    retain::save_retain_message,
 };
 use crate::{
     observability::metrics::packets::record_messages_dropped_discard_metrics,
     storage::message::MessageStorage, subscribe::subscribe_manager::SubscribeManager,
 };
+use common_base::tools::now_second;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::{message::MqttMessage, topic::MqttTopic};
@@ -102,9 +108,36 @@ async fn save_delay_message<S>(
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
-    if let Some(record) =
-        MqttMessage::build_record(client_id, publish, publish_properties, message_expire)
-    {
+    let new_publish_properties = if let Some(mut properties) = publish_properties.clone() {
+        properties.user_properties = vec![
+            (DELAY_MESSAGE_FLAG.to_string(), "true".to_string()),
+            (DELAY_MESSAGE_RECV_MS.to_string(), now_second().to_string()),
+            (
+                DELAY_MESSAGE_TARGET_MS.to_string(),
+                (now_second() + delay_info.delay_timestamp).to_string(),
+            ),
+        ];
+        properties
+    } else {
+        PublishProperties {
+            user_properties: vec![
+                (DELAY_MESSAGE_FLAG.to_string(), "true".to_string()),
+                (DELAY_MESSAGE_RECV_MS.to_string(), now_second().to_string()),
+                (
+                    DELAY_MESSAGE_TARGET_MS.to_string(),
+                    (now_second() + delay_info.delay_timestamp).to_string(),
+                ),
+            ],
+            ..Default::default()
+        }
+    };
+
+    if let Some(record) = MqttMessage::build_record(
+        client_id,
+        publish,
+        &Some(new_publish_properties),
+        message_expire,
+    ) {
         let target_shard_name = delay_info.tagget_shard_name.as_ref().unwrap();
         delay_message_manager
             .send_delay_message(target_shard_name, delay_info.delay_timestamp, record)
