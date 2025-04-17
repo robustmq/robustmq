@@ -22,7 +22,7 @@ pub mod user;
 
 use crate::handler::cache::CacheManager;
 use crate::handler::flapping_detect::enable_flapping_detect;
-use crate::observability::slow::sub::{enable_slow_sub, read_slow_sub_record, SlowSubData};
+use crate::observability::slow::sub::{read_slow_sub_record, SlowSubData};
 use crate::server::connection_manager::ConnectionManager;
 use crate::{handler::error::MqttBrokerError, storage::cluster::ClusterStorage};
 use common_base::config::broker_mqtt::broker_mqtt_conf;
