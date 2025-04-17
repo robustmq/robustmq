@@ -191,28 +191,25 @@ pub async fn start_build_delay_queue<S>(
 ) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
-    for shard_no in 0..shard_num {
-        let shard_name = delay_message_manager.get_delay_message_shard_name(shard_no);
-        let read_config = ReadConfig {
-            max_record_num: 100,
-            max_size: 1024 * 1024 * 1024,
-        };
+    let read_config = ReadConfig {
+        max_record_num: 100,
+        max_size: 1024 * 1024 * 1024,
+    };
 
-        let new_delay_message_manager = delay_message_manager.clone();
-        let new_message_storage_adapter = message_storage_adapter.clone();
-        let new_namespace = namespace.clone();
-        tokio::spawn(async move {
-            build_delay_queue(
-                new_message_storage_adapter,
-                new_delay_message_manager,
-                new_namespace,
-                shard_no,
-                shard_name,
-                read_config,
-            )
-            .await;
-        });
-    }
+    let new_delay_message_manager = delay_message_manager.clone();
+    let new_message_storage_adapter = message_storage_adapter.clone();
+    let new_namespace = namespace.clone();
+    tokio::spawn(async move {
+        build_delay_queue(
+            new_message_storage_adapter,
+            new_delay_message_manager,
+            &new_namespace,
+            DELAY_QUEUE_INFO_SHARD_NAME,
+            read_config,
+            shard_num,
+        )
+        .await;
+    });
 }
 
 pub async fn start_delay_message_pop<S>(

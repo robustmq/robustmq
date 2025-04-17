@@ -17,22 +17,22 @@ use metadata_struct::{adapter::read_config::ReadConfig, delay_info::DelayMessage
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
 use tokio::time::sleep;
-use tracing::error;
+use tracing::{error, info};
 
 use crate::DelayMessageManager;
 
 pub async fn build_delay_queue<S>(
     message_storage_adapter: Arc<S>,
     delay_message_manager: Arc<DelayMessageManager<S>>,
-    namespace: String,
-    shard_no: u64,
-    shard_name: String,
+    namespace: &str,
+    shard_name: &str,
     read_config: ReadConfig,
+    shard_num: u64,
 ) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let mut offset = 0;
-
+    let mut total_num = 0;
     loop {
         let data = match message_storage_adapter
             .read_by_offset(
@@ -50,11 +50,14 @@ pub async fn build_delay_queue<S>(
                 continue;
             }
         };
+
         if data.is_empty() {
             break;
         }
+
         for record in data {
             offset = record.offset.unwrap();
+
             let delay_info = match serde_json::from_slice::<DelayMessageInfo>(&record.data) {
                 Ok(delay_info) => delay_info,
                 Err(e) => {
@@ -67,12 +70,21 @@ pub async fn build_delay_queue<S>(
                 continue;
             }
 
+            let shard_no = offset % shard_num;
             if let Err(e) = delay_message_manager
                 .send_to_delay_queue(shard_no, delay_info)
                 .await
             {
                 error!("While building the deferred message index, sending a message to the DelayQueue failed with error message :{:?}", e);
             }
+            total_num += 1;
         }
     }
+    info!("Delay queue index was successfully constructed from the persistent store. Number of data items: {}", total_num);
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    pub fn build_delay_queue_test() {}
 }
