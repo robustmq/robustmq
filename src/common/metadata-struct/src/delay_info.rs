@@ -12,17 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::Cursor;
+use serde::{Deserialize, Serialize};
 
-use crate::raft::raft_node::Node;
-use crate::raft::route::AppResponseData;
-use crate::route::data::StorageData;
-
-pub type SnapshotData = Cursor<Vec<u8>>;
-
-openraft::declare_raft_types!(
-    pub TypeConfig:
-        D = StorageData,
-        R = AppResponseData,
-        Node = Node,
-);
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DelayMessageInfo {
+    pub delay_shard_name: String,
+    pub target_shard_name: String,
+    pub offset: u64,
+    pub delay_timestamp: u64,
+}

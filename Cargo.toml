@@ -132,7 +132,6 @@ os_info = "3.8.2"
 openraft = { git = "https://github.com/databendlabs/openraft.git", features = [
     "serde",
     "type-alias",
-    "loosen-follower-log-revert",
 ] }
 validator = { version = "0.18", features = ["derive"] }
 rand = "0.8.5"

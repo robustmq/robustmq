@@ -84,7 +84,9 @@ pub async fn init_system_user(cache_manager: &Arc<CacheManager>, client_pool: &A
             cache_manager.add_user(system_user_info);
         }
         Err(e) => {
-            panic!("{}", e.to_string());
+            if !e.to_string().contains("already exist") {
+                panic!("{}", e.to_string());
+            }
         }
     }
 }

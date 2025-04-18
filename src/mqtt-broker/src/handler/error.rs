@@ -113,6 +113,9 @@ pub enum MqttBrokerError {
     #[error("Failed to build Message")]
     FailedToBuildMessage,
 
+    #[error("topic {0} does not conform to the format of deferred topic")]
+    NotConformDeferredTopic(String),
+
     #[error("Publish message was delayed, the target Topic failed to resolve, Topic name {0}")]
     DelayPublishDecodeTopicNameFail(String),
 

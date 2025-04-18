@@ -1018,7 +1018,6 @@ mod tests {
                         data: value.clone(),
                         tags: vec![format!("task-{}", tid)],
                         timestamp: 0,
-                        delay_timestamp: 0,
                         crc_num: calc_crc32(&value),
                     };
 

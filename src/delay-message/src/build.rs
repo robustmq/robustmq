@@ -13,13 +13,13 @@
 // limitations under the License.
 
 use common_base::tools::now_second;
-use metadata_struct::adapter::read_config::ReadConfig;
+use metadata_struct::{adapter::read_config::ReadConfig, delay_info::DelayMessageInfo};
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
 use tokio::time::sleep;
 use tracing::error;
 
-use crate::{DelayMessageManager, DelayMessageRecord};
+use crate::DelayMessageManager;
 
 pub async fn build_delay_queue<S>(
     message_storage_adapter: Arc<S>,
@@ -55,19 +55,20 @@ pub async fn build_delay_queue<S>(
         }
         for record in data {
             offset = record.offset.unwrap();
+            let delay_info = match serde_json::from_slice::<DelayMessageInfo>(&record.data) {
+                Ok(delay_info) => delay_info,
+                Err(e) => {
+                    error!("While building the deferred message index, parsing the message failed with error message :{:?}", e);
+                    continue;
+                }
+            };
 
-            if record.delay_timestamp < now_second() {
+            if delay_info.delay_timestamp < now_second() {
                 continue;
             }
 
-            let delay_message_record = DelayMessageRecord {
-                shard_name: shard_name.to_owned(),
-                offset,
-                delay_timestamp: record.delay_timestamp,
-            };
-
             if let Err(e) = delay_message_manager
-                .send_to_delay_queue(shard_no, delay_message_record)
+                .send_to_delay_queue(shard_no, delay_info)
                 .await
             {
                 error!("While building the deferred message index, sending a message to the DelayQueue failed with error message :{:?}", e);

@@ -17,9 +17,12 @@ use std::{sync::Arc, time::Duration};
 use crate::DelayMessageManager;
 use common_base::error::common::CommonError;
 use futures::StreamExt;
-use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
+use metadata_struct::{
+    adapter::{read_config::ReadConfig, record::Record},
+    delay_info::DelayMessageInfo,
+};
 use storage_adapter::storage::StorageAdapter;
-use tracing::error;
+use tracing::{error, info};
 
 pub async fn pop_delay_queue<S>(
     namespace: &str,
@@ -38,8 +41,7 @@ pub async fn pop_delay_queue<S>(
                 send_delay_message_to_shard(
                     &raw_message_storage_adapter,
                     &raw_namespace,
-                    &delay_message.shard_name,
-                    delay_message.offset,
+                    delay_message,
                 )
                 .await;
             });
@@ -50,35 +52,50 @@ pub async fn pop_delay_queue<S>(
 async fn send_delay_message_to_shard<S>(
     message_storage_adapter: &Arc<S>,
     namespace: &str,
-    shard_name: &str,
-    offset: u64,
+    delay_message: DelayMessageInfo,
 ) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let mut times = 0;
+    info!(
+        "send_delay_message_to_shard start,namespace:{},shard_name:{},offset:{}",
+        namespace, delay_message.target_shard_name, delay_message.offset
+    );
+
     loop {
-        if times > 1000 {
-            error!("send_delay_message_to_shard failed, times: {},namespace:{},shard_name:{},offset:{}", times, namespace, shard_name, offset);
+        if times > 100 {
+            error!("send_delay_message_to_shard failed, times: {},namespace:{},shard_name:{},offset:{}", times, namespace, delay_message.target_shard_name, delay_message.offset);
             break;
         }
 
         times += 1;
-        let record =
-            match read_offset_data(message_storage_adapter, namespace, shard_name, offset).await {
-                Ok(Some(record)) => record,
-                Ok(None) => break,
-                Err(e) => {
-                    error!("read_offset_data failed, err: {:?}", e);
-                    tokio::time::sleep(Duration::from_millis(1000)).await;
-                    continue;
-                }
-            };
+        let record = match read_offset_data(
+            message_storage_adapter,
+            namespace,
+            &delay_message.delay_shard_name,
+            delay_message.offset,
+        )
+        .await
+        {
+            Ok(Some(record)) => record,
+            Ok(None) => break,
+            Err(e) => {
+                error!("read_offset_data failed, err: {:?}", e);
+                tokio::time::sleep(Duration::from_millis(1000)).await;
+                continue;
+            }
+        };
 
         match message_storage_adapter
-            .write(namespace.to_owned(), shard_name.to_owned(), record)
+            .write(
+                namespace.to_owned(),
+                delay_message.target_shard_name.to_owned(),
+                record.clone(),
+            )
             .await
         {
-            Ok(_) => {
+            Ok(id) => {
+                info!("Delay message: message was written to {:?} successfully, offset: {:?}, delay info: {:?}",delay_message.target_shard_name,id, delay_message);
                 break;
             }
             Err(e) => {
