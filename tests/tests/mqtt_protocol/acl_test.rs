@@ -34,19 +34,47 @@ mod tests {
     };
     use std::sync::Arc;
 
-    #[tokio::test]
-    async fn acl_storage_test() {
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let grpc_addr = vec![broker_grpc_addr()];
-        let cluster_name: String = format!("test_cluster_{}", unique_id());
+    async fn run_authorization_test(resource_type: MqttAclResourceType, topic: String) {
+        let (client_pool, grpc_addr, cluster_name) = create_test_env().await;
+        let username = unique_id();
+        let password = "caclpublic".to_string();
+        let client_id = build_client_id("client_publish_authorization_test");
 
-        let acl = MqttAcl {
-            resource_type: MqttAclResourceType::User,
-            resource_name: "acl_storage_test".to_string(),
-            topic: "tp-1".to_string(),
-            ip: "*".to_string(),
-            action: MqttAclAction::Publish,
-            permission: MqttAclPermission::Deny,
+        // 创建测试用户
+        create_user(
+            client_pool.clone(),
+            grpc_addr.clone(),
+            username.clone(),
+            password.clone(),
+        )
+        .await;
+
+        // 测试无ACL时的发布
+        match resource_type.clone() {
+            MqttAclResourceType::User => {
+                publish_user_acl_test(&topic, username.clone(), password.clone(), false).await;
+            }
+            MqttAclResourceType::ClientId => {
+                publish_client_id_acl_test(&topic, &client_id, &username, &password, false).await;
+            }
+        }
+
+        // 创建ACL规则
+        let acl = match resource_type.clone() {
+            MqttAclResourceType::User => create_test_acl(
+                resource_type.clone(),
+                username.clone(),
+                topic.clone(),
+                MqttAclAction::Publish,
+                MqttAclPermission::Deny,
+            ),
+            MqttAclResourceType::ClientId => create_test_acl(
+                resource_type.clone(),
+                client_id.clone(),
+                topic.clone(),
+                MqttAclAction::Publish,
+                MqttAclPermission::Deny,
+            ),
         };
 
         create_acl(
@@ -57,30 +85,58 @@ mod tests {
         )
         .await;
 
-        let list_request = ListAclRequest {
-            cluster_name: cluster_name.clone(),
-        };
-        match mqtt_broker_list_acl(&client_pool, &grpc_addr, list_request.clone()).await {
-            Ok(data) => {
-                let mut flag: bool = false;
-                for raw in data.acls {
-                    let tmp = serde_json::from_slice::<MqttAcl>(raw.as_slice()).unwrap();
-                    if tmp.resource_type == acl.resource_type
-                        && tmp.resource_name == acl.resource_name
-                        && tmp.topic == acl.topic
-                        && tmp.ip == acl.ip
-                        && tmp.action == acl.action
-                        && tmp.permission == acl.permission
-                    {
-                        flag = true;
-                    }
-                }
-                assert!(flag);
+        // 测试有ACL时的发布
+        match resource_type.clone() {
+            MqttAclResourceType::User => {
+                publish_user_acl_test(&topic, username.clone(), password.clone(), true).await;
             }
-            Err(e) => {
-                panic!("list acl error: {:?}", e);
+            MqttAclResourceType::ClientId => {
+                publish_client_id_acl_test(&topic, &client_id, &username, &password, true).await;
             }
-        };
+        }
+
+        // 删除ACL规则
+        delete_acl(
+            client_pool.clone(),
+            grpc_addr.clone(),
+            cluster_name.clone(),
+            acl.clone(),
+        )
+        .await;
+
+        // 测试删除ACL后的发布
+        match resource_type {
+            MqttAclResourceType::User => {
+                publish_user_acl_test(&topic, username.clone(), password.clone(), false).await;
+            }
+            MqttAclResourceType::ClientId => {
+                publish_client_id_acl_test(&topic, &client_id, &username, &password, false).await;
+            }
+        }
+
+        // 清理测试用户
+        delete_user(client_pool.clone(), grpc_addr.clone(), username.clone()).await;
+    }
+
+    #[tokio::test]
+    async fn acl_storage_test() {
+        let (client_pool, grpc_addr, cluster_name) = create_test_env().await;
+        let acl = create_test_acl(
+            MqttAclResourceType::User,
+            "acl_storage_test".to_string(),
+            "tp-1".to_string(),
+            MqttAclAction::Publish,
+            MqttAclPermission::Deny,
+        );
+        create_acl(
+            client_pool.clone(),
+            grpc_addr.clone(),
+            cluster_name.clone(),
+            acl.clone(),
+        )
+        .await;
+
+        check_acl_in_list(&client_pool, &grpc_addr, &cluster_name, &acl, true).await;
 
         delete_acl(
             client_pool.clone(),
@@ -90,146 +146,97 @@ mod tests {
         )
         .await;
 
-        match mqtt_broker_list_acl(&client_pool, &grpc_addr, list_request.clone()).await {
-            Ok(data) => {
-                let mut flag: bool = false;
-                for raw in data.acls {
-                    let tmp = serde_json::from_slice::<MqttAcl>(raw.as_slice()).unwrap();
-                    if tmp.resource_type == acl.resource_type
-                        && tmp.resource_name == acl.resource_name
-                        && tmp.topic == acl.topic
-                        && tmp.ip == acl.ip
-                        && tmp.action == acl.action
-                        && tmp.permission == acl.permission
-                    {
-                        flag = true;
-                    }
-                }
-                assert!(!flag);
-            }
-            Err(e) => {
-                panic!("list acl error: {:?}", e);
-            }
-        };
+        check_acl_in_list(&client_pool, &grpc_addr, &cluster_name, &acl, false).await;
     }
 
     #[tokio::test]
     async fn user_publish_authorization_test() {
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let grpc_addr = vec![broker_grpc_addr()];
-
-        let cluster_name: String = unique_id();
-
         let topic = format!(
             "{}/{}",
             "/tests/user_publish_authorization_test",
             unique_id()
         );
 
-        let username = unique_id();
-        let password = "caclpublic".to_string();
-
-        create_user(
-            client_pool.clone(),
-            grpc_addr.clone(),
-            username.clone(),
-            password.clone(),
-        )
-        .await;
-
-        publish_user_acl_test(&topic, username.clone(), password.clone(), false).await;
-
-        let acl = MqttAcl {
-            resource_type: MqttAclResourceType::User,
-            resource_name: username.clone(),
-            topic: topic.clone(),
-            ip: "*".to_string(),
-            action: MqttAclAction::Publish,
-            permission: MqttAclPermission::Deny,
-        };
-
-        create_acl(
-            client_pool.clone(),
-            grpc_addr.clone(),
-            cluster_name.clone(),
-            acl.clone(),
-        )
-        .await;
-
-        publish_user_acl_test(&topic, username.clone(), password.clone(), true).await;
-
-        delete_acl(
-            client_pool.clone(),
-            grpc_addr.clone(),
-            cluster_name.clone(),
-            acl.clone(),
-        )
-        .await;
-
-        publish_user_acl_test(&topic, username.clone(), password.clone(), false).await;
-        delete_user(client_pool.clone(), grpc_addr.clone(), username.clone()).await;
+        run_authorization_test(MqttAclResourceType::User, topic).await;
     }
 
     #[tokio::test]
     async fn client_publish_authorization_test() {
-        let client_id = build_client_id("client_publish_authorization_test");
-
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let grpc_addr = vec![broker_grpc_addr()];
-
-        let username = unique_id();
-        let password = "caclpublic".to_string();
-
-        create_user(
-            client_pool.clone(),
-            grpc_addr.clone(),
-            username.clone(),
-            password.clone(),
-        )
-        .await;
-
-        let cluster_name: String = unique_id();
-
         let topic = format!(
             "{}/{}",
             "/tests/client_publish_authorization_test",
             unique_id()
         );
 
-        publish_client_id_acl_test(&topic, &client_id, &username, &password, false).await;
-
-        let acl = MqttAcl {
-            resource_type: MqttAclResourceType::ClientId,
-            resource_name: client_id.clone(),
-            topic: topic.clone(),
-            ip: "*".to_string(),
-            action: MqttAclAction::Publish,
-            permission: MqttAclPermission::Deny,
-        };
-
-        create_acl(
-            client_pool.clone(),
-            grpc_addr.clone(),
-            cluster_name.clone(),
-            acl.clone(),
-        )
-        .await;
-
-        publish_client_id_acl_test(&topic, &client_id, &username, &password, true).await;
-
-        delete_acl(
-            client_pool.clone(),
-            grpc_addr.clone(),
-            cluster_name.clone(),
-            acl.clone(),
-        )
-        .await;
-
-        publish_client_id_acl_test(&topic, &client_id, &username, &password, false).await;
-
-        delete_user(client_pool.clone(), grpc_addr.clone(), username.clone()).await;
+        run_authorization_test(MqttAclResourceType::ClientId, topic).await;
     }
 
+    async fn create_test_env() -> (Arc<ClientPool>, Vec<String>, String) {
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
+        let grpc_addr = vec![broker_grpc_addr()];
+        let cluster_name: String = unique_id();
+        (client_pool, grpc_addr, cluster_name)
+    }
+    fn create_test_acl(
+        resource_type: MqttAclResourceType,
+        resource_name: String,
+        topic: String,
+        action: MqttAclAction,
+        permission: MqttAclPermission,
+    ) -> MqttAcl {
+        MqttAcl {
+            resource_type,
+            resource_name,
+            topic,
+            ip: "*".to_string(),
+            action,
+            permission,
+        }
+    }
+
+    async fn check_acl_in_list(
+        client_pool: &Arc<ClientPool>,
+        grpc_addr: &[String],
+        cluster_name: &str,
+        expected_acl: &MqttAcl,
+        should_exist: bool,
+    ) {
+        let list_request = ListAclRequest {
+            cluster_name: cluster_name.to_string(),
+        };
+
+        match mqtt_broker_list_acl(client_pool, grpc_addr, list_request).await {
+            Ok(data) => {
+                let mut found = false;
+                for raw in data.acls {
+                    let tmp = serde_json::from_slice::<MqttAcl>(raw.as_slice()).unwrap();
+                    if tmp.resource_type == expected_acl.resource_type
+                        && tmp.resource_name == expected_acl.resource_name
+                        && tmp.topic == expected_acl.topic
+                        && tmp.ip == expected_acl.ip
+                        && tmp.action == expected_acl.action
+                        && tmp.permission == expected_acl.permission
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                assert_eq!(
+                    found,
+                    should_exist,
+                    "ACL {} in list",
+                    if should_exist {
+                        "should be"
+                    } else {
+                        "should not be"
+                    }
+                );
+            }
+            Err(e) => {
+                panic!("list acl error: {:?}", e);
+            }
+        }
+    }
     async fn publish_user_acl_test(topic: &str, username: String, password: String, is_err: bool) {
         for protocol in protocol_versions() {
             for network in network_types() {
