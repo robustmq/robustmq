@@ -44,6 +44,7 @@ pub mod user_test;
 // pub mod share_sub_test;
 pub mod blacklist_test;
 pub mod delay_publish_test;
+pub mod sub_auto;
 pub mod sub_exclusive_test;
 pub mod sub_identifier_test;
 pub mod sub_options_test;
