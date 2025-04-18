@@ -48,10 +48,11 @@ impl Record {
 
     pub fn build_str(data: String) -> Self {
         let crc_num = calc_crc32(data.as_bytes());
+        let data = serde_json::to_vec(&data).unwrap();
         Record {
             offset: None,
             key: "".to_string(),
-            data: data.as_bytes().to_vec(),
+            data,
             tags: Vec::new(),
             timestamp: now_second(),
             header: Vec::new(),

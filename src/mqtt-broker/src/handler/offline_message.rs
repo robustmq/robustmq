@@ -140,7 +140,7 @@ where
     ) {
         let target_shard_name = delay_info.tagget_shard_name.as_ref().unwrap();
         delay_message_manager
-            .send_delay_message(target_shard_name, delay_info.delay_timestamp, record)
+            .send(target_shard_name, delay_info.delay_timestamp, record)
             .await?;
         return Ok(None);
     }
