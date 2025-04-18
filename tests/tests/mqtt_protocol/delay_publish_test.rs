@@ -40,9 +40,9 @@ mod tests {
             let client_properties = ClientTestProperties {
                 mqtt_version: 5,
                 client_id: client_id.to_string(),
-                addr: broker_addr_by_type(&network),
-                ws: ws_by_type(&network),
-                ssl: ssl_by_type(&network),
+                addr: broker_addr_by_type(network),
+                ws: ws_by_type(network),
+                ssl: ssl_by_type(network),
                 ..Default::default()
             };
             let cli = connect_server(&client_properties);
@@ -59,9 +59,9 @@ mod tests {
             let client_properties = ClientTestProperties {
                 mqtt_version: 5,
                 client_id: client_id.to_string(),
-                addr: broker_addr_by_type(&network),
-                ws: ws_by_type(&network),
-                ssl: ssl_by_type(&network),
+                addr: broker_addr_by_type(network),
+                ws: ws_by_type(network),
+                ssl: ssl_by_type(network),
                 ..Default::default()
             };
             let cli = connect_server(&client_properties);
@@ -94,7 +94,7 @@ mod tests {
                 let diff = target_ms2 - recv_ms1;
                 assert_eq!(diff, t as i64);
                 println!("now:{},target_ms2:{}", now_second(), target_ms2);
-                assert_eq!(now_second(),target_ms2 as u64);
+                assert_eq!(now_second(), target_ms2 as u64);
                 payload == message_content
             };
 
