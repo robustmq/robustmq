@@ -57,4 +57,4 @@ tempfile.workspace = true
 # A custom cfg for enabling tokio-console in tracing-subscriber
 # Enable this by running with `RUSTFLAGS="--cfg tokio_console"`
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_console)'] } 
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_console)'] }
