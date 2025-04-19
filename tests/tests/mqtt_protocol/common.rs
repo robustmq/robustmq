@@ -91,7 +91,7 @@ pub fn connect_server(client_properties: &ClientTestProperties) -> Client {
 
     let conn_opts = build_conn_pros(client_properties.clone(), client_properties.err_pwd);
     let result = cli.connect(conn_opts);
-    print!("{:?}", result);
+    print!("result:{:?}", result);
     if client_properties.conn_is_err {
         assert!(result.is_err());
     } else {

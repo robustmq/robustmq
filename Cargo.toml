@@ -22,6 +22,7 @@ members = [
     "src/delay-message",
     "src/idempotent-message",
     "src/schema-register",
+    "src/message-expire",
     "src/grpc-clients",
     "src/cmd",
     "src/common/base",
@@ -155,6 +156,7 @@ delay-message = { path = "src/delay-message" }
 idempotent-message = { path = "src/idempotent-message" }
 placement-center = { path = "src/placement-center" }
 schema-register = { path = "src/schema-register" }
+message-expire = { path = "src/message-expire" }
 cli-command = { path = "src/cli-command" }
 grpc-clients = { path = "src/grpc-clients" }
 journal-server = { path = "src/journal-server" }

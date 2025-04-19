@@ -19,6 +19,7 @@ pub mod cluster_config;
 pub mod command;
 pub mod connection;
 pub mod constant;
+pub mod content_type;
 pub mod delay_message;
 pub mod error;
 pub mod flapping_detect;
