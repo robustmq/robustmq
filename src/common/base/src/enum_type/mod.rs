@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod feature_type;
 pub mod sort_type;
 pub mod time_unit_enum;
 pub mod topic_rewrite_action_enum;

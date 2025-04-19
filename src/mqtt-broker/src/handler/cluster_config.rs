@@ -68,6 +68,26 @@ impl CacheManager {
 
         Ok(())
     }
+    pub async fn set_offline_message_config(
+        &self,
+        offline_message: MqttClusterDynamicOfflineMessage,
+    ) -> Result<(), MqttBrokerError> {
+        if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
+            config.offline_message = offline_message.clone();
+        }
+
+        self.save_dynamic_config(
+            DEFAULT_DYNAMIC_CONFIG_OFFLINE_MESSAGE,
+            offline_message.encode(),
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    pub fn get_offline_message_config(&self) -> MqttClusterDynamicOfflineMessage {
+        self.get_cluster_info().offline_message
+    }
 
     pub fn get_slow_sub_config(&self) -> MqttClusterDynamicSlowSub {
         self.get_cluster_info().slow
