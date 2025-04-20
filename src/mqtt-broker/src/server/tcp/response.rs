@@ -22,13 +22,13 @@ use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use grpc_clients::pool::ClientPool;
-use log::info;
-use log::{debug, error};
 use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::mqtt::common::MqttPacket;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
+use tracing::info;
+use tracing::{debug, error};
 
 pub(crate) async fn response_process(
     response_process_num: usize,

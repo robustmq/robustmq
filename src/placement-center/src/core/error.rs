@@ -72,6 +72,9 @@ pub enum PlacementCenterError {
     #[error("Node {0} does not exist")]
     NodeDoesNotExist(u64),
 
+    #[error("User {0} does not exist")]
+    UserDoesNotExist(String),
+
     #[error("Shard {0} does not exist")]
     ShardDoesNotExist(String),
 
@@ -130,6 +133,9 @@ pub enum PlacementCenterError {
 
     #[error("Connector [{0}] already exist")]
     ConnectorAlreadyExist(String),
+
+    #[error("User [{0}] already exist")]
+    UserAlreadyExist(String),
 
     #[error("Schema [{0}] does not exist")]
     SchemaDoesNotExist(String),

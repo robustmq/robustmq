@@ -17,11 +17,11 @@ use std::time::Duration;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
-use log::{error, info};
 use metadata_struct::mqtt::user::MqttUser;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
+use tracing::{error, info};
 
 use crate::security::AuthDriver;
 use crate::storage::user::UserStorage;
@@ -84,7 +84,9 @@ pub async fn init_system_user(cache_manager: &Arc<CacheManager>, client_pool: &A
             cache_manager.add_user(system_user_info);
         }
         Err(e) => {
-            panic!("{}", e.to_string());
+            if !e.to_string().contains("already exist") {
+                panic!("{}", e.to_string());
+            }
         }
     }
 }

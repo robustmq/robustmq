@@ -19,7 +19,6 @@ use std::time::Duration;
 
 use common_base::tools::now_mills;
 use dashmap::DashMap;
-use log::error;
 use metadata_struct::journal::segment::segment_name;
 use protocol::journal_server::journal_engine::{
     WriteReqBody, WriteReqMessages, WriteReqSegmentMessages,
@@ -27,6 +26,7 @@ use protocol::journal_server::journal_engine::{
 use tokio::select;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::time::{sleep, timeout};
+use tracing::error;
 
 use crate::cache::{get_segment_leader, MetadataCache};
 use crate::client::JournalClientWriteData;

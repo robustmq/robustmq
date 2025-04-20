@@ -15,32 +15,39 @@
 use super::error::MqttBrokerError;
 
 const DELAY_PUBLISH_MESSAGE_PREFIXED: &str = "$delayed";
+pub const DELAY_MESSAGE_FLAG: &str = "delay_message_flag";
+pub const DELAY_MESSAGE_RECV_MS: &str = "delay_message_recv_ms";
+pub const DELAY_MESSAGE_TARGET_MS: &str = "delay_message_save_ms";
 
+#[derive(Debug)]
 pub struct DelayPublishTopic {
-    pub topic: String,
+    pub target_topic_name: String,
+    pub tagget_shard_name: Option<String>,
     pub delay_timestamp: u64,
 }
 
-pub fn is_delay_message(topic: &str) -> bool {
+pub fn is_delay_topic(topic: &str) -> bool {
     topic.starts_with(DELAY_PUBLISH_MESSAGE_PREFIXED)
 }
 
-pub fn decode_delay_topic(topic: &str) -> Result<Option<DelayPublishTopic>, MqttBrokerError> {
-    if !is_delay_message(topic) {
-        return Ok(None);
-    }
+pub fn decode_delay_topic(topic: &str) -> Result<DelayPublishTopic, MqttBrokerError> {
     let mut str_slice: Vec<&str> = topic.split("/").collect();
     if str_slice.len() < 3 {
-        return Ok(None);
+        return Err(MqttBrokerError::NotConformDeferredTopic(topic.to_string()));
     }
+
     let delay_timestamp = str_slice[1].parse::<u64>()?;
     str_slice.remove(0);
     str_slice.remove(0);
+    let target_topic_name = format!("/{}", str_slice.join("/"));
+
     let msg = DelayPublishTopic {
-        topic: format!("/{}", str_slice.join("/")),
+        target_topic_name,
+        tagget_shard_name: None,
         delay_timestamp,
     };
-    Ok(Some(msg))
+
+    Ok(msg)
 }
 
 #[cfg(test)]
@@ -48,22 +55,20 @@ mod test {
     #[test]
     pub fn is_delay_message_test() {
         let topic_name = "$delayed/60/a/b";
-        assert!(super::is_delay_message(topic_name));
+        assert!(super::is_delay_topic(topic_name));
 
         let topic_name = "/60/a/b";
-        assert!(!super::is_delay_message(topic_name));
+        assert!(!super::is_delay_topic(topic_name));
 
         let topic_name = "/a/b";
-        assert!(!super::is_delay_message(topic_name));
+        assert!(!super::is_delay_topic(topic_name));
     }
 
     #[test]
     pub fn decode_delay_message_test() {
         let topic_name = "$delayed/60/a/b";
         let msg = super::decode_delay_topic(topic_name).unwrap();
-        assert!(msg.is_some());
-        let msg = msg.unwrap();
-        assert_eq!(msg.topic, "/a/b");
+        assert_eq!(msg.target_topic_name, "/a/b");
         assert_eq!(msg.delay_timestamp, 60);
     }
 }

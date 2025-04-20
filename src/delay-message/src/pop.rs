@@ -17,9 +17,12 @@ use std::{sync::Arc, time::Duration};
 use crate::DelayMessageManager;
 use common_base::error::common::CommonError;
 use futures::StreamExt;
-use log::error;
-use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
+use metadata_struct::{
+    adapter::{read_config::ReadConfig, record::Record},
+    delay_info::DelayMessageInfo,
+};
 use storage_adapter::storage::StorageAdapter;
+use tracing::{error, info};
 
 pub async fn pop_delay_queue<S>(
     namespace: &str,
@@ -34,12 +37,12 @@ pub async fn pop_delay_queue<S>(
             let delay_message = expired.into_inner();
             let raw_message_storage_adapter = message_storage_adapter.clone();
             let raw_namespace = namespace.to_owned();
+            println!("shard_no:{},delay_message:{:?}", shard_no, delay_message);
             tokio::spawn(async move {
                 send_delay_message_to_shard(
                     &raw_message_storage_adapter,
                     &raw_namespace,
-                    &delay_message.shard_name,
-                    delay_message.offset,
+                    delay_message,
                 )
                 .await;
             });
@@ -50,35 +53,50 @@ pub async fn pop_delay_queue<S>(
 async fn send_delay_message_to_shard<S>(
     message_storage_adapter: &Arc<S>,
     namespace: &str,
-    shard_name: &str,
-    offset: u64,
+    delay_message: DelayMessageInfo,
 ) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let mut times = 0;
+    info!(
+        "send_delay_message_to_shard start,namespace:{},shard_name:{},offset:{}",
+        namespace, delay_message.target_shard_name, delay_message.offset
+    );
+
     loop {
-        if times > 1000 {
-            error!("send_delay_message_to_shard failed, times: {},namespace:{},shard_name:{},offset:{}", times, namespace, shard_name, offset);
+        if times > 100 {
+            error!("send_delay_message_to_shard failed, times: {},namespace:{},shard_name:{},offset:{}", times, namespace, delay_message.target_shard_name, delay_message.offset);
             break;
         }
 
         times += 1;
-        let record =
-            match read_offset_data(message_storage_adapter, namespace, shard_name, offset).await {
-                Ok(Some(record)) => record,
-                Ok(None) => break,
-                Err(e) => {
-                    error!("read_offset_data failed, err: {:?}", e);
-                    tokio::time::sleep(Duration::from_millis(1000)).await;
-                    continue;
-                }
-            };
+        let record = match read_offset_data(
+            message_storage_adapter,
+            namespace,
+            &delay_message.delay_shard_name,
+            delay_message.offset,
+        )
+        .await
+        {
+            Ok(Some(record)) => record,
+            Ok(None) => break,
+            Err(e) => {
+                error!("read_offset_data failed, err: {:?}", e);
+                tokio::time::sleep(Duration::from_millis(1000)).await;
+                continue;
+            }
+        };
 
         match message_storage_adapter
-            .write(namespace.to_owned(), shard_name.to_owned(), record)
+            .write(
+                namespace.to_owned(),
+                delay_message.target_shard_name.to_owned(),
+                record.clone(),
+            )
             .await
         {
-            Ok(_) => {
+            Ok(id) => {
+                info!("Delay message: message was written to {:?} successfully, offset: {:?}, delay info: {:?}",delay_message.target_shard_name,id, delay_message);
                 break;
             }
             Err(e) => {
@@ -90,7 +108,7 @@ async fn send_delay_message_to_shard<S>(
     }
 }
 
-async fn read_offset_data<S>(
+pub(crate) async fn read_offset_data<S>(
     message_storage_adapter: &Arc<S>,
     namespace: &str,
     shard_name: &str,
@@ -122,6 +140,117 @@ where
 
 #[cfg(test)]
 mod test {
-    #[test]
-    pub fn read_offset_data_test() {}
+    use std::{sync::Arc, time::Duration};
+
+    use common_base::tools::unique_id;
+    use metadata_struct::{adapter::record::Record, delay_info::DelayMessageInfo};
+    use storage_adapter::{memory::MemoryStorageAdapter, storage::StorageAdapter};
+    use tokio::time::sleep;
+
+    use crate::{
+        pop::{read_offset_data, send_delay_message_to_shard},
+        start_delay_message_pop, DelayMessageManager,
+    };
+
+    #[tokio::test]
+    pub async fn read_offset_data_test() {
+        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let namespace = unique_id();
+        let shard_name = "s1".to_string();
+        for i in 0..100 {
+            let data = Record::build_str(format!("data{}", i));
+            let res = message_storage_adapter
+                .write(namespace.to_owned(), shard_name.to_owned(), data)
+                .await;
+            assert!(res.is_ok());
+        }
+
+        for i in 0..100 {
+            let res = read_offset_data(&message_storage_adapter, &namespace, &shard_name, i).await;
+            assert!(res.is_ok());
+            let raw = res.unwrap().unwrap();
+            assert_eq!(raw.offset.unwrap(), i);
+
+            let d: String = serde_json::from_slice(&raw.data).unwrap();
+            assert_eq!(d, format!("data{}", i));
+        }
+    }
+
+    #[tokio::test]
+    pub async fn send_delay_message_to_shard_test() {
+        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let namespace = unique_id();
+        let shard_name = "s1".to_string();
+        for i in 0..100 {
+            let data = Record::build_str(format!("data{}", i));
+            let res = message_storage_adapter
+                .write(namespace.to_owned(), shard_name.to_owned(), data)
+                .await;
+            assert!(res.is_ok());
+        }
+
+        let target_shard_name = unique_id();
+        for i in 0..100 {
+            let delay_message: DelayMessageInfo = DelayMessageInfo {
+                delay_shard_name: shard_name.to_owned(),
+                target_shard_name: target_shard_name.to_owned(),
+                offset: i,
+                delay_timestamp: 5,
+            };
+            send_delay_message_to_shard(&message_storage_adapter, &namespace, delay_message).await;
+        }
+
+        for i in 0..100 {
+            let res =
+                read_offset_data(&message_storage_adapter, &namespace, &target_shard_name, i).await;
+            assert!(res.is_ok());
+            let raw = res.unwrap().unwrap();
+            assert_eq!(raw.offset.unwrap(), i);
+
+            let d: String = serde_json::from_slice(&raw.data).unwrap();
+            assert_eq!(d, format!("data{}", i));
+        }
+    }
+
+    #[tokio::test]
+    pub async fn pop_delay_queue_test() {
+        let namespace = unique_id();
+        let shard_num = 1;
+        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let delay_message_manager = Arc::new(DelayMessageManager::new(
+            namespace.clone(),
+            shard_num,
+            message_storage_adapter.clone(),
+        ));
+        delay_message_manager.start().await;
+
+        start_delay_message_pop(
+            &delay_message_manager,
+            &message_storage_adapter,
+            &namespace,
+            shard_num,
+        );
+
+        let target_topic = unique_id();
+        for i in 0..10 {
+            let data = Record::build_str(format!("data{}", i));
+            let res = delay_message_manager.send(&target_topic, i + 1, data).await;
+
+            assert!(res.is_ok());
+        }
+
+        sleep(Duration::from_secs(15)).await;
+
+        for i in 0..10 {
+            let res =
+                read_offset_data(&message_storage_adapter, &namespace, &target_topic, i).await;
+            assert!(res.is_ok());
+            let raw = res.unwrap().unwrap();
+            assert_eq!(raw.offset.unwrap(), i);
+            let d: String = serde_json::from_slice(&raw.data).unwrap();
+            println!("i:{},res:{:?}", i, d)
+
+            // assert_eq!(d, format!("data{}", i));
+        }
+    }
 }

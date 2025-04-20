@@ -18,12 +18,12 @@ use std::time::Duration;
 use broker::report_broker_info;
 use common_base::tools::get_local_ip;
 use grpc_clients::pool::ClientPool;
-use log::{debug, error};
 use metadata_struct::adapter::record::Record;
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
+use tracing::{debug, error};
 
 use crate::handler::cache::CacheManager;
 use crate::handler::topic::try_init_topic;

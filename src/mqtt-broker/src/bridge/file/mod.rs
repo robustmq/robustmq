@@ -18,7 +18,6 @@ use super::core::{BridgePlugin, BridgePluginReadConfig};
 use super::manager::ConnectorManager;
 use crate::{handler::error::MqttBrokerError, storage::message::MessageStorage};
 use axum::async_trait;
-use log::error;
 use metadata_struct::{
     adapter::record::Record, mqtt::bridge::config_local_file::LocalFileConnectorConfig,
 };
@@ -26,6 +25,7 @@ use storage_adapter::storage::StorageAdapter;
 use tokio::fs::File;
 use tokio::io::{AsyncWriteExt, BufWriter};
 use tokio::{fs::OpenOptions, select, sync::broadcast, time::sleep};
+use tracing::error;
 
 pub struct FileBridgePlugin<S> {
     connector_manager: Arc<ConnectorManager>,
@@ -190,7 +190,6 @@ mod tests {
                 data: format!("test_data_{}", i).as_bytes().to_vec(),
                 tags: vec![],
                 timestamp: now_second(),
-                delay_timestamp: 0,
                 crc_num: calc_crc32(format!("test_data_{}", i).as_bytes()),
             };
 

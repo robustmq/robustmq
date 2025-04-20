@@ -207,7 +207,7 @@ pub fn load_mqtt_cache(
 
             // User
             let user = MqttUserStorage::new(rocksdb_engine_handler.clone());
-            let data = user.list(&cluster.cluster_name)?;
+            let data = user.list_by_cluster(&cluster.cluster_name)?;
             for user in data {
                 mqtt_cache.add_user(&cluster.cluster_name, user);
             }

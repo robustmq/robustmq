@@ -17,7 +17,7 @@ pub mod enum_type;
 pub mod error;
 pub mod http_error;
 pub mod http_response;
-pub mod logs;
+pub mod logging;
 pub mod metrics;
 pub mod runtime;
 pub mod telemetry;

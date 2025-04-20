@@ -16,7 +16,6 @@ use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
-use log::{debug, info};
 use metadata_struct::mqtt::lastwill::LastWillData;
 use protocol::broker_mqtt::broker_mqtt_inner::mqtt_broker_inner_service_server::MqttBrokerInnerService;
 use protocol::broker_mqtt::broker_mqtt_inner::{
@@ -26,6 +25,7 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
 use tonic::{Request, Response, Status};
+use tracing::{debug, info};
 
 use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::CacheManager;
@@ -76,7 +76,11 @@ where
         if conf.cluster_name != req.cluster_name {
             return Ok(Response::new(UpdateMqttCacheReply::default()));
         }
-        debug!("update cache:{:?}", req);
+        info!(
+            "update cache, resource_type:{:?},action_type:{:?}",
+            req.resource_type(),
+            req.action_type()
+        );
         update_cache_metadata(
             &self.cache_manager,
             &self.connector_manager,

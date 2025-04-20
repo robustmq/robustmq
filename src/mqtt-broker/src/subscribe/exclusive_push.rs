@@ -17,7 +17,6 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use common_base::tools::now_second;
-use log::{error, info, warn};
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{Publish, PublishProperties, QoS};
@@ -25,6 +24,7 @@ use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
+use tracing::{debug, error, info, warn};
 
 use super::sub_common::{
     get_pkid, loop_commit_offset, min_qos, publish_message_qos, qos2_send_pubrel, wait_pub_ack,
@@ -321,7 +321,7 @@ async fn build_pub_message(
     }
 
     if !is_send_msg_by_bo_local(subscriber.nolocal, &subscriber.client_id, &msg.client_id) {
-        warn!(
+        debug!(
             "Message dropping: message is not pushed to the client, because the client_id is the same as the subscriber, client_id: {}, topic_id: {}",
             subscriber.client_id, subscriber.topic_id
         );

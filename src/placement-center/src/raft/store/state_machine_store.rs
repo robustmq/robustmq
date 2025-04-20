@@ -15,16 +15,16 @@
 use std::io::Cursor;
 use std::sync::Arc;
 
-use log::warn;
 use openraft::storage::RaftStateMachine;
 use openraft::{
     AnyError, EntryPayload, ErrorSubject, ErrorVerb, LogId, OptionalSend, RaftSnapshotBuilder,
     Snapshot, SnapshotMeta, StorageError, StoredMembership,
 };
 use rocksdb::{BoundColumnFamily, DB};
+use tracing::warn;
 
 use super::{cf_raft_store, StorageResult, StoredSnapshot};
-use crate::raft::raft_node::{typ, NodeId};
+use crate::raft::raft_node::typ;
 use crate::raft::route::AppResponseData;
 use crate::raft::typeconfig::{SnapshotData, TypeConfig};
 use crate::route::DataRoute;
@@ -45,7 +45,7 @@ pub struct StateMachineStore {
 
 #[derive(Clone)]
 pub struct StateMachineData {
-    pub last_applied_log_id: Option<LogId<NodeId>>,
+    pub last_applied_log_id: Option<LogId<TypeConfig>>,
 
     pub last_membership: StoredMembership<TypeConfig>,
 
@@ -82,7 +82,7 @@ impl RaftSnapshotBuilder<TypeConfig> for StateMachineStore {
 
         Ok(Snapshot {
             meta,
-            snapshot: Box::new(Cursor::new(kv_json)),
+            snapshot: Cursor::new(kv_json),
         })
     }
 }
@@ -167,7 +167,7 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
 
     async fn applied_state(
         &mut self,
-    ) -> Result<(Option<LogId<NodeId>>, StoredMembership<TypeConfig>), StorageError<TypeConfig>>
+    ) -> Result<(Option<LogId<TypeConfig>>, StoredMembership<TypeConfig>), StorageError<TypeConfig>>
     {
         Ok((
             self.data.last_applied_log_id,
@@ -221,14 +221,14 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
 
     async fn begin_receiving_snapshot(
         &mut self,
-    ) -> Result<Box<Cursor<Vec<u8>>>, StorageError<TypeConfig>> {
-        Ok(Box::new(Cursor::new(Vec::new())))
+    ) -> Result<Cursor<Vec<u8>>, StorageError<TypeConfig>> {
+        Ok(Cursor::new(Vec::new()))
     }
 
     async fn install_snapshot(
         &mut self,
         meta: &SnapshotMeta<TypeConfig>,
-        snapshot: Box<SnapshotData>,
+        snapshot: SnapshotData,
     ) -> Result<(), StorageError<TypeConfig>> {
         let new_snapshot = StoredSnapshot {
             meta: meta.clone(),
@@ -248,7 +248,7 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
         let x = self.get_current_snapshot_()?;
         Ok(x.map(|s| Snapshot {
             meta: s.meta.clone(),
-            snapshot: Box::new(Cursor::new(s.data.clone())),
+            snapshot: Cursor::new(s.data.clone()),
         }))
     }
 }

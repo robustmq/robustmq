@@ -16,11 +16,11 @@ use std::sync::Arc;
 
 use common_base::config::journal_server::journal_server_conf;
 use common_base::error::common::CommonError;
-use log::info;
 use protocol::journal_server::journal_admin::journal_server_admin_service_server::JournalServerAdminServiceServer;
 use protocol::journal_server::journal_inner::journal_server_inner_service_server::JournalServerInnerServiceServer;
 use rocksdb_engine::RocksDBEngine;
 use tonic::transport::Server;
+use tracing::info;
 
 use crate::core::cache::CacheManager;
 use crate::segment::manager::SegmentFileManager;

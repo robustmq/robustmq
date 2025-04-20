@@ -28,7 +28,6 @@ use crate::subscribe::subscribe_manager::SubscribeManager;
 use common_base::telemetry::trace::CustomContext;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
-use log::info;
 use opentelemetry::global;
 use opentelemetry::trace::{Span, SpanKind, Tracer};
 use protocol::mqtt::common::{
@@ -36,6 +35,7 @@ use protocol::mqtt::common::{
 };
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
+use tracing::info;
 
 // S: message storage adapter
 #[derive(Clone)]

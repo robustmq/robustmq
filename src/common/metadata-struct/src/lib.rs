@@ -14,6 +14,7 @@
 
 pub mod acl;
 pub mod adapter;
+pub mod delay_info;
 pub mod journal;
 pub mod mqtt;
 pub mod placement;

@@ -22,7 +22,7 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
 use common_base::tools::now_second;
-use delay_message::{start_build_delay_queue, start_delay_message_pop, DelayMessageManager};
+use delay_message::{start_delay_message_manager, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
 use handler::acl::UpdateAclCache;
 use handler::cache::CacheManager;
@@ -32,7 +32,6 @@ use handler::keep_alive::ClientKeepAlive;
 use handler::sub_parse_topic::start_parse_subscribe_by_new_topic_thread;
 use handler::user::{init_system_user, UpdateUserCache};
 use lazy_static::lazy_static;
-use log::{error, info};
 use observability::start_opservability;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
 use schema_register::schema::SchemaRegisterManager;
@@ -43,6 +42,7 @@ use server::tcp::server::start_tcp_server;
 use server::websocket::server::{websocket_server, websockets_server, WebSocketServerState};
 use storage::cluster::ClusterStorage;
 use storage_adapter::memory::MemoryStorageAdapter;
+use tracing::{error, info};
 // use storage_adapter::mysql::MySQLStorageAdapter;
 // use storage_adapter::rocksdb::RocksDBStorageAdapter;
 use crate::handler::flapping_detect::UpdateFlappingDetectCache;
@@ -148,7 +148,7 @@ where
         let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_pool.clone()));
         let delay_message_manager = Arc::new(DelayMessageManager::new(
             conf.cluster_name.clone(),
-            3,
+            1,
             message_storage_adapter.clone(),
         ));
         let schema_manager = Arc::new(SchemaRegisterManager::new());
@@ -394,30 +394,17 @@ where
         let delay_message_manager = self.delay_message_manager.clone();
         let message_storage_adapter = self.message_storage_adapter.clone();
         self.runtime.spawn(async move {
-            // Initialize the delay message manager
-            if let Err(e) = delay_message_manager.init().await {
+            let conf = broker_mqtt_conf();
+            if let Err(e) = start_delay_message_manager(
+                &delay_message_manager,
+                &message_storage_adapter,
+                &conf.cluster_name,
+                delay_message_manager.get_shard_num(),
+            )
+            .await
+            {
                 panic!("{}", e.to_string());
             }
-
-            // Start the delayed message index building thread
-            let conf = broker_mqtt_conf();
-            let shard_num = 1;
-            start_build_delay_queue(
-                conf.cluster_name.clone(),
-                delay_message_manager.clone(),
-                message_storage_adapter.clone(),
-                shard_num,
-            )
-            .await;
-
-            // Start the delay message pop thread
-            start_delay_message_pop(
-                conf.cluster_name.clone(),
-                message_storage_adapter,
-                delay_message_manager,
-                shard_num,
-            )
-            .await;
         });
     }
 

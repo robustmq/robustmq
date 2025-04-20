@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::{error, warn};
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
@@ -22,9 +21,35 @@ use protocol::mqtt::common::{
     PubRecProperties, PubRecReason, PubRel, PubRelProperties, PubRelReason, SubAck,
     SubAckProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
 };
+use tracing::{error, warn};
 
 use super::connection::response_information;
 use super::validator::is_request_problem_info;
+
+pub fn build_pub_ack_fail(
+    protocol: &MqttProtocol,
+    connection: &MQTTConnection,
+    pkid: u16,
+    reason_string: Option<String>,
+    is_puback: bool,
+) -> MqttPacket {
+    if is_puback {
+        return response_packet_mqtt_puback_fail(
+            protocol,
+            connection,
+            pkid,
+            PubAckReason::UnspecifiedError,
+            reason_string,
+        );
+    }
+    response_packet_mqtt_pubrec_fail(
+        protocol,
+        connection,
+        pkid,
+        PubRecReason::UnspecifiedError,
+        reason_string,
+    )
+}
 
 #[allow(clippy::too_many_arguments)]
 pub fn response_packet_mqtt_connect_success(

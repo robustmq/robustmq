@@ -23,7 +23,6 @@ use common_base::tools::{now_mills, now_nanos};
 use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
 use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
 use grpc_clients::pool::ClientPool;
-use log::{error, warn};
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{MqttPacket, MqttProtocol, PubRel, QoS};
 use protocol::placement_center::placement_center_mqtt::{
@@ -34,6 +33,7 @@ use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::{sleep, timeout};
+use tracing::{error, warn};
 
 use super::subscriber::SubPublishParam;
 use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType};
@@ -276,14 +276,13 @@ pub async fn wait_pub_ack(
                 }
             }
             Ok(None) => {}
-            Err(e) => {
+            Err(_) => {
                 publish_message_qos(metadata_cache, connection_manager, sub_pub_param, stop_sx)
                     .await;
                 return Err(MqttBrokerError::CommonError(
                     format!(
-                        "Push QOS1 Publish message to client {}, wait PubAck timeout, more than 30s, error message :{:?}",
-                        sub_pub_param.subscribe.client_id,
-                        e
+                        "Push QOS1 Publish message to client {}, wait PubAck timeout, more than 30s, error message",
+                        sub_pub_param.subscribe.client_id
                     )
                 ));
             }

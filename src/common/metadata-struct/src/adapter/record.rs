@@ -29,7 +29,6 @@ pub struct Record {
     pub data: Vec<u8>,
     pub tags: Vec<String>,
     pub timestamp: u64,
-    pub delay_timestamp: u64,
     pub crc_num: u32,
 }
 
@@ -43,21 +42,20 @@ impl Record {
             tags: Vec::new(),
             timestamp: now_second(),
             header: Vec::new(),
-            delay_timestamp: 0,
             crc_num,
         }
     }
 
     pub fn build_str(data: String) -> Self {
         let crc_num = calc_crc32(data.as_bytes());
+        let data = serde_json::to_vec(&data).unwrap();
         Record {
             offset: None,
             key: "".to_string(),
-            data: data.as_bytes().to_vec(),
+            data,
             tags: Vec::new(),
             timestamp: now_second(),
             header: Vec::new(),
-            delay_timestamp: 0,
             crc_num,
         }
     }

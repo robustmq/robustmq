@@ -43,25 +43,31 @@ pub fn list_topic_by_req(
         match storage.get(&req.cluster_name, &req.topic_name) {
             Ok(Some(topic)) => {
                 let topics = vec![topic.encode()];
-                Ok(Response::new(ListTopicReply { topics }))
+                return Ok(Response::new(ListTopicReply { topics }));
             }
-            Ok(None) => Ok(Response::new(ListTopicReply { topics: vec![] })),
-            Err(e) => Err(Status::cancelled(e.to_string())),
-        }
-    } else {
-        let data = match storage.list(&req.cluster_name) {
-            Ok(data) => data,
+            Ok(None) => {
+                return Ok(Response::new(ListTopicReply { topics: vec![] }));
+            }
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
-        };
-        let mut result = Vec::new();
-        for raw in data {
-            result.push(raw.encode());
         }
-        Ok(Response::new(ListTopicReply { topics: result }))
     }
+
+    let data = match storage.list(&req.cluster_name) {
+        Ok(data) => data,
+        Err(e) => {
+            return Err(Status::cancelled(e.to_string()));
+        }
+    };
+
+    let mut result = Vec::new();
+    for raw in data {
+        result.push(raw.encode());
+    }
+    Ok(Response::new(ListTopicReply { topics: result }))
 }
+
 pub async fn create_topic_by_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<MQTTInnerCallManager>,
