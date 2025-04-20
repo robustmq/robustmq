@@ -446,6 +446,7 @@ async fn share_leader_publish_message_qos1(
     if let Some(conn) = metadata_cache.get_connection(connect_id) {
         if sub_pub_param.publish.payload.len() > (conn.max_packet_size as usize) {
             return Err(MqttBrokerError::PacketLengthError(
+                conn.max_packet_size as usize,
                 sub_pub_param.publish.payload.len(),
             ));
         }

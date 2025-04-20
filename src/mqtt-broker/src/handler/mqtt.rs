@@ -419,6 +419,10 @@ where
 
         if self.schema_manager.is_check_schema(&topic_name) {
             if let Err(e) = self.schema_manager.validate(&topic_name, &publish.payload) {
+                warn!(
+                    "Schema for Topic {} failed validation.e:{:?}",
+                    topic_name, e
+                );
                 return Some(build_pub_ack_fail(
                     &self.protocol,
                     &connection,

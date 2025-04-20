@@ -33,6 +33,7 @@ pub struct MqttClusterDynamicConfig {
     pub slow: MqttClusterDynamicSlowSub,
     pub flapping_detect: MqttClusterDynamicFlappingDetect,
     pub offline_message: MqttClusterDynamicOfflineMessage,
+    pub schema: MqttClusterDynamicSchemaMessage,
 }
 
 // MQTT cluster protocol related dynamic configuration
@@ -122,6 +123,36 @@ pub struct MqttClusterDynamicOfflineMessage {
 }
 
 impl MqttClusterDynamicConfig {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
+    }
+}
+
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub struct MqttClusterDynamicSchemaMessage {
+    pub enable: bool,
+    pub strategy: MqttClusterDynamicSchemaMessageStrategy,
+    pub failed_operation: MqttClusterDynamicSchemaMessageFailedOperation,
+    pub echo_log: bool,
+    pub log_level: String,
+}
+
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub enum MqttClusterDynamicSchemaMessageStrategy {
+    #[default]
+    ALL,
+    Any,
+}
+
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub enum MqttClusterDynamicSchemaMessageFailedOperation {
+    #[default]
+    Discard,
+    DisconnectAndDiscard,
+    Ignore,
+}
+
+impl MqttClusterDynamicSchemaMessage {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
     }
