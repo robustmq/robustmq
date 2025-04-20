@@ -180,7 +180,7 @@ pub async fn enable_flapping_detect(
     };
 
     cache_manager
-        .set_flapping_detect_config(connection_jitter)
+        .update_flapping_detect_config(connection_jitter)
         .await?;
 
     Ok(())

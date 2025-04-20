@@ -34,19 +34,13 @@ use protocol::mqtt::common::{qos, QoS};
 /// Through this implementation, we can retrieve configuration information within the cluster
 /// and set corresponding cluster configuration attributes.
 impl CacheManager {
-    pub async fn set_flapping_detect_config(
+    pub async fn update_flapping_detect_config(
         &self,
         flapping_detect: MqttClusterDynamicFlappingDetect,
     ) -> Result<(), MqttBrokerError> {
         if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
             config.flapping_detect = flapping_detect.clone();
         }
-
-        self.save_dynamic_config(
-            DEFAULT_DYNAMIC_CONFIG_FLAPPING_DETECT,
-            flapping_detect.encode(),
-        )
-        .await?;
 
         Ok(())
     }
@@ -55,16 +49,13 @@ impl CacheManager {
         self.get_cluster_info().flapping_detect
     }
 
-    pub async fn set_slow_sub_config(
+    pub async fn update_slow_sub_config(
         &self,
         slow_sub: MqttClusterDynamicSlowSub,
     ) -> Result<(), MqttBrokerError> {
         if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
             config.slow = slow_sub.clone();
         }
-
-        self.save_dynamic_config(DEFAULT_DYNAMIC_CONFIG_SLOW_SUB, slow_sub.encode())
-            .await?;
 
         Ok(())
     }
@@ -73,7 +64,7 @@ impl CacheManager {
         offline_message: MqttClusterDynamicOfflineMessage,
     ) -> Result<(), MqttBrokerError> {
         if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
-            config.offline_message.enable = offline_message.enable
+            config.offline_message = offline_message.clone();
         }
 
         Ok(())
@@ -93,19 +84,6 @@ impl CacheManager {
 
     pub fn get_cluster_info(&self) -> MqttClusterDynamicConfig {
         self.cluster_info.get(&self.cluster_name).unwrap().clone()
-    }
-
-    async fn save_dynamic_config(
-        &self,
-        resource: &str,
-        data: Vec<u8>,
-    ) -> Result<(), MqttBrokerError> {
-        let client_pool = self.client_pool.clone();
-        let cluster_storage = ClusterStorage::new(client_pool);
-        cluster_storage
-            .set_dynamic_config(&self.cluster_name, resource, data)
-            .await?;
-        Ok(())
     }
 }
 

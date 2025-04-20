@@ -122,7 +122,7 @@ pub async fn enable_slow_sub(
 
     sub.enable = is_enable;
 
-    cache_manager.set_slow_sub_config(sub).await?;
+    cache_manager.update_slow_sub_config(sub).await?;
 
     Ok(())
 }
