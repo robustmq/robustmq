@@ -171,21 +171,21 @@ mod test {
 
         let message_content = json!({"name": "John Doe","age": 30}).to_string();
 
-        let result = schema_manager.validate(&topic_name, &message_content.as_bytes());
+        let result = schema_manager.validate(&topic_name, message_content.as_bytes());
         println!("{:?}", result);
         assert!(result.is_ok());
         assert!(result.unwrap());
 
         let message_content = json!({"age": 30}).to_string();
 
-        let result = schema_manager.validate(&topic_name, &message_content.as_bytes());
+        let result = schema_manager.validate(&topic_name, message_content.as_bytes());
         println!("{:?}", result);
         assert!(result.is_ok());
         assert!(!result.unwrap());
 
         let message_content = json!({"name": "John Doe"}).to_string();
 
-        let result = schema_manager.validate(&topic_name, &message_content.as_bytes());
+        let result = schema_manager.validate(&topic_name, message_content.as_bytes());
         println!("{:?}", result);
         assert!(result.is_ok());
         assert!(result.unwrap());
