@@ -24,24 +24,27 @@ async fn test_enable_offline_message() {
     let client_pool = Arc::new(ClientPool::new(3));
     let grpc_addr = vec![broker_grpc_addr()];
 
-    let request = SetClusterConfigRequest {
-        feature_name: FeatureType::OfflineMessage.to_string(),
-        is_enable: true,
-    };
+    let is_enables = [true, false];
+    for is_enable in is_enables.iter() {
+        let request = SetClusterConfigRequest {
+            feature_name: FeatureType::OfflineMessage.to_string(),
+            is_enable: *is_enable,
+        };
 
-    let reply = SetClusterConfigReply {
-        feature_name: FeatureType::OfflineMessage.to_string(),
-        is_enable: true,
-    };
+        let reply = SetClusterConfigReply {
+            feature_name: FeatureType::OfflineMessage.to_string(),
+            is_enable: *is_enable,
+        };
 
-    match mqtt_broker_set_cluster_config(&client_pool, &grpc_addr, request).await {
-        Ok(data) => {
-            assert_eq!(reply, data);
-        }
+        match mqtt_broker_set_cluster_config(&client_pool, &grpc_addr, request).await {
+            Ok(data) => {
+                assert_eq!(reply, data);
+            }
 
-        Err(e) => {
-            eprintln!("Failed enable_offline_message: {:?}", e);
-            std::process::exit(1);
+            Err(e) => {
+                eprintln!("Failed enable_offline_message: {:?}", e);
+                std::process::exit(1);
+            }
         }
     }
 }

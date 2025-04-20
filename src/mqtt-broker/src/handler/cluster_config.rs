@@ -68,19 +68,13 @@ impl CacheManager {
 
         Ok(())
     }
-    pub async fn set_offline_message_config(
+    pub async fn update_offline_message_config(
         &self,
         offline_message: MqttClusterDynamicOfflineMessage,
     ) -> Result<(), MqttBrokerError> {
         if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
-            config.offline_message = offline_message.clone();
+            config.offline_message.enable = offline_message.enable
         }
-
-        self.save_dynamic_config(
-            DEFAULT_DYNAMIC_CONFIG_OFFLINE_MESSAGE,
-            offline_message.encode(),
-        )
-        .await?;
 
         Ok(())
     }

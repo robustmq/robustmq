@@ -88,7 +88,7 @@ pub async fn enable_offline_message(
     cluster_dynamic_offline_message.enable = is_enable;
 
     cache_manager
-        .set_offline_message_config(cluster_dynamic_offline_message)
+        .update_offline_message_config(cluster_dynamic_offline_message)
         .await?;
 
     Ok(())
