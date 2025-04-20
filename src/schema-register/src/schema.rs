@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::str::from_utf8;
+
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind, SchemaType};
@@ -47,8 +49,8 @@ impl SchemaRegisterManager {
                 if let Some(schema) = self.schema_list.get(schema_name) {
                     match schema.schema_type {
                         SchemaType::JSON => {
-                            let raw = serde_json::from_slice::<String>(data)?;
-                            return json_validate(&schema.schema, &raw);
+                            let raw = from_utf8(data).unwrap();
+                            return json_validate(&schema.schema, raw);
                         }
                         SchemaType::PROTOBUF => {}
                         SchemaType::AVRO => {

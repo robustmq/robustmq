@@ -27,6 +27,7 @@ pub struct ClientTestProperties {
     pub(crate) will: Option<Message>,
     pub(crate) err_pwd: bool,
     pub(crate) conn_is_err: bool,
+    pub(crate) packet_size: Option<u32>,
 }
 
 pub mod acl_test;

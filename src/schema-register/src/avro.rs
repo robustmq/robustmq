@@ -17,6 +17,7 @@ use common_base::error::common::CommonError;
 
 pub fn avro_validate(schema: &str, data: &[u8]) -> Result<bool, CommonError> {
     let schema = Schema::parse_str(schema)?;
+
     let reader = apache_avro::Reader::with_schema(&schema, data)?;
     let mut res = true;
     for record in reader {

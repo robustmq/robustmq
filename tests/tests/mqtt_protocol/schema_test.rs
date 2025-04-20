@@ -16,6 +16,7 @@
 mod tests {
     use apache_avro::{Schema, Writer};
     use serde::{Deserialize, Serialize};
+    use serde_json::json;
     use std::sync::Arc;
 
     use common_base::tools::unique_id;
@@ -79,14 +80,12 @@ mod tests {
         let cli = connect_server(&client_properties);
 
         let message_content = "mqtt message".to_string();
-        let msg = Message::new(topic_name.clone(), message_content.clone(), QOS_1);
+        let msg = Message::new(topic_name.clone(), message_content, QOS_1);
         publish_data(&cli, msg, true);
 
-        let message_content = r#"{
-            "name": "John Doe",
-            "age": 30
-        }"#;
-        let msg = Message::new(topic_name.clone(), message_content.to_string(), QOS_1);
+        let message_content = json!({"name": "John Doe","age": 30}).to_string();
+        println!("message_content:{}", message_content);
+        let msg = Message::new(topic_name.clone(), message_content, QOS_1);
         publish_data(&cli, msg, false);
 
         delete_schema(
@@ -148,11 +147,13 @@ mod tests {
         };
         let cli = connect_server(&client_properties);
 
+        // fail
         let message_content = "mqtt message".to_string();
         let msg = Message::new(topic_name.clone(), message_content.clone(), QOS_1);
         publish_data(&cli, msg, true);
 
-        let schema = Schema::parse_str(&schema_name).unwrap();
+        // success
+        let schema = Schema::parse_str(schema_content).unwrap();
         let test_data = TestData {
             a: 1,
             b: "test".to_string(),
@@ -160,6 +161,7 @@ mod tests {
         let mut writer = Writer::new(&schema, Vec::new());
         writer.append_ser(test_data).unwrap();
         let encoded_data = writer.into_inner().unwrap();
+        println!("encoded_data len: {:?}", encoded_data.len());
         let msg = Message::new(topic_name.clone(), encoded_data, QOS_1);
         publish_data(&cli, msg, false);
 

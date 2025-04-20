@@ -75,9 +75,15 @@ pub fn build_conn_pros(
                 .push_val(PropertyCode::RequestResponseInformation, 1)
                 .unwrap();
         }
-        props
-            .push_int(PropertyCode::MaximumPacketSize, 128)
-            .unwrap();
+        if let Some(size) = client_test_properties.packet_size {
+            props
+                .push_int(PropertyCode::MaximumPacketSize, size as i32)
+                .unwrap();
+        } else {
+            props
+                .push_int(PropertyCode::MaximumPacketSize, 1024 * 1024)
+                .unwrap();
+        }
         build_v5_conn_pros(client_test_properties, props, err_pwd)
     }
 }
