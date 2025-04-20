@@ -91,8 +91,8 @@ impl PlacementCenterCommand {
         match placement_openraft_add_learner(client_pool, &grpc_addr(params.server), cli_request)
             .await
         {
-            Ok(reply) => {
-                println!("{:?}", reply.value);
+            Ok(_) => {
+                println!("Placement center add leaner successfully");
             }
             Err(e) => {
                 println!("Placement center add leaner normal exception");
@@ -114,8 +114,8 @@ impl PlacementCenterCommand {
         )
         .await
         {
-            Ok(reply) => {
-                println!("{:?}", reply.value);
+            Ok(_) => {
+                println!("Placement center change membership successfully");
             }
             Err(e) => {
                 println!("Placement center cluster normal exception");
