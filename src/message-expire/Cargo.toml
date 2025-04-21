@@ -13,7 +13,7 @@
 # limitations under the License.
 
 [package]
-name = "robustmq-test"
+name = "message-expire"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -23,22 +23,18 @@ license.workspace = true
 bytes.workspace = true
 axum.workspace = true
 thiserror.workspace = true
+common-base.workspace = true
+storage-adapter.workspace = true
+metadata-struct.workspace = true
+dashmap.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
-protocol.workspace = true
-futures.workspace = true
-common-base.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-dashmap.workspace = true
-journal-client.workspace = true
-paho-mqtt.workspace = true
-mqtt-broker.workspace = true
-grpc-clients.workspace = true
-metadata-struct.workspace = true
 tracing.workspace = true
-tonic.workspace = true
-opentelemetry.workspace = true
-opentelemetry_sdk.workspace = true
-opentelemetry-otlp.workspace = true
+futures.workspace = true
+valico.workspace = true
+serde_json.workspace = true
 apache-avro.workspace = true
+serde.workspace = true
+protobuf.workspace = true
+protobuf-codegen.workspace = true
+protofish.workspace = true

@@ -2602,6 +2602,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "message-expire"
+version = "0.1.14"
+dependencies = [
+ "apache-avro",
+ "axum",
+ "bytes",
+ "common-base",
+ "dashmap",
+ "futures",
+ "metadata-struct",
+ "protobuf 3.7.2",
+ "protobuf-codegen",
+ "protofish",
+ "serde",
+ "serde_json",
+ "storage-adapter",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "valico",
+]
+
+[[package]]
 name = "metadata-struct"
 version = "0.1.14"
 dependencies = [
@@ -4374,6 +4398,7 @@ dependencies = [
 name = "robustmq-test"
 version = "0.1.14"
 dependencies = [
+ "apache-avro",
  "axum",
  "bytes",
  "common-base",

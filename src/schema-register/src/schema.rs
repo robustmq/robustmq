@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::str::from_utf8;
+
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind, SchemaType};
@@ -47,8 +49,8 @@ impl SchemaRegisterManager {
                 if let Some(schema) = self.schema_list.get(schema_name) {
                     match schema.schema_type {
                         SchemaType::JSON => {
-                            let raw = serde_json::from_slice::<String>(data)?;
-                            return json_validate(&schema.schema, &raw);
+                            let raw = from_utf8(data).unwrap();
+                            return json_validate(&schema.schema, raw);
                         }
                         SchemaType::PROTOBUF => {}
                         SchemaType::AVRO => {
@@ -131,6 +133,7 @@ mod test {
     use apache_avro::{Schema, Writer};
     use metadata_struct::schema::{SchemaData, SchemaResourceBind, SchemaType};
     use serde::{Deserialize, Serialize};
+    use serde_json::json;
 
     #[test]
     pub fn json_schema_test() {
@@ -166,33 +169,23 @@ mod test {
         let topic_name1 = "t2".to_string();
         assert!(!schema_manager.is_check_schema(&topic_name1));
 
-        let data = r#"{
-            "name": "John Doe",
-            "age": 30
-        }"#;
+        let message_content = json!({"name": "John Doe","age": 30}).to_string();
 
-        let result =
-            schema_manager.validate(&topic_name, serde_json::to_vec(data).unwrap().as_slice());
+        let result = schema_manager.validate(&topic_name, message_content.as_bytes());
         println!("{:?}", result);
         assert!(result.is_ok());
         assert!(result.unwrap());
 
-        let data1 = r#"{
-            "age": 30
-        }"#;
+        let message_content = json!({"age": 30}).to_string();
 
-        let result =
-            schema_manager.validate(&topic_name, serde_json::to_vec(data1).unwrap().as_slice());
+        let result = schema_manager.validate(&topic_name, message_content.as_bytes());
         println!("{:?}", result);
         assert!(result.is_ok());
         assert!(!result.unwrap());
 
-        let data1 = r#"{
-            "name": "John Doe"
-        }"#;
+        let message_content = json!({"name": "John Doe"}).to_string();
 
-        let result =
-            schema_manager.validate(&topic_name, serde_json::to_vec(data1).unwrap().as_slice());
+        let result = schema_manager.validate(&topic_name, message_content.as_bytes());
         println!("{:?}", result);
         assert!(result.is_ok());
         assert!(result.unwrap());

@@ -31,6 +31,9 @@ use tokio_util::codec::FramedWrite;
 use tracing::error;
 
 use super::cache::CacheManager;
+use super::content_type::{
+    payload_format_indicator_check_by_lastwill, payload_format_indicator_check_by_publish,
+};
 use super::error::MqttBrokerError;
 use super::flow_control::{
     is_connection_rate_exceeded, is_qos_message, is_subscribe_rate_exceeded,
@@ -236,6 +239,15 @@ pub fn connect_validator(
             ));
         }
 
+        if !payload_format_indicator_check_by_lastwill(last_will, last_will_properties) {
+            return Some(response_packet_mqtt_connect_fail(
+                protocol,
+                ConnectReturnCode::PayloadFormatInvalid,
+                connect_properties,
+                None,
+            ));
+        }
+
         let max_packet_size = connection_max_packet_size(connect_properties, cluster) as usize;
         if will.message.len() > max_packet_size {
             return Some(response_packet_mqtt_connect_fail(
@@ -307,6 +319,7 @@ pub async fn publish_validator(
     }
 
     let cluster = cache_manager.get_cluster_info();
+
     let max_packet_size =
         min(cluster.protocol.max_packet_size, connection.max_packet_size) as usize;
     if publish.payload.len() > max_packet_size {
@@ -316,7 +329,10 @@ pub async fn publish_validator(
                 connection,
                 publish.pkid,
                 PubAckReason::PayloadFormatInvalid,
-                Some(MqttBrokerError::PacketLengthError(publish.payload.len()).to_string()),
+                Some(
+                    MqttBrokerError::PacketLengthError(max_packet_size, publish.payload.len())
+                        .to_string(),
+                ),
             ));
         } else {
             return Some(response_packet_mqtt_pubrec_fail(
@@ -324,7 +340,10 @@ pub async fn publish_validator(
                 connection,
                 publish.pkid,
                 PubRecReason::PayloadFormatInvalid,
-                Some(MqttBrokerError::PacketLengthError(publish.payload.len()).to_string()),
+                Some(
+                    MqttBrokerError::PacketLengthError(max_packet_size, publish.payload.len())
+                        .to_string(),
+                ),
             ));
         }
     }
@@ -340,7 +359,7 @@ pub async fn publish_validator(
                         connection,
                         publish.pkid,
                         PubAckReason::PayloadFormatInvalid,
-                        Some(MqttBrokerError::PacketLengthError(publish.payload.len()).to_string()),
+                        Some(MqttBrokerError::PayloadFormatInvalid.to_string()),
                     ));
                 } else {
                     return Some(response_packet_mqtt_pubrec_fail(
@@ -348,7 +367,7 @@ pub async fn publish_validator(
                         connection,
                         publish.pkid,
                         PubRecReason::PayloadFormatInvalid,
-                        Some(MqttBrokerError::PacketLengthError(publish.payload.len()).to_string()),
+                        Some(MqttBrokerError::PayloadFormatInvalid.to_string()),
                     ));
                 }
             }
@@ -372,6 +391,26 @@ pub async fn publish_validator(
                 connection,
                 publish.pkid,
                 PubRecReason::QuotaExceeded,
+                None,
+            ));
+        }
+    }
+
+    if !payload_format_indicator_check_by_publish(publish, publish_properties) {
+        if is_puback {
+            return Some(response_packet_mqtt_puback_fail(
+                protocol,
+                connection,
+                publish.pkid,
+                PubAckReason::PayloadFormatInvalid,
+                None,
+            ));
+        } else {
+            return Some(response_packet_mqtt_pubrec_fail(
+                protocol,
+                connection,
+                publish.pkid,
+                PubRecReason::PayloadFormatInvalid,
                 None,
             ));
         }
