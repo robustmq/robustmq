@@ -38,6 +38,7 @@ use crate::admin::{
 };
 use crate::handler::cache::CacheManager;
 use crate::server::connection_manager::ConnectionManager;
+use bincode::serialize;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
 use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -47,18 +48,19 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
     DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
     DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
-    EnableFlappingDetectRequest, ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply,
-    ListAutoSubscribeRuleRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
-    ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
-    ListTopicRequest, ListUserReply, ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest,
-    MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttCreateSchemaReply,
-    MqttCreateSchemaRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
-    MqttDeleteSchemaReply, MqttDeleteSchemaRequest, MqttListBindSchemaReply,
-    MqttListBindSchemaRequest, MqttListConnectorReply, MqttListConnectorRequest,
-    MqttListSchemaReply, MqttListSchemaRequest, MqttUnbindSchemaReply, MqttUnbindSchemaRequest,
-    MqttUpdateConnectorReply, MqttUpdateConnectorRequest, MqttUpdateSchemaReply,
-    MqttUpdateSchemaRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
-    SetClusterConfigReply, SetClusterConfigRequest,
+    EnableFlappingDetectRequest, GetClusterConfigReply, GetClusterConfigRequest, ListAclReply,
+    ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBlacklistReply,
+    ListBlacklistRequest, ListConnectionReply, ListConnectionRequest, ListSlowSubscribeReply,
+    ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+    MqttBindSchemaReply, MqttBindSchemaRequest, MqttCreateConnectorReply,
+    MqttCreateConnectorRequest, MqttCreateSchemaReply, MqttCreateSchemaRequest,
+    MqttDeleteConnectorReply, MqttDeleteConnectorRequest, MqttDeleteSchemaReply,
+    MqttDeleteSchemaRequest, MqttListBindSchemaReply, MqttListBindSchemaRequest,
+    MqttListConnectorReply, MqttListConnectorRequest, MqttListSchemaReply, MqttListSchemaRequest,
+    MqttUnbindSchemaReply, MqttUnbindSchemaRequest, MqttUpdateConnectorReply,
+    MqttUpdateConnectorRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
+    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetClusterConfigReply,
+    SetClusterConfigRequest,
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
@@ -95,6 +97,21 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             is_enable: set_cluster_config_by_req(&self.cache_manager, config_request)
                 .await
                 .map_err(|e| Status::internal(e.to_string()))?,
+        }))
+    }
+
+    async fn mqtt_broker_get_cluster_config(
+        &self,
+        _request: Request<GetClusterConfigRequest>,
+    ) -> Result<Response<GetClusterConfigReply>, Status> {
+        Ok(Response::new(GetClusterConfigReply {
+            mqtt_broker_cluster_dynamic_config: serialize(
+                &self
+                    .cache_manager
+                    .get_cluster_config()
+                    .map_err(|e| Status::internal(e.to_string()))?,
+            )
+            .map_err(|e| Status::internal(e.to_string()))?,
         }))
     }
 

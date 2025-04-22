@@ -94,6 +94,17 @@ impl CacheManager {
     pub fn get_cluster_info(&self) -> MqttClusterDynamicConfig {
         self.cluster_info.get(&self.cluster_name).unwrap().clone()
     }
+
+    pub fn get_cluster_config(&self) -> Result<MqttClusterDynamicConfig, MqttBrokerError> {
+        if let Some(config) = self.cluster_info.get(&self.cluster_name) {
+            Ok(config.clone())
+        } else {
+            Err(MqttBrokerError::CommonError(format!(
+                "Failed to get cluster config, cluster name: {} not found",
+                self.cluster_name
+            )))
+        }
+    }
 }
 
 pub fn build_default_cluster_config() -> MqttClusterDynamicConfig {
@@ -202,25 +213,25 @@ async fn build_feature(
         return Ok(cluster);
     }
     Ok(MqttClusterDynamicConfigFeature {
-        retain_available: to_auvailable_flag(
+        retain_available: to_available_flag(
             conf.cluster_dynamic_config_feature.retain_available.clone(),
         ),
-        wildcard_subscription_available: to_auvailable_flag(
+        wildcard_subscription_available: to_available_flag(
             conf.cluster_dynamic_config_feature
                 .wildcard_subscription_available
                 .clone(),
         ),
-        subscription_identifiers_available: to_auvailable_flag(
+        subscription_identifiers_available: to_available_flag(
             conf.cluster_dynamic_config_feature
                 .subscription_identifiers_available
                 .clone(),
         ),
-        shared_subscription_available: to_auvailable_flag(
+        shared_subscription_available: to_available_flag(
             conf.cluster_dynamic_config_feature
                 .shared_subscription_available
                 .clone(),
         ),
-        exclusive_subscription_available: to_auvailable_flag(
+        exclusive_subscription_available: to_available_flag(
             conf.cluster_dynamic_config_feature
                 .exclusive_subscription_available
                 .clone(),
@@ -228,7 +239,7 @@ async fn build_feature(
     })
 }
 
-fn to_auvailable_flag(flag: ConfigAvailableFlag) -> AvailableFlag {
+fn to_available_flag(flag: ConfigAvailableFlag) -> AvailableFlag {
     match flag {
         ConfigAvailableFlag::Enable => AvailableFlag::Enable,
         ConfigAvailableFlag::Disable => AvailableFlag::Disable,
