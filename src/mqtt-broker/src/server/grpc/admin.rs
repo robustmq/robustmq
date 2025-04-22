@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use crate::admin::acl::{
     create_acl_by_req, create_blacklist_by_req, delete_acl_by_req, delete_blacklist_by_req,
     list_acl_by_req, list_blacklist_by_req,
@@ -62,6 +60,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     MqttUpdateSchemaRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
     SetClusterConfigReply, SetClusterConfigRequest,
 };
+use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcAdminServices {
@@ -90,7 +89,13 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         request: Request<SetClusterConfigRequest>,
     ) -> Result<Response<SetClusterConfigReply>, Status> {
-        set_cluster_config_by_req(&self.cache_manager, request).await
+        let config_request = request.into_inner().clone();
+        Ok(Response::new(SetClusterConfigReply {
+            feature_name: config_request.feature_name.clone(),
+            is_enable: set_cluster_config_by_req(&self.cache_manager, config_request)
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?,
+        }))
     }
 
     // --- cluster ---

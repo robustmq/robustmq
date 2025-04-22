@@ -28,6 +28,7 @@ use metadata_struct::mqtt::cluster::{
     DEFAULT_DYNAMIC_CONFIG_OFFLINE_MESSAGE, DEFAULT_DYNAMIC_CONFIG_PROTOCOL,
     DEFAULT_DYNAMIC_CONFIG_SLOW_SUB,
 };
+use protocol::broker_mqtt::broker_mqtt_admin::SetClusterConfigRequest;
 use protocol::mqtt::common::{qos, QoS};
 
 /// This section primarily implements cache management for cluster-related configuration operations.
@@ -51,23 +52,31 @@ impl CacheManager {
 
     pub async fn update_slow_sub_config(
         &self,
-        slow_sub: MqttClusterDynamicSlowSub,
-    ) -> Result<(), MqttBrokerError> {
+        cluster_config_request: SetClusterConfigRequest,
+    ) -> Result<bool, MqttBrokerError> {
         if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
-            config.slow = slow_sub.clone();
+            config.slow.enable = cluster_config_request.is_enable;
+            Ok(cluster_config_request.is_enable)
+        } else {
+            Err(MqttBrokerError::CommonError(format!(
+                "Failed to update slow sub config, cluster name: {} not found",
+                self.cluster_name,
+            )))
         }
-
-        Ok(())
     }
     pub async fn update_offline_message_config(
         &self,
-        offline_message: MqttClusterDynamicOfflineMessage,
-    ) -> Result<(), MqttBrokerError> {
+        cluster_config_request: SetClusterConfigRequest,
+    ) -> Result<bool, MqttBrokerError> {
         if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
-            config.offline_message = offline_message.clone();
+            config.offline_message.enable = cluster_config_request.is_enable;
+            Ok(cluster_config_request.is_enable)
+        } else {
+            Err(MqttBrokerError::CommonError(format!(
+                "Failed to update offline message config, cluster name: {} not found",
+                self.cluster_name
+            )))
         }
-
-        Ok(())
     }
 
     pub fn get_offline_message_config(&self) -> MqttClusterDynamicOfflineMessage {

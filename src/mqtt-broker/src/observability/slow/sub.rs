@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use common_base::tools::{get_local_ip, now_second};
 use grep::matcher::Matcher;
@@ -24,7 +23,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::fs::File;
 use std::path::PathBuf;
-use std::sync::Arc;
 use tracing::info;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
@@ -112,19 +110,6 @@ pub fn read_slow_sub_record(
     }
 
     Ok(matches_queue)
-}
-
-pub async fn enable_slow_sub(
-    cache_manager: &Arc<CacheManager>,
-    is_enable: bool,
-) -> Result<(), MqttBrokerError> {
-    let mut sub = cache_manager.get_slow_sub_config().clone();
-
-    sub.enable = is_enable;
-
-    cache_manager.update_slow_sub_config(sub).await?;
-
-    Ok(())
 }
 
 #[cfg(test)]
