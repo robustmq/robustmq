@@ -21,10 +21,10 @@ docker-compose -f compose/compose-test-net.yaml up
 ```
 
 ## 3. 验证 MQTT 功能是否正常
-   
+
 查看文档执行测试：[MQTT 功能测试](./MQTT-test.md)
 
-    
+
 ## 4. 出现的问题怎么解决
 
 4.1 出现`Not found leader`这种问题是因为 `placement-center` 集群的数据有问题，需要清理掉 volumes
