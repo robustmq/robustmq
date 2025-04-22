@@ -124,7 +124,7 @@ hello
 > You typed: hello
 robustmq!
 > You typed: robustmq!
-^C>  Ctrl+C detected,  Please press ENTER to end the program. 
+^C>  Ctrl+C detected,  Please press ENTER to end the program.
 ```
 
 ### 4.3 消费者订阅信息
@@ -133,12 +133,12 @@ robustmq!
 
 ```shell
 $ ./bin/robust-ctl mqtt --server=127.0.0.1:1883 subscribe --topic=demo --qos=0 --username foo --password 123
- 
+
 able to connect: "127.0.0.1:1883"
 subscribe success
 payload: hello
 payload: robustmq!
-^C Ctrl+C detected,  Please press ENTER to end the program. 
+^C Ctrl+C detected,  Please press ENTER to end the program.
 ```
 
 ## 下一步
