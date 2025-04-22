@@ -23,7 +23,9 @@ use metadata_struct::mqtt::cluster::{
     AvailableFlag, MqttClusterDynamicConfig, MqttClusterDynamicConfigFeature,
     MqttClusterDynamicConfigNetwork, MqttClusterDynamicConfigProtocol,
     MqttClusterDynamicConfigSecurity, MqttClusterDynamicFlappingDetect,
-    MqttClusterDynamicOfflineMessage, MqttClusterDynamicSlowSub, DEFAULT_DYNAMIC_CONFIG_FEATURE,
+    MqttClusterDynamicOfflineMessage, MqttClusterDynamicSchemaMessage,
+    MqttClusterDynamicSchemaMessageFailedOperation, MqttClusterDynamicSchemaMessageStrategy,
+    MqttClusterDynamicSlowSub, DEFAULT_DYNAMIC_CONFIG_FEATURE,
     DEFAULT_DYNAMIC_CONFIG_FLAPPING_DETECT, DEFAULT_DYNAMIC_CONFIG_NETWORK,
     DEFAULT_DYNAMIC_CONFIG_OFFLINE_MESSAGE, DEFAULT_DYNAMIC_CONFIG_PROTOCOL,
     DEFAULT_DYNAMIC_CONFIG_SLOW_SUB,
@@ -152,6 +154,13 @@ pub fn build_default_cluster_config() -> MqttClusterDynamicConfig {
             ban_time: 5,
         },
         offline_message: MqttClusterDynamicOfflineMessage { enable: true },
+        schema: MqttClusterDynamicSchemaMessage {
+            enable: true,
+            strategy: MqttClusterDynamicSchemaMessageStrategy::ALL,
+            failed_operation: MqttClusterDynamicSchemaMessageFailedOperation::Discard,
+            echo_log: true,
+            log_level: "info".to_string(),
+        },
     }
 }
 
@@ -166,6 +175,7 @@ pub async fn build_cluster_config(
         slow: build_slow_sub(client_pool).await?,
         flapping_detect: build_flapping_detect(client_pool).await?,
         offline_message: build_offline_message(client_pool).await?,
+        schema: build_schema(client_pool).await?,
     })
 }
 
@@ -353,5 +363,17 @@ async fn build_offline_message(
 
     Ok(MqttClusterDynamicOfflineMessage {
         enable: conf.offline_messages.enable,
+    })
+}
+
+async fn build_schema(
+    _client_pool: &Arc<ClientPool>,
+) -> Result<MqttClusterDynamicSchemaMessage, MqttBrokerError> {
+    Ok(MqttClusterDynamicSchemaMessage {
+        enable: true,
+        strategy: MqttClusterDynamicSchemaMessageStrategy::ALL,
+        failed_operation: MqttClusterDynamicSchemaMessageFailedOperation::Discard,
+        echo_log: true,
+        log_level: "info".to_string(),
     })
 }

@@ -38,6 +38,7 @@ mod tests {
                 addr: broker_addr_by_type(&network),
                 ws: ws_by_type(&network),
                 ssl: ssl_by_type(&network),
+                packet_size: Some(128),
                 ..Default::default()
             };
             let cli = connect_server(&client_properties);

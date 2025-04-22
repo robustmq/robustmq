@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use toml::map::Map;
 use toml::{Table, Value};
 
-use super::common::{override_default_by_env, Log};
+use super::common::{default_prometheus, override_default_by_env, Log, Prometheus};
 use super::default_placement_center::{
     default_cluster_name, default_data_path, default_grpc_max_decoding_message_size,
     default_grpc_port, default_heartbeat, default_heartbeat_check_time_ms,
@@ -45,6 +45,8 @@ pub struct PlacementCenterConfig {
     pub rocksdb: Rocksdb,
     #[serde(default = "default_log")]
     pub log: Log,
+    #[serde(default = "default_prometheus")]
+    pub prometheus: Prometheus,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]

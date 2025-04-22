@@ -12,17 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod broker;
-pub mod registry;
 use axum::routing::get;
 use axum::Router;
 use prometheus_client::encoding::text::encode;
+use prometheus_client::registry::Registry;
+use std::sync::{LazyLock, Mutex, MutexGuard};
 use tracing::info;
 
-// lazy_static::lazy_static! {
-//     static ref APP_VERSION: IntGaugeVec =
-//         prometheus::register_int_gauge_vec!("app_version", "app version", &["short_version", "version"]).unwrap();
-// }
+pub mod broker;
+pub mod counter;
+pub mod gauge;
+pub mod histogram;
+
+static REGISTRY: LazyLock<Mutex<Registry>> = LazyLock::new(|| Mutex::new(Registry::default()));
+
+pub fn metrics_register_default() -> MutexGuard<'static, Registry> {
+    REGISTRY.lock().unwrap()
+}
 
 const SERVER_LABEL_MQTT: &str = "mqtt4";
 const SERVER_LABEL_GRPC: &str = "grpc";
@@ -30,7 +36,7 @@ const SERVER_LABEL_HTTP: &str = "http";
 
 pub fn dump_metrics() -> String {
     let mut buffer = String::new();
-    let re = registry::default();
+    let re = metrics_register_default();
     encode(&mut buffer, &re).unwrap();
     buffer
 }

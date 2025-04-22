@@ -319,6 +319,7 @@ pub async fn publish_validator(
     }
 
     let cluster = cache_manager.get_cluster_info();
+
     let max_packet_size =
         min(cluster.protocol.max_packet_size, connection.max_packet_size) as usize;
     if publish.payload.len() > max_packet_size {
@@ -328,7 +329,10 @@ pub async fn publish_validator(
                 connection,
                 publish.pkid,
                 PubAckReason::PayloadFormatInvalid,
-                Some(MqttBrokerError::PacketLengthError(publish.payload.len()).to_string()),
+                Some(
+                    MqttBrokerError::PacketLengthError(max_packet_size, publish.payload.len())
+                        .to_string(),
+                ),
             ));
         } else {
             return Some(response_packet_mqtt_pubrec_fail(
@@ -336,7 +340,10 @@ pub async fn publish_validator(
                 connection,
                 publish.pkid,
                 PubRecReason::PayloadFormatInvalid,
-                Some(MqttBrokerError::PacketLengthError(publish.payload.len()).to_string()),
+                Some(
+                    MqttBrokerError::PacketLengthError(max_packet_size, publish.payload.len())
+                        .to_string(),
+                ),
             ));
         }
     }
@@ -352,7 +359,7 @@ pub async fn publish_validator(
                         connection,
                         publish.pkid,
                         PubAckReason::PayloadFormatInvalid,
-                        Some(MqttBrokerError::PacketLengthError(publish.payload.len()).to_string()),
+                        Some(MqttBrokerError::PayloadFormatInvalid.to_string()),
                     ));
                 } else {
                     return Some(response_packet_mqtt_pubrec_fail(
@@ -360,7 +367,7 @@ pub async fn publish_validator(
                         connection,
                         publish.pkid,
                         PubRecReason::PayloadFormatInvalid,
-                        Some(MqttBrokerError::PacketLengthError(publish.payload.len()).to_string()),
+                        Some(MqttBrokerError::PayloadFormatInvalid.to_string()),
                     ));
                 }
             }

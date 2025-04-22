@@ -396,7 +396,7 @@ pub fn record_messages_dropped_discard_metrics(qos: QoS) {
 #[cfg(test)]
 mod test {
     use super::*;
-    use common_base::metrics::registry::default;
+    use common_base::metrics::metrics_register_default;
     use prometheus_client::encoding::text::encode;
     #[tokio::test]
     async fn test_gauge() {
@@ -430,7 +430,7 @@ mod test {
 
         let mut buffer = String::new();
 
-        let re = default();
+        let re = metrics_register_default();
         encode(&mut buffer, &re).unwrap();
 
         assert_ne!(buffer.capacity(), 0);

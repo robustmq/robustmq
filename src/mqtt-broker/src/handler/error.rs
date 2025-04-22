@@ -66,11 +66,14 @@ pub enum MqttBrokerError {
     #[error("Client {0} has no connection available")]
     ClientNoAvailableCOnnection(String),
 
-    #[error("There is a problem with the length [{0}] of the Packet. Please check the length of the request packet")]
-    PacketLengthError(usize),
+    #[error("Message content length exceeds limit, Max :{0}, current :{1}")]
+    PacketLengthError(usize, usize),
 
     #[error("Cluster is in self-protection state, please request later")]
     ClusterIsInSelfProtection,
+
+    #[error("message is not in UTF8 format")]
+    PayloadFormatInvalid,
 
     #[error(
         "Subscribe to push, send QOS2 message to client {0}, wait for PubRec message timeout."
