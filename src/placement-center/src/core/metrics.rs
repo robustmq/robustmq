@@ -16,21 +16,37 @@ use prometheus_client::encoding::EncodeLabelSet;
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
 pub struct GrpcMethodLabel {
-    pub method: String,
+    pub service: String,
+    pub path: String,
 }
 
 common_base::register_counter_metric!(
     GRPC_REQUEST_NUM,
-    "grpc_request_num",
+    "grpc.request.num",
     "Number of calls to the grpc request",
     GrpcMethodLabel
 );
 
-pub fn metrics_grpc_request_incr(method: &str) {
+common_base::register_histogram_metric!(
+    GRPC_REQUEST_TOTAL_MS,
+    "grpc.request.total.ms",
+    "TotalMs of calls to the grpc request",
+    GrpcMethodLabel
+);
+
+pub fn metrics_grpc_request_incr(service: &str, path: &str) {
     let label = GrpcMethodLabel {
-        method: method.to_string(),
+        service: service.to_string(),
+        path: path.to_string(),
     };
     common_base::gauge_metric_inc!(GRPC_REQUEST_NUM, label)
 }
 
-pub fn metrics_grpc_request_ms(_: u128) {}
+pub fn metrics_grpc_request_ms(service: &str, path: &str, ms: f64) {
+    let label = GrpcMethodLabel {
+        service: service.to_string(),
+        path: path.to_string(),
+    };
+
+    common_base::histogram_metric_observe!(GRPC_REQUEST_TOTAL_MS, ms, label)
+}
