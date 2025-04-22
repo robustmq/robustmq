@@ -71,7 +71,7 @@ mod tests {
 
     use common_base::config::placement_center::placement_center_test_conf;
     use common_base::utils::file_utils::test_temp_dir;
-    use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList,MqttAclBlackListType};
+    use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
 
     use crate::storage::mqtt::blacklist::MqttBlackListStorage;
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
@@ -90,14 +90,14 @@ mod tests {
         let blacklist1 = MqttAclBlackList {
             blacklist_type: MqttAclBlackListType::ClientId,
             resource_name: "resource1".to_string(),
-            end_time:171456001,
-            desc:"user1".to_string(),
+            end_time: 171456001,
+            desc: "user1".to_string(),
         };
         let blacklist2 = MqttAclBlackList {
             blacklist_type: MqttAclBlackListType::User,
             resource_name: "resource2".to_string(),
-            end_time:171456002,
-            desc:"user2".to_string(),
+            end_time: 171456002,
+            desc: "user2".to_string(),
         };
 
         blacklist_storage
@@ -114,15 +114,25 @@ mod tests {
             .list(&cluster_name)
             .unwrap()
             .into_iter()
-            .find(|b| b.blacklist_type == blacklist1.blacklist_type && b.resource_name == blacklist1.resource_name);
+            .find(|b| {
+                b.blacklist_type == blacklist1.blacklist_type
+                    && b.resource_name == blacklist1.resource_name
+            });
         assert!(res.is_some());
 
         blacklist_storage
-            .delete(&cluster_name, &blacklist1.blacklist_type.to_string(), &blacklist1.resource_name)
+            .delete(
+                &cluster_name,
+                &blacklist1.blacklist_type.to_string(),
+                &blacklist1.resource_name,
+            )
             .unwrap();
 
         let res = blacklist_storage.list(&cluster_name).unwrap();
         assert_eq!(res.len(), 1);
-        assert!(res.iter().all(|b| b.blacklist_type != blacklist1.blacklist_type || b.resource_name != blacklist1.resource_name));
+        assert!(res
+            .iter()
+            .all(|b| b.blacklist_type != blacklist1.blacklist_type
+                || b.resource_name != blacklist1.resource_name));
     }
 }
