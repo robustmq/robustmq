@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use axum::http;
+use axum::http::{self};
 use common_base::config::placement_center::placement_center_conf;
 use common_base::tools::now_mills;
 use grpc_clients::pool::ClientPool;
@@ -42,8 +42,7 @@ use protocol::placement_center::placement_center_mqtt::mqtt_service_server::Mqtt
 use protocol::placement_center::placement_center_openraft::open_raft_service_server::OpenRaftServiceServer;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use tonic::codegen::InterceptedService;
-use tonic::{transport::Server, Request, Status};
+use tonic::transport::Server;
 use tower::{Layer, Service};
 
 #[allow(clippy::too_many_arguments)]
@@ -92,30 +91,6 @@ pub async fn start_grpc_server(
     );
 
     let grpc_max_decoding_message_size = config.network.grpc_max_decoding_message_size as usize;
-    let pc_svc = InterceptedService::new(
-        PlacementCenterServiceServer::new(placement_handler)
-            .max_decoding_message_size(grpc_max_decoding_message_size),
-        grpc_intercept,
-    );
-    let kv_svc = InterceptedService::new(
-        KvServiceServer::new(kv_handler).max_decoding_message_size(grpc_max_decoding_message_size),
-        grpc_intercept,
-    );
-    let mqtt_svc = InterceptedService::new(
-        MqttServiceServer::new(mqtt_handler)
-            .max_decoding_message_size(grpc_max_decoding_message_size),
-        grpc_intercept,
-    );
-    let engine_svc = InterceptedService::new(
-        EngineServiceServer::new(engine_handler)
-            .max_decoding_message_size(grpc_max_decoding_message_size),
-        grpc_intercept,
-    );
-    let openraft_svc = InterceptedService::new(
-        OpenRaftServiceServer::new(openraft_handler)
-            .max_decoding_message_size(grpc_max_decoding_message_size),
-        grpc_intercept,
-    );
 
     let layer = tower::ServiceBuilder::new()
         .layer(BaseMiddlewareLayer::default())
@@ -130,11 +105,26 @@ pub async fn start_grpc_server(
         .layer(cors_layer)
         .layer(tonic_web::GrpcWebLayer::new())
         .layer(layer)
-        .add_service(pc_svc)
-        .add_service(kv_svc)
-        .add_service(mqtt_svc)
-        .add_service(engine_svc)
-        .add_service(openraft_svc)
+        .add_service(
+            PlacementCenterServiceServer::new(placement_handler)
+                .max_decoding_message_size(grpc_max_decoding_message_size),
+        )
+        .add_service(
+            KvServiceServer::new(kv_handler)
+                .max_decoding_message_size(grpc_max_decoding_message_size),
+        )
+        .add_service(
+            MqttServiceServer::new(mqtt_handler)
+                .max_decoding_message_size(grpc_max_decoding_message_size),
+        )
+        .add_service(
+            EngineServiceServer::new(engine_handler)
+                .max_decoding_message_size(grpc_max_decoding_message_size),
+        )
+        .add_service(
+            OpenRaftServiceServer::new(openraft_handler)
+                .max_decoding_message_size(grpc_max_decoding_message_size),
+        )
         .serve(ip)
         .await?;
     Ok(())
@@ -174,6 +164,7 @@ where
     }
 
     fn call(&mut self, req: http::Request<ReqBody>) -> Self::Future {
+        let paths = parse_path(req.uri().path());
         // See: https://docs.rs/tower/latest/tower/trait.Service.html#be-careful-when-cloning-inner-services
         let clone = self.inner.clone();
         let mut inner = std::mem::replace(&mut self.inner, clone);
@@ -184,14 +175,37 @@ where
             // call
             let response = inner.call(req).await?;
 
-            metrics_grpc_request_ms(now_mills() - start_time);
+            metrics_grpc_request_ms(
+                paths.0.as_str(),
+                paths.1.as_str(),
+                (now_mills() - start_time) as f64,
+            );
+            metrics_grpc_request_incr(paths.0.as_str(), paths.1.as_str());
             Ok(response)
         })
     }
 }
 
-// See: https://github.com/hyperium/tonic/blob/master/examples/src/interceptor/server.rs
-pub fn grpc_intercept(req: Request<()>) -> Result<Request<()>, Status> {
-    metrics_grpc_request_incr("all");
-    Ok(req)
+fn parse_path(uri: &str) -> (String, String) {
+    let paths: Vec<&str> = uri.split("/").collect();
+    (paths[1].to_string(), paths[2].to_string())
+}
+
+#[cfg(test)]
+mod test {
+
+    use crate::server::grpc::server::parse_path;
+
+    #[tokio::test]
+    async fn parse_path_test() {
+        let path = "/placement.center.kv.KvService/exists";
+        let paths = parse_path(path);
+        assert_eq!(paths.0, "placement.center.kv.KvService");
+        assert_eq!(paths.1, "exists");
+
+        let path = "/placement.center.kv.KvService/get";
+        let paths = parse_path(path);
+        assert_eq!(paths.0, "placement.center.kv.KvService");
+        assert_eq!(paths.1, "get");
+    }
 }
