@@ -14,39 +14,90 @@
 
 use prometheus_client::encoding::EncodeLabelSet;
 
-#[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
-pub struct GrpcMethodLabel {
-    pub service: String,
-    pub path: String,
+use crate::route::data::StorageDataType;
+
+#[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq, Default)]
+pub struct MetricsLabel {
+    pub grpc_service: String,
+    pub grpc_path: String,
+    pub raft_storage_type: String,
 }
 
 common_base::register_counter_metric!(
     GRPC_REQUEST_NUM,
     "grpc.request.num",
     "Number of calls to the grpc request",
-    GrpcMethodLabel
+    MetricsLabel
 );
 
 common_base::register_histogram_metric!(
     GRPC_REQUEST_TOTAL_MS,
     "grpc.request.total.ms",
     "TotalMs of calls to the grpc request",
-    GrpcMethodLabel
+    MetricsLabel
+);
+
+common_base::register_counter_metric!(
+    RAFT_STORAGE_TOTAL_NUM,
+    "raft.storage.num",
+    "Total number of calls to the raft storage",
+    MetricsLabel
+);
+
+common_base::register_counter_metric!(
+    RAFT_STORAGE_ERROR_NUM,
+    "raft.storage.error.num",
+    "Error number of calls to the raft storage",
+    MetricsLabel
+);
+
+common_base::register_histogram_metric!(
+    RAFT_STORAGE_TOTAL_MS,
+    "raft.storage.total.ms",
+    "TotalMs of calls to the raft storage",
+    MetricsLabel
 );
 
 pub fn metrics_grpc_request_incr(service: &str, path: &str) {
-    let label = GrpcMethodLabel {
-        service: service.to_string(),
-        path: path.to_string(),
+    let label = MetricsLabel {
+        grpc_service: service.to_string(),
+        grpc_path: path.to_string(),
+        ..Default::default()
     };
     common_base::gauge_metric_inc!(GRPC_REQUEST_NUM, label)
 }
 
 pub fn metrics_grpc_request_ms(service: &str, path: &str, ms: f64) {
-    let label = GrpcMethodLabel {
-        service: service.to_string(),
-        path: path.to_string(),
+    let label = MetricsLabel {
+        grpc_service: service.to_string(),
+        grpc_path: path.to_string(),
+        ..Default::default()
     };
 
     common_base::histogram_metric_observe!(GRPC_REQUEST_TOTAL_MS, ms, label)
+}
+
+pub fn metrics_raft_storage_total_incr(storage_type: &StorageDataType) {
+    let label = MetricsLabel {
+        raft_storage_type: format!("{:?}", storage_type),
+        ..Default::default()
+    };
+    common_base::gauge_metric_inc!(RAFT_STORAGE_TOTAL_NUM, label)
+}
+
+pub fn metrics_raft_storage_error_incr(storage_type: &StorageDataType) {
+    let label = MetricsLabel {
+        raft_storage_type: format!("{:?}", storage_type),
+        ..Default::default()
+    };
+    common_base::gauge_metric_inc!(RAFT_STORAGE_ERROR_NUM, label)
+}
+
+pub fn metrics_raft_storage_total_ms(storage_type: &StorageDataType, ms: f64) {
+    let label = MetricsLabel {
+        raft_storage_type: format!("{:?}", storage_type),
+        ..Default::default()
+    };
+
+    common_base::histogram_metric_observe!(RAFT_STORAGE_TOTAL_MS, ms, label)
 }

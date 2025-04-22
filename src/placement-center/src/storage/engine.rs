@@ -58,6 +58,7 @@ pub fn engine_delete_by_cluster(
 ) -> Result<(), CommonError> {
     rocksdb_engine_delete(rocksdb_engine_handler, DB_COLUMN_FAMILY_CLUSTER, key_name)
 }
+
 pub fn engine_prefix_list_by_cluster(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     prefix_key_name: String,
