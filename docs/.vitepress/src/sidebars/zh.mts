@@ -29,6 +29,7 @@ export const sidebar = [
                     { text: "二进制运行[集群]", link: "/zh/QuickGuide/mqtt/Run-Cluster-Mode" },
                     { text: "Docker 模式", link: "/zh/QuickGuide/mqtt/Run-Docker-Mode" },
                     { text: "K8S 模式", link: "/zh/QuickGuide/mqtt/Run-K8S-Mode" },
+                    { text: "第一个任务", link: "/zh/QuickGuide/mqtt/FirstTask" },
                 ],
             },
 

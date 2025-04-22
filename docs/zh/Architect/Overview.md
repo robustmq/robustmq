@@ -3,7 +3,7 @@ RobustMQ 是分布式分层架构，由元数据和调度层（Placement Center�
 
 ![image](https://uploader.shimo.im/f/EzvImtDnVLmiWMp1.png!thumbnail?accessToken=eyJhbGciOiJIUzI1NiIsImtpZCI6ImRlZmF1bHQiLCJ0eXAiOiJKV1QifQ.eyJleHAiOjE3NDIzNTc4NTEsImZpbGVHVUlEIjoiRWUzMm1FbGFlZWhaejlBMiIsImlhdCI6MTc0MjM1NzU1MSwiaXNzIjoidXBsb2FkZXJfYWNjZXNzX3Jlc291cmNlIiwicGFhIjoiYWxsOmFsbDoiLCJ1c2VySWQiOjQxNTIyNzgwfQ.6xsFSqx8WnH7_y1NhfiSDDIgc-ayAwqNm6DzeNyV5kk)
 
-- 元数据和调度层 (Plagement Center)： 元数据和调度层负责集群的元数据存储和调度。主要完成:
+- 元数据和调度层 (Placement Center)： 元数据和调度层负责集群的元数据存储和调度。主要完成:
 Broker 集群相关的元数据(Topic、Group、Queue、Partition 等)存储、分发。
 Broker 集群的控制、调度，比如集群节点的上下线、配置存储/分发等。
 Journal Engine 消费进度(Offset)信息等。

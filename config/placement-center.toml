@@ -32,11 +32,12 @@ heartbeat_timeout_ms = 5000
 heartbeat_check_time_ms = 1000
 
 [prometheus]
+enable = true
 model = "pull"
-port = 3306
-# push_gateway_server = "127.0.0.1:8081"
-# interval = 10
-# header = ""
+port = 9090
+push_gateway_server = "127.0.0.1:8081"
+interval = 10
+header = ""
 
 [rocksdb]
 data_path = "./robust-data/placement-center/data"
