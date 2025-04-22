@@ -15,6 +15,7 @@
 use std::io::Cursor;
 use std::sync::Arc;
 
+use common_base::tools::now_mills;
 use openraft::storage::RaftStateMachine;
 use openraft::{
     AnyError, EntryPayload, ErrorSubject, ErrorVerb, LogId, OptionalSend, RaftSnapshotBuilder,
@@ -24,6 +25,9 @@ use rocksdb::{BoundColumnFamily, DB};
 use tracing::warn;
 
 use super::{cf_raft_store, StorageResult, StoredSnapshot};
+use crate::core::metrics::{
+    metrics_raft_storage_error_incr, metrics_raft_storage_total_incr, metrics_raft_storage_total_ms,
+};
 use crate::raft::raft_node::typ;
 use crate::raft::route::AppResponseData;
 use crate::raft::typeconfig::{SnapshotData, TypeConfig};
@@ -193,17 +197,23 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
 
             match ent.payload {
                 EntryPayload::Blank => {}
-                EntryPayload::Normal(req) => match self.data.route.route(req.clone()).await {
-                    Ok(data) => {
-                        resp_value = data;
+                EntryPayload::Normal(req) => {
+                    metrics_raft_storage_total_incr(&req.data_type);
+                    let start_ms = now_mills();
+                    match self.data.route.route(req.clone()).await {
+                        Ok(data) => {
+                            resp_value = data;
+                        }
+                        Err(e) => {
+                            metrics_raft_storage_error_incr(&req.data_type);
+                            warn!(
+                                "Raft route failed to process message with error message: {},req:{:?}",
+                                e, req.data_type
+                            );
+                        }
                     }
-                    Err(e) => {
-                        warn!(
-                            "Raft route failed to process message with error message: {},req:{:?}",
-                            e, req.data_type
-                        );
-                    }
-                },
+                    metrics_raft_storage_total_ms(&req.data_type, (now_mills() - start_ms) as f64);
+                }
                 EntryPayload::Membership(mem) => {
                     self.data.last_membership = StoredMembership::new(Some(ent.log_id), mem);
                 }

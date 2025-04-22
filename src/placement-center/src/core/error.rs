@@ -16,6 +16,7 @@ use std::io;
 use std::net::AddrParseError;
 use std::string::FromUtf8Error;
 
+use axum::http::uri::InvalidUri;
 use common_base::error::common::CommonError;
 use openraft::error::{ClientWriteError, RaftError};
 use thiserror::Error;
@@ -50,6 +51,9 @@ pub enum PlacementCenterError {
 
     #[error("{0}")]
     AddrParseError(#[from] AddrParseError),
+
+    #[error("{0}")]
+    InvalidUri(#[from] InvalidUri),
 
     #[error("{0}")]
     TokioTimeErrorElapsed(#[from] tokio::time::error::Elapsed),

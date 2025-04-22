@@ -16,6 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use common_base::config::placement_center::placement_center_conf;
+use common_base::metrics::register_prometheus_export;
 use grpc_clients::pool::ClientPool;
 use mqtt::cache::load_mqtt_cache;
 use mqtt::connector::scheduler::start_connector_scheduler;
@@ -118,6 +119,8 @@ impl PlacementCenter {
 
         self.start_raft_machine(openraft_node.clone());
 
+        self.start_prometheus();
+
         self.start_grpc_server(placement_center_storage.clone());
 
         self.monitoring_leader_transition(openraft_node.clone(), placement_center_storage.clone());
@@ -210,6 +213,15 @@ impl PlacementCenter {
         tokio::spawn(async move {
             start_openraft_node(openraft_node).await;
         });
+    }
+
+    fn start_prometheus(&self) {
+        let conf = placement_center_conf();
+        if conf.prometheus.enable {
+            tokio::spawn(async move {
+                register_prometheus_export(conf.prometheus.port).await;
+            });
+        }
     }
 
     fn start_call_thread(&self) {
