@@ -156,9 +156,38 @@ impl SchemaStorage {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use metadata_struct::schema::{SchemaData,SchemaResourceBind};
+    use rocksdb_engine::RocksDBEngine;
+    use tempfile::tempdir;
+
+    use super::SchemaStorage;
 
     #[tokio::test]
-    async fn schema_storage_test() {}
+    async fn schema_storage_test() {
+        let rocksdb_engine=Arc::new(RocksDBEngine::new(
+            tempdir().unwrap().path().to_str().unwrap(),
+            max_open_files:100,
+            cf_list: vec!["cluster".to_string()],
+        ));
+
+        let schema_storage=SchemaStorage::new(rocksdb_engine);
+
+        //test save and get schema
+        let cluster_name="test_cluster";
+        let schema_name="test_schema";
+        let schema_type=SchemaType::Json;
+        let schema_desc="Test schema description";
+        let schema_vlaue=r#"{"fiels1":"values1","field2":42}"#;
+        let schema_data=SchemaData{
+            cluster_name:cluster_name.to_string();
+            name:schema_name.to_string();
+            schema_type,
+            desc:schema_desc.to_string();
+            schema:schema_vlaue.to_string();
+        };
+    }
 
     #[tokio::test]
     async fn schema_bind_storage_test() {}
