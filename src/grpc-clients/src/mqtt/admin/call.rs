@@ -20,18 +20,19 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
     DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
     DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
-    EnableFlappingDetectRequest, ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply,
-    ListAutoSubscribeRuleRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
-    ListConnectionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
-    ListTopicRequest, ListUserReply, ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest,
-    MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttCreateSchemaReply,
-    MqttCreateSchemaRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
-    MqttDeleteSchemaReply, MqttDeleteSchemaRequest, MqttListBindSchemaReply,
-    MqttListBindSchemaRequest, MqttListConnectorReply, MqttListConnectorRequest,
-    MqttListSchemaReply, MqttListSchemaRequest, MqttUnbindSchemaReply, MqttUnbindSchemaRequest,
-    MqttUpdateConnectorReply, MqttUpdateConnectorRequest, MqttUpdateSchemaReply,
-    MqttUpdateSchemaRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
-    SetClusterConfigReply, SetClusterConfigRequest,
+    EnableFlappingDetectRequest, GetClusterConfigReply, GetClusterConfigRequest, ListAclReply,
+    ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBlacklistReply,
+    ListBlacklistRequest, ListConnectionReply, ListConnectionRequest, ListSlowSubscribeReply,
+    ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+    MqttBindSchemaReply, MqttBindSchemaRequest, MqttCreateConnectorReply,
+    MqttCreateConnectorRequest, MqttCreateSchemaReply, MqttCreateSchemaRequest,
+    MqttDeleteConnectorReply, MqttDeleteConnectorRequest, MqttDeleteSchemaReply,
+    MqttDeleteSchemaRequest, MqttListBindSchemaReply, MqttListBindSchemaRequest,
+    MqttListConnectorReply, MqttListConnectorRequest, MqttListSchemaReply, MqttListSchemaRequest,
+    MqttUnbindSchemaReply, MqttUnbindSchemaRequest, MqttUpdateConnectorReply,
+    MqttUpdateConnectorRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
+    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetClusterConfigReply,
+    SetClusterConfigRequest,
 };
 
 use crate::pool::ClientPool;
@@ -54,6 +55,13 @@ generate_mqtt_admin_service_call!(
     SetClusterConfigRequest,
     SetClusterConfigReply,
     SetClusterConfig
+);
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_get_cluster_config,
+    GetClusterConfigRequest,
+    GetClusterConfigReply,
+    GetClusterConfig
 );
 
 // ---- cluster ------

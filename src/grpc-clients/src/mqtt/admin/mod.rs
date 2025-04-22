@@ -17,11 +17,12 @@ use mobc::Manager;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, DeleteAutoSubscribeRuleReply,
-    DeleteAutoSubscribeRuleRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
-    MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttDeleteConnectorReply,
-    MqttDeleteConnectorRequest, MqttListConnectorReply, MqttListConnectorRequest,
-    MqttUpdateConnectorReply, MqttUpdateConnectorRequest, SetAutoSubscribeRuleReply,
-    SetAutoSubscribeRuleRequest, SetClusterConfigReply, SetClusterConfigRequest,
+    DeleteAutoSubscribeRuleRequest, GetClusterConfigReply, GetClusterConfigRequest,
+    ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, MqttCreateConnectorReply,
+    MqttCreateConnectorRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
+    MqttListConnectorReply, MqttListConnectorRequest, MqttUpdateConnectorReply,
+    MqttUpdateConnectorRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
+    SetClusterConfigReply, SetClusterConfigRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
@@ -79,6 +80,14 @@ impl_retriable_request!(
     SetClusterConfigReply,
     mqtt_broker_admin_services_client,
     mqtt_broker_set_cluster_config
+);
+
+impl_retriable_request!(
+    GetClusterConfigRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    GetClusterConfigReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_get_cluster_config
 );
 
 impl_retriable_request!(

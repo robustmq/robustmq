@@ -13,10 +13,16 @@
 // limitations under the License.
 
 use crate::mqtt_protocol::common::broker_grpc_addr;
+use bincode::deserialize;
 use common_base::enum_type::feature_type::FeatureType;
-use grpc_clients::mqtt::admin::call::mqtt_broker_set_cluster_config;
+use grpc_clients::mqtt::admin::call::{
+    mqtt_broker_get_cluster_config, mqtt_broker_set_cluster_config,
+};
 use grpc_clients::pool::ClientPool;
-use protocol::broker_mqtt::broker_mqtt_admin::{SetClusterConfigReply, SetClusterConfigRequest};
+use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    GetClusterConfigRequest, SetClusterConfigReply, SetClusterConfigRequest,
+};
 use std::sync::Arc;
 
 #[tokio::test]
@@ -46,5 +52,22 @@ async fn test_enable_offline_message() {
                 std::process::exit(1);
             }
         }
+
+        let get_cluster_request = GetClusterConfigRequest {};
+
+        let mqtt_cluster_dynamic_config: MqttClusterDynamicConfig =
+            match mqtt_broker_get_cluster_config(&client_pool, &grpc_addr, get_cluster_request)
+                .await
+            {
+                Ok(data) => deserialize(&data.mqtt_broker_cluster_dynamic_config).unwrap(),
+                Err(e) => {
+                    eprintln!("Failed get_cluster_config: {:?}", e);
+                    std::process::exit(1);
+                }
+            };
+        assert_eq!(
+            mqtt_cluster_dynamic_config.offline_message.enable,
+            *is_enable,
+        )
     }
 }
