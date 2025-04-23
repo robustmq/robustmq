@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::security::acl::metadata::AclMetadata;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
@@ -29,8 +30,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
-
-use crate::security::acl::metadata::AclMetadata;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum MetadataCacheAction {

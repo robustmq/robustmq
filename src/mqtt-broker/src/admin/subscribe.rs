@@ -97,7 +97,7 @@ pub async fn delete_auto_subscribe_rule(
     }
 }
 
-pub fn list_auto_subscribe_rule_by_req(
+pub async fn list_auto_subscribe_rule_by_req(
     cache_manager: &Arc<CacheManager>,
 ) -> Result<Response<ListAutoSubscribeRuleReply>, Status> {
     Ok(Response::new(ListAutoSubscribeRuleReply {
