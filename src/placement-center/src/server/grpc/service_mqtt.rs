@@ -145,7 +145,10 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<ListSessionRequest>,
     ) -> Result<Response<ListSessionReply>, Status> {
-        list_session_by_req(&self.rocksdb_engine_handler, request)
+        Ok(Response::new(ListSessionReply {
+            sessions: list_session_by_req(&self.rocksdb_engine_handler, request)
+                .map_err(|e| Status::internal(e.to_string()))?,
+        }))
     }
 
     async fn create_session(
@@ -159,6 +162,9 @@ impl MqttService for GrpcMqttService {
             request,
         )
         .await
+        .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(CreateSessionReply {}))
     }
 
     async fn update_session(
@@ -173,6 +179,9 @@ impl MqttService for GrpcMqttService {
             request,
         )
         .await
+        .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(UpdateSessionReply {}))
     }
 
     async fn delete_session(
@@ -188,6 +197,9 @@ impl MqttService for GrpcMqttService {
             request,
         )
         .await
+        .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(DeleteSessionReply {}))
     }
 
     // Topic
