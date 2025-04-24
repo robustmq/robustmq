@@ -13,9 +13,11 @@
 // limitations under the License.
 
 pub mod acl;
+pub mod client;
 pub mod cluster;
 pub mod connector;
 pub mod schema;
+pub mod session;
 pub mod subscribe;
 pub mod topic;
 pub mod user;
@@ -67,7 +69,7 @@ pub async fn enable_flapping_detect_by_req(
     }
 }
 
-pub fn list_connection_by_req(
+pub async fn list_connection_by_req(
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<CacheManager>,
 ) -> Result<Response<ListConnectionReply>, Status> {
@@ -93,7 +95,7 @@ pub fn list_connection_by_req(
     Ok(Response::new(reply))
 }
 
-pub fn list_slow_subscribe_by_req(
+pub async fn list_slow_subscribe_by_req(
     cache_manager: &Arc<CacheManager>,
     request: Request<ListSlowSubscribeRequest>,
 ) -> Result<Response<ListSlowSubscribeReply>, Status> {

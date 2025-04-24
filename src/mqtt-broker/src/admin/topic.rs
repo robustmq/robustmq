@@ -24,7 +24,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
-pub fn list_topic_by_req(
+pub async fn list_topic_by_req(
     cache_manager: &Arc<CacheManager>,
     request: Request<ListTopicRequest>,
 ) -> Result<Response<ListTopicReply>, Status> {
