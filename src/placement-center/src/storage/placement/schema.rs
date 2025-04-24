@@ -159,34 +159,48 @@ mod tests {
     use std::sync::Arc;
 
     use metadata_struct::schema::{SchemaData,SchemaResourceBind};
-    use rocksdb_engine::RocksDBEngine;
+    use metadata_struct::schema::SchemaType;
     use tempfile::tempdir;
 
-    use super::SchemaStorage;
+    use crate::storage::placement::schema::SchemaStorage;
+    use crate::storage::rocksdb::RocksDBEngine;
 
     #[tokio::test]
     async fn schema_storage_test() {
-        let rocksdb_engine=Arc::new(RocksDBEngine::new(
+
+        let rocksdb_engine = Arc::new(RocksDBEngine::new(
             tempdir().unwrap().path().to_str().unwrap(),
-            max_open_files:100,
-            cf_list: vec!["cluster".to_string()],
+            100,
+            vec!["schema".to_string()],
         ));
 
-        let schema_storage=SchemaStorage::new(rocksdb_engine);
+        let schema_storage=SchemaStorage::new(rocksdb_engine.clone());
 
-        //test save and get schema
         let cluster_name="test_cluster";
         let schema_name="test_schema";
-        let schema_type=SchemaType::Json;
-        let schema_desc="Test schema description";
-        let schema_vlaue=r#"{"fiels1":"values1","field2":42}"#;
+        let desc="description";
+        let schema="{\"type\":\"object\"}";
+
         let schema_data=SchemaData{
-            cluster_name:cluster_name.to_string();
-            name:schema_name.to_string();
-            schema_type,
-            desc:schema_desc.to_string();
-            schema:schema_vlaue.to_string();
+            cluster_name:cluster_name.to_string(),
+            name:schema_name.to_string(),
+            schema_type:SchemaType::JSON,
+            desc:desc.to_string(),
+            schema:schema.to_string(),
         };
+        
+        //test save schema
+        schema_storage.save(&cluster_name,&schema_name,&schema_data).unwrap();
+
+        //test get schema
+        // let retrieved_schema=schema_storage.get(cluster_name,schema_name).unwarp();
+        // assert_eq!(retrieved_schema.cluster_name,cluster_name);
+        // assert_eq!(retrieved_schema.name,schema_name);
+        // assert_eq!(retrieved_schema.schema_type,schema_type);
+        // assert_eq!(retrieved_schema.desc,schema_desc);
+        // assert_eq!(retrieved_schema.schema,schema_vlaue);
+
+
     }
 
     #[tokio::test]
