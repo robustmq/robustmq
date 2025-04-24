@@ -189,22 +189,66 @@ mod tests {
             schema:schema.to_string(),
         };
         
-        //test save schema
+        //test func save()
         schema_storage.save(&cluster_name,&schema_name,&schema_data).unwrap();
 
-        //test get schema
+        //test func get()
         let retrieved_schema = schema_storage.get(&cluster_name,&schema_name).unwrap().expect("schema not found");
         assert_eq!(retrieved_schema.name,"test_schema");
         assert_eq!(retrieved_schema.schema_type,SchemaType::JSON);
 
-        //test list schema
+        //test func list()
         let schemas=schema_storage.list(&cluster_name).unwrap();
         assert_eq!(schemas.len(),1);
         assert_eq!(schemas[0].name,"test_schema");
 
+        //test func delete()
+        schema_storage.delete(&cluster_name,&schema_name).unwrap();
+        let deleted_schema=schema_storage.get(&cluster_name,&schema_name).unwrap();
+        assert!(deleted_schema.is_none());
 
     }
 
     #[tokio::test]
-    async fn schema_bind_storage_test() {}
+    async fn schema_bind_storage_test() {
+        let rocksdb_engine = Arc::new(RocksDBEngine::new(
+            tempdir().unwrap().path().to_str().unwrap(),
+            100,
+            vec!["schema_blind".to_string()],
+        ));
+
+        let schema_storage=SchemaStorage::new(rocksdb_engine.clone());
+
+        //create test data
+        let cluster_name="test_cluster";
+        let schema_name="test_schema";
+        let resource_name="test_resource";
+        let bind_data=SchemaResourceBind{
+            cluster_name:cluster_name.to_string(),
+            schema_name:schema_name.to_string(),
+            resource_name:resource_name.to_string(),
+        };
+
+        //test save_bind()
+        schema_storage.save_bind(&cluster_name,bind_data.clone()).unwrap();
+
+        //test list_bind_by_resource()
+        let retrieved_binds=schema_storage.list_bind_by_resource(&cluster_name,&resource_name).unwrap();
+        assert_eq!(retrieved_binds.len(),1);
+        assert_eq!(retrieved_binds[0].schema_name,"test_schema");
+
+        //test list_bind_by_cluster()
+        let all_binds=schema_storage.list_bind_by_cluster(&cluster_name).unwrap();
+        assert_eq!(all_binds.len(),1);
+        assert_eq!(all_binds[0].resource_name,"test_resource");
+
+        //test get_bind()
+        let retrieved_bind=schema_storage.get_bind(&cluster_name,&schema_name,&resource_name).unwrap().expect("Bind not found");
+        assert_eq!(retrieved_bind.schema_name,"test_schema");
+
+        //test delete_bind()
+        schema_storage.delete_bind(&cluster_name,&resource_name,&schema_name).unwrap();
+        let deleted_bind=schema_storage.get_bind(&cluster_name,&schema_name,&resource_name).unwrap();
+        assert!(deleted_bind.is_none());
+    }
 }
