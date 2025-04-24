@@ -193,12 +193,14 @@ mod tests {
         schema_storage.save(&cluster_name,&schema_name,&schema_data).unwrap();
 
         //test get schema
-        // let retrieved_schema=schema_storage.get(cluster_name,schema_name).unwarp();
-        // assert_eq!(retrieved_schema.cluster_name,cluster_name);
-        // assert_eq!(retrieved_schema.name,schema_name);
-        // assert_eq!(retrieved_schema.schema_type,schema_type);
-        // assert_eq!(retrieved_schema.desc,schema_desc);
-        // assert_eq!(retrieved_schema.schema,schema_vlaue);
+        let retrieved_schema = schema_storage.get(&cluster_name,&schema_name).unwrap().expect("schema not found");
+        assert_eq!(retrieved_schema.name,"test_schema");
+        assert_eq!(retrieved_schema.schema_type,SchemaType::JSON);
+
+        //test list schema
+        let schemas=schema_storage.list(&cluster_name).unwrap();
+        assert_eq!(schemas.len(),1);
+        assert_eq!(schemas[0].name,"test_schema");
 
 
     }
