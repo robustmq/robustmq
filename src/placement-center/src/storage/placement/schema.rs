@@ -175,14 +175,14 @@ mod tests {
 
         let schema_storage = SchemaStorage::new(rocksdb_engine.clone());
 
-        let cluster_name = "test_cluster";
-        let schema_name = "test_schema";
+        let cluster_name = "test_cluster".to_string();
+        let schema_name = "test_schema".to_string();
         let desc = "description";
         let schema = "{\"type\":\"object\"}";
 
         let schema_data = SchemaData {
-            cluster_name: cluster_name.to_string(),
-            name: schema_name.to_string(),
+            cluster_name: cluster_name.clone(),
+            name: schema_name.clone(),
             schema_type: SchemaType::JSON,
             desc: desc.to_string(),
             schema: schema.to_string(),
@@ -223,13 +223,13 @@ mod tests {
         let schema_storage = SchemaStorage::new(rocksdb_engine.clone());
 
         //create test data
-        let cluster_name = "test_cluster";
-        let schema_name = "test_schema";
-        let resource_name = "test_resource";
+        let cluster_name = "test_cluster".to_string();
+        let schema_name = "test_schema".to_string();
+        let resource_name = "test_resource".to_string();
         let bind_data = SchemaResourceBind {
-            cluster_name: cluster_name.to_string(),
-            schema_name: schema_name.to_string(),
-            resource_name: resource_name.to_string(),
+            cluster_name: cluster_name.clone(),
+            schema_name: schema_name.clone(),
+            resource_name: resource_name.clone(),
         };
 
         //test save_bind()
