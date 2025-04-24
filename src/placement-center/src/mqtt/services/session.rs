@@ -31,44 +31,37 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
 use prost::Message;
 use protocol::placement_center::placement_center_mqtt::{
-    CreateSessionReply, CreateSessionRequest, DeleteSessionReply, DeleteSessionRequest,
-    ListSessionReply, ListSessionRequest, UpdateSessionReply, UpdateSessionRequest,
+    CreateSessionRequest, DeleteSessionRequest, ListSessionRequest, UpdateSessionRequest,
 };
 use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
-use tonic::{Request, Response, Status};
+use tonic::Request;
 
 pub fn list_session_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     request: Request<ListSessionRequest>,
-) -> Result<Response<ListSessionReply>, Status> {
+) -> Result<Vec<String>, PlacementCenterError> {
     let req = request.into_inner();
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
 
     if !req.client_id.is_empty() {
         if let Some(data) = storage.get(&req.cluster_name, &req.client_id)? {
-            let sessions = vec![data.encode()];
-            return Ok(Response::new(ListSessionReply { sessions }));
+            return Ok(vec![data.encode()]);
         }
     } else {
         let data = storage.list(&req.cluster_name)?;
-        let mut sessions = Vec::new();
-        for raw in data {
-            sessions.push(raw.data);
-        }
-        return Ok(Response::new(ListSessionReply { sessions }));
+        let sessions = data.into_iter().map(|raw| raw.data).collect();
+        return Ok(sessions);
     }
-    Ok(Response::new(ListSessionReply {
-        sessions: Vec::new(),
-    }))
-}
 
+    Ok(Vec::new())
+}
 pub async fn create_session_by_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     request: Request<CreateSessionRequest>,
-) -> Result<Response<CreateSessionReply>, Status> {
+) -> Result<(), PlacementCenterError> {
     let req: CreateSessionRequest = request.into_inner();
 
     let data = StorageData::new(
@@ -76,23 +69,13 @@ pub async fn create_session_by_req(
         CreateSessionRequest::encode_to_vec(&req),
     );
 
-    if let Err(e) = raft_machine_apply.client_write(data).await {
-        return Err(Status::cancelled(e.to_string()));
-    };
+    raft_machine_apply.client_write(data).await?;
 
-    let session = match serde_json::from_str::<MqttSession>(&req.session) {
-        Ok(session) => session,
-        Err(e) => {
-            return Err(Status::cancelled(e.to_string()));
-        }
-    };
-    if let Err(e) =
-        update_cache_by_add_session(&req.cluster_name, call_manager, client_pool, session).await
-    {
-        return Err(Status::cancelled(e.to_string()));
-    };
+    let session = serde_json::from_str::<MqttSession>(&req.session)?;
 
-    Ok(Response::new(CreateSessionReply::default()))
+    update_cache_by_add_session(&req.cluster_name, call_manager, client_pool, session).await?;
+
+    Ok(())
 }
 
 pub async fn update_session_by_req(
@@ -101,25 +84,19 @@ pub async fn update_session_by_req(
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     request: Request<UpdateSessionRequest>,
-) -> Result<Response<UpdateSessionReply>, Status> {
+) -> Result<(), PlacementCenterError> {
     let req = request.into_inner();
     let data = StorageData::new(
         StorageDataType::MqttUpdateSession,
         UpdateSessionRequest::encode_to_vec(&req),
     );
-    if let Err(e) = raft_machine_apply.client_write(data).await {
-        return Err(Status::cancelled(e.to_string()));
-    };
+    raft_machine_apply.client_write(data).await?;
 
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
     if let Some(session) = storage.get(&req.cluster_name, &req.client_id)? {
-        if let Err(e) =
-            update_cache_by_add_session(&req.cluster_name, call_manager, client_pool, session).await
-        {
-            return Err(Status::cancelled(e.to_string()));
-        };
+        update_cache_by_add_session(&req.cluster_name, call_manager, client_pool, session).await?;
     }
-    Ok(Response::new(UpdateSessionReply::default()))
+    Ok(())
 }
 
 pub async fn delete_session_by_req(
@@ -129,28 +106,21 @@ pub async fn delete_session_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     mqtt_cache_manager: &Arc<MqttCacheManager>,
     request: Request<DeleteSessionRequest>,
-) -> Result<Response<DeleteSessionReply>, Status> {
+) -> Result<(), PlacementCenterError> {
     let req = request.into_inner();
 
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
-    let session_opt = storage.get(&req.cluster_name, &req.client_id)?;
-    if session_opt.is_none() {
-        return Err(Status::cancelled(
-            PlacementCenterError::SessionDoesNotExist(req.client_id).to_string(),
-        ));
-    }
+    let session = storage
+        .get(&req.cluster_name, &req.client_id)?
+        .ok_or_else(|| PlacementCenterError::SessionDoesNotExist(req.client_id.clone()))?;
 
-    let session = session_opt.unwrap();
-    if let Err(e) = update_cache_by_delete_session(
+    update_cache_by_delete_session(
         &req.cluster_name,
         call_manager,
         client_pool,
         session.clone(),
     )
-    .await
-    {
-        return Err(Status::cancelled(e.to_string()));
-    }
+    .await?;
 
     let storage = MqttLastWillStorage::new(rocksdb_engine_handler.clone());
     match storage.get(&req.cluster_name, &req.client_id) {
@@ -163,9 +133,7 @@ pub async fn delete_session_by_req(
             });
         }
         Ok(None) => {}
-        Err(e) => {
-            return Err(Status::cancelled(e.to_string()));
-        }
+        Err(e) => return Err(e),
     }
 
     let data = StorageData::new(
@@ -173,9 +141,7 @@ pub async fn delete_session_by_req(
         DeleteSessionRequest::encode_to_vec(&req),
     );
 
-    if let Err(e) = raft_machine_apply.client_write(data).await {
-        return Err(Status::cancelled(e.to_string()));
-    };
+    raft_machine_apply.client_write(data).await?;
 
-    Ok(Response::new(DeleteSessionReply::default()))
+    Ok(())
 }
