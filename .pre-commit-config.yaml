@@ -26,6 +26,10 @@ repos:
       - id: end-of-file-fixer
       - id: mixed-line-ending
       - id: trailing-whitespace
+      - id: check-docstring-first
+      - id: check-added-large-files
+      - id: check-json
+      - id: check-toml
   - repo: https://github.com/psf/black
     rev: 22.10.0
     hooks:
@@ -79,7 +83,7 @@ repos:
         pass_filenames: false
       - id: hawkeye-fmt-check
         stages:
-          - pre-push
+          - pre-commit
         name: hawkeye fmt check
         description: Check files with hawkeye.
         entry: bash -c 'hawkeye check'
@@ -88,7 +92,7 @@ repos:
         args: []
       - id: cargo-fmt-check
         stages:
-          - pre-push
+          - pre-commit
         name: cargo fmt
         description: Format files with rustfmt.
         entry: bash -c 'cargo fmt -- --check'
@@ -98,7 +102,7 @@ repos:
         args: [ ]
       - id: cargo-deny
         stages:
-          - pre-push
+          - pre-commit
         name: cargo deny check
         description: Check cargo dependencies
         # we only check licenses
@@ -108,7 +112,7 @@ repos:
         args: []
       - id: cargo-clippy
         stages:
-          - pre-push
+          - pre-commit
         name: cargo clippy
         description: Lint rust sources
         entry: bash -c 'cargo clippy --all-targets --all-features --tests --benches -- -D warnings'

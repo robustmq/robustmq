@@ -27,9 +27,9 @@ pub struct MQTTConnection {
     pub client_id: String,
     // Mark whether the link is already logged in
     pub is_login: bool,
-    //
+    // The IP address of the client that initiated the connection
     pub source_ip_addr: String,
-    //
+    // The user name of the client that initiated the connection
     pub login_user: String,
     // When the client does not report a heartbeat, the maximum survival time of the connection,
     pub keep_alive: u16,

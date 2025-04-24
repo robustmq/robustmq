@@ -17,25 +17,25 @@ use mobc::Manager;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, DeleteAutoSubscribeRuleReply,
-    DeleteAutoSubscribeRuleRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
-    MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttDeleteConnectorReply,
-    MqttDeleteConnectorRequest, MqttListConnectorReply, MqttListConnectorRequest,
-    MqttUpdateConnectorReply, MqttUpdateConnectorRequest, SetAutoSubscribeRuleReply,
-    SetAutoSubscribeRuleRequest,
+    DeleteAutoSubscribeRuleRequest, GetClusterConfigReply, GetClusterConfigRequest,
+    ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, MqttCreateConnectorReply,
+    MqttCreateConnectorRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
+    MqttListConnectorReply, MqttListConnectorRequest, MqttUpdateConnectorReply,
+    MqttUpdateConnectorRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
+    SetClusterConfigReply, SetClusterConfigRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
     CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest,
     DeleteAclReply, DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest,
     DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest,
-    EnableFlappingDetectReply, EnableFlappingDetectRequest, EnableSlowSubScribeReply,
-    EnableSlowSubscribeRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
-    ListBlacklistRequest, ListConnectionReply, ListConnectionRequest, ListSlowSubscribeReply,
-    ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-    MqttBindSchemaReply, MqttBindSchemaRequest, MqttCreateSchemaReply, MqttCreateSchemaRequest,
-    MqttDeleteSchemaReply, MqttDeleteSchemaRequest, MqttListBindSchemaReply,
-    MqttListBindSchemaRequest, MqttListSchemaReply, MqttListSchemaRequest, MqttUnbindSchemaReply,
-    MqttUnbindSchemaRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
+    EnableFlappingDetectReply, EnableFlappingDetectRequest, ListAclReply, ListAclRequest,
+    ListBlacklistReply, ListBlacklistRequest, ListConnectionReply, ListConnectionRequest,
+    ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest,
+    ListUserReply, ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest,
+    MqttCreateSchemaReply, MqttCreateSchemaRequest, MqttDeleteSchemaReply, MqttDeleteSchemaRequest,
+    MqttListBindSchemaReply, MqttListBindSchemaRequest, MqttListSchemaReply, MqttListSchemaRequest,
+    MqttUnbindSchemaReply, MqttUnbindSchemaRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
 };
 use tonic::transport::Channel;
 
@@ -60,23 +60,35 @@ impl Manager for MqttBrokerAdminServiceManager {
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
         match MqttBrokerAdminServiceClient::connect(format!("http://{}", self.addr.clone())).await {
-            Ok(client) => {
-                return Ok(client);
-            }
-            Err(err) => {
-                return Err(CommonError::CommonError(format!(
-                    "{},{}",
-                    err,
-                    self.addr.clone()
-                )))
-            }
-        };
+            Ok(client) => Ok(client),
+            Err(err) => Err(CommonError::CommonError(format!(
+                "{},{}",
+                err,
+                self.addr.clone()
+            ))),
+        }
     }
 
     async fn check(&self, conn: Self::Connection) -> Result<Self::Connection, Self::Error> {
         Ok(conn)
     }
 }
+
+impl_retriable_request!(
+    SetClusterConfigRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    SetClusterConfigReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_set_cluster_config
+);
+
+impl_retriable_request!(
+    GetClusterConfigRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    GetClusterConfigReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_get_cluster_config
+);
 
 impl_retriable_request!(
     ClusterStatusRequest,
@@ -172,14 +184,6 @@ impl_retriable_request!(
     EnableFlappingDetectReply,
     mqtt_broker_admin_services_client,
     mqtt_broker_enable_flapping_detect
-);
-
-impl_retriable_request!(
-    EnableSlowSubscribeRequest,
-    MqttBrokerAdminServiceClient<Channel>,
-    EnableSlowSubScribeReply,
-    mqtt_broker_admin_services_client,
-    mqtt_broker_enable_slow_subscribe
 );
 
 impl_retriable_request!(

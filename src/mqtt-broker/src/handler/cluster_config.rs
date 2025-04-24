@@ -30,25 +30,20 @@ use metadata_struct::mqtt::cluster::{
     DEFAULT_DYNAMIC_CONFIG_OFFLINE_MESSAGE, DEFAULT_DYNAMIC_CONFIG_PROTOCOL,
     DEFAULT_DYNAMIC_CONFIG_SLOW_SUB,
 };
+use protocol::broker_mqtt::broker_mqtt_admin::SetClusterConfigRequest;
 use protocol::mqtt::common::{qos, QoS};
 
 /// This section primarily implements cache management for cluster-related configuration operations.
 /// Through this implementation, we can retrieve configuration information within the cluster
 /// and set corresponding cluster configuration attributes.
 impl CacheManager {
-    pub async fn set_flapping_detect_config(
+    pub async fn update_flapping_detect_config(
         &self,
         flapping_detect: MqttClusterDynamicFlappingDetect,
     ) -> Result<(), MqttBrokerError> {
         if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
             config.flapping_detect = flapping_detect.clone();
         }
-
-        self.save_dynamic_config(
-            DEFAULT_DYNAMIC_CONFIG_FLAPPING_DETECT,
-            flapping_detect.encode(),
-        )
-        .await?;
 
         Ok(())
     }
@@ -57,18 +52,37 @@ impl CacheManager {
         self.get_cluster_info().flapping_detect
     }
 
-    pub async fn set_slow_sub_config(
+    pub async fn update_slow_sub_config(
         &self,
-        slow_sub: MqttClusterDynamicSlowSub,
-    ) -> Result<(), MqttBrokerError> {
+        cluster_config_request: SetClusterConfigRequest,
+    ) -> Result<bool, MqttBrokerError> {
         if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
-            config.slow = slow_sub.clone();
+            config.slow.enable = cluster_config_request.is_enable;
+            Ok(cluster_config_request.is_enable)
+        } else {
+            Err(MqttBrokerError::CommonError(format!(
+                "Failed to update slow sub config, cluster name: {} not found",
+                self.cluster_name,
+            )))
         }
+    }
+    pub async fn update_offline_message_config(
+        &self,
+        cluster_config_request: SetClusterConfigRequest,
+    ) -> Result<bool, MqttBrokerError> {
+        if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
+            config.offline_message.enable = cluster_config_request.is_enable;
+            Ok(cluster_config_request.is_enable)
+        } else {
+            Err(MqttBrokerError::CommonError(format!(
+                "Failed to update offline message config, cluster name: {} not found",
+                self.cluster_name
+            )))
+        }
+    }
 
-        self.save_dynamic_config(DEFAULT_DYNAMIC_CONFIG_SLOW_SUB, slow_sub.encode())
-            .await?;
-
-        Ok(())
+    pub fn get_offline_message_config(&self) -> MqttClusterDynamicOfflineMessage {
+        self.get_cluster_info().offline_message
     }
 
     pub fn get_slow_sub_config(&self) -> MqttClusterDynamicSlowSub {
@@ -83,17 +97,15 @@ impl CacheManager {
         self.cluster_info.get(&self.cluster_name).unwrap().clone()
     }
 
-    async fn save_dynamic_config(
-        &self,
-        resource: &str,
-        data: Vec<u8>,
-    ) -> Result<(), MqttBrokerError> {
-        let client_pool = self.client_pool.clone();
-        let cluster_storage = ClusterStorage::new(client_pool);
-        cluster_storage
-            .set_dynamic_config(&self.cluster_name, resource, data)
-            .await?;
-        Ok(())
+    pub fn get_cluster_config(&self) -> Result<MqttClusterDynamicConfig, MqttBrokerError> {
+        if let Some(config) = self.cluster_info.get(&self.cluster_name) {
+            Ok(config.clone())
+        } else {
+            Err(MqttBrokerError::CommonError(format!(
+                "Failed to get cluster config, cluster name: {} not found",
+                self.cluster_name
+            )))
+        }
     }
 }
 
@@ -211,25 +223,25 @@ async fn build_feature(
         return Ok(cluster);
     }
     Ok(MqttClusterDynamicConfigFeature {
-        retain_available: to_auvailable_flag(
+        retain_available: to_available_flag(
             conf.cluster_dynamic_config_feature.retain_available.clone(),
         ),
-        wildcard_subscription_available: to_auvailable_flag(
+        wildcard_subscription_available: to_available_flag(
             conf.cluster_dynamic_config_feature
                 .wildcard_subscription_available
                 .clone(),
         ),
-        subscription_identifiers_available: to_auvailable_flag(
+        subscription_identifiers_available: to_available_flag(
             conf.cluster_dynamic_config_feature
                 .subscription_identifiers_available
                 .clone(),
         ),
-        shared_subscription_available: to_auvailable_flag(
+        shared_subscription_available: to_available_flag(
             conf.cluster_dynamic_config_feature
                 .shared_subscription_available
                 .clone(),
         ),
-        exclusive_subscription_available: to_auvailable_flag(
+        exclusive_subscription_available: to_available_flag(
             conf.cluster_dynamic_config_feature
                 .exclusive_subscription_available
                 .clone(),
@@ -237,7 +249,7 @@ async fn build_feature(
     })
 }
 
-fn to_auvailable_flag(flag: ConfigAvailableFlag) -> AvailableFlag {
+fn to_available_flag(flag: ConfigAvailableFlag) -> AvailableFlag {
     match flag {
         ConfigAvailableFlag::Enable => AvailableFlag::Enable,
         ConfigAvailableFlag::Disable => AvailableFlag::Disable,
