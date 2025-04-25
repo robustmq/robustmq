@@ -250,7 +250,7 @@ mod tests {
 
         //test get_bind()
         let retrieved_bind = schema_storage
-            .get_bind(&cluster_name,  &resource_name,&schema_name)
+            .get_bind(&cluster_name, &resource_name, &schema_name)
             .unwrap()
             .expect("Bind not found");
         assert_eq!(retrieved_bind.schema_name, "test_schema");
