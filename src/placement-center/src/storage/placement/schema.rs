@@ -86,12 +86,12 @@ impl SchemaStorage {
     pub fn save_bind(
         &self,
         cluster_name: &str,
-        bind_data: SchemaResourceBind,
+        bind_data: &SchemaResourceBind,
     ) -> Result<(), PlacementCenterError> {
         let key = storage_key_mqtt_schema_bind(
             cluster_name,
-            &bind_data.schema_name,
             &bind_data.resource_name,
+            &bind_data.schema_name,
         );
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, bind_data)?;
         Ok(())
@@ -225,17 +225,16 @@ mod tests {
         //create test data
         let cluster_name = "test_cluster".to_string();
         let schema_name = "test_schema".to_string();
-        let resource_name = "test_resource".to_string();
+        let resource_name = "test_resource";
+
         let bind_data = SchemaResourceBind {
             cluster_name: cluster_name.clone(),
             schema_name: schema_name.clone(),
-            resource_name: resource_name.clone(),
+            resource_name: resource_name.to_string(),
         };
 
         //test save_bind()
-        schema_storage
-            .save_bind(&cluster_name, bind_data.clone())
-            .unwrap();
+        schema_storage.save_bind(&cluster_name, &bind_data).unwrap();
 
         //test list_bind_by_resource()
         let retrieved_binds = schema_storage
@@ -251,7 +250,7 @@ mod tests {
 
         //test get_bind()
         let retrieved_bind = schema_storage
-            .get_bind(&cluster_name, &schema_name, &resource_name)
+            .get_bind(&cluster_name,  &resource_name,&schema_name)
             .unwrap()
             .expect("Bind not found");
         assert_eq!(retrieved_bind.schema_name, "test_schema");
