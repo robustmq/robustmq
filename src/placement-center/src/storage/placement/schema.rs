@@ -170,7 +170,7 @@ mod tests {
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
             tempdir().unwrap().path().to_str().unwrap(),
             100,
-            vec!["schema".to_string()],
+            vec!["cluster".to_string()],
         ));
 
         let schema_storage = SchemaStorage::new(rocksdb_engine.clone());
@@ -217,7 +217,7 @@ mod tests {
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
             tempdir().unwrap().path().to_str().unwrap(),
             100,
-            vec!["schema_blind".to_string()],
+            vec!["cluster".to_string()],
         ));
 
         let schema_storage = SchemaStorage::new(rocksdb_engine.clone());
