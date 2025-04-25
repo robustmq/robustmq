@@ -148,7 +148,7 @@ impl DataRouteCluster {
             resource_name: req.resource_name.clone(),
             schema_name: req.schema_name.clone(),
         };
-        schema_storage.save_bind(&req.cluster_name, bind_data)?;
+        schema_storage.save_bind(&req.cluster_name, &bind_data)?;
         Ok(())
     }
 
