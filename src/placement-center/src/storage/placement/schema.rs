@@ -238,7 +238,7 @@ mod tests {
 
         //test list_bind_by_resource()
         let retrieved_binds = schema_storage
-            .list_bind_by_resource(&cluster_name, &resource_name)
+            .list_bind_by_resource(&cluster_name, resource_name)
             .unwrap();
         assert_eq!(retrieved_binds.len(), 1);
         assert_eq!(retrieved_binds[0].schema_name, "test_schema");
@@ -250,17 +250,17 @@ mod tests {
 
         //test get_bind()
         let retrieved_bind = schema_storage
-            .get_bind(&cluster_name, &resource_name, &schema_name)
+            .get_bind(&cluster_name, resource_name, &schema_name)
             .unwrap()
             .expect("Bind not found");
         assert_eq!(retrieved_bind.schema_name, "test_schema");
 
         //test delete_bind()
         schema_storage
-            .delete_bind(&cluster_name, &resource_name, &schema_name)
+            .delete_bind(&cluster_name, resource_name, &schema_name)
             .unwrap();
         let deleted_bind = schema_storage
-            .get_bind(&cluster_name, &schema_name, &resource_name)
+            .get_bind(&cluster_name, &schema_name, resource_name)
             .unwrap();
         assert!(deleted_bind.is_none());
     }
