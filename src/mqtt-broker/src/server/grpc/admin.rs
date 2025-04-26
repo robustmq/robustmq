@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use crate::admin::acl::{
     create_acl_by_req, create_blacklist_by_req, delete_acl_by_req, delete_blacklist_by_req,
     list_acl_by_req, list_blacklist_by_req,
 };
+use crate::admin::client::list_client;
+use crate::admin::cluster::set_cluster_config_by_req;
 use crate::admin::connector::{
     create_connector_by_req, delete_connector_by_req, list_connector_by_req,
     update_connector_by_req,
@@ -26,6 +26,7 @@ use crate::admin::schema::{
     bind_schema_by_req, create_schema_by_req, delete_schema_by_req, list_bind_schema_by_req,
     list_schema_by_req, unbind_schema_by_req, update_schema_by_req,
 };
+use crate::admin::session::list_session;
 use crate::admin::subscribe::{
     delete_auto_subscribe_rule, list_auto_subscribe_rule_by_req, set_auto_subscribe_rule,
 };
@@ -34,11 +35,12 @@ use crate::admin::topic::{
 };
 use crate::admin::user::{create_user_by_req, delete_user_by_req, list_user_by_req};
 use crate::admin::{
-    cluster_status_by_req, enable_flapping_detect_by_req, enable_slow_subscribe_by_req,
-    list_connection_by_req, list_slow_subscribe_by_req,
+    cluster_status_by_req, enable_flapping_detect_by_req, list_connection_by_req,
+    list_slow_subscribe_by_req,
 };
 use crate::handler::cache::CacheManager;
 use crate::server::connection_manager::ConnectionManager;
+use bincode::serialize;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
 use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -48,19 +50,22 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
     DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
     DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
-    EnableFlappingDetectRequest, EnableSlowSubScribeReply, EnableSlowSubscribeRequest,
-    ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
-    ListBlacklistReply, ListBlacklistRequest, ListConnectionReply, ListConnectionRequest,
-    ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest,
-    ListUserReply, ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest,
-    MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttCreateSchemaReply,
-    MqttCreateSchemaRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
-    MqttDeleteSchemaReply, MqttDeleteSchemaRequest, MqttListBindSchemaReply,
-    MqttListBindSchemaRequest, MqttListConnectorReply, MqttListConnectorRequest,
-    MqttListSchemaReply, MqttListSchemaRequest, MqttUnbindSchemaReply, MqttUnbindSchemaRequest,
-    MqttUpdateConnectorReply, MqttUpdateConnectorRequest, MqttUpdateSchemaReply,
-    MqttUpdateSchemaRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
+    EnableFlappingDetectRequest, GetClusterConfigReply, GetClusterConfigRequest, ListAclReply,
+    ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBlacklistReply,
+    ListBlacklistRequest, ListClientReply, ListClientRequest, ListConnectionReply,
+    ListConnectionRequest, ListSessionReply, ListSessionRequest, ListSlowSubscribeReply,
+    ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+    MqttBindSchemaReply, MqttBindSchemaRequest, MqttCreateConnectorReply,
+    MqttCreateConnectorRequest, MqttCreateSchemaReply, MqttCreateSchemaRequest,
+    MqttDeleteConnectorReply, MqttDeleteConnectorRequest, MqttDeleteSchemaReply,
+    MqttDeleteSchemaRequest, MqttListBindSchemaReply, MqttListBindSchemaRequest,
+    MqttListConnectorReply, MqttListConnectorRequest, MqttListSchemaReply, MqttListSchemaRequest,
+    MqttUnbindSchemaReply, MqttUnbindSchemaRequest, MqttUpdateConnectorReply,
+    MqttUpdateConnectorRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
+    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetClusterConfigReply,
+    SetClusterConfigRequest,
 };
+use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcAdminServices {
@@ -85,6 +90,34 @@ impl GrpcAdminServices {
 
 #[tonic::async_trait]
 impl MqttBrokerAdminService for GrpcAdminServices {
+    async fn mqtt_broker_set_cluster_config(
+        &self,
+        request: Request<SetClusterConfigRequest>,
+    ) -> Result<Response<SetClusterConfigReply>, Status> {
+        let config_request = request.into_inner().clone();
+        Ok(Response::new(SetClusterConfigReply {
+            feature_name: config_request.feature_name.clone(),
+            is_enable: set_cluster_config_by_req(&self.cache_manager, config_request)
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?,
+        }))
+    }
+
+    async fn mqtt_broker_get_cluster_config(
+        &self,
+        _request: Request<GetClusterConfigRequest>,
+    ) -> Result<Response<GetClusterConfigReply>, Status> {
+        Ok(Response::new(GetClusterConfigReply {
+            mqtt_broker_cluster_dynamic_config: serialize(
+                &self
+                    .cache_manager
+                    .get_cluster_config()
+                    .map_err(|e| Status::internal(e.to_string()))?,
+            )
+            .map_err(|e| Status::internal(e.to_string()))?,
+        }))
+    }
+
     // --- cluster ---
     async fn cluster_status(
         &self,
@@ -116,6 +149,20 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         _: Request<ListUserRequest>,
     ) -> Result<Response<ListUserReply>, Status> {
         list_user_by_req(&self.cache_manager, &self.client_pool).await
+    }
+
+    async fn mqtt_broker_list_client(
+        &self,
+        _: Request<ListClientRequest>,
+    ) -> Result<Response<ListClientReply>, Status> {
+        list_client(&self.cache_manager).await
+    }
+
+    async fn mqtt_broker_list_session(
+        &self,
+        _: Request<ListSessionRequest>,
+    ) -> Result<Response<ListSessionReply>, Status> {
+        list_session(&self.cache_manager).await
     }
 
     async fn mqtt_broker_list_acl(
@@ -172,28 +219,21 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         _: Request<ListConnectionRequest>,
     ) -> Result<Response<ListConnectionReply>, Status> {
-        list_connection_by_req(&self.connection_manager, &self.cache_manager)
-    }
-
-    async fn mqtt_broker_enable_slow_subscribe(
-        &self,
-        request: Request<EnableSlowSubscribeRequest>,
-    ) -> Result<Response<EnableSlowSubScribeReply>, Status> {
-        enable_slow_subscribe_by_req(&self.cache_manager, request).await
+        list_connection_by_req(&self.connection_manager, &self.cache_manager).await
     }
 
     async fn mqtt_broker_list_slow_subscribe(
         &self,
         request: Request<ListSlowSubscribeRequest>,
     ) -> Result<Response<ListSlowSubscribeReply>, Status> {
-        list_slow_subscribe_by_req(&self.cache_manager, request)
+        list_slow_subscribe_by_req(&self.cache_manager, request).await
     }
 
     async fn mqtt_broker_list_topic(
         &self,
         request: Request<ListTopicRequest>,
     ) -> Result<Response<ListTopicReply>, Status> {
-        list_topic_by_req(&self.cache_manager, request)
+        list_topic_by_req(&self.cache_manager, request).await
     }
 
     async fn mqtt_broker_delete_topic_rewrite_rule(
@@ -306,6 +346,6 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         _request: Request<ListAutoSubscribeRuleRequest>,
     ) -> Result<Response<ListAutoSubscribeRuleReply>, Status> {
-        list_auto_subscribe_rule_by_req(&self.cache_manager)
+        list_auto_subscribe_rule_by_req(&self.cache_manager).await
     }
 }

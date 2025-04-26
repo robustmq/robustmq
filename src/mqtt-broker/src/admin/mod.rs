@@ -13,15 +13,18 @@
 // limitations under the License.
 
 pub mod acl;
+pub mod client;
+pub mod cluster;
 pub mod connector;
 pub mod schema;
+pub mod session;
 pub mod subscribe;
 pub mod topic;
 pub mod user;
 
 use crate::handler::cache::CacheManager;
 use crate::handler::flapping_detect::enable_flapping_detect;
-use crate::observability::slow::sub::{enable_slow_sub, read_slow_sub_record, SlowSubData};
+use crate::observability::slow::sub::{read_slow_sub_record, SlowSubData};
 use crate::server::connection_manager::ConnectionManager;
 use crate::{handler::error::MqttBrokerError, storage::cluster::ClusterStorage};
 use common_base::config::broker_mqtt::broker_mqtt_conf;
@@ -29,9 +32,8 @@ use common_base::tools::serialize_value;
 use common_base::utils::file_utils::get_project_root;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusReply, EnableFlappingDetectReply, EnableFlappingDetectRequest,
-    EnableSlowSubScribeReply, EnableSlowSubscribeRequest, ListConnectionRaw, ListConnectionReply,
-    ListSlowSubScribeRaw, ListSlowSubscribeReply, ListSlowSubscribeRequest,
+    ClusterStatusReply, EnableFlappingDetectReply, EnableFlappingDetectRequest, ListConnectionRaw,
+    ListConnectionReply, ListSlowSubScribeRaw, ListSlowSubscribeReply, ListSlowSubscribeRequest,
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
@@ -67,7 +69,7 @@ pub async fn enable_flapping_detect_by_req(
     }
 }
 
-pub fn list_connection_by_req(
+pub async fn list_connection_by_req(
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<CacheManager>,
 ) -> Result<Response<ListConnectionReply>, Status> {
@@ -93,21 +95,7 @@ pub fn list_connection_by_req(
     Ok(Response::new(reply))
 }
 
-pub async fn enable_slow_subscribe_by_req(
-    cache_manager: &Arc<CacheManager>,
-    request: Request<EnableSlowSubscribeRequest>,
-) -> Result<Response<EnableSlowSubScribeReply>, Status> {
-    let subscribe_request = request.into_inner();
-
-    match enable_slow_sub(cache_manager, subscribe_request.is_enable).await {
-        Ok(_) => Ok(Response::new(EnableSlowSubScribeReply {
-            is_enable: subscribe_request.is_enable,
-        })),
-        Err(e) => Err(Status::cancelled(e.to_string())),
-    }
-}
-
-pub fn list_slow_subscribe_by_req(
+pub async fn list_slow_subscribe_by_req(
     cache_manager: &Arc<CacheManager>,
     request: Request<ListSlowSubscribeRequest>,
 ) -> Result<Response<ListSlowSubscribeReply>, Status> {
