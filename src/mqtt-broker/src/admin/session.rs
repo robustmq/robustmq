@@ -12,15 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::admin::query::{apply_filters, apply_pagination, apply_sorting};
 use crate::handler::cache::CacheManager;
-use protocol::broker_mqtt::broker_mqtt_admin::{ListSessionReply, SessionRaw};
+use protocol::broker_mqtt::broker_mqtt_admin::{ListSessionReply, ListSessionRequest, SessionRaw};
 use std::sync::Arc;
-use tonic::{Response, Status};
+use tonic::{Request, Response, Status};
 
-pub async fn list_session(
+pub async fn list_session_by_req(
     cache_manager: &Arc<CacheManager>,
+    request: Request<ListSessionRequest>,
 ) -> Result<Response<ListSessionReply>, Status> {
-    let sessions: Vec<SessionRaw> = cache_manager
+    let sessions = extract_sessions(cache_manager);
+    let filtered = apply_filters(sessions, &request.get_ref().options);
+    let sorted = apply_sorting(filtered, &request.get_ref().options);
+    let (paginated, total_count) = apply_pagination(sorted, &request.get_ref().options);
+
+    Ok(Response::new(ListSessionReply {
+        sessions: paginated,
+        total_count: Some(total_count as u32),
+    }))
+}
+
+fn extract_sessions(cache_manager: &Arc<CacheManager>) -> Vec<SessionRaw> {
+    cache_manager
         .session_info
         .iter()
         .map(|entry| {
@@ -37,7 +51,5 @@ pub async fn list_session(
                 distinct_time: session.distinct_time,
             }
         })
-        .collect();
-
-    Ok(Response::new(ListSessionReply { sessions }))
+        .collect()
 }

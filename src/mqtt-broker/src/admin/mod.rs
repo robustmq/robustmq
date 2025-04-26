@@ -16,6 +16,7 @@ pub mod acl;
 pub mod client;
 pub mod cluster;
 pub mod connector;
+pub mod query;
 pub mod schema;
 pub mod session;
 pub mod subscribe;

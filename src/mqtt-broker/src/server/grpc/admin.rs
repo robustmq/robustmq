@@ -16,7 +16,7 @@ use crate::admin::acl::{
     create_acl_by_req, create_blacklist_by_req, delete_acl_by_req, delete_blacklist_by_req,
     list_acl_by_req, list_blacklist_by_req,
 };
-use crate::admin::client::list_client;
+use crate::admin::client::list_client_by_req;
 use crate::admin::cluster::set_cluster_config_by_req;
 use crate::admin::connector::{
     create_connector_by_req, delete_connector_by_req, list_connector_by_req,
@@ -26,7 +26,7 @@ use crate::admin::schema::{
     bind_schema_by_req, create_schema_by_req, delete_schema_by_req, list_bind_schema_by_req,
     list_schema_by_req, unbind_schema_by_req, update_schema_by_req,
 };
-use crate::admin::session::list_session;
+use crate::admin::session::list_session_by_req;
 use crate::admin::subscribe::{
     delete_auto_subscribe_rule, list_auto_subscribe_rule_by_req, set_auto_subscribe_rule,
 };
@@ -153,16 +153,16 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
     async fn mqtt_broker_list_client(
         &self,
-        _: Request<ListClientRequest>,
+        request: Request<ListClientRequest>,
     ) -> Result<Response<ListClientReply>, Status> {
-        list_client(&self.cache_manager).await
+        list_client_by_req(&self.cache_manager, request).await
     }
 
     async fn mqtt_broker_list_session(
         &self,
-        _: Request<ListSessionRequest>,
+        request: Request<ListSessionRequest>,
     ) -> Result<Response<ListSessionReply>, Status> {
-        list_session(&self.cache_manager).await
+        list_session_by_req(&self.cache_manager, request).await
     }
 
     async fn mqtt_broker_list_acl(
