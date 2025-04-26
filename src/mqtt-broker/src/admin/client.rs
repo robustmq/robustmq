@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::admin::query::{apply_filters, apply_pagination, apply_sorting};
+use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
 use crate::handler::cache::CacheManager;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::session::MqttSession;
@@ -66,5 +66,21 @@ fn merge_client_info(session: MqttSession, connection: Option<MQTTConnection>) -
         // clean session is true when session_expiry is 0 (MQTT 5.0)
         clean_session: session.session_expiry == 0,
         session_expiry_interval: session.session_expiry,
+    }
+}
+
+impl Queryable for ClientRaw {
+    fn get_field_str(&self, field: &str) -> Option<String> {
+        match field {
+            "client_id" => Some(self.client_id.clone()),
+            "username" => Some(self.username.clone()),
+            "is_online" => Some(self.is_online.to_string()),
+            "source_ip" => Some(self.source_ip.clone()),
+            "connected_at" => Some(self.connected_at.to_string()),
+            "keep_alive" => Some(self.keep_alive.to_string()),
+            "clean_session" => Some(self.clean_session.to_string()),
+            "session_expiry_interval" => Some(self.session_expiry_interval.to_string()),
+            _ => None,
+        }
     }
 }
