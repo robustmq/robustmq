@@ -25,7 +25,7 @@ export const sidebar = [
                 collapsed: true,
                 items: [
                     { text: "Build", link: "/QuickGuide/mqtt/Build" },
-                    { text: "Stand-loneMode", link: "/QuickGuide/mqtt/Run-Standalone-Mode" },
+                    { text: "StandaloneMode", link: "/QuickGuide/mqtt/Run-Standalone-Mode" },
                     { text: "ClusterMode", link: "/QuickGuide/mqtt/Run-Cluster-Mode" },
                     { text: "DockerMode", link: "/QuickGuide/mqtt/Run-Docker-Mode" },
                     { text: "K8SMode", link: "/QuickGuide/mqtt/Run-K8S-Mode" },
