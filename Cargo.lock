@@ -3671,7 +3671,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be769465445e8c1474e9c5dac2018218498557af32d9ed057325ec9a41ae81bf"
 dependencies = [
  "heck",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "log",
  "multimap",
  "once_cell",
@@ -4378,7 +4378,7 @@ checksum = "3582f63211428f83597b51b2ddb88e2a91a9d52d12831f9d08f5e624e8977422"
 [[package]]
 name = "robustmq-proto-build"
 version = "0.1.0"
-source = "git+https://github.com/HeartLinked/robustmq-proto.git?branch=dev_copilot_list1#4ec3419a49440283d4331460f9e4dc16a81cd8a4"
+source = "git+https://github.com/robustmq/robustmq-proto.git?branch=main#51a7d07652405f8950fe586a81ce3f10cffa1dc2"
 dependencies = [
  "prost-build",
  "prost-validate-build",
