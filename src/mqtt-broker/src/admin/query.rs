@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClientRaw, MatchMode, OrderDirection, QueryOptions, SessionRaw,
-};
+use protocol::broker_mqtt::broker_mqtt_admin::{MatchMode, OrderDirection, QueryOptions};
 
 /// A common interface for resource types to support generic querying logic.
 ///
@@ -58,7 +56,7 @@ pub fn apply_filters<T: Queryable>(items: Vec<T>, options: &Option<QueryOptions>
     for f in &qo.filters {
         let values = f.values.iter().map(|v| v.to_lowercase()).collect();
         let mode = if let Some(raw_i) = f.exact_match {
-            MatchMode::try_from(raw_i).unwrap_or_else(|_| MatchMode::Exact)
+            MatchMode::try_from(raw_i).unwrap_or(MatchMode::Exact)
         } else {
             MatchMode::Exact
         };
