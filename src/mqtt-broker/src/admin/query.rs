@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::broker_mqtt::broker_mqtt_admin::{MatchMode, OrderDirection, QueryOptions};
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    ClientRaw, MatchMode, OrderDirection, QueryOptions, SessionRaw,
+};
 
 /// A common interface for resource types to support generic querying logic.
 ///
@@ -39,6 +41,39 @@ pub trait Queryable {
     fn get_field_str(&self, field: &str) -> Option<String>;
 }
 
+impl Queryable for SessionRaw {
+    fn get_field_str(&self, field: &str) -> Option<String> {
+        match field {
+            "client_id" => Some(self.client_id.clone()),
+            "session_expiry" => Some(self.session_expiry.to_string()),
+            "is_contain_last_will" => Some(self.is_contain_last_will.to_string()),
+            "last_will_delay_interval" => self.last_will_delay_interval.map(|v| v.to_string()),
+            "create_time" => Some(self.create_time.to_string()),
+            "connection_id" => self.connection_id.map(|v| v.to_string()),
+            "broker_id" => self.broker_id.map(|v| v.to_string()),
+            "reconnect_time" => self.reconnect_time.map(|v| v.to_string()),
+            "distinct_time" => self.distinct_time.map(|v| v.to_string()),
+            _ => None,
+        }
+    }
+}
+
+impl Queryable for ClientRaw {
+    fn get_field_str(&self, field: &str) -> Option<String> {
+        match field {
+            "client_id" => Some(self.client_id.clone()),
+            "username" => Some(self.username.clone()),
+            "is_online" => Some(self.is_online.to_string()),
+            "source_ip" => Some(self.source_ip.clone()),
+            "connected_at" => Some(self.connected_at.to_string()),
+            "keep_alive" => Some(self.keep_alive.to_string()),
+            "clean_session" => Some(self.clean_session.to_string()),
+            "session_expiry_interval" => Some(self.session_expiry_interval.to_string()),
+            _ => None,
+        }
+    }
+}
+
 struct FilterSpec {
     field: String,
     values: Vec<String>,
@@ -56,7 +91,7 @@ pub fn apply_filters<T: Queryable>(items: Vec<T>, options: &Option<QueryOptions>
     for f in &qo.filters {
         let values = f.values.iter().map(|v| v.to_lowercase()).collect();
         let mode = if let Some(raw_i) = f.exact_match {
-            MatchMode::try_from(raw_i).unwrap_or(MatchMode::Exact)
+            MatchMode::try_from(raw_i).unwrap_or_else(|_| MatchMode::Exact)
         } else {
             MatchMode::Exact
         };
