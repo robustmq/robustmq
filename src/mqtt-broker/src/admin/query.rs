@@ -25,7 +25,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{MatchMode, OrderDirection, QueryO
 /// Combined with the `apply_filters`, `apply_sorting`, and `apply_pagination`
 /// functions (driven by protobuf-defined `QueryOptions`, `MatchMode`, and
 /// `OrderDirection`), this design centralizes all query-related code:
-/// - Filtering handles exact and fuzzy matching (with room for future
+/// - **Filtering** handles exact and fuzzy matching (with room for future
 ///   extensions to support additional matching strategies).
 /// - **Sorting** applies a dynamic `order_by` field and ascending/descending
 ///   direction.
@@ -123,7 +123,10 @@ pub fn apply_sorting<T: Queryable>(mut items: Vec<T>, options: &Option<QueryOpti
     items
 }
 
-pub fn apply_pagination<T>(items: Vec<T>, options: &Option<QueryOptions>) -> (Vec<T>, usize) {
+pub fn apply_pagination<T: Queryable>(
+    items: Vec<T>,
+    options: &Option<QueryOptions>,
+) -> (Vec<T>, usize) {
     // default pagination limit: 10
     let default_limit: u32 = 10;
     let default_offset: u32 = 0;

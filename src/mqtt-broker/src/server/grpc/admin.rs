@@ -146,9 +146,9 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
     async fn mqtt_broker_list_user(
         &self,
-        _: Request<ListUserRequest>,
+        request: Request<ListUserRequest>,
     ) -> Result<Response<ListUserReply>, Status> {
-        list_user_by_req(&self.cache_manager, &self.client_pool).await
+        list_user_by_req(&self.cache_manager, &self.client_pool, request).await
     }
 
     async fn mqtt_broker_list_client(

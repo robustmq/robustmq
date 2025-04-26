@@ -31,7 +31,7 @@ pub async fn list_client_by_req(
 
     Ok(Response::new(ListClientReply {
         clients: paginated,
-        total_count: Some(total_count as u32),
+        total_count: total_count as u32,
     }))
 }
 fn extract_clients(cache_manager: &Arc<CacheManager>) -> Vec<ClientRaw> {
