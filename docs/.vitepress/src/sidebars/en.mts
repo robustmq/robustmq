@@ -21,18 +21,8 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "Overview", link: "/QuickGuide/Overview" },
-            {
-                text: "RobustMQ MQTT",
-                collapsed: true,
-                items: [
-                    { text: "Build", link: "/QuickGuide/mqtt/Build" },
-                    { text: "StandaloneMode", link: "/QuickGuide/mqtt/Run-Standalone-Mode" },
-                    { text: "ClusterMode", link: "/QuickGuide/mqtt/Run-Cluster-Mode" },
-                    { text: "DockerMode", link: "/QuickGuide/mqtt/Run-Docker-Mode" },
-                    { text: "K8SMode", link: "/QuickGuide/mqtt/Run-K8S-Mode" },
-                ],
-            },
-
+            { text: "Build", link: "/QuickGuide/mqtt/Build" },
+            { text: "First Task", link: "/QuickGuide/mqtt/First-Task" },
         ],
     },
     {
@@ -61,6 +51,16 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "Overview", link: "/RobustMQ-MQTT/Overview" },
+            {
+                text: "Install and Deployment",
+                collapsed: true,
+                items: [
+                    { text: "StandaloneMode", link: "/QuickGuide/mqtt/Run-Standalone-Mode" },
+                    { text: "ClusterMode", link: "/QuickGuide/mqtt/Run-Cluster-Mode" },
+                    { text: "DockerMode", link: "/QuickGuide/mqtt/Run-Docker-Mode" },
+                    { text: "K8SMode", link: "/QuickGuide/mqtt/Run-K8S-Mode" },
+                ],
+            },
             { text: "Architecture", link: "/RobustMQ-MQTT/SystemArchitecture" },
             {
                 text: "Features",
