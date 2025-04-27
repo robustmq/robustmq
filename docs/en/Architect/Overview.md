@@ -1,7 +1,7 @@
 ## 1. Architecture
 RobustMQ is a distributed layered architecture, It consists of four parts: metadata and scheduling layer (Placement Center), computing Layer (Multi-protocol computing layer), Storage Adapter layer (Storage Adapter Layer) and storage layer (storage layer). It is a typical computing, storage, scheduling layered architecture, each layer has a rapid expansion capacity, so that the whole system has a complete Serverless capabilities.
 
-![image](https://uploader.shimo.im/f/EzvImtDnVLmiWMp1.png!thumbnail?accessToken=eyJhbGciOiJIUzI1NiIsImtpZCI6ImRlZmF1bHQiLCJ0eXAiOiJKV1QifQ.eyJleHAiOjE3NDIzNTc4NTEsImZpbGVHVUlEIjoiRWUzMm1FbGFlZWhaejlBMiIsImlhdCI6MTc0MjM1NzU1MSwiaXNzIjoidXBsb2FkZXJfYWNjZXNzX3Jlc291cmNlIiwicGFhIjoiYWxsOmFsbDoiLCJ1c2VySWQiOjQxNTIyNzgwfQ.6xsFSqx8WnH7_y1NhfiSDDIgc-ayAwqNm6DzeNyV5kk)
+![image](../../../docs/images/robustmq-architecture.png)
 
 - Metadata and Scheduling Center: The metadata and scheduling layer is responsible for cluster metadata storage and scheduling. Main achievements:
 Broker cluster metadata (Topic, Group, Queue, Partition, etc.) is stored and distributed.
@@ -24,7 +24,7 @@ The standalone deployment architecture refers to the form in which RobustMQ is d
 
 The benefits of this deployment method are simple, no additional dependencies, low system complexity and operation and maintenance costs, and Serverless features. The architecture is as follows:
 
-![image](https://uploader.shimo.im/f/dgwor7moOrJevT6f.png!thumbnail?accessToken=eyJhbGciOiJIUzI1NiIsImtpZCI6ImRlZmF1bHQiLCJ0eXAiOiJKV1QifQ.eyJleHAiOjE3NDIzNTc4NTEsImZpbGVHVUlEIjoiRWUzMm1FbGFlZWhaejlBMiIsImlhdCI6MTc0MjM1NzU1MSwiaXNzIjoidXBsb2FkZXJfYWNjZXNzX3Jlc291cmNlIiwicGFhIjoiYWxsOmFsbDoiLCJ1c2VySWQiOjQxNTIyNzgwfQ.6xsFSqx8WnH7_y1NhfiSDDIgc-ayAwqNm6DzeNyV5kk)
+![image](../../../docs/images/robustmq-architecture-journal-server.png)
 
 As shown in the figure above, the independent deployment architecture consists of Placement Center Cluster, Broker Cluster, and Journal Engine Cluster, which are responsible for metadata and scheduling, protocol function implementation, and data storage, respectively.
 
@@ -38,7 +38,7 @@ The shared storage architecture refers to RobustMQ, which relies on external off
 The advantage of this deployment method is that the cost under large-scale traffic will be much lower than the independent deployment scheme, which is suitable for customers with strong demands for cost under large traffic and cloud architecture deployment scenarios. The architecture is as follows:
 
 
-![image](https://uploader.shimo.im/f/dgwor7moOrJevT6f.png!thumbnail?accessToken=eyJhbGciOiJIUzI1NiIsImtpZCI6ImRlZmF1bHQiLCJ0eXAiOiJKV1QifQ.eyJleHAiOjE3NDIzNTc4NTEsImZpbGVHVUlEIjoiRWUzMm1FbGFlZWhaejlBMiIsImlhdCI6MTc0MjM1NzU1MSwiaXNzIjoidXBsb2FkZXJfYWNjZXNzX3Jlc291cmNlIiwicGFhIjoiYWxsOmFsbDoiLCJ1c2VySWQiOjQxNTIyNzgwfQ.6xsFSqx8WnH7_y1NhfiSDDIgc-ayAwqNm6DzeNyV5kk)
+![image](../../../docs/images/doc-image.png)
 
 As shown in the figure above, the shared deployment architecture consists of three parts: Placement Center Cluster, Broker Cluster and independent distributed storage component. At the RobustMQ level, only two components, Placement Center Cluster and Broker Cluster, need to be deployed. Placement Center Cluster is responsible for metadata Storage. Broker Cluster abstracts the concept of Shard through the interaction of Storage Adapter, and calls remote shard to complete the persistent storage of message data.
 
