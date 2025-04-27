@@ -43,7 +43,7 @@ storage_type = "placement"
 [prometheus]
 enable = true
 model = "pull"
-port = 9090
+port = 9091
 push_gateway_server = "127.0.0.1:8081"
 interval = 10
 header = ""

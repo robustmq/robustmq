@@ -11,6 +11,7 @@ export const sidebar = [
                 items: [
                     { text: "2025 RoadMamp", link: "/OverView/RoadMap-2025" },
                     { text: "MQTT Release Planning", link: "/OverView/MQTT-Release" },
+                    { text: "Good First Issue", link: "/OverView/Good-First-Issue" },
                 ],
             },
         ],
@@ -43,6 +44,7 @@ export const sidebar = [
             { text: "Broker Server", link: "/Architect/Broker-Server" },
             { text: "Storage Adapter", link: "/Architect/Storage-Adapter" },
             { text: "Journal Server", link: "/Architect/Journal-Server" },
+            { text: "Detailed design document", link: "/Architect/Design-Documentation" },
             { text: "Ig Test", link: "/Architect/Test-Case" },
             {
                 text: "Configuration",

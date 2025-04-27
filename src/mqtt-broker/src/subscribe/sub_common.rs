@@ -50,10 +50,6 @@ const SUBSCRIBE_WILDCARDS_2: &str = "#";
 const SUBSCRIBE_SPLIT_DELIMITER: &str = "/";
 const SUBSCRIBE_NAME_REGEX: &str = r"^[\$a-zA-Z0-9_#+/]+$";
 
-pub fn path_contain_sub(_: &str) -> bool {
-    true
-}
-
 pub fn get_pkid() -> u16 {
     (now_nanos() % 65535) as u16
 }
@@ -804,7 +800,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn path_validator_test() {
+    async fn sub_path_validator_test() {
         let path = "/loboxu/test";
         assert!(sub_path_validator(path).is_ok());
 

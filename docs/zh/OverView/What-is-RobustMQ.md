@@ -1,6 +1,6 @@
 ## 一、RobustMQ
 ### 1.1 Logo
-![image](https://uploader.shimo.im/f/edIiOkJ79eEBngLX.png!thumbnail?accessToken=eyJhbGciOiJIUzI1NiIsImtpZCI6ImRlZmF1bHQiLCJ0eXAiOiJKV1QifQ.eyJleHAiOjE3NDIzNTc4NTEsImZpbGVHVUlEIjoiRWUzMm1FbGFlZWhaejlBMiIsImlhdCI6MTc0MjM1NzU1MSwiaXNzIjoidXBsb2FkZXJfYWNjZXNzX3Jlc291cmNlIiwicGFhIjoiYWxsOmFsbDoiLCJ1c2VySWQiOjQxNTIyNzgwfQ.6xsFSqx8WnH7_y1NhfiSDDIgc-ayAwqNm6DzeNyV5kk)
+![image](../../../docs/images/robustmq-logo.png)
 
 ### 1.2 定义
 下一代高性能云原生融合型消息队列。

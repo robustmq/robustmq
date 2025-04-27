@@ -11,6 +11,7 @@ export const sidebar = [
                 items: [
                     { text: "2025 年 RoadMamp", link: "/zh/OverView/RoadMap-2025" },
                     { text: "MQTT Release 计划", link: "/zh/OverView/MQTT-Release" },
+                    { text: "Good First Issue", link: "/zh/OverView/Good-First-Issue" },
                 ],
             },
         ],
@@ -45,6 +46,7 @@ export const sidebar = [
             { text: "Storage Adapter", link: "/zh/Architect/Storage-Adapter" },
             { text: "Journal Server", link: "/zh/Architect/Journal-Server" },
             { text: "集成测试", link: "/zh/Architect/Test-Case" },
+            { text: "详细设计文档", link: "/zh/Architect/Design-Documentation" },
             {
                 text: "配置说明",
                 collapsed: true,
