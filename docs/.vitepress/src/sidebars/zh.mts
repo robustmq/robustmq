@@ -75,6 +75,7 @@ export const sidebar = [
                     { text: "通配符订阅", link: "" },
                     { text: "Session 持久化", link: "" },
                     { text: "共享订阅", link: "" },
+                    { text: "MQTT Over Quic", link: "" },
                 ],
             },
             {
@@ -106,8 +107,7 @@ export const sidebar = [
                     { text: "集成 OpenTelemetry", link: "" },
                 ]
             },
-            { text: "MQTT Over Quic", link: "" },
-            { text: "GRPC Admin 接口", link: "/zh/RobustMQ-MQTT/GrpcAdmin.md" },
+            { text: "MQTT Dashboard", link: "/zh/RobustMQ-MQTT/Dashboard.md" },
             { text: "Bench 性能压测", link: "" },
             {
                 text: "客户端 SDK",
