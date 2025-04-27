@@ -12,15 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
 use crate::handler::cache::CacheManager;
-use protocol::broker_mqtt::broker_mqtt_admin::{ListSessionReply, SessionRaw};
+use protocol::broker_mqtt::broker_mqtt_admin::{ListSessionReply, ListSessionRequest, SessionRaw};
 use std::sync::Arc;
-use tonic::{Response, Status};
+use tonic::{Request, Response, Status};
 
-pub async fn list_session(
+pub async fn list_session_by_req(
     cache_manager: &Arc<CacheManager>,
+    request: Request<ListSessionRequest>,
 ) -> Result<Response<ListSessionReply>, Status> {
-    let sessions: Vec<SessionRaw> = cache_manager
+    let sessions = extract_sessions(cache_manager);
+    let filtered = apply_filters(sessions, &request.get_ref().options);
+    let sorted = apply_sorting(filtered, &request.get_ref().options);
+    let (paginated, total_count) = apply_pagination(sorted, &request.get_ref().options);
+
+    Ok(Response::new(ListSessionReply {
+        sessions: paginated,
+        total_count: Some(total_count as u32),
+    }))
+}
+
+fn extract_sessions(cache_manager: &Arc<CacheManager>) -> Vec<SessionRaw> {
+    cache_manager
         .session_info
         .iter()
         .map(|entry| {
@@ -37,7 +51,22 @@ pub async fn list_session(
                 distinct_time: session.distinct_time,
             }
         })
-        .collect();
+        .collect()
+}
 
-    Ok(Response::new(ListSessionReply { sessions }))
+impl Queryable for SessionRaw {
+    fn get_field_str(&self, field: &str) -> Option<String> {
+        match field {
+            "client_id" => Some(self.client_id.clone()),
+            "session_expiry" => Some(self.session_expiry.to_string()),
+            "is_contain_last_will" => Some(self.is_contain_last_will.to_string()),
+            "last_will_delay_interval" => self.last_will_delay_interval.map(|v| v.to_string()),
+            "create_time" => Some(self.create_time.to_string()),
+            "connection_id" => self.connection_id.map(|v| v.to_string()),
+            "broker_id" => self.broker_id.map(|v| v.to_string()),
+            "reconnect_time" => self.reconnect_time.map(|v| v.to_string()),
+            "distinct_time" => self.distinct_time.map(|v| v.to_string()),
+            _ => None,
+        }
+    }
 }
