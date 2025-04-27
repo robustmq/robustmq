@@ -1,4 +1,4 @@
-## System Architecture
+# System Architecture
 
 ![image](../../images/doc-image5.png)
 
