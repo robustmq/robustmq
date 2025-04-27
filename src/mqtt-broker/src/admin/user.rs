@@ -60,6 +60,7 @@ pub async fn list_user_by_req(
     client_pool: &Arc<ClientPool>,
 ) -> Result<Response<ListUserReply>, Status> {
     let mut reply = ListUserReply::default();
+
     let auth_driver = AuthDriver::new(cache_manager.clone(), client_pool.clone());
     match auth_driver.read_all_user().await {
         Ok(data) => {

@@ -23,7 +23,7 @@ brew install node
 1. 通过如下命令安装`VitePress`所需要的包
 
 ```shell
-npm install 
+npm install
 ```
 
 2. 通过如下命令开启本地调试
@@ -35,5 +35,3 @@ npm run docs:dev
 3. 打开本地链接，最终效果如下
 
 ![image](../../../images/Build-Doc-Env-1.png)
-
-
