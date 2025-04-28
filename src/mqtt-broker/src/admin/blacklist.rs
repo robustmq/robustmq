@@ -20,7 +20,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
 use protocol::broker_mqtt::broker_mqtt_admin::{
     BlacklistRaw, CreateBlacklistReply, CreateBlacklistRequest, DeleteBlacklistReply,
-    DeleteBlacklistRequest, ListBlacklistReply, ListBlacklistRequest, SessionRaw,
+    DeleteBlacklistRequest, ListBlacklistReply, ListBlacklistRequest,
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
