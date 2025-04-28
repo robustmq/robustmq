@@ -30,15 +30,20 @@ pub async fn list_blacklist_by_req(
     client_pool: &Arc<ClientPool>,
     request: Request<ListBlacklistRequest>,
 ) -> Result<Response<ListBlacklistReply>, Status> {
-    let blacklists = extract_blacklist(cache_manager, client_pool).await?;
-    let filtered = apply_filters(blacklists, &request.get_ref().options);
-    let sorted = apply_sorting(filtered, &request.get_ref().options);
-    let (paginated, total_count) = apply_pagination(sorted, &request.get_ref().options);
+    let blacklists_with_status = extract_blacklist(cache_manager, client_pool).await;
+    match blacklists_with_status {
+        Ok(blacklists) => {
+            let filtered = apply_filters(blacklists, &request.get_ref().options);
+            let sorted = apply_sorting(filtered, &request.get_ref().options);
+            let (paginated, total_count) = apply_pagination(sorted, &request.get_ref().options);
 
-    Ok(Response::new(ListBlacklistReply {
-        blacklists: paginated,
-        total_count: total_count as u32,
-    }))
+            Ok(Response::new(ListBlacklistReply {
+                blacklists: paginated,
+                total_count: total_count as u32,
+            }))
+        }
+        Err(e) => Err(Status::cancelled(e.to_string())),
+    }
 }
 
 async fn extract_blacklist(
