@@ -25,8 +25,8 @@ mod tests {
     use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
     use paho_mqtt::MessageBuilder;
     use protocol::broker_mqtt::broker_mqtt_admin::{
-        CreateBlacklistRequest, CreateUserRequest, DeleteBlacklistRequest, DeleteUserRequest,
-        ListBlacklistRequest,
+        BlacklistType, CreateBlacklistRequest, CreateUserRequest, DeleteBlacklistRequest,
+        DeleteUserRequest, ListBlacklistRequest,
     };
 
     use crate::mqtt_protocol::common::{
@@ -62,21 +62,19 @@ mod tests {
 
         let list_request = ListBlacklistRequest {
             cluster_name: cluster_name.clone(),
+            options: None,
         };
         match mqtt_broker_list_blacklist(&client_pool, &grpc_addr, list_request.clone()).await {
             Ok(data) => {
-                let mut flag: bool = false;
                 for raw in data.blacklists {
-                    let tmp = serde_json::from_slice::<MqttAclBlackList>(raw.as_slice()).unwrap();
-                    if tmp.blacklist_type == blacklist.blacklist_type
-                        && tmp.resource_name == blacklist.resource_name
-                        && tmp.end_time == blacklist.end_time
-                        && tmp.desc == blacklist.desc
-                    {
-                        flag = true;
-                    }
+                    assert_eq!(
+                        BlacklistType::try_from(raw.blacklist_type).unwrap(),
+                        BlacklistType::from(blacklist.blacklist_type.clone())
+                    );
+                    assert_eq!(raw.resource_name, blacklist.resource_name);
+                    assert_eq!(raw.end_time, blacklist.end_time);
+                    assert_eq!(raw.desc, blacklist.desc);
                 }
-                assert!(flag);
             }
             Err(e) => {
                 panic!("list blacklist error: {:?}", e);
@@ -93,18 +91,15 @@ mod tests {
 
         match mqtt_broker_list_blacklist(&client_pool, &grpc_addr, list_request.clone()).await {
             Ok(data) => {
-                let mut flag: bool = false;
                 for raw in data.blacklists {
-                    let tmp = serde_json::from_slice::<MqttAclBlackList>(raw.as_slice()).unwrap();
-                    if tmp.blacklist_type == blacklist.blacklist_type
-                        && tmp.resource_name == blacklist.resource_name
-                        && tmp.end_time == blacklist.end_time
-                        && tmp.desc == blacklist.desc
-                    {
-                        flag = true;
-                    }
+                    assert_eq!(
+                        BlacklistType::try_from(raw.blacklist_type).unwrap(),
+                        BlacklistType::from(blacklist.blacklist_type.clone())
+                    );
+                    assert_eq!(raw.resource_name, blacklist.resource_name);
+                    assert_eq!(raw.end_time, blacklist.end_time);
+                    assert_eq!(raw.desc, blacklist.desc);
                 }
-                assert!(!flag);
             }
             Err(e) => {
                 panic!("list blacklist error: {:?}", e);

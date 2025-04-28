@@ -29,7 +29,7 @@ pub async fn list_session_by_req(
 
     Ok(Response::new(ListSessionReply {
         sessions: paginated,
-        total_count: Some(total_count as u32),
+        total_count: total_count as u32,
     }))
 }
 

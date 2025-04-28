@@ -25,7 +25,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{MatchMode, OrderDirection, QueryO
 /// Combined with the `apply_filters`, `apply_sorting`, and `apply_pagination`
 /// functions (driven by protobuf-defined `QueryOptions`, `MatchMode`, and
 /// `OrderDirection`), this design centralizes all query-related code:
-/// - Filtering handles exact and fuzzy matching (with room for future
+/// - **Filtering** handles exact and fuzzy matching (with room for future
 ///   extensions to support additional matching strategies).
 /// - **Sorting** applies a dynamic `order_by` field and ascending/descending
 ///   direction.
@@ -99,55 +99,46 @@ pub fn apply_filters<T: Queryable>(items: Vec<T>, options: &Option<QueryOptions>
 pub fn apply_sorting<T: Queryable>(mut items: Vec<T>, options: &Option<QueryOptions>) -> Vec<T> {
     if let Some(opts) = options {
         if let Some(sorting) = &opts.sorting {
-            if let Some(order_by) = &sorting.order_by {
-                let direction = if let Some(raw_dir) = sorting.direction {
-                    OrderDirection::try_from(raw_dir).unwrap_or(OrderDirection::Asc)
+            let order_by = &sorting.order_by;
+            let raw_dir = sorting.direction;
+            let direction = OrderDirection::try_from(raw_dir).unwrap_or(OrderDirection::Asc);
+
+            items.sort_by(|a, b| {
+                let oa = a.get_field_str(order_by);
+                let ob = b.get_field_str(order_by);
+
+                let ord = oa.cmp(&ob);
+                if direction == OrderDirection::Desc {
+                    ord.reverse()
                 } else {
-                    OrderDirection::Asc
-                };
-
-                items.sort_by(|a, b| {
-                    let oa = a.get_field_str(order_by);
-                    let ob = b.get_field_str(order_by);
-
-                    let ord = oa.cmp(&ob);
-                    if direction == OrderDirection::Desc {
-                        ord.reverse()
-                    } else {
-                        ord
-                    }
-                });
-            }
+                    ord
+                }
+            });
         }
     }
     items
 }
 
-pub fn apply_pagination<T>(items: Vec<T>, options: &Option<QueryOptions>) -> (Vec<T>, usize) {
-    // default pagination limit: 10
-    let default_limit: u32 = 10;
-    let default_offset: u32 = 0;
-
+pub fn apply_pagination<T: Queryable>(
+    items: Vec<T>,
+    options: &Option<QueryOptions>,
+) -> (Vec<T>, usize) {
     let total_count = items.len();
+    if let Some(opts) = options {
+        if let Some(p) = &opts.pagination {
+            let limit = p.limit;
+            let offset = p.offset;
+            let paginated = items
+                .into_iter()
+                .skip(offset as usize)
+                .take(limit as usize)
+                .collect::<Vec<T>>();
 
-    let (limit, offset) = if let Some(qo) = options {
-        if let Some(p) = &qo.pagination {
-            (
-                p.limit.unwrap_or(default_limit),
-                p.offset.unwrap_or(default_offset),
-            )
+            (paginated, total_count)
         } else {
-            (default_limit, default_offset)
+            (items, total_count)
         }
     } else {
-        (default_limit, default_offset)
-    };
-
-    let paginated = items
-        .into_iter()
-        .skip(offset as usize)
-        .take(limit as usize)
-        .collect::<Vec<T>>();
-
-    (paginated, total_count)
+        (items, total_count)
+    }
 }

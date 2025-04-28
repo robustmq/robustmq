@@ -32,7 +32,6 @@ use grpc_clients::mqtt::admin::call::{
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
-use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::schema::SchemaData;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
@@ -51,7 +50,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use metadata_struct::acl::mqtt_acl::MqttAcl;
-use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use tokio::io::{self, AsyncBufReadExt, BufReader};
 use tokio::{select, signal};
 
@@ -493,15 +491,14 @@ impl MqttBrokerCommand {
     }
 
     async fn list_user(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
-        let request = ListUserRequest {};
+        let request = ListUserRequest { options: None };
         match mqtt_broker_list_user(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
                 // format table
                 let mut table = Table::new();
                 table.add_row(row!["username", "is_superuser"]);
                 for user in data.users {
-                    let mqtt_user = serde_json::from_slice::<MqttUser>(user.as_slice()).unwrap();
-                    table.add_row(row![mqtt_user.username.as_str(), mqtt_user.is_superuser]);
+                    table.add_row(row![user.username.as_str(), user.is_superuser]);
                 }
                 // output cmd
                 table.printstd()
@@ -635,13 +632,11 @@ impl MqttBrokerCommand {
                     "blacklist_type"
                 ]);
                 for blacklist in data.blacklists {
-                    let mqtt_acl_blacklist =
-                        serde_json::from_slice::<MqttAclBlackList>(blacklist.as_slice()).unwrap();
                     table.add_row(row![
-                        mqtt_acl_blacklist.blacklist_type,
-                        mqtt_acl_blacklist.resource_name,
-                        mqtt_acl_blacklist.end_time,
-                        mqtt_acl_blacklist.blacklist_type
+                        blacklist.blacklist_type,
+                        blacklist.resource_name,
+                        blacklist.end_time,
+                        blacklist.blacklist_type
                     ]);
                 }
                 // output cmd
