@@ -99,25 +99,21 @@ pub fn apply_filters<T: Queryable>(items: Vec<T>, options: &Option<QueryOptions>
 pub fn apply_sorting<T: Queryable>(mut items: Vec<T>, options: &Option<QueryOptions>) -> Vec<T> {
     if let Some(opts) = options {
         if let Some(sorting) = &opts.sorting {
-            if let Some(order_by) = &sorting.order_by {
-                let direction = if let Some(raw_dir) = sorting.direction {
-                    OrderDirection::try_from(raw_dir).unwrap_or(OrderDirection::Asc)
+            let order_by = &sorting.order_by;
+            let raw_dir = sorting.direction;
+            let direction = OrderDirection::try_from(raw_dir).unwrap_or(OrderDirection::Asc);
+
+            items.sort_by(|a, b| {
+                let oa = a.get_field_str(order_by);
+                let ob = b.get_field_str(order_by);
+
+                let ord = oa.cmp(&ob);
+                if direction == OrderDirection::Desc {
+                    ord.reverse()
                 } else {
-                    OrderDirection::Asc
-                };
-
-                items.sort_by(|a, b| {
-                    let oa = a.get_field_str(order_by);
-                    let ob = b.get_field_str(order_by);
-
-                    let ord = oa.cmp(&ob);
-                    if direction == OrderDirection::Desc {
-                        ord.reverse()
-                    } else {
-                        ord
-                    }
-                });
-            }
+                    ord
+                }
+            });
         }
     }
     items
@@ -135,10 +131,7 @@ pub fn apply_pagination<T: Queryable>(
 
     let (limit, offset) = if let Some(qo) = options {
         if let Some(p) = &qo.pagination {
-            (
-                p.limit.unwrap_or(default_limit),
-                p.offset.unwrap_or(default_offset),
-            )
+            (p.limit, p.offset)
         } else {
             (default_limit, default_offset)
         }
