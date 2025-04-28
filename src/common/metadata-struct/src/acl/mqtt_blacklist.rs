@@ -80,7 +80,7 @@ impl From<MqttAclBlackList> for BlacklistRaw {
     fn from(blacklist: MqttAclBlackList) -> Self {
         let blacklist_type_as_enum: BlacklistType = blacklist.blacklist_type.into();
         Self {
-            blacklist_type: blacklist_type_as_enum as i32, // 关键点：枚举转 i32
+            blacklist_type: blacklist_type_as_enum as i32,
             resource_name: blacklist.resource_name,
             end_time: blacklist.end_time,
             desc: blacklist.desc,
