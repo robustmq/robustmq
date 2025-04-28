@@ -203,6 +203,7 @@ mod tests {
     ) {
         let list_request = ListAclRequest {
             cluster_name: cluster_name.to_string(),
+            options: None,
         };
 
         match mqtt_broker_list_acl(client_pool, grpc_addr, list_request).await {

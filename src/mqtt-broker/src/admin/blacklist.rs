@@ -60,7 +60,7 @@ async fn extract_blacklist(
             }
             Ok(blacklists)
         }
-        Err(e) => Err(MqttBrokerError::from(e)),
+        Err(e) => Err(e),
     }
 }
 
