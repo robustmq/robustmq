@@ -123,27 +123,22 @@ pub fn apply_pagination<T: Queryable>(
     items: Vec<T>,
     options: &Option<QueryOptions>,
 ) -> (Vec<T>, usize) {
-    // default pagination limit: 10
-    let default_limit: u32 = 10;
-    let default_offset: u32 = 0;
-
     let total_count = items.len();
+    if let Some(opts) = options {
+        if let Some(p) = &opts.pagination {
+            let limit = p.limit;
+            let offset = p.offset;
+            let paginated = items
+                .into_iter()
+                .skip(offset as usize)
+                .take(limit as usize)
+                .collect::<Vec<T>>();
 
-    let (limit, offset) = if let Some(qo) = options {
-        if let Some(p) = &qo.pagination {
-            (p.limit, p.offset)
+            (paginated, total_count)
         } else {
-            (default_limit, default_offset)
+            (items, total_count)
         }
     } else {
-        (default_limit, default_offset)
-    };
-
-    let paginated = items
-        .into_iter()
-        .skip(offset as usize)
-        .take(limit as usize)
-        .collect::<Vec<T>>();
-
-    (paginated, total_count)
+        (items, total_count)
+    }
 }
