@@ -21,13 +21,14 @@ use super::common::{
     Storage, Telemetry,
 };
 use super::default_mqtt::{
-    default_auth, default_grpc_port, default_log, default_mqtt_cluster_dynamic_feature,
-    default_mqtt_cluster_dynamic_flapping_detect, default_mqtt_cluster_dynamic_network,
-    default_mqtt_cluster_dynamic_protocol, default_mqtt_cluster_dynamic_security,
-    default_mqtt_cluster_dynamic_slow_sub, default_network, default_network_quic_port,
-    default_network_tcp_port, default_network_tcps_port, default_network_websocket_port,
-    default_network_websockets_port, default_offline_message, default_placement_center,
-    default_storage, default_system, default_tcp_thread, default_telemetry,
+    default_auth, default_grpc_port, default_heartbeat_timeout, default_log,
+    default_mqtt_cluster_dynamic_feature, default_mqtt_cluster_dynamic_flapping_detect,
+    default_mqtt_cluster_dynamic_network, default_mqtt_cluster_dynamic_protocol,
+    default_mqtt_cluster_dynamic_security, default_mqtt_cluster_dynamic_slow_sub, default_network,
+    default_network_quic_port, default_network_tcp_port, default_network_tcps_port,
+    default_network_websocket_port, default_network_websockets_port, default_offline_message,
+    default_placement_center, default_storage, default_system, default_tcp_thread,
+    default_telemetry,
 };
 use crate::tools::{read_file, try_create_fold};
 
@@ -39,6 +40,8 @@ pub struct BrokerMqttConfig {
     pub grpc_port: u32,
     #[serde(default = "default_placement_center")]
     pub placement_center: Vec<String>,
+    #[serde(default = "default_heartbeat_timeout")]
+    pub heartbeat_timeout: String,
     #[serde(default = "default_network")]
     pub network: Network,
     #[serde(default = "default_tcp_thread")]
@@ -295,6 +298,7 @@ mod tests {
         assert_eq!(config.cluster_name, "mqtt-broker".to_string());
         assert_eq!(config.placement_center.len(), 1);
         assert_eq!(config.grpc_port, 9981);
+        assert_eq!(config.heartbeat_timeout, "15s".to_string());
 
         assert_eq!(config.network.tcp_port, 1883);
         assert_eq!(config.network.tcps_port, 8883);
@@ -449,6 +453,7 @@ mod tests {
         assert_eq!(config.cluster_name, "mqtt-broker".to_string());
         assert_eq!(config.placement_center.len(), 1);
         assert_eq!(config.grpc_port, 9981);
+        assert_eq!(config.heartbeat_timeout, "30s".to_string());
 
         assert_eq!(config.network.tcp_port, 1883);
         assert_eq!(config.network.tcps_port, 8883);

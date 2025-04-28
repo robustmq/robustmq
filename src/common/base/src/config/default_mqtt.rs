@@ -24,6 +24,10 @@ pub fn default_grpc_port() -> u32 {
     9981
 }
 
+pub fn default_heartbeat_timeout() -> String {
+    String::from("15s")
+}
+
 pub fn default_placement_center() -> Vec<String> {
     vec!["127.0.0.1:1228".to_string()]
 }

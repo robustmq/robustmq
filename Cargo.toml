@@ -175,6 +175,7 @@ pprof-monitor = { path = "src/common/pprof-monitor" }
 
 # other
 tempfile = "3.9.0"
+humantime = "2.2.0"
 
 #pprof
 pprof = { version = "0.14.0", features = ["flamegraph"] }

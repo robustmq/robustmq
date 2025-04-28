@@ -316,7 +316,8 @@ where
     fn start_cluster_heartbeat_report(&self, stop_send: broadcast::Sender<bool>) {
         let client_pool = self.client_pool.clone();
         self.runtime.spawn(async move {
-            report_heartbeat(&client_pool, stop_send).await;
+            let conf = broker_mqtt_conf();
+            report_heartbeat(&client_pool, &conf.heartbeat_timeout, stop_send).await;
         });
     }
 

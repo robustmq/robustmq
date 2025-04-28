@@ -2736,6 +2736,7 @@ dependencies = [
  "googletest",
  "grep",
  "grpc-clients",
+ "humantime",
  "ipnet",
  "lazy_static",
  "metadata-struct",
