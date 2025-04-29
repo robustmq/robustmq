@@ -73,6 +73,7 @@ clap = { version = "4.4.7", features = ["derive"] }
 ## unit test lib
 mockall = "0.13.1"
 googletest = "0.13.0"
+temp-env = "0.3.6"
 ## text handle lib
 regex = "1.10.4"
 grep = "0.3.2"
@@ -176,6 +177,7 @@ pprof-monitor = { path = "src/common/pprof-monitor" }
 # other
 tempfile = "3.9.0"
 humantime = "2.2.0"
+
 
 #pprof
 pprof = { version = "0.14.0", features = ["flamegraph"] }

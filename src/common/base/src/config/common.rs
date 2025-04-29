@@ -127,8 +127,28 @@ assert_eq!(new_toml_content, "[server]\nport = 8081\n");
 */
 pub fn override_default_by_env(toml_content: String, env_prefix: &str) -> String {
     // 逐行解析配置文件，生成环境变量键名与行号映射
+    let env_map = find_exist_env_for_config(&toml_content, env_prefix);
+
+    // 遍历环境变量映射，查找并替换
+    let mut lines: Vec<String> = toml_content.lines().map(|line| line.to_string()).collect();
+    for (env_key, line_num) in &env_map {
+        if let Ok(env_value) = env::var(env_key) {
+            let key = lines[*line_num].split("=").collect::<Vec<&str>>()[0];
+            lines[*line_num] = key.to_string() + "=" + &env_value;
+        }
+    }
+
+    // 重新拼接修改后的 TOML 内容
+    lines.join("\n")
+}
+
+pub fn find_exist_env_for_config(
+    toml_content: &String,
+    env_prefix: &str,
+) -> HashMap<String, usize> {
     let mut sub_key = String::new(); // 当前子键
     let mut env_map = HashMap::new();
+
     for (line_num, line) in toml_content.lines().enumerate() {
         let trimmed = line.trim().replace(" ", "");
         if trimmed.is_empty() || trimmed.starts_with('#') {
@@ -153,16 +173,8 @@ pub fn override_default_by_env(toml_content: String, env_prefix: &str) -> String
             env_map.insert(env_key, line_num);
         }
     }
-    // 遍历环境变量映射，查找并替换
-    let mut lines: Vec<String> = toml_content.lines().map(|line| line.to_string()).collect();
-    for (env_key, line_num) in &env_map {
-        if let Ok(env_value) = env::var(env_key) {
-            let key = lines[*line_num].split("=").collect::<Vec<&str>>()[0];
-            lines[*line_num] = key.to_string() + "=" + &env_value;
-        }
-    }
-    // 重新拼接修改后的 TOML 内容
-    lines.join("\n")
+
+    env_map
 }
 
 #[cfg(test)]

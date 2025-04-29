@@ -277,7 +277,7 @@ mod tests {
     use super::{
         broker_mqtt_conf, init_broker_mqtt_conf_by_path, override_default_by_env, BrokerMqttConfig,
     };
-    use crate::tools::read_file;
+    use crate::{config::common::find_exist_env_for_config, tools::read_file};
 
     #[test]
     fn config_default_test() {
@@ -298,7 +298,7 @@ mod tests {
         assert_eq!(config.cluster_name, "mqtt-broker".to_string());
         assert_eq!(config.placement_center.len(), 1);
         assert_eq!(config.grpc_port, 9981);
-        assert_eq!(config.heartbeat_timeout, "15s".to_string());
+        assert_eq!(config.heartbeat_timeout, "10s".to_string());
 
         assert_eq!(config.network.tcp_port, 1883);
         assert_eq!(config.network.tcps_port, 8883);
@@ -447,50 +447,59 @@ mod tests {
             env!("CARGO_MANIFEST_DIR")
         );
 
-        init_broker_mqtt_conf_by_path(&path);
-        let config = broker_mqtt_conf();
-        assert_eq!(config.broker_id, 1);
-        assert_eq!(config.cluster_name, "mqtt-broker".to_string());
-        assert_eq!(config.placement_center.len(), 1);
-        assert_eq!(config.grpc_port, 9981);
-        assert_eq!(config.heartbeat_timeout, "30s".to_string());
+        // Test methods are executed concurrently.
+        // BROKER_MQTT_CONF captures environment variables when the initialization program is started,
+        // so we need to avoid the impact between test methods and execute the following tests in a "clean" env
+        let content = read_file(&path).unwrap();
+        let env_map = find_exist_env_for_config(&content, "MQTT_SERVER");
+        let env_k: Vec<&String> = env_map.iter().map(|(k, _)| k).collect();
 
-        assert_eq!(config.network.tcp_port, 1883);
-        assert_eq!(config.network.tcps_port, 8883);
-        assert_eq!(config.network.websocket_port, 8093);
-        assert_eq!(config.network.websockets_port, 8094);
-        assert_eq!(config.network.quic_port, 9083);
-        assert!(!config.network.tls_cert.is_empty());
-        assert!(!config.network.tls_key.is_empty());
+        temp_env::with_vars_unset(env_k, || {
+            init_broker_mqtt_conf_by_path(&path);
+            let config = broker_mqtt_conf();
+            assert_eq!(config.broker_id, 1);
+            assert_eq!(config.cluster_name, "mqtt-broker".to_string());
+            assert_eq!(config.placement_center.len(), 1);
+            assert_eq!(config.grpc_port, 9981);
+            assert_eq!(config.heartbeat_timeout, "10s".to_string());
 
-        assert_eq!(config.tcp_thread.accept_thread_num, 5);
-        assert_eq!(config.tcp_thread.handler_thread_num, 32);
-        assert_eq!(config.tcp_thread.response_thread_num, 5);
-        assert_eq!(config.tcp_thread.max_connection_num, 1000);
-        assert_eq!(config.tcp_thread.request_queue_size, 2000);
-        assert_eq!(config.tcp_thread.response_queue_size, 2000);
-        assert_eq!(config.tcp_thread.lock_max_try_mut_times, 30);
-        assert_eq!(config.tcp_thread.lock_try_mut_sleep_time_ms, 50);
+            assert_eq!(config.network.tcp_port, 1883);
+            assert_eq!(config.network.tcps_port, 8883);
+            assert_eq!(config.network.websocket_port, 8093);
+            assert_eq!(config.network.websockets_port, 8094);
+            assert_eq!(config.network.quic_port, 9083);
+            assert!(!config.network.tls_cert.is_empty());
+            assert!(!config.network.tls_key.is_empty());
 
-        assert_eq!(config.system.runtime_worker_threads, 128);
-        assert_eq!(config.system.default_user, "admin".to_string());
-        assert_eq!(config.system.default_password, "pwd123".to_string());
+            assert_eq!(config.tcp_thread.accept_thread_num, 5);
+            assert_eq!(config.tcp_thread.handler_thread_num, 32);
+            assert_eq!(config.tcp_thread.response_thread_num, 5);
+            assert_eq!(config.tcp_thread.max_connection_num, 1000);
+            assert_eq!(config.tcp_thread.request_queue_size, 2000);
+            assert_eq!(config.tcp_thread.response_queue_size, 2000);
+            assert_eq!(config.tcp_thread.lock_max_try_mut_times, 30);
+            assert_eq!(config.tcp_thread.lock_try_mut_sleep_time_ms, 50);
 
-        assert_eq!(config.storage.storage_type, "memory".to_string());
-        assert_eq!(config.storage.journal_addr, "".to_string());
-        assert_eq!(config.storage.mysql_addr, "".to_string());
+            assert_eq!(config.system.runtime_worker_threads, 128);
+            assert_eq!(config.system.default_user, "admin".to_string());
+            assert_eq!(config.system.default_password, "pwd123".to_string());
 
-        assert_eq!(
-            config.log.log_path,
-            "./robust-data/mqtt-broker/logs".to_string()
-        );
-        assert_eq!(
-            config.log.log_config,
-            "./config/log-config/mqtt-tracing.toml"
-        );
+            assert_eq!(config.storage.storage_type, "memory".to_string());
+            assert_eq!(config.storage.journal_addr, "".to_string());
+            assert_eq!(config.storage.mysql_addr, "".to_string());
 
-        assert_eq!(config.auth.storage_type, "placement".to_string());
-        assert_eq!(config.auth.journal_addr, "".to_string());
-        assert_eq!(config.auth.mysql_addr, "".to_string());
+            assert_eq!(
+                config.log.log_path,
+                "./robust-data/mqtt-broker/logs".to_string()
+            );
+            assert_eq!(
+                config.log.log_config,
+                "./config/log-config/mqtt-tracing.toml"
+            );
+
+            assert_eq!(config.auth.storage_type, "placement".to_string());
+            assert_eq!(config.auth.journal_addr, "".to_string());
+            assert_eq!(config.auth.mysql_addr, "".to_string());
+        });
     }
 }
