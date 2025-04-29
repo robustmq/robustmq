@@ -32,7 +32,7 @@ use tracing::{error, warn};
 
 use super::connection::{disconnect_connection, is_delete_session};
 use super::delay_message::{decode_delay_topic, is_delay_topic};
-use super::offline_message::save_message;
+use super::offline_message::{is_exist_subscribe, save_message};
 use super::response::build_pub_ack_fail;
 use super::retain::{is_new_sub, try_send_retain_message};
 use super::sub_auto::try_auto_subscribe;
@@ -65,7 +65,7 @@ use crate::observability::system_topic::event::{
 };
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
-use crate::subscribe::sub_common::{min_qos, path_contain_sub};
+use crate::subscribe::sub_common::min_qos;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 
 #[derive(Clone)]
@@ -472,7 +472,8 @@ where
         match publish.qos {
             QoS::AtMostOnce => None,
             QoS::AtLeastOnce => {
-                let reason_code = if path_contain_sub(&topic_name) {
+                let reason_code = if !is_exist_subscribe(&self.subscribe_manager, &topic.topic_name)
+                {
                     PubAckReason::Success
                 } else {
                     PubAckReason::NoMatchingSubscribers
@@ -501,7 +502,8 @@ where
                         is_puback,
                     ));
                 }
-                let reason_code = if path_contain_sub(&topic_name) {
+                let reason_code = if !is_exist_subscribe(&self.subscribe_manager, &topic.topic_name)
+                {
                     PubRecReason::Success
                 } else {
                     PubRecReason::NoMatchingSubscribers

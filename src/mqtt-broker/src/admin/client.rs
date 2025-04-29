@@ -12,17 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
 use crate::handler::cache::CacheManager;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::session::MqttSession;
-use protocol::broker_mqtt::broker_mqtt_admin::{ClientRaw, ListClientReply};
+use protocol::broker_mqtt::broker_mqtt_admin::{ClientRaw, ListClientReply, ListClientRequest};
 use std::sync::Arc;
-use tonic::{Response, Status};
+use tonic::{Request, Response, Status};
 
-pub async fn list_client(
+pub async fn list_client_by_req(
     cache_manager: &Arc<CacheManager>,
+    request: Request<ListClientRequest>,
 ) -> Result<Response<ListClientReply>, Status> {
-    let client_query_result: Vec<ClientRaw> = cache_manager
+    let clients = extract_clients(cache_manager);
+    let filtered = apply_filters(clients, &request.get_ref().options);
+    let sorted = apply_sorting(filtered, &request.get_ref().options);
+    let (paginated, total_count) = apply_pagination(sorted, &request.get_ref().options);
+
+    Ok(Response::new(ListClientReply {
+        clients: paginated,
+        total_count: total_count as u32,
+    }))
+}
+fn extract_clients(cache_manager: &Arc<CacheManager>) -> Vec<ClientRaw> {
+    cache_manager
         .session_info
         .iter()
         .map(|session_entry| {
@@ -33,13 +46,7 @@ pub async fn list_client(
                 .map(|c| c.value().clone());
             merge_client_info(session.clone(), connection)
         })
-        .collect();
-
-    let reply = ListClientReply {
-        clients: client_query_result,
-    };
-
-    Ok(Response::new(reply))
+        .collect()
 }
 
 fn merge_client_info(session: MqttSession, connection: Option<MQTTConnection>) -> ClientRaw {
@@ -59,5 +66,21 @@ fn merge_client_info(session: MqttSession, connection: Option<MQTTConnection>) -
         // clean session is true when session_expiry is 0 (MQTT 5.0)
         clean_session: session.session_expiry == 0,
         session_expiry_interval: session.session_expiry,
+    }
+}
+
+impl Queryable for ClientRaw {
+    fn get_field_str(&self, field: &str) -> Option<String> {
+        match field {
+            "client_id" => Some(self.client_id.clone()),
+            "username" => Some(self.username.clone()),
+            "is_online" => Some(self.is_online.to_string()),
+            "source_ip" => Some(self.source_ip.clone()),
+            "connected_at" => Some(self.connected_at.to_string()),
+            "keep_alive" => Some(self.keep_alive.to_string()),
+            "clean_session" => Some(self.clean_session.to_string()),
+            "session_expiry_interval" => Some(self.session_expiry_interval.to_string()),
+            _ => None,
+        }
     }
 }

@@ -11,6 +11,7 @@ export const sidebar = [
                 items: [
                     { text: "2025 年 RoadMamp", link: "/zh/OverView/RoadMap-2025" },
                     { text: "MQTT Release 计划", link: "/zh/OverView/MQTT-Release" },
+                    { text: "Good First Issue", link: "/zh/OverView/Good-First-Issue" },
                 ],
             },
         ],
@@ -20,19 +21,8 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "概览", link: "/zh/QuickGuide/Overview" },
-            {
-                text: "RobustMQ MQTT",
-                collapsed: true,
-                items: [
-                    { text: "编译打包", link: "/zh/QuickGuide/mqtt/Build" },
-                    { text: "二进制运行[单机]", link: "/zh/QuickGuide/mqtt/Run-Standalone-Mode" },
-                    { text: "二进制运行[集群]", link: "/zh/QuickGuide/mqtt/Run-Cluster-Mode" },
-                    { text: "Docker 模式", link: "/zh/QuickGuide/mqtt/Run-Docker-Mode" },
-                    { text: "K8S 模式", link: "/zh/QuickGuide/mqtt/Run-K8S-Mode" },
-                    { text: "第一个任务", link: "/zh/QuickGuide/mqtt/FirstTask" },
-                ],
-            },
-
+            { text: "编译打包", link: "/zh/QuickGuide/mqtt/Build" },
+            { text: "第一个任务", link: "/zh/QuickGuide/mqtt/First-Task" },
         ],
     },
     {
@@ -45,6 +35,7 @@ export const sidebar = [
             { text: "Storage Adapter", link: "/zh/Architect/Storage-Adapter" },
             { text: "Journal Server", link: "/zh/Architect/Journal-Server" },
             { text: "集成测试", link: "/zh/Architect/Test-Case" },
+            { text: "详细设计文档", link: "/zh/Architect/Design-Documentation" },
             {
                 text: "配置说明",
                 collapsed: true,
@@ -60,6 +51,16 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "概览", link: "/zh/RobustMQ-MQTT/Overview" },
+            {
+                text: "安装部署",
+                collapsed: true,
+                items: [
+                    { text: "二进制运行[单机]", link: "/zh/QuickGuide/mqtt/Run-Standalone-Mode" },
+                    { text: "二进制运行[集群]", link: "/zh/QuickGuide/mqtt/Run-Cluster-Mode" },
+                    { text: "Docker 模式", link: "/zh/QuickGuide/mqtt/Run-Docker-Mode" },
+                    { text: "K8S 模式", link: "/zh/QuickGuide/mqtt/Run-K8S-Mode" },
+                ],
+            },
             { text: "系统架构", link: "/zh/RobustMQ-MQTT/SystemArchitecture.md" },
             {
                 text: "核心功能",

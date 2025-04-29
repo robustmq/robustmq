@@ -86,12 +86,12 @@ impl SchemaStorage {
     pub fn save_bind(
         &self,
         cluster_name: &str,
-        bind_data: SchemaResourceBind,
+        bind_data: &SchemaResourceBind,
     ) -> Result<(), PlacementCenterError> {
         let key = storage_key_mqtt_schema_bind(
             cluster_name,
-            &bind_data.schema_name,
             &bind_data.resource_name,
+            &bind_data.schema_name,
         );
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, bind_data)?;
         Ok(())
@@ -156,10 +156,112 @@ impl SchemaStorage {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use metadata_struct::schema::SchemaType;
+    use metadata_struct::schema::{SchemaData, SchemaResourceBind};
+    use tempfile::tempdir;
+
+    use crate::storage::placement::schema::SchemaStorage;
+    use crate::storage::rocksdb::RocksDBEngine;
 
     #[tokio::test]
-    async fn schema_storage_test() {}
+    async fn schema_storage_test() {
+        let rocksdb_engine = Arc::new(RocksDBEngine::new(
+            tempdir().unwrap().path().to_str().unwrap(),
+            100,
+            vec!["cluster".to_string()],
+        ));
+
+        let schema_storage = SchemaStorage::new(rocksdb_engine.clone());
+
+        let cluster_name = "test_cluster".to_string();
+        let schema_name = "test_schema".to_string();
+        let desc = "description";
+        let schema = "{\"type\":\"object\"}";
+
+        let schema_data = SchemaData {
+            cluster_name: cluster_name.clone(),
+            name: schema_name.clone(),
+            schema_type: SchemaType::JSON,
+            desc: desc.to_string(),
+            schema: schema.to_string(),
+        };
+
+        //test func save()
+        schema_storage
+            .save(&cluster_name, &schema_name, &schema_data)
+            .unwrap();
+
+        //test func get()
+        let retrieved_schema = schema_storage
+            .get(&cluster_name, &schema_name)
+            .unwrap()
+            .expect("schema not found");
+        assert_eq!(retrieved_schema.name, "test_schema");
+        assert_eq!(retrieved_schema.schema_type, SchemaType::JSON);
+
+        //test func list()
+        let schemas = schema_storage.list(&cluster_name).unwrap();
+        assert_eq!(schemas.len(), 1);
+        assert_eq!(schemas[0].name, "test_schema");
+
+        //test func delete()
+        schema_storage.delete(&cluster_name, &schema_name).unwrap();
+        let deleted_schema = schema_storage.get(&cluster_name, &schema_name).unwrap();
+        assert!(deleted_schema.is_none());
+    }
 
     #[tokio::test]
-    async fn schema_bind_storage_test() {}
+    async fn schema_bind_storage_test() {
+        let rocksdb_engine = Arc::new(RocksDBEngine::new(
+            tempdir().unwrap().path().to_str().unwrap(),
+            100,
+            vec!["cluster".to_string()],
+        ));
+
+        let schema_storage = SchemaStorage::new(rocksdb_engine.clone());
+
+        //create test data
+        let cluster_name = "test_cluster".to_string();
+        let schema_name = "test_schema".to_string();
+        let resource_name = "test_resource";
+
+        let bind_data = SchemaResourceBind {
+            cluster_name: cluster_name.clone(),
+            schema_name: schema_name.clone(),
+            resource_name: resource_name.to_string(),
+        };
+
+        //test save_bind()
+        schema_storage.save_bind(&cluster_name, &bind_data).unwrap();
+
+        //test list_bind_by_resource()
+        let retrieved_binds = schema_storage
+            .list_bind_by_resource(&cluster_name, resource_name)
+            .unwrap();
+        assert_eq!(retrieved_binds.len(), 1);
+        assert_eq!(retrieved_binds[0].schema_name, "test_schema");
+
+        //test list_bind_by_cluster()
+        let all_binds = schema_storage.list_bind_by_cluster(&cluster_name).unwrap();
+        assert_eq!(all_binds.len(), 1);
+        assert_eq!(all_binds[0].resource_name, "test_resource");
+
+        //test get_bind()
+        let retrieved_bind = schema_storage
+            .get_bind(&cluster_name, resource_name, &schema_name)
+            .unwrap()
+            .expect("Bind not found");
+        assert_eq!(retrieved_bind.schema_name, "test_schema");
+
+        //test delete_bind()
+        schema_storage
+            .delete_bind(&cluster_name, resource_name, &schema_name)
+            .unwrap();
+        let deleted_bind = schema_storage
+            .get_bind(&cluster_name, &schema_name, resource_name)
+            .unwrap();
+        assert!(deleted_bind.is_none());
+    }
 }

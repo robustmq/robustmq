@@ -1,7 +1,7 @@
 ## 1. 整体架构
 RobustMQ 是分布式分层架构，由元数据和调度层（Placement Center）、计算层（Multi-protocol computing layer）、存储适配层（Storage Adapter Layer）、存储层（Storage layer） 四个部分组成。是典型的计算、存储、调度分层架构，每一层都具备快速扩缩容能力，从而使达到整个系统具备完整的 Serverless 能力。
 
-![image](https://uploader.shimo.im/f/EzvImtDnVLmiWMp1.png!thumbnail?accessToken=eyJhbGciOiJIUzI1NiIsImtpZCI6ImRlZmF1bHQiLCJ0eXAiOiJKV1QifQ.eyJleHAiOjE3NDIzNTc4NTEsImZpbGVHVUlEIjoiRWUzMm1FbGFlZWhaejlBMiIsImlhdCI6MTc0MjM1NzU1MSwiaXNzIjoidXBsb2FkZXJfYWNjZXNzX3Jlc291cmNlIiwicGFhIjoiYWxsOmFsbDoiLCJ1c2VySWQiOjQxNTIyNzgwfQ.6xsFSqx8WnH7_y1NhfiSDDIgc-ayAwqNm6DzeNyV5kk)
+![image](../../../docs/images/robustmq-architecture.png)
 
 - 元数据和调度层 (Placement Center)： 元数据和调度层负责集群的元数据存储和调度。主要完成:
 Broker 集群相关的元数据(Topic、Group、Queue、Partition 等)存储、分发。
@@ -23,7 +23,7 @@ Journal Engine 消费进度(Offset)信息等。
 
 这种部署方式好处是简单、无额外依赖，系统复杂度和运维成本低，同时具备 Serverless 特性。架构如下：
 
-![image](https://uploader.shimo.im/f/dgwor7moOrJevT6f.png!thumbnail?accessToken=eyJhbGciOiJIUzI1NiIsImtpZCI6ImRlZmF1bHQiLCJ0eXAiOiJKV1QifQ.eyJleHAiOjE3NDIzNTc4NTEsImZpbGVHVUlEIjoiRWUzMm1FbGFlZWhaejlBMiIsImlhdCI6MTc0MjM1NzU1MSwiaXNzIjoidXBsb2FkZXJfYWNjZXNzX3Jlc291cmNlIiwicGFhIjoiYWxsOmFsbDoiLCJ1c2VySWQiOjQxNTIyNzgwfQ.6xsFSqx8WnH7_y1NhfiSDDIgc-ayAwqNm6DzeNyV5kk)
+![image](../../../docs/images/robustmq-architecture-journal-server.png)
 
 如上图所示，独立部署架构由 Placement Center Cluster、Broker Cluster、Journal Engine Cluster 三部分组成，分别负责元数据和调度、协议功能实现、数据存储。
 
@@ -36,7 +36,7 @@ Journal Engine 抽象了Shard的概念，，来承接计算层所有协议（比
 
 这种部署方式的好处是在大规模流量下的成本相比独立部署方案会降低很多，适合在大流量、云架构部署场景下，对成本有强烈诉求的客户。架构如下：
 
-![image](https://uploader.shimo.im/f/dgwor7moOrJevT6f.png!thumbnail?accessToken=eyJhbGciOiJIUzI1NiIsImtpZCI6ImRlZmF1bHQiLCJ0eXAiOiJKV1QifQ.eyJleHAiOjE3NDIzNTc4NTEsImZpbGVHVUlEIjoiRWUzMm1FbGFlZWhaejlBMiIsImlhdCI6MTc0MjM1NzU1MSwiaXNzIjoidXBsb2FkZXJfYWNjZXNzX3Jlc291cmNlIiwicGFhIjoiYWxsOmFsbDoiLCJ1c2VySWQiOjQxNTIyNzgwfQ.6xsFSqx8WnH7_y1NhfiSDDIgc-ayAwqNm6DzeNyV5kk)
+![image](../../../docs/images/doc-image.png)
 
 如上图所示，共享部署架构由Placement Center Cluster、Broker Cluster和独立分布式存储组件三部分组成。在 RobustMQ 层面，只需要部署Placement Center Cluster 和 Broker Cluster 两个组件。Placement Center Cluster 负责元数据存储，Broker Cluster 通过 Storage Adapter 的交互，抽象 Shard 的概念，调用远程的来完成消息数据的持久化存储。
 
