@@ -27,7 +27,6 @@ mod tests {
     use metadata_struct::mqtt::bridge::config_local_file::LocalFileConnectorConfig;
     use metadata_struct::mqtt::bridge::connector::MQTTConnector;
     use metadata_struct::mqtt::bridge::connector_type::ConnectorType;
-    use metadata_struct::mqtt::user::MqttUser;
     use metadata_struct::schema::{SchemaData, SchemaType};
     use protocol::broker_mqtt::broker_mqtt_admin::{
         ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListUserRequest,
@@ -74,12 +73,11 @@ mod tests {
             }
         }
 
-        match mqtt_broker_list_user(&client_pool, &addrs, ListUserRequest {}).await {
+        match mqtt_broker_list_user(&client_pool, &addrs, ListUserRequest { options: None }).await {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.users {
-                    let mqtt_user = serde_json::from_slice::<MqttUser>(raw.as_slice()).unwrap();
-                    if user.username == mqtt_user.username {
+                    if user.username == raw.username {
                         flag = true;
                     }
                 }
@@ -105,12 +103,11 @@ mod tests {
             }
         }
 
-        match mqtt_broker_list_user(&client_pool, &addrs, ListUserRequest {}).await {
+        match mqtt_broker_list_user(&client_pool, &addrs, ListUserRequest { options: None }).await {
             Ok(data) => {
                 let mut flag = true;
                 for raw in data.users {
-                    let mqtt_user = serde_json::from_slice::<MqttUser>(raw.as_slice()).unwrap();
-                    if user.username == mqtt_user.username {
+                    if user.username == raw.username {
                         flag = false;
                     }
                 }
