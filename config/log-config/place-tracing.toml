@@ -24,12 +24,3 @@ directory = "./logs/tests"
 prefix = "place-server-"
 suffix = "log"
 max_log_files = 10
-
-# [appenders.slow_sub]
-# kind = "RollingFile"
-# level = "Info"
-# rotation = "Minutely"
-# directory = "./logs/tests"
-# prefix = "place-slow_sub-"
-# suffix = "log"
-# max_log_files = 10

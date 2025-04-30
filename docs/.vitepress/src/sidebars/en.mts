@@ -61,6 +61,8 @@ export const sidebar = [
                     { text: "K8SMode", link: "/QuickGuide/mqtt/Run-K8S-Mode" },
                 ],
             },
+
+            { text: "Public MQTT Server", link: "/RobustMQ-MQTT/PublicMqttServer" },
             { text: "Architecture", link: "/RobustMQ-MQTT/SystemArchitecture" },
             {
                 text: "Features",
@@ -75,6 +77,7 @@ export const sidebar = [
                     { text: "Wildcard Subscription", link: "" },
                     { text: "Session Persistence", link: "" },
                     { text: "Shared Subscription", link: "" },
+                    { text: "MQTT Over Quic", link: "" },
                 ],
             },
             {
@@ -106,8 +109,7 @@ export const sidebar = [
                     { text: "Integrate OpenTelemetry", link: "" },
                 ]
             },
-            { text: "MQTT Over Quic", link: "" },
-            { text: "GRPC Admin Interface", link: "/RobustMQ-MQTT/GrpcAdmin.md" },
+            { text: "MQTT Dashboard", link: "/zh/RobustMQ-MQTT/Dashboard.md" },
             { text: "Performance Bench", link: "" },
             {
                 text: "Client SDK",
