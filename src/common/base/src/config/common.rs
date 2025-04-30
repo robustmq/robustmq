@@ -142,10 +142,7 @@ pub fn override_default_by_env(toml_content: String, env_prefix: &str) -> String
     lines.join("\n")
 }
 
-pub fn find_exist_env_for_config(
-    toml_content: &String,
-    env_prefix: &str,
-) -> HashMap<String, usize> {
+pub fn find_exist_env_for_config(toml_content: &str, env_prefix: &str) -> HashMap<String, usize> {
     let mut sub_key = String::new(); // 当前子键
     let mut env_map = HashMap::new();
 

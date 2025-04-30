@@ -452,7 +452,7 @@ mod tests {
         // so we need to avoid the impact between test methods and execute the following tests in a "clean" env
         let content = read_file(&path).unwrap();
         let env_map = find_exist_env_for_config(&content, "MQTT_SERVER");
-        let env_k: Vec<&String> = env_map.iter().map(|(k, _)| k).collect();
+        let env_k: Vec<&String> = env_map.keys().collect();
 
         temp_env::with_vars_unset(env_k, || {
             init_broker_mqtt_conf_by_path(&path);
