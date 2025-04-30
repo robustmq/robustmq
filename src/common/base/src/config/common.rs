@@ -126,10 +126,8 @@ assert_eq!(new_toml_content, "[server]\nport = 8081\n");
 ```
 */
 pub fn override_default_by_env(toml_content: String, env_prefix: &str) -> String {
-    // 逐行解析配置文件，生成环境变量键名与行号映射
     let env_map = find_exist_env_for_config(&toml_content, env_prefix);
 
-    // 遍历环境变量映射，查找并替换
     let mut lines: Vec<String> = toml_content.lines().map(|line| line.to_string()).collect();
     for (env_key, line_num) in &env_map {
         if let Ok(env_value) = env::var(env_key) {
@@ -138,18 +136,17 @@ pub fn override_default_by_env(toml_content: String, env_prefix: &str) -> String
         }
     }
 
-    // 重新拼接修改后的 TOML 内容
     lines.join("\n")
 }
 
 pub fn find_exist_env_for_config(toml_content: &str, env_prefix: &str) -> HashMap<String, usize> {
-    let mut sub_key = String::new(); // 当前子键
+    let mut sub_key = String::new();
     let mut env_map = HashMap::new();
 
     for (line_num, line) in toml_content.lines().enumerate() {
         let trimmed = line.trim().replace(" ", "");
         if trimmed.is_empty() || trimmed.starts_with('#') {
-            continue; // 跳过空行、表头或注释行
+            continue;
         }
         if trimmed.starts_with('[') {
             sub_key = trimmed[1..trimmed.len() - 1].to_string();
