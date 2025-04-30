@@ -61,6 +61,7 @@ export const sidebar = [
                     { text: "K8S 模式", link: "/zh/QuickGuide/mqtt/Run-K8S-Mode" },
                 ],
             },
+            { text: "公共 MQTT Server", link: "/zh/RobustMQ-MQTT/PublicMqttServer" },
             { text: "系统架构", link: "/zh/RobustMQ-MQTT/SystemArchitecture.md" },
             {
                 text: "核心功能",

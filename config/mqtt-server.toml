@@ -62,7 +62,6 @@ max_messages_num = 1000
 storage_type = "memory"
 
 [log]
-# log_config = "./config/log-config/mqtt-log4rs.yaml"
 log_config = "./config/log-config/mqtt-tracing.toml"
 log_path = "./robust-data/mqtt-broker/logs"
 

@@ -61,6 +61,8 @@ export const sidebar = [
                     { text: "K8SMode", link: "/QuickGuide/mqtt/Run-K8S-Mode" },
                 ],
             },
+
+            { text: "Public MQTT Server", link: "/RobustMQ-MQTT/PublicMqttServer" },
             { text: "Architecture", link: "/RobustMQ-MQTT/SystemArchitecture" },
             {
                 text: "Features",
