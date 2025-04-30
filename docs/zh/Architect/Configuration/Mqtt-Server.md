@@ -16,6 +16,10 @@ http_port = 9982
 
 # 元数据服务地址,可以配置多个
 placement_center = ["127.0.0.1:1228"]
+
+# 定义 MQTT Broker 上报心跳信息的超时时间, 默认为 15s
+# 支持使用 "HumanReadable DurationFormat", 例如: 1m15s, 45s, 1h30m
+heartbeat_timeout = 10s
 ```
 
 ## 网络配置

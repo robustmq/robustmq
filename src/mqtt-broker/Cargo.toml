@@ -65,6 +65,7 @@ rustls.workspace = true
 bindgen.workspace = true
 rdkafka.workspace = true
 pprof-monitor.workspace = true
+humantime.workspace = true
 
 
 [dev-dependencies]
