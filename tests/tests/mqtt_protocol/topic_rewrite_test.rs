@@ -64,7 +64,7 @@ mod tests {
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
-        let message = "mqtt message".to_string();
+        let message = "pub_sub_rewrite_test mqtt message".to_string();
         let msg = MessageBuilder::new()
             .payload(message.clone())
             .topic(source_topic.clone())

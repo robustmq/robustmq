@@ -156,7 +156,7 @@ mod tests {
         let network = "tcp";
         let qos = 1;
         let client_id =
-            build_client_id(format!("publish_qos_test_{}_{}_{}", protocol, network, qos).as_str());
+            build_client_id(format!("publish_deny_test_{}_{}_{}", protocol, network, qos).as_str());
 
         let client_properties = ClientTestProperties {
             mqtt_version: protocol,
@@ -171,7 +171,7 @@ mod tests {
         let cli = connect_server(&client_properties);
 
         // publish retain
-        let message = "mqtt message".to_string();
+        let message = "publish_deny_test mqtt message".to_string();
         let msg = MessageBuilder::new()
             .payload(message.clone())
             .topic(topic.to_owned())

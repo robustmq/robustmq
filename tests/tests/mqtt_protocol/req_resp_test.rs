@@ -61,7 +61,7 @@ mod tests {
                     )
                     .unwrap();
 
-                let message_content = "message_content mqtt message".to_string();
+                let message_content = "client5_request_response_test message_content mqtt message".to_string();
                 let msg = MessageBuilder::new()
                     .properties(props)
                     .topic(request_topic.clone())

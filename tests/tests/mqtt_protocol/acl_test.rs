@@ -243,7 +243,7 @@ mod tests {
             for network in network_types() {
                 for qos in qos_list() {
                     let client_id = build_client_id(
-                        format!("publish_qos_test_{}_{}_{}", protocol, network, qos).as_str(),
+                        format!("publish_user_acl_test_{}_{}_{}", protocol, network, qos).as_str(),
                     );
 
                     let client_properties = ClientTestProperties {
@@ -259,7 +259,7 @@ mod tests {
                     let cli = connect_server(&client_properties);
 
                     // publish retain
-                    let message = "mqtt message".to_string();
+                    let message = "publish_user_acl_test mqtt message".to_string();
                     let msg = MessageBuilder::new()
                         .payload(message.clone())
                         .topic(topic.to_owned())
@@ -309,7 +309,7 @@ mod tests {
         let cli = connect_server(&client_properties);
 
         // publish retain
-        let message = "mqtt message".to_string();
+        let message = "publish_client_id_acl_test mqtt message".to_string();
         let msg = MessageBuilder::new()
             .payload(message.clone())
             .topic(topic.to_owned())

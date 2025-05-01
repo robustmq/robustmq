@@ -47,7 +47,7 @@ mod tests {
                 };
                 let cli = connect_server(&client_properties);
 
-                let message_content = "mqtt message".to_string();
+                let message_content = "sub_wildcards_test mqtt message".to_string();
                 let msg = Message::new(topic.clone(), message_content.clone(), QOS_1);
                 publish_data(&cli, msg, false);
                 distinct_conn(cli);

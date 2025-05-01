@@ -62,6 +62,10 @@ pub fn ssl_by_type(network_type: &str) -> bool {
     net == "ssl" || net == "wss"
 }
 
+pub fn uniq_topic() -> String {
+    format!("/{}/{}", unique_id(), now_nanos())
+}
+
 pub fn build_conn_pros(
     client_test_properties: ClientTestProperties,
     err_pwd: bool,

@@ -50,7 +50,7 @@ mod tests {
                 };
 
                 let cli = connect_server(&client_properties);
-                let message_content = "mqtt message".to_string();
+                let message_content = "sub_identifier_test mqtt message".to_string();
                 let msg = MessageBuilder::new()
                     .topic(topic2.clone())
                     .payload(message_content.clone())
