@@ -16,6 +16,10 @@ http_port = 9982
 
 # Metadata service address, multiple can be configured
 placement_center = ["127.0.0.1:1228"]
+
+# Define the timeout for MQTT Broker to report heartbeat information, default 15s
+# Supports "HumanReadable DurationFormat", for example: 1m15s, 45s, 1h30m
+heartbeat_timeout = 10s
 ```
 
 ## Network Configuration

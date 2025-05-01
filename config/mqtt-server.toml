@@ -16,6 +16,7 @@ cluster_name = "mqtt-broker"
 broker_id = 1
 grpc_port = 9981
 placement_center = ["127.0.0.1:1228"]
+heartbeat_timeout = "10s"
 
 [network]
 local_ip = "127.0.0.1"

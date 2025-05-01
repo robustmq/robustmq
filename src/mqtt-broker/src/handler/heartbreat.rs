@@ -15,15 +15,15 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use super::error::MqttBrokerError;
+use crate::storage::cluster::ClusterStorage;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::config::default_mqtt::default_heartbeat_timeout;
 use grpc_clients::pool::ClientPool;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::{sleep, timeout};
 use tracing::{debug, error};
-
-use super::error::MqttBrokerError;
-use crate::storage::cluster::ClusterStorage;
 
 pub async fn register_node(client_pool: &Arc<ClientPool>) -> Result<(), MqttBrokerError> {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
@@ -32,7 +32,25 @@ pub async fn register_node(client_pool: &Arc<ClientPool>) -> Result<(), MqttBrok
     Ok(())
 }
 
-pub async fn report_heartbeat(client_pool: &Arc<ClientPool>, stop_send: broadcast::Sender<bool>) {
+pub async fn report_heartbeat(
+    client_pool: &Arc<ClientPool>,
+    heartbeat_timeout: &String,
+    stop_send: broadcast::Sender<bool>,
+) {
+    let actual_timeout = match humantime::parse_duration(heartbeat_timeout) {
+        Ok(v) => v.as_secs(),
+        Err(e) => {
+            error!(
+                "Failed to parse '{}' heartbeat timeout by err: {}",
+                heartbeat_timeout, e
+            );
+
+            humantime::parse_duration(default_heartbeat_timeout().as_ref())
+                .unwrap()
+                .as_secs()
+        }
+    };
+
     loop {
         let mut stop_recv = stop_send.subscribe();
         select! {
@@ -44,7 +62,7 @@ pub async fn report_heartbeat(client_pool: &Arc<ClientPool>, stop_send: broadcas
                     }
                 }
             }
-            val = timeout(Duration::from_secs(10),report(client_pool)) => {
+            val = timeout(Duration::from_secs(actual_timeout),report(client_pool)) => {
                 if let Err(e) = val{
                     error!("Broker heartbeat report timeout, error message:{}",e);
                 }
