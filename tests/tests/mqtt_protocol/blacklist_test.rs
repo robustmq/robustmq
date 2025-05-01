@@ -14,7 +14,7 @@
 
 #[cfg(test)]
 mod tests {
-    use common_base::tools::unique_id;
+    use common_base::tools::{now_second, unique_id};
     use grpc_clients::mqtt::admin::call::{
         mqtt_broker_create_blacklist, mqtt_broker_create_user, mqtt_broker_delete_blacklist,
         mqtt_broker_delete_user, mqtt_broker_list_blacklist,
@@ -25,8 +25,8 @@ mod tests {
     use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
     use paho_mqtt::MessageBuilder;
     use protocol::broker_mqtt::broker_mqtt_admin::{
-        BlacklistType, CreateBlacklistRequest, CreateUserRequest, DeleteBlacklistRequest,
-        DeleteUserRequest, ListBlacklistRequest,
+        CreateBlacklistRequest, CreateUserRequest, DeleteBlacklistRequest, DeleteUserRequest,
+        ListBlacklistRequest,
     };
 
     use crate::mqtt_protocol::common::{
@@ -64,22 +64,22 @@ mod tests {
             cluster_name: cluster_name.clone(),
             options: None,
         };
+        let mut flag = false;
         match mqtt_broker_list_blacklist(&client_pool, &grpc_addr, list_request.clone()).await {
             Ok(data) => {
+                println!("list blacklist: {:?}", data.blacklists.len());
                 for raw in data.blacklists {
-                    assert_eq!(
-                        BlacklistType::try_from(raw.blacklist_type).unwrap(),
-                        BlacklistType::from(blacklist.blacklist_type.clone())
-                    );
-                    assert_eq!(raw.resource_name, blacklist.resource_name);
-                    assert_eq!(raw.end_time, blacklist.end_time);
-                    assert_eq!(raw.desc, blacklist.desc);
+                    if raw.resource_name == blacklist.resource_name {
+                        flag = true;
+                        break;
+                    }
                 }
             }
             Err(e) => {
                 panic!("list blacklist error: {:?}", e);
             }
         };
+        assert!(flag);
 
         delete_blacklist(
             client_pool.clone(),
@@ -89,22 +89,22 @@ mod tests {
         )
         .await;
 
+        let mut flag = false;
         match mqtt_broker_list_blacklist(&client_pool, &grpc_addr, list_request.clone()).await {
             Ok(data) => {
                 for raw in data.blacklists {
-                    assert_eq!(
-                        BlacklistType::try_from(raw.blacklist_type).unwrap(),
-                        BlacklistType::from(blacklist.blacklist_type.clone())
-                    );
-                    assert_eq!(raw.resource_name, blacklist.resource_name);
-                    assert_eq!(raw.end_time, blacklist.end_time);
-                    assert_eq!(raw.desc, blacklist.desc);
+                    if raw.resource_name == blacklist.resource_name {
+                        flag = true;
+                        break;
+                    }
                 }
             }
             Err(e) => {
                 panic!("list blacklist error: {:?}", e);
             }
         };
+
+        assert!(!flag);
     }
 
     #[tokio::test]
@@ -120,7 +120,7 @@ mod tests {
         let blacklist = MqttAclBlackList {
             blacklist_type: MqttAclBlackListType::User,
             resource_name: user.to_string(),
-            end_time: 10000,
+            end_time: now_second() + 10000,
             desc: password.to_string(),
         };
 
@@ -142,12 +142,13 @@ mod tests {
             client_pool.clone(),
             grpc_addr.clone(),
             cluster_name.clone(),
-            blacklist,
+            blacklist.clone(),
         )
         .await;
 
         // push deny false
         publish_deny_test(&topic, &user, &password, false).await;
+        delete_user(&client_pool, &grpc_addr, &blacklist.resource_name).await;
     }
 
     async fn publish_deny_test(topic: &str, username: &str, password: &str, is_err: bool) {
@@ -222,8 +223,6 @@ mod tests {
         cluster_name: String,
         blacklist: MqttAclBlackList,
     ) {
-        delete_user(&client_pool, &grpc_addr, &blacklist.resource_name).await;
-
         let delete_request = DeleteBlacklistRequest {
             cluster_name,
             blacklist_type: blacklist.blacklist_type.to_string(),

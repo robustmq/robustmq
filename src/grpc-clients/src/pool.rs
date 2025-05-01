@@ -254,14 +254,14 @@ impl ClientPool {
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
-                        "BrokerPlacementServices".to_string(),
+                        "MQTTBrokerPlacementServices".to_string(),
                         e.to_string(),
                     ));
                 }
             };
         }
         Err(CommonError::NoAvailableGrpcConnection(
-            "BrokerPlacementServices".to_string(),
+            "MQTTBrokerPlacementServices".to_string(),
             "connection pool is not initialized".to_string(),
         ))
     }
