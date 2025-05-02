@@ -70,9 +70,11 @@ mod tests {
 
             let call_fn = |msg: Message| {
                 let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                // Avoid auto-subscribe to subscribe to data
                 if msg.properties().len() != 4 {
                     println!("properties:{:?}", msg.properties());
                     println!("payload:{}", payload);
+                    return false;
                 }
 
                 assert_eq!(msg.properties().len(), 4);

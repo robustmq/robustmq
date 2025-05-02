@@ -98,6 +98,7 @@ mod tests {
 
                 let sub_topic = "/tests/+".to_string();
                 let call_fn = |msg: Message| {
+                    println!("msg: {:?}", msg);
                     let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
                     payload == message_content
                 };

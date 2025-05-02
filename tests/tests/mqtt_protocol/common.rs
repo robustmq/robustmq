@@ -174,7 +174,6 @@ pub fn subscribe_data_with_options<S, T, P, F>(
 
     loop {
         let res = rx.recv_timeout(Duration::from_secs(10));
-        println!("{:?}", res);
         if let Ok(msg_opt) = res {
             assert!(msg_opt.is_some());
             let msg = msg_opt.unwrap();
