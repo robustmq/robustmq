@@ -46,6 +46,135 @@ pub const SYSTEM_TOPIC_BROKERS_SUBSCRIBED: &str =
 pub const SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED: &str =
     "$SYS/brokers/${node}/clients/${clientid}/unsubscribed";
 
+// Stats
+// connections
+pub const SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_COUNT: &str =
+    "$SYS/brokers/${node}/stats/connections/count";
+pub const SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_MAX: &str =
+    "$SYS/brokers/${node}/stats/connections/max";
+// subscribe
+pub const SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_COUNT: &str =
+    "$SYS/brokers/${node}/stats/suboptions/count";
+pub const SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_MAX: &str =
+    "$SYS/brokers/${node}/stats/suboptions/max";
+pub const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_COUNT: &str =
+    "$SYS/brokers/${node}/stats/subscribers/count";
+pub const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_COUNT: &str =
+    "$SYS/brokers/${node}/stats/subscriptions/count";
+pub const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_COUNT: &str =
+    "$SYS/brokers/${node}/stats/subscriptions/shared/count";
+pub const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_MAX: &str =
+    "$SYS/brokers/${node}/stats/subscriptions/shared/max";
+
+pub const SYSTEM_TOPIC_BROKERS_STATS_TOPICS_COUNT: &str = "$SYS/brokers/${node}/stats/topics/count";
+pub const SYSTEM_TOPIC_BROKERS_STATS_TOPICS_MAX: &str = "$SYS/brokers/${node}/stats/topics/max";
+pub const SYSTEM_TOPIC_BROKERS_STATS_ROUTES_COUNT: &str = "$SYS/brokers/${node}/stats/routes/count";
+pub const SYSTEM_TOPIC_BROKERS_STATS_ROUTES_MAX: &str = "$SYS/brokers/${node}/stats/routes/max";
+
+// metrics
+pub const SYSTEM_TOPIC_BROKERS_METRICS_BYTES_RECEIVED: &str =
+    "$SYS/brokers/${node}/metrics/bytes/received";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_BYTES_SENT: &str = "$SYS/brokers/${node}/metrics/bytes/sent";
+
+// MQTT Packet Received and Sent
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_RECEIVED: &str =
+    "$SYS/brokers/${node}/metrics/packets/received";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SENT: &str =
+    "$SYS/brokers/${node}/metrics/packets/sent";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNECT: &str =
+    "$SYS/brokers/${node}/metrics/packets/connect";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNACK: &str =
+    "$SYS/brokers/${node}/metrics/packets/connack";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_RECEIVED: &str =
+    "$SYS/brokers/${node}/metrics/packets/publish/received";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_SENT: &str =
+    "$SYS/brokers/${node}/metrics/packets/publish/sent";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_RECEIVED: &str =
+    "$SYS/brokers/${node}/metrics/packets/puback/received";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_SENT: &str =
+    "$SYS/brokers/${node}/metrics/packets/puback/sent";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_MISSED: &str =
+    "$SYS/brokers/${node}/metrics/packets/puback/missed";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_RECEIVED: &str =
+    "$SYS/brokers/${node}/metrics/packets/pubrec/received";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_SENT: &str =
+    "$SYS/brokers/${node}/metrics/packets/pubrec/sent";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_MISSED: &str =
+    "$SYS/brokers/${node}/metrics/packets/pubrec/missed";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_RECEIVED: &str =
+    "$SYS/brokers/${node}/metrics/packets/pubrel/received";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_SENT: &str =
+    "$SYS/brokers/${node}/metrics/packets/pubrel/sent";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_MISSED: &str =
+    "$SYS/brokers/${node}/metrics/packets/pubrel/missed";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_RECEIVED: &str =
+    "$SYS/brokers/${node}/metrics/packets/pubcomp/received";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_SENT: &str =
+    "$SYS/brokers/${node}/metrics/packets/pubcomp/sent";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_MISSED: &str =
+    "$SYS/brokers/${node}/metrics/packets/pubcomp/missed";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBSCRIBE: &str =
+    "$SYS/brokers/${node}/metrics/packets/subscribe";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBACK: &str =
+    "$SYS/brokers/${node}/metrics/packets/suback";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBSCRIBE: &str =
+    "$SYS/brokers/${node}/metrics/packets/unsubscribe";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBACK: &str =
+    "$SYS/brokers/${node}/metrics/packets/unsuback";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGREQ: &str =
+    "$SYS/brokers/${node}/metrics/packets/pingreq";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGRESP: &str =
+    "$SYS/brokers/${node}/metrics/packets/pingresp";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_RECEIVED: &str =
+    "$SYS/brokers/${node}/metrics/packets/disconnect/received";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_SENT: &str =
+    "$SYS/brokers/${node}/metrics/packets/disconnect/sent";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_AUTH: &str =
+    "$SYS/brokers/${node}/metrics/packets/auth";
+
+// MQTT Message Received and Sent
+pub const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_RECEIVED: &str =
+    "$SYS/brokers/${node}/metrics/messages/received";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_SENT: &str =
+    "$SYS/brokers/${node}/metrics/messages/sent";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_EXPIRED: &str =
+    "$SYS/brokers/${node}/metrics/messages/expired";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_RETAINED: &str =
+    "$SYS/brokers/${node}/metrics/messages/retained";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_DROPPED: &str =
+    "$SYS/brokers/${node}/metrics/messages/dropped";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_FORWARD: &str =
+    "$SYS/brokers/${node}/metrics/messages/forward";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS0_RECEIVED: &str =
+    "$SYS/brokers/${node}/metrics/messages/qos0/received";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS0_SENT: &str =
+    "$SYS/brokers/${node}/metrics/messages/qos0/sent";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS1_RECEIVED: &str =
+    "$SYS/brokers/${node}/metrics/messages/qos1/received";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS1_SENT: &str =
+    "$SYS/brokers/${node}/metrics/messages/qos1/sent";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_RECEIVED: &str =
+    "$SYS/brokers/${node}/metrics/messages/qos2/received";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_SENT: &str =
+    "$SYS/brokers/${node}/metrics/messages/qos2/sent";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_EXPIRED: &str =
+    "$SYS/brokers/${node}/metrics/messages/qos2/expired";
+pub const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_DROPPED: &str =
+    "$SYS/brokers/${node}/metrics/messages/qos2/dropped";
+
+// System alarm
+pub const SYSTEM_TOPIC_BROKERS_ALARMS_ALERT: &str = "$SYS/brokers/${node}/alarms/alert";
+pub const SYSTEM_TOPIC_BROKERS_ALARMS_CLEAR: &str = "$SYS/brokers/${node}/alarms/clear";
+
+// system symon
+pub const SYSTEM_TOPIC_BROKERS_SYSMON_LONG_GC: &str = "$SYS/brokers/${node}/sysmon/long_gc";
+pub const SYSTEM_TOPIC_BROKERS_SYSMON_LONG_SCHEDULE: &str =
+    "$SYS/brokers/${node}/sysmon/long_schedule";
+pub const SYSTEM_TOPIC_BROKERS_SYSMON_LARGE_HEAP: &str = "$SYS/brokers/${node}/sysmon/large_heap";
+pub const SYSTEM_TOPIC_BROKERS_SYSMON_BUSY_PORT: &str = "$SYS/brokers/${node}/sysmon/busy_port";
+pub const SYSTEM_TOPIC_BROKERS_SYSMON_BUSY_DIST_PORT: &str =
+    "$SYS/brokers/${node}/sysmon/busy_dist_port";
+
 pub mod broker;
 pub mod event;
 pub mod packet;
