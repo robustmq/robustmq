@@ -23,27 +23,15 @@ use storage_adapter::storage::StorageAdapter;
 use tracing::error;
 
 use super::{
-    replace_topic_name, write_topic_data, SYSTEM_TOPIC_BROKERS, SYSTEM_TOPIC_BROKERS_DATETIME,
-    SYSTEM_TOPIC_BROKERS_SYSDESCR, SYSTEM_TOPIC_BROKERS_UPTIME, SYSTEM_TOPIC_BROKERS_VERSION,
+    replace_topic_name, report_system_data, write_topic_data, SYSTEM_TOPIC_BROKERS,
+    SYSTEM_TOPIC_BROKERS_DATETIME, SYSTEM_TOPIC_BROKERS_SYSDESCR, SYSTEM_TOPIC_BROKERS_UPTIME,
+    SYSTEM_TOPIC_BROKERS_VERSION,
 };
 use crate::handler::cache::CacheManager;
 use crate::storage::cluster::ClusterStorage;
 use crate::BROKER_START_TIME;
 
-pub(crate) async fn report_broker_info<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
-    report_cluster_status(client_pool, metadata_cache, message_storage_adapter).await;
-    report_broker_version(client_pool, metadata_cache, message_storage_adapter).await;
-    report_broker_time(client_pool, metadata_cache, message_storage_adapter).await;
-    report_broker_sysdescr(client_pool, metadata_cache, message_storage_adapter).await;
-}
-
-async fn report_cluster_status<S>(
+pub(crate) async fn report_cluster_status<S>(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
     message_storage_adapter: &Arc<S>,
@@ -63,87 +51,69 @@ async fn report_cluster_status<S>(
     }
 }
 
-async fn report_broker_version<S>(
+pub(crate) async fn report_broker_version<S>(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
     message_storage_adapter: &Arc<S>,
 ) where
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
-    let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_VERSION.to_string());
-    let version = match env::var("CARGO_PKG_VERSION") {
-        Ok(data) => data,
-        Err(_) => "-".to_string(),
-    };
-
-    if let Some(record) = MqttMessage::build_system_topic_message(topic_name.clone(), version) {
-        write_topic_data(
-            message_storage_adapter,
-            metadata_cache,
-            client_pool,
-            topic_name,
-            record,
-        )
-        .await;
-    }
+    report_system_data(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+        SYSTEM_TOPIC_BROKERS_VERSION,
+        || async { env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "-".to_string()) },
+    )
+    .await;
 }
 
-async fn report_broker_time<S>(
+pub(crate) async fn report_broker_time<S>(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
     message_storage_adapter: &Arc<S>,
 ) where
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
-    let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_UPTIME.to_string());
-    let start_long_time: u64 = now_second() - *BROKER_START_TIME;
-    if let Some(record) =
-        MqttMessage::build_system_topic_message(topic_name.clone(), start_long_time.to_string())
-    {
-        write_topic_data(
-            message_storage_adapter,
-            metadata_cache,
-            client_pool,
-            topic_name,
-            record,
-        )
-        .await;
-    }
+    // 上报运行时间
+    report_system_data(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+        SYSTEM_TOPIC_BROKERS_UPTIME,
+        || async {
+            let start_long_time: u64 = now_second() - *BROKER_START_TIME;
+            start_long_time.to_string()
+        },
+    )
+    .await;
 
-    let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_DATETIME.to_string());
-    if let Some(record) =
-        MqttMessage::build_system_topic_message(topic_name.clone(), now_second().to_string())
-    {
-        write_topic_data(
-            message_storage_adapter,
-            metadata_cache,
-            client_pool,
-            topic_name,
-            record,
-        )
-        .await;
-    }
+    // 上报当前时间
+    report_system_data(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+        SYSTEM_TOPIC_BROKERS_DATETIME,
+        || async { now_second().to_string() },
+    )
+    .await;
 }
 
-async fn report_broker_sysdescr<S>(
+pub(crate) async fn report_broker_sysdescr<S>(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
     message_storage_adapter: &Arc<S>,
 ) where
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
-    let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_SYSDESCR.to_string());
-    let info = format!("{}", os_info::get());
-    if let Some(record) = MqttMessage::build_system_topic_message(topic_name.clone(), info) {
-        write_topic_data(
-            message_storage_adapter,
-            metadata_cache,
-            client_pool,
-            topic_name,
-            record,
-        )
-        .await;
-    }
+    report_system_data(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+        SYSTEM_TOPIC_BROKERS_SYSDESCR,
+        || async { format!("{}", os_info::get()) },
+    )
+    .await;
 }
 
 async fn build_node_cluster(topic_name: &str, client_pool: &Arc<ClientPool>) -> Option<Record> {
@@ -182,10 +152,7 @@ mod tests {
 
     #[tokio::test]
     async fn version_test() {
-        let version = match env::var("CARGO_PKG_VERSION") {
-            Ok(data) => data,
-            Err(_) => "-".to_string(),
-        };
+        let version = env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "-".to_string());
         println!("{}", version);
         assert_ne!(version, "-".to_string());
     }
