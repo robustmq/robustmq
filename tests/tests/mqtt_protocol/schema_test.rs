@@ -79,7 +79,7 @@ mod tests {
         };
         let cli = connect_server(&client_properties);
 
-        let message_content = "mqtt message".to_string();
+        let message_content = "schema_json_test mqtt message".to_string();
         let msg = Message::new(topic_name.clone(), message_content, QOS_1);
         publish_data(&cli, msg, true);
 
@@ -96,7 +96,7 @@ mod tests {
         )
         .await;
 
-        let message_content = "mqtt message".to_string();
+        let message_content = "schema_json_test mqtt message".to_string();
         let msg = Message::new(topic_name.clone(), message_content.clone(), QOS_1);
         publish_data(&cli, msg, false);
         distinct_conn(cli);
@@ -148,7 +148,7 @@ mod tests {
         let cli = connect_server(&client_properties);
 
         // fail
-        let message_content = "mqtt message".to_string();
+        let message_content = "schema_avro_test mqtt message".to_string();
         let msg = Message::new(topic_name.clone(), message_content.clone(), QOS_1);
         publish_data(&cli, msg, true);
 
@@ -173,7 +173,7 @@ mod tests {
         )
         .await;
 
-        let message_content = "mqtt message".to_string();
+        let message_content = "schema_avro_test mqtt message".to_string();
         let msg = Message::new(topic_name.clone(), message_content.clone(), QOS_1);
         publish_data(&cli, msg, false);
         distinct_conn(cli);

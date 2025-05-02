@@ -44,7 +44,7 @@ mod tests {
                 let cli = connect_server(&client_properties);
 
                 // publish
-                let message_content = "mqtt message".to_string();
+                let message_content = "user_properties_test mqtt message".to_string();
                 let mut props = Properties::new();
                 props
                     .push_u32(PropertyCode::MessageExpiryInterval, 50)

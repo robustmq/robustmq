@@ -50,7 +50,7 @@ mod tests {
                 };
 
                 let cli = connect_server(&client_properties);
-                let message_content = "mqtt message".to_string();
+                let message_content = "sub_identifier_test mqtt message".to_string();
                 let msg = MessageBuilder::new()
                     .topic(topic2.clone())
                     .payload(message_content.clone())
@@ -111,10 +111,14 @@ mod tests {
                     let message = res_opt.unwrap();
                     println!("message: {:?}", message);
                     if let Some(msg) = message {
-                        let sub_identifier = msg
+                        let sub_identifier = if let Some(id) = msg
                             .properties()
                             .get_int(PropertyCode::SubscriptionIdentifier)
-                            .unwrap();
+                        {
+                            id
+                        } else {
+                            continue;
+                        };
 
                         println!("sub_identifier: {}", sub_identifier);
 
@@ -144,16 +148,26 @@ mod tests {
                     .finalize();
                 publish_data(&cli, msg, false);
 
-                if let Some(msg) = rx.iter().flatten().next() {
-                    let sub_identifier = msg
-                        .properties()
-                        .get_int(PropertyCode::SubscriptionIdentifier)
-                        .unwrap();
+                loop {
+                    let res_opt = rx.recv_timeout(Duration::from_secs(10));
+                    let message = res_opt.unwrap();
+                    println!("message: {:?}", message);
+                    if let Some(msg) = message {
+                        let sub_identifier = if let Some(id) = msg
+                            .properties()
+                            .get_int(PropertyCode::SubscriptionIdentifier)
+                        {
+                            id
+                        } else {
+                            continue;
+                        };
 
-                    assert_eq!(sub_identifier, 1);
+                        assert_eq!(sub_identifier, 1);
 
-                    println!("{msg:?}");
-                    println!("{sub_identifier:?}");
+                        println!("{msg:?}");
+                        println!("{sub_identifier:?}");
+                        break;
+                    }
                 }
 
                 distinct_conn(cli);

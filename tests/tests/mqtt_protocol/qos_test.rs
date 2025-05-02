@@ -49,7 +49,7 @@ mod tests {
                     let cli = connect_server(&client_properties);
 
                     // publish retain
-                    let message = "mqtt message".to_string();
+                    let message = "publish_qos_test mqtt message".to_string();
                     let msg = MessageBuilder::new()
                         .payload(message.clone())
                         .topic(topic.clone())
@@ -59,7 +59,7 @@ mod tests {
                     publish_data(&cli, msg, false);
 
                     // publish no retain
-                    let message = "mqtt message".to_string();
+                    let message = "publish_qos_test mqtt message".to_string();
                     let msg = MessageBuilder::new()
                         .payload(message.clone())
                         .topic(topic.clone())
@@ -92,7 +92,7 @@ mod tests {
                     let cli = connect_server(&client_properties);
 
                     // publish retain
-                    let message = "mqtt message".to_string();
+                    let message = "subscribe_qos_test mqtt message".to_string();
                     let msg = MessageBuilder::new()
                         .payload(message.clone())
                         .topic(topic.clone())
