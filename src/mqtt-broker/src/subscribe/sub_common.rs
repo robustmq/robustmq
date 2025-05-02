@@ -448,6 +448,7 @@ pub async fn loop_commit_offset<S>(
 
 // When the subscription QOS is 0,
 // the message can be pushed directly to the request return queue without the need for a retry mechanism.
+#[allow(clippy::question_mark)]
 pub async fn publish_message_qos(
     metadata_cache: &Arc<CacheManager>,
     connection_manager: &Arc<ConnectionManager>,
