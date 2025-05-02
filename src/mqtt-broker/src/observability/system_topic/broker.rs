@@ -75,7 +75,7 @@ pub(crate) async fn report_broker_time<S>(
 ) where
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
-    // 上报运行时间
+    //  report system uptime
     report_system_data(
         client_pool,
         metadata_cache,
@@ -88,7 +88,7 @@ pub(crate) async fn report_broker_time<S>(
     )
     .await;
 
-    // 上报当前时间
+    // report system datetime
     report_system_data(
         client_pool,
         metadata_cache,
