@@ -37,7 +37,6 @@ pub async fn pop_delay_queue<S>(
             let delay_message = expired.into_inner();
             let raw_message_storage_adapter = message_storage_adapter.clone();
             let raw_namespace = namespace.to_owned();
-            println!("shard_no:{},delay_message:{:?}", shard_no, delay_message);
             tokio::spawn(async move {
                 send_delay_message_to_shard(
                     &raw_message_storage_adapter,

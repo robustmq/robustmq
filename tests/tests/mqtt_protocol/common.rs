@@ -62,6 +62,10 @@ pub fn ssl_by_type(network_type: &str) -> bool {
     net == "ssl" || net == "wss"
 }
 
+pub fn uniq_topic() -> String {
+    format!("/{}/{}", unique_id(), now_nanos())
+}
+
 pub fn build_conn_pros(
     client_test_properties: ClientTestProperties,
     err_pwd: bool,
@@ -170,7 +174,6 @@ pub fn subscribe_data_with_options<S, T, P, F>(
 
     loop {
         let res = rx.recv_timeout(Duration::from_secs(10));
-        println!("{:?}", res);
         if let Ok(msg_opt) = res {
             assert!(msg_opt.is_some());
             let msg = msg_opt.unwrap();

@@ -88,7 +88,9 @@ impl ClientPool {
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "PlacementService".to_string(),
-                        e.to_string(),
+                        format!("get placement center journal service client failed, err: {}, state: {:?}",
+                        e,
+                        pool.state().await),
                     ));
                 }
             };
@@ -122,7 +124,9 @@ impl ClientPool {
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "JournalService".to_string(),
-                        e.to_string(),
+                        format!("get placement center journal service client failed, err: {}, state: {:?}",
+                        e,
+                        pool.state().await),
                     ));
                 }
             };
@@ -154,7 +158,9 @@ impl ClientPool {
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "KvServices".to_string(),
-                        e.to_string(),
+                        format!("get placement center journal service client failed, err: {}, state: {:?}",
+                        e,
+                        pool.state().await),
                     ));
                 }
             };
@@ -186,7 +192,9 @@ impl ClientPool {
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "MqttServices".to_string(),
-                        e.to_string(),
+                        format!("get placement center journal service client failed, err: {}, state: {:?}",
+                        e,
+                        pool.state().await),
                     ));
                 }
             };
@@ -221,7 +229,9 @@ impl ClientPool {
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "OpenRaftServices".to_string(),
-                        e.to_string(),
+                        format!("get placement center journal service client failed, err: {}, state: {:?}",
+                        e,
+                        pool.state().await),
                     ));
                 }
             };
@@ -254,14 +264,16 @@ impl ClientPool {
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
-                        "BrokerPlacementServices".to_string(),
-                        e.to_string(),
+                        "MQTTBrokerPlacementServices".to_string(),
+                        format!("get placement center journal service client failed, err: {}, state: {:?}",
+                        e,
+                        pool.state().await),
                     ));
                 }
             };
         }
         Err(CommonError::NoAvailableGrpcConnection(
-            "BrokerPlacementServices".to_string(),
+            "MQTTBrokerPlacementServices".to_string(),
             "connection pool is not initialized".to_string(),
         ))
     }
@@ -287,7 +299,9 @@ impl ClientPool {
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "BrokerAdminServices".to_string(),
-                        e.to_string(),
+                        format!("get placement center journal service client failed, err: {}, state: {:?}",
+                        e,
+                        pool.state().await),
                     ));
                 }
             };
@@ -320,7 +334,9 @@ impl ClientPool {
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "JournalEngine".to_string(),
-                        e.to_string(),
+                        format!("get placement center journal service client failed, err: {}, state: {:?}",
+                        e,
+                        pool.state().await),
                     ));
                 }
             };
@@ -352,15 +368,17 @@ impl ClientPool {
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
-                        "JournalEngine".to_string(),
-                        e.to_string(),
+                        "JournalEngineAdmin".to_string(),
+                        format!("get placement center journal service client failed, err: {}, state: {:?}",
+                        e,
+                        pool.state().await),
                     ));
                 }
             };
         }
 
         Err(CommonError::NoAvailableGrpcConnection(
-            "JournalEngine".to_string(),
+            "JournalEngineAdmin".to_string(),
             "connection pool is not initialized".to_string(),
         ))
     }

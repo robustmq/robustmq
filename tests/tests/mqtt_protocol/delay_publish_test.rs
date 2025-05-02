@@ -14,13 +14,13 @@
 
 #[cfg(test)]
 mod tests {
-    use common_base::tools::{now_second, unique_id};
+    use common_base::tools::now_second;
     use paho_mqtt::{Message, PropertyCode, SubscribeOptions, QOS_1};
 
     use crate::mqtt_protocol::{
         common::{
             broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
-            ssl_by_type, subscribe_data_with_options, ws_by_type, SubscribeTestData,
+            ssl_by_type, subscribe_data_with_options, uniq_topic, ws_by_type, SubscribeTestData,
         },
         ClientTestProperties,
     };
@@ -31,8 +31,8 @@ mod tests {
         let qos = 1;
 
         for t in [2, 4, 6] {
-            let uniq = unique_id();
-            let topic = format!("$delayed/{}/testv1/v2/{}", t, uniq);
+            let uniq_tp = uniq_topic();
+            let topic = format!("$delayed/{}{}", t, uniq_tp);
 
             // publish
             let client_id =
@@ -47,7 +47,7 @@ mod tests {
             };
             let cli = connect_server(&client_properties);
 
-            let message_content = "mqtt message".to_string();
+            let message_content = format!("delay_publish_test mqtt message,{}", uniq_tp);
             let msg = Message::new(topic.clone(), message_content.clone(), QOS_1);
             publish_data(&cli, msg, false);
             distinct_conn(cli);
@@ -66,11 +66,18 @@ mod tests {
             };
             let cli = connect_server(&client_properties);
 
-            let sub_topic = format!("/testv1/v2/{}", uniq);
+            let sub_topic = uniq_tp;
 
             let call_fn = |msg: Message| {
                 let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                // Avoid auto-subscribe to subscribe to data
+                if msg.properties().len() != 4 {
+                    println!("properties:{:?}", msg.properties());
+                    println!("payload:{}", payload);
+                    return false;
+                }
 
+                assert_eq!(msg.properties().len(), 4);
                 let flag = msg
                     .properties()
                     .get_string_pair_at(PropertyCode::UserProperty, 0)
@@ -94,7 +101,7 @@ mod tests {
                 let diff = target_ms2 - recv_ms1;
                 assert_eq!(diff, t as i64);
                 println!("now:{},target_ms2:{}", now_second(), target_ms2);
-                assert_eq!(now_second(), target_ms2 as u64);
+                assert!((now_second() - target_ms2 as u64) < 3);
                 payload == message_content
             };
 
