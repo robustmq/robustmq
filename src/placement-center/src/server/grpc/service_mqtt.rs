@@ -207,7 +207,10 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<ListTopicRequest>,
     ) -> Result<Response<ListTopicReply>, Status> {
-        list_topic_by_req(&self.rocksdb_engine_handler, request)
+        Ok(Response::new(ListTopicReply {
+            topics: list_topic_by_req(&self.rocksdb_engine_handler, request)
+                .map_err(|e| Status::internal(e.to_string()))?,
+        }))
     }
 
     async fn create_topic(
@@ -222,6 +225,9 @@ impl MqttService for GrpcMqttService {
             request,
         )
         .await
+        .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(CreateTopicReply {}))
     }
 
     async fn delete_topic(
@@ -236,6 +242,9 @@ impl MqttService for GrpcMqttService {
             request,
         )
         .await
+        .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(DeleteTopicReply {}))
     }
 
     async fn set_topic_retain_message(
@@ -248,20 +257,35 @@ impl MqttService for GrpcMqttService {
             request,
         )
         .await
+        .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(SetTopicRetainMessageReply {}))
     }
 
     async fn get_share_sub_leader(
         &self,
         request: Request<GetShareSubLeaderRequest>,
     ) -> Result<Response<GetShareSubLeaderReply>, Status> {
-        get_share_sub_leader_by_req(&self.cluster_cache, &self.rocksdb_engine_handler, request)
+        let (id, node_addr, extend_info) =
+            get_share_sub_leader_by_req(&self.cluster_cache, &self.rocksdb_engine_handler, request)
+                .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(GetShareSubLeaderReply {
+            broker_id: id,
+            broker_addr: node_addr,
+            extend_info,
+        }))
     }
 
     async fn save_last_will_message(
         &self,
         request: Request<SaveLastWillMessageRequest>,
     ) -> Result<Response<SaveLastWillMessageReply>, Status> {
-        save_last_will_message_by_req(&self.raft_machine_apply, request).await
+        save_last_will_message_by_req(&self.raft_machine_apply, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(SaveLastWillMessageReply {}))
     }
 
     // ACL
@@ -269,43 +293,60 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<ListAclRequest>,
     ) -> Result<Response<ListAclReply>, Status> {
-        list_acl_by_req(&self.rocksdb_engine_handler, request)
+        Ok(Response::new(ListAclReply {
+            acls: list_acl_by_req(&self.rocksdb_engine_handler, request)
+                .map_err(|e| Status::internal(e.to_string()))?,
+        }))
     }
 
     async fn delete_acl(
         &self,
         request: Request<DeleteAclRequest>,
     ) -> Result<Response<DeleteAclReply>, Status> {
-        delete_acl_by_req(&self.raft_machine_apply, request).await
+        delete_acl_by_req(&self.raft_machine_apply, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+        Ok(Response::new(DeleteAclReply {}))
     }
 
     async fn create_acl(
         &self,
         request: Request<CreateAclRequest>,
     ) -> Result<Response<CreateAclReply>, Status> {
-        create_acl_by_req(&self.raft_machine_apply, request).await
+        create_acl_by_req(&self.raft_machine_apply, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+        Ok(Response::new(CreateAclReply {}))
     }
 
-    // BlackList
     async fn list_blacklist(
         &self,
         request: Request<ListBlacklistRequest>,
     ) -> Result<Response<ListBlacklistReply>, Status> {
-        list_blacklist_by_req(&self.rocksdb_engine_handler, request)
+        Ok(Response::new(ListBlacklistReply {
+            blacklists: list_blacklist_by_req(&self.rocksdb_engine_handler, request)
+                .map_err(|e| Status::internal(e.to_string()))?,
+        }))
     }
 
     async fn delete_blacklist(
         &self,
         request: Request<DeleteBlacklistRequest>,
     ) -> Result<Response<DeleteBlacklistReply>, Status> {
-        delete_blacklist_by_req(&self.raft_machine_apply, request).await
+        delete_blacklist_by_req(&self.raft_machine_apply, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+        Ok(Response::new(DeleteBlacklistReply {}))
     }
 
     async fn create_blacklist(
         &self,
         request: Request<CreateBlacklistRequest>,
     ) -> Result<Response<CreateBlacklistReply>, Status> {
-        create_blacklist_by_req(&self.raft_machine_apply, request).await
+        create_blacklist_by_req(&self.raft_machine_apply, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+        Ok(Response::new(CreateBlacklistReply {}))
     }
 
     // TopicRewriteRule
@@ -313,21 +354,35 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<CreateTopicRewriteRuleRequest>,
     ) -> Result<Response<CreateTopicRewriteRuleReply>, Status> {
-        create_topic_rewrite_rule_by_req(&self.raft_machine_apply, request).await
+        create_topic_rewrite_rule_by_req(&self.raft_machine_apply, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(CreateTopicRewriteRuleReply {}))
     }
 
     async fn delete_topic_rewrite_rule(
         &self,
         request: Request<DeleteTopicRewriteRuleRequest>,
     ) -> Result<Response<DeleteTopicRewriteRuleReply>, Status> {
-        delete_topic_rewrite_rule_by_req(&self.raft_machine_apply, request).await
+        delete_topic_rewrite_rule_by_req(&self.raft_machine_apply, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(DeleteTopicRewriteRuleReply {}))
     }
 
     async fn list_topic_rewrite_rule(
         &self,
         request: Request<ListTopicRewriteRuleRequest>,
     ) -> Result<Response<ListTopicRewriteRuleReply>, Status> {
-        list_topic_rewrite_rule_by_req(&self.rocksdb_engine_handler, request)
+        Ok(Response::new(ListTopicRewriteRuleReply {
+            topic_rewrite_rules: list_topic_rewrite_rule_by_req(
+                &self.rocksdb_engine_handler,
+                request,
+            )
+            .map_err(|e| Status::internal(e.to_string()))?,
+        }))
     }
 
     // Subscribe
@@ -335,7 +390,10 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<ListSubscribeRequest>,
     ) -> Result<Response<ListSubscribeReply>, Status> {
-        list_subscribe_by_req(&self.rocksdb_engine_handler, request)
+        Ok(Response::new(ListSubscribeReply {
+            subscribes: list_subscribe_by_req(&self.rocksdb_engine_handler, request)
+                .map_err(|e| Status::internal(e.to_string()))?,
+        }))
     }
 
     async fn set_subscribe(
@@ -349,6 +407,9 @@ impl MqttService for GrpcMqttService {
             request,
         )
         .await
+        .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(SetSubscribeReply {}))
     }
 
     async fn delete_subscribe(
@@ -363,6 +424,9 @@ impl MqttService for GrpcMqttService {
             request,
         )
         .await
+        .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(DeleteSubscribeReply {}))
     }
 
     // Connector
@@ -370,7 +434,10 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<ListConnectorRequest>,
     ) -> Result<Response<ListConnectorReply>, Status> {
-        list_connectors_by_req(&self.rocksdb_engine_handler, request)
+        Ok(Response::new(ListConnectorReply {
+            connectors: list_connectors_by_req(&self.rocksdb_engine_handler, request)
+                .map_err(|e| Status::internal(e.to_string()))?,
+        }))
     }
 
     async fn create_connector(
@@ -385,6 +452,9 @@ impl MqttService for GrpcMqttService {
             request,
         )
         .await
+        .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(CreateConnectorReply {}))
     }
 
     async fn update_connector(
@@ -399,6 +469,9 @@ impl MqttService for GrpcMqttService {
             request,
         )
         .await
+        .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(UpdateConnectorReply {}))
     }
 
     async fn delete_connector(
@@ -413,6 +486,9 @@ impl MqttService for GrpcMqttService {
             request,
         )
         .await
+        .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(DeleteConnectorReply {}))
     }
 
     async fn connector_heartbeat(
@@ -420,6 +496,9 @@ impl MqttService for GrpcMqttService {
         request: Request<ConnectorHeartbeatRequest>,
     ) -> Result<Response<ConnectorHeartbeatReply>, Status> {
         connector_heartbeat_by_req(&self.mqtt_cache, request)
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(ConnectorHeartbeatReply {}))
     }
 
     // AutoSubscribeRule
@@ -427,20 +506,34 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<SetAutoSubscribeRuleRequest>,
     ) -> Result<Response<SetAutoSubscribeRuleReply>, Status> {
-        set_auto_subscribe_rule_by_req(&self.raft_machine_apply, request).await
+        set_auto_subscribe_rule_by_req(&self.raft_machine_apply, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(SetAutoSubscribeRuleReply {}))
     }
 
     async fn delete_auto_subscribe_rule(
         &self,
         request: Request<DeleteAutoSubscribeRuleRequest>,
     ) -> Result<Response<DeleteAutoSubscribeRuleReply>, Status> {
-        delete_auto_subscribe_rule_by_req(&self.raft_machine_apply, request).await
+        delete_auto_subscribe_rule_by_req(&self.raft_machine_apply, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(DeleteAutoSubscribeRuleReply {}))
     }
 
     async fn list_auto_subscribe_rule(
         &self,
         request: Request<ListAutoSubscribeRuleRequest>,
     ) -> Result<Response<ListAutoSubscribeRuleReply>, Status> {
-        list_auto_subscribe_rule_by_req(&self.rocksdb_engine_handler, request)
+        Ok(Response::new(ListAutoSubscribeRuleReply {
+            auto_subscribe_rules: list_auto_subscribe_rule_by_req(
+                &self.rocksdb_engine_handler,
+                request,
+            )
+            .map_err(|e| Status::internal(e.to_string()))?,
+        }))
     }
 }
