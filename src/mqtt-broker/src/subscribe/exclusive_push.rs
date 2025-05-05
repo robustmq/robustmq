@@ -24,7 +24,7 @@ use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 use super::sub_common::{
     get_pkid, loop_commit_offset, min_qos, publish_message_qos, qos2_send_pubrel, wait_pub_ack,
@@ -316,7 +316,7 @@ async fn build_pub_message(
     let msg = MqttMessage::decode_record(record.clone())?;
 
     if is_message_expire(&msg) {
-        warn!("Message dropping: message expires, is not pushed to the client, and is discarded");
+        debug!("Message dropping: message expires, is not pushed to the client, and is discarded");
         return Ok(None);
     }
 
