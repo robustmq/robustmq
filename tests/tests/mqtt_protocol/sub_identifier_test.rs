@@ -151,7 +151,6 @@ mod tests {
                 loop {
                     let res_opt = rx.recv_timeout(Duration::from_secs(10));
                     let message = res_opt.unwrap();
-                    println!("message: {:?}", message);
                     if let Some(msg) = message {
                         let sub_identifier = if let Some(id) = msg
                             .properties()
@@ -163,9 +162,6 @@ mod tests {
                         };
 
                         assert_eq!(sub_identifier, 1);
-
-                        println!("{msg:?}");
-                        println!("{sub_identifier:?}");
                         break;
                     }
                 }
