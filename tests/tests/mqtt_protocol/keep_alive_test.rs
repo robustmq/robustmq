@@ -58,7 +58,7 @@ mod tests {
 
     /// Build the connect content package for the mqtt4 protocol
     fn build_mqtt4_pg_connect() -> MqttPacket {
-        let client_id = build_client_id("build_mqtt4_pg_connect");
+        let client_id = build_client_id("mqtt4_keep_alive_test");
         let login = Some(Login {
             username: "admin".to_string(),
             password: "pwd123".to_string(),
