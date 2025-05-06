@@ -13,21 +13,22 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
+use crate::handler::error::MqttBrokerError;
 use crate::storage::topic::TopicStorage;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::now_mills};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, ListTopicReply, ListTopicRequest, MqttTopic,
+    CreateTopicRewriteRuleRequest, DeleteTopicRewriteRuleRequest, ListTopicRequest, MqttTopic,
 };
 use std::sync::Arc;
-use tonic::{Request, Response, Status};
+use tonic::Request;
 
+// List all topics by request
 pub async fn list_topic_by_req(
     cache_manager: &Arc<CacheManager>,
     request: Request<ListTopicRequest>,
-) -> Result<Response<ListTopicReply>, Status> {
+) -> Result<Vec<MqttTopic>, MqttBrokerError> {
     let req = request.into_inner();
     let topic_query_result: Vec<MqttTopic> = if req.topic_name.is_empty() {
         cache_manager
@@ -72,42 +73,35 @@ pub async fn list_topic_by_req(
         }
     };
 
-    let reply = ListTopicReply {
-        topics: topic_query_result,
-    };
-
-    Ok(Response::new(reply))
+    Ok(topic_query_result)
 }
 
+// Delete a topic rewrite rule
 pub async fn delete_topic_rewrite_rule_by_req(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
     request: Request<DeleteTopicRewriteRuleRequest>,
-) -> Result<Response<DeleteTopicRewriteRuleReply>, Status> {
+) -> Result<(), MqttBrokerError> {
     let req = request.into_inner();
     let topic_storage = TopicStorage::new(client_pool.clone());
-    match topic_storage
+
+    topic_storage
         .delete_topic_rewrite_rule(req.action.clone(), req.source_topic.clone())
         .await
-    {
-        Ok(_) => {
-            let config = broker_mqtt_conf();
-            cache_manager.delete_topic_rewrite_rule(
-                &config.cluster_name,
-                &req.action,
-                &req.source_topic,
-            );
-            Ok(Response::new(DeleteTopicRewriteRuleReply::default()))
-        }
-        Err(e) => Err(Status::cancelled(e.to_string())),
-    }
+        .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+
+    let config = broker_mqtt_conf();
+    cache_manager.delete_topic_rewrite_rule(&config.cluster_name, &req.action, &req.source_topic);
+
+    Ok(())
 }
 
+// Create a topic rewrite rule
 pub async fn create_topic_rewrite_rule_by_req(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
     request: Request<CreateTopicRewriteRuleRequest>,
-) -> Result<Response<CreateTopicRewriteRuleReply>, Status> {
+) -> Result<(), MqttBrokerError> {
     let req = request.into_inner();
     let config = broker_mqtt_conf();
     let rule = MqttTopicRewriteRule {
@@ -118,12 +112,14 @@ pub async fn create_topic_rewrite_rule_by_req(
         regex: req.regex,
         timestamp: now_mills(),
     };
+
     let topic_storage = TopicStorage::new(client_pool.clone());
-    match topic_storage.create_topic_rewrite_rule(rule.clone()).await {
-        Ok(_) => {
-            cache_manager.add_topic_rewrite_rule(rule);
-            Ok(Response::new(CreateTopicRewriteRuleReply::default()))
-        }
-        Err(e) => Err(Status::cancelled(e.to_string())),
-    }
+    topic_storage
+        .create_topic_rewrite_rule(rule.clone())
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+
+    cache_manager.add_topic_rewrite_rule(rule);
+
+    Ok(())
 }
