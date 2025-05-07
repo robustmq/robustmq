@@ -134,77 +134,137 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         request: Request<CreateUserRequest>,
     ) -> Result<Response<CreateUserReply>, Status> {
-        create_user_by_req(&self.cache_manager, &self.client_pool, request).await
+        create_user_by_req(&self.cache_manager, &self.client_pool, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(CreateUserReply {}))
     }
 
     async fn mqtt_broker_delete_user(
         &self,
         request: Request<DeleteUserRequest>,
     ) -> Result<Response<DeleteUserReply>, Status> {
-        delete_user_by_req(&self.cache_manager, &self.client_pool, request).await
+        delete_user_by_req(&self.cache_manager, &self.client_pool, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(DeleteUserReply {}))
     }
 
     async fn mqtt_broker_list_user(
         &self,
         request: Request<ListUserRequest>,
     ) -> Result<Response<ListUserReply>, Status> {
-        list_user_by_req(&self.cache_manager, &self.client_pool, request).await
+        let (users, count) = list_user_by_req(&self.cache_manager, &self.client_pool, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(ListUserReply {
+            users,
+            total_count: count as u32,
+        }))
     }
 
     async fn mqtt_broker_list_client(
         &self,
         request: Request<ListClientRequest>,
     ) -> Result<Response<ListClientReply>, Status> {
-        list_client_by_req(&self.cache_manager, request).await
+        let (clients, count) = list_client_by_req(&self.cache_manager, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(ListClientReply {
+            clients,
+            total_count: count as u32,
+        }))
     }
 
     async fn mqtt_broker_list_session(
         &self,
         request: Request<ListSessionRequest>,
     ) -> Result<Response<ListSessionReply>, Status> {
-        list_session_by_req(&self.cache_manager, request).await
+        let (sessions, count) = list_session_by_req(&self.cache_manager, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(ListSessionReply {
+            sessions,
+            total_count: count as u32,
+        }))
     }
 
     async fn mqtt_broker_list_acl(
         &self,
         _: Request<ListAclRequest>,
     ) -> Result<Response<ListAclReply>, Status> {
-        list_acl_by_req(&self.cache_manager, &self.client_pool).await
+        let acls = list_acl_by_req(&self.cache_manager, &self.client_pool)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(ListAclReply {
+            acls: acls.clone(),
+            total_count: Some(acls.len() as u32),
+        }))
     }
 
     async fn mqtt_broker_create_acl(
         &self,
         request: Request<CreateAclRequest>,
     ) -> Result<Response<CreateAclReply>, Status> {
-        create_acl_by_req(&self.cache_manager, &self.client_pool, request).await
+        create_acl_by_req(&self.cache_manager, &self.client_pool, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(CreateAclReply {}))
     }
 
     async fn mqtt_broker_delete_acl(
         &self,
         request: Request<DeleteAclRequest>,
     ) -> Result<Response<DeleteAclReply>, Status> {
-        delete_acl_by_req(&self.cache_manager, &self.client_pool, request).await
+        delete_acl_by_req(&self.cache_manager, &self.client_pool, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(DeleteAclReply {}))
     }
 
     async fn mqtt_broker_list_blacklist(
         &self,
         request: Request<ListBlacklistRequest>,
     ) -> Result<Response<ListBlacklistReply>, Status> {
-        list_blacklist_by_req(&self.cache_manager, &self.client_pool, request).await
+        let (blacklists, count) =
+            list_blacklist_by_req(&self.cache_manager, &self.client_pool, request)
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(ListBlacklistReply {
+            blacklists,
+            total_count: count as u32,
+        }))
     }
 
     async fn mqtt_broker_delete_blacklist(
         &self,
         request: Request<DeleteBlacklistRequest>,
     ) -> Result<Response<DeleteBlacklistReply>, Status> {
-        delete_blacklist_by_req(&self.cache_manager, &self.client_pool, request).await
+        delete_blacklist_by_req(&self.cache_manager, &self.client_pool, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(DeleteBlacklistReply {}))
     }
 
     async fn mqtt_broker_create_blacklist(
         &self,
         request: Request<CreateBlacklistRequest>,
     ) -> Result<Response<CreateBlacklistReply>, Status> {
-        create_blacklist_by_req(&self.cache_manager, &self.client_pool, request).await
+        create_blacklist_by_req(&self.cache_manager, &self.client_pool, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(CreateBlacklistReply {}))
     }
 
     async fn mqtt_broker_enable_flapping_detect(
@@ -233,49 +293,77 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         request: Request<ListTopicRequest>,
     ) -> Result<Response<ListTopicReply>, Status> {
-        list_topic_by_req(&self.cache_manager, request).await
+        let topics = list_topic_by_req(&self.cache_manager, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(ListTopicReply { topics }))
     }
 
     async fn mqtt_broker_delete_topic_rewrite_rule(
         &self,
         request: Request<DeleteTopicRewriteRuleRequest>,
     ) -> Result<Response<DeleteTopicRewriteRuleReply>, Status> {
-        delete_topic_rewrite_rule_by_req(&self.client_pool, &self.cache_manager, request).await
+        delete_topic_rewrite_rule_by_req(&self.client_pool, &self.cache_manager, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(DeleteTopicRewriteRuleReply {}))
     }
 
     async fn mqtt_broker_create_topic_rewrite_rule(
         &self,
         request: Request<CreateTopicRewriteRuleRequest>,
     ) -> Result<Response<CreateTopicRewriteRuleReply>, Status> {
-        create_topic_rewrite_rule_by_req(&self.client_pool, &self.cache_manager, request).await
+        create_topic_rewrite_rule_by_req(&self.client_pool, &self.cache_manager, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(CreateTopicRewriteRuleReply {}))
     }
 
     async fn mqtt_broker_list_connector(
         &self,
         request: Request<MqttListConnectorRequest>,
     ) -> Result<Response<MqttListConnectorReply>, Status> {
-        list_connector_by_req(&self.client_pool, request).await
+        let connectors = list_connector_by_req(&self.client_pool, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(MqttListConnectorReply { connectors }))
     }
 
     async fn mqtt_broker_create_connector(
         &self,
         request: Request<MqttCreateConnectorRequest>,
     ) -> Result<Response<MqttCreateConnectorReply>, Status> {
-        create_connector_by_req(&self.client_pool, request).await
+        create_connector_by_req(&self.client_pool, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(MqttCreateConnectorReply {}))
     }
 
     async fn mqtt_broker_delete_connector(
         &self,
         request: Request<MqttDeleteConnectorRequest>,
     ) -> Result<Response<MqttDeleteConnectorReply>, Status> {
-        delete_connector_by_req(&self.client_pool, request).await
+        delete_connector_by_req(&self.client_pool, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(MqttDeleteConnectorReply {}))
     }
 
     async fn mqtt_broker_update_connector(
         &self,
         request: Request<MqttUpdateConnectorRequest>,
     ) -> Result<Response<MqttUpdateConnectorReply>, Status> {
-        update_connector_by_req(&self.client_pool, request).await
+        update_connector_by_req(&self.client_pool, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(MqttUpdateConnectorReply {}))
     }
 
     // --- schema ---
@@ -283,69 +371,111 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         request: Request<MqttListSchemaRequest>,
     ) -> Result<Response<MqttListSchemaReply>, Status> {
-        list_schema_by_req(&self.client_pool, request).await
+        let schemas = list_schema_by_req(&self.client_pool, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(MqttListSchemaReply { schemas }))
     }
 
     async fn mqtt_broker_create_schema(
         &self,
         request: Request<MqttCreateSchemaRequest>,
     ) -> Result<Response<MqttCreateSchemaReply>, Status> {
-        create_schema_by_req(&self.client_pool, request).await
+        create_schema_by_req(&self.client_pool, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(MqttCreateSchemaReply {}))
     }
 
     async fn mqtt_broker_update_schema(
         &self,
         request: Request<MqttUpdateSchemaRequest>,
     ) -> Result<Response<MqttUpdateSchemaReply>, Status> {
-        update_schema_by_req(&self.client_pool, request).await
+        update_schema_by_req(&self.client_pool, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(MqttUpdateSchemaReply {}))
     }
 
     async fn mqtt_broker_delete_schema(
         &self,
         request: Request<MqttDeleteSchemaRequest>,
     ) -> Result<Response<MqttDeleteSchemaReply>, Status> {
-        delete_schema_by_req(&self.client_pool, request).await
+        delete_schema_by_req(&self.client_pool, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(MqttDeleteSchemaReply {}))
     }
 
     async fn mqtt_broker_list_bind_schema(
         &self,
         request: Request<MqttListBindSchemaRequest>,
     ) -> Result<Response<MqttListBindSchemaReply>, Status> {
-        list_bind_schema_by_req(&self.client_pool, request).await
+        let schema_binds = list_bind_schema_by_req(&self.client_pool, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(MqttListBindSchemaReply { schema_binds }))
     }
 
     async fn mqtt_broker_bind_schema(
         &self,
         request: Request<MqttBindSchemaRequest>,
     ) -> Result<Response<MqttBindSchemaReply>, Status> {
-        bind_schema_by_req(&self.client_pool, request).await
+        bind_schema_by_req(&self.client_pool, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(MqttBindSchemaReply {}))
     }
 
     async fn mqtt_broker_unbind_schema(
         &self,
         request: Request<MqttUnbindSchemaRequest>,
     ) -> Result<Response<MqttUnbindSchemaReply>, Status> {
-        unbind_schema_by_req(&self.client_pool, request).await
+        unbind_schema_by_req(&self.client_pool, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(MqttUnbindSchemaReply {}))
     }
 
     async fn mqtt_broker_set_auto_subscribe_rule(
         &self,
         request: Request<SetAutoSubscribeRuleRequest>,
     ) -> Result<Response<SetAutoSubscribeRuleReply>, Status> {
-        set_auto_subscribe_rule(&self.client_pool, &self.cache_manager, request).await
+        set_auto_subscribe_rule(&self.client_pool, &self.cache_manager, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(SetAutoSubscribeRuleReply {}))
     }
 
     async fn mqtt_broker_delete_auto_subscribe_rule(
         &self,
         request: Request<DeleteAutoSubscribeRuleRequest>,
     ) -> Result<Response<DeleteAutoSubscribeRuleReply>, Status> {
-        delete_auto_subscribe_rule(&self.client_pool, &self.cache_manager, request).await
+        delete_auto_subscribe_rule(&self.client_pool, &self.cache_manager, request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(DeleteAutoSubscribeRuleReply {}))
     }
 
     async fn mqtt_broker_list_auto_subscribe_rule(
         &self,
         _request: Request<ListAutoSubscribeRuleRequest>,
     ) -> Result<Response<ListAutoSubscribeRuleReply>, Status> {
-        list_auto_subscribe_rule_by_req(&self.cache_manager).await
+        let auto_subscribe_rules = list_auto_subscribe_rule_by_req(&self.cache_manager)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        Ok(Response::new(ListAutoSubscribeRuleReply {
+            auto_subscribe_rules,
+        }))
     }
 }
