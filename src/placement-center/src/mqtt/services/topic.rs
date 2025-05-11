@@ -23,32 +23,31 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MqttTopic;
 use prost::Message;
 use protocol::placement_center::placement_center_mqtt::{
-    CreateTopicRequest, CreateTopicRewriteRuleRequest, DeleteTopicRequest,
-    DeleteTopicRewriteRuleRequest, ListTopicRequest, ListTopicRewriteRuleRequest,
-    SaveLastWillMessageRequest, SetTopicRetainMessageRequest,
+    CreateTopicReply, CreateTopicRequest, CreateTopicRewriteRuleReply,
+    CreateTopicRewriteRuleRequest, DeleteTopicReply, DeleteTopicRequest,
+    DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, ListTopicReply, ListTopicRequest,
+    ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, SaveLastWillMessageReply,
+    SaveLastWillMessageRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
 };
 use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
-use tonic::Request;
 
 pub fn list_topic_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    request: Request<ListTopicRequest>,
-) -> Result<Vec<Vec<u8>>, PlacementCenterError> {
-    let req = request.into_inner();
+    req: &ListTopicRequest,
+) -> Result<ListTopicReply, PlacementCenterError> {
     let storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
+    let mut topics = Vec::new();
 
     if !req.topic_name.is_empty() {
         if let Some(topic) = storage.get(&req.cluster_name, &req.topic_name)? {
-            return Ok(vec![topic.encode()]);
+            topics.push(topic.encode());
         }
-        return Ok(Vec::new());
+    } else {
+        let data = storage.list(&req.cluster_name)?;
+        topics = data.into_iter().map(|raw| raw.encode()).collect();
     }
-
-    let data = storage.list(&req.cluster_name)?;
-    let topics = data.into_iter().map(|raw| raw.encode()).collect();
-
-    Ok(topics)
+    Ok(ListTopicReply { topics })
 }
 
 pub async fn create_topic_by_req(
@@ -56,18 +55,19 @@ pub async fn create_topic_by_req(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    request: Request<CreateTopicRequest>,
-) -> Result<(), PlacementCenterError> {
-    let req = request.into_inner();
+    req: &CreateTopicRequest,
+) -> Result<CreateTopicReply, PlacementCenterError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
     if (topic_storage.get(&req.cluster_name, &req.topic_name)?).is_some() {
-        return Err(PlacementCenterError::TopicAlreadyExist(req.topic_name));
+        return Err(PlacementCenterError::TopicAlreadyExist(
+            req.topic_name.clone(),
+        ));
     }
 
     let data = StorageData::new(
         StorageDataType::MqttSetTopic,
-        CreateTopicRequest::encode_to_vec(&req),
+        CreateTopicRequest::encode_to_vec(req),
     );
 
     raft_machine_apply.client_write(data).await?;
@@ -75,7 +75,7 @@ pub async fn create_topic_by_req(
     let topic = serde_json::from_slice::<MqttTopic>(&req.content)?;
     update_cache_by_add_topic(&req.cluster_name, call_manager, client_pool, topic).await?;
 
-    Ok(())
+    Ok(CreateTopicReply {})
 }
 
 pub async fn delete_topic_by_req(
@@ -83,9 +83,8 @@ pub async fn delete_topic_by_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-    request: Request<DeleteTopicRequest>,
-) -> Result<(), PlacementCenterError> {
-    let req = request.into_inner();
+    req: &DeleteTopicRequest,
+) -> Result<DeleteTopicReply, PlacementCenterError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
     let topic = topic_storage
@@ -94,21 +93,20 @@ pub async fn delete_topic_by_req(
 
     let data = StorageData::new(
         StorageDataType::MqttDeleteTopic,
-        DeleteTopicRequest::encode_to_vec(&req),
+        DeleteTopicRequest::encode_to_vec(req),
     );
 
     raft_machine_apply.client_write(data).await?;
     update_cache_by_delete_topic(&req.cluster_name, call_manager, client_pool, topic).await?;
 
-    Ok(())
+    Ok(DeleteTopicReply {})
 }
 
 pub async fn set_topic_retain_message_by_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    request: Request<SetTopicRetainMessageRequest>,
-) -> Result<(), PlacementCenterError> {
-    let req = request.into_inner();
+    req: &SetTopicRetainMessageRequest,
+) -> Result<SetTopicRetainMessageReply, PlacementCenterError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
     let mut topic = topic_storage
@@ -120,14 +118,14 @@ pub async fn set_topic_retain_message_by_req(
         topic.retain_message = None;
         topic.retain_message_expired_at = None;
     } else {
-        topic.retain_message = Some(req.retain_message);
+        topic.retain_message = Some(req.retain_message.clone());
         topic.retain_message_expired_at = Some(req.retain_message_expired_at);
     }
 
     let topic_vec = serde_json::to_vec(&topic)?;
     let request = CreateTopicRequest {
-        cluster_name: req.cluster_name,
-        topic_name: req.topic_name,
+        cluster_name: req.cluster_name.clone(),
+        topic_name: req.topic_name.clone(),
         content: topic_vec,
     };
 
@@ -137,59 +135,57 @@ pub async fn set_topic_retain_message_by_req(
     );
 
     raft_machine_apply.client_write(data).await?;
-    Ok(())
+    Ok(SetTopicRetainMessageReply {})
 }
 
 pub async fn save_last_will_message_by_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
-    request: Request<SaveLastWillMessageRequest>,
-) -> Result<(), PlacementCenterError> {
-    let req = request.into_inner();
+    req: &SaveLastWillMessageRequest,
+) -> Result<SaveLastWillMessageReply, PlacementCenterError> {
     let data = StorageData::new(
         StorageDataType::MqttSaveLastWillMessage,
-        SaveLastWillMessageRequest::encode_to_vec(&req),
+        SaveLastWillMessageRequest::encode_to_vec(req),
     );
 
     raft_machine_apply.client_write(data).await?;
-    Ok(())
+    Ok(SaveLastWillMessageReply {})
 }
 
 pub async fn create_topic_rewrite_rule_by_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
-    request: Request<CreateTopicRewriteRuleRequest>,
-) -> Result<(), PlacementCenterError> {
-    let req = request.into_inner();
+    req: &CreateTopicRewriteRuleRequest,
+) -> Result<CreateTopicRewriteRuleReply, PlacementCenterError> {
     let data = StorageData::new(
         StorageDataType::MqttCreateTopicRewriteRule,
-        CreateTopicRewriteRuleRequest::encode_to_vec(&req),
+        CreateTopicRewriteRuleRequest::encode_to_vec(req),
     );
 
     raft_machine_apply.client_write(data).await?;
-    Ok(())
+    Ok(CreateTopicRewriteRuleReply {})
 }
 
 pub async fn delete_topic_rewrite_rule_by_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
-    request: Request<DeleteTopicRewriteRuleRequest>,
-) -> Result<(), PlacementCenterError> {
-    let req = request.into_inner();
+    req: &DeleteTopicRewriteRuleRequest,
+) -> Result<DeleteTopicRewriteRuleReply, PlacementCenterError> {
     let data = StorageData::new(
         StorageDataType::MqttDeleteTopicRewriteRule,
-        DeleteTopicRewriteRuleRequest::encode_to_vec(&req),
+        DeleteTopicRewriteRuleRequest::encode_to_vec(req),
     );
 
     raft_machine_apply.client_write(data).await?;
-    Ok(())
+    Ok(DeleteTopicRewriteRuleReply {})
 }
 
 pub fn list_topic_rewrite_rule_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    request: Request<ListTopicRewriteRuleRequest>,
-) -> Result<Vec<Vec<u8>>, PlacementCenterError> {
-    let req = request.into_inner();
+    req: &ListTopicRewriteRuleRequest,
+) -> Result<ListTopicRewriteRuleReply, PlacementCenterError> {
     let storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
     let data = storage.list_topic_rewrite_rule(&req.cluster_name)?;
 
     let rules = data.into_iter().map(|raw| raw.encode()).collect();
-    Ok(rules)
+    Ok(ListTopicRewriteRuleReply {
+        topic_rewrite_rules: rules,
+    })
 }
