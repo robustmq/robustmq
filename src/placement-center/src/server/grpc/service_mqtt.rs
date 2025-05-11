@@ -148,61 +148,64 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<ListSessionRequest>,
     ) -> Result<Response<ListSessionReply>, Status> {
-        Ok(Response::new(ListSessionReply {
-            sessions: list_session_by_req(&self.rocksdb_engine_handler, request)
-                .map_err(|e| Status::internal(e.to_string()))?,
-        }))
+        let req = request.into_inner();
+        list_session_by_req(&self.rocksdb_engine_handler, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn create_session(
         &self,
         request: Request<CreateSessionRequest>,
     ) -> Result<Response<CreateSessionReply>, Status> {
+        let req = request.into_inner();
+
         create_session_by_req(
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(CreateSessionReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn update_session(
         &self,
         request: Request<UpdateSessionRequest>,
     ) -> Result<Response<UpdateSessionReply>, Status> {
+        let req = request.into_inner();
+
         update_session_by_req(
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(UpdateSessionReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn delete_session(
         &self,
         request: Request<DeleteSessionRequest>,
     ) -> Result<Response<DeleteSessionReply>, Status> {
+        let req = request.into_inner();
+
         delete_session_by_req(
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
             &self.mqtt_cache,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(DeleteSessionReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     // Topic
