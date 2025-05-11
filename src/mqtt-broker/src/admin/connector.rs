@@ -24,18 +24,18 @@ use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::bridge::connector_type::ConnectorType;
 use metadata_struct::mqtt::bridge::status::MQTTStatus;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    MqttConnectorType, MqttCreateConnectorReply, MqttCreateConnectorRequest,
-    MqttDeleteConnectorReply, MqttDeleteConnectorRequest, MqttListConnectorReply,
-    MqttListConnectorRequest, MqttUpdateConnectorReply, MqttUpdateConnectorRequest,
+    MqttConnectorType, MqttCreateConnectorRequest, MqttDeleteConnectorRequest,
+    MqttListConnectorRequest, MqttUpdateConnectorRequest,
 };
 use protocol::placement_center::placement_center_mqtt::ListConnectorRequest;
 use std::sync::Arc;
-use tonic::{Request, Response, Status};
+use tonic::Request;
 
+// List connectors by request
 pub async fn list_connector_by_req(
     client_pool: &Arc<ClientPool>,
     request: Request<MqttListConnectorRequest>,
-) -> Result<Response<MqttListConnectorReply>, Status> {
+) -> Result<Vec<Vec<u8>>, MqttBrokerError> {
     let req = request.into_inner();
     let config = broker_mqtt_conf();
     let request = ListConnectorRequest {
@@ -44,20 +44,21 @@ pub async fn list_connector_by_req(
     };
 
     let connectors = placement_list_connector(client_pool, &config.placement_center, request)
-        .await?
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?
         .connectors;
 
-    Ok(Response::new(MqttListConnectorReply { connectors }))
+    Ok(connectors)
 }
+
+// Create a new connector
 pub async fn create_connector_by_req(
     client_pool: &Arc<ClientPool>,
     request: Request<MqttCreateConnectorRequest>,
-) -> Result<Response<MqttCreateConnectorReply>, Status> {
+) -> Result<(), MqttBrokerError> {
     let req = request.into_inner();
     let connector_type = parse_mqtt_connector_type(req.connector_type());
-    if let Err(e) = connector_config_validator(&connector_type, &req.config) {
-        return Err(Status::cancelled(e.to_string()));
-    };
+    connector_config_validator(&connector_type, &req.config)?;
 
     let config = broker_mqtt_conf();
     let storage = ConnectorStorage::new(client_pool.clone());
@@ -72,44 +73,49 @@ pub async fn create_connector_by_req(
         create_time: now_second(),
         update_time: now_second(),
     };
-    if let Err(e) = storage.create_connector(connector).await {
-        return Err(Status::cancelled(e.to_string()));
-    };
-    Ok(Response::new(MqttCreateConnectorReply::default()))
+
+    storage
+        .create_connector(connector)
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+
+    Ok(())
 }
+// Update an existing connector
 pub async fn update_connector_by_req(
     client_pool: &Arc<ClientPool>,
     request: Request<MqttUpdateConnectorRequest>,
-) -> Result<Response<MqttUpdateConnectorReply>, Status> {
+) -> Result<(), MqttBrokerError> {
     let req = request.into_inner();
-    let connector = match serde_json::from_slice::<MQTTConnector>(&req.connector) {
-        Ok(connector) => connector,
-        Err(e) => return Err(Status::cancelled(e.to_string())),
-    };
-    if let Err(e) = connector_config_validator(&connector.connector_type, &connector.config) {
-        return Err(Status::cancelled(e.to_string()));
-    };
+    let connector = serde_json::from_slice::<MQTTConnector>(&req.connector)
+        .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+
+    connector_config_validator(&connector.connector_type, &connector.config)?;
+
     let storage = ConnectorStorage::new(client_pool.clone());
-    if let Err(e) = storage.update_connector(connector).await {
-        return Err(Status::cancelled(e.to_string()));
-    };
-    Ok(Response::new(MqttUpdateConnectorReply::default()))
+    storage
+        .update_connector(connector)
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+
+    Ok(())
 }
 
+// Delete an existing connector
 pub async fn delete_connector_by_req(
     client_pool: &Arc<ClientPool>,
     request: Request<MqttDeleteConnectorRequest>,
-) -> Result<Response<MqttDeleteConnectorReply>, Status> {
+) -> Result<(), MqttBrokerError> {
     let req = request.into_inner();
     let config = broker_mqtt_conf();
     let storage = ConnectorStorage::new(client_pool.clone());
-    if let Err(e) = storage
+
+    storage
         .delete_connector(&config.cluster_name, &req.connector_name)
         .await
-    {
-        return Err(Status::cancelled(e.to_string()));
-    };
-    Ok(Response::new(MqttDeleteConnectorReply::default()))
+        .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+
+    Ok(())
 }
 
 fn connector_config_validator(

@@ -14,23 +14,21 @@
 
 use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
 use crate::handler::cache::CacheManager;
-use protocol::broker_mqtt::broker_mqtt_admin::{ListSessionReply, ListSessionRequest, SessionRaw};
+use crate::handler::error::MqttBrokerError;
+use protocol::broker_mqtt::broker_mqtt_admin::{ListSessionRequest, SessionRaw};
 use std::sync::Arc;
-use tonic::{Request, Response, Status};
+use tonic::Request;
 
 pub async fn list_session_by_req(
     cache_manager: &Arc<CacheManager>,
     request: Request<ListSessionRequest>,
-) -> Result<Response<ListSessionReply>, Status> {
+) -> Result<(Vec<SessionRaw>, usize), MqttBrokerError> {
     let sessions = extract_sessions(cache_manager);
     let filtered = apply_filters(sessions, &request.get_ref().options);
     let sorted = apply_sorting(filtered, &request.get_ref().options);
-    let (paginated, total_count) = apply_pagination(sorted, &request.get_ref().options);
+    let pagination = apply_pagination(sorted, &request.get_ref().options);
 
-    Ok(Response::new(ListSessionReply {
-        sessions: paginated,
-        total_count: total_count as u32,
-    }))
+    Ok(pagination)
 }
 
 fn extract_sessions(cache_manager: &Arc<CacheManager>) -> Vec<SessionRaw> {

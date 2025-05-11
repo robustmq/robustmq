@@ -14,21 +14,48 @@
 
 use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
 use crate::handler::cache::CacheManager;
+use crate::handler::error::MqttBrokerError;
 use crate::security::AuthDriver;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListUserReply,
-    ListUserRequest, UserRaw,
+    CreateUserRequest, DeleteUserRequest, ListUserRequest, UserRaw,
 };
 use std::sync::Arc;
-use tonic::{Request, Response, Status};
+use tonic::Request;
 
+// List all users by request
+pub async fn list_user_by_req(
+    cache_manager: &Arc<CacheManager>,
+    client_pool: &Arc<ClientPool>,
+    request: Request<ListUserRequest>,
+) -> Result<(Vec<UserRaw>, usize), MqttBrokerError> {
+    let req = request.into_inner();
+    let auth_driver = AuthDriver::new(cache_manager.clone(), client_pool.clone());
+
+    let data = auth_driver.read_all_user().await?;
+
+    let mut users = Vec::new();
+    for ele in data {
+        let user_raw = UserRaw {
+            username: ele.1.username,
+            is_superuser: ele.1.is_superuser,
+        };
+        users.push(user_raw);
+    }
+
+    let filtered = apply_filters(users, &req.options);
+    let sorted = apply_sorting(filtered, &req.options);
+    let pagination = apply_pagination(sorted, &req.options);
+    Ok(pagination)
+}
+
+// Create a new user
 pub async fn create_user_by_req(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     request: Request<CreateUserRequest>,
-) -> Result<Response<CreateUserReply>, Status> {
+) -> Result<(), MqttBrokerError> {
     let req = request.into_inner();
     let mqtt_user = MqttUser {
         username: req.username,
@@ -37,52 +64,23 @@ pub async fn create_user_by_req(
     };
 
     let auth_driver = AuthDriver::new(cache_manager.clone(), client_pool.clone());
-    match auth_driver.save_user(mqtt_user).await {
-        Ok(_) => Ok(Response::new(CreateUserReply::default())),
-        Err(e) => Err(Status::cancelled(e.to_string())),
-    }
+    auth_driver.save_user(mqtt_user).await?;
+
+    Ok(())
 }
 
+// Delete an existing user
 pub async fn delete_user_by_req(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     request: Request<DeleteUserRequest>,
-) -> Result<Response<DeleteUserReply>, Status> {
+) -> Result<(), MqttBrokerError> {
     let req = request.into_inner();
-
     let auth_driver = AuthDriver::new(cache_manager.clone(), client_pool.clone());
-    match auth_driver.delete_user(req.username).await {
-        Ok(_) => Ok(Response::new(DeleteUserReply::default())),
-        Err(e) => Err(Status::cancelled(e.to_string())),
-    }
-}
 
-pub async fn list_user_by_req(
-    cache_manager: &Arc<CacheManager>,
-    client_pool: &Arc<ClientPool>,
-    request: Request<ListUserRequest>,
-) -> Result<Response<ListUserReply>, Status> {
-    let auth_driver = AuthDriver::new(cache_manager.clone(), client_pool.clone());
-    match auth_driver.read_all_user().await {
-        Ok(data) => {
-            let mut users = Vec::new();
-            for ele in data {
-                let user_raw = UserRaw {
-                    username: ele.1.username,
-                    is_superuser: ele.1.is_superuser,
-                };
-                users.push(user_raw);
-            }
-            let filtered = apply_filters(users, &request.get_ref().options);
-            let sorted = apply_sorting(filtered, &request.get_ref().options);
-            let (paginated, total_count) = apply_pagination(sorted, &request.get_ref().options);
-            Ok(Response::new(ListUserReply {
-                users: paginated,
-                total_count: total_count as u32,
-            }))
-        }
-        Err(e) => Err(Status::cancelled(e.to_string())),
-    }
+    auth_driver.delete_user(req.username).await?;
+
+    Ok(())
 }
 
 impl Queryable for UserRaw {

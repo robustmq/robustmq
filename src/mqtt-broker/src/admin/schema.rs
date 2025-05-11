@@ -22,10 +22,6 @@ use grpc_clients::{
     pool::ClientPool,
 };
 use metadata_struct::schema::{SchemaData, SchemaType};
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    MqttBindSchemaReply, MqttCreateSchemaReply, MqttDeleteSchemaReply, MqttListBindSchemaReply,
-    MqttListSchemaReply, MqttUnbindSchemaReply, MqttUpdateSchemaReply,
-};
 use protocol::{
     broker_mqtt::broker_mqtt_admin::{
         MqttBindSchemaRequest, MqttCreateSchemaRequest, MqttDeleteSchemaRequest,
@@ -38,11 +34,12 @@ use protocol::{
     },
 };
 use std::sync::Arc;
-use tonic::{Request, Response, Status};
+use tonic::Request;
+// List schemas by request
 pub async fn list_schema_by_req(
     client_pool: &Arc<ClientPool>,
     request: Request<MqttListSchemaRequest>,
-) -> Result<Response<MqttListSchemaReply>, Status> {
+) -> Result<Vec<Vec<u8>>, MqttBrokerError> {
     let req = request.into_inner();
     let config = broker_mqtt_conf();
     let request = ListSchemaRequest {
@@ -51,15 +48,18 @@ pub async fn list_schema_by_req(
     };
 
     let schemas = list_schema(client_pool, &config.placement_center, request)
-        .await?
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?
         .schemas;
-    Ok(Response::new(MqttListSchemaReply { schemas }))
+
+    Ok(schemas)
 }
 
+// Create a new schema
 pub async fn create_schema_by_req(
     client_pool: &Arc<ClientPool>,
     request: Request<MqttCreateSchemaRequest>,
-) -> Result<Response<MqttCreateSchemaReply>, Status> {
+) -> Result<(), MqttBrokerError> {
     let req = request.into_inner();
     let config = broker_mqtt_conf();
 
@@ -67,11 +67,7 @@ pub async fn create_schema_by_req(
         "" | "json" => SchemaType::JSON,
         "avro" => SchemaType::AVRO,
         "protobuf" => SchemaType::PROTOBUF,
-        _ => {
-            return Err(Status::cancelled(
-                MqttBrokerError::InvalidSchemaType(req.schema_type.clone()).to_string(),
-            ))
-        }
+        _ => return Err(MqttBrokerError::InvalidSchemaType(req.schema_type.clone())),
     };
 
     let schema_data = SchemaData {
@@ -85,17 +81,22 @@ pub async fn create_schema_by_req(
     let request = CreateSchemaRequest {
         cluster_name: config.cluster_name.clone(),
         schema_name: req.schema_name.clone(),
-        schema: serde_json::to_vec(&schema_data).unwrap(),
+        schema: serde_json::to_vec(&schema_data)
+            .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?,
     };
 
-    create_schema(client_pool, &config.placement_center, request).await?;
-    Ok(Response::new(MqttCreateSchemaReply::default()))
+    create_schema(client_pool, &config.placement_center, request)
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+
+    Ok(())
 }
 
+// Update an existing schema
 pub async fn update_schema_by_req(
     client_pool: &Arc<ClientPool>,
     request: Request<MqttUpdateSchemaRequest>,
-) -> Result<Response<MqttUpdateSchemaReply>, Status> {
+) -> Result<(), MqttBrokerError> {
     let req = request.into_inner();
     let config = broker_mqtt_conf();
 
@@ -103,11 +104,7 @@ pub async fn update_schema_by_req(
         "" | "json" => SchemaType::JSON,
         "avro" => SchemaType::AVRO,
         "protobuf" => SchemaType::PROTOBUF,
-        _ => {
-            return Err(Status::cancelled(
-                MqttBrokerError::InvalidSchemaType(req.schema_type.clone()).to_string(),
-            ))
-        }
+        _ => return Err(MqttBrokerError::InvalidSchemaType(req.schema_type.clone())),
     };
 
     let schema_data = SchemaData {
@@ -121,17 +118,22 @@ pub async fn update_schema_by_req(
     let request = UpdateSchemaRequest {
         cluster_name: config.cluster_name.clone(),
         schema_name: req.schema_name.clone(),
-        schema: serde_json::to_vec(&schema_data).unwrap(),
+        schema: serde_json::to_vec(&schema_data)
+            .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?,
     };
 
-    update_schema(client_pool, &config.placement_center, request).await?;
-    Ok(Response::new(MqttUpdateSchemaReply::default()))
+    update_schema(client_pool, &config.placement_center, request)
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+
+    Ok(())
 }
 
+// Delete an existing schema
 pub async fn delete_schema_by_req(
     client_pool: &Arc<ClientPool>,
     request: Request<MqttDeleteSchemaRequest>,
-) -> Result<Response<MqttDeleteSchemaReply>, Status> {
+) -> Result<(), MqttBrokerError> {
     let req = request.into_inner();
     let config = broker_mqtt_conf();
     let request = DeleteSchemaRequest {
@@ -139,13 +141,17 @@ pub async fn delete_schema_by_req(
         schema_name: req.schema_name.clone(),
     };
 
-    delete_schema(client_pool, &config.placement_center, request).await?;
-    Ok(Response::new(MqttDeleteSchemaReply::default()))
+    delete_schema(client_pool, &config.placement_center, request)
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+
+    Ok(())
 }
+// List schema bindings
 pub async fn list_bind_schema_by_req(
     client_pool: &Arc<ClientPool>,
     request: Request<MqttListBindSchemaRequest>,
-) -> Result<Response<MqttListBindSchemaReply>, Status> {
+) -> Result<Vec<Vec<u8>>, MqttBrokerError> {
     let req = request.into_inner();
     let config = broker_mqtt_conf();
     let request = ListBindSchemaRequest {
@@ -154,20 +160,20 @@ pub async fn list_bind_schema_by_req(
         resource_name: req.resource_name.clone(),
     };
 
-    let schemas = list_bind_schema(client_pool, &config.placement_center, request)
-        .await?
+    let schema_binds = list_bind_schema(client_pool, &config.placement_center, request)
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?
         .schema_binds;
 
-    Ok(Response::new(MqttListBindSchemaReply {
-        schema_binds: schemas,
-    }))
+    Ok(schema_binds)
 }
+
+// Bind schema to resource
 pub async fn bind_schema_by_req(
     client_pool: &Arc<ClientPool>,
     request: Request<MqttBindSchemaRequest>,
-) -> Result<Response<MqttBindSchemaReply>, Status> {
+) -> Result<(), MqttBrokerError> {
     let req = request.into_inner();
-
     let config = broker_mqtt_conf();
     let request = BindSchemaRequest {
         cluster_name: config.cluster_name.clone(),
@@ -175,15 +181,18 @@ pub async fn bind_schema_by_req(
         resource_name: req.resource_name.clone(),
     };
 
-    bind_schema(client_pool, &config.placement_center, request).await?;
+    bind_schema(client_pool, &config.placement_center, request)
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
 
-    Ok(Response::new(MqttBindSchemaReply::default()))
+    Ok(())
 }
 
+// Unbind schema from resource
 pub async fn unbind_schema_by_req(
     client_pool: &Arc<ClientPool>,
     request: Request<MqttUnbindSchemaRequest>,
-) -> Result<Response<MqttUnbindSchemaReply>, Status> {
+) -> Result<(), MqttBrokerError> {
     let req = request.into_inner();
     let config = broker_mqtt_conf();
     let request = UnBindSchemaRequest {
@@ -192,6 +201,9 @@ pub async fn unbind_schema_by_req(
         resource_name: req.resource_name.clone(),
     };
 
-    un_bind_schema(client_pool, &config.placement_center, request).await?;
-    Ok(Response::new(MqttUnbindSchemaReply::default()))
+    un_bind_schema(client_pool, &config.placement_center, request)
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+
+    Ok(())
 }
