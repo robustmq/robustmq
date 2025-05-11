@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bincode::{deserialize, serialize};
 use openraft::Raft;
 use protocol::placement_center::placement_center_openraft::open_raft_service_server::OpenRaftService;
 use protocol::placement_center::placement_center_openraft::{
@@ -21,7 +20,9 @@ use protocol::placement_center::placement_center_openraft::{
 };
 use tonic::{Request, Response, Status};
 
-use crate::raft::raft_node::Node;
+use crate::raft::services::{
+    add_learner_by_req, append_by_req, change_membership_by_req, snapshot_by_req, vote_by_req,
+};
 use crate::raft::typeconfig::TypeConfig;
 
 pub struct GrpcOpenRaftServices {
@@ -38,17 +39,10 @@ impl GrpcOpenRaftServices {
 impl OpenRaftService for GrpcOpenRaftServices {
     async fn vote(&self, request: Request<VoteRequest>) -> Result<Response<VoteReply>, Status> {
         let req = request.into_inner();
-        let vote_data = deserialize(&req.value).unwrap();
-        let res = match self.raft_node.vote(vote_data).await {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        };
-
-        let value = serialize(&res).map_err(|e| Status::cancelled(e.to_string()))?;
-        let reply = VoteReply { value };
-        return Ok(Response::new(reply));
+        vote_by_req(&self.raft_node, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn append(
@@ -56,16 +50,10 @@ impl OpenRaftService for GrpcOpenRaftServices {
         request: Request<AppendRequest>,
     ) -> Result<Response<AppendReply>, Status> {
         let req = request.into_inner();
-        let vote_data = deserialize(&req.value).unwrap();
-        let res = match self.raft_node.append_entries(vote_data).await {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        };
-        let value = serialize(&res).map_err(|e| Status::cancelled(e.to_string()))?;
-        let reply = AppendReply { value };
-        return Ok(Response::new(reply));
+        append_by_req(&self.raft_node, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn snapshot(
@@ -73,17 +61,10 @@ impl OpenRaftService for GrpcOpenRaftServices {
         request: Request<SnapshotRequest>,
     ) -> Result<Response<SnapshotReply>, Status> {
         let req = request.into_inner();
-        let vote_data = deserialize(&req.value).unwrap();
-        let res = match self.raft_node.install_snapshot(vote_data).await {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        };
-
-        let value = serialize(&res).map_err(|e| Status::cancelled(e.to_string()))?;
-        let reply = SnapshotReply { value };
-        return Ok(Response::new(reply));
+        snapshot_by_req(&self.raft_node, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn add_learner(
@@ -91,30 +72,10 @@ impl OpenRaftService for GrpcOpenRaftServices {
         request: Request<AddLearnerRequest>,
     ) -> Result<Response<AddLearnerReply>, Status> {
         let req = request.into_inner();
-        let node_id = req.node_id;
-
-        let node = req.node;
-
-        let raft_node = Node {
-            rpc_addr: node.clone().unwrap().rpc_addr,
-            node_id: node.clone().unwrap().node_id,
-        };
-
-        let blocking = req.blocking;
-
-        let res = match self
-            .raft_node
-            .add_learner(node_id, raft_node, blocking)
+        add_learner_by_req(&self.raft_node, &req)
             .await
-        {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        };
-        let value = serialize(&res).map_err(|e| Status::cancelled(e.to_string()))?;
-        let reply = AddLearnerReply { value };
-        return Ok(Response::new(reply));
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn change_membership(
@@ -122,18 +83,9 @@ impl OpenRaftService for GrpcOpenRaftServices {
         request: Request<ChangeMembershipRequest>,
     ) -> Result<Response<ChangeMembershipReply>, Status> {
         let req = request.into_inner();
-        let members = req.members;
-        let retain = req.retain;
-
-        let res = match self.raft_node.change_membership(members, retain).await {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        };
-
-        let value = serialize(&res).map_err(|e| Status::cancelled(e.to_string()))?;
-        let reply = ChangeMembershipReply { value };
-        return Ok(Response::new(reply));
+        change_membership_by_req(&self.raft_node, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 }
