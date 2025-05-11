@@ -100,44 +100,47 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<ListUserRequest>,
     ) -> Result<Response<ListUserReply>, Status> {
-        Ok(Response::new(ListUserReply {
-            users: list_user_by_req(&self.rocksdb_engine_handler, request)
-                .map_err(|e| Status::internal(e.to_string()))?,
-        }))
+        let req = request.into_inner();
+
+        list_user_by_req(&self.rocksdb_engine_handler, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn create_user(
         &self,
         request: Request<CreateUserRequest>,
     ) -> Result<Response<CreateUserReply>, Status> {
+        let req = request.into_inner();
+
         create_user_by_req(
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(CreateUserReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn delete_user(
         &self,
         request: Request<DeleteUserRequest>,
     ) -> Result<Response<DeleteUserReply>, Status> {
+        let req = request.into_inner();
+
         delete_user_by_req(
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(DeleteUserReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     // Session

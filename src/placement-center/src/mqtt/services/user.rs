@@ -17,7 +17,8 @@ use std::sync::Arc;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::placement_center::placement_center_mqtt::{
-    CreateUserRequest, DeleteUserRequest, ListUserRequest,
+    CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListUserReply,
+    ListUserRequest,
 };
 use rocksdb_engine::RocksDBEngine;
 
@@ -33,28 +34,26 @@ use crate::{
     storage::mqtt::user::MqttUserStorage,
 };
 use prost::Message;
-use tonic::Request;
 
 pub fn list_user_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    request: Request<ListUserRequest>,
-) -> Result<Vec<Vec<u8>>, PlacementCenterError> {
-    let req = request.into_inner();
-
+    req: &ListUserRequest,
+) -> Result<ListUserReply, PlacementCenterError> {
     let storage = MqttUserStorage::new(rocksdb_engine_handler.clone());
+    let mut users = Vec::new();
 
     if !req.cluster_name.is_empty() && !req.user_name.is_empty() {
         if let Some(data) = storage.get(&req.cluster_name, &req.user_name)? {
-            return Ok(vec![data.encode()]);
+            users.push(data.encode());
         }
     }
 
     if !req.cluster_name.is_empty() && req.user_name.is_empty() {
         let user_list = storage.list_by_cluster(&req.cluster_name)?;
-        return Ok(user_list.into_iter().map(|user| user.encode()).collect());
+        users = user_list.into_iter().map(|user| user.encode()).collect();
     }
 
-    Ok(Vec::new())
+    Ok(ListUserReply { users })
 }
 
 pub async fn create_user_by_req(
@@ -62,25 +61,25 @@ pub async fn create_user_by_req(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    request: Request<CreateUserRequest>,
-) -> Result<(), PlacementCenterError> {
-    let req = request.into_inner();
-
+    req: &CreateUserRequest,
+) -> Result<CreateUserReply, PlacementCenterError> {
     let storage = MqttUserStorage::new(rocksdb_engine_handler.clone());
     if storage.get(&req.cluster_name, &req.user_name)?.is_some() {
-        return Err(PlacementCenterError::UserAlreadyExist(req.user_name));
+        return Err(PlacementCenterError::UserAlreadyExist(
+            req.user_name.clone(),
+        ));
     }
 
     let data = StorageData::new(
         StorageDataType::MqttSetUser,
-        CreateUserRequest::encode_to_vec(&req),
+        CreateUserRequest::encode_to_vec(req),
     );
 
     raft_machine_apply.client_write(data).await?;
     let user = serde_json::from_slice::<MqttUser>(&req.content)?;
     update_cache_by_add_user(&req.cluster_name, call_manager, client_pool, user).await?;
 
-    Ok(())
+    Ok(CreateUserReply {})
 }
 
 pub async fn delete_user_by_req(
@@ -88,22 +87,23 @@ pub async fn delete_user_by_req(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    request: Request<DeleteUserRequest>,
-) -> Result<(), PlacementCenterError> {
-    let req = request.into_inner();
+    req: &DeleteUserRequest,
+) -> Result<DeleteUserReply, PlacementCenterError> {
     let storage = MqttUserStorage::new(rocksdb_engine_handler.clone());
     let user = if let Some(user) = storage.get(&req.cluster_name, &req.user_name)? {
         user
     } else {
-        return Err(PlacementCenterError::UserDoesNotExist(req.user_name));
+        return Err(PlacementCenterError::UserDoesNotExist(
+            req.user_name.clone(),
+        ));
     };
 
     let data = StorageData::new(
         StorageDataType::MqttDeleteUser,
-        DeleteUserRequest::encode_to_vec(&req),
+        DeleteUserRequest::encode_to_vec(req),
     );
     raft_machine_apply.client_write(data).await?;
     update_cache_by_delete_user(&req.cluster_name, call_manager, client_pool, user).await?;
 
-    Ok(())
+    Ok(DeleteUserReply {})
 }
