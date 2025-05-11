@@ -31,15 +31,13 @@ use crate::core::error::PlacementCenterError;
 use crate::journal::cache::JournalCacheManager;
 use crate::journal::controller::call_node::JournalInnerCallManager;
 use crate::journal::services::segment::{
-    create_segment_by_req, delete_segment_by_req, update_segment_meta_req,
-    update_segment_status_req,
+    create_segment_by_req, delete_segment_by_req, list_segment_by_req, list_segment_meta_by_req,
+    update_segment_meta_by_req, update_segment_status_req,
 };
 use crate::journal::services::shard::{
     create_shard_by_req, delete_shard_by_req, list_shard_by_req,
 };
 use crate::route::apply::RaftMachineApply;
-use crate::storage::journal::segment::SegmentStorage;
-use crate::storage::journal::segment_meta::SegmentMetadataStorage;
 
 pub struct GrpcEngineService {
     raft_machine_apply: Arc<RaftMachineApply>,
@@ -77,7 +75,8 @@ impl EngineService for GrpcEngineService {
         &self,
         request: Request<ListShardRequest>,
     ) -> Result<Response<ListShardReply>, Status> {
-        list_shard_by_req(&self.rocksdb_engine_handler, request)
+        let req = request.into_inner();
+        list_shard_by_req(&self.rocksdb_engine_handler, &req)
             .await
             .map_err(|e| Status::cancelled(e.to_string()))
             .map(Response::new)
@@ -87,13 +86,14 @@ impl EngineService for GrpcEngineService {
         &self,
         request: Request<CreateShardRequest>,
     ) -> Result<Response<CreateShardReply>, Status> {
+        let req = request.into_inner();
         create_shard_by_req(
             &self.engine_cache,
             &self.cluster_cache,
             &self.raft_machine_apply,
             &self.call_manager,
             &self.client_pool,
-            request,
+            &req,
         )
         .await
         .map_err(|e| Status::cancelled(e.to_string()))
@@ -104,19 +104,20 @@ impl EngineService for GrpcEngineService {
         &self,
         request: Request<DeleteShardRequest>,
     ) -> Result<Response<DeleteShardReply>, Status> {
-        // todo: we need to check it?
-        /*if self.cluster_cache.get_cluster(&req.cluster_name).is_none() {
+        let req = request.into_inner();
+
+        if self.cluster_cache.get_cluster(&req.cluster_name).is_none() {
             return Err(Status::cancelled(
                 PlacementCenterError::ClusterDoesNotExist(req.cluster_name).to_string(),
             ));
-        }*/
+        }
 
         delete_shard_by_req(
             &self.raft_machine_apply,
             &self.engine_cache,
             &self.call_manager,
             &self.client_pool,
-            request,
+            &req,
         )
         .await
         .map_err(|e| Status::cancelled(e.to_string()))
@@ -134,51 +135,10 @@ impl EngineService for GrpcEngineService {
             ));
         }
 
-        let segment_storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
-        let res = if req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == -1 {
-            match segment_storage.list_by_cluster(&req.cluster_name) {
-                Ok(list) => list,
-                Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
-                }
-            }
-        } else if !req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == -1 {
-            match segment_storage.list_by_namespace(&req.cluster_name, &req.namespace) {
-                Ok(list) => list,
-                Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
-                }
-            }
-        } else if !req.namespace.is_empty() && !req.shard_name.is_empty() && req.segment_no == -1 {
-            match segment_storage.list_by_shard(&req.cluster_name, &req.namespace, &req.shard_name)
-            {
-                Ok(list) => list,
-                Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
-                }
-            }
-        } else {
-            match segment_storage.get(
-                &req.cluster_name,
-                &req.namespace,
-                &req.shard_name,
-                req.segment_no as u32,
-            ) {
-                Ok(Some(shard)) => vec![shard],
-                Ok(None) => Vec::new(),
-                Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
-                }
-            }
-        };
-
-        let body = match serde_json::to_vec(&res) {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        };
-        return Ok(Response::new(ListSegmentReply { segments: body }));
+        list_segment_by_req(&self.rocksdb_engine_handler, &req)
+            .await
+            .map_err(|e| Status::cancelled(e.to_string()))
+            .map(Response::new)
     }
 
     async fn create_next_segment(
@@ -225,7 +185,7 @@ impl EngineService for GrpcEngineService {
             ));
         }
 
-        match delete_segment_by_req(
+        delete_segment_by_req(
             &self.engine_cache,
             &self.raft_machine_apply,
             &self.call_manager,
@@ -233,12 +193,8 @@ impl EngineService for GrpcEngineService {
             &req,
         )
         .await
-        {
-            Ok(data) => return Ok(Response::new(data)),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn update_segment_status(
@@ -252,20 +208,16 @@ impl EngineService for GrpcEngineService {
             ));
         }
 
-        match update_segment_status_req(
+        update_segment_status_req(
             &self.engine_cache,
             &self.raft_machine_apply,
             &self.call_manager,
             &self.client_pool,
-            req,
+            &req,
         )
         .await
-        {
-            Ok(()) => return Ok(Response::new(UpdateSegmentStatusReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn list_segment_meta(
@@ -279,50 +231,10 @@ impl EngineService for GrpcEngineService {
             ));
         }
 
-        let storage = SegmentMetadataStorage::new(self.rocksdb_engine_handler.clone());
-        let res = if req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == -1 {
-            match storage.list_by_cluster(&req.cluster_name) {
-                Ok(list) => list,
-                Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
-                }
-            }
-        } else if !req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == -1 {
-            match storage.list_by_namespace(&req.cluster_name, &req.namespace) {
-                Ok(list) => list,
-                Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
-                }
-            }
-        } else if !req.namespace.is_empty() && !req.shard_name.is_empty() && req.segment_no == -1 {
-            match storage.list_by_shard(&req.cluster_name, &req.namespace, &req.shard_name) {
-                Ok(list) => list,
-                Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
-                }
-            }
-        } else {
-            match storage.get(
-                &req.cluster_name,
-                &req.namespace,
-                &req.shard_name,
-                req.segment_no as u32,
-            ) {
-                Ok(Some(shard)) => vec![shard],
-                Ok(None) => Vec::new(),
-                Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
-                }
-            }
-        };
-
-        let body = match serde_json::to_vec(&res) {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        };
-        return Ok(Response::new(ListSegmentMetaReply { segments: body }));
+        list_segment_meta_by_req(&self.rocksdb_engine_handler, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn update_segment_meta(
@@ -331,19 +243,15 @@ impl EngineService for GrpcEngineService {
     ) -> Result<Response<UpdateSegmentMetaReply>, Status> {
         let req = request.into_inner();
 
-        match update_segment_meta_req(
+        update_segment_meta_by_req(
             &self.engine_cache,
             &self.raft_machine_apply,
             &self.call_manager,
             &self.client_pool,
-            req,
+            &req,
         )
         .await
-        {
-            Ok(()) => return Ok(Response::new(UpdateSegmentMetaReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 }

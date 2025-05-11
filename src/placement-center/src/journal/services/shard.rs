@@ -36,16 +36,14 @@ use protocol::placement_center::placement_center_journal::{
 };
 use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
-use tonic::Request;
 
 pub async fn list_shard_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    request: Request<ListShardRequest>,
+    req: &ListShardRequest,
 ) -> Result<ListShardReply, PlacementCenterError> {
-    let req = request.into_inner();
     if req.cluster_name.is_empty() {
         return Err(PlacementCenterError::RequestParamsNotEmpty(
-            req.cluster_name,
+            req.cluster_name.clone(),
         ));
     }
 
@@ -76,12 +74,12 @@ pub async fn create_shard_by_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-    req: Request<CreateShardRequest>,
+    req: &CreateShardRequest,
 ) -> Result<CreateShardReply, PlacementCenterError> {
-    let req = req.into_inner();
-
     if cluster_cache.get_cluster(&req.cluster_name).is_none() {
-        return Err(PlacementCenterError::ClusterDoesNotExist(req.cluster_name));
+        return Err(PlacementCenterError::ClusterDoesNotExist(
+            req.cluster_name.clone(),
+        ));
     }
 
     // Check that the number of available nodes in the cluster is sufficient
@@ -180,10 +178,8 @@ pub async fn delete_shard_by_req(
     engine_cache: &Arc<JournalCacheManager>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-    req: Request<DeleteShardRequest>,
+    req: &DeleteShardRequest,
 ) -> Result<DeleteShardReply, PlacementCenterError> {
-    let req = req.into_inner();
-
     let mut shard = if let Some(shard) =
         engine_cache.get_shard(&req.cluster_name, &req.namespace, &req.shard_name)
     {
