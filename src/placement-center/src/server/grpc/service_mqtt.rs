@@ -275,15 +275,10 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<GetShareSubLeaderRequest>,
     ) -> Result<Response<GetShareSubLeaderReply>, Status> {
-        let (id, node_addr, extend_info) =
-            get_share_sub_leader_by_req(&self.cluster_cache, &self.rocksdb_engine_handler, request)
-                .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(GetShareSubLeaderReply {
-            broker_id: id,
-            broker_addr: node_addr,
-            extend_info,
-        }))
+        let req = request.into_inner();
+        get_share_sub_leader_by_req(&self.cluster_cache, &self.rocksdb_engine_handler, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn save_last_will_message(
