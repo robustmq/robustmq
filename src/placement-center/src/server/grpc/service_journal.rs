@@ -34,11 +34,12 @@ use crate::journal::services::segment::{
     create_segment_by_req, delete_segment_by_req, update_segment_meta_req,
     update_segment_status_req,
 };
-use crate::journal::services::shard::{create_shard_by_req, delete_shard_by_req};
+use crate::journal::services::shard::{
+    create_shard_by_req, delete_shard_by_req, list_shard_by_req,
+};
 use crate::route::apply::RaftMachineApply;
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
-use crate::storage::journal::shard::ShardStorage;
 
 pub struct GrpcEngineService {
     raft_machine_apply: Arc<RaftMachineApply>,
@@ -76,106 +77,50 @@ impl EngineService for GrpcEngineService {
         &self,
         request: Request<ListShardRequest>,
     ) -> Result<Response<ListShardReply>, Status> {
-        let req = request.into_inner();
-        if req.cluster_name.is_empty() {
-            return Err(Status::cancelled(
-                PlacementCenterError::RequestParamsNotEmpty(req.cluster_name).to_string(),
-            ));
-        }
-
-        let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
-        let res = if req.namespace.is_empty() && req.shard_name.is_empty() {
-            match shard_storage.list_by_cluster(&req.cluster_name) {
-                Ok(list) => list,
-                Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
-                }
-            }
-        } else if !req.namespace.is_empty() && req.shard_name.is_empty() {
-            match shard_storage.list_by_cluster_namespace(&req.cluster_name, &req.namespace) {
-                Ok(list) => list,
-                Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
-                }
-            }
-        } else {
-            match shard_storage.get(&req.cluster_name, &req.namespace, &req.shard_name) {
-                Ok(Some(shard)) => vec![shard],
-                Ok(None) => Vec::new(),
-                Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
-                }
-            }
-        };
-
-        let body = match serde_json::to_vec(&res) {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        };
-        return Ok(Response::new(ListShardReply { shards: body }));
+        list_shard_by_req(&self.rocksdb_engine_handler, request)
+            .await
+            .map_err(|e| Status::cancelled(e.to_string()))
+            .map(Response::new)
     }
 
     async fn create_shard(
         &self,
         request: Request<CreateShardRequest>,
     ) -> Result<Response<CreateShardReply>, Status> {
-        let req = request.into_inner();
-
-        if self.cluster_cache.get_cluster(&req.cluster_name).is_none() {
-            return Err(Status::cancelled(
-                PlacementCenterError::ClusterDoesNotExist(req.cluster_name).to_string(),
-            ));
-        }
-
-        match create_shard_by_req(
+        create_shard_by_req(
             &self.engine_cache,
             &self.cluster_cache,
             &self.raft_machine_apply,
             &self.call_manager,
             &self.client_pool,
-            &req,
+            request,
         )
         .await
-        {
-            Ok(data) => {
-                return Ok(Response::new(data));
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        .map_err(|e| Status::cancelled(e.to_string()))
+        .map(Response::new)
     }
 
     async fn delete_shard(
         &self,
         request: Request<DeleteShardRequest>,
     ) -> Result<Response<DeleteShardReply>, Status> {
-        let req = request.into_inner();
-
-        if self.cluster_cache.get_cluster(&req.cluster_name).is_none() {
+        // todo: we need to check it?
+        /*if self.cluster_cache.get_cluster(&req.cluster_name).is_none() {
             return Err(Status::cancelled(
                 PlacementCenterError::ClusterDoesNotExist(req.cluster_name).to_string(),
             ));
-        }
+        }*/
 
-        match delete_shard_by_req(
+        delete_shard_by_req(
             &self.raft_machine_apply,
             &self.engine_cache,
             &self.call_manager,
             &self.client_pool,
-            &req,
+            request,
         )
         .await
-        {
-            Ok(data) => {
-                return Ok(Response::new(data));
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        .map_err(|e| Status::cancelled(e.to_string()))
+        .map(Response::new)
     }
 
     async fn list_segment(
