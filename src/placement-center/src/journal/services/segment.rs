@@ -23,7 +23,9 @@ use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
 use protocol::placement_center::placement_center_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, DeleteSegmentReply, DeleteSegmentRequest,
-    UpdateSegmentMetaRequest, UpdateSegmentStatusRequest,
+    ListSegmentMetaReply, ListSegmentMetaRequest, ListSegmentReply, ListSegmentRequest,
+    UpdateSegmentMetaReply, UpdateSegmentMetaRequest, UpdateSegmentStatusReply,
+    UpdateSegmentStatusRequest,
 };
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
@@ -39,6 +41,39 @@ use crate::journal::controller::call_node::{
 };
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
+use crate::storage::journal::segment::SegmentStorage;
+use crate::storage::journal::segment_meta::SegmentMetadataStorage;
+
+pub async fn list_segment_by_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    req: &ListSegmentRequest,
+) -> Result<ListSegmentReply, PlacementCenterError> {
+    let segment_storage = SegmentStorage::new(rocksdb_engine_handler.clone());
+    let binary_segments =
+        if req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == -1 {
+            segment_storage.list_by_cluster(&req.cluster_name)?
+        } else if !req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == -1 {
+            segment_storage.list_by_namespace(&req.cluster_name, &req.namespace)?
+        } else if !req.namespace.is_empty() && !req.shard_name.is_empty() && req.segment_no == -1 {
+            segment_storage.list_by_shard(&req.cluster_name, &req.namespace, &req.shard_name)?
+        } else {
+            match segment_storage.get(
+                &req.cluster_name,
+                &req.namespace,
+                &req.shard_name,
+                req.segment_no as u32,
+            )? {
+                Some(segment) => vec![segment],
+                None => Vec::new(),
+            }
+        };
+
+    let segments_data = serde_json::to_vec(&binary_segments)?;
+
+    Ok(ListSegmentReply {
+        segments: segments_data,
+    })
+}
 
 pub async fn create_segment_by_req(
     engine_cache: &Arc<JournalCacheManager>,
@@ -210,8 +245,8 @@ pub async fn update_segment_status_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-    req: UpdateSegmentStatusRequest,
-) -> Result<(), PlacementCenterError> {
+    req: &UpdateSegmentStatusRequest,
+) -> Result<UpdateSegmentStatusReply, PlacementCenterError> {
     let mut segment = if let Some(segment) = engine_cache.get_segment(
         &req.cluster_name,
         &req.namespace,
@@ -230,7 +265,7 @@ pub async fn update_segment_status_req(
         return Err(PlacementCenterError::SegmentStateError(
             segment.name(),
             segment.status.to_string(),
-            req.cur_status,
+            req.cur_status.clone(),
         ));
     }
 
@@ -245,19 +280,50 @@ pub async fn update_segment_status_req(
         segment.clone(),
     )
     .await?;
-    Ok(())
+    Ok(UpdateSegmentStatusReply::default())
 }
 
-pub async fn update_segment_meta_req(
+pub async fn list_segment_meta_by_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    req: &ListSegmentMetaRequest,
+) -> Result<ListSegmentMetaReply, PlacementCenterError> {
+    let storage = SegmentMetadataStorage::new(rocksdb_engine_handler.clone());
+    let binary_segments =
+        if req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == -1 {
+            storage.list_by_cluster(&req.cluster_name)?
+        } else if !req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == -1 {
+            storage.list_by_namespace(&req.cluster_name, &req.namespace)?
+        } else if !req.namespace.is_empty() && !req.shard_name.is_empty() && req.segment_no == -1 {
+            storage.list_by_shard(&req.cluster_name, &req.namespace, &req.shard_name)?
+        } else {
+            match storage.get(
+                &req.cluster_name,
+                &req.namespace,
+                &req.shard_name,
+                req.segment_no as u32,
+            )? {
+                Some(segment_meta) => vec![segment_meta],
+                None => Vec::new(),
+            }
+        };
+
+    let segments_data = serde_json::to_vec(&binary_segments)?;
+
+    Ok(ListSegmentMetaReply {
+        segments: segments_data,
+    })
+}
+
+pub async fn update_segment_meta_by_req(
     engine_cache: &Arc<JournalCacheManager>,
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-    req: UpdateSegmentMetaRequest,
-) -> Result<(), PlacementCenterError> {
+    req: &UpdateSegmentMetaRequest,
+) -> Result<UpdateSegmentMetaReply, PlacementCenterError> {
     if req.cluster_name.is_empty() {
         return Err(PlacementCenterError::RequestParamsNotEmpty(
-            req.cluster_name,
+            req.cluster_name.clone(),
         ));
     }
 
@@ -311,7 +377,7 @@ pub async fn update_segment_meta_req(
     update_cache_by_set_segment_meta(&req.cluster_name, call_manager, client_pool, segment_meta)
         .await?;
 
-    Ok(())
+    Ok(UpdateSegmentMetaReply::default())
 }
 
 pub async fn build_segment(

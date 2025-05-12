@@ -14,8 +14,9 @@
 
 use std::sync::Arc;
 
-use common_base::error::common::CommonError;
-use prost::Message;
+use crate::kv::services::{
+    delete_by_req, exists_by_req, get_by_req, get_prefix_by_req, list_shard_by_req, set_by_req,
+};
 use protocol::placement_center::placement_center_kv::kv_service_server::KvService;
 use protocol::placement_center::placement_center_kv::{
     DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetPrefixReply, GetPrefixRequest,
@@ -24,8 +25,6 @@ use protocol::placement_center::placement_center_kv::{
 use tonic::{Request, Response, Status};
 
 use crate::route::apply::RaftMachineApply;
-use crate::route::data::{StorageData, StorageDataType};
-use crate::storage::placement::kv::KvStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct GrpcKvService {
@@ -50,43 +49,19 @@ impl KvService for GrpcKvService {
     async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetReply>, Status> {
         let req = request.into_inner();
 
-        if req.key.is_empty() || req.value.is_empty() {
-            return Err(Status::cancelled(
-                CommonError::ParameterCannotBeNull("key or value".to_string()).to_string(),
-            ));
-        }
-
-        // Raft state machine is used to store Node data
-        let data = StorageData::new(StorageDataType::KvSet, SetRequest::encode_to_vec(&req));
-        match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(SetReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        set_by_req(&self.raft_machine_apply, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetReply>, Status> {
         let req = request.into_inner();
 
-        if req.key.is_empty() {
-            return Err(Status::cancelled(
-                CommonError::ParameterCannotBeNull("key".to_string()).to_string(),
-            ));
-        }
-
-        let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
-        let mut reply = GetReply::default();
-        match kv_storage.get(req.key) {
-            Ok(Some(data)) => {
-                reply.value = data;
-                return Ok(Response::new(reply));
-            }
-            Ok(None) => {}
-            Err(e) => return Err(Status::cancelled(e.to_string())),
-        }
-
-        return Ok(Response::new(reply));
+        get_by_req(&self.rocksdb_engine_handler, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn delete(
@@ -95,23 +70,10 @@ impl KvService for GrpcKvService {
     ) -> Result<Response<DeleteReply>, Status> {
         let req = request.into_inner();
 
-        if req.key.is_empty() {
-            return Err(Status::cancelled(
-                CommonError::ParameterCannotBeNull("key".to_string()).to_string(),
-            ));
-        }
-
-        // Raft state machine is used to store Node data
-        let data = StorageData::new(
-            StorageDataType::KvDelete,
-            DeleteRequest::encode_to_vec(&req),
-        );
-        match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(DeleteReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        delete_by_req(&self.raft_machine_apply, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn exists(
@@ -120,21 +82,10 @@ impl KvService for GrpcKvService {
     ) -> Result<Response<ExistsReply>, Status> {
         let req = request.into_inner();
 
-        if req.key.is_empty() {
-            return Err(Status::cancelled(
-                CommonError::ParameterCannotBeNull("key".to_string()).to_string(),
-            ));
-        }
-
-        let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
-        match kv_storage.exists(req.key) {
-            Ok(flag) => {
-                return Ok(Response::new(ExistsReply { flag }));
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        exists_by_req(&self.rocksdb_engine_handler, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn list_shard(
@@ -143,18 +94,10 @@ impl KvService for GrpcKvService {
     ) -> Result<Response<ListShardReply>, Status> {
         let req = request.into_inner();
 
-        if req.namespace.is_empty() {
-            return Err(Status::cancelled(
-                CommonError::ParameterCannotBeNull("namespace".to_string()).to_string(),
-            ));
-        }
-
-        let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
-
-        match kv_storage.get_prefix(format!("/shard/{}/", req.namespace)) {
-            Ok(shards_info) => Ok(Response::new(ListShardReply { shards_info })),
-            Err(e) => Err(Status::cancelled(e.to_string())),
-        }
+        list_shard_by_req(&self.rocksdb_engine_handler, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn get_prefix(
@@ -163,17 +106,9 @@ impl KvService for GrpcKvService {
     ) -> Result<Response<GetPrefixReply>, Status> {
         let req = request.into_inner();
 
-        if req.prefix.is_empty() {
-            return Err(Status::cancelled(
-                CommonError::ParameterCannotBeNull("prefix".to_string()).to_string(),
-            ));
-        }
-
-        let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
-
-        match kv_storage.get_prefix(req.prefix) {
-            Ok(values) => Ok(Response::new(GetPrefixReply { values })),
-            Err(e) => Err(Status::cancelled(e.to_string())),
-        }
+        get_prefix_by_req(&self.rocksdb_engine_handler, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 }

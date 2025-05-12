@@ -12,17 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use common_base::tools::{now_mills, unique_id};
-use grpc_clients::pool::ClientPool;
-use metadata_struct::journal::segment::SegmentStatus;
-use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
-use metadata_struct::journal::shard::{JournalShard, JournalShardConfig, JournalShardStatus};
-use protocol::placement_center::placement_center_journal::{
-    CreateShardReply, CreateShardRequest, DeleteShardReply, DeleteShardRequest,
-};
-
 use super::segment::{
     build_segment, sync_save_segment_info, sync_save_segment_metadata_info, update_segment_status,
 };
@@ -35,6 +24,49 @@ use crate::journal::controller::call_node::{
 };
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
+use crate::storage::journal::shard::ShardStorage;
+use common_base::tools::{now_mills, unique_id};
+use grpc_clients::pool::ClientPool;
+use metadata_struct::journal::segment::SegmentStatus;
+use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
+use metadata_struct::journal::shard::{JournalShard, JournalShardConfig, JournalShardStatus};
+use protocol::placement_center::placement_center_journal::{
+    CreateShardReply, CreateShardRequest, DeleteShardReply, DeleteShardRequest, ListShardReply,
+    ListShardRequest,
+};
+use rocksdb_engine::RocksDBEngine;
+use std::sync::Arc;
+
+pub async fn list_shard_by_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    req: &ListShardRequest,
+) -> Result<ListShardReply, PlacementCenterError> {
+    if req.cluster_name.is_empty() {
+        return Err(PlacementCenterError::RequestParamsNotEmpty(
+            req.cluster_name.clone(),
+        ));
+    }
+
+    let shard_storage = ShardStorage::new(rocksdb_engine_handler.clone());
+    let binary_shards = if req.namespace.is_empty() && req.shard_name.is_empty() {
+        shard_storage.list_by_cluster(&req.cluster_name)?
+    } else if !req.namespace.is_empty() && req.shard_name.is_empty() {
+        shard_storage.list_by_cluster_namespace(&req.cluster_name, &req.namespace)?
+    } else {
+        match shard_storage.get(&req.cluster_name, &req.namespace, &req.shard_name)? {
+            Some(shard) => vec![shard],
+            None => Vec::new(),
+        }
+    };
+
+    let shards: Vec<JournalShard> = binary_shards.into_iter().collect();
+
+    let shards_data = serde_json::to_vec(&shards)?;
+
+    Ok(ListShardReply {
+        shards: shards_data,
+    })
+}
 
 pub async fn create_shard_by_req(
     engine_cache: &Arc<JournalCacheManager>,
@@ -44,6 +76,12 @@ pub async fn create_shard_by_req(
     client_pool: &Arc<ClientPool>,
     req: &CreateShardRequest,
 ) -> Result<CreateShardReply, PlacementCenterError> {
+    if cluster_cache.get_cluster(&req.cluster_name).is_none() {
+        return Err(PlacementCenterError::ClusterDoesNotExist(
+            req.cluster_name.clone(),
+        ));
+    }
+
     // Check that the number of available nodes in the cluster is sufficient
     let num = cluster_cache.get_broker_num(&req.cluster_name) as u32;
     let shard_config: JournalShardConfig =
