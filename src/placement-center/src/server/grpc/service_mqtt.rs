@@ -439,71 +439,76 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<ListConnectorRequest>,
     ) -> Result<Response<ListConnectorReply>, Status> {
-        Ok(Response::new(ListConnectorReply {
-            connectors: list_connectors_by_req(&self.rocksdb_engine_handler, request)
-                .map_err(|e| Status::internal(e.to_string()))?,
-        }))
+        let req = request.into_inner();
+
+        list_connectors_by_req(&self.rocksdb_engine_handler, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn create_connector(
         &self,
         request: Request<CreateConnectorRequest>,
     ) -> Result<Response<CreateConnectorReply>, Status> {
+        let req = request.into_inner();
+
         create_connector_by_req(
             &self.rocksdb_engine_handler,
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(CreateConnectorReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn update_connector(
         &self,
         request: Request<UpdateConnectorRequest>,
     ) -> Result<Response<UpdateConnectorReply>, Status> {
+        let req = request.into_inner();
+
         update_connector_by_req(
             &self.rocksdb_engine_handler,
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(UpdateConnectorReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn delete_connector(
         &self,
         request: Request<DeleteConnectorRequest>,
     ) -> Result<Response<DeleteConnectorReply>, Status> {
+        let req = request.into_inner();
+
         delete_connector_by_req(
             &self.rocksdb_engine_handler,
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(DeleteConnectorReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn connector_heartbeat(
         &self,
         request: Request<ConnectorHeartbeatRequest>,
     ) -> Result<Response<ConnectorHeartbeatReply>, Status> {
-        connector_heartbeat_by_req(&self.mqtt_cache, request)
-            .map_err(|e| Status::internal(e.to_string()))?;
+        let req = request.into_inner();
 
-        Ok(Response::new(ConnectorHeartbeatReply {}))
+        connector_heartbeat_by_req(&self.mqtt_cache, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     // AutoSubscribeRule
