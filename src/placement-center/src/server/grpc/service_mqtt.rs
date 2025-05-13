@@ -298,60 +298,70 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<ListAclRequest>,
     ) -> Result<Response<ListAclReply>, Status> {
-        Ok(Response::new(ListAclReply {
-            acls: list_acl_by_req(&self.rocksdb_engine_handler, request)
-                .map_err(|e| Status::internal(e.to_string()))?,
-        }))
+        let req = request.into_inner();
+
+        list_acl_by_req(&self.rocksdb_engine_handler, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn delete_acl(
         &self,
         request: Request<DeleteAclRequest>,
     ) -> Result<Response<DeleteAclReply>, Status> {
-        delete_acl_by_req(&self.raft_machine_apply, request)
+        let req = request.into_inner();
+
+        delete_acl_by_req(&self.raft_machine_apply, &req)
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-        Ok(Response::new(DeleteAclReply {}))
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn create_acl(
         &self,
         request: Request<CreateAclRequest>,
     ) -> Result<Response<CreateAclReply>, Status> {
-        create_acl_by_req(&self.raft_machine_apply, request)
+        let req = request.into_inner();
+
+        create_acl_by_req(&self.raft_machine_apply, &req)
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-        Ok(Response::new(CreateAclReply {}))
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn list_blacklist(
         &self,
         request: Request<ListBlacklistRequest>,
     ) -> Result<Response<ListBlacklistReply>, Status> {
-        Ok(Response::new(ListBlacklistReply {
-            blacklists: list_blacklist_by_req(&self.rocksdb_engine_handler, request)
-                .map_err(|e| Status::internal(e.to_string()))?,
-        }))
+        let req = request.into_inner();
+
+        list_blacklist_by_req(&self.rocksdb_engine_handler, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn delete_blacklist(
         &self,
         request: Request<DeleteBlacklistRequest>,
     ) -> Result<Response<DeleteBlacklistReply>, Status> {
-        delete_blacklist_by_req(&self.raft_machine_apply, request)
+        let req = request.into_inner();
+
+        delete_blacklist_by_req(&self.raft_machine_apply, &req)
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-        Ok(Response::new(DeleteBlacklistReply {}))
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn create_blacklist(
         &self,
         request: Request<CreateBlacklistRequest>,
     ) -> Result<Response<CreateBlacklistReply>, Status> {
-        create_blacklist_by_req(&self.raft_machine_apply, request)
+        let req = request.into_inner();
+
+        create_blacklist_by_req(&self.raft_machine_apply, &req)
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-        Ok(Response::new(CreateBlacklistReply {}))
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     // TopicRewriteRule
