@@ -405,43 +405,46 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<ListSubscribeRequest>,
     ) -> Result<Response<ListSubscribeReply>, Status> {
-        Ok(Response::new(ListSubscribeReply {
-            subscribes: list_subscribe_by_req(&self.rocksdb_engine_handler, request)
-                .map_err(|e| Status::internal(e.to_string()))?,
-        }))
+        let req = request.into_inner();
+
+        list_subscribe_by_req(&self.rocksdb_engine_handler, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn set_subscribe(
         &self,
         request: Request<SetSubscribeRequest>,
     ) -> Result<Response<SetSubscribeReply>, Status> {
+        let req = request.into_inner();
+
         set_subscribe_by_req(
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(SetSubscribeReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn delete_subscribe(
         &self,
         request: Request<DeleteSubscribeRequest>,
     ) -> Result<Response<DeleteSubscribeReply>, Status> {
+        let req = request.into_inner();
+
         delete_subscribe_by_req(
             &self.raft_machine_apply,
             &self.rocksdb_engine_handler,
             &self.mqtt_call_manager,
             &self.client_pool,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(DeleteSubscribeReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     // Connector
@@ -526,34 +529,34 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<SetAutoSubscribeRuleRequest>,
     ) -> Result<Response<SetAutoSubscribeRuleReply>, Status> {
-        set_auto_subscribe_rule_by_req(&self.raft_machine_apply, request)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+        let req = request.into_inner();
 
-        Ok(Response::new(SetAutoSubscribeRuleReply {}))
+        set_auto_subscribe_rule_by_req(&self.raft_machine_apply, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn delete_auto_subscribe_rule(
         &self,
         request: Request<DeleteAutoSubscribeRuleRequest>,
     ) -> Result<Response<DeleteAutoSubscribeRuleReply>, Status> {
-        delete_auto_subscribe_rule_by_req(&self.raft_machine_apply, request)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+        let req = request.into_inner();
 
-        Ok(Response::new(DeleteAutoSubscribeRuleReply {}))
+        delete_auto_subscribe_rule_by_req(&self.raft_machine_apply, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn list_auto_subscribe_rule(
         &self,
         request: Request<ListAutoSubscribeRuleRequest>,
     ) -> Result<Response<ListAutoSubscribeRuleReply>, Status> {
-        Ok(Response::new(ListAutoSubscribeRuleReply {
-            auto_subscribe_rules: list_auto_subscribe_rule_by_req(
-                &self.rocksdb_engine_handler,
-                request,
-            )
-            .map_err(|e| Status::internal(e.to_string()))?,
-        }))
+        let req = request.into_inner();
+
+        list_auto_subscribe_rule_by_req(&self.rocksdb_engine_handler, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 }
