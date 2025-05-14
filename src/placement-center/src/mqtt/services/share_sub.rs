@@ -18,10 +18,11 @@ use crate::storage::keys::storage_key_mqtt_node_sub_group_leader;
 use crate::storage::placement::kv::KvStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 use common_base::error::common::CommonError;
-use protocol::placement_center::placement_center_mqtt::GetShareSubLeaderRequest;
+use protocol::placement_center::placement_center_mqtt::{
+    GetShareSubLeaderReply, GetShareSubLeaderRequest,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tonic::Request;
 
 pub struct ShareSubLeader {
     cluster_cache: Arc<PlacementCacheManager>,
@@ -199,21 +200,22 @@ impl ShareSubLeader {
 pub fn get_share_sub_leader_by_req(
     cluster_cache: &Arc<PlacementCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    request: Request<GetShareSubLeaderRequest>,
-) -> Result<(u64, String, String), PlacementCenterError> {
-    let req = request.into_inner();
-    let cluster_name = req.cluster_name;
-    let group_name = req.group_name;
+    req: &GetShareSubLeaderRequest,
+) -> Result<GetShareSubLeaderReply, PlacementCenterError> {
     let share_sub = ShareSubLeader::new(cluster_cache.clone(), rocksdb_engine_handler.clone());
 
     // Get leader broker ID for the shared subscription group
     let leader_broker = share_sub
-        .get_leader_node(&cluster_name, &group_name)
+        .get_leader_node(&req.cluster_name, &req.group_name)
         .map_err(|e| PlacementCenterError::CommonError(e.to_string()))?;
 
     // Get broker node details from cache
-    match cluster_cache.get_broker_node(&cluster_name, leader_broker) {
-        Some(node) => Ok((leader_broker, node.node_ip, node.extend)),
+    match cluster_cache.get_broker_node(&req.cluster_name, leader_broker) {
+        Some(node) => Ok(GetShareSubLeaderReply {
+            broker_id: node.node_id,
+            broker_addr: node.node_ip,
+            extend_info: node.extend,
+        }),
         None => Err(PlacementCenterError::NoAvailableBrokerNode),
     }
 }
