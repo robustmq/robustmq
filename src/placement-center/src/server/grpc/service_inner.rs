@@ -16,23 +16,21 @@ use std::sync::Arc;
 
 use crate::core::cache::PlacementCacheManager;
 use crate::core::cluster::{register_node_by_req, un_register_node_by_req};
-use crate::core::error::PlacementCenterError;
 use crate::core::schema::{
     bind_schema_req, create_schema_req, delete_schema_req, list_bind_schema_req, list_schema_req,
     un_bind_schema_req, update_schema_req,
 };
+use crate::inner::services::{
+    cluster_status_by_req, delete_idempotent_data_by_req, delete_resource_config_by_req,
+    exists_idempotent_data_by_req, get_offset_data_by_req, get_resource_config_by_req,
+    heartbeat_by_req, node_list_by_req, save_offset_data_by_req, set_idempotent_data_by_req,
+    set_resource_config_by_req,
+};
 use crate::journal::controller::call_node::JournalInnerCallManager;
 use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
 use crate::route::apply::RaftMachineApply;
-use crate::route::data::{StorageData, StorageDataType};
-use crate::storage::placement::config::ResourceConfigStorage;
-use crate::storage::placement::idempotent::IdempotentStorage;
-use crate::storage::placement::offset::OffsetStorage;
 use crate::storage::rocksdb::RocksDBEngine;
-use common_base::error::common::CommonError;
-use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
-use prost::Message;
 use prost_validate::Validator;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterService;
 use protocol::placement_center::placement_center_inner::{
@@ -40,16 +38,16 @@ use protocol::placement_center::placement_center_inner::{
     CreateSchemaReply, CreateSchemaRequest, DeleteIdempotentDataReply, DeleteIdempotentDataRequest,
     DeleteResourceConfigReply, DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
     ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetOffsetDataReply,
-    GetOffsetDataReplyOffset, GetOffsetDataRequest, GetResourceConfigReply,
-    GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, ListBindSchemaReply,
-    ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest, NodeListReply, NodeListRequest,
-    RegisterNodeReply, RegisterNodeRequest, ReportMonitorReply, ReportMonitorRequest,
-    SaveOffsetDataReply, SaveOffsetDataRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
-    SetResourceConfigReply, SetResourceConfigRequest, UnBindSchemaReply, UnBindSchemaRequest,
-    UnRegisterNodeReply, UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest,
+    GetOffsetDataRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply,
+    HeartbeatRequest, ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply,
+    ListSchemaRequest, NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest,
+    ReportMonitorReply, ReportMonitorRequest, SaveOffsetDataReply, SaveOffsetDataRequest,
+    SetIdempotentDataReply, SetIdempotentDataRequest, SetResourceConfigReply,
+    SetResourceConfigRequest, UnBindSchemaReply, UnBindSchemaRequest, UnRegisterNodeReply,
+    UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest,
 };
 use tonic::{Request, Response, Status};
-use tracing::{debug, info};
+use tracing::info;
 
 pub struct GrpcPlacementService {
     raft_machine_apply: Arc<RaftMachineApply>,
@@ -86,23 +84,10 @@ impl PlacementCenterService for GrpcPlacementService {
         &self,
         _: Request<ClusterStatusRequest>,
     ) -> Result<Response<ClusterStatusReply>, Status> {
-        let mut reply = ClusterStatusReply::default();
-        let status = self
-            .raft_machine_apply
-            .openraft_node
-            .metrics()
-            .borrow()
-            .clone();
-
-        reply.content = match serde_json::to_string(&status) {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(Status::cancelled(
-                    CommonError::CommonError(e.to_string()).to_string(),
-                ));
-            }
-        };
-        return Ok(Response::new(reply));
+        cluster_status_by_req(&self.raft_machine_apply)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn node_list(
@@ -110,17 +95,13 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<NodeListRequest>,
     ) -> Result<Response<NodeListReply>, Status> {
         let req = request.into_inner();
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        let mut nodes = Vec::new();
-
-        for raw in self
-            .cluster_cache
-            .get_broker_node_by_cluster(&req.cluster_name)
-        {
-            nodes.push(raw.encode())
-        }
-
-        Ok(Response::new(NodeListReply { nodes }))
+        node_list_by_req(&self.cluster_cache, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn register_node(
@@ -128,9 +109,11 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<RegisterNodeRequest>,
     ) -> Result<Response<RegisterNodeReply>, Status> {
         let req = request.into_inner();
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
         info!("register node:{:?}", req);
-        match register_node_by_req(
+        register_node_by_req(
             &self.cluster_cache,
             &self.raft_machine_apply,
             &self.client_pool,
@@ -138,12 +121,8 @@ impl PlacementCenterService for GrpcPlacementService {
             req,
         )
         .await
-        {
-            Ok(()) => return Ok(Response::new(RegisterNodeReply::default())),
-            Err(e) => {
-                return Err(Status::internal(e.to_string()));
-            }
-        }
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn un_register_node(
@@ -151,9 +130,11 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<UnRegisterNodeRequest>,
     ) -> Result<Response<UnRegisterNodeReply>, Status> {
         let req = request.into_inner();
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
         info!("un register node:{:?}", req);
-        match un_register_node_by_req(
+        un_register_node_by_req(
             &self.cluster_cache,
             &self.raft_machine_apply,
             &self.client_pool,
@@ -162,12 +143,8 @@ impl PlacementCenterService for GrpcPlacementService {
             req,
         )
         .await
-        {
-            Ok(()) => return Ok(Response::new(UnRegisterNodeReply::default())),
-            Err(e) => {
-                return Err(Status::internal(e.to_string()));
-            }
-        }
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn heartbeat(
@@ -175,31 +152,20 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<HeartbeatRequest>,
     ) -> Result<Response<HeartbeatReply>, Status> {
         let req = request.into_inner();
-        if self
-            .cluster_cache
-            .get_broker_node(&req.cluster_name, req.node_id)
-            .is_none()
-        {
-            return Err(Status::internal(
-                PlacementCenterError::NodeDoesNotExist(req.node_id).to_string(),
-            ));
-        }
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        debug!(
-            "receive heartbeat from node:{:?},time:{}",
-            req.node_id,
-            now_second()
-        );
-        self.cluster_cache
-            .report_broker_heart(&req.cluster_name, req.node_id);
-        return Ok(Response::new(HeartbeatReply::default()));
+        heartbeat_by_req(&self.cluster_cache, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn report_monitor(
         &self,
         _: Request<ReportMonitorRequest>,
     ) -> Result<Response<ReportMonitorReply>, Status> {
-        return Ok(Response::new(ReportMonitorReply::default()));
+        Ok(Response::new(ReportMonitorReply::default()))
     }
 
     async fn set_resource_config(
@@ -207,18 +173,13 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<SetResourceConfigRequest>,
     ) -> Result<Response<SetResourceConfigReply>, Status> {
         let req = request.into_inner();
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        let data = StorageData::new(
-            StorageDataType::ResourceConfigSet,
-            SetResourceConfigRequest::encode_to_vec(&req),
-        );
-
-        match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(SetResourceConfigReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        set_resource_config_by_req(&self.raft_machine_apply, &req)
+            .await
+            .map_err(|e| Status::cancelled(e.to_string()))
+            .map(Response::new)
     }
 
     async fn get_resource_config(
@@ -226,20 +187,13 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<GetResourceConfigRequest>,
     ) -> Result<Response<GetResourceConfigReply>, Status> {
         let req = request.into_inner();
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        let storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.get(req.cluster_name, req.resources) {
-            Ok(data) => {
-                if let Some(res) = data {
-                    return Ok(Response::new(GetResourceConfigReply { config: res }));
-                } else {
-                    return Ok(Response::new(GetResourceConfigReply { config: Vec::new() }));
-                }
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        get_resource_config_by_req(&self.rocksdb_engine_handler, req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn delete_resource_config(
@@ -247,18 +201,13 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<DeleteResourceConfigRequest>,
     ) -> Result<Response<DeleteResourceConfigReply>, Status> {
         let req = request.into_inner();
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        let data = StorageData::new(
-            StorageDataType::ResourceConfigDelete,
-            DeleteResourceConfigRequest::encode_to_vec(&req),
-        );
-
-        match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(DeleteResourceConfigReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        delete_resource_config_by_req(&self.raft_machine_apply, &req)
+            .await
+            .map_err(|e| Status::cancelled(e.to_string()))
+            .map(Response::new)
     }
 
     async fn set_idempotent_data(
@@ -266,17 +215,13 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<SetIdempotentDataRequest>,
     ) -> Result<Response<SetIdempotentDataReply>, Status> {
         let req = request.into_inner();
-        let data = StorageData::new(
-            StorageDataType::IdempotentDataSet,
-            SetIdempotentDataRequest::encode_to_vec(&req),
-        );
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(SetIdempotentDataReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        set_idempotent_data_by_req(&self.raft_machine_apply, &req)
+            .await
+            .map_err(|e| Status::cancelled(e.to_string()))
+            .map(Response::new)
     }
 
     async fn exists_idempotent_data(
@@ -284,16 +229,13 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<ExistsIdempotentDataRequest>,
     ) -> Result<Response<ExistsIdempotentDataReply>, Status> {
         let req = request.into_inner();
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        let storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.exists(&req.cluster_name, &req.producer_id, req.seq_num) {
-            Ok(flag) => {
-                return Ok(Response::new(ExistsIdempotentDataReply { exists: flag }));
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        exists_idempotent_data_by_req(&self.rocksdb_engine_handler, &req)
+            .await
+            .map_err(|e| Status::cancelled(e.to_string()))
+            .map(Response::new)
     }
 
     async fn delete_idempotent_data(
@@ -301,18 +243,13 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<DeleteIdempotentDataRequest>,
     ) -> Result<Response<DeleteIdempotentDataReply>, Status> {
         let req = request.into_inner();
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        let data = StorageData::new(
-            StorageDataType::IdempotentDataDelete,
-            DeleteIdempotentDataRequest::encode_to_vec(&req),
-        );
-
-        match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(DeleteIdempotentDataReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        delete_idempotent_data_by_req(&self.raft_machine_apply, &req)
+            .await
+            .map_err(|e| Status::cancelled(e.to_string()))
+            .map(Response::new)
     }
 
     async fn save_offset_data(
@@ -320,17 +257,13 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<SaveOffsetDataRequest>,
     ) -> Result<Response<SaveOffsetDataReply>, Status> {
         let req = request.into_inner();
-        let data = StorageData::new(
-            StorageDataType::OffsetSet,
-            SaveOffsetDataRequest::encode_to_vec(&req),
-        );
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(SaveOffsetDataReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        save_offset_data_by_req(&self.raft_machine_apply, &req)
+            .await
+            .map_err(|e| Status::cancelled(e.to_string()))
+            .map(Response::new)
     }
 
     async fn get_offset_data(
@@ -338,25 +271,13 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<GetOffsetDataRequest>,
     ) -> Result<Response<GetOffsetDataReply>, Status> {
         let req = request.into_inner();
-
         req.validate()
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        let offset_storage = OffsetStorage::new(self.rocksdb_engine_handler.clone());
-        let offset_data = offset_storage
-            .group_offset(&req.cluster_name, &req.group)
-            .map_err(|e| Status::cancelled(e.to_string()))?;
-
-        return Ok(Response::new(GetOffsetDataReply {
-            offsets: offset_data
-                .into_iter()
-                .map(|offset| GetOffsetDataReplyOffset {
-                    namespace: offset.namespace,
-                    shard_name: offset.shard_name,
-                    offset: offset.offset,
-                })
-                .collect(),
-        }));
+        get_offset_data_by_req(&self.rocksdb_engine_handler, &req)
+            .await
+            .map_err(|e| Status::cancelled(e.to_string()))
+            .map(Response::new)
     }
 
     async fn list_schema(
@@ -364,14 +285,13 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<ListSchemaRequest>,
     ) -> Result<Response<ListSchemaReply>, Status> {
         let req = request.into_inner();
-        match list_schema_req(&self.rocksdb_engine_handler, &req) {
-            Ok(data) => {
-                return Ok(Response::new(ListSchemaReply { schemas: data }));
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+
+        list_schema_req(&self.rocksdb_engine_handler, &req)
+            .map_err(|e| Status::cancelled(e.to_string()))
+            .map(|data| ListSchemaReply { schemas: data })
+            .map(Response::new)
     }
 
     async fn create_schema(
@@ -379,7 +299,10 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<CreateSchemaRequest>,
     ) -> Result<Response<CreateSchemaReply>, Status> {
         let req = request.into_inner();
-        match create_schema_req(
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+
+        create_schema_req(
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
@@ -387,14 +310,8 @@ impl PlacementCenterService for GrpcPlacementService {
             &self.rocksdb_engine_handler,
         )
         .await
-        {
-            Ok(_) => {
-                return Ok(Response::new(CreateSchemaReply::default()));
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        .map_err(|e| Status::cancelled(e.to_string()))?;
+        Ok(Response::new(CreateSchemaReply {}))
     }
 
     async fn update_schema(
@@ -402,7 +319,10 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<UpdateSchemaRequest>,
     ) -> Result<Response<UpdateSchemaReply>, Status> {
         let req = request.into_inner();
-        match update_schema_req(
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+
+        update_schema_req(
             &self.rocksdb_engine_handler,
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
@@ -410,14 +330,8 @@ impl PlacementCenterService for GrpcPlacementService {
             &req,
         )
         .await
-        {
-            Ok(_) => {
-                return Ok(Response::new(UpdateSchemaReply::default()));
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        .map_err(|e| Status::cancelled(e.to_string()))?;
+        Ok(Response::new(UpdateSchemaReply {}))
     }
 
     async fn delete_schema(
@@ -425,7 +339,10 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<DeleteSchemaRequest>,
     ) -> Result<Response<DeleteSchemaReply>, Status> {
         let req = request.into_inner();
-        match delete_schema_req(
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+
+        delete_schema_req(
             &self.rocksdb_engine_handler,
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
@@ -433,14 +350,8 @@ impl PlacementCenterService for GrpcPlacementService {
             &req,
         )
         .await
-        {
-            Ok(_) => {
-                return Ok(Response::new(DeleteSchemaReply::default()));
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        .map_err(|e| Status::cancelled(e.to_string()))?;
+        Ok(Response::new(DeleteSchemaReply {}))
     }
 
     async fn list_bind_schema(
@@ -448,14 +359,14 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<ListBindSchemaRequest>,
     ) -> Result<Response<ListBindSchemaReply>, Status> {
         let req = request.into_inner();
-        match list_bind_schema_req(&self.rocksdb_engine_handler, &req).await {
-            Ok(schema_binds) => {
-                return Ok(Response::new(ListBindSchemaReply { schema_binds }));
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+
+        list_bind_schema_req(&self.rocksdb_engine_handler, &req)
+            .await
+            .map_err(|e| Status::cancelled(e.to_string()))
+            .map(|schema_binds| ListBindSchemaReply { schema_binds })
+            .map(Response::new)
     }
 
     async fn bind_schema(
@@ -463,21 +374,18 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<BindSchemaRequest>,
     ) -> Result<Response<BindSchemaReply>, Status> {
         let req = request.into_inner();
-        match bind_schema_req(
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+
+        bind_schema_req(
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
             &req,
         )
         .await
-        {
-            Ok(_) => {
-                return Ok(Response::new(BindSchemaReply::default()));
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        .map_err(|e| Status::cancelled(e.to_string()))?;
+        Ok(Response::new(BindSchemaReply {}))
     }
 
     async fn un_bind_schema(
@@ -485,20 +393,17 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<UnBindSchemaRequest>,
     ) -> Result<Response<UnBindSchemaReply>, Status> {
         let req = request.into_inner();
-        match un_bind_schema_req(
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+
+        un_bind_schema_req(
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
             &req,
         )
         .await
-        {
-            Ok(_) => {
-                return Ok(Response::new(UnBindSchemaReply::default()));
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        .map_err(|e| Status::cancelled(e.to_string()))?;
+        Ok(Response::new(UnBindSchemaReply {}))
     }
 }
