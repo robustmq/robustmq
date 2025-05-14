@@ -20,7 +20,7 @@ use metadata_struct::placement::cluster::ClusterInfo;
 use metadata_struct::placement::node::BrokerNode;
 use prost::Message as _;
 use protocol::placement_center::placement_center_inner::{
-    ClusterType, RegisterNodeRequest, UnRegisterNodeRequest,
+    ClusterType, RegisterNodeReply, RegisterNodeRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
 
 use super::cache::PlacementCacheManager;
@@ -38,7 +38,7 @@ pub async fn register_node_by_req(
     client_pool: &Arc<ClientPool>,
     call_manager: &Arc<JournalInnerCallManager>,
     req: RegisterNodeRequest,
-) -> Result<(), PlacementCenterError> {
+) -> Result<RegisterNodeReply, PlacementCenterError> {
     let cluster_type = req.cluster_type();
     let cluster_name = req.cluster_name;
 
@@ -69,7 +69,7 @@ pub async fn register_node_by_req(
     }
 
     cluster_cache.report_broker_heart(&cluster_name, req.node_id);
-    Ok(())
+    Ok(RegisterNodeReply::default())
 }
 
 pub async fn un_register_node_by_req(
@@ -79,7 +79,7 @@ pub async fn un_register_node_by_req(
     journal_call_manager: &Arc<JournalInnerCallManager>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     req: UnRegisterNodeRequest,
-) -> Result<(), PlacementCenterError> {
+) -> Result<UnRegisterNodeReply, PlacementCenterError> {
     if let Some(node) = cluster_cache.get_broker_node(&req.cluster_name, req.node_id) {
         sync_delete_node(raft_machine_apply, &req).await?;
         if req.cluster_type() == ClusterType::JournalServer {
@@ -96,7 +96,7 @@ pub async fn un_register_node_by_req(
             mqtt_call_manager.remove_node(&req.cluster_name, req.node_id);
         }
     }
-    Ok(())
+    Ok(UnRegisterNodeReply::default())
 }
 
 async fn sync_save_node(
