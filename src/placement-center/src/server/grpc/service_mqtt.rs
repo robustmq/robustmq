@@ -100,44 +100,47 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<ListUserRequest>,
     ) -> Result<Response<ListUserReply>, Status> {
-        Ok(Response::new(ListUserReply {
-            users: list_user_by_req(&self.rocksdb_engine_handler, request)
-                .map_err(|e| Status::internal(e.to_string()))?,
-        }))
+        let req = request.into_inner();
+
+        list_user_by_req(&self.rocksdb_engine_handler, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn create_user(
         &self,
         request: Request<CreateUserRequest>,
     ) -> Result<Response<CreateUserReply>, Status> {
+        let req = request.into_inner();
+
         create_user_by_req(
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(CreateUserReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn delete_user(
         &self,
         request: Request<DeleteUserRequest>,
     ) -> Result<Response<DeleteUserReply>, Status> {
+        let req = request.into_inner();
+
         delete_user_by_req(
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(DeleteUserReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     // Session
@@ -145,61 +148,64 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<ListSessionRequest>,
     ) -> Result<Response<ListSessionReply>, Status> {
-        Ok(Response::new(ListSessionReply {
-            sessions: list_session_by_req(&self.rocksdb_engine_handler, request)
-                .map_err(|e| Status::internal(e.to_string()))?,
-        }))
+        let req = request.into_inner();
+        list_session_by_req(&self.rocksdb_engine_handler, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn create_session(
         &self,
         request: Request<CreateSessionRequest>,
     ) -> Result<Response<CreateSessionReply>, Status> {
+        let req = request.into_inner();
+
         create_session_by_req(
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(CreateSessionReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn update_session(
         &self,
         request: Request<UpdateSessionRequest>,
     ) -> Result<Response<UpdateSessionReply>, Status> {
+        let req = request.into_inner();
+
         update_session_by_req(
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(UpdateSessionReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn delete_session(
         &self,
         request: Request<DeleteSessionRequest>,
     ) -> Result<Response<DeleteSessionReply>, Status> {
+        let req = request.into_inner();
+
         delete_session_by_req(
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
             &self.mqtt_cache,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(DeleteSessionReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     // Topic
@@ -207,85 +213,84 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<ListTopicRequest>,
     ) -> Result<Response<ListTopicReply>, Status> {
-        Ok(Response::new(ListTopicReply {
-            topics: list_topic_by_req(&self.rocksdb_engine_handler, request)
-                .map_err(|e| Status::internal(e.to_string()))?,
-        }))
+        let req = request.into_inner();
+        list_topic_by_req(&self.rocksdb_engine_handler, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn create_topic(
         &self,
         request: Request<CreateTopicRequest>,
     ) -> Result<Response<CreateTopicReply>, Status> {
+        let req = request.into_inner();
+
         create_topic_by_req(
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(CreateTopicReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn delete_topic(
         &self,
         request: Request<DeleteTopicRequest>,
     ) -> Result<Response<DeleteTopicReply>, Status> {
+        let req = request.into_inner();
+
         delete_topic_by_req(
             &self.rocksdb_engine_handler,
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(DeleteTopicReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn set_topic_retain_message(
         &self,
         request: Request<SetTopicRetainMessageRequest>,
     ) -> Result<Response<SetTopicRetainMessageReply>, Status> {
+        let req = request.into_inner();
+
         set_topic_retain_message_by_req(
             &self.raft_machine_apply,
             &self.rocksdb_engine_handler,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(SetTopicRetainMessageReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn get_share_sub_leader(
         &self,
         request: Request<GetShareSubLeaderRequest>,
     ) -> Result<Response<GetShareSubLeaderReply>, Status> {
-        let (id, node_addr, extend_info) =
-            get_share_sub_leader_by_req(&self.cluster_cache, &self.rocksdb_engine_handler, request)
-                .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(GetShareSubLeaderReply {
-            broker_id: id,
-            broker_addr: node_addr,
-            extend_info,
-        }))
+        let req = request.into_inner();
+        get_share_sub_leader_by_req(&self.cluster_cache, &self.rocksdb_engine_handler, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn save_last_will_message(
         &self,
         request: Request<SaveLastWillMessageRequest>,
     ) -> Result<Response<SaveLastWillMessageReply>, Status> {
-        save_last_will_message_by_req(&self.raft_machine_apply, request)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+        let req = request.into_inner();
 
-        Ok(Response::new(SaveLastWillMessageReply {}))
+        save_last_will_message_by_req(&self.raft_machine_apply, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     // ACL
@@ -293,60 +298,70 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<ListAclRequest>,
     ) -> Result<Response<ListAclReply>, Status> {
-        Ok(Response::new(ListAclReply {
-            acls: list_acl_by_req(&self.rocksdb_engine_handler, request)
-                .map_err(|e| Status::internal(e.to_string()))?,
-        }))
+        let req = request.into_inner();
+
+        list_acl_by_req(&self.rocksdb_engine_handler, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn delete_acl(
         &self,
         request: Request<DeleteAclRequest>,
     ) -> Result<Response<DeleteAclReply>, Status> {
-        delete_acl_by_req(&self.raft_machine_apply, request)
+        let req = request.into_inner();
+
+        delete_acl_by_req(&self.raft_machine_apply, &req)
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-        Ok(Response::new(DeleteAclReply {}))
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn create_acl(
         &self,
         request: Request<CreateAclRequest>,
     ) -> Result<Response<CreateAclReply>, Status> {
-        create_acl_by_req(&self.raft_machine_apply, request)
+        let req = request.into_inner();
+
+        create_acl_by_req(&self.raft_machine_apply, &req)
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-        Ok(Response::new(CreateAclReply {}))
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn list_blacklist(
         &self,
         request: Request<ListBlacklistRequest>,
     ) -> Result<Response<ListBlacklistReply>, Status> {
-        Ok(Response::new(ListBlacklistReply {
-            blacklists: list_blacklist_by_req(&self.rocksdb_engine_handler, request)
-                .map_err(|e| Status::internal(e.to_string()))?,
-        }))
+        let req = request.into_inner();
+
+        list_blacklist_by_req(&self.rocksdb_engine_handler, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn delete_blacklist(
         &self,
         request: Request<DeleteBlacklistRequest>,
     ) -> Result<Response<DeleteBlacklistReply>, Status> {
-        delete_blacklist_by_req(&self.raft_machine_apply, request)
+        let req = request.into_inner();
+
+        delete_blacklist_by_req(&self.raft_machine_apply, &req)
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-        Ok(Response::new(DeleteBlacklistReply {}))
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn create_blacklist(
         &self,
         request: Request<CreateBlacklistRequest>,
     ) -> Result<Response<CreateBlacklistReply>, Status> {
-        create_blacklist_by_req(&self.raft_machine_apply, request)
+        let req = request.into_inner();
+
+        create_blacklist_by_req(&self.raft_machine_apply, &req)
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-        Ok(Response::new(CreateBlacklistReply {}))
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     // TopicRewriteRule
@@ -354,35 +369,35 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<CreateTopicRewriteRuleRequest>,
     ) -> Result<Response<CreateTopicRewriteRuleReply>, Status> {
-        create_topic_rewrite_rule_by_req(&self.raft_machine_apply, request)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+        let req = request.into_inner();
 
-        Ok(Response::new(CreateTopicRewriteRuleReply {}))
+        create_topic_rewrite_rule_by_req(&self.raft_machine_apply, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn delete_topic_rewrite_rule(
         &self,
         request: Request<DeleteTopicRewriteRuleRequest>,
     ) -> Result<Response<DeleteTopicRewriteRuleReply>, Status> {
-        delete_topic_rewrite_rule_by_req(&self.raft_machine_apply, request)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+        let req = request.into_inner();
 
-        Ok(Response::new(DeleteTopicRewriteRuleReply {}))
+        delete_topic_rewrite_rule_by_req(&self.raft_machine_apply, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn list_topic_rewrite_rule(
         &self,
         request: Request<ListTopicRewriteRuleRequest>,
     ) -> Result<Response<ListTopicRewriteRuleReply>, Status> {
-        Ok(Response::new(ListTopicRewriteRuleReply {
-            topic_rewrite_rules: list_topic_rewrite_rule_by_req(
-                &self.rocksdb_engine_handler,
-                request,
-            )
-            .map_err(|e| Status::internal(e.to_string()))?,
-        }))
+        let req = request.into_inner();
+
+        list_topic_rewrite_rule_by_req(&self.rocksdb_engine_handler, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     // Subscribe
@@ -390,43 +405,46 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<ListSubscribeRequest>,
     ) -> Result<Response<ListSubscribeReply>, Status> {
-        Ok(Response::new(ListSubscribeReply {
-            subscribes: list_subscribe_by_req(&self.rocksdb_engine_handler, request)
-                .map_err(|e| Status::internal(e.to_string()))?,
-        }))
+        let req = request.into_inner();
+
+        list_subscribe_by_req(&self.rocksdb_engine_handler, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn set_subscribe(
         &self,
         request: Request<SetSubscribeRequest>,
     ) -> Result<Response<SetSubscribeReply>, Status> {
+        let req = request.into_inner();
+
         set_subscribe_by_req(
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(SetSubscribeReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn delete_subscribe(
         &self,
         request: Request<DeleteSubscribeRequest>,
     ) -> Result<Response<DeleteSubscribeReply>, Status> {
+        let req = request.into_inner();
+
         delete_subscribe_by_req(
             &self.raft_machine_apply,
             &self.rocksdb_engine_handler,
             &self.mqtt_call_manager,
             &self.client_pool,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(DeleteSubscribeReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     // Connector
@@ -434,71 +452,76 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<ListConnectorRequest>,
     ) -> Result<Response<ListConnectorReply>, Status> {
-        Ok(Response::new(ListConnectorReply {
-            connectors: list_connectors_by_req(&self.rocksdb_engine_handler, request)
-                .map_err(|e| Status::internal(e.to_string()))?,
-        }))
+        let req = request.into_inner();
+
+        list_connectors_by_req(&self.rocksdb_engine_handler, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn create_connector(
         &self,
         request: Request<CreateConnectorRequest>,
     ) -> Result<Response<CreateConnectorReply>, Status> {
+        let req = request.into_inner();
+
         create_connector_by_req(
             &self.rocksdb_engine_handler,
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(CreateConnectorReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn update_connector(
         &self,
         request: Request<UpdateConnectorRequest>,
     ) -> Result<Response<UpdateConnectorReply>, Status> {
+        let req = request.into_inner();
+
         update_connector_by_req(
             &self.rocksdb_engine_handler,
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(UpdateConnectorReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn delete_connector(
         &self,
         request: Request<DeleteConnectorRequest>,
     ) -> Result<Response<DeleteConnectorReply>, Status> {
+        let req = request.into_inner();
+
         delete_connector_by_req(
             &self.rocksdb_engine_handler,
             &self.raft_machine_apply,
             &self.mqtt_call_manager,
             &self.client_pool,
-            request,
+            &req,
         )
         .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-
-        Ok(Response::new(DeleteConnectorReply {}))
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn connector_heartbeat(
         &self,
         request: Request<ConnectorHeartbeatRequest>,
     ) -> Result<Response<ConnectorHeartbeatReply>, Status> {
-        connector_heartbeat_by_req(&self.mqtt_cache, request)
-            .map_err(|e| Status::internal(e.to_string()))?;
+        let req = request.into_inner();
 
-        Ok(Response::new(ConnectorHeartbeatReply {}))
+        connector_heartbeat_by_req(&self.mqtt_cache, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     // AutoSubscribeRule
@@ -506,34 +529,34 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<SetAutoSubscribeRuleRequest>,
     ) -> Result<Response<SetAutoSubscribeRuleReply>, Status> {
-        set_auto_subscribe_rule_by_req(&self.raft_machine_apply, request)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+        let req = request.into_inner();
 
-        Ok(Response::new(SetAutoSubscribeRuleReply {}))
+        set_auto_subscribe_rule_by_req(&self.raft_machine_apply, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn delete_auto_subscribe_rule(
         &self,
         request: Request<DeleteAutoSubscribeRuleRequest>,
     ) -> Result<Response<DeleteAutoSubscribeRuleReply>, Status> {
-        delete_auto_subscribe_rule_by_req(&self.raft_machine_apply, request)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+        let req = request.into_inner();
 
-        Ok(Response::new(DeleteAutoSubscribeRuleReply {}))
+        delete_auto_subscribe_rule_by_req(&self.raft_machine_apply, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn list_auto_subscribe_rule(
         &self,
         request: Request<ListAutoSubscribeRuleRequest>,
     ) -> Result<Response<ListAutoSubscribeRuleReply>, Status> {
-        Ok(Response::new(ListAutoSubscribeRuleReply {
-            auto_subscribe_rules: list_auto_subscribe_rule_by_req(
-                &self.rocksdb_engine_handler,
-                request,
-            )
-            .map_err(|e| Status::internal(e.to_string()))?,
-        }))
+        let req = request.into_inner();
+
+        list_auto_subscribe_rule_by_req(&self.rocksdb_engine_handler, &req)
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 }

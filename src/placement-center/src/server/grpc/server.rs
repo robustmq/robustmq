@@ -34,7 +34,7 @@ use crate::server::grpc::service_inner::GrpcPlacementService;
 use crate::server::grpc::service_journal::GrpcEngineService;
 use crate::server::grpc::service_kv::GrpcKvService;
 use crate::server::grpc::service_mqtt::GrpcMqttService;
-use crate::server::grpc::services_openraft::GrpcOpenRaftServices;
+use crate::server::grpc::service_openraft::GrpcOpenRaftServices;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterServiceServer;
 use protocol::placement_center::placement_center_journal::engine_service_server::EngineServiceServer;
 use protocol::placement_center::placement_center_kv::kv_service_server::KvServiceServer;

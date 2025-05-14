@@ -41,7 +41,9 @@ use crate::route::apply::RaftMachineApply;
 use crate::route::DataRoute;
 
 mod core;
+mod inner;
 mod journal;
+mod kv;
 mod mqtt;
 mod raft;
 mod route;
