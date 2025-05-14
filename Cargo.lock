@@ -4380,7 +4380,7 @@ checksum = "3582f63211428f83597b51b2ddb88e2a91a9d52d12831f9d08f5e624e8977422"
 [[package]]
 name = "robustmq-proto-build"
 version = "0.1.0"
-source = "git+https://github.com/HeartLinked/robustmq-proto.git?branch=dev-copilot-list-2#07b267f561ad6204739e20be1a2cdf598401f1d2"
+source = "git+https://github.com/HeartLinked/robustmq-proto.git?branch=dev-copilot-list-2#0ca436a874e2628e1d3213dc9783894c85e98421"
 dependencies = [
  "prost-build",
  "prost-validate-build",
