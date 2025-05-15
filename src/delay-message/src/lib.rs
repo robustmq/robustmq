@@ -50,6 +50,7 @@ where
         namespace,
         shard_num,
     );
+    
     start_delay_message_pop(
         delay_message_manager,
         message_storage_adapter,
