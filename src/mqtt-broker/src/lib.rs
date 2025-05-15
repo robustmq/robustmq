@@ -117,6 +117,7 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
 pub struct MqttBroker<S> {
     cache_manager: Arc<CacheManager>,
     runtime: Runtime,
+    connector_runtime: Runtime,
     client_pool: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
     subscribe_manager: Arc<SubscribeManager>,
@@ -142,6 +143,9 @@ where
             conf.system.runtime_worker_threads,
         );
 
+        let connector_runtime =
+            create_runtime("connector-runtime", conf.system.runtime_worker_threads);
+
         let subscribe_manager = Arc::new(SubscribeManager::new());
         let connector_manager = Arc::new(ConnectorManager::new());
         let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
@@ -154,6 +158,7 @@ where
         let schema_manager = Arc::new(SchemaRegisterManager::new());
         MqttBroker {
             runtime,
+            connector_runtime,
             cache_manager,
             client_pool,
             message_storage_adapter,
@@ -171,11 +176,8 @@ where
 
         self.register_node();
         self.start_cluster_heartbeat_report(stop_send.clone());
-
         self.start_push_server(stop_send.clone());
-
         self.start_grpc_server();
-
         self.start_mqtt_server(stop_send.clone());
         self.start_quic_server(stop_send.clone());
         self.start_websocket_server(stop_send.clone());
@@ -324,7 +326,7 @@ where
     fn start_connector_thread(&self, stop_send: broadcast::Sender<bool>) {
         let message_storage = self.message_storage_adapter.clone();
         let connector_manager = self.connector_manager.clone();
-        self.runtime.spawn(async move {
+        self.connector_runtime.spawn(async move {
             start_connector_thread(message_storage, connector_manager, stop_send).await;
         });
     }
