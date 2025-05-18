@@ -317,7 +317,7 @@ mod tests {
         assert_eq!(config.tcp_thread.lock_max_try_mut_times, 30);
         assert_eq!(config.tcp_thread.lock_try_mut_sleep_time_ms, 50);
 
-        assert_eq!(config.system.runtime_worker_threads, 128);
+        assert_eq!(config.system.runtime_worker_threads, 4);
         assert_eq!(config.system.default_user, "admin".to_string());
         assert_eq!(config.system.default_password, "pwd123".to_string());
 
@@ -480,7 +480,7 @@ mod tests {
             assert_eq!(config.tcp_thread.lock_max_try_mut_times, 30);
             assert_eq!(config.tcp_thread.lock_try_mut_sleep_time_ms, 50);
 
-            assert_eq!(config.system.runtime_worker_threads, 128);
+            assert_eq!(config.system.runtime_worker_threads, 4);
             assert_eq!(config.system.default_user, "admin".to_string());
             assert_eq!(config.system.default_password, "pwd123".to_string());
 

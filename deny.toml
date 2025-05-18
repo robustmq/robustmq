@@ -111,7 +111,6 @@ allow = [
     "ISC",
     "Zlib",
     "EPL-2.0",
-    "EPL-1.0",
     "Unicode-3.0",
     "CDDL-1.0",
 ]
