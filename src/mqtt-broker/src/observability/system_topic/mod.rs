@@ -17,6 +17,61 @@ use std::time::Duration;
 
 use crate::handler::cache::CacheManager;
 use crate::handler::topic::try_init_topic;
+use crate::observability::system_topic::packet::bytes::{
+    SYSTEM_TOPIC_BROKERS_METRICS_BYTES_RECEIVED, SYSTEM_TOPIC_BROKERS_METRICS_BYTES_SENT,
+};
+use crate::observability::system_topic::packet::messages::{
+    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_DROPPED, SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_EXPIRED,
+    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_FORWARD,
+    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS0_RECEIVED,
+    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS0_SENT,
+    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS1_RECEIVED,
+    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS1_SENT,
+    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_DROPPED,
+    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_EXPIRED,
+    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_RECEIVED,
+    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_SENT,
+    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_RECEIVED, SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_RETAINED,
+    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_SENT,
+};
+use crate::observability::system_topic::packet::packets::{
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_AUTH, SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNACK,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNECT,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_RECEIVED,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_SENT,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGREQ, SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGRESP,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_MISSED,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_RECEIVED,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_SENT,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_MISSED,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_RECEIVED,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_SENT,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_RECEIVED,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_SENT,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_MISSED,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_RECEIVED,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_SENT,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_MISSED,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_RECEIVED,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_SENT,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_RECEIVED, SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SENT,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBACK, SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBSCRIBE,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBACK,
+    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBSCRIBE,
+};
+use crate::observability::system_topic::stats::client::{
+    SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_COUNT, SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_MAX,
+};
+use crate::observability::system_topic::stats::route::{
+    SYSTEM_TOPIC_BROKERS_STATS_ROUTES_COUNT, SYSTEM_TOPIC_BROKERS_STATS_ROUTES_MAX,
+};
+use crate::observability::system_topic::stats::subscription::{
+    SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_COUNT, SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_MAX,
+    SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_COUNT, SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_MAX,
+    SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_COUNT, SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_MAX,
+    SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_COUNT,
+    SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_MAX,
+};
 use crate::storage::message::MessageStorage;
 use common_base::tools::get_local_ip;
 use grpc_clients::pool::ClientPool;
@@ -112,6 +167,18 @@ where
             &self.message_storage_adapter,
         )
         .await;
+        report_stats_info(
+            &self.client_pool,
+            &self.metadata_cache,
+            &self.message_storage_adapter,
+        )
+        .await;
+        report_packet_info(
+            &self.client_pool,
+            &self.metadata_cache,
+            &self.message_storage_adapter,
+        )
+        .await;
     }
 
     pub async fn try_init_system_topic(&self) {
@@ -139,11 +206,71 @@ where
 
     fn get_all_system_topic(&self) -> Vec<String> {
         vec![
+            // broker
             SYSTEM_TOPIC_BROKERS.to_string(),
             SYSTEM_TOPIC_BROKERS_VERSION.to_string(),
             SYSTEM_TOPIC_BROKERS_UPTIME.to_string(),
             SYSTEM_TOPIC_BROKERS_DATETIME.to_string(),
             SYSTEM_TOPIC_BROKERS_SYSDESCR.to_string(),
+            // stats
+            SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_COUNT.to_string(),
+            SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_MAX.to_string(),
+            SYSTEM_TOPIC_BROKERS_STATS_ROUTES_COUNT.to_string(),
+            SYSTEM_TOPIC_BROKERS_STATS_ROUTES_MAX.to_string(),
+            SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_COUNT.to_string(),
+            SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_MAX.to_string(),
+            SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_COUNT.to_string(),
+            SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_MAX.to_string(),
+            SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_COUNT.to_string(),
+            SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_MAX.to_string(),
+            SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_COUNT.to_string(),
+            SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_MAX.to_string(),
+            // bytes
+            SYSTEM_TOPIC_BROKERS_METRICS_BYTES_RECEIVED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_BYTES_SENT.to_string(),
+            // messages
+            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_RECEIVED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_SENT.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_EXPIRED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_RETAINED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_DROPPED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_FORWARD.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS0_RECEIVED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS0_SENT.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS1_RECEIVED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS1_SENT.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_RECEIVED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_SENT.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_EXPIRED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_DROPPED.to_string(),
+            // packets
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_RECEIVED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SENT.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNECT.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNACK.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_RECEIVED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_SENT.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_RECEIVED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_SENT.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_MISSED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_RECEIVED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_SENT.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_MISSED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_RECEIVED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_SENT.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_MISSED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_RECEIVED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_SENT.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_MISSED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBSCRIBE.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBSCRIBE.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBACK.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBACK.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGREQ.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGRESP.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_RECEIVED.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_SENT.to_string(),
+            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_AUTH.to_string(),
         ]
     }
 }
@@ -159,6 +286,377 @@ pub(crate) async fn report_broker_info<S>(
     broker::report_broker_version(client_pool, metadata_cache, message_storage_adapter).await;
     broker::report_broker_time(client_pool, metadata_cache, message_storage_adapter).await;
     broker::report_broker_sysdescr(client_pool, metadata_cache, message_storage_adapter).await;
+}
+
+pub(crate) async fn report_packet_info<S>(
+    client_pool: &Arc<ClientPool>,
+    metadata_cache: &Arc<CacheManager>,
+    message_storage_adapter: &Arc<S>,
+) where
+    S: StorageAdapter + Clone + Send + Sync + 'static,
+{
+    // bytes
+    packet::bytes::report_broker_metrics_bytes_received(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::bytes::report_broker_metrics_bytes_sent(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_sent(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_received(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    // connect
+    packet::packets::report_broker_metrics_packets_connect(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_connack(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    // publish
+    packet::packets::report_broker_metrics_packets_publish_received(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_publish_sent(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_puback_received(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_puback_sent(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_puback_missed(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_pubrec_received(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_pubrec_sent(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_pubrec_missed(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_pubrel_received(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_pubrel_sent(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_pubrel_missed(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_pubcomp_received(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_pubcomp_sent(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_pubcomp_missed(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_subscribe(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_suback(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_unsubscribe(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_unsuback(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_pingreq(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_pingresp(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_disconnect_received(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_disconnect_sent(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::packets::report_broker_metrics_packets_auth(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    // messages
+    packet::messages::report_broker_metrics_messages_received(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::messages::report_broker_metrics_messages_sent(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::messages::report_broker_metrics_messages_expired(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::messages::report_broker_metrics_messages_retained(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::messages::report_broker_metrics_messages_dropped(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::messages::report_broker_metrics_messages_forward(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::messages::report_broker_metrics_messages_qos0_received(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::messages::report_broker_metrics_messages_qos0_sent(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::messages::report_broker_metrics_messages_qos1_received(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::messages::report_broker_metrics_messages_qos1_sent(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::messages::report_broker_metrics_messages_qos2_received(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::messages::report_broker_metrics_messages_qos2_sent(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::messages::report_broker_metrics_messages_qos2_expired(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    packet::messages::report_broker_metrics_messages_qos2_dropped(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+}
+
+pub(crate) async fn report_stats_info<S>(
+    client_pool: &Arc<ClientPool>,
+    metadata_cache: &Arc<CacheManager>,
+    message_storage_adapter: &Arc<S>,
+) where
+    S: StorageAdapter + Clone + Send + Sync + 'static,
+{
+    // client
+    stats::client::report_broker_stat_connections_count(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    stats::client::report_broker_stat_connections_max(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+
+    // route
+    stats::route::report_broker_stat_routes_count(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    stats::route::report_broker_stat_routes_max(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+
+    // subscription
+    stats::subscription::report_broker_stat_suboptions_count(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    stats::subscription::report_broker_stat_suboptions_max(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    stats::subscription::report_broker_stat_subscribers_count(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    stats::subscription::report_broker_stat_subscribers_max(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    stats::subscription::report_broker_stat_subscriptions_count(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    stats::subscription::report_broker_stat_subscriptions_max(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    stats::subscription::report_broker_stat_subscriptions_shared_count(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    stats::subscription::report_broker_stat_subscriptions_shared_max(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+
+    //topics
+    stats::topics::report_broker_stat_topics_count(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
+    stats::topics::report_broker_stat_topics_max(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+    )
+    .await;
 }
 
 pub(crate) async fn report_system_data<S, F, Fut>(
