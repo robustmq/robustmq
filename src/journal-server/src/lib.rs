@@ -13,6 +13,8 @@
 // limitations under the License.
 
 // #![allow(dead_code, unused_variables)]
+#![allow(clippy::result_large_err)]
+#![allow(clippy::large_enum_variant)]
 
 use core::cache::{load_metadata_cache, CacheManager};
 use core::cluster::{

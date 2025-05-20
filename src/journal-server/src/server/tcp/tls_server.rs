@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::fs::File;
-use std::io::{self, BufReader, ErrorKind};
+use std::io::{self, BufReader};
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -44,10 +44,7 @@ pub(crate) fn load_certs(path: &Path) -> io::Result<Vec<CertificateDer<'static>>
 pub(crate) fn load_key(path: &Path) -> io::Result<PrivateKeyDer<'static>> {
     private_key(&mut BufReader::new(File::open(path)?))
         .unwrap()
-        .ok_or(io::Error::new(
-            ErrorKind::Other,
-            "no private key found".to_string(),
-        ))
+        .ok_or(io::Error::other("no private key found".to_string()))
 }
 
 pub(crate) async fn acceptor_tls_process(

@@ -50,7 +50,7 @@ interval = 10
 header = ""
 
 [system]
-runtime_worker_threads = 128
+runtime_worker_threads = 4
 default_user = "admin"
 default_password = "pwd123"
 
