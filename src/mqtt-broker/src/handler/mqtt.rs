@@ -532,8 +532,8 @@ where
                     Ok(_) => {}
                     Err(e) => {
                         error!(
-                            "publish ack send ack manager message error, error message:{}",
-                            e
+                            "publish ack send ack manager message error, error message:{}, send data time: {}, recv ack time:{}, client_id: {}",
+                            e,data.create_time,now_second(),conn.client_id
                         );
                     }
                 }
@@ -560,8 +560,8 @@ where
                     Ok(_) => return None,
                     Err(e) => {
                         error!(
-                            "publish rec send ack manager message error, error message:{}",
-                            e
+                            "publish rec send ack manager message error, error message:{}, send data time: {}, recv rec time:{}, client_id: {}",
+                            e,data.create_time,now_second(),client_id
                         );
                     }
                 }
@@ -592,8 +592,8 @@ where
                     Ok(_) => return None,
                     Err(e) => {
                         error!(
-                            "publish comp send ack manager message error, error message:{}",
-                            e
+                            "publish comp send ack manager message error, error message:{}, send data time: {}, recv comp time:{}, client_id: {}",
+                            e,data.create_time,now_second(),client_id
                         );
                     }
                 }
