@@ -170,7 +170,7 @@ metadata-struct = { path = "src/common/metadata-struct" }
 third-driver = { path = "src/common/third-driver" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }
-robustmq-proto-build = { git = "https://github.com/HeartLinked/robustmq-proto.git", branch = "dev-copilot-list-2" }
+robustmq-proto-build = { git = "https://github.com/HeartLinked/robustmq-proto.git", branch = "dev-copilot-list-3" }
 pprof-monitor = { path = "src/common/pprof-monitor" }
 
 

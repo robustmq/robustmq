@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::topic::TopicStorage;
@@ -19,7 +20,7 @@ use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::now_mills};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateTopicRewriteRuleRequest, DeleteTopicRewriteRuleRequest, ListTopicRequest, MqttTopic,
+    CreateTopicRewriteRuleRequest, DeleteTopicRewriteRuleRequest, ListTopicRequest, MqttTopicRaw,
 };
 use std::sync::Arc;
 use tonic::Request;
@@ -28,52 +29,27 @@ use tonic::Request;
 pub async fn list_topic_by_req(
     cache_manager: &Arc<CacheManager>,
     request: Request<ListTopicRequest>,
-) -> Result<Vec<MqttTopic>, MqttBrokerError> {
+) -> Result<(Vec<MqttTopicRaw>, usize), MqttBrokerError> {
     let req = request.into_inner();
-    let topic_query_result: Vec<MqttTopic> = if req.topic_name.is_empty() {
-        cache_manager
-            .topic_info
-            .iter()
-            .map(|entry| MqttTopic {
-                topic_id: entry.value().topic_id.clone(),
-                topic_name: entry.value().topic_name.clone(),
-                cluster_name: entry.value().cluster_name.clone(),
-                is_contain_retain_message: entry.value().retain_message.is_some(),
-            })
-            .collect()
-    } else {
-        match req.match_option {
-            0 => cache_manager
-                .get_topic_by_name(&req.topic_name)
-                .into_iter()
-                .take(10)
-                .map(|entry| MqttTopic {
-                    topic_id: entry.topic_id.clone(),
-                    topic_name: entry.topic_name.clone(),
-                    cluster_name: entry.cluster_name.clone(),
-                    is_contain_retain_message: entry.retain_message.is_some(),
-                })
-                .collect(),
-            option => cache_manager
-                .topic_info
-                .iter()
-                .filter(|entry| match option {
-                    1 => entry.value().topic_name.starts_with(&req.topic_name),
-                    2 => entry.value().topic_name.contains(&req.topic_name),
-                    _ => false,
-                })
-                .take(10)
-                .map(|entry| MqttTopic {
-                    topic_id: entry.value().topic_id.clone(),
-                    topic_name: entry.value().topic_name.clone(),
-                    cluster_name: entry.value().cluster_name.clone(),
-                    is_contain_retain_message: entry.value().retain_message.is_some(),
-                })
-                .collect(),
-        }
-    };
+    let topics = extract_topic(cache_manager)?;
 
-    Ok(topic_query_result)
+    if req.topic_name.as_deref().unwrap_or_default().is_empty() {
+        let topic_count = topics.len();
+        return Ok((topics, topic_count));
+    }
+    let filtered = apply_filters(topics, &req.options);
+    let sorted = apply_sorting(filtered, &req.options);
+    let pagination = apply_pagination(sorted, &req.options);
+    Ok(pagination)
+}
+
+fn extract_topic(cache_manager: &Arc<CacheManager>) -> Result<Vec<MqttTopicRaw>, MqttBrokerError> {
+    let mut topics = Vec::new();
+    for entry in cache_manager.topic_info.iter() {
+        let topic = entry.value();
+        topics.push(MqttTopicRaw::from(topic.clone()));
+    }
+    Ok(topics)
 }
 
 // Delete a topic rewrite rule
@@ -122,4 +98,16 @@ pub async fn create_topic_rewrite_rule_by_req(
     cache_manager.add_topic_rewrite_rule(rule);
 
     Ok(())
+}
+
+impl Queryable for MqttTopicRaw {
+    fn get_field_str(&self, field: &str) -> Option<String> {
+        match field {
+            "topic_id" => Some(self.topic_id.clone()),
+            "cluster_name" => Some(self.cluster_name.clone()),
+            "topic_name" => Some(self.topic_name.clone()),
+            "is_contain_retain_message" => Some(self.is_contain_retain_message.to_string()),
+            _ => None,
+        }
+    }
 }

@@ -204,7 +204,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
         Ok(Response::new(ListAclReply {
             acls: acls.clone(),
-            total_count: Some(acls.len() as u32),
+            total_count: acls.len() as u32,
         }))
     }
 
@@ -293,11 +293,14 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         request: Request<ListTopicRequest>,
     ) -> Result<Response<ListTopicReply>, Status> {
-        let topics = list_topic_by_req(&self.cache_manager, request)
+        let (topics, count) = list_topic_by_req(&self.cache_manager, request)
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        Ok(Response::new(ListTopicReply { topics }))
+        Ok(Response::new(ListTopicReply {
+            topics,
+            total_count: count as u32,
+        }))
     }
 
     async fn mqtt_broker_delete_topic_rewrite_rule(
