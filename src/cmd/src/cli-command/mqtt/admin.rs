@@ -500,13 +500,6 @@ pub fn process_blacklist_args(args: BlacklistArgs) -> MqttActionType {
     }
 }
 
-// pub fn process_list_topic_args(args: ListTopicArgs) -> MqttActionType {
-//     MqttActionType::ListTopic(ListTopicRequest {
-//         topic_name: "".to_string(),
-//         options: None,
-//     })
-// }
-
 pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
     match args.action {
         ConnectorActionType::List(arg) => MqttActionType::ListConnector(MqttListConnectorRequest {

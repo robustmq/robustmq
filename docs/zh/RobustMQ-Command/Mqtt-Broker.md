@@ -272,7 +272,7 @@ The flapping detect feature has been successfully enabled.
 The flapping detect feature has been successfully closed.
 ```
 
-## 9. 连接列表
+## 9. 连接
 
 连接列表命令用于查询 MQTT Broker 当前的连接状态，提供连接 ID、类型、协议、源地址等相关信息。
 
@@ -283,3 +283,19 @@ connection list:
 | connection_id | connection_type | protocol | source_addr | info |
 +---------------+-----------------+----------+-------------+------+
 ```
+
+## 10. 主题
+
+查看当前系统中所有订阅的主题。 list-topic 列出所有主题,该命令可用于监视主题的数量和分布。
+
+```console
+% ./bin/robust-ctl mqtt list-topic
+topic list result:
++----------------------------------+---------------------------------------------------------+--------------+---------------------------+
+| topic_id                         | topic_name                                              | cluster_name | is_contain_retain_message |
++----------------------------------+---------------------------------------------------------+--------------+---------------------------+
+| b63fc4d3523644e1b1da0149bb376c74 | $SYS/brokers/10.7.141.123/version                       | mqtt-broker  | false                     |
++----------------------------------+---------------------------------------------------------+--------------+---------------------------+
+......
+```
+
