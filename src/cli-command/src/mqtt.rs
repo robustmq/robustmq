@@ -101,7 +101,7 @@ pub enum MqttActionType {
     // subscribe
     Subscribe(SubscribeArgsRequest),
 
-    ListTopic(ListTopicRequest),
+    ListTopic,
 
     // connector
     ListConnector(MqttListConnectorRequest),
@@ -210,9 +210,8 @@ impl MqttBrokerCommand {
                 self.delete_topic_rewrite_rule(&client_pool, params.clone(), request.clone())
                     .await;
             }
-            MqttActionType::ListTopic(ref request) => {
-                self.list_topic(&client_pool, params.clone(), request.clone())
-                    .await;
+            MqttActionType::ListTopic => {
+                self.list_topic(&client_pool, params.clone()).await;
             }
             MqttActionType::ListSlowSubscribe(ref request) => {
                 self.list_slow_subscribe(&client_pool, params.clone(), request.clone())
@@ -775,13 +774,12 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn list_topic(
-        &self,
-        client_pool: &ClientPool,
-        params: MqttCliCommandParam,
-        cli_request: ListTopicRequest,
-    ) {
-        match mqtt_broker_list_topic(client_pool, &grpc_addr(params.server), cli_request).await {
+    async fn list_topic(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
+        let request = ListTopicRequest {
+            topic_name: None,
+            options: None,
+        };
+        match mqtt_broker_list_topic(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
                 println!("topic list result:");
                 // format table
