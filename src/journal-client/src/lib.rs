@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #![allow(dead_code, unused_variables)]
+#![allow(clippy::result_large_err)]
 mod async_reader;
 mod async_writer;
 mod cache;
