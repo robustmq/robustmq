@@ -21,8 +21,7 @@ use cli_command::placement::{
 };
 use mqtt::admin::{
     process_auto_subscribe_args, AutoSubscribeRuleCommand, BindSchemaArgs, CreateSchemaArgs,
-    DeleteSchemaArgs, ListBindSchemaArgs, ListSchemaArgs, ListTopicArgs, UnbindSchemaArgs,
-    UpdateSchemaArgs,
+    DeleteSchemaArgs, ListBindSchemaArgs, ListSchemaArgs, UnbindSchemaArgs, UpdateSchemaArgs,
 };
 use mqtt::publish::process_subscribe_args;
 use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -36,9 +35,9 @@ use protocol::placement_center::placement_center_openraft::{
 };
 
 use crate::mqtt::admin::{
-    process_acl_args, process_blacklist_args, process_connector_args, process_list_topic_args,
-    process_slow_sub_args, process_topic_rewrite_args, process_user_args, AclArgs, BlacklistArgs,
-    ConnectorArgs, FlappingDetectArgs, SlowSubArgs, TopicRewriteArgs, UserArgs,
+    process_acl_args, process_blacklist_args, process_connector_args, process_slow_sub_args,
+    process_topic_rewrite_args, process_user_args, AclArgs, BlacklistArgs, ConnectorArgs,
+    FlappingDetectArgs, SlowSubArgs, TopicRewriteArgs, UserArgs,
 };
 use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 
@@ -97,7 +96,7 @@ enum MQTTAction {
     // observability: slow-sub feat
     SlowSub(SlowSubArgs),
     // list topic
-    ListTopic(ListTopicArgs),
+    ListTopic,
     // topic rewrite rule
     TopicRewriteRule(TopicRewriteArgs),
     // connector
@@ -211,7 +210,7 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             // connector
             MQTTAction::Connector(args) => process_connector_args(args),
             // list topic
-            MQTTAction::ListTopic(args) => process_list_topic_args(args),
+            MQTTAction::ListTopic => MqttActionType::ListTopic,
             // topic rewrite rule
             MQTTAction::TopicRewriteRule(args) => process_topic_rewrite_args(args),
             MQTTAction::SlowSub(args) => process_slow_sub_args(args),
