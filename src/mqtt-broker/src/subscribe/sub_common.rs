@@ -204,12 +204,24 @@ pub async fn get_share_sub_leader(
     }
 }
 
-pub async fn wait_packet_ack(sx: &Sender<QosAckPackageData>) -> Option<QosAckPackageData> {
-    timeout(Duration::from_secs(120), async {
+pub async fn wait_packet_ack(
+    sx: &Sender<QosAckPackageData>,
+    type_name: &str,
+    client_id: &str,
+) -> Result<Option<QosAckPackageData>, MqttBrokerError> {
+    let timeout_ms = 30;
+    match timeout(Duration::from_secs(timeout_ms), async {
         (sx.subscribe().recv().await).ok()
     })
     .await
-    .unwrap_or_default()
+    {
+        Ok(Some(data)) => Ok(Some(data)),
+        Ok(None) => Ok(None),
+        Err(_) => Err(MqttBrokerError::CommonError(format!(
+            "Publish message to client {}, wait {} timeout, more than {}s",
+            client_id, type_name, client_id
+        ))),
+    }
 }
 
 pub async fn publish_message_to_client(
@@ -265,26 +277,22 @@ pub async fn wait_pub_ack(
     wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
 ) {
     let wait_pub_ack_fn = || async {
-        match timeout(Duration::from_secs(30), wait_packet_ack(wait_ack_sx)).await {
+        match wait_packet_ack(wait_ack_sx, "PubAck", &sub_pub_param.subscribe.client_id).await {
             Ok(Some(data)) => {
                 if data.ack_type == QosAckPackageType::PubAck && data.pkid == sub_pub_param.pkid {
                     return Ok(());
                 }
             }
             Ok(None) => {}
-            Err(_) => {
+            Err(e) => {
                 publish_message_qos(metadata_cache, connection_manager, sub_pub_param, stop_sx)
                     .await;
-                return Err(MqttBrokerError::CommonError(format!(
-                    "Push QOS1 Publish message to client {}, wait PubAck timeout, more than 30s",
-                    sub_pub_param.subscribe.client_id
-                )));
+                return Err(e);
             }
         };
 
         Err(MqttBrokerError::CommonError(
-            "Sending a Qos1 message to the client did not receive a correct PubAck return"
-                .to_owned(),
+            "Send message to the client did not receive a correct PubAck return".to_owned(),
         ))
     };
 
@@ -301,26 +309,22 @@ pub async fn wait_pub_rec(
     wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
 ) {
     let wait_pub_rec_fn = || async {
-        match timeout(Duration::from_secs(30), wait_packet_ack(wait_ack_sx)).await {
+        match wait_packet_ack(wait_ack_sx, "PubRec", &sub_pub_param.subscribe.client_id).await {
             Ok(Some(data)) => {
                 if data.ack_type == QosAckPackageType::PubRec && data.pkid == sub_pub_param.pkid {
                     return Ok(());
                 }
             }
             Ok(None) => {}
-            Err(_) => {
+            Err(e) => {
                 publish_message_qos(metadata_cache, connection_manager, sub_pub_param, stop_sx)
                     .await;
-                return Err(MqttBrokerError::CommonError(format!(
-                    "Push QOS2 Publish message to client {}, wait pubrec timeout, more than 30s",
-                    sub_pub_param.subscribe.client_id
-                )));
+                return Err(e);
             }
         };
 
         Err(MqttBrokerError::CommonError(
-            "Sending a Qos 2 message to the client did not receive a correct PubRec return"
-                .to_owned(),
+            "Send message to the client did not receive a correct PubRec return".to_owned(),
         ))
     };
 
@@ -337,25 +341,21 @@ pub async fn wait_pub_comp(
     wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
 ) {
     let wait_pub_comp_fn = || async {
-        match timeout(Duration::from_secs(30), wait_packet_ack(wait_ack_sx)).await {
+        match wait_packet_ack(wait_ack_sx, "PubComp", &sub_pub_param.subscribe.client_id).await {
             Ok(Some(data)) => {
                 if data.ack_type == QosAckPackageType::PubComp && data.pkid == sub_pub_param.pkid {
                     return Ok(());
                 }
             }
             Ok(None) => {}
-            Err(_) => {
+            Err(e) => {
                 qos2_send_pubrel(metadata_cache, sub_pub_param, connection_manager, stop_sx).await;
-                return Err(MqttBrokerError::CommonError(format!(
-                    "Push QOS2 Publish message to client {}, wait PubComp timeout, more than 30s",
-                    sub_pub_param.subscribe.client_id
-                )));
+                return Err(e);
             }
         };
 
         Err(MqttBrokerError::CommonError(
-            "Sending a Qos 2 message to the client did not receive a correct PubComp return"
-                .to_owned(),
+            "Send message to the client did not receive a correct PubComp return".to_owned(),
         ))
     };
 

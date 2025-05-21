@@ -575,10 +575,10 @@ where
 fn get_subscribe(
     subscribe_manager: &Arc<SubscribeManager>,
     share_leader_key: &str,
-    record_num: u64,
+    offset: u64,
 ) -> Option<Subscriber> {
     if let Some(sub_list) = subscribe_manager.share_leader_push.get(share_leader_key) {
-        let index = record_num % (sub_list.sub_list.len() as u64);
+        let index = offset % (sub_list.sub_list.len() as u64);
         if let Some(subscribe) = sub_list.sub_list.get(index as usize) {
             return Some(subscribe.clone());
         }
@@ -588,4 +588,6 @@ fn get_subscribe(
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    
+}
