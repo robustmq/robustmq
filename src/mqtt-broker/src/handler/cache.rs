@@ -229,6 +229,11 @@ impl CacheManager {
         None
     }
 
+    // create a function get the number of connections from connection_info
+    pub fn get_connection_count(&self) -> usize {
+        self.connection_info.len()
+    }
+
     // topic
     pub fn add_topic(&self, topic_name: &str, topic: &MqttTopic) {
         self.topic_info.insert(topic_name.to_owned(), topic.clone());
