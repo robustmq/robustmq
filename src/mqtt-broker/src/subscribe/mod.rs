@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod exclusive_push;
-pub mod share_follower_resub;
-pub mod share_leader_push;
-pub mod sub_common;
-pub mod subscribe_manager;
-pub mod subscriber;
+pub mod common;
+pub mod exclusive;
+pub mod manager;
+pub mod meta;
+pub mod share;

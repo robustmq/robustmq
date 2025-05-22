@@ -38,13 +38,13 @@ use crate::observability::metrics::packets::{
 };
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::topic::TopicStorage;
-use crate::subscribe::exclusive_push::{
-    exclusive_publish_message_qos1, exclusive_publish_message_qos2,
+use crate::subscribe::common::{
+    exclusive_publish_message_qos1, exclusive_publish_message_qos2, get_pkid,
+    get_sub_topic_id_list, min_qos, publish_message_qos,
 };
-use crate::subscribe::sub_common::{get_pkid, get_sub_topic_id_list, min_qos, publish_message_qos};
-use crate::subscribe::subscribe_manager::SubscribeManager;
-use crate::subscribe::subscriber::SubPublishParam;
-use crate::subscribe::subscriber::Subscriber;
+use crate::subscribe::manager::SubscribeManager;
+use crate::subscribe::meta::SubPublishParam;
+use crate::subscribe::meta::Subscriber;
 
 pub async fn is_new_sub(
     client_id: &str,
@@ -222,7 +222,7 @@ async fn send_retain_message(
             match qos {
                 QoS::AtMostOnce => {
                     publish_message_qos(cache_manager, connection_manager, &sub_pub_param, stop_sx)
-                        .await;
+                        .await?;
                 }
 
                 QoS::AtLeastOnce => {
@@ -243,7 +243,7 @@ async fn send_retain_message(
                         stop_sx,
                         &wait_puback_sx,
                     )
-                    .await;
+                    .await?;
 
                     cache_manager.remove_ack_packet(client_id, pkid);
                 }
@@ -266,7 +266,7 @@ async fn send_retain_message(
                         stop_sx,
                         &wait_ack_sx,
                     )
-                    .await;
+                    .await?;
 
                     cache_manager.remove_ack_packet(client_id, pkid);
                 }

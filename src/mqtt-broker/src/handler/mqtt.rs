@@ -65,8 +65,8 @@ use crate::observability::system_topic::event::{
 };
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
-use crate::subscribe::sub_common::min_qos;
-use crate::subscribe::subscribe_manager::SubscribeManager;
+use crate::subscribe::common::min_qos;
+use crate::subscribe::manager::SubscribeManager;
 
 #[derive(Clone)]
 pub struct MqttService<S> {

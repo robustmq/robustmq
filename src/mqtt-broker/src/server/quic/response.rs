@@ -28,7 +28,7 @@ use crate::handler::connection::disconnect_connection;
 use crate::observability::metrics::server::{metrics_request_queue, metrics_response_queue};
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
-use crate::subscribe::subscribe_manager::SubscribeManager;
+use crate::subscribe::manager::SubscribeManager;
 
 pub(crate) async fn response_process(
     response_process_num: usize,
