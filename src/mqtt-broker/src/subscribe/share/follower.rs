@@ -17,8 +17,7 @@ use std::time::Duration;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::{now_mills, now_second, unique_id};
-use dashmap::DashMap;
-use futures::{SinkExt, StreamExt};
+use futures::StreamExt;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::node_extend::MqttNodeExtend;
 use protocol::mqtt::common::{
@@ -33,7 +32,7 @@ use tokio::sync::broadcast::{self, Sender};
 use tokio::time::sleep;
 use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
 use crate::handler::error::MqttBrokerError;
@@ -41,13 +40,15 @@ use crate::handler::subscribe::{add_share_push_leader, ParseShareQueueSubscribeR
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::common::get_pkid;
 use crate::subscribe::common::{
-    exclusive_publish_message_qos1, get_share_sub_leader, publish_message_qos,
-    publish_message_to_client, qos2_send_pubrel, wait_packet_ack, wait_pub_rec,
+    exclusive_publish_message_qos1, get_share_sub_leader, publish_message_qos, qos2_send_pubrel,
+    wait_packet_ack, wait_pub_rec,
 };
 use crate::subscribe::manager::ShareSubShareSub;
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::meta::SubPublishParam;
 use crate::subscribe::meta::Subscriber;
+
+use super::write::WriteStream;
 
 #[derive(Clone)]
 pub struct ShareFollowerResub {
@@ -74,7 +75,9 @@ impl ShareFollowerResub {
 
     pub async fn start(&self) {
         loop {
-            self.start_resub_thread().await;
+            if let Err(e) = self.start_resub_thread().await {
+                error!("{}", e);
+            }
             self.try_thread_gc();
             sleep(Duration::from_secs(1)).await;
         }
@@ -210,7 +213,7 @@ async fn resub_sub_mqtt5(
                             group_name,
                             sub_name,
                         );
-                        un_subscribe_to_leader(follower_sub_leader_pkid, &write_stream, &share_sub.filter.path);
+                        un_subscribe_to_leader(follower_sub_leader_pkid, &write_stream, &share_sub.filter.path).await;
                         break;
                     }
                 }
@@ -231,6 +234,7 @@ async fn resub_sub_mqtt5(
                         &group_name,
                         &sub_name,
                     ).await{
+                        error!("{}", e);
                         continue;
                     }
                     break;
@@ -239,38 +243,6 @@ async fn resub_sub_mqtt5(
         }
     }
     Ok(())
-}
-
-async fn connection_to_leader(
-    leader_addr: &str,
-    follower_sub_leader_client_id: &str,
-    stop_sx: &Sender<bool>,
-) -> Result<
-    (
-        FramedRead<tokio::io::ReadHalf<tokio::net::TcpStream>, Mqtt5Codec>,
-        Arc<WriteStream>,
-    ),
-    MqttBrokerError,
-> {
-    let codec = Mqtt5Codec::new();
-    let socket = TcpStream::connect(leader_addr.clone()).await?;
-
-    // split stream
-    let (r_stream, w_stream) = io::split(socket);
-    let read_frame_stream = FramedRead::new(r_stream, codec.clone());
-    let write_frame_stream = FramedWrite::new(w_stream, codec.clone());
-
-    let ws = WriteStream::new(stop_sx.clone());
-    ws.add_write(write_frame_stream);
-    let write_stream = Arc::new(ws);
-
-    // Create a connection to GroupName
-    let connect_pkg = build_resub_connect_pkg(
-        MqttProtocol::Mqtt5.into(),
-        follower_sub_leader_client_id.to_string(),
-    );
-    write_stream.write_frame(connect_pkg).await;
-    Ok((read_frame_stream, write_stream))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -287,7 +259,6 @@ async fn process_packet(
     group_name: &str,
     sub_name: &str,
 ) -> Result<(), MqttBrokerError> {
-    info!("sub follower recv:{:?}", packet);
     match packet {
         MqttPacket::ConnAck(connack, connack_properties) => {
             if connack.code == ConnectReturnCode::Success {
@@ -348,13 +319,16 @@ async fn process_packet(
                 match publish.qos {
                     protocol::mqtt::common::QoS::AtMostOnce => {
                         publish.dup = false;
-                        publish_message_qos(
+                        if let Err(e) = publish_message_qos(
                             &cache_manager,
                             &connection_manager,
                             &sub_pub_param,
                             &stop_sx,
                         )
-                        .await;
+                        .await
+                        {
+                            error!("{}", e);
+                        }
                     }
 
                     protocol::mqtt::common::QoS::AtLeastOnce => {
@@ -418,6 +392,8 @@ async fn process_packet(
                             &wait_client_ack_sx,
                             &wait_leader_ack_sx,
                             &write_stream,
+                            &follower_sub_leader_client_id,
+                            &mqtt_client_id,
                         )
                         .await
                         {
@@ -459,10 +435,12 @@ async fn process_packet(
         }
 
         MqttPacket::UnsubAck(_, _) => {
-            // When a thread exits, an unsubscribed mqtt packet is sent
-            let unscribe_pkg =
-                build_resub_unsubscribe_pkg(follower_sub_leader_pkid, share_sub.clone());
-            write_stream.write_frame(unscribe_pkg).await;
+            un_subscribe_to_leader(
+                follower_sub_leader_pkid,
+                write_stream,
+                &share_sub.filter.path,
+            )
+            .await;
         }
         MqttPacket::PingResp(_) => {}
         _ => {
@@ -514,22 +492,24 @@ async fn resub_publish_message_qos1(
     exclusive_publish_message_qos1(
         cache_manager,
         connection_manager,
-        &sub_pub_param,
+        sub_pub_param,
         stop_sx,
-        &wait_puback_sx,
+        wait_puback_sx,
     )
     .await?;
 
     let current_message_pkid = sub_pub_param.pkid;
-    let puback = build_resub_publish_ack(current_message_pkid, PubAckReason::Success);
+    let puback = PubAck {
+        pkid: current_message_pkid,
+        reason: Some(PubAckReason::Success),
+    };
+    let puback_properties = PubAckProperties::default();
+    let puback = MqttPacket::PubAck(puback, Some(puback_properties));
+
     write_stream.write_frame(puback.clone()).await;
-    return Ok(());
+    Ok(())
 }
 
-// 1. send publish message
-// 2. wait pubrec message
-// 3. send pubrel message
-// 4. wait pubcomp message
 #[allow(clippy::too_many_arguments)]
 pub async fn resub_publish_message_qos2(
     metadata_cache: &Arc<CacheManager>,
@@ -539,12 +519,16 @@ pub async fn resub_publish_message_qos2(
     wait_client_ack_sx: &broadcast::Sender<QosAckPackageData>,
     wait_leader_ack_sx: &broadcast::Sender<QosAckPackageData>,
     write_stream: &Arc<WriteStream>,
+    follower_sub_leader_client_id: &str,
+    mqtt_client_id: &str,
 ) -> Result<(), MqttBrokerError> {
+    debug!("{}", sub_pub_param.group_id);
     let current_message_pkid = sub_pub_param.publish.pkid;
-    // 1. send Publish to Client
+
+    // 1. Publish message to client
     publish_message_qos(metadata_cache, connection_manager, sub_pub_param, stop_sx).await?;
 
-    // 2. wait PubRec ack
+    // 2. Wait client pubrec
     wait_pub_rec(
         metadata_cache,
         connection_manager,
@@ -554,160 +538,74 @@ pub async fn resub_publish_message_qos2(
     )
     .await?;
 
-    publish_rec_to_leader(
-        metadata_cache,
-        write_stream,
-        &sub_pub_param.subscribe.client_id,
-        current_message_pkid,
-    );
+    // 3. Send pubrec to leader
+    publish_rec_to_leader(write_stream, current_message_pkid).await;
 
-    let mut stop_rx = stop_sx.subscribe();
-    loop {
-        select! {
-            val = stop_rx.recv() => {
-                if let Ok(flag) = val {
-                    if flag {
-                        return Ok(());
-                    }
-                }
-            }
-            // 3. Wait mqtt client PubRec
-            val = wait_packet_ack(wait_client_ack_sx) => {
-                if let Some(data) = val{
+    // 4. Wait leader pubrel
+    wait_packet_ack(wait_leader_ack_sx, "Pubrel", follower_sub_leader_client_id).await?;
 
-                    if data.ack_type == QosAckPackageType::PubRec && data.pkid == sub_pub_param.pkid {
-                        // 4. pubrec to leader
-                        let connect_id =
-                            if let Some(id) = metadata_cache.get_connect_id(&sub_pub_param.subscribe.client_id) {
-                                id
-                            } else {
-                                sleep(Duration::from_secs(1)).await;
-                                continue;
-                            };
+    // 5. Send pubrel to client
+    qos2_send_pubrel(metadata_cache, sub_pub_param, connection_manager, stop_sx).await?;
 
-                        let pubrec = build_resub_publish_rec(
-                            current_message_pkid,
-                            PubRecReason::Success,
-                            connect_id,
-                        );
+    // 6. Wait client pubcomp
+    wait_packet_ack(wait_client_ack_sx, "PubComp", mqtt_client_id).await?;
 
-                        info!("send leader:{:?}", pubrec);
-                        write_stream.write_frame(pubrec).await;
-                        break;
-                    }
-                }
-            }
-        }
-    }
+    // 7. Send pubcomp to leader
+    publish_comp_to_leader(write_stream, current_message_pkid, PubCompReason::Success).await;
 
-    loop {
-        select! {
-            val = stop_rx.recv() => {
-                if let Ok(flag) = val {
-                    if flag {
-                        return Ok(());
-                    }
-                }
-            }
-
-            // 5. Wait Sub leader PubRel
-            val =  wait_packet_ack(wait_leader_ack_sx) =>{
-                if let Some(data) = val{
-                    if data.ack_type == QosAckPackageType::PubRel && data.pkid == current_message_pkid {
-                        // 6. Send PubRel to mqtt client
-                        qos2_send_pubrel(
-                            metadata_cache,
-                            sub_pub_param,
-                            connection_manager,
-                            stop_sx,
-                        )
-                        .await;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    // 7. wait client pubcomp
-    loop {
-        select! {
-            val = stop_rx.recv() => {
-                if let Ok(flag) = val {
-                    if flag {
-                        return Ok(());
-                    }
-                }
-            }
-            val = wait_packet_ack(wait_client_ack_sx) => {
-                if let Some(data) = val{
-                    if data.ack_type == QosAckPackageType::PubComp {
-                        // 8.pubcomp to leader
-                        let pubcomp =
-                            build_resub_publish_comp(current_message_pkid, PubCompReason::Success);
-
-                        info!("send leader:{:?}", pubcomp);
-                        write_stream.write_frame(pubcomp).await;
-                        break;
-                    }
-                }
-            }
-        }
-    }
     Ok(())
 }
 
-fn build_resub_connect_pkg(protocol_level: u8, client_id: String) -> MqttPacket {
-    let conf = broker_mqtt_conf();
-    let connect = Connect {
-        keep_alive: 6000,
-        client_id,
-        clean_session: true,
-    };
+async fn connection_to_leader(
+    leader_addr: &str,
+    follower_sub_leader_client_id: &str,
+    stop_sx: &Sender<bool>,
+) -> Result<
+    (
+        FramedRead<tokio::io::ReadHalf<tokio::net::TcpStream>, Mqtt5Codec>,
+        Arc<WriteStream>,
+    ),
+    MqttBrokerError,
+> {
+    let codec = Mqtt5Codec::new();
+    let socket = TcpStream::connect(leader_addr).await?;
 
-    let properties = ConnectProperties {
-        session_expiry_interval: Some(60),
-        user_properties: Vec::new(),
-        ..Default::default()
-    };
+    // split stream
+    let (r_stream, w_stream) = io::split(socket);
+    let read_frame_stream = FramedRead::new(r_stream, codec.clone());
+    let write_frame_stream = FramedWrite::new(w_stream, codec.clone());
 
-    let login = Login {
-        username: conf.system.default_user.clone(),
-        password: conf.system.default_password.clone(),
-    };
+    let ws = WriteStream::new(stop_sx.clone());
+    ws.add_write(write_frame_stream);
+    let write_stream = Arc::new(ws);
 
-    MqttPacket::Connect(
-        protocol_level,
-        connect,
-        Some(properties),
-        None,
-        None,
-        Some(login),
-    )
+    // Create a connection to leader
+    let connect_pkg = build_resub_connect_pkg(
+        MqttProtocol::Mqtt5.into(),
+        follower_sub_leader_client_id.to_string(),
+    );
+    write_stream.write_frame(connect_pkg).await;
+    Ok((read_frame_stream, write_stream))
 }
 
-async fn publish_rec_to_leader(
-    metadata_cache: &Arc<CacheManager>,
-    write_stream: &Arc<WriteStream>,
-    client_id: &str,
-    current_message_pkid: u16,
-) {
-    let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id) {
-        id
-    } else {
-        return;
-    };
-
+async fn publish_rec_to_leader(write_stream: &Arc<WriteStream>, current_message_pkid: u16) {
     let puback = PubRec {
         pkid: current_message_pkid,
         reason: Some(PubRecReason::Success),
     };
-    let puback_properties = PubRecProperties {
-        reason_string: None,
-        user_properties: vec![("mqtt_client_pkid".to_string(), connect_id.to_string())],
-    };
+    let puback_properties = PubRecProperties::default();
     let pubrec = MqttPacket::PubRec(puback, Some(puback_properties));
     write_stream.write_frame(pubrec).await;
+}
+
+async fn publish_comp_to_leader(write_stream: &Arc<WriteStream>, pkid: u16, reason: PubCompReason) {
+    let pubcomp = PubComp {
+        pkid,
+        reason: Some(reason),
+    };
+    let pubcomp_properties = PubCompProperties::default();
+    let pubcomp = MqttPacket::PubComp(pubcomp, Some(pubcomp_properties));
+    write_stream.write_frame(pubcomp).await;
 }
 
 async fn subscribe_to_leader(
@@ -746,91 +644,33 @@ async fn un_subscribe_to_leader(
     write_stream.write_frame(pkg).await;
 }
 
-fn build_resub_publish_ack(pkid: u16, reason: PubAckReason) -> MqttPacket {
-    let puback = PubAck {
-        pkid,
-        reason: Some(reason),
+fn build_resub_connect_pkg(protocol_level: u8, client_id: String) -> MqttPacket {
+    let conf = broker_mqtt_conf();
+    let connect = Connect {
+        keep_alive: 6000,
+        client_id,
+        clean_session: true,
     };
-    let puback_properties = PubAckProperties::default();
-    MqttPacket::PubAck(puback, Some(puback_properties))
-}
 
-fn build_resub_publish_rec(pkid: u16, reason: PubRecReason, mqtt_client_pkid: u64) -> MqttPacket {
-    let puback = PubRec {
-        pkid,
-        reason: Some(reason),
+    let properties = ConnectProperties {
+        session_expiry_interval: Some(60),
+        user_properties: Vec::new(),
+        ..Default::default()
     };
-    let puback_properties = PubRecProperties {
-        reason_string: None,
-        user_properties: vec![("mqtt_client_pkid".to_string(), mqtt_client_pkid.to_string())],
+
+    let login = Login {
+        username: conf.system.default_user.clone(),
+        password: conf.system.default_password.clone(),
     };
-    MqttPacket::PubRec(puback, Some(puback_properties))
-}
 
-fn build_resub_publish_comp(pkid: u16, reason: PubCompReason) -> MqttPacket {
-    let pubcomp = PubComp {
-        pkid,
-        reason: Some(reason),
-    };
-    let pubcomp_properties = PubCompProperties::default();
-    MqttPacket::PubComp(pubcomp, Some(pubcomp_properties))
-}
-
-pub struct WriteStream {
-    write_list:
-        DashMap<String, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, Mqtt5Codec>>,
-    key: String,
-    stop_sx: Sender<bool>,
-}
-
-impl WriteStream {
-    pub fn new(stop_sx: Sender<bool>) -> Self {
-        WriteStream {
-            key: "default".to_string(),
-            write_list: DashMap::with_capacity(2),
-            stop_sx,
-        }
-    }
-
-    pub fn add_write(
-        &self,
-        write: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, Mqtt5Codec>,
-    ) {
-        self.write_list.insert(self.key.clone(), write);
-    }
-
-    pub async fn write_frame(&self, resp: MqttPacket) {
-        loop {
-            if let Ok(flag) = self.stop_sx.subscribe().try_recv() {
-                if flag {
-                    break;
-                }
-            }
-
-            match self.write_list.try_get_mut(&self.key) {
-                dashmap::try_result::TryResult::Present(mut da) => {
-                    match da.send(resp.clone()).await {
-                        Ok(_) => {
-                            break;
-                        }
-                        Err(e) => {
-                            error!(
-                                "Resub Client Failed to write data to the response queue, error message: {:?}",
-                                e
-                            );
-                        }
-                    }
-                }
-                dashmap::try_result::TryResult::Absent => {
-                    error!("Resub Client [write_frame]Connection management could not obtain an available connection.");
-                }
-                dashmap::try_result::TryResult::Locked => {
-                    error!("Resub Client [write_frame]Connection management failed to get connection variable reference");
-                }
-            }
-            sleep(Duration::from_secs(1)).await
-        }
-    }
+    MqttPacket::Connect(
+        protocol_level,
+        connect,
+        Some(properties),
+        None,
+        None,
+        Some(login),
+    )
 }
 
 #[cfg(test)]

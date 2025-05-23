@@ -276,7 +276,7 @@ where
             group_id,
             record.offset.unwrap(),
         )
-        .await;
+        .await?;
     }
     Ok(results.last().unwrap().offset)
 }

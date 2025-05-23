@@ -286,7 +286,7 @@ pub async fn wait_pub_ack(
             Ok(None) => {}
             Err(e) => {
                 publish_message_qos(metadata_cache, connection_manager, sub_pub_param, stop_sx)
-                    .await;
+                    .await?;
                 return Err(e);
             }
         };
@@ -316,7 +316,7 @@ pub async fn wait_pub_rec(
             Ok(None) => {}
             Err(e) => {
                 publish_message_qos(metadata_cache, connection_manager, sub_pub_param, stop_sx)
-                    .await;
+                    .await?;
                 return Err(e);
             }
         };
@@ -345,7 +345,8 @@ pub async fn wait_pub_comp(
             }
             Ok(None) => {}
             Err(e) => {
-                qos2_send_pubrel(metadata_cache, sub_pub_param, connection_manager, stop_sx).await;
+                qos2_send_pubrel(metadata_cache, sub_pub_param, connection_manager, stop_sx)
+                    .await?;
                 return Err(e);
             }
         };
@@ -416,12 +417,10 @@ pub async fn loop_commit_offset<S>(
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
-    loop {
-        message_storage
-            .commit_group_offset(group_id, topic_id, offset)
-            .await?;
-        return Ok(());
-    }
+    message_storage
+        .commit_group_offset(group_id, topic_id, offset)
+        .await?;
+    Ok(())
 }
 
 // When the subscription QOS is 0,
