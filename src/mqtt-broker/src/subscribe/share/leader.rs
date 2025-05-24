@@ -238,7 +238,7 @@ where
                 continue;
             };
 
-            let qos = build_pub_qos(&cache_manager, &subscriber);
+            let qos = build_pub_qos(cache_manager, &subscriber);
             let sub_ids = build_sub_ids(&subscriber);
 
             // build publish params

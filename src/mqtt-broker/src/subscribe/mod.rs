@@ -16,5 +16,5 @@ pub mod common;
 pub mod exclusive;
 pub mod manager;
 pub mod meta;
-pub mod share;
 pub mod push;
+pub mod share;
