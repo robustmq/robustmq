@@ -26,19 +26,19 @@ use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
 use tracing::{debug, error, info};
 
-use super::sub_common::{
-    get_pkid, loop_commit_offset, min_qos, publish_message_qos, qos2_send_pubrel, wait_pub_ack,
-    wait_pub_comp, wait_pub_rec,
+use super::common::{
+    exclusive_publish_message_qos1, exclusive_publish_message_qos2, get_pkid, loop_commit_offset,
+    min_qos, publish_message_qos,
 };
-use super::subscribe_manager::SubscribeManager;
-use super::subscriber::Subscriber;
-use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPacketInfo};
+use super::manager::SubscribeManager;
+use super::meta::Subscriber;
+use crate::handler::cache::{CacheManager, QosAckPacketInfo};
 use crate::handler::error::MqttBrokerError;
 use crate::handler::message::is_message_expire;
 use crate::handler::sub_option::{get_retain_flag_by_retain_as_published, is_send_msg_by_bo_local};
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
-use crate::subscribe::subscriber::SubPublishParam;
+use crate::subscribe::meta::SubPublishParam;
 
 pub struct ExclusivePush<S> {
     cache_manager: Arc<CacheManager>,
@@ -180,7 +180,7 @@ where
                                     }
                                     Err(e) => {
                                         error!(
-                                            "Push message to client failed, failure message: {},topic:{},group{}",
+                                            "Push message to client failed, failure message: {}, topic:{}, group{}",
                                             e.to_string(),
                                             subscriber.topic_id.clone(),
                                             group_id.clone()
@@ -243,7 +243,7 @@ where
                     &sub_pub_param,
                     sub_thread_stop_sx,
                 )
-                .await;
+                .await?;
             }
 
             QoS::AtLeastOnce => {
@@ -264,7 +264,7 @@ where
                     sub_thread_stop_sx,
                     &wait_puback_sx,
                 )
-                .await;
+                .await?;
 
                 cache_manager.remove_ack_packet(&client_id, pkid);
             }
@@ -287,7 +287,7 @@ where
                     sub_thread_stop_sx,
                     &wait_ack_sx,
                 )
-                .await;
+                .await?;
 
                 cache_manager.remove_ack_packet(&client_id, pkid);
             }
@@ -300,7 +300,7 @@ where
             group_id,
             record_offset,
         )
-        .await;
+        .await?;
     }
 
     Ok(Some(results.last().unwrap().offset.unwrap()))
@@ -362,68 +362,6 @@ async fn build_pub_message(
         pkid,
     );
     Ok(Some(sub_pub_param))
-}
-
-// When the subscribed QOS is 1, we need to keep retrying to send the message to the client.
-// To avoid messages that are not successfully pushed to the client. When the client Session expires,
-// the push thread will exit automatically and will not attempt to push again.
-pub async fn exclusive_publish_message_qos1(
-    metadata_cache: &Arc<CacheManager>,
-    connection_manager: &Arc<ConnectionManager>,
-    sub_pub_param: &SubPublishParam,
-    stop_sx: &broadcast::Sender<bool>,
-    wait_puback_sx: &broadcast::Sender<QosAckPackageData>,
-) {
-    // 1. send Publish to Client
-    publish_message_qos(metadata_cache, connection_manager, sub_pub_param, stop_sx).await;
-
-    // 2. wait PubAck ack
-    wait_pub_ack(
-        metadata_cache,
-        connection_manager,
-        sub_pub_param,
-        stop_sx,
-        wait_puback_sx,
-    )
-    .await;
-}
-
-// send publish message
-// wait pubrec message
-// send pubrel message
-// wait pubcomp message
-pub async fn exclusive_publish_message_qos2(
-    metadata_cache: &Arc<CacheManager>,
-    connection_manager: &Arc<ConnectionManager>,
-    sub_pub_param: &SubPublishParam,
-    stop_sx: &broadcast::Sender<bool>,
-    wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
-) {
-    // 1. send Publish to Client
-    publish_message_qos(metadata_cache, connection_manager, sub_pub_param, stop_sx).await;
-
-    // 2. wait PubRec ack
-    wait_pub_rec(
-        metadata_cache,
-        connection_manager,
-        sub_pub_param,
-        stop_sx,
-        wait_ack_sx,
-    )
-    .await;
-
-    // 3. send PubRel to Client
-    qos2_send_pubrel(metadata_cache, sub_pub_param, connection_manager, stop_sx).await;
-
-    // 4. wait PubComp ack
-    wait_pub_comp(
-        metadata_cache,
-        connection_manager,
-        sub_pub_param,
-        stop_sx,
-        wait_ack_sx,
-    )
-    .await;
 }
 
 fn build_group_name(subscriber: &Subscriber) -> String {

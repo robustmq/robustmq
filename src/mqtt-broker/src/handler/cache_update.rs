@@ -16,7 +16,7 @@ use crate::bridge::manager::ConnectorManager;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
 use crate::storage::connector::ConnectorStorage;
 use crate::storage::topic::TopicStorage;
-use crate::{security::AuthDriver, subscribe::subscribe_manager::SubscribeManager};
+use crate::{security::AuthDriver, subscribe::manager::SubscribeManager};
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::placement::inner::call::list_schema;
 use grpc_clients::pool::ClientPool;

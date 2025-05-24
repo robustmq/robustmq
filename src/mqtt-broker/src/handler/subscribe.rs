@@ -29,12 +29,11 @@ use serde::{Deserialize, Serialize};
 use tracing::error;
 
 use crate::subscribe::{
-    sub_common::{
-        decode_queue_info, decode_share_info, get_share_sub_leader, is_match_sub_and_topic,
-        is_queue_sub, is_share_sub,
+    common::{
+        decode_share_info, get_share_sub_leader, is_match_sub_and_topic, is_queue_sub, is_share_sub,
     },
-    subscribe_manager::{ShareSubShareSub, SubscribeManager},
-    subscriber::Subscriber,
+    manager::{ShareSubShareSub, SubscribeManager},
+    meta::Subscriber,
 };
 
 use super::{
@@ -42,16 +41,16 @@ use super::{
 };
 
 #[derive(Clone, Deserialize, Serialize)]
-struct ParseShareQueueSubscribeRequest {
-    topic_name: String,
-    topic_id: String,
-    client_id: String,
-    protocol: MqttProtocol,
-    sub_identifier: Option<usize>,
-    filter: Filter,
-    sub_name: String,
-    group_name: String,
-    pkid: u16,
+pub struct ParseShareQueueSubscribeRequest {
+    pub topic_name: String,
+    pub topic_id: String,
+    pub client_id: String,
+    pub protocol: MqttProtocol,
+    pub sub_identifier: Option<usize>,
+    pub filter: Filter,
+    pub sub_name: String,
+    pub group_name: String,
+    pub pkid: u16,
 }
 
 pub async fn save_subscribe(
@@ -159,7 +158,8 @@ pub async fn parse_subscribe(
         None
     };
 
-    if is_share_sub(&filter.path) {
+    // share sub
+    if is_share_sub(&filter.path) || is_queue_sub(&filter.path) {
         parse_share_subscribe(
             client_pool,
             subscribe_manager,
@@ -171,23 +171,6 @@ pub async fn parse_subscribe(
                 sub_identifier,
                 filter: filter.clone(),
                 pkid,
-                sub_name: "".to_string(),
-                group_name: "".to_string(),
-            },
-        )
-        .await
-    } else if is_queue_sub(&filter.path) {
-        parse_queue_subscribe(
-            client_pool,
-            subscribe_manager,
-            &mut ParseShareQueueSubscribeRequest {
-                topic_name: topic.topic_name.to_owned(),
-                topic_id: topic.topic_id.to_owned(),
-                client_id: client_id.to_owned(),
-                protocol: protocol.clone(),
-                pkid,
-                sub_identifier,
-                filter: filter.clone(),
                 sub_name: "".to_string(),
                 group_name: "".to_string(),
             },
@@ -212,33 +195,16 @@ async fn parse_share_subscribe(
     req: &mut ParseShareQueueSubscribeRequest,
 ) -> Result<(), MqttBrokerError> {
     let (group_name, sub_name) = decode_share_info(&req.filter.path);
-    req.group_name = format!("{}_{}", group_name, sub_name);
-    req.sub_name = sub_name;
-    parse_share_queue_subscribe_common(client_pool, subscribe_manager, req).await;
-    Ok(())
-}
 
-async fn parse_queue_subscribe(
-    client_pool: &Arc<ClientPool>,
-    subscribe_manager: &Arc<SubscribeManager>,
-    req: &mut ParseShareQueueSubscribeRequest,
-) -> Result<(), MqttBrokerError> {
-    let sub_name = decode_queue_info(&req.filter.path);
-    // queueSub is a special shareSub
-    let group_name = format!("$queue_{}", sub_name);
-    req.group_name = group_name;
-    req.sub_name = sub_name;
-    parse_share_queue_subscribe_common(client_pool, subscribe_manager, req).await;
-    Ok(())
-}
+    req.group_name = if is_queue_sub(&req.filter.path) {
+        format!("$queue_{}", sub_name)
+    } else {
+        format!("{}_{}", group_name, sub_name)
+    };
 
-async fn parse_share_queue_subscribe_common(
-    client_pool: &Arc<ClientPool>,
-    subscribe_manager: &Arc<SubscribeManager>,
-    req: &ParseShareQueueSubscribeRequest,
-) {
+    req.sub_name = sub_name;
+
     let conf = broker_mqtt_conf();
-
     if is_match_sub_and_topic(&req.sub_name, &req.topic_name).is_ok() {
         match get_share_sub_leader(client_pool, &req.group_name).await {
             Ok(reply) => {
@@ -256,9 +222,10 @@ async fn parse_share_queue_subscribe_common(
             }
         }
     }
+    Ok(())
 }
 
-async fn add_share_push_leader(
+pub async fn add_share_push_leader(
     subscribe_manager: &Arc<SubscribeManager>,
     req: &ParseShareQueueSubscribeRequest,
 ) {
@@ -294,6 +261,8 @@ async fn add_share_push_follower(
         group_name: req.group_name.clone(),
         sub_name: req.sub_name.clone(),
         subscription_identifier: req.sub_identifier,
+        topic_id: req.topic_id.clone(),
+        topic_name: req.topic_name.clone(),
     };
 
     subscribe_manager.add_share_subscribe_follower(
@@ -350,7 +319,7 @@ fn add_exclusive_push(
 #[cfg(test)]
 mod tests {
     use super::add_exclusive_push;
-    use crate::subscribe::subscribe_manager::SubscribeManager;
+    use crate::subscribe::manager::SubscribeManager;
     use common_base::tools::unique_id;
     use metadata_struct::mqtt::topic::MqttTopic;
     use protocol::mqtt::common::{Filter, MqttProtocol};

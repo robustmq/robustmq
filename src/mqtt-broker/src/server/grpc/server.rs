@@ -28,7 +28,7 @@ use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::CacheManager;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::grpc::admin::GrpcAdminServices;
-use crate::subscribe::subscribe_manager::SubscribeManager;
+use crate::subscribe::manager::SubscribeManager;
 
 pub struct GrpcServer<S> {
     port: u32,

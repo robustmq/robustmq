@@ -18,7 +18,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use protocol::mqtt::common::{Filter, Login, MqttProtocol, Subscribe};
 
-use crate::subscribe::subscribe_manager::SubscribeManager;
+use crate::subscribe::manager::SubscribeManager;
 
 use super::{cache::CacheManager, error::MqttBrokerError, subscribe::save_subscribe};
 
