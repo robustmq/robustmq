@@ -12,30 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
-
-use crate::handler::cache::{CacheManager, QosAckPacketInfo};
+use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
-use crate::handler::message::is_message_expire;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
-use crate::subscribe::common::{
-    exclusive_publish_message_qos1, exclusive_publish_message_qos2, get_pkid, loop_commit_offset,
-    min_qos, publish_message_qos,
-};
+use crate::subscribe::common::loop_commit_offset;
 use crate::subscribe::manager::{ShareLeaderSubscribeData, SubscribeManager};
-use crate::subscribe::meta::SubPublishParam;
 use crate::subscribe::meta::Subscriber;
-use bytes::Bytes;
-use common_base::tools::now_second;
-use metadata_struct::mqtt::message::MqttMessage;
-use protocol::mqtt::common::{Publish, PublishProperties, QoS};
+use crate::subscribe::push::{build_pub_message, build_pub_qos, build_sub_ids, publish_data};
+use std::sync::Arc;
+use std::time::Duration;
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::sleep;
 use tracing::{error, info};
+
 #[derive(Clone)]
 pub struct ShareLeaderPush<S> {
     pub subscribe_manager: Arc<SubscribeManager>,
@@ -230,165 +222,43 @@ where
     }
 
     for record in results.iter() {
-        let msg = MqttMessage::decode_record(record.clone())?;
-
-        if is_message_expire(&msg) {
+        let record_offset = if let Some(offset) = record.offset {
+            offset
+        } else {
             continue;
-        }
+        };
 
         loop {
-            let subscribe = if let Some(subscrbie) =
-                get_subscribe_by_random(subscribe_manager, share_leader_key, record.offset.unwrap())
+            let subscriber = if let Some(subscrbie) =
+                get_subscribe_by_random(subscribe_manager, share_leader_key, record_offset)
             {
                 subscrbie
             } else {
-                info!(
-                    "Not subscribed to the topic {}, and the message will not be sent.",
-                    &sub_data.topic_name
-                );
+                sleep(Duration::from_secs(1)).await;
                 continue;
             };
 
-            if let Some((mut publish, properties)) =
-                build_publish(cache_manager, &subscribe, &sub_data.topic_name, &msg)
+            let qos = build_pub_qos(&cache_manager, &subscriber);
+            let sub_ids = build_sub_ids(&subscriber);
+
+            // build publish params
+            let sub_pub_param = if let Some(params) =
+                build_pub_message(record.to_owned(), group_id, &qos, &subscriber, &sub_ids).await?
             {
-                let pkid = get_pkid();
-                publish.pkid = pkid;
+                params
+            } else {
+                sleep(Duration::from_secs(1)).await;
+                continue;
+            };
 
-                let sub_pub_param = SubPublishParam::new(
-                    subscribe.clone(),
-                    publish,
-                    Some(properties),
-                    record.timestamp as u128,
-                    group_id.to_owned(),
-                    pkid,
-                );
-
-                publish_data(connection_manager, cache_manager, sub_pub_param, stop_sx).await?;
-                break;
-            }
+            publish_data(connection_manager, cache_manager, sub_pub_param, stop_sx).await?;
+            break;
         }
 
         // commit offset
-        loop_commit_offset(
-            message_storage,
-            &sub_data.topic_id,
-            group_id,
-            record.offset.unwrap(),
-        )
-        .await?;
+        loop_commit_offset(message_storage, &sub_data.topic_id, group_id, record_offset).await?;
     }
     Ok(results.last().unwrap().offset)
-}
-
-async fn publish_data(
-    connection_manager: &Arc<ConnectionManager>,
-    cache_manager: &Arc<CacheManager>,
-    sub_pub_param: SubPublishParam,
-    stop_sx: &Sender<bool>,
-) -> Result<(), MqttBrokerError> {
-    match sub_pub_param.publish.qos {
-        QoS::AtMostOnce => {
-            publish_message_qos(cache_manager, connection_manager, &sub_pub_param, stop_sx).await?;
-        }
-
-        QoS::AtLeastOnce => {
-            let (wait_puback_sx, _) = broadcast::channel(1);
-            let client_id = sub_pub_param.subscribe.client_id.clone();
-            let pkid = sub_pub_param.pkid;
-            cache_manager.add_ack_packet(
-                &client_id,
-                pkid,
-                QosAckPacketInfo {
-                    sx: wait_puback_sx.clone(),
-                    create_time: now_second(),
-                },
-            );
-
-            exclusive_publish_message_qos1(
-                cache_manager,
-                connection_manager,
-                &sub_pub_param,
-                stop_sx,
-                &wait_puback_sx,
-            )
-            .await?;
-
-            cache_manager.remove_ack_packet(&client_id, pkid);
-        }
-
-        QoS::ExactlyOnce => {
-            let (wait_ack_sx, _) = broadcast::channel(1);
-            let client_id = sub_pub_param.subscribe.client_id.clone();
-            let pkid = sub_pub_param.pkid;
-            cache_manager.add_ack_packet(
-                &client_id,
-                pkid,
-                QosAckPacketInfo {
-                    sx: wait_ack_sx.clone(),
-                    create_time: now_second(),
-                },
-            );
-
-            exclusive_publish_message_qos2(
-                cache_manager,
-                connection_manager,
-                &sub_pub_param,
-                stop_sx,
-                &wait_ack_sx,
-            )
-            .await?;
-
-            cache_manager.remove_ack_packet(&client_id, pkid);
-        }
-    }
-    Ok(())
-}
-
-fn build_publish(
-    metadata_cache: &Arc<CacheManager>,
-    subscribe: &Subscriber,
-    topic_name: &str,
-    msg: &MqttMessage,
-) -> Option<(Publish, PublishProperties)> {
-    let cluster_qos = metadata_cache.get_cluster_info().protocol.max_qos;
-    let qos = min_qos(cluster_qos, subscribe.qos);
-
-    let retain = if subscribe.preserve_retain {
-        msg.retain
-    } else {
-        false
-    };
-
-    if subscribe.nolocal && (subscribe.client_id == msg.client_id) {
-        return None;
-    }
-
-    let publish = Publish {
-        dup: false,
-        qos,
-        pkid: 0,
-        retain,
-        topic: Bytes::from(topic_name.to_owned()),
-        payload: msg.payload.clone(),
-    };
-
-    let mut sub_ids = Vec::new();
-    if let Some(id) = subscribe.subscription_identifier {
-        sub_ids.push(id);
-    }
-
-    let properties = PublishProperties {
-        payload_format_indicator: msg.format_indicator,
-        message_expiry_interval: Some(msg.expiry_interval as u32),
-        topic_alias: None,
-        response_topic: msg.response_topic.clone(),
-        correlation_data: msg.correlation_data.clone(),
-        user_properties: msg.user_properties.clone(),
-        subscription_identifiers: sub_ids,
-        content_type: msg.content_type.clone(),
-    };
-    Some((publish, properties))
 }
 
 fn get_subscribe_by_random(
