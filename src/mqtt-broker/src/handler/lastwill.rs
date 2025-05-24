@@ -28,7 +28,7 @@ use super::retain::save_retain_message;
 use super::topic::try_init_topic;
 use crate::storage::message::MessageStorage;
 use crate::storage::session::SessionStorage;
-use crate::subscribe::sub_common::get_pkid;
+use crate::subscribe::common::get_pkid;
 
 pub async fn send_last_will_message<S>(
     client_id: &str,

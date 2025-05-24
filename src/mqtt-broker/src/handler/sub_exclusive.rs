@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::cache::CacheManager;
-use crate::subscribe::subscribe_manager::SubscribeManager;
+use crate::subscribe::manager::SubscribeManager;
 use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
 
 use metadata_struct::mqtt::cluster::AvailableFlag;
@@ -70,7 +70,7 @@ mod tests {
 
     use crate::{
         handler::{cache::CacheManager, sub_exclusive::already_exclusive_subscribe},
-        subscribe::subscribe_manager::SubscribeManager,
+        subscribe::manager::SubscribeManager,
     };
 
     use super::allow_exclusive_subscribe;

@@ -33,7 +33,7 @@ use crate::server::tcp::handler::handler_process;
 use crate::server::tcp::response::response_process;
 use crate::server::tcp::tcp_server::acceptor_process;
 use crate::server::tcp::tls_server::acceptor_tls_process;
-use crate::subscribe::subscribe_manager::SubscribeManager;
+use crate::subscribe::manager::SubscribeManager;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn start_tcp_server<S>(

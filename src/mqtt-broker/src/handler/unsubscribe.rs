@@ -14,8 +14,8 @@
 
 use super::error::MqttBrokerError;
 use crate::subscribe::{
-    sub_common::{decode_share_info, is_queue_sub, is_share_sub},
-    subscribe_manager::SubscribeManager,
+    common::{decode_share_info, is_queue_sub, is_share_sub},
+    manager::SubscribeManager,
 };
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::{placement::mqtt::call::placement_delete_subscribe, pool::ClientPool};

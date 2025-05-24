@@ -37,7 +37,7 @@ use storage_adapter::StorageType;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::security::acl::auth::is_blacklist;
-use crate::subscribe::sub_common::get_sub_topic_id_list;
+use crate::subscribe::common::get_sub_topic_id_list;
 
 pub mod acl;
 pub mod login;

@@ -32,7 +32,7 @@ use super::cache::{CacheManager, ConnectionLiveTime};
 use super::connection::disconnect_connection;
 use super::response::response_packet_mqtt_distinct_by_reason;
 use crate::server::connection_manager::ConnectionManager;
-use crate::subscribe::subscribe_manager::SubscribeManager;
+use crate::subscribe::manager::SubscribeManager;
 
 pub struct ClientKeepAlive {
     cache_manager: Arc<CacheManager>,
@@ -255,7 +255,7 @@ mod test {
     use crate::handler::cache::CacheManager;
     use crate::handler::keep_alive::{client_keep_live_time, ClientKeepAlive};
     use crate::server::connection_manager::ConnectionManager;
-    use crate::subscribe::subscribe_manager::SubscribeManager;
+    use crate::subscribe::manager::SubscribeManager;
 
     #[tokio::test]
     pub async fn keep_live_test() {

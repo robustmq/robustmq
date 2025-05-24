@@ -24,7 +24,7 @@ use crate::handler::response::{
 use crate::security::AuthDriver;
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
-use crate::subscribe::subscribe_manager::SubscribeManager;
+use crate::subscribe::manager::SubscribeManager;
 use common_base::telemetry::trace::CustomContext;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;

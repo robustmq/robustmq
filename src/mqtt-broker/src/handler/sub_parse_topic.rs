@@ -16,7 +16,7 @@ use super::{
     cache::CacheManager, subscribe::parse_subscribe,
     topic_rewrite::convert_sub_path_by_rewrite_rule,
 };
-use crate::subscribe::subscribe_manager::SubscribeManager;
+use crate::subscribe::manager::SubscribeManager;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::now_second};
 use grpc_clients::pool::ClientPool;
 use std::{sync::Arc, time::Duration};
