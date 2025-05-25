@@ -124,7 +124,7 @@ pub async fn try_send_retain_message(
 #[allow(clippy::too_many_arguments)]
 async fn send_retain_message(
     protocol: &MqttProtocol,
-    client_id: &String,
+    client_id: &str,
     subscribe: &Subscribe,
     subscribe_properties: &Option<SubscribeProperties>,
     client_pool: &Arc<ClientPool>,
@@ -203,7 +203,7 @@ async fn send_retain_message(
             let sub_pub_param = SubPublishParam::new(
                 Subscriber {
                     protocol: protocol.to_owned(),
-                    client_id: client_id.clone(),
+                    client_id: client_id.to_string(),
                     ..Default::default()
                 },
                 publish,
