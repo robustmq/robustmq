@@ -164,7 +164,7 @@ where
                                     Ok(offset_op) => {
                                         if let Some(off) = offset_op{
                                             offset = off + 1;
-                                        }else{
+                                        } else {
                                             sleep(Duration::from_millis(100)).await;
                                         }
                                     }
@@ -256,11 +256,4 @@ fn build_group_name(subscriber: &Subscriber) -> String {
 }
 
 #[cfg(test)]
-mod test {
-    use common_base::tools::now_second;
-
-    #[tokio::test]
-    async fn pkid_test() {
-        println!("{}", (now_second() % 65535) as u16)
-    }
-}
+mod test {}
