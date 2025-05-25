@@ -742,7 +742,7 @@ mod test {
     use crate::observability::system_topic::write_topic_data;
     use crate::storage::message::cluster_name;
     use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
-    use common_base::tools::unique_id;
+    use common_base::tools::{get_local_ip, unique_id};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::adapter::read_config::ReadConfig;
     use metadata_struct::mqtt::message::MqttMessage;
@@ -796,5 +796,63 @@ mod test {
             .unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(topic_message.data, results[0].data)
+    }
+
+    #[tokio::test]
+    async fn test_replace_topic_name() {
+        let topic_name = "$SYS/brokers/${node}/version".to_string();
+        let replaced_name = super::replace_topic_name(topic_name.clone());
+        let local_ip = get_local_ip();
+        let expected_name = format!("$SYS/brokers/{}/version", local_ip);
+        assert!(replaced_name.contains("brokers/"));
+        assert!(!replaced_name.contains("${node}"));
+        assert_eq!(expected_name, replaced_name)
+    }
+
+    #[tokio::test]
+    async fn test_report_system_data() {
+        let path = format!(
+            "{}/../../config/mqtt-server.toml",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        init_broker_mqtt_conf_by_path(&path);
+        let client_pool = Arc::new(ClientPool::new(3));
+        let cache_manger = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
+        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let topic_name = format!("$SYS/brokers/{}-test", unique_id());
+        let mqtt_topic = MqttTopic::new(unique_id(), cluster_name(), topic_name.clone());
+        cache_manger.add_topic(&topic_name, &mqtt_topic);
+        let expect_data = "test_data".to_string();
+        super::report_system_data(
+            &client_pool,
+            &cache_manger,
+            &message_storage_adapter,
+            &topic_name,
+            || async { expect_data.clone() },
+        )
+        .await;
+
+        let mqtt_topic = cache_manger.get_topic_by_name(&topic_name).unwrap();
+
+        let read_config = ReadConfig {
+            max_record_num: 1,
+            max_size: 1024 * 1024 * 1024,
+        };
+        let results = message_storage_adapter
+            .read_by_offset(
+                cluster_name().to_owned(),
+                mqtt_topic.topic_id.clone(),
+                0,
+                read_config,
+            )
+            .await
+            .unwrap();
+
+        let except_message =
+            MqttMessage::build_system_topic_message(topic_name.clone(), expect_data).unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].data, except_message.data);
+        assert_eq!(results[0].crc_num, except_message.crc_num);
     }
 }
