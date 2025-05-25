@@ -744,10 +744,12 @@ mod test {
     use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
     use common_base::tools::unique_id;
     use grpc_clients::pool::ClientPool;
+    use metadata_struct::adapter::read_config::ReadConfig;
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::mqtt::topic::MqttTopic;
     use std::sync::Arc;
     use storage_adapter::memory::MemoryStorageAdapter;
+    use storage_adapter::storage::StorageAdapter;
 
     #[tokio::test]
     async fn test_write_topic_data() {
@@ -777,16 +779,22 @@ mod test {
         )
         .await;
 
-        let _topic = cache_manger.get_topic_by_name(&topic_name).unwrap();
-        /* let res = read_offset_data(
-            &message_storage_adapter,
-            cluster_name().as_str(),
-            &topic.topic_id,
-            0,
-        )
-        .await
-        .unwrap()
-        .unwrap();*/
-        /* assert_eq!(topic_message.data, res.data);*/
+        let topic = cache_manger.get_topic_by_name(&topic_name).unwrap();
+
+        let read_config = ReadConfig {
+            max_record_num: 1,
+            max_size: 1024 * 1024 * 1024,
+        };
+        let results = message_storage_adapter
+            .read_by_offset(
+                cluster_name().to_owned(),
+                topic.topic_id.to_owned(),
+                0,
+                read_config,
+            )
+            .await
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(topic_message.data, results[0].data)
     }
 }
