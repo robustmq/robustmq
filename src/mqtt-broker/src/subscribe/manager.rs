@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::subscribe::meta::Subscriber;
+use crate::subscribe::common::Subscriber;
 use dashmap::DashMap;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use protocol::mqtt::common::{Filter, MqttProtocol};

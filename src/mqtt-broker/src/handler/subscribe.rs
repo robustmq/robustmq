@@ -29,11 +29,11 @@ use serde::{Deserialize, Serialize};
 use tracing::error;
 
 use crate::subscribe::{
+    common::Subscriber,
     common::{
         decode_share_info, get_share_sub_leader, is_match_sub_and_topic, is_queue_sub, is_share_sub,
     },
     manager::{ShareSubShareSub, SubscribeManager},
-    meta::Subscriber,
 };
 
 use super::{
