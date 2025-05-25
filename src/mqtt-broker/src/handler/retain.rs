@@ -12,20 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use bytes::Bytes;
-use common_base::tools::now_second;
-use dashmap::DashMap;
-use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::message::MqttMessage;
-use protocol::mqtt::common::{
-    MqttProtocol, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties,
-};
-use tokio::sync::broadcast::{self};
-use tracing::info;
-
-use super::cache::{CacheManager, QosAckPacketInfo};
+use super::cache::CacheManager;
 use super::constant::{SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE};
 use super::error::MqttBrokerError;
 use super::message::build_message_expire;
@@ -42,9 +29,17 @@ use crate::subscribe::common::SubPublishParam;
 use crate::subscribe::common::Subscriber;
 use crate::subscribe::common::{get_pkid, get_sub_topic_id_list, min_qos};
 use crate::subscribe::manager::SubscribeManager;
-use crate::subscribe::push::{
-    exclusive_publish_message_qos1, exclusive_publish_message_qos2, publish_message_qos,
+use crate::subscribe::push::publish_data;
+use bytes::Bytes;
+use dashmap::DashMap;
+use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::message::MqttMessage;
+use protocol::mqtt::common::{
+    MqttProtocol, Publish, PublishProperties, Subscribe, SubscribeProperties,
 };
+use std::sync::Arc;
+use tokio::sync::broadcast;
+use tracing::info;
 
 pub async fn is_new_sub(
     client_id: &str,
@@ -196,7 +191,6 @@ async fn send_retain_message(
             };
 
             let pkid = get_pkid();
-
             let publish = Publish {
                 dup: false,
                 qos,
@@ -219,61 +213,8 @@ async fn send_retain_message(
                 pkid,
             );
 
-            match qos {
-                QoS::AtMostOnce => {
-                    publish_message_qos(cache_manager, connection_manager, &sub_pub_param, stop_sx)
-                        .await?;
-                }
-
-                QoS::AtLeastOnce => {
-                    let (wait_puback_sx, _) = broadcast::channel(1);
-                    cache_manager.add_ack_packet(
-                        client_id,
-                        pkid,
-                        QosAckPacketInfo {
-                            sx: wait_puback_sx.clone(),
-                            create_time: now_second(),
-                        },
-                    );
-
-                    exclusive_publish_message_qos1(
-                        cache_manager,
-                        connection_manager,
-                        &sub_pub_param,
-                        stop_sx,
-                        &wait_puback_sx,
-                    )
-                    .await?;
-
-                    cache_manager.remove_ack_packet(client_id, pkid);
-                }
-
-                QoS::ExactlyOnce => {
-                    let (wait_ack_sx, _) = broadcast::channel(1);
-                    cache_manager.add_ack_packet(
-                        client_id,
-                        pkid,
-                        QosAckPacketInfo {
-                            sx: wait_ack_sx.clone(),
-                            create_time: now_second(),
-                        },
-                    );
-
-                    exclusive_publish_message_qos2(
-                        cache_manager,
-                        connection_manager,
-                        &sub_pub_param,
-                        stop_sx,
-                        &wait_ack_sx,
-                    )
-                    .await?;
-
-                    cache_manager.remove_ack_packet(client_id, pkid);
-                }
-            };
-
+            publish_data(connection_manager, cache_manager, sub_pub_param, stop_sx).await?;
             record_retain_sent_metrics(qos);
-            info!("Send retain message successfully, client: {}", client_id);
         }
     }
     Ok(())
