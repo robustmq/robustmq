@@ -15,8 +15,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use super::common::Subscriber;
 use super::common::{get_pkid, min_qos};
-use super::meta::Subscriber;
 use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
 use crate::handler::error::MqttBrokerError;
 use crate::handler::message::is_message_expire;
@@ -24,7 +24,7 @@ use crate::handler::sub_option::{get_retain_flag_by_retain_as_published, is_send
 use crate::observability::slow::sub::{record_slow_sub_data, SlowSubData};
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
-use crate::subscribe::meta::SubPublishParam;
+use crate::subscribe::common::SubPublishParam;
 use axum::extract::ws::Message;
 use bytes::{Bytes, BytesMut};
 use common_base::tools::{now_mills, now_second};

@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use super::common::loop_commit_offset;
+use super::common::Subscriber;
 use super::manager::SubscribeManager;
-use super::meta::Subscriber;
 use super::push::{build_pub_message, publish_data};
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;

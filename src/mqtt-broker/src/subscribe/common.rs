@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::handler::cache::CacheManager;
+use crate::handler::error::MqttBrokerError;
+use crate::storage::message::MessageStorage;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use common_base::tools::now_nanos;
@@ -19,16 +22,15 @@ use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is
 use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
 use grpc_clients::pool::ClientPool;
 use protocol::mqtt::common::QoS;
+use protocol::mqtt::common::{Filter, MqttProtocol, RetainHandling, SubscribeProperties};
+use protocol::mqtt::common::{Publish, PublishProperties};
 use protocol::placement_center::placement_center_mqtt::{
     GetShareSubLeaderReply, GetShareSubLeaderRequest,
 };
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
-
-use crate::handler::cache::CacheManager;
-use crate::handler::error::MqttBrokerError;
-use crate::storage::message::MessageStorage;
 
 const SHARE_SUB_PREFIX: &str = "$share";
 const QUEUE_SUB_PREFIX: &str = "$queue";
@@ -36,6 +38,60 @@ const SUBSCRIBE_WILDCARDS_1: &str = "+";
 const SUBSCRIBE_WILDCARDS_2: &str = "#";
 const SUBSCRIBE_SPLIT_DELIMITER: &str = "/";
 const SUBSCRIBE_NAME_REGEX: &str = r"^[\$a-zA-Z0-9_#+/]+$";
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct Subscriber {
+    pub protocol: MqttProtocol,
+    pub client_id: String,
+    pub sub_path: String,
+    pub rewrite_sub_path: Option<String>,
+    pub topic_name: String,
+    pub group_name: Option<String>,
+    pub topic_id: String,
+    pub qos: QoS,
+    pub nolocal: bool,
+    pub preserve_retain: bool,
+    pub retain_forward_rule: RetainHandling,
+    pub subscription_identifier: Option<usize>,
+    pub create_time: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SubscribeData {
+    pub protocol: MqttProtocol,
+    pub filter: Filter,
+    pub subscribe_properties: Option<SubscribeProperties>,
+}
+
+#[derive(Clone, Default, Debug)]
+pub(crate) struct SubPublishParam {
+    pub subscribe: Subscriber,
+    pub publish: Publish,
+    pub properties: Option<PublishProperties>,
+    pub create_time: u128,
+    pub pkid: u16,
+    pub group_id: String,
+}
+
+impl SubPublishParam {
+    pub fn new(
+        subscribe: Subscriber,
+        publish: Publish,
+        properties: Option<PublishProperties>,
+        create_time: u128,
+        group_id: String,
+        pkid: u16,
+    ) -> Self {
+        SubPublishParam {
+            subscribe,
+            publish,
+            properties,
+            create_time,
+            pkid,
+            group_id,
+        }
+    }
+}
 
 pub fn get_pkid() -> u16 {
     (now_nanos() % 65535) as u16

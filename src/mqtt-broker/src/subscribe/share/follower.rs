@@ -38,11 +38,11 @@ use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, 
 use crate::handler::error::MqttBrokerError;
 use crate::handler::subscribe::{add_share_push_leader, ParseShareQueueSubscribeRequest};
 use crate::server::connection_manager::ConnectionManager;
+use crate::subscribe::common::SubPublishParam;
+use crate::subscribe::common::Subscriber;
 use crate::subscribe::common::{get_pkid, get_share_sub_leader};
 use crate::subscribe::manager::ShareSubShareSub;
 use crate::subscribe::manager::SubscribeManager;
-use crate::subscribe::meta::SubPublishParam;
-use crate::subscribe::meta::Subscriber;
 use crate::subscribe::push::{
     exclusive_publish_message_qos1, publish_message_qos, qos2_send_pubrel, wait_packet_ack,
     wait_pub_rec,
