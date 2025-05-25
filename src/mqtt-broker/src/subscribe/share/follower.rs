@@ -21,10 +21,10 @@ use futures::StreamExt;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::node_extend::MqttNodeExtend;
 use protocol::mqtt::common::{
-    Connect, ConnectProperties, ConnectReturnCode, Login, MqttPacket, MqttProtocol, PingReq,
-    PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec,
-    PubRecProperties, PubRecReason, Subscribe, SubscribeProperties, SubscribeReasonCode,
-    Unsubscribe, UnsubscribeProperties,
+    ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, Login, MqttPacket,
+    MqttProtocol, PingReq, PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties,
+    PubCompReason, PubRec, PubRecProperties, PubRecReason, Publish, PublishProperties, SubAck,
+    Subscribe, SubscribeProperties, SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
 };
 use protocol::mqtt::mqttv5::codec::Mqtt5Codec;
 use tokio::net::TcpStream;
@@ -38,15 +38,15 @@ use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, 
 use crate::handler::error::MqttBrokerError;
 use crate::handler::subscribe::{add_share_push_leader, ParseShareQueueSubscribeRequest};
 use crate::server::connection_manager::ConnectionManager;
-use crate::subscribe::common::get_pkid;
-use crate::subscribe::common::{
-    exclusive_publish_message_qos1, get_share_sub_leader, publish_message_qos, qos2_send_pubrel,
-    wait_packet_ack, wait_pub_rec,
-};
+use crate::subscribe::common::SubPublishParam;
+use crate::subscribe::common::Subscriber;
+use crate::subscribe::common::{get_pkid, get_share_sub_leader};
 use crate::subscribe::manager::ShareSubShareSub;
 use crate::subscribe::manager::SubscribeManager;
-use crate::subscribe::meta::SubPublishParam;
-use crate::subscribe::meta::Subscriber;
+use crate::subscribe::push::{
+    exclusive_publish_message_qos1, publish_message_qos, qos2_send_pubrel, wait_packet_ack,
+    wait_pub_rec,
+};
 
 use super::write::WriteStream;
 
@@ -261,171 +261,47 @@ async fn process_packet(
 ) -> Result<(), MqttBrokerError> {
     match packet {
         MqttPacket::ConnAck(connack, connack_properties) => {
-            if connack.code == ConnectReturnCode::Success {
-                // Ping
-                start_ping_thread(write_stream.clone(), stop_sx.clone()).await;
-
-                // Subscribe
-                subscribe_to_leader(follower_sub_leader_pkid, share_sub, write_stream).await;
-            } else {
-                return Err(MqttBrokerError::CommonError(format!("client_id:[{}], group_name:[{}], sub_name:[{}] Follower forwarding subscription connection request error,
-                            error message: {:?},{:?}",mqtt_client_id,group_name,sub_name,connack,connack_properties)));
-            }
+            process_conn_ack_packet(
+                &connack,
+                &connack_properties,
+                write_stream,
+                share_sub,
+                follower_sub_leader_pkid,
+                mqtt_client_id,
+                group_name,
+                sub_name,
+                stop_sx,
+            )
+            .await?;
         }
 
         MqttPacket::SubAck(suback, _) => {
-            for reason in suback.return_codes.clone() {
-                if !(reason
-                    == SubscribeReasonCode::Success(protocol::mqtt::common::QoS::AtLeastOnce)
-                    || reason
-                        == SubscribeReasonCode::Success(protocol::mqtt::common::QoS::AtMostOnce)
-                    || reason
-                        == SubscribeReasonCode::Success(protocol::mqtt::common::QoS::ExactlyOnce)
-                    || reason == SubscribeReasonCode::QoS0
-                    || reason == SubscribeReasonCode::QoS1
-                    || reason == SubscribeReasonCode::QoS2)
-                {
-                    return Err(MqttBrokerError::CommonError(format!("{:?}", suback)));
-                }
-            }
+            process_sub_ack(suback).await?;
         }
 
-        MqttPacket::Publish(mut publish, publish_properties) => {
-            let cache_manager = cache_manager.clone();
-            let stop_sx = stop_sx.clone();
-            let connection_manager = connection_manager.clone();
-            let write_stream = write_stream.clone();
-            let follower_sub_leader_client_id = follower_sub_leader_client_id.to_owned();
-            let mqtt_client_id = mqtt_client_id.to_owned();
-
-            tokio::spawn(async move {
-                let subscriber = Subscriber {
-                    client_id: mqtt_client_id.clone(),
-                    ..Default::default()
-                };
-
-                let publish_to_client_pkid = get_pkid();
-                publish.pkid = publish_to_client_pkid;
-
-                let sub_pub_param = SubPublishParam::new(
-                    subscriber.clone(),
-                    publish.clone(),
-                    publish_properties,
-                    now_mills(),
-                    "".to_string(),
-                    publish_to_client_pkid,
-                );
-
-                match publish.qos {
-                    protocol::mqtt::common::QoS::AtMostOnce => {
-                        publish.dup = false;
-                        if let Err(e) = publish_message_qos(
-                            &cache_manager,
-                            &connection_manager,
-                            &sub_pub_param,
-                            &stop_sx,
-                        )
-                        .await
-                        {
-                            error!("{}", e);
-                        }
-                    }
-
-                    protocol::mqtt::common::QoS::AtLeastOnce => {
-                        let (wait_puback_sx, _) = broadcast::channel(1);
-                        cache_manager.add_ack_packet(
-                            &mqtt_client_id,
-                            publish_to_client_pkid,
-                            QosAckPacketInfo {
-                                sx: wait_puback_sx.clone(),
-                                create_time: now_second(),
-                            },
-                        );
-
-                        match resub_publish_message_qos1(
-                            &cache_manager,
-                            &connection_manager,
-                            &sub_pub_param,
-                            &stop_sx,
-                            &wait_puback_sx,
-                            &write_stream,
-                        )
-                        .await
-                        {
-                            Ok(()) => {
-                                cache_manager
-                                    .remove_ack_packet(&mqtt_client_id, publish_to_client_pkid);
-                            }
-                            Err(e) => {
-                                error!("{}", e);
-                            }
-                        }
-                    }
-
-                    protocol::mqtt::common::QoS::ExactlyOnce => {
-                        let (wait_client_ack_sx, _) = broadcast::channel(1);
-
-                        cache_manager.add_ack_packet(
-                            &mqtt_client_id,
-                            publish_to_client_pkid,
-                            QosAckPacketInfo {
-                                sx: wait_client_ack_sx.clone(),
-                                create_time: now_second(),
-                            },
-                        );
-
-                        let (wait_leader_ack_sx, _) = broadcast::channel(1);
-                        cache_manager.add_ack_packet(
-                            &follower_sub_leader_client_id,
-                            publish.pkid,
-                            QosAckPacketInfo {
-                                sx: wait_leader_ack_sx.clone(),
-                                create_time: now_second(),
-                            },
-                        );
-
-                        match resub_publish_message_qos2(
-                            &cache_manager,
-                            &sub_pub_param,
-                            &connection_manager,
-                            &stop_sx,
-                            &wait_client_ack_sx,
-                            &wait_leader_ack_sx,
-                            &write_stream,
-                            &follower_sub_leader_client_id,
-                            &mqtt_client_id,
-                        )
-                        .await
-                        {
-                            Ok(()) => {
-                                cache_manager
-                                    .remove_ack_packet(&mqtt_client_id, publish_to_client_pkid);
-                                cache_manager.remove_ack_packet(
-                                    &follower_sub_leader_client_id,
-                                    publish.pkid,
-                                );
-                            }
-                            Err(e) => {
-                                error!("{}", e);
-                            }
-                        }
-                    }
-                }
-            });
+        MqttPacket::Publish(publish, publish_properties) => {
+            process_publish_packet(
+                cache_manager,
+                connection_manager,
+                write_stream,
+                publish,
+                publish_properties,
+                mqtt_client_id,
+                follower_sub_leader_client_id,
+                stop_sx,
+            )
+            .await?;
         }
 
         MqttPacket::PubRel(pubrel, _) => {
             if let Some(data) =
                 cache_manager.get_ack_packet(follower_sub_leader_client_id.to_owned(), pubrel.pkid)
             {
-                match data.sx.send(QosAckPackageData {
+                if let Err(e) = data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubRel,
                     pkid: pubrel.pkid,
                 }) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        error!("{}", e);
-                    }
+                    return Err(MqttBrokerError::CommonError(e.to_string()));
                 }
             }
         }
@@ -442,7 +318,9 @@ async fn process_packet(
             )
             .await;
         }
+
         MqttPacket::PingResp(_) => {}
+
         _ => {
             error!(
                 "{}",
@@ -453,9 +331,145 @@ async fn process_packet(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
+async fn process_conn_ack_packet(
+    connack: &ConnAck,
+    connack_properties: &Option<ConnAckProperties>,
+    write_stream: &Arc<WriteStream>,
+    share_sub: &ShareSubShareSub,
+    follower_sub_leader_pkid: u16,
+    mqtt_client_id: &str,
+    group_name: &str,
+    sub_name: &str,
+    stop_sx: &Sender<bool>,
+) -> Result<(), MqttBrokerError> {
+    if connack.code == ConnectReturnCode::Success {
+        // Ping
+        start_ping_thread(write_stream.clone(), stop_sx.clone()).await;
+
+        // Subscribe
+        subscribe_to_leader(follower_sub_leader_pkid, share_sub, write_stream).await;
+    }
+    Err(MqttBrokerError::CommonError(format!("client_id:[{}], group_name:[{}], sub_name:[{}] Follower forwarding subscription connection request error,
+                            error message: {:?},{:?}",mqtt_client_id,group_name,sub_name,connack,connack_properties)))
+}
+
+async fn process_sub_ack(suback: SubAck) -> Result<(), MqttBrokerError> {
+    for reason in suback.return_codes.clone() {
+        if !(reason == SubscribeReasonCode::Success(protocol::mqtt::common::QoS::AtLeastOnce)
+            || reason == SubscribeReasonCode::Success(protocol::mqtt::common::QoS::AtMostOnce)
+            || reason == SubscribeReasonCode::Success(protocol::mqtt::common::QoS::ExactlyOnce)
+            || reason == SubscribeReasonCode::QoS0
+            || reason == SubscribeReasonCode::QoS1
+            || reason == SubscribeReasonCode::QoS2)
+        {
+            return Err(MqttBrokerError::CommonError(format!("{:?}", suback)));
+        }
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn process_publish_packet(
+    cache_manager: &Arc<CacheManager>,
+    connection_manager: &Arc<ConnectionManager>,
+    write_stream: &Arc<WriteStream>,
+    mut publish: Publish,
+    publish_properties: Option<PublishProperties>,
+    mqtt_client_id: &str,
+    follower_sub_leader_client_id: &str,
+    stop_sx: &Sender<bool>,
+) -> Result<(), MqttBrokerError> {
+    let subscriber = Subscriber {
+        client_id: mqtt_client_id.to_string(),
+        ..Default::default()
+    };
+
+    let publish_to_client_pkid = get_pkid();
+    publish.pkid = publish_to_client_pkid;
+
+    let sub_pub_param = SubPublishParam::new(
+        subscriber.clone(),
+        publish.clone(),
+        publish_properties,
+        now_mills(),
+        "".to_string(),
+        publish_to_client_pkid,
+    );
+
+    match publish.qos {
+        protocol::mqtt::common::QoS::AtMostOnce => {
+            publish_message_qos(cache_manager, connection_manager, &sub_pub_param, stop_sx).await?;
+        }
+
+        protocol::mqtt::common::QoS::AtLeastOnce => {
+            let (wait_puback_sx, _) = broadcast::channel(1);
+            cache_manager.add_ack_packet(
+                mqtt_client_id,
+                publish_to_client_pkid,
+                QosAckPacketInfo {
+                    sx: wait_puback_sx.clone(),
+                    create_time: now_second(),
+                },
+            );
+
+            resub_publish_message_qos1(
+                cache_manager,
+                connection_manager,
+                &sub_pub_param,
+                stop_sx,
+                &wait_puback_sx,
+                write_stream,
+            )
+            .await?;
+
+            cache_manager.remove_ack_packet(mqtt_client_id, publish_to_client_pkid);
+        }
+
+        protocol::mqtt::common::QoS::ExactlyOnce => {
+            let (wait_client_ack_sx, _) = broadcast::channel(1);
+
+            cache_manager.add_ack_packet(
+                mqtt_client_id,
+                publish_to_client_pkid,
+                QosAckPacketInfo {
+                    sx: wait_client_ack_sx.clone(),
+                    create_time: now_second(),
+                },
+            );
+
+            let (wait_leader_ack_sx, _) = broadcast::channel(1);
+            cache_manager.add_ack_packet(
+                follower_sub_leader_client_id,
+                publish.pkid,
+                QosAckPacketInfo {
+                    sx: wait_leader_ack_sx.clone(),
+                    create_time: now_second(),
+                },
+            );
+
+            resub_publish_message_qos2(
+                cache_manager,
+                &sub_pub_param,
+                connection_manager,
+                stop_sx,
+                &wait_client_ack_sx,
+                &wait_leader_ack_sx,
+                write_stream,
+                follower_sub_leader_client_id,
+                mqtt_client_id,
+            )
+            .await?;
+
+            cache_manager.remove_ack_packet(mqtt_client_id, publish_to_client_pkid);
+            cache_manager.remove_ack_packet(follower_sub_leader_client_id, publish.pkid);
+        }
+    }
+    Ok(())
+}
+
 async fn start_ping_thread(write_stream: Arc<WriteStream>, stop_sx: Sender<bool>) {
     tokio::spawn(async move {
-        info!("{}", "start_ping_thread start");
         loop {
             let send_ping = async {
                 let ping_packet = MqttPacket::PingReq(PingReq {});
