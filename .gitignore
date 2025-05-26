@@ -11,6 +11,7 @@ nohup.out
 .idea
 /precommit_venv/
 robust-data*
+process_logs
 /docs/.vitepress/dist/
 /docs/.vitepress/cache/
 /node_modules/
