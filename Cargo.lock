@@ -750,6 +750,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
+name = "cli-bench"
+version = "0.1.14"
+dependencies = [
+ "axum",
+ "clap",
+ "clap-cargo",
+ "common-base",
+ "futures",
+ "grpc-clients",
+ "protocol",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
 name = "cli-command"
 version = "0.1.14"
 dependencies = [
@@ -779,24 +797,17 @@ dependencies = [
 name = "cmd"
 version = "0.1.14"
 dependencies = [
- "axum",
  "clap",
  "clap-cargo",
  "cli-command",
  "common-base",
  "console-subscriber",
- "futures",
- "grpc-clients",
  "journal-server",
  "lazy_static",
  "mockall",
  "mqtt-broker",
  "placement-center",
  "protocol",
- "rand 0.8.5",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
  "tokio",
 ]
 

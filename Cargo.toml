@@ -19,6 +19,7 @@ members = [
     "src/kafka-broker",
     "src/placement-center",
     "src/cli-command",
+    "src/cli-bench",
     "src/delay-message",
     "src/idempotent-message",
     "src/schema-register",
