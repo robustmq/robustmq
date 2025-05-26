@@ -19,7 +19,6 @@ pub mod mqtt;
 pub mod placement;
 pub mod pool;
 mod utils;
-
 // const MAX_RETRY_TIMES: usize = 10;
 
 pub fn retry_times() -> usize {
