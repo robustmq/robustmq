@@ -35,6 +35,10 @@ path = "src/placement-center/server.rs"
 name = "cli-command"
 path = "src/cli-command/command.rs"
 
+[[bin]]
+name = "cli-bench"
+path = "src/cli-bench/bench.rs"
+
 [dependencies]
 clap.workspace = true
 common-base.workspace = true
@@ -44,9 +48,16 @@ mqtt-broker.workspace = true
 placement-center.workspace = true
 journal-server.workspace = true
 cli-command.workspace = true
+grpc-clients.workspace = true
 clap-cargo.workspace = true
 protocol.workspace = true
 console-subscriber.workspace = true
+axum.workspace = true
+thiserror.workspace = true
+futures.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+rand.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true
