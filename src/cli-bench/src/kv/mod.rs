@@ -16,13 +16,12 @@ pub mod get;
 pub mod mixed;
 pub mod set;
 
+use crate::{error::BenchMarkError, BenchMark};
 use clap::{Parser, Subcommand};
+use common_base::runtime::create_runtime;
 use get::KvGetBenchArgs;
 use mixed::KvMixedBenchArgs;
 use set::KvSetBenchArgs;
-use tokio::runtime::Builder;
-
-use crate::{error::BenchMarkError, BenchMark};
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum KvBenchAction {
@@ -44,12 +43,7 @@ pub fn handle_kv_bench(args: KvBenchArgs) -> Result<(), BenchMarkError> {
         KvBenchAction::Mixed(_) => unimplemented!(),
     };
 
-    let rt = Builder::new_multi_thread()
-        .worker_threads(num_threads)
-        .enable_all()
-        .thread_name(thread_name)
-        .thread_stack_size(3 * 1024 * 1024)
-        .build()?;
+    let rt = create_runtime(thread_name, num_threads);
 
     // Run client_write benchmark
     match args.action {
