@@ -33,7 +33,7 @@ pub struct KvGetBenchArgs {
     #[clap(long, default_value = "100")]
     pub num_clients: usize,
 
-    /// The number of worker threads to run the benckmark
+    /// The number of worker threads to run the benchmark
     #[clap(long, default_value = "4")]
     pub worker_threads: usize,
 
