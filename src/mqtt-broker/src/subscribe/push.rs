@@ -189,7 +189,7 @@ pub async fn publish_message_qos(
         let push_to_connect = || async move {
             if metadata_cache.get_session_info(&client_id).is_none() {
                 return Err(MqttBrokerError::CommonError(format!(
-                    "Client {} is not online, skip push message",
+                    "Session {} is null, skip push message",
                     client_id
                 )));
             }
@@ -197,7 +197,7 @@ pub async fn publish_message_qos(
             let connect_id_op = metadata_cache.get_connect_id(&client_id);
             if connect_id_op.is_none() {
                 return Err(MqttBrokerError::CommonError(format!(
-                    "Client {} is not online, skip push message",
+                    "Connection {} is not online, skip push message",
                     client_id
                 )));
             }
