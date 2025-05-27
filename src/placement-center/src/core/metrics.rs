@@ -23,6 +23,30 @@ pub struct MetricsLabel {
     pub raft_storage_type: String,
 }
 
+#[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq, Default)]
+pub struct RocksDBLabels {
+    pub resource_type: String,
+
+    // TODO: (shyunny) Consider adding an enum for the action instead of accepting the passed parameter in the code?
+    pub action: String,
+}
+
+impl RocksDBLabels {
+    pub fn snapshot(action: &str) -> Self {
+        RocksDBLabels {
+            resource_type: String::from("snapshot"),
+            action: action.to_string(),
+        }
+    }
+
+    pub fn log(action: &str) -> Self {
+        RocksDBLabels {
+            resource_type: String::from("log"),
+            action: action.to_string(),
+        }
+    }
+}
+
 common_base::register_counter_metric!(
     GRPC_REQUEST_NUM,
     "grpc.request.num",
@@ -56,6 +80,27 @@ common_base::register_histogram_metric!(
     "raft.storage.total.ms",
     "TotalMs of calls to the raft storage",
     MetricsLabel
+);
+
+common_base::register_counter_metric!(
+    ROCKSDB_STORAGE_NUM,
+    "rocksdb.storage.num",
+    "Total number of calls to the rocksdb storage",
+    RocksDBLabels
+);
+
+common_base::register_counter_metric!(
+    ROCKSDB_STORAGE_ERROR_NUM,
+    "rocksdb.storage.error.num",
+    "Error number of calls to the rocksdb storage",
+    RocksDBLabels
+);
+
+common_base::register_histogram_metric!(
+    ROCKSDB_STORAGE_TOTAL_MS,
+    "rocksdb.storage.total.ms",
+    "TotalMs of calls to the rocksdb storage",
+    RocksDBLabels
 );
 
 pub fn metrics_grpc_request_incr(service: &str, path: &str) {
@@ -100,4 +145,16 @@ pub fn metrics_raft_storage_total_ms(storage_type: &StorageDataType, ms: f64) {
     };
 
     common_base::histogram_metric_observe!(RAFT_STORAGE_TOTAL_MS, ms, label)
+}
+
+pub fn metrics_rocksdb_storage_total_inc(labels: RocksDBLabels) {
+    common_base::counter_metric_inc!(ROCKSDB_STORAGE_NUM, labels)
+}
+
+pub fn metrics_rocksdb_storage_err_inc(labels: RocksDBLabels) {
+    common_base::counter_metric_inc!(ROCKSDB_STORAGE_ERROR_NUM, labels)
+}
+
+pub fn metrics_rocksdb_stroge_total_ms(labels: RocksDBLabels, ms: f64) {
+    common_base::histogram_metric_observe!(ROCKSDB_STORAGE_TOTAL_MS, ms, labels)
 }
