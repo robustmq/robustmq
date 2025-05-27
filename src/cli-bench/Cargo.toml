@@ -13,45 +13,21 @@
 # limitations under the License.
 
 [package]
-name = "cmd"
+name = "cli-bench"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-default-run = "cli-command"
-
-[[bin]]
-name = "mqtt-server"
-path = "src/mqtt-server/server.rs"
-
-[[bin]]
-name = "journal-server"
-path = "src/journal-server/server.rs"
-
-[[bin]]
-name = "placement-center"
-path = "src/placement-center/server.rs"
-
-[[bin]]
-name = "cli-command"
-path = "src/cli-command/command.rs"
-
-[[bin]]
-name = "cli-bench"
-path = "src/cli-bench/bench.rs"
 
 [dependencies]
-clap.workspace = true
 common-base.workspace = true
-lazy_static.workspace = true
-tokio.workspace = true
-mqtt-broker.workspace = true
-placement-center.workspace = true
-journal-server.workspace = true
-cli-command.workspace = true
-cli-bench.workspace = true
+thiserror.workspace = true
+grpc-clients.workspace = true
+axum.workspace = true
+futures.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+rand.workspace = true
+clap.workspace = true
 clap-cargo.workspace = true
 protocol.workspace = true
-console-subscriber.workspace = true
-
-[dev-dependencies]
-mockall.workspace = true
+tokio.workspace = true

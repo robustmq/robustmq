@@ -19,6 +19,7 @@ members = [
     "src/kafka-broker",
     "src/placement-center",
     "src/cli-command",
+    "src/cli-bench",
     "src/delay-message",
     "src/idempotent-message",
     "src/schema-register",
@@ -160,6 +161,7 @@ placement-center = { path = "src/placement-center" }
 schema-register = { path = "src/schema-register" }
 message-expire = { path = "src/message-expire" }
 cli-command = { path = "src/cli-command" }
+cli-bench = { path = "src/cli-bench" }
 grpc-clients = { path = "src/grpc-clients" }
 journal-server = { path = "src/journal-server" }
 journal-client = { path = "src/journal-client" }
