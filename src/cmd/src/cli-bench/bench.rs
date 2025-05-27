@@ -12,47 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod error;
-pub mod kafka;
-pub mod kv;
-pub mod mqtt;
-pub mod raft;
-pub mod rocksdb;
-
-use clap::{Parser, Subcommand};
-use clap_cargo::style::CLAP_STYLING;
-use error::BenchMarkError;
-use kafka::KafkaBenchArgs;
-use kv::{handle_kv_bench, KvBenchArgs};
-use mqtt::MqttBenchArgs;
-use raft::RaftBenchArgs;
-use rocksdb::RocksdbBenchArgs;
-
-#[derive(Parser)]
-#[command(name = "robust-bench")]
-#[command(bin_name = "robust-bench")]
-#[command(styles = CLAP_STYLING)]
-#[command(author="RobustMQ", version="0.0.1", about="Benchmark tool for RobustMQ", long_about = None)]
-#[command(next_line_help = true)]
-struct RobustMQBench {
-    #[command(subcommand)]
-    command: RobustMQBenchCommand,
-}
-
-#[derive(Debug, Subcommand)]
-enum RobustMQBenchCommand {
-    Kafka(KafkaBenchArgs),
-    Mqtt(MqttBenchArgs),
-    Kv(KvBenchArgs),
-    Raft(RaftBenchArgs),
-    Rocksdb(RocksdbBenchArgs),
-}
-
-#[axum::async_trait]
-pub trait BenchMark {
-    fn validate(&self) -> Result<(), BenchMarkError>;
-    async fn do_bench(&self) -> Result<(), BenchMarkError>;
-}
+use clap::Parser;
+use cli_bench::{kv::handle_kv_bench, BenchMarkError, RobustMQBench, RobustMQBenchCommand};
 
 fn main() -> Result<(), BenchMarkError> {
     let args = RobustMQBench::parse();
