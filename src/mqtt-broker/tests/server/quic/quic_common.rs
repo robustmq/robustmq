@@ -17,12 +17,12 @@ use mqtt_broker::server::quic::server::QuicServer;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 fn create_client() -> QuicClient {
-    let client_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::127.0.0.1), 0);
+    let client_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
     QuicClient::bind(client_addr)
 }
 
 fn create_server() -> QuicServer {
-    let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::127.0.0.1), 0);
+    let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
     let mut server = QuicServer::new(ip_server);
 

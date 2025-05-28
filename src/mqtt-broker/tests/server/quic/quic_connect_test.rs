@@ -51,7 +51,7 @@ mod tests {
 
     #[tokio::test]
     async fn quic_server_should_receive_data_from_different_client() {
-        let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::127.0.0.1), 0);
+        let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
         //
         // let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
@@ -62,8 +62,8 @@ mod tests {
         server.start();
         let ip_server_addr = server.local_addr();
 
-        let client_addr_1 = SocketAddr::new(IpAddr::V4(Ipv4Addr::127.0.0.1), 0);
-        let client_addr_2 = SocketAddr::new(IpAddr::V4(Ipv4Addr::127.0.0.1), 0);
+        let client_addr_1 = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+        let client_addr_2 = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
         let mut quic_client_1 = QuicClient::bind(client_addr_1);
         let mut quic_client_2 = QuicClient::bind(client_addr_2);
