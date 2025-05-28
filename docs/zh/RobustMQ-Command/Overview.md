@@ -90,7 +90,7 @@ Commands:
 
 Options:
   -s, --server <SERVER>
-          [default: 127.0.0.1:9981]
+          [default: localhost:9981]
   -h, --help
           Print help
 ```
@@ -117,7 +117,7 @@ Commands:
 
 Options:
   -s, --server <SERVER>
-          [default: 127.0.0.1:1228]
+          [default: localhost:1228]
   -h, --help
           Print help
 ```
@@ -134,7 +134,7 @@ Usage: robust-ctl journal [OPTIONS]
 
 Options:
   -s, --server <SERVER>
-          [default: 127.0.0.1:1228]
+          [default: localhost:1228]
   -a, --action <ACTION>
           [default: status]
   -h, --help

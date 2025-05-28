@@ -14,10 +14,10 @@
 
 cluster_name = "JournalCluster1"
 node_id = 1
-placement_center = ["127.0.0.1:1228"]
+placement_center = ["localhost:1228"]
 
 [network]
-local_ip = "127.0.0.1"
+local_ip = "localhost"
 grpc_port = 2228
 tcp_port = 3110
 tcps_port = 3111
@@ -46,7 +46,7 @@ response_queue_size = 2000
 enable = false
 model = "pull"
 port = 9092
-push_gateway_server = "127.0.0.1:8081"
+push_gateway_server = "localhost:8081"
 interval = 10
 header = ""
 

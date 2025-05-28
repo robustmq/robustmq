@@ -35,8 +35,8 @@
 
     Publish messages
     ```console
-    % cli-command mqtt --server=127.0.0.1:1883 publish --username=admin --password=pwd123 --topic=test/topic1 --qos=0
-    able to connect: "127.0.0.1:1883"
+    % cli-command mqtt --server=localhost:1883 publish --username=admin --password=pwd123 --topic=test/topic1 --qos=0
+    able to connect: "localhost:1883"
     you can post a message on the terminal:
     1
     > You typed: 1
@@ -53,8 +53,8 @@
 
     Subscribe to messages
     ```console
-    % cli-command mqtt --server=127.0.0.1:1883 subscribe --username=admin --password=pwd123 --topic=test/topic1 --qos=0
-    able to connect: "127.0.0.1:1883"
+    % cli-command mqtt --server=localhost:1883 subscribe --username=admin --password=pwd123 --topic=test/topic1 --qos=0
+    able to connect: "localhost:1883"
     subscribe success
     payload: 1
     payload: 2

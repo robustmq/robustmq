@@ -29,7 +29,7 @@ mod tests {
     #[tokio::test]
     async fn test_topic_rewrite_rule() {
         let client_pool = Arc::new(ClientPool::new(3));
-        let addrs = vec!["127.0.0.1:1228".to_string()];
+        let addrs = vec!["localhost:1228".to_string()];
 
         let cluster_name = unique_id();
         let action: String = "All".to_string();

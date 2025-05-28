@@ -28,7 +28,7 @@ mod tests {
 
     #[tokio::test]
     async fn mqtt4_keep_alive_test() {
-        let socket = TcpStream::connect("127.0.0.1:1883").await.unwrap();
+        let socket = TcpStream::connect("localhost:1883").await.unwrap();
         let mut stream: Framed<TcpStream, Mqtt4Codec> = Framed::new(socket, Mqtt4Codec::new());
 
         // send connect package

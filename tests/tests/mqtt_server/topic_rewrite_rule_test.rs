@@ -27,7 +27,7 @@ mod tests {
     #[tokio::test]
     async fn test_topic_rewrite_rule() {
         let client_pool = Arc::new(ClientPool::new(3));
-        let addrs = vec!["127.0.0.1:9981".to_string()];
+        let addrs = vec!["localhost:9981".to_string()];
 
         let action: String = "All".to_string();
         let source_topic: String = "x/#".to_string();

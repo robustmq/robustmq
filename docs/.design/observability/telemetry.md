@@ -5,7 +5,7 @@
     [telemetry]
     enable = true # 是否开启
     exporter_type = "otlp" # otlp 类型
-    exporter_endpoint = "grpc://127.0.0.1:4317" # 导出的数据，这里是用 jaegertracing/all-in-one:latest
+    exporter_endpoint = "grpc://localhost:4317" # 导出的数据，这里是用 jaegertracing/all-in-one:latest
 
     ```
 

@@ -29,13 +29,13 @@ mod tests {
     #[tokio::test]
     async fn test_share_sub() {
         let client_pool = Arc::new(ClientPool::new(3));
-        let addrs = vec!["127.0.0.1:1228".to_string()];
+        let addrs = vec!["localhost:1228".to_string()];
 
         let cluster_type = ClusterType::MqttBrokerServer.into();
         let cluster_name = unique_id();
-        let node_ip = "127.0.0.1".to_string();
+        let node_ip = "localhost".to_string();
         let node_id = 7;
-        let node_inner_addr = "127.0.0.1:8228".to_string();
+        let node_inner_addr = "localhost:8228".to_string();
         let extend_info = "".to_string();
         let request = RegisterNodeRequest {
             cluster_type,
@@ -68,13 +68,13 @@ mod tests {
     #[tokio::test]
     async fn test_queue_sub() {
         let client_pool = Arc::new(ClientPool::new(3));
-        let addrs = vec!["127.0.0.1:1228".to_string()];
+        let addrs = vec!["localhost:1228".to_string()];
 
         let cluster_type = ClusterType::MqttBrokerServer.into();
         let cluster_name = unique_id();
-        let node_ip = "127.0.0.1".to_string();
+        let node_ip = "localhost".to_string();
         let node_id = 7;
-        let node_inner_addr = "127.0.0.1:8228".to_string();
+        let node_inner_addr = "localhost:8228".to_string();
         let extend_info = "".to_string();
         let request = RegisterNodeRequest {
             cluster_type,

@@ -24,7 +24,7 @@ function context() {
 
 context CLUSTER_NAME                    robustmq-kind
 context LOCAL_REGISTRY_NAME             kind-registry
-context LOCAL_REGISTRY_INTERFACE        127.0.0.1
+context LOCAL_REGISTRY_INTERFACE        localhost
 context LOCAL_REGISTRY_PORT             5000
 context NGINX_HTTP_PORT                 80
 context NGINX_HTTPS_PORT                443

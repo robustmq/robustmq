@@ -42,7 +42,7 @@ storage_type = "placement"
 
 [prometheus]
 model = "push"
-push_gateway_server = "127.0.0.1:8081"
+push_gateway_server = "localhost:8081"
 interval = 10
 header = ""
 

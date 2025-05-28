@@ -56,7 +56,7 @@ EOF
 
   for node in $(kind get nodes --name "${CLUSTER_NAME}");
   do
-    #  Kind 节点容器中启用路由回环，以便让容器节点可以通过网络访问主机的回环地址（127.0.0.1），从而实现一些特定的测试或网络通信需求。
+    #  Kind 节点容器中启用路由回环，以便让容器节点可以通过网络访问主机的回环地址（localhost），从而实现一些特定的测试或网络通信需求。
     docker exec "$node" sysctl net.ipv4.conf.all.route_localnet=1;
   done
 

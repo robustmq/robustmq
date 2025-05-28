@@ -4,8 +4,8 @@
     `publish`
 
     ```console
-    % cli-command mqtt --server=127.0.0.1:1883 publish --username=admin --password=pwd123 --topic=test/topic1 --qos=0
-    able to connect: "127.0.0.1:1883"
+    % cli-command mqtt --server=localhost:1883 publish --username=admin --password=pwd123 --topic=test/topic1 --qos=0
+    able to connect: "localhost:1883"
     you can post a message on the terminal:
     1
     > You typed: 1
@@ -23,9 +23,9 @@
     `subscribe`
 
     ```console
-    % cli-command mqtt --server=127.0.0.1:1883 subscribe --username=admin --password=pwd123 --topic=test/topic1 --qos=0
+    % cli-command mqtt --server=localhost:1883 subscribe --username=admin --password=pwd123 --topic=test/topic1 --qos=0
 
-    able to connect: "127.0.0.1:1883"
+    able to connect: "localhost:1883"
     subscribe success
     payload: 1
     payload: 2
@@ -42,7 +42,7 @@
     |----------------|------------------|-----------------|-----------------|----------------|
     | publish        | 发布消息          |                  |                |                |
     | subscribe      | 订阅消息          |                  |                |                |
-    | server         | mqttbroker地址   | server           | s              | 127.0.0.1:1883 |
+    | server         | mqttbroker地址   | server           | s              | localhost:1883 |
     | topic          | 消息主题          | topic            | t              | /tests/t1      |
     | qos            | 消息质量等级       | qos              | q              | 1              |
     | username       | 用户名            | username         | u              | 7355608        |

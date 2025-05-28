@@ -190,23 +190,23 @@ pub fn build_client_id(name: &str) -> String {
 }
 
 pub fn broker_addr() -> String {
-    "tcp://127.0.0.1:1883".to_string()
+    "tcp://localhost:1883".to_string()
 }
 
 pub fn broker_ssl_addr() -> String {
-    "mqtts://127.0.0.1:8883".to_string()
+    "mqtts://localhost:8883".to_string()
 }
 
 pub fn broker_ws_addr() -> String {
-    "ws://127.0.0.1:8093".to_string()
+    "ws://localhost:8093".to_string()
 }
 
 pub fn broker_wss_addr() -> String {
-    "wss://127.0.0.1:8094".to_string()
+    "wss://localhost:8094".to_string()
 }
 
 pub fn broker_grpc_addr() -> String {
-    "127.0.0.1:9981".to_string()
+    "localhost:9981".to_string()
 }
 
 pub fn username() -> String {

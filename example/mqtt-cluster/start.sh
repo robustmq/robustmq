@@ -42,9 +42,9 @@ start_pc_cluster(){
     
     echo "\n-------------------------------------\n"
 
-    # cargo run --package cmd --bin cli-command place -s 127.0.0.1:1228 status
-    # cargo run --package cmd --bin cli-command place -s 127.0.0.1:2228 status
-    # cargo run --package cmd --bin cli-command place -s 127.0.0.1:3228 status
+    # cargo run --package cmd --bin cli-command place -s localhost:1228 status
+    # cargo run --package cmd --bin cli-command place -s localhost:2228 status
+    # cargo run --package cmd --bin cli-command place -s localhost:3228 status
 }
 
 start_mqtt_cluster(){
@@ -58,7 +58,7 @@ start_mqtt_cluster(){
 
     echo "\n-------------------------------------\n"
     
-    # cargo run --package cmd --bin cli-command mqtt -s 127.0.0.1:9981 status
+    # cargo run --package cmd --bin cli-command mqtt -s localhost:9981 status
 }
 
 start_journal_cluster(){

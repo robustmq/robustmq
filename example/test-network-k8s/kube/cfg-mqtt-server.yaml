@@ -23,7 +23,7 @@ data:
     broker_id = 1
     grpc_port = 9981
     http_port = 9982
-    placement_center = ["127.0.0.1:1228"]
+    placement_center = ["localhost:1228"]
 
     [network]
     tcp_port = 1883
@@ -49,7 +49,7 @@ data:
 
     [prometheus]
     model = "push"
-    push_gateway_server = "127.0.0.1:8081"
+    push_gateway_server = "localhost:8081"
     interval = 10
     header = ""
 

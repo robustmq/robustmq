@@ -81,7 +81,7 @@ $ ./bin/robust-ctl place status | jq
       "nodes": {
         "1": {
           "node_id": 1,
-          "rpc_addr": "127.0.0.1:1228"
+          "rpc_addr": "localhost:1228"
         }
       }
     }
@@ -126,9 +126,9 @@ Created successfully!
 使用 `robust-ctl` 模拟生产者在 topic=demo 上发布新消息
 
 ```shell
-$ ./bin/robust-ctl mqtt --server=127.0.0.1:1883 publish --topic=demo --qos=0 --username foo --password 123
+$ ./bin/robust-ctl mqtt --server=localhost:1883 publish --topic=demo --qos=0 --username foo --password 123
 
-able to connect: "127.0.0.1:1883"
+able to connect: "localhost:1883"
 you can post a message on the terminal:
 hello
 > You typed: hello
@@ -142,9 +142,9 @@ robustmq!
 使用 `robust-ctl` 模拟消费者在 topic=demo 上订阅信息
 
 ```shell
-$ ./bin/robust-ctl mqtt --server=127.0.0.1:1883 subscribe --topic=demo --qos=0 --username foo --password 123
+$ ./bin/robust-ctl mqtt --server=localhost:1883 subscribe --topic=demo --qos=0 --username foo --password 123
 
-able to connect: "127.0.0.1:1883"
+able to connect: "localhost:1883"
 subscribe success
 payload: hello
 payload: robustmq!

@@ -59,8 +59,8 @@ Deleted successfully!
 ### 3.1 发布 MQTT 消息
 
 ```console
-% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 publish --username=admin --password=pwd123 --topic=test/topic1 --qos=0
-able to connect: "127.0.0.1:1883"
+% ./bin/robust-ctl mqtt --server=localhost:1883 publish --username=admin --password=pwd123 --topic=test/topic1 --qos=0
+able to connect: "localhost:1883"
 you can post a message on the terminal:
 1
 > You typed: 1
@@ -78,9 +78,9 @@ you can post a message on the terminal:
 ### 3.2 订阅 MQTT 消息
 
 ```console
-% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 subscribe --username=admin --password=pwd123 --topic=test/topic1 --qos=0
+% ./bin/robust-ctl mqtt --server=localhost:1883 subscribe --username=admin --password=pwd123 --topic=test/topic1 --qos=0
 
-able to connect: "127.0.0.1:1883"
+able to connect: "localhost:1883"
 subscribe success
 payload: 1
 payload: 2
@@ -94,8 +94,8 @@ End of input stream.
 ### 3.3 发布保留消息
 
 ```console
-% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 publish --username=admin --password=pwd123 --topic=\$share/group1/test/topic1 --qos=1 --retained
-able to connect: "127.0.0.1:1883"
+% ./bin/robust-ctl mqtt --server=localhost:1883 publish --username=admin --password=pwd123 --topic=\$share/group1/test/topic1 --qos=1 --retained
+able to connect: "localhost:1883"
 you can post a message on the terminal:
 helloworld!
 > You typed: helloworld!
@@ -103,8 +103,8 @@ published retained message
 ```
 
 ```console
-% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 subscribe --username=admin --password=pwd123 --topic=\$share/group1/test/topic1 --qos=0
-able to connect: "127.0.0.1:1883"
+% ./bin/robust-ctl mqtt --server=localhost:1883 subscribe --username=admin --password=pwd123 --topic=\$share/group1/test/topic1 --qos=0
+able to connect: "localhost:1883"
 subscribe success
 Retain message: helloworld!
 ```
@@ -116,8 +116,8 @@ Retain message: helloworld!
 创建新的 ACL 规则。
 
 ```console
-% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 acl create --cluster-name=admin --acl=xxx
-able to connect: "127.0.0.1:1883"
+% ./bin/robust-ctl mqtt --server=localhost:1883 acl create --cluster-name=admin --acl=xxx
+able to connect: "localhost:1883"
 Created successfully!
 ```
 
@@ -126,8 +126,8 @@ Created successfully!
 删除已有的 ACL 规则。
 
 ```console
-% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 acl delete --cluster-name=admin --acl=xxx
-able to connect: "127.0.0.1:1883"
+% ./bin/robust-ctl mqtt --server=localhost:1883 acl delete --cluster-name=admin --acl=xxx
+able to connect: "localhost:1883"
 Deleted successfully!
 ```
 
@@ -136,7 +136,7 @@ Deleted successfully!
 列出所有已创建的 ACL 规则。
 
 ```console
-% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 acl list
+% ./bin/robust-ctl mqtt --server=localhost:1883 acl list
 +---------------+---------------+-------+----+--------+------------+
 | resource_type | resource_name | topic | ip | action | permission |
 +---------------+---------------+-------+----+--------+------------+
@@ -149,8 +149,8 @@ Deleted successfully!
 创建新的黑名单规则。
 
 ```console
-% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 blacklist create --cluster-name=admin --blacklist=client_id
-able to connect: "127.0.0.1:1883"
+% ./bin/robust-ctl mqtt --server=localhost:1883 blacklist create --cluster-name=admin --blacklist=client_id
+able to connect: "localhost:1883"
 Created successfully!
 ```
 
@@ -159,8 +159,8 @@ Created successfully!
 删除已有的黑名单规则。
 
 ```console
-% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 blacklist delete --cluster-name=admin --blacklist-type=client_id --resource-name=client1
-able to connect: "127.0.0.1:1883"
+% ./bin/robust-ctl mqtt --server=localhost:1883 blacklist delete --cluster-name=admin --blacklist-type=client_id --resource-name=client1
+able to connect: "localhost:1883"
 Deleted successfully!
 ```
 
@@ -169,7 +169,7 @@ Deleted successfully!
 列出所有已创建的黑名单规则。
 
 ```console
-% ./bin/robust-ctl mqtt --server=127.0.0.1:1883 blacklist list
+% ./bin/robust-ctl mqtt --server=localhost:1883 blacklist list
 +----------------+---------------+----------+------+
 | blacklist_type | resource_name | end_time | desc |
 +----------------+---------------+----------+------+

@@ -16,10 +16,10 @@ cluster_name = "placement-test"
 
 [node]
 node_id = 2
-nodes = { 1 = "127.0.0.1:1228", 2 = "127.0.0.1:2228", 3 = "127.0.0.1:3228" }
+nodes = { 1 = "localhost:1228", 2 = "localhost:2228", 3 = "localhost:3228" }
 
 [network]
-local_ip = "127.0.0.1"
+local_ip = "localhost"
 grpc_port = 2228
 http_port = 2227
 

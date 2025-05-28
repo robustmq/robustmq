@@ -16,10 +16,10 @@ cluster_name = "placement-test"
 
 [node]
 node_id = 1
-nodes = { 1 = "127.0.0.1:1228" }
+nodes = { 1 = "localhost:1228" }
 
 [network]
-local_ip = "127.0.0.1"
+local_ip = "localhost"
 grpc_port = 1228
 http_port = 1227
 grpc_max_decoding_message_size = 268435456
@@ -35,7 +35,7 @@ heartbeat_check_time_ms = 1000
 enable = true
 model = "pull"
 port = 9090
-push_gateway_server = "127.0.0.1:8081"
+push_gateway_server = "localhost:8081"
 interval = 10
 header = ""
 
