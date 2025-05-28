@@ -125,6 +125,12 @@ pub enum MqttBrokerError {
     #[error("Invalid schema type {0}")]
     InvalidSchemaType(String),
 
+    #[error("Session {0} is null, skip push message")]
+    SessionNullSkipPushMessage(String),
+
+    #[error("Connection {0} is null, skip push message")]
+    ConnectionNullSkipPushMessage(String),
+
     #[error("kafka error: {0}")]
     KafkaError(#[from] KafkaError),
 }

@@ -44,7 +44,7 @@ mod tests {
             assert_that!(conn.remote_address(), eq(ip_client_addr));
         });
 
-        let connection = client.connect(ip_server_addr, "localhost");
+        let connection = client.connect(ip_server_addr, "127.0.0.1");
         drop(connection);
         client.wait_idle().await;
     }
@@ -73,7 +73,7 @@ mod tests {
 
         let quic_client_1 = async move {
             let connection = quic_client_1
-                .connect(ip_server_addr, "localhost")
+                .connect(ip_server_addr, "127.0.0.1")
                 .await
                 .unwrap();
             connection.closed().await;
@@ -81,7 +81,7 @@ mod tests {
 
         let quic_client_2 = async move {
             let connection = quic_client_2
-                .connect(ip_server_addr, "localhost")
+                .connect(ip_server_addr, "127.0.0.1")
                 .await
                 .unwrap();
             connection.closed().await;
@@ -138,7 +138,7 @@ mod tests {
             server_send.notify_one();
         });
 
-        let connection = client.connect(server_addr, "localhost").await.unwrap();
+        let connection = client.connect(server_addr, "127.0.0.1").await.unwrap();
 
         let (client_send_stream, client_recv_stream) = connection.open_bi().await.unwrap();
         if let Err(_e) = QuicFramedWriteStream::new(client_send_stream, MqttCodec::new(None))
