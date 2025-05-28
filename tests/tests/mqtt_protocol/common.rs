@@ -194,7 +194,7 @@ pub fn broker_addr() -> String {
 }
 
 pub fn broker_ssl_addr() -> String {
-    "mqtts://127.0.0.1:8883".to_string()
+    "mqtts://localhost:8883".to_string()
 }
 
 pub fn broker_ws_addr() -> String {
@@ -202,7 +202,7 @@ pub fn broker_ws_addr() -> String {
 }
 
 pub fn broker_wss_addr() -> String {
-    "wss://127.0.0.1:8094".to_string()
+    "wss://localhost:8094".to_string()
 }
 
 pub fn broker_grpc_addr() -> String {
