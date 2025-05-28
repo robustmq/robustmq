@@ -214,7 +214,6 @@ mod tests {
     #[test]
     fn test_get_addr_by_local_hostname() {
         let ip = get_addr_by_local_hostname(1883);
-        let _:SocketAddr = ip.parse().unwrap();
-
+        let _: SocketAddr = ip.parse().unwrap();
     }
 }
