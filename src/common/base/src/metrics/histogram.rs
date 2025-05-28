@@ -29,7 +29,7 @@ pub type FamilyHistogram<L> = Arc<RwLock<Family<L, Histogram, BucketType>>>;
 /// this is usually used when building internal components
 #[derive(Clone)]
 pub enum BucketType {
-    /// Explicitly pass `&[f64]` bucket type.
+    /// Explicitly pass `[f64]` bucket type.
     /// Because metrics typically persist throughout the life of the application, `&'static` is allowed here
     ///
     /// example:
@@ -158,7 +158,7 @@ mod test {
     }
 
     register_histogram_metric!(
-        HTTP_DURATION_PLAINTEST_BUCKETS,
+        HTTP_DURATION_PLAINTEXT_BUCKETS,
         "http.duration.plaintext",
         "duration ms of http call(plaintext mode)",
         Labels,
@@ -181,7 +181,7 @@ mod test {
             uri: String::from("/get"),
         };
         let ms: f64 = 100.0;
-        histogram_metric_observe!(HTTP_DURATION_PLAINTEST_BUCKETS, ms, labels);
+        histogram_metric_observe!(HTTP_DURATION_PLAINTEXT_BUCKETS, ms, labels);
     }
 
     #[tokio::test]
