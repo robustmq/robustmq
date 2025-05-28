@@ -125,7 +125,7 @@ mod tests {
         assert!(!telemetry_config.enable);
         assert_eq!(
             telemetry_config.exporter_endpoint,
-            "grpc://localhost:4317".to_string()
+            "grpc://127.0.0.1:4317".to_string()
         );
         assert_eq!(telemetry_config.exporter_type, "otlp".to_string());
     }

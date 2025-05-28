@@ -83,7 +83,7 @@ $ ./bin/robust-ctl place status | jq
       "nodes": {
         "1": {
           "node_id": 1,
-          "rpc_addr": "localhost:1228"
+          "rpc_addr": "127.0.0.1:1228"
         }
       }
     }
@@ -127,9 +127,9 @@ Use 'robust-ctl' to simulate the producer to post new messages on topic=demo
 
 
 ```shell
-$ ./bin/robust-ctl mqtt --server=localhost:1883 publish --topic=demo --qos=0 --username foo --password 123
+$ ./bin/robust-ctl mqtt --server=127.0.0.1:1883 publish --topic=demo --qos=0 --username foo --password 123
 
-able to connect: "localhost:1883"
+able to connect: "127.0.0.1:1883"
 you can post a message on the terminal:
 hello
 > You typed: hello
@@ -143,9 +143,9 @@ Use 'robust-ctl' to simulate a consumer subscribe to topic=demo
 
 
 ```shell
-$ ./bin/robust-ctl mqtt --server=localhost:1883 subscribe --topic=demo --qos=0 --username foo --password 123
+$ ./bin/robust-ctl mqtt --server=127.0.0.1:1883 subscribe --topic=demo --qos=0 --username foo --password 123
 
-able to connect: "localhost:1883"
+able to connect: "127.0.0.1:1883"
 subscribe success
 payload: hello
 payload: robustmq!

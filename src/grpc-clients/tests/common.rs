@@ -15,9 +15,9 @@
 #![allow(dead_code)]
 
 pub fn get_placement_addr() -> String {
-    "localhost:1228".to_string()
+    "127.0.0.1:1228".to_string()
 }
 
 pub fn get_mqtt_broker_addr() -> String {
-    "localhost:9981".to_string()
+    "127.0.0.1:9981".to_string()
 }

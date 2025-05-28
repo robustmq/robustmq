@@ -15,11 +15,11 @@
 cluster_name = "mqtt-broker"
 broker_id = 1
 grpc_port = 9981
-placement_center = ["localhost:1228"]
+placement_center = ["127.0.0.1:1228"]
 heartbeat_timeout = "10s"
 
 [network]
-local_ip = "localhost"
+local_ip = "127.0.0.1"
 tcp_port = 1883
 tcps_port = 8883
 websocket_port = 8093
@@ -45,7 +45,7 @@ storage_type = "placement"
 enable = true
 model = "pull"
 port = 9091
-push_gateway_server = "localhost:8081"
+push_gateway_server = "127.0.0.1:8081"
 interval = 10
 header = ""
 

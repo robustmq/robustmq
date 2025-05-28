@@ -32,7 +32,7 @@ mod tests {
         let addrs = vec![get_placement_addr()];
         let cluster_name: String = unique_id();
         let group_name: String = "test_group".to_string();
-        let node_ip: String = "localhost".to_string();
+        let node_ip: String = "127.0.0.1".to_string();
         let node_id: u64 = 1;
 
         let request = RegisterNodeRequest {

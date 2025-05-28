@@ -672,7 +672,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn mysql_create_shard() {
-        let addr = "mysql://root@localhost:3306/mqtt";
+        let addr = "mysql://root@127.0.0.1:3306/mqtt";
         let pool = build_mysql_conn_pool(addr).unwrap();
 
         let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).await.unwrap();
@@ -698,7 +698,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn mysql_batch_write() {
-        let addr = "mysql://root@localhost:3306/mqtt";
+        let addr = "mysql://root@127.0.0.1:3306/mqtt";
         let pool = build_mysql_conn_pool(addr).unwrap();
         let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).await.unwrap();
         let shard_name = String::from("test");
@@ -777,7 +777,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn mysql_stream_read_write() {
-        let addr = "mysql://root@localhost:3306/mqtt";
+        let addr = "mysql://root@127.0.0.1:3306/mqtt";
         let pool = build_mysql_conn_pool(addr).unwrap();
 
         let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).await.unwrap();
@@ -1018,7 +1018,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn mysql_concurrent_batch_write_test() {
-        let addr = "mysql://root@localhost:3306/mqtt";
+        let addr = "mysql://root@127.0.0.1:3306/mqtt";
         let pool = build_mysql_conn_pool(addr).unwrap();
 
         let mysql_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()).await.unwrap());

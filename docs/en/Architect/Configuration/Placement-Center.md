@@ -12,11 +12,11 @@ cluster_name = "placement-test"
 # Define the node ID, used to uniquely identify the current node, default is 1
 node_id = 1
 
-# Define the network address of the node, default is localhost
-addr = "localhost"
+# Define the network address of the node, default is 127.0.0.1
+addr = "127.0.0.1"
 
 # Define the node list, including node ID and corresponding gRPC address
-nodes = { 1 = "localhost:1228" }
+nodes = { 1 = "127.0.0.1:1228" }
 ```
 
 ## Network-related Configuration

@@ -346,7 +346,7 @@ mod tests {
         std::env::set_var("MQTT_SERVER_CLUSTER_NAME", "\"mqtt-broker-env\"");
         std::env::set_var(
             "MQTT_SERVER_PLACEMENT_CENTER",
-            "[\"localhost:1228\",\"localhost:1228\",\"localhost:1228\"]",
+            "[\"127.0.0.1:1228\",\"127.0.0.1:1228\",\"127.0.0.1:1228\"]",
         );
         std::env::set_var("MQTT_SERVER_GRPC_PORT", "99810");
         std::env::set_var("MQTT_SERVER_NETWORK_TCP_PORT", "18830");

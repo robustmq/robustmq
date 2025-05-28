@@ -46,8 +46,8 @@ mod tests {
             cluster_type: ClusterType::JournalServer.into(),
             cluster_name: cluster.clone(),
             node_id: 1,
-            node_ip: "localhost".to_string(),
-            node_inner_addr: "localhost:3228".to_string(),
+            node_ip: "127.0.0.1".to_string(),
+            node_inner_addr: "127.0.0.1:3228".to_string(),
             extend_info: serde_json::to_string(&extend).unwrap(),
         };
         register_node(&client_pool, &addrs, request).await.unwrap();

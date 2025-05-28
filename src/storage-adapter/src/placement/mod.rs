@@ -718,7 +718,7 @@ mod tests {
     use crate::{placement::PlacementStorageAdapter, storage::ShardInfo, storage::StorageAdapter};
 
     fn get_placement_addr() -> String {
-        "localhost:1228".to_string()
+        "127.0.0.1:1228".to_string()
     }
 
     #[tokio::test]

@@ -49,14 +49,14 @@ nodes:
 # create a cluster with the local registry enabled in containerd
 containerdConfigPatches:
 - |-
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${reg_port}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."127.0.0.1:${reg_port}"]
     endpoint = ["http://${reg_name}:${reg_port}"]
 
 EOF
 
   for node in $(kind get nodes --name "${CLUSTER_NAME}");
   do
-    #  Kind 节点容器中启用路由回环，以便让容器节点可以通过网络访问主机的回环地址（localhost），从而实现一些特定的测试或网络通信需求。
+    #  Kind 节点容器中启用路由回环，以便让容器节点可以通过网络访问主机的回环地址（127.0.0.1），从而实现一些特定的测试或网络通信需求。
     docker exec "$node" sysctl net.ipv4.conf.all.route_localnet=1;
   done
 
@@ -110,7 +110,7 @@ metadata:
   namespace: kube-public
 data:
   localRegistryHosting.v1: |
-    host: "localhost:${reg_port}"
+    host: "127.0.0.1:${reg_port}"
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 EOF
 

@@ -13,5 +13,5 @@
 // limitations under the License.
 
 pub fn journal_grpc_addr() -> String {
-    "localhost:2228".to_string()
+    "127.0.0.1:2228".to_string()
 }

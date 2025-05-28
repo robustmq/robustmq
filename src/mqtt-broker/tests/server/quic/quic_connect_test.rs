@@ -44,14 +44,14 @@ mod tests {
             assert_that!(conn.remote_address(), eq(ip_client_addr));
         });
 
-        let connection = client.connect(ip_server_addr, "localhost");
+        let connection = client.connect(ip_server_addr, "127.0.0.1");
         drop(connection);
         client.wait_idle().await;
     }
 
     #[tokio::test]
     async fn quic_server_should_receive_data_from_different_client() {
-        let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+        let ip_server: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::127.0.0.1), 0);
 
         //
         // let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
@@ -62,8 +62,8 @@ mod tests {
         server.start();
         let ip_server_addr = server.local_addr();
 
-        let client_addr_1 = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-        let client_addr_2 = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+        let client_addr_1 = SocketAddr::new(IpAddr::V4(Ipv4Addr::127.0.0.1), 0);
+        let client_addr_2 = SocketAddr::new(IpAddr::V4(Ipv4Addr::127.0.0.1), 0);
 
         let mut quic_client_1 = QuicClient::bind(client_addr_1);
         let mut quic_client_2 = QuicClient::bind(client_addr_2);
@@ -73,7 +73,7 @@ mod tests {
 
         let quic_client_1 = async move {
             let connection = quic_client_1
-                .connect(ip_server_addr, "localhost")
+                .connect(ip_server_addr, "127.0.0.1")
                 .await
                 .unwrap();
             connection.closed().await;
@@ -81,7 +81,7 @@ mod tests {
 
         let quic_client_2 = async move {
             let connection = quic_client_2
-                .connect(ip_server_addr, "localhost")
+                .connect(ip_server_addr, "127.0.0.1")
                 .await
                 .unwrap();
             connection.closed().await;
@@ -138,7 +138,7 @@ mod tests {
             server_send.notify_one();
         });
 
-        let connection = client.connect(server_addr, "localhost").await.unwrap();
+        let connection = client.connect(server_addr, "127.0.0.1").await.unwrap();
 
         let (client_send_stream, client_recv_stream) = connection.open_bi().await.unwrap();
         if let Err(_e) = QuicFramedWriteStream::new(client_send_stream, MqttCodec::new(None))

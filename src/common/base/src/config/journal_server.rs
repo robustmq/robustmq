@@ -167,7 +167,7 @@ mod tests {
         let conf = journal_server_conf();
         assert_eq!(conf.cluster_name, "JournalCluster1".to_string());
         assert_eq!(conf.node_id, 1);
-        assert_eq!(conf.placement_center, vec![String::from("localhost:1228")]);
+        assert_eq!(conf.placement_center, vec![String::from("127.0.0.1:1228")]);
         assert_eq!(conf.network.grpc_port, 2228);
         assert_eq!(conf.network.tcp_port, 3110);
         assert_eq!(conf.network.tcps_port, 3111);

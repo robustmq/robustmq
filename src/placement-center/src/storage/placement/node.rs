@@ -90,7 +90,7 @@ mod tests {
         BrokerNode {
             cluster_name: "test_cluster".to_string(),
             node_id: 1,
-            node_ip: "localhost".to_string(),
+            node_ip: "127.0.0.1".to_string(),
             cluster_type: ClusterType::PlacementCenter.as_str_name().to_string(),
             ..Default::default()
         }

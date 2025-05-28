@@ -728,7 +728,7 @@ mod tests {
 
         let resp = resp_pkg.clone();
         tokio::spawn(async move {
-            let ip = "localhost:7228";
+            let ip = "127.0.0.1:7228";
             let listener = TcpListener::bind(ip).await.unwrap();
 
             let (stream, _) = listener.accept().await.unwrap();
@@ -751,7 +751,7 @@ mod tests {
 
         sleep(Duration::from_secs(5)).await;
 
-        let socket = TcpStream::connect("localhost:7228").await.unwrap();
+        let socket = TcpStream::connect("127.0.0.1:7228").await.unwrap();
         let mut stream: Framed<TcpStream, JournalServerCodec> =
             Framed::new(socket, JournalServerCodec::new());
 

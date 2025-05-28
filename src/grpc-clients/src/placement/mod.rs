@@ -130,7 +130,7 @@ mod test {
     #[tokio::test]
     pub async fn is_has_to_forward_test() {
         let err_info = r#"
-        Grpc call of the node failed,Grpc status was status: Cancelled, message: "has to forward request to: Some(2), Some(Node { node_id: 2, rpc_addr: \"localhost:2228\" })", details: [], metadata: MetadataMap { headers: {"content-type": "application/grpc", "date": "Sun, 06 Oct 2024 10:25:36 GMT", "content-length": "0"} }
+        Grpc call of the node failed,Grpc status was status: Cancelled, message: "has to forward request to: Some(2), Some(Node { node_id: 2, rpc_addr: \"127.0.0.1:2228\" })", details: [], metadata: MetadataMap { headers: {"content-type": "application/grpc", "date": "Sun, 06 Oct 2024 10:25:36 GMT", "content-length": "0"} }
         "#;
         let err = CommonError::CommonError(err_info.to_string());
         assert!(is_has_to_forward(&err));
@@ -143,10 +143,10 @@ mod test {
     #[tokio::test]
     pub async fn get_forward_addr_test() {
         let err = r#"
-        Grpc call of the node failed,Grpc status was status: Cancelled, message: "has to forward request to: Some(2), Some(Node { node_id: 2, rpc_addr: \"localhost:2228\" })", details: [], metadata: MetadataMap { headers: {"content-type": "application/grpc", "date": "Sun, 06 Oct 2024 10:25:36 GMT", "content-length": "0"} }
+        Grpc call of the node failed,Grpc status was status: Cancelled, message: "has to forward request to: Some(2), Some(Node { node_id: 2, rpc_addr: \"127.0.0.1:2228\" })", details: [], metadata: MetadataMap { headers: {"content-type": "application/grpc", "date": "Sun, 06 Oct 2024 10:25:36 GMT", "content-length": "0"} }
         "#;
         let err = CommonError::CommonError(err.to_string());
         let res = get_forward_addr(&err);
-        assert_eq!("localhost:2228".to_string(), res.unwrap());
+        assert_eq!("127.0.0.1:2228".to_string(), res.unwrap());
     }
 }

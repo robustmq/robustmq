@@ -29,7 +29,7 @@ pub fn default_heartbeat_timeout() -> String {
 }
 
 pub fn default_placement_center() -> Vec<String> {
-    vec!["localhost:1228".to_string()]
+    vec!["127.0.0.1:1228".to_string()]
 }
 
 pub fn default_network() -> Network {
@@ -116,7 +116,7 @@ pub fn default_auth() -> Auth {
 pub fn default_telemetry() -> Telemetry {
     Telemetry {
         enable: false,
-        exporter_endpoint: "grpc://localhost:4317".to_string(),
+        exporter_endpoint: "grpc://127.0.0.1:4317".to_string(),
         exporter_type: "otlp".to_string(),
     }
 }

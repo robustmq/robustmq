@@ -17,5 +17,5 @@ pub fn journal_tcp_addr_vec() -> Vec<String> {
 }
 
 pub fn journal_tcp_addr() -> String {
-    "localhost:3110".to_string()
+    "127.0.0.1:3110".to_string()
 }

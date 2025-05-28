@@ -47,7 +47,7 @@ pub fn default_max_segment_size() -> u32 {
 }
 
 pub fn default_local_ip() -> String {
-    "localhost".to_string()
+    "127.0.0.1".to_string()
 }
 
 pub fn default_grpc_port() -> u32 {
