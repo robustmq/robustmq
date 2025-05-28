@@ -170,7 +170,7 @@ where
                                     }
                                     Err(e) => {
                                         error!(
-                                            "Push message to client failed, failure message: {}, topic:{}, group{}",
+                                            "Push message to client failed, failure message: {}, topic:{}, group:{}",
                                             e.to_string(),
                                             subscriber.topic_id.clone(),
                                             group_id.clone()
@@ -210,42 +210,57 @@ where
         return Ok(None);
     }
 
-    for record in results.iter() {
-        let record_offset = if let Some(offset) = record.offset {
-            offset
-        } else {
-            continue;
-        };
+    let push_fn = async || -> Result<(), MqttBrokerError> {
+        for record in results.iter() {
+            let record_offset = if let Some(offset) = record.offset {
+                offset
+            } else {
+                continue;
+            };
 
-        // build publish params
-        let sub_pub_param = if let Some(params) =
-            build_pub_message(record.to_owned(), group_id, qos, subscriber, sub_ids).await?
-        {
-            params
-        } else {
-            continue;
-        };
+            // build publish params
+            let sub_pub_param = if let Some(params) =
+                build_pub_message(record.to_owned(), group_id, qos, subscriber, sub_ids).await?
+            {
+                params
+            } else {
+                continue;
+            };
 
-        // publish data to client
-        publish_data(
-            connection_manager,
-            cache_manager,
-            sub_pub_param,
-            sub_thread_stop_sx,
-        )
-        .await?;
+            // publish data to client
+            publish_data(
+                connection_manager,
+                cache_manager,
+                sub_pub_param,
+                sub_thread_stop_sx,
+            )
+            .await?;
 
-        // commit offset
-        loop_commit_offset(
-            message_storage,
-            &subscriber.topic_id,
-            group_id,
-            record_offset,
-        )
-        .await?;
+            // commit offset
+            loop_commit_offset(
+                message_storage,
+                &subscriber.topic_id,
+                group_id,
+                record_offset,
+            )
+            .await?;
+        }
+        Ok(())
+    };
+
+    let last_offset = results.last().unwrap().offset.unwrap();
+    if let Err(e) = push_fn().await {
+        loop_commit_offset(message_storage, &subscriber.topic_id, group_id, last_offset).await?;
+        match e {
+            MqttBrokerError::SessionNullSkipPushMessage(_) => {}
+            MqttBrokerError::ConnectionNullSkipPushMessage(_) => {}
+            _ => {
+                error!("{}", e);
+            }
+        }
     }
 
-    Ok(Some(results.last().unwrap().offset.unwrap()))
+    Ok(Some(last_offset))
 }
 
 fn build_group_name(subscriber: &Subscriber) -> String {

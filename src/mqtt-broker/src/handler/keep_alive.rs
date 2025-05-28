@@ -243,7 +243,7 @@ mod test {
     use std::time::Duration;
 
     use common_base::config::broker_mqtt::BrokerMqttConfig;
-    use common_base::tools::{now_second, unique_id};
+    use common_base::tools::{local_hostname, now_second, unique_id};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
     use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
@@ -336,7 +336,7 @@ mod test {
         cache_manager.add_session(&client_id, &session);
 
         let keep_alive = 2;
-        let addr = "127.0.0.1".to_string();
+        let addr = local_hostname();
         let config = ConnectionConfig {
             connect_id: 1,
             client_id,

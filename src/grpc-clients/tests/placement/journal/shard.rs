@@ -60,7 +60,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             node_id,
             node_ip: get_local_ip(),
-            node_inner_addr: "127.0.0.1:4531".to_string(),
+            node_inner_addr: "localhost:4531".to_string(),
             extend_info: serde_json::to_string(&extend).unwrap(),
         };
         if let Err(e) = register_node(&client_pool, &addrs, request).await {
@@ -273,7 +273,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             node_id,
             node_ip: get_local_ip(),
-            node_inner_addr: "127.0.0.1:4531".to_string(),
+            node_inner_addr: "localhost:4531".to_string(),
             extend_info: serde_json::to_string(&extend).unwrap(),
         };
         if let Err(e) = register_node(&client_pool, &addrs, request).await {
@@ -413,7 +413,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             node_id,
             node_ip: get_local_ip(),
-            node_inner_addr: "127.0.0.1:4531".to_string(),
+            node_inner_addr: "localhost:4531".to_string(),
             extend_info: serde_json::to_string(&extend).unwrap(),
         };
         if let Err(e) = register_node(&client_pool, &addrs, request).await {
@@ -522,7 +522,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             node_id,
             node_ip: get_local_ip(),
-            node_inner_addr: "127.0.0.1:4531".to_string(),
+            node_inner_addr: "localhost:4531".to_string(),
             extend_info: serde_json::to_string(&extend).unwrap(),
         };
         if let Err(e) = register_node(&client_pool, &addrs, request).await {

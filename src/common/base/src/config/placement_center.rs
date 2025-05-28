@@ -159,7 +159,7 @@ pub fn placement_center_test_conf() -> PlacementCenterConfig {
     };
 
     let mut nodes = Map::new();
-    nodes.insert("1".to_string(), Value::from("127.0.0.1:9982".to_string()));
+    nodes.insert("1".to_string(), Value::from("localhost:9982".to_string()));
     let node = Node { node_id: 1, nodes };
 
     let config = PlacementCenterConfig {
@@ -187,7 +187,7 @@ mod tests {
         std::env::set_var("PLACEMENT_CENTER_NODE_NODE_ID", "2");
         std::env::set_var(
             "PLACEMENT_CENTER_NODE_NODES",
-            "{ 1 = \"127.0.0.1:1228\" , 2 = \"127.0.0.1:1227\" }",
+            "{ 1 = \"localhost:1228\" , 2 = \"localhost:1227\" }",
         );
         init_placement_center_conf_by_path(&path);
         let config: &PlacementCenterConfig = placement_center_conf();
@@ -214,7 +214,7 @@ mod tests {
         let mut nodes = Table::new();
         nodes.insert(
             "1".to_string(),
-            toml::Value::String(format!("{}:{}", "127.0.0.1", "1228")),
+            toml::Value::String(format!("{}:{}", "localhost", "1228")),
         );
         assert_eq!(config.rocksdb.max_open_files, Some(10000_i32));
         assert_eq!(config.heartbeat.heartbeat_timeout_ms, 5000);

@@ -72,7 +72,7 @@ pub const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling:
 #[command(author="RobustMQ", about="Command line tool for mqtt broker", long_about = None)]
 #[command(next_line_help = true)]
 struct MqttArgs {
-    #[arg(short, long,default_value_t =String::from("127.0.0.1:9981"))]
+    #[arg(short, long,default_value_t =String::from("localhost:9981"))]
     server: String,
 
     #[clap(subcommand)]
@@ -122,7 +122,7 @@ enum MQTTAction {
 #[command(author="RobustMQ",  about="Command line tool for placement center", long_about = None)]
 #[command(next_line_help = true)]
 struct PlacementArgs {
-    #[arg(short, long, default_value_t = String::from("127.0.0.1:1228"))]
+    #[arg(short, long, default_value_t = String::from("localhost:1228"))]
     server: String,
 
     #[clap(subcommand)]
@@ -143,7 +143,7 @@ struct AddLearnerArgs {
     #[arg(short, long, required = true)]
     node_id: u64,
 
-    #[arg(short, long, default_value_t = String::from("127.0.0.1:1228"))]
+    #[arg(short, long, default_value_t = String::from("localhost:1228"))]
     rpc_addr: String,
 
     #[arg(short, long, default_value_t = true)]
@@ -165,7 +165,7 @@ struct ChangeMembershipArgs {
 #[command(author="RobustMQ", about="Command line tool for journal engine", long_about = None)]
 #[command(next_line_help = true)]
 struct JournalArgs {
-    #[arg(short, long,default_value_t =String::from("127.0.0.1:1228"))]
+    #[arg(short, long,default_value_t =String::from("localhost:1228"))]
     server: String,
 
     #[arg(short, long,default_value_t =String::from("status"))]

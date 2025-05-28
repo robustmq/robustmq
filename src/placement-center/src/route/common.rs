@@ -185,7 +185,7 @@ mod tests {
 
         let cluster_name = unique_id();
         let node_id = 999;
-        let node_ip = "127.0.0.1".to_string();
+        let node_ip = "localhost".to_string();
 
         let node = BrokerNode {
             cluster_name: cluster_name.clone(),

@@ -111,11 +111,11 @@ pub fn convert_seconds(number: u64, unit: TimeUnit) -> u64 {
 /// Obtain local IP address
 ///
 /// This function attempts to obtain the local IP address of the device and returns the address as a string upon success
-/// If obtaining the IP address fails, this function will output a warning message and return the string '127.0.0.1'
+/// If obtaining the IP address fails, this function will output a warning message and return the string 'localhost'
 ///
 /// # Return value
 /// - When successfully obtaining a local IP address, return a string representation of the address
-/// - When obtaining the IP address fails, return the string '127.0.0.1'
+/// - When obtaining the IP address fails, return the string 'localhost'
 pub fn get_local_ip() -> String {
     match local_ip() {
         Ok(data) => data.to_string(),
@@ -124,9 +124,17 @@ pub fn get_local_ip() -> String {
                 "If the local IP fails, stop the process.error message:{}",
                 e.to_string()
             );
-            "127.0.0.1".to_string()
+            local_hostname()
         }
     }
+}
+
+pub fn local_hostname() -> String {
+    "localhost".to_string()
+}
+
+pub fn get_addr_by_local_hostname(port: u32) -> String {
+    format!("localhost:{}", port)
 }
 
 /// Check if the file exists

@@ -223,7 +223,7 @@ fn ip_match(source_ip_addr: &str, ip_role: &str) -> bool {
 mod test {
     use std::sync::Arc;
 
-    use common_base::tools::now_second;
+    use common_base::tools::{local_hostname, now_second};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::acl::mqtt_acl::{
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
@@ -286,7 +286,7 @@ mod test {
             topic_alias_max: 3,
             request_problem_info: 1,
             keep_alive: 2,
-            source_ip_addr: "127.0.0.1".to_string(),
+            source_ip_addr: local_hostname(),
         };
         let mut connection = MQTTConnection::new(config);
         connection.login_success(user.username.clone());
@@ -373,7 +373,7 @@ mod test {
             topic_alias_max: 3,
             request_problem_info: 1,
             keep_alive: 2,
-            source_ip_addr: "127.0.0.1".to_string(),
+            source_ip_addr: local_hostname(),
         };
         let mut connection = MQTTConnection::new(config);
         connection.login_success(user.username.clone());
@@ -414,7 +414,7 @@ mod test {
             topic_alias_max: 3,
             request_problem_info: 1,
             keep_alive: 2,
-            source_ip_addr: "127.0.0.1".to_string(),
+            source_ip_addr: local_hostname(),
         };
         let mut connection = MQTTConnection::new(config);
         connection.login_success(user.username.clone());
@@ -480,7 +480,7 @@ mod test {
             topic_alias_max: 3,
             request_problem_info: 1,
             keep_alive: 2,
-            source_ip_addr: "127.0.0.1".to_string(),
+            source_ip_addr: local_hostname(),
         };
         let mut connection = MQTTConnection::new(config);
         connection.login_success(user.username.clone());
@@ -546,7 +546,7 @@ mod test {
             topic_alias_max: 3,
             request_problem_info: 1,
             keep_alive: 2,
-            source_ip_addr: "127.0.0.1".to_string(),
+            source_ip_addr: local_hostname(),
         };
         let mut connection = MQTTConnection::new(config);
         connection.login_success(user.username.clone());
@@ -612,7 +612,7 @@ mod test {
             topic_alias_max: 3,
             request_problem_info: 1,
             keep_alive: 2,
-            source_ip_addr: "127.0.0.1".to_string(),
+            source_ip_addr: local_hostname(),
         };
         let mut connection = MQTTConnection::new(config);
         connection.login_success(user.username.clone());
@@ -668,12 +668,12 @@ mod test {
 
     #[tokio::test]
     pub async fn ip_match_test() {
-        let source_ip = "127.0.0.1";
+        let source_ip = "localhost";
         let match_ip = WILDCARD_RESOURCE;
         assert!(ip_match(source_ip, match_ip));
 
         assert!(ip_match(source_ip, source_ip));
         assert!(!ip_match(source_ip, "192.1.1.1"));
-        assert!(ip_match(source_ip, "127.0.0.1/24"));
+        assert!(ip_match(source_ip, "localhost/24"));
     }
 }

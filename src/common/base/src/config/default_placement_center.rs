@@ -42,7 +42,7 @@ pub fn default_network() -> Network {
 }
 
 pub fn default_local_ip() -> String {
-    "127.0.0.1".to_string()
+    "localhost".to_string()
 }
 
 pub fn default_grpc_port() -> u32 {
@@ -82,7 +82,7 @@ pub fn default_nodes() -> Table {
     let mut nodes = Table::new();
     nodes.insert(
         default_node_id().to_string(),
-        toml::Value::String(format!("127.0.0.1:{}", default_grpc_port())),
+        toml::Value::String(format!("localhost:{}", default_grpc_port())),
     );
     nodes
 }

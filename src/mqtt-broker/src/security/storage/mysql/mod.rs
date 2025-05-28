@@ -245,7 +245,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn read_all_user_test() {
-        let addr = "mysql://root:123456@127.0.0.1:3306/mqtt".to_string();
+        let addr = "mysql://root:123456@localhost:3306/mqtt".to_string();
         init_user(&addr);
         let auth_mysql = MySQLAuthStorageAdapter::new(addr);
         let result = auth_mysql.read_all_user().await;
@@ -259,7 +259,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn get_user_test() {
-        let addr = "mysql://root:123456@127.0.0.1:3306/mqtt".to_string();
+        let addr = "mysql://root:123456@localhost:3306/mqtt".to_string();
         init_user(&addr);
         let auth_mysql = MySQLAuthStorageAdapter::new(addr);
         let username = "robustmq".to_string();

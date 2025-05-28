@@ -77,7 +77,7 @@ impl MinIoStorageAdapter {
         let builder = S3::default()
             .root(data_dir.as_ref())
             .bucket(bucket.as_ref())
-            .endpoint("http://127.0.0.1:9000")
+            .endpoint("http://localhost:9000")
             .access_key_id("minioadmin")
             .secret_access_key("minioadmin");
         Ok(Self {

@@ -170,7 +170,7 @@ impl BenchMark for KvGetBenchArgs {
 
                         let value = gen_data(value_size);
 
-                        let pc_addrs = vec!["127.0.0.1:1228"];
+                        let pc_addrs = vec!["localhost:1228"];
 
                         do_placement_set(&client_pool, &pc_addrs, key, value).await?;
                     }
@@ -198,7 +198,7 @@ impl BenchMark for KvGetBenchArgs {
                         // generate random key and value
                         let key = (client_id * num_keys + key_id).to_string();
 
-                        let pc_addrs = vec!["127.0.0.1:1228"];
+                        let pc_addrs = vec!["localhost:1228"];
 
                         let req = GetRequest { key };
 

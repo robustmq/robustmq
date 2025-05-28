@@ -397,6 +397,7 @@ pub fn record_messages_dropped_discard_metrics(qos: QoS) {
 mod test {
     use super::*;
     use common_base::metrics::metrics_register_default;
+    use common_base::tools::get_addr_by_local_hostname;
     use prometheus_client::encoding::text::encode;
     #[tokio::test]
     async fn test_gauge() {
@@ -492,7 +493,7 @@ mod test {
 
         let nc = NetworkConnection {
             connection_type: NetworkConnectionType::Tcp,
-            addr: "127.0.0.1:1883".parse().unwrap(),
+            addr: get_addr_by_local_hostname(1883).parse().unwrap(),
             connection_stop_sx: None,
             connection_id: 100,
             protocol: Some(MqttProtocol::Mqtt3),
