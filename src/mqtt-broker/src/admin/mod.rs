@@ -28,6 +28,7 @@ use crate::handler::cache::CacheManager;
 use crate::handler::flapping_detect::enable_flapping_detect;
 use crate::observability::slow::sub::{read_slow_sub_record, SlowSubData};
 use crate::server::connection_manager::ConnectionManager;
+use crate::subscribe::manager::SubscribeManager;
 use crate::{handler::error::MqttBrokerError, storage::cluster::ClusterStorage};
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::serialize_value;
@@ -42,6 +43,7 @@ use tonic::{Request, Response, Status};
 
 pub async fn cluster_status_by_req(
     client_pool: &Arc<ClientPool>,
+    subscribe_manager: &Arc<SubscribeManager>,
 ) -> Result<ClusterStatusReply, MqttBrokerError> {
     let config = broker_mqtt_conf();
 
@@ -51,6 +53,9 @@ pub async fn cluster_status_by_req(
     for node in data {
         broker_node_list.push(format!("{}@{}", node.node_ip, node.node_id));
     }
+
+    let _ = subscribe_manager.snapshot_info();
+
     Ok(ClusterStatusReply {
         nodes: broker_node_list,
         cluster_name: config.cluster_name.clone(),

@@ -29,7 +29,6 @@ struct ArgsParams {
 }
 #[tokio::main]
 async fn main() {
-    console_subscriber::init();
     let args = ArgsParams::parse();
     init_placement_center_conf_by_path(&args.conf);
 

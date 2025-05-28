@@ -40,6 +40,7 @@ use crate::admin::{
 };
 use crate::handler::cache::CacheManager;
 use crate::server::connection_manager::ConnectionManager;
+use crate::subscribe::manager::SubscribeManager;
 use bincode::serialize;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
@@ -72,6 +73,7 @@ pub struct GrpcAdminServices {
     client_pool: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
     connection_manager: Arc<ConnectionManager>,
+    subscribe_manager: Arc<SubscribeManager>,
 }
 
 impl GrpcAdminServices {
@@ -79,11 +81,13 @@ impl GrpcAdminServices {
         client_pool: Arc<ClientPool>,
         cache_manager: Arc<CacheManager>,
         connection_manager: Arc<ConnectionManager>,
+        subscribe_manager: Arc<SubscribeManager>,
     ) -> Self {
         GrpcAdminServices {
             client_pool,
             cache_manager,
             connection_manager,
+            subscribe_manager,
         }
     }
 }
@@ -123,7 +127,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         _: Request<ClusterStatusRequest>,
     ) -> Result<Response<ClusterStatusReply>, Status> {
-        match cluster_status_by_req(&self.client_pool).await {
+        match cluster_status_by_req(&self.client_pool, &self.subscribe_manager).await {
             Ok(reply) => Ok(Response::new(reply)),
             Err(e) => Err(Status::cancelled(e.to_string())),
         }

@@ -82,6 +82,7 @@ where
             self.client_pool.clone(),
             self.metadata_cache.clone(),
             self.connection_manager.clone(),
+            self.subscribe_manager.clone(),
         );
         Server::builder()
             .accept_http1(true)
