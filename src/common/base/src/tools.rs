@@ -134,7 +134,7 @@ pub fn local_hostname() -> String {
 }
 
 pub fn get_addr_by_local_hostname(port: u32) -> String {
-    format!("localhost:{}", port)
+    format!("127.0.0.1:{}", port)
 }
 
 /// Check if the file exists
@@ -189,8 +189,12 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::net::SocketAddr;
+
     use crate::enum_type::time_unit_enum::TimeUnit;
     use crate::tools::{convert_seconds, get_local_ip, unique_id};
+
+    use super::get_addr_by_local_hostname;
 
     #[test]
     fn get_local_ip_test() {
@@ -205,5 +209,12 @@ mod tests {
     #[test]
     fn test_convert_seconds() {
         assert_eq!(convert_seconds(1, TimeUnit::Minutes), 60);
+    }
+
+    #[test]
+    fn test_get_addr_by_local_hostname() {
+        let ip = get_addr_by_local_hostname(1883);
+        let _:SocketAddr = ip.parse().unwrap();
+
     }
 }

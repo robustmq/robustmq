@@ -668,12 +668,12 @@ mod test {
 
     #[tokio::test]
     pub async fn ip_match_test() {
-        let source_ip = "localhost";
+        let source_ip = "127.0.0.1";
         let match_ip = WILDCARD_RESOURCE;
         assert!(ip_match(source_ip, match_ip));
 
         assert!(ip_match(source_ip, source_ip));
         assert!(!ip_match(source_ip, "192.1.1.1"));
-        assert!(ip_match(source_ip, "localhost/24"));
+        assert!(ip_match(source_ip, "127.0.0.1/24"));
     }
 }
