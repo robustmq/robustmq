@@ -298,7 +298,7 @@ mod tests {
         // update
         connector.connector_type = ConnectorType::Kafka;
         connector.config = serde_json::to_string(&KafkaConnectorConfig {
-            bootstrap_servers: "localhost:9092".to_string(),
+            bootstrap_servers: "127.0.0.1:9092".to_string(),
             topic: "test-topic".to_string(),
             key: "test-key".to_string(),
         })
@@ -336,7 +336,7 @@ mod tests {
         assert_eq!(
             &connector.config,
             &serde_json::to_string(&KafkaConnectorConfig {
-                bootstrap_servers: "localhost:9092".to_string(),
+                bootstrap_servers: "127.0.0.1:9092".to_string(),
                 topic: "test-topic".to_string(),
                 key: "test-key".to_string(),
             })

@@ -187,11 +187,13 @@ impl QuicClient {
 
 #[cfg(test)]
 mod tests {
+    use common_base::tools::get_addr_by_local_hostname;
+
     use crate::server::quic::client::{QuicClient, QuicClientConfig};
     use std::net::SocketAddr;
     #[tokio::test]
     async fn should_create_a_quic_client_config_ip_default() {
-        let client_ip: SocketAddr = "127.0.0.1:8080".parse().unwrap();
+        let client_ip: SocketAddr = get_addr_by_local_hostname(8080).parse().unwrap();
         let mut config = QuicClientConfig::default();
         config.bind_addr(client_ip);
         assert_eq!(config.get_bind_addr(), client_ip);
@@ -199,15 +201,8 @@ mod tests {
 
     #[tokio::test]
     async fn should_create_a_quic_client_by_config() {
-        let client_ip: SocketAddr = "127.0.0.1:8080".parse().unwrap();
+        let client_ip: SocketAddr = get_addr_by_local_hostname(8080).parse().unwrap();
         let quic_client = QuicClient::bind(client_ip);
         assert!(quic_client.endpoint.is_some());
     }
-
-    // #[tokio::test]
-    // fn should_create_a_quic_client() {
-    //     let client_ip: SocketAddr = "127.0.0.1:8080".parse().unwrap();
-    //     let quic_client = QuicClient::new(client_ip);
-    //     assert!(quic_client.is_ok());
-    // }
 }

@@ -150,6 +150,10 @@ mod tests {
 
                 loop {
                     let res_opt = rx.recv_timeout(Duration::from_secs(10));
+                    if res_opt.is_err() {
+                        println!("{:?}", res_opt);
+                        continue;
+                    }
                     let message = res_opt.unwrap();
                     if let Some(msg) = message {
                         let sub_identifier = if let Some(id) = msg

@@ -152,7 +152,7 @@ mod tests {
         let resource_type = MqttAclResourceType::User;
         let resource_name = "test_resource".to_string();
         let topic = "test_topic".to_string();
-        let ip = "localhost".to_string();
+        let ip = "127.0.0.1".to_string();
         let action = MqttAclAction::PubSub;
         let permission = MqttAclPermission::Allow;
 
@@ -177,7 +177,7 @@ mod tests {
             resource_type: resource_type.clone(),
             resource_name: "test_resource2".to_string(),
             topic: "test_topic2".to_string(),
-            ip: "localhost2".to_string(),
+            ip: "127.0.0.12".to_string(),
             action: MqttAclAction::Publish,
             permission: MqttAclPermission::Deny,
         };

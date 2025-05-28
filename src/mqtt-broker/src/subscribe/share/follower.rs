@@ -207,7 +207,7 @@ async fn resub_sub_mqtt5(
             val = stop_rx.recv() =>{
                 if let Ok(flag) = val {
                     if flag {
-                        info!(
+                        debug!(
                             "Rewrite sub mqtt5 thread for client_id:[{}], group_name:[{}], sub_name:[{}] was stopped successfully",
                             mqtt_client_id,
                             group_name,

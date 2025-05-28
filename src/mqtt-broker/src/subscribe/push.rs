@@ -188,18 +188,12 @@ pub async fn publish_message_qos(
         let client_id = sub_pub_param.subscribe.client_id.clone();
         let push_to_connect = || async move {
             if metadata_cache.get_session_info(&client_id).is_none() {
-                return Err(MqttBrokerError::CommonError(format!(
-                    "Client {} is not online, skip push message",
-                    client_id
-                )));
+                return Err(MqttBrokerError::SessionNullSkipPushMessage(client_id));
             }
 
             let connect_id_op = metadata_cache.get_connect_id(&client_id);
             if connect_id_op.is_none() {
-                return Err(MqttBrokerError::CommonError(format!(
-                    "Client {} is not online, skip push message",
-                    client_id
-                )));
+                return Err(MqttBrokerError::ConnectionNullSkipPushMessage(client_id));
             }
 
             let connect_id = connect_id_op.unwrap();
