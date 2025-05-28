@@ -58,7 +58,10 @@ common_base::register_histogram_metric!(
     GRPC_REQUEST_TOTAL_MS,
     "grpc.request.total.ms",
     "TotalMs of calls to the grpc request",
-    MetricsLabel
+    MetricsLabel,
+    1.0,
+    2.0,
+    10
 );
 
 common_base::register_counter_metric!(
@@ -79,7 +82,10 @@ common_base::register_histogram_metric!(
     RAFT_STORAGE_TOTAL_MS,
     "raft.storage.total.ms",
     "TotalMs of calls to the raft storage",
-    MetricsLabel
+    MetricsLabel,
+    0.1,
+    2.0,
+    12
 );
 
 common_base::register_counter_metric!(
@@ -100,7 +106,10 @@ common_base::register_histogram_metric!(
     ROCKSDB_STORAGE_TOTAL_MS,
     "rocksdb.storage.total.ms",
     "TotalMs of calls to the rocksdb storage",
-    RocksDBLabels
+    RocksDBLabels,
+    0.1,
+    2.0,
+    12
 );
 
 pub fn metrics_grpc_request_incr(service: &str, path: &str) {
