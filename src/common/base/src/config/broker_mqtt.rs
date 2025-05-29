@@ -28,7 +28,7 @@ use super::default_mqtt::{
     default_network_quic_port, default_network_tcp_port, default_network_tcps_port,
     default_network_websocket_port, default_network_websockets_port, default_offline_message,
     default_placement_center, default_storage, default_system, default_tcp_thread,
-    default_telemetry,
+    default_telemetry,default_system_monitor
 };
 use crate::tools::{read_file, try_create_fold};
 
@@ -229,6 +229,22 @@ pub struct OfflineMessage {
     pub max_messages_num: u32,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct SystemMonitor {
+    #[serde(default)]
+    pub enable: bool,
+    #[serde(default)]
+    pub os_cpu_check_interval_ms: u64,
+    #[serde(default)]
+    pub os_cpu_high_watermark: f64,
+    #[serde(default)]
+    pub os_cpu_low_watermark: f64,
+    #[serde(default)]
+    pub os_memory_check_interval_ms: u64,
+    #[serde(default)]
+    pub os_memory_high_watermark: f64,
+}
+
 static BROKER_MQTT_CONF: OnceLock<BrokerMqttConfig> = OnceLock::new();
 
 pub fn init_broker_mqtt_conf_by_path(config_path: &str) -> &'static BrokerMqttConfig {
@@ -321,6 +337,13 @@ mod tests {
         assert_eq!(config.system.runtime_worker_threads, 4);
         assert_eq!(config.system.default_user, "admin".to_string());
         assert_eq!(config.system.default_password, "pwd123".to_string());
+
+        assert!(config.system_monitor.enable);
+        assert_eq!(config.system_monitor.os_cpu_check_interval_ms, 60);
+        assert_eq!(config.system_monitor.os_cpu_high_watermark, 70.0);
+        assert_eq!(config.system_monitor.os_cpu_low_watermark, 50.0);
+        assert_eq!(config.system_monitor.os_memory_check_interval_ms, 60);
+        assert_eq!(config.system_monitor.os_memory_high_watermark, 80.0);
 
         assert_eq!(config.storage.storage_type, "memory".to_string());
         assert_eq!(config.storage.journal_addr, "".to_string());
@@ -431,6 +454,14 @@ mod tests {
                 assert_eq!(config.system.default_user, "admin-env".to_string());
                 assert_eq!(config.system.default_password, "pwd123-env".to_string());
 
+
+                assert!(config.system_monitor.enable);
+                assert_eq!(config.system_monitor.os_cpu_check_interval_ms, 60);
+                assert_eq!(config.system_monitor.os_cpu_high_watermark, 70.0);
+                assert_eq!(config.system_monitor.os_cpu_low_watermark, 50.0);
+                assert_eq!(config.system_monitor.os_memory_check_interval_ms, 60);
+                assert_eq!(config.system_monitor.os_memory_high_watermark, 80.0);
+
                 assert_eq!(config.storage.storage_type, "memory-env".to_string());
                 assert_eq!(config.storage.journal_addr, "".to_string());
                 assert_eq!(config.storage.mysql_addr, "".to_string());
@@ -495,6 +526,13 @@ mod tests {
             assert_eq!(config.system.runtime_worker_threads, 4);
             assert_eq!(config.system.default_user, "admin".to_string());
             assert_eq!(config.system.default_password, "pwd123".to_string());
+
+            assert!(config.system_monitor.enable);
+            assert_eq!(config.system_monitor.os_cpu_check_interval_ms, 60);
+            assert_eq!(config.system_monitor.os_cpu_high_watermark, 70.0);
+            assert_eq!(config.system_monitor.os_cpu_low_watermark, 50.0);
+            assert_eq!(config.system_monitor.os_memory_check_interval_ms, 60);
+            assert_eq!(config.system_monitor.os_memory_high_watermark, 80.0);
 
             assert_eq!(config.storage.storage_type, "memory".to_string());
             assert_eq!(config.storage.journal_addr, "".to_string());
