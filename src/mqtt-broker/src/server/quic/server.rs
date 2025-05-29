@@ -288,7 +288,7 @@ mod tests {
     #[tokio::test]
     async fn should_start_quic_server() {
         let mut quic_server =
-            QuicServer::new(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8080));
+            QuicServer::new(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 48080));
 
         assert_that!(quic_server.endpoint, none());
 
