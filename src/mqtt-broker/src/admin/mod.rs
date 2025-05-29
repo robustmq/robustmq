@@ -54,11 +54,12 @@ pub async fn cluster_status_by_req(
         broker_node_list.push(format!("{}@{}", node.node_ip, node.node_id));
     }
 
-    let _ = subscribe_manager.snapshot_info();
+    let subsceibe_info = subscribe_manager.snapshot_info();
 
     Ok(ClusterStatusReply {
         nodes: broker_node_list,
         cluster_name: config.cluster_name.clone(),
+        subscribe_info: serde_json::to_string(&subsceibe_info)?,
     })
 }
 
