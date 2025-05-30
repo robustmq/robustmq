@@ -22,17 +22,17 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
     EnableFlappingDetectRequest, GetClusterConfigReply, GetClusterConfigRequest, ListAclReply,
     ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBlacklistReply,
-    ListBlacklistRequest, ListConnectionReply, ListConnectionRequest, ListSlowSubscribeReply,
-    ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-    MqttBindSchemaReply, MqttBindSchemaRequest, MqttCreateConnectorReply,
-    MqttCreateConnectorRequest, MqttCreateSchemaReply, MqttCreateSchemaRequest,
-    MqttDeleteConnectorReply, MqttDeleteConnectorRequest, MqttDeleteSchemaReply,
-    MqttDeleteSchemaRequest, MqttListBindSchemaReply, MqttListBindSchemaRequest,
-    MqttListConnectorReply, MqttListConnectorRequest, MqttListSchemaReply, MqttListSchemaRequest,
-    MqttUnbindSchemaReply, MqttUnbindSchemaRequest, MqttUpdateConnectorReply,
-    MqttUpdateConnectorRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
-    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetClusterConfigReply,
-    SetClusterConfigRequest,
+    ListBlacklistRequest, ListConnectionReply, ListConnectionRequest, ListSessionReply,
+    ListSessionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
+    ListTopicRequest, ListUserReply, ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest,
+    MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttCreateSchemaReply,
+    MqttCreateSchemaRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
+    MqttDeleteSchemaReply, MqttDeleteSchemaRequest, MqttListBindSchemaReply,
+    MqttListBindSchemaRequest, MqttListConnectorReply, MqttListConnectorRequest,
+    MqttListSchemaReply, MqttListSchemaRequest, MqttUnbindSchemaReply, MqttUnbindSchemaRequest,
+    MqttUpdateConnectorReply, MqttUpdateConnectorRequest, MqttUpdateSchemaReply,
+    MqttUpdateSchemaRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
+    SetClusterConfigReply, SetClusterConfigRequest,
 };
 
 use crate::pool::ClientPool;
@@ -276,4 +276,11 @@ generate_mqtt_admin_service_call!(
     ListAutoSubscribeRuleRequest,
     ListAutoSubscribeRuleReply,
     ListAutoSubscribeRule
+);
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_list_session,
+    ListSessionRequest,
+    ListSessionReply,
+    ListSession
 );

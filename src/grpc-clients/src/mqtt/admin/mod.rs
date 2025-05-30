@@ -18,11 +18,11 @@ use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_client::
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, DeleteAutoSubscribeRuleReply,
     DeleteAutoSubscribeRuleRequest, GetClusterConfigReply, GetClusterConfigRequest,
-    ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, MqttCreateConnectorReply,
-    MqttCreateConnectorRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
-    MqttListConnectorReply, MqttListConnectorRequest, MqttUpdateConnectorReply,
-    MqttUpdateConnectorRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
-    SetClusterConfigReply, SetClusterConfigRequest,
+    ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListSessionReply, ListSessionRequest,
+    MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttDeleteConnectorReply,
+    MqttDeleteConnectorRequest, MqttListConnectorReply, MqttListConnectorRequest,
+    MqttUpdateConnectorReply, MqttUpdateConnectorRequest, SetAutoSubscribeRuleReply,
+    SetAutoSubscribeRuleRequest, SetClusterConfigReply, SetClusterConfigRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
@@ -330,4 +330,12 @@ impl_retriable_request!(
     DeleteAutoSubscribeRuleReply,
     mqtt_broker_admin_services_client,
     mqtt_broker_delete_auto_subscribe_rule
+);
+
+impl_retriable_request!(
+    ListSessionRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    ListSessionReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_list_session
 );

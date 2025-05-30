@@ -25,9 +25,9 @@ use grpc_clients::mqtt::admin::call::{
     mqtt_broker_delete_user, mqtt_broker_enable_flapping_detect, mqtt_broker_list_acl,
     mqtt_broker_list_auto_subscribe_rule, mqtt_broker_list_bind_schema, mqtt_broker_list_blacklist,
     mqtt_broker_list_connection, mqtt_broker_list_connector, mqtt_broker_list_schema,
-    mqtt_broker_list_slow_subscribe, mqtt_broker_list_topic, mqtt_broker_list_user,
-    mqtt_broker_set_auto_subscribe_rule, mqtt_broker_set_cluster_config, mqtt_broker_unbind_schema,
-    mqtt_broker_update_connector, mqtt_broker_update_schema,
+    mqtt_broker_list_session, mqtt_broker_list_slow_subscribe, mqtt_broker_list_topic,
+    mqtt_broker_list_user, mqtt_broker_set_auto_subscribe_rule, mqtt_broker_set_cluster_config,
+    mqtt_broker_unbind_schema, mqtt_broker_update_connector, mqtt_broker_update_schema,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -39,7 +39,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusRequest, CreateAclRequest, CreateBlacklistRequest, CreateTopicRewriteRuleRequest,
     CreateUserRequest, DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest,
     DeleteTopicRewriteRuleRequest, DeleteUserRequest, EnableFlappingDetectRequest, ListAclRequest,
-    ListAutoSubscribeRuleRequest, ListBlacklistRequest, ListConnectionRequest,
+    ListAutoSubscribeRuleRequest, ListBlacklistRequest, ListConnectionRequest, ListSessionRequest,
     ListSlowSubscribeRequest, ListTopicRequest, ListUserRequest, MqttBindSchemaRequest,
     MqttCreateConnectorRequest, MqttCreateSchemaRequest, MqttDeleteConnectorRequest,
     MqttDeleteSchemaRequest, MqttListBindSchemaRequest, MqttListConnectorRequest,
@@ -66,6 +66,9 @@ pub enum MqttActionType {
 
     // cluster status
     Status,
+
+    // session
+    ListSession(),
 
     // user admin
     ListUser,
@@ -140,6 +143,11 @@ impl MqttBrokerCommand {
     pub async fn start(&self, params: MqttCliCommandParam) {
         let client_pool = Arc::new(ClientPool::new(100));
         match params.action {
+            // cluster status
+            MqttActionType::ListSession() => {
+                self.list_session(&client_pool, params.clone()).await;
+            }
+
             // cluster status
             MqttActionType::Status => {
                 self.status(&client_pool, params.clone()).await;
@@ -435,6 +443,46 @@ impl MqttBrokerCommand {
         }
     }
 
+    // ------------ list session ------------
+    async fn list_session(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
+        let request = ListSessionRequest { options: None };
+        match mqtt_broker_list_session(client_pool, &grpc_addr(params.server), request).await {
+            Ok(data) => {
+                let mut table = Table::new();
+                table.add_row(row![
+                    "client_id",
+                    "session_expiry",
+                    "is_contain_last_will",
+                    "last_will_delay_interval",
+                    "create_time",
+                    "connection_id",
+                    "broker_id",
+                    "reconnect_time",
+                    "distinct_time"
+                ]);
+                for blacklist in data.sessions {
+                    table.add_row(row![
+                        blacklist.client_id,
+                        blacklist.session_expiry,
+                        blacklist.is_contain_last_will,
+                        blacklist.last_will_delay_interval.expect(""),
+                        blacklist.create_time,
+                        blacklist.connection_id.expect(""),
+                        blacklist.broker_id.expect(""),
+                        blacklist.reconnect_time.expect(""),
+                        blacklist.distinct_time.expect(""),
+                    ]);
+                }
+                // output cmd
+                table.printstd()
+            }
+            Err(e) => {
+                println!("MQTT broker cluster normal exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
     // ------------ cluster status ------------
     async fn status(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
         let request = ClusterStatusRequest {};
@@ -445,6 +493,7 @@ impl MqttBrokerCommand {
                 for node in data.nodes {
                     println!("- {}", node);
                 }
+                println!("subscribe info:{}", data.subscribe_info);
                 println!("MQTT broker cluster up and running")
             }
             Err(e) => {
