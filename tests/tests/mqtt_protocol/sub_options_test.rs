@@ -49,7 +49,7 @@ mod tests {
                     ..Default::default()
                 };
                 let cli = connect_server(&client_properties);
-                let message_content = "construct topic".to_string();
+                let message_content = "no_local_is_true content".to_string();
                 let msg = MessageBuilder::new()
                     .payload(message_content.clone())
                     .topic(topic.clone())
@@ -63,8 +63,23 @@ mod tests {
                     .subscribe_with_options(&topic, qos, subscribe_options, None)
                     .is_ok());
 
-                let res = receiver.recv_timeout(Duration::from_secs(5));
-                assert!(res.is_err());
+                let timeout_fn = async || -> bool {
+                    loop {
+                        let res = receiver.recv_timeout(Duration::from_secs(5));
+                        if res.is_ok() {
+                            println!("{:?}", res);
+                            assert!(res.is_ok());
+                            let msg = res.unwrap().unwrap();
+                            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                            if payload == message_content {
+                                return true;
+                            }
+                            continue;
+                        }
+                        return false;
+                    }
+                };
+                assert!(!timeout_fn().await);
                 distinct_conn(cli);
             }
         }

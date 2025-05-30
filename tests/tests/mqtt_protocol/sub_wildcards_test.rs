@@ -47,7 +47,7 @@ mod tests {
                 };
                 let cli = connect_server(&client_properties);
 
-                let message_content = "mqtt message".to_string();
+                let message_content = "sub_wildcards_test mqtt message".to_string();
                 let msg = Message::new(topic.clone(), message_content.clone(), QOS_1);
                 publish_data(&cli, msg, false);
                 distinct_conn(cli);
@@ -98,7 +98,11 @@ mod tests {
 
                 let sub_topic = "/tests/+".to_string();
                 let call_fn = |msg: Message| {
-                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                    let payload = match String::from_utf8(msg.payload().to_vec()) {
+                        Ok(payload) => payload,
+                        Err(_) => return false,
+                    };
+                    println!("payload: {:?}", payload);
                     payload == message_content
                 };
 

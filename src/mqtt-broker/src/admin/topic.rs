@@ -12,102 +12,72 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
 use crate::handler::cache::CacheManager;
+use crate::handler::error::MqttBrokerError;
 use crate::storage::topic::TopicStorage;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::now_mills};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, ListTopicReply, ListTopicRequest, MqttTopic,
+    CreateTopicRewriteRuleRequest, DeleteTopicRewriteRuleRequest, ListTopicRequest, MqttTopicRaw,
 };
 use std::sync::Arc;
-use tonic::{Request, Response, Status};
+use tonic::Request;
 
+// List all topics by request
 pub async fn list_topic_by_req(
     cache_manager: &Arc<CacheManager>,
     request: Request<ListTopicRequest>,
-) -> Result<Response<ListTopicReply>, Status> {
+) -> Result<(Vec<MqttTopicRaw>, usize), MqttBrokerError> {
     let req = request.into_inner();
-    let topic_query_result: Vec<MqttTopic> = if req.topic_name.is_empty() {
-        cache_manager
-            .topic_info
-            .iter()
-            .map(|entry| MqttTopic {
-                topic_id: entry.value().topic_id.clone(),
-                topic_name: entry.value().topic_name.clone(),
-                cluster_name: entry.value().cluster_name.clone(),
-                is_contain_retain_message: entry.value().retain_message.is_some(),
-            })
-            .collect()
-    } else {
-        match req.match_option {
-            0 => cache_manager
-                .get_topic_by_name(&req.topic_name)
-                .into_iter()
-                .take(10)
-                .map(|entry| MqttTopic {
-                    topic_id: entry.topic_id.clone(),
-                    topic_name: entry.topic_name.clone(),
-                    cluster_name: entry.cluster_name.clone(),
-                    is_contain_retain_message: entry.retain_message.is_some(),
-                })
-                .collect(),
-            option => cache_manager
-                .topic_info
-                .iter()
-                .filter(|entry| match option {
-                    1 => entry.value().topic_name.starts_with(&req.topic_name),
-                    2 => entry.value().topic_name.contains(&req.topic_name),
-                    _ => false,
-                })
-                .take(10)
-                .map(|entry| MqttTopic {
-                    topic_id: entry.value().topic_id.clone(),
-                    topic_name: entry.value().topic_name.clone(),
-                    cluster_name: entry.value().cluster_name.clone(),
-                    is_contain_retain_message: entry.value().retain_message.is_some(),
-                })
-                .collect(),
-        }
-    };
+    let topics = extract_topic(cache_manager)?;
 
-    let reply = ListTopicReply {
-        topics: topic_query_result,
-    };
-
-    Ok(Response::new(reply))
+    if req.topic_name.as_deref().unwrap_or_default().is_empty() {
+        let topic_count = topics.len();
+        return Ok((topics, topic_count));
+    }
+    let filtered = apply_filters(topics, &req.options);
+    let sorted = apply_sorting(filtered, &req.options);
+    let pagination = apply_pagination(sorted, &req.options);
+    Ok(pagination)
 }
 
+fn extract_topic(cache_manager: &Arc<CacheManager>) -> Result<Vec<MqttTopicRaw>, MqttBrokerError> {
+    let mut topics = Vec::new();
+    for entry in cache_manager.topic_info.iter() {
+        let topic = entry.value();
+        topics.push(MqttTopicRaw::from(topic.clone()));
+    }
+    Ok(topics)
+}
+
+// Delete a topic rewrite rule
 pub async fn delete_topic_rewrite_rule_by_req(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
     request: Request<DeleteTopicRewriteRuleRequest>,
-) -> Result<Response<DeleteTopicRewriteRuleReply>, Status> {
+) -> Result<(), MqttBrokerError> {
     let req = request.into_inner();
     let topic_storage = TopicStorage::new(client_pool.clone());
-    match topic_storage
+
+    topic_storage
         .delete_topic_rewrite_rule(req.action.clone(), req.source_topic.clone())
         .await
-    {
-        Ok(_) => {
-            let config = broker_mqtt_conf();
-            cache_manager.delete_topic_rewrite_rule(
-                &config.cluster_name,
-                &req.action,
-                &req.source_topic,
-            );
-            Ok(Response::new(DeleteTopicRewriteRuleReply::default()))
-        }
-        Err(e) => Err(Status::cancelled(e.to_string())),
-    }
+        .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+
+    let config = broker_mqtt_conf();
+    cache_manager.delete_topic_rewrite_rule(&config.cluster_name, &req.action, &req.source_topic);
+
+    Ok(())
 }
 
+// Create a topic rewrite rule
 pub async fn create_topic_rewrite_rule_by_req(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
     request: Request<CreateTopicRewriteRuleRequest>,
-) -> Result<Response<CreateTopicRewriteRuleReply>, Status> {
+) -> Result<(), MqttBrokerError> {
     let req = request.into_inner();
     let config = broker_mqtt_conf();
     let rule = MqttTopicRewriteRule {
@@ -118,12 +88,26 @@ pub async fn create_topic_rewrite_rule_by_req(
         regex: req.regex,
         timestamp: now_mills(),
     };
+
     let topic_storage = TopicStorage::new(client_pool.clone());
-    match topic_storage.create_topic_rewrite_rule(rule.clone()).await {
-        Ok(_) => {
-            cache_manager.add_topic_rewrite_rule(rule);
-            Ok(Response::new(CreateTopicRewriteRuleReply::default()))
+    topic_storage
+        .create_topic_rewrite_rule(rule.clone())
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+
+    cache_manager.add_topic_rewrite_rule(rule);
+
+    Ok(())
+}
+
+impl Queryable for MqttTopicRaw {
+    fn get_field_str(&self, field: &str) -> Option<String> {
+        match field {
+            "topic_id" => Some(self.topic_id.clone()),
+            "cluster_name" => Some(self.cluster_name.clone()),
+            "topic_name" => Some(self.topic_name.clone()),
+            "is_contain_retain_message" => Some(self.is_contain_retain_message.to_string()),
+            _ => None,
         }
-        Err(e) => Err(Status::cancelled(e.to_string())),
     }
 }

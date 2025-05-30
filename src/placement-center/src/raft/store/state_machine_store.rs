@@ -26,7 +26,9 @@ use tracing::warn;
 
 use super::{cf_raft_store, StorageResult, StoredSnapshot};
 use crate::core::metrics::{
-    metrics_raft_storage_error_incr, metrics_raft_storage_total_incr, metrics_raft_storage_total_ms,
+    metrics_raft_storage_error_incr, metrics_raft_storage_total_incr,
+    metrics_raft_storage_total_ms, metrics_rocksdb_storage_err_inc,
+    metrics_rocksdb_storage_total_inc, metrics_rocksdb_stroge_total_ms, RocksDBLabels,
 };
 use crate::raft::raft_node::typ;
 use crate::raft::route::AppResponseData;
@@ -128,21 +130,31 @@ impl StateMachineStore {
     }
 
     fn get_current_snapshot_(&self) -> StorageResult<Option<StoredSnapshot>> {
+        metrics_rocksdb_storage_total_inc(RocksDBLabels::snapshot("get"));
         Ok(self
             .db
             .get_cf(&self.store(), b"snapshot")
-            .map_err(|e| StorageError::read(&e))?
+            .map_err(|e| {
+                metrics_rocksdb_storage_err_inc(RocksDBLabels::snapshot("get"));
+
+                StorageError::read(&e)
+            })?
             .and_then(|v| serde_json::from_slice(&v).ok()))
     }
 
     fn set_current_snapshot_(&self, snap: StoredSnapshot) -> StorageResult<()> {
+        metrics_rocksdb_storage_total_inc(RocksDBLabels::snapshot("set"));
         self.db
             .put_cf(
                 &self.store(),
                 b"snapshot",
                 serde_json::to_vec(&snap).unwrap().as_slice(),
             )
-            .map_err(|e| StorageError::write_snapshot(Some(snap.meta.signature()), &e))?;
+            .map_err(|e| {
+                metrics_rocksdb_storage_err_inc(RocksDBLabels::snapshot("set"));
+
+                StorageError::write_snapshot(Some(snap.meta.signature()), &e)
+            })?;
         self.flush(
             ErrorSubject::Snapshot(Some(snap.meta.signature())),
             ErrorVerb::Write,
@@ -155,9 +167,18 @@ impl StateMachineStore {
         subject: ErrorSubject<TypeConfig>,
         verb: ErrorVerb,
     ) -> Result<(), StorageError<TypeConfig>> {
-        self.db
-            .flush_wal(true)
-            .map_err(|e| StorageError::new(subject, verb, AnyError::new(&e)))?;
+        metrics_rocksdb_storage_total_inc(RocksDBLabels::snapshot("flush"));
+        let start_ms = now_mills();
+
+        self.db.flush_wal(true).map_err(|e| {
+            metrics_rocksdb_storage_err_inc(RocksDBLabels::snapshot("flush"));
+
+            StorageError::new(subject, verb, AnyError::new(&e))
+        })?;
+        metrics_rocksdb_stroge_total_ms(
+            RocksDBLabels::snapshot("flush"),
+            (now_mills() - start_ms) as f64,
+        );
         Ok(())
     }
 

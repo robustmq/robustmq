@@ -42,7 +42,7 @@ use crate::handler::command::Command;
 use crate::security::AuthDriver;
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
-use crate::subscribe::subscribe_manager::SubscribeManager;
+use crate::subscribe::manager::SubscribeManager;
 
 pub const ROUTE_ROOT: &str = "/mqtt";
 

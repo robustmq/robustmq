@@ -48,7 +48,7 @@ mod tests {
                 let cli = connect_server(&client_properties);
 
                 // publish
-                let message = "mqtt message".to_string();
+                let message = "retain_message_sub_test mqtt message".to_string();
                 let msg = MessageBuilder::new()
                     .payload(message.clone())
                     .topic(topic.clone())

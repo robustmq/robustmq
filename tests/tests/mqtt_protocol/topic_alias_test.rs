@@ -44,7 +44,7 @@ mod tests {
 
                 // publish first data
                 let topic_alias = 1;
-                let message_content = "mqtt message".to_string();
+                let message_content = "topic_alias_test mqtt message".to_string();
                 let mut props = Properties::new();
                 props
                     .push_u16(PropertyCode::TopicAlias, topic_alias)
@@ -60,7 +60,7 @@ mod tests {
                 publish_data(&cli, msg, false);
 
                 // publish 1 success
-                let message_content2 = "mqtt message alias".to_string();
+                let message_content2 = "topic_alias_test mqtt message alias".to_string();
                 let msg = MessageBuilder::new()
                     .properties(props.clone())
                     .payload(message_content2.clone())

@@ -15,7 +15,7 @@
 use clap::builder::{
     ArgAction, BoolishValueParser, EnumValueParser, NonEmptyStringValueParser, RangedU64ValueParser,
 };
-use clap::{arg, Parser, ValueEnum};
+use clap::{arg, Parser};
 use cli_command::mqtt::MqttActionType;
 use common_base::enum_type::feature_type::FeatureType;
 use common_base::enum_type::sort_type::SortType;
@@ -25,9 +25,8 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateAclRequest, CreateBlacklistRequest, CreateTopicRewriteRuleRequest, CreateUserRequest,
     DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest,
     DeleteTopicRewriteRuleRequest, DeleteUserRequest, ListAutoSubscribeRuleRequest,
-    ListTopicRequest, MqttCreateConnectorRequest, MqttDeleteConnectorRequest,
-    MqttListConnectorRequest, MqttUpdateConnectorRequest, SetAutoSubscribeRuleRequest,
-    SetClusterConfigRequest,
+    MqttCreateConnectorRequest, MqttDeleteConnectorRequest, MqttListConnectorRequest,
+    MqttUpdateConnectorRequest, SetAutoSubscribeRuleRequest, SetClusterConfigRequest,
 };
 
 // security: user feat
@@ -374,24 +373,6 @@ pub(crate) struct UpdateConnectorArgs {
     pub(crate) connector: String,
 }
 
-// list-topic
-#[derive(ValueEnum, Clone, Debug)]
-pub(crate) enum MatchOption {
-    E,
-    P,
-    S,
-}
-
-#[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="action: list topics", long_about = None)]
-#[command(next_line_help = true)]
-pub(crate) struct ListTopicArgs {
-    #[arg(short, long, requires = "match_option")]
-    pub(crate) topic_name: Option<String>,
-    #[arg(short, long, requires = "topic_name", default_value = "e")]
-    pub(crate) match_option: MatchOption,
-}
-
 // schema
 #[derive(Debug, Parser)]
 #[command(author="RobustMQ", about="", long_about = None)]
@@ -516,29 +497,6 @@ pub fn process_blacklist_args(args: BlacklistArgs) -> MqttActionType {
                 resource_name: arg.resource_name,
             })
         }
-    }
-}
-
-pub fn process_list_topic_args(args: ListTopicArgs) -> MqttActionType {
-    match (args.topic_name, args.match_option) {
-        (Some(topic_name), MatchOption::E) => MqttActionType::ListTopic(ListTopicRequest {
-            topic_name,
-            match_option: 0,
-        }),
-        (Some(topic_name), MatchOption::P) => MqttActionType::ListTopic(ListTopicRequest {
-            topic_name,
-            match_option: 1,
-        }),
-        (Some(topic_name), MatchOption::S) => MqttActionType::ListTopic(ListTopicRequest {
-            topic_name,
-            match_option: 2,
-        }),
-        // if the user does not provide any arguments, the default val of match option is e, then return all the topics
-        (None, MatchOption::E) => MqttActionType::ListTopic(ListTopicRequest {
-            topic_name: "".to_string(),
-            match_option: 0,
-        }),
-        _ => unreachable!(),
     }
 }
 

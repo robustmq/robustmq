@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(clippy::result_large_err)]
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -41,7 +42,9 @@ use crate::route::apply::RaftMachineApply;
 use crate::route::DataRoute;
 
 mod core;
+mod inner;
 mod journal;
+mod kv;
 mod mqtt;
 mod raft;
 mod route;

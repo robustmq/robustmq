@@ -21,7 +21,7 @@ use protocol::mqtt::common::{
     PubRecProperties, PubRecReason, PubRel, PubRelProperties, PubRelReason, SubAck,
     SubAckProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
 };
-use tracing::{error, warn};
+use tracing::debug;
 
 use super::connection::response_information;
 use super::validator::is_request_problem_info;
@@ -118,7 +118,7 @@ pub fn response_packet_mqtt_connect_fail(
     connect_properties: &Option<ConnectProperties>,
     error_reason: Option<String>,
 ) -> MqttPacket {
-    warn!("{code:?},{error_reason:?}");
+    debug!("{code:?},{error_reason:?}");
     if !protocol.is_mqtt5() {
         let new_code = if code == ConnectReturnCode::ClientIdentifierNotValid {
             ConnectReturnCode::BadClientId
@@ -210,7 +210,7 @@ pub fn response_packet_mqtt_puback_fail(
     reason: PubAckReason,
     reason_string: Option<String>,
 ) -> MqttPacket {
-    error!("reason:{reason:?}, reason string: {reason_string:?}");
+    debug!("reason:{reason:?}, reason string: {reason_string:?}");
     if !protocol.is_mqtt5() {
         let pub_ack = PubAck { pkid, reason: None };
         return MqttPacket::PubAck(pub_ack, None);
@@ -254,7 +254,7 @@ pub fn response_packet_mqtt_pubrec_fail(
     reason: PubRecReason,
     reason_string: Option<String>,
 ) -> MqttPacket {
-    error!("reason:{reason:?}, reason string: {reason_string:?}");
+    debug!("reason:{reason:?}, reason string: {reason_string:?}");
     if !protocol.is_mqtt5() {
         return MqttPacket::PubRec(PubRec { pkid, reason: None }, None);
     }
@@ -350,7 +350,7 @@ pub fn response_packet_mqtt_unsuback(
     reason_string: Option<String>,
 ) -> MqttPacket {
     if reason_string.is_some() {
-        warn!("{reasons:?},{reason_string:?}");
+        debug!("{reasons:?},{reason_string:?}");
     }
     let unsub_ack = UnsubAck { pkid, reasons };
     let mut properties = UnsubAckProperties::default();

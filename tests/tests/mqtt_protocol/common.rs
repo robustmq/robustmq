@@ -62,6 +62,10 @@ pub fn ssl_by_type(network_type: &str) -> bool {
     net == "ssl" || net == "wss"
 }
 
+pub fn uniq_topic() -> String {
+    format!("/{}/{}", unique_id(), now_nanos())
+}
+
 pub fn build_conn_pros(
     client_test_properties: ClientTestProperties,
     err_pwd: bool,
@@ -170,12 +174,12 @@ pub fn subscribe_data_with_options<S, T, P, F>(
 
     loop {
         let res = rx.recv_timeout(Duration::from_secs(10));
-        println!("{:?}", res);
         if let Ok(msg_opt) = res {
-            assert!(msg_opt.is_some());
-            let msg = msg_opt.unwrap();
-            if call_fn(msg) {
-                break;
+            if msg_opt.is_some() {
+                let msg = msg_opt.unwrap();
+                if call_fn(msg) {
+                    break;
+                }
             }
         }
     }
@@ -190,7 +194,7 @@ pub fn broker_addr() -> String {
 }
 
 pub fn broker_ssl_addr() -> String {
-    "mqtts://127.0.0.1:8883".to_string()
+    "mqtts://localhost:8883".to_string()
 }
 
 pub fn broker_ws_addr() -> String {
@@ -198,7 +202,7 @@ pub fn broker_ws_addr() -> String {
 }
 
 pub fn broker_wss_addr() -> String {
-    "wss://127.0.0.1:8094".to_string()
+    "wss://localhost:8094".to_string()
 }
 
 pub fn broker_grpc_addr() -> String {

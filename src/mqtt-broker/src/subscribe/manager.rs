@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::subscribe::subscriber::Subscriber;
+use crate::subscribe::common::Subscriber;
 use dashmap::DashMap;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use protocol::mqtt::common::{Filter, MqttProtocol};
@@ -25,6 +25,8 @@ pub struct ShareSubShareSub {
     pub group_name: String,
     pub sub_name: String,
     pub protocol: MqttProtocol,
+    pub topic_name: String,
+    pub topic_id: String,
     pub packet_identifier: u16,
     pub filter: Filter,
     pub subscription_identifier: Option<usize>,
@@ -269,7 +271,7 @@ mod tests {
 
     use common_base::tools::unique_id;
 
-    use crate::subscribe::subscribe_manager::SubscribeManager;
+    use crate::subscribe::manager::SubscribeManager;
 
     #[test]
     fn topic_subscribe_test() {

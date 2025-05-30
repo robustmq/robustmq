@@ -34,7 +34,6 @@ use protocol::placement_center::placement_center_mqtt::{
 };
 use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
-use tonic::{Request, Response, Status};
 use tracing::warn;
 
 pub async fn delete_subscribe_by_req(
@@ -42,21 +41,16 @@ pub async fn delete_subscribe_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-    request: Request<DeleteSubscribeRequest>,
-) -> Result<Response<DeleteSubscribeReply>, Status> {
-    let req = request.into_inner();
-
+    req: &DeleteSubscribeRequest,
+) -> Result<DeleteSubscribeReply, PlacementCenterError> {
     let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
     let subscribes = if !req.path.is_empty() {
-        match storage.get(&req.cluster_name, &req.client_id, &req.path) {
-            Ok(Some(subscribe)) => vec![subscribe],
-            Ok(None) => {
-                return Err(Status::cancelled(
-                    PlacementCenterError::SubscribeDoesNotExist(req.path).to_string(),
+        match storage.get(&req.cluster_name, &req.client_id, &req.path)? {
+            Some(subscribe) => vec![subscribe],
+            None => {
+                return Err(PlacementCenterError::SubscribeDoesNotExist(
+                    req.path.clone(),
                 ));
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
             }
         }
     } else {
@@ -64,128 +58,95 @@ pub async fn delete_subscribe_by_req(
     };
 
     if subscribes.is_empty() {
-        return Ok(Response::new(DeleteSubscribeReply::default()));
+        return Ok(DeleteSubscribeReply {});
     }
 
     let data = StorageData::new(
         StorageDataType::MqttDeleteSubscribe,
-        DeleteSubscribeRequest::encode_to_vec(&req),
+        DeleteSubscribeRequest::encode_to_vec(req),
     );
-    if let Err(e) = raft_machine_apply.client_write(data).await {
-        return Err(Status::cancelled(e.to_string()));
-    };
+    raft_machine_apply.client_write(data).await?;
 
     for raw in subscribes {
-        if let Err(e) =
-            update_cache_by_delete_subscribe(&req.cluster_name, mqtt_call_manager, client_pool, raw)
-                .await
-        {
-            return Err(Status::cancelled(e.to_string()));
-        };
+        update_cache_by_delete_subscribe(&req.cluster_name, mqtt_call_manager, client_pool, raw)
+            .await?;
     }
-    Ok(Response::new(DeleteSubscribeReply::default()))
+    Ok(DeleteSubscribeReply {})
 }
 
 pub fn list_subscribe_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    request: Request<ListSubscribeRequest>,
-) -> Result<Response<ListSubscribeReply>, Status> {
-    let req = request.into_inner();
+    req: &ListSubscribeRequest,
+) -> Result<ListSubscribeReply, PlacementCenterError> {
     let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
-    match storage.list_by_cluster(&req.cluster_name) {
-        Ok(data) => {
-            let mut subscribes = Vec::new();
-            for raw in data {
-                subscribes.push(raw.encode());
-            }
-            Ok(Response::new(ListSubscribeReply { subscribes }))
-        }
-        Err(e) => Err(Status::cancelled(e.to_string())),
-    }
+    let data = storage.list_by_cluster(&req.cluster_name)?;
+    let subscribes = data.into_iter().map(|raw| raw.encode()).collect();
+
+    Ok(ListSubscribeReply { subscribes })
 }
 
 pub async fn set_subscribe_by_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-    request: Request<SetSubscribeRequest>,
-) -> Result<Response<SetSubscribeReply>, Status> {
-    let req = request.into_inner();
-    let raft_machine_apply = &raft_machine_apply;
-    let call_manager = &mqtt_call_manager;
-    let client_pool = &client_pool;
+    req: &SetSubscribeRequest,
+) -> Result<SetSubscribeReply, PlacementCenterError> {
     let data = StorageData::new(
         StorageDataType::MqttSetSubscribe,
-        SetSubscribeRequest::encode_to_vec(&req),
+        SetSubscribeRequest::encode_to_vec(req),
     );
-    if let Err(e) = raft_machine_apply.client_write(data).await {
-        return Err(Status::cancelled(e.to_string()));
-    }
+    raft_machine_apply.client_write(data).await?;
 
     let subscribe = match serde_json::from_slice::<MqttSubscribe>(&req.subscribe) {
         Ok(subscribe) => subscribe,
         Err(e) => {
             warn!("set subscribe error:{}", e);
-            return Err(Status::cancelled(e.to_string()));
+            return Err(PlacementCenterError::CommonError(e.to_string()));
         }
     };
 
-    if let Err(e) =
-        update_cache_by_add_subscribe(&req.cluster_name, call_manager, client_pool, subscribe).await
-    {
-        return Err(Status::cancelled(e.to_string()));
-    }
-    Ok(Response::new(SetSubscribeReply::default()))
+    update_cache_by_add_subscribe(&req.cluster_name, mqtt_call_manager, client_pool, subscribe)
+        .await?;
+
+    Ok(SetSubscribeReply {})
 }
 
 pub async fn set_auto_subscribe_rule_by_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
-    request: Request<SetAutoSubscribeRuleRequest>,
-) -> Result<Response<SetAutoSubscribeRuleReply>, Status> {
-    let req = request.into_inner();
+    req: &SetAutoSubscribeRuleRequest,
+) -> Result<SetAutoSubscribeRuleReply, PlacementCenterError> {
     let data = StorageData::new(
         StorageDataType::MqttSetAutoSubscribeRule,
-        SetAutoSubscribeRuleRequest::encode_to_vec(&req),
+        SetAutoSubscribeRuleRequest::encode_to_vec(req),
     );
 
-    match raft_machine_apply.client_write(data).await {
-        Ok(_) => Ok(Response::new(SetAutoSubscribeRuleReply::default())),
-        Err(e) => Err(Status::cancelled(e.to_string())),
-    }
+    raft_machine_apply.client_write(data).await?;
+    Ok(SetAutoSubscribeRuleReply {})
 }
 
 pub async fn delete_auto_subscribe_rule_by_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
-    request: Request<DeleteAutoSubscribeRuleRequest>,
-) -> Result<Response<DeleteAutoSubscribeRuleReply>, Status> {
-    let req = request.into_inner();
+    req: &DeleteAutoSubscribeRuleRequest,
+) -> Result<DeleteAutoSubscribeRuleReply, PlacementCenterError> {
     let data = StorageData::new(
         StorageDataType::MqttDeleteAutoSubscribeRule,
-        DeleteAutoSubscribeRuleRequest::encode_to_vec(&req),
+        DeleteAutoSubscribeRuleRequest::encode_to_vec(req),
     );
 
-    match raft_machine_apply.client_write(data).await {
-        Ok(_) => Ok(Response::new(DeleteAutoSubscribeRuleReply::default())),
-        Err(e) => Err(Status::cancelled(e.to_string())),
-    }
+    raft_machine_apply.client_write(data).await?;
+    Ok(DeleteAutoSubscribeRuleReply {})
 }
 
 pub fn list_auto_subscribe_rule_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    request: Request<ListAutoSubscribeRuleRequest>,
-) -> Result<Response<ListAutoSubscribeRuleReply>, Status> {
-    let req = request.into_inner();
+    req: &ListAutoSubscribeRuleRequest,
+) -> Result<ListAutoSubscribeRuleReply, PlacementCenterError> {
     let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
-    match storage.list_auto_subscribe_rule(&req.cluster_name) {
-        Ok(data) => {
-            let mut result = Vec::new();
-            for raw in data {
-                result.push(raw.encode());
-            }
-            Ok(Response::new(ListAutoSubscribeRuleReply {
-                auto_subscribe_rules: result,
-            }))
-        }
-        Err(e) => Err(Status::cancelled(e.to_string())),
-    }
+    let data = storage.list_auto_subscribe_rule(&req.cluster_name)?;
+
+    let auto_subscribe_rules: Vec<Vec<u8>> = data.into_iter().map(|raw| raw.encode()).collect();
+
+    Ok(ListAutoSubscribeRuleReply {
+        auto_subscribe_rules,
+    })
 }

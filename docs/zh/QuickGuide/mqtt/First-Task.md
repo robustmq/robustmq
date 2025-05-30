@@ -1,8 +1,18 @@
 # 第一个任务
 
 ## 要求
-* 已安装/编译 `robust-ctl` 命令行工具
-* 已安装/编译 `RobustMQ` 核心组件
+1. 获取安装包
+   可以通过在 Github 主页上下载安装包，也可以通过编译源码获取。
+
+- Github 主页下载： https://github.com/robustmq/robustmq/releases
+- 编译源码： [Build from Source](./Build.md)
+
+2. 解压安装包
+
+```
+$ tar -xzvf robustmq-v0.1.14-release.tar.gz
+$ cd robustmq-v0.1.14-release
+```
 
 ## 1.启动 `Placement-Center` 组件
 ```shell

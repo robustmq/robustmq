@@ -31,42 +31,40 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
 use prost::Message;
 use protocol::placement_center::placement_center_mqtt::{
-    CreateSessionRequest, DeleteSessionRequest, ListSessionRequest, UpdateSessionRequest,
+    CreateSessionReply, CreateSessionRequest, DeleteSessionReply, DeleteSessionRequest,
+    ListSessionReply, ListSessionRequest, UpdateSessionReply, UpdateSessionRequest,
 };
 use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
-use tonic::Request;
 
 pub fn list_session_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    request: Request<ListSessionRequest>,
-) -> Result<Vec<String>, PlacementCenterError> {
-    let req = request.into_inner();
+    req: &ListSessionRequest,
+) -> Result<ListSessionReply, PlacementCenterError> {
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
+    let mut sessions = Vec::new();
 
     if !req.client_id.is_empty() {
         if let Some(data) = storage.get(&req.cluster_name, &req.client_id)? {
-            return Ok(vec![data.encode()]);
+            sessions.push(data.encode());
         }
     } else {
         let data = storage.list(&req.cluster_name)?;
-        let sessions = data.into_iter().map(|raw| raw.data).collect();
-        return Ok(sessions);
+        sessions = data.into_iter().map(|raw| raw.data).collect();
     }
 
-    Ok(Vec::new())
+    Ok(ListSessionReply { sessions })
 }
+
 pub async fn create_session_by_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-    request: Request<CreateSessionRequest>,
-) -> Result<(), PlacementCenterError> {
-    let req: CreateSessionRequest = request.into_inner();
-
+    req: &CreateSessionRequest,
+) -> Result<CreateSessionReply, PlacementCenterError> {
     let data = StorageData::new(
         StorageDataType::MqttSetSession,
-        CreateSessionRequest::encode_to_vec(&req),
+        CreateSessionRequest::encode_to_vec(req),
     );
 
     raft_machine_apply.client_write(data).await?;
@@ -75,7 +73,7 @@ pub async fn create_session_by_req(
 
     update_cache_by_add_session(&req.cluster_name, call_manager, client_pool, session).await?;
 
-    Ok(())
+    Ok(CreateSessionReply {})
 }
 
 pub async fn update_session_by_req(
@@ -83,12 +81,11 @@ pub async fn update_session_by_req(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    request: Request<UpdateSessionRequest>,
-) -> Result<(), PlacementCenterError> {
-    let req = request.into_inner();
+    req: &UpdateSessionRequest,
+) -> Result<UpdateSessionReply, PlacementCenterError> {
     let data = StorageData::new(
         StorageDataType::MqttUpdateSession,
-        UpdateSessionRequest::encode_to_vec(&req),
+        UpdateSessionRequest::encode_to_vec(req),
     );
     raft_machine_apply.client_write(data).await?;
 
@@ -96,7 +93,7 @@ pub async fn update_session_by_req(
     if let Some(session) = storage.get(&req.cluster_name, &req.client_id)? {
         update_cache_by_add_session(&req.cluster_name, call_manager, client_pool, session).await?;
     }
-    Ok(())
+    Ok(UpdateSessionReply {})
 }
 
 pub async fn delete_session_by_req(
@@ -105,10 +102,8 @@ pub async fn delete_session_by_req(
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     mqtt_cache_manager: &Arc<MqttCacheManager>,
-    request: Request<DeleteSessionRequest>,
-) -> Result<(), PlacementCenterError> {
-    let req = request.into_inner();
-
+    req: &DeleteSessionRequest,
+) -> Result<DeleteSessionReply, PlacementCenterError> {
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
     let session = storage
         .get(&req.cluster_name, &req.client_id)?
@@ -138,10 +133,10 @@ pub async fn delete_session_by_req(
 
     let data = StorageData::new(
         StorageDataType::MqttDeleteSession,
-        DeleteSessionRequest::encode_to_vec(&req),
+        DeleteSessionRequest::encode_to_vec(req),
     );
 
     raft_machine_apply.client_write(data).await?;
 
-    Ok(())
+    Ok(DeleteSessionReply {})
 }

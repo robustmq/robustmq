@@ -48,8 +48,8 @@ use super::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_subscrib
 use super::topic::topic_name_validator;
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
-use crate::subscribe::sub_common::sub_path_validator;
-use crate::subscribe::subscribe_manager::SubscribeManager;
+use crate::subscribe::common::sub_path_validator;
+use crate::subscribe::manager::SubscribeManager;
 
 pub async fn tcp_establish_connection_check(
     addr: &SocketAddr,

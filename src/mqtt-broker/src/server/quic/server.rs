@@ -22,7 +22,7 @@ use crate::server::packet::{RequestPackage, ResponsePackage};
 use crate::server::quic::handler::handler_process;
 use crate::server::quic::quic_server_handler::acceptor_process;
 use crate::server::quic::response::response_process;
-use crate::subscribe::subscribe_manager::SubscribeManager;
+use crate::subscribe::manager::SubscribeManager;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
@@ -37,7 +37,7 @@ use tokio::sync::{broadcast, mpsc};
 use tracing::info;
 
 pub fn generate_self_signed_cert() -> (Vec<CertificateDer<'static>>, PrivateKeyDer<'static>) {
-    let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
+    let cert = rcgen::generate_simple_self_signed(vec!["127.0.0.1".into()]).unwrap();
     let cert_der = CertificateDer::from(cert.cert);
     let priv_key = PrivatePkcs8KeyDer::from(cert.key_pair.serialize_der());
     (vec![cert_der.clone()], priv_key.into())
@@ -288,7 +288,7 @@ mod tests {
     #[tokio::test]
     async fn should_start_quic_server() {
         let mut quic_server =
-            QuicServer::new(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8080));
+            QuicServer::new(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 48080));
 
         assert_that!(quic_server.endpoint, none());
 

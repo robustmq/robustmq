@@ -19,6 +19,7 @@ members = [
     "src/kafka-broker",
     "src/placement-center",
     "src/cli-command",
+    "src/cli-bench",
     "src/delay-message",
     "src/idempotent-message",
     "src/schema-register",
@@ -73,6 +74,7 @@ clap = { version = "4.4.7", features = ["derive"] }
 ## unit test lib
 mockall = "0.13.1"
 googletest = "0.13.0"
+temp-env = "0.3.6"
 ## text handle lib
 regex = "1.10.4"
 grep = "0.3.2"
@@ -124,7 +126,7 @@ mobc = "0.8.3"
 dashmap = { version = "6.1.0", features = ["serde"] }
 snowflake = "1.3.0"
 rumqttc = "0.24.0"
-paho-mqtt = { version = "0.12.5", default-features = false, features = [
+paho-mqtt = { version = "0.13.3", default-features = false, features = [
     "bundled",
     "vendored-ssl",
 ] }
@@ -142,7 +144,8 @@ apache-avro = { version = "0.17.0" }
 protobuf = "3.7.1"
 protobuf-codegen = "3.7.1"
 protofish = { version = "0.5.2" }
-rdkafka = { version = "0.37.0", features = ["cmake-build"] }
+rdkafka-sys = "4.8.0"
+rdkafka = { version = "0.37.0" }
 crc32fast = "1.4.2"
 console-subscriber = "0.4.1"
 
@@ -158,6 +161,7 @@ placement-center = { path = "src/placement-center" }
 schema-register = { path = "src/schema-register" }
 message-expire = { path = "src/message-expire" }
 cli-command = { path = "src/cli-command" }
+cli-bench = { path = "src/cli-bench" }
 grpc-clients = { path = "src/grpc-clients" }
 journal-server = { path = "src/journal-server" }
 journal-client = { path = "src/journal-client" }
@@ -169,12 +173,14 @@ metadata-struct = { path = "src/common/metadata-struct" }
 third-driver = { path = "src/common/third-driver" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }
-robustmq-proto-build = { git = "https://github.com/HeartLinked/robustmq-proto.git", branch = "dev-copilot-list-2" }
+robustmq-proto-build = { git = "https://github.com/HeartLinked/robustmq-proto.git", branch = "dev-copilot-list-3" }
 pprof-monitor = { path = "src/common/pprof-monitor" }
 
 
 # other
 tempfile = "3.9.0"
+humantime = "2.2.0"
+
 
 #pprof
 pprof = { version = "0.14.0", features = ["flamegraph"] }

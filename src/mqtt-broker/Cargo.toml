@@ -65,6 +65,7 @@ rustls.workspace = true
 bindgen.workspace = true
 rdkafka.workspace = true
 pprof-monitor.workspace = true
+humantime.workspace = true
 
 
 [dev-dependencies]
@@ -72,3 +73,4 @@ pprof-monitor.workspace = true
 googletest.workspace = true
 robustmq-test.workspace = true
 tempfile.workspace = true
+
