@@ -68,7 +68,7 @@ pub enum MqttActionType {
     Status,
 
     // session
-    ListSession(),
+    ListSession,
 
     // user admin
     ListUser,
@@ -144,7 +144,7 @@ impl MqttBrokerCommand {
         let client_pool = Arc::new(ClientPool::new(100));
         match params.action {
             // cluster status
-            MqttActionType::ListSession() => {
+            MqttActionType::ListSession => {
                 self.list_session(&client_pool, params.clone()).await;
             }
 
@@ -465,12 +465,12 @@ impl MqttBrokerCommand {
                         blacklist.client_id,
                         blacklist.session_expiry,
                         blacklist.is_contain_last_will,
-                        blacklist.last_will_delay_interval.expect(""),
+                        blacklist.last_will_delay_interval.unwrap_or_default(),
                         blacklist.create_time,
-                        blacklist.connection_id.expect(""),
-                        blacklist.broker_id.expect(""),
-                        blacklist.reconnect_time.expect(""),
-                        blacklist.distinct_time.expect(""),
+                        blacklist.connection_id.unwrap_or_default(),
+                        blacklist.broker_id.unwrap_or_default(),
+                        blacklist.reconnect_time.unwrap_or_default(),
+                        blacklist.distinct_time.unwrap_or_default(),
                     ]);
                 }
                 // output cmd

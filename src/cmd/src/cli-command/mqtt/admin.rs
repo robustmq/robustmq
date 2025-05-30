@@ -29,7 +29,22 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     MqttUpdateConnectorRequest, SetAutoSubscribeRuleRequest, SetClusterConfigRequest,
 };
 
-// security: user feat
+// session
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "related operations of mqtt session, such as listing", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct SessionArgs {
+    #[command(subcommand)]
+    pub action: SessionActionType,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum SessionActionType {
+    #[command(author = "RobustMQ", about = "action: list sessions", long_about = None)]
+    List,
+}
+
+// user
 #[derive(clap::Args, Debug)]
 #[command(author = "RobustMQ", about = "related operations of mqtt users, such as listing, creating, and deleting", long_about = None)]
 #[command(next_line_help = true)]
@@ -450,6 +465,12 @@ pub fn process_slow_sub_args(args: SlowSubArgs) -> MqttActionType {
             feature_name: FeatureType::SlowSubscribe.to_string(),
             is_enable: args.is_enable.unwrap(),
         })
+    }
+}
+
+pub fn process_session_args(args: SessionArgs) -> MqttActionType {
+    match args.action {
+        SessionActionType::List => MqttActionType::ListSession,
     }
 }
 
