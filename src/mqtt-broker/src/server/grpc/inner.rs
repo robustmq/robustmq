@@ -25,7 +25,7 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
 use tonic::{Request, Response, Status};
-use tracing::{debug, info};
+use tracing::info;
 
 use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::CacheManager;
@@ -97,7 +97,7 @@ where
         request: Request<DeleteSessionRequest>,
     ) -> Result<Response<DeleteSessionReply>, Status> {
         let req = request.into_inner();
-        debug!("Received request from Placement center to delete expired Session. Cluster name :{}, clientId: {:?}",req.cluster_name,req.client_id);
+        info!("Received request from Placement center to delete expired Session. Cluster name :{}, clientId: {:?}",req.cluster_name,req.client_id);
         if self.cache_manager.cluster_name != req.cluster_name {
             return Err(Status::cancelled("Cluster name does not match".to_string()));
         }
