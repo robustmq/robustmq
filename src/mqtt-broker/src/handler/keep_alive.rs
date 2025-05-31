@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use tokio::select;
 use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 use super::cache::{CacheManager, ConnectionLiveTime};
 use super::connection::disconnect_connection;
@@ -195,7 +195,7 @@ impl ClientKeepAlive {
                 let max_timeout = keep_live_time(time.keep_live) as u64;
                 let now = now_second();
                 if (now - time.heartbeat) >= max_timeout {
-                    warn!("{},client_id:{},now:{},heartbeat:{}","Connection was closed by the server because the heartbeat timeout was not reported.",connection.client_id,now,time.heartbeat);
+                    debug!("{},client_id:{},now:{},heartbeat:{}","Connection was closed by the server because the heartbeat timeout was not reported.",connection.client_id,now,time.heartbeat);
                     expire_connection.push(connect_id);
                 }
             } else {
