@@ -140,7 +140,8 @@ pub fn default_mqtt_cluster_dynamic_security() -> MqttClusterDynamicConfigSecuri
 
 pub fn default_mqtt_cluster_dynamic_protocol() -> MqttClusterDynamicConfigProtocol {
     MqttClusterDynamicConfigProtocol {
-        session_expiry_interval: 1800,
+        max_session_expiry_interval: 1800,
+        default_session_expiry_interval: 30,
         topic_alias_max: 65535,
         max_qos: 2,
         max_packet_size: 1024 * 1024 * 10,

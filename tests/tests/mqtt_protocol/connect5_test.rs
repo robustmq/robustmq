@@ -22,7 +22,8 @@ mod tests {
     use crate::mqtt_protocol::{
         common::{
             broker_addr_by_type, build_client_id, build_conn_pros, build_create_conn_pros,
-            distinct_conn, network_types, ssl_by_type, ws_by_type,
+            distinct_conn, kee_alive_interval, network_types, session_expiry_interval, ssl_by_type,
+            ws_by_type,
         },
         ClientTestProperties,
     };
@@ -102,7 +103,7 @@ mod tests {
                     .unwrap()
                     .get_int()
                     .unwrap(),
-                3
+                session_expiry_interval() as i32
             );
 
             assert_eq!(
@@ -191,7 +192,7 @@ mod tests {
                     .unwrap()
                     .get_int()
                     .unwrap(),
-                600
+                kee_alive_interval() as i32
             );
 
             assert!(resp_pros.get(PropertyCode::ResponseInformation).is_none());

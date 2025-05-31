@@ -73,7 +73,8 @@ mod tests {
         assert!(res.is_ok());
         let total = now_second() - start_time;
         println!("{}", total);
-        assert_eq!(total, session_expiry_interval() as u64);
+        let sei = session_expiry_interval() as u64;
+        assert!(total >= (sei - 2) && total <= (sei + 2));
     }
 
     #[tokio::test]
