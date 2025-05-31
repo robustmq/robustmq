@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
+
 use crate::subscribe::common::Subscriber;
 use dashmap::DashMap;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
@@ -246,6 +248,67 @@ impl SubscribeManager {
         self.remove_share_subscribe_leader_by_client_id(client_id);
         self.remove_share_subscribe_follower_by_client_id(client_id);
         self.remove_subscriber_by_client_id(client_id);
+    }
+
+    // info
+    pub fn snapshot_info(&self) -> HashMap<String, Vec<String>> {
+        let exclusive_push_key: Vec<String> = self
+            .exclusive_push
+            .iter()
+            .map(|raw| raw.key().clone())
+            .collect();
+
+        let exclusive_push_thread_key: Vec<String> = self
+            .exclusive_push_thread
+            .iter()
+            .map(|raw| raw.key().clone())
+            .collect();
+
+        let share_leader_push_key: Vec<String> = self
+            .share_leader_push
+            .iter()
+            .map(|raw| raw.key().clone())
+            .collect();
+
+        let share_leader_push_thread_key: Vec<String> = self
+            .share_leader_push_thread
+            .iter()
+            .map(|raw| raw.key().clone())
+            .collect();
+
+        let share_follower_resub_key: Vec<String> = self
+            .share_follower_resub
+            .iter()
+            .map(|raw| raw.key().clone())
+            .collect();
+
+        let share_follower_resub_thread_key: Vec<String> = self
+            .share_follower_resub_thread
+            .iter()
+            .map(|raw| raw.key().clone())
+            .collect();
+
+        let mut results = HashMap::new();
+        results.insert("exclusive_push_key".to_string(), exclusive_push_key);
+        results.insert(
+            "exclusive_push_thread_key".to_string(),
+            exclusive_push_thread_key,
+        );
+        results.insert("share_leader_push_key".to_string(), share_leader_push_key);
+        results.insert(
+            "share_leader_push_thread_key".to_string(),
+            share_leader_push_thread_key,
+        );
+        results.insert(
+            "share_follower_resub_key".to_string(),
+            share_follower_resub_key,
+        );
+        results.insert(
+            "share_follower_resub_thread_key".to_string(),
+            share_follower_resub_thread_key,
+        );
+
+        results
     }
 
     // key

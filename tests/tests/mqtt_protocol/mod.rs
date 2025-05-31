@@ -47,6 +47,7 @@ pub mod blacklist_test;
 pub mod content_type_test;
 pub mod delay_publish_test;
 pub mod schema_test;
+mod session_expire;
 pub mod sub_auto;
 pub mod sub_exclusive_test;
 pub mod sub_identifier_test;
