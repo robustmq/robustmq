@@ -112,7 +112,8 @@ impl CacheManager {
 pub fn build_default_cluster_config() -> MqttClusterDynamicConfig {
     MqttClusterDynamicConfig {
         protocol: MqttClusterDynamicConfigProtocol {
-            session_expiry_interval: 1800,
+            max_session_expiry_interval: 1800,
+            default_session_expiry_interval: 30,
             topic_alias_max: 65535,
             max_qos: QoS::ExactlyOnce,
             max_packet_size: 1024 * 1024 * 10,
@@ -194,7 +195,12 @@ async fn build_protocol(
     }
 
     Ok(MqttClusterDynamicConfigProtocol {
-        session_expiry_interval: conf.cluster_dynamic_config_protocol.session_expiry_interval,
+        max_session_expiry_interval: conf
+            .cluster_dynamic_config_protocol
+            .max_session_expiry_interval,
+        default_session_expiry_interval: conf
+            .cluster_dynamic_config_protocol
+            .default_session_expiry_interval,
         topic_alias_max: conf.cluster_dynamic_config_protocol.topic_alias_max,
         max_qos: qos(conf.cluster_dynamic_config_protocol.max_qos).unwrap(),
         max_packet_size: conf.cluster_dynamic_config_protocol.max_packet_size,

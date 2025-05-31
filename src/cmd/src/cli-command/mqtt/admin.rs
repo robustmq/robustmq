@@ -44,6 +44,21 @@ pub enum SessionActionType {
     List,
 }
 
+// cluster config
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "related operations of mqtt session, such as listing", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct ClusterConfigArgs {
+    #[command(subcommand)]
+    pub action: ClusterConfigActionType,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum ClusterConfigActionType {
+    #[command(author = "RobustMQ", about = "action: list sessions", long_about = None)]
+    Get,
+}
+
 // user
 #[derive(clap::Args, Debug)]
 #[command(author = "RobustMQ", about = "related operations of mqtt users, such as listing, creating, and deleting", long_about = None)]
@@ -471,6 +486,12 @@ pub fn process_slow_sub_args(args: SlowSubArgs) -> MqttActionType {
 pub fn process_session_args(args: SessionArgs) -> MqttActionType {
     match args.action {
         SessionActionType::List => MqttActionType::ListSession,
+    }
+}
+
+pub fn process_config_args(args: ClusterConfigArgs) -> MqttActionType {
+    match args.action {
+        ClusterConfigActionType::Get => MqttActionType::GetClusterConfig,
     }
 }
 

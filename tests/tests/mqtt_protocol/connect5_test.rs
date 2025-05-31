@@ -21,7 +21,9 @@ mod tests {
 
     use crate::mqtt_protocol::{
         common::{
-            broker_addr_by_type, build_client_id, build_conn_pros, build_create_conn_pros, distinct_conn, kee_alive_interval, network_types, session_expiry_interval, ssl_by_type, ws_by_type
+            broker_addr_by_type, build_client_id, build_conn_pros, build_create_conn_pros,
+            distinct_conn, kee_alive_interval, network_types, session_expiry_interval, ssl_by_type,
+            ws_by_type,
         },
         ClientTestProperties,
     };
