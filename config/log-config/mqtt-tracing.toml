@@ -14,7 +14,7 @@
 
 [appenders.stdout]
 kind = "Console"
-level = "Info"
+level = "Warn"
 
 [appenders.server]
 kind = "RollingFile"
