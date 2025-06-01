@@ -41,7 +41,6 @@ use crate::admin::{
 use crate::handler::cache::CacheManager;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
-use bincode::serialize;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
 use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -112,7 +111,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         _request: Request<GetClusterConfigRequest>,
     ) -> Result<Response<GetClusterConfigReply>, Status> {
         Ok(Response::new(GetClusterConfigReply {
-            mqtt_broker_cluster_dynamic_config: serialize(
+            mqtt_broker_cluster_dynamic_config: serde_json::to_vec(
                 &self
                     .cache_manager
                     .get_cluster_config()

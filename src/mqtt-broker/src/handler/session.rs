@@ -102,21 +102,26 @@ fn session_expiry_interval(
     cache_manager: &Arc<CacheManager>,
     connect_properties: &Option<ConnectProperties>,
 ) -> u64 {
-    let cluster_session_expiry_interval = cache_manager
+    let default_session_expiry_interval = cache_manager
         .get_cluster_info()
         .protocol
-        .session_expiry_interval;
+        .default_session_expiry_interval;
+    let max_session_expiry_interval = cache_manager
+        .get_cluster_info()
+        .protocol
+        .max_session_expiry_interval;
+
     let connection_session_expiry_interval = if let Some(properties) = connect_properties {
         if let Some(ck) = properties.session_expiry_interval {
             ck
         } else {
-            cluster_session_expiry_interval
+            default_session_expiry_interval
         }
     } else {
-        cluster_session_expiry_interval
+        default_session_expiry_interval
     };
     let expiry = std::cmp::min(
-        cluster_session_expiry_interval,
+        max_session_expiry_interval,
         connection_session_expiry_interval,
     );
     expiry as u64
@@ -167,7 +172,7 @@ mod test {
             cache_manager
                 .get_cluster_info()
                 .protocol
-                .session_expiry_interval as u64
+                .default_session_expiry_interval as u64
         );
 
         let properties = ConnectProperties {
@@ -189,6 +194,6 @@ mod test {
             ..Default::default()
         };
         let res = session_expiry_interval(&cache_manager, &Some(properties));
-        assert_eq!(res, 1800);
+        assert_eq!(res, 30);
     }
 }

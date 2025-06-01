@@ -20,9 +20,10 @@ use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
 use mqtt::admin::{
-    process_auto_subscribe_args, process_session_args, AutoSubscribeRuleCommand, BindSchemaArgs,
-    CreateSchemaArgs, DeleteSchemaArgs, ListBindSchemaArgs, ListSchemaArgs, SessionArgs,
-    UnbindSchemaArgs, UpdateSchemaArgs,
+    process_auto_subscribe_args, process_config_args, process_session_args,
+    AutoSubscribeRuleCommand, BindSchemaArgs, ClusterConfigArgs, CreateSchemaArgs,
+    DeleteSchemaArgs, ListBindSchemaArgs, ListSchemaArgs, SessionArgs, UnbindSchemaArgs,
+    UpdateSchemaArgs,
 };
 use mqtt::publish::process_subscribe_args;
 use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -84,6 +85,8 @@ struct MqttArgs {
 enum MQTTAction {
     // cluster status
     Status,
+    // session admin
+    Config(ClusterConfigArgs),
     // session admin
     Session(SessionArgs),
     // user admin
@@ -193,6 +196,8 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
         action: match args.action {
             // cluster status
             MQTTAction::Status => MqttActionType::Status,
+            // cluster status
+            MQTTAction::Config(args) => process_config_args(args),
             // session list
             MQTTAction::Session(args) => process_session_args(args),
             // user admin
