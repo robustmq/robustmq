@@ -80,7 +80,8 @@ pub struct BrokerMqttConfig {
 // MQTT cluster protocol related dynamic configuration
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct MqttClusterDynamicConfigProtocol {
-    pub session_expiry_interval: u32,
+    pub max_session_expiry_interval: u32,
+    pub default_session_expiry_interval: u32,
     pub topic_alias_max: u16,
     pub max_qos: u8,
     pub max_packet_size: u32,
