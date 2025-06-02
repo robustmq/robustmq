@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{env, path::PathBuf, process::Command, sync::Arc};
+use std::{sync::Arc, time::Duration};
 
 use clap::Parser;
+use dashmap::DashMap;
 use futures::future;
+use prettytable::{row, Table};
 use protocol::placement_center::placement_center_kv::{GetRequest, SetRequest};
 use rand::{thread_rng, Rng};
 use serde::{de::DeserializeOwned, Serialize};
@@ -44,36 +46,10 @@ pub struct KvGetBenchArgs {
     /// The size of each value in bytes
     #[clap(long, default_value = "64")]
     pub value_size: usize,
-}
 
-fn get_script_path(script_name: &str) -> Option<PathBuf> {
-    if let Ok(exe_path) = env::current_exe() {
-        if let Some(project_root) = exe_path
-            .ancestors()
-            .find(|path| path.join("scripts").exists())
-        {
-            return Some(project_root.join("scripts").join(script_name));
-        }
-    }
-    None
-}
-
-fn start_pc_with_default_conf() -> Result<(), BenchMarkError> {
-    let mut child = Command::new("bash")
-        .arg(get_script_path("start-place.sh").unwrap())
-        .spawn()?;
-
-    child.wait()?;
-    Ok(())
-}
-
-fn stop_pc() -> Result<(), BenchMarkError> {
-    let mut child = Command::new("bash")
-        .arg(get_script_path("stop-place.sh").unwrap())
-        .spawn()?;
-
-    child.wait()?;
-    Ok(())
+    /// The address of the placement center
+    #[clap(long, default_value = "127.0.0.1:1228", value_delimiter = ',')]
+    pub pc_addrs: Vec<String>,
 }
 
 async fn do_placement_get<T>(
@@ -140,28 +116,20 @@ impl BenchMark for KvGetBenchArgs {
             worker_threads,
             num_keys,
             value_size,
+            pc_addrs,
         } = self.clone();
 
         println!(
-            "Starting KV Get Benchmark with {} clients, {} worker threads, {} keys, value size: {}",
-            num_clients, worker_threads, num_keys, value_size
+            "Starting KV Get Benchmark with {} clients, {} worker threads, {} keys, value size: {}, placement center addresses: {:?}",
+            num_clients, worker_threads, num_keys, value_size, pc_addrs
         );
-
-        let total_key_size = num_clients
-            * ((0..num_keys * num_clients)
-                .map(|i| (i.to_string().len()))
-                .sum::<usize>());
-
-        let total_value_size = num_clients * num_keys * value_size;
-
-        // set up placement kv server
-        start_pc_with_default_conf()?;
 
         let client_pool = Arc::new(ClientPool::new(num_clients as u64));
         let mut set_handles = Vec::with_capacity(num_clients);
 
         for client_id in 0..num_clients {
-            let client_pool = client_pool.clone();
+            let client_pool_shared = client_pool.clone();
+            let pc_addrs_clone = pc_addrs.clone();
             let set_handle = tokio::spawn(async move {
                 let result: Result<(), BenchMarkError> = async {
                     for key_id in 0..num_keys {
@@ -170,9 +138,16 @@ impl BenchMark for KvGetBenchArgs {
 
                         let value = gen_data(value_size);
 
-                        let pc_addrs = vec!["127.0.0.1:1228"];
-
-                        do_placement_set(&client_pool, &pc_addrs, key, value).await?;
+                        do_placement_set(
+                            &client_pool_shared,
+                            &pc_addrs_clone
+                                .iter()
+                                .map(String::as_str)
+                                .collect::<Vec<_>>(),
+                            key,
+                            value,
+                        )
+                        .await?;
                     }
                     Ok(())
                 }
@@ -188,24 +163,41 @@ impl BenchMark for KvGetBenchArgs {
         let mut get_handles = Vec::with_capacity(num_clients);
 
         // we start the timer after all kv pairs are set
-        let now = Instant::now();
+        let latencies = Arc::new(DashMap::with_capacity(num_clients));
+
+        let total_now = Instant::now();
 
         for client_id in 0..num_clients {
-            let client_pool = client_pool.clone();
+            let client_pool_shared = client_pool.clone();
+            let latencies_shared = latencies.clone();
+            let pc_addrs_clone = pc_addrs.clone();
             let get_handle = tokio::spawn(async move {
                 let result: Result<(), BenchMarkError> = async {
                     for key_id in 0..num_keys {
                         // generate random key and value
                         let key = (client_id * num_keys + key_id).to_string();
 
-                        let pc_addrs = vec!["127.0.0.1:1228"];
-
                         let req = GetRequest { key };
 
-                        // get the value back
-                        let val = do_placement_get::<String>(&client_pool, &pc_addrs, req).await?;
+                        let now = Instant::now();
 
-                        assert!(!val.is_empty());
+                        // get the value back
+                        do_placement_get::<String>(
+                            &client_pool_shared,
+                            &pc_addrs_clone
+                                .iter()
+                                .map(String::as_str)
+                                .collect::<Vec<_>>(),
+                            req,
+                        )
+                        .await?;
+
+                        latencies_shared
+                            .entry(client_id)
+                            .and_modify(|e: &mut Vec<Duration>| {
+                                e.push(now.elapsed());
+                            })
+                            .or_insert_with(|| vec![now.elapsed()]);
                     }
                     Ok(())
                 }
@@ -218,21 +210,58 @@ impl BenchMark for KvGetBenchArgs {
 
         future::join_all(get_handles).await;
 
-        let elapsed = now.elapsed();
-
-        let total_size = total_key_size + total_value_size;
+        let total_time = total_now.elapsed();
 
         println!(
-            "Benchmark KV get finished with time: {:?}, ns/op: {}, op/ms: {}",
-            elapsed,
-            elapsed.as_nanos() / (total_size as u128),
-            (total_size as u128) / elapsed.as_millis(),
+            "Benchmark KV get finished with time: {:?}s, ms/op: {}, op/ms: {}",
+            total_time.as_secs_f64(),
+            total_time.as_millis() as f64 / (num_clients * num_keys) as f64,
+            (num_clients * num_keys) as f64 / total_time.as_millis() as f64,
         );
 
-        // stop placement center
-        stop_pc()?;
+        // Sort latencies by client ID
+        let mut latencies_sorted = latencies
+            .iter()
+            .map(|entry| (*entry.key(), entry.value().clone()))
+            .collect::<Vec<_>>();
 
-        println!("Placement Center stopped successfully.");
+        latencies_sorted.sort_by_key(|(client_id, _)| *client_id);
+
+        // Print the results in a table format
+        let mut table = Table::new();
+
+        table.add_row(row![
+            "Client ID",
+            "P50 Latency (us)",
+            "P90 Latency (us)",
+            "P99 Latency (us)",
+            "P999 Latency (us)",
+            "Average Latency (us)",
+            "Min Latency (us)",
+            "Max Latency (us)",
+            "Median Latency (us)"
+        ]);
+
+        for (client_id, latencies) in latencies_sorted.iter() {
+            let mut sorted_latencies = latencies.clone();
+            sorted_latencies.sort_unstable();
+
+            let p50 = sorted_latencies[sorted_latencies.len() / 2].as_micros();
+            let p90 = sorted_latencies[(sorted_latencies.len() * 9) / 10].as_micros();
+            let p99 = sorted_latencies[(sorted_latencies.len() * 99) / 100].as_micros();
+            let p999 = sorted_latencies[(sorted_latencies.len() * 999) / 1000].as_micros();
+            let average: u128 = sorted_latencies.iter().map(|d| d.as_micros()).sum::<u128>()
+                / sorted_latencies.len() as u128;
+            let min = sorted_latencies.first().unwrap().as_micros();
+            let max = sorted_latencies.last().unwrap().as_micros();
+            let median = sorted_latencies[sorted_latencies.len() / 2].as_micros();
+
+            table.add_row(row![
+                client_id, p50, p90, p99, p999, average, min, max, median
+            ]);
+        }
+
+        table.printstd();
 
         Ok(())
     }

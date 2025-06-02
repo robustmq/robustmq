@@ -31,3 +31,5 @@ clap.workspace = true
 clap-cargo.workspace = true
 protocol.workspace = true
 tokio.workspace = true
+dashmap.workspace = true
+prettytable-rs.workspace = true
