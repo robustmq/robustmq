@@ -55,7 +55,7 @@ pub(crate) struct ConnectionArgs {
 
 #[derive(Debug, clap::Subcommand)]
 pub enum ConnectionActionType {
-    #[command(author = "RobustMQ", about = "action: list conection", long_about = None)]
+    #[command(author = "RobustMQ", about = "action: list connection", long_about = None)]
     List,
 }
 
