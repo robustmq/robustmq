@@ -128,7 +128,7 @@ impl BenchMark for KvGetBenchArgs {
         let mut set_handles = Vec::with_capacity(num_clients);
 
         for client_id in 0..num_clients {
-            let client_pool = client_pool.clone();
+            let client_pool_shared = client_pool.clone();
             let pc_addrs_clone = pc_addrs.clone();
             let set_handle = tokio::spawn(async move {
                 let result: Result<(), BenchMarkError> = async {
@@ -139,7 +139,7 @@ impl BenchMark for KvGetBenchArgs {
                         let value = gen_data(value_size);
 
                         do_placement_set(
-                            &client_pool,
+                            &client_pool_shared,
                             &pc_addrs_clone
                                 .iter()
                                 .map(String::as_str)
@@ -168,8 +168,8 @@ impl BenchMark for KvGetBenchArgs {
         let total_now = Instant::now();
 
         for client_id in 0..num_clients {
-            let client_pool = client_pool.clone();
-            let latencies_thread = latencies.clone();
+            let client_pool_shared = client_pool.clone();
+            let latencies_shared = latencies.clone();
             let pc_addrs_clone = pc_addrs.clone();
             let get_handle = tokio::spawn(async move {
                 let result: Result<(), BenchMarkError> = async {
@@ -183,7 +183,7 @@ impl BenchMark for KvGetBenchArgs {
 
                         // get the value back
                         do_placement_get::<String>(
-                            &client_pool,
+                            &client_pool_shared,
                             &pc_addrs_clone
                                 .iter()
                                 .map(String::as_str)
@@ -192,7 +192,7 @@ impl BenchMark for KvGetBenchArgs {
                         )
                         .await?;
 
-                        latencies_thread
+                        latencies_shared
                             .entry(client_id)
                             .and_modify(|e: &mut Vec<Duration>| {
                                 e.push(now.elapsed());
