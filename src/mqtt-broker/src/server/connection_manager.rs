@@ -167,33 +167,33 @@ impl ConnectionManager {
                                 };
 
                             record_sent_metrics(&packet_wrapper, network_type);
-                            info!("WebSockets response success,connection_id:{connection_id}");
                             break;
                         }
                         Err(e) => {
                             if times > cluster.network.response_max_try_mut_times {
-                                return Err(MqttBrokerError::CommonError(format!(
-                                    "Failed to write data to the mqtt websocket client, error message: {:?}",
-                                    e
-                                )));
+                                return Err(MqttBrokerError::FailedToWriteClient(
+                                    "websocket".to_string(),
+                                    e.to_string(),
+                                ));
                             }
                         }
                     }
                 }
+
                 dashmap::try_result::TryResult::Absent => {
                     if times > cluster.network.response_max_try_mut_times {
-                        return Err(MqttBrokerError::CommonError(format!(
-                            "[write_frame]Connection management could not obtain an available websocket connection. Connection ID: {},len:{}",
+                        return Err(MqttBrokerError::NotObtainAvailableConnection(
+                            "websocket".to_string(),
                             connection_id,
-                            self.tcp_write_list.len()
-                        )
-                    ));
+                        ));
                     }
                 }
+
                 dashmap::try_result::TryResult::Locked => {
                     if times > cluster.network.response_max_try_mut_times {
-                        return Err(MqttBrokerError::CommonError(
-                            format!("[write_frame]Connection management failed to get websocket connection variable reference, connection ID: {connection_id}")
+                        return Err(MqttBrokerError::FailedObtailConnectionByDeadlock(
+                            "websocket".to_string(),
+                            connection_id,
                         ));
                     }
                 }
@@ -240,30 +240,27 @@ impl ConnectionManager {
                         }
                         Err(e) => {
                             if times > cluster.network.response_max_try_mut_times {
-                                return Err(MqttBrokerError::CommonError(format!(
-                                    "Failed to write data to the mqtt tcp client, error message: {e:?}"
-                                )));
+                                return Err(MqttBrokerError::FailedToWriteClient(
+                                    "tcp".to_string(),
+                                    e.to_string(),
+                                ));
                             }
                         }
                     }
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > cluster.network.response_max_try_mut_times {
-                        return Err(MqttBrokerError::CommonError(
-                            format!(
-                                "[write_frame]Connection management could not obtain an available tcp connection. Connection ID: {},len:{}",
-                                connection_id,
-                                self.tcp_write_list.len()
-                            )
+                        return Err(MqttBrokerError::NotObtainAvailableConnection(
+                            "tcp".to_string(),
+                            connection_id,
                         ));
                     }
                 }
                 dashmap::try_result::TryResult::Locked => {
                     if times > cluster.network.response_max_try_mut_times {
-                        return Err(MqttBrokerError::CommonError(
-                            format!(
-                                "[write_frame]Connection management failed to get tcp connection variable reference, connection ID: {}",connection_id
-                            )
+                        return Err(MqttBrokerError::FailedObtailConnectionByDeadlock(
+                            "tcp".to_string(),
+                            connection_id,
                         ));
                     }
                 }
@@ -301,30 +298,27 @@ impl ConnectionManager {
                         }
                         Err(e) => {
                             if times > cluster.network.response_max_try_mut_times {
-                                return Err(MqttBrokerError::CommonError(format!(
-                                    "Failed to write data to the mqtt tcp client, error message: {e:?}"
-                                )));
+                                return Err(MqttBrokerError::FailedToWriteClient(
+                                    "tcp".to_string(),
+                                    e.to_string(),
+                                ));
                             }
                         }
                     }
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > cluster.network.response_max_try_mut_times {
-                        return Err(MqttBrokerError::CommonError(
-                            format!(
-                                "[write_frame]Connection management could not obtain an available tcp connection. Connection ID: {},len:{}",
-                                connection_id,
-                                self.tcp_write_list.len()
-                            )
+                        return Err(MqttBrokerError::NotObtainAvailableConnection(
+                            "tcp".to_string(),
+                            connection_id,
                         ));
                     }
                 }
                 dashmap::try_result::TryResult::Locked => {
                     if times > cluster.network.response_max_try_mut_times {
-                        return Err(MqttBrokerError::CommonError(
-                            format!(
-                                "[write_frame]Connection management failed to get tcp connection variable reference, connection ID: {}",connection_id
-                            )
+                        return Err(MqttBrokerError::FailedObtailConnectionByDeadlock(
+                            "tcp".to_string(),
+                            connection_id,
                         ));
                     }
                 }
