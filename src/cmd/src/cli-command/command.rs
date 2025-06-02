@@ -20,10 +20,10 @@ use cli_command::placement::{
     PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
 };
 use mqtt::admin::{
-    process_auto_subscribe_args, process_config_args, process_session_args,
-    AutoSubscribeRuleCommand, BindSchemaArgs, ClusterConfigArgs, CreateSchemaArgs,
-    DeleteSchemaArgs, ListBindSchemaArgs, ListSchemaArgs, SessionArgs, UnbindSchemaArgs,
-    UpdateSchemaArgs,
+    process_auto_subscribe_args, process_config_args, process_connection_args,
+    process_session_args, AutoSubscribeRuleCommand, BindSchemaArgs, ClusterConfigArgs,
+    ConnectionArgs, CreateSchemaArgs, DeleteSchemaArgs, ListBindSchemaArgs, ListSchemaArgs,
+    SessionArgs, UnbindSchemaArgs, UpdateSchemaArgs,
 };
 use mqtt::publish::process_subscribe_args;
 use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -98,7 +98,7 @@ enum MQTTAction {
     // flapping detect feat
     FlappingDetect(FlappingDetectArgs),
     // Connections
-    ListConnection,
+    Connection(ConnectionArgs),
     // observability: slow-sub feat
     SlowSub(SlowSubArgs),
     // list topic
@@ -216,7 +216,7 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
                 })
             }
             // Connections
-            MQTTAction::ListConnection => MqttActionType::ListConnection,
+            MQTTAction::Connection(args) => process_connection_args(args),
             // connector
             MQTTAction::Connector(args) => process_connector_args(args),
             // list topic
