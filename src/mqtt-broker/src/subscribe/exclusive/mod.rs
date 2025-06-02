@@ -254,6 +254,7 @@ where
         match e {
             MqttBrokerError::SessionNullSkipPushMessage(_) => {}
             MqttBrokerError::ConnectionNullSkipPushMessage(_) => {}
+            MqttBrokerError::NotObtainAvailableConnection(_, _) => {}
             _ => {
                 error!("{}", e);
             }

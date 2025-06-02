@@ -82,13 +82,14 @@ impl ClientPool {
             self.placement_center_inner_pools
                 .insert(addr.to_owned(), pool);
         }
+
         if let Some(pool) = self.placement_center_inner_pools.get(addr) {
             match pool.get().await {
                 Ok(conn) => return Ok(conn),
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "PlacementService".to_string(),
-                        format!("get placement center journal service client failed, err: {}, state: {:?}",
+                        format!("get placement center inner service client failed, err: {}, state: {:?}",
                         e,
                         pool.state().await),
                     ));
@@ -158,9 +159,11 @@ impl ClientPool {
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "KvServices".to_string(),
-                        format!("get placement center journal service client failed, err: {}, state: {:?}",
-                        e,
-                        pool.state().await),
+                        format!(
+                            "get placement center kv service client failed, err: {}, state: {:?}",
+                            e,
+                            pool.state().await
+                        ),
                     ));
                 }
             };
@@ -192,9 +195,11 @@ impl ClientPool {
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "MqttServices".to_string(),
-                        format!("get placement center journal service client failed, err: {}, state: {:?}",
-                        e,
-                        pool.state().await),
+                        format!(
+                            "get placement center mqtt service client failed, err: {}, state: {:?}",
+                            e,
+                            pool.state().await
+                        ),
                     ));
                 }
             };
@@ -229,7 +234,7 @@ impl ClientPool {
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "OpenRaftServices".to_string(),
-                        format!("get placement center journal service client failed, err: {}, state: {:?}",
+                        format!("get placement center openraft service client failed, err: {}, state: {:?}",
                         e,
                         pool.state().await),
                     ));
@@ -265,9 +270,11 @@ impl ClientPool {
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "MQTTBrokerPlacementServices".to_string(),
-                        format!("get placement center journal service client failed, err: {}, state: {:?}",
-                        e,
-                        pool.state().await),
+                        format!(
+                            "get mqtt broker mqtt service client failed, err: {}, state: {:?}",
+                            e,
+                            pool.state().await
+                        ),
                     ));
                 }
             };
@@ -299,9 +306,11 @@ impl ClientPool {
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "BrokerAdminServices".to_string(),
-                        format!("get placement center journal service client failed, err: {}, state: {:?}",
-                        e,
-                        pool.state().await),
+                        format!(
+                            "get mqtt broker admin service client failed, err: {}, state: {:?}",
+                            e,
+                            pool.state().await
+                        ),
                     ));
                 }
             };
@@ -334,9 +343,11 @@ impl ClientPool {
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "JournalEngine".to_string(),
-                        format!("get placement center journal service client failed, err: {}, state: {:?}",
-                        e,
-                        pool.state().await),
+                        format!(
+                            "get journal engine inner service client failed, err: {}, state: {:?}",
+                            e,
+                            pool.state().await
+                        ),
                     ));
                 }
             };
@@ -369,9 +380,11 @@ impl ClientPool {
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         "JournalEngineAdmin".to_string(),
-                        format!("get placement center journal service client failed, err: {}, state: {:?}",
-                        e,
-                        pool.state().await),
+                        format!(
+                            "get journal engine admin service client failed, err: {}, state: {:?}",
+                            e,
+                            pool.state().await
+                        ),
                     ));
                 }
             };
