@@ -39,7 +39,7 @@ use protocol::mqtt::common::{
 };
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tracing::info;
+use tracing::error;
 
 pub async fn is_new_sub(
     client_id: &str,
@@ -116,7 +116,7 @@ pub async fn try_send_retain_message(
         )
         .await
         {
-            info!("Sending retain message failed with error message :{}", e);
+            error!("Sending retain message failed with error message :{}", e);
         }
     });
 }

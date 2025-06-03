@@ -37,6 +37,9 @@ pub enum MqttBrokerError {
     ParseIntError(#[from] ParseIntError),
 
     #[error("{0}")]
+    FromMysqlError(#[from] mysql::Error),
+
+    #[error("{0}")]
     TokioBroadcastSendError(#[from] tokio::sync::broadcast::error::SendError<bool>),
 
     #[error("{0}")]
@@ -46,7 +49,7 @@ pub enum MqttBrokerError {
     GrepError(#[from] grep::regex::Error),
 
     #[error("{0}")]
-    FromMysqlError(#[from] mysql::Error),
+    FromProtocolMQTTCommonError(#[from] protocol::mqtt::common::Error),
 
     #[error("Topic alias is too long. alias is {0}")]
     TopicAliasTooLong(u16),
@@ -142,6 +145,12 @@ pub enum MqttBrokerError {
 
     #[error("Failed to write data to the mqtt {0} client, error message: {1}")]
     FailedToWriteClient(String, String),
+
+    #[error("Websocket encode packet failed, error message: {0}")]
+    WebsocketEncodePacketFailed(String),
+
+    #[error("Websocket decode packet failed, error message: {0}")]
+    WebsocketDecodePacketFailed(String),
 }
 
 impl From<MqttBrokerError> for Status {
