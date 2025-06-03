@@ -35,7 +35,7 @@ use protocol::mqtt::common::{MqttPacket, MqttProtocol, PubRel, Publish, PublishP
 use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::{sleep, timeout};
-use tracing::{debug, error};
+use tracing::debug;
 
 pub async fn build_pub_message(
     record: Record,
@@ -371,11 +371,8 @@ pub async fn publish_message_to_client(
         if connection_manager.is_websocket(resp.connection_id) {
             let mut codec = MqttCodec::new(Some(protocol.into()));
             let mut buff = BytesMut::new();
-            match codec.encode_data(response.clone(), &mut buff) {
-                Ok(()) => {}
-                Err(e) => {
-                    error!("Websocket encode back packet failed with error message: {e:?}");
-                }
+            if let Err(e) = codec.encode_data(response.clone(), &mut buff) {
+                return Err(MqttBrokerError::WebsocketEncodePacketFailed(e.to_string()));
             }
             connection_manager
                 .write_websocket_frame(resp.connection_id, response, Message::Binary(buff.to_vec()))

@@ -26,11 +26,12 @@ use serde::{Deserialize, Serialize};
 use tokio::select;
 use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 use super::cache::{CacheManager, ConnectionLiveTime};
 use super::connection::disconnect_connection;
 use super::response::response_packet_mqtt_distinct_by_reason;
+use crate::handler::error::MqttBrokerError;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
 
@@ -71,14 +72,17 @@ impl ClientKeepAlive {
                         }
                     }
                 }
-                _ = self.keep_alive()=>{
+                val = self.keep_alive()=>{
+                    if let Err(e) = val {
+                        error!("{}",e);
+                    }
                     sleep(Duration::from_secs(1)).await;
                 }
             }
         }
     }
 
-    async fn keep_alive(&self) {
+    async fn keep_alive(&self) -> Result<(), MqttBrokerError> {
         let expire_connection = self.get_expire_connection().await;
 
         for connect_id in expire_connection {
@@ -96,87 +100,51 @@ impl ClientKeepAlive {
                     };
 
                     if network.is_tcp() {
-                        match self
-                            .connection_manager
+                        self.connection_manager
                             .write_tcp_frame(connection.connect_id, wrap)
-                            .await
-                        {
-                            Ok(()) => {
-                                match disconnect_connection(
-                                    &connection.client_id,
-                                    connect_id,
-                                    &self.cache_manager,
-                                    &self.client_pool,
-                                    &self.connection_manager,
-                                    &self.subscribe_manager,
-                                    false,
-                                )
-                                .await
-                                {
-                                    Ok(()) => {
-                                        info!(
-                                            "Heartbeat timeout, active disconnection {} successful",
-                                            connect_id
-                                        );
-                                    }
-                                    Err(e) => {
-                                        error!("{}", e);
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                warn!("Keep Alive Write TCP failed:{}", e.to_string());
-                            }
-                        }
+                            .await?;
+
+                        disconnect_connection(
+                            &connection.client_id,
+                            connect_id,
+                            &self.cache_manager,
+                            &self.client_pool,
+                            &self.connection_manager,
+                            &self.subscribe_manager,
+                            false,
+                        )
+                        .await?;
                     } else {
                         let mut codec = MqttCodec::new(Some(protocol.into()));
                         let mut buff = BytesMut::new();
-                        match codec.encode_data(wrap.clone(), &mut buff) {
-                            Ok(()) => {}
-                            Err(e) => {
-                                error!(
-                                    "Websocket encode back packet failed with error message: {e:?}"
-                                );
-                            }
+                        if let Err(e) = codec.encode_data(wrap.clone(), &mut buff) {
+                            return Err(MqttBrokerError::WebsocketEncodePacketFailed(
+                                e.to_string(),
+                            ));
                         }
 
-                        match self
-                            .connection_manager
+                        self.connection_manager
                             .write_websocket_frame(
                                 connection.connect_id,
                                 wrap,
                                 Message::Binary(buff.to_vec()),
                             )
-                            .await
-                        {
-                            Ok(()) => {
-                                match disconnect_connection(
-                                    &connection.client_id,
-                                    connect_id,
-                                    &self.cache_manager,
-                                    &self.client_pool,
-                                    &self.connection_manager,
-                                    &self.subscribe_manager,
-                                    false,
-                                )
-                                .await
-                                {
-                                    Ok(()) => {
-                                        info!(
-                                            "Heartbeat timeout, active disconnection {} successful",
-                                            connect_id
-                                        );
-                                    }
-                                    Err(e) => {
-                                        error!("{}", e);
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                warn!("Keep Alive Write Websocket failed:{}", e.to_string());
-                            }
-                        }
+                            .await?;
+                        disconnect_connection(
+                            &connection.client_id,
+                            connect_id,
+                            &self.cache_manager,
+                            &self.client_pool,
+                            &self.connection_manager,
+                            &self.subscribe_manager,
+                            false,
+                        )
+                        .await?;
                     }
+                    info!(
+                        "Heartbeat timeout, active disconnection {} successful",
+                        connect_id
+                    );
                 }
             }
         }
@@ -186,6 +154,7 @@ impl ClientKeepAlive {
                 self.cache_manager.heartbeat_data.remove(&client_id);
             }
         }
+        Ok(())
     }
 
     async fn get_expire_connection(&self) -> Vec<u64> {
