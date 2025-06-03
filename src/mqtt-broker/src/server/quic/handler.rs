@@ -133,7 +133,7 @@ fn handler_child_process<S>(
                         if let Some(packet) = val{
                             if let Some(connect) = raw_connect_manager.get_connect(packet.connection_id) {
                                 if let Some(resp) = raw_command
-                                    .apply(raw_connect_manager.clone(), connect, packet.addr, packet.packet)
+                                    .apply(&raw_connect_manager, &connect, &packet.addr, &packet.packet)
                                     .await
                                 {
                                     let response_package = ResponsePackage::new(packet.connection_id, resp);

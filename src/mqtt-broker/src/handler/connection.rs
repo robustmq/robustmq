@@ -110,9 +110,9 @@ pub fn response_information(connect_properties: &Option<ConnectProperties>) -> O
     None
 }
 
-pub fn is_delete_session(user_properties: Vec<(String, String)>) -> bool {
+pub fn is_delete_session(user_properties: &Vec<(String, String)>) -> bool {
     for (key, value) in user_properties {
-        if key == *DISCONNECT_FLAG_NOT_DELETE_SESSION && value == "true" {
+        if *key == *DISCONNECT_FLAG_NOT_DELETE_SESSION && value == "true" {
             return false;
         }
     }

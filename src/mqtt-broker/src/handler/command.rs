@@ -104,10 +104,10 @@ where
 
     pub async fn apply(
         &mut self,
-        connect_manager: Arc<ConnectionManager>,
-        tcp_connection: NetworkConnection,
-        addr: SocketAddr,
-        packet: MqttPacket,
+        connect_manager: &Arc<ConnectionManager>,
+        tcp_connection: &NetworkConnection,
+        addr: &SocketAddr,
+        packet: &MqttPacket,
     ) -> Option<MqttPacket> {
         let mut is_connect_pkg = false;
         if let MqttPacket::Connect(_, _, _, _, _, _) = packet {
@@ -130,10 +130,12 @@ where
                 last_will_properties,
                 login,
             ) => {
-                connect_manager
-                    .set_connect_protocol(tcp_connection.connection_id, protocol_version);
+                connect_manager.set_connect_protocol(
+                    tcp_connection.connection_id,
+                    protocol_version.to_owned(),
+                );
 
-                let resp_pkg = if is_mqtt3(protocol_version) {
+                let resp_pkg = if is_mqtt3(protocol_version.to_owned()) {
                     Some(
                         self.mqtt3_service
                             .connect(
@@ -142,12 +144,12 @@ where
                                 properties,
                                 last_will,
                                 last_will_properties,
-                                &login,
+                                login,
                                 addr,
                             )
                             .await,
                     )
-                } else if is_mqtt4(protocol_version) {
+                } else if is_mqtt4(protocol_version.to_owned()) {
                     Some(
                         self.mqtt4_service
                             .connect(
@@ -156,12 +158,12 @@ where
                                 properties,
                                 last_will,
                                 last_will_properties,
-                                &login,
+                                login,
                                 addr,
                             )
                             .await,
                     )
-                } else if is_mqtt5(protocol_version) {
+                } else if is_mqtt5(protocol_version.to_owned()) {
                     Some(
                         self.mqtt5_service
                             .connect(
@@ -170,7 +172,7 @@ where
                                 properties,
                                 last_will,
                                 last_will_properties,
-                                &login,
+                                login,
                                 addr,
                             )
                             .await,
@@ -188,7 +190,7 @@ where
                 if let MqttPacket::ConnAck(conn_ack, _) = ack_pkg.clone() {
                     if conn_ack.code == ConnectReturnCode::Success {
                         let username = if let Some(user) = login {
-                            user.username
+                            user.username.to_owned()
                         } else {
                             "".to_string()
                         };
@@ -232,27 +234,15 @@ where
 
                 let resp = if tcp_connection.is_mqtt3() {
                     self.mqtt3_service
-                        .publish(
-                            tcp_connection.connection_id,
-                            publish.clone(),
-                            publish_properties,
-                        )
+                        .publish(tcp_connection.connection_id, publish, publish_properties)
                         .await
                 } else if tcp_connection.is_mqtt4() {
                     self.mqtt4_service
-                        .publish(
-                            tcp_connection.connection_id,
-                            publish.clone(),
-                            publish_properties,
-                        )
+                        .publish(tcp_connection.connection_id, publish, publish_properties)
                         .await
                 } else if tcp_connection.is_mqtt5() {
                     self.mqtt5_service
-                        .publish(
-                            tcp_connection.connection_id,
-                            publish.clone(),
-                            publish_properties,
-                        )
+                        .publish(tcp_connection.connection_id, publish, publish_properties)
                         .await
                 } else {
                     None
