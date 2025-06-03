@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::observability::system_topic::sysmon::SystemAlarmEventMessage;
 use crate::security::acl::metadata::AclMetadata;
 use common_base::tools::now_second;
 use dashmap::DashMap;
@@ -126,6 +127,9 @@ pub struct CacheManager {
 
     // All auto subscribe rule
     pub auto_subscribe_rule: DashMap<String, MqttAutoSubscribeRule>,
+
+    // Alarm Info
+    pub alarm_events: DashMap<String, SystemAlarmEventMessage>,
 }
 
 impl CacheManager {
@@ -145,6 +149,7 @@ impl CacheManager {
             acl_metadata: AclMetadata::new(),
             topic_rewrite_rule: DashMap::with_capacity(8),
             auto_subscribe_rule: DashMap::with_capacity(8),
+            alarm_events: DashMap::with_capacity(8),
         }
     }
 
@@ -446,5 +451,48 @@ impl CacheManager {
     pub fn delete_auto_subscribe_rule(&self, cluster: &str, topic: &str) {
         let key = self.auto_subscribe_rule_key(cluster, topic);
         self.auto_subscribe_rule.remove(&key);
+    }
+
+    pub fn add_alarm_event(&self, alarm_name: String, event: SystemAlarmEventMessage) {
+        self.alarm_events.insert(alarm_name, event);
+    }
+
+    pub fn get_alarm_event(&self, name: &str) -> Option<SystemAlarmEventMessage> {
+        if let Some(event) = self.alarm_events.get(name) {
+            return Some(event.clone());
+        }
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[tokio::test]
+    async fn test_get_a_alarm_event_is_empty() {
+        let client_pool = Arc::new(ClientPool::new(1));
+        let cache_manager = CacheManager::new(client_pool, "test_cluster".to_string());
+
+        let event = cache_manager.get_alarm_event("test_event");
+        assert!(event.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_add_and_get_alarm_event() {
+        let client_pool = Arc::new(ClientPool::new(1));
+        let cache_manager = CacheManager::new(client_pool, "test_cluster".to_string());
+
+        let event = SystemAlarmEventMessage {
+            name: "test_event".to_string(),
+            message: "This is a test event".to_string(),
+            activate_at: chrono::Utc::now().timestamp(),
+            activated: true,
+        };
+
+        cache_manager.add_alarm_event("test_event".to_string(), event.clone());
+        let retrieved_event = cache_manager.get_alarm_event("test_event");
+
+        assert!(retrieved_event.is_some());
+        assert_eq!(event.name, retrieved_event.unwrap().name);
     }
 }

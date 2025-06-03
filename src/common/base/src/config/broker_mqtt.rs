@@ -236,13 +236,13 @@ pub struct SystemMonitor {
     #[serde(default)]
     pub os_cpu_check_interval_ms: u64,
     #[serde(default)]
-    pub os_cpu_high_watermark: f64,
+    pub os_cpu_high_watermark: f32,
     #[serde(default)]
-    pub os_cpu_low_watermark: f64,
+    pub os_cpu_low_watermark: f32,
     #[serde(default)]
     pub os_memory_check_interval_ms: u64,
     #[serde(default)]
-    pub os_memory_high_watermark: f64,
+    pub os_memory_high_watermark: f32,
 }
 
 static BROKER_MQTT_CONF: OnceLock<BrokerMqttConfig> = OnceLock::new();
