@@ -521,17 +521,14 @@ where
             let client_id = conn.client_id.clone();
             let pkid = pub_ack.pkid;
             if let Some(data) = self.cache_manager.get_ack_packet(client_id.clone(), pkid) {
-                match data.sx.send(QosAckPackageData {
+                if let Err(e) = data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubAck,
                     pkid: pub_ack.pkid,
                 }) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        error!(
+                    error!(
                             "publish ack send ack manager message error, error message:{}, send data time: {}, recv ack time:{}, client_id: {}",
                             e,data.create_time,now_second(),conn.client_id
                         );
-                    }
                 }
             }
         }
