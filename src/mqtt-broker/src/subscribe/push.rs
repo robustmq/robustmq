@@ -35,7 +35,7 @@ use protocol::mqtt::common::{MqttPacket, MqttProtocol, PubRel, Publish, PublishP
 use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::{sleep, timeout};
-use tracing::debug;
+use tracing::{debug, warn};
 
 pub async fn build_pub_message(
     record: Record,
@@ -406,23 +406,25 @@ pub async fn wait_pub_ack(
     wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
 ) -> Result<(), MqttBrokerError> {
     let wait_pub_ack_fn = || async {
-        match wait_packet_ack(wait_ack_sx, "PubAck", &sub_pub_param.subscribe.client_id).await {
-            Ok(Some(data)) => {
-                if data.ack_type == QosAckPackageType::PubAck && data.pkid == sub_pub_param.pkid {
-                    return Ok(());
+        loop {
+            match wait_packet_ack(wait_ack_sx, "PubAck", &sub_pub_param.subscribe.client_id).await {
+                Ok(Some(data)) => {
+                    if data.ack_type == QosAckPackageType::PubAck && data.pkid == sub_pub_param.pkid
+                    {
+                        return Ok(());
+                    }
                 }
-            }
-            Ok(None) => {}
-            Err(e) => {
-                publish_message_qos(metadata_cache, connection_manager, sub_pub_param, stop_sx)
-                    .await?;
-                return Err(e);
-            }
-        };
-
-        Err(MqttBrokerError::CommonError(
-            "Send message to the client did not receive a correct PubAck return".to_owned(),
-        ))
+                Ok(None) => {
+                    continue;
+                }
+                Err(e) => {
+                    publish_message_qos(metadata_cache, connection_manager, sub_pub_param, stop_sx)
+                        .await?;
+                    return Err(e);
+                }
+            };
+            sleep(Duration::from_secs(1)).await;
+        }
     };
 
     wait_pub_ack_fn().await
@@ -442,7 +444,9 @@ pub async fn wait_pub_rec(
                     return Ok(());
                 }
             }
-            Ok(None) => {}
+            Ok(None) => {
+                warn!("wait pub rec receives None");
+            }
             Err(e) => {
                 publish_message_qos(metadata_cache, connection_manager, sub_pub_param, stop_sx)
                     .await?;
@@ -472,7 +476,9 @@ pub async fn wait_pub_comp(
                     return Ok(());
                 }
             }
-            Ok(None) => {}
+            Ok(None) => {
+                warn!("wait pub comp receives None");
+            }
             Err(e) => {
                 qos2_send_pubrel(metadata_cache, sub_pub_param, connection_manager, stop_sx)
                     .await?;
