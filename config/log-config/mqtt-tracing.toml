@@ -19,11 +19,7 @@ level = "Warn"
 [appenders.server]
 kind = "RollingFile"
 level = "Info"
-rotation = "Minutely"
-directory = "./logs/tests"
-prefix = "mqtt-server-"
-suffix = "log"
-max_log_files = 10
+config = { rotation = "Minutely", directory = "./logs/tests", prefix = "mqtt-server-", suffix = "log", max_log_files = 10 }
 
 [appenders.slow_sub]
 kind = "RollingFile"
