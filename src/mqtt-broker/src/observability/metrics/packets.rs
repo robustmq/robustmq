@@ -84,15 +84,15 @@ common_base::register_gauge_metric!(
     NetworkLabel
 );
 common_base::register_gauge_metric!(
-    PACKETS_SUBSCRIBLE_RECEIVED,
-    "packets_subscrible_received",
-    "Number of packets subscrible received",
+    PACKETS_SUBSCRIBE_RECEIVED,
+    "packets_subscribe_received",
+    "Number of packets subscribe received",
     NetworkLabel
 );
 common_base::register_gauge_metric!(
-    PACKETS_UNSUBSCRIBLE_RECEIVED,
-    "packets_unsubscrible_received",
-    "Number of packets unsubscrible received",
+    PACKETS_UNSUBSCRIBE_RECEIVED,
+    "packets_unsubscribe_received",
+    "Number of packets unsubscribe received",
     NetworkLabel
 );
 common_base::register_gauge_metric!(
@@ -308,10 +308,10 @@ pub fn record_received_metrics(
         }
         MqttPacket::Auth(_, _) => common_base::gauge_metric_inc!(PACKETS_AUTH_RECEIVED, label),
         MqttPacket::Subscribe(_, _) => {
-            common_base::gauge_metric_inc!(PACKETS_SUBSCRIBLE_RECEIVED, label)
+            common_base::gauge_metric_inc!(PACKETS_SUBSCRIBE_RECEIVED, label)
         }
         MqttPacket::Unsubscribe(_, _) => {
-            common_base::gauge_metric_inc!(PACKETS_UNSUBSCRIBLE_RECEIVED, label)
+            common_base::gauge_metric_inc!(PACKETS_UNSUBSCRIBE_RECEIVED, label)
         }
         _ => unreachable!("This branch only matches for packets could not be received"),
     }
