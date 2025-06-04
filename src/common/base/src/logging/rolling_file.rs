@@ -1,7 +1,6 @@
 use std::io;
 
 use serde::Deserialize;
-use tracing_appender::rolling::{InitError, RollingFileAppender};
 
 use crate::{error::log_config::LogConfigError, logging::config::AppenderConfig};
 

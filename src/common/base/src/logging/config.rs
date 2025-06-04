@@ -18,7 +18,10 @@ use serde::Deserialize;
 use tracing_appender::non_blocking::{NonBlocking, WorkerGuard};
 use tracing_subscriber::{Layer, Registry};
 
-use crate::{error::log_config::LogConfigError, logging::{console::ConsoleAppenderConfig, rolling_file::RollingFileAppenderConfig}};
+use crate::{
+    error::log_config::LogConfigError,
+    logging::{console::ConsoleAppenderConfig, rolling_file::RollingFileAppenderConfig},
+};
 
 // TODO: implement size based rotation
 
@@ -46,7 +49,7 @@ impl Appender {
                 let writer = rolling_file_appender_config.create_appender()?;
                 let (non_blocking, guard) = tracing_appender::non_blocking(writer);
                 Ok((non_blocking, guard))
-            },
+            }
         }
     }
 }
@@ -110,13 +113,13 @@ mod tests {
     const DEBUG_LEVEL_TOML: &str = r#"
         level = "Debug"
         "#;
-    
+
     const CONSOLE_TABLE_NAME: &str = r#"stdout"#;
     const CONSOLE_KIND_TOML: &str = r#"
         kind = "Console"
         "#;
     const CONSOLE_CONFIG_TOML: &str = r#""#;
-    
+
     const ROLLING_FILE_TABLE_NAME: &str = r#"server"#;
     const ROLLING_FILE_KIND_TOML: &str = r#"
         kind = "RollingFile"
@@ -186,7 +189,10 @@ mod tests {
         assert!(matches!(console_config.appender, Appender::Console(_)));
         assert_eq!(console_config.level, Level::Debug);
         let rolling_file_config = configs.appenders.get(ROLLING_FILE_TABLE_NAME).unwrap();
-        assert!(matches!(rolling_file_config.appender, Appender::RollingFile(_)));
+        assert!(matches!(
+            rolling_file_config.appender,
+            Appender::RollingFile(_)
+        ));
         assert_eq!(rolling_file_config.level, Level::Debug);
 
         let expected_console: ConsoleAppenderConfig = toml::from_str(CONSOLE_CONFIG_TOML).unwrap();
@@ -196,7 +202,8 @@ mod tests {
             panic!("Expected Console appender");
         }
 
-        let expected_rolling_file: RollingFileAppenderConfig = toml::from_str(ROLLING_FILE_CONFIG_TOML).unwrap();
+        let expected_rolling_file: RollingFileAppenderConfig =
+            toml::from_str(ROLLING_FILE_CONFIG_TOML).unwrap();
         if let Appender::RollingFile(found) = &rolling_file_config.appender {
             assert_eq!(found, &expected_rolling_file);
         } else {
