@@ -40,7 +40,13 @@ pub enum MqttBrokerError {
     FromMysqlError(#[from] mysql::Error),
 
     #[error("{0}")]
+    TokioTimeErrorElapsed(#[from] tokio::time::error::Elapsed),
+
+    #[error("{0}")]
     TokioBroadcastSendError(#[from] tokio::sync::broadcast::error::SendError<bool>),
+
+    #[error("{0}")]
+    TokioSyncBroadcastErrorRecvError(#[from] tokio::sync::broadcast::error::RecvError),
 
     #[error("{0}")]
     SerdeJsonError(#[from] serde_json::Error),
@@ -151,6 +157,9 @@ pub enum MqttBrokerError {
 
     #[error("Websocket decode packet failed, error message: {0}")]
     WebsocketDecodePacketFailed(String),
+
+    #[error("Client {0}, the size of the subscription sent packets exceeds the limit. Packet size :{1}, Limit size :{2}")]
+    PacketsExceedsLimitBySubPublish(String, usize, u32),
 }
 
 impl From<MqttBrokerError> for Status {

@@ -21,9 +21,8 @@ use common_base::tools::now_nanos;
 use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
 use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
 use grpc_clients::pool::ClientPool;
-use protocol::mqtt::common::QoS;
 use protocol::mqtt::common::{Filter, MqttProtocol, RetainHandling, SubscribeProperties};
-use protocol::mqtt::common::{Publish, PublishProperties};
+use protocol::mqtt::common::{MqttPacket, QoS};
 use protocol::placement_center::placement_center_mqtt::{
     GetShareSubLeaderReply, GetShareSubLeaderRequest,
 };
@@ -63,11 +62,10 @@ pub struct SubscribeData {
     pub subscribe_properties: Option<SubscribeProperties>,
 }
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct SubPublishParam {
     pub subscribe: Subscriber,
-    pub publish: Publish,
-    pub properties: Option<PublishProperties>,
+    pub packet: MqttPacket,
     pub create_time: u128,
     pub pkid: u16,
     pub group_id: String,
@@ -76,16 +74,14 @@ pub(crate) struct SubPublishParam {
 impl SubPublishParam {
     pub fn new(
         subscribe: Subscriber,
-        publish: Publish,
-        properties: Option<PublishProperties>,
+        packet: MqttPacket,
         create_time: u128,
         group_id: String,
         pkid: u16,
     ) -> Self {
         SubPublishParam {
             subscribe,
-            publish,
-            properties,
+            packet,
             create_time,
             pkid,
             group_id,

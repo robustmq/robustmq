@@ -15,7 +15,7 @@
 use super::common::loop_commit_offset;
 use super::common::Subscriber;
 use super::manager::SubscribeManager;
-use super::push::{build_pub_message, publish_data};
+use super::push::{build_publish_message, send_publish_packet_to_client};
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::server::connection_manager::ConnectionManager;
@@ -219,8 +219,17 @@ where
             };
 
             // build publish params
-            let sub_pub_param = if let Some(params) =
-                build_pub_message(record.to_owned(), group_id, qos, subscriber, sub_ids).await?
+            let sub_pub_param = if let Some(params) = build_publish_message(
+                cache_manager,
+                connection_manager,
+                &subscriber.client_id,
+                record.to_owned(),
+                group_id,
+                qos,
+                subscriber,
+                sub_ids,
+            )
+            .await?
             {
                 params
             } else {
@@ -228,10 +237,11 @@ where
             };
 
             // publish data to client
-            publish_data(
+            send_publish_packet_to_client(
                 connection_manager,
                 cache_manager,
-                sub_pub_param,
+                &sub_pub_param,
+                qos,
                 sub_thread_stop_sx,
             )
             .await?;
