@@ -3,7 +3,7 @@ use std::io;
 use serde::Deserialize;
 use tracing_appender::rolling::{InitError, RollingFileAppender};
 
-use crate::{error::log_config::LogConfigError, logging::appender::AppenderConfig};
+use crate::{error::log_config::LogConfigError, logging::config::AppenderConfig};
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 enum Rotation {

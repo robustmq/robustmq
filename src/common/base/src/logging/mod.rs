@@ -24,7 +24,9 @@ use crate::config::placement_center::placement_center_conf;
 use crate::error::log_config::LogConfigError;
 use crate::tools::{file_exists, read_file, try_create_fold};
 
-mod appender;
+mod config;
+mod console;
+mod rolling_file;
 
 pub fn init_placement_center_log() -> Result<Vec<WorkerGuard>, LogConfigError> {
     let conf = placement_center_conf();
@@ -76,12 +78,12 @@ pub fn init_tracing_subscriber(
         }
     }
 
-    let config: appender::Configs = toml::from_str(&content)?;
+    let config: config::Configs = toml::from_str(&content)?;
     init_tracing_subscriber_with_config(config)
 }
 
 fn init_tracing_subscriber_with_config(
-    config: appender::Configs,
+    config: config::Configs,
 ) -> Result<Vec<WorkerGuard>, LogConfigError> {
     let mut layers = Vec::with_capacity(config.appenders.len());
     let mut guards = Vec::with_capacity(config.appenders.len());
@@ -101,6 +103,3 @@ fn init_tracing_subscriber_with_config(
 
     Ok(guards)
 }
-
-#[cfg(test)]
-mod tests {}
