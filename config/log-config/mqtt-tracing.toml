@@ -12,16 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[appenders.stdout]
+[stdout]
 kind = "Console"
 level = "Warn"
 
-[appenders.server]
+[server]
 kind = "RollingFile"
 level = "Info"
-config = { rotation = "Minutely", directory = "./logs/tests", prefix = "mqtt-server-", suffix = "log", max_log_files = 10 }
+rotation = "Minutely"
+directory = "./logs/tests"
+prefix = "mqtt-server-"
+suffix = "log"
+max_log_files = 10
 
-[appenders.slow_sub]
+[slow_sub]
 kind = "RollingFile"
 level = "Info"
 rotation = "Minutely"

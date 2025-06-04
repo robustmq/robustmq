@@ -76,22 +76,20 @@ pub fn init_tracing_subscriber(
         }
     }
 
-    let config: appender::Config = toml::from_str(&content)?;
+    let config: appender::Configs = toml::from_str(&content)?;
     init_tracing_subscriber_with_config(config)
 }
 
 fn init_tracing_subscriber_with_config(
-    config: appender::Config,
+    config: appender::Configs,
 ) -> Result<Vec<WorkerGuard>, LogConfigError> {
     let mut layers = Vec::with_capacity(config.appenders.len());
     let mut guards = Vec::with_capacity(config.appenders.len());
 
     for (_name, appender_conf) in config.appenders {
-        let (layer, guard) = appender_conf.try_into_layer_and_guard()?;
+        let (layer, guard) = appender_conf.create_layer()?;
         layers.push(layer);
-        if let Some(guard) = guard {
-            guards.push(guard);
-        }
+        guards.push(guard);
     }
 
     let registry = tracing_subscriber::registry().with(layers);
