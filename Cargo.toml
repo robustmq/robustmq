@@ -34,6 +34,7 @@ members = [
     "src/journal-server",
     "src/journal-client",
     "src/storage-adapter",
+    "src/robustmq-macro",
     "tests",
 ]
 

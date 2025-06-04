@@ -4409,6 +4409,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3582f63211428f83597b51b2ddb88e2a91a9d52d12831f9d08f5e624e8977422"
 
 [[package]]
+name = "robustmq-macro"
+version = "0.1.14"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
 name = "robustmq-proto-build"
 version = "0.1.0"
 source = "git+https://github.com/robustmq/robustmq-proto.git?branch=main#85cf61987ad3dd253f5e8423435ba703826bf0c6"
