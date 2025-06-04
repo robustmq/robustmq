@@ -161,6 +161,7 @@ export const sidebar = [
                 items: [
                     { text: "环境搭建", link: "/zh/ContributionGuide/ContributingCode/Build-Develop-Env" },
                     { text: "Cargo运行", link: "/zh/ContributionGuide/ContributingCode/Cargo-Running" },
+                    { text: "故障排查", link: "/zh/ContributionGuide/ContributingCode/Troubleshooting" },
                     { text: "VSCode 运行", link: "/zh/ContributionGuide/ContributingCode/VsCode-Running" },
                     { text: "代码结构", link: "/zh/ContributionGuide/ContributingCode/Code-Structure" },
                 ]
