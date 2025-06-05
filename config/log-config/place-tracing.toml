@@ -25,6 +25,6 @@ prefix = "place-server-"
 suffix = "log"
 max_log_files = 10
 
-[tokio-console]
+[tokio_console]
 kind = "TokioConsole"
 bind = "127.0.0.1:5674"
