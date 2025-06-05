@@ -526,7 +526,7 @@ where
                     pkid: pub_ack.pkid,
                 }) {
                     error!(
-                            "publish ack send ack manager message error, error message:{}, send data time: {}, recv ack time:{}, client_id: {}",
+                            "send puback to channel fail, error message:{}, send data time: {}, recv ack time:{}, client_id: {}",
                             e,data.create_time,now_second(),conn.client_id
                         );
                 }
@@ -550,7 +550,7 @@ where
                     ack_type: QosAckPackageType::PubRec,
                     pkid: pub_rec.pkid,
                 }) {
-                    error!("publish rec send ack manager message error, error message:{}, send data time: {}, recv rec time:{}, client_id: {}", 
+                    error!("send pubrec to channel fail, error message:{}, send data time: {}, recv rec time:{}, client_id: {}", 
                         e,data.create_time,now_second(),client_id);
                 }
             }
@@ -578,7 +578,7 @@ where
                     pkid: pub_comp.pkid,
                 }) {
                     error!(
-                            "publish comp send ack manager message error, error message:{}, send data time: {}, recv comp time:{}, client_id: {}",
+                            "send pubcomp to channel fail, error message:{}, send data time: {}, recv comp time:{}, client_id: {}",
                             e,data.create_time,now_second(),client_id
                         );
                 }

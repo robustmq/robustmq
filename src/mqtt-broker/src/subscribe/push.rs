@@ -539,9 +539,16 @@ where
             }
             val = ac_fn() => {
                 if let Err(e) = val{
-                    error!("retry tool fn fail, error message:{}",e);
-                    sleep(Duration::from_secs(1)).await;
-                    continue;
+                    match e{
+                        MqttBrokerError::SessionNullSkipPushMessage(_) => {}
+                        MqttBrokerError::ConnectionNullSkipPushMessage(_) => {}
+                        MqttBrokerError::NotObtainAvailableConnection(_, _) => {}
+                        _ => {
+                            error!("retry tool fn fail, error message:{}",e);
+                            sleep(Duration::from_secs(1)).await;
+                            continue;
+                        }
+                    }
                 }
                 break;
             }

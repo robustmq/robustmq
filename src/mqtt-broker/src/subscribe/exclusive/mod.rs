@@ -261,14 +261,7 @@ where
     let last_offset = results.last().unwrap().offset.unwrap();
     if let Err(e) = push_fn().await {
         loop_commit_offset(message_storage, &subscriber.topic_id, group_id, last_offset).await?;
-        match e {
-            MqttBrokerError::SessionNullSkipPushMessage(_) => {}
-            MqttBrokerError::ConnectionNullSkipPushMessage(_) => {}
-            MqttBrokerError::NotObtainAvailableConnection(_, _) => {}
-            _ => {
-                error!("{}", e);
-            }
-        }
+        error!("exclusive push fail,error message:{}", e);
     }
 
     Ok(Some(last_offset))
