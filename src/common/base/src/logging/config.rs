@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{collections::HashMap, io};
+use std::collections::HashMap;
 
 use serde::Deserialize;
-use tracing_appender::non_blocking::{NonBlocking, WorkerGuard};
+use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{Layer, Registry};
 
 use crate::{
@@ -25,36 +25,22 @@ use crate::{
 
 // TODO: implement size based rotation
 
-pub(super) trait AppenderConfig {
-    fn create_appender(&self) -> Result<impl io::Write + Send + 'static, LogConfigError>;
+pub(super) trait AppenderConfig<S = Registry>
+where
+    S: tracing::Subscriber,
+{
+    fn create_layer_and_guard(&self) -> Result<(BoxedLayer<S>, WorkerGuard), LogConfigError>;
 }
 
 /// Supported configurations for log appenders.
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(tag = "kind")]
-enum Appender {
+pub(super) enum Appender {
     Console(ConsoleAppenderConfig),
     RollingFile(RollingFileAppenderConfig),
 }
 
-impl Appender {
-    fn create_non_blocking_writer(self) -> Result<(NonBlocking, WorkerGuard), LogConfigError> {
-        match self {
-            Appender::Console(console_appender_config) => {
-                let writer = console_appender_config.create_appender()?;
-                let (non_blocking, guard) = tracing_appender::non_blocking(writer);
-                Ok((non_blocking, guard))
-            }
-            Appender::RollingFile(rolling_file_appender_config) => {
-                let writer = rolling_file_appender_config.create_appender()?;
-                let (non_blocking, guard) = tracing_appender::non_blocking(writer);
-                Ok((non_blocking, guard))
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub(super) enum Level {
     Error,
     Warn,
@@ -75,35 +61,30 @@ impl From<Level> for tracing::Level {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub(super) struct Config {
-    #[serde(flatten)]
-    appender: Appender,
-    level: Level,
-}
-
-type BoxedLayer<S = Registry> = Box<dyn Layer<S> + Send + Sync + 'static>;
-
-fn fmt_layer<S>(with_ansi: bool) -> tracing_subscriber::fmt::Layer<S> {
-    tracing_subscriber::fmt::layer().with_ansi(with_ansi)
-}
-
-impl Config {
-    pub(super) fn create_layer(self) -> Result<(BoxedLayer, WorkerGuard), LogConfigError> {
-        let level: tracing::Level = self.level.into();
-        let (writer, guard) = self.appender.create_non_blocking_writer()?;
-        let layer = fmt_layer(true)
-            .with_writer(writer)
-            .with_filter(tracing_subscriber::filter::LevelFilter::from(level))
-            .boxed();
-        Ok((layer, guard))
+impl Appender {
+    pub(super) fn create_layer_and_guard<S>(
+        self,
+    ) -> Result<(BoxedLayer<S>, WorkerGuard), LogConfigError>
+    where
+        S: tracing::Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
+    {
+        match self {
+            Appender::Console(console_appender_config) => {
+                console_appender_config.create_layer_and_guard()
+            }
+            Appender::RollingFile(rolling_file_appender_config) => {
+                rolling_file_appender_config.create_layer_and_guard()
+            }
+        }
     }
 }
+
+pub(super) type BoxedLayer<S = Registry> = Box<dyn Layer<S> + Send + Sync + 'static>;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(transparent)]
 pub(super) struct Configs {
-    pub(super) appenders: HashMap<String, Config>,
+    pub(super) appenders: HashMap<String, Appender>,
 }
 
 #[cfg(test)]
@@ -139,10 +120,8 @@ mod tests {
             config = CONSOLE_CONFIG_TOML
         );
 
-        let config: super::Config = toml::from_str(&config_toml).unwrap();
-
-        assert!(matches!(config.appender, Appender::Console(_)));
-        assert_eq!(config.level, Level::Debug);
+        let appender: super::Appender = toml::from_str(&config_toml).unwrap();
+        assert!(matches!(appender, Appender::Console(_)));
     }
 
     #[test]
@@ -154,16 +133,8 @@ mod tests {
             config = ROLLING_FILE_CONFIG_TOML
         );
 
-        let config: super::Config = toml::from_str(&config_toml).unwrap();
-
-        assert_eq!(config.level, Level::Debug);
-
-        let expected: RollingFileAppenderConfig = toml::from_str(ROLLING_FILE_CONFIG_TOML).unwrap();
-        if let Appender::RollingFile(found) = config.appender {
-            assert_eq!(found, expected);
-        } else {
-            panic!("Expected RollingFile appender");
-        }
+        let config: super::Appender = toml::from_str(&config_toml).unwrap();
+        assert!(matches!(config, Appender::RollingFile(_)));
     }
 
     #[test]
@@ -185,29 +156,9 @@ mod tests {
         assert!(configs.appenders.contains_key(CONSOLE_TABLE_NAME));
         assert!(configs.appenders.contains_key(ROLLING_FILE_TABLE_NAME));
 
-        let console_config = configs.appenders.get(CONSOLE_TABLE_NAME).unwrap();
-        assert!(matches!(console_config.appender, Appender::Console(_)));
-        assert_eq!(console_config.level, Level::Debug);
-        let rolling_file_config = configs.appenders.get(ROLLING_FILE_TABLE_NAME).unwrap();
-        assert!(matches!(
-            rolling_file_config.appender,
-            Appender::RollingFile(_)
-        ));
-        assert_eq!(rolling_file_config.level, Level::Debug);
-
-        let expected_console: ConsoleAppenderConfig = toml::from_str(CONSOLE_CONFIG_TOML).unwrap();
-        if let Appender::Console(found) = &console_config.appender {
-            assert_eq!(found, &expected_console);
-        } else {
-            panic!("Expected Console appender");
-        }
-
-        let expected_rolling_file: RollingFileAppenderConfig =
-            toml::from_str(ROLLING_FILE_CONFIG_TOML).unwrap();
-        if let Appender::RollingFile(found) = &rolling_file_config.appender {
-            assert_eq!(found, &expected_rolling_file);
-        } else {
-            panic!("Expected RollingFile appender");
-        }
+        let console_appender = configs.appenders.get(CONSOLE_TABLE_NAME).unwrap();
+        assert!(matches!(console_appender, Appender::Console(_)));
+        let rolling_file_appender = configs.appenders.get(ROLLING_FILE_TABLE_NAME).unwrap();
+        assert!(matches!(rolling_file_appender, Appender::RollingFile(_)));
     }
 }

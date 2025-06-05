@@ -26,7 +26,9 @@ use crate::tools::{file_exists, read_file, try_create_fold};
 
 mod config;
 mod console;
+mod fmt;
 mod rolling_file;
+mod tokio_console;
 
 pub fn init_placement_center_log() -> Result<Vec<WorkerGuard>, LogConfigError> {
     let conf = placement_center_conf();
@@ -88,8 +90,8 @@ fn init_tracing_subscriber_with_config(
     let mut layers = Vec::with_capacity(config.appenders.len());
     let mut guards = Vec::with_capacity(config.appenders.len());
 
-    for (_name, appender_conf) in config.appenders {
-        let (layer, guard) = appender_conf.create_layer()?;
+    for (_name, conf) in config.appenders {
+        let (layer, guard) = conf.create_layer_and_guard()?;
         layers.push(layer);
         guards.push(guard);
     }

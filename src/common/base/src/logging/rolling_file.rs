@@ -1,8 +1,15 @@
-use std::io;
-
 use serde::Deserialize;
+use tracing::Subscriber;
+use tracing_appender::non_blocking::WorkerGuard;
+use tracing_subscriber::registry::LookupSpan;
 
-use crate::{error::log_config::LogConfigError, logging::config::AppenderConfig};
+use crate::{
+    error::log_config::LogConfigError,
+    logging::{
+        config::{AppenderConfig, BoxedLayer, Level},
+        fmt::FmtLayerConfig,
+    },
+};
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 enum Rotation {
@@ -25,15 +32,23 @@ impl From<Rotation> for tracing_appender::rolling::Rotation {
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub(super) struct RollingFileAppenderConfig {
+    level: Level,
+
     rotation: Rotation,
     directory: String,
     prefix: Option<String>,
     suffix: Option<String>,
     max_log_files: Option<usize>,
+
+    #[serde(flatten)]
+    fmt: FmtLayerConfig,
 }
 
-impl AppenderConfig for RollingFileAppenderConfig {
-    fn create_appender(&self) -> Result<impl io::Write + Send + 'static, LogConfigError> {
+impl<S> AppenderConfig<S> for RollingFileAppenderConfig
+where
+    S: Subscriber + for<'a> LookupSpan<'a>,
+{
+    fn create_layer_and_guard(&self) -> Result<(BoxedLayer<S>, WorkerGuard), LogConfigError> {
         let mut builder = tracing_appender::rolling::Builder::new();
 
         // Optional fields
@@ -49,7 +64,11 @@ impl AppenderConfig for RollingFileAppenderConfig {
 
         // Mandatory fields
         builder = builder.rotation(self.rotation.into());
-        builder.build(&self.directory).map_err(Into::into)
+        let writer = builder.build(&self.directory)?;
+
+        let (non_blocking, guard) = tracing_appender::non_blocking(writer);
+        let fmt_layer = self.fmt.create_layer(non_blocking, self.level);
+        Ok((fmt_layer, guard))
     }
 }
 
@@ -58,8 +77,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_deserialize_rolling_file_appender_config() {
+    fn test_deserialize_rolling_file_appender_config_default_fmt() {
         let toml_str = r#"
+            level = "Debug"
+            kind = "RollingFile"
             rotation = "Daily"
             directory = "/var/log/myapp"
             prefix = "myapp-"
@@ -75,5 +96,34 @@ mod tests {
         assert_eq!(config.prefix, Some("myapp-".to_string()));
         assert_eq!(config.suffix, Some(".log".to_string()));
         assert_eq!(config.max_log_files, Some(7));
+    }
+
+    #[test]
+    fn test_deserialize_rolling_file_appender_config_custom_fmt() {
+        let toml_str = r#"
+            level = "Info"
+            kind = "RollingFile"
+            rotation = "Hourly"
+            directory = "/var/log/myapp"
+            prefix = "myapp-"
+            suffix = ".log"
+            max_log_files = 5
+            ansi = true
+            formatter = "Pretty"
+        "#;
+
+        let config: RollingFileAppenderConfig =
+            toml::from_str(toml_str).expect("Failed to deserialize config");
+
+        assert_eq!(config.rotation, Rotation::Hourly);
+        assert_eq!(config.directory, "/var/log/myapp");
+        assert_eq!(config.prefix, Some("myapp-".to_string()));
+        assert_eq!(config.suffix, Some(".log".to_string()));
+        assert_eq!(config.max_log_files, Some(5));
+        assert_eq!(config.fmt.ansi, Some(true));
+        assert_eq!(
+            config.fmt.formatter,
+            Some(crate::logging::fmt::Formatter::Pretty)
+        );
     }
 }
