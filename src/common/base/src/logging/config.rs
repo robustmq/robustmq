@@ -20,7 +20,7 @@ use tracing_subscriber::{Layer, Registry};
 
 use crate::{
     error::log_config::LogConfigError,
-    logging::{console::ConsoleAppenderConfig, rolling_file::RollingFileAppenderConfig},
+    logging::{console::ConsoleAppenderConfig, rolling_file::RollingFileAppenderConfig, tokio_console::TokioConsoleAppenderConfig},
 };
 
 // TODO: implement size based rotation
@@ -40,6 +40,7 @@ where
 pub(super) enum Appender {
     Console(ConsoleAppenderConfig),
     RollingFile(RollingFileAppenderConfig),
+    TokioConsole(TokioConsoleAppenderConfig),
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -77,6 +78,9 @@ impl Appender {
             Appender::RollingFile(rolling_file_appender_config) => {
                 rolling_file_appender_config.create_layer_and_guard()
             }
+            Appender::TokioConsole(tokio_console_appender_config) => {
+                tokio_console_appender_config.create_layer_and_guard()
+            },
         }
     }
 }

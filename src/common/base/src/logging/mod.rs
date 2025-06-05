@@ -102,9 +102,6 @@ fn init_tracing_subscriber_with_config(
 
     let registry = tracing_subscriber::registry().with(layers);
 
-    #[cfg(tokio_console)]
-    let registry = registry.with(console_subscriber::spawn());
-
     registry.init();
 
     Ok(guards)
