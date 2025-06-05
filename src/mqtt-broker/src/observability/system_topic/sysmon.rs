@@ -119,7 +119,10 @@ async fn is_send_a_new_system_event<S>(
 {
     let mut message = SystemAlarmEventMessage {
         name: alarm_type.to_string(),
-        message: format!("{} is {}%", alarm_type, config_usage),
+        message: format!(
+            "{} is {}%, but config is {}%",
+            alarm_type, current_usage, config_usage
+        ),
         activate_at: chrono::Utc::now().timestamp(),
         activated: false,
     };
@@ -309,5 +312,295 @@ mod tests {
 
         assert_eq!(record[0].data, except_message.data);
         assert_eq!(record[0].crc_num, except_message.crc_num);
+    }
+
+    #[tokio::test]
+    async fn test_is_send_a_new_system_event_current_usage_gt_config_usage() {
+        let path = format!(
+            "{}/../../config/mqtt-server.toml",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        init_broker_mqtt_conf_by_path(&path);
+        let client_pool = Arc::new(ClientPool::new(3));
+        let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
+        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+
+        let current_cpu_usage = 90.0; // Simulate current CPU usage
+        let config_cpu_usage = broker_mqtt_conf().system_monitor.os_cpu_high_watermark;
+
+        let except_key = AlarmType::HighCpuUsage;
+        let except_value = SystemAlarmEventMessage {
+            name: except_key.to_string(),
+            message: format!(
+                "{} is {}%, but config is {}%",
+                except_key, current_cpu_usage, config_cpu_usage
+            ),
+            activate_at: chrono::Utc::now().timestamp(),
+            activated: true,
+        };
+
+        is_send_a_new_system_event(
+            &client_pool,
+            &metadata_cache,
+            &message_storage_adapter,
+            AlarmType::HighCpuUsage,
+            current_cpu_usage,
+            config_cpu_usage,
+        )
+        .await;
+
+        let need_check_message = metadata_cache.get_alarm_event(except_key.as_str()).unwrap();
+
+        assert_eq!(need_check_message.name, except_value.name);
+        assert_eq!(need_check_message.message, except_value.message);
+        assert_eq!(need_check_message.activated, except_value.activated);
+    }
+
+    #[tokio::test]
+    async fn test_is_send_a_new_system_event_current_usage_le_config_usage() {
+        let path = format!(
+            "{}/../../config/mqtt-server.toml",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        init_broker_mqtt_conf_by_path(&path);
+        let client_pool = Arc::new(ClientPool::new(3));
+        let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
+        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+
+        let current_cpu_usage = 50.0; // Simulate current CPU usage
+        let config_cpu_usage = broker_mqtt_conf().system_monitor.os_cpu_high_watermark;
+
+        let except_key = AlarmType::HighCpuUsage;
+        let except_value = SystemAlarmEventMessage {
+            name: except_key.to_string(),
+            message: format!(
+                "{} is {}%, but config is {}%",
+                except_key, current_cpu_usage, config_cpu_usage
+            ),
+            activate_at: chrono::Utc::now().timestamp(),
+            activated: false,
+        };
+
+        is_send_a_new_system_event(
+            &client_pool,
+            &metadata_cache,
+            &message_storage_adapter,
+            AlarmType::HighCpuUsage,
+            current_cpu_usage,
+            config_cpu_usage,
+        )
+        .await;
+
+        let need_check_message = metadata_cache.get_alarm_event(except_key.as_str()).unwrap();
+
+        assert_eq!(need_check_message.name, except_value.name);
+        assert_eq!(need_check_message.message, except_value.message);
+        assert_eq!(need_check_message.activated, except_value.activated);
+    }
+
+    #[tokio::test]
+    async fn test_is_send_a_new_system_event_metadata_exist_value_but_the_value_is_different() {
+        let path = format!(
+            "{}/../../config/mqtt-server.toml",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        init_broker_mqtt_conf_by_path(&path);
+        let client_pool = Arc::new(ClientPool::new(3));
+        let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
+        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+
+        let current_cpu_usage = 90.0; // Simulate current CPU usage
+        let config_cpu_usage = broker_mqtt_conf().system_monitor.os_cpu_high_watermark;
+
+        let except_key = AlarmType::HighCpuUsage;
+        let except_value = SystemAlarmEventMessage {
+            name: except_key.to_string(),
+            message: format!(
+                "{} is {}%, but config is {}%",
+                except_key, current_cpu_usage, config_cpu_usage
+            ),
+            activate_at: chrono::Utc::now().timestamp(),
+            activated: true,
+        };
+
+        is_send_a_new_system_event(
+            &client_pool,
+            &metadata_cache,
+            &message_storage_adapter,
+            AlarmType::HighCpuUsage,
+            current_cpu_usage,
+            config_cpu_usage,
+        )
+        .await;
+
+        let first_check_message = metadata_cache.get_alarm_event(except_key.as_str()).unwrap();
+
+        assert_eq!(first_check_message.name, except_value.name);
+        assert_eq!(first_check_message.message, except_value.message);
+        assert_eq!(first_check_message.activated, except_value.activated);
+
+        let current_cpu_usage = 50.0;
+        let except_value = SystemAlarmEventMessage {
+            name: except_key.to_string(),
+            message: format!(
+                "{} is {}%, but config is {}%",
+                except_key, current_cpu_usage, config_cpu_usage
+            ),
+            activate_at: chrono::Utc::now().timestamp(),
+            activated: false,
+        };
+
+        is_send_a_new_system_event(
+            &client_pool,
+            &metadata_cache,
+            &message_storage_adapter,
+            AlarmType::HighCpuUsage,
+            current_cpu_usage,
+            config_cpu_usage,
+        )
+        .await;
+
+        let twice_check_message = metadata_cache.get_alarm_event(except_key.as_str()).unwrap();
+        assert_eq!(twice_check_message.name, except_value.name);
+        assert_eq!(twice_check_message.message, except_value.message);
+        assert_eq!(twice_check_message.activated, except_value.activated);
+    }
+
+    #[tokio::test]
+    async fn test_is_send_a_new_system_event_metadata_exist_value_and_the_value_is_same() {
+        let path = format!(
+            "{}/../../config/mqtt-server.toml",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        init_broker_mqtt_conf_by_path(&path);
+        let client_pool = Arc::new(ClientPool::new(3));
+        let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
+        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+
+        let current_cpu_usage = 90.0; // Simulate current CPU usage
+        let config_cpu_usage = broker_mqtt_conf().system_monitor.os_cpu_high_watermark;
+
+        let except_key = AlarmType::HighCpuUsage;
+        let except_value = SystemAlarmEventMessage {
+            name: except_key.to_string(),
+            message: format!(
+                "{} is {}%, but config is {}%",
+                except_key, current_cpu_usage, config_cpu_usage
+            ),
+            activate_at: chrono::Utc::now().timestamp(),
+            activated: true,
+        };
+
+        is_send_a_new_system_event(
+            &client_pool,
+            &metadata_cache,
+            &message_storage_adapter,
+            AlarmType::HighCpuUsage,
+            current_cpu_usage,
+            config_cpu_usage,
+        )
+        .await;
+
+        let first_check_message = metadata_cache.get_alarm_event(except_key.as_str()).unwrap();
+
+        assert_eq!(first_check_message.name, except_value.name);
+        assert_eq!(first_check_message.message, except_value.message);
+        assert_eq!(first_check_message.activated, except_value.activated);
+
+        let current_cpu_usage = 91.0;
+
+        is_send_a_new_system_event(
+            &client_pool,
+            &metadata_cache,
+            &message_storage_adapter,
+            AlarmType::HighCpuUsage,
+            current_cpu_usage,
+            config_cpu_usage,
+        )
+        .await;
+
+        let twice_check_message = metadata_cache.get_alarm_event(except_key.as_str()).unwrap();
+        assert_eq!(twice_check_message.name, except_value.name);
+        assert_eq!(twice_check_message.message, except_value.message);
+        assert_eq!(twice_check_message.activated, except_value.activated);
+    }
+
+    #[tokio::test]
+    async fn test_is_send_a_new_system_event_metadata_param_is_different() {
+        let path = format!(
+            "{}/../../config/mqtt-server.toml",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        init_broker_mqtt_conf_by_path(&path);
+        let client_pool = Arc::new(ClientPool::new(3));
+        let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
+        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+
+        let current_cpu_usage = 90.0; // Simulate current CPU usage
+        let config_cpu_usage = broker_mqtt_conf().system_monitor.os_cpu_high_watermark;
+
+        let except_cpu_key = AlarmType::HighCpuUsage;
+        let except_memory_value = SystemAlarmEventMessage {
+            name: except_cpu_key.to_string(),
+            message: format!(
+                "{} is {}%, but config is {}%",
+                except_cpu_key, current_cpu_usage, config_cpu_usage
+            ),
+            activate_at: chrono::Utc::now().timestamp(),
+            activated: true,
+        };
+
+        is_send_a_new_system_event(
+            &client_pool,
+            &metadata_cache,
+            &message_storage_adapter,
+            AlarmType::HighCpuUsage,
+            current_cpu_usage,
+            config_cpu_usage,
+        )
+        .await;
+
+        let cpu_check_message = metadata_cache
+            .get_alarm_event(except_cpu_key.as_str())
+            .unwrap();
+
+        assert_eq!(cpu_check_message.name, except_memory_value.name);
+        assert_eq!(cpu_check_message.message, except_memory_value.message);
+        assert_eq!(cpu_check_message.activated, except_memory_value.activated);
+
+        let current_memory_usage = 95.0; // Simulate current CPU usage
+        let config_memory_usage = broker_mqtt_conf().system_monitor.os_memory_high_watermark;
+
+        let except_memory_key = AlarmType::MemoryUsage;
+        let except_memory_value = SystemAlarmEventMessage {
+            name: except_memory_key.to_string(),
+            message: format!(
+                "{} is {}%, but config is {}%",
+                except_memory_key, current_memory_usage, config_memory_usage
+            ),
+            activate_at: chrono::Utc::now().timestamp(),
+            activated: true,
+        };
+
+        is_send_a_new_system_event(
+            &client_pool,
+            &metadata_cache,
+            &message_storage_adapter,
+            AlarmType::MemoryUsage,
+            current_memory_usage,
+            config_memory_usage,
+        )
+        .await;
+
+        let memory_check_message = metadata_cache
+            .get_alarm_event(except_memory_key.as_str())
+            .unwrap();
+
+        assert_eq!(memory_check_message.name, except_memory_value.name);
+        assert_eq!(memory_check_message.message, except_memory_value.message);
+        assert_eq!(
+            memory_check_message.activated,
+            except_memory_value.activated
+        );
     }
 }
