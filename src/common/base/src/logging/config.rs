@@ -29,7 +29,9 @@ pub(super) trait AppenderConfig<S = Registry>
 where
     S: tracing::Subscriber,
 {
-    fn create_layer_and_guard(&self) -> Result<(BoxedLayer<S>, WorkerGuard), LogConfigError>;
+    fn create_layer_and_guard(
+        &self,
+    ) -> Result<(BoxedLayer<S>, Option<WorkerGuard>), LogConfigError>;
 }
 
 /// Supported configurations for log appenders.
@@ -64,7 +66,7 @@ impl From<Level> for tracing::Level {
 impl Appender {
     pub(super) fn create_layer_and_guard<S>(
         self,
-    ) -> Result<(BoxedLayer<S>, WorkerGuard), LogConfigError>
+    ) -> Result<(BoxedLayer<S>, Option<WorkerGuard>), LogConfigError>
     where
         S: tracing::Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
     {

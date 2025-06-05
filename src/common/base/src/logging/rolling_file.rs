@@ -48,7 +48,9 @@ impl<S> AppenderConfig<S> for RollingFileAppenderConfig
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {
-    fn create_layer_and_guard(&self) -> Result<(BoxedLayer<S>, WorkerGuard), LogConfigError> {
+    fn create_layer_and_guard(
+        &self,
+    ) -> Result<(BoxedLayer<S>, Option<WorkerGuard>), LogConfigError> {
         let mut builder = tracing_appender::rolling::Builder::new();
 
         // Optional fields
@@ -68,7 +70,7 @@ where
 
         let (non_blocking, guard) = tracing_appender::non_blocking(writer);
         let fmt_layer = self.fmt.create_layer(non_blocking, self.level);
-        Ok((fmt_layer, guard))
+        Ok((fmt_layer, Some(guard)))
     }
 }
 

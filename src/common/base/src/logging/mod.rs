@@ -92,8 +92,12 @@ fn init_tracing_subscriber_with_config(
 
     for (_name, conf) in config.appenders {
         let (layer, guard) = conf.create_layer_and_guard()?;
+
         layers.push(layer);
-        guards.push(guard);
+
+        if let Some(guard) = guard {
+            guards.push(guard);
+        }
     }
 
     let registry = tracing_subscriber::registry().with(layers);
