@@ -27,8 +27,8 @@ use super::default_mqtt::{
     default_mqtt_cluster_dynamic_security, default_mqtt_cluster_dynamic_slow_sub, default_network,
     default_network_quic_port, default_network_tcp_port, default_network_tcps_port,
     default_network_websocket_port, default_network_websockets_port, default_offline_message,
-    default_placement_center, default_storage, default_system, default_tcp_thread,
-    default_telemetry,default_system_monitor
+    default_placement_center, default_storage, default_system, default_system_monitor,
+    default_tcp_thread, default_telemetry,
 };
 use crate::tools::{read_file, try_create_fold};
 
@@ -48,6 +48,8 @@ pub struct BrokerMqttConfig {
     pub tcp_thread: TcpThread,
     #[serde(default = "default_system")]
     pub system: System,
+    #[serde(default = "default_system_monitor")]
+    pub system_monitor: SystemMonitor,
     #[serde(default = "default_storage")]
     pub storage: Storage,
     #[serde(default = "default_auth")]
@@ -453,7 +455,6 @@ mod tests {
                 assert_eq!(config.system.runtime_worker_threads, 1280);
                 assert_eq!(config.system.default_user, "admin-env".to_string());
                 assert_eq!(config.system.default_password, "pwd123-env".to_string());
-
 
                 assert!(config.system_monitor.enable);
                 assert_eq!(config.system_monitor.os_cpu_check_interval_ms, 60);
