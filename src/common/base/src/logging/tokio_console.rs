@@ -5,7 +5,10 @@ use tracing::Subscriber;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{registry::LookupSpan, Layer};
 
-use crate::{error::log_config::LogConfigError, logging::config::{AppenderConfig, BoxedLayer}};
+use crate::{
+    error::log_config::LogConfigError,
+    logging::config::{AppenderConfig, BoxedLayer},
+};
 
 // TODO: support more advanced configurations
 #[derive(Debug, Clone, Deserialize, PartialEq)]

@@ -20,7 +20,10 @@ use tracing_subscriber::{Layer, Registry};
 
 use crate::{
     error::log_config::LogConfigError,
-    logging::{console::ConsoleAppenderConfig, rolling_file::RollingFileAppenderConfig, tokio_console::TokioConsoleAppenderConfig},
+    logging::{
+        console::ConsoleAppenderConfig, rolling_file::RollingFileAppenderConfig,
+        tokio_console::TokioConsoleAppenderConfig,
+    },
 };
 
 // TODO: implement size based rotation
@@ -80,7 +83,7 @@ impl Appender {
             }
             Appender::TokioConsole(tokio_console_appender_config) => {
                 tokio_console_appender_config.create_layer_and_guard()
-            },
+            }
         }
     }
 }
