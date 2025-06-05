@@ -25,4 +25,7 @@ pub enum LogConfigError {
 
     #[error(transparent)]
     RollingFileAppenderInit(#[from] tracing_appender::rolling::InitError),
+
+    #[error(transparent)]
+    Addr(#[from] std::net::AddrParseError),
 }

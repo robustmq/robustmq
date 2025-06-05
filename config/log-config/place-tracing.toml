@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[appenders.stdout]
+[stdout]
 kind = "Console"
 level = "Info"
 
-[appenders.server]
+[server]
 kind = "RollingFile"
 level = "Info"
 rotation = "Minutely"
@@ -24,3 +24,8 @@ directory = "./logs/tests"
 prefix = "place-server-"
 suffix = "log"
 max_log_files = 10
+
+## Uncomment the section below to enable troubleshooting with `tokio-console`.
+# [tokio_console]
+# kind = "TokioConsole"
+# bind = "127.0.0.1:5674"

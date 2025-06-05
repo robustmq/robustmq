@@ -25,6 +25,10 @@ use crate::error::log_config::LogConfigError;
 use crate::tools::{file_exists, read_file, try_create_fold};
 
 mod config;
+mod console;
+mod fmt;
+mod rolling_file;
+mod tokio_console;
 
 pub fn init_placement_center_log() -> Result<Vec<WorkerGuard>, LogConfigError> {
     let conf = placement_center_conf();
@@ -76,33 +80,28 @@ pub fn init_tracing_subscriber(
         }
     }
 
-    let config: config::Config = toml::from_str(&content)?;
+    let config: config::Configs = toml::from_str(&content)?;
     init_tracing_subscriber_with_config(config)
 }
 
 fn init_tracing_subscriber_with_config(
-    config: config::Config,
+    config: config::Configs,
 ) -> Result<Vec<WorkerGuard>, LogConfigError> {
     let mut layers = Vec::with_capacity(config.appenders.len());
     let mut guards = Vec::with_capacity(config.appenders.len());
 
-    for (_name, appender_conf) in config.appenders {
-        let (layer, guard) = appender_conf.try_into_layer()?;
+    for (_name, conf) in config.appenders {
+        let (layer, guard) = conf.create_layer_and_guard()?;
+
         layers.push(layer);
+
         if let Some(guard) = guard {
             guards.push(guard);
         }
     }
 
     let registry = tracing_subscriber::registry().with(layers);
-
-    #[cfg(tokio_console)]
-    let registry = registry.with(console_subscriber::spawn());
-
     registry.init();
 
     Ok(guards)
 }
-
-#[cfg(test)]
-mod tests {}

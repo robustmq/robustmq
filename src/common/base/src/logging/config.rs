@@ -18,35 +18,35 @@ use serde::Deserialize;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{Layer, Registry};
 
-use crate::error::log_config::LogConfigError;
+use crate::{
+    error::log_config::LogConfigError,
+    logging::{
+        console::ConsoleAppenderConfig, rolling_file::RollingFileAppenderConfig,
+        tokio_console::TokioConsoleAppenderConfig,
+    },
+};
 
 // TODO: implement size based rotation
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub(super) enum Rotation {
-    Minutely,
-    Hourly,
-    Daily,
-    Never,
+
+pub(super) trait AppenderConfig<S = Registry>
+where
+    S: tracing::Subscriber,
+{
+    fn create_layer_and_guard(
+        &self,
+    ) -> Result<(BoxedLayer<S>, Option<WorkerGuard>), LogConfigError>;
 }
 
-impl From<Rotation> for tracing_appender::rolling::Rotation {
-    fn from(value: Rotation) -> Self {
-        match value {
-            Rotation::Minutely => tracing_appender::rolling::Rotation::MINUTELY,
-            Rotation::Hourly => tracing_appender::rolling::Rotation::HOURLY,
-            Rotation::Daily => tracing_appender::rolling::Rotation::DAILY,
-            Rotation::Never => tracing_appender::rolling::Rotation::NEVER,
-        }
-    }
+/// Supported configurations for log appenders.
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(tag = "kind")]
+pub(super) enum Appender {
+    Console(ConsoleAppenderConfig),
+    RollingFile(RollingFileAppenderConfig),
+    TokioConsole(TokioConsoleAppenderConfig),
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub(super) enum AppenderKind {
-    Console,
-    RollingFile,
-}
-
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub(super) enum Level {
     Error,
     Warn,
@@ -67,186 +67,107 @@ impl From<Level> for tracing::Level {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub(super) struct AppenderConfig {
-    pub(super) kind: AppenderKind,
-    pub(super) level: Level,
-
-    // Optional fields for RollingFile appender
-    // TODO: whether we want to validate these fields for console appender?
-    pub(super) rotation: Option<Rotation>,
-    pub(super) directory: Option<String>,
-    pub(super) prefix: Option<String>,
-    pub(super) suffix: Option<String>,
-    pub(super) max_log_files: Option<u32>,
-}
-
-type BoxedLayer<S = Registry> = Box<dyn Layer<S> + Send + Sync + 'static>;
-
-fn fmt_layer<S>(with_ansi: bool) -> tracing_subscriber::fmt::Layer<S> {
-    tracing_subscriber::fmt::layer().with_ansi(with_ansi)
-}
-
-impl AppenderConfig {
-    pub(super) fn try_into_layer(
+impl Appender {
+    pub(super) fn create_layer_and_guard<S>(
         self,
-    ) -> Result<(BoxedLayer, Option<WorkerGuard>), LogConfigError> {
-        match self.kind {
-            AppenderKind::Console => {
-                let level: tracing::Level = self.level.into();
-                // TODO: formatting pretty or compact?
-                let layer = fmt_layer(true)
-                    .with_filter(tracing_subscriber::filter::LevelFilter::from(level))
-                    .boxed();
-                Ok((layer, None))
+    ) -> Result<(BoxedLayer<S>, Option<WorkerGuard>), LogConfigError>
+    where
+        S: tracing::Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
+    {
+        match self {
+            Appender::Console(console_appender_config) => {
+                console_appender_config.create_layer_and_guard()
             }
-            AppenderKind::RollingFile => {
-                let level: tracing::Level = self.level.into();
-
-                let mut builder = tracing_appender::rolling::Builder::new().rotation(
-                    self.rotation
-                        .ok_or(LogConfigError::RollingFileMissingRotation)?
-                        .into(),
-                );
-
-                if let Some(prefix) = self.prefix {
-                    builder = builder.filename_prefix(prefix);
-                }
-
-                if let Some(suffix) = self.suffix {
-                    builder = builder.filename_suffix(suffix);
-                }
-
-                if let Some(max_log_files) = self.max_log_files {
-                    builder = builder.max_log_files(max_log_files as usize);
-                }
-
-                let directory = self
-                    .directory
-                    .ok_or(LogConfigError::RollingFileMissingDirectory)?;
-                let rolling = builder.build(directory)?;
-
-                // TODO: do we want to use non-blocking writer here? If panic occurs, some events may be lost.
-                let (non_blocking, guard) = tracing_appender::non_blocking(rolling);
-
-                let layer = fmt_layer(false)
-                    .with_writer(non_blocking)
-                    .with_filter(tracing_subscriber::filter::LevelFilter::from(level))
-                    .boxed();
-                Ok((layer, Some(guard)))
+            Appender::RollingFile(rolling_file_appender_config) => {
+                rolling_file_appender_config.create_layer_and_guard()
+            }
+            Appender::TokioConsole(tokio_console_appender_config) => {
+                tokio_console_appender_config.create_layer_and_guard()
             }
         }
     }
 }
 
+pub(super) type BoxedLayer<S = Registry> = Box<dyn Layer<S> + Send + Sync + 'static>;
+
 #[derive(Debug, Clone, Deserialize)]
-pub(super) struct Config {
-    pub(super) appenders: HashMap<String, AppenderConfig>,
+#[serde(transparent)]
+pub(super) struct Configs {
+    pub(super) appenders: HashMap<String, Appender>,
 }
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn test_single_console_appender_toml() {
-        let config_toml = r#"
-        [appenders]
-        stdout = { kind = "Console", level = "Info" }
-        "#;
+    use super::*;
 
-        let config: super::Config = toml::from_str(config_toml).unwrap();
-        assert_eq!(config.appenders.len(), 1);
-
-        let stdout_appender = config.appenders.get("stdout").unwrap();
-        assert_eq!(stdout_appender.kind, super::AppenderKind::Console);
-        assert_eq!(stdout_appender.level, super::Level::Info);
-        assert_eq!(stdout_appender.rotation, None);
-        assert_eq!(stdout_appender.directory, None);
-        assert_eq!(stdout_appender.prefix, None);
-    }
-
-    #[test]
-    fn test_single_rolling_file_appender_toml() {
-        let inline_config_toml = r#"
-        [appenders]
-        file = { kind = "RollingFile", level = "Debug", rotation = "Daily", directory = "/var/logs", prefix = "app" }
-        "#;
-
-        let config: super::Config = toml::from_str(inline_config_toml).unwrap();
-        assert_eq!(config.appenders.len(), 1);
-        let file_appender = config.appenders.get("file").unwrap();
-        assert_eq!(file_appender.kind, super::AppenderKind::RollingFile);
-        assert_eq!(file_appender.level, super::Level::Debug);
-        assert_eq!(file_appender.rotation, Some(super::Rotation::Daily));
-        assert_eq!(file_appender.directory, Some("/var/logs".to_string()));
-        assert_eq!(file_appender.prefix, Some("app".to_string()));
-
-        let multiline_config_toml = r#"
-        [appenders.file]
-        kind = "RollingFile"
+    const DEBUG_LEVEL_TOML: &str = r#"
         level = "Debug"
+        "#;
+
+    const CONSOLE_TABLE_NAME: &str = r#"stdout"#;
+    const CONSOLE_KIND_TOML: &str = r#"
+        kind = "Console"
+        "#;
+    const CONSOLE_CONFIG_TOML: &str = r#""#;
+
+    const ROLLING_FILE_TABLE_NAME: &str = r#"server"#;
+    const ROLLING_FILE_KIND_TOML: &str = r#"
+        kind = "RollingFile"
+        "#;
+    const ROLLING_FILE_CONFIG_TOML: &str = r#"
         rotation = "Daily"
         directory = "/var/logs"
         prefix = "app"
         "#;
 
-        let config: super::Config = toml::from_str(multiline_config_toml).unwrap();
-        assert_eq!(config.appenders.len(), 1);
-        let file_appender = config.appenders.get("file").unwrap();
-        assert_eq!(file_appender.kind, super::AppenderKind::RollingFile);
-        assert_eq!(file_appender.level, super::Level::Debug);
-        assert_eq!(file_appender.rotation, Some(super::Rotation::Daily));
-        assert_eq!(file_appender.directory, Some("/var/logs".to_string()));
-        assert_eq!(file_appender.prefix, Some("app".to_string()));
+    #[test]
+    fn test_deserialize_console_appender_toml() {
+        let config_toml = format!(
+            "{level}{kind}{config}",
+            level = DEBUG_LEVEL_TOML,
+            kind = CONSOLE_KIND_TOML,
+            config = CONSOLE_CONFIG_TOML
+        );
+
+        let appender: super::Appender = toml::from_str(&config_toml).unwrap();
+        assert!(matches!(appender, Appender::Console(_)));
     }
 
     #[test]
-    fn test_multiple_appenders_toml() {
-        let inline_config_toml = r#"
-        [appenders]
-        stdout = { kind = "Console", level = "Info" }
-        file = { kind = "RollingFile", level = "Debug", rotation = "Daily", directory = "/var/logs", prefix = "app" }
-        "#;
+    fn test_deserialize_rolling_file_appender_toml() {
+        let config_toml = format!(
+            "{level}{kind}{config}",
+            level = DEBUG_LEVEL_TOML,
+            kind = ROLLING_FILE_KIND_TOML,
+            config = ROLLING_FILE_CONFIG_TOML
+        );
 
-        let config: super::Config = toml::from_str(inline_config_toml).unwrap();
-        assert_eq!(config.appenders.len(), 2);
-        let stdout_appender = config.appenders.get("stdout").unwrap();
-        assert_eq!(stdout_appender.kind, super::AppenderKind::Console);
-        assert_eq!(stdout_appender.level, super::Level::Info);
-        assert_eq!(stdout_appender.rotation, None);
-        assert_eq!(stdout_appender.directory, None);
-        assert_eq!(stdout_appender.prefix, None);
-        let file_appender = config.appenders.get("file").unwrap();
-        assert_eq!(file_appender.kind, super::AppenderKind::RollingFile);
-        assert_eq!(file_appender.level, super::Level::Debug);
-        assert_eq!(file_appender.rotation, Some(super::Rotation::Daily));
-        assert_eq!(file_appender.directory, Some("/var/logs".to_string()));
-        assert_eq!(file_appender.prefix, Some("app".to_string()));
+        let config: super::Appender = toml::from_str(&config_toml).unwrap();
+        assert!(matches!(config, Appender::RollingFile(_)));
+    }
 
-        let mixed_config_toml = r#"
-        [appenders]
-        stdout = { kind = "Console", level = "Info" }
+    #[test]
+    fn test_deserializing_configs_toml() {
+        let config_toml = format!(
+            "[{console_table}]\n{level}{console_kind}{console_config}[{rolling_file_table}]\n{level}{rolling_file_kind}{rolling_file_config}",
+            level = DEBUG_LEVEL_TOML,
+            console_table = CONSOLE_TABLE_NAME,
+            console_kind = CONSOLE_KIND_TOML,
+            console_config = CONSOLE_CONFIG_TOML,
+            rolling_file_table = ROLLING_FILE_TABLE_NAME,
+            rolling_file_kind = ROLLING_FILE_KIND_TOML,
+            rolling_file_config = ROLLING_FILE_CONFIG_TOML
+        );
 
-        [appenders.file]
-        kind = "RollingFile"
-        level = "Debug"
-        rotation = "Daily"
-        directory = "/var/logs"
-        prefix = "app"
-        "#;
+        let configs = toml::from_str::<Configs>(&config_toml).unwrap();
+        assert_eq!(configs.appenders.len(), 2);
 
-        let config: super::Config = toml::from_str(mixed_config_toml).unwrap();
-        assert_eq!(config.appenders.len(), 2);
-        let stdout_appender = config.appenders.get("stdout").unwrap();
-        assert_eq!(stdout_appender.kind, super::AppenderKind::Console);
-        assert_eq!(stdout_appender.level, super::Level::Info);
-        assert_eq!(stdout_appender.rotation, None);
-        assert_eq!(stdout_appender.directory, None);
-        assert_eq!(stdout_appender.prefix, None);
-        let file_appender = config.appenders.get("file").unwrap();
-        assert_eq!(file_appender.kind, super::AppenderKind::RollingFile);
-        assert_eq!(file_appender.level, super::Level::Debug);
-        assert_eq!(file_appender.rotation, Some(super::Rotation::Daily));
-        assert_eq!(file_appender.directory, Some("/var/logs".to_string()));
-        assert_eq!(file_appender.prefix, Some("app".to_string()));
+        assert!(configs.appenders.contains_key(CONSOLE_TABLE_NAME));
+        assert!(configs.appenders.contains_key(ROLLING_FILE_TABLE_NAME));
+
+        let console_appender = configs.appenders.get(CONSOLE_TABLE_NAME).unwrap();
+        assert!(matches!(console_appender, Appender::Console(_)));
+        let rolling_file_appender = configs.appenders.get(ROLLING_FILE_TABLE_NAME).unwrap();
+        assert!(matches!(rolling_file_appender, Appender::RollingFile(_)));
     }
 }
