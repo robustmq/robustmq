@@ -38,6 +38,7 @@ pub struct ShareSubShareSub {
 pub struct ShareLeaderSubscribeData {
     pub group_name: String,
     pub topic_id: String,
+    pub client_id: String,
     pub topic_name: String,
     pub sub_name: String,
     // (client_id_sub_path, subscriber)
@@ -149,6 +150,7 @@ impl SubscribeManager {
                 ShareLeaderSubscribeData {
                     group_name: group_name.to_owned(),
                     topic_id: sub.topic_id.to_owned(),
+                    client_id: sub.client_id.to_owned(),
                     topic_name: sub.topic_name.to_owned(),
                     sub_name: sub_name.to_owned(),
                     sub_list: vec![sub],

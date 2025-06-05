@@ -526,7 +526,7 @@ where
                     pkid: pub_ack.pkid,
                 }) {
                     error!(
-                            "publish ack send ack manager message error, error message:{}, send data time: {}, recv ack time:{}, client_id: {}",
+                            "send puback to channel fail, error message:{}, send data time: {}, recv ack time:{}, client_id: {}",
                             e,data.create_time,now_second(),conn.client_id
                         );
                 }
@@ -546,17 +546,12 @@ where
             let client_id = conn.client_id.clone();
             let pkid = pub_rec.pkid;
             if let Some(data) = self.cache_manager.get_ack_packet(client_id.clone(), pkid) {
-                match data.sx.send(QosAckPackageData {
+                if let Err(e) = data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubRec,
                     pkid: pub_rec.pkid,
                 }) {
-                    Ok(_) => return None,
-                    Err(e) => {
-                        error!(
-                            "publish rec send ack manager message error, error message:{}, send data time: {}, recv rec time:{}, client_id: {}",
-                            e,data.create_time,now_second(),client_id
-                        );
-                    }
+                    error!("send pubrec to channel fail, error message:{}, send data time: {}, recv rec time:{}, client_id: {}", 
+                        e,data.create_time,now_second(),client_id);
                 }
             }
         }
@@ -578,17 +573,14 @@ where
             let client_id = conn.client_id.clone();
             let pkid = pub_comp.pkid;
             if let Some(data) = self.cache_manager.get_ack_packet(client_id.clone(), pkid) {
-                match data.sx.send(QosAckPackageData {
+                if let Err(e) = data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubComp,
                     pkid: pub_comp.pkid,
                 }) {
-                    Ok(_) => return None,
-                    Err(e) => {
-                        error!(
-                            "publish comp send ack manager message error, error message:{}, send data time: {}, recv comp time:{}, client_id: {}",
+                    error!(
+                            "send pubcomp to channel fail, error message:{}, send data time: {}, recv comp time:{}, client_id: {}",
                             e,data.create_time,now_second(),client_id
                         );
-                    }
                 }
             }
         }

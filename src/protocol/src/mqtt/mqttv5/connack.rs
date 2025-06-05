@@ -124,7 +124,7 @@ fn connect_code(return_code: ConnectReturnCode) -> u8 {
         ConnectReturnCode::UseAnotherServer => 156,
         ConnectReturnCode::ServerMoved => 157,
         ConnectReturnCode::ConnectionRateExceeded => 159,
-        _ => unreachable!(),
+        _ => unreachable!("Connect code unexpected value: {:?}", return_code),
     }
 }
 
