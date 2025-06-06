@@ -151,7 +151,7 @@ impl ClientKeepAlive {
             } else {
                 let mut codec = MqttCodec::new(Some(protocol.into()));
                 let mut buff = BytesMut::new();
-                if let Err(_) = codec.encode_data(wrap.clone(), &mut buff) {
+                if codec.encode_data(wrap.clone(), &mut buff).is_err() {
                     return;
                 }
 

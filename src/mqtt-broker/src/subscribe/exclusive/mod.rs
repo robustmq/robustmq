@@ -262,7 +262,7 @@ where
     let last_offset = results.last().unwrap().offset.unwrap();
     if let Err(e) = push_fn().await {
         loop_commit_offset(message_storage, &subscriber.topic_id, group_id, last_offset).await?;
-        if !is_ignore_push_error(&e){
+        if !is_ignore_push_error(&e) {
             error!("exclusive push fail,error message:{}", e);
         }
     }
