@@ -556,11 +556,7 @@ where
             }
         }
 
-        Some(response_packet_mqtt_pubrel_success(
-            &self.protocol,
-            pub_rec.pkid,
-            PubRelReason::Success,
-        ))
+        None
     }
 
     pub async fn publish_comp(

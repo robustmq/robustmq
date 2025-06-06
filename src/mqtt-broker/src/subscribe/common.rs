@@ -94,6 +94,10 @@ pub fn get_pkid() -> u16 {
 }
 
 pub fn is_ignore_push_error(e: &MqttBrokerError) -> bool {
+    if e.to_string().contains("deadline has elapsed") {
+        return true;
+    }
+    
     match e {
         MqttBrokerError::SessionNullSkipPushMessage(_) => {}
         MqttBrokerError::ConnectionNullSkipPushMessage(_) => {}
