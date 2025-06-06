@@ -72,6 +72,9 @@ use crate::observability::system_topic::stats::subscription::{
     SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_COUNT,
     SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_MAX,
 };
+use crate::observability::system_topic::sysmon::{
+    SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE, SYSTEM_TOPIC_BROKERS_ALARMS_DEACTIVATE,
+};
 use crate::storage::message::MessageStorage;
 use common_base::tools::get_local_ip;
 use grpc_clients::pool::ClientPool;
@@ -179,6 +182,12 @@ where
             &self.message_storage_adapter,
         )
         .await;
+        report_alarm_info(
+            &self.client_pool,
+            &self.metadata_cache,
+            &self.message_storage_adapter,
+        )
+        .await;
     }
 
     pub async fn try_init_system_topic(&self) {
@@ -271,8 +280,21 @@ where
             SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_RECEIVED.to_string(),
             SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_SENT.to_string(),
             SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_AUTH.to_string(),
+            // ALARM
+            SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE.to_string(),
+            SYSTEM_TOPIC_BROKERS_ALARMS_DEACTIVATE.to_string(),
         ]
     }
+}
+
+pub(crate) async fn report_alarm_info<S>(
+    client_pool: &Arc<ClientPool>,
+    metadata_cache: &Arc<CacheManager>,
+    message_storage_adapter: &Arc<S>,
+) where
+    S: StorageAdapter + Clone + Send + Sync + 'static,
+{
+    sysmon::st_check_system_alarm(client_pool, metadata_cache, message_storage_adapter).await;
 }
 
 pub(crate) async fn report_broker_info<S>(
