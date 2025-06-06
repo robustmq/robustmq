@@ -14,7 +14,7 @@
 
 [stdout]
 kind = "Console"
-level = "Info"
+level = "Warn"
 
 [server]
 kind = "RollingFile"

@@ -93,6 +93,19 @@ pub fn get_pkid() -> u16 {
     (now_nanos() % 65535) as u16
 }
 
+pub fn is_ignore_push_error(e: &MqttBrokerError) -> bool {
+    match e {
+        MqttBrokerError::SessionNullSkipPushMessage(_) => {}
+        MqttBrokerError::ConnectionNullSkipPushMessage(_) => {}
+        MqttBrokerError::NotObtainAvailableConnection(_, _) => {}
+        _ => {
+            return false;
+        }
+    }
+
+    true
+}
+
 pub fn sub_path_validator(sub_path: &str) -> Result<(), MqttBrokerError> {
     let regex = Regex::new(SUBSCRIBE_NAME_REGEX)?;
 
