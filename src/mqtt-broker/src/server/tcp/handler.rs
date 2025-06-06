@@ -22,7 +22,6 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use tracing::{debug, error, info};
 
 use crate::handler::command::Command;
-use crate::handler::error::MqttBrokerError;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::{RequestPackage, ResponsePackage};
 
@@ -149,8 +148,6 @@ fn handler_child_process<S>(
                                 } else {
                                     info!("{}","No backpacking is required for this request");
                                 }
-                            } else {
-                                error!("{}", MqttBrokerError::NotFoundConnectionInCache(packet.connection_id));
                             }
                         }
                     }

@@ -90,7 +90,11 @@ impl SubPublishParam {
 }
 
 pub fn get_pkid() -> u16 {
-    (now_nanos() % 65535) as u16
+    let id = (now_nanos() % 65535) as u16;
+    if id == 0 {
+        return 1;
+    }
+    id
 }
 
 pub fn is_ignore_push_error(e: &MqttBrokerError) -> bool {

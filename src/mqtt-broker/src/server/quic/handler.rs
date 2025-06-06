@@ -148,7 +148,7 @@ fn handler_child_process<S>(
                                     info!("{}","No backpacking is required for this request");
                                 }
                             } else {
-                                error!("{}", MqttBrokerError::NotFoundConnectionInCache(packet.connection_id));
+                                debug!("{}", MqttBrokerError::NotFoundConnectionInCache(packet.connection_id));
                             }
                         }
                     }
