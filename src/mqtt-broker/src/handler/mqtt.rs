@@ -549,7 +549,7 @@ where
                     ack_type: QosAckPackageType::PubRec,
                     pkid: pub_rec.pkid,
                 }) {
-                    error!("send pubrec to channel fail, error message:{}, send data time: {}, recv rec time:{}, client_id: {}", 
+                    error!("send pubrec to channel fail, error message:{}, send data time: {}, recv rec time:{}, client_id: {}",
                         e,data.create_time,now_second(),client_id);
                 }
             }

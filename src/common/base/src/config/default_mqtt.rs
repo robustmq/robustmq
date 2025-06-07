@@ -16,7 +16,7 @@ use super::broker_mqtt::{
     ConfigAvailableFlag, MqttClusterDynamicConfigFeature, MqttClusterDynamicConfigNetwork,
     MqttClusterDynamicConfigProtocol, MqttClusterDynamicConfigSecurity,
     MqttClusterDynamicFlappingDetect, MqttClusterDynamicSlowSub, Network, OfflineMessage, System,
-    TcpThread,
+    SystemMonitor, TcpThread,
 };
 use super::common::{Auth, Log, Storage, Telemetry};
 
@@ -77,6 +77,17 @@ pub fn default_system() -> System {
         runtime_worker_threads: 16,
         default_user: "admin".to_string(),
         default_password: "robustmq".to_string(),
+    }
+}
+
+pub fn default_system_monitor() -> SystemMonitor {
+    SystemMonitor {
+        enable: true,
+        os_cpu_check_interval_ms: 60,
+        os_cpu_high_watermark: 70.0,
+        os_cpu_low_watermark: 50.0,
+        os_memory_check_interval_ms: 60,
+        os_memory_high_watermark: 80.0,
     }
 }
 
