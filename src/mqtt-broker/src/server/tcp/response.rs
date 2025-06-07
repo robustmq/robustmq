@@ -17,10 +17,14 @@ use std::sync::Arc;
 
 use crate::handler::cache::CacheManager;
 use crate::handler::connection::disconnect_connection;
-use crate::observability::metrics::server::{metrics_request_queue, metrics_response_queue};
+use crate::observability::metrics::server::{
+    metrics_request_queue, metrics_response_queue, record_response_and_total_ms,
+};
+use crate::server::connection::NetworkConnectionType;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
 use crate::subscribe::manager::SubscribeManager;
+use common_base::tools::now_mills;
 use grpc_clients::pool::ClientPool;
 use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::mqtt::common::MqttPacket;
@@ -133,6 +137,7 @@ pub(crate) fn response_child_process(
                     },
                     val = response_process_rx.recv()=>{
                         if let Some(response_package) = val{
+                            let response_ms = now_mills();
                             let label = format!("handler-{}",index);
                             metrics_response_queue(&label, response_process_rx.len());
 
@@ -151,7 +156,8 @@ pub(crate) fn response_child_process(
                                             error!("{}",e);
                                             raw_connect_manager.close_connect(response_package.connection_id).await;
                                         }
-                                    }
+                                    };
+                                record_response_and_total_ms(&NetworkConnectionType::Tcp,response_package.get_receive_ms(),response_ms);
                             }
 
                             if let MqttPacket::Disconnect(_, _) = response_package.packet {
