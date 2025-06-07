@@ -20,6 +20,7 @@ use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
+use crate::subscribe::common::is_ignore_push_error;
 use crate::subscribe::push::{build_pub_qos, build_sub_ids};
 use protocol::mqtt::common::QoS;
 use std::sync::Arc;
@@ -261,7 +262,9 @@ where
     let last_offset = results.last().unwrap().offset.unwrap();
     if let Err(e) = push_fn().await {
         loop_commit_offset(message_storage, &subscriber.topic_id, group_id, last_offset).await?;
-        error!("exclusive push fail,error message:{}", e);
+        if !is_ignore_push_error(&e) {
+            error!("exclusive push fail,error message:{}", e);
+        }
     }
 
     Ok(Some(last_offset))

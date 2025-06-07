@@ -170,6 +170,9 @@ impl ConnectionManager {
                             break;
                         }
                         Err(e) => {
+                            if e.to_string().contains("Broken pipe") {
+                                break;
+                            }
                             if times > cluster.network.response_max_try_mut_times {
                                 return Err(MqttBrokerError::FailedToWriteClient(
                                     "websocket".to_string(),
@@ -239,6 +242,9 @@ impl ConnectionManager {
                             break;
                         }
                         Err(e) => {
+                            if e.to_string().contains("Broken pipe") {
+                                break;
+                            }
                             if times > cluster.network.response_max_try_mut_times {
                                 return Err(MqttBrokerError::FailedToWriteClient(
                                     "tcp".to_string(),
