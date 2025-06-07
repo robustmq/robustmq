@@ -16,6 +16,14 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use crate::handler::cache::CacheManager;
+use crate::handler::command::Command;
+use crate::handler::error::MqttBrokerError;
+use crate::observability::metrics::server::record_ws_request_duration;
+use crate::security::AuthDriver;
+use crate::server::connection::NetworkConnection;
+use crate::server::connection_manager::ConnectionManager;
+use crate::subscribe::manager::SubscribeManager;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{ConnectInfo, State, WebSocketUpgrade};
 use axum::response::Response;
@@ -26,6 +34,7 @@ use axum_extra::TypedHeader;
 use axum_server::tls_rustls::RustlsConfig;
 use bytes::{BufMut, BytesMut};
 use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::tools::now_mills;
 use delay_message::DelayMessageManager;
 use futures_util::stream::StreamExt;
 use grpc_clients::pool::ClientPool;
@@ -36,14 +45,6 @@ use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self};
 use tracing::{error, info, warn};
-
-use crate::handler::cache::CacheManager;
-use crate::handler::command::Command;
-use crate::handler::error::MqttBrokerError;
-use crate::security::AuthDriver;
-use crate::server::connection::NetworkConnection;
-use crate::server::connection_manager::ConnectionManager;
-use crate::subscribe::manager::SubscribeManager;
 
 pub const ROUTE_ROOT: &str = "/mqtt";
 
@@ -283,6 +284,7 @@ async fn process_socket_packet_by_binary<S>(
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
+    let receive_ms = now_mills();
     let mut buf = BytesMut::with_capacity(data.len());
     buf.put(data.as_slice());
     if let Some(packet) = codec.decode_data(&mut buf)? {
@@ -306,6 +308,7 @@ where
                 packet: resp_pkg,
             };
             codec.encode_data(packet_wrapper.clone(), &mut response_buff)?;
+            let response_ms = now_mills();
 
             if let Err(e) = connection_manager
                 .write_websocket_frame(
@@ -320,6 +323,8 @@ where
                     .close_connect(tcp_connection.connection_id)
                     .await;
             }
+
+            record_ws_request_duration(receive_ms, response_ms);
         }
     }
 
