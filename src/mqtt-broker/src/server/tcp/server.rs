@@ -125,6 +125,7 @@ where
         cache_manager: Arc<CacheManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
+        info!("process thread num: {:?}", proc_config);
         Self {
             command,
             cache_manager,

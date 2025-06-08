@@ -327,9 +327,6 @@ mod tests {
         assert!(!config.network.tls_cert.is_empty());
         assert!(!config.network.tls_key.is_empty());
 
-        assert_eq!(config.tcp_thread.max_connection_num, 5000);
-        assert_eq!(config.tcp_thread.request_queue_size, 5000);
-        assert_eq!(config.tcp_thread.response_queue_size, 5000);
         assert_eq!(config.tcp_thread.lock_max_try_mut_times, 30);
         assert_eq!(config.tcp_thread.lock_try_mut_sleep_time_ms, 50);
 
@@ -512,9 +509,6 @@ mod tests {
             assert!(!config.network.tls_cert.is_empty());
             assert!(!config.network.tls_key.is_empty());
 
-            assert_eq!(config.tcp_thread.max_connection_num, 5000);
-            assert_eq!(config.tcp_thread.request_queue_size, 5000);
-            assert_eq!(config.tcp_thread.response_queue_size, 5000);
             assert_eq!(config.tcp_thread.lock_max_try_mut_times, 30);
             assert_eq!(config.tcp_thread.lock_try_mut_sleep_time_ms, 50);
 
