@@ -39,7 +39,7 @@ use delay_message::DelayMessageManager;
 use futures_util::stream::StreamExt;
 use grpc_clients::pool::ClientPool;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
-use protocol::mqtt::common::{MqttPacket, MqttProtocol};
+use protocol::mqtt::common::MqttPacket;
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
@@ -289,22 +289,21 @@ where
     buf.put(data.as_slice());
     if let Some(packet) = codec.decode_data(&mut buf)? {
         info!("recv websocket packet:{packet:?}");
-        let mut protocol_version = MqttProtocol::Mqtt5;
-        if let MqttPacket::Connect(_, _, _, _, _, _) = packet {
-            if let Some(pv) = connection_manager.get_connect_protocol(tcp_connection.connection_id)
-            {
-                protocol_version = pv.clone();
-            }
-        }
-        tcp_connection.set_protocol(protocol_version.clone());
 
         if let Some(resp_pkg) = command
             .apply(connection_manager, tcp_connection, addr, &packet)
             .await
         {
+            if let MqttPacket::Connect(_, _, _, _, _, _) = packet {
+                if let Some(pv) =
+                    connection_manager.get_connect_protocol(tcp_connection.connection_id)
+                {
+                    tcp_connection.set_protocol(pv.clone());
+                }
+            }
             let mut response_buff = BytesMut::new();
             let packet_wrapper = MqttPacketWrapper {
-                protocol_version: protocol_version.into(),
+                protocol_version: tcp_connection.get_protocol().into(),
                 packet: resp_pkg,
             };
             codec.encode_data(packet_wrapper.clone(), &mut response_buff)?;

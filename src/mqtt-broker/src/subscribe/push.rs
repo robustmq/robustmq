@@ -25,7 +25,7 @@ use crate::handler::sub_option::{get_retain_flag_by_retain_as_published, is_send
 use crate::observability::slow::sub::{record_slow_sub_data, SlowSubData};
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
-use crate::subscribe::common::SubPublishParam;
+use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
 use axum::extract::ws::Message;
 use bytes::{Bytes, BytesMut};
 use common_base::tools::{now_mills, now_second};
@@ -536,15 +536,10 @@ where
             }
             val = ac_fn() => {
                 if let Err(e) = val{
-                    match e{
-                        MqttBrokerError::SessionNullSkipPushMessage(_) => {}
-                        MqttBrokerError::ConnectionNullSkipPushMessage(_) => {}
-                        MqttBrokerError::NotObtainAvailableConnection(_, _) => {}
-                        _ => {
-                            error!("retry tool fn fail, error message:{}",e);
-                            sleep(Duration::from_secs(1)).await;
-                            continue;
-                        }
+                    if !is_ignore_push_error(&e){
+                        error!("retry tool fn fail, error message:{}",e);
+                        sleep(Duration::from_secs(1)).await;
+                        continue;
                     }
                 }
                 break;

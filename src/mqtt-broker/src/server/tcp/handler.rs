@@ -16,7 +16,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::handler::command::Command;
-use crate::handler::error::MqttBrokerError;
 use crate::observability::metrics::server::{
     metrics_request_handler_ms, metrics_request_queue_ms, metrics_request_total_ms,
 };
@@ -161,8 +160,6 @@ fn handler_child_process<S>(
                                     metrics_request_handler_ms(&NetworkConnectionType::Tcp,(now_mills() - handler_ms) as f64);
                                     metrics_request_total_ms(&NetworkConnectionType::Tcp,(now_mills() - packet.receive_ms) as f64);
                                 }
-                            } else {
-                                error!("{}", MqttBrokerError::NotFoundConnectionInCache(packet.connection_id));
                             }
                         }
                     }

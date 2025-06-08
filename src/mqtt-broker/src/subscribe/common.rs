@@ -90,7 +90,28 @@ impl SubPublishParam {
 }
 
 pub fn get_pkid() -> u16 {
-    (now_nanos() % 65535) as u16
+    let id = (now_nanos() % 65535) as u16;
+    if id == 0 {
+        return 1;
+    }
+    id
+}
+
+pub fn is_ignore_push_error(e: &MqttBrokerError) -> bool {
+    if e.to_string().contains("deadline has elapsed") {
+        return true;
+    }
+
+    match e {
+        MqttBrokerError::SessionNullSkipPushMessage(_) => {}
+        MqttBrokerError::ConnectionNullSkipPushMessage(_) => {}
+        MqttBrokerError::NotObtainAvailableConnection(_, _) => {}
+        _ => {
+            return false;
+        }
+    }
+
+    true
 }
 
 pub fn sub_path_validator(sub_path: &str) -> Result<(), MqttBrokerError> {

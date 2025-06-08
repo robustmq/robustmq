@@ -161,7 +161,7 @@ fn handler_child_process<S>(
                                     metrics_request_total_ms(&NetworkConnectionType::Quic,(now_mills() - packet.receive_ms) as f64);
                                 }
                             } else {
-                                error!("{}", MqttBrokerError::NotFoundConnectionInCache(packet.connection_id));
+                                debug!("{}", MqttBrokerError::NotFoundConnectionInCache(packet.connection_id));
                             }
                         }
                     }

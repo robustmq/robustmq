@@ -22,9 +22,9 @@ use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MqttPacket, MqttProtocol, PingReq,
     PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec,
-    PubRecProperties, PubRecReason, PubRel, PubRelProperties, PubRelReason, Publish,
-    PublishProperties, QoS, Subscribe, SubscribeProperties, SubscribeReasonCode, UnsubAckReason,
-    Unsubscribe, UnsubscribeProperties,
+    PubRecProperties, PubRecReason, PubRel, PubRelProperties, Publish, PublishProperties, QoS,
+    Subscribe, SubscribeProperties, SubscribeReasonCode, UnsubAckReason, Unsubscribe,
+    UnsubscribeProperties,
 };
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
@@ -51,8 +51,7 @@ use crate::handler::response::{
     response_packet_mqtt_puback_fail, response_packet_mqtt_puback_success,
     response_packet_mqtt_pubcomp_fail, response_packet_mqtt_pubcomp_success,
     response_packet_mqtt_pubrec_fail, response_packet_mqtt_pubrec_success,
-    response_packet_mqtt_pubrel_success, response_packet_mqtt_suback,
-    response_packet_mqtt_unsuback,
+    response_packet_mqtt_suback, response_packet_mqtt_unsuback,
 };
 use crate::handler::session::{build_session, save_session};
 use crate::handler::topic::{get_topic_name, try_init_topic};
@@ -556,11 +555,7 @@ where
             }
         }
 
-        Some(response_packet_mqtt_pubrel_success(
-            &self.protocol,
-            pub_rec.pkid,
-            PubRelReason::Success,
-        ))
+        None
     }
 
     pub async fn publish_comp(
