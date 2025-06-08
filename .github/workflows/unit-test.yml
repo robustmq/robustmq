@@ -52,6 +52,9 @@ jobs:
         uses: taiki-e/install-action@297054b27414ad8086f67963ce1033c02fe309c3 # v2
         with:
           tool: nextest
-
+      - name: Install latest expand release
+        uses: taiki-e/install-action@297054b27414ad8086f67963ce1033c02fe309c3 # v2
+        with:
+          tool: cargo-expand
       - name: Run tests
         run: sh ./scripts/unit-test.sh ci
