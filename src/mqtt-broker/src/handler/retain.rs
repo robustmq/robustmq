@@ -25,9 +25,9 @@ use crate::observability::metrics::packets::{
 };
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::topic::TopicStorage;
-use crate::subscribe::common::SubPublishParam;
 use crate::subscribe::common::Subscriber;
 use crate::subscribe::common::{get_pkid, get_sub_topic_id_list, min_qos};
+use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::push::send_publish_packet_to_client;
 use bytes::Bytes;
@@ -116,7 +116,9 @@ pub async fn try_send_retain_message(
         )
         .await
         {
-            error!("Sending retain message failed with error message :{}", e);
+            if !is_ignore_push_error(&e) {
+                error!("Sending retain message failed with error message :{}", e);
+            }
         }
     });
 }

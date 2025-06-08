@@ -93,7 +93,7 @@ impl ClientKeepAlive {
                     let protocol = network.protocol.clone().unwrap();
                     let resp = response_packet_mqtt_distinct_by_reason(
                         &protocol,
-                        Some(DisconnectReasonCode::KeepAliveTimeout),
+                        Some(DisconnectReasonCode::NormalDisconnection),
                     );
 
                     let wrap = MqttPacketWrapper {
@@ -101,27 +101,16 @@ impl ClientKeepAlive {
                         packet: resp,
                     };
 
-                    disconnect_connection(
-                        &connection.client_id,
-                        connect_id,
-                        &self.cache_manager,
-                        &self.client_pool,
-                        &self.connection_manager,
-                        &self.subscribe_manager,
-                        false,
-                    )
-                    .await?;
-
                     self.try_send_distinct_packet(
+                        self.cache_manager.clone(),
+                        self.client_pool.clone(),
                         self.connection_manager.to_owned(),
+                        self.subscribe_manager.clone(),
                         network.clone(),
                         connection.clone(),
                         wrap,
                         protocol.clone(),
-                    );
-                    info!(
-                        "Heartbeat timeout, active disconnection {} successful",
-                        connect_id
+                        connect_id,
                     );
                 }
             }
@@ -135,13 +124,18 @@ impl ClientKeepAlive {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn try_send_distinct_packet(
         &self,
+        cache_manager: Arc<CacheManager>,
+        client_pool: Arc<ClientPool>,
         connection_manager: Arc<ConnectionManager>,
+        subscribe_manager: Arc<SubscribeManager>,
         network: NetworkConnection,
         connection: MQTTConnection,
         wrap: MqttPacketWrapper,
         protocol: MqttProtocol,
+        connect_id: u64,
     ) {
         tokio::spawn(async move {
             if network.is_tcp() {
@@ -163,6 +157,22 @@ impl ClientKeepAlive {
                     )
                     .await;
             }
+
+            let _ = disconnect_connection(
+                &connection.client_id,
+                connect_id,
+                &cache_manager,
+                &client_pool,
+                &connection_manager,
+                &subscribe_manager,
+                false,
+            )
+            .await;
+
+            info!(
+                "Heartbeat timeout, active disconnection {} successful",
+                connect_id
+            );
         });
     }
 
