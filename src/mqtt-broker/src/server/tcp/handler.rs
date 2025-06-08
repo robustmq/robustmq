@@ -16,7 +16,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::handler::command::Command;
-use crate::handler::error::MqttBrokerError;
 use crate::observability::metrics::server::{
     metrics_request_handler_ms, metrics_request_queue_ms, metrics_request_total_ms,
 };
