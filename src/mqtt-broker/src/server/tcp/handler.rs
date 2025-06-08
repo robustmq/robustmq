@@ -15,15 +15,20 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::handler::command::Command;
+use crate::handler::error::MqttBrokerError;
+use crate::observability::metrics::server::{
+    metrics_request_handler_ms, metrics_request_queue_ms, metrics_request_total_ms,
+};
+use crate::server::connection::NetworkConnectionType;
+use crate::server::connection_manager::ConnectionManager;
+use crate::server::packet::{RequestPackage, ResponsePackage};
+use common_base::tools::now_mills;
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tracing::{debug, error, info};
-
-use crate::handler::command::Command;
-use crate::server::connection_manager::ConnectionManager;
-use crate::server::packet::{RequestPackage, ResponsePackage};
 
 pub(crate) async fn handler_process<S>(
     handler_process_num: usize,
@@ -133,10 +138,15 @@ fn handler_child_process<S>(
                     val = child_process_rx.recv()=>{
                         if let Some(packet) = val{
                             if let Some(connect) = raw_connect_manager.get_connect(packet.connection_id) {
+                                let handler_ms = now_mills();
+                                metrics_request_queue_ms(&NetworkConnectionType::Tcp,(handler_ms - packet.receive_ms) as f64);
+
                                 if let Some(resp) = raw_command
                                     .apply(&raw_connect_manager, &connect, &packet.addr, &packet.packet)
                                     .await
                                 {
+                                    metrics_request_handler_ms(&NetworkConnectionType::Tcp,(now_mills() - handler_ms) as f64);
+
                                     let response_package = ResponsePackage::new(packet.connection_id, resp);
                                     match raw_response_queue_sx.send(response_package).await {
                                         Ok(_) => {}
@@ -147,6 +157,9 @@ fn handler_child_process<S>(
                                     }
                                 } else {
                                     info!("{}","No backpacking is required for this request");
+
+                                    metrics_request_handler_ms(&NetworkConnectionType::Tcp,(now_mills() - handler_ms) as f64);
+                                    metrics_request_total_ms(&NetworkConnectionType::Tcp,(now_mills() - packet.receive_ms) as f64);
                                 }
                             }
                         }
