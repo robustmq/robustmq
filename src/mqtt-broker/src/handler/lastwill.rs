@@ -194,8 +194,8 @@ mod test {
     #[tokio::test]
     pub async fn build_publish_message_by_lastwill_test() {
         let client_pool = Arc::new(ClientPool::new(100));
-        let cluser_name = "test";
-        let cache_manager = Arc::new(CacheManager::new(client_pool, cluser_name.to_string()));
+        let cluster_name = "test";
+        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name.to_string()));
         let client_id = "cid";
         let res = build_publish_message_by_lastwill(&cache_manager, client_id, &None, &None)
             .await
