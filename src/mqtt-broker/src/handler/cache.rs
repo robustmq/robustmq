@@ -62,7 +62,7 @@ pub struct ConnectionLiveTime {
 #[derive(Clone)]
 pub struct QosAckPacketInfo {
     pub sx: Sender<QosAckPackageData>,
-    pub create_time: u64,
+    pub create_time: u128,
 }
 
 #[derive(Clone, Debug)]
@@ -416,8 +416,8 @@ impl CacheManager {
         self.qos_ack_packet.insert(key, packet);
     }
 
-    pub fn get_ack_packet(&self, client_id: String, pkid: u16) -> Option<QosAckPacketInfo> {
-        let key = self.key(&client_id, pkid);
+    pub fn get_ack_packet(&self, client_id: &str, pkid: u16) -> Option<QosAckPacketInfo> {
+        let key = self.key(client_id, pkid);
         if let Some(data) = self.qos_ack_packet.get(&key) {
             return Some(data.clone());
         }

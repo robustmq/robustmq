@@ -192,7 +192,7 @@ async fn send_retain_message(
                 content_type: msg.content_type,
             };
 
-            let pkid = get_pkid();
+            let pkid = get_pkid(cache_manager, client_id).await;
             let publish = Publish {
                 dup: false,
                 qos,

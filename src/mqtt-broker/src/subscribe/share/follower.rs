@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::tools::{now_mills, now_second, unique_id};
+use common_base::tools::{now_mills, unique_id};
 use futures::StreamExt;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::node_extend::MqttNodeExtend;
@@ -295,7 +295,7 @@ async fn process_packet(
 
         MqttPacket::PubRel(pubrel, _) => {
             if let Some(data) =
-                cache_manager.get_ack_packet(follower_sub_leader_client_id.to_owned(), pubrel.pkid)
+                cache_manager.get_ack_packet(follower_sub_leader_client_id, pubrel.pkid)
             {
                 if let Err(e) = data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubRel,
@@ -385,7 +385,7 @@ async fn process_publish_packet(
         ..Default::default()
     };
 
-    let publish_to_client_pkid = get_pkid();
+    let publish_to_client_pkid = get_pkid(cache_manager, mqtt_client_id).await;
     publish.pkid = publish_to_client_pkid;
 
     let packet = MqttPacket::Publish(publish.clone(), publish_properties);
@@ -410,7 +410,7 @@ async fn process_publish_packet(
                 publish_to_client_pkid,
                 QosAckPacketInfo {
                     sx: wait_puback_sx.clone(),
-                    create_time: now_second(),
+                    create_time: now_mills(),
                 },
             );
 
@@ -435,7 +435,7 @@ async fn process_publish_packet(
                 publish_to_client_pkid,
                 QosAckPacketInfo {
                     sx: wait_client_ack_sx.clone(),
-                    create_time: now_second(),
+                    create_time: now_mills(),
                 },
             );
 
@@ -445,7 +445,7 @@ async fn process_publish_packet(
                 publish.pkid,
                 QosAckPacketInfo {
                     sx: wait_leader_ack_sx.clone(),
-                    create_time: now_second(),
+                    create_time: now_mills(),
                 },
             );
 
