@@ -23,16 +23,17 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableFlappingDetectRequest, GetClusterConfigReply, GetClusterConfigRequest, ListAclReply,
     ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBlacklistReply,
     ListBlacklistRequest, ListConnectionReply, ListConnectionRequest, ListSessionReply,
-    ListSessionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListTopicReply,
-    ListTopicRequest, ListUserReply, ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest,
-    MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttCreateSchemaReply,
-    MqttCreateSchemaRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
-    MqttDeleteSchemaReply, MqttDeleteSchemaRequest, MqttListBindSchemaReply,
-    MqttListBindSchemaRequest, MqttListConnectorReply, MqttListConnectorRequest,
-    MqttListSchemaReply, MqttListSchemaRequest, MqttUnbindSchemaReply, MqttUnbindSchemaRequest,
-    MqttUpdateConnectorReply, MqttUpdateConnectorRequest, MqttUpdateSchemaReply,
-    MqttUpdateSchemaRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
-    SetClusterConfigReply, SetClusterConfigRequest,
+    ListSessionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListSystemAlarmReply,
+    ListSystemAlarmRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+    MqttBindSchemaReply, MqttBindSchemaRequest, MqttCreateConnectorReply,
+    MqttCreateConnectorRequest, MqttCreateSchemaReply, MqttCreateSchemaRequest,
+    MqttDeleteConnectorReply, MqttDeleteConnectorRequest, MqttDeleteSchemaReply,
+    MqttDeleteSchemaRequest, MqttListBindSchemaReply, MqttListBindSchemaRequest,
+    MqttListConnectorReply, MqttListConnectorRequest, MqttListSchemaReply, MqttListSchemaRequest,
+    MqttUnbindSchemaReply, MqttUnbindSchemaRequest, MqttUpdateConnectorReply,
+    MqttUpdateConnectorRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
+    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetClusterConfigReply,
+    SetClusterConfigRequest, SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest,
 };
 
 use crate::pool::ClientPool;
@@ -147,14 +148,29 @@ generate_mqtt_admin_service_call!(
     EnableFlappingDetect
 );
 
-// --------- observability --------
-// --------- slow subscribe features ------
+// #### observability ####
+// ---- slow subscribe features ----
 
 generate_mqtt_admin_service_call!(
     mqtt_broker_list_slow_subscribe,
     ListSlowSubscribeRequest,
     ListSlowSubscribeReply,
     ListSlowSubscribe
+);
+
+// ---- system alarm ----
+generate_mqtt_admin_service_call!(
+    mqtt_broker_set_system_alarm_config,
+    SetSystemAlarmConfigRequest,
+    SetSystemAlarmConfigReply,
+    SetSystemAlarmConfig
+);
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_list_system_alarm,
+    ListSystemAlarmRequest,
+    ListSystemAlarmReply,
+    ListSystemAlarm
 );
 
 generate_mqtt_admin_service_call!(
