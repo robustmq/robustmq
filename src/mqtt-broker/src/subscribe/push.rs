@@ -25,10 +25,10 @@ use crate::handler::sub_option::{get_retain_flag_by_retain_as_published, is_send
 use crate::observability::slow::sub::{record_slow_sub_data, SlowSubData};
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
-use crate::subscribe::common::SubPublishParam;
+use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
 use axum::extract::ws::Message;
 use bytes::{Bytes, BytesMut};
-use common_base::tools::{now_mills, now_second};
+use common_base::tools::now_mills;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
@@ -98,7 +98,7 @@ pub async fn build_publish_message(
     let mut publish = Publish {
         dup: false,
         qos: qos.to_owned(),
-        pkid: get_pkid(),
+        pkid: get_pkid(cache_manager, client_id).await,
         retain,
         topic: Bytes::from(subscriber.topic_name.clone()),
         payload: msg.payload,
@@ -119,7 +119,7 @@ pub async fn build_publish_message(
         None
     };
 
-    let pkid = get_pkid();
+    let pkid = get_pkid(cache_manager, client_id).await;
     publish.pkid = pkid;
 
     let packet = MqttPacket::Publish(publish, properties);
@@ -155,7 +155,7 @@ pub async fn send_publish_packet_to_client(
                 pkid,
                 QosAckPacketInfo {
                     sx: wait_puback_sx.clone(),
-                    create_time: now_second(),
+                    create_time: now_mills(),
                 },
             );
 
@@ -180,7 +180,7 @@ pub async fn send_publish_packet_to_client(
                 pkid,
                 QosAckPacketInfo {
                     sx: wait_ack_sx.clone(),
-                    create_time: now_second(),
+                    create_time: now_mills(),
                 },
             );
 
@@ -233,10 +233,7 @@ pub async fn push_packet_to_client(
             return Err(MqttBrokerError::ConnectionNullSkipPushMessage(client_id));
         };
 
-        let resp = ResponsePackage {
-            connection_id: connect_id,
-            packet: sub_pub_param.packet.clone(),
-        };
+        let resp = ResponsePackage::new(connect_id, sub_pub_param.packet.clone());
 
         send_message_to_client(resp, sub_pub_param, connection_manager, cache_manager).await
     };
@@ -539,15 +536,10 @@ where
             }
             val = ac_fn() => {
                 if let Err(e) = val{
-                    match e{
-                        MqttBrokerError::SessionNullSkipPushMessage(_) => {}
-                        MqttBrokerError::ConnectionNullSkipPushMessage(_) => {}
-                        MqttBrokerError::NotObtainAvailableConnection(_, _) => {}
-                        _ => {
-                            error!("retry tool fn fail, error message:{}",e);
-                            sleep(Duration::from_secs(1)).await;
-                            continue;
-                        }
+                    if !is_ignore_push_error(&e){
+                        error!("retry tool fn fail, error message:{}",e);
+                        sleep(Duration::from_secs(1)).await;
+                        continue;
                     }
                 }
                 break;

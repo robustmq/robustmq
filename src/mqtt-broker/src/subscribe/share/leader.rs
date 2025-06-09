@@ -16,6 +16,7 @@ use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
+use crate::subscribe::common::is_ignore_push_error;
 use crate::subscribe::common::loop_commit_offset;
 use crate::subscribe::common::Subscriber;
 use crate::subscribe::manager::{ShareLeaderSubscribeData, SubscribeManager};
@@ -179,13 +180,16 @@ where
                             },
 
                             Err(e) => {
-                                error!(
-                                    "Failed to read message from storage, failure message: {},topic:{},group{}",
-                                    e.to_string(),
-                                    &sub_data.topic_id,
-                                    group_id
-                                );
-                                sleep(Duration::from_millis(100)).await;
+                                if !is_ignore_push_error(&e){
+                                    error!(
+                                        "Failed to read message from storage, failure message: {},topic:{},group{}",
+                                        e.to_string(),
+                                        &sub_data.topic_id,
+                                        group_id
+                                    );
+                                    sleep(Duration::from_millis(100)).await;
+                                }
+                                break;
                             }
                         }
                     }

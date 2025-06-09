@@ -40,6 +40,10 @@ impl RequestPackage {
 pub struct ResponsePackage {
     pub connection_id: u64,
     pub packet: MqttPacket,
+
+    // This field is obtained from [`RequestPackage`] and records the time when the packet is received,
+    // the field related to internal record indicators do not need to be exported
+    receive_ms: u128,
 }
 
 impl ResponsePackage {
@@ -47,6 +51,15 @@ impl ResponsePackage {
         Self {
             connection_id,
             packet,
+            receive_ms: 0,
         }
+    }
+
+    pub fn set_receive_ms(&mut self, receive_ms: u128) {
+        self.receive_ms = receive_ms;
+    }
+
+    pub fn get_receive_ms(&self) -> u128 {
+        self.receive_ms
     }
 }

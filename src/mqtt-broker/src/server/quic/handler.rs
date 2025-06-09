@@ -14,8 +14,13 @@
 
 use crate::handler::command::Command;
 use crate::handler::error::MqttBrokerError;
+use crate::observability::metrics::server::{
+    metrics_request_handler_ms, metrics_request_queue_ms, metrics_request_total_ms,
+};
+use crate::server::connection::NetworkConnectionType;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::{RequestPackage, ResponsePackage};
+use common_base::tools::now_mills;
 use std::collections::HashMap;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
@@ -131,11 +136,16 @@ fn handler_child_process<S>(
                     },
                     val = child_process_rx.recv()=>{
                         if let Some(packet) = val{
+                            let handler_ms = now_mills();
+                            metrics_request_queue_ms(&NetworkConnectionType::Quic,(handler_ms - packet.receive_ms) as f64);
+
                             if let Some(connect) = raw_connect_manager.get_connect(packet.connection_id) {
                                 if let Some(resp) = raw_command
                                     .apply(&raw_connect_manager, &connect, &packet.addr, &packet.packet)
                                     .await
                                 {
+                                    metrics_request_handler_ms(&NetworkConnectionType::Quic,(now_mills() - handler_ms) as f64);
+
                                     let response_package = ResponsePackage::new(packet.connection_id, resp);
                                     match raw_response_queue_sx.send(response_package).await {
                                         Ok(_) => {}
@@ -146,9 +156,12 @@ fn handler_child_process<S>(
                                     }
                                 } else {
                                     info!("{}","No backpacking is required for this request");
+
+                                    metrics_request_handler_ms(&NetworkConnectionType::Quic,(now_mills() - handler_ms) as f64);
+                                    metrics_request_total_ms(&NetworkConnectionType::Quic,(now_mills() - packet.receive_ms) as f64);
                                 }
                             } else {
-                                error!("{}", MqttBrokerError::NotFoundConnectionInCache(packet.connection_id));
+                                debug!("{}", MqttBrokerError::NotFoundConnectionInCache(packet.connection_id));
                             }
                         }
                     }

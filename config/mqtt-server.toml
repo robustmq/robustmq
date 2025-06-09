@@ -29,10 +29,10 @@ tls_cert = "./config/example/certs/cert.pem"
 tls_key = "./config/example/certs/key.pem"
 
 [tcp_thread]
-accept_thread_num = 5
-handler_thread_num = 32
-response_thread_num = 5
-max_connection_num = 1000
+accept_thread_num = 10
+handler_thread_num = 15
+response_thread_num = 10
+max_connection_num = 2000
 request_queue_size = 2000
 response_queue_size = 2000
 lock_max_try_mut_times = 30

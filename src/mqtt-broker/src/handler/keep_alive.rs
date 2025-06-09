@@ -20,6 +20,7 @@ use bytes::BytesMut;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
+use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{DisconnectReasonCode, MqttProtocol};
 use serde::{Deserialize, Serialize};
@@ -32,6 +33,7 @@ use super::cache::{CacheManager, ConnectionLiveTime};
 use super::connection::disconnect_connection;
 use super::response::response_packet_mqtt_distinct_by_reason;
 use crate::handler::error::MqttBrokerError;
+use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
 
@@ -91,7 +93,7 @@ impl ClientKeepAlive {
                     let protocol = network.protocol.clone().unwrap();
                     let resp = response_packet_mqtt_distinct_by_reason(
                         &protocol,
-                        Some(DisconnectReasonCode::KeepAliveTimeout),
+                        Some(DisconnectReasonCode::NormalDisconnection),
                     );
 
                     let wrap = MqttPacketWrapper {
@@ -99,51 +101,16 @@ impl ClientKeepAlive {
                         packet: resp,
                     };
 
-                    if network.is_tcp() {
-                        self.connection_manager
-                            .write_tcp_frame(connection.connect_id, wrap)
-                            .await?;
-
-                        disconnect_connection(
-                            &connection.client_id,
-                            connect_id,
-                            &self.cache_manager,
-                            &self.client_pool,
-                            &self.connection_manager,
-                            &self.subscribe_manager,
-                            false,
-                        )
-                        .await?;
-                    } else {
-                        let mut codec = MqttCodec::new(Some(protocol.into()));
-                        let mut buff = BytesMut::new();
-                        if let Err(e) = codec.encode_data(wrap.clone(), &mut buff) {
-                            return Err(MqttBrokerError::WebsocketEncodePacketFailed(
-                                e.to_string(),
-                            ));
-                        }
-
-                        self.connection_manager
-                            .write_websocket_frame(
-                                connection.connect_id,
-                                wrap,
-                                Message::Binary(buff.to_vec()),
-                            )
-                            .await?;
-                        disconnect_connection(
-                            &connection.client_id,
-                            connect_id,
-                            &self.cache_manager,
-                            &self.client_pool,
-                            &self.connection_manager,
-                            &self.subscribe_manager,
-                            false,
-                        )
-                        .await?;
-                    }
-                    info!(
-                        "Heartbeat timeout, active disconnection {} successful",
-                        connect_id
+                    self.try_send_distinct_packet(
+                        self.cache_manager.clone(),
+                        self.client_pool.clone(),
+                        self.connection_manager.to_owned(),
+                        self.subscribe_manager.clone(),
+                        network.clone(),
+                        connection.clone(),
+                        wrap,
+                        protocol.clone(),
+                        connect_id,
                     );
                 }
             }
@@ -155,6 +122,58 @@ impl ClientKeepAlive {
             }
         }
         Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn try_send_distinct_packet(
+        &self,
+        cache_manager: Arc<CacheManager>,
+        client_pool: Arc<ClientPool>,
+        connection_manager: Arc<ConnectionManager>,
+        subscribe_manager: Arc<SubscribeManager>,
+        network: NetworkConnection,
+        connection: MQTTConnection,
+        wrap: MqttPacketWrapper,
+        protocol: MqttProtocol,
+        connect_id: u64,
+    ) {
+        tokio::spawn(async move {
+            if network.is_tcp() {
+                let _ = connection_manager
+                    .write_tcp_frame(connection.connect_id, wrap)
+                    .await;
+            } else {
+                let mut codec = MqttCodec::new(Some(protocol.into()));
+                let mut buff = BytesMut::new();
+                if codec.encode_data(wrap.clone(), &mut buff).is_err() {
+                    return;
+                }
+
+                let _ = connection_manager
+                    .write_websocket_frame(
+                        connection.connect_id,
+                        wrap,
+                        Message::Binary(buff.to_vec()),
+                    )
+                    .await;
+            }
+
+            let _ = disconnect_connection(
+                &connection.client_id,
+                connect_id,
+                &cache_manager,
+                &client_pool,
+                &connection_manager,
+                &subscribe_manager,
+                false,
+            )
+            .await;
+
+            info!(
+                "Heartbeat timeout, active disconnection {} successful",
+                connect_id
+            );
+        });
     }
 
     async fn get_expire_connection(&self) -> Vec<u64> {
