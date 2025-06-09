@@ -72,8 +72,8 @@ impl Hey for FooService {
         Box::pin(async move {
             {
                 {
-                    let ___request__validate_ref_ref = _request.get_ref();
-                    if let Err(e) = ___request__validate_ref_ref.validate() {
+                    let ___request__validate_ref = _request.get_ref();
+                    if let Err(e) = ___request__validate_ref.validate() {
                         return Err(tonic::Status::invalid_argument(e.to_string()));
                     }
                 }
