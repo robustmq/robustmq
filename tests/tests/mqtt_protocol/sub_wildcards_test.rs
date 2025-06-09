@@ -14,8 +14,11 @@
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use common_base::tools::unique_id;
     use paho_mqtt::{Message, SubscribeOptions, QOS_1};
+    use tokio::time::sleep;
 
     use crate::mqtt_protocol::{
         common::{
@@ -53,8 +56,8 @@ mod tests {
                 distinct_conn(cli);
 
                 // subscribe +
-                let client_id =
-                    build_client_id(format!("sub_wildcards_test_{}_{}", network, qos).as_str());
+                let client_id: String =
+                    build_client_id(format!("sub_wildcards_test_+_{}_{}", network, qos).as_str());
 
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,
@@ -84,7 +87,7 @@ mod tests {
 
                 // subscribe #
                 let client_id =
-                    build_client_id(format!("sub_wildcards_test_{}_{}", network, qos).as_str());
+                    build_client_id(format!("sub_wildcards_test_#_{}_{}", network, qos).as_str());
 
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,
@@ -114,6 +117,7 @@ mod tests {
                 };
 
                 subscribe_data_with_options(&cli, subscribe_test_data, call_fn);
+                sleep(Duration::from_secs(10)).await;
                 distinct_conn(cli);
             }
         }

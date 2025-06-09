@@ -15,7 +15,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use common_base::tools::now_second;
+use common_base::tools::{now_mills, now_second};
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use protocol::mqtt::common::{
@@ -519,14 +519,14 @@ where
         if let Some(conn) = self.cache_manager.get_connection(connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_ack.pkid;
-            if let Some(data) = self.cache_manager.get_ack_packet(client_id.clone(), pkid) {
+            if let Some(data) = self.cache_manager.get_ack_packet(&client_id, pkid) {
                 if let Err(e) = data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubAck,
                     pkid: pub_ack.pkid,
                 }) {
                     error!(
-                            "send puback to channel fail, error message:{}, send data time: {}, recv ack time:{}, client_id: {}",
-                            e,data.create_time,now_second(),conn.client_id
+                            "send puback to channel fail, error message:{}, send data time: {}, recv ack time:{}, client_id: {}, pkid:{}",
+                            e,data.create_time, now_mills(), conn.client_id, pub_ack.pkid
                         );
                 }
             }
@@ -544,13 +544,13 @@ where
         if let Some(conn) = self.cache_manager.get_connection(connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_rec.pkid;
-            if let Some(data) = self.cache_manager.get_ack_packet(client_id.clone(), pkid) {
+            if let Some(data) = self.cache_manager.get_ack_packet(&client_id, pkid) {
                 if let Err(e) = data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubRec,
                     pkid: pub_rec.pkid,
                 }) {
-                    error!("send pubrec to channel fail, error message:{}, send data time: {}, recv rec time:{}, client_id: {}",
-                        e,data.create_time,now_second(),client_id);
+                    error!("send pubrec to channel fail, error message:{}, send data time: {}, recv rec time:{}, client_id: {}, pkid:{}",
+                        e,data.create_time, now_mills(), client_id, pub_rec.pkid);
                 }
             }
         }
@@ -567,14 +567,14 @@ where
         if let Some(conn) = self.cache_manager.get_connection(connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_comp.pkid;
-            if let Some(data) = self.cache_manager.get_ack_packet(client_id.clone(), pkid) {
+            if let Some(data) = self.cache_manager.get_ack_packet(&client_id, pkid) {
                 if let Err(e) = data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubComp,
                     pkid: pub_comp.pkid,
                 }) {
                     error!(
-                            "send pubcomp to channel fail, error message:{}, send data time: {}, recv comp time:{}, client_id: {}",
-                            e,data.create_time,now_second(),client_id
+                            "send pubcomp to channel fail, error message:{}, send data time: {}, recv comp time:{}, client_id: {}, pkid:{}",
+                            e,data.create_time, now_mills(), client_id, pub_comp.pkid
                         );
                 }
             }
