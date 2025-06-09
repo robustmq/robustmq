@@ -25,6 +25,8 @@ impl syn::parse::Parse for ParseItem {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let outer_attrs = input.call(syn::Attribute::parse_outer)?;
 
+        // NOTE: Since the `unsafe` token writing of impl and fn is inconsistent,
+        // and fn supports pub Visibility, we need to parse in the following order
         let mut lookahead = input.lookahead1();
         if lookahead.peek(Token![pub]) {
             input.parse::<Token![pub]>()?;
