@@ -14,11 +14,9 @@
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
 
     use common_base::tools::unique_id;
     use paho_mqtt::{Message, SubscribeOptions, QOS_1};
-    use tokio::time::sleep;
 
     use crate::mqtt_protocol::{
         common::{
@@ -117,7 +115,6 @@ mod tests {
                 };
 
                 subscribe_data_with_options(&cli, subscribe_test_data, call_fn);
-                sleep(Duration::from_secs(10)).await;
                 distinct_conn(cli);
             }
         }
