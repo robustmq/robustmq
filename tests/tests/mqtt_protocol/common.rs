@@ -348,7 +348,7 @@ fn get_cargo_manifest_dir() -> String {
     )
 }
 
-fn kee_alive_interval() -> u64 {
+pub fn kee_alive_interval() -> u64 {
     60
 }
 

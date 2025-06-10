@@ -16,10 +16,13 @@ use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
+use crate::subscribe::common::is_ignore_push_error;
 use crate::subscribe::common::loop_commit_offset;
 use crate::subscribe::common::Subscriber;
 use crate::subscribe::manager::{ShareLeaderSubscribeData, SubscribeManager};
-use crate::subscribe::push::{build_pub_message, build_pub_qos, build_sub_ids, publish_data};
+use crate::subscribe::push::{
+    build_pub_qos, build_publish_message, build_sub_ids, send_publish_packet_to_client,
+};
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::storage::StorageAdapter;
@@ -177,13 +180,16 @@ where
                             },
 
                             Err(e) => {
-                                error!(
-                                    "Failed to read message from storage, failure message: {},topic:{},group{}",
-                                    e.to_string(),
-                                    &sub_data.topic_id,
-                                    group_id
-                                );
-                                sleep(Duration::from_millis(100)).await;
+                                if !is_ignore_push_error(&e){
+                                    error!(
+                                        "Failed to read message from storage, failure message: {},topic:{},group{}",
+                                        e.to_string(),
+                                        &sub_data.topic_id,
+                                        group_id
+                                    );
+                                    sleep(Duration::from_millis(100)).await;
+                                }
+                                break;
                             }
                         }
                     }
@@ -242,8 +248,17 @@ where
             let sub_ids = build_sub_ids(&subscriber);
 
             // build publish params
-            let sub_pub_param = if let Some(params) =
-                build_pub_message(record.to_owned(), group_id, &qos, &subscriber, &sub_ids).await?
+            let sub_pub_param = if let Some(params) = build_publish_message(
+                cache_manager,
+                connection_manager,
+                &sub_data.client_id,
+                record.to_owned(),
+                group_id,
+                &qos,
+                &subscriber,
+                &sub_ids,
+            )
+            .await?
             {
                 params
             } else {
@@ -251,7 +266,14 @@ where
                 continue;
             };
 
-            publish_data(connection_manager, cache_manager, sub_pub_param, stop_sx).await?;
+            send_publish_packet_to_client(
+                connection_manager,
+                cache_manager,
+                &sub_pub_param,
+                &qos,
+                stop_sx,
+            )
+            .await?;
             break;
         }
 

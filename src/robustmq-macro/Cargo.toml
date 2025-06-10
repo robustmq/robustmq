@@ -12,11 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-stop_server(){
-    no1=`ps -ef | grep placement-center  | grep config/placement-center.toml | grep -v grep | awk '{print $2}'`
-    if [ -n "$no1" ]
-    then
-        echo "kill placement center $no1"
-        kill $no1
-    fi
-}
+[package]
+name = "robustmq-macro"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2", features = ["full"] }
+quote = "1"
+proc-macro2 = "1"
+
+[dev-dependencies]
+macrotest = "1.1.0"
+trybuild = "1.0"
+prost-validate = { workspace = true, features = ["derive"] }
+async-trait = { version = "0.1.88" }
+tonic.workspace = true
+
+[features]
+validate-req = []
+unstable = ["validate-req"]

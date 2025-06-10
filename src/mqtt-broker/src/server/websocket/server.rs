@@ -16,6 +16,14 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use crate::handler::cache::CacheManager;
+use crate::handler::command::Command;
+use crate::handler::error::MqttBrokerError;
+use crate::observability::metrics::server::record_ws_request_duration;
+use crate::security::AuthDriver;
+use crate::server::connection::NetworkConnection;
+use crate::server::connection_manager::ConnectionManager;
+use crate::subscribe::manager::SubscribeManager;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{ConnectInfo, State, WebSocketUpgrade};
 use axum::response::Response;
@@ -26,23 +34,17 @@ use axum_extra::TypedHeader;
 use axum_server::tls_rustls::RustlsConfig;
 use bytes::{BufMut, BytesMut};
 use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::tools::now_mills;
 use delay_message::DelayMessageManager;
 use futures_util::stream::StreamExt;
 use grpc_clients::pool::ClientPool;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
-use protocol::mqtt::common::{MqttPacket, MqttProtocol};
+use protocol::mqtt::common::MqttPacket;
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self};
-use tracing::{error, info};
-
-use crate::handler::cache::CacheManager;
-use crate::handler::command::Command;
-use crate::security::AuthDriver;
-use crate::server::connection::NetworkConnection;
-use crate::server::connection_manager::ConnectionManager;
-use crate::subscribe::manager::SubscribeManager;
+use tracing::{error, info, warn};
 
 pub const ROUTE_ROOT: &str = "/mqtt";
 
@@ -214,7 +216,6 @@ async fn handle_socket<S>(
 
     connection_manager.add_websocket_write(tcp_connection.connection_id, sender);
     connection_manager.add_connection(tcp_connection.clone());
-    let mut protocol_version = MqttProtocol::Mqtt5;
     let mut stop_rx = stop_sx.subscribe();
 
     loop {
@@ -230,57 +231,12 @@ async fn handle_socket<S>(
                 if let Some(msg) = val{
                     match msg {
                         Ok(Message::Binary(data)) => {
-                            let mut buf = BytesMut::with_capacity(data.len());
-                            buf.put(data.as_slice());
-                            match codec.decode_data(&mut buf) {
-                                Ok(Some(packet)) => {
-                                    info!("recv websocket packet:{packet:?}");
-                                    if let Some(resp_pkg) = command
-                                        .apply(
-                                            connection_manager.clone(),
-                                            tcp_connection.clone(),
-                                            addr,
-                                            packet.clone(),
-                                        )
-                                        .await
-                                    {
-                                        if let MqttPacket::Connect(_,_,_,_,_,_) = packet {
-                                            if let Some(pv) = connection_manager.get_connect_protocol(tcp_connection.connection_id){
-                                                protocol_version = pv.clone();
-                                                tcp_connection.set_protocol(pv);
-                                            }
-                                        }
-
-                                        let mut response_buff = BytesMut::new();
-                                        let packet_wrapper = MqttPacketWrapper {
-                                            protocol_version: protocol_version.clone().into(),
-                                            packet: resp_pkg,
-                                        };
-
-                                        match codec.encode_data(packet_wrapper.clone(), &mut response_buff){
-                                            Ok(()) => {},
-                                            Err(e) => {
-                                                error!("Websocket encode back packet failed with error message: {e:?}");
-                                            }
-                                        }
-                                        match connection_manager.write_websocket_frame(tcp_connection.connection_id, packet_wrapper, Message::Binary(response_buff.to_vec())).await{
-                                            Ok(()) => {},
-                                            Err(e) => {
-                                                error!("websocket returns failure to write the packet to the client with error message {e:?}");
-                                                connection_manager.close_connect(tcp_connection.connection_id).await;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-                                Ok(None) => {}
-                                Err(e) => {
-                                    error!("Websocket failed to parse MQTT protocol packet with error message :{e:?}");
-                                }
+                            if let Err(e) = process_socket_packet_by_binary(&connection_manager,&mut codec,&mut command,&mut tcp_connection,&addr,data).await{
+                                error!("Websocket failed to parse MQTT protocol packet with error message :{e:?}");
                             }
                         }
                         Ok(Message::Text(data)) => {
-                            info!(
+                            warn!(
                                 "websocket server receives a TEXT message with the following content: {data}"
                             );
                         }
@@ -308,11 +264,68 @@ async fn handle_socket<S>(
                             break;
                         }
                         Err(e) => {
-                            info!("websocket server parsing request packet error, error message :{e:?}");
+                            warn!("websocket server parsing request packet error, error message :{e:?}");
                         },
                     }
                 }
             }
         }
     }
+}
+
+async fn process_socket_packet_by_binary<S>(
+    connection_manager: &Arc<ConnectionManager>,
+    codec: &mut MqttCodec,
+    command: &mut Command<S>,
+    tcp_connection: &mut NetworkConnection,
+    addr: &SocketAddr,
+    data: Vec<u8>,
+) -> Result<(), MqttBrokerError>
+where
+    S: StorageAdapter + Sync + Send + 'static + Clone,
+{
+    let receive_ms = now_mills();
+    let mut buf = BytesMut::with_capacity(data.len());
+    buf.put(data.as_slice());
+    if let Some(packet) = codec.decode_data(&mut buf)? {
+        info!("recv websocket packet:{packet:?}");
+
+        if let Some(resp_pkg) = command
+            .apply(connection_manager, tcp_connection, addr, &packet)
+            .await
+        {
+            if let MqttPacket::Connect(_, _, _, _, _, _) = packet {
+                if let Some(pv) =
+                    connection_manager.get_connect_protocol(tcp_connection.connection_id)
+                {
+                    tcp_connection.set_protocol(pv.clone());
+                }
+            }
+            let mut response_buff = BytesMut::new();
+            let packet_wrapper = MqttPacketWrapper {
+                protocol_version: tcp_connection.get_protocol().into(),
+                packet: resp_pkg,
+            };
+            codec.encode_data(packet_wrapper.clone(), &mut response_buff)?;
+            let response_ms = now_mills();
+
+            if let Err(e) = connection_manager
+                .write_websocket_frame(
+                    tcp_connection.connection_id,
+                    packet_wrapper,
+                    Message::Binary(response_buff.to_vec()),
+                )
+                .await
+            {
+                error!("websocket returns failure to write the packet to the client with error message {e:?}");
+                connection_manager
+                    .close_connect(tcp_connection.connection_id)
+                    .await;
+            }
+
+            record_ws_request_duration(receive_ms, response_ms);
+        }
+    }
+
+    Ok(())
 }

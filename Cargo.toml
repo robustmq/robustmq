@@ -34,6 +34,7 @@ members = [
     "src/journal-server",
     "src/journal-client",
     "src/storage-adapter",
+    "src/robustmq-macro",
     "tests",
 ]
 
@@ -49,8 +50,8 @@ rustls-pki-types = { version = "1.11.0" }
 bindgen = { version = "0.69.5" }
 ## async lib
 futures = "0.3"
-tokio = { version = "1", features = ["full"] }
-tokio-util = { version = "0.7.9", features = ["full"] }
+tokio = { version = "1.45.1", features = ["full"] }
+tokio-util = { version = "0.7.15", features = ["full"] }
 tokio-rustls = { version = "0.26", default-features = false, features = [
     "logging",
     "tls12",
@@ -84,7 +85,7 @@ prometheus_exporter = "0.8"
 prometheus-client = "0.23.1"
 ## logging
 tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.0", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.0", features = ["env-filter", "json"] }
 tracing-appender = { version = "0.2.0" }
 # opentelemetry
 opentelemetry = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = [
@@ -173,9 +174,10 @@ metadata-struct = { path = "src/common/metadata-struct" }
 third-driver = { path = "src/common/third-driver" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }
-robustmq-proto-build = { git = "https://github.com/robustmq/robustmq-proto.git", branch = "main" }
+robustmq-proto-build = { git = "https://github.com/PorterZhang2021/robustmq-proto", branch = "system-alarm" }
 pprof-monitor = { path = "src/common/pprof-monitor" }
-
+sysinfo = "0.29.10"
+chrono = "0.4.41"
 # other
 tempfile = "3.9.0"
 humantime = "2.2.0"

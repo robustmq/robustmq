@@ -398,8 +398,8 @@ mod willproperties {
             len += 1 + 4;
         }
 
-        if let Some(typ) = &properties.content_type {
-            len += 1 + 2 + typ.len()
+        if let Some(content_type_value) = &properties.content_type {
+            len += 1 + 2 + content_type_value.len()
         }
 
         if let Some(topic) = &properties.response_topic {
@@ -452,9 +452,9 @@ mod willproperties {
                     cursor += 4;
                 }
                 PropertyType::ContentType => {
-                    let typ = read_mqtt_string(bytes)?;
-                    cursor += 2 + typ.len();
-                    content_type = Some(typ);
+                    let content_type_value = read_mqtt_string(bytes)?;
+                    cursor += 2 + content_type_value.len();
+                    content_type = Some(content_type_value);
                 }
                 PropertyType::ResponseTopic => {
                     let topic = read_mqtt_string(bytes)?;
@@ -506,9 +506,9 @@ mod willproperties {
             buffer.put_u32(message_expiry_interval);
         }
 
-        if let Some(typ) = &properties.content_type {
+        if let Some(content_type_value) = &properties.content_type {
             buffer.put_u8(PropertyType::ContentType as u8);
-            write_mqtt_string(buffer, typ);
+            write_mqtt_string(buffer, content_type_value);
         }
 
         if let Some(topic) = &properties.response_topic {

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::config::broker_mqtt::MqttClusterDynamicSystemMonitor;
 use protocol::mqtt::common::QoS;
 use serde::{Deserialize, Serialize};
 
@@ -23,6 +24,8 @@ pub const DEFAULT_DYNAMIC_CONFIG_FEATURE: &str = "feature";
 pub const DEFAULT_DYNAMIC_CONFIG_SECURITY: &str = "security";
 pub const DEFAULT_DYNAMIC_CONFIG_NETWORK: &str = "network";
 
+pub const DEFAULT_DYNAMIC_CONFIG_SYSTEM_MONITOR: &str = "system_monitor";
+
 // Dynamic configuration of MQTT cluster latitude
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct MqttClusterDynamicConfig {
@@ -31,6 +34,7 @@ pub struct MqttClusterDynamicConfig {
     pub security: MqttClusterDynamicConfigSecurity,
     pub network: MqttClusterDynamicConfigNetwork,
     pub slow: MqttClusterDynamicSlowSub,
+    pub system_monitor: MqttClusterDynamicSystemMonitor,
     pub flapping_detect: MqttClusterDynamicFlappingDetect,
     pub offline_message: MqttClusterDynamicOfflineMessage,
     pub schema: MqttClusterDynamicSchemaMessage,
@@ -39,7 +43,8 @@ pub struct MqttClusterDynamicConfig {
 // MQTT cluster protocol related dynamic configuration
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct MqttClusterDynamicConfigProtocol {
-    pub session_expiry_interval: u32,
+    pub max_session_expiry_interval: u32,
+    pub default_session_expiry_interval: u32,
     pub topic_alias_max: u16,
     pub max_qos: QoS,
     pub max_packet_size: u32,

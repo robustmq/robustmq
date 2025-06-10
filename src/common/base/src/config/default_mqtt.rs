@@ -15,8 +15,8 @@
 use super::broker_mqtt::{
     ConfigAvailableFlag, MqttClusterDynamicConfigFeature, MqttClusterDynamicConfigNetwork,
     MqttClusterDynamicConfigProtocol, MqttClusterDynamicConfigSecurity,
-    MqttClusterDynamicFlappingDetect, MqttClusterDynamicSlowSub, Network, OfflineMessage, System,
-    TcpThread,
+    MqttClusterDynamicFlappingDetect, MqttClusterDynamicSlowSub, MqttClusterDynamicSystemMonitor,
+    Network, OfflineMessage, System, SystemMonitor, TcpThread,
 };
 use super::common::{Auth, Log, Storage, Telemetry};
 
@@ -80,6 +80,17 @@ pub fn default_system() -> System {
     }
 }
 
+pub fn default_system_monitor() -> SystemMonitor {
+    SystemMonitor {
+        enable: true,
+        os_cpu_check_interval_ms: 60,
+        os_cpu_high_watermark: 70.0,
+        os_cpu_low_watermark: 50.0,
+        os_memory_check_interval_ms: 60,
+        os_memory_high_watermark: 80.0,
+    }
+}
+
 pub fn default_storage() -> Storage {
     Storage {
         storage_type: "memory".to_string(),
@@ -140,7 +151,8 @@ pub fn default_mqtt_cluster_dynamic_security() -> MqttClusterDynamicConfigSecuri
 
 pub fn default_mqtt_cluster_dynamic_protocol() -> MqttClusterDynamicConfigProtocol {
     MqttClusterDynamicConfigProtocol {
-        session_expiry_interval: 1800,
+        max_session_expiry_interval: 1800,
+        default_session_expiry_interval: 30,
         topic_alias_max: 65535,
         max_qos: 2,
         max_packet_size: 1024 * 1024 * 10,
@@ -158,6 +170,15 @@ pub fn default_mqtt_cluster_dynamic_slow_sub() -> MqttClusterDynamicSlowSub {
         whole_ms: 0,
         internal_ms: 0,
         response_ms: 0,
+    }
+}
+
+pub fn default_mqtt_cluster_dynamic_system_monitor() -> MqttClusterDynamicSystemMonitor {
+    MqttClusterDynamicSystemMonitor {
+        enable: false,
+        os_cpu_high_watermark: 70.0,
+        os_cpu_low_watermark: 50.0,
+        os_memory_high_watermark: 80.0,
     }
 }
 

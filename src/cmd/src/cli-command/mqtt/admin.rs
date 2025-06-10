@@ -44,6 +44,36 @@ pub enum SessionActionType {
     List,
 }
 
+// connection
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "related operations of mqtt connection, such as listing", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct ConnectionArgs {
+    #[command(subcommand)]
+    pub action: ConnectionActionType,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum ConnectionActionType {
+    #[command(author = "RobustMQ", about = "action: list connection", long_about = None)]
+    List,
+}
+
+// cluster config
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "related operations of mqtt session, such as listing", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct ClusterConfigArgs {
+    #[command(subcommand)]
+    pub action: ClusterConfigActionType,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum ClusterConfigActionType {
+    #[command(author = "RobustMQ", about = "action: list sessions", long_about = None)]
+    Get,
+}
+
 // user
 #[derive(clap::Args, Debug)]
 #[command(author = "RobustMQ", about = "related operations of mqtt users, such as listing, creating, and deleting", long_about = None)]
@@ -474,6 +504,12 @@ pub fn process_session_args(args: SessionArgs) -> MqttActionType {
     }
 }
 
+pub fn process_config_args(args: ClusterConfigArgs) -> MqttActionType {
+    match args.action {
+        ClusterConfigActionType::Get => MqttActionType::GetClusterConfig,
+    }
+}
+
 pub fn process_user_args(args: UserArgs) -> MqttActionType {
     match args.action {
         UserActionType::List => MqttActionType::ListUser,
@@ -518,6 +554,12 @@ pub fn process_blacklist_args(args: BlacklistArgs) -> MqttActionType {
                 resource_name: arg.resource_name,
             })
         }
+    }
+}
+
+pub fn process_connection_args(args: ConnectionArgs) -> MqttActionType {
+    match args.action {
+        ConnectionActionType::List => MqttActionType::ListConnection,
     }
 }
 

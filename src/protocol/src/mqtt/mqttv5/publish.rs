@@ -258,9 +258,9 @@ mod properties {
                 }
 
                 PropertyType::ContentType => {
-                    let typ = read_mqtt_string(bytes)?;
-                    cursor += 2 + typ.len();
-                    content_type = Some(typ);
+                    let content_type_value = read_mqtt_string(bytes)?;
+                    cursor += 2 + content_type_value.len();
+                    content_type = Some(content_type_value);
                 }
                 _ => return Err(Error::InvalidPropertyType(prop)),
             }

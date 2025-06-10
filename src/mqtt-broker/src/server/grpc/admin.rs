@@ -22,6 +22,9 @@ use crate::admin::connector::{
     create_connector_by_req, delete_connector_by_req, list_connector_by_req,
     update_connector_by_req,
 };
+use crate::admin::observability::{
+    list_slow_subscribe_by_req, list_system_alarm_by_req, set_system_alarm_config_by_req,
+};
 use crate::admin::schema::{
     bind_schema_by_req, create_schema_by_req, delete_schema_by_req, list_bind_schema_by_req,
     list_schema_by_req, unbind_schema_by_req, update_schema_by_req,
@@ -34,14 +37,10 @@ use crate::admin::topic::{
     create_topic_rewrite_rule_by_req, delete_topic_rewrite_rule_by_req, list_topic_by_req,
 };
 use crate::admin::user::{create_user_by_req, delete_user_by_req, list_user_by_req};
-use crate::admin::{
-    cluster_status_by_req, enable_flapping_detect_by_req, list_connection_by_req,
-    list_slow_subscribe_by_req,
-};
+use crate::admin::{cluster_status_by_req, enable_flapping_detect_by_req, list_connection_by_req};
 use crate::handler::cache::CacheManager;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
-use bincode::serialize;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
 use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -55,16 +54,17 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBlacklistReply,
     ListBlacklistRequest, ListClientReply, ListClientRequest, ListConnectionReply,
     ListConnectionRequest, ListSessionReply, ListSessionRequest, ListSlowSubscribeReply,
-    ListSlowSubscribeRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-    MqttBindSchemaReply, MqttBindSchemaRequest, MqttCreateConnectorReply,
-    MqttCreateConnectorRequest, MqttCreateSchemaReply, MqttCreateSchemaRequest,
-    MqttDeleteConnectorReply, MqttDeleteConnectorRequest, MqttDeleteSchemaReply,
-    MqttDeleteSchemaRequest, MqttListBindSchemaReply, MqttListBindSchemaRequest,
-    MqttListConnectorReply, MqttListConnectorRequest, MqttListSchemaReply, MqttListSchemaRequest,
-    MqttUnbindSchemaReply, MqttUnbindSchemaRequest, MqttUpdateConnectorReply,
-    MqttUpdateConnectorRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
-    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetClusterConfigReply,
-    SetClusterConfigRequest,
+    ListSlowSubscribeRequest, ListSystemAlarmReply, ListSystemAlarmRequest, ListTopicReply,
+    ListTopicRequest, ListUserReply, ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest,
+    MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttCreateSchemaReply,
+    MqttCreateSchemaRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
+    MqttDeleteSchemaReply, MqttDeleteSchemaRequest, MqttListBindSchemaReply,
+    MqttListBindSchemaRequest, MqttListConnectorReply, MqttListConnectorRequest,
+    MqttListSchemaReply, MqttListSchemaRequest, MqttUnbindSchemaReply, MqttUnbindSchemaRequest,
+    MqttUpdateConnectorReply, MqttUpdateConnectorRequest, MqttUpdateSchemaReply,
+    MqttUpdateSchemaRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
+    SetClusterConfigReply, SetClusterConfigRequest, SetSystemAlarmConfigReply,
+    SetSystemAlarmConfigRequest,
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
@@ -112,7 +112,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         _request: Request<GetClusterConfigRequest>,
     ) -> Result<Response<GetClusterConfigReply>, Status> {
         Ok(Response::new(GetClusterConfigReply {
-            mqtt_broker_cluster_dynamic_config: serialize(
+            mqtt_broker_cluster_dynamic_config: serde_json::to_vec(
                 &self
                     .cache_manager
                     .get_cluster_config()
@@ -276,6 +276,28 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         request: Request<EnableFlappingDetectRequest>,
     ) -> Result<Response<EnableFlappingDetectReply>, Status> {
         enable_flapping_detect_by_req(&self.cache_manager, request).await
+    }
+
+    async fn mqtt_broker_set_system_alarm_config(
+        &self,
+        request: Request<SetSystemAlarmConfigRequest>,
+    ) -> Result<Response<SetSystemAlarmConfigReply>, Status> {
+        let req = request.into_inner();
+        set_system_alarm_config_by_req(&self.cache_manager, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
+    }
+
+    async fn mqtt_broker_list_system_alarm(
+        &self,
+        request: Request<ListSystemAlarmRequest>,
+    ) -> Result<Response<ListSystemAlarmReply>, Status> {
+        let req = request.into_inner();
+        list_system_alarm_by_req(&self.cache_manager, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     // --- connection ---

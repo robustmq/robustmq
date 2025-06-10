@@ -30,7 +30,7 @@ use crate::core::metrics::{
     metrics_raft_storage_total_ms, metrics_rocksdb_storage_err_inc,
     metrics_rocksdb_storage_total_inc, metrics_rocksdb_stroge_total_ms, RocksDBLabels,
 };
-use crate::raft::raft_node::typ;
+use crate::raft::raft_node::types;
 use crate::raft::route::AppResponseData;
 use crate::raft::typeconfig::{SnapshotData, TypeConfig};
 use crate::route::DataRoute;
@@ -205,7 +205,7 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
         entries: I,
     ) -> Result<Vec<AppResponseData>, StorageError<TypeConfig>>
     where
-        I: IntoIterator<Item = typ::Entry> + OptionalSend,
+        I: IntoIterator<Item = types::Entry> + OptionalSend,
         I::IntoIter: OptionalSend,
     {
         let entries = entries.into_iter();

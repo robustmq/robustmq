@@ -37,7 +37,16 @@ pub enum MqttBrokerError {
     ParseIntError(#[from] ParseIntError),
 
     #[error("{0}")]
+    FromMysqlError(#[from] mysql::Error),
+
+    #[error("{0}")]
+    TokioTimeErrorElapsed(#[from] tokio::time::error::Elapsed),
+
+    #[error("{0}")]
     TokioBroadcastSendError(#[from] tokio::sync::broadcast::error::SendError<bool>),
+
+    #[error("{0}")]
+    TokioSyncBroadcastErrorRecvError(#[from] tokio::sync::broadcast::error::RecvError),
 
     #[error("{0}")]
     SerdeJsonError(#[from] serde_json::Error),
@@ -46,7 +55,7 @@ pub enum MqttBrokerError {
     GrepError(#[from] grep::regex::Error),
 
     #[error("{0}")]
-    FromMysqlError(#[from] mysql::Error),
+    FromProtocolMQTTCommonError(#[from] protocol::mqtt::common::Error),
 
     #[error("Topic alias is too long. alias is {0}")]
     TopicAliasTooLong(u16),
@@ -64,7 +73,7 @@ pub enum MqttBrokerError {
     NotFoundConnectionInCache(u64),
 
     #[error("Client {0} has no connection available")]
-    ClientNoAvailableCOnnection(String),
+    ClientNoAvailableConnection(String),
 
     #[error("Message content length exceeds limit, Max :{0}, current :{1}")]
     PacketLengthError(usize, usize),
@@ -133,6 +142,24 @@ pub enum MqttBrokerError {
 
     #[error("kafka error: {0}")]
     KafkaError(#[from] KafkaError),
+
+    #[error("[write_frame]Connection management could not obtain an available {0} connection. Connection ID: {1}")]
+    NotObtainAvailableConnection(String, u64),
+
+    #[error("[write_frame]Encountered a DashMap deadlock and failed to obtain {0} connection information, connection ID: {1}")]
+    FailedObtailConnectionByDeadlock(String, u64),
+
+    #[error("Failed to write data to the mqtt {0} client, error message: {1}")]
+    FailedToWriteClient(String, String),
+
+    #[error("Websocket encode packet failed, error message: {0}")]
+    WebsocketEncodePacketFailed(String),
+
+    #[error("Websocket decode packet failed, error message: {0}")]
+    WebsocketDecodePacketFailed(String),
+
+    #[error("Client {0}, the size of the subscription sent packets exceeds the limit. Packet size :{1}, Limit size :{2}")]
+    PacketsExceedsLimitBySubPublish(String, usize, u32),
 }
 
 impl From<MqttBrokerError> for Status {

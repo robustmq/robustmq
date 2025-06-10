@@ -17,7 +17,9 @@ use std::sync::Arc;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::cluster::ClusterStorage;
-use common_base::config::broker_mqtt::{broker_mqtt_conf, ConfigAvailableFlag};
+use common_base::config::broker_mqtt::{
+    broker_mqtt_conf, ConfigAvailableFlag, MqttClusterDynamicSystemMonitor,
+};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::cluster::{
     AvailableFlag, MqttClusterDynamicConfig, MqttClusterDynamicConfigFeature,
@@ -28,7 +30,7 @@ use metadata_struct::mqtt::cluster::{
     MqttClusterDynamicSlowSub, DEFAULT_DYNAMIC_CONFIG_FEATURE,
     DEFAULT_DYNAMIC_CONFIG_FLAPPING_DETECT, DEFAULT_DYNAMIC_CONFIG_NETWORK,
     DEFAULT_DYNAMIC_CONFIG_OFFLINE_MESSAGE, DEFAULT_DYNAMIC_CONFIG_PROTOCOL,
-    DEFAULT_DYNAMIC_CONFIG_SLOW_SUB,
+    DEFAULT_DYNAMIC_CONFIG_SLOW_SUB, DEFAULT_DYNAMIC_CONFIG_SYSTEM_MONITOR,
 };
 use protocol::broker_mqtt::broker_mqtt_admin::SetClusterConfigRequest;
 use protocol::mqtt::common::{qos, QoS};
@@ -66,6 +68,26 @@ impl CacheManager {
             )))
         }
     }
+
+    pub async fn update_system_monitor_config(
+        &self,
+        system_monitor: MqttClusterDynamicSystemMonitor,
+    ) -> Result<(), MqttBrokerError> {
+        if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
+            config.system_monitor = system_monitor.clone();
+            Ok(())
+        } else {
+            Err(MqttBrokerError::CommonError(format!(
+                "Failed to update system monitor config, cluster name: {} not found",
+                self.cluster_name
+            )))
+        }
+    }
+
+    pub fn get_system_monitor_config(&self) -> MqttClusterDynamicSystemMonitor {
+        self.get_cluster_info().system_monitor
+    }
+
     pub async fn update_offline_message_config(
         &self,
         cluster_config_request: SetClusterConfigRequest,
@@ -112,7 +134,8 @@ impl CacheManager {
 pub fn build_default_cluster_config() -> MqttClusterDynamicConfig {
     MqttClusterDynamicConfig {
         protocol: MqttClusterDynamicConfigProtocol {
-            session_expiry_interval: 1800,
+            max_session_expiry_interval: 1800,
+            default_session_expiry_interval: 30,
             topic_alias_max: 65535,
             max_qos: QoS::ExactlyOnce,
             max_packet_size: 1024 * 1024 * 10,
@@ -147,6 +170,12 @@ pub fn build_default_cluster_config() -> MqttClusterDynamicConfig {
             internal_ms: 0,
             response_ms: 0,
         },
+        system_monitor: MqttClusterDynamicSystemMonitor {
+            enable: false,
+            os_cpu_high_watermark: 70.0,
+            os_cpu_low_watermark: 50.0,
+            os_memory_high_watermark: 80.0,
+        },
         flapping_detect: MqttClusterDynamicFlappingDetect {
             enable: false,
             window_time: 1,
@@ -173,6 +202,7 @@ pub async fn build_cluster_config(
         security: build_security(client_pool).await?,
         network: build_network(client_pool).await?,
         slow: build_slow_sub(client_pool).await?,
+        system_monitor: builder_system_monitor(client_pool).await?,
         flapping_detect: build_flapping_detect(client_pool).await?,
         offline_message: build_offline_message(client_pool).await?,
         schema: build_schema(client_pool).await?,
@@ -194,7 +224,12 @@ async fn build_protocol(
     }
 
     Ok(MqttClusterDynamicConfigProtocol {
-        session_expiry_interval: conf.cluster_dynamic_config_protocol.session_expiry_interval,
+        max_session_expiry_interval: conf
+            .cluster_dynamic_config_protocol
+            .max_session_expiry_interval,
+        default_session_expiry_interval: conf
+            .cluster_dynamic_config_protocol
+            .default_session_expiry_interval,
         topic_alias_max: conf.cluster_dynamic_config_protocol.topic_alias_max,
         max_qos: qos(conf.cluster_dynamic_config_protocol.max_qos).unwrap(),
         max_packet_size: conf.cluster_dynamic_config_protocol.max_packet_size,
@@ -342,7 +377,7 @@ async fn build_flapping_detect(
         window_time: conf.cluster_dynamic_config_flapping_detect.window_time,
         max_client_connections: conf
             .cluster_dynamic_config_flapping_detect
-            .max_client_connections as u64,
+            .max_client_connections,
         ban_time: conf.cluster_dynamic_config_flapping_detect.ban_time,
     })
 }
@@ -375,5 +410,27 @@ async fn build_schema(
         failed_operation: MqttClusterDynamicSchemaMessageFailedOperation::Discard,
         echo_log: true,
         log_level: "info".to_string(),
+    })
+}
+
+async fn builder_system_monitor(
+    client_pool: &Arc<ClientPool>,
+) -> Result<MqttClusterDynamicSystemMonitor, MqttBrokerError> {
+    let conf = broker_mqtt_conf();
+    let cluster_storage = ClusterStorage::new(client_pool.clone());
+    let data = cluster_storage
+        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_SYSTEM_MONITOR)
+        .await?;
+
+    if !data.is_empty() {
+        let cluster = serde_json::from_slice::<MqttClusterDynamicSystemMonitor>(&data)?;
+        return Ok(cluster);
+    }
+
+    Ok(MqttClusterDynamicSystemMonitor {
+        enable: false,
+        os_cpu_high_watermark: 70.0,
+        os_cpu_low_watermark: 50.0,
+        os_memory_high_watermark: 80.0,
     })
 }

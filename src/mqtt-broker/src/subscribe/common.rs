@@ -21,16 +21,17 @@ use common_base::tools::now_nanos;
 use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
 use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
 use grpc_clients::pool::ClientPool;
-use protocol::mqtt::common::QoS;
 use protocol::mqtt::common::{Filter, MqttProtocol, RetainHandling, SubscribeProperties};
-use protocol::mqtt::common::{Publish, PublishProperties};
+use protocol::mqtt::common::{MqttPacket, QoS};
 use protocol::placement_center::placement_center_mqtt::{
     GetShareSubLeaderReply, GetShareSubLeaderRequest,
 };
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::time::Duration;
 use storage_adapter::storage::StorageAdapter;
+use tokio::time::sleep;
 
 const SHARE_SUB_PREFIX: &str = "$share";
 const QUEUE_SUB_PREFIX: &str = "$queue";
@@ -63,11 +64,10 @@ pub struct SubscribeData {
     pub subscribe_properties: Option<SubscribeProperties>,
 }
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct SubPublishParam {
     pub subscribe: Subscriber,
-    pub publish: Publish,
-    pub properties: Option<PublishProperties>,
+    pub packet: MqttPacket,
     pub create_time: u128,
     pub pkid: u16,
     pub group_id: String,
@@ -76,16 +76,14 @@ pub(crate) struct SubPublishParam {
 impl SubPublishParam {
     pub fn new(
         subscribe: Subscriber,
-        publish: Publish,
-        properties: Option<PublishProperties>,
+        packet: MqttPacket,
         create_time: u128,
         group_id: String,
         pkid: u16,
     ) -> Self {
         SubPublishParam {
             subscribe,
-            publish,
-            properties,
+            packet,
             create_time,
             pkid,
             group_id,
@@ -93,8 +91,38 @@ impl SubPublishParam {
     }
 }
 
-pub fn get_pkid() -> u16 {
-    (now_nanos() % 65535) as u16
+pub async fn get_pkid(cache_manager: &Arc<CacheManager>, client_id: &str) -> u16 {
+    loop {
+        let id = (now_nanos() % 65535) as u16;
+        if id == 0 {
+            sleep(Duration::from_millis(1)).await;
+            continue;
+        }
+
+        if cache_manager.get_ack_packet(client_id, id).is_some() {
+            sleep(Duration::from_millis(1)).await;
+            continue;
+        }
+
+        return id;
+    }
+}
+
+pub fn is_ignore_push_error(e: &MqttBrokerError) -> bool {
+    if e.to_string().contains("deadline has elapsed") {
+        return true;
+    }
+
+    match e {
+        MqttBrokerError::SessionNullSkipPushMessage(_) => {}
+        MqttBrokerError::ConnectionNullSkipPushMessage(_) => {}
+        MqttBrokerError::NotObtainAvailableConnection(_, _) => {}
+        _ => {
+            return false;
+        }
+    }
+
+    true
 }
 
 pub fn sub_path_validator(sub_path: &str) -> Result<(), MqttBrokerError> {
@@ -279,8 +307,12 @@ mod tests {
 
     #[tokio::test]
     async fn get_pkid_test() {
+        let client_pool = Arc::new(ClientPool::new(100));
+        let cluster_name = "test";
+        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name.to_string()));
+        let client_id = "cid";
         for _ in 1..100 {
-            let pkid = get_pkid();
+            let pkid = get_pkid(&cache_manager, client_id).await;
             assert!(pkid > 0 && pkid < 65535);
         }
     }

@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::tools::{now_mills, now_second, unique_id};
+use common_base::tools::{now_mills, unique_id};
 use futures::StreamExt;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::node_extend::MqttNodeExtend;
@@ -44,7 +44,7 @@ use crate::subscribe::common::{get_pkid, get_share_sub_leader};
 use crate::subscribe::manager::ShareSubShareSub;
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::push::{
-    exclusive_publish_message_qos1, publish_message_qos, qos2_send_pubrel, wait_packet_ack,
+    exclusive_publish_message_qos1, push_packet_to_client, qos2_send_pubrel, wait_packet_ack,
     wait_pub_rec,
 };
 
@@ -295,7 +295,7 @@ async fn process_packet(
 
         MqttPacket::PubRel(pubrel, _) => {
             if let Some(data) =
-                cache_manager.get_ack_packet(follower_sub_leader_client_id.to_owned(), pubrel.pkid)
+                cache_manager.get_ack_packet(follower_sub_leader_client_id, pubrel.pkid)
             {
                 if let Err(e) = data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubRel,
@@ -385,13 +385,13 @@ async fn process_publish_packet(
         ..Default::default()
     };
 
-    let publish_to_client_pkid = get_pkid();
+    let publish_to_client_pkid = get_pkid(cache_manager, mqtt_client_id).await;
     publish.pkid = publish_to_client_pkid;
 
+    let packet = MqttPacket::Publish(publish.clone(), publish_properties);
     let sub_pub_param = SubPublishParam::new(
         subscriber.clone(),
-        publish.clone(),
-        publish_properties,
+        packet,
         now_mills(),
         "".to_string(),
         publish_to_client_pkid,
@@ -399,7 +399,8 @@ async fn process_publish_packet(
 
     match publish.qos {
         protocol::mqtt::common::QoS::AtMostOnce => {
-            publish_message_qos(cache_manager, connection_manager, &sub_pub_param, stop_sx).await?;
+            push_packet_to_client(cache_manager, connection_manager, &sub_pub_param, stop_sx)
+                .await?;
         }
 
         protocol::mqtt::common::QoS::AtLeastOnce => {
@@ -409,7 +410,7 @@ async fn process_publish_packet(
                 publish_to_client_pkid,
                 QosAckPacketInfo {
                     sx: wait_puback_sx.clone(),
-                    create_time: now_second(),
+                    create_time: now_mills(),
                 },
             );
 
@@ -434,7 +435,7 @@ async fn process_publish_packet(
                 publish_to_client_pkid,
                 QosAckPacketInfo {
                     sx: wait_client_ack_sx.clone(),
-                    create_time: now_second(),
+                    create_time: now_mills(),
                 },
             );
 
@@ -444,7 +445,7 @@ async fn process_publish_packet(
                 publish.pkid,
                 QosAckPacketInfo {
                     sx: wait_leader_ack_sx.clone(),
-                    create_time: now_second(),
+                    create_time: now_mills(),
                 },
             );
 
@@ -458,6 +459,7 @@ async fn process_publish_packet(
                 write_stream,
                 follower_sub_leader_client_id,
                 mqtt_client_id,
+                publish.pkid,
             )
             .await?;
 
@@ -535,12 +537,12 @@ pub async fn resub_publish_message_qos2(
     write_stream: &Arc<WriteStream>,
     follower_sub_leader_client_id: &str,
     mqtt_client_id: &str,
+    current_message_pkid: u16,
 ) -> Result<(), MqttBrokerError> {
     debug!("{}", sub_pub_param.group_id);
-    let current_message_pkid = sub_pub_param.publish.pkid;
 
     // 1. Publish message to client
-    publish_message_qos(metadata_cache, connection_manager, sub_pub_param, stop_sx).await?;
+    push_packet_to_client(metadata_cache, connection_manager, sub_pub_param, stop_sx).await?;
 
     // 2. Wait client pubrec
     wait_pub_rec(
