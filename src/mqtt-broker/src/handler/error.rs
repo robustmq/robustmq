@@ -54,6 +54,9 @@ pub enum MqttBrokerError {
     #[error("Topic name cannot be empty")]
     TopicNameIsEmpty,
 
+    #[error("Client ID cannot be empty")]
+    ClientIDIsEmpty,
+
     #[error("topic name is not available")]
     TopicNameInvalid(),
 
@@ -71,6 +74,9 @@ pub enum MqttBrokerError {
 
     #[error("Cluster is in self-protection state, please request later")]
     ClusterIsInSelfProtection,
+
+    #[error("Cluster name does not match")]
+    ClusterNotMatch(String),
 
     #[error("message is not in UTF8 format")]
     PayloadFormatInvalid,

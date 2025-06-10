@@ -66,6 +66,7 @@ lazy_static! {
 pub mod admin;
 pub mod bridge;
 pub mod handler;
+pub mod inner;
 pub mod observability;
 pub mod security;
 pub mod server;
