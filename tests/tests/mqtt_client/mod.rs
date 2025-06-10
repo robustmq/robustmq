@@ -15,3 +15,4 @@
 mod flapping_detect_test;
 mod offline_message_test;
 mod slow_sub_test;
+mod system_alarm_test;
