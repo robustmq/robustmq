@@ -37,22 +37,23 @@ mod tests {
         let now = Instant::now();
         loop {
             if let Some(data) = stream.next().await {
+                println!("response:{:?}", data);
                 match data {
                     Ok(da) => {
                         println!("success:{:?}", da);
                     }
                     Err(e) => {
+                        println!("error :{}", e);
                         if !e.to_string().contains("Insufficient number") {
                             break;
                         }
-                        println!("error:{}", e);
                     }
                 }
             }
             sleep(Duration::from_millis(10)).await;
         }
         let ts = now.elapsed().as_secs();
-        println!("{}", ts);
+        println!("ms: {}", ts);
         assert!((14..=17).contains(&ts));
     }
 

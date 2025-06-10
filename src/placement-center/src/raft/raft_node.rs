@@ -45,7 +45,7 @@ impl Display for Node {
     }
 }
 
-pub mod typ {
+pub mod types {
     use crate::raft::typeconfig::TypeConfig;
     pub type Entry = openraft::Entry<TypeConfig>;
 }

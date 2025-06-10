@@ -29,10 +29,10 @@ tls_cert = "./config/example/certs/cert.pem"
 tls_key = "./config/example/certs/key.pem"
 
 [tcp_thread]
-accept_thread_num = 5
-handler_thread_num = 32
-response_thread_num = 5
-max_connection_num = 1000
+accept_thread_num = 10
+handler_thread_num = 15
+response_thread_num = 10
+max_connection_num = 2000
 request_queue_size = 2000
 response_queue_size = 2000
 lock_max_try_mut_times = 30
@@ -53,6 +53,14 @@ header = ""
 runtime_worker_threads = 4
 default_user = "admin"
 default_password = "pwd123"
+
+[system_monitor]
+enable = true
+os_cpu_check_interval_ms = 60
+os_cpu_high_watermark = 70.0
+os_cpu_low_watermark = 50.0
+os_memory_check_interval_ms = 60
+os_memory_high_watermark = 80.0
 
 [offline_messages]
 enable = true

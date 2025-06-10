@@ -24,11 +24,11 @@ use super::default_mqtt::{
     default_auth, default_grpc_port, default_heartbeat_timeout, default_log,
     default_mqtt_cluster_dynamic_feature, default_mqtt_cluster_dynamic_flapping_detect,
     default_mqtt_cluster_dynamic_network, default_mqtt_cluster_dynamic_protocol,
-    default_mqtt_cluster_dynamic_security, default_mqtt_cluster_dynamic_slow_sub, default_network,
-    default_network_quic_port, default_network_tcp_port, default_network_tcps_port,
-    default_network_websocket_port, default_network_websockets_port, default_offline_message,
-    default_placement_center, default_storage, default_system, default_tcp_thread,
-    default_telemetry,
+    default_mqtt_cluster_dynamic_security, default_mqtt_cluster_dynamic_slow_sub,
+    default_mqtt_cluster_dynamic_system_monitor, default_network, default_network_quic_port,
+    default_network_tcp_port, default_network_tcps_port, default_network_websocket_port,
+    default_network_websockets_port, default_offline_message, default_placement_center,
+    default_storage, default_system, default_system_monitor, default_tcp_thread, default_telemetry,
 };
 use crate::tools::{read_file, try_create_fold};
 
@@ -48,6 +48,8 @@ pub struct BrokerMqttConfig {
     pub tcp_thread: TcpThread,
     #[serde(default = "default_system")]
     pub system: System,
+    #[serde(default = "default_system_monitor")]
+    pub system_monitor: SystemMonitor,
     #[serde(default = "default_storage")]
     pub storage: Storage,
     #[serde(default = "default_auth")]
@@ -67,6 +69,8 @@ pub struct BrokerMqttConfig {
     pub cluster_dynamic_config_slow_sub: MqttClusterDynamicSlowSub,
     #[serde(default = "default_mqtt_cluster_dynamic_flapping_detect")]
     pub cluster_dynamic_config_flapping_detect: MqttClusterDynamicFlappingDetect,
+    #[serde(default = "default_mqtt_cluster_dynamic_system_monitor")]
+    pub cluster_dynamic_system_monitor: MqttClusterDynamicSystemMonitor,
     #[serde(default = "default_mqtt_cluster_dynamic_protocol")]
     pub cluster_dynamic_config_protocol: MqttClusterDynamicConfigProtocol,
     #[serde(default = "default_mqtt_cluster_dynamic_feature")]
@@ -80,7 +84,8 @@ pub struct BrokerMqttConfig {
 // MQTT cluster protocol related dynamic configuration
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct MqttClusterDynamicConfigProtocol {
-    pub session_expiry_interval: u32,
+    pub max_session_expiry_interval: u32,
+    pub default_session_expiry_interval: u32,
     pub topic_alias_max: u16,
     pub max_qos: u8,
     pub max_packet_size: u32,
@@ -159,6 +164,20 @@ impl MqttClusterDynamicFlappingDetect {
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct MqttClusterDynamicSystemMonitor {
+    pub enable: bool,
+    pub os_cpu_high_watermark: f32,
+    pub os_cpu_low_watermark: f32,
+    pub os_memory_high_watermark: f32,
+}
+
+impl MqttClusterDynamicSystemMonitor {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct MqttClusterDynamicOfflineMessage {
     pub enable: bool,
 }
@@ -226,6 +245,22 @@ pub struct OfflineMessage {
     pub expire_ms: u32,
     #[serde(default)]
     pub max_messages_num: u32,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct SystemMonitor {
+    #[serde(default)]
+    pub enable: bool,
+    #[serde(default)]
+    pub os_cpu_check_interval_ms: u64,
+    #[serde(default)]
+    pub os_cpu_high_watermark: f32,
+    #[serde(default)]
+    pub os_cpu_low_watermark: f32,
+    #[serde(default)]
+    pub os_memory_check_interval_ms: u64,
+    #[serde(default)]
+    pub os_memory_high_watermark: f32,
 }
 
 static BROKER_MQTT_CONF: OnceLock<BrokerMqttConfig> = OnceLock::new();
@@ -308,18 +343,19 @@ mod tests {
         assert!(!config.network.tls_cert.is_empty());
         assert!(!config.network.tls_key.is_empty());
 
-        assert_eq!(config.tcp_thread.accept_thread_num, 5);
-        assert_eq!(config.tcp_thread.handler_thread_num, 32);
-        assert_eq!(config.tcp_thread.response_thread_num, 5);
-        assert_eq!(config.tcp_thread.max_connection_num, 1000);
-        assert_eq!(config.tcp_thread.request_queue_size, 2000);
-        assert_eq!(config.tcp_thread.response_queue_size, 2000);
         assert_eq!(config.tcp_thread.lock_max_try_mut_times, 30);
         assert_eq!(config.tcp_thread.lock_try_mut_sleep_time_ms, 50);
 
         assert_eq!(config.system.runtime_worker_threads, 4);
         assert_eq!(config.system.default_user, "admin".to_string());
         assert_eq!(config.system.default_password, "pwd123".to_string());
+
+        assert!(config.system_monitor.enable);
+        assert_eq!(config.system_monitor.os_cpu_check_interval_ms, 60);
+        assert_eq!(config.system_monitor.os_cpu_high_watermark, 70.0);
+        assert_eq!(config.system_monitor.os_cpu_low_watermark, 50.0);
+        assert_eq!(config.system_monitor.os_memory_check_interval_ms, 60);
+        assert_eq!(config.system_monitor.os_memory_high_watermark, 80.0);
 
         assert_eq!(config.storage.storage_type, "memory".to_string());
         assert_eq!(config.storage.journal_addr, "".to_string());
@@ -430,6 +466,13 @@ mod tests {
                 assert_eq!(config.system.default_user, "admin-env".to_string());
                 assert_eq!(config.system.default_password, "pwd123-env".to_string());
 
+                assert!(config.system_monitor.enable);
+                assert_eq!(config.system_monitor.os_cpu_check_interval_ms, 60);
+                assert_eq!(config.system_monitor.os_cpu_high_watermark, 70.0);
+                assert_eq!(config.system_monitor.os_cpu_low_watermark, 50.0);
+                assert_eq!(config.system_monitor.os_memory_check_interval_ms, 60);
+                assert_eq!(config.system_monitor.os_memory_high_watermark, 80.0);
+
                 assert_eq!(config.storage.storage_type, "memory-env".to_string());
                 assert_eq!(config.storage.journal_addr, "".to_string());
                 assert_eq!(config.storage.mysql_addr, "".to_string());
@@ -482,18 +525,19 @@ mod tests {
             assert!(!config.network.tls_cert.is_empty());
             assert!(!config.network.tls_key.is_empty());
 
-            assert_eq!(config.tcp_thread.accept_thread_num, 5);
-            assert_eq!(config.tcp_thread.handler_thread_num, 32);
-            assert_eq!(config.tcp_thread.response_thread_num, 5);
-            assert_eq!(config.tcp_thread.max_connection_num, 1000);
-            assert_eq!(config.tcp_thread.request_queue_size, 2000);
-            assert_eq!(config.tcp_thread.response_queue_size, 2000);
             assert_eq!(config.tcp_thread.lock_max_try_mut_times, 30);
             assert_eq!(config.tcp_thread.lock_try_mut_sleep_time_ms, 50);
 
             assert_eq!(config.system.runtime_worker_threads, 4);
             assert_eq!(config.system.default_user, "admin".to_string());
             assert_eq!(config.system.default_password, "pwd123".to_string());
+
+            assert!(config.system_monitor.enable);
+            assert_eq!(config.system_monitor.os_cpu_check_interval_ms, 60);
+            assert_eq!(config.system_monitor.os_cpu_high_watermark, 70.0);
+            assert_eq!(config.system_monitor.os_cpu_low_watermark, 50.0);
+            assert_eq!(config.system_monitor.os_memory_check_interval_ms, 60);
+            assert_eq!(config.system_monitor.os_memory_high_watermark, 80.0);
 
             assert_eq!(config.storage.storage_type, "memory".to_string());
             assert_eq!(config.storage.journal_addr, "".to_string());

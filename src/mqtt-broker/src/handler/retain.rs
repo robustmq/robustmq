@@ -25,21 +25,21 @@ use crate::observability::metrics::packets::{
 };
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::topic::TopicStorage;
-use crate::subscribe::common::SubPublishParam;
 use crate::subscribe::common::Subscriber;
 use crate::subscribe::common::{get_pkid, get_sub_topic_id_list, min_qos};
+use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
 use crate::subscribe::manager::SubscribeManager;
-use crate::subscribe::push::publish_data;
+use crate::subscribe::push::send_publish_packet_to_client;
 use bytes::Bytes;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{
-    MqttProtocol, Publish, PublishProperties, Subscribe, SubscribeProperties,
+    MqttPacket, MqttProtocol, Publish, PublishProperties, Subscribe, SubscribeProperties,
 };
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tracing::info;
+use tracing::error;
 
 pub async fn is_new_sub(
     client_id: &str,
@@ -116,7 +116,9 @@ pub async fn try_send_retain_message(
         )
         .await
         {
-            info!("Sending retain message failed with error message :{}", e);
+            if !is_ignore_push_error(&e) {
+                error!("Sending retain message failed with error message :{}", e);
+            }
         }
     });
 }
@@ -190,7 +192,7 @@ async fn send_retain_message(
                 content_type: msg.content_type,
             };
 
-            let pkid = get_pkid();
+            let pkid = get_pkid(cache_manager, client_id).await;
             let publish = Publish {
                 dup: false,
                 qos,
@@ -200,20 +202,27 @@ async fn send_retain_message(
                 payload: msg.payload,
             };
 
+            let packet = MqttPacket::Publish(publish.clone(), Some(properties));
             let sub_pub_param = SubPublishParam::new(
                 Subscriber {
                     protocol: protocol.to_owned(),
                     client_id: client_id.to_string(),
                     ..Default::default()
                 },
-                publish,
-                Some(properties),
+                packet,
                 msg.create_time as u128,
                 "".to_string(),
                 pkid,
             );
 
-            publish_data(connection_manager, cache_manager, sub_pub_param, stop_sx).await?;
+            send_publish_packet_to_client(
+                connection_manager,
+                cache_manager,
+                &sub_pub_param,
+                &qos,
+                stop_sx,
+            )
+            .await?;
             record_retain_sent_metrics(qos);
         }
     }

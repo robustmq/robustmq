@@ -15,16 +15,16 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use common_base::tools::now_second;
+use common_base::tools::{now_mills, now_second};
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MqttPacket, MqttProtocol, PingReq,
     PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec,
-    PubRecProperties, PubRecReason, PubRel, PubRelProperties, PubRelReason, Publish,
-    PublishProperties, QoS, Subscribe, SubscribeProperties, SubscribeReasonCode, UnsubAckReason,
-    Unsubscribe, UnsubscribeProperties,
+    PubRecProperties, PubRecReason, PubRel, PubRelProperties, Publish, PublishProperties, QoS,
+    Subscribe, SubscribeProperties, SubscribeReasonCode, UnsubAckReason, Unsubscribe,
+    UnsubscribeProperties,
 };
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
@@ -51,8 +51,7 @@ use crate::handler::response::{
     response_packet_mqtt_puback_fail, response_packet_mqtt_puback_success,
     response_packet_mqtt_pubcomp_fail, response_packet_mqtt_pubcomp_success,
     response_packet_mqtt_pubrec_fail, response_packet_mqtt_pubrec_success,
-    response_packet_mqtt_pubrel_success, response_packet_mqtt_suback,
-    response_packet_mqtt_unsuback,
+    response_packet_mqtt_suback, response_packet_mqtt_unsuback,
 };
 use crate::handler::session::{build_session, save_session};
 use crate::handler::topic::{get_topic_name, try_init_topic};
@@ -114,12 +113,12 @@ where
     pub async fn connect(
         &mut self,
         connect_id: u64,
-        connect: Connect,
-        connect_properties: Option<ConnectProperties>,
-        last_will: Option<LastWill>,
-        last_will_properties: Option<LastWillProperties>,
+        connect: &Connect,
+        connect_properties: &Option<ConnectProperties>,
+        last_will: &Option<LastWill>,
+        last_will_properties: &Option<LastWillProperties>,
         login: &Option<Login>,
-        addr: SocketAddr,
+        addr: &SocketAddr,
     ) -> MqttPacket {
         let cluster = self.cache_manager.get_cluster_info();
 
@@ -127,10 +126,10 @@ where
         if let Some(res) = connect_validator(
             &self.protocol,
             &cluster,
-            &connect,
-            &connect_properties,
-            &last_will,
-            &last_will_properties,
+            connect,
+            connect_properties,
+            last_will,
+            last_will_properties,
             login,
         ) {
             return res;
@@ -142,16 +141,16 @@ where
             connect_id,
             client_id.clone(),
             &cluster,
-            &connect,
-            &connect_properties,
-            &addr,
+            connect,
+            connect_properties,
+            addr,
         );
 
         if self.auth_driver.allow_connect(&connection).await {
             return response_packet_mqtt_connect_fail(
                 &self.protocol,
                 ConnectReturnCode::Banned,
-                &connect_properties,
+                connect_properties,
                 None,
             );
         }
@@ -159,7 +158,7 @@ where
         // login check
         match self
             .auth_driver
-            .check_login_auth(login, &connect_properties, &addr)
+            .check_login_auth(login, connect_properties, addr)
             .await
         {
             Ok(flag) => {
@@ -167,7 +166,7 @@ where
                     return response_packet_mqtt_connect_fail(
                         &self.protocol,
                         ConnectReturnCode::NotAuthorized,
-                        &connect_properties,
+                        connect_properties,
                         None,
                     );
                 }
@@ -176,7 +175,7 @@ where
                 return response_packet_mqtt_connect_fail(
                     &self.protocol,
                     ConnectReturnCode::UnspecifiedError,
-                    &connect_properties,
+                    connect_properties,
                     Some(e.to_string()),
                 );
             }
@@ -190,10 +189,10 @@ where
         let (session, new_session) = match build_session(
             connect_id,
             client_id.clone(),
-            &connect,
-            &connect_properties,
-            &last_will,
-            &last_will_properties,
+            connect,
+            connect_properties,
+            last_will,
+            last_will_properties,
             &self.client_pool,
             &self.cache_manager,
         )
@@ -204,7 +203,7 @@ where
                 return response_packet_mqtt_connect_fail(
                     &self.protocol,
                     ConnectReturnCode::MalformedPacket,
-                    &connect_properties,
+                    connect_properties,
                     Some(e.to_string()),
                 );
             }
@@ -222,15 +221,15 @@ where
             return response_packet_mqtt_connect_fail(
                 &self.protocol,
                 ConnectReturnCode::MalformedPacket,
-                &connect_properties,
+                connect_properties,
                 Some(e.to_string()),
             );
         }
 
         if let Err(e) = save_last_will_message(
             client_id.clone(),
-            &last_will,
-            &last_will_properties,
+            last_will,
+            last_will_properties,
             &self.client_pool,
         )
         .await
@@ -238,7 +237,7 @@ where
             return response_packet_mqtt_connect_fail(
                 &self.protocol,
                 ConnectReturnCode::UnspecifiedError,
-                &connect_properties,
+                connect_properties,
                 Some(e.to_string()),
             );
         }
@@ -256,7 +255,7 @@ where
             return response_packet_mqtt_connect_fail(
                 &self.protocol,
                 ConnectReturnCode::UnspecifiedError,
-                &connect_properties,
+                connect_properties,
                 Some(e.to_string()),
             );
         }
@@ -291,15 +290,15 @@ where
             session.session_expiry as u32,
             new_session,
             connection.keep_alive,
-            &connect_properties,
+            connect_properties,
         )
     }
 
     pub async fn publish(
         &self,
         connect_id: u64,
-        publish: Publish,
-        publish_properties: Option<PublishProperties>,
+        publish: &Publish,
+        publish_properties: &Option<PublishProperties>,
     ) -> Option<MqttPacket> {
         let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
             se.clone()
@@ -315,8 +314,8 @@ where
             &self.cache_manager,
             &self.client_pool,
             &connection,
-            &publish,
-            &publish_properties,
+            publish,
+            publish_properties,
         )
         .await
         {
@@ -329,23 +328,19 @@ where
 
         let is_puback = publish.qos != QoS::ExactlyOnce;
 
-        let mut topic_name = match get_topic_name(
-            &self.cache_manager,
-            connect_id,
-            &publish,
-            &publish_properties,
-        ) {
-            Ok(topic_name) => topic_name,
-            Err(e) => {
-                return Some(build_pub_ack_fail(
-                    &self.protocol,
-                    &connection,
-                    publish.pkid,
-                    Some(e.to_string()),
-                    is_puback,
-                ))
-            }
-        };
+        let mut topic_name =
+            match get_topic_name(&self.cache_manager, connect_id, publish, publish_properties) {
+                Ok(topic_name) => topic_name,
+                Err(e) => {
+                    return Some(build_pub_ack_fail(
+                        &self.protocol,
+                        &connection,
+                        publish.pkid,
+                        Some(e.to_string()),
+                        is_puback,
+                    ))
+                }
+            };
 
         let mut delay_info = if is_delay_topic(&topic_name) {
             match decode_delay_topic(&topic_name) {
@@ -437,8 +432,8 @@ where
             &self.delay_message_manager,
             &self.cache_manager,
             &self.client_pool,
-            &publish,
-            &publish_properties,
+            publish,
+            publish_properties,
             &self.subscribe_manager,
             &client_id,
             &topic,
@@ -463,7 +458,7 @@ where
         let user_properties: Vec<(String, String)> = vec![("offset".to_string(), offset)];
 
         self.cache_manager
-            .add_topic_alias(connect_id, &topic_name, &publish_properties);
+            .add_topic_alias(connect_id, &topic_name, publish_properties);
 
         match publish.qos {
             QoS::AtMostOnce => None,
@@ -518,24 +513,21 @@ where
     pub async fn publish_ack(
         &self,
         connect_id: u64,
-        pub_ack: PubAck,
-        _: Option<PubAckProperties>,
+        pub_ack: &PubAck,
+        _: &Option<PubAckProperties>,
     ) -> Option<MqttPacket> {
         if let Some(conn) = self.cache_manager.get_connection(connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_ack.pkid;
-            if let Some(data) = self.cache_manager.get_ack_packet(client_id.clone(), pkid) {
-                match data.sx.send(QosAckPackageData {
+            if let Some(data) = self.cache_manager.get_ack_packet(&client_id, pkid) {
+                if let Err(e) = data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubAck,
                     pkid: pub_ack.pkid,
                 }) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        error!(
-                            "publish ack send ack manager message error, error message:{}, send data time: {}, recv ack time:{}, client_id: {}",
-                            e,data.create_time,now_second(),conn.client_id
+                    error!(
+                            "send puback to channel fail, error message:{}, send data time: {}, recv ack time:{}, client_id: {}, pkid:{}",
+                            e,data.create_time, now_mills(), conn.client_id, pub_ack.pkid
                         );
-                    }
                 }
             }
         }
@@ -546,56 +538,44 @@ where
     pub async fn publish_rec(
         &self,
         connect_id: u64,
-        pub_rec: PubRec,
-        _: Option<PubRecProperties>,
+        pub_rec: &PubRec,
+        _: &Option<PubRecProperties>,
     ) -> Option<MqttPacket> {
         if let Some(conn) = self.cache_manager.get_connection(connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_rec.pkid;
-            if let Some(data) = self.cache_manager.get_ack_packet(client_id.clone(), pkid) {
-                match data.sx.send(QosAckPackageData {
+            if let Some(data) = self.cache_manager.get_ack_packet(&client_id, pkid) {
+                if let Err(e) = data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubRec,
                     pkid: pub_rec.pkid,
                 }) {
-                    Ok(_) => return None,
-                    Err(e) => {
-                        error!(
-                            "publish rec send ack manager message error, error message:{}, send data time: {}, recv rec time:{}, client_id: {}",
-                            e,data.create_time,now_second(),client_id
-                        );
-                    }
+                    error!("send pubrec to channel fail, error message:{}, send data time: {}, recv rec time:{}, client_id: {}, pkid:{}",
+                        e,data.create_time, now_mills(), client_id, pub_rec.pkid);
                 }
             }
         }
 
-        Some(response_packet_mqtt_pubrel_success(
-            &self.protocol,
-            pub_rec.pkid,
-            PubRelReason::Success,
-        ))
+        None
     }
 
     pub async fn publish_comp(
         &self,
         connect_id: u64,
-        pub_comp: PubComp,
-        _: Option<PubCompProperties>,
+        pub_comp: &PubComp,
+        _: &Option<PubCompProperties>,
     ) -> Option<MqttPacket> {
         if let Some(conn) = self.cache_manager.get_connection(connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_comp.pkid;
-            if let Some(data) = self.cache_manager.get_ack_packet(client_id.clone(), pkid) {
-                match data.sx.send(QosAckPackageData {
+            if let Some(data) = self.cache_manager.get_ack_packet(&client_id, pkid) {
+                if let Err(e) = data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubComp,
                     pkid: pub_comp.pkid,
                 }) {
-                    Ok(_) => return None,
-                    Err(e) => {
-                        error!(
-                            "publish comp send ack manager message error, error message:{}, send data time: {}, recv comp time:{}, client_id: {}",
-                            e,data.create_time,now_second(),client_id
+                    error!(
+                            "send pubcomp to channel fail, error message:{}, send data time: {}, recv comp time:{}, client_id: {}, pkid:{}",
+                            e,data.create_time, now_mills(), client_id, pub_comp.pkid
                         );
-                    }
                 }
             }
         }
@@ -605,8 +585,8 @@ where
     pub async fn publish_rel(
         &self,
         connect_id: u64,
-        pub_rel: PubRel,
-        _: Option<PubRelProperties>,
+        pub_rel: &PubRel,
+        _: &Option<PubRelProperties>,
     ) -> MqttPacket {
         let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
             se.clone()
@@ -679,8 +659,8 @@ where
     pub async fn subscribe(
         &self,
         connect_id: u64,
-        subscribe: Subscribe,
-        subscribe_properties: Option<SubscribeProperties>,
+        subscribe: &Subscribe,
+        subscribe_properties: &Option<SubscribeProperties>,
     ) -> MqttPacket {
         let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
             se.clone()
@@ -697,14 +677,14 @@ where
             &self.cache_manager,
             &self.subscribe_manager,
             &connection,
-            &subscribe,
+            subscribe,
         )
         .await
         {
             return packet;
         }
 
-        let new_subs = is_new_sub(&connection.client_id, &subscribe, &self.subscribe_manager).await;
+        let new_subs = is_new_sub(&connection.client_id, subscribe, &self.subscribe_manager).await;
 
         if let Err(e) = save_subscribe(
             &connection.client_id,
@@ -712,8 +692,8 @@ where
             &self.client_pool,
             &self.cache_manager,
             &self.subscribe_manager,
-            &subscribe,
-            &subscribe_properties,
+            subscribe,
+            subscribe_properties,
         )
         .await
         {
@@ -733,7 +713,7 @@ where
             &connection,
             connect_id,
             &self.connection_manager,
-            &subscribe,
+            subscribe,
         )
         .await;
 
@@ -773,7 +753,7 @@ where
         )
     }
 
-    pub async fn ping(&self, connect_id: u64, _: PingReq) -> MqttPacket {
+    pub async fn ping(&self, connect_id: u64, _: &PingReq) -> MqttPacket {
         let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
             se.clone()
         } else {
@@ -796,8 +776,8 @@ where
     pub async fn un_subscribe(
         &self,
         connect_id: u64,
-        un_subscribe: Unsubscribe,
-        _: Option<UnsubscribeProperties>,
+        un_subscribe: &Unsubscribe,
+        _: &Option<UnsubscribeProperties>,
     ) -> MqttPacket {
         let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
             se.clone()
@@ -812,7 +792,7 @@ where
             &connection.client_id,
             &self.subscribe_manager,
             &connection,
-            &un_subscribe,
+            un_subscribe,
         )
         .await
         {
@@ -821,7 +801,7 @@ where
 
         if let Err(e) = remove_subscribe(
             &connection.client_id,
-            &un_subscribe,
+            un_subscribe,
             &self.client_pool,
             &self.subscribe_manager,
         )
@@ -842,7 +822,7 @@ where
             &connection,
             connect_id,
             &self.connection_manager,
-            &un_subscribe,
+            un_subscribe,
         )
         .await;
 
@@ -857,8 +837,8 @@ where
     pub async fn disconnect(
         &self,
         connect_id: u64,
-        disconnect: Disconnect,
-        disconnect_properties: Option<DisconnectProperties>,
+        disconnect: &Disconnect,
+        disconnect_properties: &Option<DisconnectProperties>,
     ) -> Option<MqttPacket> {
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
             se.clone()
@@ -881,11 +861,11 @@ where
         }
 
         let delete_session = if let Some(properties) = disconnect_properties {
-            is_delete_session(properties.user_properties)
+            is_delete_session(&properties.user_properties)
         } else {
             false
         };
-        match disconnect_connection(
+        if let Err(e) = disconnect_connection(
             &connection.client_id,
             connect_id,
             &self.cache_manager,
@@ -896,10 +876,7 @@ where
         )
         .await
         {
-            Ok(()) => {}
-            Err(e) => {
-                warn!("disconnect connection failed, {}", e.to_string());
-            }
+            warn!("disconnect connection failed, {}", e.to_string());
         }
 
         None
