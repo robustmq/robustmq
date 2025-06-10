@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::inject_into_async_block;
+use crate::parse::ParseItem;
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
 use syn::parse::ParseStream;
@@ -61,34 +62,44 @@ impl syn::parse::Parse for Arg {
     }
 }
 
-pub(super) fn expanded(_arg: Arg, mut ast_fn: syn::ItemFn) -> syn::Result<TokenStream> {
-    let (first_arg, _first_arg_ty) = ast_fn
-        .sig
-        .inputs
-        .iter()
-        .find(|fn_arg| !matches!(fn_arg, syn::FnArg::Receiver(_)))
-        .and_then(|fn_arg| match fn_arg {
-            syn::FnArg::Typed(pat_ty) => match &*pat_ty.pat {
-                syn::Pat::Ident(syn::PatIdent { ident, .. }) => Some((ident, &pat_ty.ty)),
-                _ => None,
-            },
-            _ => None, // this will not be executed here
-        })
-        .ok_or(syn::Error::new(
-            Span::call_site(),
-            "method argument must be a plain identifier",
-        ))?;
+pub(super) fn expanded(_arg: Arg, ast_item: ParseItem) -> syn::Result<TokenStream> {
+    match ast_item {
+        ParseItem::Fn(mut ast_fn) => {
+            let (first_arg, _first_arg_ty) = ast_fn
+                .sig
+                .inputs
+                .iter()
+                .find(|fn_arg| !matches!(fn_arg, syn::FnArg::Receiver(_)))
+                .and_then(|fn_arg| match fn_arg {
+                    syn::FnArg::Typed(pat_ty) => match &*pat_ty.pat {
+                        syn::Pat::Ident(syn::PatIdent { ident, .. }) => Some((ident, &pat_ty.ty)),
+                        _ => None,
+                    },
+                    _ => None, // this will not be executed here
+                })
+                .ok_or(syn::Error::new(
+                    Span::call_site(),
+                    "method argument must be a plain identifier",
+                ))?;
 
-    let __req_validate_ref = format_ident!("__{}__validate_ref_ref", first_arg);
-    let validate_stmt = parse_quote!({
-        {
-            let #__req_validate_ref = #first_arg.get_ref();
-            if let Err(e) = #__req_validate_ref.validate() {
-                return Err(tonic::Status::invalid_argument(e.to_string()));
-            }
+            // todo: for more robust judgment, add generic feature constraints
+
+            let __req_validate_ref = format_ident!("__{}__validate_ref", first_arg);
+            let validate_stmt = parse_quote!({
+                {
+                    let #__req_validate_ref = #first_arg.get_ref();
+                    if let Err(e) = #__req_validate_ref.validate() {
+                        return Err(tonic::Status::invalid_argument(e.to_string()));
+                    }
+                }
+            });
+            inject_into_async_block(&mut ast_fn.block, validate_stmt)?;
+
+            Ok(quote! {#ast_fn})
         }
-    });
-    inject_into_async_block(&mut ast_fn.block, validate_stmt)?;
-
-    Ok(quote! {#ast_fn})
+        ParseItem::Impl(_ast_impl) => {
+            // todo: add validate to all methods in impl scope
+            unimplemented!("Impl are not now supported");
+        }
+    }
 }
