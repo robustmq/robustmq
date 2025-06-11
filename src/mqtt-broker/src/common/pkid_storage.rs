@@ -23,8 +23,8 @@ use protocol::placement_center::placement_center_inner::{
     DeleteIdempotentDataRequest, ExistsIdempotentDataRequest, SetIdempotentDataRequest,
 };
 
-use super::cache::CacheManager;
-use super::error::MqttBrokerError;
+use crate::handler::cache::CacheManager;
+use crate::handler::error::MqttBrokerError;
 
 pub async fn pkid_save(
     cache_manager: &Arc<CacheManager>,
@@ -52,7 +52,9 @@ pub async fn pkid_save(
             }
         }
     } else {
-        cache_manager.add_client_pkid(client_id, pkid);
+        cache_manager
+            .pkid_meatadata
+            .add_client_pkid(client_id, pkid);
     }
     Ok(())
 }
@@ -79,7 +81,10 @@ pub async fn pkid_exists(
             Err(e) => Err(MqttBrokerError::CommonError(e.to_string())),
         }
     } else {
-        Ok(cache_manager.get_client_pkid(client_id, pkid).is_some())
+        Ok(cache_manager
+            .pkid_meatadata
+            .get_client_pkid(client_id, pkid)
+            .is_some())
     }
 }
 
@@ -109,7 +114,9 @@ pub async fn pkid_delete(
             }
         }
     } else {
-        cache_manager.delete_client_pkid(client_id, pkid);
+        cache_manager
+            .pkid_meatadata
+            .delete_client_pkid(client_id, pkid);
     }
     Ok(())
 }

@@ -17,7 +17,6 @@ use crate::handler::error::MqttBrokerError;
 use crate::storage::message::MessageStorage;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
-use common_base::tools::now_nanos;
 use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
 use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
 use grpc_clients::pool::ClientPool;
@@ -29,9 +28,7 @@ use protocol::placement_center::placement_center_mqtt::{
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use std::time::Duration;
 use storage_adapter::storage::StorageAdapter;
-use tokio::time::sleep;
 
 const SHARE_SUB_PREFIX: &str = "$share";
 const QUEUE_SUB_PREFIX: &str = "$queue";
@@ -88,23 +85,6 @@ impl SubPublishParam {
             pkid,
             group_id,
         }
-    }
-}
-
-pub async fn get_pkid(cache_manager: &Arc<CacheManager>, client_id: &str) -> u16 {
-    loop {
-        let id = (now_nanos() % 65535) as u16;
-        if id == 0 {
-            sleep(Duration::from_millis(1)).await;
-            continue;
-        }
-
-        if cache_manager.get_ack_packet(client_id, id).is_some() {
-            sleep(Duration::from_millis(1)).await;
-            continue;
-        }
-
-        return id;
     }
 }
 
@@ -301,21 +281,9 @@ mod tests {
 
     use crate::handler::cache::CacheManager;
     use crate::subscribe::common::{
-        build_sub_path_regex, decode_share_info, decode_sub_path, get_pkid, get_sub_topic_id_list,
+        build_sub_path_regex, decode_share_info, decode_sub_path, get_sub_topic_id_list,
         is_match_sub_and_topic, is_share_sub, is_wildcards, min_qos, sub_path_validator,
     };
-
-    #[tokio::test]
-    async fn get_pkid_test() {
-        let client_pool = Arc::new(ClientPool::new(100));
-        let cluster_name = "test";
-        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name.to_string()));
-        let client_id = "cid";
-        for _ in 1..100 {
-            let pkid = get_pkid(&cache_manager, client_id).await;
-            assert!(pkid > 0 && pkid < 65535);
-        }
-    }
 
     #[tokio::test]
     async fn is_wildcards_test() {

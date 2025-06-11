@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::pkid_manager::PkidManager;
 use crate::observability::system_topic::sysmon::SystemAlarmEventMessage;
 use crate::security::acl::metadata::AclMetadata;
-use common_base::tools::now_second;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
@@ -113,14 +113,11 @@ pub struct CacheManager {
     // (client_id, HeartbeatShard)
     pub heartbeat_data: DashMap<String, ConnectionLiveTime>,
 
-    //(client_id_pkid, AckPacketInfo)
-    pub qos_ack_packet: DashMap<String, QosAckPacketInfo>,
-
-    // (client_id_pkid, QosPkidData)
-    pub client_pkid_data: DashMap<String, ClientPkidData>,
-
     // acl metadata
     pub acl_metadata: AclMetadata,
+
+    // pkid manager
+    pub pkid_meatadata: PkidManager,
 
     // All topic rewrite rule
     pub topic_rewrite_rule: DashMap<String, MqttTopicRewriteRule>,
@@ -144,9 +141,8 @@ impl CacheManager {
             topic_id_name: DashMap::with_capacity(8),
             connection_info: DashMap::with_capacity(8),
             heartbeat_data: DashMap::with_capacity(8),
-            qos_ack_packet: DashMap::with_capacity(8),
-            client_pkid_data: DashMap::with_capacity(8),
             acl_metadata: AclMetadata::new(),
+            pkid_meatadata: PkidManager::new(),
             topic_rewrite_rule: DashMap::with_capacity(8),
             auto_subscribe_rule: DashMap::with_capacity(8),
             alarm_events: DashMap::with_capacity(8),
@@ -178,18 +174,7 @@ impl CacheManager {
     pub fn remove_session(&self, client_id: &str) {
         self.session_info.remove(client_id);
         self.heartbeat_data.remove(client_id);
-
-        for (key, _) in self.qos_ack_packet.clone() {
-            if key.starts_with(client_id) {
-                self.qos_ack_packet.remove(&key);
-            }
-        }
-
-        for (key, _) in self.client_pkid_data.clone() {
-            if key.starts_with(client_id) {
-                self.qos_ack_packet.remove(&key);
-            }
-        }
+        self.pkid_meatadata.remove_by_client_id(client_id);
     }
 
     // user
@@ -344,31 +329,6 @@ impl CacheManager {
         }
     }
 
-    // client pkid
-    pub fn add_client_pkid(&self, client_id: &str, pkid: u16) {
-        let key = self.key(client_id, pkid);
-        self.client_pkid_data.insert(
-            key,
-            ClientPkidData {
-                client_id: client_id.to_owned(),
-                create_time: now_second(),
-            },
-        );
-    }
-
-    pub fn delete_client_pkid(&self, client_id: &str, pkid: u16) {
-        let key = self.key(client_id, pkid);
-        self.client_pkid_data.remove(&key);
-    }
-
-    pub fn get_client_pkid(&self, client_id: &str, pkid: u16) -> Option<ClientPkidData> {
-        let key = self.key(client_id, pkid);
-        if let Some(data) = self.client_pkid_data.get(&key) {
-            return Some(data.clone());
-        }
-        None
-    }
-
     // heartbeat
     pub fn report_heartbeat(&self, client_id: String, live_time: ConnectionLiveTime) {
         self.heartbeat_data.insert(client_id, live_time);
@@ -405,30 +365,7 @@ impl CacheManager {
         self.acl_metadata.remove_mqtt_blacklist(blacklist);
     }
 
-    // ack packet
-    pub fn remove_ack_packet(&self, client_id: &str, pkid: u16) {
-        let key = self.key(client_id, pkid);
-        self.qos_ack_packet.remove(&key);
-    }
-
-    pub fn add_ack_packet(&self, client_id: &str, pkid: u16, packet: QosAckPacketInfo) {
-        let key = self.key(client_id, pkid);
-        self.qos_ack_packet.insert(key, packet);
-    }
-
-    pub fn get_ack_packet(&self, client_id: &str, pkid: u16) -> Option<QosAckPacketInfo> {
-        let key = self.key(client_id, pkid);
-        if let Some(data) = self.qos_ack_packet.get(&key) {
-            return Some(data.clone());
-        }
-        None
-    }
-
     // key
-    fn key(&self, client_id: &str, pkid: u16) -> String {
-        format!("{}_{}", client_id, pkid)
-    }
-
     pub fn topic_rewrite_rule_key(
         &self,
         cluster: &str,
