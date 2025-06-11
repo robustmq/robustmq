@@ -38,7 +38,6 @@ use super::error::MqttBrokerError;
 use super::flow_control::{
     is_connection_rate_exceeded, is_qos_message, is_subscribe_rate_exceeded,
 };
-use super::pkid::pkid_exists;
 use super::response::{
     response_packet_mqtt_connect_fail, response_packet_mqtt_distinct_by_reason,
     response_packet_mqtt_puback_fail, response_packet_mqtt_pubrec_fail,
@@ -46,6 +45,7 @@ use super::response::{
 };
 use super::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_subscribe};
 use super::topic::topic_name_validator;
+use crate::common::pkid_storage::pkid_exists;
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::common::sub_path_validator;

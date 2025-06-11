@@ -16,8 +16,8 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
+use super::common::min_qos;
 use super::common::Subscriber;
-use super::common::{get_pkid, min_qos};
 use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
 use crate::handler::error::MqttBrokerError;
 use crate::handler::message::is_message_expire;
@@ -93,12 +93,17 @@ pub async fn build_publish_message(
         }
     }
 
+    let pkid = cache_manager
+        .pkid_meatadata
+        .generate_pkid(client_id, qos)
+        .await;
+
     let retain = get_retain_flag_by_retain_as_published(subscriber.preserve_retain, msg.retain);
 
-    let mut publish = Publish {
+    let publish = Publish {
         dup: false,
         qos: qos.to_owned(),
-        pkid: get_pkid(cache_manager, client_id).await,
+        pkid,
         retain,
         topic: Bytes::from(subscriber.topic_name.clone()),
         payload: msg.payload,
@@ -118,9 +123,6 @@ pub async fn build_publish_message(
     } else {
         None
     };
-
-    let pkid = get_pkid(cache_manager, client_id).await;
-    publish.pkid = pkid;
 
     let packet = MqttPacket::Publish(publish, properties);
     let sub_pub_param = SubPublishParam::new(
@@ -150,7 +152,7 @@ pub async fn send_publish_packet_to_client(
             let (wait_puback_sx, _) = broadcast::channel(1);
             let client_id = sub_pub_param.subscribe.client_id.clone();
             let pkid: u16 = sub_pub_param.pkid;
-            cache_manager.add_ack_packet(
+            cache_manager.pkid_meatadata.add_ack_packet(
                 &client_id,
                 pkid,
                 QosAckPacketInfo {
@@ -168,14 +170,16 @@ pub async fn send_publish_packet_to_client(
             )
             .await?;
 
-            cache_manager.remove_ack_packet(&client_id, pkid);
+            cache_manager
+                .pkid_meatadata
+                .remove_ack_packet(&client_id, pkid);
         }
 
         QoS::ExactlyOnce => {
             let (wait_ack_sx, _) = broadcast::channel(1);
             let client_id = sub_pub_param.subscribe.client_id.clone();
             let pkid = sub_pub_param.pkid;
-            cache_manager.add_ack_packet(
+            cache_manager.pkid_meatadata.add_ack_packet(
                 &client_id,
                 pkid,
                 QosAckPacketInfo {
@@ -193,7 +197,9 @@ pub async fn send_publish_packet_to_client(
             )
             .await?;
 
-            cache_manager.remove_ack_packet(&client_id, pkid);
+            cache_manager
+                .pkid_meatadata
+                .remove_ack_packet(&client_id, pkid);
         }
     }
     Ok(())
