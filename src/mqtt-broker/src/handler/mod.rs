@@ -30,7 +30,6 @@ pub mod lastwill;
 pub mod message;
 pub mod mqtt;
 pub mod offline_message;
-pub mod pkid;
 pub mod response;
 pub mod retain;
 pub mod session;

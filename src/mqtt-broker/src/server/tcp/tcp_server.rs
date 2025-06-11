@@ -139,7 +139,7 @@ fn read_frame_process(
                             Ok(pack) => {
                                 record_received_metrics(&connection, &pack, &network_type);
 
-                                info!("recv tcp packet:{:?}", pack);
+                                info!("recv tcp packet:{:?}, connect_id:{}", pack,connection.connection_id);
                                 let package =
                                     RequestPackage::new(connection.connection_id, connection.addr, pack);
 

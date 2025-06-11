@@ -26,7 +26,7 @@ use crate::observability::metrics::packets::{
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::common::Subscriber;
-use crate::subscribe::common::{get_pkid, get_sub_topic_id_list, min_qos};
+use crate::subscribe::common::{get_sub_topic_id_list, min_qos};
 use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::push::send_publish_packet_to_client;
@@ -192,7 +192,11 @@ async fn send_retain_message(
                 content_type: msg.content_type,
             };
 
-            let pkid = get_pkid(cache_manager, client_id).await;
+            let pkid = cache_manager
+                .pkid_meatadata
+                .generate_pkid(client_id, &qos)
+                .await;
+            
             let publish = Publish {
                 dup: false,
                 qos,
@@ -203,6 +207,7 @@ async fn send_retain_message(
             };
 
             let packet = MqttPacket::Publish(publish.clone(), Some(properties));
+
             let sub_pub_param = SubPublishParam::new(
                 Subscriber {
                     protocol: protocol.to_owned(),
@@ -223,6 +228,7 @@ async fn send_retain_message(
                 stop_sx,
             )
             .await?;
+
             record_retain_sent_metrics(qos);
         }
     }
