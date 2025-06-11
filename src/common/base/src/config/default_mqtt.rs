@@ -15,8 +15,8 @@
 use super::broker_mqtt::{
     ConfigAvailableFlag, MqttClusterDynamicConfigFeature, MqttClusterDynamicConfigNetwork,
     MqttClusterDynamicConfigProtocol, MqttClusterDynamicConfigSecurity,
-    MqttClusterDynamicFlappingDetect, MqttClusterDynamicSlowSub, Network, OfflineMessage, System,
-    SystemMonitor, TcpThread,
+    MqttClusterDynamicFlappingDetect, MqttClusterDynamicSlowSub, MqttClusterDynamicSystemMonitor,
+    Network, OfflineMessage, System, SystemMonitor, TcpThread,
 };
 use super::common::{Auth, Log, Storage, Telemetry};
 
@@ -170,6 +170,15 @@ pub fn default_mqtt_cluster_dynamic_slow_sub() -> MqttClusterDynamicSlowSub {
         whole_ms: 0,
         internal_ms: 0,
         response_ms: 0,
+    }
+}
+
+pub fn default_mqtt_cluster_dynamic_system_monitor() -> MqttClusterDynamicSystemMonitor {
+    MqttClusterDynamicSystemMonitor {
+        enable: false,
+        os_cpu_high_watermark: 70.0,
+        os_cpu_low_watermark: 50.0,
+        os_memory_high_watermark: 80.0,
     }
 }
 

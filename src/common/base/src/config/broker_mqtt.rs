@@ -24,11 +24,11 @@ use super::default_mqtt::{
     default_auth, default_grpc_port, default_heartbeat_timeout, default_log,
     default_mqtt_cluster_dynamic_feature, default_mqtt_cluster_dynamic_flapping_detect,
     default_mqtt_cluster_dynamic_network, default_mqtt_cluster_dynamic_protocol,
-    default_mqtt_cluster_dynamic_security, default_mqtt_cluster_dynamic_slow_sub, default_network,
-    default_network_quic_port, default_network_tcp_port, default_network_tcps_port,
-    default_network_websocket_port, default_network_websockets_port, default_offline_message,
-    default_placement_center, default_storage, default_system, default_system_monitor,
-    default_tcp_thread, default_telemetry,
+    default_mqtt_cluster_dynamic_security, default_mqtt_cluster_dynamic_slow_sub,
+    default_mqtt_cluster_dynamic_system_monitor, default_network, default_network_quic_port,
+    default_network_tcp_port, default_network_tcps_port, default_network_websocket_port,
+    default_network_websockets_port, default_offline_message, default_placement_center,
+    default_storage, default_system, default_system_monitor, default_tcp_thread, default_telemetry,
 };
 use crate::tools::{read_file, try_create_fold};
 
@@ -69,6 +69,8 @@ pub struct BrokerMqttConfig {
     pub cluster_dynamic_config_slow_sub: MqttClusterDynamicSlowSub,
     #[serde(default = "default_mqtt_cluster_dynamic_flapping_detect")]
     pub cluster_dynamic_config_flapping_detect: MqttClusterDynamicFlappingDetect,
+    #[serde(default = "default_mqtt_cluster_dynamic_system_monitor")]
+    pub cluster_dynamic_system_monitor: MqttClusterDynamicSystemMonitor,
     #[serde(default = "default_mqtt_cluster_dynamic_protocol")]
     pub cluster_dynamic_config_protocol: MqttClusterDynamicConfigProtocol,
     #[serde(default = "default_mqtt_cluster_dynamic_feature")]
@@ -156,6 +158,20 @@ pub struct MqttClusterDynamicFlappingDetect {
 }
 
 impl MqttClusterDynamicFlappingDetect {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct MqttClusterDynamicSystemMonitor {
+    pub enable: bool,
+    pub os_cpu_high_watermark: f32,
+    pub os_cpu_low_watermark: f32,
+    pub os_memory_high_watermark: f32,
+}
+
+impl MqttClusterDynamicSystemMonitor {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
     }

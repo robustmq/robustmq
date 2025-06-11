@@ -17,6 +17,7 @@ pub mod blacklist;
 pub mod client;
 pub mod cluster;
 pub mod connector;
+pub mod observability;
 pub mod query;
 pub mod schema;
 pub mod session;
@@ -26,17 +27,15 @@ pub mod user;
 
 use crate::handler::cache::CacheManager;
 use crate::handler::flapping_detect::enable_flapping_detect;
-use crate::observability::slow::sub::{read_slow_sub_record, SlowSubData};
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
 use crate::{handler::error::MqttBrokerError, storage::cluster::ClusterStorage};
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::serialize_value;
-use common_base::utils::file_utils::get_project_root;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, EnableFlappingDetectReply, EnableFlappingDetectRequest, ListConnectionRaw,
-    ListConnectionReply, ListSlowSubScribeRaw, ListSlowSubscribeReply, ListSlowSubscribeRequest,
+    ListConnectionReply,
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
@@ -101,39 +100,4 @@ pub async fn list_connection_by_req(
     }
     reply.list_connection_raw = list_connection_raw;
     Ok(Response::new(reply))
-}
-
-pub async fn list_slow_subscribe_by_req(
-    cache_manager: &Arc<CacheManager>,
-    request: Request<ListSlowSubscribeRequest>,
-) -> Result<Response<ListSlowSubscribeReply>, Status> {
-    let list_slow_subscribe_request = request.into_inner();
-    let mut list_slow_subscribe_raw: Vec<ListSlowSubScribeRaw> = Vec::new();
-    let mqtt_config = broker_mqtt_conf();
-    if cache_manager.get_slow_sub_config().enable {
-        let path = mqtt_config.log.log_path.clone();
-        let path_buf = get_project_root()?.join(path.replace("./", "") + "/slow_sub.log");
-        let deque = read_slow_sub_record(list_slow_subscribe_request, path_buf)?;
-        for slow_sub_data in deque {
-            match serde_json::from_str::<SlowSubData>(slow_sub_data.as_str()) {
-                Ok(data) => {
-                    let raw = ListSlowSubScribeRaw {
-                        client_id: data.client_id,
-                        topic: data.topic,
-                        time_ms: data.time_ms,
-                        node_info: data.node_info,
-                        create_time: data.create_time,
-                        sub_name: data.sub_name,
-                    };
-                    list_slow_subscribe_raw.push(raw);
-                }
-                Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
-                }
-            }
-        }
-    }
-    Ok(Response::new(ListSlowSubscribeReply {
-        list_slow_subscribe_raw,
-    }))
 }
