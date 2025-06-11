@@ -19,10 +19,12 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, ClusterStatusRequest, DeleteAutoSubscribeRuleReply,
     DeleteAutoSubscribeRuleRequest, GetClusterConfigReply, GetClusterConfigRequest,
     ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListSessionReply, ListSessionRequest,
-    MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttDeleteConnectorReply,
-    MqttDeleteConnectorRequest, MqttListConnectorReply, MqttListConnectorRequest,
-    MqttUpdateConnectorReply, MqttUpdateConnectorRequest, SetAutoSubscribeRuleReply,
-    SetAutoSubscribeRuleRequest, SetClusterConfigReply, SetClusterConfigRequest,
+    ListSystemAlarmReply, ListSystemAlarmRequest, MqttCreateConnectorReply,
+    MqttCreateConnectorRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
+    MqttListConnectorReply, MqttListConnectorRequest, MqttUpdateConnectorReply,
+    MqttUpdateConnectorRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
+    SetClusterConfigReply, SetClusterConfigRequest, SetSystemAlarmConfigReply,
+    SetSystemAlarmConfigRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
@@ -186,12 +188,32 @@ impl_retriable_request!(
     mqtt_broker_enable_flapping_detect
 );
 
+// #### observability ####
+
+// ---- slow subscribe ----
 impl_retriable_request!(
     ListSlowSubscribeRequest,
     MqttBrokerAdminServiceClient<Channel>,
     ListSlowSubscribeReply,
     mqtt_broker_admin_services_client,
     mqtt_broker_list_slow_subscribe
+);
+
+// ---- system alarm ----
+impl_retriable_request!(
+    SetSystemAlarmConfigRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    SetSystemAlarmConfigReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_set_system_alarm_config
+);
+
+impl_retriable_request!(
+    ListSystemAlarmRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    ListSystemAlarmReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_list_system_alarm
 );
 
 impl_retriable_request!(

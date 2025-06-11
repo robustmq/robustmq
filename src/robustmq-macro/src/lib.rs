@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod parse;
 mod validate_req;
 
+use crate::parse::ParseItem;
 use proc_macro::TokenStream;
 
 /// todo: Used to call parameter validation of gRPC request structure in tonic framework.
@@ -28,12 +30,9 @@ pub fn validate_req(attr: TokenStream, input: TokenStream) -> TokenStream {
         Err(err) => return compile_err(err),
     };
 
-    let ast_fn = match syn::parse::<syn::ItemFn>(input) {
-        Ok(ast_fn) => ast_fn,
-        Err(err) => return origin_compile_err(origin, err),
-    };
+    let ast_item: ParseItem = syn::parse_macro_input!(input as ParseItem);
 
-    match validate_req::expanded(arg, ast_fn) {
+    match validate_req::expanded(arg, ast_item) {
         Ok(expanded) => expanded.into(),
         Err(err) => origin_compile_err(origin, err),
     }
