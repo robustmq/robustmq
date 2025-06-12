@@ -55,11 +55,13 @@ pub async fn update_cache_by_req(
 
 pub async fn delete_session_by_req(
     cache_manager: &Arc<CacheManager>,
-    _subscribe_manager: &Arc<SubscribeManager>,
-    _schema_manager: &Arc<SchemaRegisterManager>,
+    subscribe_manager: &Arc<SubscribeManager>,
     req: &DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, MqttBrokerError> {
-    info!("Received request from Placement center to delete expired Session. Cluster name :{}, clientId: {:?}",req.cluster_name,req.client_id);
+    info!(
+        "Received request from Placement center to delete expired Session. Cluster name :{}, clientId: {:?}",
+        req.cluster_name, req.client_id
+    );
     if cache_manager.cluster_name != req.cluster_name {
         return Err(MqttBrokerError::ClusterNotMatch(req.cluster_name.clone()));
     }
@@ -69,7 +71,7 @@ pub async fn delete_session_by_req(
     }
 
     for client_id in req.client_id.iter() {
-        _subscribe_manager.remove_client_id(client_id);
+        subscribe_manager.remove_client_id(client_id);
         cache_manager.remove_session(client_id);
     }
 
@@ -86,7 +88,7 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let data = match serde_json::from_slice::<LastWillData>(req.last_will_message.as_slice()) {
-        Ok(da) => da,
+        Ok(data) => data,
         Err(e) => {
             return Err(MqttBrokerError::CommonError(e.to_string()));
         }

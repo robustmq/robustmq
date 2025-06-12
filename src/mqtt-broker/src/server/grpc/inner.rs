@@ -87,15 +87,10 @@ where
         request: Request<DeleteSessionRequest>,
     ) -> Result<Response<DeleteSessionReply>, Status> {
         let req = request.into_inner();
-        delete_session_by_req(
-            &self.cache_manager,
-            &self.subscribe_manager,
-            &self.schema_manager,
-            &req,
-        )
-        .await
-        .map_err(|e| Status::internal(e.to_string()))
-        .map(Response::new)
+        delete_session_by_req(&self.cache_manager, &self.subscribe_manager, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn send_last_will_message(
