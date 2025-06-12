@@ -196,7 +196,7 @@ async fn send_retain_message(
                 .pkid_meatadata
                 .generate_pkid(client_id, &qos)
                 .await;
-            
+
             let publish = Publish {
                 dup: false,
                 qos,

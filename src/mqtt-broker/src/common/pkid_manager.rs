@@ -41,6 +41,12 @@ pub struct PkidManager {
     pub pkid_atomic: Arc<AtomicU64>,
 }
 
+impl Default for PkidManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PkidManager {
     pub fn new() -> Self {
         PkidManager {
