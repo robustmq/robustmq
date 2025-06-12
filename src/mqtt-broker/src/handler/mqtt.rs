@@ -521,7 +521,7 @@ where
             let pkid = pub_ack.pkid;
             if let Some(data) = self
                 .cache_manager
-                .pkid_meatadata
+                .pkid_metadata
                 .get_ack_packet(&client_id, pkid)
             {
                 if let Err(e) = data.sx.send(QosAckPackageData {
@@ -550,7 +550,7 @@ where
             let pkid = pub_rec.pkid;
             if let Some(data) = self
                 .cache_manager
-                .pkid_meatadata
+                .pkid_metadata
                 .get_ack_packet(&client_id, pkid)
             {
                 if let Err(e) = data.sx.send(QosAckPackageData {
@@ -577,7 +577,7 @@ where
             let pkid = pub_comp.pkid;
             if let Some(data) = self
                 .cache_manager
-                .pkid_meatadata
+                .pkid_metadata
                 .get_ack_packet(&client_id, pkid)
             {
                 if let Err(e) = data.sx.send(QosAckPackageData {
