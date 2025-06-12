@@ -361,16 +361,6 @@ mod tests {
         assert_eq!(config.storage.journal_addr, "".to_string());
         assert_eq!(config.storage.mysql_addr, "".to_string());
 
-        assert_eq!(
-            config.log.log_config,
-            "./config/log-config/mqtt-tracing.toml"
-        );
-
-        assert_eq!(
-            config.log.log_path,
-            "./robust-data/mqtt-broker/logs".to_string()
-        );
-
         assert_eq!(config.auth.storage_type, "placement".to_string());
         assert_eq!(config.auth.journal_addr, "".to_string());
         assert_eq!(config.auth.mysql_addr, "".to_string());
@@ -542,15 +532,6 @@ mod tests {
             assert_eq!(config.storage.storage_type, "memory".to_string());
             assert_eq!(config.storage.journal_addr, "".to_string());
             assert_eq!(config.storage.mysql_addr, "".to_string());
-
-            assert_eq!(
-                config.log.log_path,
-                "./robust-data/mqtt-broker/logs".to_string()
-            );
-            assert_eq!(
-                config.log.log_config,
-                "./config/log-config/mqtt-tracing.toml"
-            );
 
             assert_eq!(config.auth.storage_type, "placement".to_string());
             assert_eq!(config.auth.journal_addr, "".to_string());

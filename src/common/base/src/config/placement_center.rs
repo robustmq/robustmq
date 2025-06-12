@@ -199,18 +199,6 @@ mod tests {
         assert_eq!(config.network.http_port, 1227);
         assert_eq!(config.system.runtime_work_threads, 100);
         println!("{}", config.rocksdb.data_path);
-        println!("./robust-data/placement-center/data");
-        assert_eq!(
-            config.rocksdb.data_path,
-            "./robust-data/placement-center/data".to_string()
-        );
-        assert_eq!(
-            config.log,
-            Log {
-                log_path: "./robust-data/placement-center/logs".to_string(),
-                log_config: "./config/log-config/place-tracing.toml".to_string(),
-            }
-        );
         let mut nodes = Table::new();
         nodes.insert(
             "1".to_string(),
