@@ -52,9 +52,7 @@ pub async fn pkid_save(
             }
         }
     } else {
-        cache_manager
-            .pkid_meatadata
-            .add_client_pkid(client_id, pkid);
+        cache_manager.pkid_metadata.add_client_pkid(client_id, pkid);
     }
     Ok(())
 }
@@ -82,7 +80,7 @@ pub async fn pkid_exists(
         }
     } else {
         Ok(cache_manager
-            .pkid_meatadata
+            .pkid_metadata
             .get_client_pkid(client_id, pkid)
             .is_some())
     }
@@ -115,7 +113,7 @@ pub async fn pkid_delete(
         }
     } else {
         cache_manager
-            .pkid_meatadata
+            .pkid_metadata
             .delete_client_pkid(client_id, pkid);
     }
     Ok(())

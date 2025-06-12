@@ -12,16 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::time::Duration;
+use std::{
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
-use common_base::tools::{now_nanos, now_second};
+use common_base::tools::now_second;
 use dashmap::DashMap;
 use protocol::mqtt::common::QoS;
 use tokio::time::sleep;
 
 use crate::handler::cache::{ClientPkidData, QosAckPacketInfo};
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct PkidManager {
     //(client_id_pkid, u64)
     pub pkid_cache: DashMap<String, u64>,
@@ -31,6 +37,14 @@ pub struct PkidManager {
 
     // (client_id_pkid, QosPkidData)
     pub client_pkid_data: DashMap<String, ClientPkidData>,
+
+    pub pkid_atomic: Arc<AtomicU64>,
+}
+
+impl Default for PkidManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PkidManager {
@@ -39,6 +53,7 @@ impl PkidManager {
             pkid_cache: DashMap::with_capacity(8),
             qos_ack_packet: DashMap::with_capacity(8),
             client_pkid_data: DashMap::with_capacity(8),
+            pkid_atomic: Arc::new(AtomicU64::new(1)),
         }
     }
 
@@ -63,7 +78,9 @@ impl PkidManager {
         }
 
         loop {
-            let id = (now_nanos() % 65535) as u16;
+            let seq = self.pkid_atomic.fetch_add(1, Ordering::SeqCst);
+
+            let id = (seq % 65535) as u16;
             if id == 0 {
                 sleep(Duration::from_millis(1)).await;
                 continue;

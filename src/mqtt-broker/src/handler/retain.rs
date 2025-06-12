@@ -193,10 +193,10 @@ async fn send_retain_message(
             };
 
             let pkid = cache_manager
-                .pkid_meatadata
+                .pkid_metadata
                 .generate_pkid(client_id, &qos)
                 .await;
-            
+
             let publish = Publish {
                 dup: false,
                 qos,
