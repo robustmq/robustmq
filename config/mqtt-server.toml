@@ -72,7 +72,7 @@ storage_type = "memory"
 
 [log]
 log_config = "./config/log-config/mqtt-tracing.toml"
-log_path = "./robust-data/mqtt-broker/logs"
+log_path = "./data/mqtt-broker/logs"
 
 [pprof]
 enable = false
