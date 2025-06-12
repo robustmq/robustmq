@@ -40,9 +40,9 @@ interval = 10
 header = ""
 
 [rocksdb]
-data_path = "./robust-data/placement-center/data"
+data_path = "./data/placement-center/data"
 max_open_files = 10000
 
 [log]
 log_config = "./config/log-config/place-tracing.toml"
-log_path = "./robust-data/placement-center/logs"
+log_path = "./data/placement-center/logs"
