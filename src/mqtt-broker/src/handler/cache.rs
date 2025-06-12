@@ -117,7 +117,7 @@ pub struct CacheManager {
     pub acl_metadata: AclMetadata,
 
     // pkid manager
-    pub pkid_meatadata: PkidManager,
+    pub pkid_metadata: PkidManager,
 
     // All topic rewrite rule
     pub topic_rewrite_rule: DashMap<String, MqttTopicRewriteRule>,
@@ -142,7 +142,7 @@ impl CacheManager {
             connection_info: DashMap::with_capacity(8),
             heartbeat_data: DashMap::with_capacity(8),
             acl_metadata: AclMetadata::new(),
-            pkid_meatadata: PkidManager::new(),
+            pkid_metadata: PkidManager::new(),
             topic_rewrite_rule: DashMap::with_capacity(8),
             auto_subscribe_rule: DashMap::with_capacity(8),
             alarm_events: DashMap::with_capacity(8),
@@ -174,7 +174,7 @@ impl CacheManager {
     pub fn remove_session(&self, client_id: &str) {
         self.session_info.remove(client_id);
         self.heartbeat_data.remove(client_id);
-        self.pkid_meatadata.remove_by_client_id(client_id);
+        self.pkid_metadata.remove_by_client_id(client_id);
     }
 
     // user

@@ -295,7 +295,7 @@ async fn process_packet(
 
         MqttPacket::PubRel(pubrel, _) => {
             if let Some(data) = cache_manager
-                .pkid_meatadata
+                .pkid_metadata
                 .get_ack_packet(follower_sub_leader_client_id, pubrel.pkid)
             {
                 if let Err(e) = data.sx.send(QosAckPackageData {
@@ -387,7 +387,7 @@ async fn process_publish_packet(
     };
 
     let publish_to_client_pkid = cache_manager
-        .pkid_meatadata
+        .pkid_metadata
         .generate_pkid(mqtt_client_id, &publish.qos)
         .await;
     publish.pkid = publish_to_client_pkid;
@@ -409,7 +409,7 @@ async fn process_publish_packet(
 
         protocol::mqtt::common::QoS::AtLeastOnce => {
             let (wait_puback_sx, _) = broadcast::channel(1);
-            cache_manager.pkid_meatadata.add_ack_packet(
+            cache_manager.pkid_metadata.add_ack_packet(
                 mqtt_client_id,
                 publish_to_client_pkid,
                 QosAckPacketInfo {
@@ -429,14 +429,14 @@ async fn process_publish_packet(
             .await?;
 
             cache_manager
-                .pkid_meatadata
+                .pkid_metadata
                 .remove_ack_packet(mqtt_client_id, publish_to_client_pkid);
         }
 
         protocol::mqtt::common::QoS::ExactlyOnce => {
             let (wait_client_ack_sx, _) = broadcast::channel(1);
 
-            cache_manager.pkid_meatadata.add_ack_packet(
+            cache_manager.pkid_metadata.add_ack_packet(
                 mqtt_client_id,
                 publish_to_client_pkid,
                 QosAckPacketInfo {
@@ -446,7 +446,7 @@ async fn process_publish_packet(
             );
 
             let (wait_leader_ack_sx, _) = broadcast::channel(1);
-            cache_manager.pkid_meatadata.add_ack_packet(
+            cache_manager.pkid_metadata.add_ack_packet(
                 follower_sub_leader_client_id,
                 publish.pkid,
                 QosAckPacketInfo {
@@ -470,10 +470,10 @@ async fn process_publish_packet(
             .await?;
 
             cache_manager
-                .pkid_meatadata
+                .pkid_metadata
                 .remove_ack_packet(mqtt_client_id, publish_to_client_pkid);
             cache_manager
-                .pkid_meatadata
+                .pkid_metadata
                 .remove_ack_packet(follower_sub_leader_client_id, publish.pkid);
         }
     }

@@ -156,13 +156,8 @@ pub fn last_will_delay_interval(last_will_properties: &Option<LastWillProperties
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
     use bytes::Bytes;
-    use grpc_clients::pool::ClientPool;
     use protocol::mqtt::common::{LastWill, LastWillProperties};
-
-    use crate::handler::cache::CacheManager;
 
     use super::{build_publish_message_by_lastwill, last_will_delay_interval};
 
@@ -185,7 +180,6 @@ mod test {
 
     #[tokio::test]
     pub async fn build_publish_message_by_lastwill_test() {
-        let client_id = "cid";
         let res = build_publish_message_by_lastwill(&None, &None)
             .await
             .unwrap();
@@ -214,7 +208,7 @@ mod test {
         assert_eq!(p_tmp.payload, Bytes::from(message.clone()));
         assert_eq!(p_tmp.qos, protocol::mqtt::common::QoS::AtLeastOnce);
         assert!(!p_tmp.retain);
-        assert!(p_tmp.pkid > 0);
+        assert_eq!(p_tmp.pkid, 0);
         assert!(!p_tmp.dup);
         assert!(pp.is_none());
 
@@ -237,7 +231,7 @@ mod test {
         assert_eq!(p_tmp.payload, Bytes::from(message.clone()));
         assert_eq!(p_tmp.qos, protocol::mqtt::common::QoS::AtLeastOnce);
         assert!(!p_tmp.retain);
-        assert!(p_tmp.pkid > 0);
+        assert_eq!(p_tmp.pkid, 0);
         assert!(!p_tmp.dup);
         assert!(pp.is_some());
 

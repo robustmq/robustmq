@@ -94,7 +94,7 @@ pub async fn build_publish_message(
     }
 
     let pkid = cache_manager
-        .pkid_meatadata
+        .pkid_metadata
         .generate_pkid(client_id, qos)
         .await;
 
@@ -152,7 +152,7 @@ pub async fn send_publish_packet_to_client(
             let (wait_puback_sx, _) = broadcast::channel(1);
             let client_id = sub_pub_param.subscribe.client_id.clone();
             let pkid: u16 = sub_pub_param.pkid;
-            cache_manager.pkid_meatadata.add_ack_packet(
+            cache_manager.pkid_metadata.add_ack_packet(
                 &client_id,
                 pkid,
                 QosAckPacketInfo {
@@ -171,7 +171,7 @@ pub async fn send_publish_packet_to_client(
             .await?;
 
             cache_manager
-                .pkid_meatadata
+                .pkid_metadata
                 .remove_ack_packet(&client_id, pkid);
         }
 
@@ -179,7 +179,7 @@ pub async fn send_publish_packet_to_client(
             let (wait_ack_sx, _) = broadcast::channel(1);
             let client_id = sub_pub_param.subscribe.client_id.clone();
             let pkid = sub_pub_param.pkid;
-            cache_manager.pkid_meatadata.add_ack_packet(
+            cache_manager.pkid_metadata.add_ack_packet(
                 &client_id,
                 pkid,
                 QosAckPacketInfo {
@@ -198,7 +198,7 @@ pub async fn send_publish_packet_to_client(
             .await?;
 
             cache_manager
-                .pkid_meatadata
+                .pkid_metadata
                 .remove_ack_packet(&client_id, pkid);
         }
     }
