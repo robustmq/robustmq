@@ -52,9 +52,7 @@ pub async fn pkid_save(
             }
         }
     } else {
-        cache_manager
-            .pkid_metadata
-            .add_client_pkid(client_id, pkid);
+        cache_manager.pkid_metadata.add_client_pkid(client_id, pkid);
     }
     Ok(())
 }
