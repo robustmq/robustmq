@@ -192,14 +192,7 @@ impl ConnectionManager {
                     }
                 }
 
-                dashmap::try_result::TryResult::Locked => {
-                    if times > cluster.network.response_max_try_mut_times {
-                        return Err(MqttBrokerError::FailedObtailConnectionByDeadlock(
-                            "websocket".to_string(),
-                            connection_id,
-                        ));
-                    }
-                }
+                dashmap::try_result::TryResult::Locked => {}
             }
             times += 1;
             sleep(Duration::from_millis(
@@ -262,14 +255,7 @@ impl ConnectionManager {
                         ));
                     }
                 }
-                dashmap::try_result::TryResult::Locked => {
-                    if times > cluster.network.response_max_try_mut_times {
-                        return Err(MqttBrokerError::FailedObtailConnectionByDeadlock(
-                            "tcp".to_string(),
-                            connection_id,
-                        ));
-                    }
-                }
+                dashmap::try_result::TryResult::Locked => {}
             }
             times += 1;
             sleep(Duration::from_millis(
@@ -320,14 +306,7 @@ impl ConnectionManager {
                         ));
                     }
                 }
-                dashmap::try_result::TryResult::Locked => {
-                    if times > cluster.network.response_max_try_mut_times {
-                        return Err(MqttBrokerError::FailedObtailConnectionByDeadlock(
-                            "tcp".to_string(),
-                            connection_id,
-                        ));
-                    }
-                }
+                dashmap::try_result::TryResult::Locked => {}
             }
             times += 1;
             sleep(Duration::from_millis(
