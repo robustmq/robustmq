@@ -64,7 +64,7 @@ pub fn default_tcp_thread() -> TcpThread {
         accept_thread_num: 1,
         handler_thread_num: 1,
         response_thread_num: 1,
-        max_connection_num: 1000,
+        max_connection_num: 5000000,
         request_queue_size: 2000,
         response_queue_size: 2000,
         lock_max_try_mut_times: 30,

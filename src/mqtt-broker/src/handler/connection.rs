@@ -19,14 +19,22 @@ use common_base::tools::{now_second, unique_id};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
-use protocol::mqtt::common::{Connect, ConnectProperties};
+use protocol::mqtt::common::{Connect, ConnectProperties, DisconnectReasonCode, MqttProtocol};
 
 use super::cache::CacheManager;
 use super::error::MqttBrokerError;
 use super::keep_alive::client_keep_live_time;
+use crate::handler::flow_control::is_connection_rate_exceeded;
+use crate::handler::response::response_packet_mqtt_distinct_by_reason;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::session::SessionStorage;
 use crate::subscribe::manager::SubscribeManager;
+use futures_util::SinkExt;
+use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
+use tokio::io::{AsyncWrite, AsyncWriteExt, WriteHalf};
+use tokio::net::TcpStream;
+use tokio_util::codec::FramedWrite;
+use tracing::error;
 
 pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/sys/request_response/";
 pub const DISCONNECT_FLAG_NOT_DELETE_SESSION: &str = "DISCONNECT_FLAG_NOT_DELETE_SESSION";
@@ -143,6 +151,93 @@ pub async fn disconnect_connection(
     connection_manager.close_connect(connect_id).await;
     cache_manager.remove_connection(connect_id);
     Ok(())
+}
+
+pub async fn tcp_establish_connection_check(
+    addr: &SocketAddr,
+    connection_manager: &Arc<ConnectionManager>,
+    write_frame_stream: &mut FramedWrite<WriteHalf<TcpStream>, MqttCodec>,
+) -> bool {
+    if let Some(value) =
+        handle_tpc_connection_overflow(addr, connection_manager, write_frame_stream).await
+    {
+        return value;
+    }
+
+    if let Some(value) = handle_connection_rate_exceeded(addr, write_frame_stream).await {
+        return value;
+    }
+    true
+}
+
+pub async fn tcp_tls_establish_connection_check(
+    addr: &SocketAddr,
+    connection_manager: &Arc<ConnectionManager>,
+    write_frame_stream: &mut FramedWrite<
+        WriteHalf<tokio_rustls::server::TlsStream<TcpStream>>,
+        MqttCodec,
+    >,
+) -> bool {
+    if let Some(value) =
+        handle_tpc_connection_overflow(addr, connection_manager, write_frame_stream).await
+    {
+        return value;
+    }
+
+    if let Some(value) = handle_connection_rate_exceeded(addr, write_frame_stream).await {
+        return value;
+    }
+
+    true
+}
+
+async fn handle_tpc_connection_overflow<T>(
+    addr: &SocketAddr,
+    connection_manager: &Arc<ConnectionManager>,
+    write_frame_stream: &mut FramedWrite<WriteHalf<T>, MqttCodec>,
+) -> Option<bool>
+where
+    T: AsyncWriteExt + AsyncWrite,
+{
+    if connection_manager.tcp_connect_num_check() {
+        let packet_wrapper = MqttPacketWrapper {
+            protocol_version: MqttProtocol::Mqtt5.into(),
+            packet: response_packet_mqtt_distinct_by_reason(
+                &MqttProtocol::Mqtt5,
+                Some(DisconnectReasonCode::QuotaExceeded),
+            ),
+        };
+        if let Err(e) = write_frame_stream.send(packet_wrapper).await {
+            error!("{}", e)
+        }
+
+        return Some(false);
+    }
+    None
+}
+
+async fn handle_connection_rate_exceeded<T>(
+    addr: &SocketAddr,
+    write_frame_stream: &mut FramedWrite<WriteHalf<T>, MqttCodec>,
+) -> Option<bool>
+where
+    T: AsyncWriteExt + AsyncWrite,
+{
+    if is_connection_rate_exceeded() {
+        let packet_wrapper = MqttPacketWrapper {
+            protocol_version: MqttProtocol::Mqtt5.into(),
+            packet: response_packet_mqtt_distinct_by_reason(
+                &MqttProtocol::Mqtt5,
+                Some(DisconnectReasonCode::ConnectionRateExceeded),
+            ),
+        };
+
+        if let Err(e) = write_frame_stream.send(packet_wrapper).await {
+            error!("{}", e);
+        }
+        return Some(false);
+    }
+    None
 }
 
 #[cfg(test)]

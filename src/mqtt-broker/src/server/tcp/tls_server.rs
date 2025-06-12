@@ -33,8 +33,7 @@ use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::TlsAcceptor;
 use tokio_util::codec::{FramedRead, FramedWrite};
-
-use crate::handler::validator::tcp_tls_establish_connection_check;
+use crate::handler::connection::tcp_tls_establish_connection_check;
 use crate::observability::metrics::packets::{
     record_received_error_metrics, record_received_metrics,
 };
