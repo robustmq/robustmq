@@ -175,7 +175,7 @@ pub fn placement_center_test_conf() -> PlacementCenterConfig {
 mod tests {
     use toml::Table;
 
-    use super::{placement_center_conf, Log, PlacementCenterConfig};
+    use super::{placement_center_conf, PlacementCenterConfig};
     use crate::config::placement_center::init_placement_center_conf_by_path;
 
     #[test]
