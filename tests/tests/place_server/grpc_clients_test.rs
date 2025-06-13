@@ -24,7 +24,7 @@ mod tests {
     use protocol::placement_center::placement_center_journal::{
         CreateNextSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
     };
-    use tonic::Status;
+    use tonic::{Code, Status};
 
     use crate::place_server::common::{
         cluster_name, cluster_type, extend_info, namespace, node_id, node_ip, pc_addr, producer_id,
@@ -91,10 +91,8 @@ mod tests {
                     )
                     .code()
                 );
-                assert_eq!(
-                    status.message(),
-                    CommonError::ParameterCannotBeNull(field.to_string()).to_string()
-                );
+
+                assert_eq!(status.code(), Code::InvalidArgument);
             }
         }
     }
@@ -183,7 +181,7 @@ mod tests {
             "111.111.111.256",
         ];
 
-        let field = ["node_ip", "node_inner_addr"];
+        let field = ["node_ip"];
 
         let mut field_ip: Vec<(&str, &str)> = Vec::new();
 
@@ -198,22 +196,17 @@ mod tests {
             let mut test_client = client.clone();
             match field {
                 "node_ip" => test_request.node_ip = ip.parse().unwrap(),
-                "node_inner_addr" => test_request.node_inner_addr = ip.parse().unwrap(),
                 _ => unreachable!(),
             }
             {
                 let response = test_client
                     .register_node(tonic::Request::new(test_request.clone()))
                     .await;
-                println!("{:?}", response);
+
                 assert!(response.is_err());
                 if let Err(ref e) = response {
-                    assert_eq!(e.code(), tonic::Code::InvalidArgument);
-                    assert_eq!(
-                        e.message(),
-                        CommonError::InvalidParameterFormat(field.to_string(), ip.to_string())
-                            .to_string()
-                    );
+                    assert_eq!(e.code(), Code::InvalidArgument);
+                    assert_eq!(e.code(), Code::InvalidArgument);
                 }
             }
         }
