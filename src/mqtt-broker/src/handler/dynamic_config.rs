@@ -80,7 +80,7 @@ impl CacheManager {
         self.get_cluster_config().offline_messages
     }
 
-    // cluster conifg
+    // cluster config
     pub fn set_cluster_config(&self, cluster: BrokerMqttConfig) {
         self.cluster_info.insert(self.cluster_name.clone(), cluster);
     }
