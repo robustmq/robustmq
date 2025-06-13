@@ -18,7 +18,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use common_base::config::journal_server::journal_server_conf;
+use common_config::journal::config::journal_server_conf;
 use futures_util::StreamExt;
 use protocol::journal_server::codec::JournalServerCodec;
 use rustls_pemfile::{certs, private_key};

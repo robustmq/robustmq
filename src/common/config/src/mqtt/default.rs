@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::broker_mqtt::{
+use super::config::{
     ConfigAvailableFlag, MqttClusterDynamicConfigFeature, MqttClusterDynamicConfigNetwork,
     MqttClusterDynamicConfigProtocol, MqttClusterDynamicConfigSecurity,
     MqttClusterDynamicFlappingDetect, MqttClusterDynamicSlowSub, MqttClusterDynamicSystemMonitor,
     Network, OfflineMessage, System, SystemMonitor, TcpThread,
 };
-use super::common::{Auth, Log, Storage, Telemetry};
+use crate::common::{Auth, Log, Storage, Telemetry};
 
 pub fn default_grpc_port() -> u32 {
     9981

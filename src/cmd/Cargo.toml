@@ -42,6 +42,7 @@ path = "src/cli-bench/bench.rs"
 [dependencies]
 clap.workspace = true
 common-base.workspace = true
+common-config.workspace = true
 lazy_static.workspace = true
 tokio.workspace = true
 mqtt-broker.workspace = true

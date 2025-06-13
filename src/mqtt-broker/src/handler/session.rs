@@ -14,8 +14,8 @@
 
 use std::sync::Arc;
 
-use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::now_second;
+use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
 use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillProperties};
@@ -131,7 +131,7 @@ fn session_expiry_interval(
 mod test {
     use std::sync::Arc;
 
-    use common_base::config::broker_mqtt::BrokerMqttConfig;
+    use common_config::mqtt::config::BrokerMqttConfig;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
     use protocol::mqtt::common::ConnectProperties;

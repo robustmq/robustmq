@@ -230,8 +230,8 @@ mod test {
     use std::sync::Arc;
     use std::time::Duration;
 
-    use common_base::config::broker_mqtt::BrokerMqttConfig;
     use common_base::tools::{local_hostname, now_second, unique_id};
+    use common_config::mqtt::config::BrokerMqttConfig;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
     use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};

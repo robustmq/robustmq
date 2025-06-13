@@ -18,7 +18,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_config::mqtt::broker_mqtt_conf;
 use futures_util::StreamExt;
 use protocol::mqtt::codec::MqttCodec;
 use rustls_pemfile::{certs, private_key};
@@ -29,10 +29,6 @@ use tokio::sync::{broadcast, mpsc};
 use tokio::time::sleep;
 use tracing::{debug, error, info};
 
-use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
-use tokio_rustls::rustls::ServerConfig;
-use tokio_rustls::TlsAcceptor;
-use tokio_util::codec::{FramedRead, FramedWrite};
 use crate::handler::connection::tcp_tls_establish_connection_check;
 use crate::observability::metrics::packets::{
     record_received_error_metrics, record_received_metrics,
@@ -40,6 +36,10 @@ use crate::observability::metrics::packets::{
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::RequestPackage;
+use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
+use tokio_rustls::rustls::ServerConfig;
+use tokio_rustls::TlsAcceptor;
+use tokio_util::codec::{FramedRead, FramedWrite};
 
 pub(crate) fn load_certs(path: &Path) -> io::Result<Vec<CertificateDer<'static>>> {
     certs(&mut BufReader::new(File::open(path)?)).collect()

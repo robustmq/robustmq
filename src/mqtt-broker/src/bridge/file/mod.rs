@@ -130,10 +130,10 @@ mod tests {
     use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 
     use common_base::{
-        config::broker_mqtt::{init_broker_mqtt_conf_by_config, BrokerMqttConfig},
         tools::{now_second, unique_id},
         utils::crc::calc_crc32,
     };
+    use common_config::mqtt::{config::BrokerMqttConfig, init_broker_mqtt_conf_by_config};
     use metadata_struct::{
         adapter::record::{Header, Record},
         mqtt::bridge::config_local_file::LocalFileConnectorConfig,

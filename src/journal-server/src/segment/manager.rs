@@ -16,7 +16,7 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
-use common_base::config::journal_server::journal_server_conf;
+use common_config::journal::config::journal_server_conf;
 use dashmap::DashMap;
 use metadata_struct::journal::segment::{segment_name, JournalSegment};
 use rocksdb_engine::RocksDBEngine;

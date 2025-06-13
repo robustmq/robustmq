@@ -23,7 +23,8 @@ use crate::server::quic::handler::handler_process;
 use crate::server::quic::quic_server_handler::acceptor_process;
 use crate::server::quic::response::response_process;
 use crate::subscribe::manager::SubscribeManager;
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+
+use common_config::mqtt::broker_mqtt_conf;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use quinn::{Connection, Endpoint, ServerConfig, VarInt};

@@ -17,7 +17,8 @@ use super::{
     topic_rewrite::convert_sub_path_by_rewrite_rule,
 };
 use crate::subscribe::manager::SubscribeManager;
-use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::now_second};
+use common_base::tools::now_second;
+use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use std::{sync::Arc, time::Duration};
 use tokio::{select, sync::broadcast, time::sleep};

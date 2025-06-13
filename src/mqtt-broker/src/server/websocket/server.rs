@@ -33,8 +33,9 @@ use axum_extra::headers::UserAgent;
 use axum_extra::TypedHeader;
 use axum_server::tls_rustls::RustlsConfig;
 use bytes::{BufMut, BytesMut};
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+
 use common_base::tools::now_mills;
+use common_config::mqtt::broker_mqtt_conf;
 use delay_message::DelayMessageManager;
 use futures_util::stream::StreamExt;
 use grpc_clients::pool::ClientPool;

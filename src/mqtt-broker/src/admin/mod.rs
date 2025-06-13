@@ -30,8 +30,9 @@ use crate::handler::flapping_detect::enable_flapping_detect;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
 use crate::{handler::error::MqttBrokerError, storage::cluster::ClusterStorage};
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+
 use common_base::tools::serialize_value;
+use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusReply, EnableFlappingDetectReply, EnableFlappingDetectRequest, ListConnectionRaw,

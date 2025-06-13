@@ -14,8 +14,8 @@
 
 use std::sync::Arc;
 
-use common_base::config::journal_server::journal_server_conf;
 use common_base::tools::now_second;
+use common_config::journal::config::journal_server_conf;
 use dashmap::DashMap;
 use grpc_clients::placement::inner::call::node_list;
 use grpc_clients::placement::journal::call::{list_segment, list_segment_meta, list_shard};
@@ -62,6 +62,11 @@ pub struct CacheManager {
     segment_writes: DashMap<String, SegmentWrite>,
 }
 
+impl Default for CacheManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl CacheManager {
     pub fn new() -> Self {
         let cluster = DashMap::with_capacity(2);

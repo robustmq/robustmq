@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::config::broker_mqtt::MqttClusterDynamicSystemMonitor;
+use common_config::mqtt::config::MqttClusterDynamicSystemMonitor;
 use protocol::mqtt::common::QoS;
 use serde::{Deserialize, Serialize};
 

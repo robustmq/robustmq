@@ -804,6 +804,7 @@ dependencies = [
  "cli-bench",
  "cli-command",
  "common-base",
+ "common-config",
  "console-subscriber",
  "journal-server",
  "lazy_static",
@@ -869,6 +870,23 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
  "valico",
+]
+
+[[package]]
+name = "common-config"
+version = "0.1.14"
+dependencies = [
+ "bytes",
+ "common-base",
+ "crc32fast",
+ "dashmap",
+ "protocol",
+ "serde",
+ "serde_json",
+ "temp-env",
+ "thiserror 1.0.69",
+ "toml",
+ "tracing",
 ]
 
 [[package]]
@@ -2357,6 +2375,7 @@ dependencies = [
  "axum",
  "bytes",
  "common-base",
+ "common-config",
  "dashmap",
  "futures",
  "futures-util",
@@ -2376,6 +2395,7 @@ dependencies = [
  "tonic-web",
  "tower-http",
  "tracing",
+ "tracing-appender",
 ]
 
 [[package]]
@@ -2681,6 +2701,7 @@ version = "0.1.14"
 dependencies = [
  "bytes",
  "common-base",
+ "common-config",
  "crc32fast",
  "dashmap",
  "protocol",
@@ -2789,6 +2810,7 @@ dependencies = [
  "bytes",
  "chrono",
  "common-base",
+ "common-config",
  "dashmap",
  "delay-message",
  "futures",
@@ -2832,6 +2854,7 @@ dependencies = [
  "tonic-web",
  "tower-http",
  "tracing",
+ "tracing-appender",
 ]
 
 [[package]]
@@ -3498,6 +3521,7 @@ dependencies = [
  "bincode",
  "byteorder",
  "common-base",
+ "common-config",
  "dashmap",
  "futures",
  "grpc-clients",
@@ -3521,6 +3545,7 @@ dependencies = [
  "tower 0.5.2",
  "tower-http",
  "tracing",
+ "tracing-appender",
 ]
 
 [[package]]
@@ -4514,6 +4539,7 @@ dependencies = [
  "bincode",
  "bytes",
  "common-base",
+ "common-config",
  "dashmap",
  "futures",
  "grpc-clients",
@@ -4549,6 +4575,7 @@ name = "rocksdb-engine"
 version = "0.1.14"
 dependencies = [
  "common-base",
+ "common-config",
  "dashmap",
  "futures",
  "metadata-struct",

@@ -12,20 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod broker_mqtt;
-pub mod common;
-pub mod default_journal_server;
-pub mod default_mqtt;
-pub mod default_placement_center;
-pub mod journal_server;
-pub mod placement_center;
+use common_base::{error::log_config::LogConfigError, logging::init_tracing_subscriber};
+use common_config::journal::config::journal_server_conf;
+use tracing_appender::non_blocking::WorkerGuard;
 
-pub const DEFAULT_MQTT_SERVER_CONFIG: &str = "config/mqtt-server.toml";
-pub const DEFAULT_PLACEMENT_CENTER_CONFIG: &str = "config/placement-center.toml";
-pub const DEFAULT_JOURNAL_SERVER_CONFIG: &str = "config/journal-server.toml";
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {}
+pub fn init_journal_server_log() -> Result<Vec<WorkerGuard>, LogConfigError> {
+    let conf = journal_server_conf();
+    init_tracing_subscriber(&conf.log.log_config, &conf.log.log_path)
 }

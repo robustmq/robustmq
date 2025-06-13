@@ -17,8 +17,9 @@ use std::time::Duration;
 
 use super::error::MqttBrokerError;
 use crate::storage::cluster::ClusterStorage;
-use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::config::default_mqtt::default_heartbeat_timeout;
+
+use common_config::mqtt::broker_mqtt_conf;
+use common_config::mqtt::default::default_heartbeat_timeout;
 use grpc_clients::pool::ClientPool;
 use tokio::select;
 use tokio::sync::broadcast;

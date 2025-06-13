@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_config::mqtt::broker_mqtt_conf;
 use dashmap::DashMap;
 use grpc_clients::placement::mqtt::call::{
     placement_create_user, placement_delete_user, placement_list_user,

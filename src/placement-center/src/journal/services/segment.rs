@@ -542,8 +542,8 @@ pub async fn sync_delete_segment_metadata_info(
 mod tests {
     use std::sync::Arc;
 
-    use common_base::config::placement_center::placement_center_test_conf;
     use common_base::tools::now_mills;
+    use common_config::place::config::placement_center_test_conf;
     use metadata_struct::journal::node_extend::JournalNodeExtend;
     use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::ClusterType;

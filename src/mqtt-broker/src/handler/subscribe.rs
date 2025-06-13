@@ -15,10 +15,10 @@
 use std::sync::Arc;
 
 use common_base::{
-    config::broker_mqtt::broker_mqtt_conf,
     tools::now_second,
     utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub},
 };
+use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::{placement::mqtt::call::placement_set_subscribe, pool::ClientPool};
 use metadata_struct::mqtt::{subscribe_data::MqttSubscribe, topic::MqttTopic};
 use protocol::{

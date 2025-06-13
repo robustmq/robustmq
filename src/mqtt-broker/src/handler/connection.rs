@@ -34,7 +34,7 @@ use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use tokio::io::{AsyncWrite, AsyncWriteExt, WriteHalf};
 use tokio::net::TcpStream;
 use tokio_util::codec::FramedWrite;
-use tracing::error;
+use tracing::{error, warn};
 
 pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/sys/request_response/";
 pub const DISCONNECT_FLAG_NOT_DELETE_SESSION: &str = "DISCONNECT_FLAG_NOT_DELETE_SESSION";
@@ -210,7 +210,7 @@ where
         if let Err(e) = write_frame_stream.send(packet_wrapper).await {
             error!("{}", e)
         }
-
+        warn!("Total number of tcp connections at a node exceeds the limit, and the connection is closed. Source IP{:?}",addr);
         return Some(false);
     }
     None
@@ -235,6 +235,7 @@ where
         if let Err(e) = write_frame_stream.send(packet_wrapper).await {
             error!("{}", e);
         }
+        warn!("Total number of tcp connections at a node exceeds the limit, and the connection is closed. Source IP{:?}",addr);
         return Some(false);
     }
     None

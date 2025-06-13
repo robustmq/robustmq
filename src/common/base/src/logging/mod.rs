@@ -14,36 +14,17 @@
 
 use std::path::Path;
 
+use crate::error::log_config::LogConfigError;
+use crate::tools::{file_exists, read_file, try_create_fold};
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-
-use crate::config::broker_mqtt::broker_mqtt_conf;
-use crate::config::journal_server::journal_server_conf;
-use crate::config::placement_center::placement_center_conf;
-use crate::error::log_config::LogConfigError;
-use crate::tools::{file_exists, read_file, try_create_fold};
 
 mod config;
 mod console;
 mod fmt;
 mod rolling_file;
 mod tokio_console;
-
-pub fn init_placement_center_log() -> Result<Vec<WorkerGuard>, LogConfigError> {
-    let conf = placement_center_conf();
-    init_tracing_subscriber(&conf.log.log_config, &conf.log.log_path)
-}
-
-pub fn init_broker_mqtt_log() -> Result<Vec<WorkerGuard>, LogConfigError> {
-    let conf = broker_mqtt_conf();
-    init_tracing_subscriber(&conf.log.log_config, &conf.log.log_path)
-}
-
-pub fn init_journal_server_log() -> Result<Vec<WorkerGuard>, LogConfigError> {
-    let conf = journal_server_conf();
-    init_tracing_subscriber(&conf.log.log_config, &conf.log.log_path)
-}
 
 /// Initializes the tracing subscriber with the specified log configuration file
 /// and log path.

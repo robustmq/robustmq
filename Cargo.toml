@@ -27,6 +27,7 @@ members = [
     "src/grpc-clients",
     "src/cmd",
     "src/common/base",
+    "src/common/config",
     "src/common/rocksdb-engine",
     "src/common/metadata-struct",
     "src/common/third-driver",
@@ -169,6 +170,7 @@ journal-client = { path = "src/journal-client" }
 storage-adapter = { path = "src/storage-adapter" }
 cmd = { path = "src/cmd" }
 common-base = { path = "src/common/base" }
+common-config = { path = "src/common/config" }
 rocksdb-engine = { path = "src/common/rocksdb-engine" }
 metadata-struct = { path = "src/common/metadata-struct" }
 third-driver = { path = "src/common/third-driver" }

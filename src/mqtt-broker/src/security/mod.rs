@@ -19,8 +19,9 @@ use std::sync::Arc;
 
 use acl::auth::is_allow_acl;
 use axum::async_trait;
-use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::config::common::Auth;
+
+use common_config::common::Auth;
+use common_config::mqtt::broker_mqtt_conf;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use login::plaintext::Plaintext;

@@ -15,7 +15,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use common_base::config::placement_center::placement_center_conf;
+use common_config::place::config::placement_center_conf;
 use grpc_clients::pool::ClientPool;
 use tokio::select;
 use tokio::sync::broadcast;

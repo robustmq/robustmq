@@ -17,9 +17,8 @@ use std::sync::Arc;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::cluster::ClusterStorage;
-use common_base::config::broker_mqtt::{
-    broker_mqtt_conf, ConfigAvailableFlag, MqttClusterDynamicSystemMonitor,
-};
+use common_config::mqtt::broker_mqtt_conf;
+use common_config::mqtt::config::{ConfigAvailableFlag, MqttClusterDynamicSystemMonitor};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::cluster::{
     AvailableFlag, MqttClusterDynamicConfig, MqttClusterDynamicConfigFeature,

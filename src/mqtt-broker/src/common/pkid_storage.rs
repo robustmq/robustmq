@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::placement::inner::call::{
     delete_idempotent_data, exists_idempotent_data, set_idempotent_data,
 };
@@ -121,10 +121,9 @@ pub async fn pkid_delete(
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
-    use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
+    use common_config::mqtt::init_broker_mqtt_conf_by_path;
     use grpc_clients::pool::ClientPool;
+    use std::sync::Arc;
 
     use super::{pkid_delete, pkid_exists, pkid_save};
     use crate::handler::cache::CacheManager;

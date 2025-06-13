@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #![allow(clippy::result_large_err)]
-pub mod config;
 pub mod enum_type;
 pub mod error;
 pub mod http_error;

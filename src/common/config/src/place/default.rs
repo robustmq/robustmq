@@ -14,8 +14,8 @@
 
 use toml::Table;
 
-use super::common::Log;
-use super::placement_center::{Heartbeat, Network, Node, Rocksdb, System};
+use crate::common::Log;
+use crate::place::config::{Heartbeat, Network, Node, Rocksdb, System};
 
 pub fn default_cluster_name() -> String {
     "placement-center".to_string()

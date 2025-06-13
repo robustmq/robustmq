@@ -14,8 +14,9 @@
 
 use crate::handler::cache::CacheManager;
 use crate::observability::slow::sub::{read_slow_sub_record, SlowSubData};
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+
 use common_base::utils::file_utils::get_project_root;
+use common_config::mqtt::broker_mqtt_conf;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ListSlowSubScribeRaw, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListSystemAlarmRaw,
     ListSystemAlarmReply, ListSystemAlarmRequest, SetSystemAlarmConfigReply,
@@ -115,7 +116,8 @@ mod test {
     use crate::handler::cluster_config::build_default_cluster_config;
     use crate::observability::system_topic::sysmon::SystemAlarmEventMessage;
     use crate::storage::message::cluster_name;
-    use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
+
+    use common_config::mqtt::init_broker_mqtt_conf_by_path;
     use grpc_clients::pool::ClientPool;
 
     #[tokio::test]
