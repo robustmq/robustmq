@@ -48,7 +48,6 @@ pub fn build_connection(
     addr: &SocketAddr,
 ) -> MQTTConnection {
     let keep_alive = client_keep_live_time(cluster, connect.keep_alive);
-    println!("keep_alive:{}", keep_alive);
     let (client_receive_maximum, max_packet_size, topic_alias_max, request_problem_info) =
         if let Some(properties) = connect_properties {
             let client_receive_maximum = if let Some(value) = properties.receive_maximum {

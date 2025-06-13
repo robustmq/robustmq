@@ -80,7 +80,7 @@ impl AuthDriver {
         let driver = match build_driver(client_pool.clone(), conf.auth_storage.clone()) {
             Ok(driver) => driver,
             Err(e) => {
-                panic!("{},auth storage:{:?}", e.to_string(), conf.auth_storage);
+                panic!("{},auth storage:{:?}", e, conf.auth_storage);
             }
         };
         AuthDriver {
