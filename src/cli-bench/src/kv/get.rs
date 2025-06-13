@@ -165,17 +165,28 @@ impl BenchMark for KvGetBenchArgs {
         // we start the timer after all kv pairs are set
         let latencies = Arc::new(DashMap::with_capacity(num_clients));
 
+        let total_key_sizes = Arc::new(DashMap::with_capacity(num_clients));
+
+        for client_id in 0..num_clients {
+            latencies.insert(client_id, Vec::new());
+            total_key_sizes.insert(client_id, 0);
+        }
+
         let total_now = Instant::now();
 
         for client_id in 0..num_clients {
             let client_pool_shared = client_pool.clone();
             let latencies_shared = latencies.clone();
+            let total_key_sizes_shared = total_key_sizes.clone();
             let pc_addrs_clone = pc_addrs.clone();
             let get_handle = tokio::spawn(async move {
                 let result: Result<(), BenchMarkError> = async {
+                    let mut total_key_size = 0;
                     for key_id in 0..num_keys {
                         // generate random key and value
                         let key = (client_id * num_keys + key_id).to_string();
+
+                        total_key_size += key.len();
 
                         let req = GetRequest { key };
 
@@ -196,9 +207,13 @@ impl BenchMark for KvGetBenchArgs {
                             .entry(client_id)
                             .and_modify(|e: &mut Vec<Duration>| {
                                 e.push(now.elapsed());
-                            })
-                            .or_insert_with(|| vec![now.elapsed()]);
+                            });
                     }
+
+                    total_key_sizes_shared
+                        .entry(client_id)
+                        .and_modify(|v| *v += total_key_size);
+
                     Ok(())
                 }
                 .await;
@@ -213,7 +228,7 @@ impl BenchMark for KvGetBenchArgs {
         let total_time = total_now.elapsed();
 
         println!(
-            "Benchmark KV get finished with time: {:?}s, ms/op: {}, op/ms: {}",
+            "==================\nBenchmark KV get finished with:\n\t\ttime: {:?}s\n\t\tms/op: {}\n\t\top/ms: {}",
             total_time.as_secs_f64(),
             total_time.as_millis() as f64 / (num_clients * num_keys) as f64,
             (num_clients * num_keys) as f64 / total_time.as_millis() as f64,
@@ -228,9 +243,10 @@ impl BenchMark for KvGetBenchArgs {
         latencies_sorted.sort_by_key(|(client_id, _)| *client_id);
 
         // Print the results in a table format
-        let mut table = Table::new();
+        let mut table_latency = Table::new();
+        let mut table_throughput = Table::new();
 
-        table.add_row(row![
+        table_latency.add_row(row![
             "Client ID",
             "P50 Latency (us)",
             "P90 Latency (us)",
@@ -240,6 +256,13 @@ impl BenchMark for KvGetBenchArgs {
             "Min Latency (us)",
             "Max Latency (us)",
             "Median Latency (us)"
+        ]);
+
+        table_throughput.add_row(row![
+            "Client ID",
+            "nMsg per second",
+            "Total message size (bytes)",
+            "Bytes per second"
         ]);
 
         for (client_id, latencies) in latencies_sorted.iter() {
@@ -256,12 +279,39 @@ impl BenchMark for KvGetBenchArgs {
             let max = sorted_latencies.last().unwrap().as_micros();
             let median = sorted_latencies[sorted_latencies.len() / 2].as_micros();
 
-            table.add_row(row![
+            table_latency.add_row(row![
                 client_id, p50, p90, p99, p999, average, min, max, median
+            ]);
+
+            let n_message = 2 * num_keys;
+
+            let total_time_secs = sorted_latencies
+                .iter()
+                .map(|d| d.as_secs_f64())
+                .sum::<f64>();
+
+            let n_message_per_second = n_message as f64 / total_time_secs;
+
+            let total_key_size = total_key_sizes
+                .get(client_id)
+                .map(|size| *size.value())
+                .expect("Client Id not found");
+
+            let total_value_size = num_keys * value_size;
+
+            let bytes_per_second = (total_key_size + total_value_size) as f64 / total_time_secs;
+
+            table_throughput.add_row(row![
+                client_id,
+                n_message_per_second,
+                total_key_size + total_value_size,
+                bytes_per_second
             ]);
         }
 
-        table.printstd();
+        table_latency.printstd();
+
+        table_throughput.printstd();
 
         Ok(())
     }
