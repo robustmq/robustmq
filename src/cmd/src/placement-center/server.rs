@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use clap::Parser;
-use common_config::{place::config::init_placement_center_conf_by_path, DEFAULT_PLACEMENT_CENTER_CONFIG};
+use common_config::{
+    place::config::init_placement_center_conf_by_path, DEFAULT_PLACEMENT_CENTER_CONFIG,
+};
 use placement_center::{core::log::init_placement_center_log, PlacementCenter};
 use tokio::sync::broadcast;
 
