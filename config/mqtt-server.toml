@@ -17,7 +17,7 @@ broker_id = 1
 grpc_port = 9981
 placement_center = ["127.0.0.1:1228"]
 
-[network]
+[network_port]
 local_ip = "127.0.0.1"
 tcp_port = 1883
 tcps_port = 8883
@@ -27,7 +27,7 @@ quic_port = 9083
 tls_cert = "./config/example/certs/cert.pem"
 tls_key = "./config/example/certs/key.pem"
 
-[tcp_thread]
+[network_thread]
 accept_thread_num = 10
 handler_thread_num = 15
 response_thread_num = 10
@@ -37,7 +37,7 @@ response_queue_size = 2000
 lock_max_try_mut_times = 30
 lock_try_mut_sleep_time_ms = 50
 
-[auth]
+[auth_storage]
 storage_type = "placement"
 
 [prometheus]
@@ -73,8 +73,3 @@ storage_type = "memory"
 [log]
 log_config = "./config/log-config/mqtt-tracing.toml"
 log_path = "./data/mqtt-broker/logs"
-
-[pprof]
-enable = false
-port = 6060
-frequency = 100

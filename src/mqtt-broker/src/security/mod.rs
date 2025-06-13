@@ -76,10 +76,11 @@ pub struct AuthDriver {
 impl AuthDriver {
     pub fn new(cache_manager: Arc<CacheManager>, client_pool: Arc<ClientPool>) -> AuthDriver {
         let conf = broker_mqtt_conf();
+
         let driver = match build_driver(client_pool.clone(), conf.auth_storage.clone()) {
             Ok(driver) => driver,
             Err(e) => {
-                panic!("{}", e.to_string());
+                panic!("{},auth storage:{:?}", e.to_string(), conf.auth_storage);
             }
         };
         AuthDriver {

@@ -122,7 +122,7 @@ pub fn default_offline_message() -> OfflineMessage {
 
 pub fn default_auth_storage() -> AuthStorage {
     AuthStorage {
-        storage_type: "memory".to_string(),
+        storage_type: "placement".to_string(),
         journal_addr: "".to_string(),
         mysql_addr: "".to_string(),
     }
