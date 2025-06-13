@@ -248,7 +248,7 @@ where
             let sub_ids = build_sub_ids(&subscriber);
 
             // build publish params
-            let sub_pub_param = if let Some(params) = build_publish_message(
+            let sub_pub_param = match build_publish_message(
                 cache_manager,
                 connection_manager,
                 &sub_data.client_id,
@@ -258,22 +258,32 @@ where
                 &subscriber,
                 &sub_ids,
             )
-            .await?
+            .await
             {
-                params
-            } else {
-                sleep(Duration::from_secs(1)).await;
-                continue;
+                Ok(Some(param)) => param,
+                Ok(None) => {
+                    sleep(Duration::from_secs(1)).await;
+                    continue;
+                }
+                Err(e) => {
+                    error!("{}", e);
+                    continue;
+                }
             };
 
-            send_publish_packet_to_client(
+            if let Err(e) = send_publish_packet_to_client(
                 connection_manager,
                 cache_manager,
                 &sub_pub_param,
                 &qos,
                 stop_sx,
             )
-            .await?;
+            .await
+            {
+                error!("{}", e);
+                continue;
+            };
+
             break;
         }
 

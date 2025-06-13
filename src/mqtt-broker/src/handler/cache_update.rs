@@ -17,7 +17,8 @@ use crate::storage::auto_subscribe::AutoSubscribeStorage;
 use crate::storage::connector::ConnectorStorage;
 use crate::storage::topic::TopicStorage;
 use crate::{security::AuthDriver, subscribe::manager::SubscribeManager};
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+
+use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::placement::inner::call::list_schema;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
@@ -35,7 +36,7 @@ use std::sync::Arc;
 use tracing::error;
 
 use super::cache::CacheManager;
-use super::cluster_config::build_cluster_config;
+use super::dynamic_config::build_cluster_config;
 
 pub async fn load_metadata_cache(
     cache_manager: &Arc<CacheManager>,
@@ -54,7 +55,7 @@ pub async fn load_metadata_cache(
             );
         }
     };
-    cache_manager.set_cluster_info(cluster);
+    cache_manager.set_cluster_config(cluster);
 
     // load all topic
     let topic_storage = TopicStorage::new(client_pool.clone());

@@ -21,18 +21,21 @@ use std::sync::Arc;
 
 pub async fn set_cluster_config_by_req(
     cache_manager: &Arc<CacheManager>,
-    cluster_config_request: SetClusterConfigRequest,
-) -> Result<bool, MqttBrokerError> {
-    match FeatureType::from_str(cluster_config_request.feature_name.as_str()) {
-        Ok(FeatureType::SlowSubscribe) => Ok(cache_manager
-            .update_slow_sub_config(cluster_config_request)
-            .await?),
-        Ok(FeatureType::OfflineMessage) => Ok(cache_manager
-            .update_offline_message_config(cluster_config_request)
-            .await?),
-        Err(e) => Err(MqttBrokerError::CommonError(format!(
-            "Failed to parse feature type: {}",
-            e
-        ))),
+    request: &SetClusterConfigRequest,
+) -> Result<(), MqttBrokerError> {
+    match FeatureType::from_str(request.feature_name.as_str()) {
+        Ok(FeatureType::SlowSubscribe) => {
+            cache_manager.update_slow_sub_config(request).await;
+        }
+        Ok(FeatureType::OfflineMessage) => {
+            cache_manager.update_offline_message_config(request).await
+        }
+        Err(e) => {
+            return Err(MqttBrokerError::CommonError(format!(
+                "Failed to parse feature type: {}",
+                e
+            )));
+        }
     }
+    Ok(())
 }

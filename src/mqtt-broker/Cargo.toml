@@ -27,6 +27,7 @@ thiserror.workspace = true
 bytes.workspace = true
 protocol.workspace = true
 common-base.workspace = true
+common-config.workspace = true
 tokio-util.workspace = true
 futures.workspace = true
 serde_json.workspace = true
@@ -67,6 +68,7 @@ rdkafka.workspace = true
 pprof-monitor.workspace = true
 humantime.workspace = true
 sysinfo.workspace = true
+tracing-appender.workspace = true
 chrono.workspace = true
 
 [dev-dependencies]

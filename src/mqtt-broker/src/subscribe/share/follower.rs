@@ -15,8 +15,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::{now_mills, unique_id};
+use common_config::mqtt::broker_mqtt_conf;
 use futures::StreamExt;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::node_extend::MqttNodeExtend;

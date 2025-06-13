@@ -14,9 +14,10 @@
 
 use std::sync::Arc;
 
-use common_base::config::broker_mqtt::{broker_mqtt_conf, BrokerMqttConfig};
 use common_base::error::common::CommonError;
 use common_base::tools::get_local_ip;
+use common_config::mqtt::broker_mqtt_conf;
+use common_config::mqtt::config::BrokerMqttConfig;
 use grpc_clients::placement::inner::call::{
     delete_resource_config, get_resource_config, heartbeat, node_list, register_node,
     set_resource_config, unregister_node,
@@ -63,11 +64,11 @@ impl ClusterStorage {
 
         let node = MqttNodeExtend {
             grpc_addr: format!("{}:{}", local_ip, config.grpc_port),
-            mqtt_addr: format!("{}:{}", local_ip, config.network.tcp_port),
-            mqtts_addr: format!("{}:{}", local_ip, config.network.tcps_port),
-            websocket_addr: format!("{}:{}", local_ip, config.network.websocket_port),
-            websockets_addr: format!("{}:{}", local_ip, config.network.websockets_port),
-            quic_addr: format!("{}:{}", local_ip, config.network.quic_port),
+            mqtt_addr: format!("{}:{}", local_ip, config.network_port.tcp_port),
+            mqtts_addr: format!("{}:{}", local_ip, config.network_port.tcps_port),
+            websocket_addr: format!("{}:{}", local_ip, config.network_port.websocket_port),
+            websockets_addr: format!("{}:{}", local_ip, config.network_port.websockets_port),
+            quic_addr: format!("{}:{}", local_ip, config.network_port.quic_port),
         };
         let req = RegisterNodeRequest {
             cluster_type: ClusterType::MqttBrokerServer.into(),

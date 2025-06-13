@@ -14,8 +14,8 @@
 
 use crate::handler::error::MqttBrokerError;
 use crate::storage::connector::ConnectorStorage;
-use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::now_second;
+use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::placement::mqtt::call::placement_list_connector;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::config_kafka::KafkaConnectorConfig;

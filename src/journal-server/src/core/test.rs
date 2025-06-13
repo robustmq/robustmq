@@ -14,10 +14,10 @@
 
 use std::sync::Arc;
 
-use common_base::config::journal_server::{
+use common_base::tools::{now_second, unique_id};
+use common_config::journal::config::{
     init_journal_server_conf_by_config, journal_server_conf, JournalServerConfig,
 };
-use common_base::tools::{now_second, unique_id};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;

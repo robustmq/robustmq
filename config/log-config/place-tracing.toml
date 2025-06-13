@@ -26,6 +26,6 @@ suffix = "log"
 max_log_files = 10
 
 ## Uncomment the section below to enable troubleshooting with `tokio-console`.
-[tokio_console]
-kind = "TokioConsole"
-bind = "127.0.0.1:5674"
+# [tokio_console]
+# kind = "TokioConsole"
+# bind = "127.0.0.1:5674"

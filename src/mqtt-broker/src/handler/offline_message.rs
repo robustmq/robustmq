@@ -54,7 +54,7 @@ pub async fn save_message<S>(
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
-    let offline_message_disabled = !cache_manager.get_cluster_info().offline_message.enable;
+    let offline_message_disabled = !cache_manager.get_cluster_config().offline_messages.enable;
     let not_exist_subscribe = !is_exist_subscribe(subscribe_manager, &topic.topic_name);
     if offline_message_disabled && not_exist_subscribe {
         record_messages_dropped_discard_metrics(publish.qos);

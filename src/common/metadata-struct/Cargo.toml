@@ -22,6 +22,7 @@ license.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 common-base.workspace = true
+common-config.workspace = true
 serde_json.workspace = true
 protocol.workspace = true
 bytes.workspace = true

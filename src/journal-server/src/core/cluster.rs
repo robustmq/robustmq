@@ -15,8 +15,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use common_base::config::journal_server::{journal_server_conf, JournalServerConfig};
 use common_base::error::common::CommonError;
+use common_config::journal::config::{journal_server_conf, JournalServerConfig};
 use grpc_clients::placement::inner::call::{heartbeat, register_node, unregister_node};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::node_extend::JournalNodeExtend;

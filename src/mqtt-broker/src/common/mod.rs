@@ -12,5 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod log;
 pub mod pkid_manager;
 pub mod pkid_storage;

@@ -18,8 +18,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use bytes::BytesMut;
-use common_base::config::journal_server::journal_server_conf;
 use common_base::tools::{file_exists, try_create_fold};
+use common_config::journal::config::journal_server_conf;
 use prost::Message;
 use protocol::journal_server::journal_record::JournalRecord;
 use tokio::fs::{self, File, OpenOptions};
@@ -273,10 +273,8 @@ pub fn data_file_segment(data_fold: &str, segment_no: u32) -> String {
 mod tests {
     use std::sync::Arc;
 
-    use common_base::config::journal_server::{
-        init_journal_server_conf_by_config, JournalServerConfig,
-    };
     use common_base::tools::{now_second, unique_id};
+    use common_config::journal::config::{init_journal_server_conf_by_config, JournalServerConfig};
     use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
     use protocol::journal_server::journal_record::JournalRecord;
 

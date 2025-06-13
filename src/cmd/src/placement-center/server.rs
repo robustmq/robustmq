@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use clap::Parser;
-use common_base::config::placement_center::init_placement_center_conf_by_path;
-use common_base::config::DEFAULT_PLACEMENT_CENTER_CONFIG;
-use common_base::logging::init_placement_center_log;
-use placement_center::PlacementCenter;
+use common_config::{
+    place::config::init_placement_center_conf_by_path, DEFAULT_PLACEMENT_CENTER_CONFIG,
+};
+use placement_center::{core::log::init_placement_center_log, PlacementCenter};
 use tokio::sync::broadcast;
 
 #[derive(Parser, Debug)]

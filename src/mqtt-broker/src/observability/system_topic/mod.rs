@@ -763,8 +763,8 @@ mod test {
     use crate::handler::cache::CacheManager;
     use crate::observability::system_topic::write_topic_data;
     use crate::storage::message::cluster_name;
-    use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
     use common_base::tools::{get_local_ip, unique_id};
+    use common_config::mqtt::init_broker_mqtt_conf_by_path;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::adapter::read_config::ReadConfig;
     use metadata_struct::mqtt::message::MqttMessage;

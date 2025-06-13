@@ -14,7 +14,6 @@
 
 pub mod auto_subscribe_rule;
 pub mod bridge;
-pub mod cluster;
 pub mod connection;
 pub mod lastwill;
 pub mod message;

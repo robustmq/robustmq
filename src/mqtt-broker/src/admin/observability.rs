@@ -14,8 +14,9 @@
 
 use crate::handler::cache::CacheManager;
 use crate::observability::slow::sub::{read_slow_sub_record, SlowSubData};
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+
 use common_base::utils::file_utils::get_project_root;
+use common_config::mqtt::broker_mqtt_conf;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ListSlowSubScribeRaw, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListSystemAlarmRaw,
     ListSystemAlarmReply, ListSystemAlarmRequest, SetSystemAlarmConfigReply,
@@ -77,7 +78,7 @@ pub async fn set_system_alarm_config_by_req(
     }
     cache_manager
         .update_system_monitor_config(system_monitor_config)
-        .await?;
+        .await;
     Ok(SetSystemAlarmConfigReply {
         enable: req.enable,
         os_cpu_high_watermark: req.os_cpu_high_watermark,
@@ -112,10 +113,11 @@ pub async fn list_system_alarm_by_req(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::handler::cluster_config::build_default_cluster_config;
     use crate::observability::system_topic::sysmon::SystemAlarmEventMessage;
     use crate::storage::message::cluster_name;
-    use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
+
+    use common_config::mqtt::config::BrokerMqttConfig;
+    use common_config::mqtt::init_broker_mqtt_conf_by_path;
     use grpc_clients::pool::ClientPool;
 
     #[tokio::test]
@@ -127,7 +129,7 @@ mod test {
         init_broker_mqtt_conf_by_path(&path);
         let cache_client_pool = Arc::new(ClientPool::new(3));
         let cache_manager = Arc::new(CacheManager::new(cache_client_pool, cluster_name()));
-        cache_manager.set_cluster_info(build_default_cluster_config());
+        cache_manager.set_cluster_config(BrokerMqttConfig::default());
         let req = SetSystemAlarmConfigRequest {
             enable: true,
             os_cpu_high_watermark: Some(80.0),
@@ -155,7 +157,7 @@ mod test {
         init_broker_mqtt_conf_by_path(&path);
         let cache_client_pool = Arc::new(ClientPool::new(3));
         let cache_manager = Arc::new(CacheManager::new(cache_client_pool, cluster_name()));
-        cache_manager.set_cluster_info(build_default_cluster_config());
+        cache_manager.set_cluster_config(BrokerMqttConfig::default());
 
         let req = ListSystemAlarmRequest {};
         let test_event = "test_event";

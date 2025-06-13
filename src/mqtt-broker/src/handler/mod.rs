@@ -15,12 +15,12 @@
 pub mod acl;
 pub mod cache;
 pub mod cache_update;
-pub mod cluster_config;
 pub mod command;
 pub mod connection;
 pub mod constant;
 pub mod content_type;
 pub mod delay_message;
+pub mod dynamic_config;
 pub mod error;
 pub mod flapping_detect;
 pub mod flow_control;

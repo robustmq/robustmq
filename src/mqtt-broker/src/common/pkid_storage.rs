@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::placement::inner::call::{
     delete_idempotent_data, exists_idempotent_data, set_idempotent_data,
 };
@@ -33,8 +33,8 @@ pub async fn pkid_save(
     pkid: u16,
 ) -> Result<(), MqttBrokerError> {
     if cache_manager
-        .get_cluster_info()
-        .protocol
+        .get_cluster_config()
+        .mqtt_protocol_config
         .client_pkid_persistent
     {
         let conf = broker_mqtt_conf();
@@ -64,8 +64,8 @@ pub async fn pkid_exists(
     pkid: u16,
 ) -> Result<bool, MqttBrokerError> {
     if cache_manager
-        .get_cluster_info()
-        .protocol
+        .get_cluster_config()
+        .mqtt_protocol_config
         .client_pkid_persistent
     {
         let conf = broker_mqtt_conf();
@@ -93,8 +93,8 @@ pub async fn pkid_delete(
     pkid: u16,
 ) -> Result<(), MqttBrokerError> {
     if cache_manager
-        .get_cluster_info()
-        .protocol
+        .get_cluster_config()
+        .mqtt_protocol_config
         .client_pkid_persistent
     {
         let conf = broker_mqtt_conf();
@@ -121,10 +121,9 @@ pub async fn pkid_delete(
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
-    use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
+    use common_config::mqtt::init_broker_mqtt_conf_by_path;
     use grpc_clients::pool::ClientPool;
+    use std::sync::Arc;
 
     use super::{pkid_delete, pkid_exists, pkid_save};
     use crate::handler::cache::CacheManager;
@@ -165,9 +164,9 @@ mod test {
             .await
             .unwrap();
         assert!(!flag);
-        let mut cluset_info = cache_manager.get_cluster_info();
-        cluset_info.protocol.client_pkid_persistent = true;
-        cache_manager.set_cluster_info(cluset_info);
+        let mut cluset_info = cache_manager.get_cluster_config();
+        cluset_info.mqtt_protocol_config.client_pkid_persistent = true;
+        cache_manager.set_cluster_config(cluset_info);
 
         let flag = pkid_exists(&cache_manager, &client_pool, &client_id, pkid)
             .await

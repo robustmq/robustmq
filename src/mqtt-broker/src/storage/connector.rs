@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::{
     placement::mqtt::call::{
         placement_connector_heartbeat, placement_create_connector, placement_delete_connector,

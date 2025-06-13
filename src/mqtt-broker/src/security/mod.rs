@@ -19,8 +19,9 @@ use std::sync::Arc;
 
 use acl::auth::is_allow_acl;
 use axum::async_trait;
-use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::config::common::Auth;
+
+use common_config::mqtt::broker_mqtt_conf;
+use common_config::mqtt::config::AuthStorage;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use login::plaintext::Plaintext;
@@ -75,10 +76,11 @@ pub struct AuthDriver {
 impl AuthDriver {
     pub fn new(cache_manager: Arc<CacheManager>, client_pool: Arc<ClientPool>) -> AuthDriver {
         let conf = broker_mqtt_conf();
-        let driver = match build_driver(client_pool.clone(), conf.auth.clone()) {
+
+        let driver = match build_driver(client_pool.clone(), conf.auth_storage.clone()) {
             Ok(driver) => driver,
             Err(e) => {
-                panic!("{}", e.to_string());
+                panic!("{},auth storage:{:?}", e, conf.auth_storage);
             }
         };
         AuthDriver {
@@ -88,7 +90,7 @@ impl AuthDriver {
         }
     }
 
-    pub fn update_driver(&mut self, auth: Auth) -> Result<(), MqttBrokerError> {
+    pub fn update_driver(&mut self, auth: AuthStorage) -> Result<(), MqttBrokerError> {
         let driver = build_driver(self.client_pool.clone(), auth)?;
         self.driver = driver;
         Ok(())
@@ -145,7 +147,7 @@ impl AuthDriver {
         _: &Option<ConnectProperties>,
         _: &SocketAddr,
     ) -> Result<bool, MqttBrokerError> {
-        let cluster = self.cache_manager.get_cluster_info();
+        let cluster = self.cache_manager.get_cluster_config();
 
         if cluster.security.secret_free_login {
             return Ok(true);
@@ -299,7 +301,7 @@ impl AuthDriver {
 
 pub fn build_driver(
     client_pool: Arc<ClientPool>,
-    auth: Auth,
+    auth: AuthStorage,
 ) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, MqttBrokerError> {
     let storage_type = StorageType::from_str(&auth.storage_type)
         .map_err(|_| MqttBrokerError::UnavailableStorageType)?;

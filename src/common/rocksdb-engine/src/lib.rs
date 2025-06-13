@@ -237,9 +237,8 @@ impl RocksDBEngine {
 mod tests {
     use std::sync::Arc;
 
-    use common_base::{
-        config::placement_center::placement_center_test_conf, utils::file_utils::test_temp_dir,
-    };
+    use common_base::utils::file_utils::test_temp_dir;
+    use common_config::place::config::placement_center_test_conf;
     use futures::future;
     use serde::{Deserialize, Serialize};
 

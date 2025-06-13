@@ -15,9 +15,10 @@
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::message::MessageStorage;
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+
 use common_base::error::common::CommonError;
 use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
+use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
 use grpc_clients::pool::ClientPool;
 use protocol::mqtt::common::{Filter, MqttProtocol, RetainHandling, SubscribeProperties};
