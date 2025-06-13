@@ -40,6 +40,7 @@ use crate::mqtt::services::user::{create_user_by_req, delete_user_by_req, list_u
 use crate::route::apply::RaftMachineApply;
 use crate::storage::rocksdb::RocksDBEngine;
 use grpc_clients::pool::ClientPool;
+use prost_validate::Validator;
 use protocol::placement_center::placement_center_mqtt::mqtt_service_server::MqttService;
 use protocol::placement_center::placement_center_mqtt::{
     ConnectorHeartbeatReply, ConnectorHeartbeatRequest, CreateAclReply, CreateAclRequest,
@@ -276,6 +277,9 @@ impl MqttService for GrpcMqttService {
         request: Request<GetShareSubLeaderRequest>,
     ) -> Result<Response<GetShareSubLeaderReply>, Status> {
         let req = request.into_inner();
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+
         get_share_sub_leader_by_req(&self.cluster_cache, &self.rocksdb_engine_handler, &req)
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
