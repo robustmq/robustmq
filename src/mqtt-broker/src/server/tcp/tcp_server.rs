@@ -26,7 +26,7 @@ use tokio_util::codec::{FramedRead, FramedWrite};
 use tracing::{debug, error, info};
 
 use crate::handler::cache::CacheManager;
-use crate::handler::validator::tcp_establish_connection_check;
+use crate::handler::connection::tcp_establish_connection_check;
 use crate::observability::metrics::packets::{
     record_received_error_metrics, record_received_metrics,
 };
@@ -87,7 +87,7 @@ pub(crate) async fn acceptor_process(
                                 let read_frame_stream = FramedRead::new(r_stream, codec.clone());
                                 let mut  write_frame_stream = FramedWrite::new(w_stream, codec.clone());
 
-                                if !tcp_establish_connection_check(&addr,&connection_manager,&mut write_frame_stream).await{
+                                if !tcp_establish_connection_check(&addr, &connection_manager, &mut write_frame_stream).await{
                                     continue;
                                 }
 

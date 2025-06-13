@@ -15,12 +15,12 @@
 use crate::common::pkid_manager::PkidManager;
 use crate::observability::system_topic::sysmon::SystemAlarmEventMessage;
 use crate::security::acl::metadata::AclMetadata;
+use common_config::mqtt::config::BrokerMqttConfig;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
-use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::MqttTopic;
@@ -93,7 +93,7 @@ pub struct CacheManager {
     pub cluster_name: String,
 
     // (cluster_name, Cluster)
-    pub cluster_info: DashMap<String, MqttClusterDynamicConfig>,
+    pub cluster_info: DashMap<String, BrokerMqttConfig>,
 
     // (username, User)
     pub user_info: DashMap<String, MqttUser>,

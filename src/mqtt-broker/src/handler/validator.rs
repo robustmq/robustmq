@@ -12,155 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use futures_util::SinkExt;
+use common_config::mqtt::config::BrokerMqttConfig;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;
-use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{
-    Connect, ConnectProperties, ConnectReturnCode, DisconnectReasonCode, LastWill,
-    LastWillProperties, Login, MqttPacket, MqttProtocol, PubAckReason, PubRecReason, Publish,
-    PublishProperties, QoS, Subscribe, SubscribeReasonCode, UnsubAckReason, Unsubscribe,
+    Connect, ConnectProperties, ConnectReturnCode, LastWill, LastWillProperties, Login, MqttPacket,
+    MqttProtocol, PubAckReason, PubRecReason, Publish, PublishProperties, QoS, Subscribe,
+    SubscribeReasonCode, UnsubAckReason, Unsubscribe,
 };
 use std::cmp::min;
-use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::io::{AsyncWrite, AsyncWriteExt, WriteHalf};
-use tokio::net::TcpStream;
-use tokio_util::codec::FramedWrite;
-use tracing::error;
 
 use super::cache::CacheManager;
 use super::content_type::{
     payload_format_indicator_check_by_lastwill, payload_format_indicator_check_by_publish,
 };
 use super::error::MqttBrokerError;
-use super::flow_control::{
-    is_connection_rate_exceeded, is_qos_message, is_subscribe_rate_exceeded,
-};
+use super::flow_control::{is_qos_message, is_subscribe_rate_exceeded};
 use super::response::{
-    response_packet_mqtt_connect_fail, response_packet_mqtt_distinct_by_reason,
-    response_packet_mqtt_puback_fail, response_packet_mqtt_pubrec_fail,
-    response_packet_mqtt_suback, response_packet_mqtt_unsuback,
+    response_packet_mqtt_connect_fail, response_packet_mqtt_puback_fail,
+    response_packet_mqtt_pubrec_fail, response_packet_mqtt_suback, response_packet_mqtt_unsuback,
 };
 use super::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_subscribe};
 use super::topic::topic_name_validator;
 use crate::common::pkid_storage::pkid_exists;
 use crate::security::AuthDriver;
-use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::common::sub_path_validator;
 use crate::subscribe::manager::SubscribeManager;
 
-pub async fn tcp_establish_connection_check(
-    addr: &SocketAddr,
-    connection_manager: &Arc<ConnectionManager>,
-    write_frame_stream: &mut FramedWrite<WriteHalf<TcpStream>, MqttCodec>,
-) -> bool {
-    if let Some(value) =
-        handle_tpc_connection_overflow(addr, connection_manager, write_frame_stream).await
-    {
-        return value;
-    }
-
-    if let Some(value) = handle_connection_rate_exceeded(addr, write_frame_stream).await {
-        return value;
-    }
-    true
-}
-
-pub async fn tcp_tls_establish_connection_check(
-    addr: &SocketAddr,
-    connection_manager: &Arc<ConnectionManager>,
-    write_frame_stream: &mut FramedWrite<
-        WriteHalf<tokio_rustls::server::TlsStream<TcpStream>>,
-        MqttCodec,
-    >,
-) -> bool {
-    if let Some(value) =
-        handle_tpc_connection_overflow(addr, connection_manager, write_frame_stream).await
-    {
-        return value;
-    }
-
-    if let Some(value) = handle_connection_rate_exceeded(addr, write_frame_stream).await {
-        return value;
-    }
-
-    true
-}
-
-async fn handle_tpc_connection_overflow<T>(
-    addr: &SocketAddr,
-    connection_manager: &Arc<ConnectionManager>,
-    write_frame_stream: &mut FramedWrite<WriteHalf<T>, MqttCodec>,
-) -> Option<bool>
-where
-    T: AsyncWriteExt + AsyncWrite,
-{
-    if connection_manager.tcp_connect_num_check() {
-        let packet_wrapper = MqttPacketWrapper {
-            protocol_version: MqttProtocol::Mqtt5.into(),
-            packet: response_packet_mqtt_distinct_by_reason(
-                &MqttProtocol::Mqtt5,
-                Some(DisconnectReasonCode::QuotaExceeded),
-            ),
-        };
-        match write_frame_stream.send(packet_wrapper).await {
-            Ok(_) => {}
-            Err(e) => error!("{}", e),
-        }
-
-        match write_frame_stream.close().await {
-            Ok(_) => {
-                error!(
-                    "tcp connection failed to establish from IP: {}",
-                    addr.to_string()
-                );
-            }
-            Err(e) => error!("{}", e),
-        }
-        return Some(false);
-    }
-    None
-}
-
-async fn handle_connection_rate_exceeded<T>(
-    addr: &SocketAddr,
-    write_frame_stream: &mut FramedWrite<WriteHalf<T>, MqttCodec>,
-) -> Option<bool>
-where
-    T: AsyncWriteExt + AsyncWrite,
-{
-    if is_connection_rate_exceeded() {
-        let packet_wrapper = MqttPacketWrapper {
-            protocol_version: MqttProtocol::Mqtt5.into(),
-            packet: response_packet_mqtt_distinct_by_reason(
-                &MqttProtocol::Mqtt5,
-                Some(DisconnectReasonCode::ConnectionRateExceeded),
-            ),
-        };
-        match write_frame_stream.send(packet_wrapper).await {
-            Ok(_) => {}
-            Err(e) => error!("{}", e),
-        }
-
-        match write_frame_stream.close().await {
-            Ok(_) => {
-                error!(
-                    "tcp connection failed to establish from IP: {}",
-                    addr.to_string()
-                );
-            }
-            Err(e) => error!("{}", e),
-        }
-        return Some(false);
-    }
-    None
-}
-
 pub fn connect_validator(
     protocol: &MqttProtocol,
-    cluster: &MqttClusterDynamicConfig,
+    cluster: &BrokerMqttConfig,
     connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
     last_will: &Option<LastWill>,
@@ -318,10 +200,12 @@ pub async fn publish_validator(
         };
     }
 
-    let cluster = cache_manager.get_cluster_info();
+    let cluster = cache_manager.get_cluster_config();
 
-    let max_packet_size =
-        min(cluster.protocol.max_packet_size, connection.max_packet_size) as usize;
+    let max_packet_size = min(
+        cluster.mqtt_protocol_config.max_packet_size,
+        connection.max_packet_size,
+    ) as usize;
     if publish.payload.len() > max_packet_size {
         if is_puback {
             return Some(response_packet_mqtt_puback_fail(
@@ -375,7 +259,7 @@ pub async fn publish_validator(
     }
 
     if is_qos_message(publish.qos)
-        && connection.get_recv_qos_message() >= cluster.protocol.receive_max as isize
+        && connection.get_recv_qos_message() >= cluster.mqtt_protocol_config.receive_max as isize
     {
         if is_puback {
             return Some(response_packet_mqtt_puback_fail(
@@ -418,8 +302,8 @@ pub async fn publish_validator(
 
     if let Some(properties) = publish_properties {
         if let Some(alias) = properties.topic_alias {
-            let cluster = cache_manager.get_cluster_info();
-            if alias > cluster.protocol.topic_alias_max {
+            let cluster = cache_manager.get_cluster_config();
+            if alias > cluster.mqtt_protocol_config.topic_alias_max {
                 if is_puback {
                     return Some(response_packet_mqtt_puback_fail(
                         protocol,
@@ -561,14 +445,14 @@ pub fn is_request_problem_info(connect_properties: &Option<ConnectProperties>) -
 
 pub fn connection_max_packet_size(
     connect_properties: &Option<ConnectProperties>,
-    cluster: &MqttClusterDynamicConfig,
+    cluster: &BrokerMqttConfig,
 ) -> u32 {
     if let Some(properties) = connect_properties {
         if let Some(size) = properties.max_packet_size {
-            return min(size, cluster.protocol.max_packet_size);
+            return min(size, cluster.mqtt_protocol_config.max_packet_size);
         }
     }
-    cluster.protocol.max_packet_size
+    cluster.mqtt_protocol_config.max_packet_size
 }
 
 pub fn client_id_validator(client_id: &str) -> bool {

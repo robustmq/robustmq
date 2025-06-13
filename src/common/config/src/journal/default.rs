@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::common::Log;
-use super::journal_server::{Network, Shard, Storage, System, TcpThread};
+use super::config::{Network, Shard, Storage, System, TcpThread};
+use crate::common::Log;
 
 pub fn default_network() -> Network {
     Network {

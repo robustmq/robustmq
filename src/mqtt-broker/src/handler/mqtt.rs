@@ -19,7 +19,7 @@ use common_base::tools::{now_mills, now_second};
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use protocol::mqtt::common::{
-    Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
+    qos, Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MqttPacket, MqttProtocol, PingReq,
     PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec,
     PubRecProperties, PubRecReason, PubRel, PubRelProperties, Publish, PublishProperties, QoS,
@@ -120,7 +120,7 @@ where
         login: &Option<Login>,
         addr: &SocketAddr,
     ) -> MqttPacket {
-        let cluster = self.cache_manager.get_cluster_info();
+        let cluster = self.cache_manager.get_cluster_config();
 
         // connect params validator
         if let Some(res) = connect_validator(
@@ -742,9 +742,13 @@ where
         .await;
 
         let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
-        let cluster_qos = self.cache_manager.get_cluster_info().protocol.max_qos;
+        let cluster_qos = self
+            .cache_manager
+            .get_cluster_config()
+            .mqtt_protocol_config
+            .max_qos;
         for filter in subscribe.filters.clone() {
-            match min_qos(cluster_qos, filter.qos) {
+            match min_qos(qos(cluster_qos).unwrap(), filter.qos) {
                 QoS::AtMostOnce => {
                     return_codes.push(SubscribeReasonCode::QoS0);
                 }

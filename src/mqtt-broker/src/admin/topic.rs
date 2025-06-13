@@ -16,7 +16,8 @@ use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Querya
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::topic::TopicStorage;
-use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::now_mills};
+use common_base::tools::now_mills;
+use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use protocol::broker_mqtt::broker_mqtt_admin::{

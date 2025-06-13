@@ -17,7 +17,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use common_base::config::journal_server::journal_server_conf;
+use common_config::journal::config::journal_server_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::shard::{shard_name_iden, JournalShardConfig};
 use protocol::journal_server::journal_inner::{

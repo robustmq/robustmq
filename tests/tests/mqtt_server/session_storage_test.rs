@@ -16,8 +16,8 @@
 mod tests {
     use std::sync::Arc;
 
-    use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
     use common_base::tools::now_second;
+    use common_config::mqtt::init_broker_mqtt_conf_by_path;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
     use mqtt_broker::storage::session::SessionStorage;

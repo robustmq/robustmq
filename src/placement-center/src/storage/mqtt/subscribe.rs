@@ -172,8 +172,8 @@ impl MqttSubscribeStorage {
 mod tests {
     use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
     use crate::storage::rocksdb::column_family_list;
-    use common_base::config::placement_center::placement_center_test_conf;
     use common_base::utils::file_utils::test_temp_dir;
+    use common_config::place::config::placement_center_test_conf;
     use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
     use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
     use protocol::mqtt::common::{Filter, QoS, RetainHandling};

@@ -32,6 +32,7 @@ use common_base::tools::now_mills;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
+use protocol::mqtt::common::qos;
 use protocol::mqtt::common::{MqttPacket, MqttProtocol, PubRel, Publish, PublishProperties, QoS};
 use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
@@ -206,8 +207,11 @@ pub async fn send_publish_packet_to_client(
 }
 
 pub fn build_pub_qos(cache_manager: &Arc<CacheManager>, subscriber: &Subscriber) -> QoS {
-    let cluster_qos = cache_manager.get_cluster_info().protocol.max_qos;
-    min_qos(cluster_qos, subscriber.qos)
+    let cluster_qos = cache_manager
+        .get_cluster_config()
+        .mqtt_protocol_config
+        .max_qos;
+    min_qos(qos(cluster_qos).unwrap(), subscriber.qos)
 }
 
 pub fn build_sub_ids(subscriber: &Subscriber) -> Vec<usize> {

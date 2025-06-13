@@ -15,8 +15,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use common_base::config::journal_server::journal_server_conf;
 use common_base::tools::now_second;
+use common_config::journal::config::journal_server_conf;
 use dashmap::DashMap;
 use grpc_clients::placement::journal::call::create_next_segment;
 use grpc_clients::pool::ClientPool;

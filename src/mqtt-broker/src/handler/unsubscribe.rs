@@ -17,7 +17,8 @@ use crate::subscribe::{
     common::{decode_share_info, is_queue_sub, is_share_sub},
     manager::SubscribeManager,
 };
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+
+use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::{placement::mqtt::call::placement_delete_subscribe, pool::ClientPool};
 use protocol::{
     mqtt::common::Unsubscribe, placement_center::placement_center_mqtt::DeleteSubscribeRequest,

@@ -16,10 +16,10 @@ use crate::handler::error::MqttBrokerError;
 use crate::handler::flapping_detect::FlappingDetectCondition;
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
+use common_config::mqtt::config::FlappingDetect;
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclResourceType};
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
-use metadata_struct::mqtt::cluster::MqttClusterDynamicFlappingDetect;
 
 #[derive(Clone)]
 pub struct AclMetadata {
@@ -88,7 +88,7 @@ impl AclMetadata {
 
     pub async fn remove_flapping_detect_conditions(
         &self,
-        config: MqttClusterDynamicFlappingDetect,
+        config: FlappingDetect,
     ) -> Result<(), MqttBrokerError> {
         let current_time = now_second();
         let window_time = convert_seconds(config.window_time as u64, TimeUnit::Minutes);
@@ -244,11 +244,11 @@ mod test {
     use crate::handler::flapping_detect::FlappingDetectCondition;
     use crate::security::acl::metadata::AclMetadata;
     use common_base::tools::now_second;
+    use common_config::mqtt::config::FlappingDetect;
     use metadata_struct::acl::mqtt_acl::{
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
     use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
-    use metadata_struct::mqtt::cluster::MqttClusterDynamicFlappingDetect;
 
     #[tokio::test]
     pub async fn test_mqtt_remove_flapping_detect() {
@@ -271,7 +271,7 @@ mod test {
         assert!(acl_metadata.flapping_detect_map.contains_key("test_id_1"));
         assert!(acl_metadata.flapping_detect_map.contains_key("test_id_2"));
 
-        let jitter_config = MqttClusterDynamicFlappingDetect {
+        let jitter_config = FlappingDetect {
             enable: true,
             window_time: 1,
             max_client_connections: 15,

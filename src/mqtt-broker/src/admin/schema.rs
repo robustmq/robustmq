@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use crate::handler::error::MqttBrokerError;
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+
+use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::{
     placement::inner::call::{
         bind_schema, create_schema, delete_schema, list_bind_schema, list_schema, un_bind_schema,

@@ -12,23 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
-pub struct Storage {
-    pub storage_type: String,
-    #[serde(default)]
-    pub journal_addr: String,
-    #[serde(default)]
-    pub mysql_addr: String,
-    #[serde(default)]
-    pub rocksdb_data_path: String,
-    pub rocksdb_max_open_files: Option<i32>,
+#[derive(Serialize, Deserialize, PartialEq, Default, Clone, Debug)]
+pub enum AvailableFlag {
+    #[default]
+    Disable,
+    Enable,
 }
 
+// Prometheus
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Prometheus {
     #[serde(default)]
@@ -45,21 +40,14 @@ pub struct Prometheus {
     pub header: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
-pub struct Auth {
-    pub storage_type: String,
-    #[serde(default)]
-    pub journal_addr: String,
-    #[serde(default)]
-    pub mysql_addr: String,
-}
-
+// Log
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
 pub struct Log {
     pub log_config: String,
     pub log_path: String,
 }
 
+// Telemetry
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
 pub struct Telemetry {
     pub enable: bool,
@@ -67,6 +55,7 @@ pub struct Telemetry {
     pub exporter_endpoint: String,
 }
 
+// Pprof
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
 pub struct Pprof {
     #[serde(default = "default_false")]
@@ -112,7 +101,7 @@ pub fn default_pprof_frequency() -> i32 {
     100
 }
 
-/** `override_default_by_env` 根据环境变量覆盖内容
+/** `override_default_by_env` Cover the content based on the environment variables
 
 ```
 let toml_content = r#"
@@ -173,6 +162,8 @@ pub fn find_exist_env_for_config(toml_content: &str, env_prefix: &str) -> HashMa
 
 #[cfg(test)]
 mod tests {
+    use crate::common::AvailableFlag;
+
     #[test]
     fn override_default_by_env() {
         let toml_content = r#"
@@ -189,5 +180,11 @@ mod tests {
         port=8081
         "#
         );
+    }
+
+    #[test]
+    fn client34_connect_test() {
+        assert_eq!(AvailableFlag::Disable as u8, 0);
+        assert_eq!(AvailableFlag::Enable as u8, 1);
     }
 }

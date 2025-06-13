@@ -16,17 +16,25 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use common_base::tools::{now_second, unique_id};
+use common_config::mqtt::config::BrokerMqttConfig;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
-use protocol::mqtt::common::{Connect, ConnectProperties};
+use protocol::mqtt::common::{Connect, ConnectProperties, DisconnectReasonCode, MqttProtocol};
 
 use super::cache::CacheManager;
 use super::error::MqttBrokerError;
 use super::keep_alive::client_keep_live_time;
+use crate::handler::flow_control::is_connection_rate_exceeded;
+use crate::handler::response::response_packet_mqtt_distinct_by_reason;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::session::SessionStorage;
 use crate::subscribe::manager::SubscribeManager;
+use futures_util::SinkExt;
+use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
+use tokio::io::{AsyncWrite, AsyncWriteExt, WriteHalf};
+use tokio::net::TcpStream;
+use tokio_util::codec::FramedWrite;
+use tracing::{error, warn};
 
 pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/sys/request_response/";
 pub const DISCONNECT_FLAG_NOT_DELETE_SESSION: &str = "DISCONNECT_FLAG_NOT_DELETE_SESSION";
@@ -34,31 +42,30 @@ pub const DISCONNECT_FLAG_NOT_DELETE_SESSION: &str = "DISCONNECT_FLAG_NOT_DELETE
 pub fn build_connection(
     connect_id: u64,
     client_id: String,
-    cluster: &MqttClusterDynamicConfig,
+    cluster: &BrokerMqttConfig,
     connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
     addr: &SocketAddr,
 ) -> MQTTConnection {
     let keep_alive = client_keep_live_time(cluster, connect.keep_alive);
-
     let (client_receive_maximum, max_packet_size, topic_alias_max, request_problem_info) =
         if let Some(properties) = connect_properties {
             let client_receive_maximum = if let Some(value) = properties.receive_maximum {
                 value
             } else {
-                cluster.protocol.receive_max
+                cluster.mqtt_protocol_config.receive_max
             };
 
             let max_packet_size = if let Some(value) = properties.max_packet_size {
-                std::cmp::min(value, cluster.protocol.max_packet_size)
+                std::cmp::min(value, cluster.mqtt_protocol_config.max_packet_size)
             } else {
-                cluster.protocol.max_packet_size
+                cluster.mqtt_protocol_config.max_packet_size
             };
 
             let topic_alias_max = if let Some(value) = properties.topic_alias_max {
-                std::cmp::min(value, cluster.protocol.topic_alias_max)
+                std::cmp::min(value, cluster.mqtt_protocol_config.topic_alias_max)
             } else {
-                cluster.protocol.topic_alias_max
+                cluster.mqtt_protocol_config.topic_alias_max
             };
 
             let request_problem_info = properties.request_problem_info.unwrap_or_default();
@@ -71,9 +78,9 @@ pub fn build_connection(
             )
         } else {
             (
-                cluster.protocol.receive_max,
-                cluster.protocol.max_packet_size,
-                cluster.protocol.topic_alias_max,
+                cluster.mqtt_protocol_config.receive_max,
+                cluster.mqtt_protocol_config.max_packet_size,
+                cluster.mqtt_protocol_config.topic_alias_max,
                 0,
             )
         };
@@ -145,22 +152,109 @@ pub async fn disconnect_connection(
     Ok(())
 }
 
+pub async fn tcp_establish_connection_check(
+    addr: &SocketAddr,
+    connection_manager: &Arc<ConnectionManager>,
+    write_frame_stream: &mut FramedWrite<WriteHalf<TcpStream>, MqttCodec>,
+) -> bool {
+    if let Some(value) =
+        handle_tpc_connection_overflow(addr, connection_manager, write_frame_stream).await
+    {
+        return value;
+    }
+
+    if let Some(value) = handle_connection_rate_exceeded(addr, write_frame_stream).await {
+        return value;
+    }
+    true
+}
+
+pub async fn tcp_tls_establish_connection_check(
+    addr: &SocketAddr,
+    connection_manager: &Arc<ConnectionManager>,
+    write_frame_stream: &mut FramedWrite<
+        WriteHalf<tokio_rustls::server::TlsStream<TcpStream>>,
+        MqttCodec,
+    >,
+) -> bool {
+    if let Some(value) =
+        handle_tpc_connection_overflow(addr, connection_manager, write_frame_stream).await
+    {
+        return value;
+    }
+
+    if let Some(value) = handle_connection_rate_exceeded(addr, write_frame_stream).await {
+        return value;
+    }
+
+    true
+}
+
+async fn handle_tpc_connection_overflow<T>(
+    addr: &SocketAddr,
+    connection_manager: &Arc<ConnectionManager>,
+    write_frame_stream: &mut FramedWrite<WriteHalf<T>, MqttCodec>,
+) -> Option<bool>
+where
+    T: AsyncWriteExt + AsyncWrite,
+{
+    if connection_manager.tcp_connect_num_check() {
+        let packet_wrapper = MqttPacketWrapper {
+            protocol_version: MqttProtocol::Mqtt5.into(),
+            packet: response_packet_mqtt_distinct_by_reason(
+                &MqttProtocol::Mqtt5,
+                Some(DisconnectReasonCode::QuotaExceeded),
+            ),
+        };
+        if let Err(e) = write_frame_stream.send(packet_wrapper).await {
+            error!("{}", e)
+        }
+        warn!("Total number of tcp connections at a node exceeds the limit, and the connection is closed. Source IP{:?}",addr);
+        return Some(false);
+    }
+    None
+}
+
+async fn handle_connection_rate_exceeded<T>(
+    addr: &SocketAddr,
+    write_frame_stream: &mut FramedWrite<WriteHalf<T>, MqttCodec>,
+) -> Option<bool>
+where
+    T: AsyncWriteExt + AsyncWrite,
+{
+    if is_connection_rate_exceeded() {
+        let packet_wrapper = MqttPacketWrapper {
+            protocol_version: MqttProtocol::Mqtt5.into(),
+            packet: response_packet_mqtt_distinct_by_reason(
+                &MqttProtocol::Mqtt5,
+                Some(DisconnectReasonCode::ConnectionRateExceeded),
+            ),
+        };
+
+        if let Err(e) = write_frame_stream.send(packet_wrapper).await {
+            error!("{}", e);
+        }
+        warn!("Total number of tcp connections at a node exceeds the limit, and the connection is closed. Source IP{:?}",addr);
+        return Some(false);
+    }
+    None
+}
+
 #[cfg(test)]
 mod test {
-    use protocol::mqtt::common::{Connect, ConnectProperties};
-
-    use crate::handler::cluster_config::build_default_cluster_config;
-
     use super::{
         build_connection, get_client_id, response_information, MQTTConnection,
         REQUEST_RESPONSE_PREFIX_NAME,
     };
+    use common_config::mqtt::default_broker_mqtt;
+    use protocol::mqtt::common::{Connect, ConnectProperties};
 
     #[tokio::test]
     pub async fn build_connection_test() {
         let connect_id = 1;
         let client_id = "client_id-***".to_string();
-        let cluster = build_default_cluster_config();
+        let cluster = default_broker_mqtt();
+        println!("{:?}", cluster);
         let connect = Connect {
             keep_alive: 10,
             client_id: client_id.clone(),

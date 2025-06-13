@@ -14,7 +14,8 @@
 
 use std::{collections::HashMap, sync::Arc};
 
-use common_base::{config::placement_center::placement_center_conf, tools::now_second};
+use common_base::tools::now_second;
+use common_config::place::config::placement_center_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::status::MQTTStatus;
 use protocol::placement_center::placement_center_mqtt::CreateConnectorRequest;

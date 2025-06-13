@@ -98,12 +98,13 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         request: Request<SetClusterConfigRequest>,
     ) -> Result<Response<SetClusterConfigReply>, Status> {
-        let config_request = request.into_inner().clone();
+        let request = request.into_inner().clone();
+        set_cluster_config_by_req(&self.cache_manager, &request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
         Ok(Response::new(SetClusterConfigReply {
-            feature_name: config_request.feature_name.clone(),
-            is_enable: set_cluster_config_by_req(&self.cache_manager, config_request)
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?,
+            feature_name: request.feature_name.clone(),
+            is_enable: true,
         }))
     }
 
@@ -113,10 +114,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
     ) -> Result<Response<GetClusterConfigReply>, Status> {
         Ok(Response::new(GetClusterConfigReply {
             mqtt_broker_cluster_dynamic_config: serde_json::to_vec(
-                &self
-                    .cache_manager
-                    .get_cluster_config()
-                    .map_err(|e| Status::internal(e.to_string()))?,
+                &self.cache_manager.get_cluster_config(),
             )
             .map_err(|e| Status::internal(e.to_string()))?,
         }))
