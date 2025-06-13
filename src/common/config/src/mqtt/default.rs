@@ -13,12 +13,15 @@
 // limitations under the License.
 
 use super::config::{
-    ConfigAvailableFlag, MqttClusterDynamicConfigFeature, MqttClusterDynamicConfigNetwork,
-    MqttClusterDynamicConfigProtocol, MqttClusterDynamicConfigSecurity,
-    MqttClusterDynamicFlappingDetect, MqttClusterDynamicSlowSub, MqttClusterDynamicSystemMonitor,
-    Network, OfflineMessage, System, SystemMonitor, TcpThread,
+    Feature, FlappingDetect, MqttProtocolConfig, NetworkPort, NetworkThread, OfflineMessage,
+    Security, SlowSub, System, SystemMonitor,
 };
-use crate::common::{Auth, Log, Storage, Telemetry};
+use crate::{
+    common::{AvailableFlag, Log, Telemetry},
+    mqtt::config::{
+        AuthStorage, MessageDataStorage, Schema, SchemaFailedOperation, SchemaStrategy,
+    },
+};
 
 pub fn default_grpc_port() -> u32 {
     9981
@@ -32,8 +35,8 @@ pub fn default_placement_center() -> Vec<String> {
     vec!["127.0.0.1:1228".to_string()]
 }
 
-pub fn default_network() -> Network {
-    Network {
+pub fn default_network_port() -> NetworkPort {
+    NetworkPort {
         tcp_port: default_network_tcp_port(),
         tcps_port: default_network_tcps_port(),
         websocket_port: default_network_websocket_port(),
@@ -59,8 +62,8 @@ pub fn default_network_quic_port() -> u32 {
     9083
 }
 
-pub fn default_tcp_thread() -> TcpThread {
-    TcpThread {
+pub fn default_network_thread() -> NetworkThread {
+    NetworkThread {
         accept_thread_num: 1,
         handler_thread_num: 1,
         response_thread_num: 1,
@@ -77,6 +80,7 @@ pub fn default_system() -> System {
         runtime_worker_threads: 16,
         default_user: "admin".to_string(),
         default_password: "robustmq".to_string(),
+        heartbeat_timeout: "10s".to_string(),
     }
 }
 
@@ -91,8 +95,8 @@ pub fn default_system_monitor() -> SystemMonitor {
     }
 }
 
-pub fn default_storage() -> Storage {
-    Storage {
+pub fn default_message_storage() -> MessageDataStorage {
+    MessageDataStorage {
         storage_type: "memory".to_string(),
         journal_addr: "".to_string(),
         mysql_addr: "".to_string(),
@@ -116,8 +120,8 @@ pub fn default_offline_message() -> OfflineMessage {
     }
 }
 
-pub fn default_auth() -> Auth {
-    Auth {
+pub fn default_auth_storage() -> AuthStorage {
+    AuthStorage {
         storage_type: "memory".to_string(),
         journal_addr: "".to_string(),
         mysql_addr: "".to_string(),
@@ -132,25 +136,25 @@ pub fn default_telemetry() -> Telemetry {
     }
 }
 
-pub fn default_mqtt_cluster_dynamic_feature() -> MqttClusterDynamicConfigFeature {
-    MqttClusterDynamicConfigFeature {
-        retain_available: ConfigAvailableFlag::Enable,
-        wildcard_subscription_available: ConfigAvailableFlag::Enable,
-        subscription_identifiers_available: ConfigAvailableFlag::Enable,
-        shared_subscription_available: ConfigAvailableFlag::Enable,
-        exclusive_subscription_available: ConfigAvailableFlag::Enable,
+pub fn default_feature() -> Feature {
+    Feature {
+        retain_available: AvailableFlag::Enable,
+        wildcard_subscription_available: AvailableFlag::Enable,
+        subscription_identifiers_available: AvailableFlag::Enable,
+        shared_subscription_available: AvailableFlag::Enable,
+        exclusive_subscription_available: AvailableFlag::Enable,
     }
 }
 
-pub fn default_mqtt_cluster_dynamic_security() -> MqttClusterDynamicConfigSecurity {
-    MqttClusterDynamicConfigSecurity {
+pub fn default_security() -> Security {
+    Security {
         secret_free_login: false,
         is_self_protection_status: false,
     }
 }
 
-pub fn default_mqtt_cluster_dynamic_protocol() -> MqttClusterDynamicConfigProtocol {
-    MqttClusterDynamicConfigProtocol {
+pub fn default_protocol() -> MqttProtocolConfig {
+    MqttProtocolConfig {
         max_session_expiry_interval: 1800,
         default_session_expiry_interval: 30,
         topic_alias_max: 65535,
@@ -164,8 +168,8 @@ pub fn default_mqtt_cluster_dynamic_protocol() -> MqttClusterDynamicConfigProtoc
     }
 }
 
-pub fn default_mqtt_cluster_dynamic_slow_sub() -> MqttClusterDynamicSlowSub {
-    MqttClusterDynamicSlowSub {
+pub fn default_slow_sub() -> SlowSub {
+    SlowSub {
         enable: false,
         whole_ms: 0,
         internal_ms: 0,
@@ -173,17 +177,8 @@ pub fn default_mqtt_cluster_dynamic_slow_sub() -> MqttClusterDynamicSlowSub {
     }
 }
 
-pub fn default_mqtt_cluster_dynamic_system_monitor() -> MqttClusterDynamicSystemMonitor {
-    MqttClusterDynamicSystemMonitor {
-        enable: false,
-        os_cpu_high_watermark: 70.0,
-        os_cpu_low_watermark: 50.0,
-        os_memory_high_watermark: 80.0,
-    }
-}
-
-pub fn default_mqtt_cluster_dynamic_flapping_detect() -> MqttClusterDynamicFlappingDetect {
-    MqttClusterDynamicFlappingDetect {
+pub fn default_flapping_detect() -> FlappingDetect {
+    FlappingDetect {
         enable: false,
         window_time: 1,
         max_client_connections: 15,
@@ -191,13 +186,12 @@ pub fn default_mqtt_cluster_dynamic_flapping_detect() -> MqttClusterDynamicFlapp
     }
 }
 
-pub fn default_mqtt_cluster_dynamic_network() -> MqttClusterDynamicConfigNetwork {
-    MqttClusterDynamicConfigNetwork {
-        tcp_max_connection_num: 1000,
-        tcps_max_connection_num: 1000,
-        websocket_max_connection_num: 1000,
-        websockets_max_connection_num: 1000,
-        response_max_try_mut_times: 128,
-        response_try_mut_sleep_time_ms: 100,
+pub fn default_schema() -> Schema {
+    Schema {
+        enable: true,
+        strategy: SchemaStrategy::ALL,
+        failed_operation: SchemaFailedOperation::Discard,
+        echo_log: true,
+        log_level: "info".to_string(),
     }
 }

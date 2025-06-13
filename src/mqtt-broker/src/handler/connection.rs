@@ -16,8 +16,8 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use common_base::tools::{now_second, unique_id};
+use common_config::mqtt::config::BrokerMqttConfig;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
 use protocol::mqtt::common::{Connect, ConnectProperties, DisconnectReasonCode, MqttProtocol};
 
@@ -42,31 +42,31 @@ pub const DISCONNECT_FLAG_NOT_DELETE_SESSION: &str = "DISCONNECT_FLAG_NOT_DELETE
 pub fn build_connection(
     connect_id: u64,
     client_id: String,
-    cluster: &MqttClusterDynamicConfig,
+    cluster: &BrokerMqttConfig,
     connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
     addr: &SocketAddr,
 ) -> MQTTConnection {
     let keep_alive = client_keep_live_time(cluster, connect.keep_alive);
-
+    println!("keep_alive:{}", keep_alive);
     let (client_receive_maximum, max_packet_size, topic_alias_max, request_problem_info) =
         if let Some(properties) = connect_properties {
             let client_receive_maximum = if let Some(value) = properties.receive_maximum {
                 value
             } else {
-                cluster.protocol.receive_max
+                cluster.mqtt_protocol_config.receive_max
             };
 
             let max_packet_size = if let Some(value) = properties.max_packet_size {
-                std::cmp::min(value, cluster.protocol.max_packet_size)
+                std::cmp::min(value, cluster.mqtt_protocol_config.max_packet_size)
             } else {
-                cluster.protocol.max_packet_size
+                cluster.mqtt_protocol_config.max_packet_size
             };
 
             let topic_alias_max = if let Some(value) = properties.topic_alias_max {
-                std::cmp::min(value, cluster.protocol.topic_alias_max)
+                std::cmp::min(value, cluster.mqtt_protocol_config.topic_alias_max)
             } else {
-                cluster.protocol.topic_alias_max
+                cluster.mqtt_protocol_config.topic_alias_max
             };
 
             let request_problem_info = properties.request_problem_info.unwrap_or_default();
@@ -79,9 +79,9 @@ pub fn build_connection(
             )
         } else {
             (
-                cluster.protocol.receive_max,
-                cluster.protocol.max_packet_size,
-                cluster.protocol.topic_alias_max,
+                cluster.mqtt_protocol_config.receive_max,
+                cluster.mqtt_protocol_config.max_packet_size,
+                cluster.mqtt_protocol_config.topic_alias_max,
                 0,
             )
         };
@@ -243,20 +243,19 @@ where
 
 #[cfg(test)]
 mod test {
-    use protocol::mqtt::common::{Connect, ConnectProperties};
-
-    use crate::handler::cluster_config::build_default_cluster_config;
-
     use super::{
         build_connection, get_client_id, response_information, MQTTConnection,
         REQUEST_RESPONSE_PREFIX_NAME,
     };
+    use common_config::mqtt::default_broker_mqtt;
+    use protocol::mqtt::common::{Connect, ConnectProperties};
 
     #[tokio::test]
     pub async fn build_connection_test() {
         let connect_id = 1;
         let client_id = "client_id-***".to_string();
-        let cluster = build_default_cluster_config();
+        let cluster = default_broker_mqtt();
+        println!("{:?}", cluster);
         let connect = Connect {
             keep_alive: 10,
             client_id: client_id.clone(),

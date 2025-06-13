@@ -18,8 +18,8 @@ use std::time::Duration;
 use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::tools::now_second;
+use common_config::mqtt::config::BrokerMqttConfig;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{DisconnectReasonCode, MqttProtocol};
@@ -208,12 +208,12 @@ pub fn keep_live_time(keep_alive: u16) -> u16 {
     new_keep_alive as u16
 }
 
-pub fn client_keep_live_time(cluster: &MqttClusterDynamicConfig, mut keep_alive: u16) -> u16 {
+pub fn client_keep_live_time(cluster: &BrokerMqttConfig, mut keep_alive: u16) -> u16 {
     if keep_alive == 0 {
-        keep_alive = cluster.protocol.default_server_keep_alive;
+        keep_alive = cluster.mqtt_protocol_config.default_server_keep_alive;
     }
-    if keep_alive > cluster.protocol.max_server_keep_alive {
-        keep_alive = cluster.protocol.max_server_keep_alive / 3;
+    if keep_alive > cluster.mqtt_protocol_config.max_server_keep_alive {
+        keep_alive = cluster.mqtt_protocol_config.max_server_keep_alive / 3;
     }
     keep_alive
 }
@@ -233,7 +233,6 @@ mod test {
     use common_base::tools::{local_hostname, now_second, unique_id};
     use common_config::mqtt::config::BrokerMqttConfig;
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
     use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
     use metadata_struct::mqtt::session::MqttSession;
     use tokio::sync::broadcast;
@@ -247,9 +246,9 @@ mod test {
 
     #[tokio::test]
     pub async fn keep_live_test() {
-        let mut config = MqttClusterDynamicConfig::default();
-        config.protocol.default_server_keep_alive = 60;
-        config.protocol.max_server_keep_alive = 300;
+        let mut config = BrokerMqttConfig::default();
+        config.mqtt_protocol_config.default_server_keep_alive = 60;
+        config.mqtt_protocol_config.max_server_keep_alive = 300;
 
         let keep_alive = 0;
         let client_live = client_keep_live_time(&config, keep_alive);
@@ -274,9 +273,9 @@ mod test {
 
     #[tokio::test]
     pub async fn client_keep_live_time_test() {
-        let mut config = MqttClusterDynamicConfig::default();
-        config.protocol.default_server_keep_alive = 60;
-        config.protocol.max_server_keep_alive = 300;
+        let mut config = BrokerMqttConfig::default();
+        config.mqtt_protocol_config.default_server_keep_alive = 60;
+        config.mqtt_protocol_config.max_server_keep_alive = 300;
 
         assert_eq!(client_keep_live_time(&config, 0), 60);
         assert_eq!(client_keep_live_time(&config, 400), 100);

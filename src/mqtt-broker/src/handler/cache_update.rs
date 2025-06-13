@@ -36,7 +36,7 @@ use std::sync::Arc;
 use tracing::error;
 
 use super::cache::CacheManager;
-use super::cluster_config::build_cluster_config;
+use super::dynamic_config::build_cluster_config;
 
 pub async fn load_metadata_cache(
     cache_manager: &Arc<CacheManager>,
@@ -55,7 +55,7 @@ pub async fn load_metadata_cache(
             );
         }
     };
-    cache_manager.set_cluster_info(cluster);
+    cache_manager.set_cluster_config(cluster);
 
     // load all topic
     let topic_storage = TopicStorage::new(client_pool.clone());

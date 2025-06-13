@@ -64,11 +64,11 @@ impl ClusterStorage {
 
         let node = MqttNodeExtend {
             grpc_addr: format!("{}:{}", local_ip, config.grpc_port),
-            mqtt_addr: format!("{}:{}", local_ip, config.network.tcp_port),
-            mqtts_addr: format!("{}:{}", local_ip, config.network.tcps_port),
-            websocket_addr: format!("{}:{}", local_ip, config.network.websocket_port),
-            websockets_addr: format!("{}:{}", local_ip, config.network.websockets_port),
-            quic_addr: format!("{}:{}", local_ip, config.network.quic_port),
+            mqtt_addr: format!("{}:{}", local_ip, config.network_port.tcp_port),
+            mqtts_addr: format!("{}:{}", local_ip, config.network_port.tcps_port),
+            websocket_addr: format!("{}:{}", local_ip, config.network_port.websocket_port),
+            websockets_addr: format!("{}:{}", local_ip, config.network_port.websockets_port),
+            quic_addr: format!("{}:{}", local_ip, config.network_port.quic_port),
         };
         let req = RegisterNodeRequest {
             cluster_type: ClusterType::MqttBrokerServer.into(),

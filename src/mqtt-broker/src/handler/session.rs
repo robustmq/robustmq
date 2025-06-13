@@ -103,12 +103,12 @@ fn session_expiry_interval(
     connect_properties: &Option<ConnectProperties>,
 ) -> u64 {
     let default_session_expiry_interval = cache_manager
-        .get_cluster_info()
-        .protocol
+        .get_cluster_config()
+        .mqtt_protocol_config
         .default_session_expiry_interval;
     let max_session_expiry_interval = cache_manager
-        .get_cluster_info()
-        .protocol
+        .get_cluster_config()
+        .mqtt_protocol_config
         .max_session_expiry_interval;
 
     let connection_session_expiry_interval = if let Some(properties) = connect_properties {
@@ -131,13 +131,13 @@ fn session_expiry_interval(
 mod test {
     use std::sync::Arc;
 
-    use common_config::mqtt::config::BrokerMqttConfig;
+    use common_config::mqtt::{config::BrokerMqttConfig, default_broker_mqtt};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
     use protocol::mqtt::common::ConnectProperties;
 
     use super::session_expiry_interval;
-    use crate::handler::{cache::CacheManager, cluster_config::build_default_cluster_config};
+    use crate::handler::cache::CacheManager;
 
     #[tokio::test]
     pub async fn build_session_test() {
@@ -165,13 +165,13 @@ mod test {
             client_pool.clone(),
             conf.cluster_name.clone(),
         ));
-        cache_manager.set_cluster_info(build_default_cluster_config());
+        cache_manager.set_cluster_config(default_broker_mqtt());
         let res = session_expiry_interval(&cache_manager, &None);
         assert_eq!(
             res,
             cache_manager
-                .get_cluster_info()
-                .protocol
+                .get_cluster_config()
+                .mqtt_protocol_config
                 .default_session_expiry_interval as u64
         );
 

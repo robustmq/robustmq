@@ -12,74 +12,105 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
-
 use super::default::{
-    default_auth, default_grpc_port, default_heartbeat_timeout, default_log,
-    default_mqtt_cluster_dynamic_feature, default_mqtt_cluster_dynamic_flapping_detect,
-    default_mqtt_cluster_dynamic_network, default_mqtt_cluster_dynamic_protocol,
-    default_mqtt_cluster_dynamic_security, default_mqtt_cluster_dynamic_slow_sub,
-    default_mqtt_cluster_dynamic_system_monitor, default_network, default_network_quic_port,
-    default_network_tcp_port, default_network_tcps_port, default_network_websocket_port,
-    default_network_websockets_port, default_offline_message, default_placement_center,
-    default_storage, default_system, default_system_monitor, default_tcp_thread, default_telemetry,
+    default_auth_storage, default_feature, default_flapping_detect, default_grpc_port,
+    default_heartbeat_timeout, default_log, default_message_storage, default_network_port,
+    default_network_quic_port, default_network_tcp_port, default_network_tcps_port,
+    default_network_thread, default_network_websocket_port, default_network_websockets_port,
+    default_offline_message, default_placement_center, default_protocol, default_schema,
+    default_security, default_slow_sub, default_system, default_system_monitor, default_telemetry,
 };
 use crate::common::{
-    default_pprof, default_prometheus, Auth, Log, Pprof, Prometheus, Storage, Telemetry,
+    default_pprof, default_prometheus, AvailableFlag, Log, Pprof, Prometheus, Telemetry,
 };
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct BrokerMqttConfig {
     pub cluster_name: String,
+
     pub broker_id: u64,
+
+    // grpc port
     #[serde(default = "default_grpc_port")]
     pub grpc_port: u32,
+
+    // placement center
     #[serde(default = "default_placement_center")]
     pub placement_center: Vec<String>,
-    #[serde(default = "default_heartbeat_timeout")]
-    pub heartbeat_timeout: String,
-    #[serde(default = "default_network")]
-    pub network: Network,
-    #[serde(default = "default_tcp_thread")]
-    pub tcp_thread: TcpThread,
+
+    // network port
+    #[serde(default = "default_network_port")]
+    pub network_port: NetworkPort,
+
+    // network thread
+    #[serde(default = "default_network_thread")]
+    pub network_thread: NetworkThread,
+
+    // system config
     #[serde(default = "default_system")]
     pub system: System,
-    #[serde(default = "default_system_monitor")]
-    pub system_monitor: SystemMonitor,
-    #[serde(default = "default_storage")]
-    pub storage: Storage,
-    #[serde(default = "default_auth")]
-    pub auth: Auth,
+
+    // message storage
+    #[serde(default = "default_message_storage")]
+    pub storage: MessageDataStorage,
+
+    // auth storage
+    #[serde(default = "default_auth_storage")]
+    pub auth_storage: AuthStorage,
+
+    // log
     #[serde(default = "default_log")]
     pub log: Log,
+
+    // offline message
     #[serde(default = "default_offline_message")]
     pub offline_messages: OfflineMessage,
+
+    // telemetry
     #[serde(default = "default_telemetry")]
     pub telemetry: Telemetry,
+
+    // prometheus
     #[serde(default = "default_prometheus")]
     pub prometheus: Prometheus,
+
+    // pprof
     #[serde(default = "default_pprof")]
     pub pprof: Pprof,
 
-    #[serde(default = "default_mqtt_cluster_dynamic_slow_sub")]
-    pub cluster_dynamic_config_slow_sub: MqttClusterDynamicSlowSub,
-    #[serde(default = "default_mqtt_cluster_dynamic_flapping_detect")]
-    pub cluster_dynamic_config_flapping_detect: MqttClusterDynamicFlappingDetect,
-    #[serde(default = "default_mqtt_cluster_dynamic_system_monitor")]
-    pub cluster_dynamic_system_monitor: MqttClusterDynamicSystemMonitor,
-    #[serde(default = "default_mqtt_cluster_dynamic_protocol")]
-    pub cluster_dynamic_config_protocol: MqttClusterDynamicConfigProtocol,
-    #[serde(default = "default_mqtt_cluster_dynamic_feature")]
-    pub cluster_dynamic_config_feature: MqttClusterDynamicConfigFeature,
-    #[serde(default = "default_mqtt_cluster_dynamic_security")]
-    pub cluster_dynamic_config_security: MqttClusterDynamicConfigSecurity,
-    #[serde(default = "default_mqtt_cluster_dynamic_network")]
-    pub cluster_dynamic_config_network: MqttClusterDynamicConfigNetwork,
+    // slow sub
+    #[serde(default = "default_slow_sub")]
+    pub slow_sub: SlowSub,
+
+    // flapping detect
+    #[serde(default = "default_flapping_detect")]
+    pub flapping_detect: FlappingDetect,
+
+    // mqtt protocol related configuration
+    #[serde(default = "default_protocol")]
+    pub mqtt_protocol_config: MqttProtocolConfig,
+
+    // mqtt support feature
+    #[serde(default = "default_feature")]
+    pub feature: Feature,
+
+    // security
+    #[serde(default = "default_security")]
+    pub security: Security,
+
+    // security
+    #[serde(default = "default_schema")]
+    pub schema: Schema,
+
+    // system monitor
+    #[serde(default = "default_system_monitor")]
+    pub system_monitor: SystemMonitor,
 }
 
 // MQTT cluster protocol related dynamic configuration
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
-pub struct MqttClusterDynamicConfigProtocol {
+pub struct MqttProtocolConfig {
     pub max_session_expiry_interval: u32,
     pub default_session_expiry_interval: u32,
     pub topic_alias_max: u16,
@@ -92,7 +123,7 @@ pub struct MqttClusterDynamicConfigProtocol {
     pub client_pkid_persistent: bool,
 }
 
-impl MqttClusterDynamicConfigProtocol {
+impl MqttProtocolConfig {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
     }
@@ -100,74 +131,92 @@ impl MqttClusterDynamicConfigProtocol {
 
 // MQTT cluster security related dynamic configuration
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
-pub struct MqttClusterDynamicConfigSecurity {
+pub struct Security {
     pub is_self_protection_status: bool,
     pub secret_free_login: bool,
 }
 
-impl MqttClusterDynamicConfigSecurity {
+impl Security {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
     }
 }
 
-// MQTT cluster network related dynamic configuration
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
-pub struct MqttClusterDynamicConfigNetwork {
-    pub tcp_max_connection_num: u64,
-    pub tcps_max_connection_num: u64,
-    pub websocket_max_connection_num: u64,
-    pub websockets_max_connection_num: u64,
-    pub response_max_try_mut_times: u64,
-    pub response_try_mut_sleep_time_ms: u64,
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
+pub struct AuthStorage {
+    pub storage_type: String,
+    #[serde(default)]
+    pub journal_addr: String,
+    #[serde(default)]
+    pub mysql_addr: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
+pub struct MessageDataStorage {
+    pub storage_type: String,
+    #[serde(default)]
+    pub journal_addr: String,
+    #[serde(default)]
+    pub mysql_addr: String,
+    #[serde(default)]
+    pub rocksdb_data_path: String,
+    pub rocksdb_max_open_files: Option<i32>,
 }
 
 // MQTT cluster Feature related dynamic configuration
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
-pub struct MqttClusterDynamicConfigFeature {
-    pub retain_available: ConfigAvailableFlag,
-    pub wildcard_subscription_available: ConfigAvailableFlag,
-    pub subscription_identifiers_available: ConfigAvailableFlag,
-    pub shared_subscription_available: ConfigAvailableFlag,
-    pub exclusive_subscription_available: ConfigAvailableFlag,
+pub struct Feature {
+    pub retain_available: AvailableFlag,
+    pub wildcard_subscription_available: AvailableFlag,
+    pub subscription_identifiers_available: AvailableFlag,
+    pub shared_subscription_available: AvailableFlag,
+    pub exclusive_subscription_available: AvailableFlag,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
-pub struct MqttClusterDynamicSlowSub {
+pub struct SlowSub {
     pub enable: bool,
     pub whole_ms: u64,
     pub internal_ms: u32,
     pub response_ms: u32,
 }
-impl MqttClusterDynamicSlowSub {
+impl SlowSub {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
-pub struct MqttClusterDynamicFlappingDetect {
+pub struct FlappingDetect {
     pub enable: bool,
     pub window_time: u32,
     pub max_client_connections: u64,
     pub ban_time: u32,
 }
 
-impl MqttClusterDynamicFlappingDetect {
+impl FlappingDetect {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
-pub struct MqttClusterDynamicSystemMonitor {
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct SystemMonitor {
+    #[serde(default)]
     pub enable: bool,
+    #[serde(default)]
+    pub os_cpu_check_interval_ms: u64,
+    #[serde(default)]
     pub os_cpu_high_watermark: f32,
+    #[serde(default)]
     pub os_cpu_low_watermark: f32,
+    #[serde(default)]
+    pub os_memory_check_interval_ms: u64,
+    #[serde(default)]
     pub os_memory_high_watermark: f32,
 }
 
-impl MqttClusterDynamicSystemMonitor {
+impl SystemMonitor {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
     }
@@ -178,15 +227,8 @@ pub struct MqttClusterDynamicOfflineMessage {
     pub enable: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Default, Clone)]
-pub enum ConfigAvailableFlag {
-    #[default]
-    Disable,
-    Enable,
-}
-
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct Network {
+pub struct NetworkPort {
     #[serde(default = "default_network_tcp_port")]
     pub tcp_port: u32,
     #[serde(default = "default_network_tcps_port")]
@@ -204,7 +246,7 @@ pub struct Network {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct TcpThread {
+pub struct NetworkThread {
     #[serde(default)]
     pub accept_thread_num: usize,
     #[serde(default)]
@@ -231,6 +273,8 @@ pub struct System {
     pub default_user: String,
     #[serde(default)]
     pub default_password: String,
+    #[serde(default = "default_heartbeat_timeout")]
+    pub heartbeat_timeout: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
@@ -243,18 +287,33 @@ pub struct OfflineMessage {
     pub max_messages_num: u32,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct SystemMonitor {
-    #[serde(default)]
+// Schema
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+pub struct Schema {
     pub enable: bool,
-    #[serde(default)]
-    pub os_cpu_check_interval_ms: u64,
-    #[serde(default)]
-    pub os_cpu_high_watermark: f32,
-    #[serde(default)]
-    pub os_cpu_low_watermark: f32,
-    #[serde(default)]
-    pub os_memory_check_interval_ms: u64,
-    #[serde(default)]
-    pub os_memory_high_watermark: f32,
+    pub strategy: SchemaStrategy,
+    pub failed_operation: SchemaFailedOperation,
+    pub echo_log: bool,
+    pub log_level: String,
+}
+
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+pub enum SchemaStrategy {
+    #[default]
+    ALL,
+    Any,
+}
+
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+pub enum SchemaFailedOperation {
+    #[default]
+    Discard,
+    DisconnectAndDiscard,
+    Ignore,
+}
+
+impl Schema {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
+    }
 }

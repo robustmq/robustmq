@@ -338,7 +338,7 @@ where
         let client_pool = self.client_pool.clone();
         self.daemon_runtime.spawn(async move {
             let conf = broker_mqtt_conf();
-            report_heartbeat(&client_pool, &conf.heartbeat_timeout, stop_send).await;
+            report_heartbeat(&client_pool, &conf.system.heartbeat_timeout, stop_send).await;
         });
     }
 

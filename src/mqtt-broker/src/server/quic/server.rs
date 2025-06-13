@@ -71,7 +71,7 @@ pub async fn start_quic_server<S>(
 
     let mut server = QuicServer::new(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-        conf.network.quic_port as u16,
+        conf.network_port.quic_port as u16,
     ));
     server.start();
 
@@ -82,9 +82,9 @@ pub async fn start_quic_server<S>(
 
     let arc_quic_endpoint = Arc::new(quic_endpoint);
 
-    let accept_thread_num = conf.tcp_thread.accept_thread_num;
-    let handler_process_num = conf.tcp_thread.handler_thread_num;
-    let response_thread_num = conf.tcp_thread.response_thread_num;
+    let accept_thread_num = conf.network_thread.accept_thread_num;
+    let handler_process_num = conf.network_thread.handler_thread_num;
+    let response_thread_num = conf.network_thread.response_thread_num;
 
     let connection_type = NetworkConnectionType::Quic;
 

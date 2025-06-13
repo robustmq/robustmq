@@ -776,6 +776,7 @@ dependencies = [
  "axum",
  "bytes",
  "common-base",
+ "common-config",
  "grpc-clients",
  "metadata-struct",
  "paho-mqtt",

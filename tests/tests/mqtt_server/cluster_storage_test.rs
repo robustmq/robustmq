@@ -16,12 +16,13 @@
 mod tests {
     use std::sync::Arc;
 
-    use common_config::mqtt::{broker_mqtt_conf, init_broker_mqtt_conf_by_path};
-    use grpc_clients::pool::ClientPool;
-    use metadata_struct::mqtt::cluster::{
-        MqttClusterDynamicConfigProtocol, DEFAULT_DYNAMIC_CONFIG_PROTOCOL,
+    use common_config::mqtt::{
+        broker_mqtt_conf, config::MqttProtocolConfig, init_broker_mqtt_conf_by_path,
     };
-    use mqtt_broker::storage::cluster::ClusterStorage;
+    use grpc_clients::pool::ClientPool;
+    use mqtt_broker::{
+        handler::dynamic_config::DEFAULT_DYNAMIC_CONFIG_PROTOCOL, storage::cluster::ClusterStorage,
+    };
 
     #[tokio::test]
     async fn cluster_node_test() {
@@ -59,7 +60,7 @@ mod tests {
         let cluster_storage = ClusterStorage::new(client_pool);
 
         let cluster_name = "robust_test".to_string();
-        let protocol = MqttClusterDynamicConfigProtocol {
+        let protocol = MqttProtocolConfig {
             topic_alias_max: 999,
             ..Default::default()
         };
@@ -76,7 +77,7 @@ mod tests {
             .get_dynamic_config(&cluster_name, DEFAULT_DYNAMIC_CONFIG_PROTOCOL)
             .await
             .unwrap();
-        let result: MqttClusterDynamicConfigProtocol = serde_json::from_slice(&result).unwrap();
+        let result: MqttProtocolConfig = serde_json::from_slice(&result).unwrap();
         assert_eq!(result.topic_alias_max, 999);
 
         cluster_storage

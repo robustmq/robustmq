@@ -60,14 +60,14 @@ pub(crate) async fn acceptor_tls_process(
     request_queue_sx: Sender<RequestPackage>,
 ) {
     let conf = broker_mqtt_conf();
-    let certs = match load_certs(Path::new(&conf.network.tls_cert)) {
+    let certs = match load_certs(Path::new(&conf.network_port.tls_cert)) {
         Ok(data) => data,
         Err(e) => {
             panic!("load certs: {}", e);
         }
     };
 
-    let key = match load_key(Path::new(&conf.network.tls_key)) {
+    let key = match load_key(Path::new(&conf.network_port.tls_key)) {
         Ok(data) => data,
         Err(e) => {
             panic!("load key: {}", e);

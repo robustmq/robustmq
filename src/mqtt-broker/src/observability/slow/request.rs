@@ -30,12 +30,12 @@ pub struct SlowRequestMs {
 
 // total processing time of the request packet was recorded
 pub fn try_record_total_request_ms(cache_manager: Arc<CacheManager>, package: RequestPackage) {
-    let cluster_config = cache_manager.get_cluster_info();
-    if !cluster_config.slow.enable {
+    let cluster_config = cache_manager.get_cluster_config();
+    if !cluster_config.slow_sub.enable {
         return;
     }
 
-    let whole = cluster_config.slow.whole_ms;
+    let whole = cluster_config.slow_sub.whole_ms;
     let time_ms = now_mills() - package.receive_ms;
     if time_ms < whole as u128 {
         return;

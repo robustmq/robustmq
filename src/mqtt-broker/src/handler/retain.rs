@@ -35,7 +35,7 @@ use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{
-    MqttPacket, MqttProtocol, Publish, PublishProperties, Subscribe, SubscribeProperties,
+    qos, MqttPacket, MqttProtocol, Publish, PublishProperties, Subscribe, SubscribeProperties,
 };
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -153,7 +153,7 @@ async fn send_retain_message(
 
         let topic_id_list = get_sub_topic_id_list(cache_manager, &filter.path).await;
         let topic_storage = TopicStorage::new(client_pool.clone());
-        let cluster = cache_manager.get_cluster_info();
+        let cluster = cache_manager.get_cluster_config();
 
         for topic_id in topic_id_list.iter() {
             let topic_name = if let Some(topic_name) = cache_manager.topic_name_by_id(topic_id) {
@@ -173,7 +173,10 @@ async fn send_retain_message(
             }
 
             let retain = get_retain_flag_by_retain_as_published(filter.preserve_retain, msg.retain);
-            let qos = min_qos(cluster.protocol.max_qos, filter.qos);
+            let qos = min_qos(
+                qos(cluster.mqtt_protocol_config.max_qos).unwrap(),
+                filter.qos,
+            );
 
             let mut user_properties = msg.user_properties;
             user_properties.push((
