@@ -18,7 +18,7 @@ use std::sync::Arc;
 use crate::handler::cache::CacheManager;
 use crate::handler::connection::disconnect_connection;
 use crate::observability::metrics::server::{
-    metrics_request_queue, metrics_response_queue, record_response_and_total_ms,
+    metrics_request_queue, metrics_response_queue_size, record_response_and_total_ms,
 };
 use crate::server::connection::NetworkConnectionType;
 use crate::server::connection_manager::ConnectionManager;
@@ -135,7 +135,7 @@ pub(crate) fn response_child_process(
 
                         if let Some(response_package) = val{
                             let label = format!("handler-{}",index);
-                            metrics_response_queue(&label, response_process_rx.len());
+                            metrics_response_queue_size(&label, response_process_rx.len());
 
                             if let Some(protocol) =
                             raw_connect_manager.get_connect_protocol(response_package.connection_id)

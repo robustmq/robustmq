@@ -99,7 +99,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         request: Request<SetClusterConfigRequest>,
     ) -> Result<Response<SetClusterConfigReply>, Status> {
         let request = request.into_inner().clone();
-        set_cluster_config_by_req(&self.cache_manager, &request)
+        set_cluster_config_by_req(&self.cache_manager, &self.client_pool, &request)
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
         Ok(Response::new(SetClusterConfigReply {
@@ -273,7 +273,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         request: Request<EnableFlappingDetectRequest>,
     ) -> Result<Response<EnableFlappingDetectReply>, Status> {
-        enable_flapping_detect_by_req(&self.cache_manager, request).await
+        enable_flapping_detect_by_req(&self.client_pool, &self.cache_manager, request).await
     }
 
     async fn mqtt_broker_set_system_alarm_config(

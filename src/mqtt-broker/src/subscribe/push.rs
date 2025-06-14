@@ -243,7 +243,14 @@ pub async fn push_packet_to_client(
             return Err(MqttBrokerError::ConnectionNullSkipPushMessage(client_id));
         };
 
-        let resp = ResponsePackage::new(connect_id, sub_pub_param.packet.clone());
+        let resp = ResponsePackage::new(
+            connect_id,
+            sub_pub_param.packet.clone(),
+            0,
+            0,
+            0,
+            "Subsceibe".to_string(),
+        );
 
         send_message_to_client(resp, sub_pub_param, connection_manager, cache_manager).await
     };

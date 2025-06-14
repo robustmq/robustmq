@@ -70,6 +70,8 @@ humantime.workspace = true
 sysinfo.workspace = true
 tracing-appender.workspace = true
 chrono.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
 
 [dev-dependencies]
 # test

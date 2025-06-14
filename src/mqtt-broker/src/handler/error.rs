@@ -49,6 +49,9 @@ pub enum MqttBrokerError {
     TokioSyncBroadcastErrorRecvError(#[from] tokio::sync::broadcast::error::RecvError),
 
     #[error("{0}")]
+    StrumParseError(#[from] strum::ParseError),
+
+    #[error("{0}")]
     SerdeJsonError(#[from] serde_json::Error),
 
     #[error("{0}")]
