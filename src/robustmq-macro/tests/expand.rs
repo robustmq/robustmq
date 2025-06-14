@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #[test]
-#[ignore = "reason"]
 fn test_validate_req_expand() {
     macrotest::expand_args(
         "tests/validate_req/expand/*.rs",

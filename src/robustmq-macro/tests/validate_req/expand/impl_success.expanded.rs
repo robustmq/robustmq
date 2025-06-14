@@ -21,7 +21,7 @@ impl ::prost_validate::Validator for Request {
     }
 }
 pub struct Response;
-pub trait Hey {
+pub trait HeyGRPC {
     #[must_use]
     #[allow(
         elided_named_lifetimes,
@@ -41,8 +41,27 @@ pub trait Hey {
     where
         'life0: 'async_trait,
         Self: 'async_trait;
+    #[must_use]
+    #[allow(
+        elided_named_lifetimes,
+        clippy::type_complexity,
+        clippy::type_repetition_in_bounds
+    )]
+    fn hi<'life0, 'async_trait>(
+        &'life0 self,
+        _request: tonic::Request<Request>,
+    ) -> ::core::pin::Pin<
+        Box<
+            dyn ::core::future::Future<
+                Output = Result<tonic::Response<Response>, tonic::Status>,
+            > + ::core::marker::Send + 'async_trait,
+        >,
+    >
+    where
+        'life0: 'async_trait,
+        Self: 'async_trait;
 }
-impl Hey for FooService {
+impl HeyGRPC for FooService {
     #[allow(
         elided_named_lifetimes,
         clippy::async_yields_async,
@@ -87,6 +106,54 @@ impl Hey for FooService {
             let _request = _request;
             let __ret: Result<tonic::Response<Response>, tonic::Status> = {
                 _request.get_ref().validate().unwrap();
+                Ok(tonic::Response::new(Response {}))
+            };
+            #[allow(unreachable_code)] __ret
+        })
+    }
+    #[allow(
+        elided_named_lifetimes,
+        clippy::async_yields_async,
+        clippy::diverging_sub_expression,
+        clippy::let_unit_value,
+        clippy::needless_arbitrary_self_type,
+        clippy::no_effect_underscore_binding,
+        clippy::shadow_same,
+        clippy::type_complexity,
+        clippy::type_repetition_in_bounds,
+        clippy::used_underscore_binding
+    )]
+    fn hi<'life0, 'async_trait>(
+        &'life0 self,
+        _request: tonic::Request<Request>,
+    ) -> ::core::pin::Pin<
+        Box<
+            dyn ::core::future::Future<
+                Output = Result<tonic::Response<Response>, tonic::Status>,
+            > + ::core::marker::Send + 'async_trait,
+        >,
+    >
+    where
+        'life0: 'async_trait,
+        Self: 'async_trait,
+    {
+        Box::pin(async move {
+            {
+                {
+                    let ___request__validate_ref = _request.get_ref();
+                    if let Err(e) = ___request__validate_ref.validate() {
+                        return Err(tonic::Status::invalid_argument(e.to_string()));
+                    }
+                }
+            }
+            if let ::core::option::Option::Some(__ret) = ::core::option::Option::None::<
+                Result<tonic::Response<Response>, tonic::Status>,
+            > {
+                #[allow(unreachable_code)] return __ret;
+            }
+            let __self = self;
+            let _request = _request;
+            let __ret: Result<tonic::Response<Response>, tonic::Status> = {
                 Ok(tonic::Response::new(Response {}))
             };
             #[allow(unreachable_code)] __ret

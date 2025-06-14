@@ -25,7 +25,7 @@ pub struct Request {
 pub struct Response;
 
 #[async_trait::async_trait]
-pub trait Hey {
+pub trait HeyGRPC {
     async fn hey(
         &self,
         _request: tonic::Request<Request>,
@@ -33,7 +33,7 @@ pub trait Hey {
 }
 
 #[async_trait::async_trait]
-impl Hey for FooService {
+impl HeyGRPC for FooService {
     #[robustmq_macro::validate_req(validator = prost_validate::Validator)]
     async fn hey(
         &self,
