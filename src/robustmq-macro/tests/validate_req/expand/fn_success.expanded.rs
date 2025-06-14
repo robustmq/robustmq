@@ -21,7 +21,7 @@ impl ::prost_validate::Validator for Request {
     }
 }
 pub struct Response;
-pub trait Hey {
+pub trait HeyGRPC {
     #[must_use]
     #[allow(
         elided_named_lifetimes,
@@ -42,7 +42,7 @@ pub trait Hey {
         'life0: 'async_trait,
         Self: 'async_trait;
 }
-impl Hey for FooService {
+impl HeyGRPC for FooService {
     #[allow(
         elided_named_lifetimes,
         clippy::async_yields_async,
@@ -86,7 +86,6 @@ impl Hey for FooService {
             let __self = self;
             let _request = _request;
             let __ret: Result<tonic::Response<Response>, tonic::Status> = {
-                _request.get_ref().validate().unwrap();
                 Ok(tonic::Response::new(Response {}))
             };
             #[allow(unreachable_code)] __ret

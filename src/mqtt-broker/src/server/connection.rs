@@ -130,3 +130,11 @@ impl NetworkConnection {
         }
     }
 }
+
+pub fn calc_child_channel_index(index: usize, len: usize) -> usize {
+    let seq = index % len;
+    if seq == 0 {
+        return 1;
+    }
+    seq
+}
