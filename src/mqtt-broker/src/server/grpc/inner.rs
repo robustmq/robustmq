@@ -29,7 +29,7 @@ use tracing::info;
 
 use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::CacheManager;
-use crate::handler::cache_update::update_cache_metadata;
+use crate::handler::dynamic_cache::update_cache_metadata;
 use crate::handler::lastwill::send_last_will_message;
 use crate::subscribe::manager::SubscribeManager;
 

@@ -25,7 +25,9 @@
 
 ## 🚀 Introduction
 
-RobustMQ is a next-generation high-performance cloud-native converged message queue. The goal is to implement a message queue based on Rust that can be compatible with multiple mainstream message queue protocols and has complete Serverless architecture.
+RobustMQ is a next-generation high-performance multi-protocol message queue system implemented in Rust. vision is to build a unified messaging infrastructure for AI systems.
+
+Goal is to implement a message queue based on Rust that can be compatible with multiple mainstream message queue protocols and has complete Serverless architecture. by integrating multiple protocols, high performance and distributed elastic design, it provides a unified and efficient communication foundation for AI applications, reducing architectural complexity while enhancing system performance and reliability.
 
 It has long wanted to support multi-protocol and have a full Serverless architecture. At the same time, we hope to keep the architecture simple while adapting to different deployment scenarios and deployment requirements. To achieve lower deployment, operation and maintenance, and use costs.
 <picture>

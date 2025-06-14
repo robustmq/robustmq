@@ -273,7 +273,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         request: Request<EnableFlappingDetectRequest>,
     ) -> Result<Response<EnableFlappingDetectReply>, Status> {
-        enable_flapping_detect_by_req(&self.cache_manager, request).await
+        enable_flapping_detect_by_req(&self.client_pool, &self.cache_manager, request).await
     }
 
     async fn mqtt_broker_set_system_alarm_config(

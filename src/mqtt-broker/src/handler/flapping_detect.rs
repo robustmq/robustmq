@@ -13,11 +13,15 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
+use crate::handler::dynamic_config::{
+    save_cluster_dynamic_cofig, DEFAULT_DYNAMIC_CONFIG_FLAPPING_DETECT,
+};
 use crate::handler::error::MqttBrokerError;
 use crate::observability::metrics::event_metrics;
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
 use common_config::mqtt::config::FlappingDetect;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
 use protocol::broker_mqtt::broker_mqtt_admin::EnableFlappingDetectRequest;
 use std::sync::Arc;
@@ -169,6 +173,7 @@ fn is_exceed_max_client_connections(
 }
 
 pub async fn enable_flapping_detect(
+    client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
     request: EnableFlappingDetectRequest,
 ) -> Result<(), MqttBrokerError> {
@@ -178,6 +183,13 @@ pub async fn enable_flapping_detect(
         max_client_connections: request.max_client_connections as u64,
         ban_time: request.ban_time,
     };
+
+    save_cluster_dynamic_cofig(
+        client_pool,
+        DEFAULT_DYNAMIC_CONFIG_FLAPPING_DETECT,
+        connection_jitter.encode(),
+    )
+    .await?;
 
     cache_manager
         .update_flapping_detect_config(connection_jitter)

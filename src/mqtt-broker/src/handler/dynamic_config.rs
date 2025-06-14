@@ -31,7 +31,7 @@ pub const DEFAULT_DYNAMIC_CONFIG_PROTOCOL: &str = "protocol";
 pub const DEFAULT_DYNAMIC_CONFIG_OFFLINE_MESSAGE: &str = "offline_message";
 pub const DEFAULT_DYNAMIC_CONFIG_FEATURE: &str = "feature";
 pub const DEFAULT_DYNAMIC_CONFIG_SECURITY: &str = "security";
-pub const DEFAULT_DYNAMIC_CONFIG_TCP_THREAD: &str = "tcp_thread";
+pub const DEFAULT_DYNAMIC_CONFIG_THREAD_THREAD: &str = "network_thread";
 pub const DEFAULT_DYNAMIC_CONFIG_SYSTEM_MONITOR: &str = "system_monitor";
 pub const DEFAULT_DYNAMIC_CONFIG_SCHEMA: &str = "schema";
 
@@ -98,39 +98,52 @@ pub async fn build_cluster_config(
         conf.mqtt_protocol_config = data;
     }
 
-    if let Some(data) = build_feature(client_pool).await? {
+    if let Some(data) = get_feature_support(client_pool).await? {
         conf.feature = data;
     }
 
-    if let Some(data) = build_security(client_pool).await? {
+    if let Some(data) = get_security_config(client_pool).await? {
         conf.security = data;
     }
 
-    if let Some(data) = build_thread(client_pool).await? {
+    if let Some(data) = get_network_thread(client_pool).await? {
         conf.network_thread = data;
     }
 
-    if let Some(data) = build_slow_sub(client_pool).await? {
+    if let Some(data) = get_slow_sub(client_pool).await? {
         conf.slow_sub = data;
     }
 
-    if let Some(data) = build_flapping_detect(client_pool).await? {
+    if let Some(data) = get_flapping_detect(client_pool).await? {
         conf.flapping_detect = data;
     }
 
-    if let Some(data) = build_offline_message(client_pool).await? {
+    if let Some(data) = get_offline_message(client_pool).await? {
         conf.offline_messages = data;
     }
 
-    if let Some(data) = build_schema(client_pool).await? {
+    if let Some(data) = get_schema(client_pool).await? {
         conf.schema = data;
     }
 
-    if let Some(data) = builder_system_monitor(client_pool).await? {
+    if let Some(data) = get_system_monitor(client_pool).await? {
         conf.system_monitor = data;
     }
 
     Ok(conf)
+}
+
+pub async fn save_cluster_dynamic_cofig(
+    client_pool: &Arc<ClientPool>,
+    resource: &str,
+    data: Vec<u8>,
+) -> Result<(), MqttBrokerError> {
+    let conf = broker_mqtt_conf();
+    let cluster_storage = ClusterStorage::new(client_pool.clone());
+    cluster_storage
+        .set_dynamic_config(&conf.cluster_name, resource, data)
+        .await?;
+    Ok(())
 }
 
 async fn get_mqtt_protocol_config(
@@ -149,7 +162,9 @@ async fn get_mqtt_protocol_config(
     Ok(None)
 }
 
-async fn build_feature(client_pool: &Arc<ClientPool>) -> Result<Option<Feature>, MqttBrokerError> {
+async fn get_feature_support(
+    client_pool: &Arc<ClientPool>,
+) -> Result<Option<Feature>, MqttBrokerError> {
     let conf = broker_mqtt_conf();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
@@ -162,13 +177,13 @@ async fn build_feature(client_pool: &Arc<ClientPool>) -> Result<Option<Feature>,
     Ok(None)
 }
 
-async fn build_security(
+async fn get_security_config(
     client_pool: &Arc<ClientPool>,
 ) -> Result<Option<Security>, MqttBrokerError> {
     let conf = broker_mqtt_conf();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
-        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_FEATURE)
+        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_SECURITY)
         .await?;
     if !data.is_empty() {
         return Ok(Some(serde_json::from_slice::<Security>(&data)?));
@@ -176,13 +191,13 @@ async fn build_security(
     Ok(None)
 }
 
-async fn build_thread(
+async fn get_network_thread(
     client_pool: &Arc<ClientPool>,
 ) -> Result<Option<NetworkThread>, MqttBrokerError> {
     let conf = broker_mqtt_conf();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
-        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_TCP_THREAD)
+        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_THREAD_THREAD)
         .await?;
     if !data.is_empty() {
         return Ok(Some(serde_json::from_slice::<NetworkThread>(&data)?));
@@ -190,7 +205,7 @@ async fn build_thread(
     Ok(None)
 }
 
-async fn build_slow_sub(client_pool: &Arc<ClientPool>) -> Result<Option<SlowSub>, MqttBrokerError> {
+async fn get_slow_sub(client_pool: &Arc<ClientPool>) -> Result<Option<SlowSub>, MqttBrokerError> {
     let conf = broker_mqtt_conf();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
@@ -202,7 +217,7 @@ async fn build_slow_sub(client_pool: &Arc<ClientPool>) -> Result<Option<SlowSub>
     Ok(None)
 }
 
-async fn build_flapping_detect(
+async fn get_flapping_detect(
     client_pool: &Arc<ClientPool>,
 ) -> Result<Option<FlappingDetect>, MqttBrokerError> {
     let conf = broker_mqtt_conf();
@@ -216,7 +231,7 @@ async fn build_flapping_detect(
     Ok(None)
 }
 
-async fn build_offline_message(
+async fn get_offline_message(
     client_pool: &Arc<ClientPool>,
 ) -> Result<Option<OfflineMessage>, MqttBrokerError> {
     let conf = broker_mqtt_conf();
@@ -232,11 +247,11 @@ async fn build_offline_message(
     Ok(None)
 }
 
-async fn build_schema(client_pool: &Arc<ClientPool>) -> Result<Option<Schema>, MqttBrokerError> {
+async fn get_schema(client_pool: &Arc<ClientPool>) -> Result<Option<Schema>, MqttBrokerError> {
     let conf = broker_mqtt_conf();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
-        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_OFFLINE_MESSAGE)
+        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_SCHEMA)
         .await?;
 
     if !data.is_empty() {
@@ -246,7 +261,7 @@ async fn build_schema(client_pool: &Arc<ClientPool>) -> Result<Option<Schema>, M
     Ok(None)
 }
 
-async fn builder_system_monitor(
+async fn get_system_monitor(
     client_pool: &Arc<ClientPool>,
 ) -> Result<Option<SystemMonitor>, MqttBrokerError> {
     let conf = broker_mqtt_conf();

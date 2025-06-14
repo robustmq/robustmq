@@ -64,12 +64,13 @@ pub async fn cluster_status_by_req(
 }
 
 pub async fn enable_flapping_detect_by_req(
+    client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
     request: Request<EnableFlappingDetectRequest>,
 ) -> Result<Response<EnableFlappingDetectReply>, Status> {
     let req = request.into_inner();
 
-    match enable_flapping_detect(cache_manager, req).await {
+    match enable_flapping_detect(client_pool, cache_manager, req).await {
         Ok(_) => Ok(Response::new(EnableFlappingDetectReply {
             is_enable: req.is_enable,
         })),
