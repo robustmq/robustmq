@@ -18,10 +18,11 @@ use std::sync::Arc;
 use crate::handler::cache::CacheManager;
 use crate::handler::connection::disconnect_connection;
 use crate::observability::metrics::server::{
-    metrics_request_queue, metrics_response_queue, record_response_and_total_ms,
+    metrics_request_queue, metrics_response_queue_size, record_response_and_total_ms,
 };
 use crate::server::connection::NetworkConnectionType;
 use crate::server::connection_manager::ConnectionManager;
+use crate::server::metric::record_packet_handler_info_by_response;
 use crate::server::packet::ResponsePackage;
 use crate::subscribe::manager::SubscribeManager;
 use common_base::tools::now_mills;
@@ -137,32 +138,28 @@ pub(crate) fn response_child_process(
                     },
                     val = response_process_rx.recv()=>{
                         if let Some(response_package) = val{
-                            let response_ms = now_mills();
+                            let out_response_queue_ms = now_mills();
                             let label = format!("handler-{}",index);
-                            metrics_response_queue(&label, response_process_rx.len());
-
-                            if let Some(protocol) =
-                            raw_connect_manager.get_connect_protocol(response_package.connection_id)
-                            {
-                                let packet_wrapper = MqttPacketWrapper {
-                                    protocol_version: protocol.into(),
-                                    packet: response_package.packet.clone(),
-                                };
-                                match raw_connect_manager
-                                    .write_tcp_frame(response_package.connection_id, packet_wrapper)
-                                    .await{
-                                        Ok(()) => {},
-                                        Err(e) => {
-                                            error!("{}",e);
-                                            raw_connect_manager.close_connect(response_package.connection_id).await;
-                                        }
+                            metrics_response_queue_size(&label, response_process_rx.len());
+                            let mut response_ms = now_mills();
+                            if let Some(protocol) =raw_connect_manager.get_connect_protocol(response_package.connection_id)
+                                {
+                                    let packet_wrapper = MqttPacketWrapper {
+                                        protocol_version: protocol.into(),
+                                        packet: response_package.packet.clone(),
                                     };
-                                record_response_and_total_ms(&NetworkConnectionType::Tcp,response_package.get_receive_ms(),response_ms);
+
+                                    if let Err(e) =  raw_connect_manager.write_tcp_frame(response_package.connection_id, packet_wrapper).await {
+                                        error!("{}",e);
+                                    };
+
+                                    response_ms = now_mills();
+                                    record_response_and_total_ms(&NetworkConnectionType::Tcp,response_package.get_receive_ms(),out_response_queue_ms);
                             }
 
                             if let MqttPacket::Disconnect(_, _) = response_package.packet {
                                 if let Some(connection) = raw_cache_manager.get_connection(response_package.connection_id){
-                                    match disconnect_connection(
+                                    if let Err(e) =  disconnect_connection(
                                         &connection.client_id,
                                         connection.connect_id,
                                         &raw_cache_manager,
@@ -171,11 +168,11 @@ pub(crate) fn response_child_process(
                                         &raw_subscribe_manager,
                                         true
                                     ).await{
-                                        Ok(()) => {},
-                                        Err(e) => error!("{}",e)
+                                        error!("{}",e);
                                     };
                                 }
                             }
+                            record_packet_handler_info_by_response(&response_package, out_response_queue_ms, response_ms);
                         }
                     }
                 }

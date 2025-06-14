@@ -76,9 +76,7 @@ pub async fn set_system_alarm_config_by_req(
     if let Some(os_memory_high_watermark) = req.os_memory_high_watermark {
         system_monitor_config.os_memory_high_watermark = os_memory_high_watermark;
     }
-    cache_manager
-        .update_system_monitor_config(system_monitor_config)
-        .await;
+    cache_manager.update_system_monitor_config(system_monitor_config);
     Ok(SetSystemAlarmConfigReply {
         enable: req.enable,
         os_cpu_high_watermark: req.os_cpu_high_watermark,

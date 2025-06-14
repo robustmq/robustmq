@@ -25,11 +25,11 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
 use tonic::{Request, Response, Status};
-use tracing::info;
+use tracing::{error, info};
 
 use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::CacheManager;
-use crate::handler::cache_update::update_cache_metadata;
+use crate::handler::dynamic_cache::update_cache_metadata;
 use crate::handler::lastwill::send_last_will_message;
 use crate::subscribe::manager::SubscribeManager;
 
@@ -76,14 +76,17 @@ where
         if conf.cluster_name != req.cluster_name {
             return Ok(Response::new(UpdateMqttCacheReply::default()));
         }
-        update_cache_metadata(
+        if let Err(e) = update_cache_metadata(
             &self.cache_manager,
             &self.connector_manager,
             &self.subscribe_manager,
             &self.schema_manager,
             req,
         )
-        .await;
+        .await
+        {
+            error!("{}", e);
+        }
         return Ok(Response::new(UpdateMqttCacheReply::default()));
     }
 

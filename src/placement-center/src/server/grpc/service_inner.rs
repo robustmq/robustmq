@@ -176,10 +176,15 @@ impl PlacementCenterService for GrpcPlacementService {
         req.validate()
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        set_resource_config_by_req(&self.raft_machine_apply, &req)
-            .await
-            .map_err(|e| Status::cancelled(e.to_string()))
-            .map(Response::new)
+        set_resource_config_by_req(
+            &self.raft_machine_apply,
+            &self.mqtt_call_manager,
+            &self.client_pool,
+            &req,
+        )
+        .await
+        .map_err(|e| Status::cancelled(e.to_string()))
+        .map(Response::new)
     }
 
     async fn get_resource_config(

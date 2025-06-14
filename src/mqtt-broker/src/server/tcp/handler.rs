@@ -16,13 +16,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::handler::command::Command;
-use crate::observability::metrics::server::{
-    metrics_request_handler_ms, metrics_request_queue_ms, metrics_request_total_ms,
-};
-use crate::server::connection::NetworkConnectionType;
 use crate::server::connection_manager::ConnectionManager;
+use crate::server::metric::record_packet_handler_info_no_response;
 use crate::server::packet::{RequestPackage, ResponsePackage};
 use common_base::tools::now_mills;
+use protocol::mqtt::common::mqtt_packet_to_string;
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast;
@@ -64,6 +62,7 @@ pub(crate) async fn handler_process<S>(
                 },
                 val = request_queue_rx.recv()=>{
                     if let Some(packet) = val{
+
                         // Try to deliver the request packet to the child handler until it is delivered successfully.
                         // Because some request queues may be full or abnormal, the request packets can be delivered to other child handlers.
                         loop{
@@ -137,28 +136,25 @@ fn handler_child_process<S>(
                     val = child_process_rx.recv()=>{
                         if let Some(packet) = val{
                             if let Some(connect) = raw_connect_manager.get_connect(packet.connection_id) {
-                                let handler_ms = now_mills();
-                                metrics_request_queue_ms(&NetworkConnectionType::Tcp,(handler_ms - packet.receive_ms) as f64);
+                                let out_handler_queue_ms = now_mills();
 
-                                if let Some(resp) = raw_command
+                                let response_data = raw_command
                                     .apply(&raw_connect_manager, &connect, &packet.addr, &packet.packet)
-                                    .await
-                                {
-                                    metrics_request_handler_ms(&NetworkConnectionType::Tcp,(now_mills() - handler_ms) as f64);
+                                    .await;
+                                let end_handler_ms = now_mills();
 
-                                    let response_package = ResponsePackage::new(packet.connection_id, resp);
-                                    match raw_response_queue_sx.send(response_package).await {
-                                        Ok(_) => {}
-                                        Err(err) => error!(
+                                if let Some(resp) = response_data {
+                                    let response_package = ResponsePackage::new(packet.connection_id, resp,packet.receive_ms,
+                                                out_handler_queue_ms,end_handler_ms, mqtt_packet_to_string(&packet.packet));
+                                    if let Err(err) = raw_response_queue_sx.send(response_package).await {
+                                        error!(
                                             "Failed to write data to the response queue, error message: {:?}",
                                             err
-                                        ),
+                                        );
                                     }
                                 } else {
+                                    record_packet_handler_info_no_response(&packet, out_handler_queue_ms, end_handler_ms, mqtt_packet_to_string(&packet.packet));
                                     info!("{}","No backpacking is required for this request");
-
-                                    metrics_request_handler_ms(&NetworkConnectionType::Tcp,(now_mills() - handler_ms) as f64);
-                                    metrics_request_total_ms(&NetworkConnectionType::Tcp,(now_mills() - packet.receive_ms) as f64);
                                 }
                             }
                         }

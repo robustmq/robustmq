@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod connection;
-pub mod connection_manager;
-pub mod grpc;
-mod metric;
-pub mod packet;
-pub mod quic;
-pub mod tcp;
-pub mod websocket;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub struct ClusterResourceConfig {
+    pub cluster_name: String,
+    pub resource: String,
+    pub config: Vec<u8>,
+}
+
+impl ClusterResourceConfig {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
+    }
+}

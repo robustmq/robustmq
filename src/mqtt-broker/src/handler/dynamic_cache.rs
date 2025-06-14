@@ -13,6 +13,8 @@
 // limitations under the License.
 
 use crate::bridge::manager::ConnectorManager;
+use crate::handler::dynamic_config::{update_cluster_dynamic_config, ClusterDynamicConfig};
+use crate::handler::error::MqttBrokerError;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
 use crate::storage::connector::ConnectorStorage;
 use crate::storage::topic::TopicStorage;
@@ -26,6 +28,7 @@ use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::resource_config::ClusterResourceConfig;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use protocol::broker_mqtt::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateMqttCacheRequest,
@@ -178,165 +181,91 @@ pub async fn update_cache_metadata(
     subscribe_manager: &Arc<SubscribeManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
     request: UpdateMqttCacheRequest,
-) {
+) -> Result<(), MqttBrokerError> {
     match request.resource_type() {
         MqttBrokerUpdateCacheResourceType::Session => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
-                match serde_json::from_str::<MqttSession>(&request.data) {
-                    Ok(session) => {
-                        cache_manager.add_session(&session.client_id, &session);
-                    }
-                    Err(e) => {
-                        error!("{}", e);
-                    }
-                }
+                let session = serde_json::from_str::<MqttSession>(&request.data)?;
+                cache_manager.add_session(&session.client_id, &session);
             }
             MqttBrokerUpdateCacheActionType::Delete => {
-                match serde_json::from_str::<MqttSession>(&request.data) {
-                    Ok(session) => {
-                        cache_manager.remove_session(&session.client_id);
-                    }
-                    Err(e) => {
-                        error!("{}", e);
-                    }
-                }
+                let session = serde_json::from_str::<MqttSession>(&request.data)?;
+                cache_manager.remove_session(&session.client_id);
             }
         },
         MqttBrokerUpdateCacheResourceType::User => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
-                match serde_json::from_str::<MqttUser>(&request.data) {
-                    Ok(user) => {
-                        cache_manager.add_user(user);
-                    }
-                    Err(e) => {
-                        error!("{}", e);
-                    }
-                }
+                let user = serde_json::from_str::<MqttUser>(&request.data)?;
+                cache_manager.add_user(user);
             }
             MqttBrokerUpdateCacheActionType::Delete => {
-                match serde_json::from_str::<MqttUser>(&request.data) {
-                    Ok(user) => {
-                        cache_manager.del_user(user.username);
-                    }
-                    Err(e) => {
-                        error!("{}", e);
-                    }
-                }
+                let user = serde_json::from_str::<MqttUser>(&request.data)?;
+                cache_manager.del_user(user.username);
             }
         },
         MqttBrokerUpdateCacheResourceType::Subscribe => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
-                match serde_json::from_str::<MqttSubscribe>(&request.data) {
-                    Ok(subscribe) => {
-                        subscribe_manager.add_subscribe(subscribe);
-                    }
-                    Err(e) => {
-                        error!("{}", e);
-                    }
-                }
+                let subscribe = serde_json::from_str::<MqttSubscribe>(&request.data)?;
+                subscribe_manager.add_subscribe(subscribe);
             }
             MqttBrokerUpdateCacheActionType::Delete => {
-                match serde_json::from_str::<MqttSubscribe>(&request.data) {
-                    Ok(subscribe) => {
-                        subscribe_manager.remove_subscribe(&subscribe.client_id, &subscribe.path)
-                    }
-                    Err(e) => {
-                        error!("{}", e);
-                    }
-                }
+                let subscribe = serde_json::from_str::<MqttSubscribe>(&request.data)?;
+                subscribe_manager.remove_subscribe(&subscribe.client_id, &subscribe.path);
             }
         },
         MqttBrokerUpdateCacheResourceType::Topic => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
-                match serde_json::from_str::<MqttTopic>(&request.data) {
-                    Ok(topic) => {
-                        cache_manager.add_topic(&topic.topic_name, &topic);
-                    }
-                    Err(e) => {
-                        error!("{}", e);
-                    }
-                }
+                let topic = serde_json::from_str::<MqttTopic>(&request.data)?;
+                cache_manager.add_topic(&topic.topic_name, &topic);
             }
             MqttBrokerUpdateCacheActionType::Delete => {
-                match serde_json::from_str::<MqttTopic>(&request.data) {
-                    Ok(topic) => {
-                        cache_manager.delete_topic(&topic.topic_name, &topic);
-                    }
-                    Err(e) => {
-                        error!("{}", e);
-                    }
-                }
+                let topic = serde_json::from_str::<MqttTopic>(&request.data)?;
+                cache_manager.delete_topic(&topic.topic_name, &topic);
             }
         },
         MqttBrokerUpdateCacheResourceType::Connector => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
-                match serde_json::from_str::<MQTTConnector>(&request.data) {
-                    Ok(connector) => {
-                        connector_manager.add_connector(&connector);
-                    }
-                    Err(e) => {
-                        error!("{}", e);
-                    }
-                }
+                let connector = serde_json::from_str::<MQTTConnector>(&request.data)?;
+                connector_manager.add_connector(&connector);
             }
             MqttBrokerUpdateCacheActionType::Delete => {
-                match serde_json::from_str::<MQTTConnector>(&request.data) {
-                    Ok(connector) => {
-                        connector_manager.remove_connector(&connector.connector_name);
-                    }
-                    Err(e) => {
-                        error!("{}", e);
-                    }
-                }
+                let connector = serde_json::from_str::<MQTTConnector>(&request.data)?;
+                connector_manager.remove_connector(&connector.connector_name);
             }
         },
         MqttBrokerUpdateCacheResourceType::Schema => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
-                match serde_json::from_str::<SchemaData>(&request.data) {
-                    Ok(schema) => {
-                        schema_manager.add_schema(schema);
-                    }
-                    Err(e) => {
-                        error!("{}", e);
-                    }
-                }
+                let schema = serde_json::from_str::<SchemaData>(&request.data)?;
+                schema_manager.add_schema(schema);
             }
             MqttBrokerUpdateCacheActionType::Delete => {
-                match serde_json::from_str::<SchemaData>(&request.data) {
-                    Ok(schema) => {
-                        schema_manager.remove_schema(&schema.name);
-                    }
-                    Err(e) => {
-                        error!("{}", e);
-                    }
-                }
+                let schema = serde_json::from_str::<SchemaData>(&request.data)?;
+                schema_manager.remove_schema(&schema.name);
             }
         },
         MqttBrokerUpdateCacheResourceType::SchemaResource => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
-                match serde_json::from_str::<SchemaResourceBind>(&request.data) {
-                    Ok(schema_bind) => {
-                        schema_manager.add_schema_resource(&schema_bind);
-                    }
-                    Err(e) => {
-                        error!("{}", e);
-                    }
-                }
+                let schema_resource = serde_json::from_str::<SchemaResourceBind>(&request.data)?;
+                schema_manager.add_schema_resource(&schema_resource);
             }
 
             MqttBrokerUpdateCacheActionType::Delete => {
-                match serde_json::from_str::<SchemaResourceBind>(&request.data) {
-                    Ok(schema_bind) => {
-                        schema_manager.remove_resource_schema(
-                            &schema_bind.resource_name,
-                            &schema_bind.schema_name,
-                        );
-                    }
-                    Err(e) => {
-                        error!("{}", e);
-                    }
-                }
+                let schema_resource = serde_json::from_str::<SchemaResourceBind>(&request.data)?;
+                schema_manager.remove_resource_schema(
+                    &schema_resource.resource_name,
+                    &schema_resource.schema_name,
+                );
             }
         },
+
+        MqttBrokerUpdateCacheResourceType::ClusterResourceConfig => match request.action_type() {
+            MqttBrokerUpdateCacheActionType::Set => {
+                let data = serde_json::from_str::<ClusterResourceConfig>(&request.data)?;
+                let config = data.resource.parse::<ClusterDynamicConfig>()?;
+                update_cluster_dynamic_config(cache_manager, config, data.config).await?;
+            }
+            MqttBrokerUpdateCacheActionType::Delete => {}
+        },
     }
+    Ok(())
 }
