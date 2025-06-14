@@ -43,15 +43,28 @@ pub struct ResponsePackage {
 
     // This field is obtained from [`RequestPackage`] and records the time when the packet is received,
     // the field related to internal record indicators do not need to be exported
-    receive_ms: u128,
+    pub receive_ms: u128,
+    pub out_queue_ms: u128,
+    pub end_handler_ms: u128,
+    pub request_packet: String,
 }
 
 impl ResponsePackage {
-    pub fn new(connection_id: u64, packet: MqttPacket) -> Self {
+    pub fn new(
+        connection_id: u64,
+        packet: MqttPacket,
+        receive_ms: u128,
+        out_queue_ms: u128,
+        end_handler_ms: u128,
+        request_packet: String,
+    ) -> Self {
         Self {
             connection_id,
             packet,
-            receive_ms: 0,
+            receive_ms,
+            out_queue_ms,
+            end_handler_ms,
+            request_packet,
         }
     }
 
