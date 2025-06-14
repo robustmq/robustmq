@@ -78,6 +78,12 @@ pub enum MqttBrokerError {
     #[error("Client {0} has no connection available")]
     ClientNoAvailableConnection(String),
 
+    #[error("Client ID cannot be empty")]
+    ClientIDIsEmpty,
+
+    #[error("Cluster name does not match")]
+    ClusterNotMatch(String),
+
     #[error("Message content length exceeds limit, Max :{0}, current :{1}")]
     PacketLengthError(usize, usize),
 
