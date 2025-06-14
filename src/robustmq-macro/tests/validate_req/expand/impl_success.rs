@@ -25,21 +25,32 @@ pub struct Request {
 pub struct Response;
 
 #[async_trait::async_trait]
-pub trait Hey {
+pub trait HeyGRPC {
     async fn hey(
+        &self,
+        _request: tonic::Request<Request>,
+    ) -> Result<tonic::Response<Response>, tonic::Status>;
+
+    async fn hi(
         &self,
         _request: tonic::Request<Request>,
     ) -> Result<tonic::Response<Response>, tonic::Status>;
 }
 
 #[async_trait::async_trait]
-impl Hey for FooService {
-    #[robustmq_macro::validate_req(validator = prost_validate::Validator)]
+#[robustmq_macro::validate_req(validator = prost_validate::Validator)]
+impl HeyGRPC for FooService {
     async fn hey(
         &self,
         _request: tonic::Request<Request>,
     ) -> Result<tonic::Response<Response>, tonic::Status> {
-        _request.get_ref().validate().unwrap();
+        Ok(tonic::Response::new(Response {}))
+    }
+
+    async fn hi(
+        &self,
+        _request: tonic::Request<Request>,
+    ) -> Result<tonic::Response<Response>, tonic::Status> {
         Ok(tonic::Response::new(Response {}))
     }
 }
