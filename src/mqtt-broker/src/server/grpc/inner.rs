@@ -14,9 +14,7 @@
 
 use std::sync::Arc;
 
-use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::lastwill::LastWillData;
 use protocol::broker_mqtt::broker_mqtt_inner::mqtt_broker_inner_service_server::MqttBrokerInnerService;
 use protocol::broker_mqtt::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
@@ -25,12 +23,12 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
 use tonic::{Request, Response, Status};
-use tracing::{error, info};
 
 use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::CacheManager;
-use crate::handler::dynamic_cache::update_cache_metadata;
-use crate::handler::lastwill::send_last_will_message;
+use crate::inner::services::{
+    delete_session_by_req, send_last_will_message_by_req, update_cache_by_req,
+};
 use crate::subscribe::manager::SubscribeManager;
 
 pub struct GrpcInnerServices<S> {
@@ -72,22 +70,16 @@ where
         request: Request<UpdateMqttCacheRequest>,
     ) -> Result<Response<UpdateMqttCacheReply>, Status> {
         let req = request.into_inner();
-        let conf = broker_mqtt_conf();
-        if conf.cluster_name != req.cluster_name {
-            return Ok(Response::new(UpdateMqttCacheReply::default()));
-        }
-        if let Err(e) = update_cache_metadata(
+        update_cache_by_req(
             &self.cache_manager,
             &self.connector_manager,
             &self.subscribe_manager,
             &self.schema_manager,
-            req,
+            &req,
         )
         .await
-        {
-            error!("{}", e);
-        }
-        return Ok(Response::new(UpdateMqttCacheReply::default()));
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
     async fn delete_session(
@@ -95,21 +87,10 @@ where
         request: Request<DeleteSessionRequest>,
     ) -> Result<Response<DeleteSessionReply>, Status> {
         let req = request.into_inner();
-        info!("Received request from Placement center to delete expired Session. Cluster name :{}, clientId: {:?}",req.cluster_name,req.client_id);
-        if self.cache_manager.cluster_name != req.cluster_name {
-            return Err(Status::cancelled("Cluster name does not match".to_string()));
-        }
-
-        if req.client_id.is_empty() {
-            return Err(Status::cancelled("Client ID cannot be empty".to_string()));
-        }
-
-        for client_id in req.client_id {
-            self.subscribe_manager.remove_client_id(&client_id);
-            self.cache_manager.remove_session(&client_id);
-        }
-
-        return Ok(Response::new(DeleteSessionReply::default()));
+        delete_session_by_req(&self.cache_manager, &self.subscribe_manager, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn send_last_will_message(
@@ -117,33 +98,14 @@ where
         request: Request<SendLastWillMessageRequest>,
     ) -> Result<Response<SendLastWillMessageReply>, Status> {
         let req = request.into_inner();
-        let data = match serde_json::from_slice::<LastWillData>(&req.last_will_message) {
-            Ok(da) => da,
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        };
-        info!(
-            "Received will message from placement center, source client id: {},data:{:?}",
-            req.client_id, data
-        );
-
-        match send_last_will_message(
-            &req.client_id,
+        send_last_will_message_by_req(
             &self.cache_manager,
             &self.client_pool,
-            &data.last_will,
-            &data.last_will_properties,
-            self.message_storage_adapter.clone(),
+            &self.message_storage_adapter,
+            &req,
         )
         .await
-        {
-            Ok(()) => {
-                return Ok(Response::new(SendLastWillMessageReply::default()));
-            }
-            Err(e) => {
-                return Err(Status::internal(e.to_string()));
-            }
-        }
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 }
