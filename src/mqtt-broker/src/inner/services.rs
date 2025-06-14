@@ -14,17 +14,17 @@
 
 use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::CacheManager;
-use crate::handler::cache_update::update_cache_metadata;
+use crate::handler::dynamic_cache::update_cache_metadata;
 use crate::handler::error::MqttBrokerError;
 use crate::handler::lastwill::send_last_will_message;
 use crate::subscribe::manager::SubscribeManager;
-use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use protocol::broker_mqtt::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
     UpdateMqttCacheReply, UpdateMqttCacheRequest,
 };
+use common_config::mqtt::broker_mqtt_conf;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
