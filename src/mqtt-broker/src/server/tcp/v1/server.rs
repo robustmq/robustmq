@@ -29,10 +29,10 @@ use crate::security::AuthDriver;
 use crate::server::connection::NetworkConnectionType;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::{RequestPackage, ResponsePackage};
-use crate::server::tcp::handler::handler_process;
-use crate::server::tcp::response::response_process;
-use crate::server::tcp::tcp_server::acceptor_process;
-use crate::server::tcp::tls_server::acceptor_tls_process;
+use crate::server::tcp::v1::handler::handler_process;
+use crate::server::tcp::v1::response::response_process;
+use crate::server::tcp::v1::tcp_server::acceptor_process;
+use crate::server::tcp::v1::tls_server::acceptor_tls_process;
 use crate::subscribe::manager::SubscribeManager;
 
 #[allow(clippy::too_many_arguments)]
