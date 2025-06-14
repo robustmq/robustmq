@@ -14,13 +14,14 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use crate::handler::cache::CacheManager;
 use crate::handler::connection::disconnect_connection;
 use crate::observability::metrics::server::{
-    metrics_request_queue, metrics_response_queue_size, record_response_and_total_ms,
+    metrics_response_queue_size, record_response_and_total_ms,
 };
-use crate::server::connection::NetworkConnectionType;
+use crate::server::connection::{calc_child_channel_index, NetworkConnectionType};
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::metric::record_packet_handler_info_by_response;
 use crate::server::packet::ResponsePackage;
@@ -32,6 +33,7 @@ use protocol::mqtt::common::MqttPacket;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::time::sleep;
 use tracing::info;
 use tracing::{debug, error};
 
@@ -57,7 +59,7 @@ pub(crate) async fn response_process(
             client_pool,
         );
 
-        let mut response_process_seq = 1;
+        let mut response_process_seq = 0;
         loop {
             select! {
                 val = stop_rx.recv() =>{
@@ -71,33 +73,25 @@ pub(crate) async fn response_process(
 
                 val = response_queue_rx.recv()=>{
                     if let Some(packet) = val{
-                        metrics_request_queue("response-total", response_queue_rx.len());
-
-                        let seq = if response_process_seq > process_handler.len(){
-                            1
-                        } else {
-                            response_process_seq
-                        };
-
-                        if let Some(handler_sx) = process_handler.get(&seq){
-                            if handler_sx.is_closed(){
-                                error!("Response queue {} is closed and is not allowed to send messages to the channel.", seq);
-                                process_handler.remove(&seq);
-                                continue;
-                            }
-
-                            match handler_sx.try_send(packet.clone()){
-                                Ok(_) => {}
-                                Err(err) => error!(
-                                    "Failed to write data to the tcp response process queue, error message: {:?}",
-                                    err
-                                ),
-                            }
-
+                        let mut sleep_ms = 0;
+                        metrics_response_queue_size("total", response_queue_rx.len());
+                        loop {
                             response_process_seq += 1;
-                        }else{
-                            error!("{}","No request packet processing thread available");
+                            let seq = calc_child_channel_index(response_process_seq, process_handler.len());
+
+                            if let Some(handler_sx) = process_handler.get(&seq){
+                                if handler_sx.try_send(packet.clone()).is_ok() {
+                                    break;
+                                }
+                                sleep_ms += 1;
+                                sleep(Duration::from_millis(sleep_ms)).await;
+                            }else{
+                                error!("{}","Response child thread, no request packet processing thread available");
+                                break;
+                            }
                         }
+
+
                     }
                 }
             }
