@@ -86,7 +86,6 @@ impl HeyGRPC for FooService {
             let __self = self;
             let _request = _request;
             let __ret: Result<tonic::Response<Response>, tonic::Status> = {
-                _request.get_ref().validate().unwrap();
                 Ok(tonic::Response::new(Response {}))
             };
             #[allow(unreachable_code)] __ret

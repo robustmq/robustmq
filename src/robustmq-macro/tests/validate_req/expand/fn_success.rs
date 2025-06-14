@@ -39,7 +39,6 @@ impl HeyGRPC for FooService {
         &self,
         _request: tonic::Request<Request>,
     ) -> Result<tonic::Response<Response>, tonic::Status> {
-        _request.get_ref().validate().unwrap();
         Ok(tonic::Response::new(Response {}))
     }
 }
