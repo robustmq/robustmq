@@ -261,7 +261,7 @@ pub async fn update_cache_metadata(
         MqttBrokerUpdateCacheResourceType::ClusterResourceConfig => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
                 let data = serde_json::from_str::<ClusterResourceConfig>(&request.data)?;
-                let config = data.resouce.parse::<ClusterDynamicConfig>()?;
+                let config = data.resource.parse::<ClusterDynamicConfig>()?;
                 update_cluster_dynamic_config(cache_manager, config, data.config).await?;
             }
             MqttBrokerUpdateCacheActionType::Delete => {}

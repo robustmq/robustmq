@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
-use crate::handler::dynamic_config::{save_cluster_dynamic_cofig, ClusterDynamicConfig};
+use crate::handler::dynamic_config::{save_cluster_dynamic_config, ClusterDynamicConfig};
 use crate::handler::error::MqttBrokerError;
 use crate::observability::metrics::event_metrics;
 use common_base::enum_type::time_unit_enum::TimeUnit;
@@ -182,7 +182,7 @@ pub async fn enable_flapping_detect(
         ban_time: request.ban_time,
     };
 
-    save_cluster_dynamic_cofig(
+    save_cluster_dynamic_config(
         client_pool,
         ClusterDynamicConfig::FlappingDetect,
         connection_jitter.encode(),

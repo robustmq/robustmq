@@ -227,7 +227,7 @@ pub async fn update_cluster_dynamic_config(
     Ok(())
 }
 
-pub async fn save_cluster_dynamic_cofig(
+pub async fn save_cluster_dynamic_config(
     client_pool: &Arc<ClientPool>,
     resource_config: ClusterDynamicConfig,
     data: Vec<u8>,

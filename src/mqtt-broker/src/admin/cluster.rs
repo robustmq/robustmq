@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
-use crate::handler::dynamic_config::{save_cluster_dynamic_cofig, ClusterDynamicConfig};
+use crate::handler::dynamic_config::{save_cluster_dynamic_config, ClusterDynamicConfig};
 use crate::handler::error::MqttBrokerError;
 use common_base::enum_type::feature_type::FeatureType;
 use grpc_clients::pool::ClientPool;
@@ -31,7 +31,7 @@ pub async fn set_cluster_config_by_req(
             let mut config = cache_manager.get_slow_sub_config();
             config.enable = request.is_enable;
             cache_manager.update_slow_sub_config(config.clone());
-            save_cluster_dynamic_cofig(
+            save_cluster_dynamic_config(
                 client_pool,
                 ClusterDynamicConfig::FlappingDetect,
                 config.encode(),
@@ -43,7 +43,7 @@ pub async fn set_cluster_config_by_req(
             let mut config = cache_manager.get_offline_message_config();
             config.enable = request.is_enable;
             cache_manager.update_offline_message_config(config.clone());
-            save_cluster_dynamic_cofig(
+            save_cluster_dynamic_config(
                 client_pool,
                 ClusterDynamicConfig::OfflineMessage,
                 config.encode(),

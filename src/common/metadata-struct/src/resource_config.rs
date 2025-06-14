@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct ClusterResourceConfig {
     pub cluster_name: String,
-    pub resouce: String,
+    pub resource: String,
     pub config: Vec<u8>,
 }
 

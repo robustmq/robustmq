@@ -102,7 +102,7 @@ pub async fn set_resource_config_by_req(
     raft_machine_apply.client_write(data).await?;
     let config = ClusterResourceConfig {
         cluster_name: req.cluster_name.to_owned(),
-        resouce: req.resources.to_owned().join("/"),
+        resource: req.resources.to_owned().join("/"),
         config: req.config.clone(),
     };
 
