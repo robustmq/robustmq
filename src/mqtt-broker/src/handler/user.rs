@@ -15,7 +15,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use tokio::select;

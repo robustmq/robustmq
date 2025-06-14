@@ -19,15 +19,16 @@ use std::time::Duration;
 
 use bridge::core::start_connector_thread;
 use bridge::manager::ConnectorManager;
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+
 use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
 use common_base::tools::now_second;
+use common_config::mqtt::broker_mqtt_conf;
 use delay_message::{start_delay_message_manager, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
 use handler::acl::UpdateAclCache;
 use handler::cache::CacheManager;
-use handler::cache_update::load_metadata_cache;
+use handler::dynamic_cache::load_metadata_cache;
 use handler::heartbreat::{register_node, report_heartbeat};
 use handler::keep_alive::ClientKeepAlive;
 use handler::sub_parse_topic::start_parse_subscribe_by_new_topic_thread;
@@ -65,6 +66,7 @@ lazy_static! {
 
 pub mod admin;
 pub mod bridge;
+pub mod common;
 pub mod handler;
 pub mod observability;
 pub mod security;
@@ -210,7 +212,7 @@ where
 
     fn start_tracer_provider(&self) {
         self.daemon_runtime.spawn(async move {
-            common_base::telemetry::trace::init_tracer_provider(broker_mqtt_conf()).await;
+            // common_base::telemetry::trace::init_tracer_provider(broker_mqtt_conf()).await;
         });
     }
     fn start_mqtt_server(&self, stop_send: broadcast::Sender<bool>) {
@@ -336,7 +338,7 @@ where
         let client_pool = self.client_pool.clone();
         self.daemon_runtime.spawn(async move {
             let conf = broker_mqtt_conf();
-            report_heartbeat(&client_pool, &conf.heartbeat_timeout, stop_send).await;
+            report_heartbeat(&client_pool, &conf.system.heartbeat_timeout, stop_send).await;
         });
     }
 
@@ -516,7 +518,7 @@ where
     async fn stop_server(&self) {
         let cluster_storage = ClusterStorage::new(self.client_pool.clone());
         let config = broker_mqtt_conf();
-        common_base::telemetry::trace::stop_tracer_provider().await;
+        // common_base::telemetry::trace::stop_tracer_provider().await;
         let _ = self.delay_message_manager.stop().await;
         match cluster_storage.unregister_node(config).await {
             Ok(()) => {

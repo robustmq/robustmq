@@ -26,7 +26,7 @@ use crate::observability::metrics::packets::{
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::common::Subscriber;
-use crate::subscribe::common::{get_pkid, get_sub_topic_id_list, min_qos};
+use crate::subscribe::common::{get_sub_topic_id_list, min_qos};
 use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::push::send_publish_packet_to_client;
@@ -35,7 +35,7 @@ use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{
-    MqttPacket, MqttProtocol, Publish, PublishProperties, Subscribe, SubscribeProperties,
+    qos, MqttPacket, MqttProtocol, Publish, PublishProperties, Subscribe, SubscribeProperties,
 };
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -153,7 +153,7 @@ async fn send_retain_message(
 
         let topic_id_list = get_sub_topic_id_list(cache_manager, &filter.path).await;
         let topic_storage = TopicStorage::new(client_pool.clone());
-        let cluster = cache_manager.get_cluster_info();
+        let cluster = cache_manager.get_cluster_config();
 
         for topic_id in topic_id_list.iter() {
             let topic_name = if let Some(topic_name) = cache_manager.topic_name_by_id(topic_id) {
@@ -173,7 +173,10 @@ async fn send_retain_message(
             }
 
             let retain = get_retain_flag_by_retain_as_published(filter.preserve_retain, msg.retain);
-            let qos = min_qos(cluster.protocol.max_qos, filter.qos);
+            let qos = min_qos(
+                qos(cluster.mqtt_protocol_config.max_qos).unwrap(),
+                filter.qos,
+            );
 
             let mut user_properties = msg.user_properties;
             user_properties.push((
@@ -192,7 +195,11 @@ async fn send_retain_message(
                 content_type: msg.content_type,
             };
 
-            let pkid = get_pkid(cache_manager, client_id).await;
+            let pkid = cache_manager
+                .pkid_metadata
+                .generate_pkid(client_id, &qos)
+                .await;
+
             let publish = Publish {
                 dup: false,
                 qos,
@@ -203,6 +210,7 @@ async fn send_retain_message(
             };
 
             let packet = MqttPacket::Publish(publish.clone(), Some(properties));
+
             let sub_pub_param = SubPublishParam::new(
                 Subscriber {
                     protocol: protocol.to_owned(),
@@ -223,6 +231,7 @@ async fn send_retain_message(
                 stop_sx,
             )
             .await?;
+
             record_retain_sent_metrics(qos);
         }
     }

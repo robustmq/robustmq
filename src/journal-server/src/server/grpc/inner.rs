@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_base::config::journal_server::journal_server_conf;
+use common_config::journal::config::journal_server_conf;
 use protocol::journal_server::journal_inner::journal_server_inner_service_server::JournalServerInnerService;
 use protocol::journal_server::journal_inner::{
     DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,

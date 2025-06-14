@@ -17,9 +17,9 @@ mod tests {
     use std::sync::Arc;
 
     use bytes::Bytes;
-    use common_base::config::broker_mqtt::{broker_mqtt_conf, init_broker_mqtt_conf_by_path};
     use common_base::logging::init_tracing_subscriber;
     use common_base::tools::unique_id;
+    use common_config::mqtt::{broker_mqtt_conf, init_broker_mqtt_conf_by_path};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::mqtt::topic::MqttTopic;

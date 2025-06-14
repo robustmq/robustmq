@@ -118,6 +118,27 @@ pub enum MqttPacket {
     Auth(Auth, Option<AuthProperties>),
 }
 
+pub fn mqtt_packet_to_string(packet: &MqttPacket) -> String {
+    let str = match packet {
+        MqttPacket::Connect(_, _, _, _, _, _) => "Connect",
+        MqttPacket::ConnAck(_, _) => "ConnAck",
+        MqttPacket::Publish(_, _) => "Publish",
+        MqttPacket::PubAck(_, _) => "PubAck",
+        MqttPacket::PubRec(_, _) => "PubRec",
+        MqttPacket::PubRel(_, _) => "PubRel",
+        MqttPacket::PubComp(_, _) => "PubComp",
+        MqttPacket::Subscribe(_, _) => "Subscribe",
+        MqttPacket::SubAck(_, _) => "SubAck",
+        MqttPacket::Unsubscribe(_, _) => "Unsubscribe",
+        MqttPacket::UnsubAck(_, _) => "UnsubAck",
+        MqttPacket::PingReq(_) => "PingReq",
+        MqttPacket::PingResp(_) => "PingResp",
+        MqttPacket::Disconnect(_, _) => "Disconnect",
+        MqttPacket::Auth(_, _) => "Auth",
+    };
+    str.to_string()
+}
+
 /// Packet type from a byte
 ///
 /// ```ignore

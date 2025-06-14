@@ -33,8 +33,9 @@ use axum_extra::headers::UserAgent;
 use axum_extra::TypedHeader;
 use axum_server::tls_rustls::RustlsConfig;
 use bytes::{BufMut, BytesMut};
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+
 use common_base::tools::now_mills;
+use common_config::mqtt::broker_mqtt_conf;
 use delay_message::DelayMessageManager;
 use futures_util::stream::StreamExt;
 use grpc_clients::pool::ClientPool;
@@ -96,13 +97,13 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let config = broker_mqtt_conf();
-    let ip: SocketAddr = format!("0.0.0.0:{}", config.network.websocket_port)
+    let ip: SocketAddr = format!("0.0.0.0:{}", config.network_port.websocket_port)
         .parse()
         .unwrap();
     let app = routes_v1(state);
     info!(
         "Broker WebSocket Server start success. port:{}",
-        config.network.websocket_port
+        config.network_port.websocket_port
     );
     match axum_server::bind(ip)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
@@ -118,14 +119,14 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let config = broker_mqtt_conf();
-    let ip: SocketAddr = format!("0.0.0.0:{}", config.network.websockets_port)
+    let ip: SocketAddr = format!("0.0.0.0:{}", config.network_port.websockets_port)
         .parse()
         .unwrap();
     let app = routes_v1(state);
 
     let tls_config = match RustlsConfig::from_pem_file(
-        PathBuf::from(config.network.tls_cert.clone()),
-        PathBuf::from(config.network.tls_key.clone()),
+        PathBuf::from(config.network_port.tls_cert.clone()),
+        PathBuf::from(config.network_port.tls_key.clone()),
     )
     .await
     {
@@ -137,7 +138,7 @@ where
 
     info!(
         "Broker WebSocket TLS Server start success. port:{}",
-        config.network.websockets_port
+        config.network_port.websockets_port
     );
     match axum_server::bind_rustls(ip, tls_config)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())

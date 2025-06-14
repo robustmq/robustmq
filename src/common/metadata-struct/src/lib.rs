@@ -19,4 +19,5 @@ pub mod delay_info;
 pub mod journal;
 pub mod mqtt;
 pub mod placement;
+pub mod resource_config;
 pub mod schema;

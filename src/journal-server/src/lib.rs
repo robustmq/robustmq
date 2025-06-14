@@ -24,9 +24,9 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use common_base::config::journal_server::{journal_server_conf, JournalServerConfig};
 use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
+use common_config::journal::config::{journal_server_conf, JournalServerConfig};
 use grpc_clients::pool::ClientPool;
 use index::engine::{column_family_list, storage_data_fold};
 use rocksdb_engine::RocksDBEngine;
@@ -43,7 +43,7 @@ use tokio::sync::broadcast;
 use tokio::time::sleep;
 use tracing::{error, info};
 
-mod core;
+pub mod core;
 mod handler;
 mod index;
 mod isr;

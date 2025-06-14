@@ -13,12 +13,14 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
+use crate::handler::dynamic_config::{save_cluster_dynamic_config, ClusterDynamicConfig};
 use crate::handler::error::MqttBrokerError;
 use crate::observability::metrics::event_metrics;
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
+use common_config::mqtt::config::FlappingDetect;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
-use metadata_struct::mqtt::cluster::MqttClusterDynamicFlappingDetect;
 use protocol::broker_mqtt::broker_mqtt_admin::EnableFlappingDetectRequest;
 use std::sync::Arc;
 use std::time::Duration;
@@ -137,7 +139,7 @@ pub fn check_flapping_detect(client_id: String, cache_manager: &Arc<CacheManager
 
 fn add_blacklist_4_connection_jitter(
     cache_manager: &Arc<CacheManager>,
-    config: MqttClusterDynamicFlappingDetect,
+    config: FlappingDetect,
     client_id: String,
 ) {
     let client_id_blacklist = MqttAclBlackList {
@@ -169,19 +171,25 @@ fn is_exceed_max_client_connections(
 }
 
 pub async fn enable_flapping_detect(
+    client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
     request: EnableFlappingDetectRequest,
 ) -> Result<(), MqttBrokerError> {
-    let connection_jitter = MqttClusterDynamicFlappingDetect {
+    let connection_jitter = FlappingDetect {
         enable: request.is_enable,
         window_time: request.window_time,
         max_client_connections: request.max_client_connections as u64,
         ban_time: request.ban_time,
     };
 
-    cache_manager
-        .update_flapping_detect_config(connection_jitter)
-        .await?;
+    save_cluster_dynamic_config(
+        client_pool,
+        ClusterDynamicConfig::FlappingDetect,
+        connection_jitter.encode(),
+    )
+    .await?;
+
+    cache_manager.update_flapping_detect_config(connection_jitter);
 
     Ok(())
 }

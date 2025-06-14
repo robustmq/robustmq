@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_config::mqtt::broker_mqtt_conf;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use schema_register::schema::SchemaRegisterManager;
@@ -62,9 +62,9 @@ pub async fn start_tcp_server<S>(
     );
 
     let proc_config = ProcessorConfig {
-        accept_thread_num: conf.tcp_thread.accept_thread_num,
-        handler_process_num: conf.tcp_thread.handler_thread_num,
-        response_process_num: conf.tcp_thread.response_thread_num,
+        accept_thread_num: conf.network_thread.accept_thread_num,
+        handler_process_num: conf.network_thread.handler_thread_num,
+        response_process_num: conf.network_thread.response_thread_num,
     };
 
     let mut server = TcpServer::<S>::new(
@@ -76,7 +76,7 @@ pub async fn start_tcp_server<S>(
         cache_manager.clone(),
         client_pool.clone(),
     );
-    server.start(conf.network.tcp_port).await;
+    server.start(conf.network_port.tcp_port).await;
 
     let mut server = TcpServer::<S>::new(
         command,
@@ -87,7 +87,7 @@ pub async fn start_tcp_server<S>(
         cache_manager,
         client_pool,
     );
-    server.start_tls(conf.network.tcps_port).await;
+    server.start_tls(conf.network_port.tcps_port).await;
 }
 
 // U: codec: encoder + decoder

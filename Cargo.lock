@@ -187,8 +187,8 @@ dependencies = [
  "serde",
  "serde_bytes",
  "serde_json",
- "strum",
- "strum_macros",
+ "strum 0.26.3",
+ "strum_macros 0.26.4",
  "thiserror 1.0.69",
  "typed-builder",
  "uuid",
@@ -776,6 +776,7 @@ dependencies = [
  "axum",
  "bytes",
  "common-base",
+ "common-config",
  "grpc-clients",
  "metadata-struct",
  "paho-mqtt",
@@ -804,6 +805,7 @@ dependencies = [
  "cli-bench",
  "cli-command",
  "common-base",
+ "common-config",
  "console-subscriber",
  "journal-server",
  "lazy_static",
@@ -869,6 +871,23 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
  "valico",
+]
+
+[[package]]
+name = "common-config"
+version = "0.1.14"
+dependencies = [
+ "bytes",
+ "common-base",
+ "crc32fast",
+ "dashmap",
+ "protocol",
+ "serde",
+ "serde_json",
+ "temp-env",
+ "thiserror 1.0.69",
+ "toml",
+ "tracing",
 ]
 
 [[package]]
@@ -2284,15 +2303,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "itertools"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
-dependencies = [
- "either",
-]
-
-[[package]]
 name = "itoa"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2357,6 +2367,7 @@ dependencies = [
  "axum",
  "bytes",
  "common-base",
+ "common-config",
  "dashmap",
  "futures",
  "futures-util",
@@ -2376,6 +2387,7 @@ dependencies = [
  "tonic-web",
  "tower-http",
  "tracing",
+ "tracing-appender",
 ]
 
 [[package]]
@@ -2681,6 +2693,7 @@ version = "0.1.14"
 dependencies = [
  "bytes",
  "common-base",
+ "common-config",
  "crc32fast",
  "dashmap",
  "protocol",
@@ -2789,6 +2802,7 @@ dependencies = [
  "bytes",
  "chrono",
  "common-base",
+ "common-config",
  "dashmap",
  "delay-message",
  "futures",
@@ -2821,6 +2835,8 @@ dependencies = [
  "serde",
  "serde_json",
  "storage-adapter",
+ "strum 0.27.1",
+ "strum_macros 0.27.1",
  "sysinfo",
  "tempfile",
  "third-driver",
@@ -2832,6 +2848,7 @@ dependencies = [
  "tonic-web",
  "tower-http",
  "tracing",
+ "tracing-appender",
 ]
 
 [[package]]
@@ -3498,6 +3515,7 @@ dependencies = [
  "bincode",
  "byteorder",
  "common-base",
+ "common-config",
  "dashmap",
  "futures",
  "grpc-clients",
@@ -3513,6 +3531,8 @@ dependencies = [
  "rocksdb-engine",
  "serde",
  "serde_json",
+ "strum 0.27.1",
+ "strum_macros 0.27.1",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -3521,6 +3541,7 @@ dependencies = [
  "tower 0.5.2",
  "tower-http",
  "tracing",
+ "tracing-appender",
 ]
 
 [[package]]
@@ -3757,7 +3778,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be769465445e8c1474e9c5dac2018218498557af32d9ed057325ec9a41ae81bf"
 dependencies = [
  "heck",
- "itertools 0.14.0",
+ "itertools 0.13.0",
  "log",
  "multimap",
  "once_cell",
@@ -3777,7 +3798,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools 0.14.0",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "syn 2.0.101",
@@ -4498,7 +4519,7 @@ dependencies = [
 [[package]]
 name = "robustmq-proto-build"
 version = "0.1.0"
-source = "git+https://github.com/PorterZhang2021/robustmq-proto?branch=system-alarm#ca007a10a26384334d3873f38f57eecc0fe80e94"
+source = "git+https://github.com/robustmq/robustmq-proto?branch=main#7d851c2c2abe442023aee6fb358df49ee6e125c1"
 dependencies = [
  "prost-build",
  "prost-validate-build",
@@ -4514,6 +4535,7 @@ dependencies = [
  "bincode",
  "bytes",
  "common-base",
+ "common-config",
  "dashmap",
  "futures",
  "grpc-clients",
@@ -4549,6 +4571,7 @@ name = "rocksdb-engine"
 version = "0.1.14"
 dependencies = [
  "common-base",
+ "common-config",
  "dashmap",
  "futures",
  "metadata-struct",
@@ -5127,10 +5150,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fec0f0aef304996cf250b31b5a10dee7980c85da9d759361292b8bca5a18f06"
 
 [[package]]
+name = "strum"
+version = "0.27.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f64def088c51c9510a8579e3c5d67c65349dcf755e5479ad3d010aa6454e2c32"
+
+[[package]]
 name = "strum_macros"
 version = "0.26.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4c6bee85a5a24955dc440386795aa378cd9cf82acd5f764469152d2270e581be"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "rustversion",
+ "syn 2.0.101",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.27.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c77a8c5abcaf0f9ce05d62342b7d298c346515365c36b673df4ebe3ced01fde8"
 dependencies = [
  "heck",
  "proc-macro2",

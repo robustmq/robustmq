@@ -16,8 +16,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use common_base::config::placement_center::placement_center_conf;
 use common_base::metrics::register_prometheus_export;
+use common_config::place::config::placement_center_conf;
 use grpc_clients::pool::ClientPool;
 use mqtt::cache::load_mqtt_cache;
 use mqtt::connector::scheduler::start_connector_scheduler;
@@ -41,7 +41,7 @@ use crate::raft::typeconfig::TypeConfig;
 use crate::route::apply::RaftMachineApply;
 use crate::route::DataRoute;
 
-mod core;
+pub mod core;
 mod inner;
 mod journal;
 mod kv;

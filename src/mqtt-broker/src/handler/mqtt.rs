@@ -19,7 +19,7 @@ use common_base::tools::{now_mills, now_second};
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use protocol::mqtt::common::{
-    Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
+    qos, Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MqttPacket, MqttProtocol, PingReq,
     PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec,
     PubRecProperties, PubRecReason, PubRel, PubRelProperties, Publish, PublishProperties, QoS,
@@ -38,13 +38,13 @@ use super::retain::{is_new_sub, try_send_retain_message};
 use super::sub_auto::try_auto_subscribe;
 use super::subscribe::save_subscribe;
 use super::unsubscribe::remove_subscribe;
+use crate::common::pkid_storage::{pkid_delete, pkid_exists, pkid_save};
 use crate::handler::cache::{
     CacheManager, ConnectionLiveTime, QosAckPackageData, QosAckPackageType,
 };
 use crate::handler::connection::{build_connection, get_client_id};
 use crate::handler::flapping_detect::check_flapping_detect;
 use crate::handler::lastwill::save_last_will_message;
-use crate::handler::pkid::{pkid_delete, pkid_exists, pkid_save};
 use crate::handler::response::{
     response_packet_mqtt_connect_fail, response_packet_mqtt_connect_success,
     response_packet_mqtt_distinct_by_reason, response_packet_mqtt_ping_resp,
@@ -120,7 +120,7 @@ where
         login: &Option<Login>,
         addr: &SocketAddr,
     ) -> MqttPacket {
-        let cluster = self.cache_manager.get_cluster_info();
+        let cluster = self.cache_manager.get_cluster_config();
 
         // connect params validator
         if let Some(res) = connect_validator(
@@ -519,14 +519,18 @@ where
         if let Some(conn) = self.cache_manager.get_connection(connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_ack.pkid;
-            if let Some(data) = self.cache_manager.get_ack_packet(&client_id, pkid) {
+            if let Some(data) = self
+                .cache_manager
+                .pkid_metadata
+                .get_ack_packet(&client_id, pkid)
+            {
                 if let Err(e) = data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubAck,
                     pkid: pub_ack.pkid,
                 }) {
                     error!(
-                            "send puback to channel fail, error message:{}, send data time: {}, recv ack time:{}, client_id: {}, pkid:{}",
-                            e,data.create_time, now_mills(), conn.client_id, pub_ack.pkid
+                            "send puback to channel fail, error message:{}, send data time: {}, recv ack time:{}, client_id: {}, pkid: {}, connect_id:{}",
+                            e,data.create_time, now_mills(), conn.client_id, pub_ack.pkid, connect_id
                         );
                 }
             }
@@ -544,13 +548,17 @@ where
         if let Some(conn) = self.cache_manager.get_connection(connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_rec.pkid;
-            if let Some(data) = self.cache_manager.get_ack_packet(&client_id, pkid) {
+            if let Some(data) = self
+                .cache_manager
+                .pkid_metadata
+                .get_ack_packet(&client_id, pkid)
+            {
                 if let Err(e) = data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubRec,
                     pkid: pub_rec.pkid,
                 }) {
-                    error!("send pubrec to channel fail, error message:{}, send data time: {}, recv rec time:{}, client_id: {}, pkid:{}",
-                        e,data.create_time, now_mills(), client_id, pub_rec.pkid);
+                    error!("send pubrec to channel fail, error message:{}, send data time: {}, recv rec time:{}, client_id: {}, pkid: {}, connect_id:{}",
+                        e,data.create_time, now_mills(), client_id, pub_rec.pkid, connect_id);
                 }
             }
         }
@@ -567,14 +575,18 @@ where
         if let Some(conn) = self.cache_manager.get_connection(connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_comp.pkid;
-            if let Some(data) = self.cache_manager.get_ack_packet(&client_id, pkid) {
+            if let Some(data) = self
+                .cache_manager
+                .pkid_metadata
+                .get_ack_packet(&client_id, pkid)
+            {
                 if let Err(e) = data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubComp,
                     pkid: pub_comp.pkid,
                 }) {
                     error!(
-                            "send pubcomp to channel fail, error message:{}, send data time: {}, recv comp time:{}, client_id: {}, pkid:{}",
-                            e,data.create_time, now_mills(), client_id, pub_comp.pkid
+                            "send pubcomp to channel fail, error message:{}, send data time: {}, recv comp time:{}, client_id: {}, pkid: {}, connect_id:{}",
+                            e,data.create_time, now_mills(), client_id, pub_comp.pkid, connect_id
                         );
                 }
             }
@@ -730,9 +742,13 @@ where
         .await;
 
         let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
-        let cluster_qos = self.cache_manager.get_cluster_info().protocol.max_qos;
+        let cluster_qos = self
+            .cache_manager
+            .get_cluster_config()
+            .mqtt_protocol_config
+            .max_qos;
         for filter in subscribe.filters.clone() {
-            match min_qos(cluster_qos, filter.qos) {
+            match min_qos(qos(cluster_qos).unwrap(), filter.qos) {
                 QoS::AtMostOnce => {
                     return_codes.push(SubscribeReasonCode::QoS0);
                 }

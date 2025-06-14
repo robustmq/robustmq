@@ -28,7 +28,6 @@ use super::retain::save_retain_message;
 use super::topic::try_init_topic;
 use crate::storage::message::MessageStorage;
 use crate::storage::session::SessionStorage;
-use crate::subscribe::common::get_pkid;
 
 pub async fn send_last_will_message<S>(
     client_id: &str,
@@ -41,13 +40,8 @@ pub async fn send_last_will_message<S>(
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
-    let (topic_name, publish_res, publish_properties) = build_publish_message_by_lastwill(
-        cache_manager,
-        client_id,
-        last_will,
-        last_will_properties,
-    )
-    .await?;
+    let (topic_name, publish_res, publish_properties) =
+        build_publish_message_by_lastwill(last_will, last_will_properties).await?;
 
     if publish_res.is_none() || topic_name.is_empty() {
         // If building a publish message from lastwill fails, the message is ignored without throwing an error.
@@ -89,8 +83,6 @@ where
 }
 
 async fn build_publish_message_by_lastwill(
-    cache_manager: &Arc<CacheManager>,
-    client_id: &str,
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
 ) -> Result<(String, Option<Publish>, Option<PublishProperties>), MqttBrokerError> {
@@ -104,10 +96,10 @@ async fn build_publish_message_by_lastwill(
         let publish = Publish {
             dup: false,
             qos: will.qos,
-            pkid: get_pkid(cache_manager, client_id).await,
             retain: will.retain,
             topic: Bytes::from(topic_name.clone()),
             payload: will.message.clone(),
+            ..Default::default()
         };
 
         let properties = last_will_properties
@@ -164,13 +156,8 @@ pub fn last_will_delay_interval(last_will_properties: &Option<LastWillProperties
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
     use bytes::Bytes;
-    use grpc_clients::pool::ClientPool;
     use protocol::mqtt::common::{LastWill, LastWillProperties};
-
-    use crate::handler::cache::CacheManager;
 
     use super::{build_publish_message_by_lastwill, last_will_delay_interval};
 
@@ -193,11 +180,7 @@ mod test {
 
     #[tokio::test]
     pub async fn build_publish_message_by_lastwill_test() {
-        let client_pool = Arc::new(ClientPool::new(100));
-        let cluster_name = "test";
-        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name.to_string()));
-        let client_id = "cid";
-        let res = build_publish_message_by_lastwill(&cache_manager, client_id, &None, &None)
+        let res = build_publish_message_by_lastwill(&None, &None)
             .await
             .unwrap();
         assert!(res.0.is_empty());
@@ -215,21 +198,17 @@ mod test {
         };
 
         let lastwill_properties = None;
-        let (t, p, pp) = build_publish_message_by_lastwill(
-            &cache_manager,
-            client_id,
-            &Some(lastwill.clone()),
-            &lastwill_properties,
-        )
-        .await
-        .unwrap();
+        let (t, p, pp) =
+            build_publish_message_by_lastwill(&Some(lastwill.clone()), &lastwill_properties)
+                .await
+                .unwrap();
         assert_eq!(t, topic);
         let p_tmp = p.unwrap();
         assert_eq!(p_tmp.topic, Bytes::from(topic.clone()));
         assert_eq!(p_tmp.payload, Bytes::from(message.clone()));
         assert_eq!(p_tmp.qos, protocol::mqtt::common::QoS::AtLeastOnce);
         assert!(!p_tmp.retain);
-        assert!(p_tmp.pkid > 0);
+        assert_eq!(p_tmp.pkid, 0);
         assert!(!p_tmp.dup);
         assert!(pp.is_none());
 
@@ -243,21 +222,16 @@ mod test {
             user_properties: Vec::new(),
         });
 
-        let (t, p, pp) = build_publish_message_by_lastwill(
-            &cache_manager,
-            client_id,
-            &Some(lastwill),
-            &lastwill_properties,
-        )
-        .await
-        .unwrap();
+        let (t, p, pp) = build_publish_message_by_lastwill(&Some(lastwill), &lastwill_properties)
+            .await
+            .unwrap();
         assert_eq!(t, topic);
         let p_tmp = p.unwrap();
         assert_eq!(p_tmp.topic, Bytes::from(topic.clone()));
         assert_eq!(p_tmp.payload, Bytes::from(message.clone()));
         assert_eq!(p_tmp.qos, protocol::mqtt::common::QoS::AtLeastOnce);
         assert!(!p_tmp.retain);
-        assert!(p_tmp.pkid > 0);
+        assert_eq!(p_tmp.pkid, 0);
         assert!(!p_tmp.dup);
         assert!(pp.is_some());
 

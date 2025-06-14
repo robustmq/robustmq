@@ -19,9 +19,9 @@ level = "Info"
 [server]
 kind = "RollingFile"
 level = "Info"
-rotation = "Minutely"
-directory = "./logs/tests"
-prefix = "place-server-"
+rotation = "Daily"
+directory = "./data/placement-center/logs"
+prefix = "server"
 suffix = "log"
 max_log_files = 10
 

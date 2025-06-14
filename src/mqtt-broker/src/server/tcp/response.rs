@@ -14,14 +14,16 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use crate::handler::cache::CacheManager;
 use crate::handler::connection::disconnect_connection;
 use crate::observability::metrics::server::{
-    metrics_request_queue, metrics_response_queue, record_response_and_total_ms,
+    metrics_response_queue_size, record_response_and_total_ms,
 };
-use crate::server::connection::NetworkConnectionType;
+use crate::server::connection::{calc_child_channel_index, NetworkConnectionType};
 use crate::server::connection_manager::ConnectionManager;
+use crate::server::metric::record_packet_handler_info_by_response;
 use crate::server::packet::ResponsePackage;
 use crate::subscribe::manager::SubscribeManager;
 use common_base::tools::now_mills;
@@ -31,6 +33,7 @@ use protocol::mqtt::common::MqttPacket;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::time::sleep;
 use tracing::info;
 use tracing::{debug, error};
 
@@ -56,7 +59,7 @@ pub(crate) async fn response_process(
             client_pool,
         );
 
-        let mut response_process_seq = 1;
+        let mut response_process_seq = 0;
         loop {
             select! {
                 val = stop_rx.recv() =>{
@@ -70,33 +73,25 @@ pub(crate) async fn response_process(
 
                 val = response_queue_rx.recv()=>{
                     if let Some(packet) = val{
-                        metrics_request_queue("response-total", response_queue_rx.len());
-
-                        let seq = if response_process_seq > process_handler.len(){
-                            1
-                        } else {
-                            response_process_seq
-                        };
-
-                        if let Some(handler_sx) = process_handler.get(&seq){
-                            if handler_sx.is_closed(){
-                                error!("Response queue {} is closed and is not allowed to send messages to the channel.", seq);
-                                process_handler.remove(&seq);
-                                continue;
-                            }
-
-                            match handler_sx.try_send(packet.clone()){
-                                Ok(_) => {}
-                                Err(err) => error!(
-                                    "Failed to write data to the tcp response process queue, error message: {:?}",
-                                    err
-                                ),
-                            }
-
+                        let mut sleep_ms = 0;
+                        metrics_response_queue_size("total", response_queue_rx.len());
+                        loop {
                             response_process_seq += 1;
-                        }else{
-                            error!("{}","No request packet processing thread available");
+                            let seq = calc_child_channel_index(response_process_seq, process_handler.len());
+
+                            if let Some(handler_sx) = process_handler.get(&seq){
+                                if handler_sx.try_send(packet.clone()).is_ok() {
+                                    break;
+                                }
+                                sleep_ms += 1;
+                                sleep(Duration::from_millis(sleep_ms)).await;
+                            }else{
+                                error!("{}","Response child thread, no request packet processing thread available");
+                                break;
+                            }
                         }
+
+
                     }
                 }
             }
@@ -137,32 +132,28 @@ pub(crate) fn response_child_process(
                     },
                     val = response_process_rx.recv()=>{
                         if let Some(response_package) = val{
-                            let response_ms = now_mills();
+                            let out_response_queue_ms = now_mills();
                             let label = format!("handler-{}",index);
-                            metrics_response_queue(&label, response_process_rx.len());
-
-                            if let Some(protocol) =
-                            raw_connect_manager.get_connect_protocol(response_package.connection_id)
-                            {
-                                let packet_wrapper = MqttPacketWrapper {
-                                    protocol_version: protocol.into(),
-                                    packet: response_package.packet.clone(),
-                                };
-                                match raw_connect_manager
-                                    .write_tcp_frame(response_package.connection_id, packet_wrapper)
-                                    .await{
-                                        Ok(()) => {},
-                                        Err(e) => {
-                                            error!("{}",e);
-                                            raw_connect_manager.close_connect(response_package.connection_id).await;
-                                        }
+                            metrics_response_queue_size(&label, response_process_rx.len());
+                            let mut response_ms = now_mills();
+                            if let Some(protocol) =raw_connect_manager.get_connect_protocol(response_package.connection_id)
+                                {
+                                    let packet_wrapper = MqttPacketWrapper {
+                                        protocol_version: protocol.into(),
+                                        packet: response_package.packet.clone(),
                                     };
-                                record_response_and_total_ms(&NetworkConnectionType::Tcp,response_package.get_receive_ms(),response_ms);
+
+                                    if let Err(e) =  raw_connect_manager.write_tcp_frame(response_package.connection_id, packet_wrapper).await {
+                                        error!("{}",e);
+                                    };
+
+                                    response_ms = now_mills();
+                                    record_response_and_total_ms(&NetworkConnectionType::Tcp,response_package.get_receive_ms(),out_response_queue_ms);
                             }
 
                             if let MqttPacket::Disconnect(_, _) = response_package.packet {
                                 if let Some(connection) = raw_cache_manager.get_connection(response_package.connection_id){
-                                    match disconnect_connection(
+                                    if let Err(e) =  disconnect_connection(
                                         &connection.client_id,
                                         connection.connect_id,
                                         &raw_cache_manager,
@@ -171,11 +162,11 @@ pub(crate) fn response_child_process(
                                         &raw_subscribe_manager,
                                         true
                                     ).await{
-                                        Ok(()) => {},
-                                        Err(e) => error!("{}",e)
+                                        error!("{}",e);
                                     };
                                 }
                             }
+                            record_packet_handler_info_by_response(&response_package, out_response_queue_ms, response_ms);
                         }
                     }
                 }

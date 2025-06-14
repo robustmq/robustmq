@@ -16,6 +16,7 @@ use crate::template::{PublishArgsRequest, SubscribeArgsRequest};
 use crate::{connect_server5, error_info, grpc_addr};
 use common_base::enum_type::sort_type::SortType;
 use common_base::tools::unique_id;
+use common_config::mqtt::config::BrokerMqttConfig;
 use grpc_clients::mqtt::admin::call::{
     mqtt_broker_bind_schema, mqtt_broker_cluster_status, mqtt_broker_create_acl,
     mqtt_broker_create_blacklist, mqtt_broker_create_connector, mqtt_broker_create_schema,
@@ -34,7 +35,6 @@ use grpc_clients::mqtt::admin::call::{
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
-use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::schema::SchemaData;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
@@ -473,7 +473,7 @@ impl MqttBrokerCommand {
         match mqtt_broker_get_cluster_config(client_pool, &grpc_addr(params.server), request).await
         {
             Ok(data) => {
-                let data = match serde_json::from_slice::<MqttClusterDynamicConfig>(
+                let data = match serde_json::from_slice::<BrokerMqttConfig>(
                     &data.mqtt_broker_cluster_dynamic_config,
                 ) {
                     Ok(data) => data,

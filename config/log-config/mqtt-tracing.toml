@@ -19,18 +19,27 @@ level = "Warn"
 [server]
 kind = "RollingFile"
 level = "Info"
-rotation = "Minutely"
-directory = "./logs/tests"
-prefix = "mqtt-server-"
+rotation = "Daily"
+directory = "./data/mqtt-broker/logs"
+prefix = "server"
+suffix = "log"
+max_log_files = 10
+
+[server_error]
+kind = "RollingFile"
+level = "Warn"
+rotation = "Daily"
+directory = "./data/mqtt-broker/logs"
+prefix = "error"
 suffix = "log"
 max_log_files = 10
 
 [slow_sub]
 kind = "RollingFile"
 level = "Info"
-rotation = "Minutely"
-directory = "./logs/tests"
-prefix = "mqtt-slow_sub-"
+rotation = "Daily"
+directory = "./data/mqtt-broker/logs"
+prefix = "slow-sub"
 suffix = "log"
 max_log_files = 10
 

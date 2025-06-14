@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use clap::{command, Parser};
-use common_base::config::journal_server::init_journal_server_conf_by_path;
-use common_base::config::DEFAULT_JOURNAL_SERVER_CONFIG;
-use common_base::logging::init_journal_server_log;
-use journal_server::JournalServer;
+use common_config::{
+    journal::config::init_journal_server_conf_by_path, DEFAULT_JOURNAL_SERVER_CONFIG,
+};
+use journal_server::{core::log::init_journal_server_log, JournalServer};
 use tokio::sync::broadcast;
 
 #[derive(Parser, Debug)]

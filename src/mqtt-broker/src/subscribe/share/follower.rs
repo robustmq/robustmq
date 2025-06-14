@@ -15,8 +15,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::{now_mills, unique_id};
+use common_config::mqtt::broker_mqtt_conf;
 use futures::StreamExt;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::node_extend::MqttNodeExtend;
@@ -38,9 +38,9 @@ use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, 
 use crate::handler::error::MqttBrokerError;
 use crate::handler::subscribe::{add_share_push_leader, ParseShareQueueSubscribeRequest};
 use crate::server::connection_manager::ConnectionManager;
+use crate::subscribe::common::get_share_sub_leader;
 use crate::subscribe::common::SubPublishParam;
 use crate::subscribe::common::Subscriber;
-use crate::subscribe::common::{get_pkid, get_share_sub_leader};
 use crate::subscribe::manager::ShareSubShareSub;
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::push::{
@@ -294,8 +294,9 @@ async fn process_packet(
         }
 
         MqttPacket::PubRel(pubrel, _) => {
-            if let Some(data) =
-                cache_manager.get_ack_packet(follower_sub_leader_client_id, pubrel.pkid)
+            if let Some(data) = cache_manager
+                .pkid_metadata
+                .get_ack_packet(follower_sub_leader_client_id, pubrel.pkid)
             {
                 if let Err(e) = data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubRel,
@@ -385,7 +386,10 @@ async fn process_publish_packet(
         ..Default::default()
     };
 
-    let publish_to_client_pkid = get_pkid(cache_manager, mqtt_client_id).await;
+    let publish_to_client_pkid = cache_manager
+        .pkid_metadata
+        .generate_pkid(mqtt_client_id, &publish.qos)
+        .await;
     publish.pkid = publish_to_client_pkid;
 
     let packet = MqttPacket::Publish(publish.clone(), publish_properties);
@@ -405,7 +409,7 @@ async fn process_publish_packet(
 
         protocol::mqtt::common::QoS::AtLeastOnce => {
             let (wait_puback_sx, _) = broadcast::channel(1);
-            cache_manager.add_ack_packet(
+            cache_manager.pkid_metadata.add_ack_packet(
                 mqtt_client_id,
                 publish_to_client_pkid,
                 QosAckPacketInfo {
@@ -424,13 +428,15 @@ async fn process_publish_packet(
             )
             .await?;
 
-            cache_manager.remove_ack_packet(mqtt_client_id, publish_to_client_pkid);
+            cache_manager
+                .pkid_metadata
+                .remove_ack_packet(mqtt_client_id, publish_to_client_pkid);
         }
 
         protocol::mqtt::common::QoS::ExactlyOnce => {
             let (wait_client_ack_sx, _) = broadcast::channel(1);
 
-            cache_manager.add_ack_packet(
+            cache_manager.pkid_metadata.add_ack_packet(
                 mqtt_client_id,
                 publish_to_client_pkid,
                 QosAckPacketInfo {
@@ -440,7 +446,7 @@ async fn process_publish_packet(
             );
 
             let (wait_leader_ack_sx, _) = broadcast::channel(1);
-            cache_manager.add_ack_packet(
+            cache_manager.pkid_metadata.add_ack_packet(
                 follower_sub_leader_client_id,
                 publish.pkid,
                 QosAckPacketInfo {
@@ -463,8 +469,12 @@ async fn process_publish_packet(
             )
             .await?;
 
-            cache_manager.remove_ack_packet(mqtt_client_id, publish_to_client_pkid);
-            cache_manager.remove_ack_packet(follower_sub_leader_client_id, publish.pkid);
+            cache_manager
+                .pkid_metadata
+                .remove_ack_packet(mqtt_client_id, publish_to_client_pkid);
+            cache_manager
+                .pkid_metadata
+                .remove_ack_packet(follower_sub_leader_client_id, publish.pkid);
         }
     }
     Ok(())

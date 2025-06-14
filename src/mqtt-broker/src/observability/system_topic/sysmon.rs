@@ -14,7 +14,8 @@
 
 use crate::handler::cache::CacheManager;
 use crate::observability::system_topic::{replace_topic_name, write_topic_data};
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+
+use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use serde::{Deserialize, Serialize};
@@ -225,8 +226,9 @@ pub fn get_process_memory_usage() -> f32 {
 mod tests {
     use super::*;
     use crate::storage::message::cluster_name;
-    use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
+
     use common_base::tools::unique_id;
+    use common_config::mqtt::init_broker_mqtt_conf_by_path;
     use metadata_struct::adapter::read_config::ReadConfig;
     use metadata_struct::mqtt::topic::MqttTopic;
     use storage_adapter::memory::MemoryStorageAdapter;

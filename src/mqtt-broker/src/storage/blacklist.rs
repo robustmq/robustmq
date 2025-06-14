@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::placement::mqtt::call::{create_blacklist, delete_blacklist, list_blacklist};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;

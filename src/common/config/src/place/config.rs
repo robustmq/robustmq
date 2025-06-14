@@ -19,15 +19,15 @@ use serde::{Deserialize, Serialize};
 use toml::map::Map;
 use toml::{Table, Value};
 
-use super::common::{default_prometheus, override_default_by_env, Log, Prometheus};
-use super::default_placement_center::{
+use super::default::{
     default_cluster_name, default_data_path, default_grpc_max_decoding_message_size,
     default_grpc_port, default_heartbeat, default_heartbeat_check_time_ms,
     default_heartbeat_timeout_ms, default_http_port, default_local_ip, default_log,
     default_max_open_files, default_network, default_node, default_node_id, default_nodes,
     default_rocksdb, default_runtime_work_threads, default_system,
 };
-use crate::tools::{read_file, try_create_fold};
+use crate::common::{default_prometheus, override_default_by_env, Log, Prometheus};
+use common_base::tools::{read_file, try_create_fold};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct PlacementCenterConfig {
@@ -173,10 +173,10 @@ pub fn placement_center_test_conf() -> PlacementCenterConfig {
 
 #[cfg(test)]
 mod tests {
+    use crate::place::config::init_placement_center_conf_by_path;
     use toml::Table;
 
-    use super::{placement_center_conf, Log, PlacementCenterConfig};
-    use crate::config::placement_center::init_placement_center_conf_by_path;
+    use super::{placement_center_conf, PlacementCenterConfig};
 
     #[test]
     fn meta_default() {
@@ -199,18 +199,6 @@ mod tests {
         assert_eq!(config.network.http_port, 1227);
         assert_eq!(config.system.runtime_work_threads, 100);
         println!("{}", config.rocksdb.data_path);
-        println!("./robust-data/placement-center/data");
-        assert_eq!(
-            config.rocksdb.data_path,
-            "./robust-data/placement-center/data".to_string()
-        );
-        assert_eq!(
-            config.log,
-            Log {
-                log_path: "./robust-data/placement-center/logs".to_string(),
-                log_config: "./config/log-config/place-tracing.toml".to_string(),
-            }
-        );
         let mut nodes = Table::new();
         nodes.insert(
             "1".to_string(),

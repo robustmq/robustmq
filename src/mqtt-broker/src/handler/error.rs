@@ -49,6 +49,9 @@ pub enum MqttBrokerError {
     TokioSyncBroadcastErrorRecvError(#[from] tokio::sync::broadcast::error::RecvError),
 
     #[error("{0}")]
+    StrumParseError(#[from] strum::ParseError),
+
+    #[error("{0}")]
     SerdeJsonError(#[from] serde_json::Error),
 
     #[error("{0}")]
@@ -146,8 +149,8 @@ pub enum MqttBrokerError {
     #[error("[write_frame]Connection management could not obtain an available {0} connection. Connection ID: {1}")]
     NotObtainAvailableConnection(String, u64),
 
-    #[error("[write_frame]Encountered a DashMap deadlock and failed to obtain {0} connection information, connection ID: {1}")]
-    FailedObtailConnectionByDeadlock(String, u64),
+    #[error("[write_frame]Encountered a DashMap lock and failed to obtain {0} connection information, connection ID: {1}")]
+    FailedObtailConnectionByLock(String, u64),
 
     #[error("Failed to write data to the mqtt {0} client, error message: {1}")]
     FailedToWriteClient(String, String),

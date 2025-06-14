@@ -13,26 +13,50 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
+use crate::handler::dynamic_config::{save_cluster_dynamic_config, ClusterDynamicConfig};
 use crate::handler::error::MqttBrokerError;
 use common_base::enum_type::feature_type::FeatureType;
+use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::SetClusterConfigRequest;
 use std::str::FromStr;
 use std::sync::Arc;
 
 pub async fn set_cluster_config_by_req(
     cache_manager: &Arc<CacheManager>,
-    cluster_config_request: SetClusterConfigRequest,
-) -> Result<bool, MqttBrokerError> {
-    match FeatureType::from_str(cluster_config_request.feature_name.as_str()) {
-        Ok(FeatureType::SlowSubscribe) => Ok(cache_manager
-            .update_slow_sub_config(cluster_config_request)
-            .await?),
-        Ok(FeatureType::OfflineMessage) => Ok(cache_manager
-            .update_offline_message_config(cluster_config_request)
-            .await?),
-        Err(e) => Err(MqttBrokerError::CommonError(format!(
-            "Failed to parse feature type: {}",
-            e
-        ))),
+    client_pool: &Arc<ClientPool>,
+    request: &SetClusterConfigRequest,
+) -> Result<(), MqttBrokerError> {
+    match FeatureType::from_str(request.feature_name.as_str()) {
+        Ok(FeatureType::SlowSubscribe) => {
+            let mut config = cache_manager.get_slow_sub_config();
+            config.enable = request.is_enable;
+            cache_manager.update_slow_sub_config(config.clone());
+            save_cluster_dynamic_config(
+                client_pool,
+                ClusterDynamicConfig::FlappingDetect,
+                config.encode(),
+            )
+            .await?;
+        }
+
+        Ok(FeatureType::OfflineMessage) => {
+            let mut config = cache_manager.get_offline_message_config();
+            config.enable = request.is_enable;
+            cache_manager.update_offline_message_config(config.clone());
+            save_cluster_dynamic_config(
+                client_pool,
+                ClusterDynamicConfig::OfflineMessage,
+                config.encode(),
+            )
+            .await?;
+        }
+
+        Err(e) => {
+            return Err(MqttBrokerError::CommonError(format!(
+                "Failed to parse feature type: {}",
+                e
+            )));
+        }
     }
+    Ok(())
 }

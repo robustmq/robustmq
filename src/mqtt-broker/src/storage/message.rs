@@ -15,8 +15,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
+use common_config::mqtt::broker_mqtt_conf;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 use storage_adapter::storage::StorageAdapter;

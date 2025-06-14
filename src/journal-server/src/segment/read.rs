@@ -227,7 +227,7 @@ async fn read_by_tag(
 mod tests {
     use std::time::Duration;
 
-    use common_base::config::journal_server::journal_server_conf;
+    use common_config::journal::config::journal_server_conf;
     use protocol::journal_server::journal_engine::{
         ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
     };

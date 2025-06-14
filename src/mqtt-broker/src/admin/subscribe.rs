@@ -15,7 +15,8 @@
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+
+use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use protocol::broker_mqtt::broker_mqtt_admin::{
