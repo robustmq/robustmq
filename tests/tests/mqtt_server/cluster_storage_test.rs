@@ -21,7 +21,7 @@ mod tests {
     };
     use grpc_clients::pool::ClientPool;
     use mqtt_broker::{
-        handler::dynamic_config::DEFAULT_DYNAMIC_CONFIG_PROTOCOL, storage::cluster::ClusterStorage,
+        handler::dynamic_config::ClusterDynamicConfig, storage::cluster::ClusterStorage,
     };
 
     #[tokio::test]
@@ -64,29 +64,26 @@ mod tests {
             topic_alias_max: 999,
             ..Default::default()
         };
+        let resource = &ClusterDynamicConfig::Protocol.to_string();
         cluster_storage
-            .set_dynamic_config(
-                &cluster_name,
-                DEFAULT_DYNAMIC_CONFIG_PROTOCOL,
-                protocol.encode(),
-            )
+            .set_dynamic_config(&cluster_name, resource, protocol.encode())
             .await
             .unwrap();
 
         let result = cluster_storage
-            .get_dynamic_config(&cluster_name, DEFAULT_DYNAMIC_CONFIG_PROTOCOL)
+            .get_dynamic_config(&cluster_name, resource)
             .await
             .unwrap();
         let result: MqttProtocolConfig = serde_json::from_slice(&result).unwrap();
         assert_eq!(result.topic_alias_max, 999);
 
         cluster_storage
-            .delete_dynamic_config(&cluster_name, DEFAULT_DYNAMIC_CONFIG_PROTOCOL)
+            .delete_dynamic_config(&cluster_name, resource)
             .await
             .unwrap();
 
         let result = cluster_storage
-            .get_dynamic_config(&cluster_name, DEFAULT_DYNAMIC_CONFIG_PROTOCOL)
+            .get_dynamic_config(&cluster_name, resource)
             .await
             .unwrap();
         assert!(result.is_empty());

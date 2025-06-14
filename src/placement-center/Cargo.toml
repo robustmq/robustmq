@@ -48,3 +48,5 @@ prometheus-client.workspace = true
 prost-validate = { workspace = true, features = ["derive"] }
 tempfile.workspace = true
 tracing-appender.workspace = true
+strum.workspace = true
+strum_macros.workspace = true

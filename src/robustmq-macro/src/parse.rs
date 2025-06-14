@@ -36,6 +36,11 @@ impl syn::parse::Parse for ParseItem {
             input.parse::<Token![unsafe]>()?;
             lookahead = input.lookahead1();
         }
+        if lookahead.peek(Token![async]) {
+            // usually happens with asynchronous functions
+            input.parse::<Token![async]>()?;
+            lookahead = input.lookahead1();
+        }
 
         if lookahead.peek(Token![impl]) {
             let mut item_impl = input.parse::<syn::ItemImpl>()?;

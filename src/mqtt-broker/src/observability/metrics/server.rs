@@ -74,6 +74,16 @@ common_base::register_histogram_metric!(
     12
 );
 
+common_base::register_histogram_metric!(
+    REQUEST_RESPONSE_QUEUE_MS,
+    "request.response.queue_ms",
+    "The total duration of request packets response queue in the broker",
+    NetworkLabel,
+    5.0,
+    2.0,
+    12
+);
+
 pub fn metrics_request_total_ms(network_connection: &NetworkConnectionType, ms: f64) {
     let label = NetworkLabel {
         network: network_connection.to_string(),
@@ -95,6 +105,13 @@ pub fn metrics_request_handler_ms(network_connection: &NetworkConnectionType, ms
     common_base::histogram_metric_observe!(REQUEST_HANDLER_MS, ms, label);
 }
 
+pub fn metrics_request_response_queue_ms(network_connection: &NetworkConnectionType, ms: f64) {
+    let label = NetworkLabel {
+        network: network_connection.to_string(),
+    };
+    common_base::histogram_metric_observe!(REQUEST_RESPONSE_QUEUE_MS, ms, label);
+}
+
 pub fn metrics_request_response_ms(network_connection: &NetworkConnectionType, ms: f64) {
     let label = NetworkLabel {
         network: network_connection.to_string(),
@@ -102,7 +119,7 @@ pub fn metrics_request_response_ms(network_connection: &NetworkConnectionType, m
     common_base::histogram_metric_observe!(REQUEST_RESPONSE_MS, ms, label);
 }
 
-pub fn metrics_request_queue(label: &str, len: usize) {
+pub fn metrics_request_queue_size(label: &str, len: usize) {
     let label_type = LabelType {
         label: label.to_string(),
         r#type: "request".to_string(),
@@ -110,8 +127,8 @@ pub fn metrics_request_queue(label: &str, len: usize) {
     common_base::gauge_metric_inc_by!(BROKER_NETWORK_QUEUE_NUM, label_type, len as i64);
 }
 
-pub fn metrics_response_queue(label: &str, len: usize) {
-    let label_type = LabelType {
+pub fn metrics_response_queue_size(label: &str, len: usize) {
+    let label_type: LabelType = LabelType {
         label: label.to_string(),
         r#type: "response".to_string(),
     };
@@ -124,7 +141,6 @@ pub fn record_response_and_total_ms(
     response_ms: u128,
 ) {
     let now = now_mills();
-
     metrics_request_total_ms(connection_type, (now - receive_ms) as f64);
     metrics_request_response_ms(connection_type, (now - response_ms) as f64);
 }
