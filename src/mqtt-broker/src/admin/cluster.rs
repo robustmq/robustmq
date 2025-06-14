@@ -13,23 +13,44 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
+use crate::handler::dynamic_config::{save_cluster_dynamic_cofig, ClusterDynamicConfig};
 use crate::handler::error::MqttBrokerError;
 use common_base::enum_type::feature_type::FeatureType;
+use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::SetClusterConfigRequest;
 use std::str::FromStr;
 use std::sync::Arc;
 
 pub async fn set_cluster_config_by_req(
     cache_manager: &Arc<CacheManager>,
+    client_pool: &Arc<ClientPool>,
     request: &SetClusterConfigRequest,
 ) -> Result<(), MqttBrokerError> {
     match FeatureType::from_str(request.feature_name.as_str()) {
         Ok(FeatureType::SlowSubscribe) => {
-            cache_manager.update_slow_sub_config(request).await;
+            let mut config = cache_manager.get_slow_sub_config();
+            config.enable = request.is_enable;
+            cache_manager.update_slow_sub_config(config.clone());
+            save_cluster_dynamic_cofig(
+                client_pool,
+                ClusterDynamicConfig::FlappingDetect,
+                config.encode(),
+            )
+            .await?;
         }
+
         Ok(FeatureType::OfflineMessage) => {
-            cache_manager.update_offline_message_config(request).await
+            let mut config = cache_manager.get_offline_message_config();
+            config.enable = request.is_enable;
+            cache_manager.update_offline_message_config(config.clone());
+            save_cluster_dynamic_cofig(
+                client_pool,
+                ClusterDynamicConfig::OfflineMessage,
+                config.encode(),
+            )
+            .await?;
         }
+
         Err(e) => {
             return Err(MqttBrokerError::CommonError(format!(
                 "Failed to parse feature type: {}",

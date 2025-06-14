@@ -287,6 +287,12 @@ pub struct OfflineMessage {
     pub max_messages_num: u32,
 }
 
+impl OfflineMessage {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
+    }
+}
+
 // Schema
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct Schema {

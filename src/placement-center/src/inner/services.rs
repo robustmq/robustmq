@@ -14,12 +14,17 @@
 
 use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
+use crate::mqtt::controller::call_broker::{
+    update_cache_by_set_resource_config, MQTTInnerCallManager,
+};
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::placement::offset::OffsetStorage;
 use common_base::tools::now_second;
+use grpc_clients::pool::ClientPool;
+use metadata_struct::resource_config::ClusterResourceConfig;
 use prost::Message;
 use protocol::placement_center::placement_center_inner::{
     ClusterStatusReply, DeleteIdempotentDataReply, DeleteIdempotentDataRequest,
@@ -85,6 +90,8 @@ pub async fn heartbeat_by_req(
 
 pub async fn set_resource_config_by_req(
     raft_machine_apply: &Arc<RaftMachineApply>,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
     req: &SetResourceConfigRequest,
 ) -> Result<SetResourceConfigReply, PlacementCenterError> {
     let data = StorageData::new(
@@ -92,10 +99,16 @@ pub async fn set_resource_config_by_req(
         SetResourceConfigRequest::encode_to_vec(req),
     );
 
-    raft_machine_apply
-        .client_write(data)
-        .await
-        .map(|_| SetResourceConfigReply::default())
+    raft_machine_apply.client_write(data).await?;
+    let config = ClusterResourceConfig {
+        cluster_name: req.cluster_name.to_owned(),
+        resouce: req.resources.to_owned().join("/"),
+        config: req.config.clone(),
+    };
+
+    update_cache_by_set_resource_config(&req.cluster_name, call_manager, client_pool, config)
+        .await?;
+    Ok(SetResourceConfigReply::default())
 }
 
 pub async fn get_resource_config_by_req(

@@ -99,7 +99,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         request: Request<SetClusterConfigRequest>,
     ) -> Result<Response<SetClusterConfigReply>, Status> {
         let request = request.into_inner().clone();
-        set_cluster_config_by_req(&self.cache_manager, &request)
+        set_cluster_config_by_req(&self.cache_manager, &self.client_pool, &request)
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
         Ok(Response::new(SetClusterConfigReply {

@@ -12,12 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::result_large_err)]
-pub mod acl;
-pub mod adapter;
-pub mod delay_info;
-pub mod journal;
-pub mod mqtt;
-pub mod placement;
-pub mod resource_config;
-pub mod schema;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub struct ClusterResourceConfig {
+    pub cluster_name: String,
+    pub resouce: String,
+    pub config: Vec<u8>,
+}
+
+impl ClusterResourceConfig {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap()
+    }
+}

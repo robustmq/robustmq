@@ -13,9 +13,7 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
-use crate::handler::dynamic_config::{
-    save_cluster_dynamic_cofig, DEFAULT_DYNAMIC_CONFIG_FLAPPING_DETECT,
-};
+use crate::handler::dynamic_config::{save_cluster_dynamic_cofig, ClusterDynamicConfig};
 use crate::handler::error::MqttBrokerError;
 use crate::observability::metrics::event_metrics;
 use common_base::enum_type::time_unit_enum::TimeUnit;
@@ -186,14 +184,12 @@ pub async fn enable_flapping_detect(
 
     save_cluster_dynamic_cofig(
         client_pool,
-        DEFAULT_DYNAMIC_CONFIG_FLAPPING_DETECT,
+        ClusterDynamicConfig::FlappingDetect,
         connection_jitter.encode(),
     )
     .await?;
 
-    cache_manager
-        .update_flapping_detect_config(connection_jitter)
-        .await;
+    cache_manager.update_flapping_detect_config(connection_jitter);
 
     Ok(())
 }

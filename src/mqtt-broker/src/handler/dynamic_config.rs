@@ -23,21 +23,36 @@ use common_config::mqtt::config::{
     Schema, Security, SlowSub, SystemMonitor,
 };
 use grpc_clients::pool::ClientPool;
-use protocol::broker_mqtt::broker_mqtt_admin::SetClusterConfigRequest;
+use strum_macros::{Display, EnumString};
 
-pub const DEFAULT_DYNAMIC_CONFIG_SLOW_SUB: &str = "slow_sub";
-pub const DEFAULT_DYNAMIC_CONFIG_FLAPPING_DETECT: &str = "flapping_detect";
-pub const DEFAULT_DYNAMIC_CONFIG_PROTOCOL: &str = "protocol";
-pub const DEFAULT_DYNAMIC_CONFIG_OFFLINE_MESSAGE: &str = "offline_message";
-pub const DEFAULT_DYNAMIC_CONFIG_FEATURE: &str = "feature";
-pub const DEFAULT_DYNAMIC_CONFIG_SECURITY: &str = "security";
-pub const DEFAULT_DYNAMIC_CONFIG_THREAD_THREAD: &str = "network_thread";
-pub const DEFAULT_DYNAMIC_CONFIG_SYSTEM_MONITOR: &str = "system_monitor";
-pub const DEFAULT_DYNAMIC_CONFIG_SCHEMA: &str = "schema";
+#[derive(Default, EnumString, Display)]
+pub enum ClusterDynamicConfig {
+    #[default]
+    SlowSub,
+    FlappingDetect,
+    Protocol,
+    OfflineMessage,
+    Feature,
+    Security,
+    NetworkThread,
+    SystemMonitor,
+    Schema,
+}
 
 impl CacheManager {
+    // slow sub
+    pub fn update_slow_sub_config(&self, slow_sub: SlowSub) {
+        if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
+            config.slow_sub = slow_sub.to_owned();
+        }
+    }
+
+    pub fn get_slow_sub_config(&self) -> SlowSub {
+        self.get_cluster_config().slow_sub
+    }
+
     // flapping detect
-    pub async fn update_flapping_detect_config(&self, flapping_detect: FlappingDetect) {
+    pub fn update_flapping_detect_config(&self, flapping_detect: FlappingDetect) {
         if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
             config.flapping_detect = flapping_detect;
         }
@@ -47,19 +62,41 @@ impl CacheManager {
         self.get_cluster_config().flapping_detect
     }
 
-    // slow sub
-    pub async fn update_slow_sub_config(&self, request: &SetClusterConfigRequest) {
+    // mqtt protocol config
+    pub fn update_mqtt_protocol_config(&self, mqtt_protocol_config: MqttProtocolConfig) {
         if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
-            config.slow_sub.enable = request.is_enable;
+            config.mqtt_protocol_config = mqtt_protocol_config;
         }
     }
 
-    pub fn get_slow_sub_config(&self) -> SlowSub {
-        self.get_cluster_config().slow_sub
+    pub fn get_mqtt_protocol_config(&self) -> MqttProtocolConfig {
+        self.get_cluster_config().mqtt_protocol_config
+    }
+
+    // offline message
+    pub fn update_offline_message_config(&self, offline_message: OfflineMessage) {
+        if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
+            config.offline_messages = offline_message;
+        }
+    }
+
+    pub fn get_offline_message_config(&self) -> OfflineMessage {
+        self.get_cluster_config().offline_messages
+    }
+
+    // feature
+    pub fn update_feature_config(&self, feature_config: Feature) {
+        if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
+            config.feature = feature_config;
+        }
+    }
+
+    pub fn get_feature_config(&self) -> Feature {
+        self.get_cluster_config().feature
     }
 
     // system monitor
-    pub async fn update_system_monitor_config(&self, system_monitor: SystemMonitor) {
+    pub fn update_system_monitor_config(&self, system_monitor: SystemMonitor) {
         if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
             config.system_monitor = system_monitor;
         }
@@ -69,15 +106,26 @@ impl CacheManager {
         self.get_cluster_config().system_monitor
     }
 
-    // offline message
-    pub async fn update_offline_message_config(&self, request: &SetClusterConfigRequest) {
+    // schema
+    pub fn update_schema_config(&self, schema: Schema) {
         if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
-            config.offline_messages.enable = request.is_enable;
+            config.schema = schema;
         }
     }
 
-    pub fn get_offline_message_config(&self) -> OfflineMessage {
-        self.get_cluster_config().offline_messages
+    pub fn get_shema_config(&self) -> Schema {
+        self.get_cluster_config().schema
+    }
+
+    // schema
+    pub fn update_security_config(&self, security: Security) {
+        if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
+            config.security = security;
+        }
+    }
+
+    pub fn get_security_config(&self) -> Security {
+        self.get_cluster_config().security
     }
 
     // cluster config
@@ -133,15 +181,61 @@ pub async fn build_cluster_config(
     Ok(conf)
 }
 
+pub async fn update_cluster_dynamic_config(
+    cache_manager: &Arc<CacheManager>,
+    resource_type: ClusterDynamicConfig,
+    config: Vec<u8>,
+) -> Result<(), MqttBrokerError> {
+    match resource_type {
+        ClusterDynamicConfig::SlowSub => {
+            let slow_sub = serde_json::from_slice(&config)?;
+            cache_manager.update_slow_sub_config(slow_sub);
+        }
+        ClusterDynamicConfig::FlappingDetect => {
+            let flapping_detect = serde_json::from_slice(&config)?;
+            cache_manager.update_flapping_detect_config(flapping_detect);
+        }
+        ClusterDynamicConfig::Protocol => {
+            let mqtt_protocol = serde_json::from_slice(&config)?;
+            cache_manager.update_mqtt_protocol_config(mqtt_protocol);
+        }
+        ClusterDynamicConfig::OfflineMessage => {
+            let mqtt_protocol = serde_json::from_slice(&config)?;
+            cache_manager.update_offline_message_config(mqtt_protocol);
+        }
+        ClusterDynamicConfig::Feature => {
+            let mqtt_protocol = serde_json::from_slice(&config)?;
+            cache_manager.update_feature_config(mqtt_protocol);
+        }
+        ClusterDynamicConfig::NetworkThread => {
+            let mqtt_protocol = serde_json::from_slice(&config)?;
+            cache_manager.update_feature_config(mqtt_protocol);
+        }
+        ClusterDynamicConfig::SystemMonitor => {
+            let system_monitor = serde_json::from_slice(&config)?;
+            cache_manager.update_system_monitor_config(system_monitor);
+        }
+        ClusterDynamicConfig::Schema => {
+            let schema_config = serde_json::from_slice(&config)?;
+            cache_manager.update_schema_config(schema_config);
+        }
+        ClusterDynamicConfig::Security => {
+            let security_config = serde_json::from_slice(&config)?;
+            cache_manager.update_security_config(security_config);
+        }
+    }
+    Ok(())
+}
+
 pub async fn save_cluster_dynamic_cofig(
     client_pool: &Arc<ClientPool>,
-    resource: &str,
+    resource_config: ClusterDynamicConfig,
     data: Vec<u8>,
 ) -> Result<(), MqttBrokerError> {
     let conf = broker_mqtt_conf();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     cluster_storage
-        .set_dynamic_config(&conf.cluster_name, resource, data)
+        .set_dynamic_config(&conf.cluster_name, &resource_config.to_string(), data)
         .await?;
     Ok(())
 }
@@ -152,7 +246,10 @@ async fn get_mqtt_protocol_config(
     let conf = broker_mqtt_conf();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
-        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_PROTOCOL)
+        .get_dynamic_config(
+            &conf.cluster_name,
+            &ClusterDynamicConfig::Protocol.to_string(),
+        )
         .await?;
 
     if !data.is_empty() {
@@ -168,7 +265,10 @@ async fn get_feature_support(
     let conf = broker_mqtt_conf();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
-        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_FEATURE)
+        .get_dynamic_config(
+            &conf.cluster_name,
+            &ClusterDynamicConfig::Feature.to_string(),
+        )
         .await?;
 
     if !data.is_empty() {
@@ -183,7 +283,10 @@ async fn get_security_config(
     let conf = broker_mqtt_conf();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
-        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_SECURITY)
+        .get_dynamic_config(
+            &conf.cluster_name,
+            &ClusterDynamicConfig::Security.to_string(),
+        )
         .await?;
     if !data.is_empty() {
         return Ok(Some(serde_json::from_slice::<Security>(&data)?));
@@ -197,7 +300,10 @@ async fn get_network_thread(
     let conf = broker_mqtt_conf();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
-        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_THREAD_THREAD)
+        .get_dynamic_config(
+            &conf.cluster_name,
+            &ClusterDynamicConfig::NetworkThread.to_string(),
+        )
         .await?;
     if !data.is_empty() {
         return Ok(Some(serde_json::from_slice::<NetworkThread>(&data)?));
@@ -209,7 +315,10 @@ async fn get_slow_sub(client_pool: &Arc<ClientPool>) -> Result<Option<SlowSub>, 
     let conf = broker_mqtt_conf();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
-        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_SLOW_SUB)
+        .get_dynamic_config(
+            &conf.cluster_name,
+            &ClusterDynamicConfig::SlowSub.to_string(),
+        )
         .await?;
     if !data.is_empty() {
         return Ok(Some(serde_json::from_slice::<SlowSub>(&data)?));
@@ -223,7 +332,10 @@ async fn get_flapping_detect(
     let conf = broker_mqtt_conf();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
-        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_FLAPPING_DETECT)
+        .get_dynamic_config(
+            &conf.cluster_name,
+            &ClusterDynamicConfig::FlappingDetect.to_string(),
+        )
         .await?;
     if !data.is_empty() {
         return Ok(Some(serde_json::from_slice::<FlappingDetect>(&data)?));
@@ -237,7 +349,10 @@ async fn get_offline_message(
     let conf = broker_mqtt_conf();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
-        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_OFFLINE_MESSAGE)
+        .get_dynamic_config(
+            &conf.cluster_name,
+            &ClusterDynamicConfig::OfflineMessage.to_string(),
+        )
         .await?;
 
     if !data.is_empty() {
@@ -251,7 +366,10 @@ async fn get_schema(client_pool: &Arc<ClientPool>) -> Result<Option<Schema>, Mqt
     let conf = broker_mqtt_conf();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
-        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_SCHEMA)
+        .get_dynamic_config(
+            &conf.cluster_name,
+            &ClusterDynamicConfig::Schema.to_string(),
+        )
         .await?;
 
     if !data.is_empty() {
@@ -267,7 +385,10 @@ async fn get_system_monitor(
     let conf = broker_mqtt_conf();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
-        .get_dynamic_config(&conf.cluster_name, DEFAULT_DYNAMIC_CONFIG_SYSTEM_MONITOR)
+        .get_dynamic_config(
+            &conf.cluster_name,
+            &ClusterDynamicConfig::SystemMonitor.to_string(),
+        )
         .await?;
 
     if !data.is_empty() {
