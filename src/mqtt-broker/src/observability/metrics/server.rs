@@ -119,7 +119,7 @@ pub fn metrics_request_response_ms(network_connection: &NetworkConnectionType, m
     common_base::histogram_metric_observe!(REQUEST_RESPONSE_MS, ms, label);
 }
 
-pub fn metrics_request_queue(label: &str, len: usize) {
+pub fn metrics_request_queue_size(label: &str, len: usize) {
     let label_type = LabelType {
         label: label.to_string(),
         r#type: "request".to_string(),

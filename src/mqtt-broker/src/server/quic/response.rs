@@ -18,7 +18,7 @@ use std::sync::Arc;
 use crate::handler::cache::CacheManager;
 use crate::handler::connection::disconnect_connection;
 use crate::observability::metrics::server::{
-    metrics_request_queue, metrics_response_queue_size, record_response_and_total_ms,
+    metrics_request_queue_size, metrics_response_queue_size, record_response_and_total_ms,
 };
 use crate::server::connection::NetworkConnectionType;
 use crate::server::connection_manager::ConnectionManager;
@@ -69,7 +69,7 @@ pub(crate) async fn response_process(
 
                 val = response_queue_rx.recv()=>{
                     if let Some(packet) = val{
-                        metrics_request_queue("response-total", response_queue_rx.len());
+                        metrics_request_queue_size("response-total", response_queue_rx.len());
                         loop{
                             let seq = if response_process_seq > process_handler.len(){
                                 1
