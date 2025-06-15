@@ -246,7 +246,7 @@ impl BenchMark for KvGetBenchArgs {
         let mut table_latency = Table::new();
         let mut table_throughput = Table::new();
 
-        table_latency.add_row(row![
+        table_latency.set_titles(row![
             "Client ID",
             "P50 Latency (us)",
             "P90 Latency (us)",
@@ -258,7 +258,7 @@ impl BenchMark for KvGetBenchArgs {
             "Median Latency (us)"
         ]);
 
-        table_throughput.add_row(row![
+        table_throughput.set_titles(row![
             "Client ID",
             "nMsg per second",
             "Total message size (bytes)",

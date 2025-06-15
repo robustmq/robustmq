@@ -87,7 +87,7 @@ pub fn default_system() -> System {
 pub fn default_system_monitor() -> SystemMonitor {
     SystemMonitor {
         enable: true,
-        os_cpu_check_interval_ms: 60,
+        os_cpu_check_interval_ms: 60000,
         os_cpu_high_watermark: 70.0,
         os_cpu_low_watermark: 50.0,
         os_memory_check_interval_ms: 60,

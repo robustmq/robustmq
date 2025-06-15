@@ -32,12 +32,8 @@ pub fn init_broker_mqtt_conf_by_path(config_path: &str) -> &'static BrokerMqttCo
             }
         };
         let new_content = override_default_by_env(content, "MQTT_SERVER");
-        let config: BrokerMqttConfig = match toml::from_str(&new_content) {
-            Ok(da) => da,
-            Err(e) => {
-                panic!("{}", e)
-            }
-        };
+        let config: BrokerMqttConfig =
+            toml::from_str(&new_content).unwrap_or_else(|e| panic!("{}", e));
         match try_create_fold(&config.log.log_path) {
             Ok(()) => {}
             Err(e) => {
@@ -90,12 +86,7 @@ mod tests {
         );
 
         let content = read_file(&path).unwrap();
-        let _: BrokerMqttConfig = match toml::from_str(&content) {
-            Ok(da) => da,
-            Err(e) => {
-                panic!("{}", e)
-            }
-        };
+        let _: BrokerMqttConfig = toml::from_str(&content).unwrap_or_else(|e| panic!("{}", e));
     }
 
     #[test]
@@ -156,12 +147,8 @@ mod tests {
 
                 println!("update content:{}", new_content);
 
-                let _: BrokerMqttConfig = match toml::from_str(&new_content) {
-                    Ok(da) => da,
-                    Err(e) => {
-                        panic!("{}", e)
-                    }
-                };
+                let _: BrokerMqttConfig =
+                    toml::from_str(&new_content).unwrap_or_else(|e| panic!("{}", e));
             },
         );
     }

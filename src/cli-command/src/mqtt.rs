@@ -506,7 +506,7 @@ impl MqttBrokerCommand {
         match mqtt_broker_list_session(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
                 let mut table = Table::new();
-                table.add_row(row![
+                table.set_titles(row![
                     "client_id",
                     "session_expiry",
                     "is_contain_last_will",
@@ -601,7 +601,7 @@ impl MqttBrokerCommand {
             Ok(data) => {
                 // format table
                 let mut table = Table::new();
-                table.add_row(row!["username", "is_superuser"]);
+                table.set_titles(row!["username", "is_superuser"]);
                 for user in data.users {
                     table.add_row(row![user.username.as_str(), user.is_superuser]);
                 }
@@ -656,7 +656,7 @@ impl MqttBrokerCommand {
             Ok(data) => {
                 // format table
                 let mut table = Table::new();
-                table.add_row(row![
+                table.set_titles(row![
                     "resource_type",
                     "resource_name",
                     "topic",
@@ -730,7 +730,7 @@ impl MqttBrokerCommand {
             Ok(data) => {
                 // format table
                 let mut table = Table::new();
-                table.add_row(row![
+                table.set_titles(row![
                     "blacklist_type",
                     "resource_name",
                     "end_time",
@@ -762,7 +762,7 @@ impl MqttBrokerCommand {
                 let mut table = Table::new();
 
                 println!("connection list:");
-                table.add_row(row![
+                table.set_titles(row![
                     "connection_id",
                     "connection_type",
                     "protocol",
@@ -854,7 +854,7 @@ impl MqttBrokerCommand {
                 }
                 // format table
                 let mut table = Table::new();
-                table.add_row(row![
+                table.set_titles(row![
                     "client_id",
                     "topic",
                     "sub_name",
@@ -890,7 +890,7 @@ impl MqttBrokerCommand {
                 println!("topic list result:");
                 // format table
                 let mut table = Table::new();
-                table.add_row(row![
+                table.set_titles(row![
                     "topic_id",
                     "topic_name",
                     "cluster_name",
@@ -930,7 +930,24 @@ impl MqttBrokerCommand {
         .await
         {
             Ok(data) => {
-                println!("Set system alarm config successfully! data: {:?}", data)
+                println!("Set system alarm config successfully! Current Config:");
+                let mut table = Table::new();
+                table.set_titles(row!["Config Options", "Value"]);
+                table.add_row(row!["enable", data.enable]);
+                if let Some(memory_high_watermark) = data.os_memory_high_watermark {
+                    table.add_row(row!["memory-high-watermark", memory_high_watermark]);
+                }
+                if let Some(cpu_high_watermark) = data.os_cpu_high_watermark {
+                    table.add_row(row!["cpu-high-watermark", cpu_high_watermark]);
+                }
+                if let Some(cpu_low_watermark) = data.os_cpu_low_watermark {
+                    table.add_row(row!["cpu-low-watermark", cpu_low_watermark]);
+                }
+                if let Some(cpu_check_interval_ms) = data.os_cpu_check_interval_ms {
+                    table.add_row(row!["cpu-check-interval-ms", cpu_check_interval_ms]);
+                }
+
+                table.printstd()
             }
             Err(e) => {
                 println!("MQTT broker set system alarm config exception");
@@ -951,7 +968,7 @@ impl MqttBrokerCommand {
             Ok(data) => {
                 println!("system alarm list result:");
                 let mut table = Table::new();
-                table.add_row(row!["name", "message", "activate_at", "activated"]);
+                table.set_titles(row!["name", "message", "activate_at", "activated"]);
                 for alarm in data.list_system_alarm_raw {
                     table.add_row(row![
                         alarm.name,
@@ -983,7 +1000,7 @@ impl MqttBrokerCommand {
                 println!("connector list result:");
                 let mut table = Table::new();
 
-                table.add_row(row![
+                table.set_titles(row![
                     "cluster name",
                     "connector name",
                     "connector type",
@@ -1341,7 +1358,7 @@ impl MqttBrokerCommand {
             Ok(data) => {
                 // format table
                 let mut table = Table::new();
-                table.add_row(row![
+                table.set_titles(row![
                     "topic",
                     "qos",
                     "no_local",
