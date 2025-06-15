@@ -19,8 +19,9 @@ use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use serde::{Deserialize, Serialize};
-use std::fmt;
 use std::sync::Arc;
+use std::time::Duration;
+use std::{fmt, thread};
 use storage_adapter::storage::StorageAdapter;
 use sysinfo::{Pid, ProcessExt, System, SystemExt};
 use tracing::error;
@@ -73,8 +74,8 @@ pub async fn st_check_system_alarm<S>(
 ) where
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
-    let cpu_usage = get_process_cpu_usage();
     let mqtt_conf = broker_mqtt_conf();
+    let cpu_usage = get_process_every_cpu_usage(mqtt_conf.system_monitor.os_cpu_check_interval_ms);
 
     is_send_a_new_system_event(
         client_pool,
@@ -128,15 +129,20 @@ async fn is_send_a_new_system_event<S>(
         activated: false,
     };
 
-    message.activated = current_usage > config_usage;
+    if AlarmType::LowCpuUsage.as_str() == alarm_type.as_str() {
+        // For LowCpuUsage, we want to activate the alarm when the usage is below the threshold
+        message.activated = current_usage < config_usage;
+    } else {
+        // For HighCpuUsage and MemoryUsage, we want to activate the alarm when the usage exceeds the threshold
+        message.activated = current_usage > config_usage;
+    }
 
-    let is_update = match metadata_cache.get_alarm_event(alarm_type.as_str()) {
+    let is_send_message = match metadata_cache.get_alarm_event(alarm_type.as_str()) {
         None => true,
         Some(alarm_message) => alarm_message.activated != message.activated,
     };
 
-    if is_update {
-        metadata_cache.add_alarm_event(alarm_type.to_string(), message.clone());
+    if is_send_message {
         st_report_system_alarm_event(
             client_pool,
             metadata_cache,
@@ -145,6 +151,8 @@ async fn is_send_a_new_system_event<S>(
         )
         .await;
     }
+
+    metadata_cache.add_alarm_event(alarm_type.to_string(), message);
 }
 
 pub async fn st_report_system_alarm_event<S>(
@@ -181,17 +189,24 @@ pub async fn st_report_system_alarm_event<S>(
 }
 
 // Get CPU usage percentage of the current process
-pub fn get_process_cpu_usage() -> f32 {
+pub fn get_process_every_cpu_usage(check_interval: u64) -> f32 {
     let mut system = System::new_all();
-    // First refresh to get initial values
+    let pid = Pid::from(std::process::id() as usize);
+
+    system.refresh_all();
+
+    thread::sleep(Duration::from_millis(check_interval));
+
     system.refresh_all();
 
     // Get current process ID
-    let pid = Pid::from(std::process::id() as usize);
-
     if let Some(process) = system.process(pid) {
         // Get latest CPU usage
-        return process.cpu_usage();
+        let cpu_usage = process.cpu_usage();
+        let cpu_count = system.cpus().len() as f32;
+
+        // Calculate average CPU usage per core
+        return cpu_usage / cpu_count;
     }
 
     // Return 0 if failed to get information
@@ -246,8 +261,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_process_cpu_usage() {
-        let cpu_usage = get_process_cpu_usage();
-
+        let cpu_usage = get_process_every_cpu_usage(15000);
         assert!(cpu_usage >= 0.0);
         assert!(cpu_usage <= 100.0);
     }

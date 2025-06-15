@@ -66,7 +66,9 @@ pub async fn set_system_alarm_config_by_req(
     req: &SetSystemAlarmConfigRequest,
 ) -> Result<SetSystemAlarmConfigReply, Status> {
     let mut system_monitor_config = cache_manager.get_system_monitor_config();
-    system_monitor_config.enable = req.enable;
+    if let Some(enable) = req.enable {
+        system_monitor_config.enable = enable;
+    }
     if let Some(os_cpu_high_watermark) = req.os_cpu_high_watermark {
         system_monitor_config.os_cpu_high_watermark = os_cpu_high_watermark;
     }
@@ -76,12 +78,16 @@ pub async fn set_system_alarm_config_by_req(
     if let Some(os_memory_high_watermark) = req.os_memory_high_watermark {
         system_monitor_config.os_memory_high_watermark = os_memory_high_watermark;
     }
-    cache_manager.update_system_monitor_config(system_monitor_config);
+    if let Some(os_cpu_check_interval_ms) = req.os_cpu_check_interval_ms {
+        system_monitor_config.os_cpu_check_interval_ms = os_cpu_check_interval_ms;
+    }
+    cache_manager.update_system_monitor_config(system_monitor_config.clone());
     Ok(SetSystemAlarmConfigReply {
-        enable: req.enable,
-        os_cpu_high_watermark: req.os_cpu_high_watermark,
-        os_cpu_low_watermark: req.os_cpu_low_watermark,
-        os_memory_high_watermark: req.os_memory_high_watermark,
+        enable: system_monitor_config.enable,
+        os_cpu_high_watermark: Some(system_monitor_config.os_cpu_high_watermark),
+        os_cpu_low_watermark: Some(system_monitor_config.os_cpu_low_watermark),
+        os_memory_high_watermark: Some(system_monitor_config.os_memory_high_watermark),
+        os_cpu_check_interval_ms: Some(system_monitor_config.os_cpu_check_interval_ms),
     })
 }
 
@@ -129,10 +135,11 @@ mod test {
         let cache_manager = Arc::new(CacheManager::new(cache_client_pool, cluster_name()));
         cache_manager.set_cluster_config(BrokerMqttConfig::default());
         let req = SetSystemAlarmConfigRequest {
-            enable: true,
+            enable: Some(true),
             os_cpu_high_watermark: Some(80.0),
             os_cpu_low_watermark: Some(20.0),
             os_memory_high_watermark: Some(75.0),
+            os_cpu_check_interval_ms: None,
         };
         let reply = set_system_alarm_config_by_req(&cache_manager, &req)
             .await
@@ -140,10 +147,15 @@ mod test {
                 panic!("Failed to set system alarm config: {}", e);
             });
 
-        assert_eq!(reply.enable, req.enable);
+        let mqtt_conf = broker_mqtt_conf();
+        assert_eq!(reply.enable, req.enable.unwrap());
         assert_eq!(reply.os_cpu_high_watermark, req.os_cpu_high_watermark);
         assert_eq!(reply.os_cpu_low_watermark, req.os_cpu_low_watermark);
         assert_eq!(reply.os_memory_high_watermark, req.os_memory_high_watermark);
+        assert_eq!(
+            reply.os_cpu_check_interval_ms,
+            Some(mqtt_conf.system_monitor.os_cpu_check_interval_ms)
+        );
     }
 
     #[tokio::test]

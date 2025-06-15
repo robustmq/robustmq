@@ -77,6 +77,7 @@ use crate::observability::system_topic::sysmon::{
 };
 use crate::storage::message::MessageStorage;
 use common_base::tools::get_local_ip;
+use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
@@ -294,7 +295,10 @@ pub(crate) async fn report_alarm_info<S>(
 ) where
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
-    sysmon::st_check_system_alarm(client_pool, metadata_cache, message_storage_adapter).await;
+    let conf = broker_mqtt_conf();
+    if conf.system_monitor.enable {
+        sysmon::st_check_system_alarm(client_pool, metadata_cache, message_storage_adapter).await;
+    }
 }
 
 pub(crate) async fn report_broker_info<S>(

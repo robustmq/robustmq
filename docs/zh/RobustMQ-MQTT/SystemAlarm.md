@@ -50,9 +50,65 @@ RobustMQ允许用户配置告警项的阈值和状态。用户可以通过修改
 ```toml
 [system_monitor]
 enable = true
+os_cpu_check_interval_ms = 60000
 os_cpu_high_watermark = 70.0
 os_cpu_low_watermark = 50.0
+os_memory_check_interval_ms = 60
 os_memory_high_watermark = 80.0
 ```
 
 ### 通过`Cli`来进行配置
+
+用户可以使用RobustMQ的命令行接口（CLI）来配置告警项。以下是一些常用的命令示例：
+
+#### 设置当前的配置
+
+```bash
+# 开启系统告警并设置CPU高使用率告警阈值
+./bin/robustmq-cli mqtt set --enable=true --cpu-high-watermark 80.0
+# 设置CPU低使用率告警阈值
+./bin/robustmq-cli mqtt set --cpu-low-watermark 60.0
+```
+
+最终可能产生类似如下的显示效果
+
+```text
+// 这里只是一个显示效果，实际与命令使用的参数有关
+Set system alarm config successfully! Current Config:
++-----------------------+-------+
+| Config Options        | Value |
++=======================+=======+
+| enable                | true  |
++-----------------------+-------+
+| memory-high-watermark | 80    |
++-----------------------+-------+
+| cpu-high-watermark    | 81.2  |
++-----------------------+-------+
+| cpu-low-watermark     | 55    |
++-----------------------+-------+
+| cpu-check-interval-ms | 60000 |
++-----------------------+-------+
+
+```
+
+#### 获取当前产生的告警
+
+```bash
+./bin/robustmq-cli mqtt system-alarm list
+```
+
+最终可能产生类似如下的显示效果
+
+```text
+// 这里只是一个显示效果，实际与命令使用的参数有关
+system alarm list result:
++--------------+------------------------------------------------+-------------+-----------+
+| name         | message                                        | activate_at | activated |
++==============+================================================+=============+===========+
+| MemoryUsage  | MemoryUsage is 0.6325722%, but config is 80%   | 1749774914  | false     |
++--------------+------------------------------------------------+-------------+-----------+
+| LowCpuUsage  | LowCpuUsage is 0.39186627%, but config is 50%  | 1749774914  | true      |
++--------------+------------------------------------------------+-------------+-----------+
+| HighCpuUsage | HighCpuUsage is 0.39186627%, but config is 70% | 1749774914  | false     |
++--------------+------------------------------------------------+-------------+-----------+
+```

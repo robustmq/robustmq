@@ -38,8 +38,9 @@ use protocol::placement_center::placement_center_openraft::{
 
 use crate::mqtt::admin::{
     process_acl_args, process_blacklist_args, process_connector_args, process_slow_sub_args,
-    process_topic_rewrite_args, process_user_args, AclArgs, BlacklistArgs, ConnectorArgs,
-    FlappingDetectArgs, SlowSubArgs, TopicRewriteArgs, UserArgs,
+    process_system_alarm_args, process_topic_rewrite_args, process_user_args, AclArgs,
+    BlacklistArgs, ConnectorArgs, FlappingDetectArgs, SlowSubArgs, SystemAlarmArgs,
+    TopicRewriteArgs, UserArgs,
 };
 use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 
@@ -99,8 +100,11 @@ enum MQTTAction {
     FlappingDetect(FlappingDetectArgs),
     // Connections
     Connection(ConnectionArgs),
-    // observability: slow-sub feat
+    // #### observability ####
+    // ---- slow subscription ----
     SlowSub(SlowSubArgs),
+    // ---- system alarm ----
+    SystemAlarm(SystemAlarmArgs),
     // list topic
     ListTopic,
     // topic rewrite rule
@@ -215,6 +219,8 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
                     ban_time: args.ban_time.unwrap_or(5),
                 })
             }
+            // system alarm
+            MQTTAction::SystemAlarm(args) => process_system_alarm_args(args),
             // Connections
             MQTTAction::Connection(args) => process_connection_args(args),
             // connector
@@ -224,7 +230,6 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             // topic rewrite rule
             MQTTAction::TopicRewriteRule(args) => process_topic_rewrite_args(args),
             MQTTAction::SlowSub(args) => process_slow_sub_args(args),
-
             MQTTAction::Publish(args) => process_publish_args(args),
             MQTTAction::Subscribe(args) => process_subscribe_args(args),
             // schema
