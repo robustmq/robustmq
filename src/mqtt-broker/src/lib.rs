@@ -40,7 +40,7 @@ use schema_register::schema::SchemaRegisterManager;
 use security::AuthDriver;
 use server::connection_manager::ConnectionManager;
 use server::grpc::server::GrpcServer;
-use server::tcp::server::start_tcp_server;
+use server::tcp::v1::server::start_tcp_server;
 use server::websocket::server::{websocket_server, websockets_server, WebSocketServerState};
 use storage::cluster::ClusterStorage;
 use storage_adapter::memory::MemoryStorageAdapter;

@@ -12,23 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs::File;
-use std::io::{self, BufReader};
-use std::path::Path;
-use std::sync::Arc;
-use std::time::Duration;
-
-use common_config::mqtt::broker_mqtt_conf;
-use futures_util::StreamExt;
-use protocol::mqtt::codec::MqttCodec;
-use rustls_pemfile::{certs, private_key};
-use tokio::net::TcpListener;
-use tokio::select;
-use tokio::sync::mpsc::{Receiver, Sender};
-use tokio::sync::{broadcast, mpsc};
-use tokio::time::sleep;
-use tracing::{debug, error, info};
-
 use crate::handler::connection::tcp_tls_establish_connection_check;
 use crate::observability::metrics::packets::{
     record_received_error_metrics, record_received_metrics,
@@ -36,10 +19,25 @@ use crate::observability::metrics::packets::{
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::RequestPackage;
+use common_config::mqtt::broker_mqtt_conf;
+use futures_util::StreamExt;
+use protocol::mqtt::codec::MqttCodec;
+use rustls_pemfile::{certs, private_key};
+use std::fs::File;
+use std::io::{self, BufReader};
+use std::path::Path;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::net::TcpListener;
+use tokio::select;
+use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::{broadcast, mpsc};
+use tokio::time::sleep;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::TlsAcceptor;
 use tokio_util::codec::{FramedRead, FramedWrite};
+use tracing::{debug, error, info};
 
 pub(crate) fn load_certs(path: &Path) -> io::Result<Vec<CertificateDer<'static>>> {
     certs(&mut BufReader::new(File::open(path)?)).collect()

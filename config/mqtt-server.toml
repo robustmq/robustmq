@@ -29,8 +29,8 @@ tls_key = "./config/example/certs/key.pem"
 
 [network_thread]
 accept_thread_num = 32
-handler_thread_num =1280
-response_thread_num = 640
+handler_thread_num =62
+response_thread_num = 32
 max_connection_num = 5000000
 request_queue_size = 2000
 response_queue_size = 2000
