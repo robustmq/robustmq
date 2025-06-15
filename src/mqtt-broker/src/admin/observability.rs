@@ -121,7 +121,7 @@ mod test {
     use crate::storage::message::cluster_name;
 
     use common_config::mqtt::config::BrokerMqttConfig;
-    use common_config::mqtt::init_broker_mqtt_conf_by_path;
+    use common_config::mqtt::{default_broker_mqtt, init_broker_mqtt_conf_by_path};
     use grpc_clients::pool::ClientPool;
 
     #[tokio::test]
@@ -133,7 +133,8 @@ mod test {
         init_broker_mqtt_conf_by_path(&path);
         let cache_client_pool = Arc::new(ClientPool::new(3));
         let cache_manager = Arc::new(CacheManager::new(cache_client_pool, cluster_name()));
-        cache_manager.set_cluster_config(BrokerMqttConfig::default());
+        cache_manager.set_cluster_config(default_broker_mqtt());
+
         let req = SetSystemAlarmConfigRequest {
             enable: Some(true),
             os_cpu_high_watermark: Some(80.0),

@@ -102,6 +102,7 @@ export const sidebar = [
                 text: "可观测性",
                 collapsed: true,
                 items: [
+                    { text: "系统告警", link: "/zh/RobustMQ-MQTT/SystemAlarm.md" },
                     { text: "指标", link: "" },
                     { text: "Trace", link: "" },
                     { text: "集成 Prometheus", link: "" },
