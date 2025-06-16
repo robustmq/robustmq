@@ -92,6 +92,7 @@ impl HeyGRPC for FooService {
             {
                 {
                     let ___request__validate_ref = _request.get_ref();
+                    let _: &dyn prost_validate::Validator = ___request__validate_ref;
                     if let Err(e) = ___request__validate_ref.validate() {
                         return Err(tonic::Status::invalid_argument(e.to_string()));
                     }
@@ -140,6 +141,7 @@ impl HeyGRPC for FooService {
             {
                 {
                     let ___request__validate_ref = _request.get_ref();
+                    let _: &dyn prost_validate::Validator = ___request__validate_ref;
                     if let Err(e) = ___request__validate_ref.validate() {
                         return Err(tonic::Status::invalid_argument(e.to_string()));
                     }
