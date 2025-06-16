@@ -19,8 +19,83 @@ mod validate_req;
 use crate::parse::ParseItem;
 use proc_macro::TokenStream;
 
-/// todo: Used to call parameter validation of gRPC request structure in tonic framework.
-///       This is usually used with [`prost-validate`] crate
+/// A procedural macro for automatic request validation in Tonic gRPC services.
+///
+/// This attribute macro can be applied either to a service implementation or individual methods
+/// to automatically validate incoming requests using a specified validator.
+///
+/// *WARN: The usage methods of these two are mutually exclusive!*
+///
+/// # Usage
+///
+/// The macro requires a `validator` parameter specifying the validator trait to use:
+/// ```ignore
+/// #[validate_req(validator = foo::bar::traits)]
+/// ```
+///
+/// ## Service-level Application
+///
+/// When applied to a service implementation, all methods will automatically validate their requests:
+/// ```ignore
+/// #[tonic::async_trait]
+/// #[validate_req(validator = prost_validate::Validator)]
+/// impl Greeter for MyGreeter {
+///     // All methods will be validated
+/// }
+/// ```
+///
+/// ## Method-level Application
+///
+/// When applied to individual methods, only those methods will validate their requests:
+/// ```ignore
+/// #[validate_req(validator = prost_validate::Validator)]
+/// async fn say_hello(
+///     &self,
+///     request: tonic::Request<HelloRequest>,
+/// ) -> Result<tonic::Response<HelloReply>, tonic::Status> {
+///     // Method implementation
+/// }
+/// ```
+///
+/// # Expansion
+///
+/// The macro expands to validation code that:
+/// 1. Extracts the request reference using `get_ref()`
+/// 2. Verifies the request implements the validator trait
+/// 3. Calls `validate()` on the request
+/// 4. Returns an invalid argument status on validation failure
+///
+///
+/// # Requirements
+///
+/// - The request type must implement the specified validator trait
+/// - The validator trait must provide a `validate()` method
+/// - The request wrapper must have a `get_ref()` method (standard in [`tonic`] requests)
+///
+/// # Errors
+///
+/// Returns `tonic::Status::invalid_argument` with the validation error message
+/// if validation fails.
+///
+/// # Examples
+///
+/// ```
+/// use tonic::{Request, Response, Status};
+/// use robustmq_macro::validate_req;
+///
+/// #[tonic::async_trait]
+/// #[validate_req(validator = prost_validate::Validator)]
+/// impl Greeter for MyGreeter {
+///     async fn say_hello(
+///         &self,
+///         request: Request<HelloRequest>,
+///     ) -> Result<Response<HelloReply>, Status> {
+///         Ok(Response::new(HelloReply {
+///             message: format!("Hello {}!", request.get_ref().name),
+///         }))
+///     }
+/// }
+/// ```
 #[cfg(feature = "validate-req")]
 #[proc_macro_attribute]
 pub fn validate_req(attr: TokenStream, input: TokenStream) -> TokenStream {
