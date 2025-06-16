@@ -201,25 +201,16 @@ async fn parse_share_subscribe(
     } else {
         format!("{}_{}", group_name, sub_name)
     };
-
     req.sub_name = sub_name;
 
     let conf = broker_mqtt_conf();
+
     if is_match_sub_and_topic(&req.sub_name, &req.topic_name).is_ok() {
-        match get_share_sub_leader(client_pool, &req.group_name).await {
-            Ok(reply) => {
-                if reply.broker_id == conf.broker_id {
-                    add_share_push_leader(subscribe_manager, req).await;
-                } else {
-                    add_share_push_follower(subscribe_manager, req).await;
-                }
-            }
-            Err(e) => {
-                error!(
-                    "Failed to get Leader for shared subscription, error message: {}",
-                    e
-                );
-            }
+        let reply = get_share_sub_leader(client_pool, &req.group_name).await?;
+        if reply.broker_id == conf.broker_id {
+            add_share_push_leader(subscribe_manager, req).await;
+        } else {
+            add_share_push_follower(subscribe_manager, req).await;
         }
     }
     Ok(())
