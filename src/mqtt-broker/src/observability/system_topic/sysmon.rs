@@ -523,7 +523,7 @@ mod tests {
         assert_eq!(first_check_message.message, except_value.message);
         assert_eq!(first_check_message.activated, except_value.activated);
 
-        let current_cpu_usage = 91.0;
+        let current_cpu_usage = 90.0;
 
         is_send_a_new_system_event(
             &client_pool,
