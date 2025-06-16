@@ -529,7 +529,7 @@ where
     F: FnOnce() -> Fut + Copy,
     Fut: Future<Output = Result<(), MqttBrokerError>>,
 {
-    timeout(Duration::from_secs(30), retry_tool_fn(ac_fn, stop_sx)).await??;
+    timeout(Duration::from_secs(3), retry_tool_fn(ac_fn, stop_sx)).await??;
     Ok(())
 }
 
