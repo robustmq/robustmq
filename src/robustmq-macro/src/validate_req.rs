@@ -63,13 +63,12 @@ impl syn::parse::Parse for Arg {
     }
 }
 
-pub(super) fn expanded(_arg: Arg, ast_item: ParseItem) -> syn::Result<TokenStream> {
+pub(super) fn expanded(arg: Arg, ast_item: ParseItem) -> syn::Result<TokenStream> {
     match ast_item {
         ParseItem::Fn(mut ast_fn) => {
-            let (first_arg, _first_arg_ty) = tools::extract_first_non_self_arg(&ast_fn.sig)?;
-            // todo: for more robust judgment, add generic feature constraints
+            let (first_arg, _) = tools::extract_first_non_self_arg(&ast_fn.sig)?;
 
-            let validate_stmt = expand_stmt(first_arg);
+            let validate_stmt = expand_stmt(first_arg, &arg.validator_path);
             inject_into_async_block(&mut ast_fn.block, validate_stmt)?;
 
             Ok(quote! {#ast_fn})
@@ -79,11 +78,9 @@ pub(super) fn expanded(_arg: Arg, ast_item: ParseItem) -> syn::Result<TokenStrea
                 #[allow(clippy::single_match)]
                 match item {
                     ImplItem::Fn(ref mut ast_fn) => {
-                        let (first_arg, _first_arg_ty) =
-                            tools::extract_first_non_self_arg(&ast_fn.sig)?;
-                        // todo: for more robust judgment, add generic feature constraints
+                        let (first_arg, _) = tools::extract_first_non_self_arg(&ast_fn.sig)?;
 
-                        let validate_stmt = expand_stmt(first_arg);
+                        let validate_stmt = expand_stmt(first_arg, &arg.validator_path);
                         inject_into_async_block(&mut ast_fn.block, validate_stmt)?;
                     }
                     _ => {}
@@ -94,11 +91,13 @@ pub(super) fn expanded(_arg: Arg, ast_item: ParseItem) -> syn::Result<TokenStrea
     }
 }
 
-fn expand_stmt(arg: syn::Ident) -> syn::Stmt {
+fn expand_stmt(arg: syn::Ident, validate_path: &syn::ExprPath) -> syn::Stmt {
     let __req_validate_ref = format_ident!("__{}__validate_ref", arg);
     parse_quote!({
         {
             let #__req_validate_ref = #arg.get_ref();
+            let _: &dyn #validate_path = #__req_validate_ref;
+
             if let Err(e) = #__req_validate_ref.validate() {
                 return Err(tonic::Status::invalid_argument(e.to_string()));
             }
