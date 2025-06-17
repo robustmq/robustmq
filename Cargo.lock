@@ -4557,7 +4557,6 @@ dependencies = [
  "tonic-build",
 ]
 
-
 [[package]]
 name = "robustmq-test"
 version = "0.1.14"

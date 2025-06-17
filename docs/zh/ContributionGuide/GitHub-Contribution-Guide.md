@@ -131,6 +131,32 @@ hawkeye format
 
 - **标题检查**：务必确认 PR 标题符合上述格式规范。
 
+### 签名
+
+签名是代码说明末尾的一行简单文字，用于证明该代码是您编写的，或者您有权将其作为开源代码发布。
+
+您只需在每个 git 提交消息中添加一行:
+
+```text
+Signed-off-by: your_name <your_email>
+```
+
+您可以在创建 git 提交时通过 `git commit -s` 添加签名。
+
+如果您希望自动执行此操作，您可以设置一些别名:
+
+```bash
+# 这将在提交时自动添加签名
+git config --add alias.c "commit -s"
+```
+
+提交的 commit 消息示例:
+```text
+feat: a good start!
+
+Signed-off-by: robustmq <robustmq@outlook.com>
+```
+
 ## 三、常见问题与解决方案
 
 ### 1. License 检测失败
@@ -143,5 +169,22 @@ hawkeye format
 - 不得出现未规范的前缀或无前缀的情况。
 
 更多细节，可参阅[提交 PR 的完整示例](./Pull-Request-Example.md)。
+
+### 3. 修复 DCO 检查失败错误
+
+如果您的 PR 未通过 DCO 检查，则需要修复 PR 中的整个提交历史记录。
+
+我们建议你可以将 PR 中的 commit 压缩为单个，并按照 [签名](#签名) 流程附带签名，然后进行强制提交。
+
+例如，您的 PR 中存在 2 个 commit:
+```bash
+git rebase -i HEAD^3
+(interactive squash + sign off append)
+git push origin -f
+```
+
+请注意，这种方式会导致多个 commit 记录压缩为一个导致 review 困难，仅用于修复 DCO 检查。
+
+最佳实践是在每个提交中都附带签名。
 
 ---
