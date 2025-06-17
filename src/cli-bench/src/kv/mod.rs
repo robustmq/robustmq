@@ -15,6 +15,7 @@
 pub mod get;
 pub mod mixed;
 pub mod set;
+pub(crate) mod utils;
 
 use crate::{error::BenchMarkError, BenchMark};
 use clap::{Parser, Subcommand};
