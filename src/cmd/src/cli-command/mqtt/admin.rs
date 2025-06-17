@@ -20,13 +20,16 @@ use cli_command::mqtt::MqttActionType;
 use common_base::enum_type::feature_type::FeatureType;
 use common_base::enum_type::sort_type::SortType;
 use core::option::Option::Some;
-use protocol::broker_mqtt::broker_mqtt_admin::ListSlowSubscribeRequest;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateAclRequest, CreateBlacklistRequest, CreateTopicRewriteRuleRequest, CreateUserRequest,
     DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest,
     DeleteTopicRewriteRuleRequest, DeleteUserRequest, ListAutoSubscribeRuleRequest,
-    MqttCreateConnectorRequest, MqttDeleteConnectorRequest, MqttListConnectorRequest,
-    MqttUpdateConnectorRequest, SetAutoSubscribeRuleRequest, SetClusterConfigRequest,
+    ListSystemAlarmRequest, MqttCreateConnectorRequest, MqttDeleteConnectorRequest,
+    MqttListConnectorRequest, MqttUpdateConnectorRequest, SetAutoSubscribeRuleRequest,
+    SetClusterConfigRequest,
+};
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    ListSlowSubscribeRequest, SetSystemAlarmConfigRequest,
 };
 
 // session
@@ -240,7 +243,8 @@ pub(crate) struct FlappingDetectArgs {
     pub(crate) ban_time: Option<u32>,
 }
 
-// observability: slow-sub feat
+// #### observability ####
+// ---- slow subscribe ----
 #[derive(clap::Args, Debug)]
 #[command(author = "RobustMQ", about = "action: slow-sub", long_about = None)]
 #[command(next_line_help = true)]
@@ -317,6 +321,39 @@ pub(crate) struct SlowSubArgs {
         help = "Filter the results by client ID"
     )]
     pub(crate) client_id: Option<String>,
+}
+
+// ---- system alarm ----
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "related operations of system alarm, such as setting and listing", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct SystemAlarmArgs {
+    #[command(subcommand)]
+    pub action: SystemAlarmActionType,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum SystemAlarmActionType {
+    #[command(author = "RobustMQ", about = "action: set system alarm", long_about = None)]
+    Set(SetSystemAlarmArgs),
+    #[command(author = "RobustMQ", about = "action: list system alarm", long_about = None)]
+    List,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: set system alarm", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct SetSystemAlarmArgs {
+    #[arg(long, required = false)]
+    pub(crate) enable: Option<bool>,
+    #[arg(long, required = false)]
+    pub(crate) cpu_high_watermark: Option<f32>,
+    #[arg(long, required = false)]
+    pub(crate) cpu_low_watermark: Option<f32>,
+    #[arg(long, required = false)]
+    pub(crate) memory_high_watermark: Option<f32>,
+    #[arg(long, required = false)]
+    pub(crate) os_cpu_check_interval_ms: Option<u64>,
 }
 
 // topic rewrite rule
@@ -495,6 +532,21 @@ pub fn process_slow_sub_args(args: SlowSubArgs) -> MqttActionType {
             feature_name: FeatureType::SlowSubscribe.to_string(),
             is_enable: args.is_enable.unwrap(),
         })
+    }
+}
+
+pub fn process_system_alarm_args(args: SystemAlarmArgs) -> MqttActionType {
+    match args.action {
+        SystemAlarmActionType::Set(arg) => {
+            MqttActionType::SetSystemAlarmConfig(SetSystemAlarmConfigRequest {
+                enable: arg.enable,
+                os_cpu_high_watermark: arg.cpu_high_watermark,
+                os_cpu_low_watermark: arg.cpu_low_watermark,
+                os_memory_high_watermark: arg.memory_high_watermark,
+                os_cpu_check_interval_ms: arg.os_cpu_check_interval_ms,
+            })
+        }
+        SystemAlarmActionType::List => MqttActionType::ListSystemAlarm(ListSystemAlarmRequest {}),
     }
 }
 

@@ -103,6 +103,7 @@ export const sidebar = [
                 text: "Observability",
                 collapsed: true,
                 items: [
+                    { text: "System Alarm", link: "/RobustMQ-MQTT/SystemAlarm.mdi" },
                     { text: "Metrics", link: "" },
                     { text: "Trace", link: "" },
                     { text: "Integrate promethrus", link: "" },
