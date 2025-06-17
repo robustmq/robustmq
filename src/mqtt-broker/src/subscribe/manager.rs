@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-
 use crate::subscribe::common::Subscriber;
 use dashmap::DashMap;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use protocol::mqtt::common::{Filter, MqttProtocol};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use tokio::sync::broadcast::Sender;
 
 #[derive(Clone, Serialize, Deserialize)]

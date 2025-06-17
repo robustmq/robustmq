@@ -313,10 +313,10 @@ where
 fn get_subscribe_by_random(
     subscribe_manager: &Arc<SubscribeManager>,
     share_leader_key: &str,
-    offset: u64,
+    seq: u64,
 ) -> Option<Subscriber> {
     if let Some(sub_list) = subscribe_manager.share_leader_push.get(share_leader_key) {
-        let index = offset % (sub_list.sub_list.len() as u64);
+        let index = seq % (sub_list.sub_list.len() as u64);
         if let Some(subscribe) = sub_list.sub_list.get(index as usize) {
             return Some(subscribe.clone());
         }
