@@ -176,7 +176,8 @@ Signed-off-by: robustmq <robustmq@outlook.com>
 
 我们建议你可以将 PR 中的 commit 压缩为单个，并按照 [签名](#签名) 流程附带签名，然后进行强制提交。
 
-例如，您的 PR 中存在 2 个 commit:
+例如，您的 PR 中存在 3 个 commit:
+
 ```bash
 git rebase -i HEAD^3
 (interactive squash + sign off append)

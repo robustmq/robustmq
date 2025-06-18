@@ -73,7 +73,34 @@ ISSUE:
 
 For more details, you can refer to the [PR submission example](./Pull-Request-Example.md).
 
-## 3. Reasons for PR Submission Failure
+## 3. Sign off
+
+A signature is a simple line of text at the end of the code description that proves that you wrote the code or that you have the rights to release it as open source.
+
+You just add one line to each git commit message:
+
+```text
+Signed-off-by: your_name <your_email>
+```
+
+You can add a signature when you create a git commit with `git commit -s`.
+
+If you want to do this automatically, you can set up some aliases:
+
+```bash
+# will automatically add the signature when committing using the alias
+git config --add alias.c "commit -s"
+```
+
+Example commit message:
+
+```text
+feat: a good start!
+
+Signed-off-by: robustmq <robustmq@outlook.com>
+```
+
+## 4. Reasons for PR Submission Failure
 
 #### License Error
 
@@ -111,3 +138,21 @@ build: Changes to the build system or external dependencies
 ci: Changes to continuous integration configuration, including modifications to configuration files and scripts.
 revert: Revert
 ```
+
+### Fix DCO check failure error
+
+If your PR fails the DCO check, you need to fix the entire commit history in the PR.
+
+We recommend that you compress the commits in the PR into a single one, attach a signature according to the signing process, and then force a commit.
+
+For example, there are 3 commits in your PR:
+
+```bash
+git rebase -i HEAD^3
+(interactive squash + sign off append)
+git push origin -f
+```
+
+Note that this approach will cause multiple commit records to be compressed into one, which makes review difficult and is only used to fix DCO checks.
+
+Best practice is to include a signature in every commit.
