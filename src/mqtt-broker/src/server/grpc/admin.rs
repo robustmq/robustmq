@@ -65,7 +65,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     MqttUpdateConnectorReply, MqttUpdateConnectorRequest, MqttUpdateSchemaReply,
     MqttUpdateSchemaRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
     SetClusterConfigReply, SetClusterConfigRequest, SetSystemAlarmConfigReply,
-    SetSystemAlarmConfigRequest, ListRewriteTopicRuleReply, ListRewriteTopicRuleRequest
+    SetSystemAlarmConfigRequest, ListRewriteTopicRuleReply, ListRewriteTopicRuleRequest,
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
