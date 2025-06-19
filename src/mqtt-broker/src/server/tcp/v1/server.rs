@@ -75,6 +75,7 @@ pub async fn start_tcp_server<S>(
         subscribe_manager.clone(),
         cache_manager.clone(),
         client_pool.clone(),
+        NetworkConnectionType::Tcp,
     );
     server.start(conf.network_port.tcp_port).await;
 
@@ -86,6 +87,7 @@ pub async fn start_tcp_server<S>(
         subscribe_manager.clone(),
         cache_manager,
         client_pool,
+        NetworkConnectionType::Tls,
     );
     server.start_tls(conf.network_port.tcps_port).await;
 }
@@ -116,6 +118,7 @@ impl<S> TcpServer<S>
 where
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         command: Command<S>,
         proc_config: ProcessorConfig,
@@ -124,6 +127,7 @@ where
         subscribe_manager: Arc<SubscribeManager>,
         cache_manager: Arc<CacheManager>,
         client_pool: Arc<ClientPool>,
+        network_connection_type: NetworkConnectionType,
     ) -> Self {
         info!("process thread num: {:?}", proc_config);
         Self {
@@ -135,7 +139,7 @@ where
             handler_process_num: proc_config.handler_process_num,
             response_process_num: proc_config.response_process_num,
             stop_sx,
-            network_connection_type: NetworkConnectionType::Tcp,
+            network_connection_type,
             subscribe_manager,
         }
     }
@@ -184,7 +188,6 @@ where
         )
         .await;
 
-        self.network_connection_type = NetworkConnectionType::Tcp;
         info!("MQTT TCP Server started successfully, listening port: {port}");
     }
 
@@ -230,7 +233,7 @@ where
             self.stop_sx.clone(),
         )
         .await;
-        self.network_connection_type = NetworkConnectionType::Tls;
+
         info!("MQTT TCP TLS Server started successfully, listening port: {port}");
     }
 }

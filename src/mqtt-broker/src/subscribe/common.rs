@@ -37,6 +37,7 @@ const SUBSCRIBE_WILDCARDS_1: &str = "+";
 const SUBSCRIBE_WILDCARDS_2: &str = "#";
 const SUBSCRIBE_SPLIT_DELIMITER: &str = "/";
 const SUBSCRIBE_NAME_REGEX: &str = r"^[\$a-zA-Z0-9_#+/]+$";
+pub const SHARE_QUEUE_DEFAULT_GROUP_NAME: &str = "$queue_group_robustmq";
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Subscriber {
@@ -282,8 +283,9 @@ mod tests {
 
     use crate::handler::cache::CacheManager;
     use crate::subscribe::common::{
-        build_sub_path_regex, decode_share_info, decode_sub_path, get_sub_topic_id_list,
-        is_match_sub_and_topic, is_share_sub, is_wildcards, min_qos, sub_path_validator,
+        build_sub_path_regex, decode_queue_info, decode_share_info, decode_sub_path,
+        get_sub_topic_id_list, is_match_sub_and_topic, is_queue_sub, is_share_sub, is_wildcards,
+        min_qos, sub_path_validator,
     };
 
     #[tokio::test]
@@ -291,6 +293,12 @@ mod tests {
         assert!(!is_wildcards("/test/t1"));
         assert!(is_wildcards("/test/+"));
         assert!(is_wildcards("/test/#"));
+    }
+
+    #[tokio::test]
+    async fn decode_queue_info_test() {
+        let res = decode_queue_info("$queue/vvv/v1");
+        println!("{}", res);
     }
 
     #[tokio::test]
@@ -407,6 +415,11 @@ mod tests {
 
         assert!(!is_share_sub(&sub5));
         assert!(!is_share_sub(&sub6));
+    }
+
+    #[tokio::test]
+    async fn is_queue_sub_test() {
+        assert!(is_queue_sub("$queue/vvv/v1"));
     }
 
     #[tokio::test]
