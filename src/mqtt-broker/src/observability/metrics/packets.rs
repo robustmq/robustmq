@@ -246,14 +246,14 @@ common_base::register_gauge_metric!(
 
 common_base::register_gauge_metric!(
     MESSAGES_DROPPED_NO_SUBSCRIBERS,
-    "messages.dropped.no_subscribers",
+    "messages_dropped_no_subscribers",
     "Number of messages dropped due to no subscribers",
     QosLabel
 );
 
 common_base::register_gauge_metric!(
     MESSAGES_DROPPED_DISCARD,
-    "messages.dropped.discard",
+    "messages_dropped_discard",
     "Number of messages dropped due to discard",
     QosLabel
 );
