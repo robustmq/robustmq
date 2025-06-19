@@ -21,8 +21,8 @@ use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateTopicRewriteRuleRequest, DeleteTopicRewriteRuleRequest,
-    ListTopicRequest, MqttTopicRaw, MqttTopicRewriteRuleRaw,
+    CreateTopicRewriteRuleRequest, DeleteTopicRewriteRuleRequest, ListTopicRequest, MqttTopicRaw,
+    MqttTopicRewriteRuleRaw,
 };
 use std::sync::Arc;
 use tonic::Request;

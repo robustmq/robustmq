@@ -34,8 +34,8 @@ use crate::admin::subscribe::{
     delete_auto_subscribe_rule, list_auto_subscribe_rule_by_req, set_auto_subscribe_rule,
 };
 use crate::admin::topic::{
-    create_topic_rewrite_rule_by_req, delete_topic_rewrite_rule_by_req, list_topic_by_req,
-    get_all_topic_rewrite_rule_by_req,
+    create_topic_rewrite_rule_by_req, delete_topic_rewrite_rule_by_req,
+    get_all_topic_rewrite_rule_by_req, list_topic_by_req,
 };
 use crate::admin::user::{create_user_by_req, delete_user_by_req, list_user_by_req};
 use crate::admin::{cluster_status_by_req, enable_flapping_detect_by_req, list_connection_by_req};
@@ -54,18 +54,18 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableFlappingDetectRequest, GetClusterConfigReply, GetClusterConfigRequest, ListAclReply,
     ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBlacklistReply,
     ListBlacklistRequest, ListClientReply, ListClientRequest, ListConnectionReply,
-    ListConnectionRequest, ListSessionReply, ListSessionRequest, ListSlowSubscribeReply,
-    ListSlowSubscribeRequest, ListSystemAlarmReply, ListSystemAlarmRequest, ListTopicReply,
-    ListTopicRequest, ListUserReply, ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest,
-    MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttCreateSchemaReply,
-    MqttCreateSchemaRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
-    MqttDeleteSchemaReply, MqttDeleteSchemaRequest, MqttListBindSchemaReply,
-    MqttListBindSchemaRequest, MqttListConnectorReply, MqttListConnectorRequest,
-    MqttListSchemaReply, MqttListSchemaRequest, MqttUnbindSchemaReply, MqttUnbindSchemaRequest,
-    MqttUpdateConnectorReply, MqttUpdateConnectorRequest, MqttUpdateSchemaReply,
-    MqttUpdateSchemaRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
-    SetClusterConfigReply, SetClusterConfigRequest, SetSystemAlarmConfigReply,
-    SetSystemAlarmConfigRequest, ListRewriteTopicRuleReply, ListRewriteTopicRuleRequest,
+    ListConnectionRequest, ListRewriteTopicRuleReply, ListRewriteTopicRuleRequest,
+    ListSessionReply, ListSessionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest,
+    ListSystemAlarmReply, ListSystemAlarmRequest, ListTopicReply, ListTopicRequest, ListUserReply,
+    ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest, MqttCreateConnectorReply,
+    MqttCreateConnectorRequest, MqttCreateSchemaReply, MqttCreateSchemaRequest,
+    MqttDeleteConnectorReply, MqttDeleteConnectorRequest, MqttDeleteSchemaReply,
+    MqttDeleteSchemaRequest, MqttListBindSchemaReply, MqttListBindSchemaRequest,
+    MqttListConnectorReply, MqttListConnectorRequest, MqttListSchemaReply, MqttListSchemaRequest,
+    MqttUnbindSchemaReply, MqttUnbindSchemaRequest, MqttUpdateConnectorReply,
+    MqttUpdateConnectorRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
+    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetClusterConfigReply,
+    SetClusterConfigRequest, SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest,
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};

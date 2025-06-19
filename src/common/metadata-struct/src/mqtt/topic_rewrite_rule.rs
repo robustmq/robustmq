@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
 use protocol::broker_mqtt::broker_mqtt_admin::MqttTopicRewriteRuleRaw;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct MqttTopicRewriteRule {
@@ -34,11 +34,11 @@ impl MqttTopicRewriteRule {
 impl From<MqttTopicRewriteRule> for MqttTopicRewriteRuleRaw {
     fn from(value: MqttTopicRewriteRule) -> Self {
         MqttTopicRewriteRuleRaw {
-            source_topic : value.source_topic,
-            cluster_name : value.cluster,
-            dest_topic : value.dest_topic,
-            action : value.action,
-            regex : value.regex,
+            source_topic: value.source_topic,
+            cluster_name: value.cluster,
+            dest_topic: value.dest_topic,
+            action: value.action,
+            regex: value.regex,
         }
     }
 }
