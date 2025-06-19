@@ -22,6 +22,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateTopicRewriteRuleRequest, DeleteTopicRewriteRuleRequest, ListTopicRequest, MqttTopicRaw,
+    MqttTopicRewriteRuleRaw,
 };
 use std::sync::Arc;
 use tonic::Request;
@@ -99,6 +100,17 @@ pub async fn create_topic_rewrite_rule_by_req(
     cache_manager.add_topic_rewrite_rule(rule);
 
     Ok(())
+}
+
+pub async fn get_all_topic_rewrite_rule_by_req(
+    cache_manager: &Arc<CacheManager>,
+) -> Result<Vec<MqttTopicRewriteRuleRaw>, MqttBrokerError> {
+    let mut topic_rewrite_rules = Vec::new();
+    for entry in cache_manager.topic_rewrite_rule.iter() {
+        let topic_rewrite_rule = entry.value();
+        topic_rewrite_rules.push(MqttTopicRewriteRuleRaw::from(topic_rewrite_rule.clone()));
+    }
+    Ok(topic_rewrite_rules)
 }
 
 impl Queryable for MqttTopicRaw {
