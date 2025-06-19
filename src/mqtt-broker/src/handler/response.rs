@@ -21,7 +21,7 @@ use protocol::mqtt::common::{
     PubRecProperties, PubRecReason, PubRel, PubRelProperties, PubRelReason, SubAck,
     SubAckProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
 };
-use tracing::debug;
+use tracing::{debug, info};
 
 use super::connection::response_information;
 use super::validator::is_request_problem_info;
@@ -34,20 +34,23 @@ pub fn build_pub_ack_fail(
     is_puback: bool,
 ) -> MqttPacket {
     if is_puback {
-        return response_packet_mqtt_puback_fail(
+        return build_puback(
             protocol,
             connection,
             pkid,
             PubAckReason::UnspecifiedError,
             reason_string,
+            Vec::new(),
         );
     }
-    response_packet_mqtt_pubrec_fail(
+
+    build_pubrec(
         protocol,
         connection,
         pkid,
         PubRecReason::UnspecifiedError,
         reason_string,
+        Vec::new(),
     )
 }
 
@@ -181,37 +184,22 @@ pub fn response_packet_mqtt_distinct_by_reason(
     )
 }
 
-pub fn response_packet_mqtt_puback_success(
-    protocol: &MqttProtocol,
-    reason: PubAckReason,
-    pkid: u16,
-    user_properties: Vec<(String, String)>,
-) -> MqttPacket {
-    if !protocol.is_mqtt5() {
-        let pub_ack = PubAck { pkid, reason: None };
-        return MqttPacket::PubAck(pub_ack, None);
-    }
-
-    let pub_ack = PubAck {
-        pkid,
-        reason: Some(reason),
-    };
-    let properties = Some(PubAckProperties {
-        reason_string: None,
-        user_properties,
-    });
-    MqttPacket::PubAck(pub_ack, properties)
-}
-
-pub fn response_packet_mqtt_puback_fail(
+pub fn build_puback(
     protocol: &MqttProtocol,
     connection: &MQTTConnection,
     pkid: u16,
     reason: PubAckReason,
     reason_string: Option<String>,
+    user_properties: Vec<(String, String)>,
 ) -> MqttPacket {
-    debug!("reason:{reason:?}, reason string: {reason_string:?}");
-    if !protocol.is_mqtt5() {
+    if reason != PubAckReason::Success {
+        debug!(
+            "client_id:{},reason:{reason:?}, reason string: {reason_string:?}",
+            connection.client_id
+        );
+    }
+
+    if protocol.is_mqtt3() || protocol.is_mqtt4() {
         let pub_ack = PubAck { pkid, reason: None };
         return MqttPacket::PubAck(pub_ack, None);
     }
@@ -224,38 +212,26 @@ pub fn response_packet_mqtt_puback_fail(
     if connection.is_response_problem_info() {
         properties.reason_string = reason_string;
     }
+    properties.user_properties = user_properties;
     MqttPacket::PubAck(pub_ack, Some(properties))
 }
 
-pub fn response_packet_mqtt_pubrec_success(
-    protocol: &MqttProtocol,
-    reason: PubRecReason,
-    pkid: u16,
-    user_properties: Vec<(String, String)>,
-) -> MqttPacket {
-    if !protocol.is_mqtt5() {
-        return MqttPacket::PubRec(PubRec { pkid, reason: None }, None);
-    }
-    let rec = PubRec {
-        pkid,
-        reason: Some(reason),
-    };
-    let properties = Some(PubRecProperties {
-        reason_string: None,
-        user_properties,
-    });
-    MqttPacket::PubRec(rec, properties)
-}
-
-pub fn response_packet_mqtt_pubrec_fail(
+pub fn build_pubrec(
     protocol: &MqttProtocol,
     connection: &MQTTConnection,
     pkid: u16,
     reason: PubRecReason,
     reason_string: Option<String>,
+    user_properties: Vec<(String, String)>,
 ) -> MqttPacket {
-    debug!("reason:{reason:?}, reason string: {reason_string:?}");
-    if !protocol.is_mqtt5() {
+    if reason != PubRecReason::Success {
+        info!(
+            "client_id:{},reason:{reason:?}, reason string: {reason_string:?}",
+            connection.client_id
+        );
+    }
+
+    if protocol.is_mqtt3() || protocol.is_mqtt4() {
         return MqttPacket::PubRec(PubRec { pkid, reason: None }, None);
     }
 
@@ -267,6 +243,7 @@ pub fn response_packet_mqtt_pubrec_fail(
     if connection.is_response_problem_info() {
         properties.reason_string = reason_string;
     }
+    properties.user_properties = user_properties;
     MqttPacket::PubRec(pub_ack, Some(properties))
 }
 

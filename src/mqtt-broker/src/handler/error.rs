@@ -66,8 +66,8 @@ pub enum MqttBrokerError {
     #[error("Topic name cannot be empty")]
     TopicNameIsEmpty,
 
-    #[error("topic name is not available")]
-    TopicNameInvalid(),
+    #[error("Topic alias ** did not find the corresponding actual Topic")]
+    TopicAliasInvalid(Option<u16>),
 
     #[error("Topic {0} is incorrectly formatted")]
     TopicNameIncorrectlyFormatted(String),

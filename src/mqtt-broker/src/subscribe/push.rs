@@ -529,7 +529,7 @@ where
     F: FnOnce() -> Fut + Copy,
     Fut: Future<Output = Result<(), MqttBrokerError>>,
 {
-    timeout(Duration::from_secs(3), retry_tool_fn(ac_fn, stop_sx)).await??;
+    timeout(Duration::from_secs(10), retry_tool_fn(ac_fn, stop_sx)).await??;
     Ok(())
 }
 
@@ -552,7 +552,7 @@ where
                 }
             }
             val = ac_fn() => {
-                if let Err(e) = val{
+                if let Err(e) = val {
                     if !is_ignore_push_error(&e){
                         error!("retry tool fn fail, error message:{}",e);
                         sleep(Duration::from_secs(1)).await;

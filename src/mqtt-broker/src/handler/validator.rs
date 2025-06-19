@@ -30,12 +30,12 @@ use super::content_type::{
 use super::error::MqttBrokerError;
 use super::flow_control::{is_qos_message, is_subscribe_rate_exceeded};
 use super::response::{
-    response_packet_mqtt_connect_fail, response_packet_mqtt_puback_fail,
-    response_packet_mqtt_pubrec_fail, response_packet_mqtt_suback, response_packet_mqtt_unsuback,
+    response_packet_mqtt_connect_fail, response_packet_mqtt_suback, response_packet_mqtt_unsuback,
 };
 use super::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_subscribe};
 use super::topic::topic_name_validator;
 use crate::common::pkid_storage::pkid_exists;
+use crate::handler::response::{build_puback, build_pubrec};
 use crate::security::AuthDriver;
 use crate::subscribe::common::sub_path_validator;
 use crate::subscribe::manager::SubscribeManager;
@@ -179,22 +179,24 @@ pub async fn publish_validator(
         {
             Ok(res) => {
                 if res {
-                    return Some(response_packet_mqtt_pubrec_fail(
+                    return Some(build_pubrec(
                         protocol,
                         connection,
                         publish.pkid,
                         PubRecReason::PacketIdentifierInUse,
                         None,
+                        Vec::new(),
                     ));
                 }
             }
             Err(e) => {
-                return Some(response_packet_mqtt_pubrec_fail(
+                return Some(build_pubrec(
                     protocol,
                     connection,
                     publish.pkid,
                     PubRecReason::UnspecifiedError,
                     Some(e.to_string()),
+                    Vec::new(),
                 ));
             }
         };
@@ -208,7 +210,7 @@ pub async fn publish_validator(
     ) as usize;
     if publish.payload.len() > max_packet_size {
         if is_puback {
-            return Some(response_packet_mqtt_puback_fail(
+            return Some(build_puback(
                 protocol,
                 connection,
                 publish.pkid,
@@ -217,9 +219,10 @@ pub async fn publish_validator(
                     MqttBrokerError::PacketLengthError(max_packet_size, publish.payload.len())
                         .to_string(),
                 ),
+                Vec::new(),
             ));
         } else {
-            return Some(response_packet_mqtt_pubrec_fail(
+            return Some(build_pubrec(
                 protocol,
                 connection,
                 publish.pkid,
@@ -228,6 +231,7 @@ pub async fn publish_validator(
                     MqttBrokerError::PacketLengthError(max_packet_size, publish.payload.len())
                         .to_string(),
                 ),
+                Vec::new(),
             ));
         }
     }
@@ -238,20 +242,22 @@ pub async fn publish_validator(
                 && std::str::from_utf8(publish.payload.to_vec().as_slice()).is_err()
             {
                 if is_puback {
-                    return Some(response_packet_mqtt_puback_fail(
+                    return Some(build_puback(
                         protocol,
                         connection,
                         publish.pkid,
                         PubAckReason::PayloadFormatInvalid,
                         Some(MqttBrokerError::PayloadFormatInvalid.to_string()),
+                        Vec::new(),
                     ));
                 } else {
-                    return Some(response_packet_mqtt_pubrec_fail(
+                    return Some(build_pubrec(
                         protocol,
                         connection,
                         publish.pkid,
                         PubRecReason::PayloadFormatInvalid,
                         Some(MqttBrokerError::PayloadFormatInvalid.to_string()),
+                        Vec::new(),
                     ));
                 }
             }
@@ -262,40 +268,44 @@ pub async fn publish_validator(
         && connection.get_recv_qos_message() >= cluster.mqtt_protocol_config.receive_max as isize
     {
         if is_puback {
-            return Some(response_packet_mqtt_puback_fail(
+            return Some(build_puback(
                 protocol,
                 connection,
                 publish.pkid,
                 PubAckReason::QuotaExceeded,
                 None,
+                Vec::new(),
             ));
         } else {
-            return Some(response_packet_mqtt_pubrec_fail(
+            return Some(build_pubrec(
                 protocol,
                 connection,
                 publish.pkid,
                 PubRecReason::QuotaExceeded,
                 None,
+                Vec::new(),
             ));
         }
     }
 
     if !payload_format_indicator_check_by_publish(publish, publish_properties) {
         if is_puback {
-            return Some(response_packet_mqtt_puback_fail(
+            return Some(build_puback(
                 protocol,
                 connection,
                 publish.pkid,
                 PubAckReason::PayloadFormatInvalid,
                 None,
+                Vec::new(),
             ));
         } else {
-            return Some(response_packet_mqtt_pubrec_fail(
+            return Some(build_pubrec(
                 protocol,
                 connection,
                 publish.pkid,
                 PubRecReason::PayloadFormatInvalid,
                 None,
+                Vec::new(),
             ));
         }
     }
@@ -305,20 +315,22 @@ pub async fn publish_validator(
             let cluster = cache_manager.get_cluster_config();
             if alias > cluster.mqtt_protocol_config.topic_alias_max {
                 if is_puback {
-                    return Some(response_packet_mqtt_puback_fail(
+                    return Some(build_puback(
                         protocol,
                         connection,
                         publish.pkid,
                         PubAckReason::UnspecifiedError,
                         Some(MqttBrokerError::TopicAliasTooLong(alias).to_string()),
+                        Vec::new(),
                     ));
                 } else {
-                    return Some(response_packet_mqtt_pubrec_fail(
+                    return Some(build_pubrec(
                         protocol,
                         connection,
                         publish.pkid,
                         PubRecReason::UnspecifiedError,
                         Some(MqttBrokerError::TopicAliasTooLong(alias).to_string()),
+                        Vec::new(),
                     ));
                 }
             }
