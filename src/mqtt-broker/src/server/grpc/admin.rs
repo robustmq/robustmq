@@ -352,7 +352,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
     async fn mqtt_broker_get_all_topic_rewrite_rule(
         &self,
-        request: Request<ListRewriteTopicRuleRequest>,
+        _request: Request<ListRewriteTopicRuleRequest>,
     ) -> Result<Response<ListRewriteTopicRuleReply>, Status> {
         let rewrite_topic_rules = get_all_topic_rewrite_rule_by_req(&self.cache_manager)
             .await
