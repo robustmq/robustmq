@@ -881,6 +881,7 @@ where
         } else {
             false
         };
+
         if let Err(e) = disconnect_connection(
             &connection.client_id,
             connect_id,

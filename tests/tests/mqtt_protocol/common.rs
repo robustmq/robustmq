@@ -94,7 +94,7 @@ pub fn build_conn_pros(
 
 pub fn connect_server(client_properties: &ClientTestProperties) -> Client {
     let create_opts = build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
-
+    println!("{:?}", client_properties);
     let cli_res = Client::new(create_opts);
     assert!(cli_res.is_ok());
     let cli = cli_res.unwrap();

@@ -29,9 +29,9 @@ use serde::{Deserialize, Serialize};
 use tracing::error;
 
 use crate::subscribe::{
-    common::Subscriber,
     common::{
-        decode_share_info, get_share_sub_leader, is_match_sub_and_topic, is_queue_sub, is_share_sub,
+        decode_queue_info, decode_share_info, get_share_sub_leader, is_match_sub_and_topic,
+        is_queue_sub, is_share_sub, Subscriber, SHARE_QUEUE_DEFAULT_GROUP_NAME,
     },
     manager::{ShareSubShareSub, SubscribeManager},
 };
@@ -194,15 +194,17 @@ async fn parse_share_subscribe(
     subscribe_manager: &Arc<SubscribeManager>,
     req: &mut ParseShareQueueSubscribeRequest,
 ) -> Result<(), MqttBrokerError> {
-    let (group_name, sub_name) = decode_share_info(&req.filter.path);
-
-    req.group_name = if is_queue_sub(&req.filter.path) {
-        format!("$queue_{}", sub_name)
+    let (group_name, sub_name) = if is_queue_sub(&req.filter.path) {
+        (
+            SHARE_QUEUE_DEFAULT_GROUP_NAME.to_string(),
+            decode_queue_info(&req.filter.path),
+        )
     } else {
-        format!("{}_{}", group_name, sub_name)
+        decode_share_info(&req.filter.path)
     };
-    req.sub_name = sub_name;
 
+    req.group_name = format!("{}_{}", group_name, sub_name);
+    req.sub_name = sub_name;
     let conf = broker_mqtt_conf();
 
     if is_match_sub_and_topic(&req.sub_name, &req.topic_name).is_ok() {
