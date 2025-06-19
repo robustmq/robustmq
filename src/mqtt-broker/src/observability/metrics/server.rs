@@ -36,50 +36,50 @@ struct NetworkLabel {
 
 common_base::register_histogram_metric!(
     REQUEST_TOTAL_MS,
-    "request.total.ms",
+    "request_total_ms",
     "The total duration of request packets processed in the broker",
     NetworkLabel,
-    5.0,
+    0.5,
     2.0,
     12
 );
 
 common_base::register_histogram_metric!(
     REQUEST_QUEUE_MS,
-    "request.queue.ms",
+    "request_queue_ms",
     "The total duration of request packets in the broker queue",
     NetworkLabel,
-    5.0,
+    0.5,
     2.0,
     12
 );
 
 common_base::register_histogram_metric!(
     REQUEST_HANDLER_MS,
-    "request.handler.ms",
+    "request_handler_ms",
     "The total duration of request packets handle in the broker",
     NetworkLabel,
-    5.0,
+    0.5,
     2.0,
     12
 );
 
 common_base::register_histogram_metric!(
     REQUEST_RESPONSE_MS,
-    "request.response.ms",
+    "request_response_ms",
     "The total duration of request packets response in the broker",
     NetworkLabel,
-    5.0,
+    0.5,
     2.0,
     12
 );
 
 common_base::register_histogram_metric!(
     REQUEST_RESPONSE_QUEUE_MS,
-    "request.response.queue_ms",
+    "request_response_queue_ms",
     "The total duration of request packets response queue in the broker",
     NetworkLabel,
-    5.0,
+    0.5,
     2.0,
     12
 );

@@ -15,6 +15,7 @@
 [stdout]
 kind = "Console"
 level = "Info"
+formatter = "Json"
 
 [server]
 kind = "RollingFile"

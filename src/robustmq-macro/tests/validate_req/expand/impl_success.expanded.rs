@@ -5,9 +5,10 @@ pub struct Request {
     name: String,
 }
 impl ::prost_validate::Validator for Request {
+    #[allow(clippy::regex_creation_in_loops)]
     #[allow(irrefutable_let_patterns)]
     #[allow(unused_variables)]
-    fn validate(&self) -> prost_validate::Result<()> {
+    fn validate(&self) -> ::prost_validate::Result<()> {
         let name = &self.name;
         if name != "foo" {
             return Err(
