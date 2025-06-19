@@ -29,7 +29,8 @@ use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::sleep;
-use tracing::{debug, error, info};
+use tracing::warn;
+use tracing::{error, info};
 
 #[derive(Clone)]
 pub struct ShareLeaderPush<S> {
@@ -84,6 +85,13 @@ where
                         error!("stop sub share thread error, error message:{}", err);
                     }
                 }
+            }
+        }
+
+        // gc
+        for (key, raw) in self.subscribe_manager.share_leader_push.clone() {
+            if raw.sub_list.is_empty() {
+                self.subscribe_manager.share_leader_push.remove(&key);
             }
         }
     }
@@ -245,7 +253,7 @@ where
             seq += 1;
             times += 1;
             if times > 3 {
-                debug!("Shared subscription failed to send messages {} times and the messages were discarded", times);
+                warn!("Shared subscription failed to send messages {} times and the messages were discarded", times);
                 break;
             }
             let subscriber = if let Some(subscrbie) =
@@ -253,7 +261,7 @@ where
             {
                 subscrbie
             } else {
-                debug!("No available subscribers were obtained. Continue looking for the next one");
+                warn!("No available subscribers were obtained. Continue looking for the next one");
                 sleep(Duration::from_secs(1)).await;
                 continue;
             };
@@ -265,7 +273,7 @@ where
             let sub_pub_param = match build_publish_message(
                 cache_manager,
                 connection_manager,
-                &sub_data.client_id,
+                &subscriber.client_id,
                 record.to_owned(),
                 group_id,
                 &qos,
@@ -276,14 +284,14 @@ where
             {
                 Ok(Some(param)) => param,
                 Ok(None) => {
-                    debug!(
+                    warn!(
                         "Build message is empty. group:{}, topic_id:{}",
                         group_id, sub_data.topic_id
                     );
                     break;
                 }
                 Err(e) => {
-                    debug!("Build message error. Error message : {}", e);
+                    warn!("Build message error. Error message : {}", e);
                     break;
                 }
             };
@@ -297,7 +305,7 @@ where
             )
             .await
             {
-                debug!("Shared subscription failed to send a message. I attempted to send it to the next client. Error message :{}", e);
+                warn!("Shared subscription failed to send a message. I attempted to send it to the next client. Error message :{}", e);
                 continue;
             };
 
@@ -317,8 +325,16 @@ fn get_subscribe_by_random(
 ) -> Option<Subscriber> {
     if let Some(sub_list) = subscribe_manager.share_leader_push.get(share_leader_key) {
         let index = seq % (sub_list.sub_list.len() as u64);
-        if let Some(subscribe) = sub_list.sub_list.get(index as usize) {
-            return Some(subscribe.clone());
+        let keys: Vec<String> = sub_list
+            .sub_list
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect();
+
+        if let Some(key) = keys.get(index as usize) {
+            if let Some(subscribe) = sub_list.sub_list.get(key) {
+                return Some(subscribe.clone());
+            }
         }
     }
 

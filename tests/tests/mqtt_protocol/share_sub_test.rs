@@ -30,7 +30,7 @@ mod tests {
         let topic = format!("/tests/{}", unique_id());
         let group_name = unique_id();
         let sub_topic = format!("$share/{}{}", group_name, topic);
-        single_test(topic, sub_topic).await;
+        single_test(topic, sub_topic, "share_single_subscribe_test").await;
     }
 
     #[tokio::test]
@@ -38,30 +38,42 @@ mod tests {
         let topic = format!("/tests/{}", unique_id());
         let group_name = unique_id();
         let sub_topic = format!("$share/{}{}", group_name, topic);
-        single_test(topic.clone(), sub_topic.clone()).await;
+        single_test(
+            topic.clone(),
+            sub_topic.clone(),
+            "share_multi_subscribe_test",
+        )
+        .await;
     }
 
     #[tokio::test]
     async fn queue_single_subscribe_test() {
         let topic = format!("/tests/{}", unique_id());
         let sub_topic = format!("$queue{}", topic);
-        single_test(topic.clone(), sub_topic.clone()).await;
+        single_test(
+            topic.clone(),
+            sub_topic.clone(),
+            "queue_single_subscribe_test",
+        )
+        .await;
     }
 
     #[tokio::test]
     async fn queue_multi_subscribe_test() {
         let topic = format!("/tests/{}", unique_id());
         let sub_topic = format!("$queue{}", topic);
-        single_test(topic.clone(), sub_topic.clone()).await;
+        single_test(
+            topic.clone(),
+            sub_topic.clone(),
+            "queue_multi_subscribe_test",
+        )
+        .await;
     }
 
-    async fn single_test(pub_topic: String, sub_topic: String) {
+    async fn single_test(pub_topic: String, sub_topic: String, flag: &str) {
         let network = "tcp";
         let qos = 1;
-        let client_id = build_client_id(
-            format!("share_subscribe_test_{}_{}_{}", network, qos, unique_id()).as_str(),
-        );
-
+        let client_id = build_client_id(flag);
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
             client_id: client_id.to_string(),
@@ -83,6 +95,7 @@ mod tests {
         publish_data(&cli, msg, false);
         distinct_conn(cli);
 
+        let client_id = build_client_id(flag);
         // subscribe
         let client_properties = ClientTestProperties {
             mqtt_version: 5,

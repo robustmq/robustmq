@@ -33,15 +33,18 @@ pub struct ShareSubShareSub {
     pub subscription_identifier: Option<usize>,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct ShareLeaderSubscribeData {
+    // key
     pub group_name: String,
-    pub topic_id: String,
-    pub client_id: String,
-    pub topic_name: String,
     pub sub_name: String,
-    // (client_id_sub_path, subscriber)
-    pub sub_list: Vec<Subscriber>,
+    pub topic_id: String,
+
+    // extend
+    pub topic_name: String,
+
+    // (client_id, subscriber)
+    pub sub_list: DashMap<String, Subscriber>,
 }
 
 #[derive(Clone, Debug)]
@@ -61,10 +64,10 @@ pub struct SubscribeManager {
     // (client_id_sub_name_topic_id, Sender<bool>)
     pub exclusive_push_thread: DashMap<String, Sender<bool>>,
 
-    // (group_name_sub_name_topic_id, ShareLeaderSubscribeData)
+    // (group_name_topic_id, ShareLeaderSubscribeData)
     pub share_leader_push: DashMap<String, ShareLeaderSubscribeData>,
 
-    // (group_name_sub_name_topic_id, Sender<bool>)
+    // (group_name_topic_id, Sender<bool>)
     pub share_leader_push_thread: DashMap<String, Sender<bool>>,
 
     // (client_id_group_name_sub_name,ShareSubShareSub)
@@ -141,37 +144,37 @@ impl SubscribeManager {
         let group_name = sub.group_name.clone().unwrap();
         let share_leader_key = self.share_leader_key(&group_name, sub_name, &sub.topic_id);
 
-        if let Some(mut share_sub) = self.share_leader_push.get_mut(&share_leader_key) {
-            share_sub.sub_list.push(sub);
+        if let Some(share_sub) = self.share_leader_push.get(&share_leader_key) {
+            share_sub.sub_list.insert(sub.client_id.clone(), sub);
         } else {
+            let sub_list = DashMap::with_capacity(2);
+            sub_list.insert(sub.client_id.clone(), sub.clone());
             self.share_leader_push.insert(
                 share_leader_key.clone(),
                 ShareLeaderSubscribeData {
                     group_name: group_name.to_owned(),
                     topic_id: sub.topic_id.to_owned(),
-                    client_id: sub.client_id.to_owned(),
                     topic_name: sub.topic_name.to_owned(),
                     sub_name: sub_name.to_owned(),
-                    sub_list: vec![sub],
+                    sub_list,
                 },
             );
         }
     }
 
     fn remove_share_subscribe_leader_by_client_id(&self, client_id: &str) {
-        for (key, share_sub) in self.share_leader_push.clone() {
-            for (i, subscriber) in share_sub.sub_list.iter().enumerate() {
-                if subscriber.client_id == *client_id {
-                    if let Some(mut mut_data) = self.share_leader_push.get_mut(&key) {
-                        if mut_data.sub_list.get(i).is_some() {
-                            mut_data.sub_list.remove(i);
-                        }
-                    }
-                    self.remove_topic_subscribe_by_client_id(
-                        &subscriber.topic_name,
-                        &subscriber.client_id,
-                    );
-                }
+        for share_sub in self.share_leader_push.iter() {
+            if let Some((_, subscriber)) = share_sub.sub_list.remove(client_id) {
+                self.remove_topic_subscribe_by_client_id(
+                    &subscriber.topic_name,
+                    &subscriber.client_id,
+                );
+            }
+        }
+
+        for (key, raw) in self.share_leader_push.clone() {
+            if raw.sub_list.is_empty() {
+                self.share_leader_push.remove(&key);
             }
         }
     }
@@ -333,9 +336,13 @@ impl SubscribeManager {
 mod tests {
     use std::sync::Arc;
 
-    use common_base::tools::unique_id;
+    use common_base::tools::{now_second, unique_id};
+    use protocol::mqtt::common::{Filter, MqttProtocol, QoS, RetainHandling};
 
-    use crate::subscribe::manager::SubscribeManager;
+    use crate::subscribe::{
+        common::Subscriber,
+        manager::{ShareSubShareSub, SubscribeManager},
+    };
 
     #[test]
     fn topic_subscribe_test() {
@@ -361,5 +368,56 @@ mod tests {
         subscribe_manager.remove_topic_subscribe_by_path(topic_name, &client_id, path);
         assert!(!subscribe_manager.contain_topic_subscribe(topic_name));
         assert!(!subscribe_manager.is_exclusive_subscribe(topic_name));
+    }
+
+    #[test]
+    fn share_subscribe_leader_test() {
+        let subscribe_manager = Arc::new(SubscribeManager::new());
+
+        let sub = Subscriber {
+            protocol: MqttProtocol::Mqtt5,
+            client_id: "client_id_1".to_string(),
+            topic_name: "t_name_1".to_string(),
+            group_name: Some("g1".to_string()),
+            topic_id: "t_id_1".to_string(),
+            qos: QoS::AtLeastOnce,
+            nolocal: true,
+            preserve_retain: true,
+            retain_forward_rule: RetainHandling::Never,
+            subscription_identifier: None,
+            sub_path: "/var/111".to_string(),
+            rewrite_sub_path: None,
+            create_time: now_second(),
+        };
+        subscribe_manager.add_share_subscribe_leader("queeue_", sub.clone());
+        assert_eq!(subscribe_manager.share_leader_push.len(), 1);
+
+        subscribe_manager.remove_share_subscribe_leader_by_client_id(&sub.client_id);
+        println!("{:?}", subscribe_manager.share_leader_push);
+        assert_eq!(subscribe_manager.share_leader_push.len(), 0);
+    }
+
+    #[test]
+    fn share_subscribe_followe_test() {
+        let share_sub = ShareSubShareSub {
+            protocol: MqttProtocol::Mqtt5,
+            client_id: "client_id_1".to_string(),
+            packet_identifier: 1,
+            filter: Filter::default(),
+            group_name: "g1".to_string(),
+            sub_name: "s1".to_string(),
+            subscription_identifier: None,
+            topic_id: "t1".to_string(),
+            topic_name: "tname".to_string(),
+        };
+        let subscribe_manager = Arc::new(SubscribeManager::new());
+        subscribe_manager.add_share_subscribe_follower(
+            &share_sub.client_id,
+            &share_sub.group_name,
+            &share_sub.topic_id,
+            share_sub.clone(),
+        );
+        subscribe_manager.remove_share_subscribe_follower_by_client_id(&share_sub.client_id);
+        assert_eq!(subscribe_manager.share_follower_resub.len(), 0);
     }
 }

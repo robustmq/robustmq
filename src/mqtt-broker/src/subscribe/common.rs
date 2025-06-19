@@ -37,6 +37,7 @@ const SUBSCRIBE_WILDCARDS_1: &str = "+";
 const SUBSCRIBE_WILDCARDS_2: &str = "#";
 const SUBSCRIBE_SPLIT_DELIMITER: &str = "/";
 const SUBSCRIBE_NAME_REGEX: &str = r"^[\$a-zA-Z0-9_#+/]+$";
+pub const SHARE_QUEUE_DEFAULT_GROUP_NAME: &str = "$queue_group_robustmq";
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Subscriber {

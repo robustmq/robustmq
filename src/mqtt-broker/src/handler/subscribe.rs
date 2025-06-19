@@ -31,7 +31,7 @@ use tracing::error;
 use crate::subscribe::{
     common::{
         decode_queue_info, decode_share_info, get_share_sub_leader, is_match_sub_and_topic,
-        is_queue_sub, is_share_sub, Subscriber,
+        is_queue_sub, is_share_sub, Subscriber, SHARE_QUEUE_DEFAULT_GROUP_NAME,
     },
     manager::{ShareSubShareSub, SubscribeManager},
 };
@@ -195,7 +195,10 @@ async fn parse_share_subscribe(
     req: &mut ParseShareQueueSubscribeRequest,
 ) -> Result<(), MqttBrokerError> {
     let (group_name, sub_name) = if is_queue_sub(&req.filter.path) {
-        ("$queue".to_string(), decode_queue_info(&req.filter.path))
+        (
+            SHARE_QUEUE_DEFAULT_GROUP_NAME.to_string(),
+            decode_queue_info(&req.filter.path),
+        )
     } else {
         decode_share_info(&req.filter.path)
     };
