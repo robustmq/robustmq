@@ -12,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-cluster_name = "mqtt-broker-test"
+cluster_name = "mqtt-broker"
 broker_id = 1
 grpc_port = 9981
 placement_center = ["127.0.0.1:1228"]
-heartbeat_timeout = "10s"
 
-[network]
+[network_port]
 local_ip = "127.0.0.1"
 tcp_port = 1883
 tcps_port = 8883
@@ -28,17 +27,17 @@ quic_port = 9083
 tls_cert = "./certs/cert.pem"
 tls_key = "./certs/key.pem"
 
-[tcp_thread]
-accept_thread_num = 5
-handler_thread_num = 32
-response_thread_num = 5
-max_connection_num = 1000
+[network_thread]
+accept_thread_num = 10
+handler_thread_num = 10
+response_thread_num = 10
+max_connection_num = 5000000
 request_queue_size = 2000
 response_queue_size = 2000
 lock_max_try_mut_times = 30
 lock_try_mut_sleep_time_ms = 50
 
-[auth]
+[auth_storage]
 storage_type = "placement"
 
 [prometheus]
@@ -50,9 +49,18 @@ interval = 10
 header = ""
 
 [system]
+heartbeat_timeout = "10s"
 runtime_worker_threads = 4
 default_user = "admin"
 default_password = "pwd123"
+
+[system_monitor]
+enable = true
+os_cpu_check_interval_ms = 60000
+os_cpu_high_watermark = 70.0
+os_cpu_low_watermark = 50.0
+os_memory_check_interval_ms = 60
+os_memory_high_watermark = 80.0
 
 [offline_messages]
 enable = true
