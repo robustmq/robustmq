@@ -201,9 +201,7 @@ async fn parse_share_subscribe(
     };
 
     req.group_name = format!("{}_{}", group_name, sub_name);
-
     req.sub_name = sub_name;
-
     let conf = broker_mqtt_conf();
 
     if is_match_sub_and_topic(&req.sub_name, &req.topic_name).is_ok() {
