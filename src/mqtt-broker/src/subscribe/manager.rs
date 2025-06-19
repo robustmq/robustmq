@@ -389,7 +389,7 @@ mod tests {
             rewrite_sub_path: None,
             create_time: now_second(),
         };
-        subscribe_manager.add_share_subscribe_leader("queeue_", sub.clone());
+        subscribe_manager.add_share_subscribe_leader("queue_", sub.clone());
         assert_eq!(subscribe_manager.share_leader_push.len(), 1);
 
         subscribe_manager.remove_share_subscribe_leader_by_client_id(&sub.client_id);
