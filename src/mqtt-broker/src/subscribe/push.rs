@@ -37,7 +37,7 @@ use protocol::mqtt::common::{MqttPacket, MqttProtocol, PubRel, Publish, PublishP
 use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::{sleep, timeout};
-use tracing::{debug, error};
+use tracing::{debug, warn};
 
 #[allow(clippy::too_many_arguments)]
 pub async fn build_publish_message(
@@ -255,7 +255,7 @@ pub async fn push_packet_to_client(
         send_message_to_client(resp, sub_pub_param, connection_manager, cache_manager).await
     };
 
-    retry_tool_fn_timeout(action_fn, stop_sx).await
+    retry_tool_fn_timeout(action_fn, stop_sx, "push_packet_to_client").await
 }
 
 // When the subscribed QOS is 1, we need to keep retrying to send the message to the client.
@@ -422,7 +422,7 @@ pub async fn wait_pub_ack(
         Ok(())
     };
 
-    retry_tool_fn_timeout(ac_fn, stop_sx).await
+    retry_tool_fn_timeout(ac_fn, stop_sx, "wait_pub_ack").await
 }
 
 pub async fn wait_pub_rec(
@@ -458,7 +458,7 @@ pub async fn wait_pub_rec(
         Ok(())
     };
 
-    retry_tool_fn_timeout(ac_fn, stop_sx).await
+    retry_tool_fn_timeout(ac_fn, stop_sx, "wait_pub_rec").await
 }
 
 pub async fn wait_pub_comp(
@@ -495,7 +495,7 @@ pub async fn wait_pub_comp(
         Ok(())
     };
 
-    retry_tool_fn_timeout(ac_fn, stop_sx).await
+    retry_tool_fn_timeout(ac_fn, stop_sx, "wait_pub_comp").await
 }
 
 pub async fn qos2_send_pubrel(
@@ -524,12 +524,17 @@ pub async fn qos2_send_pubrel(
 async fn retry_tool_fn_timeout<F, Fut>(
     ac_fn: F,
     stop_sx: &broadcast::Sender<bool>,
+    action: &str,
 ) -> Result<(), MqttBrokerError>
 where
     F: FnOnce() -> Fut + Copy,
     Fut: Future<Output = Result<(), MqttBrokerError>>,
 {
-    timeout(Duration::from_secs(3), retry_tool_fn(ac_fn, stop_sx)).await??;
+    let to = 3;
+    match timeout(Duration::from_secs(to), retry_tool_fn(ac_fn, stop_sx)).await {
+        Ok(res) => res?,
+        Err(_) => return Err(MqttBrokerError::OperationTimeout(to, action.to_string())),
+    }
     Ok(())
 }
 
@@ -552,9 +557,9 @@ where
                 }
             }
             val = ac_fn() => {
-                if let Err(e) = val{
+                if let Err(e) = val {
                     if !is_ignore_push_error(&e){
-                        error!("retry tool fn fail, error message:{}",e);
+                        warn!("retry tool fn fail, error message:{}",e);
                         sleep(Duration::from_secs(1)).await;
                         continue;
                     }

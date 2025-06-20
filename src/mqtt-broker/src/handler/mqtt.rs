@@ -32,7 +32,7 @@ use tracing::{error, warn};
 
 use super::connection::{disconnect_connection, is_delete_session};
 use super::delay_message::{decode_delay_topic, is_delay_topic};
-use super::offline_message::{is_exist_subscribe, save_message};
+use super::offline_message::save_message;
 use super::response::build_pub_ack_fail;
 use super::retain::{is_new_sub, try_send_retain_message};
 use super::sub_auto::try_auto_subscribe;
@@ -46,12 +46,11 @@ use crate::handler::connection::{build_connection, get_client_id};
 use crate::handler::flapping_detect::check_flapping_detect;
 use crate::handler::lastwill::save_last_will_message;
 use crate::handler::response::{
-    response_packet_mqtt_connect_fail, response_packet_mqtt_connect_success,
-    response_packet_mqtt_distinct_by_reason, response_packet_mqtt_ping_resp,
-    response_packet_mqtt_puback_fail, response_packet_mqtt_puback_success,
-    response_packet_mqtt_pubcomp_fail, response_packet_mqtt_pubcomp_success,
-    response_packet_mqtt_pubrec_fail, response_packet_mqtt_pubrec_success,
-    response_packet_mqtt_suback, response_packet_mqtt_unsuback,
+    build_puback, build_pubrec, response_packet_mqtt_connect_fail,
+    response_packet_mqtt_connect_success, response_packet_mqtt_distinct_by_reason,
+    response_packet_mqtt_ping_resp, response_packet_mqtt_pubcomp_fail,
+    response_packet_mqtt_pubcomp_success, response_packet_mqtt_suback,
+    response_packet_mqtt_unsuback,
 };
 use crate::handler::session::{build_session, save_session};
 use crate::handler::topic::{get_topic_name, try_init_topic};
@@ -328,19 +327,25 @@ where
 
         let is_puback = publish.qos != QoS::ExactlyOnce;
 
-        let mut topic_name =
-            match get_topic_name(&self.cache_manager, connect_id, publish, publish_properties) {
-                Ok(topic_name) => topic_name,
-                Err(e) => {
-                    return Some(build_pub_ack_fail(
-                        &self.protocol,
-                        &connection,
-                        publish.pkid,
-                        Some(e.to_string()),
-                        is_puback,
-                    ))
-                }
-            };
+        let mut topic_name = match get_topic_name(
+            &self.cache_manager,
+            connect_id,
+            publish,
+            publish_properties,
+        )
+        .await
+        {
+            Ok(topic_name) => topic_name,
+            Err(e) => {
+                return Some(build_pub_ack_fail(
+                    &self.protocol,
+                    &connection,
+                    publish.pkid,
+                    Some(e.to_string()),
+                    is_puback,
+                ))
+            }
+        };
 
         let mut delay_info = if is_delay_topic(&topic_name) {
             match decode_delay_topic(&topic_name) {
@@ -368,20 +373,22 @@ where
             .await
         {
             if is_puback {
-                return Some(response_packet_mqtt_puback_fail(
+                return Some(build_puback(
                     &self.protocol,
                     &connection,
                     publish.pkid,
                     PubAckReason::NotAuthorized,
                     None,
+                    Vec::new(),
                 ));
             } else {
-                return Some(response_packet_mqtt_pubrec_fail(
+                return Some(build_pubrec(
                     &self.protocol,
                     &connection,
                     publish.pkid,
                     PubRecReason::NotAuthorized,
                     None,
+                    Vec::new(),
                 ));
             }
         }
@@ -462,20 +469,14 @@ where
 
         match publish.qos {
             QoS::AtMostOnce => None,
-            QoS::AtLeastOnce => {
-                let reason_code = if !is_exist_subscribe(&self.subscribe_manager, &topic.topic_name)
-                {
-                    PubAckReason::Success
-                } else {
-                    PubAckReason::NoMatchingSubscribers
-                };
-                Some(response_packet_mqtt_puback_success(
-                    &self.protocol,
-                    reason_code,
-                    publish.pkid,
-                    user_properties,
-                ))
-            }
+            QoS::AtLeastOnce => Some(build_puback(
+                &self.protocol,
+                &connection,
+                publish.pkid,
+                PubAckReason::Success,
+                None,
+                user_properties,
+            )),
             QoS::ExactlyOnce => {
                 if let Err(e) = pkid_save(
                     &self.cache_manager,
@@ -493,17 +494,13 @@ where
                         is_puback,
                     ));
                 }
-                let reason_code = if !is_exist_subscribe(&self.subscribe_manager, &topic.topic_name)
-                {
-                    PubRecReason::Success
-                } else {
-                    PubRecReason::NoMatchingSubscribers
-                };
 
-                Some(response_packet_mqtt_pubrec_success(
+                Some(build_pubrec(
                     &self.protocol,
-                    reason_code,
+                    &connection,
                     publish.pkid,
+                    PubRecReason::Success,
+                    None,
                     user_properties,
                 ))
             }
