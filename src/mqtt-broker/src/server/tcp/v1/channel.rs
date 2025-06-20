@@ -19,19 +19,19 @@ use tokio::sync::mpsc::Sender;
 pub struct RequestChannel {
     request_channel: Sender<RequestPackage>,
     handler_child_channels: DashMap<usize, Sender<RequestPackage>>,
-    reponse_channel: Sender<RequestPackage>,
+    response_channel: Sender<RequestPackage>,
     response_child_channels: DashMap<usize, Sender<RequestPackage>>,
 }
 
 impl RequestChannel {
     pub fn new(
         request_channel: Sender<RequestPackage>,
-        reponse_channel: Sender<RequestPackage>,
+        response_channel: Sender<RequestPackage>,
     ) -> Self {
         RequestChannel {
             request_channel,
             handler_child_channels: DashMap::with_capacity(2),
-            reponse_channel,
+            response_channel,
             response_child_channels: DashMap::with_capacity(2),
         }
     }
