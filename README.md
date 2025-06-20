@@ -140,7 +140,7 @@ Supports critical MQTT features such as Will Messages (testament messages), Reta
 
 ## Contact us
 
-- **Discord Group**: Join our community on Discord for discussions, questions, and collaboration 👉 [Discord Link](https://discord.gg/jVxz2EF3)
+- **Discord Group**: Join our community on Discord for discussions, questions, and collaboration 👉 [Discord Link](https://discord.gg/sygeGRh5)
 - **Wechat Group**: If you're interested in contributing to the project or discussing development topics, scan the QR code below to join our WeChat group for real-time discussion and collaboration:
 <div align="center">
   <img src="docs/images/WechatGroup.jpg" alt="WeChat QR Code" width=200 />
