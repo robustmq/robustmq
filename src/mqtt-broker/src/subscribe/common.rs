@@ -91,14 +91,11 @@ impl SubPublishParam {
 }
 
 pub fn is_ignore_push_error(e: &MqttBrokerError) -> bool {
-    if e.to_string().contains("deadline has elapsed") {
-        return true;
-    }
-
     match e {
         MqttBrokerError::SessionNullSkipPushMessage(_) => {}
         MqttBrokerError::ConnectionNullSkipPushMessage(_) => {}
         MqttBrokerError::NotObtainAvailableConnection(_, _) => {}
+        MqttBrokerError::OperationTimeout(_, _) => {}
         _ => {
             return false;
         }

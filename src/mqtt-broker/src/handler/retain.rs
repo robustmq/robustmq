@@ -38,8 +38,10 @@ use protocol::mqtt::common::{
     qos, MqttPacket, MqttProtocol, Publish, PublishProperties, Subscribe, SubscribeProperties,
 };
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::broadcast;
-use tracing::error;
+use tokio::time::sleep;
+use tracing::{info, warn};
 
 pub async fn is_new_sub(
     client_id: &str,
@@ -102,6 +104,11 @@ pub async fn try_send_retain_message(
     is_new_subs: DashMap<String, bool>,
 ) {
     tokio::spawn(async move {
+        // Do not send messages immediately. Avoid publishing and subing in the same connection successively.
+        // At this point, the network model is processed in parallel.
+        // There may be a situation where the subscription starts before the reserved message is successfully retained,
+        // resulting in the subscription end not receiving the reserved message.
+        sleep(Duration::from_secs(3)).await;
         let (stop_sx, _) = broadcast::channel(1);
         if let Err(e) = send_retain_message(
             &protocol,
@@ -117,7 +124,10 @@ pub async fn try_send_retain_message(
         .await
         {
             if !is_ignore_push_error(&e) {
-                error!("Sending retain message failed with error message :{}", e);
+                warn!(
+                    "Sending retain message failed with error message :{},client_id:{}",
+                    e, client_id
+                );
             }
         }
     });
@@ -148,6 +158,7 @@ async fn send_retain_message(
             &filter.retain_handling,
             is_new_subs,
         ) {
+            info!("retain messages: Determine whether to send retained messages based on the retain handling strategy. Client ID: {}", client_id);
             continue;
         }
 
@@ -169,6 +180,7 @@ async fn send_retain_message(
             };
 
             if !is_send_msg_by_bo_local(filter.nolocal, client_id, &msg.client_id) {
+                info!("retain messages: Determine whether to send retained messages based on the no local strategy. Client ID: {}", client_id);
                 continue;
             }
 
@@ -231,6 +243,10 @@ async fn send_retain_message(
                 stop_sx,
             )
             .await?;
+            info!(
+                "retain the successful message sending: client_id: {}, topi_id: {}",
+                client_id, topic_id
+            );
 
             record_retain_sent_metrics(qos);
         }

@@ -66,8 +66,8 @@ pub enum MqttBrokerError {
     #[error("Topic name cannot be empty")]
     TopicNameIsEmpty,
 
-    #[error("topic name is not available")]
-    TopicNameInvalid(),
+    #[error("Topic alias ** did not find the corresponding actual Topic")]
+    TopicAliasInvalid(Option<u16>),
 
     #[error("Topic {0} is incorrectly formatted")]
     TopicNameIncorrectlyFormatted(String),
@@ -169,6 +169,9 @@ pub enum MqttBrokerError {
 
     #[error("Client {0}, the size of the subscription sent packets exceeds the limit. Packet size :{1}, Limit size :{2}")]
     PacketsExceedsLimitBySubPublish(String, usize, u32),
+
+    #[error("Operation timeout, timeout time :{0}, operation: {1}")]
+    OperationTimeout(u64, String),
 }
 
 impl From<MqttBrokerError> for Status {

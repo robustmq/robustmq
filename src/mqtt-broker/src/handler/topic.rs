@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use bytes::Bytes;
 
@@ -23,6 +24,7 @@ use metadata_struct::mqtt::topic::MqttTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
 use regex::Regex;
 use storage_adapter::storage::{ShardInfo, StorageAdapter};
+use tokio::time::sleep;
 
 use super::error::MqttBrokerError;
 use crate::handler::cache::CacheManager;
@@ -74,7 +76,7 @@ pub fn topic_name_validator(topic_name: &str) -> Result<(), MqttBrokerError> {
     Ok(())
 }
 
-pub fn get_topic_name(
+pub async fn get_topic_name(
     cache_manager: &Arc<CacheManager>,
     connect_id: u64,
     publish: &Publish,
@@ -93,11 +95,7 @@ pub fn get_topic_name(
     }
 
     let topic_name = if topic.is_empty() {
-        if let Some(tn) = cache_manager.get_topic_alias(connect_id, topic_alias.unwrap()) {
-            tn
-        } else {
-            return Err(MqttBrokerError::TopicNameInvalid());
-        }
+        get_topic_alias(cache_manager, connect_id, topic_alias).await?
     } else {
         topic
     };
@@ -113,6 +111,32 @@ pub fn get_topic_name(
     }
 
     Ok(topic_name)
+}
+
+pub async fn get_topic_alias(
+    cache_manager: &Arc<CacheManager>,
+    connect_id: u64,
+    topic_alias: Option<u16>,
+) -> Result<String, MqttBrokerError> {
+    let mut times = 0;
+    let topic_name;
+    loop {
+        if times > 10 {
+            return Err(MqttBrokerError::TopicAliasInvalid(topic_alias));
+        }
+        if let Some(tn) = cache_manager.get_topic_alias(connect_id, topic_alias.unwrap()) {
+            topic_name = Some(tn);
+            break;
+        } else {
+            times += 1;
+            sleep(Duration::from_millis(50)).await;
+            continue;
+        }
+    }
+    if let Some(tn) = topic_name {
+        return Ok(tn);
+    }
+    Err(MqttBrokerError::TopicAliasInvalid(topic_alias))
 }
 
 pub async fn try_init_topic<S>(

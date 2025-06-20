@@ -77,7 +77,6 @@ pub(crate) async fn handler_process<S>(
                             let seq = calc_child_channel_index(process_handler_seq,child_process_list.len());
                             if let Some(handler_sx) = child_process_list.get(&seq){
                                 if handler_sx.try_send(packet.clone()).is_ok(){
-                                    handler_sx.capacity();
                                     break;
                                 }
                                 sleep_ms += 1;
