@@ -530,7 +530,7 @@ where
     F: FnOnce() -> Fut + Copy,
     Fut: Future<Output = Result<(), MqttBrokerError>>,
 {
-    let to = 10;
+    let to = 3;
     match timeout(Duration::from_secs(to), retry_tool_fn(ac_fn, stop_sx)).await {
         Ok(res) => res?,
         Err(_) => return Err(MqttBrokerError::OperationTimeout(to, action.to_string())),
