@@ -169,6 +169,9 @@ pub enum MqttBrokerError {
 
     #[error("Client {0}, the size of the subscription sent packets exceeds the limit. Packet size :{1}, Limit size :{2}")]
     PacketsExceedsLimitBySubPublish(String, usize, u32),
+
+    #[error("Operation timeout, timeout time :{0}, operation: {1}")]
+    OperationTimeout(u64, String),
 }
 
 impl From<MqttBrokerError> for Status {
