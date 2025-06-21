@@ -174,7 +174,7 @@ impl BenchMark for KvGetBenchArgs {
         future::join_all(get_handles).await;
 
         // print statistics across all clients
-        print_total_statistics(total_now.elapsed(), num_clients, num_keys);
+        print_total_statistics(total_now.elapsed(), "get", num_clients, num_keys);
 
         // Sort latencies by client ID
         let latencies_sorted = sort_lantencies_by_client_id(&latencies);
