@@ -40,7 +40,7 @@ pub struct KvBenchArgs {
 pub fn handle_kv_bench(args: KvBenchArgs) -> Result<(), BenchMarkError> {
     let (num_threads, thread_name) = match args.action {
         KvBenchAction::Get(ref get_args) => (get_args.worker_threads, "bench-kv-get"),
-        KvBenchAction::Set(_) => unimplemented!(),
+        KvBenchAction::Set(ref set_args) => (set_args.worker_threads, "bench-kv-set"),
         KvBenchAction::Mixed(_) => unimplemented!(),
     };
 
@@ -51,8 +51,8 @@ pub fn handle_kv_bench(args: KvBenchArgs) -> Result<(), BenchMarkError> {
         KvBenchAction::Get(get_args) => {
             rt.block_on(get_args.do_bench())?;
         }
-        KvBenchAction::Set(_) => {
-            unimplemented!();
+        KvBenchAction::Set(set_args) => {
+            rt.block_on(set_args.do_bench())?;
         }
         KvBenchAction::Mixed(_) => {
             unimplemented!();
