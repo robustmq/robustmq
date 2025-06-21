@@ -89,9 +89,10 @@ pub fn sort_lantencies_by_client_id(
     latencies_sorted
 }
 
-pub fn print_total_statistics(total_time: Duration, num_clients: usize, num_keys: usize) {
+pub fn print_total_statistics(total_time: Duration, op: &str, num_clients: usize, num_keys: usize) {
     println!(
-        "==================\nBenchmark KV get finished with:\n\t\ttime: {:?}s\n\t\tms/op: {}\n\t\top/ms: {}",
+        "==================\nBenchmark KV {} finished with:\n\t\ttime: {:?}s\n\t\tms/op: {}\n\t\top/ms: {}",
+        op,
         total_time.as_secs_f64(),
         total_time.as_millis() as f64 / (num_clients * num_keys) as f64,
         (num_clients * num_keys) as f64 / total_time.as_millis() as f64,
