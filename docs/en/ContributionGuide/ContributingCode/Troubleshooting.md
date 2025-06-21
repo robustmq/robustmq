@@ -7,7 +7,7 @@
 ```toml
 [tokio_console] # This is the name of the appender, choose any name you like
 kind = "TokioConsole" # Note that this is case-sensitive
-bind = "127.0.0.1:5674" # Optional field to specify the server address for the tokio-console server
+bind = "127.0.0.1:5674" # specify the server address for the tokio-console server(default: 127.0.0.1:6669)
 ```
 
 In order to collect task data from the tokio runtime, you also need to enable the `tokio_unstable` `cfg`. For example, you can run the placement center with the following command along with the above configuration to enable `tokio-console` support:
@@ -19,5 +19,12 @@ RUSTFLAGS="--cfg tokio_unstable" cargo run --package cmd --bin placement-center
 You can then use the following command to launch the `tokio-console` client to connect to the server listening on the custom address:
 
 ```bash
-tokio-console http://127.0.1:5674
+tokio-console http://127.0.0.1:5674
+```
+
+You can also configure `grpc_web` to enable web client request support. Please note that the current console default port is set to 6669. For security reasons, some browsers may restrict this port.
+
+```toml
+[tokio_console]
+grpc_web = true # Set whether to enable the grpc-web support (default: false)
 ```

@@ -34,3 +34,8 @@ directory = "./logs"
 prefix = "mqtt-slow_sub-"
 suffix = "log"
 max_log_files = 10
+
+[tokio_console]
+kind = "TokioConsole"
+bind = "0.0.0.0:9999"
+grpc_enable = true

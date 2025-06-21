@@ -39,7 +39,7 @@ serde_yaml.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 tracing-appender.workspace = true
-console-subscriber.workspace = true
+console-subscriber = { workspace = true, features = ["grpc-web"] }
 bincode.workspace = true
 mysql.workspace = true
 clap.workspace = true
