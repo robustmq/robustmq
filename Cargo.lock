@@ -933,6 +933,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tonic",
+ "tonic-web",
  "tracing",
  "tracing-core",
  "tracing-subscriber",

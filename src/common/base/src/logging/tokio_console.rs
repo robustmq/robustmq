@@ -28,6 +28,7 @@ use crate::{
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub(super) struct TokioConsoleAppenderConfig {
     bind: Option<String>,
+    grpc_web: Option<bool>,
 }
 
 impl<S> AppenderConfig<S> for TokioConsoleAppenderConfig
@@ -42,6 +43,10 @@ where
             let socket_addr = SocketAddr::from_str(bind)?;
             builder = builder.server_addr(socket_addr);
         }
+        if let Some(grpc_web) = &self.grpc_web {
+            builder = builder.enable_grpc_web(*grpc_web);
+        }
+
         let layer = builder.spawn().boxed();
         Ok((layer, None))
     }
@@ -54,6 +59,7 @@ mod tests {
         let toml_str = r#"
             kind = "TokioConsole"
             bind = "127.0.0.1:6666"
+            grpc_web = true
         "#;
 
         let config: super::TokioConsoleAppenderConfig = toml::from_str(toml_str).unwrap();

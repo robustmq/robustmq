@@ -15,6 +15,9 @@
 
 sh ./stop.sh
 
+# enable compilation flags
+export RUSTFLAGS="--cfg tokio_unstable"
+
 process_logs_dir=process_logs
 
 placement_center_log=./${process_logs_dir}/placement_center.log
