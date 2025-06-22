@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::server::packet::RequestPackage;
+use crate::server::packet::{RequestPackage, ResponsePackage};
 use dashmap::DashMap;
 use tokio::sync::mpsc::Sender;
 
 pub struct RequestChannel {
     request_channel: Sender<RequestPackage>,
     handler_child_channels: DashMap<usize, Sender<RequestPackage>>,
-    response_channel: Sender<RequestPackage>,
+    response_channel: Sender<ResponsePackage>,
     response_child_channels: DashMap<usize, Sender<RequestPackage>>,
 }
 
 impl RequestChannel {
     pub fn new(
         request_channel: Sender<RequestPackage>,
-        response_channel: Sender<RequestPackage>,
+        response_channel: Sender<ResponsePackage>,
     ) -> Self {
         RequestChannel {
             request_channel,
