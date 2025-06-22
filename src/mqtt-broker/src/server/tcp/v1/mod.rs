@@ -13,6 +13,7 @@
 // limitations under the License.
 
 mod channel;
+mod common;
 mod handler;
 mod response;
 pub mod server;

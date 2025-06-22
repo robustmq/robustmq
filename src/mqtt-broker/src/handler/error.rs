@@ -40,6 +40,9 @@ pub enum MqttBrokerError {
     FromMysqlError(#[from] mysql::Error),
 
     #[error("{0}")]
+    FromRustlsError(#[from] rustls::Error),
+
+    #[error("{0}")]
     TokioTimeErrorElapsed(#[from] tokio::time::error::Elapsed),
 
     #[error("{0}")]

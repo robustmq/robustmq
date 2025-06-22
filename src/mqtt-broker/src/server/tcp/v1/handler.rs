@@ -12,22 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::Duration;
-
 use crate::handler::command::Command;
 use crate::observability::metrics::server::metrics_request_queue_size;
-use crate::server::connection::calc_child_channel_index;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::metric::record_packet_handler_info_no_response;
 use crate::server::packet::{RequestPackage, ResponsePackage};
+use crate::server::tcp::v1::channel::RequestChannel;
 use common_base::tools::now_mills;
 use protocol::mqtt::common::mqtt_packet_to_string;
+use std::sync::Arc;
+use std::time::Duration;
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast;
-use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::mpsc::Receiver;
 use tokio::time::sleep;
 use tracing::{debug, error, info};
 
@@ -35,21 +33,19 @@ pub(crate) async fn handler_process<S>(
     handler_process_num: usize,
     mut request_queue_rx: Receiver<RequestPackage>,
     connection_manager: Arc<ConnectionManager>,
-    response_queue_sx: Sender<ResponsePackage>,
-    stop_sx: broadcast::Sender<bool>,
     command: Command<S>,
+    request_channel: Arc<RequestChannel>,
+    stop_sx: broadcast::Sender<bool>,
 ) where
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
     tokio::spawn(async move {
-        let mut child_process_list: HashMap<usize, Sender<RequestPackage>> = HashMap::new();
         handler_child_process(
             handler_process_num,
-            stop_sx.clone(),
             connection_manager,
+            request_channel.clone(),
             command,
-            &mut child_process_list,
-            response_queue_sx,
+            stop_sx.clone(),
         );
 
         let mut stop_rx = stop_sx.subscribe();
@@ -60,7 +56,7 @@ pub(crate) async fn handler_process<S>(
                 val = stop_rx.recv() =>{
                     if let Ok(flag) = val {
                         if flag {
-                            debug!("{}","TCP Server handler thread stopped successfully.");
+                            debug!("{}","Server handler thread stopped successfully.");
                             break;
                         }
                     }
@@ -74,20 +70,19 @@ pub(crate) async fn handler_process<S>(
                         // Because some request queues may be full or abnormal, the request packets can be delivered to other child handlers.
                         loop{
                             process_handler_seq += 1;
-                            let seq = calc_child_channel_index(process_handler_seq,child_process_list.len());
-                            if let Some(handler_sx) = child_process_list.get(&seq){
+                            if let Some(handler_sx) = request_channel.get_avaiable_handler(process_handler_seq){
                                 if handler_sx.try_send(packet.clone()).is_ok(){
                                     break;
                                 }
-                                sleep_ms += 1;
-                                sleep(Duration::from_millis(sleep_ms)).await;
                             }else{
                                 // In exceptional cases, if no available child handler can be found, the request packet is dropped.
                                 // If the client does not receive a return packet, it will retry the request.
                                 // Rely on repeated requests from the client to ensure that the request will eventually be processed successfully.
                                 error!("{}","Handler child thread, no request packet processing thread available");
-                                break;
                             }
+
+                            sleep_ms += 2;
+                            sleep(Duration::from_millis(sleep_ms)).await;
                         }
 
                     }
@@ -99,26 +94,23 @@ pub(crate) async fn handler_process<S>(
 
 fn handler_child_process<S>(
     handler_process_num: usize,
-    stop_sx: broadcast::Sender<bool>,
     connection_manager: Arc<ConnectionManager>,
+    request_channel: Arc<RequestChannel>,
     command: Command<S>,
-    child_process_list: &mut HashMap<usize, Sender<RequestPackage>>,
-    response_queue_sx: Sender<ResponsePackage>,
+    stop_sx: broadcast::Sender<bool>,
 ) where
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
     for index in 1..=handler_process_num {
-        let (child_handler_sx, mut child_process_rx) = mpsc::channel::<RequestPackage>(1000);
-        child_process_list.insert(index, child_handler_sx.clone());
-
-        let mut raw_stop_rx = stop_sx.subscribe();
+        let mut child_process_rx = request_channel.create_handler_child_channel(index);
         let raw_connect_manager = connection_manager.clone();
-        let raw_response_queue_sx = response_queue_sx.clone();
+        let request_channel = request_channel.clone();
         let mut raw_command = command.clone();
+        let mut raw_stop_rx = stop_sx.subscribe();
 
         tokio::spawn(async move {
             debug!(
-                "TCP Server handler process thread {} start successfully.",
+                "Server handler process thread {} start successfully.",
                 index
             );
             loop {
@@ -126,7 +118,7 @@ fn handler_child_process<S>(
                     val = raw_stop_rx.recv() =>{
                         if let Ok(flag) = val {
                             if flag {
-                                debug!("TCP Server handler process thread {} stopped successfully.",index);
+                                debug!("Server handler process thread {} stopped successfully.",index);
                                 break;
                             }
                         }
@@ -145,13 +137,8 @@ fn handler_child_process<S>(
 
                                 if let Some(resp) = response_data {
                                     let response_package = ResponsePackage::new(packet.connection_id, resp,packet.receive_ms,
-                                                out_handler_queue_ms,end_handler_ms, mqtt_packet_to_string(&packet.packet));
-                                    if let Err(err) = raw_response_queue_sx.send(response_package).await {
-                                        error!(
-                                            "Failed to write data to the response queue, error message: {:?}",
-                                            err
-                                        );
-                                    }
+                                                out_handler_queue_ms, end_handler_ms, mqtt_packet_to_string(&packet.packet));
+                                    request_channel.send_response_channel(response_package).await;
                                 } else {
                                     record_packet_handler_info_no_response(&packet, out_handler_queue_ms, end_handler_ms, mqtt_packet_to_string(&packet.packet));
                                     info!("{}","No backpacking is required for this request");

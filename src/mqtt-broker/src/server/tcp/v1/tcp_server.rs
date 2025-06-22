@@ -12,28 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
-
+use crate::handler::connection::tcp_establish_connection_check;
+use crate::server::connection::{NetworkConnection, NetworkConnectionType};
+use crate::server::connection_manager::ConnectionManager;
+use crate::server::tcp::v1::channel::RequestChannel;
+use crate::server::tcp::v1::common::read_packet;
 use futures_util::StreamExt;
 use protocol::mqtt::codec::MqttCodec;
+use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
-use tokio::sync::mpsc::{self, Receiver, Sender};
-use tokio::time::sleep;
+use tokio::sync::mpsc::{self, Receiver};
 use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
 use tracing::{debug, error, info};
-
-use crate::handler::cache::CacheManager;
-use crate::handler::connection::tcp_establish_connection_check;
-use crate::observability::metrics::packets::{
-    record_received_error_metrics, record_received_metrics,
-};
-use crate::observability::slow::request::try_record_total_request_ms;
-use crate::server::connection::{NetworkConnection, NetworkConnectionType};
-use crate::server::connection_manager::ConnectionManager;
-use crate::server::packet::RequestPackage;
 
 /// The `acceptor_process` function is responsible for accepting incoming TCP connections
 /// in an asynchronous manner. It utilizes multiple threads to handle the incoming connections
@@ -53,25 +45,26 @@ pub(crate) async fn acceptor_process(
     connection_manager: Arc<ConnectionManager>,
     stop_sx: broadcast::Sender<bool>,
     listener_arc: Arc<TcpListener>,
-    request_queue_sx: Sender<RequestPackage>,
-    cache_manager: Arc<CacheManager>,
-    network_connection_type: NetworkConnectionType,
+    request_channel: Arc<RequestChannel>,
+    network_type: NetworkConnectionType,
 ) {
     for index in 1..=accept_thread_num {
         let listener = listener_arc.clone();
         let connection_manager = connection_manager.clone();
         let mut stop_rx = stop_sx.subscribe();
-        let raw_request_queue_sx = request_queue_sx.clone();
-        let network_type = network_connection_type.clone();
-        let cache_manager = cache_manager.clone();
+        let request_channel = request_channel.clone();
+        let network_type = network_type.clone();
         tokio::spawn(async move {
-            debug!("TCP Server acceptor thread {} start successfully.", index);
+            info!(
+                "{} Server acceptor thread {} start successfully.",
+                network_type, index
+            );
             loop {
                 select! {
                     val = stop_rx.recv() =>{
                         if let Ok(flag) = val {
                             if flag {
-                                debug!("TCP Server acceptor thread {} stopped successfully.",index);
+                                info!("{} Server acceptor thread {} stopped successfully.", network_type, index);
                                 break;
                             }
                         }
@@ -80,7 +73,7 @@ pub(crate) async fn acceptor_process(
                     val = listener.accept()=>{
                         match val{
                             Ok((stream, addr)) => {
-                                info!("accept tcp connection:{:?}",addr);
+                                info!("Accept {} connection:{:?}", network_type, addr);
 
                                 let (r_stream, w_stream) = io::split(stream);
                                 let codec = MqttCodec::new(None);
@@ -101,10 +94,10 @@ pub(crate) async fn acceptor_process(
                                 connection_manager.add_connection(connection.clone());
                                 connection_manager.add_tcp_write(connection.connection_id, write_frame_stream);
 
-                                read_frame_process(read_frame_stream,connection,raw_request_queue_sx.clone(),connection_stop_rx,network_type.clone(),cache_manager.clone());
+                                read_frame_process(read_frame_stream,connection, request_channel.clone(), connection_stop_rx, network_type.clone());
                             }
                             Err(e) => {
-                                error!("TCP accept failed to create connection with error message :{:?}",e);
+                                error!("{} accept failed to create connection with error message :{:?}", network_type, e);
                             }
                         }
                     }
@@ -114,13 +107,13 @@ pub(crate) async fn acceptor_process(
     }
 }
 
+// spawn connection read thread
 fn read_frame_process(
     mut read_frame_stream: FramedRead<io::ReadHalf<tokio::net::TcpStream>, MqttCodec>,
     connection: NetworkConnection,
-    request_queue_sx: Sender<RequestPackage>,
+    request_channel: Arc<RequestChannel>,
     mut connection_stop_rx: Receiver<bool>,
     network_type: NetworkConnectionType,
-    cache_manager: Arc<CacheManager>,
 ) {
     tokio::spawn(async move {
         loop {
@@ -128,35 +121,14 @@ fn read_frame_process(
                 val = connection_stop_rx.recv() =>{
                     if let Some(flag) = val{
                         if flag {
-                            debug!("TCP connection 【{}】 acceptor thread stopped successfully.",connection.connection_id);
+                            debug!("{} connection 【{}】 acceptor thread stopped successfully.", network_type, connection.connection_id);
                             break;
                         }
                     }
                 }
-                val = read_frame_stream.next()=>{
-                    if let Some(pkg) = val {
-                        match pkg {
-                            Ok(pack) => {
-                                info!("recv tcp packet:{:?}, connect_id:{}", pack,connection.connection_id);
-                                record_received_metrics(&connection, &pack, &network_type);
-                                let package =
-                                    RequestPackage::new(connection.connection_id, connection.addr, pack);
 
-                                match request_queue_sx.send(package.clone()).await {
-                                    Ok(_) => {
-                                        try_record_total_request_ms(cache_manager.clone(),package.clone());
-                                    }
-                                    Err(err) => error!("Failed to write data to the request queue, error message: {:?}",err),
-                                }
-                            }
-                            Err(e) => {
-                                record_received_error_metrics(network_type.clone());
-                                debug!("TCP connection parsing packet format error message :{:?}",e)
-                            }
-                        }
-                    }else {
-                        sleep(Duration::from_millis(10)).await;
-                    }
+                package = read_frame_stream.next()=>{
+                   read_packet(package, &request_channel, &connection, &network_type).await;
                 }
             }
         }
