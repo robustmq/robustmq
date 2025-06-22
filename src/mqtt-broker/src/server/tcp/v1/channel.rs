@@ -83,7 +83,7 @@ impl RequestChannel {
         }
     }
 
-    pub fn get_avaiable_handler(
+    pub fn get_avaialble_handler(
         &self,
         process_handler_seq: usize,
     ) -> Option<Sender<RequestPackage>> {
@@ -94,7 +94,7 @@ impl RequestChannel {
         None
     }
 
-    pub fn get_avaiable_response(
+    pub fn get_available_response(
         &self,
         response_process_seq: usize,
     ) -> Option<Sender<ResponsePackage>> {

@@ -77,7 +77,7 @@ pub(crate) async fn response_process(
 
                         loop {
                             response_process_seq += 1;
-                            if let Some(handler_sx) = request_channel.get_avaiable_response(response_process_seq){
+                            if let Some(handler_sx) = request_channel.get_available_response(response_process_seq){
                                 if handler_sx.try_send(packet.clone()).is_ok() {
                                     break;
                                 }
