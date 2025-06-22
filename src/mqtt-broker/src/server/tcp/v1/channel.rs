@@ -64,7 +64,7 @@ impl RequestChannel {
     }
 
     pub async fn send_response_channel(&self, response_package: ResponsePackage) {
-        let sx = self.response_send_channel.get(&0).unwrap();
+        let sx = self.get_response_send_channel();
         if let Err(err) = sx.send(response_package).await {
             error!(
                 "Failed to write data to the response queue, error message: {:?}",
@@ -74,13 +74,21 @@ impl RequestChannel {
     }
 
     pub async fn send_request_channel(&self, request_package: RequestPackage) {
-        let sx = self.request_send_channel.get(&0).unwrap();
+        let sx = self.get_request_send_channel();
         if let Err(err) = sx.send(request_package).await {
             error!(
                 "Failed to write data to the request queue, error message: {:?}",
                 err
             );
         }
+    }
+
+    pub fn get_request_send_channel(&self) -> Sender<RequestPackage> {
+        self.request_send_channel.get(&0).unwrap().clone()
+    }
+
+    pub fn get_response_send_channel(&self) -> Sender<ResponsePackage> {
+        self.response_send_channel.get(&0).unwrap().clone()
     }
 
     pub fn get_avaialble_handler(

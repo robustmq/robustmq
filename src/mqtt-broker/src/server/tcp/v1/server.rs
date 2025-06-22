@@ -13,13 +13,15 @@
 // limitations under the License.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use storage_adapter::storage::StorageAdapter;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
-use tracing::info;
+use tokio::time::sleep;
+use tracing::{error, info};
 
 use crate::handler::cache::CacheManager;
 use crate::handler::command::Command;
@@ -50,9 +52,10 @@ pub struct TcpServer<S> {
     subscribe_manager: Arc<SubscribeManager>,
     client_pool: Arc<ClientPool>,
     proc_config: ProcessorConfig,
-    stop_sx: broadcast::Sender<bool>,
     network_type: NetworkConnectionType,
     request_channel: Arc<RequestChannel>,
+    acceptor_stop_send: broadcast::Sender<bool>,
+    stop_sx: broadcast::Sender<bool>,
 }
 
 impl<S> TcpServer<S>
@@ -72,6 +75,7 @@ where
     ) -> Self {
         info!("process thread num: {:?}", proc_config);
         let request_channel = Arc::new(RequestChannel::new(proc_config.channel_size));
+        let (acceptor_stop_send, _) = broadcast::channel(2);
         Self {
             network_type,
             command,
@@ -82,6 +86,7 @@ where
             stop_sx,
             subscribe_manager,
             request_channel,
+            acceptor_stop_send,
         }
     }
 
@@ -102,7 +107,7 @@ where
             acceptor_tls_process(
                 self.proc_config.accept_thread_num,
                 arc_listener.clone(),
-                self.stop_sx.clone(),
+                self.acceptor_stop_send.clone(),
                 self.network_type.clone(),
                 self.connection_manager.clone(),
                 self.request_channel.clone(),
@@ -112,7 +117,7 @@ where
             acceptor_process(
                 self.proc_config.accept_thread_num,
                 self.connection_manager.clone(),
-                self.stop_sx.clone(),
+                self.acceptor_stop_send.clone(),
                 arc_listener.clone(),
                 self.request_channel.clone(),
                 self.network_type.clone(),
@@ -146,5 +151,56 @@ where
         Ok(())
     }
 
-    pub async fn stop(&self) {}
+    pub async fn stop(&self) {
+        // Stop the acceptor thread and refuse to receive new data
+        if let Err(e) = self.acceptor_stop_send.send(true) {
+            error!("Failed to stop the acceptor thread. Error message: {:?}", e);
+        }
+
+        // Determine whether the channel for request processing is empty. If it is empty,
+        // it indicates that the request packet has been processed and subsequent stop logic can be carried out.
+
+        loop {
+            sleep(Duration::from_secs(1)).await;
+            let mut flag = false;
+
+            // request main channel
+            let cap = self.request_channel.get_request_send_channel().capacity();
+            if cap != self.proc_config.channel_size {
+                info!("Request main queue is not empty, current length {}, waiting for request packet processing to complete....", self.proc_config.channel_size - cap);
+                flag = true;
+            }
+
+            // request child channel
+            for (index, send) in self.request_channel.handler_child_channels.clone() {
+                let cap = send.capacity();
+                if cap != self.proc_config.channel_size {
+                    info!("Request child queue {} is not empty, current length {}, waiting for request packet processing to complete....", index, self.proc_config.channel_size - cap);
+                    flag = true;
+                }
+            }
+
+            // response main channel
+            if self.request_channel.get_response_send_channel().capacity()
+                != self.proc_config.channel_size
+            {
+                info!("Response main queue is not empty, current length {}, waiting for response packet processing to complete....", self.proc_config.channel_size - cap);
+                flag = true;
+            }
+
+            // response child channel
+            for (index, send) in self.request_channel.response_child_channels.clone() {
+                let cap = send.capacity();
+                if cap != self.proc_config.channel_size {
+                    info!("Response child queue {} is not empty, current length {}, waiting for response packet processing to complete....", index, self.proc_config.channel_size - cap);
+                    flag = true;
+                }
+            }
+
+            if !flag {
+                info!("[{}] All the request packets have been processed. Start to stop the request processing thread.", self.network_type);
+                break;
+            }
+        }
+    }
 }

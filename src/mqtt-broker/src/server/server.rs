@@ -87,7 +87,7 @@ where
             cache_manager.clone(),
             client_pool.clone(),
             command.clone(),
-            NetworkConnectionType::Tcp,
+            NetworkConnectionType::Tls,
             proc_config,
             stop_sx.clone(),
         );
@@ -99,7 +99,7 @@ where
 
     pub async fn start(&self) -> Result<(), MqttBrokerError> {
         self.tcp_server.start(false).await?;
-        self.tls_server.start(false).await?;
+        self.tls_server.start(true).await?;
         Ok(())
     }
 

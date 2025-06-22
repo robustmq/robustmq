@@ -477,11 +477,11 @@ where
 
         // Wait for the stop signal
         self.daemon_runtime.block_on(async move {
-            // Stop the Server first, indicating that it will no longer receive request packets.
-            self.server.stop().await;
-
             // Wait for all the request packets in the TCP Channel to be processed completely before starting to stop other processing threads.
             signal::ctrl_c().await.expect("failed to listen for event");
+
+            // Stop the Server first, indicating that it will no longer receive request packets.
+            self.server.stop().await;
             match stop_send.send(true) {
                 Ok(_) => {
                     info!(

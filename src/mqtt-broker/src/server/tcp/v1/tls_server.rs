@@ -64,7 +64,7 @@ pub(crate) async fn acceptor_tls_process(
         let raw_tls_acceptor = tls_acceptor.clone();
         let network_type = network_type.clone();
         tokio::spawn(async move {
-            info!(
+            debug!(
                 "{} Server acceptor thread {} start successfully.",
                 network_type, index
             );
@@ -73,7 +73,7 @@ pub(crate) async fn acceptor_tls_process(
                     val = stop_rx.recv() =>{
                         if let Ok(flag) = val {
                             if flag {
-                                info!("{} Server acceptor thread {} stopped successfully.", network_type, index);
+                                debug!("{} Server acceptor thread {} stopped successfully.", network_type, index);
                                 break;
                             }
                         }

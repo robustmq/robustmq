@@ -55,7 +55,7 @@ pub(crate) async fn acceptor_process(
         let request_channel = request_channel.clone();
         let network_type = network_type.clone();
         tokio::spawn(async move {
-            info!(
+            debug!(
                 "{} Server acceptor thread {} start successfully.",
                 network_type, index
             );
@@ -64,7 +64,7 @@ pub(crate) async fn acceptor_process(
                     val = stop_rx.recv() =>{
                         if let Ok(flag) = val {
                             if flag {
-                                info!("{} Server acceptor thread {} stopped successfully.", network_type, index);
+                                debug!("{} Server acceptor thread {} stopped successfully.", network_type, index);
                                 break;
                             }
                         }
