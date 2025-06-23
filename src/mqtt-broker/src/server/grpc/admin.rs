@@ -199,15 +199,15 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
     async fn mqtt_broker_list_acl(
         &self,
-        _: Request<ListAclRequest>,
+        request: Request<ListAclRequest>,
     ) -> Result<Response<ListAclReply>, Status> {
-        let acls = list_acl_by_req(&self.cache_manager, &self.client_pool)
+        let (acls, count) = list_acl_by_req(&self.cache_manager, &self.client_pool, request)
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
         Ok(Response::new(ListAclReply {
-            acls: acls.clone(),
-            total_count: acls.len() as u32,
+            acls,
+            total_count: count as u32,
         }))
     }
 

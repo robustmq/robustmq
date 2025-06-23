@@ -53,7 +53,6 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 use std::str::FromStr;
 use std::sync::Arc;
 
-use metadata_struct::acl::mqtt_acl::MqttAcl;
 use tokio::io::{self, AsyncBufReadExt, BufReader};
 use tokio::{select, signal};
 
@@ -665,14 +664,13 @@ impl MqttBrokerCommand {
                     "permission"
                 ]);
                 for acl in data.acls {
-                    let mqtt_acl = serde_json::from_slice::<MqttAcl>(acl.as_slice()).unwrap();
                     table.add_row(row![
-                        mqtt_acl.resource_type,
-                        mqtt_acl.resource_name,
-                        mqtt_acl.topic,
-                        mqtt_acl.ip,
-                        mqtt_acl.action,
-                        mqtt_acl.permission
+                        acl.resource_type,
+                        acl.resource_name,
+                        acl.topic,
+                        acl.ip,
+                        acl.action,
+                        acl.permission
                     ]);
                 }
                 // output cmd
