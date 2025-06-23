@@ -84,6 +84,19 @@ common_base::register_histogram_metric!(
     12
 );
 
+#[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
+pub struct BrokerThreadLabel {
+    network: String,
+    thread_type: String,
+}
+
+common_base::register_gauge_metric!(
+    BROKER_ACTIVE_THREAD_NUM,
+    "broker_active_thread_num",
+    "The number of execution active threads started by the broker",
+    BrokerThreadLabel
+);
+
 pub fn metrics_request_total_ms(network_connection: &NetworkConnectionType, ms: f64) {
     let label = NetworkLabel {
         network: network_connection.to_string(),
@@ -152,4 +165,27 @@ pub fn record_ws_request_duration(receive_ms: u128, response_ms: u128) {
     metrics_request_total_ms(&ws_type, (now - receive_ms) as f64);
     metrics_request_handler_ms(&ws_type, (response_ms - receive_ms) as f64);
     metrics_request_response_ms(&ws_type, (now - response_ms) as f64);
+}
+
+pub fn record_broker_thread_num(
+    network_connection: &NetworkConnectionType,
+    (accept, handler, response): (usize, usize, usize),
+) {
+    let accept_label = BrokerThreadLabel {
+        network: network_connection.to_string(),
+        thread_type: "accept".to_string(),
+    };
+    common_base::gauge_metric_inc_by!(BROKER_ACTIVE_THREAD_NUM, accept_label, accept as i64);
+
+    let accept_label = BrokerThreadLabel {
+        network: network_connection.to_string(),
+        thread_type: "handler".to_string(),
+    };
+    common_base::gauge_metric_inc_by!(BROKER_ACTIVE_THREAD_NUM, accept_label, handler as i64);
+
+    let accept_label = BrokerThreadLabel {
+        network: network_connection.to_string(),
+        thread_type: "response".to_string(),
+    };
+    common_base::gauge_metric_inc_by!(BROKER_ACTIVE_THREAD_NUM, accept_label, response as i64);
 }
