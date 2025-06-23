@@ -25,9 +25,10 @@ jobs:
     permissions:
       pull-requests: write
       issues: write
+      actions: write
       contents: read
     steps:
       - uses: actions/checkout@v2
-      - uses: ShyunnY/actbot@v0.1.0
+      - uses: ShyunnY/actbot@v0.1.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

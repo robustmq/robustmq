@@ -26,6 +26,7 @@ use tracing::{error, info};
 use crate::handler::cache::CacheManager;
 use crate::handler::command::Command;
 use crate::handler::error::MqttBrokerError;
+use crate::observability::metrics::server::record_broker_thread_num;
 use crate::server::connection::NetworkConnectionType;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::tcp::v1::channel::RequestChannel;
@@ -147,6 +148,7 @@ where
         )
         .await;
 
+        self.record_pre_server_metrics();
         info!("MQTT TCP Server started successfully, listening port: {port}");
         Ok(())
     }
@@ -202,5 +204,19 @@ where
                 break;
             }
         }
+    }
+
+    // Record the metrics before the service starts,
+    // which usually happens when you need to record the static metrics of the server
+    fn record_pre_server_metrics(&self) {
+        // number of execution threads of the server
+        record_broker_thread_num(
+            &self.network_type,
+            (
+                self.proc_config.accept_thread_num,
+                self.proc_config.handler_process_num,
+                self.proc_config.response_process_num,
+            ),
+        );
     }
 }
