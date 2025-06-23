@@ -19,11 +19,12 @@ use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::sync::Arc;
 use std::time::Duration;
-use std::{fmt, thread};
 use storage_adapter::storage::StorageAdapter;
 use sysinfo::{Pid, ProcessExt, System, SystemExt};
+use tokio::time::sleep;
 use tracing::error;
 
 // sysmon topic
@@ -75,7 +76,8 @@ pub async fn st_check_system_alarm<S>(
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
     let mqtt_conf = broker_mqtt_conf();
-    let cpu_usage = get_process_every_cpu_usage(mqtt_conf.system_monitor.os_cpu_check_interval_ms);
+    let cpu_usage =
+        get_process_every_cpu_usage(mqtt_conf.system_monitor.os_cpu_check_interval_ms).await;
 
     is_send_a_new_system_event(
         client_pool,
@@ -189,13 +191,13 @@ pub async fn st_report_system_alarm_event<S>(
 }
 
 // Get CPU usage percentage of the current process
-pub fn get_process_every_cpu_usage(check_interval: u64) -> f32 {
+pub async fn get_process_every_cpu_usage(check_interval: u64) -> f32 {
     let mut system = System::new_all();
     let pid = Pid::from(std::process::id() as usize);
 
     system.refresh_all();
 
-    thread::sleep(Duration::from_millis(check_interval));
+    sleep(Duration::from_millis(check_interval)).await;
 
     system.refresh_all();
 
@@ -261,7 +263,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_process_cpu_usage() {
-        let cpu_usage = get_process_every_cpu_usage(15000);
+        let cpu_usage = get_process_every_cpu_usage(15000).await;
         assert!(cpu_usage >= 0.0);
         assert!(cpu_usage <= 100.0);
     }
