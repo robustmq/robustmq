@@ -91,7 +91,7 @@ impl RequestChannel {
         self.response_send_channel.get(&0).unwrap().clone()
     }
 
-    pub fn get_avaialble_handler(
+    pub fn get_availalble_handler(
         &self,
         process_handler_seq: usize,
     ) -> Option<Sender<RequestPackage>> {
