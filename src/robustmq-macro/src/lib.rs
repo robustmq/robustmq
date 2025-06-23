@@ -16,7 +16,6 @@ mod parse;
 mod tools;
 mod validate_req;
 
-use crate::parse::ParseItem;
 use proc_macro::TokenStream;
 
 /// A procedural macro for automatic request validation in Tonic gRPC services.
