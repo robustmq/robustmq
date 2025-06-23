@@ -70,7 +70,7 @@ pub(crate) async fn handler_process<S>(
                         // Because some request queues may be full or abnormal, the request packets can be delivered to other child handlers.
                         loop{
                             process_handler_seq += 1;
-                            if let Some(handler_sx) = request_channel.get_availalble_handler(process_handler_seq){
+                            if let Some(handler_sx) = request_channel.get_available_handler(process_handler_seq){
                                 if handler_sx.try_send(packet.clone()).is_ok(){
                                     break;
                                 }
