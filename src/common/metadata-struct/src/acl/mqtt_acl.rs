@@ -15,6 +15,7 @@
 use std::fmt;
 
 use common_base::error::common::CommonError;
+use protocol::broker_mqtt::broker_mqtt_admin::{AclAction, AclPermission, AclRaw, AclResourceType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
@@ -99,5 +100,52 @@ impl fmt::Display for MqttAclPermission {
                 MqttAclPermission::Deny => "Deny",
             }
         )
+    }
+}
+
+impl From<MqttAclResourceType> for AclResourceType {
+    fn from(type_enum: MqttAclResourceType) -> Self {
+        match type_enum {
+            MqttAclResourceType::ClientId => Self::ClientId,
+            MqttAclResourceType::User => Self::User,
+        }
+    }
+}
+
+impl From<MqttAclAction> for AclAction {
+    fn from(action: MqttAclAction) -> Self {
+        match action {
+            MqttAclAction::All => Self::All,
+            MqttAclAction::Subscribe => Self::Subscribe,
+            MqttAclAction::Publish => Self::Publish,
+            MqttAclAction::PubSub => Self::PubSub,
+            MqttAclAction::Retain => Self::Retain,
+            MqttAclAction::Qos => Self::Qos,
+        }
+    }
+}
+
+impl From<MqttAclPermission> for AclPermission {
+    fn from(permission: MqttAclPermission) -> Self {
+        match permission {
+            MqttAclPermission::Allow => Self::Allow,
+            MqttAclPermission::Deny => Self::Deny,
+        }
+    }
+}
+
+impl From<MqttAcl> for AclRaw {
+    fn from(acl: MqttAcl) -> Self {
+        let acl_resource_type: AclResourceType = acl.resource_type.into();
+        let acl_action: AclAction = acl.action.into();
+        let acl_permission: AclPermission = acl.permission.into();
+        Self {
+            resource_type: acl_resource_type as i32,
+            resource_name: acl.resource_name,
+            topic: acl.topic,
+            ip: acl.ip,
+            action: acl_action as i32,
+            permission: acl_permission as i32,
+        }
     }
 }
