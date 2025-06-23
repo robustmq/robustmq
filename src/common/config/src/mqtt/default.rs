@@ -68,8 +68,7 @@ pub fn default_network_thread() -> NetworkThread {
         handler_thread_num: 1,
         response_thread_num: 1,
         max_connection_num: 5000000,
-        request_queue_size: 2000,
-        response_queue_size: 2000,
+        queue_size: 1000,
         lock_max_try_mut_times: 30,
         lock_try_mut_sleep_time_ms: 50,
     }

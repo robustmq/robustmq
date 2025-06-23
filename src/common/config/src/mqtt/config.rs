@@ -256,9 +256,7 @@ pub struct NetworkThread {
     #[serde(default)]
     pub max_connection_num: usize,
     #[serde(default)]
-    pub request_queue_size: usize,
-    #[serde(default)]
-    pub response_queue_size: usize,
+    pub queue_size: usize,
     #[serde(default)]
     pub lock_max_try_mut_times: u64,
     #[serde(default)]

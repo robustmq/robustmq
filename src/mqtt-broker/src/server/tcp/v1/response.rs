@@ -12,31 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::Duration;
-
 use crate::handler::cache::CacheManager;
 use crate::handler::connection::disconnect_connection;
 use crate::observability::metrics::server::{
     metrics_response_queue_size, record_response_and_total_ms,
 };
-use crate::server::connection::{calc_child_channel_index, NetworkConnectionType};
+use crate::server::connection::NetworkConnectionType;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::metric::record_packet_handler_info_by_response;
 use crate::server::packet::ResponsePackage;
+use crate::server::tcp::v1::channel::RequestChannel;
 use crate::subscribe::manager::SubscribeManager;
 use common_base::tools::now_mills;
 use grpc_clients::pool::ClientPool;
 use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::mqtt::common::MqttPacket;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::select;
 use tokio::sync::broadcast;
-use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::mpsc::Receiver;
 use tokio::time::sleep;
-use tracing::info;
 use tracing::{debug, error};
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn response_process(
     response_process_num: usize,
     connection_manager: Arc<ConnectionManager>,
@@ -44,19 +43,19 @@ pub(crate) async fn response_process(
     subscribe_manager: Arc<SubscribeManager>,
     mut response_queue_rx: Receiver<ResponsePackage>,
     client_pool: Arc<ClientPool>,
+    request_channel: Arc<RequestChannel>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     let mut stop_rx = stop_sx.subscribe();
     tokio::spawn(async move {
-        let mut process_handler: HashMap<usize, Sender<ResponsePackage>> = HashMap::new();
         response_child_process(
             response_process_num,
-            &mut process_handler,
-            stop_sx.clone(),
+            request_channel.clone(),
             connection_manager,
             cache_manager,
             subscribe_manager,
             client_pool,
+            stop_sx.clone(),
         );
 
         let mut response_process_seq = 0;
@@ -75,23 +74,19 @@ pub(crate) async fn response_process(
                     if let Some(packet) = val{
                         let mut sleep_ms = 0;
                         metrics_response_queue_size("total", response_queue_rx.len());
+
                         loop {
                             response_process_seq += 1;
-                            let seq = calc_child_channel_index(response_process_seq, process_handler.len());
-
-                            if let Some(handler_sx) = process_handler.get(&seq){
+                            if let Some(handler_sx) = request_channel.get_available_response(response_process_seq){
                                 if handler_sx.try_send(packet.clone()).is_ok() {
                                     break;
                                 }
-                                sleep_ms += 1;
-                                sleep(Duration::from_millis(sleep_ms)).await;
                             }else{
                                 error!("{}","Response child thread, no request packet processing thread available");
-                                break;
                             }
+                            sleep_ms += 2;
+                            sleep(Duration::from_millis(sleep_ms)).await;
                         }
-
-
                     }
                 }
             }
@@ -101,31 +96,28 @@ pub(crate) async fn response_process(
 
 pub(crate) fn response_child_process(
     response_process_num: usize,
-    process_handler: &mut HashMap<usize, Sender<ResponsePackage>>,
-    stop_sx: broadcast::Sender<bool>,
+    request_channel: Arc<RequestChannel>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
     client_pool: Arc<ClientPool>,
+    stop_sx: broadcast::Sender<bool>,
 ) {
     for index in 1..=response_process_num {
-        let (response_process_sx, mut response_process_rx) = mpsc::channel::<ResponsePackage>(100);
-        process_handler.insert(index, response_process_sx.clone());
-
+        let mut response_process_rx = request_channel.create_response_child_channel(index);
         let mut raw_stop_rx = stop_sx.subscribe();
         let raw_connect_manager = connection_manager.clone();
         let raw_cache_manager = cache_manager.clone();
         let raw_client_pool = client_pool.clone();
         let raw_subscribe_manager = subscribe_manager.clone();
         tokio::spawn(async move {
-            debug!("TCP Server response process thread {index} start successfully.");
-
+            debug!("Server response process thread {index} start successfully.");
             loop {
                 select! {
                     val = raw_stop_rx.recv() =>{
                         if let Ok(flag) = val {
                             if flag {
-                                info!("TCP Server response process thread {index} stopped successfully.");
+                                debug!("Server response process thread {index} stopped successfully.");
                                 break;
                             }
                         }

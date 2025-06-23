@@ -20,6 +20,8 @@ use std::time::Duration;
 use bridge::core::start_connector_thread;
 use bridge::manager::ConnectorManager;
 
+use crate::handler::error::MqttBrokerError;
+use crate::server::server::Server;
 use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
 use common_base::tools::now_second;
@@ -40,7 +42,6 @@ use schema_register::schema::SchemaRegisterManager;
 use security::AuthDriver;
 use server::connection_manager::ConnectionManager;
 use server::grpc::server::GrpcServer;
-use server::tcp::v1::server::start_tcp_server;
 use server::websocket::server::{websocket_server, websockets_server, WebSocketServerState};
 use storage::cluster::ClusterStorage;
 use storage_adapter::memory::MemoryStorageAdapter;
@@ -88,7 +89,12 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
     match storage_type {
         StorageType::Memory => {
             let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
-            let server = MqttBroker::new(client_pool, message_storage_adapter, metadata_cache);
+            let server = MqttBroker::new(
+                client_pool,
+                message_storage_adapter,
+                metadata_cache,
+                stop_send.clone(),
+            );
             server.start(stop_send);
         }
         // StorageType::Mysql => {
@@ -133,6 +139,7 @@ pub struct MqttBroker<S> {
     auth_driver: Arc<AuthDriver>,
     delay_message_manager: Arc<DelayMessageManager<S>>,
     schema_manager: Arc<SchemaRegisterManager>,
+    server: Arc<Server<S>>,
 }
 
 impl<S> MqttBroker<S>
@@ -143,6 +150,7 @@ where
         client_pool: Arc<ClientPool>,
         message_storage_adapter: Arc<S>,
         cache_manager: Arc<CacheManager>,
+        stop_sx: broadcast::Sender<bool>,
     ) -> Self {
         let conf = broker_mqtt_conf();
         let daemon_runtime = create_runtime("daemon-runtime", conf.system.runtime_worker_threads);
@@ -164,6 +172,17 @@ where
             message_storage_adapter.clone(),
         ));
         let schema_manager = Arc::new(SchemaRegisterManager::new());
+        let server = Arc::new(Server::new(
+            subscribe_manager.clone(),
+            cache_manager.clone(),
+            connection_manager.clone(),
+            message_storage_adapter.clone(),
+            delay_message_manager.clone(),
+            schema_manager.clone(),
+            client_pool.clone(),
+            stop_sx,
+            auth_driver.clone(),
+        ));
         MqttBroker {
             daemon_runtime,
             connector_runtime,
@@ -179,6 +198,7 @@ where
             auth_driver,
             delay_message_manager,
             schema_manager,
+            server,
         }
     }
 
@@ -201,7 +221,7 @@ where
         self.start_connector_thread(stop_send.clone());
 
         // publish runtime
-        self.start_mqtt_server(stop_send.clone());
+        self.start_mqtt_server();
         self.start_quic_server(stop_send.clone());
         self.start_websocket_server(stop_send.clone());
 
@@ -216,29 +236,12 @@ where
             // common_base::telemetry::trace::init_tracer_provider(broker_mqtt_conf()).await;
         });
     }
-    fn start_mqtt_server(&self, stop_send: broadcast::Sender<bool>) {
-        let cache = self.cache_manager.clone();
-        let message_storage_adapter = self.message_storage_adapter.clone();
-        let subscribe_manager = self.subscribe_manager.clone();
-        let client_pool = self.client_pool.clone();
-        let connection_manager = self.connection_manager.clone();
-        let auth_driver = self.auth_driver.clone();
-        let delay_message_manager = self.delay_message_manager.clone();
-        let schema_manager = self.schema_manager.clone();
-
+    fn start_mqtt_server(&self) {
+        let server = self.server.clone();
         self.publish_runtime.spawn(async move {
-            start_tcp_server(
-                subscribe_manager,
-                cache,
-                connection_manager,
-                message_storage_adapter,
-                delay_message_manager,
-                schema_manager,
-                client_pool,
-                stop_send,
-                auth_driver,
-            )
-            .await
+            if let Err(e) = server.start().await {
+                panic!("{}", e);
+            }
         });
     }
 
@@ -474,14 +477,19 @@ where
 
         // Wait for the stop signal
         self.daemon_runtime.block_on(async move {
+            // Wait for all the request packets in the TCP Channel to be processed completely before starting to stop other processing threads.
             signal::ctrl_c().await.expect("failed to listen for event");
+            info!(
+                "{}",
+                "When ctrl + c is received, the service starts to stop"
+            );
+            // Stop the Server first, indicating that it will no longer receive request packets.
+            self.server.stop().await;
             match stop_send.send(true) {
                 Ok(_) => {
-                    info!(
-                        "{}",
-                        "When ctrl + c is received, the service starts to stop"
-                    );
-                    self.stop_server().await;
+                    if let Err(e) = self.stop_server().await {
+                        error!("{}", e);
+                    }
                 }
                 Err(_) => {
                     error!("Failed to send stop signal");
@@ -516,19 +524,12 @@ where
         });
     }
 
-    async fn stop_server(&self) {
+    async fn stop_server(&self) -> Result<(), MqttBrokerError> {
         let cluster_storage = ClusterStorage::new(self.client_pool.clone());
         let config = broker_mqtt_conf();
-        // common_base::telemetry::trace::stop_tracer_provider().await;
         let _ = self.delay_message_manager.stop().await;
-        match cluster_storage.unregister_node(config).await {
-            Ok(()) => {
-                info!("Node {} exits successfully", config.broker_id);
-            }
-            Err(e) => {
-                error!("{}", e.to_string());
-            }
-        }
+        cluster_storage.unregister_node(config).await?;
         self.connection_manager.close_all_connect().await;
+        Ok(())
     }
 }

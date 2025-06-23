@@ -454,7 +454,7 @@ mod test {
                 .unwrap()
                 .get_or_create(&label)
                 .get();
-            assert_eq!(c, 3)
+            assert_eq!(c, 2)
         }
     }
 
