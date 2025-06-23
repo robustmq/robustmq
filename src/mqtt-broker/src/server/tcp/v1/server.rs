@@ -13,105 +13,49 @@
 // limitations under the License.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use common_config::mqtt::broker_mqtt_conf;
-use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
-use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::storage::StorageAdapter;
 use tokio::net::TcpListener;
-use tokio::sync::{broadcast, mpsc};
-use tracing::info;
+use tokio::sync::broadcast;
+use tokio::time::sleep;
+use tracing::{error, info};
 
 use crate::handler::cache::CacheManager;
 use crate::handler::command::Command;
-use crate::security::AuthDriver;
+use crate::handler::error::MqttBrokerError;
 use crate::server::connection::NetworkConnectionType;
 use crate::server::connection_manager::ConnectionManager;
-use crate::server::packet::{RequestPackage, ResponsePackage};
+use crate::server::tcp::v1::channel::RequestChannel;
 use crate::server::tcp::v1::handler::handler_process;
 use crate::server::tcp::v1::response::response_process;
 use crate::server::tcp::v1::tcp_server::acceptor_process;
 use crate::server::tcp::v1::tls_server::acceptor_tls_process;
 use crate::subscribe::manager::SubscribeManager;
 
-#[allow(clippy::too_many_arguments)]
-pub async fn start_tcp_server<S>(
-    subscribe_manager: Arc<SubscribeManager>,
-    cache_manager: Arc<CacheManager>,
-    connection_manager: Arc<ConnectionManager>,
-    message_storage_adapter: Arc<S>,
-    delay_message_manager: Arc<DelayMessageManager<S>>,
-    schema_manager: Arc<SchemaRegisterManager>,
-    client_pool: Arc<ClientPool>,
-    stop_sx: broadcast::Sender<bool>,
-    auth_driver: Arc<AuthDriver>,
-) where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
-    let conf = broker_mqtt_conf();
-    let command = Command::new(
-        cache_manager.clone(),
-        message_storage_adapter.clone(),
-        delay_message_manager.clone(),
-        subscribe_manager.clone(),
-        client_pool.clone(),
-        connection_manager.clone(),
-        schema_manager.clone(),
-        auth_driver.clone(),
-    );
-
-    let proc_config = ProcessorConfig {
-        accept_thread_num: conf.network_thread.accept_thread_num,
-        handler_process_num: conf.network_thread.handler_thread_num,
-        response_process_num: conf.network_thread.response_thread_num,
-    };
-
-    let mut server = TcpServer::<S>::new(
-        command.clone(),
-        proc_config,
-        stop_sx.clone(),
-        connection_manager.clone(),
-        subscribe_manager.clone(),
-        cache_manager.clone(),
-        client_pool.clone(),
-        NetworkConnectionType::Tcp,
-    );
-    server.start(conf.network_port.tcp_port).await;
-
-    let mut server = TcpServer::<S>::new(
-        command,
-        proc_config,
-        stop_sx.clone(),
-        connection_manager,
-        subscribe_manager.clone(),
-        cache_manager,
-        client_pool,
-        NetworkConnectionType::Tls,
-    );
-    server.start_tls(conf.network_port.tcps_port).await;
+#[derive(Debug, Clone, Copy)]
+pub struct ProcessorConfig {
+    pub accept_thread_num: usize,
+    pub handler_process_num: usize,
+    pub response_process_num: usize,
+    pub channel_size: usize,
 }
 
 // U: codec: encoder + decoder
 // S: message storage adapter
-struct TcpServer<S> {
+pub struct TcpServer<S> {
     command: Command<S>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
     client_pool: Arc<ClientPool>,
-    accept_thread_num: usize,
-    handler_process_num: usize,
-    response_process_num: usize,
+    proc_config: ProcessorConfig,
+    network_type: NetworkConnectionType,
+    request_channel: Arc<RequestChannel>,
+    acceptor_stop_send: broadcast::Sender<bool>,
     stop_sx: broadcast::Sender<bool>,
-    network_connection_type: NetworkConnectionType,
-}
-
-#[derive(Debug, Clone, Copy)]
-struct ProcessorConfig {
-    pub accept_thread_num: usize,
-    pub handler_process_num: usize,
-    pub response_process_num: usize,
 }
 
 impl<S> TcpServer<S>
@@ -120,120 +64,143 @@ where
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        command: Command<S>,
-        proc_config: ProcessorConfig,
-        stop_sx: broadcast::Sender<bool>,
         connection_manager: Arc<ConnectionManager>,
         subscribe_manager: Arc<SubscribeManager>,
         cache_manager: Arc<CacheManager>,
         client_pool: Arc<ClientPool>,
-        network_connection_type: NetworkConnectionType,
+        command: Command<S>,
+        network_type: NetworkConnectionType,
+        proc_config: ProcessorConfig,
+        stop_sx: broadcast::Sender<bool>,
     ) -> Self {
         info!("process thread num: {:?}", proc_config);
+        let request_channel = Arc::new(RequestChannel::new(proc_config.channel_size));
+        let (acceptor_stop_send, _) = broadcast::channel(2);
         Self {
+            network_type,
             command,
             cache_manager,
             client_pool,
             connection_manager,
-            accept_thread_num: proc_config.accept_thread_num,
-            handler_process_num: proc_config.handler_process_num,
-            response_process_num: proc_config.response_process_num,
+            proc_config,
             stop_sx,
-            network_connection_type,
             subscribe_manager,
+            request_channel,
+            acceptor_stop_send,
         }
     }
 
-    pub async fn start(&mut self, port: u32) {
-        let listener = match TcpListener::bind(format!("0.0.0.0:{}", port)).await {
-            Ok(tl) => tl,
-            Err(e) => {
-                panic!("{}", e.to_string());
-            }
+    pub async fn start(&self, tls: bool) -> Result<(), MqttBrokerError> {
+        let conf = broker_mqtt_conf();
+        let port = if tls {
+            conf.network_port.tcps_port
+        } else {
+            conf.network_port.tcp_port
         };
-        let (request_queue_sx, request_queue_rx) = mpsc::channel::<RequestPackage>(1000);
-        let (response_queue_sx, response_queue_rx) = mpsc::channel::<ResponsePackage>(1000);
 
+        let listener = TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
         let arc_listener = Arc::new(listener);
+        let request_recv_channel = self.request_channel.create_request_channel();
+        let response_recv_channel = self.request_channel.create_response_channel();
 
-        acceptor_process(
-            self.accept_thread_num,
-            self.connection_manager.clone(),
-            self.stop_sx.clone(),
-            arc_listener.clone(),
-            request_queue_sx,
-            self.cache_manager.clone(),
-            self.network_connection_type.clone(),
-        )
-        .await;
+        if tls {
+            acceptor_tls_process(
+                self.proc_config.accept_thread_num,
+                arc_listener.clone(),
+                self.acceptor_stop_send.clone(),
+                self.network_type.clone(),
+                self.connection_manager.clone(),
+                self.request_channel.clone(),
+            )
+            .await?;
+        } else {
+            acceptor_process(
+                self.proc_config.accept_thread_num,
+                self.connection_manager.clone(),
+                self.acceptor_stop_send.clone(),
+                arc_listener.clone(),
+                self.request_channel.clone(),
+                self.network_type.clone(),
+            )
+            .await;
+        }
 
         handler_process(
-            self.handler_process_num,
-            request_queue_rx,
+            self.proc_config.handler_process_num,
+            request_recv_channel,
             self.connection_manager.clone(),
-            response_queue_sx,
-            self.stop_sx.clone(),
             self.command.clone(),
+            self.request_channel.clone(),
+            self.stop_sx.clone(),
         )
         .await;
 
         response_process(
-            self.response_process_num,
+            self.proc_config.response_process_num,
             self.connection_manager.clone(),
             self.cache_manager.clone(),
             self.subscribe_manager.clone(),
-            response_queue_rx,
+            response_recv_channel,
             self.client_pool.clone(),
+            self.request_channel.clone(),
             self.stop_sx.clone(),
         )
         .await;
 
         info!("MQTT TCP Server started successfully, listening port: {port}");
+        Ok(())
     }
 
-    pub async fn start_tls(&mut self, port: u32) {
-        let listener = match TcpListener::bind(format!("0.0.0.0:{}", port)).await {
-            Ok(tl) => tl,
-            Err(e) => {
-                panic!("{}", e.to_string());
+    pub async fn stop(&self) {
+        // Stop the acceptor thread and refuse to receive new data
+        if let Err(e) = self.acceptor_stop_send.send(true) {
+            error!("Failed to stop the acceptor thread. Error message: {:?}", e);
+        }
+
+        // Determine whether the channel for request processing is empty. If it is empty,
+        // it indicates that the request packet has been processed and subsequent stop logic can be carried out.
+
+        loop {
+            sleep(Duration::from_secs(1)).await;
+            let mut flag = false;
+
+            // request main channel
+            let cap = self.request_channel.get_request_send_channel().capacity();
+            if cap != self.proc_config.channel_size {
+                info!("Request main queue is not empty, current length {}, waiting for request packet processing to complete....", self.proc_config.channel_size - cap);
+                flag = true;
             }
-        };
-        let (request_queue_sx, request_queue_rx) = mpsc::channel::<RequestPackage>(1000);
-        let (response_queue_sx, response_queue_rx) = mpsc::channel::<ResponsePackage>(1000);
 
-        let arc_listener = Arc::new(listener);
+            // request child channel
+            for (index, send) in self.request_channel.handler_child_channels.clone() {
+                let cap = send.capacity();
+                if cap != self.proc_config.channel_size {
+                    info!("Request child queue {} is not empty, current length {}, waiting for request packet processing to complete....", index, self.proc_config.channel_size - cap);
+                    flag = true;
+                }
+            }
 
-        acceptor_tls_process(
-            self.accept_thread_num,
-            arc_listener.clone(),
-            self.stop_sx.clone(),
-            self.network_connection_type.clone(),
-            self.connection_manager.clone(),
-            request_queue_sx,
-        )
-        .await;
+            // response main channel
+            if self.request_channel.get_response_send_channel().capacity()
+                != self.proc_config.channel_size
+            {
+                info!("Response main queue is not empty, current length {}, waiting for response packet processing to complete....", self.proc_config.channel_size - cap);
+                flag = true;
+            }
 
-        handler_process(
-            self.handler_process_num,
-            request_queue_rx,
-            self.connection_manager.clone(),
-            response_queue_sx,
-            self.stop_sx.clone(),
-            self.command.clone(),
-        )
-        .await;
+            // response child channel
+            for (index, send) in self.request_channel.response_child_channels.clone() {
+                let cap = send.capacity();
+                if cap != self.proc_config.channel_size {
+                    info!("Response child queue {} is not empty, current length {}, waiting for response packet processing to complete....", index, self.proc_config.channel_size - cap);
+                    flag = true;
+                }
+            }
 
-        response_process(
-            self.response_process_num,
-            self.connection_manager.clone(),
-            self.cache_manager.clone(),
-            self.subscribe_manager.clone(),
-            response_queue_rx,
-            self.client_pool.clone(),
-            self.stop_sx.clone(),
-        )
-        .await;
-
-        info!("MQTT TCP TLS Server started successfully, listening port: {port}");
+            if !flag {
+                info!("[{}] All the request packets have been processed. Start to stop the request processing thread.", self.network_type);
+                break;
+            }
+        }
     }
 }

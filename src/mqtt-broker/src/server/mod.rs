@@ -18,5 +18,7 @@ pub mod grpc;
 mod metric;
 pub mod packet;
 pub mod quic;
+#[allow(clippy::module_inception)]
+pub mod server;
 pub mod tcp;
 pub mod websocket;

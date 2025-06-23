@@ -13,12 +13,11 @@
 // limitations under the License.
 
 use crate::handler::connection::tcp_tls_establish_connection_check;
-use crate::observability::metrics::packets::{
-    record_received_error_metrics, record_received_metrics,
-};
+use crate::handler::error::MqttBrokerError;
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::connection_manager::ConnectionManager;
-use crate::server::packet::RequestPackage;
+use crate::server::tcp::v1::channel::RequestChannel;
+use crate::server::tcp::v1::common::read_packet;
 use common_config::mqtt::broker_mqtt_conf;
 use futures_util::StreamExt;
 use protocol::mqtt::codec::MqttCodec;
@@ -27,12 +26,10 @@ use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::Path;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::select;
-use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::mpsc::Receiver;
 use tokio::sync::{broadcast, mpsc};
-use tokio::time::sleep;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::TlsAcceptor;
@@ -53,51 +50,30 @@ pub(crate) async fn acceptor_tls_process(
     accept_thread_num: usize,
     listener_arc: Arc<TcpListener>,
     stop_sx: broadcast::Sender<bool>,
-    network_connection_type: NetworkConnectionType,
+    network_type: NetworkConnectionType,
     connection_manager: Arc<ConnectionManager>,
-    request_queue_sx: Sender<RequestPackage>,
-) {
-    let conf = broker_mqtt_conf();
-    let certs = match load_certs(Path::new(&conf.network_port.tls_cert)) {
-        Ok(data) => data,
-        Err(e) => {
-            panic!("load certs: {}", e);
-        }
-    };
-
-    let key = match load_key(Path::new(&conf.network_port.tls_key)) {
-        Ok(data) => data,
-        Err(e) => {
-            panic!("load key: {}", e);
-        }
-    };
-
-    let config = match ServerConfig::builder()
-        .with_no_client_auth()
-        .with_single_cert(certs, key)
-    {
-        Ok(data) => data,
-        Err(e) => {
-            panic!("ssl build cert:{}", e);
-        }
-    };
-    let tls_acceptor = TlsAcceptor::from(Arc::new(config));
+    request_channel: Arc<RequestChannel>,
+) -> Result<(), MqttBrokerError> {
+    let tls_acceptor = create_tls_accept()?;
 
     for index in 1..=accept_thread_num {
         let listener = listener_arc.clone();
         let connection_manager = connection_manager.clone();
         let mut stop_rx = stop_sx.subscribe();
-        let raw_request_queue_sx = request_queue_sx.clone();
+        let request_channel = request_channel.clone();
         let raw_tls_acceptor = tls_acceptor.clone();
-        let network_type = network_connection_type.clone();
+        let network_type = network_type.clone();
         tokio::spawn(async move {
-            debug!("TCP Server acceptor thread {} start successfully.", index);
+            debug!(
+                "{} Server acceptor thread {} start successfully.",
+                network_type, index
+            );
             loop {
                 select! {
                     val = stop_rx.recv() =>{
                         if let Ok(flag) = val {
                             if flag {
-                                debug!("TCP Server acceptor thread {} stopped successfully.",index);
+                                debug!("{} Server acceptor thread {} stopped successfully.", network_type, index);
                                 break;
                             }
                         }
@@ -105,14 +81,15 @@ pub(crate) async fn acceptor_tls_process(
                     val = listener.accept()=>{
                         match val{
                             Ok((stream, addr)) => {
-                                info!("accept tcp tls connection:{:?}",addr);
+                                info!("Accept {} tls connection:{:?}", network_type, addr);
                                 let stream = match raw_tls_acceptor.accept(stream).await{
                                     Ok(da) => da,
                                     Err(e) => {
-                                        error!("Tls Accepter failed to read Stream with error message :{e:?}");
+                                        error!("{} Accepter failed to read Stream with error message :{e:?}", network_type);
                                         continue;
                                     }
                                 };
+
                                 let (r_stream, w_stream) = tokio::io::split(stream);
                                 let codec = MqttCodec::new(None);
                                 let read_frame_stream = FramedRead::new(r_stream, codec.clone());
@@ -131,10 +108,10 @@ pub(crate) async fn acceptor_tls_process(
                                 connection_manager.add_connection(connection.clone());
                                 connection_manager.add_tcp_tls_write(connection.connection_id, write_frame_stream);
 
-                                read_tls_frame_process(read_frame_stream,connection,raw_request_queue_sx.clone(),connection_stop_rx, network_type.clone());
+                                read_tls_frame_process(read_frame_stream, connection, request_channel.clone(), connection_stop_rx, network_type.clone());
                             }
                             Err(e) => {
-                                error!("TCP accept failed to create connection with error message :{:?}",e);
+                                error!("{} accept failed to create connection with error message :{:?}", network_type, e);
                             }
                         }
                     }
@@ -142,15 +119,17 @@ pub(crate) async fn acceptor_tls_process(
             }
         });
     }
+    Ok(())
 }
 
+// spawn connection read thread
 pub(crate) fn read_tls_frame_process(
     mut read_frame_stream: FramedRead<
         tokio::io::ReadHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
         MqttCodec,
     >,
     connection: NetworkConnection,
-    request_queue_sx: Sender<RequestPackage>,
+    request_channel: Arc<RequestChannel>,
     mut connection_stop_rx: Receiver<bool>,
     network_type: NetworkConnectionType,
 ) {
@@ -160,35 +139,25 @@ pub(crate) fn read_tls_frame_process(
                 val = connection_stop_rx.recv() =>{
                     if let Some(flag) = val{
                         if flag {
-                            debug!("TCP connection 【{}】 acceptor thread stopped successfully.",connection.connection_id);
+                            debug!("{} connection 【{}】 acceptor thread stopped successfully.",network_type, connection.connection_id);
                             break;
                         }
                     }
                 }
-                val = read_frame_stream.next()=>{
-                    if let Some(pkg) = val {
-                        match pkg {
-                            Ok(pack) => {
-                                record_received_metrics(&connection, &pack, &network_type);
-                                info!("recv tcp tls packet:{:?}", pack);
-                                let package =
-                                    RequestPackage::new(connection.connection_id, connection.addr, pack);
-                                match request_queue_sx.send(package).await {
-                                    Ok(_) => {
-                                    }
-                                    Err(err) => error!("Failed to write data to the request queue, error message: {:?}",err),
-                                }
-                            }
-                            Err(e) => {
-                                record_received_error_metrics(network_type.clone());
-                                debug!("TCP connection parsing packet format error message :{:?}",e)
-                            }
-                        }
-                    } else {
-                        sleep(Duration::from_millis(10)).await;
-                    }
+                package = read_frame_stream.next()=>{
+                    read_packet(package, &request_channel, &connection, &network_type).await;
                 }
             }
         }
     });
+}
+
+fn create_tls_accept() -> Result<TlsAcceptor, MqttBrokerError> {
+    let conf = broker_mqtt_conf();
+    let certs = load_certs(Path::new(&conf.network_port.tls_cert))?;
+    let key = load_key(Path::new(&conf.network_port.tls_key))?;
+    let config = ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(certs, key)?;
+    Ok(TlsAcceptor::from(Arc::new(config)))
 }

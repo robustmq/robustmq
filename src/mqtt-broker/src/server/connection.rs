@@ -37,11 +37,11 @@ impl fmt::Display for NetworkConnectionType {
             f,
             "{}",
             match self {
-                NetworkConnectionType::Tcp => "tcp",
-                NetworkConnectionType::Tls => "tls",
-                NetworkConnectionType::WebSocket => "websocket",
-                NetworkConnectionType::WebSockets => "websockets",
-                NetworkConnectionType::Quic => "quic",
+                NetworkConnectionType::Tcp => "Tcp",
+                NetworkConnectionType::Tls => "Tls",
+                NetworkConnectionType::WebSocket => "Websocket",
+                NetworkConnectionType::WebSockets => "Websockets",
+                NetworkConnectionType::Quic => "Quic",
             }
         )
     }
