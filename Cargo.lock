@@ -3534,13 +3534,13 @@ checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
 name = "placement-center"
 version = "0.1.14"
 dependencies = [
+ "async-stream",
  "axum",
  "bincode",
  "byteorder",
  "common-base",
  "common-config",
  "dashmap",
- "futures",
  "grpc-clients",
  "metadata-struct",
  "mobc",
@@ -3554,8 +3554,6 @@ dependencies = [
  "rocksdb-engine",
  "serde",
  "serde_json",
- "strum 0.27.1",
- "strum_macros 0.27.1",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -4551,7 +4549,7 @@ dependencies = [
 [[package]]
 name = "robustmq-proto-build"
 version = "0.1.0"
-source = "git+https://github.com/robustmq/robustmq-proto?branch=main#93a625d150aaf7a3598536edcd3e38e7459def77"
+source = "git+https://github.com/PorterZhang2021/robustmq-proto.git?branch=list-topic-stream#24a2764ca3b4b31029027a83e164d93764bf9f42"
 dependencies = [
  "prost-build",
  "prost-validate-build",

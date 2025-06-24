@@ -55,15 +55,6 @@ impl KvService for GrpcKvService {
             .map(Response::new)
     }
 
-    async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetReply>, Status> {
-        let req = request.into_inner();
-
-        get_by_req(&self.rocksdb_engine_handler, &req)
-            .await
-            .map_err(|e| Status::internal(e.to_string()))
-            .map(Response::new)
-    }
-
     async fn delete(
         &self,
         request: Request<DeleteRequest>,
@@ -71,6 +62,15 @@ impl KvService for GrpcKvService {
         let req = request.into_inner();
 
         delete_by_req(&self.raft_machine_apply, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
+    }
+
+    async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetReply>, Status> {
+        let req = request.into_inner();
+
+        get_by_req(&self.rocksdb_engine_handler, &req)
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)

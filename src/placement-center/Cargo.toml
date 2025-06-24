@@ -43,10 +43,8 @@ tracing.workspace = true
 mobc.workspace = true
 rocksdb.workspace = true
 tower.workspace = true
-futures.workspace = true
 prometheus-client.workspace = true
 prost-validate = { workspace = true, features = ["derive"] }
 tempfile.workspace = true
 tracing-appender.workspace = true
-strum.workspace = true
-strum_macros.workspace = true
+async-stream.workspace = true
