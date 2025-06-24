@@ -33,6 +33,7 @@ use protocol::placement_center::placement_center_mqtt::{
     SetTopicRetainMessageRequest, UpdateConnectorReply, UpdateConnectorRequest, UpdateSessionReply,
     UpdateSessionRequest,
 };
+use tonic::Streaming;
 
 use crate::pool::ClientPool;
 
@@ -87,7 +88,7 @@ generate_mqtt_service_call!(
 generate_mqtt_service_call!(
     placement_list_topic,
     ListTopicRequest,
-    ListTopicReply,
+    Streaming<ListTopicReply>,
     ListTopic
 );
 generate_mqtt_service_call!(

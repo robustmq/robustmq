@@ -69,12 +69,19 @@ impl TopicStorage {
             cluster_name: config.cluster_name.clone(),
             topic_name: "".to_string(),
         };
-        let reply =
+        let mut data_stream =
             placement_list_topic(&self.client_pool, &config.placement_center, request).await?;
         let results = DashMap::with_capacity(2);
-        for raw in reply.topics {
-            let data = serde_json::from_slice::<MqttTopic>(&raw)?;
-            results.insert(data.topic_name.clone(), data);
+
+        loop {
+            match data_stream.message().await {
+                Ok(Some(data)) => {
+                    let topic = serde_json::from_slice::<MqttTopic>(&data.topic)?;
+                    results.insert(topic.topic_name.clone(), topic);
+                }
+                Ok(None) => break,
+                Err(e) => return Err(MqttBrokerError::CommonError(e.to_string())),
+            }
         }
         Ok(results)
     }
@@ -86,14 +93,17 @@ impl TopicStorage {
             topic_name: topic_name.to_owned(),
         };
 
-        let reply =
+        let mut data_stream =
             placement_list_topic(&self.client_pool, &config.placement_center, request).await?;
 
-        if let Some(raw) = reply.topics.first() {
-            return Ok(Some(serde_json::from_slice::<MqttTopic>(raw)?));
+        match data_stream.message().await {
+            Ok(Some(data)) => {
+                let topic = serde_json::from_slice::<MqttTopic>(data.topic.as_slice())?;
+                Ok(Some(topic))
+            }
+            Ok(None) => Ok(None),
+            Err(e) => Err(MqttBrokerError::CommonError(e.to_string())),
         }
-
-        Ok(None)
     }
 
     pub async fn set_retain_message(

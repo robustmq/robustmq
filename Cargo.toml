@@ -176,7 +176,7 @@ metadata-struct = { path = "src/common/metadata-struct" }
 third-driver = { path = "src/common/third-driver" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }
-robustmq-proto-build = { git = "https://github.com/robustmq/robustmq-proto", branch = "main" }
+robustmq-proto-build = { git = "https://github.com/PorterZhang2021/robustmq-proto.git", branch = "list-topic-stream" }
 pprof-monitor = { path = "src/common/pprof-monitor" }
 sysinfo = "0.29.10"
 chrono = "0.4.41"
@@ -185,7 +185,7 @@ tempfile = "3.9.0"
 humantime = "2.2.0"
 strum = "0.27"
 strum_macros = "0.27"
-
+async-stream = "0.3.6"
 
 #pprof
 pprof = { version = "0.14.0", features = ["flamegraph"] }
