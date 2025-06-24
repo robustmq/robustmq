@@ -19,11 +19,12 @@ use serde::{Deserialize, Serialize};
 pub struct BrokerNode {
     pub cluster_name: String,
     pub cluster_type: String,
-    pub create_time: u128,
     pub extend: String,
     pub node_id: u64,
-    pub node_inner_addr: String,
     pub node_ip: String,
+    pub node_inner_addr: String,
+    pub start_time: u64,
+    pub register_time: u64,
 }
 
 impl BrokerNode {

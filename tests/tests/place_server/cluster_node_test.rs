@@ -14,10 +14,11 @@
 
 #[cfg(test)]
 mod tests {
+    use common_base::tools::now_second;
     use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
     use protocol::placement_center::placement_center_inner::{
-        NodeListRequest, RegisterNodeRequest, UnRegisterNodeRequest,
+        ClusterType, NodeListRequest, RegisterNodeRequest, UnRegisterNodeRequest,
     };
 
     use crate::place_server::common::{
@@ -31,13 +32,18 @@ mod tests {
             .unwrap();
         let cluster_name = cluster_name();
         let node_id = node_id();
-        let request = RegisterNodeRequest {
+        let node = BrokerNode {
             cluster_type: cluster_type(),
             cluster_name: cluster_name.clone(),
             node_id,
             node_ip: node_ip(),
-            extend_info: extend_info(),
+            extend: extend_info(),
             node_inner_addr: node_ip(),
+            start_time: now_second(),
+            register_time: now_second(),
+        };
+        let request = RegisterNodeRequest {
+            node: node.encode(),
         };
         client
             .register_node(tonic::Request::new(request))
@@ -64,7 +70,7 @@ mod tests {
             }
         }
         let request = UnRegisterNodeRequest {
-            cluster_type: cluster_type(),
+            cluster_type: ClusterType::JournalServer.into(),
             cluster_name: cluster_name.clone(),
             node_id,
         };

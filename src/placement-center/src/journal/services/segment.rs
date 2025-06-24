@@ -542,7 +542,7 @@ pub async fn sync_delete_segment_metadata_info(
 mod tests {
     use std::sync::Arc;
 
-    use common_base::tools::now_mills;
+    use common_base::tools::now_second;
     use common_config::place::config::placement_center_test_conf;
     use metadata_struct::journal::node_extend::JournalNodeExtend;
     use metadata_struct::placement::node::BrokerNode;
@@ -571,7 +571,8 @@ mod tests {
         let node = BrokerNode {
             cluster_name: config.cluster_name.clone(),
             cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
-            create_time: now_mills(),
+            register_time: now_second(),
+            start_time: now_second(),
             extend: serde_json::to_string(&extend_info).unwrap(),
             node_id: 1,
             node_inner_addr: "".to_string(),

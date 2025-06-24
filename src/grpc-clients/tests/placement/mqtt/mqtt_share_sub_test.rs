@@ -16,10 +16,11 @@
 mod tests {
     use std::sync::Arc;
 
-    use common_base::tools::unique_id;
+    use common_base::tools::{now_second, unique_id};
     use grpc_clients::placement::inner::call::register_node;
     use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
     use grpc_clients::pool::ClientPool;
+    use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
     use protocol::placement_center::placement_center_mqtt::GetShareSubLeaderRequest;
 
@@ -35,13 +36,18 @@ mod tests {
         let node_ip: String = "127.0.0.1".to_string();
         let node_id: u64 = 1;
 
-        let request = RegisterNodeRequest {
-            cluster_type: ClusterType::MqttBrokerServer as i32,
+        let node = BrokerNode {
+            cluster_type: ClusterType::MqttBrokerServer.as_str_name().to_string(),
             cluster_name: cluster_name.clone(),
             node_ip: node_ip.clone(),
             node_id,
             node_inner_addr: node_ip.clone(),
-            extend_info: "".to_string(),
+            extend: "".to_string(),
+            register_time: now_second(),
+            start_time: now_second(),
+        };
+        let request = RegisterNodeRequest {
+            node: node.encode(),
         };
         match register_node(&client_pool, &addrs, request).await {
             Ok(_) => {}

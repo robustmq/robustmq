@@ -15,10 +15,13 @@
 #[cfg(test)]
 mod tests {
     use common_base::error::common::CommonError;
+    use common_base::tools::now_second;
     use metadata_struct::journal::shard::JournalShardConfig;
+    use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
     use protocol::placement_center::placement_center_inner::{
-        HeartbeatRequest, RegisterNodeRequest, SetIdempotentDataRequest, UnRegisterNodeRequest,
+        ClusterType, HeartbeatRequest, RegisterNodeRequest, SetIdempotentDataRequest,
+        UnRegisterNodeRequest,
     };
     use protocol::placement_center::placement_center_journal::engine_service_client::EngineServiceClient;
     use protocol::placement_center::placement_center_journal::{
@@ -36,13 +39,18 @@ mod tests {
         let mut client = PlacementCenterServiceClient::connect(pc_addr())
             .await
             .unwrap();
-        let valid_request = RegisterNodeRequest {
+        let node = BrokerNode {
             cluster_name: cluster_name(),
             cluster_type: cluster_type(),
             node_ip: node_ip(),
             node_id: node_id(),
             node_inner_addr: node_ip(),
-            extend_info: extend_info(),
+            extend: extend_info(),
+            register_time: now_second(),
+            start_time: now_second(),
+        };
+        let valid_request = RegisterNodeRequest {
+            node: node.encode(),
         };
         let response = client
             .register_node(tonic::Request::new(valid_request.clone()))
@@ -56,24 +64,29 @@ mod tests {
             .await
             .unwrap();
 
-        let valid_request = RegisterNodeRequest {
+        let mut node = BrokerNode {
             cluster_name: cluster_name(),
             cluster_type: cluster_type(),
             node_ip: node_ip(),
             node_id: node_id(),
             node_inner_addr: node_ip(),
-            extend_info: extend_info(),
+            extend: extend_info(),
+            register_time: now_second(),
+            start_time: now_second(),
+        };
+        let valid_request = RegisterNodeRequest {
+            node: node.encode(),
         };
 
         let valid_field = ["cluster_name", "node_ip", "node_inner_addr"];
 
         for field in valid_field {
-            let mut test_request = valid_request.clone();
+            let test_request = valid_request.clone();
             let mut test_client = client.clone();
             match field {
-                "cluster_name" => test_request.cluster_name = String::new(),
-                "node_ip" => test_request.node_ip = String::new(),
-                "node_inner_addr" => test_request.node_inner_addr = String::new(),
+                "cluster_name" => node.cluster_name = String::new(),
+                "node_ip" => node.node_ip = String::new(),
+                "node_inner_addr" => node.node_inner_addr = String::new(),
                 _ => unreachable!(),
             }
             {
@@ -103,13 +116,18 @@ mod tests {
             .await
             .expect("Failed to connect to PlacementCenterService");
 
-        let valid_request = RegisterNodeRequest {
+        let mut node = BrokerNode {
             cluster_name: cluster_name(),
             cluster_type: cluster_type(),
             node_ip: node_ip(),
             node_id: node_id(),
             node_inner_addr: node_ip(),
-            extend_info: extend_info(),
+            extend: extend_info(),
+            start_time: now_second(),
+            register_time: now_second(),
+        };
+        let valid_request = RegisterNodeRequest {
+            node: node.encode(),
         };
 
         let valid_ip = [
@@ -138,11 +156,10 @@ mod tests {
         }
 
         for (field, ip) in field_ip {
-            let mut test_request = valid_request.clone();
             let mut test_client = client.clone();
             match field {
-                "node_ip" => test_request.node_ip = ip.parse().unwrap(),
-                "node_inner_addr" => test_request.node_inner_addr = ip.parse().unwrap(),
+                "node_ip" => node.node_ip = ip.parse().unwrap(),
+                "node_inner_addr" => node.node_inner_addr = ip.parse().unwrap(),
                 _ => unreachable!(),
             }
 
@@ -161,13 +178,18 @@ mod tests {
             .await
             .unwrap();
 
-        let valid_request = RegisterNodeRequest {
+        let mut node = BrokerNode {
             cluster_name: cluster_name(),
             cluster_type: cluster_type(),
             node_ip: node_ip(),
             node_id: node_id(),
             node_inner_addr: node_ip(),
-            extend_info: extend_info(),
+            extend: extend_info(),
+            start_time: now_second(),
+            register_time: now_second(),
+        };
+        let valid_request = RegisterNodeRequest {
+            node: node.encode(),
         };
 
         let valid_ip = [
@@ -192,10 +214,10 @@ mod tests {
         }
 
         for (field, ip) in field_ip {
-            let mut test_request = valid_request.clone();
+            let test_request = valid_request.clone();
             let mut test_client = client.clone();
             match field {
-                "node_ip" => test_request.node_ip = ip.parse().unwrap(),
+                "node_ip" => node.node_ip = ip.parse().unwrap(),
                 _ => unreachable!(),
             }
             {
@@ -219,7 +241,7 @@ mod tests {
             .unwrap();
 
         let request = HeartbeatRequest {
-            cluster_type: cluster_type(),
+            cluster_type: ClusterType::JournalServer.into(),
             cluster_name: cluster_name(),
             node_id: node_id(),
         };
@@ -234,7 +256,7 @@ mod tests {
             .unwrap();
 
         let request = UnRegisterNodeRequest {
-            cluster_type: cluster_type(),
+            cluster_type: ClusterType::JournalServer.into(),
             cluster_name: cluster_name(),
             node_id: node_id(),
         };

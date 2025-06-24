@@ -21,3 +21,4 @@ jn-1.log
 pc-1.log
 config/log-config/mqtt-tracing.toml
 config/log-config/place-tracing.toml
+Cargo.lock

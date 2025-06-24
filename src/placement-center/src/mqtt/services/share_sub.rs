@@ -222,7 +222,7 @@ pub fn get_share_sub_leader_by_req(
 
 #[cfg(test)]
 mod tests {
-    use common_base::tools::{now_mills, unique_id};
+    use common_base::tools::{now_second, unique_id};
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::place::config::placement_center_test_conf;
     use metadata_struct::placement::node::BrokerNode;
@@ -301,7 +301,8 @@ mod tests {
             node_ip: "".to_string(),
             node_inner_addr: "".to_string(),
             extend: "".to_string(),
-            create_time: now_mills(),
+            start_time: now_second(),
+            register_time: now_second(),
         });
         cluster_cache.add_broker_node(BrokerNode {
             cluster_name: cluster_name.clone(),
@@ -310,7 +311,8 @@ mod tests {
             node_ip: "".to_string(),
             node_inner_addr: "".to_string(),
             extend: "".to_string(),
-            create_time: now_mills(),
+            start_time: now_second(),
+            register_time: now_second(),
         });
         cluster_cache.add_broker_node(BrokerNode {
             cluster_name: cluster_name.clone(),
@@ -319,7 +321,8 @@ mod tests {
             node_ip: "".to_string(),
             node_inner_addr: "".to_string(),
             extend: "".to_string(),
-            create_time: now_mills(),
+            start_time: now_second(),
+            register_time: now_second(),
         });
 
         let share_sub = ShareSubLeader::new(cluster_cache, rocksdb_engine_handler.clone());

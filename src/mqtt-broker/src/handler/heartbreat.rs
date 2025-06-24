@@ -16,6 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use super::error::MqttBrokerError;
+use crate::handler::cache::CacheManager;
 use crate::storage::cluster::ClusterStorage;
 
 use common_config::mqtt::broker_mqtt_conf;
@@ -26,15 +27,19 @@ use tokio::sync::broadcast;
 use tokio::time::{sleep, timeout};
 use tracing::{debug, error};
 
-pub async fn register_node(client_pool: &Arc<ClientPool>) -> Result<(), MqttBrokerError> {
+pub async fn register_node(
+    client_pool: &Arc<ClientPool>,
+    cache_manager: &Arc<CacheManager>,
+) -> Result<(), MqttBrokerError> {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let config = broker_mqtt_conf();
-    cluster_storage.register_node(config).await?;
+    cluster_storage.register_node(cache_manager, config).await?;
     Ok(())
 }
 
 pub async fn report_heartbeat(
     client_pool: &Arc<ClientPool>,
+    cache_manager: &Arc<CacheManager>,
     heartbeat_timeout: &String,
     stop_send: broadcast::Sender<bool>,
 ) {
@@ -63,7 +68,7 @@ pub async fn report_heartbeat(
                     }
                 }
             }
-            val = timeout(Duration::from_secs(actual_timeout),report(client_pool)) => {
+            val = timeout(Duration::from_secs(actual_timeout),report(client_pool,cache_manager)) => {
                 if let Err(e) = val{
                     error!("Broker heartbeat report timeout, error message:{}",e);
                 }
@@ -73,11 +78,11 @@ pub async fn report_heartbeat(
     }
 }
 
-async fn report(client_pool: &Arc<ClientPool>) {
+async fn report(client_pool: &Arc<ClientPool>, cache_manager: &Arc<CacheManager>) {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     if let Err(e) = cluster_storage.heartbeat().await {
         if e.to_string().contains("Node") && e.to_string().contains("does not exist") {
-            if let Err(e) = register_node(client_pool).await {
+            if let Err(e) = register_node(client_pool, cache_manager).await {
                 error!("{}", e);
             }
         }
