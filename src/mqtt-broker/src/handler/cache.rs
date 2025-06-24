@@ -27,6 +27,7 @@ use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::placement::node::BrokerNode;
 use protocol::mqtt::common::{MqttProtocol, PublishProperties};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -92,6 +93,9 @@ pub struct CacheManager {
 
     pub client_pool: Arc<ClientPool>,
 
+    // node list
+    pub node_lists: DashMap<u64, BrokerNode>,
+
     // cluster_name
     pub cluster_name: String,
 
@@ -138,6 +142,7 @@ impl CacheManager {
             start_time: now_second(),
             client_pool,
             cluster_name,
+            node_lists: DashMap::with_capacity(2),
             cluster_info: DashMap::with_capacity(1),
             user_info: DashMap::with_capacity(8),
             session_info: DashMap::with_capacity(8),
@@ -151,6 +156,15 @@ impl CacheManager {
             auto_subscribe_rule: DashMap::with_capacity(8),
             alarm_events: DashMap::with_capacity(8),
         }
+    }
+
+    // node
+    pub fn add_node(&self, node: BrokerNode) {
+        self.node_lists.insert(node.node_id, node);
+    }
+
+    pub fn remove_node(&self, node: BrokerNode) {
+        self.node_lists.remove(&node.node_id);
     }
 
     // session

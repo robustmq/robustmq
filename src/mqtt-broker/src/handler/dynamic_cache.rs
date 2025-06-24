@@ -28,6 +28,7 @@ use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::placement::node::BrokerNode;
 use metadata_struct::resource_config::ClusterResourceConfig;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use protocol::broker_mqtt::broker_mqtt_inner::{
@@ -183,6 +184,16 @@ pub async fn update_cache_metadata(
     request: UpdateMqttCacheRequest,
 ) -> Result<(), MqttBrokerError> {
     match request.resource_type() {
+        MqttBrokerUpdateCacheResourceType::Node => match request.action_type() {
+            MqttBrokerUpdateCacheActionType::Set => {
+                let node = serde_json::from_str::<BrokerNode>(&request.data)?;
+                cache_manager.add_node(node);
+            }
+            MqttBrokerUpdateCacheActionType::Delete => {
+                let node = serde_json::from_str::<BrokerNode>(&request.data)?;
+                cache_manager.remove_node(node);
+            }
+        },
         MqttBrokerUpdateCacheResourceType::Session => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
                 let session = serde_json::from_str::<MqttSession>(&request.data)?;

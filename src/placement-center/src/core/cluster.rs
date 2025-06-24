@@ -28,7 +28,9 @@ use super::error::PlacementCenterError;
 use crate::journal::controller::call_node::{
     update_cache_by_add_journal_node, update_cache_by_delete_journal_node, JournalInnerCallManager,
 };
-use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
+use crate::mqtt::controller::call_broker::{
+    update_cache_by_add_node, update_cache_by_delete_node, MQTTInnerCallManager,
+};
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
 
@@ -36,7 +38,8 @@ pub async fn register_node_by_req(
     cluster_cache: &Arc<PlacementCacheManager>,
     raft_machine_apply: &Arc<RaftMachineApply>,
     client_pool: &Arc<ClientPool>,
-    call_manager: &Arc<JournalInnerCallManager>,
+    journal_call_manager: &Arc<JournalInnerCallManager>,
+    mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     req: RegisterNodeRequest,
 ) -> Result<RegisterNodeReply, PlacementCenterError> {
     let node = serde_json::from_slice::<BrokerNode>(&req.node)?;
@@ -55,7 +58,16 @@ pub async fn register_node_by_req(
     if node.cluster_type == *ClusterType::JournalServer.as_str_name() {
         update_cache_by_add_journal_node(
             &node.cluster_name,
-            call_manager,
+            journal_call_manager,
+            client_pool,
+            node.clone(),
+        )
+        .await?;
+    }
+    if node.cluster_type == *ClusterType::MqttBrokerServer.as_str_name() {
+        update_cache_by_add_node(
+            &node.cluster_name,
+            mqtt_call_manager,
             client_pool,
             node.clone(),
         )
@@ -81,12 +93,19 @@ pub async fn un_register_node_by_req(
                 &req.cluster_name,
                 journal_call_manager,
                 client_pool,
-                node,
+                node.clone(),
             )
             .await?;
             journal_call_manager.remove_node(&req.cluster_name, req.node_id);
         }
         if req.cluster_type() == ClusterType::MqttBrokerServer {
+            update_cache_by_delete_node(
+                &req.cluster_name,
+                mqtt_call_manager,
+                client_pool,
+                node.clone(),
+            )
+            .await?;
             mqtt_call_manager.remove_node(&req.cluster_name, req.node_id);
         }
     }
