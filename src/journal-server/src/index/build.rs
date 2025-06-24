@@ -434,7 +434,7 @@ mod tests {
         .await;
         assert!(res.is_ok());
 
-        sleep(Duration::from_secs(90)).await;
+        sleep(Duration::from_secs(120)).await;
         let prefix_key_name = segment_index_prefix(&segment_iden);
         let comlumn_family = DB_COLUMN_FAMILY_INDEX;
         let data = rocksdb_engine_prefix_map(

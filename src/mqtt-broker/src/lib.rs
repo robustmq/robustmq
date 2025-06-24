@@ -487,9 +487,11 @@ where
             self.server.stop().await;
             match stop_send.send(true) {
                 Ok(_) => {
+                    info!("Process stop signal was sent successfully.");
                     if let Err(e) = self.stop_server().await {
                         error!("{}", e);
                     }
+                    info!("Service has been stopped successfully. Exiting the process.");
                 }
                 Err(_) => {
                     error!("Failed to send stop signal");
@@ -529,7 +531,12 @@ where
         let config = broker_mqtt_conf();
         let _ = self.delay_message_manager.stop().await;
         cluster_storage.unregister_node(config).await?;
+        info!(
+            "Node {} has been successfully unregistered",
+            config.broker_id
+        );
         self.connection_manager.close_all_connect().await;
+        info!("All TCP, TLS, WS, and WSS network connections have been successfully closed.");
         Ok(())
     }
 }

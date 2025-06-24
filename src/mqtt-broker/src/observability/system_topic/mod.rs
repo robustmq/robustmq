@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
-
 use crate::handler::cache::CacheManager;
 use crate::handler::topic::try_init_topic;
 use crate::observability::system_topic::packet::bytes::{
@@ -81,11 +78,13 @@ use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
+use std::sync::Arc;
+use std::time::Duration;
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
-use tracing::{debug, error};
+use tracing::{error, info};
 
 // Cluster status information
 pub const SYSTEM_TOPIC_BROKERS: &str = "$SYS/brokers";
@@ -152,15 +151,17 @@ where
             select! {
                 val = stop_rx.recv() =>{
                     if let Ok(flag) = val {
+                        println!("{}", flag);
                         if flag {
-                            debug!("System topic thread stopped successfully");
+                            info!("System topic thread stopped successfully");
                             break;
                         }
                     }
                 }
-                _ = self.report_info()=>{}
+                _ = self.report_info()=>{
+                    sleep(Duration::from_secs(60)).await;
+                }
             }
-            sleep(Duration::from_secs(60)).await;
         }
     }
 
@@ -171,18 +172,21 @@ where
             &self.message_storage_adapter,
         )
         .await;
+
         report_stats_info(
             &self.client_pool,
             &self.metadata_cache,
             &self.message_storage_adapter,
         )
         .await;
+
         report_packet_info(
             &self.client_pool,
             &self.metadata_cache,
             &self.message_storage_adapter,
         )
         .await;
+
         report_alarm_info(
             &self.client_pool,
             &self.metadata_cache,
@@ -195,7 +199,7 @@ where
         let results = self.get_all_system_topic();
         for topic_name in results {
             let new_topic_name = replace_topic_name(topic_name);
-            match try_init_topic(
+            if let Err(e) = try_init_topic(
                 &new_topic_name,
                 &self.metadata_cache,
                 &self.message_storage_adapter,
@@ -203,13 +207,10 @@ where
             )
             .await
             {
-                Ok(_) => {}
-                Err(e) => {
-                    panic!(
-                        "Initializing system topic {} Failed, error message :{}",
-                        new_topic_name, e
-                    );
-                }
+                panic!(
+                    "Initializing system topic {} Failed, error message :{}",
+                    new_topic_name, e
+                );
             }
         }
     }
