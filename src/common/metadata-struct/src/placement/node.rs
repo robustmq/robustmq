@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::placement_center::placement_center_inner::ClusterType;
+use protocol::{
+    broker_mqtt::broker_mqtt_admin::BrokerNodeRaw,
+    placement_center::placement_center_inner::ClusterType,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
@@ -30,6 +33,21 @@ pub struct BrokerNode {
 impl BrokerNode {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
+    }
+}
+
+impl From<BrokerNode> for BrokerNodeRaw {
+    fn from(node: BrokerNode) -> Self {
+        Self {
+            cluster_name: node.cluster_name,
+            cluster_type: node.cluster_type,
+            extend_info: node.extend,
+            node_id: node.node_id,
+            node_ip: node.node_ip,
+            node_inner_addr: node.node_inner_addr,
+            start_time: node.start_time,
+            register_time: node.register_time,
+        }
     }
 }
 

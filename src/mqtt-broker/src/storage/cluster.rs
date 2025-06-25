@@ -19,15 +19,16 @@ use common_base::tools::{get_local_ip, now_second};
 use common_config::mqtt::broker_mqtt_conf;
 use common_config::mqtt::config::BrokerMqttConfig;
 use grpc_clients::placement::inner::call::{
-    delete_resource_config, get_resource_config, heartbeat, node_list, register_node,
-    set_resource_config, unregister_node,
+    cluster_status, delete_resource_config, get_resource_config, heartbeat, node_list,
+    register_node, set_resource_config, unregister_node,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::node_extend::MqttNodeExtend;
 use metadata_struct::placement::node::BrokerNode;
 use protocol::placement_center::placement_center_inner::{
-    ClusterType, DeleteResourceConfigRequest, GetResourceConfigRequest, HeartbeatRequest,
-    NodeListRequest, RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
+    ClusterStatusRequest, ClusterType, DeleteResourceConfigRequest, GetResourceConfigRequest,
+    HeartbeatRequest, NodeListRequest, RegisterNodeRequest, SetResourceConfigRequest,
+    UnRegisterNodeRequest,
 };
 
 use crate::handler::cache::CacheManager;
@@ -39,6 +40,13 @@ pub struct ClusterStorage {
 impl ClusterStorage {
     pub fn new(client_pool: Arc<ClientPool>) -> Self {
         ClusterStorage { client_pool }
+    }
+
+    pub async fn place_cluster_status(&self) -> Result<String, CommonError> {
+        let request = ClusterStatusRequest {};
+        let conf = broker_mqtt_conf();
+        let reply = cluster_status(&self.client_pool, &conf.placement_center, request).await?;
+        Ok(reply.content)
     }
 
     pub async fn node_list(&self) -> Result<Vec<BrokerNode>, CommonError> {

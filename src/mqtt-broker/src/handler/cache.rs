@@ -167,6 +167,13 @@ impl CacheManager {
         self.node_lists.remove(&node.node_id);
     }
 
+    pub fn node_list(&self) -> Vec<BrokerNode> {
+        self.node_lists
+            .iter()
+            .map(|entry| entry.value().clone())
+            .collect()
+    }
+
     // session
     pub fn add_session(&self, client_id: &str, session: &MqttSession) {
         self.session_info
