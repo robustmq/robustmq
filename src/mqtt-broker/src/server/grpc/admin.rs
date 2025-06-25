@@ -30,9 +30,8 @@ use crate::admin::schema::{
     list_schema_by_req, unbind_schema_by_req, update_schema_by_req,
 };
 use crate::admin::session::list_session_by_req;
-use crate::admin::subscribe::{
-    delete_auto_subscribe_rule, list_auto_subscribe_rule_by_req, set_auto_subscribe_rule,
-};
+use crate::admin::subscribe::{delete_auto_subscribe_rule, list_auto_subscribe_rule_by_req,
+    list_subscribe, set_auto_subscribe_rule};
 use crate::admin::topic::{
     create_topic_rewrite_rule_by_req, delete_topic_rewrite_rule_by_req,
     get_all_topic_rewrite_rule_by_req, list_topic_by_req,
@@ -526,5 +525,22 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         Ok(Response::new(ListAutoSubscribeRuleReply {
             auto_subscribe_rules,
         }))
+    }
+
+    async fn mqtt_broker_list_subscribe(
+        &self,
+        _request: Request<ListSubscribeRequest>,
+    ) -> Result<Response<ListSubscribeReply>, Status> {
+        let subscribes = list_subscribe(&self.subscribe_manager)
+            .await;
+
+        let sub_data = subscribes.into_iter().map(|subscribe| {
+            let datas = subscribe.split("_");
+            MqttListSubscribeReply {
+                client_id: datas[0].to_string(),
+                path: datas[1].to_string(),
+            }
+        }).collect();
+        Ok(Response::new(MqttListSubscribeReply { sub_data }))
     }
 }

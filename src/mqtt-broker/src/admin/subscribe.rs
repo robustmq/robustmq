@@ -25,6 +25,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 use protocol::mqtt::common::{qos, retain_forward_rule, Error};
 use std::sync::Arc;
 use tonic::Request;
+use crate::subscribe::manager::SubscribeManager;
 
 pub async fn set_auto_subscribe_rule(
     client_pool: &Arc<ClientPool>,
@@ -111,4 +112,10 @@ pub async fn list_auto_subscribe_rule_by_req(
         .collect();
 
     Ok(rules)
+}
+
+pub async fn list_subscribe(
+    subscribe_manager: &Arc<SubscribeManager>
+) -> Vec<String> {
+    subscribe_manager.list_subscribe()
 }

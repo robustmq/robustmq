@@ -23,6 +23,7 @@ use grpc_clients::pool::ClientPool;
 use std::{sync::Arc, time::Duration};
 use tokio::{select, sync::broadcast, time::sleep};
 use tracing::{error, info};
+use crate::subscribe::common::is_match_sub_and_topic;
 
 pub async fn start_parse_subscribe_by_new_topic_thread(
     client_pool: &Arc<ClientPool>,
