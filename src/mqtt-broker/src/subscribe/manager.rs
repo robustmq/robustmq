@@ -110,7 +110,7 @@ impl SubscribeManager {
 
     pub fn list_subscribe(&self) -> Vec<String> {
         let mut list = Vec::new();
-        for (key, subscribe) in self.subscribe_list.clone() {
+        for (key, _subscribe) in self.subscribe_list.clone() {
             list.push(key);
         }
         list

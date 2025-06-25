@@ -535,12 +535,15 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .await;
 
         let sub_data = subscribes.into_iter().map(|subscribe| {
-            let datas = subscribe.split("_");
-            MqttListSubscribeReply {
-                client_id: datas[0].to_string(),
-                path: datas[1].to_string(),
+            let mut datas = subscribe.split("_");
+            match (datas.next(), datas.next()) {
+                (Some(client_id), Some(path)) => Some(MqttSubscribeRaw {
+                    client_id: client_id.to_string(),
+                    path: path.to_string(),
+                }),
+                _ => None, // 忽略格式错误的数据
             }
         }).collect();
-        Ok(Response::new(MqttListSubscribeReply { sub_data }))
+        Ok(Response::new(ListSubscribeReply { sub_data }))
     }
 }
