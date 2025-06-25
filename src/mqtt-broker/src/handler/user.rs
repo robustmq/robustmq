@@ -63,8 +63,7 @@ impl UpdateUserCache {
         match self.auth_driver.update_user_cache().await {
             Ok(_) => {}
             Err(e) => {
-                println!("Updating user info normal exception");
-                error!("{}", e);
+                error!("Updating user info normal exceptio,{}", e);
             }
         };
         sleep(Duration::from_secs(5)).await;

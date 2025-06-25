@@ -14,14 +14,15 @@
 
 use common_base::error::common::CommonError;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
-    CreateBlacklistReply, CreateBlacklistRequest, CreateTopicRewriteRuleReply,
-    CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
-    DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
-    DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
-    EnableFlappingDetectRequest, GetClusterConfigReply, GetClusterConfigRequest, ListAclReply,
-    ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBlacklistReply,
+    ClusterOverviewMetricsReply, ClusterOverviewMetricsRequest, ClusterStatusReply,
+    ClusterStatusRequest, CreateAclReply, CreateAclRequest, CreateBlacklistReply,
+    CreateBlacklistRequest, CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest,
+    CreateUserReply, CreateUserRequest, DeleteAclReply, DeleteAclRequest,
+    DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest, DeleteBlacklistReply,
+    DeleteBlacklistRequest, DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest,
+    DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply, EnableFlappingDetectRequest,
+    GetClusterConfigReply, GetClusterConfigRequest, ListAclReply, ListAclRequest,
+    ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBlacklistReply,
     ListBlacklistRequest, ListConnectionReply, ListConnectionRequest, ListSessionReply,
     ListSessionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListSystemAlarmReply,
     ListSystemAlarmRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
@@ -299,4 +300,11 @@ generate_mqtt_admin_service_call!(
     ListSessionRequest,
     ListSessionReply,
     ListSession
+);
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_cluster_overview_metrics,
+    ClusterOverviewMetricsRequest,
+    ClusterOverviewMetricsReply,
+    ClusterOverviewMetrics
 );

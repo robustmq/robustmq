@@ -25,6 +25,7 @@ use tracing::info;
 
 use super::inner::GrpcInnerServices;
 use crate::bridge::manager::ConnectorManager;
+use crate::common::metrics_cache::MetricsCacheManager;
 use crate::handler::cache::CacheManager;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::grpc::admin::GrpcAdminServices;
@@ -39,6 +40,7 @@ pub struct GrpcServer<S> {
     schema_manager: Arc<SchemaRegisterManager>,
     client_pool: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
+    metrics_cache_manager: Arc<MetricsCacheManager>,
 }
 
 impl<S> GrpcServer<S>
@@ -55,6 +57,7 @@ where
         schema_manager: Arc<SchemaRegisterManager>,
         client_pool: Arc<ClientPool>,
         message_storage_adapter: Arc<S>,
+        metrics_cache_manager: Arc<MetricsCacheManager>,
     ) -> Self {
         Self {
             port,
@@ -65,6 +68,7 @@ where
             client_pool,
             message_storage_adapter,
             schema_manager,
+            metrics_cache_manager,
         }
     }
     pub async fn start(&self) -> Result<(), CommonError> {
@@ -83,6 +87,7 @@ where
             self.metadata_cache.clone(),
             self.connection_manager.clone(),
             self.subscribe_manager.clone(),
+            self.metrics_cache_manager.clone(),
         );
         Server::builder()
             .accept_http1(true)
