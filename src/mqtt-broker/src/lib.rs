@@ -13,16 +13,11 @@
 // limitations under the License.
 
 #![allow(clippy::result_large_err)]
-use std::str::FromStr;
-use std::sync::Arc;
-use std::time::Duration;
-
-use bridge::core::start_connector_thread;
-use bridge::manager::ConnectorManager;
-
-use crate::common::metrics_cache::MetricsCacheManager;
+use crate::common::metrics_cache::{metrics_gc_thread, metrics_record_thread, MetricsCacheManager};
 use crate::handler::error::MqttBrokerError;
 use crate::server::server::Server;
+use bridge::core::start_connector_thread;
+use bridge::manager::ConnectorManager;
 use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
 use common_base::tools::now_second;
@@ -44,6 +39,9 @@ use security::AuthDriver;
 use server::connection_manager::ConnectionManager;
 use server::grpc::server::GrpcServer;
 use server::websocket::server::{websocket_server, websockets_server, WebSocketServerState};
+use std::str::FromStr;
+use std::sync::Arc;
+use std::time::Duration;
 use storage::cluster::ClusterStorage;
 use storage_adapter::memory::MemoryStorageAdapter;
 use tracing::{error, info};
@@ -215,6 +213,7 @@ where
         self.start_delay_message_thread();
         self.start_update_cache_thread(stop_send.clone());
         self.start_system_topic_thread(stop_send.clone());
+        self.metrics_cache_thread(stop_send.clone());
         self.start_prometheus();
         self.start_pprof_monitor();
 
@@ -478,6 +477,25 @@ where
                 stop_send,
             )
             .await;
+        });
+    }
+
+    fn metrics_cache_thread(&self, stop_send: broadcast::Sender<bool>) {
+        let metrics_cache_manager = self.metrics_cache_manager.clone();
+        let cache_manager = self.cache_manager.clone();
+        let subscribe_manager = self.subscribe_manager.clone();
+        let connection_manager = self.connection_manager.clone();
+        self.daemon_runtime.spawn(async move {
+            metrics_record_thread(
+                metrics_cache_manager.clone(),
+                cache_manager.clone(),
+                subscribe_manager.clone(),
+                connection_manager.clone(),
+                60,
+                stop_send.clone(),
+            );
+
+            metrics_gc_thread(metrics_cache_manager.clone(), stop_send.clone());
         });
     }
 

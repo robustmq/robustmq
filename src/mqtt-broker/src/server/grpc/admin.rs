@@ -149,9 +149,9 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
     async fn cluster_overview_metrics(
         &self,
-        _: Request<ClusterOverviewMetricsRequest>,
+        request: Request<ClusterOverviewMetricsRequest>,
     ) -> Result<Response<ClusterOverviewMetricsReply>, Status> {
-        match cluster_overview_metrics_by_req(&self.metrics_cache_manager).await {
+        match cluster_overview_metrics_by_req(&self.metrics_cache_manager, request).await {
             Ok(reply) => Ok(Response::new(reply)),
             Err(e) => Err(Status::cancelled(e.to_string())),
         }

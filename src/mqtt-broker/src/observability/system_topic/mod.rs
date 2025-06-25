@@ -151,7 +151,6 @@ where
             select! {
                 val = stop_rx.recv() =>{
                     if let Ok(flag) = val {
-                        println!("{}", flag);
                         if flag {
                             info!("System topic thread stopped successfully");
                             break;
