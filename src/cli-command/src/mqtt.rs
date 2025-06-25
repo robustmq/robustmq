@@ -580,7 +580,7 @@ impl MqttBrokerCommand {
                 );
                 println!(
                     "share_subscribe_folower_thread_num: {}",
-                    data.share_subscribe_folower_thread_num
+                    data.share_subscribe_follower_thread_num
                 );
             }
             Err(e) => {

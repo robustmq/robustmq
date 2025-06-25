@@ -72,7 +72,7 @@ pub async fn cluster_status_by_req(
         share_subscribe_leader_num: subscribe_manager.share_leader_push.len() as u32,
         share_subscribe_leader_thread_num: subscribe_manager.share_leader_push_thread.len() as u32,
         share_subscribe_resub_num: subscribe_manager.share_follower_resub.len() as u32,
-        share_subscribe_folower_thread_num: subscribe_manager.share_follower_resub_thread.len()
+        share_subscribe_follower_thread_num: subscribe_manager.share_follower_resub_thread.len()
             as u32,
         topic_num: cache_manager.topic_info.len() as u32,
         nodes: resp_node_list,
