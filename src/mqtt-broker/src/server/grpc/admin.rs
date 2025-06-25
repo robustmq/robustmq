@@ -126,7 +126,14 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         _: Request<ClusterStatusRequest>,
     ) -> Result<Response<ClusterStatusReply>, Status> {
-        match cluster_status_by_req(&self.client_pool, &self.subscribe_manager).await {
+        match cluster_status_by_req(
+            &self.client_pool,
+            &self.subscribe_manager,
+            &self.connection_manager,
+            &self.cache_manager,
+        )
+        .await
+        {
             Ok(reply) => Ok(Response::new(reply)),
             Err(e) => Err(Status::cancelled(e.to_string())),
         }

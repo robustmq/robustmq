@@ -31,8 +31,8 @@ pub fn shard_replica() -> u32 {
 }
 
 #[allow(dead_code)]
-pub fn cluster_type() -> i32 {
-    ClusterType::JournalServer.into()
+pub fn cluster_type() -> String {
+    ClusterType::JournalServer.as_str_name().to_string()
 }
 
 #[allow(dead_code)]

@@ -35,8 +35,8 @@ use common_base::tools::serialize_value;
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusReply, EnableFlappingDetectReply, EnableFlappingDetectRequest, ListConnectionRaw,
-    ListConnectionReply,
+    BrokerNodeRaw, ClusterStatusReply, EnableFlappingDetectReply, EnableFlappingDetectRequest,
+    ListConnectionRaw, ListConnectionReply,
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
@@ -44,6 +44,8 @@ use tonic::{Request, Response, Status};
 pub async fn cluster_status_by_req(
     client_pool: &Arc<ClientPool>,
     subscribe_manager: &Arc<SubscribeManager>,
+    connection_manager: &Arc<ConnectionManager>,
+    cache_manager: &Arc<CacheManager>,
 ) -> Result<ClusterStatusReply, MqttBrokerError> {
     let config = broker_mqtt_conf();
 
@@ -54,13 +56,35 @@ pub async fn cluster_status_by_req(
         broker_node_list.push(format!("{}@{}", node.node_ip, node.node_id));
     }
 
-    let subsceibe_info = subscribe_manager.snapshot_info();
-
-    Ok(ClusterStatusReply {
-        nodes: broker_node_list,
+    let placement_status = cluster_storage.place_cluster_status().await?;
+    let node_list = cache_manager.node_list();
+    let resp_node_list: Vec<BrokerNodeRaw> =
+        node_list.iter().map(|node| node.clone().into()).collect();
+    let reply = ClusterStatusReply {
         cluster_name: config.cluster_name.clone(),
-        subscribe_info: serde_json::to_string(&subsceibe_info)?,
-    })
+        message_in_rate: 10,
+        message_out_rate: 3,
+        connection_num: connection_manager.connections.len() as u32,
+        session_num: cache_manager.session_info.len() as u32,
+        subscribe_num: subscribe_manager.subscribe_list.len() as u32,
+        exclusive_subscribe_num: subscribe_manager.exclusive_push.len() as u32,
+        exclusive_subscribe_thread_num: subscribe_manager.exclusive_push_thread.len() as u32,
+        share_subscribe_leader_num: subscribe_manager.share_leader_push.len() as u32,
+        share_subscribe_leader_thread_num: subscribe_manager.share_leader_push_thread.len() as u32,
+        share_subscribe_resub_num: subscribe_manager.share_follower_resub.len() as u32,
+        share_subscribe_follower_thread_num: subscribe_manager.share_follower_resub_thread.len()
+            as u32,
+        topic_num: cache_manager.topic_info.len() as u32,
+        nodes: resp_node_list,
+        placement_status,
+        tcp_connection_num: connection_manager.tcp_write_list.len() as u32,
+        tls_connection_num: connection_manager.tcp_tls_write_list.len() as u32,
+        websocket_connection_num: connection_manager.websocket_write_list.len() as u32,
+        quic_connection_num: connection_manager.quic_write_list.len() as u32,
+    };
+    let _ = subscribe_manager.snapshot_info();
+
+    Ok(reply)
 }
 
 pub async fn enable_flapping_detect_by_req(

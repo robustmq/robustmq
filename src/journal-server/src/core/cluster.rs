@@ -16,10 +16,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use common_base::error::common::CommonError;
+use common_base::tools::now_second;
 use common_config::journal::config::{journal_server_conf, JournalServerConfig};
 use grpc_clients::placement::inner::call::{heartbeat, register_node, unregister_node};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::node_extend::JournalNodeExtend;
+use metadata_struct::placement::node::BrokerNode;
 use protocol::placement_center::placement_center_inner::{
     ClusterType, HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
 };
@@ -28,9 +30,11 @@ use tokio::sync::broadcast;
 use tokio::time::sleep;
 use tracing::{debug, error};
 
+use crate::core::cache::CacheManager;
+
 pub async fn register_journal_node(
-    client_pool: Arc<ClientPool>,
-    config: JournalServerConfig,
+    client_pool: &Arc<ClientPool>,
+    cache_manager: &Arc<CacheManager>,
 ) -> Result<(), CommonError> {
     let conf = journal_server_conf();
     let local_ip = conf.network.local_ip.clone();
@@ -40,16 +44,22 @@ pub async fn register_journal_node(
         tcps_addr: format!("{}:{}", local_ip, conf.network.tcps_port),
     };
 
-    let req = RegisterNodeRequest {
-        cluster_type: ClusterType::JournalServer.into(),
-        cluster_name: config.cluster_name,
-        node_id: config.node_id,
+    let node = BrokerNode {
+        cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
+        cluster_name: conf.cluster_name.to_owned(),
+        node_id: conf.node_id,
         node_ip: local_ip.clone(),
         node_inner_addr: format!("{}:{}", local_ip.clone(), conf.network.grpc_port),
-        extend_info: serde_json::to_string(&extend)?,
+        extend: extend.encode(),
+        start_time: cache_manager.get_start_time(),
+        register_time: now_second(),
     };
-    register_node(&client_pool, &config.placement_center, req.clone()).await?;
-    debug!("Node {} register successfully", config.node_id);
+
+    let req = RegisterNodeRequest {
+        node: node.encode(),
+    };
+    register_node(client_pool, &conf.placement_center, req.clone()).await?;
+    debug!("Node {} register successfully", conf.node_id);
     Ok(())
 }
 
@@ -67,7 +77,11 @@ pub async fn unregister_journal_node(
     Ok(())
 }
 
-pub async fn report_heartbeat(client_pool: Arc<ClientPool>, stop_send: broadcast::Sender<bool>) {
+pub async fn report_heartbeat(
+    client_pool: &Arc<ClientPool>,
+    cache_manager: &Arc<CacheManager>,
+    stop_send: broadcast::Sender<bool>,
+) {
     sleep(Duration::from_secs(10)).await;
     loop {
         let mut stop_recv = stop_send.subscribe();
@@ -80,21 +94,21 @@ pub async fn report_heartbeat(client_pool: Arc<ClientPool>, stop_send: broadcast
                     }
                 }
             }
-            _ = report_report0(client_pool.clone()) => {
+            _ = report_report0(client_pool, cache_manager) => {
 
             }
         }
     }
 }
 
-async fn report_report0(client_pool: Arc<ClientPool>) {
+async fn report_report0(client_pool: &Arc<ClientPool>, cache_manager: &Arc<CacheManager>) {
     let config = journal_server_conf();
     let req = HeartbeatRequest {
         cluster_name: config.cluster_name.clone(),
         cluster_type: ClusterType::JournalServer.into(),
         node_id: config.node_id,
     };
-    match heartbeat(&client_pool, &config.placement_center, req.clone()).await {
+    match heartbeat(client_pool, &config.placement_center, req.clone()).await {
         Ok(_) => {
             debug!(
                 "Node {} successfully reports the heartbeat communication",
@@ -103,7 +117,7 @@ async fn report_report0(client_pool: Arc<ClientPool>) {
         }
         Err(e) => {
             if e.to_string().contains("Node") && e.to_string().contains("does not exist") {
-                if let Err(e) = register_journal_node(client_pool.clone(), config.clone()).await {
+                if let Err(e) = register_journal_node(client_pool, cache_manager).await {
                     error!("{}", e);
                 }
             } else {

@@ -15,12 +15,13 @@
 #[cfg(test)]
 mod tests {
 
-    use common_base::tools::unique_id;
+    use common_base::tools::{now_second, unique_id};
     use grpc_clients::placement::inner::call::register_node;
     use grpc_clients::placement::journal::call::{create_next_segment, create_shard};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::journal::node_extend::JournalNodeExtend;
     use metadata_struct::journal::shard::JournalShardConfig;
+    use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
     use protocol::placement_center::placement_center_journal::{
         CreateNextSegmentRequest, CreateShardRequest,
@@ -42,14 +43,22 @@ mod tests {
             tcps_addr: "".to_string(),
             data_fold: vec!["/data".to_string()],
         };
-        let request = RegisterNodeRequest {
-            cluster_type: ClusterType::JournalServer.into(),
+
+        let node = BrokerNode {
+            cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
             cluster_name: cluster.clone(),
             node_id: 1,
             node_ip: "127.0.0.1".to_string(),
             node_inner_addr: "127.0.0.1:3228".to_string(),
-            extend_info: serde_json::to_string(&extend).unwrap(),
+            extend: extend.encode(),
+            start_time: now_second(),
+            register_time: now_second(),
         };
+
+        let request = RegisterNodeRequest {
+            node: node.encode(),
+        };
+
         register_node(&client_pool, &addrs, request).await.unwrap();
 
         let config = JournalShardConfig {

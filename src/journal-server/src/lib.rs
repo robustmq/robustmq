@@ -157,9 +157,10 @@ impl JournalServer {
 
     fn start_daemon_thread(&self) {
         let client_pool = self.client_pool.clone();
+        let cache_manager = self.cache_manager.clone();
         let stop_sx = self.stop_send.clone();
         self.daemon_runtime
-            .spawn(async move { report_heartbeat(client_pool, stop_sx).await });
+            .spawn(async move { report_heartbeat(&client_pool, &cache_manager, stop_sx).await });
 
         let client_pool = self.client_pool.clone();
         let stop_sx = self.stop_send.clone();
@@ -218,7 +219,7 @@ impl JournalServer {
 
             // todo
             sleep(Duration::from_secs(1)).await;
-            match register_journal_node(self.client_pool.clone(), self.config.clone()).await {
+            match register_journal_node(&self.client_pool, &self.cache_manager).await {
                 Ok(()) => {}
                 Err(e) => {
                     panic!("{}", e);

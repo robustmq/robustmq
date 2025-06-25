@@ -16,7 +16,7 @@
 mod tests {
     use std::sync::Arc;
 
-    use common_base::tools::{get_local_ip, unique_id};
+    use common_base::tools::{get_local_ip, now_second, unique_id};
     use grpc_clients::placement::inner::call::register_node;
     use grpc_clients::placement::journal::call::{
         create_next_segment, create_shard, delete_segment, delete_shard, list_segment,
@@ -27,6 +27,7 @@ mod tests {
     use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
     use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
     use metadata_struct::journal::shard::{JournalShard, JournalShardConfig, JournalShardStatus};
+    use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
     use protocol::placement_center::placement_center_journal::{
         CreateNextSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
@@ -55,13 +56,19 @@ mod tests {
             tcps_addr: "".to_string(),
         };
 
-        let request = RegisterNodeRequest {
-            cluster_type: ClusterType::JournalServer.into(),
+        let node = BrokerNode {
+            cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
             cluster_name: cluster_name.clone(),
-            node_id,
-            node_ip: get_local_ip(),
-            node_inner_addr: "127.0.0.1:4531".to_string(),
-            extend_info: serde_json::to_string(&extend).unwrap(),
+            node_id: 1,
+            node_ip: "127.0.0.1".to_string(),
+            node_inner_addr: "127.0.0.1:3228".to_string(),
+            extend: extend.encode(),
+            start_time: now_second(),
+            register_time: now_second(),
+        };
+
+        let request = RegisterNodeRequest {
+            node: node.encode(),
         };
         if let Err(e) = register_node(&client_pool, &addrs, request).await {
             println!("{}", e);
@@ -268,13 +275,19 @@ mod tests {
             tcps_addr: "".to_string(),
         };
 
-        let request = RegisterNodeRequest {
-            cluster_type: ClusterType::JournalServer.into(),
+        let node = BrokerNode {
+            cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
             cluster_name: cluster_name.clone(),
             node_id,
             node_ip: get_local_ip(),
             node_inner_addr: "127.0.0.1:4531".to_string(),
-            extend_info: serde_json::to_string(&extend).unwrap(),
+            extend: extend.encode(),
+            start_time: now_second(),
+            register_time: now_second(),
+        };
+
+        let request = RegisterNodeRequest {
+            node: node.encode(),
         };
         if let Err(e) = register_node(&client_pool, &addrs, request).await {
             println!("{}", e);
@@ -408,14 +421,21 @@ mod tests {
             tcps_addr: "".to_string(),
         };
 
-        let request = RegisterNodeRequest {
-            cluster_type: ClusterType::JournalServer.into(),
+        let node = BrokerNode {
+            cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
             cluster_name: cluster_name.clone(),
             node_id,
             node_ip: get_local_ip(),
             node_inner_addr: "127.0.0.1:4531".to_string(),
-            extend_info: serde_json::to_string(&extend).unwrap(),
+            extend: serde_json::to_string(&extend).unwrap(),
+            start_time: now_second(),
+            register_time: now_second(),
         };
+
+        let request = RegisterNodeRequest {
+            node: node.encode(),
+        };
+
         if let Err(e) = register_node(&client_pool, &addrs, request).await {
             println!("{}", e);
             unreachable!();
@@ -517,13 +537,18 @@ mod tests {
             tcps_addr: "".to_string(),
         };
 
-        let request = RegisterNodeRequest {
-            cluster_type: ClusterType::JournalServer.into(),
+        let node = BrokerNode {
+            cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
             cluster_name: cluster_name.clone(),
             node_id,
             node_ip: get_local_ip(),
             node_inner_addr: "127.0.0.1:4531".to_string(),
-            extend_info: serde_json::to_string(&extend).unwrap(),
+            extend: extend.encode(),
+            register_time: now_second(),
+            start_time: now_second(),
+        };
+        let request = RegisterNodeRequest {
+            node: node.encode(),
         };
         if let Err(e) = register_node(&client_pool, &addrs, request).await {
             println!("{}", e);

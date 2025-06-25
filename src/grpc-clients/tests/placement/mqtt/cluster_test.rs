@@ -16,11 +16,13 @@
 mod tests {
     use std::sync::Arc;
 
+    use common_base::tools::now_second;
     use grpc_clients::placement::inner::call::{
         cluster_status, delete_idempotent_data, delete_resource_config, exists_idempotent_data,
         get_resource_config, node_list, register_node, set_resource_config, unregister_node,
     };
     use grpc_clients::pool::ClientPool;
+    use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::{
         ClusterStatusRequest, ClusterType, DeleteIdempotentDataRequest,
         DeleteResourceConfigRequest, ExistsIdempotentDataRequest, GetResourceConfigRequest,
@@ -43,21 +45,27 @@ mod tests {
             }
         }
 
-        let cluster_type = ClusterType::PlacementCenter as i32;
+        let cluster_type = ClusterType::PlacementCenter;
         let cluster_name = "test-cluster-name".to_string();
         let node_ip = "127.0.0.1".to_string();
         let node_id = 1235u64;
         let node_inner_addr = node_ip.clone();
         let extend_info = "".to_string();
 
-        let request = RegisterNodeRequest {
-            cluster_type,
+        let node = BrokerNode {
+            cluster_type: cluster_type.as_str_name().to_string(),
             cluster_name: cluster_name.clone(),
             node_ip: node_ip.clone(),
             node_id,
             node_inner_addr: node_inner_addr.clone(),
-            extend_info: extend_info.clone(),
+            extend: extend_info.clone(),
+            register_time: now_second(),
+            start_time: now_second(),
         };
+        let request = RegisterNodeRequest {
+            node: node.encode(),
+        };
+
         match register_node(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
@@ -65,14 +73,21 @@ mod tests {
             }
         }
 
-        let request_cluster_name_empty = RegisterNodeRequest {
-            cluster_type,
+        let node = BrokerNode {
+            cluster_type: cluster_type.as_str_name().to_string(),
             cluster_name: "".to_string(),
             node_ip: node_ip.clone(),
             node_id,
             node_inner_addr: node_inner_addr.clone(),
-            extend_info: extend_info.clone(),
+            extend: extend_info.clone(),
+            register_time: now_second(),
+            start_time: now_second(),
         };
+
+        let request_cluster_name_empty = RegisterNodeRequest {
+            node: node.encode(),
+        };
+
         match register_node(&client_pool, &addrs, request_cluster_name_empty).await {
             Ok(_) => {
                 panic!("Should not passed because cluster_name is empty");
@@ -80,13 +95,18 @@ mod tests {
             Err(_e) => {}
         }
 
-        let request_node_ip_empty = RegisterNodeRequest {
-            cluster_type,
+        let node = BrokerNode {
+            cluster_type: cluster_type.as_str_name().to_string(),
             cluster_name: cluster_name.to_string(),
             node_ip: "".to_string(),
             node_id,
             node_inner_addr: node_inner_addr.clone(),
-            extend_info: extend_info.clone(),
+            extend: extend_info.clone(),
+            register_time: now_second(),
+            start_time: now_second(),
+        };
+        let request_node_ip_empty = RegisterNodeRequest {
+            node: node.encode(),
         };
         match register_node(&client_pool, &addrs, request_node_ip_empty).await {
             Ok(_) => {

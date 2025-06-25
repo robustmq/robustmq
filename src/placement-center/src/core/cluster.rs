@@ -28,7 +28,9 @@ use super::error::PlacementCenterError;
 use crate::journal::controller::call_node::{
     update_cache_by_add_journal_node, update_cache_by_delete_journal_node, JournalInnerCallManager,
 };
-use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
+use crate::mqtt::controller::call_broker::{
+    update_cache_by_add_node, update_cache_by_delete_node, MQTTInnerCallManager,
+};
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
 
@@ -36,39 +38,43 @@ pub async fn register_node_by_req(
     cluster_cache: &Arc<PlacementCacheManager>,
     raft_machine_apply: &Arc<RaftMachineApply>,
     client_pool: &Arc<ClientPool>,
-    call_manager: &Arc<JournalInnerCallManager>,
+    journal_call_manager: &Arc<JournalInnerCallManager>,
+    mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     req: RegisterNodeRequest,
 ) -> Result<RegisterNodeReply, PlacementCenterError> {
-    let cluster_type = req.cluster_type();
-    let cluster_name = req.cluster_name;
-
-    let node = BrokerNode {
-        node_id: req.node_id,
-        node_ip: req.node_ip,
-        node_inner_addr: req.node_inner_addr,
-        extend: req.extend_info,
-        cluster_name: cluster_name.clone(),
-        cluster_type: cluster_type.as_str_name().to_string(),
-        create_time: now_mills(),
-    };
+    let node = serde_json::from_slice::<BrokerNode>(&req.node)?;
 
     sync_save_node(raft_machine_apply, &node).await?;
 
-    if cluster_cache.get_cluster(&cluster_name).is_none() {
+    if cluster_cache.get_cluster(&node.cluster_name).is_none() {
         let cluster = ClusterInfo {
-            cluster_name: cluster_name.clone(),
-            cluster_type: cluster_type.as_str_name().to_string(),
+            cluster_name: node.cluster_name.clone(),
+            cluster_type: node.cluster_type.clone(),
             create_time: now_mills(),
         };
         sync_save_cluster(raft_machine_apply, &cluster).await?;
     }
 
-    if cluster_type == ClusterType::JournalServer {
-        update_cache_by_add_journal_node(&cluster_name, call_manager, client_pool, node.clone())
-            .await?;
+    if node.cluster_type == *ClusterType::JournalServer.as_str_name() {
+        update_cache_by_add_journal_node(
+            &node.cluster_name,
+            journal_call_manager,
+            client_pool,
+            node.clone(),
+        )
+        .await?;
+    }
+    if node.cluster_type == *ClusterType::MqttBrokerServer.as_str_name() {
+        update_cache_by_add_node(
+            &node.cluster_name,
+            mqtt_call_manager,
+            client_pool,
+            node.clone(),
+        )
+        .await?;
     }
 
-    cluster_cache.report_broker_heart(&cluster_name, req.node_id);
+    cluster_cache.report_broker_heart(&node.cluster_name, node.node_id);
     Ok(RegisterNodeReply::default())
 }
 
@@ -87,12 +93,19 @@ pub async fn un_register_node_by_req(
                 &req.cluster_name,
                 journal_call_manager,
                 client_pool,
-                node,
+                node.clone(),
             )
             .await?;
             journal_call_manager.remove_node(&req.cluster_name, req.node_id);
         }
         if req.cluster_type() == ClusterType::MqttBrokerServer {
+            update_cache_by_delete_node(
+                &req.cluster_name,
+                mqtt_call_manager,
+                client_pool,
+                node.clone(),
+            )
+            .await?;
             mqtt_call_manager.remove_node(&req.cluster_name, req.node_id);
         }
     }

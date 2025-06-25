@@ -15,6 +15,7 @@
 use crate::common::pkid_manager::PkidManager;
 use crate::observability::system_topic::sysmon::SystemAlarmEventMessage;
 use crate::security::acl::metadata::AclMetadata;
+use common_base::tools::now_second;
 use common_config::mqtt::config::BrokerMqttConfig;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
@@ -26,6 +27,7 @@ use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::placement::node::BrokerNode;
 use protocol::mqtt::common::{MqttProtocol, PublishProperties};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -87,7 +89,12 @@ pub struct ClientPkidData {
 
 #[derive(Clone)]
 pub struct CacheManager {
+    pub start_time: u64,
+
     pub client_pool: Arc<ClientPool>,
+
+    // node list
+    pub node_lists: DashMap<u64, BrokerNode>,
 
     // cluster_name
     pub cluster_name: String,
@@ -132,8 +139,10 @@ pub struct CacheManager {
 impl CacheManager {
     pub fn new(client_pool: Arc<ClientPool>, cluster_name: String) -> Self {
         CacheManager {
+            start_time: now_second(),
             client_pool,
             cluster_name,
+            node_lists: DashMap::with_capacity(2),
             cluster_info: DashMap::with_capacity(1),
             user_info: DashMap::with_capacity(8),
             session_info: DashMap::with_capacity(8),
@@ -147,6 +156,22 @@ impl CacheManager {
             auto_subscribe_rule: DashMap::with_capacity(8),
             alarm_events: DashMap::with_capacity(8),
         }
+    }
+
+    // node
+    pub fn add_node(&self, node: BrokerNode) {
+        self.node_lists.insert(node.node_id, node);
+    }
+
+    pub fn remove_node(&self, node: BrokerNode) {
+        self.node_lists.remove(&node.node_id);
+    }
+
+    pub fn node_list(&self) -> Vec<BrokerNode> {
+        self.node_lists
+            .iter()
+            .map(|entry| entry.value().clone())
+            .collect()
     }
 
     // session
@@ -399,6 +424,11 @@ impl CacheManager {
             return Some(event.clone());
         }
         None
+    }
+
+    // get start time
+    pub fn get_start_time(&self) -> u64 {
+        self.start_time
     }
 }
 

@@ -32,18 +32,18 @@ use crate::observability::metrics::packets::record_sent_metrics;
 use crate::server::quic::quic_stream_wrapper::QuicFramedWriteStream;
 
 pub struct ConnectionManager {
-    connections: DashMap<u64, NetworkConnection>,
-    tcp_write_list:
+    pub connections: DashMap<u64, NetworkConnection>,
+    pub tcp_write_list:
         DashMap<u64, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, MqttCodec>>,
-    tcp_tls_write_list: DashMap<
+    pub tcp_tls_write_list: DashMap<
         u64,
         FramedWrite<
             tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
             MqttCodec,
         >,
     >,
-    websocket_write_list: DashMap<u64, SplitSink<WebSocket, Message>>,
-    quic_write_list: DashMap<u64, QuicFramedWriteStream>,
+    pub websocket_write_list: DashMap<u64, SplitSink<WebSocket, Message>>,
+    pub quic_write_list: DashMap<u64, QuicFramedWriteStream>,
     cache_manager: Arc<CacheManager>,
 }
 

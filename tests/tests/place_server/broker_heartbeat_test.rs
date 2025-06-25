@@ -35,13 +35,18 @@ mod tests {
             .unwrap();
         let cluster_name = cluster_name();
         let node_id = node_id();
-        let request = RegisterNodeRequest {
+        let node = BrokerNode {
             cluster_type: cluster_type(),
             cluster_name: cluster_name.clone(),
             node_id,
             node_ip: node_ip(),
             node_inner_addr: node_ip(),
-            extend_info: extend_info(),
+            extend: extend_info(),
+            register_time: now_second(),
+            start_time: now_second(),
+        };
+        let request = RegisterNodeRequest {
+            node: node.encode(),
         };
         client
             .register_node(tonic::Request::new(request))

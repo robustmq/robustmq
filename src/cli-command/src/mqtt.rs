@@ -545,13 +545,43 @@ impl MqttBrokerCommand {
         let request = ClusterStatusRequest {};
         match mqtt_broker_cluster_status(client_pool, &grpc_addr(params.server), request).await {
             Ok(data) => {
-                println!("cluster name: {}", data.cluster_name);
-                println!("node list:");
-                for node in data.nodes {
-                    println!("- {}", node);
-                }
-                println!("subscribe info:{}", data.subscribe_info);
-                println!("MQTT broker cluster up and running")
+                println!("cluster_name: {}", data.cluster_name);
+                println!("message_in_rate: {}", data.message_in_rate);
+                println!("message_out_rate: {}", data.message_out_rate);
+                println!("connection_num: {}", data.connection_num);
+                println!("session_num: {}", data.session_num);
+                println!("topic_num: {}", data.topic_num);
+                println!("nodes: {:?}", data.nodes);
+                println!("placement_status: {}", data.placement_status);
+                println!("tcp_connection_num: {}", data.tcp_connection_num);
+                println!("tls_connection_num: {}", data.tls_connection_num);
+                println!(
+                    "websocket_connection_num: {}",
+                    data.websocket_connection_num
+                );
+                println!("quic_connection_num: {}", data.quic_connection_num);
+                println!("subscribe_num: {}", data.subscribe_num);
+                println!("exclusive_subscribe_num: {}", data.exclusive_subscribe_num);
+                println!(
+                    "share_subscribe_leader_num: {}",
+                    data.share_subscribe_leader_num
+                );
+                println!(
+                    "share_subscribe_resub_num: {}",
+                    data.share_subscribe_resub_num
+                );
+                println!(
+                    "exclusive_subscribe_thread_num: {}",
+                    data.exclusive_subscribe_thread_num
+                );
+                println!(
+                    "share_subscribe_leader_thread_num: {}",
+                    data.share_subscribe_leader_thread_num
+                );
+                println!(
+                    "share_subscribe_folower_thread_num: {}",
+                    data.share_subscribe_follower_thread_num
+                );
             }
             Err(e) => {
                 println!("MQTT broker cluster normal exception");

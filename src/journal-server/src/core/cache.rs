@@ -37,6 +37,8 @@ use crate::segment::SegmentIdentity;
 
 #[derive(Clone)]
 pub struct CacheManager {
+    start_time: u64,
+
     // ("local", JournalEngineClusterConfig)
     cluster: DashMap<String, JournalEngineClusterConfig>,
 
@@ -86,6 +88,7 @@ impl CacheManager {
             leader_segments,
             segment_index_build_thread,
             segment_writes: segment_write,
+            start_time: now_second(),
         }
     }
 
@@ -369,6 +372,11 @@ impl CacheManager {
 
     fn remove_leader_segment(&self, segment_iden: &SegmentIdentity) {
         self.leader_segments.remove(&segment_iden.name());
+    }
+
+    // get start time
+    pub fn get_start_time(&self) -> u64 {
+        self.start_time
     }
 }
 

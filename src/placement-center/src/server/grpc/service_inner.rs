@@ -118,6 +118,7 @@ impl PlacementCenterService for GrpcPlacementService {
             &self.raft_machine_apply,
             &self.client_pool,
             &self.journal_call_manager,
+            &self.mqtt_call_manager,
             req,
         )
         .await

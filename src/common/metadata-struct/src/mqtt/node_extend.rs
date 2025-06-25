@@ -23,3 +23,9 @@ pub struct MqttNodeExtend {
     pub websockets_addr: String,
     pub quic_addr: String,
 }
+
+impl MqttNodeExtend {
+    pub fn encode(&self) -> String {
+        serde_json::to_string(&self).unwrap()
+    }
+}

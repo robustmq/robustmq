@@ -340,9 +340,16 @@ where
 
     fn start_cluster_heartbeat_report(&self, stop_send: broadcast::Sender<bool>) {
         let client_pool = self.client_pool.clone();
+        let cache_manager = self.cache_manager.clone();
         self.daemon_runtime.spawn(async move {
             let conf = broker_mqtt_conf();
-            report_heartbeat(&client_pool, &conf.system.heartbeat_timeout, stop_send).await;
+            report_heartbeat(
+                &client_pool,
+                &cache_manager,
+                &conf.system.heartbeat_timeout,
+                stop_send,
+            )
+            .await;
         });
     }
 
@@ -515,7 +522,7 @@ where
             .await;
 
             let config = broker_mqtt_conf();
-            match register_node(&self.client_pool).await {
+            match register_node(&self.client_pool, &self.cache_manager).await {
                 Ok(()) => {
                     info!("Node {} has been successfully registered", config.broker_id);
                 }

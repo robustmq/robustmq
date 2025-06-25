@@ -379,6 +379,40 @@ pub async fn update_cache_by_delete_topic(
     Ok(())
 }
 
+pub async fn update_cache_by_add_node(
+    cluster_name: &str,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    node: BrokerNode,
+) -> Result<(), PlacementCenterError> {
+    let data = serde_json::to_string(&node)?;
+    let message = MQTTInnerCallMessage {
+        action_type: MqttBrokerUpdateCacheActionType::Set,
+        resource_type: MqttBrokerUpdateCacheResourceType::Node,
+        cluster_name: cluster_name.to_string(),
+        data,
+    };
+    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    Ok(())
+}
+
+pub async fn update_cache_by_delete_node(
+    cluster_name: &str,
+    call_manager: &Arc<MQTTInnerCallManager>,
+    client_pool: &Arc<ClientPool>,
+    node: BrokerNode,
+) -> Result<(), PlacementCenterError> {
+    let data = serde_json::to_string(&node)?;
+    let message = MQTTInnerCallMessage {
+        action_type: MqttBrokerUpdateCacheActionType::Delete,
+        resource_type: MqttBrokerUpdateCacheResourceType::Node,
+        cluster_name: cluster_name.to_string(),
+        data,
+    };
+    add_call_message(call_manager, cluster_name, client_pool, message).await?;
+    Ok(())
+}
+
 pub async fn update_cache_by_set_resource_config(
     cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,

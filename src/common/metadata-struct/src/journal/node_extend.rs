@@ -20,3 +20,9 @@ pub struct JournalNodeExtend {
     pub tcp_addr: String,
     pub tcps_addr: String,
 }
+
+impl JournalNodeExtend {
+    pub fn encode(&self) -> String {
+        serde_json::to_string(&self).unwrap()
+    }
+}
