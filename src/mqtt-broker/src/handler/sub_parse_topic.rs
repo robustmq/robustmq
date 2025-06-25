@@ -16,6 +16,7 @@ use super::{
     cache::CacheManager, subscribe::parse_subscribe,
     topic_rewrite::convert_sub_path_by_rewrite_rule,
 };
+use crate::subscribe::common::is_match_sub_and_topic;
 use crate::subscribe::manager::SubscribeManager;
 use common_base::tools::now_second;
 use common_config::mqtt::broker_mqtt_conf;
@@ -23,7 +24,6 @@ use grpc_clients::pool::ClientPool;
 use std::{sync::Arc, time::Duration};
 use tokio::{select, sync::broadcast, time::sleep};
 use tracing::{error, info};
-use crate::subscribe::common::is_match_sub_and_topic;
 
 pub async fn start_parse_subscribe_by_new_topic_thread(
     client_pool: &Arc<ClientPool>,

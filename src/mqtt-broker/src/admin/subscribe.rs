@@ -16,6 +16,7 @@ use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
 
+use crate::subscribe::manager::SubscribeManager;
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -25,7 +26,6 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 use protocol::mqtt::common::{qos, retain_forward_rule, Error};
 use std::sync::Arc;
 use tonic::Request;
-use crate::subscribe::manager::SubscribeManager;
 
 pub async fn set_auto_subscribe_rule(
     client_pool: &Arc<ClientPool>,
@@ -114,8 +114,6 @@ pub async fn list_auto_subscribe_rule_by_req(
     Ok(rules)
 }
 
-pub async fn list_subscribe(
-    subscribe_manager: &Arc<SubscribeManager>
-) -> Vec<String> {
+pub async fn list_subscribe(subscribe_manager: &Arc<SubscribeManager>) -> Vec<String> {
     subscribe_manager.list_subscribe()
 }
