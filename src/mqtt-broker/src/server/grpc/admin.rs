@@ -38,21 +38,26 @@ use crate::admin::topic::{
     get_all_topic_rewrite_rule_by_req, list_topic_by_req,
 };
 use crate::admin::user::{create_user_by_req, delete_user_by_req, list_user_by_req};
-use crate::admin::{cluster_status_by_req, enable_flapping_detect_by_req, list_connection_by_req};
+use crate::admin::{
+    cluster_overview_metrics_by_req, cluster_status_by_req, enable_flapping_detect_by_req,
+    list_connection_by_req,
+};
+use crate::common::metrics_cache::MetricsCacheManager;
 use crate::handler::cache::CacheManager;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
-    CreateBlacklistReply, CreateBlacklistRequest, CreateTopicRewriteRuleReply,
-    CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
-    DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
-    DeleteBlacklistReply, DeleteBlacklistRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
-    EnableFlappingDetectRequest, GetClusterConfigReply, GetClusterConfigRequest, ListAclReply,
-    ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBlacklistReply,
+    ClusterOverviewMetricsReply, ClusterOverviewMetricsRequest, ClusterStatusReply,
+    ClusterStatusRequest, CreateAclReply, CreateAclRequest, CreateBlacklistReply,
+    CreateBlacklistRequest, CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest,
+    CreateUserReply, CreateUserRequest, DeleteAclReply, DeleteAclRequest,
+    DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest, DeleteBlacklistReply,
+    DeleteBlacklistRequest, DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest,
+    DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply, EnableFlappingDetectRequest,
+    GetClusterConfigReply, GetClusterConfigRequest, ListAclReply, ListAclRequest,
+    ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBlacklistReply,
     ListBlacklistRequest, ListClientReply, ListClientRequest, ListConnectionReply,
     ListConnectionRequest, ListRewriteTopicRuleReply, ListRewriteTopicRuleRequest,
     ListSessionReply, ListSessionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest,
@@ -75,6 +80,7 @@ pub struct GrpcAdminServices {
     cache_manager: Arc<CacheManager>,
     connection_manager: Arc<ConnectionManager>,
     subscribe_manager: Arc<SubscribeManager>,
+    metrics_cache_manager: Arc<MetricsCacheManager>,
 }
 
 impl GrpcAdminServices {
@@ -83,12 +89,14 @@ impl GrpcAdminServices {
         cache_manager: Arc<CacheManager>,
         connection_manager: Arc<ConnectionManager>,
         subscribe_manager: Arc<SubscribeManager>,
+        metrics_cache_manager: Arc<MetricsCacheManager>,
     ) -> Self {
         GrpcAdminServices {
             client_pool,
             cache_manager,
             connection_manager,
             subscribe_manager,
+            metrics_cache_manager,
         }
     }
 }
@@ -134,6 +142,16 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         )
         .await
         {
+            Ok(reply) => Ok(Response::new(reply)),
+            Err(e) => Err(Status::cancelled(e.to_string())),
+        }
+    }
+
+    async fn cluster_overview_metrics(
+        &self,
+        request: Request<ClusterOverviewMetricsRequest>,
+    ) -> Result<Response<ClusterOverviewMetricsReply>, Status> {
+        match cluster_overview_metrics_by_req(&self.metrics_cache_manager, request).await {
             Ok(reply) => Ok(Response::new(reply)),
             Err(e) => Err(Status::cancelled(e.to_string())),
         }

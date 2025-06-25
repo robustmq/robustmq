@@ -13,5 +13,6 @@
 // limitations under the License.
 
 pub mod log;
+pub mod metrics_cache;
 pub mod pkid_manager;
 pub mod pkid_storage;

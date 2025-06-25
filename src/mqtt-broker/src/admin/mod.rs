@@ -25,6 +25,7 @@ pub mod subscribe;
 pub mod topic;
 pub mod user;
 
+use crate::common::metrics_cache::MetricsCacheManager;
 use crate::handler::cache::CacheManager;
 use crate::handler::flapping_detect::enable_flapping_detect;
 use crate::server::connection_manager::ConnectionManager;
@@ -35,8 +36,8 @@ use common_base::tools::serialize_value;
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    BrokerNodeRaw, ClusterStatusReply, EnableFlappingDetectReply, EnableFlappingDetectRequest,
-    ListConnectionRaw, ListConnectionReply,
+    BrokerNodeRaw, ClusterOverviewMetricsReply, ClusterOverviewMetricsRequest, ClusterStatusReply,
+    EnableFlappingDetectReply, EnableFlappingDetectRequest, ListConnectionRaw, ListConnectionReply,
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
@@ -87,6 +88,36 @@ pub async fn cluster_status_by_req(
     Ok(reply)
 }
 
+pub async fn cluster_overview_metrics_by_req(
+    metrics_cache_manager: &Arc<MetricsCacheManager>,
+    request: Request<ClusterOverviewMetricsRequest>,
+) -> Result<ClusterOverviewMetricsReply, MqttBrokerError> {
+    let req = request.into_inner();
+    let start_time = req.start_time;
+    let end_time = req.end_time;
+    let reply = ClusterOverviewMetricsReply {
+        connection_num: serde_json::to_string(
+            &metrics_cache_manager.get_connection_num_by_time(start_time, end_time),
+        )?,
+        topic_num: serde_json::to_string(
+            &metrics_cache_manager.get_topic_num_by_time(start_time, end_time),
+        )?,
+        subscribe_num: serde_json::to_string(
+            &metrics_cache_manager.get_subscribe_num_by_time(start_time, end_time),
+        )?,
+        message_in_num: serde_json::to_string(
+            &metrics_cache_manager.get_message_in_num_by_time(start_time, end_time),
+        )?,
+        message_out_num: serde_json::to_string(
+            &metrics_cache_manager.get_message_out_num_by_time(start_time, end_time),
+        )?,
+        message_drop_num: serde_json::to_string(
+            &metrics_cache_manager.get_message_drop_num_by_time(start_time, end_time),
+        )?,
+    };
+
+    Ok(reply)
+}
 pub async fn enable_flapping_detect_by_req(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
