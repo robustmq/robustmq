@@ -4540,16 +4540,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "robustmq-proto-build"
-version = "0.1.0"
-source = "git+https://github.com/robustmq/robustmq-proto?branch=main#ac7697f3b9438d99aa27d01b5fd77714e48c512a"
-dependencies = [
- "prost-build",
- "prost-validate-build",
- "tonic-build",
-]
-
-[[package]]
 name = "robustmq-test"
 version = "0.1.14"
 dependencies = [
