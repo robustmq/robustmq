@@ -65,6 +65,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     MqttUpdateConnectorRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
     SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetClusterConfigReply,
     SetClusterConfigRequest, SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest,
+    ListSubscribeRequest, ListSubscribeReply, MqttSubscribeRaw
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
@@ -534,7 +535,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         let subscribes = list_subscribe(&self.subscribe_manager)
             .await;
 
-        let sub_data = subscribes.into_iter().map(|subscribe| {
+        let subscriptions = subscribes.into_iter().filter_map(|subscribe| {
             let mut datas = subscribe.split("_");
             match (datas.next(), datas.next()) {
                 (Some(client_id), Some(path)) => Some(MqttSubscribeRaw {
@@ -544,6 +545,6 @@ impl MqttBrokerAdminService for GrpcAdminServices {
                 _ => None, // 忽略格式错误的数据
             }
         }).collect();
-        Ok(Response::new(ListSubscribeReply { sub_data }))
+        Ok(Response::new(ListSubscribeReply { subscriptions }))
     }
 }
