@@ -20,6 +20,7 @@ use std::time::Duration;
 use bridge::core::start_connector_thread;
 use bridge::manager::ConnectorManager;
 
+use crate::common::metrics_cache::MetricsCacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::server::server::Server;
 use common_base::metrics::register_prometheus_export;
@@ -139,6 +140,7 @@ pub struct MqttBroker<S> {
     auth_driver: Arc<AuthDriver>,
     delay_message_manager: Arc<DelayMessageManager<S>>,
     schema_manager: Arc<SchemaRegisterManager>,
+    metrics_cache_manager: Arc<MetricsCacheManager>,
     server: Arc<Server<S>>,
 }
 
@@ -171,6 +173,7 @@ where
             1,
             message_storage_adapter.clone(),
         ));
+        let metrics_cache_manager = Arc::new(MetricsCacheManager::new());
         let schema_manager = Arc::new(SchemaRegisterManager::new());
         let server = Arc::new(Server::new(
             subscribe_manager.clone(),
@@ -199,6 +202,7 @@ where
             delay_message_manager,
             schema_manager,
             server,
+            metrics_cache_manager,
         }
     }
 
@@ -299,6 +303,7 @@ where
             self.schema_manager.clone(),
             self.client_pool.clone(),
             self.message_storage_adapter.clone(),
+            self.metrics_cache_manager.clone(),
         );
         self.grpc_runtime.spawn(async move {
             if let Err(e) = server.start().await {
