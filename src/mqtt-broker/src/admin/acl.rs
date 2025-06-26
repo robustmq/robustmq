@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::CacheManager;
+use crate::admin::query::{apply_filters, apply_pagination, apply_sorting};
 use crate::handler::error::MqttBrokerError;
 use crate::security::AuthDriver;
+use crate::{admin::query::Queryable, handler::cache::CacheManager};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
-use protocol::broker_mqtt::broker_mqtt_admin::{CreateAclRequest, DeleteAclRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    AclRaw, CreateAclRequest, DeleteAclRequest, ListAclRequest,
+};
 use std::sync::Arc;
 use tonic::Request;
 
@@ -25,19 +28,18 @@ use tonic::Request;
 pub async fn list_acl_by_req(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-) -> Result<Vec<Vec<u8>>, MqttBrokerError> {
+    request: Request<ListAclRequest>,
+) -> Result<(Vec<AclRaw>, usize), MqttBrokerError> {
+    let req = request.into_inner();
     let auth_driver = AuthDriver::new(cache_manager.clone(), client_pool.clone());
     let data = auth_driver.read_all_acl().await?;
 
-    let mut acls_list = Vec::new();
-    for ele in data {
-        let acl = ele
-            .encode()
-            .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
-        acls_list.push(acl);
-    }
+    let acls: Vec<AclRaw> = data.into_iter().map(AclRaw::from).collect();
+    let filtered = apply_filters(acls, &req.options);
+    let sorted = apply_sorting(filtered, &req.options);
+    let pagination = apply_pagination(sorted, &req.options);
 
-    Ok(acls_list)
+    Ok(pagination)
 }
 
 // Create a new ACL entry
@@ -71,4 +73,18 @@ pub async fn delete_acl_by_req(
     auth_driver.delete_acl(mqtt_acl).await?;
 
     Ok(())
+}
+
+impl Queryable for AclRaw {
+    fn get_field_str(&self, field: &str) -> Option<String> {
+        match field {
+            "resource_type" => Some(self.resource_type.to_string()),
+            "resource_name" => Some(self.resource_name.clone()),
+            "topic" => Some(self.topic.clone()),
+            "ip" => Some(self.ip.clone()),
+            "action" => Some(self.action.to_string()),
+            "permission" => Some(self.permission.to_string()),
+            _ => None,
+        }
+    }
 }
