@@ -83,7 +83,7 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "amqp-broker"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "axum",
  "bytes",
@@ -751,7 +751,7 @@ checksum = "b94f61472cee1439c0b966b47e3aca9ae07e45d070759512cd390ea2bebc6675"
 
 [[package]]
 name = "cli-bench"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "axum",
  "clap",
@@ -771,7 +771,7 @@ dependencies = [
 
 [[package]]
 name = "cli-command"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "axum",
  "bytes",
@@ -798,7 +798,7 @@ dependencies = [
 
 [[package]]
 name = "cmd"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "clap",
  "clap-cargo",
@@ -834,7 +834,7 @@ dependencies = [
 
 [[package]]
 name = "common-base"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "apache-avro",
  "axum",
@@ -875,7 +875,7 @@ dependencies = [
 
 [[package]]
 name = "common-config"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "bytes",
  "common-base",
@@ -1179,7 +1179,7 @@ dependencies = [
 
 [[package]]
 name = "delay-message"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "axum",
  "bytes",
@@ -1780,7 +1780,7 @@ dependencies = [
 
 [[package]]
 name = "grpc-clients"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "axum",
  "bytes",
@@ -2166,7 +2166,7 @@ dependencies = [
 
 [[package]]
 name = "idempotent-message"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "axum",
  "bytes",
@@ -2356,7 +2356,7 @@ dependencies = [
 
 [[package]]
 name = "journal-client"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "axum",
  "bytes",
@@ -2376,7 +2376,7 @@ dependencies = [
 
 [[package]]
 name = "journal-server"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "axum",
  "bytes",
@@ -2435,7 +2435,7 @@ dependencies = [
 
 [[package]]
 name = "kafka-broker"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "axum",
  "bytes",
@@ -2679,7 +2679,7 @@ dependencies = [
 
 [[package]]
 name = "message-expire"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "apache-avro",
  "axum",
@@ -2703,7 +2703,7 @@ dependencies = [
 
 [[package]]
 name = "metadata-struct"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "bytes",
  "common-base",
@@ -2806,7 +2806,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt-broker"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "axum",
  "axum-extra",
@@ -3523,7 +3523,7 @@ checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
 
 [[package]]
 name = "placement-center"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "axum",
  "bincode",
@@ -3616,7 +3616,7 @@ dependencies = [
 
 [[package]]
 name = "pprof-monitor"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "axum",
  "bytes",
@@ -4014,7 +4014,7 @@ dependencies = [
 
 [[package]]
 name = "protocol"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "axum",
  "bincode",
@@ -4527,7 +4527,7 @@ checksum = "3582f63211428f83597b51b2ddb88e2a91a9d52d12831f9d08f5e624e8977422"
 
 [[package]]
 name = "robustmq-macro"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "async-trait",
  "macrotest",
@@ -4551,7 +4551,7 @@ dependencies = [
 
 [[package]]
 name = "robustmq-test"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "apache-avro",
  "axum",
@@ -4591,7 +4591,7 @@ dependencies = [
 
 [[package]]
 name = "rocksdb-engine"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "common-base",
  "common-config",
@@ -4840,7 +4840,7 @@ dependencies = [
 
 [[package]]
 name = "schema-register"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "apache-avro",
  "axum",
@@ -5129,7 +5129,7 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
 name = "storage-adapter"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "axum",
  "bytes",
@@ -5359,7 +5359,7 @@ checksum = "8f50febec83f5ee1df3015341d8bd429f2d1cc62bcba7ea2076759d315084683"
 
 [[package]]
 name = "third-driver"
-version = "0.1.14"
+version = "0.1.25"
 dependencies = [
  "common-base",
  "mysql",
