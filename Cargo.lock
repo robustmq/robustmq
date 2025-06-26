@@ -3525,13 +3525,13 @@ checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
 name = "placement-center"
 version = "0.1.14"
 dependencies = [
+ "async-stream",
  "axum",
  "bincode",
  "byteorder",
  "common-base",
  "common-config",
  "dashmap",
- "futures",
  "grpc-clients",
  "metadata-struct",
  "mobc",
@@ -3545,8 +3545,6 @@ dependencies = [
  "rocksdb-engine",
  "serde",
  "serde_json",
- "strum 0.27.1",
- "strum_macros 0.27.1",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
