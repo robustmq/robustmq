@@ -25,30 +25,43 @@ use prost::Message;
 use protocol::placement_center::placement_center_mqtt::{
     CreateTopicReply, CreateTopicRequest, CreateTopicRewriteRuleReply,
     CreateTopicRewriteRuleRequest, DeleteTopicReply, DeleteTopicRequest,
-    DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, ListTopicRewriteRuleReply,
-    ListTopicRewriteRuleRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest,
-    SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
+    DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, ListTopicReply, ListTopicRequest,
+    ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, SaveLastWillMessageReply,
+    SaveLastWillMessageRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
 };
 use rocksdb_engine::RocksDBEngine;
+use std::pin::Pin;
 use std::sync::Arc;
+use tonic::codegen::tokio_stream::Stream;
+use tonic::Status;
 
-// pub fn list_topic_by_req(
-//     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-//     req: &ListTopicRequest,
-// ) -> Result<ListTopicReply, PlacementCenterError> {
-//     let storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
-//     let mut topics = Vec::new();
-//
-//     if !req.topic_name.is_empty() {
-//         if let Some(topic) = storage.get(&req.cluster_name, &req.topic_name)? {
-//             topics.push(topic.encode());
-//         }
-//     } else {
-//         let data = storage.list(&req.cluster_name)?;
-//         topics = data.into_iter().map(|raw| raw.encode()).collect();
-//     }
-//     Ok(ListTopicReply { topics })
-// }
+pub async fn list_topic_by_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    req: &ListTopicRequest,
+) -> Result<Pin<Box<dyn Stream<Item = Result<ListTopicReply, Status>> + Send>>, PlacementCenterError>
+{
+    let storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
+    let mut topics = Vec::new();
+
+    if !req.topic_name.is_empty() {
+        if let Some(topic) = storage.get(&req.cluster_name, &req.topic_name)? {
+            topics.push(topic.encode());
+        }
+    } else {
+        let data = storage.list(&req.cluster_name)?;
+        topics = data.into_iter().map(|raw| raw.encode()).collect();
+    }
+
+    let output = async_stream::try_stream! {
+        for topic in topics {
+            yield ListTopicReply {
+                topic,
+            };
+        }
+    };
+
+    Ok(Box::pin(output))
+}
 
 pub async fn create_topic_by_req(
     raft_machine_apply: &Arc<RaftMachineApply>,

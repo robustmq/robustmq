@@ -73,16 +73,11 @@ impl TopicStorage {
             placement_list_topic(&self.client_pool, &config.placement_center, request).await?;
         let results = DashMap::with_capacity(2);
 
-        loop {
-            match data_stream.message().await {
-                Ok(Some(data)) => {
-                    let topic = serde_json::from_slice::<MqttTopic>(&data.topic)?;
-                    results.insert(topic.topic_name.clone(), topic);
-                }
-                Ok(None) => break,
-                Err(e) => return Err(MqttBrokerError::CommonError(e.to_string())),
-            }
+        while let Some(data) = data_stream.message().await? {
+            let topic = serde_json::from_slice::<MqttTopic>(&data.topic)?;
+            results.insert(topic.topic_name.clone(), topic);
         }
+
         Ok(results)
     }
 

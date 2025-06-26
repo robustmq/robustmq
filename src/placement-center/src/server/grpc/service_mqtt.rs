@@ -33,12 +33,11 @@ use crate::mqtt::services::subscribe::{
 };
 use crate::mqtt::services::topic::{
     create_topic_by_req, create_topic_rewrite_rule_by_req, delete_topic_by_req,
-    delete_topic_rewrite_rule_by_req, list_topic_rewrite_rule_by_req,
+    delete_topic_rewrite_rule_by_req, list_topic_by_req, list_topic_rewrite_rule_by_req,
     save_last_will_message_by_req, set_topic_retain_message_by_req,
 };
 use crate::mqtt::services::user::{create_user_by_req, delete_user_by_req, list_user_by_req};
 use crate::route::apply::RaftMachineApply;
-use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 use grpc_clients::pool::ClientPool;
 use prost_validate::Validator;
@@ -222,42 +221,10 @@ impl MqttService for GrpcMqttService {
         req.validate()
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
-        let mut topics = Vec::new();
-
-        if !req.topic_name.is_empty() {
-            match storage.get(&req.cluster_name, &req.topic_name) {
-                Ok(Some(topic)) => {
-                    topics.push(topic.encode());
-                }
-                Ok(None) => {}
-                Err(e) => {
-                    return Err(Status::internal(format!(
-                        "Error retrieving topic {} in cluster {}: {}",
-                        req.topic_name, req.cluster_name, e
-                    )));
-                }
-            }
-        } else {
-            let data = match storage.list(&req.cluster_name) {
-                Ok(data) => data,
-                Err(e) => {
-                    return Err(Status::internal(format!(
-                        "Error listing topics in cluster {}: {}",
-                        req.cluster_name, e
-                    )));
-                }
-            };
-            topics = data.into_iter().map(|raw| raw.encode()).collect();
-        }
-
-        let output = async_stream::try_stream! {
-          for topic in topics {
-                yield  ListTopicReply { topic }
-            }
-        };
-
-        Ok(Response::new(Box::pin(output) as Self::ListTopicStream))
+        list_topic_by_req(&self.rocksdb_engine_handler, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     // Topic

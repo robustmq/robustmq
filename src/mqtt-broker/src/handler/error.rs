@@ -175,6 +175,9 @@ pub enum MqttBrokerError {
 
     #[error("Operation timeout, timeout time :{0}, operation: {1}")]
     OperationTimeout(u64, String),
+
+    #[error("gRPC error: {0}")]
+    RpcError(#[from] Status),
 }
 
 impl From<MqttBrokerError> for Status {
