@@ -21,7 +21,10 @@ use crate::handler::error::MqttBrokerError;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
 use crate::subscribe::common::is_ignore_push_error;
+use crate::subscribe::manager::SubPushThreadData;
 use crate::subscribe::push::{build_pub_qos, build_sub_ids};
+use common_base::tools::now_second;
+use metadata_struct::adapter::record::Record;
 use protocol::mqtt::common::QoS;
 use std::sync::Arc;
 use std::time::Duration;
@@ -29,6 +32,7 @@ use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
+use tracing::warn;
 use tracing::{error, info};
 
 pub struct ExclusivePush<S> {
@@ -73,7 +77,7 @@ where
                 .exclusive_push
                 .contains_key(&exclusive_key)
             {
-                if let Err(e) = sx.send(true) {
+                if let Err(e) = sx.sender.send(true) {
                     error!(
                         "exclusive push thread gc failed, exclusive_key: {:?}, error: {:?}",
                         exclusive_key, e
@@ -110,9 +114,17 @@ where
             let subscribe_manager = self.subscribe_manager.clone();
 
             // Subscribe to the data push thread
-            self.subscribe_manager
-                .exclusive_push_thread
-                .insert(exclusive_key.clone(), sub_thread_stop_sx.clone());
+            self.subscribe_manager.exclusive_push_thread.insert(
+                exclusive_key.clone(),
+                SubPushThreadData {
+                    push_success_record_num: 0,
+                    push_error_record_num: 0,
+                    last_push_time: 0,
+                    last_run_time: 0,
+                    create_time: now_second(),
+                    sender: sub_thread_stop_sx.clone(),
+                },
+            );
 
             tokio::spawn(async move {
                 info!("Exclusive push thread for client_id [{}], sub_path: [{}], topic_id [{}] was started successfully",
@@ -151,6 +163,7 @@ where
                             }
                         },
                         val = pub_message(
+                                &subscribe_manager,
                                 &connection_manager,
                                 &message_storage,
                                 &cache_manager,
@@ -159,6 +172,7 @@ where
                                 &qos,
                                 &sub_ids,
                                 offset,
+                                &exclusive_key,
                                 &sub_thread_stop_sx
                             ) => {
                                 match val{
@@ -189,6 +203,7 @@ where
 
 #[allow(clippy::too_many_arguments)]
 async fn pub_message<S>(
+    subscribe_manager: &Arc<SubscribeManager>,
     connection_manager: &Arc<ConnectionManager>,
     message_storage: &MessageStorage<S>,
     cache_manager: &Arc<CacheManager>,
@@ -197,6 +212,7 @@ async fn pub_message<S>(
     qos: &QoS,
     sub_ids: &[usize],
     offset: u64,
+    exclusive_key: &str,
     sub_thread_stop_sx: &broadcast::Sender<bool>,
 ) -> Result<Option<u64>, MqttBrokerError>
 where
@@ -207,67 +223,83 @@ where
         .read_topic_message(&subscriber.topic_id, offset, record_num)
         .await?;
 
+    let push_fn = async |record: &Record| -> Result<(), MqttBrokerError> {
+        let record_offset = if let Some(offset) = record.offset {
+            offset
+        } else {
+            return Ok(());
+        };
+
+        // build publish params
+        let sub_pub_param = if let Some(params) = build_publish_message(
+            cache_manager,
+            connection_manager,
+            &subscriber.client_id,
+            record.to_owned(),
+            group_id,
+            qos,
+            subscriber,
+            sub_ids,
+        )
+        .await?
+        {
+            params
+        } else {
+            return Ok(());
+        };
+
+        // publish data to client
+        send_publish_packet_to_client(
+            connection_manager,
+            cache_manager,
+            &sub_pub_param,
+            qos,
+            sub_thread_stop_sx,
+        )
+        .await?;
+
+        // commit offset
+        loop_commit_offset(
+            message_storage,
+            &subscriber.topic_id,
+            group_id,
+            record_offset,
+        )
+        .await?;
+
+        Ok(())
+    };
+
+    let mut success_num = 0;
+    let mut error_num = 0;
+    for record in results.iter() {
+        match push_fn(record).await {
+            Ok(_) => {
+                success_num += 1;
+            }
+            Err(e) => {
+                error_num += 1;
+                if !is_ignore_push_error(&e) {
+                    warn!(
+                        "Exclusive push fail, offset [{:?}], error message:{},",
+                        record.offset, e
+                    );
+                }
+            }
+        }
+    }
+
+    subscribe_manager.update_exclusive_push_thread_info(
+        exclusive_key,
+        success_num as u64,
+        error_num as u64,
+    );
+
     if results.is_empty() {
         return Ok(None);
     }
 
-    let push_fn = async || -> Result<(), MqttBrokerError> {
-        for record in results.iter() {
-            let record_offset = if let Some(offset) = record.offset {
-                offset
-            } else {
-                continue;
-            };
-
-            // build publish params
-            let sub_pub_param = if let Some(params) = build_publish_message(
-                cache_manager,
-                connection_manager,
-                &subscriber.client_id,
-                record.to_owned(),
-                group_id,
-                qos,
-                subscriber,
-                sub_ids,
-            )
-            .await?
-            {
-                params
-            } else {
-                continue;
-            };
-
-            // publish data to client
-            send_publish_packet_to_client(
-                connection_manager,
-                cache_manager,
-                &sub_pub_param,
-                qos,
-                sub_thread_stop_sx,
-            )
-            .await?;
-
-            // commit offset
-            loop_commit_offset(
-                message_storage,
-                &subscriber.topic_id,
-                group_id,
-                record_offset,
-            )
-            .await?;
-        }
-        Ok(())
-    };
-
-    let last_offset = results.last().unwrap().offset.unwrap();
-    if let Err(e) = push_fn().await {
-        loop_commit_offset(message_storage, &subscriber.topic_id, group_id, last_offset).await?;
-        if !is_ignore_push_error(&e) {
-            error!("exclusive push fail,error message:{}", e);
-        }
-    }
-
-    Ok(Some(last_offset))
+    Ok(Some(results.last().unwrap().offset.unwrap()))
 }
 
 fn build_group_name(subscriber: &Subscriber) -> String {

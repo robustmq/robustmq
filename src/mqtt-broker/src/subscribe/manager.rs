@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::subscribe::common::Subscriber;
+use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use protocol::mqtt::common::{Filter, MqttProtocol};
@@ -53,7 +54,17 @@ pub struct TopicSubscribeInfo {
     pub path: String,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
+pub struct SubPushThreadData {
+    pub push_success_record_num: u64,
+    pub push_error_record_num: u64,
+    pub last_push_time: u64,
+    pub last_run_time: u64,
+    pub create_time: u64,
+    pub sender: Sender<bool>,
+}
+
+#[derive(Clone)]
 pub struct SubscribeManager {
     //(client_id_path: MqttSubscribe)
     pub subscribe_list: DashMap<String, MqttSubscribe>,
@@ -61,23 +72,29 @@ pub struct SubscribeManager {
     // (client_id_sub_name_topic_id, Subscriber)
     pub exclusive_push: DashMap<String, Subscriber>,
 
-    // (client_id_sub_name_topic_id, Sender<bool>)
-    pub exclusive_push_thread: DashMap<String, Sender<bool>>,
+    // (client_id_sub_name_topic_id, SubPushThreadData)
+    pub exclusive_push_thread: DashMap<String, SubPushThreadData>,
 
     // (group_name_topic_id, ShareLeaderSubscribeData)
     pub share_leader_push: DashMap<String, ShareLeaderSubscribeData>,
 
-    // (group_name_topic_id, Sender<bool>)
-    pub share_leader_push_thread: DashMap<String, Sender<bool>>,
+    // (group_name_topic_id, SubPushThreadData)
+    pub share_leader_push_thread: DashMap<String, SubPushThreadData>,
 
     // (client_id_group_name_sub_name,ShareSubShareSub)
     pub share_follower_resub: DashMap<String, ShareSubShareSub>,
 
-    // (client_id_group_name_sub_name, Sender<bool>)
-    pub share_follower_resub_thread: DashMap<String, Sender<bool>>,
+    // (client_id_group_name_sub_name, SubPushThreadData)
+    pub share_follower_resub_thread: DashMap<String, SubPushThreadData>,
 
     //(topic_id, Vec<TopicSubscribeInfo>)
     pub topic_subscribe_list: DashMap<String, Vec<TopicSubscribeInfo>>,
+}
+
+impl Default for SubscribeManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SubscribeManager {
@@ -125,6 +142,22 @@ impl SubscribeManager {
     pub fn add_exclusive_push(&self, client_id: &str, path: &str, topic_id: &str, sub: Subscriber) {
         let key = self.exclusive_key(client_id, path, topic_id);
         self.exclusive_push.insert(key, sub);
+    }
+
+    pub fn update_exclusive_push_thread_info(
+        &self,
+        key: &str,
+        success_record_num: u64,
+        error_record_num: u64,
+    ) {
+        if let Some(mut thread) = self.exclusive_push_thread.get_mut(key) {
+            thread.last_run_time = now_second();
+            if (success_record_num + error_record_num) > 0 {
+                thread.push_success_record_num += success_record_num;
+                thread.push_error_record_num += error_record_num;
+                thread.last_push_time = now_second();
+            }
+        }
     }
 
     fn remove_exclusive_push_by_client_id(&self, client_id: &str) {
@@ -179,6 +212,23 @@ impl SubscribeManager {
         }
     }
 
+    pub fn update_subscribe_leader_push_thread_info(
+        &self,
+        key: &str,
+        success_record_num: u64,
+        error_record_num: u64,
+    ) {
+        if let Some(mut thread) = self.share_leader_push_thread.get_mut(key) {
+            thread.last_run_time = now_second();
+
+            if (success_record_num + error_record_num) > 0 {
+                thread.push_success_record_num += success_record_num;
+                thread.push_error_record_num += error_record_num;
+                thread.last_push_time = now_second();
+            }
+        }
+    }
+
     // Follower resub by share subscribe
     pub fn add_share_subscribe_follower(
         &self,
@@ -195,6 +245,22 @@ impl SubscribeManager {
         for (key, share_sub) in self.share_follower_resub.clone() {
             if share_sub.client_id == *client_id {
                 self.share_follower_resub.remove(&key);
+            }
+        }
+    }
+
+    pub fn update_subscribe_follower_push_thread_info(
+        &self,
+        key: &str,
+        success_record_num: u64,
+        error_record_num: u64,
+    ) {
+        if let Some(mut thread) = self.share_follower_resub_thread.get_mut(key) {
+            thread.last_run_time = now_second();
+            if (success_record_num + error_record_num) > 0 {
+                thread.push_success_record_num += success_record_num;
+                thread.push_error_record_num += error_record_num;
+                thread.last_push_time = now_second();
             }
         }
     }
