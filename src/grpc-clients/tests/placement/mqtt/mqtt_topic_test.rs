@@ -149,23 +149,22 @@ mod tests {
             cluster_name,
             topic_name,
         };
-        let data = placement_list_topic(client_pool, addrs, request)
+        let mut data_stream = placement_list_topic(client_pool, addrs, request)
             .await
             .unwrap();
 
         let mut flag: bool = false;
-        for raw in data.topics.clone() {
-            let topic = serde_json::from_slice::<MqttTopic>(raw.as_slice()).unwrap();
+        while let Some(data) = data_stream.message().await.unwrap() {
+            let topic = serde_json::from_slice::<MqttTopic>(data.topic.as_slice()).unwrap();
             if topic == mqtt_topic {
                 flag = true;
             }
         }
+
         if contain {
-            assert!(!data.topics.is_empty());
             assert!(flag);
         } else {
             assert!(!flag);
-            assert!(data.topics.is_empty());
         }
     }
 }

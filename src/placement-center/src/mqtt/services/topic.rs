@@ -30,12 +30,16 @@ use protocol::placement_center::placement_center_mqtt::{
     SaveLastWillMessageRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
 };
 use rocksdb_engine::RocksDBEngine;
+use std::pin::Pin;
 use std::sync::Arc;
+use tonic::codegen::tokio_stream::Stream;
+use tonic::Status;
 
-pub fn list_topic_by_req(
+pub async fn list_topic_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListTopicRequest,
-) -> Result<ListTopicReply, PlacementCenterError> {
+) -> Result<Pin<Box<dyn Stream<Item = Result<ListTopicReply, Status>> + Send>>, PlacementCenterError>
+{
     let storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
     let mut topics = Vec::new();
 
@@ -47,7 +51,16 @@ pub fn list_topic_by_req(
         let data = storage.list(&req.cluster_name)?;
         topics = data.into_iter().map(|raw| raw.encode()).collect();
     }
-    Ok(ListTopicReply { topics })
+
+    let output = async_stream::try_stream! {
+        for topic in topics {
+            yield ListTopicReply {
+                topic,
+            };
+        }
+    };
+
+    Ok(Box::pin(output))
 }
 
 pub async fn create_topic_by_req(

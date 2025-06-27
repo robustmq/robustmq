@@ -62,7 +62,9 @@ use protocol::placement_center::placement_center_mqtt::{
     SetTopicRetainMessageRequest, UpdateConnectorReply, UpdateConnectorRequest, UpdateSessionReply,
     UpdateSessionRequest,
 };
+use std::pin::Pin;
 use std::sync::Arc;
+use tonic::codegen::tokio_stream::Stream;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcMqttService {
@@ -209,16 +211,23 @@ impl MqttService for GrpcMqttService {
         .map(Response::new)
     }
 
-    // Topic
+    type ListTopicStream = Pin<Box<dyn Stream<Item = Result<ListTopicReply, Status>> + Send>>;
+
     async fn list_topic(
         &self,
         request: Request<ListTopicRequest>,
-    ) -> Result<Response<ListTopicReply>, Status> {
+    ) -> Result<Response<Self::ListTopicStream>, Status> {
         let req = request.into_inner();
+        req.validate()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+
         list_topic_by_req(&self.rocksdb_engine_handler, &req)
+            .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
     }
+
+    // Topic
 
     async fn create_topic(
         &self,
