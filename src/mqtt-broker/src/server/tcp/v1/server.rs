@@ -74,7 +74,10 @@ where
         proc_config: ProcessorConfig,
         stop_sx: broadcast::Sender<bool>,
     ) -> Self {
-        info!("network type:{}, process thread num: {:?}", network_type, proc_config);
+        info!(
+            "network type:{}, process thread num: {:?}",
+            network_type, proc_config
+        );
         let request_channel = Arc::new(RequestChannel::new(proc_config.channel_size));
         let (acceptor_stop_send, _) = broadcast::channel(2);
         Self {
@@ -101,8 +104,12 @@ where
 
         let listener = TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
         let arc_listener = Arc::new(listener);
-        let request_recv_channel = self.request_channel.create_request_channel();
-        let response_recv_channel = self.request_channel.create_response_channel();
+        let request_recv_channel = self
+            .request_channel
+            .create_request_channel(&self.network_type);
+        let response_recv_channel = self
+            .request_channel
+            .create_response_channel(&self.network_type);
 
         if tls {
             acceptor_tls_process(
@@ -132,6 +139,7 @@ where
             self.connection_manager.clone(),
             self.command.clone(),
             self.request_channel.clone(),
+            self.network_type.clone(),
             self.stop_sx.clone(),
         )
         .await;
@@ -144,6 +152,7 @@ where
             response_recv_channel,
             self.client_pool.clone(),
             self.request_channel.clone(),
+            self.network_type.clone(),
             self.stop_sx.clone(),
         )
         .await;
@@ -156,7 +165,10 @@ where
     pub async fn stop(&self) {
         // Stop the acceptor thread and refuse to receive new data
         if let Err(e) = self.acceptor_stop_send.send(true) {
-            error!("Failed to stop the acceptor thread. Error message: {:?}", e);
+            error!(
+                "Network type:{}, Failed to stop the acceptor thread. Error message: {:?}",
+                self.network_type, e
+            );
         }
 
         // Determine whether the channel for request processing is empty. If it is empty,
@@ -167,7 +179,10 @@ where
             let mut flag = false;
 
             // request main channel
-            let cap = self.request_channel.get_request_send_channel().capacity();
+            let cap = self
+                .request_channel
+                .get_request_send_channel(&self.network_type)
+                .capacity();
             if cap != self.proc_config.channel_size {
                 info!("Request main queue is not empty, current length {}, waiting for request packet processing to complete....", self.proc_config.channel_size - cap);
                 flag = true;
@@ -183,7 +198,10 @@ where
             }
 
             // response main channel
-            if self.request_channel.get_response_send_channel().capacity()
+            if self
+                .request_channel
+                .get_response_send_channel(&self.network_type)
+                .capacity()
                 != self.proc_config.channel_size
             {
                 info!("Response main queue is not empty, current length {}, waiting for response packet processing to complete....", self.proc_config.channel_size - cap);

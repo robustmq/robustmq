@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
 use dashmap::DashMap;
 use grpc_clients::mqtt::inner::call::broker_mqtt_update_cache;
 use grpc_clients::pool::ClientPool;
@@ -29,6 +27,8 @@ use protocol::broker_mqtt::broker_mqtt_inner::MqttBrokerUpdateCacheResourceType;
 use protocol::broker_mqtt::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, UpdateMqttCacheRequest,
 };
+use std::sync::Arc;
+use std::time::Duration;
 use tracing::error;
 use tracing::info;
 use tracing::warn;

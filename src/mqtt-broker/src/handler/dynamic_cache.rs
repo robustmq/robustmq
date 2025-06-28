@@ -187,16 +187,22 @@ pub async fn update_cache_metadata(
         MqttBrokerUpdateCacheResourceType::Node => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
                 let node = serde_json::from_str::<BrokerNode>(&request.data)?;
-                info!("Node {} is online. Node information: {:?}", node.node_id,node);
+                info!(
+                    "Node {} is online. Node information: {:?}",
+                    node.node_id, node
+                );
                 cache_manager.add_node(node);
             }
             MqttBrokerUpdateCacheActionType::Delete => {
                 let node = serde_json::from_str::<BrokerNode>(&request.data)?;
-                info!("Node {} has been taken offline. Node information: {:?}", node.node_id,node);
+                info!(
+                    "Node {} has been taken offline. Node information: {:?}",
+                    node.node_id, node
+                );
                 cache_manager.remove_node(node);
             }
         },
-        
+
         MqttBrokerUpdateCacheResourceType::Session => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
                 let session = serde_json::from_str::<MqttSession>(&request.data)?;

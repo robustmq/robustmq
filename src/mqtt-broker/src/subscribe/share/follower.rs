@@ -94,7 +94,6 @@ impl ShareFollowerResub {
 
             // share follower => share leader
             if conf.broker_id == reply.broker_id {
-                
                 // remove follower sub
                 self.subscribe_manager
                     .share_follower_resub

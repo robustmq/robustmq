@@ -316,8 +316,11 @@ where
             )
             .await
             {
-                warn!("Shared subscription failed to send a message. I attempted to 
-                    send it to the next client. Error message :{}, offset: {:?}", e, record.offset);
+                warn!(
+                    "Shared subscription failed to send a message. I attempted to 
+                    send it to the next client. Error message :{}, offset: {:?}",
+                    e, record.offset
+                );
                 continue;
             };
 

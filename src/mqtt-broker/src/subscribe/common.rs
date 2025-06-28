@@ -248,7 +248,7 @@ pub async fn get_share_sub_leader(
         cluster_name: conf.cluster_name.to_owned(),
         group_name: group_name.to_owned(),
     };
-    Ok(placement_get_share_sub_leader(client_pool, &conf.placement_center, req).await?)
+    placement_get_share_sub_leader(client_pool, &conf.placement_center, req).await
 }
 
 pub async fn loop_commit_offset<S>(

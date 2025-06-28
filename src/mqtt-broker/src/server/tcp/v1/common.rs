@@ -43,7 +43,9 @@ pub async fn read_packet(
                 record_received_metrics(connection, &pack, network_type);
 
                 let package = RequestPackage::new(connection.connection_id, connection.addr, pack);
-                request_channel.send_request_channel(package.clone()).await;
+                request_channel
+                    .send_request_channel(network_type, package.clone())
+                    .await;
             }
             Err(e) => {
                 record_received_error_metrics(network_type.clone());

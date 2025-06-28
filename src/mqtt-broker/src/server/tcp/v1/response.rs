@@ -44,6 +44,7 @@ pub(crate) async fn response_process(
     mut response_queue_rx: Receiver<ResponsePackage>,
     client_pool: Arc<ClientPool>,
     request_channel: Arc<RequestChannel>,
+    network_type: NetworkConnectionType,
     stop_sx: broadcast::Sender<bool>,
 ) {
     let mut stop_rx = stop_sx.subscribe();
@@ -55,6 +56,7 @@ pub(crate) async fn response_process(
             cache_manager,
             subscribe_manager,
             client_pool,
+            network_type.clone(),
             stop_sx.clone(),
         );
 
@@ -77,7 +79,7 @@ pub(crate) async fn response_process(
 
                         loop {
                             response_process_seq += 1;
-                            if let Some(handler_sx) = request_channel.get_available_response(response_process_seq){
+                            if let Some(handler_sx) = request_channel.get_available_response(&network_type,response_process_seq){
                                 if handler_sx.try_send(packet.clone()).is_ok() {
                                     break;
                                 }
@@ -94,6 +96,7 @@ pub(crate) async fn response_process(
     });
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn response_child_process(
     response_process_num: usize,
     request_channel: Arc<RequestChannel>,
@@ -101,10 +104,12 @@ pub(crate) fn response_child_process(
     cache_manager: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
     client_pool: Arc<ClientPool>,
+    network_type: NetworkConnectionType,
     stop_sx: broadcast::Sender<bool>,
 ) {
     for index in 1..=response_process_num {
-        let mut response_process_rx = request_channel.create_response_child_channel(index);
+        let mut response_process_rx =
+            request_channel.create_response_child_channel(&network_type, index);
         let mut raw_stop_rx = stop_sx.subscribe();
         let raw_connect_manager = connection_manager.clone();
         let raw_cache_manager = cache_manager.clone();
