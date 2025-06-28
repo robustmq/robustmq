@@ -41,7 +41,7 @@ pub async fn update_cache_by_req(
     if conf.cluster_name != req.cluster_name {
         return Ok(UpdateMqttCacheReply::default());
     }
-
+    
     update_cache_metadata(
         cache_manager,
         connector_manager,

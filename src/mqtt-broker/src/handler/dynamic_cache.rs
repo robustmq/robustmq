@@ -37,7 +37,7 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
 use protocol::placement_center::placement_center_inner::ListSchemaRequest;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
-use tracing::error;
+use tracing::{error, info};
 
 use super::cache::CacheManager;
 use super::dynamic_config::build_cluster_config;
@@ -187,13 +187,16 @@ pub async fn update_cache_metadata(
         MqttBrokerUpdateCacheResourceType::Node => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
                 let node = serde_json::from_str::<BrokerNode>(&request.data)?;
+                info!("Node {} is online. Node information: {:?}", node.node_id,node);
                 cache_manager.add_node(node);
             }
             MqttBrokerUpdateCacheActionType::Delete => {
                 let node = serde_json::from_str::<BrokerNode>(&request.data)?;
+                info!("Node {} has been taken offline. Node information: {:?}", node.node_id,node);
                 cache_manager.remove_node(node);
             }
         },
+        
         MqttBrokerUpdateCacheResourceType::Session => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
                 let session = serde_json::from_str::<MqttSession>(&request.data)?;

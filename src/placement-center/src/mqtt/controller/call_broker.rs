@@ -14,7 +14,6 @@
 
 use std::sync::Arc;
 use std::time::Duration;
-
 use dashmap::DashMap;
 use grpc_clients::mqtt::inner::call::broker_mqtt_update_cache;
 use grpc_clients::pool::ClientPool;
@@ -454,6 +453,9 @@ async fn start_call_thread(
                     },
                     val = data_recv.recv()=>{
                         if let Ok(data) = val{
+                            if is_ignore_push(&node, &data){
+                                continue;
+                            }
                             call_mqtt_update_cache(client_pool.clone(), node.node_inner_addr.clone(), data).await;
                         }
                     }
@@ -463,6 +465,18 @@ async fn start_call_thread(
     });
 }
 
+fn is_ignore_push(node: &BrokerNode, data: &MQTTInnerCallMessage) -> bool {
+    if data.resource_type == MqttBrokerUpdateCacheResourceType::Node {
+        let broker_node = match serde_json::from_str::<BrokerNode>(&data.data) {
+            Ok(node) => node,
+            Err(_) => {
+                return true;
+            }
+        };
+        return broker_node.node_id == node.node_id;
+    }
+    false
+}
 async fn call_mqtt_update_cache(
     client_pool: Arc<ClientPool>,
     addr: String,

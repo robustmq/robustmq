@@ -74,7 +74,7 @@ where
         proc_config: ProcessorConfig,
         stop_sx: broadcast::Sender<bool>,
     ) -> Self {
-        info!("process thread num: {:?}", proc_config);
+        info!("network type:{}, process thread num: {:?}", network_type, proc_config);
         let request_channel = Arc::new(RequestChannel::new(proc_config.channel_size));
         let (acceptor_stop_send, _) = broadcast::channel(2);
         Self {
