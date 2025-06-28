@@ -19,6 +19,7 @@ use tokio::time::sleep;
 use tracing::{debug, info};
 
 use crate::{
+    common::tool::is_ignore_print,
     observability::metrics::packets::{record_received_error_metrics, record_received_metrics},
     server::{
         connection::{NetworkConnection, NetworkConnectionType},
@@ -36,10 +37,12 @@ pub async fn read_packet(
     if let Some(pkg) = package {
         match pkg {
             Ok(pack) => {
-                info!(
-                    "recv {} packet:{:?}, connect_id:{}",
-                    network_type, pack, connection.connection_id
-                );
+                if !is_ignore_print(&pack) {
+                    info!(
+                        "recv {} packet:{:?}, connect_id:{}",
+                        network_type, pack, connection.connection_id
+                    );
+                }
                 record_received_metrics(connection, &pack, network_type);
 
                 let package = RequestPackage::new(connection.connection_id, connection.addr, pack);

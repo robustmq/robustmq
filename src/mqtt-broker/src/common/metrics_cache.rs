@@ -18,7 +18,7 @@ use crate::{
 };
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::{select, sync::broadcast, time::sleep};
 use tracing::info;
 
@@ -68,23 +68,43 @@ impl MetricsCacheManager {
         self.message_drop_num.insert(time, num);
     }
 
-    pub fn get_connection_num_by_time(&self, start_time: u64, end_time: u64) -> DashMap<u64, u32> {
+    pub fn get_connection_num_by_time(
+        &self,
+        start_time: u64,
+        end_time: u64,
+    ) -> Vec<HashMap<String, u64>> {
         self.search_by_time(self.connection_num.clone(), start_time, end_time)
     }
 
-    pub fn get_topic_num_by_time(&self, start_time: u64, end_time: u64) -> DashMap<u64, u32> {
+    pub fn get_topic_num_by_time(
+        &self,
+        start_time: u64,
+        end_time: u64,
+    ) -> Vec<HashMap<String, u64>> {
         self.search_by_time(self.topic_num.clone(), start_time, end_time)
     }
 
-    pub fn get_subscribe_num_by_time(&self, start_time: u64, end_time: u64) -> DashMap<u64, u32> {
+    pub fn get_subscribe_num_by_time(
+        &self,
+        start_time: u64,
+        end_time: u64,
+    ) -> Vec<HashMap<String, u64>> {
         self.search_by_time(self.subscribe_num.clone(), start_time, end_time)
     }
 
-    pub fn get_message_in_num_by_time(&self, start_time: u64, end_time: u64) -> DashMap<u64, u32> {
+    pub fn get_message_in_num_by_time(
+        &self,
+        start_time: u64,
+        end_time: u64,
+    ) -> Vec<HashMap<String, u64>> {
         self.search_by_time(self.message_in_num.clone(), start_time, end_time)
     }
 
-    pub fn get_message_out_num_by_time(&self, start_time: u64, end_time: u64) -> DashMap<u64, u32> {
+    pub fn get_message_out_num_by_time(
+        &self,
+        start_time: u64,
+        end_time: u64,
+    ) -> Vec<HashMap<String, u64>> {
         self.search_by_time(self.message_out_num.clone(), start_time, end_time)
     }
 
@@ -92,7 +112,7 @@ impl MetricsCacheManager {
         &self,
         start_time: u64,
         end_time: u64,
-    ) -> DashMap<u64, u32> {
+    ) -> Vec<HashMap<String, u64>> {
         self.search_by_time(self.message_drop_num.clone(), start_time, end_time)
     }
 
@@ -101,11 +121,14 @@ impl MetricsCacheManager {
         data_list: DashMap<u64, u32>,
         start_time: u64,
         end_time: u64,
-    ) -> DashMap<u64, u32> {
-        let results = DashMap::with_capacity(2);
+    ) -> Vec<HashMap<String, u64>> {
+        let mut results = Vec::new();
         for (time, value) in data_list {
             if time >= start_time && time <= end_time {
-                results.insert(time, value);
+                let mut raw = HashMap::new();
+                raw.insert("date".to_string(), time);
+                raw.insert("value".to_string(), value as u64);
+                results.push(raw);
             }
         }
         results

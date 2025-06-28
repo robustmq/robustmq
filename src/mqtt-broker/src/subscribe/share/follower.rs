@@ -34,6 +34,7 @@ use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
 use tracing::{debug, error, info};
 
+use crate::common::tool::is_ignore_print;
 use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
 use crate::handler::error::MqttBrokerError;
 use crate::handler::subscribe::{add_share_push_leader, ParseShareQueueSubscribeRequest};
@@ -155,6 +156,7 @@ impl ShareFollowerResub {
                     share_sub,
                     stop_sx,
                     connection_manager.clone(),
+                    &follower_resub_key,
                 )
                 .await
                 {
@@ -177,7 +179,7 @@ impl ShareFollowerResub {
                 && sx.sender.send(true).is_ok()
             {
                 self.subscribe_manager
-                    .share_follower_resub
+                    .share_follower_resub_thread
                     .remove(&share_fllower_key);
             }
         }
@@ -190,6 +192,7 @@ async fn resub_sub_mqtt5(
     share_sub: ShareSubShareSub,
     stop_sx: Sender<bool>,
     connection_manager: Arc<ConnectionManager>,
+    follower_resub_key: &str,
 ) -> Result<(), MqttBrokerError> {
     let mqtt_client_id = share_sub.client_id.clone();
     let group_name = share_sub.group_name.clone();
@@ -242,10 +245,8 @@ async fn resub_sub_mqtt5(
                         &group_name,
                         &sub_name,
                     ).await{
-                        error!("{}", e);
-                        continue;
+                        error!("Share follower node failed to process the package returned by the Leader. Error message: {}, key: {} ", e, follower_resub_key);
                     }
-                    break;
                 }
             }
         }
@@ -267,6 +268,10 @@ async fn process_packet(
     group_name: &str,
     sub_name: &str,
 ) -> Result<(), MqttBrokerError> {
+    if !is_ignore_print(&packet) {
+        info!("Follower node receives packet:{:?}", packet);
+    }
+
     match packet {
         MqttPacket::ConnAck(connack, connack_properties) => {
             process_conn_ack_packet(
@@ -364,6 +369,7 @@ async fn process_conn_ack_packet(
 
         // Subscribe
         subscribe_to_leader(follower_sub_leader_pkid, share_sub, write_stream).await;
+        return Ok(());
     }
     Err(MqttBrokerError::CommonError(format!("client_id:[{}], group_name:[{}], sub_name:[{}] Follower forwarding subscription connection request error,
                             error message: {:?},{:?}",mqtt_client_id,group_name,sub_name,connack,connack_properties)))
