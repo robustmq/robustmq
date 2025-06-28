@@ -260,7 +260,7 @@ where
             seq += 1;
             times += 1;
             if times > 3 {
-                warn!("Shared subscription failed to send messages {} times and the messages were discarded", times);
+                warn!("Shared subscription failed to send messages {} times and the messages were discarded,, offset: {:?}", times, record.offset);
                 break;
             }
 
@@ -269,7 +269,7 @@ where
             {
                 subscrbie
             } else {
-                warn!("No available subscribers were obtained. Continue looking for the next one");
+                warn!("No available subscribers were obtained. Continue looking for the next one, , offset: {:?}", record.offset);
                 sleep(Duration::from_secs(1)).await;
                 continue;
             };
@@ -293,13 +293,16 @@ where
                 Ok(Some(param)) => param,
                 Ok(None) => {
                     warn!(
-                        "Build message is empty. group:{}, topic_id:{}",
-                        group_id, sub_data.topic_id
+                        "Build message is empty. group:{}, topic_id:{}, offset: {:?}",
+                        group_id, sub_data.topic_id, record.offset
                     );
                     break;
                 }
                 Err(e) => {
-                    warn!("Build message error. Error message : {}", e);
+                    warn!(
+                        "Build message error. Error message : {}, offset: {:?}",
+                        e, record.offset
+                    );
                     break;
                 }
             };
@@ -313,7 +316,8 @@ where
             )
             .await
             {
-                warn!("Shared subscription failed to send a message. I attempted to send it to the next client. Error message :{}", e);
+                warn!("Shared subscription failed to send a message. I attempted to 
+                    send it to the next client. Error message :{}, offset: {:?}", e, record.offset);
                 continue;
             };
 
@@ -353,6 +357,7 @@ where
     if results.is_empty() {
         return Ok((None, seq));
     }
+
     Ok((results.last().unwrap().offset, seq))
 }
 

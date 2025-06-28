@@ -43,6 +43,8 @@ pub async fn report_heartbeat(
     heartbeat_timeout: &String,
     stop_send: broadcast::Sender<bool>,
 ) {
+    // After the node is started, wait for 10 seconds before initiating the heartbeat report.
+    // sleep(Duration::from_secs(10)).await;
     let actual_timeout = match humantime::parse_duration(heartbeat_timeout) {
         Ok(v) => v.as_secs(),
         Err(e) => {

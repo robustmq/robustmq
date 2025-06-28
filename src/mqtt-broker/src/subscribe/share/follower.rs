@@ -94,6 +94,7 @@ impl ShareFollowerResub {
 
             // share follower => share leader
             if conf.broker_id == reply.broker_id {
+                
                 // remove follower sub
                 self.subscribe_manager
                     .share_follower_resub
@@ -507,7 +508,7 @@ async fn start_ping_thread(write_stream: Arc<WriteStream>, stop_sx: Sender<bool>
                 val = stop_rx.recv() => {
                     if let Ok(flag) = val {
                         if flag {
-                            info!("{}","start_ping_thread stop");
+                            debug!("{}","start_ping_thread stop");
                             break;
                         }
                     }
