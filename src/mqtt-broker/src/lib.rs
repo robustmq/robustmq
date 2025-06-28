@@ -206,8 +206,7 @@ where
 
     pub fn start(&self, stop_send: broadcast::Sender<bool>) {
         // daemon runtime
-        self.start_tracer_provider();
-        self.register_node();
+        self.start_init();
         self.start_cluster_heartbeat_report(stop_send.clone());
         self.start_keep_alive_thread(stop_send.clone());
         self.start_delay_message_thread();
@@ -234,11 +233,6 @@ where
         self.awaiting_stop(stop_send);
     }
 
-    fn start_tracer_provider(&self) {
-        self.daemon_runtime.spawn(async move {
-            // common_base::telemetry::trace::init_tracer_provider(broker_mqtt_conf()).await;
-        });
-    }
     fn start_mqtt_server(&self) {
         let server = self.server.clone();
         self.publish_runtime.spawn(async move {
@@ -532,7 +526,7 @@ where
         // todo tokio runtime shutdown
     }
 
-    fn register_node(&self) {
+    fn start_init(&self) {
         self.daemon_runtime.block_on(async move {
             init_system_user(&self.cache_manager, &self.client_pool).await;
             load_metadata_cache(
@@ -553,6 +547,14 @@ where
                     panic!("{}", e);
                 }
             }
+            info!("config:");
+            let json = match serde_json::to_string_pretty(config) {
+                Ok(data) => data,
+                Err(e) => {
+                    panic!("{}", e);
+                }
+            };
+            info!("{}", json);
         });
     }
 

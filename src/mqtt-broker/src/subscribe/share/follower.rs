@@ -15,7 +15,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use common_base::tools::{now_mills, unique_id};
+use common_base::tools::{now_mills, now_second, unique_id};
 use common_config::mqtt::broker_mqtt_conf;
 use futures::StreamExt;
 use grpc_clients::pool::ClientPool;
@@ -41,8 +41,8 @@ use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::common::get_share_sub_leader;
 use crate::subscribe::common::SubPublishParam;
 use crate::subscribe::common::Subscriber;
-use crate::subscribe::manager::ShareSubShareSub;
 use crate::subscribe::manager::SubscribeManager;
+use crate::subscribe::manager::{ShareSubShareSub, SubPushThreadData};
 use crate::subscribe::push::{
     exclusive_publish_message_qos1, push_packet_to_client, qos2_send_pubrel, wait_packet_ack,
     wait_pub_rec,
@@ -135,9 +135,17 @@ impl ShareFollowerResub {
             let (stop_sx, _) = broadcast::channel(1);
             let subscribe_manager = self.subscribe_manager.clone();
 
-            self.subscribe_manager
-                .share_follower_resub_thread
-                .insert(follower_resub_key.clone(), stop_sx.clone());
+            self.subscribe_manager.share_follower_resub_thread.insert(
+                follower_resub_key.clone(),
+                SubPushThreadData {
+                    push_success_record_num: 0,
+                    push_error_record_num: 0,
+                    last_push_time: 0,
+                    last_run_time: 0,
+                    create_time: now_second(),
+                    sender: stop_sx.clone(),
+                },
+            );
 
             // Follower resub thread
             tokio::spawn(async move {
@@ -166,7 +174,7 @@ impl ShareFollowerResub {
                 .subscribe_manager
                 .share_follower_resub
                 .contains_key(&share_fllower_key)
-                && sx.send(true).is_ok()
+                && sx.sender.send(true).is_ok()
             {
                 self.subscribe_manager
                     .share_follower_resub
@@ -280,7 +288,7 @@ async fn process_packet(
         }
 
         MqttPacket::Publish(publish, publish_properties) => {
-            process_publish_packet(
+            match process_publish_packet(
                 cache_manager,
                 connection_manager,
                 write_stream,
@@ -290,7 +298,13 @@ async fn process_packet(
                 follower_sub_leader_client_id,
                 stop_sx,
             )
-            .await?;
+            .await
+            {
+                Ok(()) => {}
+                Err(e) => {
+                    return Err(e);
+                }
+            }
         }
 
         MqttPacket::PubRel(pubrel, _) => {
@@ -493,7 +507,7 @@ async fn start_ping_thread(write_stream: Arc<WriteStream>, stop_sx: Sender<bool>
                 val = stop_rx.recv() => {
                     if let Ok(flag) = val {
                         if flag {
-                            info!("{}","start_ping_thread stop");
+                            debug!("{}","start_ping_thread stop");
                             break;
                         }
                     }

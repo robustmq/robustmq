@@ -74,6 +74,7 @@ pub async fn save_subscribe(
             pkid: subscribe.packet_identifier,
             subscribe_properties: subscribe_properties.to_owned(),
             protocol: protocol.to_owned(),
+            create_time: now_second(),
         };
 
         // save subscribe
