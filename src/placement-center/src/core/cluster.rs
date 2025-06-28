@@ -44,6 +44,7 @@ pub async fn register_node_by_req(
 ) -> Result<RegisterNodeReply, PlacementCenterError> {
     let node = serde_json::from_slice::<BrokerNode>(&req.node)?;
 
+    cluster_cache.report_broker_heart(&node.cluster_name, node.node_id);
     sync_save_node(raft_machine_apply, &node).await?;
 
     if cluster_cache.get_cluster(&node.cluster_name).is_none() {
@@ -74,7 +75,6 @@ pub async fn register_node_by_req(
         .await?;
     }
 
-    cluster_cache.report_broker_heart(&node.cluster_name, node.node_id);
     Ok(RegisterNodeReply::default())
 }
 

@@ -12,8 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod log;
-pub mod metrics_cache;
-pub mod pkid_manager;
-pub mod pkid_storage;
-pub mod tool;
+use protocol::mqtt::common::MqttPacket;
+
+pub fn is_ignore_print(packet: &MqttPacket) -> bool {
+    if let MqttPacket::PingResp(_) = packet {
+        return true;
+    }
+    if let MqttPacket::PingReq(_) = packet {
+        return true;
+    }
+    false
+}

@@ -91,6 +91,7 @@ impl PlacementCacheManager {
         if let Some(data) = self.node_list.get_mut(cluster_name) {
             return data.remove(&node_id);
         }
+        self.remove_broker_heart(cluster_name, node_id);
         None
     }
 
@@ -142,7 +143,7 @@ impl PlacementCacheManager {
         self.node_heartbeat.insert(key, data);
     }
 
-    pub fn remove_broker_heart(&self, cluster_name: &str, node_id: u64) {
+    fn remove_broker_heart(&self, cluster_name: &str, node_id: u64) {
         let key = self.node_key(cluster_name, node_id);
         self.node_heartbeat.remove(&key);
     }

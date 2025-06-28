@@ -26,6 +26,7 @@ use tokio_util::codec::FramedWrite;
 use tracing::{debug, info};
 
 use super::connection::{NetworkConnection, NetworkConnectionType};
+use crate::common::tool::is_ignore_print;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::observability::metrics::packets::record_sent_metrics;
@@ -150,7 +151,9 @@ impl ConnectionManager {
         packet_wrapper: MqttPacketWrapper,
         resp: Message,
     ) -> Result<(), MqttBrokerError> {
-        info!("WebSockets response packet:{resp:?},connection_id:{connection_id}");
+        if !is_ignore_print(&packet_wrapper.packet) {
+            info!("WebSockets response packet:{resp:?},connection_id:{connection_id}");
+        }
 
         let mut times = 0;
         let cluster = self.cache_manager.get_cluster_config();
@@ -208,7 +211,9 @@ impl ConnectionManager {
         connection_id: u64,
         resp: MqttPacketWrapper,
     ) -> Result<(), MqttBrokerError> {
-        info!("Tcp response packet:{resp:?},connection_id:{connection_id}");
+        if !is_ignore_print(&resp.packet) {
+            info!("Tcp response packet:{resp:?},connection_id:{connection_id}");
+        }
 
         if let Some(connection) = self.get_connect(connection_id) {
             if connection.connection_type == NetworkConnectionType::Tls {
