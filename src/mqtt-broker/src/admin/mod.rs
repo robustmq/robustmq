@@ -32,7 +32,7 @@ use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
 use crate::{handler::error::MqttBrokerError, storage::cluster::ClusterStorage};
 
-use common_base::tools::serialize_value;
+use common_base::tools::{now_second, serialize_value};
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -93,8 +93,16 @@ pub async fn cluster_overview_metrics_by_req(
     request: Request<ClusterOverviewMetricsRequest>,
 ) -> Result<ClusterOverviewMetricsReply, MqttBrokerError> {
     let req = request.into_inner();
-    let start_time = req.start_time;
-    let end_time = req.end_time;
+    let start_time = if req.start_time == 0 {
+        now_second() - 3600
+    } else {
+        req.start_time
+    };
+    let end_time = if req.end_time == 0 {
+        now_second()
+    } else {
+        req.end_time
+    };
     let reply = ClusterOverviewMetricsReply {
         connection_num: serde_json::to_string(
             &metrics_cache_manager.get_connection_num_by_time(start_time, end_time),
