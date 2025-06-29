@@ -32,7 +32,6 @@ use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
 use crate::{handler::error::MqttBrokerError, storage::cluster::ClusterStorage};
 
-use common_base::tools::serialize_value;
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -40,7 +39,6 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableFlappingDetectReply, EnableFlappingDetectRequest, ListConnectionRaw, ListConnectionReply,
 };
 use std::sync::Arc;
-use tonic::{Request, Response, Status};
 
 pub async fn cluster_status_by_req(
     client_pool: &Arc<ClientPool>,
@@ -90,11 +88,10 @@ pub async fn cluster_status_by_req(
 
 pub async fn cluster_overview_metrics_by_req(
     metrics_cache_manager: &Arc<MetricsCacheManager>,
-    request: Request<ClusterOverviewMetricsRequest>,
+    request: &ClusterOverviewMetricsRequest,
 ) -> Result<ClusterOverviewMetricsReply, MqttBrokerError> {
-    let req = request.into_inner();
-    let start_time = req.start_time;
-    let end_time = req.end_time;
+    let start_time = request.start_time;
+    let end_time = request.end_time;
     let reply = ClusterOverviewMetricsReply {
         connection_num: serde_json::to_string(
             &metrics_cache_manager.get_connection_num_by_time(start_time, end_time),
@@ -118,30 +115,29 @@ pub async fn cluster_overview_metrics_by_req(
 
     Ok(reply)
 }
+
 pub async fn enable_flapping_detect_by_req(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
-    request: Request<EnableFlappingDetectRequest>,
-) -> Result<Response<EnableFlappingDetectReply>, Status> {
-    let req = request.into_inner();
-
-    match enable_flapping_detect(client_pool, cache_manager, req).await {
-        Ok(_) => Ok(Response::new(EnableFlappingDetectReply {
-            is_enable: req.is_enable,
-        })),
-        Err(e) => Err(Status::cancelled(e.to_string())),
+    request: &EnableFlappingDetectRequest,
+) -> Result<EnableFlappingDetectReply, MqttBrokerError> {
+    match enable_flapping_detect(client_pool, cache_manager, *request).await {
+        Ok(_) => Ok(EnableFlappingDetectReply {
+            is_enable: request.is_enable,
+        }),
+        Err(e) => Err(e),
     }
 }
 
 pub async fn list_connection_by_req(
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<CacheManager>,
-) -> Result<Response<ListConnectionReply>, Status> {
+) -> Result<ListConnectionReply, MqttBrokerError> {
     let mut reply = ListConnectionReply::default();
     let mut list_connection_raw: Vec<ListConnectionRaw> = Vec::new();
     for (key, value) in connection_manager.list_connect() {
         if let Some(mqtt_value) = cache_manager.get_connection(key) {
-            let mqtt_info = serialize_value(&mqtt_value)?;
+            let mqtt_info = serde_json::to_string(&mqtt_value)?;
             let raw = ListConnectionRaw {
                 connection_id: value.connection_id,
                 connection_type: value.connection_type.to_string(),
@@ -156,5 +152,5 @@ pub async fn list_connection_by_req(
         }
     }
     reply.list_connection_raw = list_connection_raw;
-    Ok(Response::new(reply))
+    Ok(reply)
 }

@@ -19,18 +19,17 @@ use crate::security::AuthDriver;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateUserRequest, DeleteUserRequest, ListUserRequest, UserRaw,
+    CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListUserReply,
+    ListUserRequest, UserRaw,
 };
 use std::sync::Arc;
-use tonic::Request;
 
 // List all users by request
 pub async fn list_user_by_req(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    request: Request<ListUserRequest>,
-) -> Result<(Vec<UserRaw>, usize), MqttBrokerError> {
-    let req = request.into_inner();
+    request: &ListUserRequest,
+) -> Result<ListUserReply, MqttBrokerError> {
     let auth_driver = AuthDriver::new(cache_manager.clone(), client_pool.clone());
 
     let data = auth_driver.read_all_user().await?;
@@ -44,43 +43,45 @@ pub async fn list_user_by_req(
         users.push(user_raw);
     }
 
-    let filtered = apply_filters(users, &req.options);
-    let sorted = apply_sorting(filtered, &req.options);
-    let pagination = apply_pagination(sorted, &req.options);
-    Ok(pagination)
+    let filtered = apply_filters(users, &request.options);
+    let sorted = apply_sorting(filtered, &request.options);
+    let pagination = apply_pagination(sorted, &request.options);
+
+    Ok(ListUserReply {
+        users: pagination.0,
+        total_count: pagination.1 as u32,
+    })
 }
 
 // Create a new user
 pub async fn create_user_by_req(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    request: Request<CreateUserRequest>,
-) -> Result<(), MqttBrokerError> {
-    let req = request.into_inner();
+    request: &CreateUserRequest,
+) -> Result<CreateUserReply, MqttBrokerError> {
     let mqtt_user = MqttUser {
-        username: req.username,
-        password: req.password,
-        is_superuser: req.is_superuser,
+        username: request.username.clone(),
+        password: request.password.clone(),
+        is_superuser: request.is_superuser,
     };
 
     let auth_driver = AuthDriver::new(cache_manager.clone(), client_pool.clone());
     auth_driver.save_user(mqtt_user).await?;
 
-    Ok(())
+    Ok(CreateUserReply {})
 }
 
 // Delete an existing user
 pub async fn delete_user_by_req(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    request: Request<DeleteUserRequest>,
-) -> Result<(), MqttBrokerError> {
-    let req = request.into_inner();
+    request: &DeleteUserRequest,
+) -> Result<DeleteUserReply, MqttBrokerError> {
     let auth_driver = AuthDriver::new(cache_manager.clone(), client_pool.clone());
 
-    auth_driver.delete_user(req.username).await?;
+    auth_driver.delete_user(request.username.clone()).await?;
 
-    Ok(())
+    Ok(DeleteUserReply {})
 }
 
 impl Queryable for UserRaw {

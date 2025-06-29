@@ -19,25 +19,27 @@ use crate::security::AuthDriver;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    BlacklistRaw, CreateBlacklistRequest, DeleteBlacklistRequest, ListBlacklistRequest,
+    BlacklistRaw, CreateBlacklistReply, CreateBlacklistRequest, DeleteBlacklistReply,
+    DeleteBlacklistRequest, ListBlacklistReply, ListBlacklistRequest,
 };
 use std::sync::Arc;
-use tonic::Request;
 
 // List blacklists by request
 pub async fn list_blacklist_by_req(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    request: Request<ListBlacklistRequest>,
-) -> Result<(Vec<BlacklistRaw>, usize), MqttBrokerError> {
-    let req = request.into_inner();
+    request: &ListBlacklistRequest,
+) -> Result<ListBlacklistReply, MqttBrokerError> {
     let blacklists = extract_blacklist(cache_manager, client_pool).await?;
 
-    let filtered = apply_filters(blacklists, &req.options);
-    let sorted = apply_sorting(filtered, &req.options);
-    let pagination = apply_pagination(sorted, &req.options);
+    let filtered = apply_filters(blacklists, &request.options);
+    let sorted = apply_sorting(filtered, &request.options);
+    let pagination = apply_pagination(sorted, &request.options);
 
-    Ok(pagination)
+    Ok(ListBlacklistReply {
+        blacklists: pagination.0,
+        total_count: pagination.1 as u32,
+    })
 }
 
 async fn extract_blacklist(
@@ -61,10 +63,9 @@ async fn extract_blacklist(
 pub async fn delete_blacklist_by_req(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    request: Request<DeleteBlacklistRequest>,
-) -> Result<(), MqttBrokerError> {
-    let req = request.into_inner();
-    let blacklist_type = match req.blacklist_type.as_str() {
+    request: &DeleteBlacklistRequest,
+) -> Result<DeleteBlacklistReply, MqttBrokerError> {
+    let blacklist_type = match request.blacklist_type.as_str() {
         "ClientId" => MqttAclBlackListType::ClientId,
         "User" => MqttAclBlackListType::User,
         "Ip" => MqttAclBlackListType::Ip,
@@ -74,14 +75,14 @@ pub async fn delete_blacklist_by_req(
         _ => {
             return Err(MqttBrokerError::CommonError(format!(
                 "Failed BlackList Type: {}",
-                req.blacklist_type
+                request.blacklist_type
             )))
         }
     };
 
     let mqtt_blacklist = MqttAclBlackList {
         blacklist_type,
-        resource_name: req.resource_name,
+        resource_name: request.resource_name.clone(),
         end_time: 0,
         desc: "".to_string(),
     };
@@ -89,25 +90,23 @@ pub async fn delete_blacklist_by_req(
     let auth_driver = AuthDriver::new(cache_manager.clone(), client_pool.clone());
     auth_driver.delete_blacklist(mqtt_blacklist).await?;
 
-    Ok(())
+    Ok(DeleteBlacklistReply {})
 }
 
 // Create new blacklist entry
 pub async fn create_blacklist_by_req(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    request: Request<CreateBlacklistRequest>,
-) -> Result<(), MqttBrokerError> {
-    let req = request.into_inner();
-    let mqtt_blacklist = MqttAclBlackList::decode(&req.blacklist)
+    request: &CreateBlacklistRequest,
+) -> Result<CreateBlacklistReply, MqttBrokerError> {
+    let mqtt_blacklist = MqttAclBlackList::decode(&request.blacklist)
         .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
 
     let auth_driver = AuthDriver::new(cache_manager.clone(), client_pool.clone());
     auth_driver.save_blacklist(mqtt_blacklist).await?;
 
-    Ok(())
+    Ok(CreateBlacklistReply {})
 }
-
 impl Queryable for BlacklistRaw {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {

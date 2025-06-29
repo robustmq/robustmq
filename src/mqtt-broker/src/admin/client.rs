@@ -17,22 +17,23 @@ use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::session::MqttSession;
-use protocol::broker_mqtt::broker_mqtt_admin::{ClientRaw, ListClientRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{ClientRaw, ListClientReply, ListClientRequest};
 use std::sync::Arc;
-use tonic::Request;
 
 // List all clients by request
 pub async fn list_client_by_req(
     cache_manager: &Arc<CacheManager>,
-    request: Request<ListClientRequest>,
-) -> Result<(Vec<ClientRaw>, usize), MqttBrokerError> {
-    let req = request.into_inner();
+    request: &ListClientRequest,
+) -> Result<ListClientReply, MqttBrokerError> {
     let clients = extract_clients(cache_manager);
-    let filtered = apply_filters(clients, &req.options);
-    let sorted = apply_sorting(filtered, &req.options);
-    let pagination = apply_pagination(sorted, &req.options);
+    let filtered = apply_filters(clients, &request.options);
+    let sorted = apply_sorting(filtered, &request.options);
+    let pagination = apply_pagination(sorted, &request.options);
 
-    Ok(pagination)
+    Ok(ListClientReply {
+        clients: pagination.0,
+        total_count: pagination.1 as u32,
+    })
 }
 
 fn extract_clients(cache_manager: &Arc<CacheManager>) -> Vec<ClientRaw> {
