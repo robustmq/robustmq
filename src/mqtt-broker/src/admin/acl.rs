@@ -17,15 +17,16 @@ use crate::handler::error::MqttBrokerError;
 use crate::security::AuthDriver;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
-use protocol::broker_mqtt::broker_mqtt_admin::{CreateAclRequest, DeleteAclRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    CreateAclReply, CreateAclRequest, DeleteAclReply, DeleteAclRequest, ListAclReply,
+};
 use std::sync::Arc;
-use tonic::Request;
 
 // List all ACL entries
 pub async fn list_acl_by_req(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-) -> Result<Vec<Vec<u8>>, MqttBrokerError> {
+) -> Result<ListAclReply, MqttBrokerError> {
     let auth_driver = AuthDriver::new(cache_manager.clone(), client_pool.clone());
     let data = auth_driver.read_all_acl().await?;
 
@@ -37,38 +38,38 @@ pub async fn list_acl_by_req(
         acls_list.push(acl);
     }
 
-    Ok(acls_list)
+    Ok(ListAclReply {
+        acls: acls_list.clone(),
+        total_count: acls_list.len() as u32,
+    })
 }
 
 // Create a new ACL entry
 pub async fn create_acl_by_req(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    request: Request<CreateAclRequest>,
-) -> Result<(), MqttBrokerError> {
-    let req = request.into_inner();
-
+    request: &CreateAclRequest,
+) -> Result<CreateAclReply, MqttBrokerError> {
     let mqtt_acl =
-        MqttAcl::decode(&req.acl).map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+        MqttAcl::decode(&request.acl).map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
 
     let auth_driver = AuthDriver::new(cache_manager.clone(), client_pool.clone());
     auth_driver.save_acl(mqtt_acl).await?;
 
-    Ok(())
+    Ok(CreateAclReply {})
 }
 
 // Delete an existing ACL entry
 pub async fn delete_acl_by_req(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    request: Request<DeleteAclRequest>,
-) -> Result<(), MqttBrokerError> {
-    let req = request.into_inner();
+    request: &DeleteAclRequest,
+) -> Result<DeleteAclReply, MqttBrokerError> {
     let mqtt_acl =
-        MqttAcl::decode(&req.acl).map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+        MqttAcl::decode(&request.acl).map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
 
     let auth_driver = AuthDriver::new(cache_manager.clone(), client_pool.clone());
     auth_driver.delete_acl(mqtt_acl).await?;
 
-    Ok(())
+    Ok(DeleteAclReply {})
 }

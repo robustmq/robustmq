@@ -5,6 +5,7 @@
 </p>
 
 <p align="center">
+  <a href="https://deepwiki.com/robustmq/robustmq"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
   <img alt="Latest Release" src="https://img.shields.io/github/v/release/robustmq/robustmq?style=flat">
   <img alt="License" src="https://img.shields.io/github/license/robustmq/robustmq?style=flat">
   <img alt="GitHub issues" src="https://img.shields.io/github/issues/robustmq/robustmq?style=flat">
