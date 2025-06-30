@@ -88,9 +88,8 @@ pub async fn cluster_status_by_req(
 
 pub async fn cluster_overview_metrics_by_req(
     metrics_cache_manager: &Arc<MetricsCacheManager>,
-    request: &ClusterOverviewMetricsRequest,
+    req: &ClusterOverviewMetricsRequest,
 ) -> Result<ClusterOverviewMetricsReply, MqttBrokerError> {
-    let req = request.into_inner();
     let start_time = if req.start_time == 0 {
         now_second() - 3600
     } else {
