@@ -31,7 +31,7 @@ use crate::handler::flapping_detect::enable_flapping_detect;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
 use crate::{handler::error::MqttBrokerError, storage::cluster::ClusterStorage};
-use common_base::tools::{now_second, serialize_value};
+use common_base::tools::now_second;
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -88,9 +88,8 @@ pub async fn cluster_status_by_req(
 
 pub async fn cluster_overview_metrics_by_req(
     metrics_cache_manager: &Arc<MetricsCacheManager>,
-    request: &ClusterOverviewMetricsRequest,
+    req: &ClusterOverviewMetricsRequest,
 ) -> Result<ClusterOverviewMetricsReply, MqttBrokerError> {
-    let req = request.into_inner();
     let start_time = if req.start_time == 0 {
         now_second() - 3600
     } else {
