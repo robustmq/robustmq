@@ -73,7 +73,7 @@ impl ClusterStorage {
         &self,
         cache_manager: &Arc<CacheManager>,
         config: &BrokerMqttConfig,
-    ) -> Result<(), CommonError> {
+    ) -> Result<BrokerNode, CommonError> {
         let local_ip = get_local_ip();
 
         let extend = MqttNodeExtend {
@@ -102,7 +102,7 @@ impl ClusterStorage {
 
         register_node(&self.client_pool, &config.placement_center, req.clone()).await?;
 
-        Ok(())
+        Ok(node)
     }
 
     pub async fn unregister_node(&self, config: &BrokerMqttConfig) -> Result<(), CommonError> {
