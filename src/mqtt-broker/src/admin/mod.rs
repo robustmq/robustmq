@@ -88,17 +88,17 @@ pub async fn cluster_status_by_req(
 
 pub async fn cluster_overview_metrics_by_req(
     metrics_cache_manager: &Arc<MetricsCacheManager>,
-    req: &ClusterOverviewMetricsRequest,
+    request: &ClusterOverviewMetricsRequest,
 ) -> Result<ClusterOverviewMetricsReply, MqttBrokerError> {
-    let start_time = if req.start_time == 0 {
+    let start_time = if request.start_time == 0 {
         now_second() - 3600
     } else {
-        req.start_time
+        request.start_time
     };
-    let end_time = if req.end_time == 0 {
+    let end_time = if request.end_time == 0 {
         now_second()
     } else {
-        req.end_time
+        request.end_time
     };
     let reply = ClusterOverviewMetricsReply {
         connection_num: serde_json::to_string(
