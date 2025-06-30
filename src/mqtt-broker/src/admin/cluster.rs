@@ -17,7 +17,9 @@ use crate::handler::dynamic_config::{save_cluster_dynamic_config, ClusterDynamic
 use crate::handler::error::MqttBrokerError;
 use common_base::enum_type::feature_type::FeatureType;
 use grpc_clients::pool::ClientPool;
-use protocol::broker_mqtt::broker_mqtt_admin::SetClusterConfigRequest;
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    GetClusterConfigReply, SetClusterConfigReply, SetClusterConfigRequest,
+};
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -25,7 +27,7 @@ pub async fn set_cluster_config_by_req(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     request: &SetClusterConfigRequest,
-) -> Result<(), MqttBrokerError> {
+) -> Result<SetClusterConfigReply, MqttBrokerError> {
     match FeatureType::from_str(request.feature_name.as_str()) {
         Ok(FeatureType::SlowSubscribe) => {
             let mut config = cache_manager.get_slow_sub_config();
@@ -58,5 +60,18 @@ pub async fn set_cluster_config_by_req(
             )));
         }
     }
-    Ok(())
+    Ok(SetClusterConfigReply {
+        feature_name: request.feature_name.clone(),
+        is_enable: true,
+    })
+}
+
+pub fn get_cluster_config_by_req(
+    cache_manager: &Arc<CacheManager>,
+) -> Result<GetClusterConfigReply, MqttBrokerError> {
+    Ok(GetClusterConfigReply {
+        mqtt_broker_cluster_dynamic_config: serde_json::to_vec(
+            &cache_manager.get_cluster_config(),
+        )?,
+    })
 }
