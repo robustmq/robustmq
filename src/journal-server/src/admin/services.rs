@@ -15,48 +15,30 @@
 use std::sync::Arc;
 
 use crate::core::cache::CacheManager;
+use crate::core::error::JournalServerError;
 use crate::segment::SegmentIdentity;
 use protocol::journal_server::journal_admin::{
     ListSegmentReply, ListSegmentRequest, ListShardReply, ListShardRequest,
 };
-use tonic::Status;
 
 /// List shards based on the request parameters
 pub async fn list_shard_by_req(
     cache_manager: &Arc<CacheManager>,
     request: &ListShardRequest,
-) -> Result<ListShardReply, Status> {
+) -> Result<ListShardReply, JournalServerError> {
     let mut shards = Vec::new();
 
     if request.shard_name.is_empty() {
         // Get all shards
         for shard in cache_manager.get_shards() {
-            match serde_json::to_string(&shard) {
-                Ok(data) => {
-                    shards.push(data);
-                }
-                Err(e) => {
-                    return Err(Status::internal(format!(
-                        "Failed to serialize shard: {}",
-                        e
-                    )));
-                }
-            }
+            let data = serde_json::to_string(&shard)?;
+            shards.push(data);
         }
     } else {
         // Get shard by name
         if let Some(shard) = cache_manager.get_shard(&request.namespace, &request.shard_name) {
-            match serde_json::to_string(&shard) {
-                Ok(data) => {
-                    shards.push(data);
-                }
-                Err(e) => {
-                    return Err(Status::internal(format!(
-                        "Failed to serialize shard: {}",
-                        e
-                    )));
-                }
-            }
+            let data = serde_json::to_string(&shard)?;
+            shards.push(data);
         }
     }
 
@@ -67,7 +49,7 @@ pub async fn list_shard_by_req(
 pub async fn list_segment_by_req(
     cache_manager: &Arc<CacheManager>,
     request: &ListSegmentRequest,
-) -> Result<ListSegmentReply, Status> {
+) -> Result<ListSegmentReply, JournalServerError> {
     let mut segments = Vec::new();
 
     if request.segment_no == -1 {
@@ -75,17 +57,8 @@ pub async fn list_segment_by_req(
         for segment in
             cache_manager.get_segments_list_by_shard(&request.namespace, &request.shard_name)
         {
-            match serde_json::to_string(&segment) {
-                Ok(data) => {
-                    segments.push(data);
-                }
-                Err(e) => {
-                    return Err(Status::internal(format!(
-                        "Failed to serialize segment: {}",
-                        e
-                    )));
-                }
-            }
+            let data = serde_json::to_string(&segment)?;
+            segments.push(data);
         }
     } else {
         // Get specific segment
@@ -96,17 +69,8 @@ pub async fn list_segment_by_req(
         };
 
         if let Some(segment) = cache_manager.get_segment(&segment_iden) {
-            match serde_json::to_string(&segment) {
-                Ok(data) => {
-                    segments.push(data);
-                }
-                Err(e) => {
-                    return Err(Status::internal(format!(
-                        "Failed to serialize segment: {}",
-                        e
-                    )));
-                }
-            }
+            let data = serde_json::to_string(&segment)?;
+            segments.push(data);
         }
     }
 

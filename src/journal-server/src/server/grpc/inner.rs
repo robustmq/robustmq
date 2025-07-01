@@ -57,6 +57,7 @@ impl JournalServerInnerService for GrpcJournalServerInnerService {
         let request = request.into_inner();
         update_cache_by_req(&self.cache_manager, &self.segment_file_manager, &request)
             .await
+            .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
     }
 
@@ -72,6 +73,7 @@ impl JournalServerInnerService for GrpcJournalServerInnerService {
             &request,
         )
         .await
+        .map_err(|e| Status::internal(e.to_string()))
         .map(Response::new)
     }
 
@@ -82,6 +84,7 @@ impl JournalServerInnerService for GrpcJournalServerInnerService {
         let request = request.into_inner();
         get_shard_delete_status_by_req(&request)
             .await
+            .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
     }
 
@@ -97,6 +100,7 @@ impl JournalServerInnerService for GrpcJournalServerInnerService {
             &request,
         )
         .await
+        .map_err(|e| Status::internal(e.to_string()))
         .map(Response::new)
     }
 
@@ -107,6 +111,7 @@ impl JournalServerInnerService for GrpcJournalServerInnerService {
         let request = request.into_inner();
         get_segment_delete_status_by_req(&self.cache_manager, &request)
             .await
+            .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
     }
 }

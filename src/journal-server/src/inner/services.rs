@@ -21,9 +21,9 @@ use protocol::journal_server::journal_inner::{
     GetShardDeleteStatusRequest, UpdateJournalCacheReply, UpdateJournalCacheRequest,
 };
 use rocksdb_engine::RocksDBEngine;
-use tonic::Status;
 
 use crate::core::cache::CacheManager;
+use crate::core::error::JournalServerError;
 use crate::core::notification::parse_notification;
 use crate::core::segment::{delete_local_segment, segment_already_delete};
 use crate::core::shard::{delete_local_shard, is_delete_by_shard};
@@ -35,7 +35,7 @@ pub async fn update_cache_by_req(
     cache_manager: &Arc<CacheManager>,
     segment_file_manager: &Arc<SegmentFileManager>,
     request: &UpdateJournalCacheRequest,
-) -> Result<UpdateJournalCacheReply, Status> {
+) -> Result<UpdateJournalCacheReply, JournalServerError> {
     let conf = journal_server_conf();
     if request.cluster_name != conf.cluster_name {
         return Ok(UpdateJournalCacheReply::default());
@@ -59,7 +59,7 @@ pub async fn delete_shard_file_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
     request: &DeleteShardFileRequest,
-) -> Result<DeleteShardFileReply, Status> {
+) -> Result<DeleteShardFileReply, JournalServerError> {
     let conf = journal_server_conf();
     if request.cluster_name != conf.cluster_name {
         return Ok(DeleteShardFileReply::default());
@@ -78,19 +78,14 @@ pub async fn delete_shard_file_by_req(
 /// Get shard delete status based on the request
 pub async fn get_shard_delete_status_by_req(
     request: &GetShardDeleteStatusRequest,
-) -> Result<GetShardDeleteStatusReply, Status> {
+) -> Result<GetShardDeleteStatusReply, JournalServerError> {
     let conf = journal_server_conf();
     if request.cluster_name != conf.cluster_name {
         return Ok(GetShardDeleteStatusReply::default());
     }
 
-    match is_delete_by_shard(request) {
-        Ok(flag) => Ok(GetShardDeleteStatusReply { status: flag }),
-        Err(e) => Err(Status::internal(format!(
-            "Failed to get shard delete status: {}",
-            e
-        ))),
-    }
+    let flag = is_delete_by_shard(request)?;
+    Ok(GetShardDeleteStatusReply { status: flag })
 }
 
 /// Delete segment file based on the request
@@ -99,7 +94,7 @@ pub async fn delete_segment_file_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file_manager: &Arc<SegmentFileManager>,
     request: &DeleteSegmentFileRequest,
-) -> Result<DeleteSegmentFileReply, Status> {
+) -> Result<DeleteSegmentFileReply, JournalServerError> {
     let conf = journal_server_conf();
     if request.cluster_name != conf.cluster_name {
         return Ok(DeleteSegmentFileReply::default());
@@ -107,37 +102,27 @@ pub async fn delete_segment_file_by_req(
 
     let segment_iden =
         SegmentIdentity::new(&request.namespace, &request.shard_name, request.segment);
-    match delete_local_segment(
+    delete_local_segment(
         cache_manager,
         rocksdb_engine_handler,
         segment_file_manager,
         &segment_iden,
     )
-    .await
-    {
-        Ok(()) => Ok(DeleteSegmentFileReply::default()),
-        Err(e) => Err(Status::internal(format!(
-            "Failed to delete segment file: {}",
-            e
-        ))),
-    }
+    .await?;
+
+    Ok(DeleteSegmentFileReply::default())
 }
 
 /// Get segment delete status based on the request
 pub async fn get_segment_delete_status_by_req(
     cache_manager: &Arc<CacheManager>,
     request: &GetSegmentDeleteStatusRequest,
-) -> Result<GetSegmentDeleteStatusReply, Status> {
+) -> Result<GetSegmentDeleteStatusReply, JournalServerError> {
     let conf = journal_server_conf();
     if request.cluster_name != conf.cluster_name {
         return Ok(GetSegmentDeleteStatusReply::default());
     }
 
-    match segment_already_delete(cache_manager, request).await {
-        Ok(flag) => Ok(GetSegmentDeleteStatusReply { status: flag }),
-        Err(e) => Err(Status::internal(format!(
-            "Failed to get segment delete status: {}",
-            e
-        ))),
-    }
+    let flag = segment_already_delete(cache_manager, request).await?;
+    Ok(GetSegmentDeleteStatusReply { status: flag })
 }

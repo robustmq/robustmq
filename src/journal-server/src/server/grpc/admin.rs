@@ -40,6 +40,7 @@ impl JournalServerAdminService for GrpcJournalServerAdminService {
         let request = request.into_inner();
         list_shard_by_req(&self.cache_manager, &request)
             .await
+            .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
     }
 
@@ -50,6 +51,7 @@ impl JournalServerAdminService for GrpcJournalServerAdminService {
         let request = request.into_inner();
         list_segment_by_req(&self.cache_manager, &request)
             .await
+            .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
     }
 }
