@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::utils::time_util;
 use protocol::{
     broker_mqtt::broker_mqtt_admin::BrokerNodeRaw,
     placement_center::placement_center_inner::ClusterType,
@@ -45,8 +46,8 @@ impl From<BrokerNode> for BrokerNodeRaw {
             node_id: node.node_id,
             node_ip: node.node_ip,
             node_inner_addr: node.node_inner_addr,
-            start_time: node.start_time,
-            register_time: node.register_time,
+            start_time: time_util::timestamp_to_local_datetime( node.start_time as i64),
+            register_time: time_util::timestamp_to_local_datetime(node.register_time as i64),
         }
     }
 }
