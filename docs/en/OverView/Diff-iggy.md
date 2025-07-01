@@ -1,9 +1,6 @@
 **Apache Iggy** and **RobustMQ** are both modern message queue systems written in **Rust**, emphasizing high performance, scalability, and developer-friendliness. Currently, Iggy has joined the Apache Software Foundation. RobustMQ is often compared with Iggy, and people frequently ask about the differences between them.
 
-> **Note:** RobustMQ is still in early development. This article focuses on the differences in **positioning and product design plans**. Some of RobustMQ’s features are still under active development.
-
-> Note: The goal of this article is to clearly explain the differences between Iggy and RobustMQ. The comparison is based on personal understanding and perspective, and may contain biases. Feedback and discussion are very welcome.
----
+> **Note:** RobustMQ is in the early stages of development. This article mainly discusses the differences between Iggy and RobustMQ from the perspectives of RobustMQ's positioning, vision, and product capability planning. Some of RobustMQ's features are still under development. The goal of this article is to clarify the differences between Iggy and RobustMQ. The comparisons are based on personal understanding and may be biased—feedback and discussion are welcome.
 
 ## Summary
 
@@ -13,7 +10,6 @@
 
 * **RobustMQ** is designed as an **all-in-one message queue** that adapts to current mainstream messaging protocols (Kafka, AMQP, MQTT, etc.) and is built with a fully **serverless architecture**. Its goal is to be compatible with existing protocols, SDKs, and ecosystems, while solving current messaging system problems related to elasticity, cost, and fragmented features through architecture upgrades (Rust performance/safety, compute/storage/scheduling separation, pluggable storage).
 
----
 
 ### Technical Philosophy
 
@@ -22,8 +18,6 @@
 * **Storage Layer**: Iggy uses **local append-only log storage**, while RobustMQ supports **pluggable storage**, including HDFS, S3, MinIO, memory, and local storage. RobustMQ offers more flexibility and elasticity.
 * **Client Integration**: Iggy requires clients to use its specific SDK. RobustMQ supports out-of-the-box use of open-source **Kafka, AMQP, or MQTT SDKs**, making it easier to integrate.
 * **Ecosystem Compatibility**: Iggy requires users to adapt to a new ecosystem. RobustMQ is **fully compatible with mainstream MQ ecosystems and tools**, with near-zero switching cost.
-
----
 
 ## Core Design Philosophy Comparison
 
@@ -40,8 +34,6 @@
 * One system to handle **Kafka / MQTT / AMQP** protocols
 * Supports complex deployments (cloud-edge collaboration, decoupled architecture)
 * More like a **modern enterprise service bus**
-
----
 
 ## Feature Comparison Table
 
@@ -63,6 +55,3 @@
 | **Maturity**            | Medium (actively developed)               | Medium (actively developed)                                  |
 | **Integration Cost**    | High (business must adopt Iggy ecosystem) | Low (drop-in compatible with existing protocol SDKs)         |
 | **License**             | Apache 2.0                                | Apache 2.0                                                   |
-
----
-
