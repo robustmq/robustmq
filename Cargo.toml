@@ -198,4 +198,6 @@ overflow-checks = false
 incremental = true
 
 [profile.release]
+codegen-units = 1
+lto = true
 overflow-checks = false
