@@ -208,7 +208,7 @@ pub fn get_share_sub_leader_by_req(
     let leader_broker = share_sub
         .get_leader_node(&req.cluster_name, &req.group_name)
         .map_err(|e| PlacementCenterError::CommonError(e.to_string()))?;
-
+    // let leader_broker = 2;
     // Get broker node details from cache
     match cluster_cache.get_broker_node(&req.cluster_name, leader_broker) {
         Some(node) => Ok(GetShareSubLeaderReply {

@@ -288,28 +288,36 @@ async fn process_packet(
             .await?;
         }
 
-        MqttPacket::SubAck(suback, _) => {
-            process_sub_ack(suback).await?;
+        MqttPacket::SubAck(sub_ack, _) => {
+            process_sub_ack(sub_ack).await?;
         }
 
         MqttPacket::Publish(publish, publish_properties) => {
-            match process_publish_packet(
-                cache_manager,
-                connection_manager,
-                write_stream,
-                publish,
-                publish_properties,
-                mqtt_client_id,
-                follower_sub_leader_client_id,
-                stop_sx,
-            )
-            .await
-            {
-                Ok(()) => {}
-                Err(e) => {
-                    return Err(e);
+            let raw_cache_manager = cache_manager.clone();
+            let raw_connection_manager = connection_manager.clone();
+            let raw_write_stream = write_stream.clone();
+            let raw_stop_sx = stop_sx.clone();
+            let raw_follower_sub_leader_client_id = follower_sub_leader_client_id.to_string();
+            let raw_mqtt_client_id = mqtt_client_id.to_string();
+            tokio::spawn(async move {
+                if let Err(e) = process_publish_packet(
+                    &raw_cache_manager,
+                    &raw_connection_manager,
+                    &raw_write_stream,
+                    publish,
+                    publish_properties,
+                    &raw_mqtt_client_id,
+                    &raw_follower_sub_leader_client_id,
+                    &raw_stop_sx,
+                )
+                .await
+                {
+                    error!(
+                        "Follower node failed to process the Publish packet, error message: {}",
+                        e
+                    );
                 }
-            }
+            });
         }
 
         MqttPacket::PubRel(pubrel, _) => {
@@ -527,6 +535,10 @@ async fn start_ping_thread(write_stream: Arc<WriteStream>, stop_sx: Sender<bool>
     });
 }
 
+// 1. Leader Publish to Follower
+// 2. Follower Publish to Client
+// 3. Follower receive cli puback
+// 4. Follower send puback to Leader
 async fn resub_publish_message_qos1(
     cache_manager: &Arc<CacheManager>,
     connection_manager: &Arc<ConnectionManager>,
@@ -556,6 +568,14 @@ async fn resub_publish_message_qos1(
     Ok(())
 }
 
+// 1. Leader Publish to Follower
+// 2. Follower Publish to Client
+// 3. Follower receive cli pubrec
+// 4. Follower send pubrec to Leader
+// 5. Follower wait Leader pubrel
+// 6. Follower send pubrel to Client
+// 7. Follower wait Client pubcomp
+// 8. Follower send pubcomp to Leader
 #[allow(clippy::too_many_arguments)]
 pub async fn resub_publish_message_qos2(
     metadata_cache: &Arc<CacheManager>,
@@ -639,9 +659,13 @@ async fn publish_rec_to_leader(write_stream: &Arc<WriteStream>, current_message_
         pkid: current_message_pkid,
         reason: Some(PubRecReason::Success),
     };
-    let puback_properties = PubRecProperties::default();
+    let puback_properties = PubRecProperties {
+        reason_string: None,
+        user_properties: vec![("follower".to_string(), "true".to_string())],
+    };
     let pubrec = MqttPacket::PubRec(puback, Some(puback_properties));
-    write_stream.write_frame(pubrec).await;
+    write_stream.write_frame(pubrec.clone()).await;
+    info!("Follower node sent PubRec to leader, pubrec: {:?}", pubrec);
 }
 
 async fn publish_comp_to_leader(write_stream: &Arc<WriteStream>, pkid: u16, reason: PubCompReason) {
