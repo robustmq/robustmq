@@ -29,7 +29,7 @@ pub fn write(
     write_mqtt_bytes(buffer, &publish.topic);
 
     if publish.qos != QoS::AtMostOnce {
-        let pkid = publish.pkid;
+        let pkid = publish.p_kid;
         if pkid == 0 {
             return Err(Error::PacketIdZero);
         }
@@ -74,7 +74,7 @@ pub fn read(
         dup,
         retain,
         qos,
-        pkid,
+        p_kid: pkid,
         topic,
         payload: bytes,
     };
@@ -86,7 +86,7 @@ pub fn len(publish: &Publish, properties: &Option<PublishProperties>) -> usize {
     let mut len = 2 + publish.topic.len();
 
     // Publish identifier length if exists (QoS 1 or 2)
-    if publish.qos != QoS::AtMostOnce && publish.pkid != 0 {
+    if publish.qos != QoS::AtMostOnce && publish.p_kid != 0 {
         len += 2;
     }
 
@@ -292,7 +292,7 @@ mod tests {
         let mut publish: Publish = Publish::new(topic_name, payload_value, retain_flag);
         publish.qos = QoS::AtLeastOnce;
         publish.dup = true;
-        publish.pkid = 15u16;
+        publish.p_kid = 15u16;
         // let publish_new = Publish {
         //     dup: true,
         //     qos: QoS::AtLeastOnce,
@@ -323,7 +323,7 @@ mod tests {
         let (x, y) = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
         assert!(x.dup);
         assert_eq!(x.qos, QoS::AtLeastOnce);
-        assert_eq!(x.pkid, 15);
+        assert_eq!(x.p_kid, 15);
         assert_eq!(x.topic, "test_topic");
         assert_eq!(x.payload, "test_payload");
         assert!(!x.retain);

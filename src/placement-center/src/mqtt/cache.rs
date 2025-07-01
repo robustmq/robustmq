@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
-use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::placement_center::placement_center_inner::ClusterType;
 
@@ -33,7 +33,7 @@ use crate::storage::rocksdb::RocksDBEngine;
 #[derive(Debug, Clone)]
 pub struct MqttCacheManager {
     // (cluster_name,(topic_name,topic))
-    topic_list: DashMap<String, DashMap<String, MqttTopic>>,
+    topic_list: DashMap<String, DashMap<String, MQTTTopic>>,
 
     // (cluster_name,(username,user))
     user_list: DashMap<String, DashMap<String, MqttUser>>,
@@ -60,7 +60,7 @@ impl MqttCacheManager {
     }
 
     // Topic
-    pub fn add_topic(&self, cluster_name: &str, topic: MqttTopic) {
+    pub fn add_topic(&self, cluster_name: &str, topic: MQTTTopic) {
         if let Some(data) = self.topic_list.get_mut(cluster_name) {
             data.insert(topic.topic_name.clone(), topic);
         } else {

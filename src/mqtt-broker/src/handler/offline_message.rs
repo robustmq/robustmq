@@ -30,7 +30,7 @@ use crate::{
 use common_base::tools::now_second;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::{message::MqttMessage, topic::MqttTopic};
+use metadata_struct::mqtt::{message::MqttMessage, topic::MQTTTopic};
 use protocol::mqtt::common::{Publish, PublishProperties};
 use storage_adapter::storage::StorageAdapter;
 
@@ -48,7 +48,7 @@ pub async fn save_message<S>(
     publish_properties: &Option<PublishProperties>,
     subscribe_manager: &Arc<SubscribeManager>,
     client_id: &str,
-    topic: &MqttTopic,
+    topic: &MQTTTopic,
     delay_info: &Option<DelayPublishTopic>,
 ) -> Result<Option<String>, MqttBrokerError>
 where
@@ -153,7 +153,7 @@ async fn save_simple_message<S>(
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
     client_id: &str,
-    topic: &MqttTopic,
+    topic: &MQTTTopic,
     message_expire: u64,
 ) -> Result<Option<String>, MqttBrokerError>
 where

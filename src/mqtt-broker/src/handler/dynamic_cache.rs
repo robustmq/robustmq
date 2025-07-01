@@ -26,7 +26,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
-use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::placement::node::BrokerNode;
 use metadata_struct::resource_config::ClusterResourceConfig;
@@ -235,11 +235,11 @@ pub async fn update_cache_metadata(
         },
         MqttBrokerUpdateCacheResourceType::Topic => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {
-                let topic = serde_json::from_str::<MqttTopic>(&request.data)?;
+                let topic = serde_json::from_str::<MQTTTopic>(&request.data)?;
                 cache_manager.add_topic(&topic.topic_name, &topic);
             }
             MqttBrokerUpdateCacheActionType::Delete => {
-                let topic = serde_json::from_str::<MqttTopic>(&request.data)?;
+                let topic = serde_json::from_str::<MQTTTopic>(&request.data)?;
                 cache_manager.delete_topic(&topic.topic_name, &topic);
             }
         },

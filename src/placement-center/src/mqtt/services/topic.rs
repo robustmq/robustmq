@@ -20,7 +20,7 @@ use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::topic::MQTTTopic;
 use prost::Message;
 use protocol::placement_center::placement_center_mqtt::{
     CreateTopicReply, CreateTopicRequest, CreateTopicRewriteRuleReply,
@@ -85,7 +85,7 @@ pub async fn create_topic_by_req(
 
     raft_machine_apply.client_write(data).await?;
 
-    let topic = serde_json::from_slice::<MqttTopic>(&req.content)?;
+    let topic = serde_json::from_slice::<MQTTTopic>(&req.content)?;
     update_cache_by_add_topic(&req.cluster_name, call_manager, client_pool, topic).await?;
 
     Ok(CreateTopicReply {})
