@@ -46,7 +46,7 @@ use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::manager::{ShareSubShareSub, SubPushThreadData};
 use crate::subscribe::push::{
     exclusive_publish_message_qos1, push_packet_to_client, qos2_send_pubrel, wait_packet_ack,
-    wait_pub_rec,
+     wait_pub_rec,
 };
 
 use super::write::WriteStream;
@@ -117,7 +117,7 @@ impl ShareFollowerResub {
             }
 
             // Add follower resub thread
-            let extend_info = serde_json::from_str::<MqttNodeExtend>(&reply.extend_info)?;
+            let extend_info: MqttNodeExtend = serde_json::from_str::<MqttNodeExtend>(&reply.extend_info)?;
 
             if share_sub.protocol == MqttProtocol::Mqtt3
                 || share_sub.protocol == MqttProtocol::Mqtt4
@@ -171,16 +171,16 @@ impl ShareFollowerResub {
     }
 
     fn try_thread_gc(&self) {
-        for (share_fllower_key, sx) in self.subscribe_manager.share_follower_resub_thread.clone() {
+        for (share_follower_key, sx) in self.subscribe_manager.share_follower_resub_thread.clone() {
             if !self
                 .subscribe_manager
                 .share_follower_resub
-                .contains_key(&share_fllower_key)
+                .contains_key(&share_follower_key)
                 && sx.sender.send(true).is_ok()
             {
                 self.subscribe_manager
                     .share_follower_resub_thread
-                    .remove(&share_fllower_key);
+                    .remove(&share_follower_key);
             }
         }
     }
