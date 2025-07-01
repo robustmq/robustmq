@@ -410,7 +410,7 @@ async fn process_publish_packet(
         .pkid_metadata
         .generate_pkid(mqtt_client_id, &publish.qos)
         .await;
-    publish.pkid = publish_to_client_pkid;
+    publish.p_kid = publish_to_client_pkid;
 
     let packet = MqttPacket::Publish(publish.clone(), publish_properties);
     let sub_pub_param = SubPublishParam::new(
@@ -468,7 +468,7 @@ async fn process_publish_packet(
             let (wait_leader_ack_sx, _) = broadcast::channel(1);
             cache_manager.pkid_metadata.add_ack_packet(
                 follower_sub_leader_client_id,
-                publish.pkid,
+                publish.p_kid,
                 QosAckPacketInfo {
                     sx: wait_leader_ack_sx.clone(),
                     create_time: now_mills(),
@@ -485,7 +485,7 @@ async fn process_publish_packet(
                 write_stream,
                 follower_sub_leader_client_id,
                 mqtt_client_id,
-                publish.pkid,
+                publish.p_kid,
             )
             .await?;
 
@@ -494,7 +494,7 @@ async fn process_publish_packet(
                 .remove_ack_packet(mqtt_client_id, publish_to_client_pkid);
             cache_manager
                 .pkid_metadata
-                .remove_ack_packet(follower_sub_leader_client_id, publish.pkid);
+                .remove_ack_packet(follower_sub_leader_client_id, publish.p_kid);
         }
     }
     Ok(())

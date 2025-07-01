@@ -18,7 +18,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
-use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::placement::node::BrokerNode;
 use metadata_struct::resource_config::ClusterResourceConfig;
@@ -348,7 +348,7 @@ pub async fn update_cache_by_add_topic(
     cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-    topic: MqttTopic,
+    topic: MQTTTopic,
 ) -> Result<(), PlacementCenterError> {
     let data = serde_json::to_string(&topic)?;
     let message = MQTTInnerCallMessage {
@@ -365,7 +365,7 @@ pub async fn update_cache_by_delete_topic(
     cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-    topic: MqttTopic,
+    topic: MQTTTopic,
 ) -> Result<(), PlacementCenterError> {
     let data = serde_json::to_string(&topic)?;
     let message = MQTTInnerCallMessage {

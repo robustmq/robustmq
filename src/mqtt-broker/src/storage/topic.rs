@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use common_config::mqtt::broker_mqtt_conf;
 use dashmap::DashMap;
 use grpc_clients::placement::mqtt::call::{
@@ -23,13 +21,14 @@ use grpc_clients::placement::mqtt::call::{
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
-use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use protocol::placement_center::placement_center_mqtt::{
     CreateTopicRequest, CreateTopicRewriteRuleRequest, DeleteTopicRequest,
     DeleteTopicRewriteRuleRequest, ListTopicRequest, ListTopicRewriteRuleRequest,
     SetTopicRetainMessageRequest,
 };
+use std::sync::Arc;
 
 use crate::handler::error::MqttBrokerError;
 
@@ -42,7 +41,7 @@ impl TopicStorage {
         TopicStorage { client_pool }
     }
 
-    pub async fn save_topic(&self, topic: MqttTopic) -> Result<(), MqttBrokerError> {
+    pub async fn save_topic(&self, topic: MQTTTopic) -> Result<(), MqttBrokerError> {
         let config = broker_mqtt_conf();
         let request = CreateTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -63,7 +62,7 @@ impl TopicStorage {
         Ok(())
     }
 
-    pub async fn all(&self) -> Result<DashMap<String, MqttTopic>, MqttBrokerError> {
+    pub async fn all(&self) -> Result<DashMap<String, MQTTTopic>, MqttBrokerError> {
         let config = broker_mqtt_conf();
         let request = ListTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -74,14 +73,14 @@ impl TopicStorage {
         let results = DashMap::with_capacity(2);
 
         while let Some(data) = data_stream.message().await? {
-            let topic = serde_json::from_slice::<MqttTopic>(&data.topic)?;
+            let topic = serde_json::from_slice::<MQTTTopic>(&data.topic)?;
             results.insert(topic.topic_name.clone(), topic);
         }
 
         Ok(results)
     }
 
-    pub async fn get_topic(&self, topic_name: &str) -> Result<Option<MqttTopic>, MqttBrokerError> {
+    pub async fn get_topic(&self, topic_name: &str) -> Result<Option<MQTTTopic>, MqttBrokerError> {
         let config = broker_mqtt_conf();
         let request = ListTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -93,7 +92,7 @@ impl TopicStorage {
 
         match data_stream.message().await {
             Ok(Some(data)) => {
-                let topic = serde_json::from_slice::<MqttTopic>(data.topic.as_slice())?;
+                let topic = serde_json::from_slice::<MQTTTopic>(data.topic.as_slice())?;
                 Ok(Some(topic))
             }
             Ok(None) => Ok(None),

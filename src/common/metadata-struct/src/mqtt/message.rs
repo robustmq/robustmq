@@ -74,7 +74,7 @@ impl MqttMessage {
             client_id: client_id.to_owned(),
             dup: publish.dup,
             qos: publish.qos,
-            pkid: publish.pkid,
+            pkid: publish.p_kid,
             retain: publish.retain,
             topic: publish.topic.clone(),
             payload: publish.payload.clone(),
@@ -168,7 +168,7 @@ mod tests {
         let publish = Publish {
             dup: true,
             qos: QoS::AtLeastOnce,
-            pkid: 42,
+            p_kid: 42,
             retain: true,
             topic: Bytes::from("test/topic"),
             payload: Bytes::from("hello world"),
@@ -191,7 +191,7 @@ mod tests {
         assert_eq!(msg.client_id, client_id);
         assert_eq!(msg.dup, publish.dup);
         assert_eq!(msg.qos, publish.qos);
-        assert_eq!(msg.pkid, publish.pkid);
+        assert_eq!(msg.pkid, publish.p_kid);
         assert_eq!(msg.retain, publish.retain);
         assert_eq!(msg.topic, publish.topic);
         assert_eq!(msg.payload, publish.payload);
@@ -213,7 +213,7 @@ mod tests {
         let publish = Publish {
             dup: false,
             qos: QoS::ExactlyOnce,
-            pkid: 123,
+            p_kid: 123,
             retain: false,
             topic: Bytes::from("test/topic"),
             payload: Bytes::from("hello world"),
@@ -225,7 +225,7 @@ mod tests {
         assert_eq!(msg.client_id, client_id);
         assert_eq!(msg.dup, publish.dup);
         assert_eq!(msg.qos, publish.qos);
-        assert_eq!(msg.pkid, publish.pkid);
+        assert_eq!(msg.pkid, publish.p_kid);
         assert_eq!(msg.retain, publish.retain);
         assert_eq!(msg.topic, publish.topic);
         assert_eq!(msg.payload, publish.payload);
@@ -245,7 +245,7 @@ mod tests {
         let publish = Publish {
             dup: false,
             qos: QoS::AtMostOnce,
-            pkid: 0,
+            p_kid: 0,
             retain: false,
             topic: Bytes::from("test/topic"),
             payload: Bytes::from("test message"),

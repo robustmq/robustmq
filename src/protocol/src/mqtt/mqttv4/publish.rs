@@ -38,7 +38,7 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<Publish, Erro
         dup,
         retain,
         qos,
-        pkid,
+        p_kid: pkid,
         topic,
         payload: bytes,
     };
@@ -57,7 +57,7 @@ pub fn write(publish: &Publish, buffer: &mut BytesMut) -> Result<usize, Error> {
     write_mqtt_bytes(buffer, &publish.topic);
 
     if publish.qos != QoS::AtMostOnce {
-        let pkid = publish.pkid;
+        let pkid = publish.p_kid;
         if pkid == 0 {
             return Err(Error::PacketIdZero);
         }

@@ -22,7 +22,7 @@ mod tests {
     use common_config::mqtt::{broker_mqtt_conf, init_broker_mqtt_conf_by_path};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
-    use metadata_struct::mqtt::topic::MqttTopic;
+    use metadata_struct::mqtt::topic::MQTTTopic;
     use mqtt_broker::storage::topic::TopicStorage;
     use protocol::mqtt::common::{Publish, PublishProperties};
 
@@ -44,7 +44,7 @@ mod tests {
         let mqtt_conf = broker_mqtt_conf();
 
         let topic_name: String = "test_password".to_string();
-        let topic = MqttTopic::new(
+        let topic = MQTTTopic::new(
             unique_id(),
             mqtt_conf.cluster_name.clone(),
             topic_name.clone(),
@@ -94,7 +94,7 @@ mod tests {
 
         let mqtt_conf = broker_mqtt_conf();
 
-        let topic = MqttTopic::new(
+        let topic = MQTTTopic::new(
             unique_id(),
             mqtt_conf.cluster_name.clone(),
             topic_name.clone(),

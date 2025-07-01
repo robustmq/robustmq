@@ -17,7 +17,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::MqttTopicRaw;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
-pub struct MqttTopic {
+pub struct MQTTTopic {
     pub topic_id: String,
     pub cluster_name: String,
     pub topic_name: String,
@@ -26,9 +26,9 @@ pub struct MqttTopic {
     pub create_time: u64,
 }
 
-impl MqttTopic {
+impl MQTTTopic {
     pub fn new(topic_id: String, cluster_name: String, topic_name: String) -> Self {
-        MqttTopic {
+        MQTTTopic {
             topic_id,
             cluster_name,
             topic_name,
@@ -43,8 +43,8 @@ impl MqttTopic {
     }
 }
 
-impl From<MqttTopic> for MqttTopicRaw {
-    fn from(topic: MqttTopic) -> Self {
+impl From<MQTTTopic> for MqttTopicRaw {
+    fn from(topic: MQTTTopic) -> Self {
         Self {
             topic_id: topic.topic_id,
             cluster_name: topic.cluster_name,

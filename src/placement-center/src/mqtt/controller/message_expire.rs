@@ -17,7 +17,7 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use metadata_struct::mqtt::lastwill::LastWillData;
-use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::topic::MQTTTopic;
 use rocksdb_engine::warp::StorageDataWrap;
 use tokio::time::{self, Duration, Interval};
 use tracing::error;
@@ -87,7 +87,7 @@ impl MessageExpire {
 
             let result_value = value.unwrap().to_vec();
             let data = serde_json::from_slice::<StorageDataWrap>(&result_value).unwrap();
-            let mut value = serde_json::from_str::<MqttTopic>(&data.data).unwrap();
+            let mut value = serde_json::from_str::<MQTTTopic>(&data.data).unwrap();
 
             if value.retain_message.is_some() {
                 let delete = if let Some(expired_at) = value.retain_message_expired_at {
@@ -179,7 +179,7 @@ mod tests {
     use metadata_struct::mqtt::lastwill::LastWillData;
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::mqtt::session::MqttSession;
-    use metadata_struct::mqtt::topic::MqttTopic;
+    use metadata_struct::mqtt::topic::MQTTTopic;
     use protocol::mqtt::common::{LastWillProperties, Publish};
     use std::sync::Arc;
     use std::time::Duration;
@@ -202,7 +202,7 @@ mod tests {
         let mut message_expire =
             MessageExpire::new(cluster_name.clone(), rocksdb_engine_handler.clone());
         let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
-        let mut topic = MqttTopic::new(unique_id(), "t1".to_string(), "tp1".to_string());
+        let mut topic = MQTTTopic::new(unique_id(), "t1".to_string(), "tp1".to_string());
         let retain_msg = MqttMessage::build_message("c1", &Publish::default(), &None, 600);
         topic.retain_message = Some(retain_msg.encode());
         topic.retain_message_expired_at = Some(3);

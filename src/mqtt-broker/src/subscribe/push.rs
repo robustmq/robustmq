@@ -104,7 +104,7 @@ pub async fn build_publish_message(
     let publish = Publish {
         dup: false,
         qos: qos.to_owned(),
-        pkid,
+        p_kid: pkid,
         retain,
         topic: Bytes::from(subscriber.topic_name.clone()),
         payload: msg.payload,
