@@ -5,7 +5,7 @@ export const sidebar = [
         items: [
             { text: "什么是 RobustMQ", link: "/zh/OverView/What-is-RobustMQ" },
             { text: "为什么有 RobustMQ", link: "/zh/OverView/Why-RobustMQ" },
-            { text: "和IGGY对比", link: "/zh/OverView/Diff-Iggy" },
+            { text: "和IGGY对比", link: "/zh/OverView/Diff-iggy" },
             { text: "和主流消息队列对比", link: "/zh/OverView/Diff-MQ" },
             {
                 text: "版本计划",

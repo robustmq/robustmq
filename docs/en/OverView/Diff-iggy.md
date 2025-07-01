@@ -15,7 +15,7 @@
 
 ---
 
-### ▪Technical Philosophy
+### Technical Philosophy
 
 * **Architecture**: Iggy uses a monolithic (compute+storage) architecture, while RobustMQ adopts a **decoupled and layered architecture** (compute/storage/scheduling separation), providing greater elasticity.
 * **Protocol and SDK**: Iggy uses a **custom protocol** and requires custom multi-language SDKs. RobustMQ uses standard open protocols and does **not** require private SDKs.
@@ -27,14 +27,14 @@
 
 ## Core Design Philosophy Comparison
 
-### Iggy's Philosophy:
+### Iggy's Philosophy
 
 * A **simple yet modern Kafka alternative**
 * Lightweight and suitable for embedded or self-hosted use
 * Avoids complexity from ZooKeeper/KRaft
 * Focused on performance and Rust-native safety
 
-### 🔹 RobustMQ's Philosophy:
+### RobustMQ's Philosophy
 
 * A **unified enterprise message backbone** for multi-protocol, multi-model messaging
 * One system to handle **Kafka / MQTT / AMQP** protocols
