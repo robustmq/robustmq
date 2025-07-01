@@ -129,7 +129,7 @@ pub struct CacheManager {
     // All topic rewrite rule
     pub topic_rewrite_rule: DashMap<String, MqttTopicRewriteRule>,
 
-    // Alll auto subscribe rule
+    // All auto subscribe rule
     pub auto_subscribe_rule: DashMap<String, MqttAutoSubscribeRule>,
 
     // Alarm Info
