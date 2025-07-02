@@ -190,7 +190,6 @@ impl ShareFollowerResub {
                 .contains_key(&share_follower_key)
                 && sx.sender.send(true).is_ok()
             {
-                info!("try_thread_gc,{}", share_follower_key);
                 self.subscribe_manager
                     .share_follower_resub_thread
                     .remove(&share_follower_key);
@@ -550,11 +549,9 @@ async fn start_ping_thread(
                     if broker_not_available(&e.to_string()) && !is_port_open(&write_stream.address)
                     {
                         info!("Heartbeat detection: Leader node {} has no network connection. Exiting subscription thread.sub_key:{}", write_stream.address, sub_key);
-                        info!("22222");
                         if let Some(sx) =
                             subscribe_manager.share_follower_resub_thread.get(&sub_key)
                         {
-                            info!("11111");
                             if let Err(se) = sx.sender.send(true) {
                                 error!(
                                     "Follower Resub thread failed to stop. Error message: {}",
@@ -576,14 +573,12 @@ async fn start_ping_thread(
                 val = stop_rx.recv() => {
                     if let Ok(flag) = val {
                         if flag {
-                            debug!("{}","start_ping_thread stop success");
                             break;
                         }
                     }
                 },
                 res = send_ping() => {
                     if  res.is_err() {
-                        info!("{}","start_ping_thread stop success");
                         break;
                     }
                     sleep(Duration::from_secs(1)).await;
@@ -686,7 +681,6 @@ async fn try_close_connection(
     path: &str,
     follower_sub_leader_pkid: u16,
 ) {
-    info!("try_close_connection");
     let _ = un_subscribe_to_leader(follower_sub_leader_pkid, write_stream, path).await;
     let _ = disconnect_to_leader(write_stream).await;
 }
