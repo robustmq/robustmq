@@ -23,18 +23,18 @@ use crate::RocksDBEngine;
 
 pub fn rocksdb_engine_save<T>(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    comlumn_family: &str,
+    column_family: &str,
     key_name: String,
     value: T,
 ) -> Result<(), CommonError>
 where
     T: Serialize,
 {
-    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(comlumn_family) {
+    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(column_family) {
         cf
     } else {
         return Err(CommonError::RocksDBFamilyNotAvailable(
-            comlumn_family.to_string(),
+            column_family.to_string(),
         ));
     };
 

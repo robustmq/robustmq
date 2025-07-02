@@ -26,6 +26,7 @@ use crate::storage::keys::{
     storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix,
     storage_key_mqtt_topic_rewrite_rule, storage_key_mqtt_topic_rewrite_rule_prefix,
 };
+use crate::storage::mqtt::metrics::{metrics_topic_num_desc, metrics_topic_num_inc, TopicType};
 use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct MqttTopicStorage {
@@ -45,8 +46,16 @@ impl MqttTopicStorage {
         topic_name: &str,
         topic: MqttTopic,
     ) -> Result<(), PlacementCenterError> {
+        let topic_type = if self.is_system_topic(topic_name) {
+            TopicType::System
+        } else {
+            TopicType::Normal
+        };
+
         let key = storage_key_mqtt_topic(cluster_name, topic_name);
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, topic)?;
+
+        metrics_topic_num_inc(cluster_name, topic_type);
         Ok(())
     }
 
@@ -76,8 +85,17 @@ impl MqttTopicStorage {
     }
 
     pub fn delete(&self, cluster_name: &str, topic_name: &str) -> Result<(), PlacementCenterError> {
+        let topic_type = if self.is_system_topic(topic_name) {
+            TopicType::System
+        } else {
+            TopicType::Normal
+        };
+
         let key: String = storage_key_mqtt_topic(cluster_name, topic_name);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
+
+        metrics_topic_num_desc(cluster_name, topic_type);
+
         Ok(())
     }
 
@@ -116,6 +134,15 @@ impl MqttTopicStorage {
             results.push(topic);
         }
         Ok(results)
+    }
+
+    fn is_system_topic(&self, topic_name: &str) -> bool {
+        // todo: At this stage, we do not want to destroy this dependency,
+        //       but seek a simple way to hard-code it in the function.
+        //       We will need to refactor later.
+        const SYSTEM_TOPIC_PREFIX: &str = "$SYS";
+
+        topic_name.to_uppercase().starts_with(SYSTEM_TOPIC_PREFIX)
     }
 }
 

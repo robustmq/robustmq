@@ -24,12 +24,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod acl;
-pub mod blacklist;
-pub mod connector;
-pub mod lastwill;
-pub(crate) mod metrics;
-pub mod session;
-pub mod subscribe;
-pub mod topic;
-pub mod user;
+use prometheus_client::encoding::{EncodeLabelSet, EncodeLabelValue};
+
+#[derive(Eq, Hash, Clone, Debug, PartialEq, Default, EncodeLabelSet)]
+pub(crate) struct TopicLabel {
+    pub(crate) cluster_name: String,
+    pub(crate) topic_type: TopicType,
+}
+
+#[derive(Eq, Hash, Clone, Debug, PartialEq, Default, EncodeLabelValue)]
+pub(crate) enum TopicType {
+    System,
+
+    #[default]
+    Normal,
+}
+
+common_base::register_gauge_metric!(TOPIC_NUM, "topic_num", "Total number of topic", TopicLabel);
+
+pub fn metrics_topic_num_inc(cluster_name: &str, topic_type: TopicType) {
+    let label = TopicLabel {
+        cluster_name: cluster_name.to_string(),
+        topic_type,
+    };
+
+    common_base::gauge_metric_inc!(TOPIC_NUM, label)
+}
+
+pub fn metrics_topic_num_desc(cluster_name: &str, topic_type: TopicType) {
+    let label = TopicLabel {
+        cluster_name: cluster_name.to_string(),
+        topic_type,
+    };
+
+    common_base::gauge_metric_inc_by!(TOPIC_NUM, label, -1)
+}
