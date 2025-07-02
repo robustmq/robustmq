@@ -46,7 +46,7 @@ impl From<BrokerNode> for BrokerNodeRaw {
             node_id: node.node_id,
             node_ip: node.node_ip,
             node_inner_addr: node.node_inner_addr,
-            start_time: time_util::timestamp_to_local_datetime( node.start_time as i64),
+            start_time: time_util::timestamp_to_local_datetime(node.start_time as i64),
             register_time: time_util::timestamp_to_local_datetime(node.register_time as i64),
         }
     }
