@@ -173,7 +173,7 @@ pub async fn publish_validator(
             cache_manager,
             client_pool,
             &connection.client_id,
-            publish.pkid,
+            publish.p_kid,
         )
         .await
         {
@@ -182,7 +182,7 @@ pub async fn publish_validator(
                     return Some(build_pubrec(
                         protocol,
                         connection,
-                        publish.pkid,
+                        publish.p_kid,
                         PubRecReason::PacketIdentifierInUse,
                         None,
                         Vec::new(),
@@ -193,7 +193,7 @@ pub async fn publish_validator(
                 return Some(build_pubrec(
                     protocol,
                     connection,
-                    publish.pkid,
+                    publish.p_kid,
                     PubRecReason::UnspecifiedError,
                     Some(e.to_string()),
                     Vec::new(),
@@ -213,7 +213,7 @@ pub async fn publish_validator(
             return Some(build_puback(
                 protocol,
                 connection,
-                publish.pkid,
+                publish.p_kid,
                 PubAckReason::PayloadFormatInvalid,
                 Some(
                     MqttBrokerError::PacketLengthError(max_packet_size, publish.payload.len())
@@ -225,7 +225,7 @@ pub async fn publish_validator(
             return Some(build_pubrec(
                 protocol,
                 connection,
-                publish.pkid,
+                publish.p_kid,
                 PubRecReason::PayloadFormatInvalid,
                 Some(
                     MqttBrokerError::PacketLengthError(max_packet_size, publish.payload.len())
@@ -245,7 +245,7 @@ pub async fn publish_validator(
                     return Some(build_puback(
                         protocol,
                         connection,
-                        publish.pkid,
+                        publish.p_kid,
                         PubAckReason::PayloadFormatInvalid,
                         Some(MqttBrokerError::PayloadFormatInvalid.to_string()),
                         Vec::new(),
@@ -254,7 +254,7 @@ pub async fn publish_validator(
                     return Some(build_pubrec(
                         protocol,
                         connection,
-                        publish.pkid,
+                        publish.p_kid,
                         PubRecReason::PayloadFormatInvalid,
                         Some(MqttBrokerError::PayloadFormatInvalid.to_string()),
                         Vec::new(),
@@ -271,7 +271,7 @@ pub async fn publish_validator(
             return Some(build_puback(
                 protocol,
                 connection,
-                publish.pkid,
+                publish.p_kid,
                 PubAckReason::QuotaExceeded,
                 None,
                 Vec::new(),
@@ -280,7 +280,7 @@ pub async fn publish_validator(
             return Some(build_pubrec(
                 protocol,
                 connection,
-                publish.pkid,
+                publish.p_kid,
                 PubRecReason::QuotaExceeded,
                 None,
                 Vec::new(),
@@ -293,7 +293,7 @@ pub async fn publish_validator(
             return Some(build_puback(
                 protocol,
                 connection,
-                publish.pkid,
+                publish.p_kid,
                 PubAckReason::PayloadFormatInvalid,
                 None,
                 Vec::new(),
@@ -302,7 +302,7 @@ pub async fn publish_validator(
             return Some(build_pubrec(
                 protocol,
                 connection,
-                publish.pkid,
+                publish.p_kid,
                 PubRecReason::PayloadFormatInvalid,
                 None,
                 Vec::new(),
@@ -318,7 +318,7 @@ pub async fn publish_validator(
                     return Some(build_puback(
                         protocol,
                         connection,
-                        publish.pkid,
+                        publish.p_kid,
                         PubAckReason::UnspecifiedError,
                         Some(MqttBrokerError::TopicAliasTooLong(alias).to_string()),
                         Vec::new(),
@@ -327,7 +327,7 @@ pub async fn publish_validator(
                     return Some(build_pubrec(
                         protocol,
                         connection,
-                        publish.pkid,
+                        publish.p_kid,
                         PubRecReason::UnspecifiedError,
                         Some(MqttBrokerError::TopicAliasTooLong(alias).to_string()),
                         Vec::new(),

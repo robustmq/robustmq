@@ -24,7 +24,7 @@ use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::session::MqttSession;
-use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::placement::node::BrokerNode;
@@ -112,7 +112,7 @@ pub struct CacheManager {
     pub connection_info: DashMap<u64, MQTTConnection>,
 
     // (topic_name, Topic)
-    pub topic_info: DashMap<String, MqttTopic>,
+    pub topic_info: DashMap<String, MQTTTopic>,
 
     // (topic_id, topic_name)
     pub topic_id_name: DashMap<String, String>,
@@ -250,13 +250,13 @@ impl CacheManager {
     }
 
     // topic
-    pub fn add_topic(&self, topic_name: &str, topic: &MqttTopic) {
+    pub fn add_topic(&self, topic_name: &str, topic: &MQTTTopic) {
         self.topic_info.insert(topic_name.to_owned(), topic.clone());
         self.topic_id_name
             .insert(topic.topic_id.clone(), topic_name.to_owned());
     }
 
-    pub fn delete_topic(&self, topic_name: &String, topic: &MqttTopic) {
+    pub fn delete_topic(&self, topic_name: &String, topic: &MQTTTopic) {
         self.topic_info.remove(topic_name);
         self.topic_id_name.remove(&topic.topic_id);
     }
@@ -272,7 +272,7 @@ impl CacheManager {
         None
     }
 
-    pub fn get_topic_by_name(&self, topic_name: &str) -> Option<MqttTopic> {
+    pub fn get_topic_by_name(&self, topic_name: &str) -> Option<MQTTTopic> {
         if let Some(topic) = self.topic_info.get(topic_name) {
             return Some(topic.clone());
         }

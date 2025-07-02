@@ -22,17 +22,21 @@ use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
 use tracing::error;
 
+use crate::handler::error::MqttBrokerError;
+
 pub struct WriteStream {
     write_list:
         DashMap<String, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, Mqtt5Codec>>,
     key: String,
+    pub address: String,
     stop_sx: Sender<bool>,
 }
 
 impl WriteStream {
-    pub fn new(stop_sx: Sender<bool>) -> Self {
+    pub fn new(address: String, stop_sx: Sender<bool>) -> Self {
         WriteStream {
             key: "default".to_string(),
+            address,
             write_list: DashMap::with_capacity(2),
             stop_sx,
         }
@@ -45,7 +49,7 @@ impl WriteStream {
         self.write_list.insert(self.key.clone(), write);
     }
 
-    pub async fn write_frame(&self, resp: MqttPacket) {
+    pub async fn write_frame(&self, resp: MqttPacket) -> Result<(), MqttBrokerError> {
         loop {
             if let Ok(flag) = self.stop_sx.subscribe().try_recv() {
                 if flag {
@@ -55,17 +59,8 @@ impl WriteStream {
 
             match self.write_list.try_get_mut(&self.key) {
                 dashmap::try_result::TryResult::Present(mut da) => {
-                    match da.send(resp.clone()).await {
-                        Ok(_) => {
-                            break;
-                        }
-                        Err(e) => {
-                            error!(
-                                "Resub Client Failed to write data to the response queue, error message: {:?}",
-                                e
-                            );
-                        }
-                    }
+                    da.send(resp.clone()).await?;
+                    break;
                 }
                 dashmap::try_result::TryResult::Absent => {
                     error!("Resub Client [write_frame]Connection management could not obtain an available connection.");
@@ -76,5 +71,6 @@ impl WriteStream {
             }
             sleep(Duration::from_secs(1)).await
         }
+        Ok(())
     }
 }

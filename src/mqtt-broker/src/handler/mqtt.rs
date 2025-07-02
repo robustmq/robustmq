@@ -325,7 +325,7 @@ where
             }
         }
 
-        let is_puback = publish.qos != QoS::ExactlyOnce;
+        let is_pub_ack = publish.qos != QoS::ExactlyOnce;
 
         let mut topic_name = match get_topic_name(
             &self.cache_manager,
@@ -340,9 +340,9 @@ where
                 return Some(build_pub_ack_fail(
                     &self.protocol,
                     &connection,
-                    publish.pkid,
+                    publish.p_kid,
                     Some(e.to_string()),
-                    is_puback,
+                    is_pub_ack,
                 ))
             }
         };
@@ -357,9 +357,9 @@ where
                     return Some(build_pub_ack_fail(
                         &self.protocol,
                         &connection,
-                        publish.pkid,
+                        publish.p_kid,
                         Some(e.to_string()),
-                        is_puback,
+                        is_pub_ack,
                     ))
                 }
             }
@@ -372,11 +372,11 @@ where
             .allow_publish(&connection, &topic_name, publish.retain, publish.qos)
             .await
         {
-            if is_puback {
+            if is_pub_ack {
                 return Some(build_puback(
                     &self.protocol,
                     &connection,
-                    publish.pkid,
+                    publish.p_kid,
                     PubAckReason::NotAuthorized,
                     None,
                     Vec::new(),
@@ -385,7 +385,7 @@ where
                 return Some(build_pubrec(
                     &self.protocol,
                     &connection,
-                    publish.pkid,
+                    publish.p_kid,
                     PubRecReason::NotAuthorized,
                     None,
                     Vec::new(),
@@ -406,9 +406,9 @@ where
                 return Some(build_pub_ack_fail(
                     &self.protocol,
                     &connection,
-                    publish.pkid,
+                    publish.p_kid,
                     Some(e.to_string()),
-                    is_puback,
+                    is_pub_ack,
                 ))
             }
         };
@@ -424,9 +424,9 @@ where
                 return Some(build_pub_ack_fail(
                     &self.protocol,
                     &connection,
-                    publish.pkid,
+                    publish.p_kid,
                     Some(e.to_string()),
-                    is_puback,
+                    is_pub_ack,
                 ));
             }
         }
@@ -455,9 +455,9 @@ where
                 return Some(build_pub_ack_fail(
                     &self.protocol,
                     &connection,
-                    publish.pkid,
+                    publish.p_kid,
                     Some(e.to_string()),
-                    is_puback,
+                    is_pub_ack,
                 ))
             }
         };
@@ -472,7 +472,7 @@ where
             QoS::AtLeastOnce => Some(build_puback(
                 &self.protocol,
                 &connection,
-                publish.pkid,
+                publish.p_kid,
                 PubAckReason::Success,
                 None,
                 user_properties,
@@ -482,23 +482,23 @@ where
                     &self.cache_manager,
                     &self.client_pool,
                     &client_id,
-                    publish.pkid,
+                    publish.p_kid,
                 )
                 .await
                 {
                     return Some(build_pub_ack_fail(
                         &self.protocol,
                         &connection,
-                        publish.pkid,
+                        publish.p_kid,
                         Some(e.to_string()),
-                        is_puback,
+                        is_pub_ack,
                     ));
                 }
 
                 Some(build_pubrec(
                     &self.protocol,
                     &connection,
-                    publish.pkid,
+                    publish.p_kid,
                     PubRecReason::Success,
                     None,
                     user_properties,
