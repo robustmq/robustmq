@@ -116,9 +116,8 @@ impl SessionStorage {
         let results = DashMap::with_capacity(2);
 
         for raw in reply.sessions {
-            if let Ok(data) = serde_json::from_str::<MqttSession>(&raw) {
-                results.insert(data.client_id.clone(), data);
-            }
+            let data = serde_json::from_str::<MqttSession>(&raw)?;
+            results.insert(data.client_id.clone(), data);
         }
 
         Ok(results)
