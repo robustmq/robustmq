@@ -12,16 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::result_large_err)]
-pub mod enum_type;
-pub mod error;
-pub mod http_error;
-pub mod http_response;
-pub mod logging;
-pub mod metrics;
-pub mod network;
-pub mod runtime;
-pub mod telemetry;
-pub mod tools;
-pub mod utils;
-pub mod version;
+use std::{net::TcpStream, time::Duration};
+
+pub fn is_port_open(address: &str) -> bool {
+    let timeout = Duration::from_secs(1);
+    TcpStream::connect_timeout(&address.parse().unwrap(), timeout).is_ok()
+}
+
+pub fn broker_not_available(err: &str) -> bool {
+    err.contains("Broken pip")
+}

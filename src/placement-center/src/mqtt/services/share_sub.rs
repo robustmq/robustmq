@@ -54,7 +54,7 @@ impl ShareSubLeader {
         let node_sub_info = self.read_node_sub_info(cluster_name)?;
 
         for (broker_id, group_list) in node_sub_info.clone() {
-            if group_list.contains(group_name) {
+            if group_list.contains(group_name) && broker_ids.contains(&broker_id) {
                 return Ok(broker_id);
             }
         }
@@ -208,7 +208,7 @@ pub fn get_share_sub_leader_by_req(
     let leader_broker = share_sub
         .get_leader_node(&req.cluster_name, &req.group_name)
         .map_err(|e| PlacementCenterError::CommonError(e.to_string()))?;
-    // let leader_broker = 2;
+
     // Get broker node details from cache
     match cluster_cache.get_broker_node(&req.cluster_name, leader_broker) {
         Some(node) => Ok(GetShareSubLeaderReply {

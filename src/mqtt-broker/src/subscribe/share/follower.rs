@@ -15,16 +15,18 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use common_base::network::{broker_not_available, is_port_open};
 use common_base::tools::{now_mills, now_second, unique_id};
 use common_config::mqtt::broker_mqtt_conf;
 use futures::StreamExt;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::node_extend::MqttNodeExtend;
 use protocol::mqtt::common::{
-    ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, Login, MqttPacket,
-    MqttProtocol, PingReq, PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties,
-    PubCompReason, PubRec, PubRecProperties, PubRecReason, Publish, PublishProperties, SubAck,
-    Subscribe, SubscribeProperties, SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
+    ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, Disconnect, Login,
+    MqttPacket, MqttProtocol, PingReq, PubAck, PubAckProperties, PubAckReason, PubComp,
+    PubCompProperties, PubCompReason, PubRec, PubRecProperties, PubRecReason, Publish,
+    PublishProperties, SubAck, Subscribe, SubscribeProperties, SubscribeReasonCode, Unsubscribe,
+    UnsubscribeProperties,
 };
 use protocol::mqtt::mqttv5::codec::Mqtt5Codec;
 use tokio::net::TcpStream;
@@ -32,7 +34,7 @@ use tokio::sync::broadcast::{self, Sender};
 use tokio::time::sleep;
 use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::common::tool::is_ignore_print;
 use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
@@ -46,7 +48,7 @@ use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::manager::{ShareSubShareSub, SubPushThreadData};
 use crate::subscribe::push::{
     exclusive_publish_message_qos1, push_packet_to_client, qos2_send_pubrel, wait_packet_ack,
-     wait_pub_rec,
+    wait_pub_rec,
 };
 
 use super::write::WriteStream;
@@ -77,7 +79,7 @@ impl ShareFollowerResub {
     pub async fn start(&self) {
         loop {
             if let Err(e) = self.start_resub_thread().await {
-                error!("{}", e);
+                error!("start_resub_thread, {}", e);
             }
             self.try_thread_gc();
             sleep(Duration::from_secs(1)).await;
@@ -117,7 +119,8 @@ impl ShareFollowerResub {
             }
 
             // Add follower resub thread
-            let extend_info: MqttNodeExtend = serde_json::from_str::<MqttNodeExtend>(&reply.extend_info)?;
+            let extend_info: MqttNodeExtend =
+                serde_json::from_str::<MqttNodeExtend>(&reply.extend_info)?;
 
             if share_sub.protocol == MqttProtocol::Mqtt3
                 || share_sub.protocol == MqttProtocol::Mqtt4
@@ -130,6 +133,14 @@ impl ShareFollowerResub {
                 .share_follower_resub_thread
                 .contains_key(&follower_resub_key)
             {
+                continue;
+            }
+
+            if !is_port_open(&extend_info.mqtt_addr) {
+                warn!(
+                    "Leader node {} has an unconnected network, and the Follower's subscription thread cannot start normally. client_id:[{}], group_name:[{}], sub_name:[{}]",
+                    extend_info.mqtt_addr, share_sub.client_id, share_sub.group_name, share_sub.sub_name
+                );
                 continue;
             }
 
@@ -156,11 +167,12 @@ impl ShareFollowerResub {
                     share_sub,
                     stop_sx,
                     connection_manager.clone(),
+                    subscribe_manager.clone(),
                     &follower_resub_key,
                 )
                 .await
                 {
-                    error!("{}", e);
+                    error!("resub_sub_mqtt5: {}", e);
                 }
                 subscribe_manager
                     .share_follower_resub_thread
@@ -178,6 +190,7 @@ impl ShareFollowerResub {
                 .contains_key(&share_follower_key)
                 && sx.sender.send(true).is_ok()
             {
+                info!("try_thread_gc,{}", share_follower_key);
                 self.subscribe_manager
                     .share_follower_resub_thread
                     .remove(&share_follower_key);
@@ -192,6 +205,7 @@ async fn resub_sub_mqtt5(
     share_sub: ShareSubShareSub,
     stop_sx: Sender<bool>,
     connection_manager: Arc<ConnectionManager>,
+    subscribe_manager: Arc<SubscribeManager>,
     follower_resub_key: &str,
 ) -> Result<(), MqttBrokerError> {
     let mqtt_client_id = share_sub.client_id.clone();
@@ -218,13 +232,13 @@ async fn resub_sub_mqtt5(
             val = stop_rx.recv() =>{
                 if let Ok(flag) = val {
                     if flag {
-                        debug!(
+                        info!(
                             "Rewrite sub mqtt5 thread for client_id:[{}], group_name:[{}], sub_name:[{}] was stopped successfully",
                             mqtt_client_id,
                             group_name,
                             sub_name,
                         );
-                        un_subscribe_to_leader(follower_sub_leader_pkid, &write_stream, &share_sub.filter.path).await;
+                        try_close_connection(&write_stream, &share_sub.filter.path, follower_sub_leader_pkid).await;
                         break;
                     }
                 }
@@ -244,6 +258,8 @@ async fn resub_sub_mqtt5(
                         &mqtt_client_id,
                         &group_name,
                         &sub_name,
+                        &subscribe_manager,
+                        follower_resub_key
                     ).await{
                         error!("Share follower node failed to process the package returned by the Leader. Error message: {}, key: {} ", e, follower_resub_key);
                     }
@@ -267,6 +283,8 @@ async fn process_packet(
     mqtt_client_id: &str,
     group_name: &str,
     sub_name: &str,
+    subscribe_manager: &Arc<SubscribeManager>,
+    sub_key: &str,
 ) -> Result<(), MqttBrokerError> {
     if !is_ignore_print(&packet) {
         info!("Follower node receives packet:{:?}", packet);
@@ -283,6 +301,8 @@ async fn process_packet(
                 mqtt_client_id,
                 group_name,
                 sub_name,
+                subscribe_manager,
+                sub_key,
                 stop_sx,
             )
             .await?;
@@ -344,7 +364,7 @@ async fn process_packet(
                 write_stream,
                 &share_sub.filter.path,
             )
-            .await;
+            .await?;
         }
 
         MqttPacket::PingResp(_) => {}
@@ -369,14 +389,22 @@ async fn process_conn_ack_packet(
     mqtt_client_id: &str,
     group_name: &str,
     sub_name: &str,
+    subscribe_manager: &Arc<SubscribeManager>,
+    sub_key: &str,
     stop_sx: &Sender<bool>,
 ) -> Result<(), MqttBrokerError> {
     if connack.code == ConnectReturnCode::Success {
         // Ping
-        start_ping_thread(write_stream.clone(), stop_sx.clone()).await;
+        start_ping_thread(
+            subscribe_manager.to_owned(),
+            write_stream.clone(),
+            sub_key.to_owned(),
+            stop_sx.clone(),
+        )
+        .await;
 
         // Subscribe
-        subscribe_to_leader(follower_sub_leader_pkid, share_sub, write_stream).await;
+        subscribe_to_leader(follower_sub_leader_pkid, share_sub, write_stream).await?;
         return Ok(());
     }
     Err(MqttBrokerError::CommonError(format!("client_id:[{}], group_name:[{}], sub_name:[{}] Follower forwarding subscription connection request error,
@@ -508,25 +536,56 @@ async fn process_publish_packet(
     Ok(())
 }
 
-async fn start_ping_thread(write_stream: Arc<WriteStream>, stop_sx: Sender<bool>) {
+async fn start_ping_thread(
+    subscribe_manager: Arc<SubscribeManager>,
+    write_stream: Arc<WriteStream>,
+    sub_key: String,
+    stop_sx: Sender<bool>,
+) {
     tokio::spawn(async move {
         loop {
-            let send_ping = async {
+            let send_ping = async || -> Result<(), MqttBrokerError> {
                 let ping_packet = MqttPacket::PingReq(PingReq {});
-                write_stream.write_frame(ping_packet.clone()).await;
+                if let Err(e) = write_stream.write_frame(ping_packet.clone()).await {
+                    if broker_not_available(&e.to_string()) && !is_port_open(&write_stream.address)
+                    {
+                        info!("Heartbeat detection: Leader node {} has no network connection. Exiting subscription thread.sub_key:{}", write_stream.address, sub_key);
+                        info!("22222");
+                        if let Some(sx) =
+                            subscribe_manager.share_follower_resub_thread.get(&sub_key)
+                        {
+                            info!("11111");
+                            if let Err(se) = sx.sender.send(true) {
+                                error!(
+                                    "Follower Resub thread failed to stop. Error message: {}",
+                                    se
+                                );
+                            }
+                        }
+                        return Err(e);
+                    } else {
+                        error!("Failed to send PingReq packet: {}", e);
+                    }
+                }
+                Ok(())
             };
 
             let mut stop_rx = stop_sx.subscribe();
+
             select! {
                 val = stop_rx.recv() => {
                     if let Ok(flag) = val {
                         if flag {
-                            debug!("{}","start_ping_thread stop");
+                            debug!("{}","start_ping_thread stop success");
                             break;
                         }
                     }
                 },
-                _ = send_ping => {
+                res = send_ping() => {
+                    if  res.is_err() {
+                        info!("{}","start_ping_thread stop success");
+                        break;
+                    }
                     sleep(Duration::from_secs(1)).await;
                 }
 
@@ -564,7 +623,7 @@ async fn resub_publish_message_qos1(
     let puback_properties = PubAckProperties::default();
     let puback = MqttPacket::PubAck(puback, Some(puback_properties));
 
-    write_stream.write_frame(puback.clone()).await;
+    write_stream.write_frame(puback.clone()).await?;
     Ok(())
 }
 
@@ -605,7 +664,7 @@ pub async fn resub_publish_message_qos2(
     .await?;
 
     // 3. Send pubrec to leader
-    publish_rec_to_leader(write_stream, current_message_pkid).await;
+    publish_rec_to_leader(write_stream, current_message_pkid).await?;
 
     // 4. Wait leader pubrel
     wait_packet_ack(wait_leader_ack_sx, "Pubrel", follower_sub_leader_client_id).await?;
@@ -617,8 +676,29 @@ pub async fn resub_publish_message_qos2(
     wait_packet_ack(wait_client_ack_sx, "PubComp", mqtt_client_id).await?;
 
     // 7. Send pubcomp to leader
-    publish_comp_to_leader(write_stream, current_message_pkid, PubCompReason::Success).await;
+    publish_comp_to_leader(write_stream, current_message_pkid, PubCompReason::Success).await?;
 
+    Ok(())
+}
+
+async fn try_close_connection(
+    write_stream: &Arc<WriteStream>,
+    path: &str,
+    follower_sub_leader_pkid: u16,
+) {
+    info!("try_close_connection");
+    let _ = un_subscribe_to_leader(follower_sub_leader_pkid, write_stream, path).await;
+    let _ = disconnect_to_leader(write_stream).await;
+}
+
+async fn disconnect_to_leader(write_stream: &Arc<WriteStream>) -> Result<(), MqttBrokerError> {
+    let packet = MqttPacket::Disconnect(
+        Disconnect {
+            reason_code: Some(protocol::mqtt::common::DisconnectReasonCode::NormalDisconnection),
+        },
+        None,
+    );
+    write_stream.write_frame(packet.clone()).await?;
     Ok(())
 }
 
@@ -635,13 +715,12 @@ async fn connection_to_leader(
 > {
     let codec = Mqtt5Codec::new();
     let socket = TcpStream::connect(leader_addr).await?;
-
     // split stream
     let (r_stream, w_stream) = io::split(socket);
     let read_frame_stream = FramedRead::new(r_stream, codec.clone());
     let write_frame_stream = FramedWrite::new(w_stream, codec.clone());
 
-    let ws = WriteStream::new(stop_sx.clone());
+    let ws = WriteStream::new(leader_addr.to_string(), stop_sx.clone());
     ws.add_write(write_frame_stream);
     let write_stream = Arc::new(ws);
 
@@ -650,11 +729,14 @@ async fn connection_to_leader(
         MqttProtocol::Mqtt5.into(),
         follower_sub_leader_client_id.to_string(),
     );
-    write_stream.write_frame(connect_pkg).await;
+    write_stream.write_frame(connect_pkg).await?;
     Ok((read_frame_stream, write_stream))
 }
 
-async fn publish_rec_to_leader(write_stream: &Arc<WriteStream>, current_message_pkid: u16) {
+async fn publish_rec_to_leader(
+    write_stream: &Arc<WriteStream>,
+    current_message_pkid: u16,
+) -> Result<(), MqttBrokerError> {
     let puback = PubRec {
         pkid: current_message_pkid,
         reason: Some(PubRecReason::Success),
@@ -664,25 +746,30 @@ async fn publish_rec_to_leader(write_stream: &Arc<WriteStream>, current_message_
         user_properties: vec![("follower".to_string(), "true".to_string())],
     };
     let pubrec = MqttPacket::PubRec(puback, Some(puback_properties));
-    write_stream.write_frame(pubrec.clone()).await;
+    write_stream.write_frame(pubrec.clone()).await?;
     info!("Follower node sent PubRec to leader, pubrec: {:?}", pubrec);
+    Ok(())
 }
 
-async fn publish_comp_to_leader(write_stream: &Arc<WriteStream>, pkid: u16, reason: PubCompReason) {
+async fn publish_comp_to_leader(
+    write_stream: &Arc<WriteStream>,
+    pkid: u16,
+    reason: PubCompReason,
+) -> Result<(), MqttBrokerError> {
     let pubcomp = PubComp {
         pkid,
         reason: Some(reason),
     };
     let pubcomp_properties = PubCompProperties::default();
     let pubcomp = MqttPacket::PubComp(pubcomp, Some(pubcomp_properties));
-    write_stream.write_frame(pubcomp).await;
+    write_stream.write_frame(pubcomp).await
 }
 
 async fn subscribe_to_leader(
     follower_sub_leader_pkid: u16,
     share_sub: &ShareSubShareSub,
     write_stream: &Arc<WriteStream>,
-) {
+) -> Result<(), MqttBrokerError> {
     let subscribe = Subscribe {
         packet_identifier: follower_sub_leader_pkid,
         filters: vec![share_sub.filter.clone()],
@@ -694,14 +781,14 @@ async fn subscribe_to_leader(
     };
 
     let pkg = MqttPacket::Subscribe(subscribe, Some(subscribe_properties));
-    write_stream.write_frame(pkg).await;
+    write_stream.write_frame(pkg).await
 }
 
 async fn un_subscribe_to_leader(
     follower_sub_leader_pkid: u16,
     write_stream: &Arc<WriteStream>,
     path: &str,
-) {
+) -> Result<(), MqttBrokerError> {
     let pkg = MqttPacket::Unsubscribe(
         Unsubscribe {
             pkid: follower_sub_leader_pkid,
@@ -711,7 +798,7 @@ async fn un_subscribe_to_leader(
             user_properties: Vec::new(),
         }),
     );
-    write_stream.write_frame(pkg).await;
+    write_stream.write_frame(pkg).await
 }
 
 fn build_resub_connect_pkg(protocol_level: u8, client_id: String) -> MqttPacket {
