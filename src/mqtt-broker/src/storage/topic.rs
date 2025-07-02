@@ -90,14 +90,11 @@ impl TopicStorage {
         let mut data_stream =
             placement_list_topic(&self.client_pool, &config.placement_center, request).await?;
 
-        match data_stream.message().await {
-            Ok(Some(data)) => {
-                let topic = serde_json::from_slice::<MQTTTopic>(data.topic.as_slice())?;
-                Ok(Some(topic))
-            }
-            Ok(None) => Ok(None),
-            Err(e) => Err(MqttBrokerError::CommonError(e.to_string())),
+        if let Some(data) = data_stream.message().await? {
+            let topic = serde_json::from_slice::<MqttTopic>(data.topic.as_slice())?;
+            return Ok(Some(topic));
         }
+        Ok(None)
     }
 
     pub async fn set_retain_message(
