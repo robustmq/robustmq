@@ -100,10 +100,8 @@ impl SessionStorage {
         }
 
         let raw = reply.sessions.first().unwrap();
-        match serde_json::from_str::<MqttSession>(raw) {
-            Ok(data) => Ok(Some(data)),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
-        }
+        let data = serde_json::from_str::<MqttSession>(raw)?;
+        Ok(Some(data))
     }
 
     pub async fn list_session(&self) -> Result<DashMap<String, MqttSession>, CommonError> {
