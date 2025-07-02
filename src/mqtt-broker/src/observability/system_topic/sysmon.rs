@@ -247,7 +247,7 @@ mod tests {
     use common_base::tools::unique_id;
     use common_config::mqtt::init_broker_mqtt_conf_by_path;
     use metadata_struct::adapter::read_config::ReadConfig;
-    use metadata_struct::mqtt::topic::MqttTopic;
+    use metadata_struct::mqtt::topic::MQTTTopic;
     use storage_adapter::memory::MemoryStorageAdapter;
 
     #[tokio::test]
@@ -288,7 +288,7 @@ mod tests {
         let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
 
         let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE.to_string());
-        let mqtt_topic = MqttTopic::new(unique_id(), cluster_name(), topic_name.clone());
+        let mqtt_topic = MQTTTopic::new(unique_id(), cluster_name(), topic_name.clone());
         metadata_cache.add_topic(&topic_name, &mqtt_topic);
 
         let message = SystemAlarmEventMessage {

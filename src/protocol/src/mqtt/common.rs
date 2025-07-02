@@ -643,7 +643,7 @@ pub struct PingResp;
 pub struct Publish {
     pub dup: bool,
     pub qos: QoS,
-    pub pkid: u16,
+    pub p_kid: u16,
     pub retain: bool,
     pub topic: Bytes,
     pub payload: Bytes,
@@ -655,7 +655,7 @@ impl Publish {
         Publish {
             dup: false,
             qos: QoS::AtMostOnce,
-            pkid: 0,
+            p_kid: 0,
             retain,
             topic: topic.into(),
             payload: payload.into(),
@@ -692,7 +692,7 @@ impl fmt::Display for Publish {
         write!(
             f,
             "topic:{:?}, payload:{:?}, dup:{}, qos:{:?}, message_identifier:{}, retain:{} ",
-            self.topic, self.payload, self.dup, self.qos, self.pkid, self.retain
+            self.topic, self.payload, self.dup, self.qos, self.p_kid, self.retain
         )
     }
 }

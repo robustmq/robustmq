@@ -20,7 +20,7 @@ use bytes::Bytes;
 use common_base::tools::unique_id;
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::topic::MQTTTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
 use regex::Regex;
 use storage_adapter::storage::{ShardInfo, StorageAdapter};
@@ -144,7 +144,7 @@ pub async fn try_init_topic<S>(
     metadata_cache: &Arc<CacheManager>,
     message_storage_adapter: &Arc<S>,
     client_pool: &Arc<ClientPool>,
-) -> Result<MqttTopic, MqttBrokerError>
+) -> Result<MQTTTopic, MqttBrokerError>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
@@ -160,7 +160,7 @@ where
         let topic = if let Some(topic) = topic_storage.get_topic(topic_name).await? {
             topic
         } else {
-            let topic = MqttTopic::new(topic_id, conf.cluster_name.clone(), topic_name.to_owned());
+            let topic = MQTTTopic::new(topic_id, conf.cluster_name.clone(), topic_name.to_owned());
             topic_storage.save_topic(topic.clone()).await?;
             topic
         };
