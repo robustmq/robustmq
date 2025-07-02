@@ -49,10 +49,8 @@ impl SessionStorage {
             session: session.encode(),
         };
 
-        match placement_create_session(&self.client_pool, &config.placement_center, request).await {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e),
-        }
+        placement_create_session(&self.client_pool, &config.placement_center, request).await?;
+        Ok(())
     }
 
     pub async fn update_session(
@@ -72,10 +70,9 @@ impl SessionStorage {
             reconnect_time,
             distinct_time,
         };
-        match placement_update_session(&self.client_pool, &config.placement_center, request).await {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e),
-        }
+
+        placement_update_session(&self.client_pool, &config.placement_center, request).await?;
+        Ok(())
     }
 
     pub async fn delete_session(&self, client_id: String) -> Result<(), CommonError> {
@@ -84,10 +81,9 @@ impl SessionStorage {
             cluster_name: config.cluster_name.clone(),
             client_id,
         };
-        match placement_delete_session(&self.client_pool, &config.placement_center, request).await {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e),
-        }
+
+        placement_delete_session(&self.client_pool, &config.placement_center, request).await?;
+        Ok(())
     }
 
     pub async fn get_session(&self, client_id: String) -> Result<Option<MqttSession>, CommonError> {
@@ -96,18 +92,17 @@ impl SessionStorage {
             cluster_name: config.cluster_name.clone(),
             client_id,
         };
-        match placement_list_session(&self.client_pool, &config.placement_center, request).await {
-            Ok(reply) => {
-                if reply.sessions.is_empty() {
-                    return Ok(None);
-                }
-                let raw = reply.sessions.first().unwrap();
-                match serde_json::from_str::<MqttSession>(raw) {
-                    Ok(data) => Ok(Some(data)),
-                    Err(e) => Err(CommonError::CommonError(e.to_string())),
-                }
-            }
-            Err(e) => Err(e),
+
+        let reply =
+            placement_list_session(&self.client_pool, &config.placement_center, request).await?;
+        if reply.sessions.is_empty() {
+            return Ok(None);
+        }
+
+        let raw = reply.sessions.first().unwrap();
+        match serde_json::from_str::<MqttSession>(raw) {
+            Ok(data) => Ok(Some(data)),
+            Err(e) => Err(CommonError::CommonError(e.to_string())),
         }
     }
 
@@ -117,23 +112,18 @@ impl SessionStorage {
             cluster_name: config.cluster_name.clone(),
             client_id: "".to_string(),
         };
-        match placement_list_session(&self.client_pool, &config.placement_center, request).await {
-            Ok(reply) => {
-                let results = DashMap::with_capacity(2);
-                for raw in reply.sessions {
-                    match serde_json::from_str::<MqttSession>(&raw) {
-                        Ok(data) => {
-                            results.insert(data.client_id.clone(), data);
-                        }
-                        Err(_) => {
-                            continue;
-                        }
-                    }
-                }
-                Ok(results)
+
+        let reply =
+            placement_list_session(&self.client_pool, &config.placement_center, request).await?;
+        let results = DashMap::with_capacity(2);
+
+        for raw in reply.sessions {
+            if let Ok(data) = serde_json::from_str::<MqttSession>(&raw) {
+                results.insert(data.client_id.clone(), data);
             }
-            Err(e) => Err(e),
         }
+
+        Ok(results)
     }
 
     pub async fn save_last_will_message(
@@ -147,11 +137,10 @@ impl SessionStorage {
             client_id,
             last_will_message,
         };
-        match placement_save_last_will_message(&self.client_pool, &config.placement_center, request)
-            .await
-        {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e),
-        }
+
+        placement_save_last_will_message(&self.client_pool, &config.placement_center, request)
+            .await?;
+
+        Ok(())
     }
 }
