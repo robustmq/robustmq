@@ -91,7 +91,7 @@ impl TopicStorage {
             placement_list_topic(&self.client_pool, &config.placement_center, request).await?;
 
         if let Some(data) = data_stream.message().await? {
-            let topic = serde_json::from_slice::<MqttTopic>(data.topic.as_slice())?;
+            let topic = serde_json::from_slice::<MQTTTopic>(data.topic.as_slice())?;
             return Ok(Some(topic));
         }
         Ok(None)
