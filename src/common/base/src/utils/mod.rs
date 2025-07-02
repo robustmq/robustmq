@@ -14,6 +14,6 @@
 
 pub mod crc;
 pub mod file_utils;
+pub mod time_util;
 pub mod topic_util;
 pub mod vec_util;
-pub mod time_util;
