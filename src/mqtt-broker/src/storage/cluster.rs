@@ -59,13 +59,10 @@ impl ClusterStorage {
 
         let mut node_list: Vec<BrokerNode> = Vec::new();
         for node in reply.nodes {
-            match serde_json::from_slice::<BrokerNode>(&node) {
-                Ok(data) => node_list.push(data),
-                Err(e) => {
-                    return Err(CommonError::CommonError(format!("Retrieving cluster Node list, parsing Node information failed, error message :{}", e)));
-                }
-            }
+            let data = serde_json::from_slice::<BrokerNode>(&node)?;
+            node_list.push(data);
         }
+
         Ok(node_list)
     }
 
