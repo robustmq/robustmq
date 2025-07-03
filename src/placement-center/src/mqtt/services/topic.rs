@@ -72,7 +72,10 @@ pub async fn create_topic_by_req(
 ) -> Result<CreateTopicReply, PlacementCenterError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
-    if (topic_storage.get(&req.cluster_name, &req.topic_name)?).is_some() {
+    if topic_storage
+        .get(&req.cluster_name, &req.topic_name)?
+        .is_some()
+    {
         return Err(PlacementCenterError::TopicAlreadyExist(
             req.topic_name.clone(),
         ));
