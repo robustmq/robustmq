@@ -54,7 +54,7 @@ impl ShareSubLeader {
         let node_sub_info = self.read_node_sub_info(cluster_name)?;
 
         for (broker_id, group_list) in node_sub_info.clone() {
-            if group_list.contains(group_name) {
+            if group_list.contains(group_name) && broker_ids.contains(&broker_id) {
                 return Ok(broker_id);
             }
         }
@@ -332,6 +332,7 @@ mod tests {
             .get_leader_node(&cluster_name, &group_name)
             .unwrap();
         assert_eq!(node, 1);
+
         let node = share_sub
             .get_leader_node(&cluster_name, &group_name)
             .unwrap();
@@ -348,6 +349,18 @@ mod tests {
             .get_leader_node(&cluster_name, &group_name)
             .unwrap();
         assert_eq!(node, 3);
+
+        let group_name = "group3".to_string();
+        let node = share_sub
+            .get_leader_node(&cluster_name, &group_name)
+            .unwrap();
+        assert_eq!(node, 3);
+
+        let group_name = "group4".to_string();
+        let node = share_sub
+            .get_leader_node(&cluster_name, &group_name)
+            .unwrap();
+        assert_eq!(node, 1);
 
         let group_name = "group4".to_string();
         let node = share_sub

@@ -19,6 +19,7 @@ pub mod http_error;
 pub mod http_response;
 pub mod logging;
 pub mod metrics;
+pub mod network;
 pub mod runtime;
 pub mod telemetry;
 pub mod tools;

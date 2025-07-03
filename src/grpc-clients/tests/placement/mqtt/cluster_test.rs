@@ -32,7 +32,7 @@ mod tests {
     use crate::common::get_placement_addr;
 
     #[tokio::test]
-    async fn register_node_test() {
+    async fn register_node_test_is_normal() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
 
@@ -72,6 +72,28 @@ mod tests {
                 panic!("{:?}", e);
             }
         }
+    }
+
+    #[tokio::test]
+    #[should_panic(expected = "Should not passed because cluster_name is empty")]
+    async fn register_node_test_is_cluster_name_is_empty() {
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
+        let addrs = vec![get_placement_addr()];
+
+        let request = ClusterStatusRequest::default();
+
+        match cluster_status(&client_pool, &addrs, request).await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        }
+
+        let cluster_type = ClusterType::PlacementCenter;
+        let node_ip = "127.0.0.1".to_string();
+        let node_id = 1235u64;
+        let node_inner_addr = node_ip.clone();
+        let extend_info = "".to_string();
 
         let node = BrokerNode {
             cluster_type: cluster_type.as_str_name().to_string(),
@@ -94,6 +116,29 @@ mod tests {
             }
             Err(_e) => {}
         }
+    }
+
+    #[tokio::test]
+    #[should_panic(expected = "Should not passed because node_ip is empty")]
+    async fn register_node_test_is_node_ip_is_empty() {
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
+        let addrs = vec![get_placement_addr()];
+
+        let request = ClusterStatusRequest::default();
+
+        match cluster_status(&client_pool, &addrs, request).await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        }
+
+        let cluster_type = ClusterType::PlacementCenter;
+        let cluster_name = "test-cluster-name".to_string();
+        let node_ip = "127.0.0.1".to_string();
+        let node_id = 1235u64;
+        let node_inner_addr = node_ip.clone();
+        let extend_info = "".to_string();
 
         let node = BrokerNode {
             cluster_type: cluster_type.as_str_name().to_string(),

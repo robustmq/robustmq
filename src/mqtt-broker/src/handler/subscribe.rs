@@ -20,7 +20,7 @@ use common_base::{
 };
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::{placement::mqtt::call::placement_set_subscribe, pool::ClientPool};
-use metadata_struct::mqtt::{subscribe_data::MqttSubscribe, topic::MqttTopic};
+use metadata_struct::mqtt::{subscribe_data::MqttSubscribe, topic::MQTTTopic};
 use protocol::{
     mqtt::common::{Filter, MqttProtocol, Subscribe, SubscribeProperties},
     placement_center::placement_center_mqtt::SetSubscribeRequest,
@@ -74,6 +74,7 @@ pub async fn save_subscribe(
             pkid: subscribe.packet_identifier,
             subscribe_properties: subscribe_properties.to_owned(),
             protocol: protocol.to_owned(),
+            create_time: now_second(),
         };
 
         // save subscribe
@@ -145,7 +146,7 @@ pub async fn parse_subscribe(
     client_pool: &Arc<ClientPool>,
     subscribe_manager: &Arc<SubscribeManager>,
     client_id: &str,
-    topic: &MqttTopic,
+    topic: &MQTTTopic,
     protocol: &MqttProtocol,
     pkid: u16,
     filter: &Filter,
@@ -268,7 +269,7 @@ async fn add_share_push_follower(
 
 fn add_exclusive_push(
     subscribe_manager: &Arc<SubscribeManager>,
-    topic: &MqttTopic,
+    topic: &MQTTTopic,
     client_id: &str,
     protocol: &MqttProtocol,
     sub_identifier: &Option<usize>,
@@ -314,7 +315,7 @@ mod tests {
     use super::add_exclusive_push;
     use crate::subscribe::manager::SubscribeManager;
     use common_base::tools::unique_id;
-    use metadata_struct::mqtt::topic::MqttTopic;
+    use metadata_struct::mqtt::topic::MQTTTopic;
     use protocol::mqtt::common::{Filter, MqttProtocol};
     use std::sync::Arc;
 
@@ -322,7 +323,7 @@ mod tests {
     fn add_exclusive_push_test() {
         let ex_path = "$exclusive/topic/1/2";
         let subscribe_manager = Arc::new(SubscribeManager::new());
-        let topic = MqttTopic {
+        let topic = MQTTTopic {
             topic_name: "/topic/1/2".to_string(),
             topic_id: "test-id".to_string(),
             ..Default::default()

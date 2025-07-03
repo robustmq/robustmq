@@ -248,10 +248,7 @@ pub async fn get_share_sub_leader(
         cluster_name: conf.cluster_name.to_owned(),
         group_name: group_name.to_owned(),
     };
-    match placement_get_share_sub_leader(client_pool, &conf.placement_center, req).await {
-        Ok(reply) => Ok(reply),
-        Err(e) => Err(e),
-    }
+    placement_get_share_sub_leader(client_pool, &conf.placement_center, req).await
 }
 
 pub async fn loop_commit_offset<S>(
@@ -275,7 +272,7 @@ mod tests {
 
     use common_base::tools::unique_id;
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::mqtt::topic::MqttTopic;
+    use metadata_struct::mqtt::topic::MQTTTopic;
     use protocol::mqtt::common::QoS;
 
     use crate::handler::cache::CacheManager;
@@ -460,7 +457,7 @@ mod tests {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
         let metadata_cache = Arc::new(CacheManager::new(client_pool, "test-cluster".to_string()));
         let topic_name = "/test/topic".to_string();
-        let topic = MqttTopic::new(unique_id(), "c1".to_string(), topic_name.clone());
+        let topic = MQTTTopic::new(unique_id(), "c1".to_string(), topic_name.clone());
         metadata_cache.add_topic(&topic_name, &topic);
 
         let sub_path = "/test/topic".to_string();

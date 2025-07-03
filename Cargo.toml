@@ -42,7 +42,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.14"
+version = "0.1.25"
 edition = "2021"
 license = "Apache-2.0"
 
@@ -185,7 +185,7 @@ tempfile = "3.9.0"
 humantime = "2.2.0"
 strum = "0.27"
 strum_macros = "0.27"
-
+async-stream = "0.3.6"
 
 #pprof
 pprof = { version = "0.14.0", features = ["flamegraph"] }
@@ -198,4 +198,6 @@ overflow-checks = false
 incremental = true
 
 [profile.release]
+codegen-units = 1
+lto = true
 overflow-checks = false

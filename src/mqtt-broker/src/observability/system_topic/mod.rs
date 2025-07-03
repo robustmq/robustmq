@@ -151,7 +151,6 @@ where
             select! {
                 val = stop_rx.recv() =>{
                     if let Ok(flag) = val {
-                        println!("{}", flag);
                         if flag {
                             info!("System topic thread stopped successfully");
                             break;
@@ -773,7 +772,7 @@ mod test {
     use grpc_clients::pool::ClientPool;
     use metadata_struct::adapter::read_config::ReadConfig;
     use metadata_struct::mqtt::message::MqttMessage;
-    use metadata_struct::mqtt::topic::MqttTopic;
+    use metadata_struct::mqtt::topic::MQTTTopic;
     use std::sync::Arc;
     use storage_adapter::memory::MemoryStorageAdapter;
     use storage_adapter::storage::StorageAdapter;
@@ -788,7 +787,7 @@ mod test {
         let client_pool = Arc::new(ClientPool::new(3));
         let cache_manger = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
-        let mqtt_topic = MqttTopic::new(unique_id(), cluster_name(), topic_name.clone());
+        let mqtt_topic = MQTTTopic::new(unique_id(), cluster_name(), topic_name.clone());
         cache_manger.add_topic(&topic_name, &mqtt_topic);
 
         let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
@@ -847,7 +846,7 @@ mod test {
         let cache_manger = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
-        let mqtt_topic = MqttTopic::new(unique_id(), cluster_name(), topic_name.clone());
+        let mqtt_topic = MQTTTopic::new(unique_id(), cluster_name(), topic_name.clone());
         cache_manger.add_topic(&topic_name, &mqtt_topic);
         let expect_data = "test_data".to_string();
         super::report_system_data(

@@ -21,7 +21,7 @@ use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
-use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use prost::Message as _;
@@ -85,7 +85,7 @@ impl DataRouteMqtt {
     // Topic
     pub fn create_topic(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let req = CreateTopicRequest::decode(value.as_ref())?;
-        let topic = serde_json::from_slice::<MqttTopic>(&req.content)?;
+        let topic = serde_json::from_slice::<MQTTTopic>(&req.content)?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         storage.save(&topic.cluster_name, &topic.topic_name, topic.clone())?;
         self.mqtt_cache

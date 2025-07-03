@@ -36,6 +36,7 @@ use protocol::placement_center::placement_center_mqtt::{
     UpdateSessionRequest,
 };
 use tonic::transport::Channel;
+use tonic::Streaming;
 
 use crate::macros::impl_retriable_request;
 
@@ -134,7 +135,7 @@ impl_retriable_request!(
 impl_retriable_request!(
     ListTopicRequest,
     MqttServiceClient<Channel>,
-    ListTopicReply,
+    Streaming<ListTopicReply>,
     placement_center_mqtt_services_client,
     list_topic,
     true

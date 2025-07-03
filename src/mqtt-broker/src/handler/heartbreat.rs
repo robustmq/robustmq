@@ -33,7 +33,8 @@ pub async fn register_node(
 ) -> Result<(), MqttBrokerError> {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let config = broker_mqtt_conf();
-    cluster_storage.register_node(cache_manager, config).await?;
+    let node = cluster_storage.register_node(cache_manager, config).await?;
+    cache_manager.add_node(node);
     Ok(())
 }
 

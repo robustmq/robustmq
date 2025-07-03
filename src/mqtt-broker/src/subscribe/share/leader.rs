@@ -19,16 +19,21 @@ use crate::storage::message::MessageStorage;
 use crate::subscribe::common::is_ignore_push_error;
 use crate::subscribe::common::loop_commit_offset;
 use crate::subscribe::common::Subscriber;
+use crate::subscribe::manager::SubPushThreadData;
 use crate::subscribe::manager::{ShareLeaderSubscribeData, SubscribeManager};
 use crate::subscribe::push::{
     build_pub_qos, build_publish_message, build_sub_ids, send_publish_packet_to_client,
 };
+use common_base::network::broker_not_available;
+use common_base::tools::now_second;
+use metadata_struct::adapter::record::Record;
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::sleep;
+use tracing::debug;
 use tracing::warn;
 use tracing::{error, info};
 
@@ -75,7 +80,7 @@ where
                 .share_leader_push
                 .contains_key(&share_leader_key)
             {
-                match sx.send(true) {
+                match sx.sender.send(true) {
                     Ok(_) => {
                         self.subscribe_manager
                             .share_leader_push_thread
@@ -105,7 +110,7 @@ where
                     .share_leader_push_thread
                     .get(&share_leader_key)
                 {
-                    if sx.send(true).is_ok() {
+                    if sx.sender.send(true).is_ok() {
                         self.subscribe_manager
                             .share_leader_push
                             .remove(&share_leader_key);
@@ -142,9 +147,17 @@ where
         let mut offset = message_storage.get_group_offset(&group_id).await?;
 
         // save push thread
-        self.subscribe_manager
-            .share_leader_push_thread
-            .insert(share_leader_key.clone(), sub_thread_stop_sx.clone());
+        self.subscribe_manager.share_leader_push_thread.insert(
+            share_leader_key.clone(),
+            SubPushThreadData {
+                push_success_record_num: 0,
+                push_error_record_num: 0,
+                last_push_time: 0,
+                last_run_time: 0,
+                create_time: now_second(),
+                sender: sub_thread_stop_sx.clone(),
+            },
+        );
 
         let connection_manager = self.connection_manager.clone();
         let cache_manager = self.cache_manager.clone();
@@ -237,15 +250,11 @@ where
         .read_topic_message(&sub_data.topic_id, offset, 100)
         .await?;
 
-    if results.is_empty() {
-        return Ok((None, seq));
-    }
-
-    for record in results.iter() {
+    let mut push_fn = async |record: &Record| -> Result<(), MqttBrokerError> {
         let record_offset = if let Some(offset) = record.offset {
             offset
         } else {
-            continue;
+            return Ok(());
         };
 
         let mut times = 0;
@@ -253,15 +262,16 @@ where
             seq += 1;
             times += 1;
             if times > 3 {
-                warn!("Shared subscription failed to send messages {} times and the messages were discarded", times);
+                warn!("Shared subscription failed to send messages {} times and the messages were discarded,, offset: {:?}", times, record.offset);
                 break;
             }
+
             let subscriber = if let Some(subscrbie) =
                 get_subscribe_by_random(subscribe_manager, share_leader_key, seq)
             {
                 subscrbie
             } else {
-                warn!("No available subscribers were obtained. Continue looking for the next one");
+                warn!("No available subscribers were obtained. Continue looking for the next one, , offset: {:?}", record.offset);
                 sleep(Duration::from_secs(1)).await;
                 continue;
             };
@@ -285,13 +295,16 @@ where
                 Ok(Some(param)) => param,
                 Ok(None) => {
                     warn!(
-                        "Build message is empty. group:{}, topic_id:{}",
-                        group_id, sub_data.topic_id
+                        "Build message is empty. group:{}, topic_id:{}, offset: {:?}",
+                        group_id, sub_data.topic_id, record.offset
                     );
                     break;
                 }
                 Err(e) => {
-                    warn!("Build message error. Error message : {}", e);
+                    warn!(
+                        "Build message error. Error message : {}, offset: {:?}",
+                        e, record.offset
+                    );
                     break;
                 }
             };
@@ -305,7 +318,15 @@ where
             )
             .await
             {
-                warn!("Shared subscription failed to send a message. I attempted to send it to the next client. Error message :{}", e);
+                if broker_not_available(&e.to_string()) {
+                    subscribe_manager.add_not_push_client(&subscriber.client_id);
+                }
+
+                debug!(
+                    "Shared subscription failed to send a message to client {}. I attempted to 
+                    send it to the next client. Error message :{}, offset: {:?}",
+                    subscriber.client_id, e, record.offset
+                );
                 continue;
             };
 
@@ -314,31 +335,68 @@ where
 
         // commit offset
         loop_commit_offset(message_storage, &sub_data.topic_id, group_id, record_offset).await?;
+        Ok(())
+    };
+
+    let mut success_num = 0;
+    let mut error_num = 0;
+    for record in results.iter() {
+        match push_fn(record).await {
+            Ok(_) => {
+                success_num += 1;
+            }
+            Err(e) => {
+                error_num += 1;
+                if !is_ignore_push_error(&e) {
+                    warn!(
+                        "Share leader push fail, offset [{:?}], error message:{},",
+                        record.offset, e
+                    );
+                }
+            }
+        }
     }
+
+    subscribe_manager.update_subscribe_leader_push_thread_info(
+        share_leader_key,
+        success_num as u64,
+        error_num as u64,
+    );
+
+    if results.is_empty() {
+        return Ok((None, seq));
+    }
+
     Ok((results.last().unwrap().offset, seq))
 }
 
 fn get_subscribe_by_random(
     subscribe_manager: &Arc<SubscribeManager>,
     share_leader_key: &str,
-    seq: u64,
+    mut seq: u64,
 ) -> Option<Subscriber> {
-    if let Some(sub_list) = subscribe_manager.share_leader_push.get(share_leader_key) {
-        let index = seq % (sub_list.sub_list.len() as u64);
-        let keys: Vec<String> = sub_list
-            .sub_list
-            .iter()
-            .map(|entry| entry.key().clone())
-            .collect();
+    loop {
+        if let Some(sub_list) = subscribe_manager.share_leader_push.get(share_leader_key) {
+            let index = seq % (sub_list.sub_list.len() as u64);
+            let keys: Vec<String> = sub_list
+                .sub_list
+                .iter()
+                .map(|entry| entry.key().clone())
+                .collect();
 
-        if let Some(key) = keys.get(index as usize) {
-            if let Some(subscribe) = sub_list.sub_list.get(key) {
-                return Some(subscribe.clone());
+            if let Some(key) = keys.get(index as usize) {
+                if let Some(subscribe) = sub_list.sub_list.get(key) {
+                    if !subscribe_manager
+                        .not_push_client
+                        .contains_key(&subscribe.client_id)
+                    {
+                        return Some(subscribe.clone());
+                    }
+                }
             }
         }
+        seq += 1;
     }
-
-    None
 }
 
 #[cfg(test)]

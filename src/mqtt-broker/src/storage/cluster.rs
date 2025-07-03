@@ -59,13 +59,10 @@ impl ClusterStorage {
 
         let mut node_list: Vec<BrokerNode> = Vec::new();
         for node in reply.nodes {
-            match serde_json::from_slice::<BrokerNode>(&node) {
-                Ok(data) => node_list.push(data),
-                Err(e) => {
-                    return Err(CommonError::CommonError(format!("Retrieving cluster Node list, parsing Node information failed, error message :{}", e)));
-                }
-            }
+            let data = serde_json::from_slice::<BrokerNode>(&node)?;
+            node_list.push(data);
         }
+
         Ok(node_list)
     }
 
@@ -73,7 +70,7 @@ impl ClusterStorage {
         &self,
         cache_manager: &Arc<CacheManager>,
         config: &BrokerMqttConfig,
-    ) -> Result<(), CommonError> {
+    ) -> Result<BrokerNode, CommonError> {
         let local_ip = get_local_ip();
 
         let extend = MqttNodeExtend {
@@ -102,7 +99,7 @@ impl ClusterStorage {
 
         register_node(&self.client_pool, &config.placement_center, req.clone()).await?;
 
-        Ok(())
+        Ok(node)
     }
 
     pub async fn unregister_node(&self, config: &BrokerMqttConfig) -> Result<(), CommonError> {

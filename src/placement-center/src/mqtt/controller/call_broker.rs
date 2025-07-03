@@ -12,16 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
-
 use dashmap::DashMap;
 use grpc_clients::mqtt::inner::call::broker_mqtt_update_cache;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
-use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::placement::node::BrokerNode;
 use metadata_struct::resource_config::ClusterResourceConfig;
@@ -30,6 +27,8 @@ use protocol::broker_mqtt::broker_mqtt_inner::MqttBrokerUpdateCacheResourceType;
 use protocol::broker_mqtt::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, UpdateMqttCacheRequest,
 };
+use std::sync::Arc;
+use std::time::Duration;
 use tracing::error;
 use tracing::info;
 use tracing::warn;
@@ -349,7 +348,7 @@ pub async fn update_cache_by_add_topic(
     cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-    topic: MqttTopic,
+    topic: MQTTTopic,
 ) -> Result<(), PlacementCenterError> {
     let data = serde_json::to_string(&topic)?;
     let message = MQTTInnerCallMessage {
@@ -366,7 +365,7 @@ pub async fn update_cache_by_delete_topic(
     cluster_name: &str,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-    topic: MqttTopic,
+    topic: MQTTTopic,
 ) -> Result<(), PlacementCenterError> {
     let data = serde_json::to_string(&topic)?;
     let message = MQTTInnerCallMessage {
@@ -454,6 +453,9 @@ async fn start_call_thread(
                     },
                     val = data_recv.recv()=>{
                         if let Ok(data) = val{
+                            if is_ignore_push(&node, &data){
+                                continue;
+                            }
                             call_mqtt_update_cache(client_pool.clone(), node.node_inner_addr.clone(), data).await;
                         }
                     }
@@ -463,6 +465,18 @@ async fn start_call_thread(
     });
 }
 
+fn is_ignore_push(node: &BrokerNode, data: &MQTTInnerCallMessage) -> bool {
+    if data.resource_type == MqttBrokerUpdateCacheResourceType::Node {
+        let broker_node = match serde_json::from_str::<BrokerNode>(&data.data) {
+            Ok(node) => node,
+            Err(_) => {
+                return true;
+            }
+        };
+        return broker_node.node_id == node.node_id;
+    }
+    false
+}
 async fn call_mqtt_update_cache(
     client_pool: Arc<ClientPool>,
     addr: String,

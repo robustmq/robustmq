@@ -14,6 +14,7 @@
 
 use crate::handler::command::Command;
 use crate::observability::metrics::server::metrics_request_queue_size;
+use crate::server::connection::NetworkConnectionType;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::metric::record_packet_handler_info_no_response;
 use crate::server::packet::{RequestPackage, ResponsePackage};
@@ -35,6 +36,7 @@ pub(crate) async fn handler_process<S>(
     connection_manager: Arc<ConnectionManager>,
     command: Command<S>,
     request_channel: Arc<RequestChannel>,
+    network_type: NetworkConnectionType,
     stop_sx: broadcast::Sender<bool>,
 ) where
     S: StorageAdapter + Clone + Send + Sync + 'static,
@@ -45,6 +47,7 @@ pub(crate) async fn handler_process<S>(
             connection_manager,
             request_channel.clone(),
             command,
+            network_type.clone(),
             stop_sx.clone(),
         );
 
@@ -70,7 +73,7 @@ pub(crate) async fn handler_process<S>(
                         // Because some request queues may be full or abnormal, the request packets can be delivered to other child handlers.
                         loop{
                             process_handler_seq += 1;
-                            if let Some(handler_sx) = request_channel.get_available_handler(process_handler_seq){
+                            if let Some(handler_sx) = request_channel.get_available_handler(&network_type, process_handler_seq){
                                 if handler_sx.try_send(packet.clone()).is_ok(){
                                     break;
                                 }
@@ -97,17 +100,20 @@ fn handler_child_process<S>(
     connection_manager: Arc<ConnectionManager>,
     request_channel: Arc<RequestChannel>,
     command: Command<S>,
+    network_type: NetworkConnectionType,
     stop_sx: broadcast::Sender<bool>,
 ) where
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
     for index in 1..=handler_process_num {
-        let mut child_process_rx = request_channel.create_handler_child_channel(index);
+        let mut child_process_rx =
+            request_channel.create_handler_child_channel(&network_type, index);
         let raw_connect_manager = connection_manager.clone();
         let request_channel = request_channel.clone();
         let mut raw_command = command.clone();
         let mut raw_stop_rx = stop_sx.subscribe();
 
+        let raw_network_type = network_type.clone();
         tokio::spawn(async move {
             debug!(
                 "Server handler process thread {} start successfully.",
@@ -138,7 +144,7 @@ fn handler_child_process<S>(
                                 if let Some(resp) = response_data {
                                     let response_package = ResponsePackage::new(packet.connection_id, resp,packet.receive_ms,
                                                 out_handler_queue_ms, end_handler_ms, mqtt_packet_to_string(&packet.packet));
-                                    request_channel.send_response_channel(response_package).await;
+                                    request_channel.send_response_channel(&raw_network_type, response_package).await;
                                 } else {
                                     record_packet_handler_info_no_response(&packet, out_handler_queue_ms, end_handler_ms, mqtt_packet_to_string(&packet.packet));
                                     info!("{}","No backpacking is required for this request");

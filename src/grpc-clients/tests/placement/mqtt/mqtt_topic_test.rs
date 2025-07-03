@@ -24,7 +24,7 @@ mod tests {
     };
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
-    use metadata_struct::mqtt::topic::MqttTopic;
+    use metadata_struct::mqtt::topic::MQTTTopic;
     use protocol::mqtt::common::{qos, Publish};
     use protocol::placement_center::placement_center_mqtt::{
         CreateTopicRequest, DeleteTopicRequest, ListTopicRequest, SetTopicRetainMessageRequest,
@@ -43,7 +43,7 @@ mod tests {
         let cluster_name: String = unique_id();
         let payload: String = "test_message".to_string();
 
-        let mqtt_topic: MqttTopic = MqttTopic {
+        let mqtt_topic: MQTTTopic = MQTTTopic {
             topic_id: topic_id.clone(),
             topic_name: topic_name.clone(),
             cluster_name: cluster_name.clone(),
@@ -75,7 +75,7 @@ mod tests {
         let publish: Publish = Publish {
             dup: false,
             qos: qos(1).unwrap(),
-            pkid: 0,
+            p_kid: 0,
             retain: true,
             topic: Bytes::from(topic_name.clone()),
             payload: Bytes::from(payload.clone()),
@@ -142,30 +142,29 @@ mod tests {
         topic_name: String,
         client_pool: &ClientPool,
         addrs: &[impl AsRef<str>],
-        mqtt_topic: MqttTopic,
+        mqtt_topic: MQTTTopic,
         contain: bool,
     ) {
         let request = ListTopicRequest {
             cluster_name,
             topic_name,
         };
-        let data = placement_list_topic(client_pool, addrs, request)
+        let mut data_stream = placement_list_topic(client_pool, addrs, request)
             .await
             .unwrap();
 
         let mut flag: bool = false;
-        for raw in data.topics.clone() {
-            let topic = serde_json::from_slice::<MqttTopic>(raw.as_slice()).unwrap();
+        while let Some(data) = data_stream.message().await.unwrap() {
+            let topic = serde_json::from_slice::<MQTTTopic>(data.topic.as_slice()).unwrap();
             if topic == mqtt_topic {
                 flag = true;
             }
         }
+
         if contain {
-            assert!(!data.topics.is_empty());
             assert!(flag);
         } else {
             assert!(!flag);
-            assert!(data.topics.is_empty());
         }
     }
 }

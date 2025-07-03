@@ -21,28 +21,34 @@ use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateTopicRewriteRuleRequest, DeleteTopicRewriteRuleRequest, ListTopicRequest, MqttTopicRaw,
-    MqttTopicRewriteRuleRaw,
+    CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, DeleteTopicRewriteRuleReply,
+    DeleteTopicRewriteRuleRequest, ListRewriteTopicRuleReply, ListTopicReply, ListTopicRequest,
+    MqttTopicRaw, MqttTopicRewriteRuleRaw,
 };
 use std::sync::Arc;
-use tonic::Request;
 
 // List all topics by request
 pub async fn list_topic_by_req(
     cache_manager: &Arc<CacheManager>,
-    request: Request<ListTopicRequest>,
-) -> Result<(Vec<MqttTopicRaw>, usize), MqttBrokerError> {
-    let req = request.into_inner();
+    request: &ListTopicRequest,
+) -> Result<ListTopicReply, MqttBrokerError> {
     let topics = extract_topic(cache_manager)?;
 
-    if req.topic_name.as_deref().unwrap_or_default().is_empty() {
+    if request.topic_name.as_deref().unwrap_or_default().is_empty() {
         let topic_count = topics.len();
-        return Ok((topics, topic_count));
+        return Ok(ListTopicReply {
+            topics,
+            total_count: topic_count as u32,
+        });
     }
-    let filtered = apply_filters(topics, &req.options);
-    let sorted = apply_sorting(filtered, &req.options);
-    let pagination = apply_pagination(sorted, &req.options);
-    Ok(pagination)
+    let filtered = apply_filters(topics, &request.options);
+    let sorted = apply_sorting(filtered, &request.options);
+    let pagination = apply_pagination(sorted, &request.options);
+
+    Ok(ListTopicReply {
+        topics: pagination.0,
+        total_count: pagination.1 as u32,
+    })
 }
 
 fn extract_topic(cache_manager: &Arc<CacheManager>) -> Result<Vec<MqttTopicRaw>, MqttBrokerError> {
@@ -58,36 +64,38 @@ fn extract_topic(cache_manager: &Arc<CacheManager>) -> Result<Vec<MqttTopicRaw>,
 pub async fn delete_topic_rewrite_rule_by_req(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
-    request: Request<DeleteTopicRewriteRuleRequest>,
-) -> Result<(), MqttBrokerError> {
-    let req = request.into_inner();
+    request: &DeleteTopicRewriteRuleRequest,
+) -> Result<DeleteTopicRewriteRuleReply, MqttBrokerError> {
     let topic_storage = TopicStorage::new(client_pool.clone());
 
     topic_storage
-        .delete_topic_rewrite_rule(req.action.clone(), req.source_topic.clone())
+        .delete_topic_rewrite_rule(request.action.clone(), request.source_topic.clone())
         .await
         .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
 
     let config = broker_mqtt_conf();
-    cache_manager.delete_topic_rewrite_rule(&config.cluster_name, &req.action, &req.source_topic);
+    cache_manager.delete_topic_rewrite_rule(
+        &config.cluster_name,
+        &request.action,
+        &request.source_topic,
+    );
 
-    Ok(())
+    Ok(DeleteTopicRewriteRuleReply {})
 }
 
 // Create a topic rewrite rule
 pub async fn create_topic_rewrite_rule_by_req(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
-    request: Request<CreateTopicRewriteRuleRequest>,
-) -> Result<(), MqttBrokerError> {
-    let req = request.into_inner();
+    request: &CreateTopicRewriteRuleRequest,
+) -> Result<CreateTopicRewriteRuleReply, MqttBrokerError> {
     let config = broker_mqtt_conf();
     let rule = MqttTopicRewriteRule {
         cluster: config.cluster_name.clone(),
-        action: req.action,
-        source_topic: req.source_topic,
-        dest_topic: req.dest_topic,
-        regex: req.regex,
+        action: request.action.clone(),
+        source_topic: request.source_topic.clone(),
+        dest_topic: request.dest_topic.clone(),
+        regex: request.regex.clone(),
         timestamp: now_mills(),
     };
 
@@ -99,18 +107,22 @@ pub async fn create_topic_rewrite_rule_by_req(
 
     cache_manager.add_topic_rewrite_rule(rule);
 
-    Ok(())
+    Ok(CreateTopicRewriteRuleReply {})
 }
 
 pub async fn get_all_topic_rewrite_rule_by_req(
     cache_manager: &Arc<CacheManager>,
-) -> Result<Vec<MqttTopicRewriteRuleRaw>, MqttBrokerError> {
+) -> Result<ListRewriteTopicRuleReply, MqttBrokerError> {
     let mut topic_rewrite_rules = Vec::new();
     for entry in cache_manager.topic_rewrite_rule.iter() {
         let topic_rewrite_rule = entry.value();
         topic_rewrite_rules.push(MqttTopicRewriteRuleRaw::from(topic_rewrite_rule.clone()));
     }
-    Ok(topic_rewrite_rules)
+
+    Ok(ListRewriteTopicRuleReply {
+        rewrite_topic_rules: topic_rewrite_rules.clone(),
+        total_count: topic_rewrite_rules.len() as u32,
+    })
 }
 
 impl Queryable for MqttTopicRaw {

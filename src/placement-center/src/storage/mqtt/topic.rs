@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 
 use crate::core::error::PlacementCenterError;
@@ -26,6 +26,7 @@ use crate::storage::keys::{
     storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix,
     storage_key_mqtt_topic_rewrite_rule, storage_key_mqtt_topic_rewrite_rule_prefix,
 };
+use crate::storage::mqtt::metrics::{metrics_topic_num_desc, metrics_topic_num_inc, TopicType};
 use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct MqttTopicStorage {
@@ -43,19 +44,27 @@ impl MqttTopicStorage {
         &self,
         cluster_name: &str,
         topic_name: &str,
-        topic: MqttTopic,
+        topic: MQTTTopic,
     ) -> Result<(), PlacementCenterError> {
+        let topic_type = if self.is_system_topic(topic_name) {
+            TopicType::System
+        } else {
+            TopicType::Normal
+        };
+
         let key = storage_key_mqtt_topic(cluster_name, topic_name);
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, topic)?;
+
+        metrics_topic_num_inc(cluster_name, topic_type);
         Ok(())
     }
 
-    pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttTopic>, PlacementCenterError> {
+    pub fn list(&self, cluster_name: &str) -> Result<Vec<MQTTTopic>, PlacementCenterError> {
         let prefix_key = storage_key_mqtt_topic_cluster_prefix(cluster_name);
         let data = engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)?;
         let mut results = Vec::new();
         for raw in data {
-            let topic = serde_json::from_str::<MqttTopic>(&raw.data)?;
+            let topic = serde_json::from_str::<MQTTTopic>(&raw.data)?;
             results.push(topic);
         }
         Ok(results)
@@ -65,19 +74,28 @@ impl MqttTopicStorage {
         &self,
         cluster_name: &str,
         topicname: &str,
-    ) -> Result<Option<MqttTopic>, PlacementCenterError> {
+    ) -> Result<Option<MQTTTopic>, PlacementCenterError> {
         let key: String = storage_key_mqtt_topic(cluster_name, topicname);
 
         if let Some(data) = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)? {
-            let topic = serde_json::from_str::<MqttTopic>(&data.data)?;
+            let topic = serde_json::from_str::<MQTTTopic>(&data.data)?;
             return Ok(Some(topic));
         }
         Ok(None)
     }
 
     pub fn delete(&self, cluster_name: &str, topic_name: &str) -> Result<(), PlacementCenterError> {
+        let topic_type = if self.is_system_topic(topic_name) {
+            TopicType::System
+        } else {
+            TopicType::Normal
+        };
+
         let key: String = storage_key_mqtt_topic(cluster_name, topic_name);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
+
+        metrics_topic_num_desc(cluster_name, topic_type);
+
         Ok(())
     }
 
@@ -117,6 +135,15 @@ impl MqttTopicStorage {
         }
         Ok(results)
     }
+
+    fn is_system_topic(&self, topic_name: &str) -> bool {
+        // todo: At this stage, we do not want to destroy this dependency,
+        //       but seek a simple way to hard-code it in the function.
+        //       We will need to refactor later.
+        const SYSTEM_TOPIC_PREFIX: &str = "$SYS";
+
+        topic_name.to_uppercase().starts_with(SYSTEM_TOPIC_PREFIX)
+    }
 }
 
 #[cfg(test)]
@@ -126,7 +153,7 @@ mod tests {
     use common_base::tools::now_second;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::place::config::placement_center_test_conf;
-    use metadata_struct::mqtt::topic::MqttTopic;
+    use metadata_struct::mqtt::topic::MQTTTopic;
 
     use crate::storage::mqtt::topic::MqttTopicStorage;
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
@@ -143,7 +170,7 @@ mod tests {
         let topic_storage = MqttTopicStorage::new(rs);
         let cluster_name = "test_cluster".to_string();
         let topic_name = "loboxu".to_string();
-        let topic = MqttTopic {
+        let topic = MQTTTopic {
             topic_id: "xxx".to_string(),
             cluster_name: cluster_name.clone(),
             topic_name: topic_name.clone(),
@@ -156,7 +183,7 @@ mod tests {
             .unwrap();
 
         let topic_name = "lobo1".to_string();
-        let topic = MqttTopic {
+        let topic = MQTTTopic {
             topic_id: "xxx".to_string(),
             cluster_name: cluster_name.to_string(),
             topic_name: topic_name.clone(),

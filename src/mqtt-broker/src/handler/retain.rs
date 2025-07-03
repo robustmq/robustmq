@@ -215,7 +215,7 @@ async fn send_retain_message(
             let publish = Publish {
                 dup: false,
                 qos,
-                pkid,
+                p_kid: pkid,
                 retain,
                 topic: Bytes::from(topic_name.clone()),
                 payload: msg.payload,

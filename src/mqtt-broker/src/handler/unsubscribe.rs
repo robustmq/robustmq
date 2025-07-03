@@ -88,7 +88,7 @@ fn unsubscribe_by_path(
                 if data.client_id == *client_id && data.filter.path == *path {
                     subscribe_manager.share_follower_resub.remove(&key);
                     if let Some(sx) = subscribe_manager.share_follower_resub_thread.get(&key) {
-                        sx.send(true)?;
+                        sx.sender.send(true)?;
                     }
                 }
             }
@@ -96,7 +96,7 @@ fn unsubscribe_by_path(
             for (key, subscriber) in subscribe_manager.exclusive_push.clone() {
                 if subscriber.client_id == *client_id && subscriber.sub_path == *path {
                     if let Some(sx) = subscribe_manager.exclusive_push_thread.get(&key) {
-                        sx.send(true)?;
+                        sx.sender.send(true)?;
                         subscribe_manager.exclusive_push.remove(&key);
                     }
                     subscribe_manager.remove_topic_subscribe_by_path(

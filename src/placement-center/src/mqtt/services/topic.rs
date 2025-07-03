@@ -20,7 +20,7 @@ use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::topic::MQTTTopic;
 use prost::Message;
 use protocol::placement_center::placement_center_mqtt::{
     CreateTopicReply, CreateTopicRequest, CreateTopicRewriteRuleReply,
@@ -30,12 +30,16 @@ use protocol::placement_center::placement_center_mqtt::{
     SaveLastWillMessageRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
 };
 use rocksdb_engine::RocksDBEngine;
+use std::pin::Pin;
 use std::sync::Arc;
+use tonic::codegen::tokio_stream::Stream;
+use tonic::Status;
 
-pub fn list_topic_by_req(
+pub async fn list_topic_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListTopicRequest,
-) -> Result<ListTopicReply, PlacementCenterError> {
+) -> Result<Pin<Box<dyn Stream<Item = Result<ListTopicReply, Status>> + Send>>, PlacementCenterError>
+{
     let storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
     let mut topics = Vec::new();
 
@@ -47,7 +51,16 @@ pub fn list_topic_by_req(
         let data = storage.list(&req.cluster_name)?;
         topics = data.into_iter().map(|raw| raw.encode()).collect();
     }
-    Ok(ListTopicReply { topics })
+
+    let output = async_stream::try_stream! {
+        for topic in topics {
+            yield ListTopicReply {
+                topic,
+            };
+        }
+    };
+
+    Ok(Box::pin(output))
 }
 
 pub async fn create_topic_by_req(
@@ -59,7 +72,10 @@ pub async fn create_topic_by_req(
 ) -> Result<CreateTopicReply, PlacementCenterError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
-    if (topic_storage.get(&req.cluster_name, &req.topic_name)?).is_some() {
+    if topic_storage
+        .get(&req.cluster_name, &req.topic_name)?
+        .is_some()
+    {
         return Err(PlacementCenterError::TopicAlreadyExist(
             req.topic_name.clone(),
         ));
@@ -72,7 +88,7 @@ pub async fn create_topic_by_req(
 
     raft_machine_apply.client_write(data).await?;
 
-    let topic = serde_json::from_slice::<MqttTopic>(&req.content)?;
+    let topic = serde_json::from_slice::<MQTTTopic>(&req.content)?;
     update_cache_by_add_topic(&req.cluster_name, call_manager, client_pool, topic).await?;
 
     Ok(CreateTopicReply {})

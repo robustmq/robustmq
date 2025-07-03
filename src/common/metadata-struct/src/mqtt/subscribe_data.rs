@@ -25,6 +25,7 @@ pub struct MqttSubscribe {
     pub filter: Filter,
     pub pkid: u16,
     pub subscribe_properties: Option<SubscribeProperties>,
+    pub create_time: u64,
 }
 
 impl MqttSubscribe {

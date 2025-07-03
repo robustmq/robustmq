@@ -13,15 +13,11 @@
 // limitations under the License.
 
 #![allow(clippy::result_large_err)]
-use std::str::FromStr;
-use std::sync::Arc;
-use std::time::Duration;
-
-use bridge::core::start_connector_thread;
-use bridge::manager::ConnectorManager;
-
+use crate::common::metrics_cache::{metrics_gc_thread, metrics_record_thread, MetricsCacheManager};
 use crate::handler::error::MqttBrokerError;
 use crate::server::server::Server;
+use bridge::core::start_connector_thread;
+use bridge::manager::ConnectorManager;
 use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
 use common_base::tools::now_second;
@@ -43,6 +39,9 @@ use security::AuthDriver;
 use server::connection_manager::ConnectionManager;
 use server::grpc::server::GrpcServer;
 use server::websocket::server::{websocket_server, websockets_server, WebSocketServerState};
+use std::str::FromStr;
+use std::sync::Arc;
+use std::time::Duration;
 use storage::cluster::ClusterStorage;
 use storage_adapter::memory::MemoryStorageAdapter;
 use tracing::{error, info};
@@ -139,6 +138,7 @@ pub struct MqttBroker<S> {
     auth_driver: Arc<AuthDriver>,
     delay_message_manager: Arc<DelayMessageManager<S>>,
     schema_manager: Arc<SchemaRegisterManager>,
+    metrics_cache_manager: Arc<MetricsCacheManager>,
     server: Arc<Server<S>>,
 }
 
@@ -171,6 +171,7 @@ where
             1,
             message_storage_adapter.clone(),
         ));
+        let metrics_cache_manager = Arc::new(MetricsCacheManager::new());
         let schema_manager = Arc::new(SchemaRegisterManager::new());
         let server = Arc::new(Server::new(
             subscribe_manager.clone(),
@@ -199,18 +200,19 @@ where
             delay_message_manager,
             schema_manager,
             server,
+            metrics_cache_manager,
         }
     }
 
     pub fn start(&self, stop_send: broadcast::Sender<bool>) {
         // daemon runtime
-        self.start_tracer_provider();
-        self.register_node();
+        self.start_init();
         self.start_cluster_heartbeat_report(stop_send.clone());
         self.start_keep_alive_thread(stop_send.clone());
         self.start_delay_message_thread();
         self.start_update_cache_thread(stop_send.clone());
         self.start_system_topic_thread(stop_send.clone());
+        self.metrics_cache_thread(stop_send.clone());
         self.start_prometheus();
         self.start_pprof_monitor();
 
@@ -231,11 +233,6 @@ where
         self.awaiting_stop(stop_send);
     }
 
-    fn start_tracer_provider(&self) {
-        self.daemon_runtime.spawn(async move {
-            // common_base::telemetry::trace::init_tracer_provider(broker_mqtt_conf()).await;
-        });
-    }
     fn start_mqtt_server(&self) {
         let server = self.server.clone();
         self.publish_runtime.spawn(async move {
@@ -299,6 +296,7 @@ where
             self.schema_manager.clone(),
             self.client_pool.clone(),
             self.message_storage_adapter.clone(),
+            self.metrics_cache_manager.clone(),
         );
         self.grpc_runtime.spawn(async move {
             if let Err(e) = server.start().await {
@@ -476,6 +474,25 @@ where
         });
     }
 
+    fn metrics_cache_thread(&self, stop_send: broadcast::Sender<bool>) {
+        let metrics_cache_manager = self.metrics_cache_manager.clone();
+        let cache_manager = self.cache_manager.clone();
+        let subscribe_manager = self.subscribe_manager.clone();
+        let connection_manager = self.connection_manager.clone();
+        self.daemon_runtime.spawn(async move {
+            metrics_record_thread(
+                metrics_cache_manager.clone(),
+                cache_manager.clone(),
+                subscribe_manager.clone(),
+                connection_manager.clone(),
+                60,
+                stop_send.clone(),
+            );
+
+            metrics_gc_thread(metrics_cache_manager.clone(), stop_send.clone());
+        });
+    }
+
     pub fn awaiting_stop(&self, stop_send: broadcast::Sender<bool>) {
         self.daemon_runtime.spawn(async move {
             sleep(Duration::from_millis(5)).await;
@@ -509,7 +526,7 @@ where
         // todo tokio runtime shutdown
     }
 
-    fn register_node(&self) {
+    fn start_init(&self) {
         self.daemon_runtime.block_on(async move {
             init_system_user(&self.cache_manager, &self.client_pool).await;
             load_metadata_cache(
@@ -530,6 +547,14 @@ where
                     panic!("{}", e);
                 }
             }
+            info!("config:");
+            let json = match serde_json::to_string_pretty(config) {
+                Ok(data) => data,
+                Err(e) => {
+                    panic!("{}", e);
+                }
+            };
+            info!("{}", json);
         });
     }
 

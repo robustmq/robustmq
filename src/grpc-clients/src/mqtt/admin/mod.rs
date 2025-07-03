@@ -16,15 +16,15 @@ use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusReply, ClusterStatusRequest, DeleteAutoSubscribeRuleReply,
-    DeleteAutoSubscribeRuleRequest, GetClusterConfigReply, GetClusterConfigRequest,
-    ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListSessionReply, ListSessionRequest,
-    ListSystemAlarmReply, ListSystemAlarmRequest, MqttCreateConnectorReply,
-    MqttCreateConnectorRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
-    MqttListConnectorReply, MqttListConnectorRequest, MqttUpdateConnectorReply,
-    MqttUpdateConnectorRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
-    SetClusterConfigReply, SetClusterConfigRequest, SetSystemAlarmConfigReply,
-    SetSystemAlarmConfigRequest,
+    ClusterOverviewMetricsReply, ClusterOverviewMetricsRequest, ClusterStatusReply,
+    ClusterStatusRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
+    GetClusterConfigReply, GetClusterConfigRequest, ListAutoSubscribeRuleReply,
+    ListAutoSubscribeRuleRequest, ListSessionReply, ListSessionRequest, ListSystemAlarmReply,
+    ListSystemAlarmRequest, MqttCreateConnectorReply, MqttCreateConnectorRequest,
+    MqttDeleteConnectorReply, MqttDeleteConnectorRequest, MqttListConnectorReply,
+    MqttListConnectorRequest, MqttUpdateConnectorReply, MqttUpdateConnectorRequest,
+    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetClusterConfigReply,
+    SetClusterConfigRequest, SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
@@ -360,4 +360,12 @@ impl_retriable_request!(
     ListSessionReply,
     mqtt_broker_admin_services_client,
     mqtt_broker_list_session
+);
+
+impl_retriable_request!(
+    ClusterOverviewMetricsRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    ClusterOverviewMetricsReply,
+    mqtt_broker_admin_services_client,
+    cluster_overview_metrics
 );

@@ -483,7 +483,7 @@ mod test {
             Publish {
                 dup: false,
                 qos: QoS::AtMostOnce,
-                pkid: 0,
+                p_kid: 0,
                 retain: false,
                 topic: Bytes::from("test"),
                 payload: Bytes::from("test"),

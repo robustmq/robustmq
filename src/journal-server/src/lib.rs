@@ -43,9 +43,11 @@ use tokio::sync::broadcast;
 use tokio::time::sleep;
 use tracing::{error, info};
 
+mod admin;
 pub mod core;
 mod handler;
 mod index;
+mod inner;
 mod isr;
 mod segment;
 mod server;

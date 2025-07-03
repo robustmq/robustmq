@@ -23,20 +23,19 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     SetSystemAlarmConfigRequest,
 };
 use std::sync::Arc;
-use tonic::{Request, Response, Status};
+use tonic::Status;
 
 // ---- slow subscribe ----
 pub async fn list_slow_subscribe_by_req(
     cache_manager: &Arc<CacheManager>,
-    request: Request<ListSlowSubscribeRequest>,
-) -> Result<Response<ListSlowSubscribeReply>, Status> {
-    let list_slow_subscribe_request = request.into_inner();
+    request: &ListSlowSubscribeRequest,
+) -> Result<ListSlowSubscribeReply, crate::handler::error::MqttBrokerError> {
     let mut list_slow_subscribe_raw: Vec<ListSlowSubScribeRaw> = Vec::new();
     let mqtt_config = broker_mqtt_conf();
     if cache_manager.get_slow_sub_config().enable {
         let path = mqtt_config.log.log_path.clone();
         let path_buf = get_project_root()?.join(path.replace("./", "") + "/slow_sub.log");
-        let deque = read_slow_sub_record(list_slow_subscribe_request, path_buf)?;
+        let deque = read_slow_sub_record(request.clone(), path_buf)?;
         for slow_sub_data in deque {
             match serde_json::from_str::<SlowSubData>(slow_sub_data.as_str()) {
                 Ok(data) => {
@@ -51,14 +50,16 @@ pub async fn list_slow_subscribe_by_req(
                     list_slow_subscribe_raw.push(raw);
                 }
                 Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
+                    return Err(crate::handler::error::MqttBrokerError::CommonError(
+                        e.to_string(),
+                    ));
                 }
             }
         }
     }
-    Ok(Response::new(ListSlowSubscribeReply {
+    Ok(ListSlowSubscribeReply {
         list_slow_subscribe_raw,
-    }))
+    })
 }
 
 pub async fn set_system_alarm_config_by_req(

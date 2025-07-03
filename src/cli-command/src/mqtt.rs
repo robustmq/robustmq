@@ -15,13 +15,13 @@
 use crate::template::{PublishArgsRequest, SubscribeArgsRequest};
 use crate::{connect_server5, error_info, grpc_addr};
 use common_base::enum_type::sort_type::SortType;
-use common_base::tools::unique_id;
+use common_base::tools::{now_second, unique_id};
 use common_config::mqtt::config::BrokerMqttConfig;
 use grpc_clients::mqtt::admin::call::{
-    mqtt_broker_bind_schema, mqtt_broker_cluster_status, mqtt_broker_create_acl,
-    mqtt_broker_create_blacklist, mqtt_broker_create_connector, mqtt_broker_create_schema,
-    mqtt_broker_create_topic_rewrite_rule, mqtt_broker_create_user, mqtt_broker_delete_acl,
-    mqtt_broker_delete_auto_subscribe_rule, mqtt_broker_delete_blacklist,
+    mqtt_broker_bind_schema, mqtt_broker_cluster_overview_metrics, mqtt_broker_cluster_status,
+    mqtt_broker_create_acl, mqtt_broker_create_blacklist, mqtt_broker_create_connector,
+    mqtt_broker_create_schema, mqtt_broker_create_topic_rewrite_rule, mqtt_broker_create_user,
+    mqtt_broker_delete_acl, mqtt_broker_delete_auto_subscribe_rule, mqtt_broker_delete_blacklist,
     mqtt_broker_delete_connector, mqtt_broker_delete_schema, mqtt_broker_delete_topic_rewrite_rule,
     mqtt_broker_delete_user, mqtt_broker_enable_flapping_detect, mqtt_broker_get_cluster_config,
     mqtt_broker_list_acl, mqtt_broker_list_auto_subscribe_rule, mqtt_broker_list_bind_schema,
@@ -39,16 +39,17 @@ use metadata_struct::schema::SchemaData;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterStatusRequest, CreateAclRequest, CreateBlacklistRequest, CreateTopicRewriteRuleRequest,
-    CreateUserRequest, DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest,
-    DeleteTopicRewriteRuleRequest, DeleteUserRequest, EnableFlappingDetectRequest,
-    GetClusterConfigRequest, ListAclRequest, ListAutoSubscribeRuleRequest, ListBlacklistRequest,
-    ListConnectionRequest, ListSessionRequest, ListSlowSubscribeRequest, ListSystemAlarmRequest,
-    ListTopicRequest, ListUserRequest, MqttBindSchemaRequest, MqttCreateConnectorRequest,
-    MqttCreateSchemaRequest, MqttDeleteConnectorRequest, MqttDeleteSchemaRequest,
-    MqttListBindSchemaRequest, MqttListConnectorRequest, MqttListSchemaRequest,
-    MqttUnbindSchemaRequest, MqttUpdateConnectorRequest, MqttUpdateSchemaRequest,
-    SetAutoSubscribeRuleRequest, SetClusterConfigRequest, SetSystemAlarmConfigRequest,
+    ClusterOverviewMetricsRequest, ClusterStatusRequest, CreateAclRequest, CreateBlacklistRequest,
+    CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
+    DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteTopicRewriteRuleRequest,
+    DeleteUserRequest, EnableFlappingDetectRequest, GetClusterConfigRequest, ListAclRequest,
+    ListAutoSubscribeRuleRequest, ListBlacklistRequest, ListConnectionRequest, ListSessionRequest,
+    ListSlowSubscribeRequest, ListSystemAlarmRequest, ListTopicRequest, ListUserRequest,
+    MqttBindSchemaRequest, MqttCreateConnectorRequest, MqttCreateSchemaRequest,
+    MqttDeleteConnectorRequest, MqttDeleteSchemaRequest, MqttListBindSchemaRequest,
+    MqttListConnectorRequest, MqttListSchemaRequest, MqttUnbindSchemaRequest,
+    MqttUpdateConnectorRequest, MqttUpdateSchemaRequest, SetAutoSubscribeRuleRequest,
+    SetClusterConfigRequest, SetSystemAlarmConfigRequest,
 };
 use std::str::FromStr;
 use std::sync::Arc;
@@ -470,7 +471,12 @@ impl MqttBrokerCommand {
 
     async fn get_cluster_config(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
         let request = GetClusterConfigRequest {};
-        match mqtt_broker_get_cluster_config(client_pool, &grpc_addr(params.server), request).await
+        match mqtt_broker_get_cluster_config(
+            client_pool,
+            &grpc_addr(params.server.clone()),
+            request,
+        )
+        .await
         {
             Ok(data) => {
                 let data = match serde_json::from_slice::<BrokerMqttConfig>(
@@ -543,7 +549,9 @@ impl MqttBrokerCommand {
     // ------------ cluster status ------------
     async fn status(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
         let request = ClusterStatusRequest {};
-        match mqtt_broker_cluster_status(client_pool, &grpc_addr(params.server), request).await {
+        match mqtt_broker_cluster_status(client_pool, &grpc_addr(params.server.clone()), request)
+            .await
+        {
             Ok(data) => {
                 println!("cluster_name: {}", data.cluster_name);
                 println!("message_in_rate: {}", data.message_in_rate);
@@ -579,7 +587,7 @@ impl MqttBrokerCommand {
                     data.share_subscribe_leader_thread_num
                 );
                 println!(
-                    "share_subscribe_folower_thread_num: {}",
+                    "share_subscribe_follower_thread_num: {}",
                     data.share_subscribe_follower_thread_num
                 );
             }
@@ -588,6 +596,30 @@ impl MqttBrokerCommand {
                 error_info(e.to_string());
             }
         }
+        match mqtt_broker_cluster_overview_metrics(
+            client_pool,
+            &grpc_addr(params.server),
+            ClusterOverviewMetricsRequest {
+                start_time: now_second() - 360,
+                end_time: now_second() + 120,
+            },
+        )
+        .await
+        {
+            Ok(data) => {
+                println!("connection_num:{}", data.connection_num);
+                println!("topic_num: {}", data.topic_num);
+                println!("subscribe_num: {}", data.subscribe_num);
+                println!("message_in_num: {}", data.message_in_num);
+                println!("message_out_num: {}", data.message_out_num);
+                println!("message_drop_num: {}", data.message_drop_num);
+            }
+
+            Err(e) => {
+                eprintln!("Failed to list connections: {:?}", e);
+                std::process::exit(1);
+            }
+        };
     }
     // ------------ user admin ------------
 

@@ -33,11 +33,12 @@ impl JournalClientOption {
     }
 }
 
-pub fn options_validator(option: &JournalClientOption) -> Result<(), CommonError> {
+pub fn options_validator(option: &JournalClientOption) -> Result<(), Box<CommonError>> {
     if option.addrs.is_empty() {
-        return Err(CommonError::ParameterCannotBeNull(
+        let err = Box::new(CommonError::ParameterCannotBeNull(
             "option.addrs".to_string(),
         ));
+        return Err(err);
     }
     Ok(())
 }
