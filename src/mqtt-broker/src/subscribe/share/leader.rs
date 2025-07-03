@@ -24,6 +24,7 @@ use crate::subscribe::manager::{ShareLeaderSubscribeData, SubscribeManager};
 use crate::subscribe::push::{
     build_pub_qos, build_publish_message, build_sub_ids, send_publish_packet_to_client,
 };
+use common_base::network::broker_not_available;
 use common_base::tools::now_second;
 use metadata_struct::adapter::record::Record;
 use std::sync::Arc;
@@ -32,6 +33,7 @@ use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::sleep;
+use tracing::debug;
 use tracing::warn;
 use tracing::{error, info};
 
@@ -316,10 +318,14 @@ where
             )
             .await
             {
-                warn!(
-                    "Shared subscription failed to send a message. I attempted to 
+                if broker_not_available(&e.to_string()) {
+                    subscribe_manager.add_not_push_client(&subscriber.client_id);
+                }
+
+                debug!(
+                    "Shared subscription failed to send a message to client {}. I attempted to 
                     send it to the next client. Error message :{}, offset: {:?}",
-                    e, record.offset
+                    subscriber.client_id, e, record.offset
                 );
                 continue;
             };
@@ -367,24 +373,30 @@ where
 fn get_subscribe_by_random(
     subscribe_manager: &Arc<SubscribeManager>,
     share_leader_key: &str,
-    seq: u64,
+    mut seq: u64,
 ) -> Option<Subscriber> {
-    if let Some(sub_list) = subscribe_manager.share_leader_push.get(share_leader_key) {
-        let index = seq % (sub_list.sub_list.len() as u64);
-        let keys: Vec<String> = sub_list
-            .sub_list
-            .iter()
-            .map(|entry| entry.key().clone())
-            .collect();
+    loop {
+        if let Some(sub_list) = subscribe_manager.share_leader_push.get(share_leader_key) {
+            let index = seq % (sub_list.sub_list.len() as u64);
+            let keys: Vec<String> = sub_list
+                .sub_list
+                .iter()
+                .map(|entry| entry.key().clone())
+                .collect();
 
-        if let Some(key) = keys.get(index as usize) {
-            if let Some(subscribe) = sub_list.sub_list.get(key) {
-                return Some(subscribe.clone());
+            if let Some(key) = keys.get(index as usize) {
+                if let Some(subscribe) = sub_list.sub_list.get(key) {
+                    if !subscribe_manager
+                        .not_push_client
+                        .contains_key(&subscribe.client_id)
+                    {
+                        return Some(subscribe.clone());
+                    }
+                }
             }
         }
+        seq += 1;
     }
-
-    None
 }
 
 #[cfg(test)]

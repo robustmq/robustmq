@@ -332,6 +332,7 @@ mod tests {
             .get_leader_node(&cluster_name, &group_name)
             .unwrap();
         assert_eq!(node, 1);
+
         let node = share_sub
             .get_leader_node(&cluster_name, &group_name)
             .unwrap();
@@ -348,6 +349,18 @@ mod tests {
             .get_leader_node(&cluster_name, &group_name)
             .unwrap();
         assert_eq!(node, 3);
+
+        let group_name = "group3".to_string();
+        let node = share_sub
+            .get_leader_node(&cluster_name, &group_name)
+            .unwrap();
+        assert_eq!(node, 3);
+
+        let group_name = "group4".to_string();
+        let node = share_sub
+            .get_leader_node(&cluster_name, &group_name)
+            .unwrap();
+        assert_eq!(node, 1);
 
         let group_name = "group4".to_string();
         let node = share_sub
