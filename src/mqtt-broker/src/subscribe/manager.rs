@@ -135,6 +135,14 @@ impl SubscribeManager {
         None
     }
 
+    pub fn list_subscribe(&self) -> Vec<String> {
+        let mut list = Vec::new();
+        for (key, _subscribe) in self.subscribe_list.clone() {
+            list.push(key);
+        }
+        list
+    }
+
     pub fn remove_subscribe(&self, client_id: &str, path: &str) {
         let key = self.subscribe_key(client_id, path);
         self.subscribe_list.remove(&key);

@@ -16,6 +16,7 @@ use super::{
     cache::CacheManager, subscribe::parse_subscribe,
     topic_rewrite::convert_sub_path_by_rewrite_rule,
 };
+use crate::subscribe::common::is_match_sub_and_topic;
 use crate::subscribe::manager::SubscribeManager;
 use common_base::tools::now_second;
 use common_config::mqtt::broker_mqtt_conf;
