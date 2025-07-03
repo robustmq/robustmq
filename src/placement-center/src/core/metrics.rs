@@ -49,14 +49,14 @@ impl RocksDBLabels {
 
 common_base::register_counter_metric!(
     GRPC_REQUEST_NUM,
-    "grpc.request.num",
+    "grpc_request_num",
     "Number of calls to the grpc request",
     MetricsLabel
 );
 
 common_base::register_histogram_metric!(
     GRPC_REQUEST_TOTAL_MS,
-    "grpc.request.total.ms",
+    "grpc_request_total_ms",
     "TotalMs of calls to the grpc request",
     MetricsLabel,
     1.0,
@@ -66,21 +66,21 @@ common_base::register_histogram_metric!(
 
 common_base::register_counter_metric!(
     RAFT_STORAGE_TOTAL_NUM,
-    "raft.storage.num",
+    "raft_storage_num",
     "Total number of calls to the raft storage",
     MetricsLabel
 );
 
 common_base::register_counter_metric!(
     RAFT_STORAGE_ERROR_NUM,
-    "raft.storage.error.num",
+    "raft_storage_error_num",
     "Error number of calls to the raft storage",
     MetricsLabel
 );
 
 common_base::register_histogram_metric!(
     RAFT_STORAGE_TOTAL_MS,
-    "raft.storage.total.ms",
+    "raft_storage_total_ms",
     "TotalMs of calls to the raft storage",
     MetricsLabel,
     0.1,
@@ -90,21 +90,21 @@ common_base::register_histogram_metric!(
 
 common_base::register_counter_metric!(
     ROCKSDB_STORAGE_NUM,
-    "rocksdb.storage.num",
+    "rocksdb_storage_num",
     "Total number of calls to the rocksdb storage",
     RocksDBLabels
 );
 
 common_base::register_counter_metric!(
     ROCKSDB_STORAGE_ERROR_NUM,
-    "rocksdb.storage.error.num",
+    "rocksdb_storage_error_num",
     "Error number of calls to the rocksdb storage",
     RocksDBLabels
 );
 
 common_base::register_histogram_metric!(
     ROCKSDB_STORAGE_TOTAL_MS,
-    "rocksdb.storage.total.ms",
+    "rocksdb_storage_total_ms",
     "TotalMs of calls to the rocksdb storage",
     RocksDBLabels,
     0.1,
