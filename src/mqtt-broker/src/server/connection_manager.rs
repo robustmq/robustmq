@@ -244,7 +244,7 @@ impl ConnectionManager {
                             if broker_not_available(&e.to_string()) {
                                 return Err(MqttBrokerError::CommonError(e.to_string()));
                             }
-                            
+
                             if times > cluster.network_thread.lock_max_try_mut_times {
                                 return Err(MqttBrokerError::FailedToWriteClient(
                                     "tcp".to_string(),

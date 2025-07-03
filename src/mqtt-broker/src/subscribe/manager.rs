@@ -16,7 +16,6 @@ use crate::subscribe::common::Subscriber;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
-use paho_mqtt::client;
 use protocol::mqtt::common::{Filter, MqttProtocol};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
