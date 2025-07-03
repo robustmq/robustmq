@@ -28,6 +28,7 @@ use crate::server::packet::ResponsePackage;
 use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
 use axum::extract::ws::Message;
 use bytes::{Bytes, BytesMut};
+use common_base::network::broker_not_available;
 use common_base::tools::now_mills;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
@@ -558,6 +559,10 @@ where
             }
             val = ac_fn() => {
                 if let Err(e) = val {
+                    if broker_not_available(&e.to_string()){
+                        return Err(e);
+                    }
+
                     if !is_ignore_push_error(&e){
                         warn!("retry tool fn fail, error message:{}",e);
                         sleep(Duration::from_secs(1)).await;

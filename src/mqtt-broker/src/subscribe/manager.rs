@@ -16,6 +16,7 @@ use crate::subscribe::common::Subscriber;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
+use paho_mqtt::client;
 use protocol::mqtt::common::{Filter, MqttProtocol};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -54,6 +55,12 @@ pub struct TopicSubscribeInfo {
     pub path: String,
 }
 
+#[derive(Clone, Debug)]
+pub struct TemporaryNotPushClient {
+    pub client_id: String,
+    pub last_check_time: u64,
+}
+
 #[derive(Clone)]
 pub struct SubPushThreadData {
     pub push_success_record_num: u64,
@@ -89,6 +96,9 @@ pub struct SubscribeManager {
 
     //(topic_id, Vec<TopicSubscribeInfo>)
     pub topic_subscribe_list: DashMap<String, Vec<TopicSubscribeInfo>>,
+
+    //(client_id, TemporaryNotPushClient)
+    pub not_push_client: DashMap<String, TemporaryNotPushClient>,
 }
 
 impl Default for SubscribeManager {
@@ -108,6 +118,7 @@ impl SubscribeManager {
             share_leader_push_thread: DashMap::with_capacity(8),
             share_follower_resub_thread: DashMap::with_capacity(8),
             topic_subscribe_list: DashMap::with_capacity(8),
+            not_push_client: DashMap::with_capacity(8),
         }
     }
 
@@ -265,6 +276,27 @@ impl SubscribeManager {
         }
     }
 
+    // Not push client
+    pub fn add_not_push_client(&self, client_id: &str) {
+        self.not_push_client.insert(
+            client_id.to_string(),
+            TemporaryNotPushClient {
+                client_id: client_id.to_string(),
+                last_check_time: now_second(),
+            },
+        );
+    }
+
+    pub fn remove_not_push_client(&self, client_id: &str) {
+        self.not_push_client.remove(client_id);
+    }
+
+    pub fn update_not_push_client(&self, client_id: &str) {
+        if let Some(mut raw) = self.not_push_client.get_mut(client_id) {
+            raw.last_check_time = now_second();
+        }
+    }
+
     // topic subscribe
     pub fn add_topic_subscribe(&self, topic_name: &str, client_id: &str, path: &str) {
         if let Some(mut list) = self.topic_subscribe_list.get_mut(topic_name) {
@@ -318,6 +350,7 @@ impl SubscribeManager {
         self.remove_share_subscribe_leader_by_client_id(client_id);
         self.remove_share_subscribe_follower_by_client_id(client_id);
         self.remove_subscriber_by_client_id(client_id);
+        self.remove_not_push_client(client_id);
     }
 
     // info

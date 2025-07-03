@@ -16,6 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::extract::ws::{Message, WebSocket};
+use common_base::network::broker_not_available;
 use dashmap::DashMap;
 use futures::stream::SplitSink;
 use futures::SinkExt;
@@ -173,8 +174,8 @@ impl ConnectionManager {
                             break;
                         }
                         Err(e) => {
-                            if e.to_string().contains("Broken pipe") {
-                                break;
+                            if broker_not_available(&e.to_string()) {
+                                return Err(MqttBrokerError::CommonError(e.to_string()));
                             }
                             if times > cluster.network_thread.lock_max_try_mut_times {
                                 return Err(MqttBrokerError::FailedToWriteClient(
@@ -240,9 +241,10 @@ impl ConnectionManager {
                             break;
                         }
                         Err(e) => {
-                            if e.to_string().contains("Broken pipe") {
-                                break;
+                            if broker_not_available(&e.to_string()) {
+                                return Err(MqttBrokerError::CommonError(e.to_string()));
                             }
+                            
                             if times > cluster.network_thread.lock_max_try_mut_times {
                                 return Err(MqttBrokerError::FailedToWriteClient(
                                     "tcp".to_string(),
