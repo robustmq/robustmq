@@ -440,15 +440,12 @@ dependencies = [
  "itertools 0.12.1",
  "lazy_static",
  "lazycell",
- "log",
- "prettyplease",
  "proc-macro2",
  "quote",
  "regex",
  "rustc-hash 1.1.0",
  "shlex",
  "syn 2.0.103",
- "which",
 ]
 
 [[package]]
@@ -2831,11 +2828,10 @@ dependencies = [
 name = "mqtt-broker"
 version = "0.1.25"
 dependencies = [
+ "async-stream",
  "axum",
  "axum-extra",
  "axum-server",
- "bincode",
- "bindgen 0.69.5",
  "bytes",
  "chrono",
  "common-base",
@@ -2852,12 +2848,8 @@ dependencies = [
  "lazy_static",
  "metadata-struct",
  "mysql",
- "opentelemetry",
  "os_info",
- "paho-mqtt",
- "placement-center",
  "pprof-monitor",
- "prometheus",
  "prometheus-client",
  "protocol",
  "quinn",
@@ -4572,7 +4564,7 @@ dependencies = [
 [[package]]
 name = "robustmq-proto-build"
 version = "0.1.0"
-source = "git+https://github.com/PorterZhang2021/robustmq-proto.git?branch=fix-style#6b387ee69d707420458de540441dcce3a48d6ed9"
+source = "git+https://github.com/PorterZhang2021/robustmq-proto.git?branch=list-flapping-detect#b4826c6b395c60e66f23a2766627ff57da34860c"
 dependencies = [
  "prost-build",
  "prost-validate-build",
