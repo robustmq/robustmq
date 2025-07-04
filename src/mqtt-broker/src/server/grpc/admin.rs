@@ -31,7 +31,8 @@ use crate::admin::schema::{
 };
 use crate::admin::session::list_session_by_req;
 use crate::admin::subscribe::{
-    delete_auto_subscribe_rule, list_auto_subscribe_rule_by_req, set_auto_subscribe_rule,
+    delete_auto_subscribe_rule, list_auto_subscribe_rule_by_req, list_subscribe,
+    set_auto_subscribe_rule, subscribe_detail,
 };
 use crate::admin::topic::{
     create_topic_rewrite_rule_by_req, delete_topic_rewrite_rule_by_req,
@@ -61,16 +62,18 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     ListBlacklistRequest, ListClientReply, ListClientRequest, ListConnectionReply,
     ListConnectionRequest, ListRewriteTopicRuleReply, ListRewriteTopicRuleRequest,
     ListSessionReply, ListSessionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest,
-    ListSystemAlarmReply, ListSystemAlarmRequest, ListTopicReply, ListTopicRequest, ListUserReply,
-    ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest, MqttCreateConnectorReply,
-    MqttCreateConnectorRequest, MqttCreateSchemaReply, MqttCreateSchemaRequest,
-    MqttDeleteConnectorReply, MqttDeleteConnectorRequest, MqttDeleteSchemaReply,
-    MqttDeleteSchemaRequest, MqttListBindSchemaReply, MqttListBindSchemaRequest,
-    MqttListConnectorReply, MqttListConnectorRequest, MqttListSchemaReply, MqttListSchemaRequest,
-    MqttUnbindSchemaReply, MqttUnbindSchemaRequest, MqttUpdateConnectorReply,
-    MqttUpdateConnectorRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
-    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetClusterConfigReply,
-    SetClusterConfigRequest, SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest,
+    ListSubscribeReply, ListSubscribeRequest, ListSystemAlarmReply, ListSystemAlarmRequest,
+    ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest, MqttBindSchemaReply,
+    MqttBindSchemaRequest, MqttCreateConnectorReply, MqttCreateConnectorRequest,
+    MqttCreateSchemaReply, MqttCreateSchemaRequest, MqttDeleteConnectorReply,
+    MqttDeleteConnectorRequest, MqttDeleteSchemaReply, MqttDeleteSchemaRequest,
+    MqttListBindSchemaReply, MqttListBindSchemaRequest, MqttListConnectorReply,
+    MqttListConnectorRequest, MqttListSchemaReply, MqttListSchemaRequest, MqttUnbindSchemaReply,
+    MqttUnbindSchemaRequest, MqttUpdateConnectorReply, MqttUpdateConnectorRequest,
+    MqttUpdateSchemaReply, MqttUpdateSchemaRequest, SetAutoSubscribeRuleReply,
+    SetAutoSubscribeRuleRequest, SetClusterConfigReply, SetClusterConfigRequest,
+    SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest, SubscribeDetailReply,
+    SubscribeDetailRequest,
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
@@ -517,6 +520,26 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         _request: Request<ListAutoSubscribeRuleRequest>,
     ) -> Result<Response<ListAutoSubscribeRuleReply>, Status> {
         list_auto_subscribe_rule_by_req(&self.cache_manager)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
+    }
+
+    async fn mqtt_broker_list_subscribe(
+        &self,
+        _request: Request<ListSubscribeRequest>,
+    ) -> Result<Response<ListSubscribeReply>, Status> {
+        list_subscribe(&self.subscribe_manager)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
+    }
+
+    async fn mqtt_broker_subscribe_detail(
+        &self,
+        _request: Request<SubscribeDetailRequest>,
+    ) -> Result<Response<SubscribeDetailReply>, Status> {
+        subscribe_detail(&self.subscribe_manager)
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)

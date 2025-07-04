@@ -12,11 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
-
 use common_base::network::{broker_not_available, is_port_open};
-use common_base::tools::{now_mills, now_second, unique_id};
+use common_base::tools::{get_local_ip, now_mills, now_second, unique_id};
 use common_config::mqtt::broker_mqtt_conf;
 use futures::StreamExt;
 use grpc_clients::pool::ClientPool;
@@ -29,6 +26,8 @@ use protocol::mqtt::common::{
     UnsubscribeProperties,
 };
 use protocol::mqtt::mqttv5::codec::Mqtt5Codec;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::sleep;
@@ -210,7 +209,7 @@ async fn resub_sub_mqtt5(
     let mqtt_client_id = share_sub.client_id.clone();
     let group_name = share_sub.group_name.clone();
     let sub_name = share_sub.sub_name.clone();
-    let follower_sub_leader_client_id = unique_id();
+    let follower_sub_leader_client_id = format!("resub_{}_{}", get_local_ip(), unique_id());
     let follower_sub_leader_pkid: u16 = 1;
 
     info!(
