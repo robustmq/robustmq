@@ -180,6 +180,7 @@ robustmq-proto-build = { git = "https://github.com/robustmq/robustmq-proto", bra
 pprof-monitor = { path = "src/common/pprof-monitor" }
 sysinfo = "0.29.10"
 chrono = "0.4.41"
+chrono-tz = "0.10.3"
 # other
 tempfile = "3.9.0"
 humantime = "2.2.0"
