@@ -23,21 +23,17 @@ use metadata_struct::mqtt::bridge::config_local_file::LocalFileConnectorConfig;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::bridge::connector_type::ConnectorType;
 use metadata_struct::mqtt::bridge::status::MQTTStatus;
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    MqttConnectorType, MqttCreateConnectorReply, MqttCreateConnectorRequest,
-    MqttDeleteConnectorReply, MqttDeleteConnectorRequest, MqttListConnectorReply,
-    MqttListConnectorRequest, MqttUpdateConnectorReply, MqttUpdateConnectorRequest,
-};
-use protocol::placement_center::placement_center_mqtt::ListConnectorRequest;
+use protocol::broker_mqtt::broker_mqtt_admin;
+use protocol::placement_center::placement_center_mqtt;
 use std::sync::Arc;
 
 // List connectors by request
 pub async fn list_connector_by_req(
     client_pool: &Arc<ClientPool>,
-    request: &MqttListConnectorRequest,
-) -> Result<MqttListConnectorReply, MqttBrokerError> {
+    request: &broker_mqtt_admin::ListConnectorRequest,
+) -> Result<broker_mqtt_admin::ListConnectorReply, MqttBrokerError> {
     let config = broker_mqtt_conf();
-    let request = ListConnectorRequest {
+    let request = placement_center_mqtt::ListConnectorRequest {
         cluster_name: config.cluster_name.clone(),
         connector_name: request.connector_name.clone(),
     };
@@ -47,14 +43,14 @@ pub async fn list_connector_by_req(
         .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?
         .connectors;
 
-    Ok(MqttListConnectorReply { connectors })
+    Ok(broker_mqtt_admin::ListConnectorReply { connectors })
 }
 
 // Create a new connector
 pub async fn create_connector_by_req(
     client_pool: &Arc<ClientPool>,
-    request: &MqttCreateConnectorRequest,
-) -> Result<MqttCreateConnectorReply, MqttBrokerError> {
+    request: &broker_mqtt_admin::CreateConnectorRequest,
+) -> Result<broker_mqtt_admin::CreateConnectorReply, MqttBrokerError> {
     let connector_type = parse_mqtt_connector_type(request.connector_type());
     connector_config_validator(&connector_type, &request.config)?;
 
@@ -77,13 +73,13 @@ pub async fn create_connector_by_req(
         .await
         .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
 
-    Ok(MqttCreateConnectorReply {})
+    Ok(broker_mqtt_admin::CreateConnectorReply {})
 }
 // Update an existing connector
 pub async fn update_connector_by_req(
     client_pool: &Arc<ClientPool>,
-    request: &MqttUpdateConnectorRequest,
-) -> Result<MqttUpdateConnectorReply, MqttBrokerError> {
+    request: &broker_mqtt_admin::UpdateConnectorRequest,
+) -> Result<broker_mqtt_admin::UpdateConnectorReply, MqttBrokerError> {
     let connector = serde_json::from_slice::<MQTTConnector>(&request.connector)
         .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
 
@@ -95,14 +91,14 @@ pub async fn update_connector_by_req(
         .await
         .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
 
-    Ok(MqttUpdateConnectorReply {})
+    Ok(broker_mqtt_admin::UpdateConnectorReply {})
 }
 
 // Delete an existing connector
 pub async fn delete_connector_by_req(
     client_pool: &Arc<ClientPool>,
-    request: &MqttDeleteConnectorRequest,
-) -> Result<MqttDeleteConnectorReply, MqttBrokerError> {
+    request: &broker_mqtt_admin::DeleteConnectorRequest,
+) -> Result<broker_mqtt_admin::DeleteConnectorReply, MqttBrokerError> {
     let config = broker_mqtt_conf();
     let storage = ConnectorStorage::new(client_pool.clone());
 
@@ -111,7 +107,7 @@ pub async fn delete_connector_by_req(
         .await
         .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
 
-    Ok(MqttDeleteConnectorReply {})
+    Ok(broker_mqtt_admin::DeleteConnectorReply {})
 }
 
 fn connector_config_validator(
@@ -129,9 +125,9 @@ fn connector_config_validator(
     Ok(())
 }
 
-fn parse_mqtt_connector_type(connector_type: MqttConnectorType) -> ConnectorType {
+fn parse_mqtt_connector_type(connector_type: broker_mqtt_admin::ConnectorType) -> ConnectorType {
     match connector_type {
-        MqttConnectorType::File => ConnectorType::LocalFile,
-        MqttConnectorType::Kafka => ConnectorType::Kafka,
+        broker_mqtt_admin::ConnectorType::File => ConnectorType::LocalFile,
+        broker_mqtt_admin::ConnectorType::Kafka => ConnectorType::Kafka,
     }
 }

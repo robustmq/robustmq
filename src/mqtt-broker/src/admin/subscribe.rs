@@ -22,7 +22,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest, ListAutoSubscribeRuleReply,
-    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
+    ListSubscribeReply, MqttSubscribeRaw, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
 };
 use protocol::mqtt::common::{qos, retain_forward_rule, Error};
 use std::sync::Arc;
@@ -118,4 +118,26 @@ pub async fn list_auto_subscribe_rule_by_req(
 
 pub async fn list_subscribe(subscribe_manager: &Arc<SubscribeManager>) -> Vec<String> {
     subscribe_manager.list_subscribe()
+}
+
+pub async fn list_subscribe_by_topic(
+    subscribe_manager: &Arc<SubscribeManager>,
+) -> Result<ListSubscribeReply, MqttBrokerError> {
+    let subscribes = list_subscribe(subscribe_manager).await;
+
+    let subscriptions = subscribes
+        .into_iter()
+        .filter_map(|subscribe| {
+            let mut data_split = subscribe.split("_");
+            match (data_split.next(), data_split.next()) {
+                (Some(client_id), Some(path)) => Some(MqttSubscribeRaw {
+                    client_id: client_id.to_string(),
+                    path: path.to_string(),
+                }),
+                _ => None,
+            }
+        })
+        .collect();
+
+    Ok(ListSubscribeReply { subscriptions })
 }
