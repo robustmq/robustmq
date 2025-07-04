@@ -32,7 +32,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 use protocol::mqtt::common::{qos, retain_forward_rule, Error};
 use std::sync::Arc;
 
-pub async fn set_auto_subscribe_rule(
+pub async fn set_auto_subscribe_rule_by_req(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
     request: &SetAutoSubscribeRuleRequest,
@@ -87,7 +87,7 @@ pub async fn set_auto_subscribe_rule(
 }
 
 // Delete auto subscribe rule
-pub async fn delete_auto_subscribe_rule(
+pub async fn delete_auto_subscribe_rule_by_req(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
     request: &DeleteAutoSubscribeRuleRequest,
@@ -121,7 +121,7 @@ pub async fn list_auto_subscribe_rule_by_req(
     })
 }
 
-pub async fn list_subscribe(
+pub async fn list_subscribe_by_req(
     subscribe_manager: &Arc<SubscribeManager>,
     request: ListSubscribeRequest,
 ) -> Result<ListSubscribeReply, MqttBrokerError> {
@@ -140,7 +140,7 @@ pub async fn list_subscribe(
     })
 }
 
-pub async fn subscribe_detail(
+pub async fn subscribe_detail_by_req(
     subscribe_manager: &Arc<SubscribeManager>,
     client_pool: &Arc<ClientPool>,
     request: SubscribeDetailRequest,

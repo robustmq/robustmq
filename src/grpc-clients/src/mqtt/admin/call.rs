@@ -14,28 +14,26 @@
 
 use common_base::error::common::CommonError;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterOverviewMetricsReply, ClusterOverviewMetricsRequest, ClusterStatusReply,
-    ClusterStatusRequest, CreateAclReply, CreateAclRequest, CreateBlacklistReply,
-    CreateBlacklistRequest, CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest,
-    CreateUserReply, CreateUserRequest, DeleteAclReply, DeleteAclRequest,
-    DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest, DeleteBlacklistReply,
-    DeleteBlacklistRequest, DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest,
-    DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply, EnableFlappingDetectRequest,
-    GetClusterConfigReply, GetClusterConfigRequest, ListAclReply, ListAclRequest,
-    ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBlacklistReply,
-    ListBlacklistRequest, ListConnectionReply, ListConnectionRequest, ListSessionReply,
-    ListSessionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListSubscribeReply,
-    ListSubscribeRequest, ListSystemAlarmReply, ListSystemAlarmRequest, ListTopicReply,
-    ListTopicRequest, ListUserReply, ListUserRequest, MqttBindSchemaReply, MqttBindSchemaRequest,
-    MqttCreateConnectorReply, MqttCreateConnectorRequest, MqttCreateSchemaReply,
-    MqttCreateSchemaRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
-    MqttDeleteSchemaReply, MqttDeleteSchemaRequest, MqttListBindSchemaReply,
-    MqttListBindSchemaRequest, MqttListConnectorReply, MqttListConnectorRequest,
-    MqttListSchemaReply, MqttListSchemaRequest, MqttUnbindSchemaReply, MqttUnbindSchemaRequest,
-    MqttUpdateConnectorReply, MqttUpdateConnectorRequest, MqttUpdateSchemaReply,
-    MqttUpdateSchemaRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
-    SetClusterConfigReply, SetClusterConfigRequest, SetSystemAlarmConfigReply,
-    SetSystemAlarmConfigRequest, SubscribeDetailReply, SubscribeDetailRequest,
+    BindSchemaReply, BindSchemaRequest, ClusterOverviewMetricsReply, ClusterOverviewMetricsRequest,
+    ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
+    CreateBlacklistReply, CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest,
+    CreateSchemaReply, CreateSchemaRequest, CreateTopicRewriteRuleReply,
+    CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
+    DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
+    DeleteBlacklistReply, DeleteBlacklistRequest, DeleteConnectorReply, DeleteConnectorRequest,
+    DeleteSchemaReply, DeleteSchemaRequest, DeleteTopicRewriteRuleReply,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
+    EnableFlappingDetectRequest, GetClusterConfigReply, GetClusterConfigRequest, ListAclReply,
+    ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBindSchemaReply,
+    ListBindSchemaRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
+    ListConnectionRequest, ListConnectorReply, ListConnectorRequest, ListSchemaReply,
+    ListSchemaRequest, ListSessionReply, ListSessionRequest, ListSlowSubscribeReply,
+    ListSlowSubscribeRequest, ListSubscribeReply, ListSubscribeRequest, ListSystemAlarmReply,
+    ListSystemAlarmRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetClusterConfigReply,
+    SetClusterConfigRequest, SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest,
+    SubscribeDetailReply, SubscribeDetailRequest, UnbindSchemaReply, UnbindSchemaRequest,
+    UpdateConnectorReply, UpdateConnectorRequest, UpdateSchemaReply, UpdateSchemaRequest,
 };
 
 use crate::pool::ClientPool;
@@ -199,79 +197,79 @@ generate_mqtt_admin_service_call!(
 // connector command line CRUD
 generate_mqtt_admin_service_call!(
     mqtt_broker_list_connector,
-    MqttListConnectorRequest,
-    MqttListConnectorReply,
+    ListConnectorRequest,
+    ListConnectorReply,
     MqttListConnector
 );
 
 generate_mqtt_admin_service_call!(
     mqtt_broker_create_connector,
-    MqttCreateConnectorRequest,
-    MqttCreateConnectorReply,
+    CreateConnectorRequest,
+    CreateConnectorReply,
     MqttCreateConnector
 );
 
 generate_mqtt_admin_service_call!(
     mqtt_broker_update_connector,
-    MqttUpdateConnectorRequest,
-    MqttUpdateConnectorReply,
+    UpdateConnectorRequest,
+    UpdateConnectorReply,
     MqttUpdateConnector
 );
 
 generate_mqtt_admin_service_call!(
     mqtt_broker_delete_connector,
-    MqttDeleteConnectorRequest,
-    MqttDeleteConnectorReply,
+    DeleteConnectorRequest,
+    DeleteConnectorReply,
     MqttDeleteConnector
 );
 
 // schema command line CRUD
 generate_mqtt_admin_service_call!(
     mqtt_broker_list_schema,
-    MqttListSchemaRequest,
-    MqttListSchemaReply,
+    ListSchemaRequest,
+    ListSchemaReply,
     MqttListSchema
 );
 
 generate_mqtt_admin_service_call!(
     mqtt_broker_create_schema,
-    MqttCreateSchemaRequest,
-    MqttCreateSchemaReply,
+    CreateSchemaRequest,
+    CreateSchemaReply,
     MqttCreateSchema
 );
 
 generate_mqtt_admin_service_call!(
     mqtt_broker_update_schema,
-    MqttUpdateSchemaRequest,
-    MqttUpdateSchemaReply,
+    UpdateSchemaRequest,
+    UpdateSchemaReply,
     MqttUpdateSchema
 );
 
 generate_mqtt_admin_service_call!(
     mqtt_broker_delete_schema,
-    MqttDeleteSchemaRequest,
-    MqttDeleteSchemaReply,
+    DeleteSchemaRequest,
+    DeleteSchemaReply,
     MqttDeleteSchema
 );
 
 generate_mqtt_admin_service_call!(
     mqtt_broker_list_bind_schema,
-    MqttListBindSchemaRequest,
-    MqttListBindSchemaReply,
+    ListBindSchemaRequest,
+    ListBindSchemaReply,
     MqttListBindSchema
 );
 
 generate_mqtt_admin_service_call!(
     mqtt_broker_bind_schema,
-    MqttBindSchemaRequest,
-    MqttBindSchemaReply,
+    BindSchemaRequest,
+    BindSchemaReply,
     MqttBindSchema
 );
 
 generate_mqtt_admin_service_call!(
     mqtt_broker_unbind_schema,
-    MqttUnbindSchemaRequest,
-    MqttUnbindSchemaReply,
+    UnbindSchemaRequest,
+    UnbindSchemaReply,
     MqttUnbindSchema
 );
 
