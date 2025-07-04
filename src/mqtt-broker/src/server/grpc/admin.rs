@@ -31,7 +31,7 @@ use crate::admin::schema::{
 };
 use crate::admin::session::list_session_by_req;
 use crate::admin::subscribe::{
-    delete_auto_subscribe_rule, list_auto_subscribe_rule_by_req, list_subscribe,
+    delete_auto_subscribe_rule, list_auto_subscribe_rule_by_req, list_subscribe_by_topic,
     set_auto_subscribe_rule,
 };
 use crate::admin::topic::{
@@ -50,29 +50,27 @@ use crate::subscribe::manager::SubscribeManager;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterOverviewMetricsReply, ClusterOverviewMetricsRequest, ClusterStatusReply,
-    ClusterStatusRequest, CreateAclReply, CreateAclRequest, CreateBlacklistReply,
-    CreateBlacklistRequest, CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest,
-    CreateUserReply, CreateUserRequest, DeleteAclReply, DeleteAclRequest,
-    DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest, DeleteBlacklistReply,
-    DeleteBlacklistRequest, DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest,
-    DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply, EnableFlappingDetectRequest,
-    GetClusterConfigReply, GetClusterConfigRequest, ListAclReply, ListAclRequest,
-    ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBlacklistReply,
-    ListBlacklistRequest, ListClientReply, ListClientRequest, ListConnectionReply,
-    ListConnectionRequest, ListRewriteTopicRuleReply, ListRewriteTopicRuleRequest,
-    ListSessionReply, ListSessionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest,
-    ListSubscribeReply, ListSubscribeRequest, ListSystemAlarmReply, ListSystemAlarmRequest,
-    ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest, MqttBindSchemaReply,
-    MqttBindSchemaRequest, MqttCreateConnectorReply, MqttCreateConnectorRequest,
-    MqttCreateSchemaReply, MqttCreateSchemaRequest, MqttDeleteConnectorReply,
-    MqttDeleteConnectorRequest, MqttDeleteSchemaReply, MqttDeleteSchemaRequest,
-    MqttListBindSchemaReply, MqttListBindSchemaRequest, MqttListConnectorReply,
-    MqttListConnectorRequest, MqttListSchemaReply, MqttListSchemaRequest, MqttSubscribeRaw,
-    MqttUnbindSchemaReply, MqttUnbindSchemaRequest, MqttUpdateConnectorReply,
-    MqttUpdateConnectorRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
+    BindSchemaReply, BindSchemaRequest, ClusterOverviewMetricsReply, ClusterOverviewMetricsRequest,
+    ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
+    CreateBlacklistReply, CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest,
+    CreateSchemaReply, CreateSchemaRequest, CreateTopicRewriteRuleReply,
+    CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
+    DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
+    DeleteBlacklistReply, DeleteBlacklistRequest, DeleteConnectorReply, DeleteConnectorRequest,
+    DeleteSchemaReply, DeleteSchemaRequest, DeleteTopicRewriteRuleReply,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, EnableFlappingDetectReply,
+    EnableFlappingDetectRequest, GetClusterConfigReply, GetClusterConfigRequest, ListAclReply,
+    ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBindSchemaReply,
+    ListBindSchemaRequest, ListBlacklistReply, ListBlacklistRequest, ListClientReply,
+    ListClientRequest, ListConnectionReply, ListConnectionRequest, ListConnectorReply,
+    ListConnectorRequest, ListRewriteTopicRuleReply, ListRewriteTopicRuleRequest, ListSchemaReply,
+    ListSchemaRequest, ListSessionReply, ListSessionRequest, ListSlowSubscribeReply,
+    ListSlowSubscribeRequest, ListSubscribeReply, ListSubscribeRequest, ListSystemAlarmReply,
+    ListSystemAlarmRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
     SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetClusterConfigReply,
     SetClusterConfigRequest, SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest,
+    UnbindSchemaReply, UnbindSchemaRequest, UpdateConnectorReply, UpdateConnectorRequest,
+    UpdateSchemaReply, UpdateSchemaRequest,
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
@@ -105,7 +103,7 @@ impl GrpcAdminServices {
 
 #[tonic::async_trait]
 impl MqttBrokerAdminService for GrpcAdminServices {
-    async fn mqtt_broker_set_cluster_config(
+    async fn set_cluster_config(
         &self,
         request: Request<SetClusterConfigRequest>,
     ) -> Result<Response<SetClusterConfigReply>, Status> {
@@ -116,7 +114,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_get_cluster_config(
+    async fn get_cluster_config(
         &self,
         _request: Request<GetClusterConfigRequest>,
     ) -> Result<Response<GetClusterConfigReply>, Status> {
@@ -153,7 +151,8 @@ impl MqttBrokerAdminService for GrpcAdminServices {
     }
 
     // --- user ---
-    async fn mqtt_broker_create_user(
+
+    async fn create_user(
         &self,
         request: Request<CreateUserRequest>,
     ) -> Result<Response<CreateUserReply>, Status> {
@@ -164,7 +163,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_delete_user(
+    async fn delete_user(
         &self,
         request: Request<DeleteUserRequest>,
     ) -> Result<Response<DeleteUserReply>, Status> {
@@ -175,7 +174,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_list_user(
+    async fn list_user(
         &self,
         request: Request<ListUserRequest>,
     ) -> Result<Response<ListUserReply>, Status> {
@@ -186,7 +185,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_list_client(
+    async fn list_client(
         &self,
         request: Request<ListClientRequest>,
     ) -> Result<Response<ListClientReply>, Status> {
@@ -197,7 +196,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_list_session(
+    async fn list_session(
         &self,
         request: Request<ListSessionRequest>,
     ) -> Result<Response<ListSessionReply>, Status> {
@@ -208,9 +207,9 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_list_acl(
+    async fn list_acl(
         &self,
-        _: Request<ListAclRequest>,
+        _request: Request<ListAclRequest>,
     ) -> Result<Response<ListAclReply>, Status> {
         list_acl_by_req(&self.cache_manager, &self.client_pool)
             .await
@@ -218,7 +217,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_create_acl(
+    async fn create_acl(
         &self,
         request: Request<CreateAclRequest>,
     ) -> Result<Response<CreateAclReply>, Status> {
@@ -229,7 +228,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_delete_acl(
+    async fn delete_acl(
         &self,
         request: Request<DeleteAclRequest>,
     ) -> Result<Response<DeleteAclReply>, Status> {
@@ -240,7 +239,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_list_blacklist(
+    async fn list_blacklist(
         &self,
         request: Request<ListBlacklistRequest>,
     ) -> Result<Response<ListBlacklistReply>, Status> {
@@ -251,7 +250,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_delete_blacklist(
+    async fn delete_blacklist(
         &self,
         request: Request<DeleteBlacklistRequest>,
     ) -> Result<Response<DeleteBlacklistReply>, Status> {
@@ -262,7 +261,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_create_blacklist(
+    async fn create_blacklist(
         &self,
         request: Request<CreateBlacklistRequest>,
     ) -> Result<Response<CreateBlacklistReply>, Status> {
@@ -273,7 +272,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_enable_flapping_detect(
+    async fn enable_flapping_detect(
         &self,
         request: Request<EnableFlappingDetectRequest>,
     ) -> Result<Response<EnableFlappingDetectReply>, Status> {
@@ -283,7 +282,8 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
     }
-    async fn mqtt_broker_set_system_alarm_config(
+
+    async fn set_system_alarm_config(
         &self,
         request: Request<SetSystemAlarmConfigRequest>,
     ) -> Result<Response<SetSystemAlarmConfigReply>, Status> {
@@ -294,7 +294,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_list_system_alarm(
+    async fn list_system_alarm(
         &self,
         request: Request<ListSystemAlarmRequest>,
     ) -> Result<Response<ListSystemAlarmReply>, Status> {
@@ -306,9 +306,10 @@ impl MqttBrokerAdminService for GrpcAdminServices {
     }
 
     // --- connection ---
-    async fn mqtt_broker_list_connection(
+
+    async fn list_connection(
         &self,
-        _: Request<ListConnectionRequest>,
+        _request: Request<ListConnectionRequest>,
     ) -> Result<Response<ListConnectionReply>, Status> {
         list_connection_by_req(&self.connection_manager, &self.cache_manager)
             .await
@@ -316,7 +317,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_list_slow_subscribe(
+    async fn list_slow_subscribe(
         &self,
         request: Request<ListSlowSubscribeRequest>,
     ) -> Result<Response<ListSlowSubscribeReply>, Status> {
@@ -327,7 +328,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_list_topic(
+    async fn list_topic(
         &self,
         request: Request<ListTopicRequest>,
     ) -> Result<Response<ListTopicReply>, Status> {
@@ -338,7 +339,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_delete_topic_rewrite_rule(
+    async fn delete_topic_rewrite_rule(
         &self,
         request: Request<DeleteTopicRewriteRuleRequest>,
     ) -> Result<Response<DeleteTopicRewriteRuleReply>, Status> {
@@ -349,7 +350,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_create_topic_rewrite_rule(
+    async fn create_topic_rewrite_rule(
         &self,
         request: Request<CreateTopicRewriteRuleRequest>,
     ) -> Result<Response<CreateTopicRewriteRuleReply>, Status> {
@@ -360,7 +361,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_get_all_topic_rewrite_rule(
+    async fn get_all_topic_rewrite_rule(
         &self,
         _request: Request<ListRewriteTopicRuleRequest>,
     ) -> Result<Response<ListRewriteTopicRuleReply>, Status> {
@@ -370,10 +371,10 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_list_connector(
+    async fn list_connector(
         &self,
-        request: Request<MqttListConnectorRequest>,
-    ) -> Result<Response<MqttListConnectorReply>, Status> {
+        request: Request<ListConnectorRequest>,
+    ) -> Result<Response<ListConnectorReply>, Status> {
         let request = request.into_inner();
         list_connector_by_req(&self.client_pool, &request)
             .await
@@ -381,10 +382,10 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_create_connector(
+    async fn create_connector(
         &self,
-        request: Request<MqttCreateConnectorRequest>,
-    ) -> Result<Response<MqttCreateConnectorReply>, Status> {
+        request: Request<CreateConnectorRequest>,
+    ) -> Result<Response<CreateConnectorReply>, Status> {
         let request = request.into_inner();
         create_connector_by_req(&self.client_pool, &request)
             .await
@@ -392,10 +393,10 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_delete_connector(
+    async fn delete_connector(
         &self,
-        request: Request<MqttDeleteConnectorRequest>,
-    ) -> Result<Response<MqttDeleteConnectorReply>, Status> {
+        request: Request<DeleteConnectorRequest>,
+    ) -> Result<Response<DeleteConnectorReply>, Status> {
         let request = request.into_inner();
         delete_connector_by_req(&self.client_pool, &request)
             .await
@@ -403,10 +404,10 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_update_connector(
+    async fn update_connector(
         &self,
-        request: Request<MqttUpdateConnectorRequest>,
-    ) -> Result<Response<MqttUpdateConnectorReply>, Status> {
+        request: Request<UpdateConnectorRequest>,
+    ) -> Result<Response<UpdateConnectorReply>, Status> {
         let request = request.into_inner();
         update_connector_by_req(&self.client_pool, &request)
             .await
@@ -415,10 +416,11 @@ impl MqttBrokerAdminService for GrpcAdminServices {
     }
 
     // --- schema ---
-    async fn mqtt_broker_list_schema(
+
+    async fn list_schema(
         &self,
-        request: Request<MqttListSchemaRequest>,
-    ) -> Result<Response<MqttListSchemaReply>, Status> {
+        request: Request<ListSchemaRequest>,
+    ) -> Result<Response<ListSchemaReply>, Status> {
         let request = request.into_inner();
         list_schema_by_req(&self.client_pool, &request)
             .await
@@ -426,10 +428,10 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_create_schema(
+    async fn create_schema(
         &self,
-        request: Request<MqttCreateSchemaRequest>,
-    ) -> Result<Response<MqttCreateSchemaReply>, Status> {
+        request: Request<CreateSchemaRequest>,
+    ) -> Result<Response<CreateSchemaReply>, Status> {
         let request = request.into_inner();
         create_schema_by_req(&self.client_pool, &request)
             .await
@@ -437,10 +439,10 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_update_schema(
+    async fn update_schema(
         &self,
-        request: Request<MqttUpdateSchemaRequest>,
-    ) -> Result<Response<MqttUpdateSchemaReply>, Status> {
+        request: Request<UpdateSchemaRequest>,
+    ) -> Result<Response<UpdateSchemaReply>, Status> {
         let request = request.into_inner();
         update_schema_by_req(&self.client_pool, &request)
             .await
@@ -448,10 +450,10 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_delete_schema(
+    async fn delete_schema(
         &self,
-        request: Request<MqttDeleteSchemaRequest>,
-    ) -> Result<Response<MqttDeleteSchemaReply>, Status> {
+        request: Request<DeleteSchemaRequest>,
+    ) -> Result<Response<DeleteSchemaReply>, Status> {
         let request = request.into_inner();
         delete_schema_by_req(&self.client_pool, &request)
             .await
@@ -459,10 +461,10 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_list_bind_schema(
+    async fn list_bind_schema(
         &self,
-        request: Request<MqttListBindSchemaRequest>,
-    ) -> Result<Response<MqttListBindSchemaReply>, Status> {
+        request: Request<ListBindSchemaRequest>,
+    ) -> Result<Response<ListBindSchemaReply>, Status> {
         let request = request.into_inner();
         list_bind_schema_by_req(&self.client_pool, &request)
             .await
@@ -470,10 +472,10 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_bind_schema(
+    async fn bind_schema(
         &self,
-        request: Request<MqttBindSchemaRequest>,
-    ) -> Result<Response<MqttBindSchemaReply>, Status> {
+        request: Request<BindSchemaRequest>,
+    ) -> Result<Response<BindSchemaReply>, Status> {
         let request = request.into_inner();
         bind_schema_by_req(&self.client_pool, &request)
             .await
@@ -481,10 +483,10 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_unbind_schema(
+    async fn unbind_schema(
         &self,
-        request: Request<MqttUnbindSchemaRequest>,
-    ) -> Result<Response<MqttUnbindSchemaReply>, Status> {
+        request: Request<UnbindSchemaRequest>,
+    ) -> Result<Response<UnbindSchemaReply>, Status> {
         let request = request.into_inner();
         unbind_schema_by_req(&self.client_pool, &request)
             .await
@@ -492,7 +494,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_set_auto_subscribe_rule(
+    async fn set_auto_subscribe_rule(
         &self,
         request: Request<SetAutoSubscribeRuleRequest>,
     ) -> Result<Response<SetAutoSubscribeRuleReply>, Status> {
@@ -503,7 +505,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_delete_auto_subscribe_rule(
+    async fn delete_auto_subscribe_rule(
         &self,
         request: Request<DeleteAutoSubscribeRuleRequest>,
     ) -> Result<Response<DeleteAutoSubscribeRuleReply>, Status> {
@@ -514,7 +516,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_list_auto_subscribe_rule(
+    async fn list_auto_subscribe_rule(
         &self,
         _request: Request<ListAutoSubscribeRuleRequest>,
     ) -> Result<Response<ListAutoSubscribeRuleReply>, Status> {
@@ -524,25 +526,13 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    async fn mqtt_broker_list_subscribe(
+    async fn list_subscribe(
         &self,
         _request: Request<ListSubscribeRequest>,
     ) -> Result<Response<ListSubscribeReply>, Status> {
-        let subscribes = list_subscribe(&self.subscribe_manager).await;
-
-        let subscriptions = subscribes
-            .into_iter()
-            .filter_map(|subscribe| {
-                let mut datas = subscribe.split("_");
-                match (datas.next(), datas.next()) {
-                    (Some(client_id), Some(path)) => Some(MqttSubscribeRaw {
-                        client_id: client_id.to_string(),
-                        path: path.to_string(),
-                    }),
-                    _ => None, // 忽略格式错误的数据
-                }
-            })
-            .collect();
-        Ok(Response::new(ListSubscribeReply { subscriptions }))
+        list_subscribe_by_topic(&self.subscribe_manager)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 }

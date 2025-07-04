@@ -28,11 +28,11 @@ mod tests {
     use metadata_struct::mqtt::bridge::connector::MQTTConnector;
     use metadata_struct::mqtt::bridge::connector_type::ConnectorType;
     use metadata_struct::schema::{SchemaData, SchemaType};
+    use protocol::broker_mqtt::broker_mqtt_admin;
     use protocol::broker_mqtt::broker_mqtt_admin::{
-        ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListUserRequest,
-        MqttConnectorType, MqttCreateConnectorRequest, MqttCreateSchemaRequest,
-        MqttDeleteConnectorRequest, MqttDeleteSchemaRequest, MqttListConnectorRequest,
-        MqttListSchemaRequest, MqttUpdateConnectorRequest, MqttUpdateSchemaRequest,
+        ClusterStatusRequest, CreateConnectorRequest, CreateSchemaRequest, CreateUserRequest,
+        DeleteConnectorRequest, DeleteSchemaRequest, DeleteUserRequest, ListConnectorRequest,
+        ListSchemaRequest, ListUserRequest, UpdateConnectorRequest, UpdateSchemaRequest,
     };
 
     use crate::common::get_mqtt_broker_addr;
@@ -140,7 +140,7 @@ mod tests {
             }"#
         .to_string();
 
-        let create_request = MqttCreateSchemaRequest {
+        let create_request = CreateSchemaRequest {
             schema_name: schema_name.clone(),
             schema_type: "json".to_string(),
             schema: schema_data.clone(),
@@ -154,7 +154,7 @@ mod tests {
             }
         }
 
-        let list_request = MqttListSchemaRequest {
+        let list_request = ListSchemaRequest {
             schema_name: schema_name.clone(),
         };
 
@@ -186,7 +186,7 @@ mod tests {
         }"#
         .to_string();
 
-        let update_request = MqttUpdateSchemaRequest {
+        let update_request = UpdateSchemaRequest {
             schema_name: schema_name.clone(),
             schema_type: "avro".to_string(),
             schema: schema_data.clone(),
@@ -219,7 +219,7 @@ mod tests {
         }
 
         // delete schema
-        let delete_request = MqttDeleteSchemaRequest {
+        let delete_request = DeleteSchemaRequest {
             schema_name: schema_name.clone(),
         };
 
@@ -249,9 +249,9 @@ mod tests {
         // create connector
         let connector_name = "test_connector-1".to_string();
 
-        let create_request = MqttCreateConnectorRequest {
+        let create_request = CreateConnectorRequest {
             connector_name: connector_name.clone(),
-            connector_type: MqttConnectorType::File as i32,
+            connector_type: broker_mqtt_admin::ConnectorType::File as i32,
             config: serde_json::to_string(&LocalFileConnectorConfig {
                 local_file_path: "/tmp/test".to_string(),
             })
@@ -267,7 +267,7 @@ mod tests {
         }
 
         // list connector we just created
-        let list_request = MqttListConnectorRequest {
+        let list_request = ListConnectorRequest {
             connector_name: connector_name.clone(),
         };
 
@@ -305,7 +305,7 @@ mod tests {
         .unwrap();
         connector.topic_id = "test-topic-2".to_string();
 
-        let update_request = MqttUpdateConnectorRequest {
+        let update_request = UpdateConnectorRequest {
             connector: serde_json::to_vec(&connector).unwrap(),
         };
 
@@ -345,7 +345,7 @@ mod tests {
         assert_eq!(&connector.topic_id, "test-topic-2");
 
         // delete connector
-        let delete_request = MqttDeleteConnectorRequest {
+        let delete_request = DeleteConnectorRequest {
             connector_name: connector_name.clone(),
         };
 

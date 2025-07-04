@@ -21,12 +21,12 @@ use common_base::enum_type::feature_type::FeatureType;
 use common_base::enum_type::sort_type::SortType;
 use core::option::Option::Some;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateAclRequest, CreateBlacklistRequest, CreateTopicRewriteRuleRequest, CreateUserRequest,
-    DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest,
+    CreateAclRequest, CreateBlacklistRequest, CreateConnectorRequest,
+    CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
+    DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteConnectorRequest,
     DeleteTopicRewriteRuleRequest, DeleteUserRequest, ListAutoSubscribeRuleRequest,
-    ListSystemAlarmRequest, MqttCreateConnectorRequest, MqttDeleteConnectorRequest,
-    MqttListConnectorRequest, MqttUpdateConnectorRequest, SetAutoSubscribeRuleRequest,
-    SetClusterConfigRequest,
+    ListConnectorRequest, ListSystemAlarmRequest, SetAutoSubscribeRuleRequest,
+    SetClusterConfigRequest, UpdateConnectorRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ListSlowSubscribeRequest, SetSystemAlarmConfigRequest,
@@ -617,11 +617,11 @@ pub fn process_connection_args(args: ConnectionArgs) -> MqttActionType {
 
 pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
     match args.action {
-        ConnectorActionType::List(arg) => MqttActionType::ListConnector(MqttListConnectorRequest {
+        ConnectorActionType::List(arg) => MqttActionType::ListConnector(ListConnectorRequest {
             connector_name: arg.connector_name,
         }),
         ConnectorActionType::Create(arg) => {
-            MqttActionType::CreateConnector(MqttCreateConnectorRequest {
+            MqttActionType::CreateConnector(CreateConnectorRequest {
                 connector_name: arg.connector_name,
                 connector_type: arg.connector_type.parse().unwrap(),
                 config: arg.config,
@@ -629,12 +629,12 @@ pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
             })
         }
         ConnectorActionType::Delete(arg) => {
-            MqttActionType::DeleteConnector(MqttDeleteConnectorRequest {
+            MqttActionType::DeleteConnector(DeleteConnectorRequest {
                 connector_name: arg.connector_name,
             })
         }
         ConnectorActionType::Update(arg) => {
-            MqttActionType::UpdateConnector(MqttUpdateConnectorRequest {
+            MqttActionType::UpdateConnector(UpdateConnectorRequest {
                 connector: Vec::from(arg.connector),
             })
         }
