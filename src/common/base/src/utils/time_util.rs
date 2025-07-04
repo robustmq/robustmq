@@ -55,7 +55,7 @@ fn parse_timezone(timezone: &str) -> Result<TimeZoneWrapper, String> {
         return Ok(TimeZoneWrapper::Tz(tz));
     }
 
-    if let Some(offset) = parse_utc_offset(timezone.to_string()) {
+    if let Some(offset) = parse_utc_offset(timezone) {
         return Ok(TimeZoneWrapper::FixedOffset(offset));
     }
 
