@@ -527,9 +527,9 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
     async fn mqtt_broker_list_subscribe(
         &self,
-        _request: Request<ListSubscribeRequest>,
+        request: Request<ListSubscribeRequest>,
     ) -> Result<Response<ListSubscribeReply>, Status> {
-        list_subscribe(&self.subscribe_manager)
+        list_subscribe(&self.subscribe_manager, request.into_inner())
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
@@ -537,9 +537,9 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
     async fn mqtt_broker_subscribe_detail(
         &self,
-        _request: Request<SubscribeDetailRequest>,
+        request: Request<SubscribeDetailRequest>,
     ) -> Result<Response<SubscribeDetailReply>, Status> {
-        subscribe_detail(&self.subscribe_manager)
+        subscribe_detail(&self.subscribe_manager, request.into_inner())
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)

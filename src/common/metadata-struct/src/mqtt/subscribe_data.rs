@@ -12,8 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::mqtt::common::{Filter, MqttProtocol, SubscribeProperties};
+use common_base::utils::time_util::timestamp_to_local_datetime;
+use protocol::{
+    broker_mqtt::broker_mqtt_admin::MqttSubscribeRaw,
+    mqtt::common::{Filter, MqttProtocol, SubscribeProperties},
+};
 use serde::{Deserialize, Serialize};
+
+pub const SHARE_SUB_PREFIX: &str = "$share";
+pub const QUEUE_SUB_PREFIX: &str = "$queue";
 
 #[derive(Clone, Serialize, Deserialize, Default, Debug, PartialEq)]
 pub struct MqttSubscribe {
@@ -32,4 +39,31 @@ impl MqttSubscribe {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
     }
+}
+
+impl From<MqttSubscribe> for MqttSubscribeRaw {
+    fn from(sub: MqttSubscribe) -> Self {
+        Self {
+            broker_id: sub.broker_id,
+            client_id: sub.client_id,
+            create_time: timestamp_to_local_datetime(sub.create_time as i64),
+            no_local: if sub.filter.nolocal { 1 } else { 0 },
+            path: sub.path.clone(),
+            pk_id: sub.pkid as u32,
+            preserve_retain: if sub.filter.preserve_retain { 1 } else { 0 },
+            properties: serde_json::to_string(&sub.subscribe_properties).unwrap(),
+            protocol: format!("{:?}", sub.protocol),
+            qos: format!("{:?}", sub.filter.qos),
+            retain_handling: format!("{:?}", sub.filter.retain_handling),
+            is_share_sub: is_mqtt_queue_sub(&sub.path) || is_mqtt_share_sub(&sub.path),
+        }
+    }
+}
+
+pub fn is_mqtt_share_sub(sub_name: &str) -> bool {
+    sub_name.starts_with(SHARE_SUB_PREFIX)
+}
+
+pub fn is_mqtt_queue_sub(sub_name: &str) -> bool {
+    sub_name.starts_with(QUEUE_SUB_PREFIX)
 }

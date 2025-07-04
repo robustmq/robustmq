@@ -14,15 +14,13 @@
 
 use super::error::MqttBrokerError;
 use crate::subscribe::{
-    common::{
-        decode_queue_info, decode_share_info, is_queue_sub, is_share_sub,
-        SHARE_QUEUE_DEFAULT_GROUP_NAME,
-    },
+    common::{decode_queue_info, decode_share_info, SHARE_QUEUE_DEFAULT_GROUP_NAME},
     manager::SubscribeManager,
 };
 
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::{placement::mqtt::call::placement_delete_subscribe, pool::ClientPool};
+use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
 use protocol::{
     mqtt::common::Unsubscribe, placement_center::placement_center_mqtt::DeleteSubscribeRequest,
 };
@@ -59,8 +57,8 @@ fn unsubscribe_by_path(
     filter_path: &[String],
 ) -> Result<(), MqttBrokerError> {
     for path in filter_path {
-        if is_share_sub(path) && is_queue_sub(path) {
-            let (group_name, sub_name) = if is_queue_sub(path) {
+        if is_mqtt_share_sub(path) && is_mqtt_queue_sub(path) {
+            let (group_name, sub_name) = if is_mqtt_queue_sub(path) {
                 (
                     SHARE_QUEUE_DEFAULT_GROUP_NAME.to_string(),
                     decode_queue_info(path),

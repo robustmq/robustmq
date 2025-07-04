@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
 
 use crate::subscribe::manager::SubscribeManager;
-use common_base::utils::time_util::timestamp_to_local_datetime;
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest, ListAutoSubscribeRuleReply,
-    ListSubscribeReply, MqttSubscribeRaw, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
-    SubscribeDetailReply,
+    ListSubscribeReply, ListSubscribeRequest, MqttSubscribeRaw, SetAutoSubscribeRuleReply,
+    SetAutoSubscribeRuleRequest, SubscribeDetailReply, SubscribeDetailRequest,
 };
 use protocol::mqtt::common::{qos, retain_forward_rule, Error};
 use std::sync::Arc;
@@ -120,31 +120,36 @@ pub async fn list_auto_subscribe_rule_by_req(
 
 pub async fn list_subscribe(
     subscribe_manager: &Arc<SubscribeManager>,
+    request: ListSubscribeRequest,
 ) -> Result<ListSubscribeReply, MqttBrokerError> {
-    let mut results = Vec::new();
+    let mut subscriptions = Vec::new();
     for (_, raw) in subscribe_manager.subscribe_list.clone() {
-        results.push(MqttSubscribeRaw {
-            broker_id: raw.broker_id,
-            client_id: raw.client_id,
-            create_time: timestamp_to_local_datetime(raw.create_time as i64),
-            no_local: if raw.filter.nolocal { 1 } else { 0 },
-            path: raw.path,
-            pk_id: raw.pkid as u32,
-            preserve_retain: if raw.filter.preserve_retain { 1 } else { 0 },
-            properties: serde_json::to_string(&raw.subscribe_properties)?,
-            protocol: format!("{:?}", raw.protocol),
-            qos: format!("{:?}", raw.filter.qos),
-            retain_handling: format!("{:?}", raw.filter.retain_handling),
-        });
+        subscriptions.push(MqttSubscribeRaw::from(raw));
     }
 
+    let filtered = apply_filters(subscriptions, &request.options);
+    let sorted = apply_sorting(filtered, &request.options);
+    let pagination = apply_pagination(sorted, &request.options);
+
     Ok(ListSubscribeReply {
-        subscriptions: results,
+        subscriptions: pagination.0,
+        total_count: pagination.1 as u32,
     })
 }
 
 pub async fn subscribe_detail(
     _subscribe_manager: &Arc<SubscribeManager>,
+    _request: SubscribeDetailRequest,
 ) -> Result<SubscribeDetailReply, MqttBrokerError> {
     Ok(SubscribeDetailReply::default())
+}
+
+impl Queryable for MqttSubscribeRaw {
+    fn get_field_str(&self, field: &str) -> Option<String> {
+        match field {
+            "client_id" => Some(self.client_id.clone()),
+            "path" => Some(self.path.clone()),
+            _ => None,
+        }
+    }
 }
