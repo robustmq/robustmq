@@ -25,6 +25,7 @@ mod console;
 mod fmt;
 mod rolling_file;
 mod tokio_console;
+mod target;
 
 /// Initializes the tracing subscriber with the specified log configuration file
 /// and log path.

@@ -28,10 +28,6 @@ use super::config::AppenderConfig;
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub(super) struct ConsoleAppenderConfig {
-    // Changing this to a unit struct (one without {}) may cause toml
-    // deserialization to fail
-    level: Level,
-
     #[serde(flatten)]
     fmt: FmtLayerConfig,
 }
@@ -45,7 +41,7 @@ where
     ) -> Result<(BoxedLayer<S>, Option<WorkerGuard>), LogConfigError> {
         let writer = std::io::stdout();
         let (non_blocking, guard) = tracing_appender::non_blocking(writer);
-        let fmt_layer = self.fmt.create_layer(non_blocking, self.level);
+        let fmt_layer = self.fmt.create_layer(non_blocking);
 
         Ok((fmt_layer, Some(guard)))
     }
@@ -66,7 +62,7 @@ mod tests {
 
         let config: ConsoleAppenderConfig = toml::from_str(toml_str).unwrap();
 
-        assert_eq!(config.level, Level::Debug);
+        assert_eq!(config.fmt.level, Level::Debug);
 
         assert!(config.fmt.ansi.is_none());
         assert!(config.fmt.formatter.is_none());
@@ -83,7 +79,7 @@ mod tests {
 
         let config: ConsoleAppenderConfig = toml::from_str(toml_str).unwrap();
 
-        assert_eq!(config.level, Level::Info);
+        assert_eq!(config.fmt.level, Level::Info);
         assert_eq!(config.fmt.ansi, Some(true));
         assert_eq!(config.fmt.formatter, Some(Formatter::Pretty));
     }

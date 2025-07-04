@@ -39,7 +39,7 @@ where
 
 /// Supported configurations for log appenders.
 #[derive(Debug, Clone, Deserialize, PartialEq)]
-#[serde(tag = "kind")]
+#[serde(tag = "kind", rename_all = "snake_case")]
 pub(super) enum Appender {
     Console(ConsoleAppenderConfig),
     RollingFile(RollingFileAppenderConfig),

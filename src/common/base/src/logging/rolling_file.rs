@@ -46,8 +46,6 @@ impl From<Rotation> for tracing_appender::rolling::Rotation {
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub(super) struct RollingFileAppenderConfig {
-    level: Level,
-
     rotation: Rotation,
     directory: String,
     prefix: Option<String>,
@@ -83,7 +81,7 @@ where
         let writer = builder.build(&self.directory)?;
 
         let (non_blocking, guard) = tracing_appender::non_blocking(writer);
-        let fmt_layer = self.fmt.create_layer(non_blocking, self.level);
+        let fmt_layer = self.fmt.create_layer(non_blocking);
         Ok((fmt_layer, Some(guard)))
     }
 }
