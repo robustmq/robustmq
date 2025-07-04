@@ -21,7 +21,7 @@ use common_base::{
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::{placement::mqtt::call::placement_set_subscribe, pool::ClientPool};
 use metadata_struct::mqtt::{
-    subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub, MqttSubscribe},
+    subscribe_data::{is_mqtt_share_subscribe, MqttSubscribe},
     topic::MQTTTopic,
 };
 use protocol::{
@@ -33,8 +33,7 @@ use tracing::error;
 
 use crate::subscribe::{
     common::{
-        decode_queue_info, decode_share_info, get_share_sub_leader, is_match_sub_and_topic,
-        Subscriber, SHARE_QUEUE_DEFAULT_GROUP_NAME,
+        decode_share_group_and_path, get_share_sub_leader, is_match_sub_and_topic, Subscriber,
     },
     manager::{ShareSubShareSub, SubscribeManager},
 };
@@ -163,7 +162,7 @@ pub async fn parse_subscribe(
     };
 
     // share sub
-    if is_mqtt_share_sub(&filter.path) || is_mqtt_queue_sub(&filter.path) {
+    if is_mqtt_share_subscribe(&filter.path) {
         parse_share_subscribe(
             client_pool,
             subscribe_manager,
@@ -198,15 +197,7 @@ async fn parse_share_subscribe(
     subscribe_manager: &Arc<SubscribeManager>,
     req: &mut ParseShareQueueSubscribeRequest,
 ) -> Result<(), MqttBrokerError> {
-    let (group_name, sub_name) = if is_mqtt_queue_sub(&req.filter.path) {
-        (
-            SHARE_QUEUE_DEFAULT_GROUP_NAME.to_string(),
-            decode_queue_info(&req.filter.path),
-        )
-    } else {
-        decode_share_info(&req.filter.path)
-    };
-
+    let (group_name, sub_name) = decode_share_group_and_path(&req.filter.path);
     req.group_name = format!("{}_{}", group_name, sub_name);
     req.sub_name = sub_name;
     let conf = broker_mqtt_conf();

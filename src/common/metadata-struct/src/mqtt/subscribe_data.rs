@@ -55,9 +55,13 @@ impl From<MqttSubscribe> for MqttSubscribeRaw {
             protocol: format!("{:?}", sub.protocol),
             qos: format!("{:?}", sub.filter.qos),
             retain_handling: format!("{:?}", sub.filter.retain_handling),
-            is_share_sub: is_mqtt_queue_sub(&sub.path) || is_mqtt_share_sub(&sub.path),
+            is_share_sub: is_mqtt_share_subscribe(&sub.path),
         }
     }
+}
+
+pub fn is_mqtt_share_subscribe(sub_name: &str) -> bool {
+    is_mqtt_queue_sub(sub_name) || is_mqtt_queue_sub(sub_name)
 }
 
 pub fn is_mqtt_share_sub(sub_name: &str) -> bool {

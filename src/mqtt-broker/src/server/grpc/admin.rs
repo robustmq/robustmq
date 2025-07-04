@@ -539,9 +539,13 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         request: Request<SubscribeDetailRequest>,
     ) -> Result<Response<SubscribeDetailReply>, Status> {
-        subscribe_detail(&self.subscribe_manager, request.into_inner())
-            .await
-            .map_err(|e| Status::internal(e.to_string()))
-            .map(Response::new)
+        subscribe_detail(
+            &self.subscribe_manager,
+            &self.client_pool,
+            request.into_inner(),
+        )
+        .await
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 }

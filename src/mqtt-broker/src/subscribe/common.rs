@@ -216,7 +216,18 @@ pub async fn get_sub_topic_id_list(
     result
 }
 
-pub fn decode_share_info(sub_name: &str) -> (String, String) {
+pub fn decode_share_group_and_path(path: &str) -> (String, String) {
+    if is_mqtt_queue_sub(path) {
+        (
+            SHARE_QUEUE_DEFAULT_GROUP_NAME.to_string(),
+            decode_queue_info(path),
+        )
+    } else {
+        decode_share_info(path)
+    }
+}
+
+fn decode_share_info(sub_name: &str) -> (String, String) {
     let mut str_slice: Vec<&str> = sub_name.split("/").collect();
     str_slice.remove(0);
     let group_name = str_slice.remove(0).to_string();
@@ -224,7 +235,7 @@ pub fn decode_share_info(sub_name: &str) -> (String, String) {
     (group_name, sub_name)
 }
 
-pub fn decode_queue_info(sub_name: &str) -> String {
+fn decode_queue_info(sub_name: &str) -> String {
     let mut str_slice: Vec<&str> = sub_name.split("/").collect();
     str_slice.remove(0);
     format!("/{}", str_slice.join("/"))

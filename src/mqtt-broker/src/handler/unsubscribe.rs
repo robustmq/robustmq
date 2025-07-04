@@ -13,11 +13,7 @@
 // limitations under the License.
 
 use super::error::MqttBrokerError;
-use crate::subscribe::{
-    common::{decode_queue_info, decode_share_info, SHARE_QUEUE_DEFAULT_GROUP_NAME},
-    manager::SubscribeManager,
-};
-
+use crate::subscribe::{common::decode_share_group_and_path, manager::SubscribeManager};
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::{placement::mqtt::call::placement_delete_subscribe, pool::ClientPool};
 use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
@@ -58,14 +54,7 @@ fn unsubscribe_by_path(
 ) -> Result<(), MqttBrokerError> {
     for path in filter_path {
         if is_mqtt_share_sub(path) && is_mqtt_queue_sub(path) {
-            let (group_name, sub_name) = if is_mqtt_queue_sub(path) {
-                (
-                    SHARE_QUEUE_DEFAULT_GROUP_NAME.to_string(),
-                    decode_queue_info(path),
-                )
-            } else {
-                decode_share_info(path)
-            };
+            let (group_name, sub_name) = decode_share_group_and_path(path);
 
             // share leader
             for (_, data) in subscribe_manager.share_leader_push.clone() {

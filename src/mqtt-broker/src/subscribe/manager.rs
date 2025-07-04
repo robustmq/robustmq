@@ -36,12 +36,14 @@ pub struct ShareSubShareSub {
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct ShareLeaderSubscribeData {
-    // key
+    pub path: String,
+
+    // group
     pub group_name: String,
     pub sub_name: String,
-    pub topic_id: String,
 
-    // extend
+    // topic
+    pub topic_id: String,
     pub topic_name: String,
 
     // (client_id, subscriber)
@@ -60,13 +62,14 @@ pub struct TemporaryNotPushClient {
     pub last_check_time: u64,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct SubPushThreadData {
     pub push_success_record_num: u64,
     pub push_error_record_num: u64,
     pub last_push_time: u64,
     pub last_run_time: u64,
     pub create_time: u64,
+    #[serde(skip)]
     pub sender: Sender<bool>,
 }
 
@@ -207,6 +210,7 @@ impl SubscribeManager {
                     topic_id: sub.topic_id.to_owned(),
                     topic_name: sub.topic_name.to_owned(),
                     sub_name: sub_name.to_owned(),
+                    path: sub.sub_path,
                     sub_list,
                 },
             );

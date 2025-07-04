@@ -16,15 +16,16 @@ use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Querya
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
-
+use crate::subscribe::common::{decode_share_group_and_path, get_share_sub_leader, Subscriber};
 use crate::subscribe::manager::SubscribeManager;
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
+use metadata_struct::mqtt::subscribe_data::is_mqtt_share_subscribe;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest, ListAutoSubscribeRuleReply,
     ListSubscribeReply, ListSubscribeRequest, MqttSubscribeRaw, SetAutoSubscribeRuleReply,
-    SetAutoSubscribeRuleRequest, SubscribeDetailReply, SubscribeDetailRequest,
+    SetAutoSubscribeRuleRequest, SubscribeDetailRaw, SubscribeDetailReply, SubscribeDetailRequest,
 };
 use protocol::mqtt::common::{qos, retain_forward_rule, Error};
 use std::sync::Arc;
@@ -138,10 +139,77 @@ pub async fn list_subscribe(
 }
 
 pub async fn subscribe_detail(
-    _subscribe_manager: &Arc<SubscribeManager>,
-    _request: SubscribeDetailRequest,
+    subscribe_manager: &Arc<SubscribeManager>,
+    client_pool: &Arc<ClientPool>,
+    request: SubscribeDetailRequest,
 ) -> Result<SubscribeDetailReply, MqttBrokerError> {
-    Ok(SubscribeDetailReply::default())
+    let subscribe = if let Some(subscribe) =
+        subscribe_manager.get_subscribe(&request.client_id, &request.path)
+    {
+        subscribe
+    } else {
+        return Ok(SubscribeDetailReply::default());
+    };
+
+    if !is_mqtt_share_subscribe(&subscribe.path) {
+        let mut details = vec![];
+        for (key, value) in subscribe_manager.exclusive_push.clone() {
+            if value.client_id == request.client_id && value.sub_path == request.path {
+                let thread_data =
+                    if let Some(thread) = subscribe_manager.exclusive_push_thread.get(&key) {
+                        serde_json::to_string(&thread.clone())?
+                    } else {
+                        "{}".to_string()
+                    };
+                let sub_data = serde_json::to_string(&value)?;
+
+                details.push(SubscribeDetailRaw {
+                    sub: sub_data,
+                    thread: thread_data,
+                });
+            }
+        }
+
+        return Ok(SubscribeDetailReply {
+            sub_info: serde_json::to_string(&subscribe)?,
+            details,
+        });
+    }
+
+    let (group, _) = decode_share_group_and_path(&subscribe.path);
+    let reply = get_share_sub_leader(client_pool, &group).await?;
+    let conf = broker_mqtt_conf();
+    let details = if conf.broker_id == reply.broker_id {
+        let mut raw_details = vec![];
+        for (key, value) in subscribe_manager.share_leader_push.clone() {
+            if value.path == request.path {
+                let data: Vec<Subscriber> = value
+                    .sub_list
+                    .iter()
+                    .map(|entry| entry.value().clone())
+                    .collect();
+                let thread_data =
+                    if let Some(thread) = subscribe_manager.share_leader_push_thread.get(&key) {
+                        serde_json::to_string(&thread.clone())?
+                    } else {
+                        "{}".to_string()
+                    };
+                let sub_data = serde_json::to_string(&data)?;
+                raw_details.push(SubscribeDetailRaw {
+                    sub: sub_data,
+                    thread: thread_data,
+                });
+            }
+        }
+        raw_details
+    } else {
+        vec![]
+    };
+
+    Ok(SubscribeDetailReply {
+        sub_info: serde_json::to_string(&subscribe)?,
+        details,
+    })
 }
 
 impl Queryable for MqttSubscribeRaw {
