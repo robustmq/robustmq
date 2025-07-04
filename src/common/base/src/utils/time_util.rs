@@ -17,12 +17,12 @@ use std::sync::OnceLock;
 use chrono::{DateTime, FixedOffset, Local};
 use chrono_tz::Tz;
 
-static TIEM_ZONE: OnceLock<String> = OnceLock::new();
+static TIME_ZONE: OnceLock<String> = OnceLock::new();
 
 pub fn timestamp_to_local_datetime(timestamp: i64) -> String {
     timestamp_to_timezone_datetime(
         timestamp,
-        TIEM_ZONE.get_or_init(|| Local::now().offset().to_string()),
+        TIME_ZONE.get_or_init(|| Local::now().offset().to_string()),
     )
     .unwrap()
 }
