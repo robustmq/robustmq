@@ -55,6 +55,7 @@ crc32fast.workspace = true
 tempfile.workspace = true
 temp-env.workspace = true
 chrono.workspace = true
+chrono-tz.workspace = true
 
 # A custom cfg for enabling tokio-console in tracing-subscriber
 # Enable this by running with `RUSTFLAGS="--cfg tokio_console"`
