@@ -15,7 +15,6 @@
 mod parse;
 mod tools;
 mod validate_req;
-
 use crate::parse::ParseItem;
 use proc_macro::TokenStream;
 

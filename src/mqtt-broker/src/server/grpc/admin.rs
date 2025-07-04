@@ -32,7 +32,7 @@ use crate::admin::schema::{
 use crate::admin::session::list_session_by_req;
 use crate::admin::subscribe::{
     delete_auto_subscribe_rule, list_auto_subscribe_rule_by_req, list_subscribe,
-    set_auto_subscribe_rule,
+    set_auto_subscribe_rule, subscribe_detail,
 };
 use crate::admin::topic::{
     create_topic_rewrite_rule_by_req, delete_topic_rewrite_rule_by_req,
@@ -68,11 +68,12 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     MqttCreateSchemaReply, MqttCreateSchemaRequest, MqttDeleteConnectorReply,
     MqttDeleteConnectorRequest, MqttDeleteSchemaReply, MqttDeleteSchemaRequest,
     MqttListBindSchemaReply, MqttListBindSchemaRequest, MqttListConnectorReply,
-    MqttListConnectorRequest, MqttListSchemaReply, MqttListSchemaRequest, MqttSubscribeRaw,
-    MqttUnbindSchemaReply, MqttUnbindSchemaRequest, MqttUpdateConnectorReply,
-    MqttUpdateConnectorRequest, MqttUpdateSchemaReply, MqttUpdateSchemaRequest,
-    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetClusterConfigReply,
-    SetClusterConfigRequest, SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest,
+    MqttListConnectorRequest, MqttListSchemaReply, MqttListSchemaRequest, MqttUnbindSchemaReply,
+    MqttUnbindSchemaRequest, MqttUpdateConnectorReply, MqttUpdateConnectorRequest,
+    MqttUpdateSchemaReply, MqttUpdateSchemaRequest, SetAutoSubscribeRuleReply,
+    SetAutoSubscribeRuleRequest, SetClusterConfigReply, SetClusterConfigRequest,
+    SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest, SubscribeDetailReply,
+    SubscribeDetailRequest,
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
@@ -528,21 +529,19 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         &self,
         _request: Request<ListSubscribeRequest>,
     ) -> Result<Response<ListSubscribeReply>, Status> {
-        let subscribes = list_subscribe(&self.subscribe_manager).await;
+        list_subscribe(&self.subscribe_manager)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
+    }
 
-        let subscriptions = subscribes
-            .into_iter()
-            .filter_map(|subscribe| {
-                let mut datas = subscribe.split("_");
-                match (datas.next(), datas.next()) {
-                    (Some(client_id), Some(path)) => Some(MqttSubscribeRaw {
-                        client_id: client_id.to_string(),
-                        path: path.to_string(),
-                    }),
-                    _ => None, // 忽略格式错误的数据
-                }
-            })
-            .collect();
-        Ok(Response::new(ListSubscribeReply { subscriptions }))
+    async fn mqtt_broker_subscribe_detail(
+        &self,
+        _request: Request<SubscribeDetailRequest>,
+    ) -> Result<Response<SubscribeDetailReply>, Status> {
+        subscribe_detail(&self.subscribe_manager)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 }
