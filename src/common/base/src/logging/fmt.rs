@@ -15,10 +15,7 @@
 use serde::Deserialize;
 use tracing_subscriber::{fmt::MakeWriter, registry::LookupSpan};
 
-use crate::logging::{
-    config::BoxedLayer,
-    filter::Filter,
-};
+use crate::logging::{config::BoxedLayer, filter::Filter};
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
