@@ -105,4 +105,4 @@ jobs:
       - name: cargo clippy check
         env:
           RUSTC_WRAPPER: ""
-        run: cargo clippy --all-targets --all-features --tests --benches -- -D warnings
+        run: cargo clippy --all-targets --all-features --tests --benches -- -D warnings -A clippy::uninlined-format-args
