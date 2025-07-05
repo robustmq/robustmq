@@ -94,9 +94,9 @@ mod tests {
     #[test]
     fn test_deserialize_rolling_file_appender_config_default_fmt() {
         let toml_str = r#"
-            level = "Debug"
-            kind = "RollingFile"
-            rotation = "Daily"
+            level = "debug"
+            kind = "rolling_file"
+            rotation = "daily"
             directory = "/var/log/myapp"
             prefix = "myapp-"
             suffix = ".log"
@@ -116,9 +116,9 @@ mod tests {
     #[test]
     fn test_deserialize_rolling_file_appender_config_custom_fmt() {
         let toml_str = r#"
-            level = "Info"
-            kind = "RollingFile"
-            rotation = "Hourly"
+            level = "info"
+            kind = "rolling_file"
+            rotation = "hourly"
             directory = "/var/log/myapp"
             prefix = "myapp-"
             suffix = ".log"
