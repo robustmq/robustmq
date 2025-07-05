@@ -124,7 +124,7 @@ mod tests {
             suffix = ".log"
             max_log_files = 5
             ansi = true
-            formatter = "Pretty"
+            formatter = "pretty"
         "#;
 
         let config: RollingFileAppenderConfig =
