@@ -20,12 +20,13 @@ use tracing_subscriber::registry::LookupSpan;
 use crate::{
     error::log_config::LogConfigError,
     logging::{
-        config::{AppenderConfig, BoxedLayer, Level},
+        config::{AppenderConfig, BoxedLayer},
         fmt::FmtLayerConfig,
     },
 };
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "snake_case")]
 enum Rotation {
     Minutely,
     Hourly,
@@ -61,7 +62,7 @@ where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {
     fn create_layer_and_guard(
-        &self,
+        self,
     ) -> Result<(BoxedLayer<S>, Option<WorkerGuard>), LogConfigError> {
         let mut builder = tracing_appender::rolling::Builder::new();
 
