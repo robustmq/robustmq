@@ -60,6 +60,8 @@ impl FmtLayerConfig {
 
 #[cfg(test)]
 mod tests {
+    use crate::logging::filter::{Level, Target};
+
     use super::*;
 
     #[test]
