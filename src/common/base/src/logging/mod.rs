@@ -22,6 +22,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 
 mod config;
 mod console;
+mod filter;
 mod fmt;
 mod rolling_file;
 mod tokio_console;

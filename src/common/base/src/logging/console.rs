@@ -18,20 +18,13 @@ use tracing_subscriber::registry::LookupSpan;
 
 use crate::{
     error::log_config::LogConfigError,
-    logging::{
-        config::{BoxedLayer, Level},
-        fmt::FmtLayerConfig,
-    },
+    logging::{config::BoxedLayer, fmt::FmtLayerConfig},
 };
 
 use super::config::AppenderConfig;
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub(super) struct ConsoleAppenderConfig {
-    // Changing this to a unit struct (one without {}) may cause toml
-    // deserialization to fail
-    level: Level,
-
     #[serde(flatten)]
     fmt: FmtLayerConfig,
 }
@@ -41,11 +34,11 @@ where
     S: tracing::Subscriber + for<'a> LookupSpan<'a>,
 {
     fn create_layer_and_guard(
-        &self,
+        self,
     ) -> Result<(BoxedLayer<S>, Option<WorkerGuard>), LogConfigError> {
         let writer = std::io::stdout();
         let (non_blocking, guard) = tracing_appender::non_blocking(writer);
-        let fmt_layer = self.fmt.create_layer(non_blocking, self.level);
+        let fmt_layer = self.fmt.create_layer(non_blocking);
 
         Ok((fmt_layer, Some(guard)))
     }
@@ -53,20 +46,23 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::logging::fmt::Formatter;
+    use crate::logging::{
+        filter::{Filter, Level},
+        fmt::Formatter,
+    };
 
     use super::*;
 
     #[test]
     fn test_deserialize_console_appender_config_default_fmt() {
         let toml_str = r#"
-            level = "Debug"
-            kind = "Console"
+            level = "debug"
+            kind = "console"
             "#;
 
         let config: ConsoleAppenderConfig = toml::from_str(toml_str).unwrap();
 
-        assert_eq!(config.level, Level::Debug);
+        assert!(matches!(config.fmt.filter, Filter::Level(Level::Debug)));
 
         assert!(config.fmt.ansi.is_none());
         assert!(config.fmt.formatter.is_none());
@@ -75,15 +71,15 @@ mod tests {
     #[test]
     fn test_deserialize_console_appender_config_custom_fmt() {
         let toml_str = r#"
-            level = "Info"
-            kind = "Console"
+            level = "info"
+            kind = "console"
             ansi = true
-            formatter = "Pretty"
+            formatter = "pretty"
             "#;
 
         let config: ConsoleAppenderConfig = toml::from_str(toml_str).unwrap();
 
-        assert_eq!(config.level, Level::Info);
+        assert!(matches!(config.fmt.filter, Filter::Level(Level::Info)));
         assert_eq!(config.fmt.ansi, Some(true));
         assert_eq!(config.fmt.formatter, Some(Formatter::Pretty));
     }

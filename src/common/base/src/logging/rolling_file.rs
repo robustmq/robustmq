@@ -20,12 +20,13 @@ use tracing_subscriber::registry::LookupSpan;
 use crate::{
     error::log_config::LogConfigError,
     logging::{
-        config::{AppenderConfig, BoxedLayer, Level},
+        config::{AppenderConfig, BoxedLayer},
         fmt::FmtLayerConfig,
     },
 };
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "snake_case")]
 enum Rotation {
     Minutely,
     Hourly,
@@ -46,8 +47,6 @@ impl From<Rotation> for tracing_appender::rolling::Rotation {
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub(super) struct RollingFileAppenderConfig {
-    level: Level,
-
     rotation: Rotation,
     directory: String,
     prefix: Option<String>,
@@ -63,7 +62,7 @@ where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {
     fn create_layer_and_guard(
-        &self,
+        self,
     ) -> Result<(BoxedLayer<S>, Option<WorkerGuard>), LogConfigError> {
         let mut builder = tracing_appender::rolling::Builder::new();
 
@@ -83,7 +82,7 @@ where
         let writer = builder.build(&self.directory)?;
 
         let (non_blocking, guard) = tracing_appender::non_blocking(writer);
-        let fmt_layer = self.fmt.create_layer(non_blocking, self.level);
+        let fmt_layer = self.fmt.create_layer(non_blocking);
         Ok((fmt_layer, Some(guard)))
     }
 }
@@ -95,9 +94,9 @@ mod tests {
     #[test]
     fn test_deserialize_rolling_file_appender_config_default_fmt() {
         let toml_str = r#"
-            level = "Debug"
-            kind = "RollingFile"
-            rotation = "Daily"
+            level = "debug"
+            kind = "rolling_file"
+            rotation = "daily"
             directory = "/var/log/myapp"
             prefix = "myapp-"
             suffix = ".log"
@@ -117,15 +116,15 @@ mod tests {
     #[test]
     fn test_deserialize_rolling_file_appender_config_custom_fmt() {
         let toml_str = r#"
-            level = "Info"
-            kind = "RollingFile"
-            rotation = "Hourly"
+            level = "info"
+            kind = "rolling_file"
+            rotation = "hourly"
             directory = "/var/log/myapp"
             prefix = "myapp-"
             suffix = ".log"
             max_log_files = 5
             ansi = true
-            formatter = "Pretty"
+            formatter = "pretty"
         "#;
 
         let config: RollingFileAppenderConfig =

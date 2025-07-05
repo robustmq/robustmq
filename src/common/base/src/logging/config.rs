@@ -32,39 +32,17 @@ pub(super) trait AppenderConfig<S = Registry>
 where
     S: tracing::Subscriber,
 {
-    fn create_layer_and_guard(
-        &self,
-    ) -> Result<(BoxedLayer<S>, Option<WorkerGuard>), LogConfigError>;
+    fn create_layer_and_guard(self)
+        -> Result<(BoxedLayer<S>, Option<WorkerGuard>), LogConfigError>;
 }
 
 /// Supported configurations for log appenders.
 #[derive(Debug, Clone, Deserialize, PartialEq)]
-#[serde(tag = "kind")]
+#[serde(tag = "kind", rename_all = "snake_case")]
 pub(super) enum Appender {
     Console(ConsoleAppenderConfig),
     RollingFile(RollingFileAppenderConfig),
     TokioConsole(TokioConsoleAppenderConfig),
-}
-
-#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub(super) enum Level {
-    Error,
-    Warn,
-    Info,
-    Debug,
-    Trace,
-}
-
-impl From<Level> for tracing::Level {
-    fn from(value: Level) -> Self {
-        match value {
-            Level::Error => tracing::Level::ERROR,
-            Level::Warn => tracing::Level::WARN,
-            Level::Info => tracing::Level::INFO,
-            Level::Debug => tracing::Level::DEBUG,
-            Level::Trace => tracing::Level::TRACE,
-        }
-    }
 }
 
 impl Appender {
@@ -101,21 +79,21 @@ mod tests {
     use super::*;
 
     const DEBUG_LEVEL_TOML: &str = r#"
-        level = "Debug"
+        level = "debug"
         "#;
 
     const CONSOLE_TABLE_NAME: &str = r#"stdout"#;
     const CONSOLE_KIND_TOML: &str = r#"
-        kind = "Console"
+        kind = "console"
         "#;
     const CONSOLE_CONFIG_TOML: &str = r#""#;
 
     const ROLLING_FILE_TABLE_NAME: &str = r#"server"#;
     const ROLLING_FILE_KIND_TOML: &str = r#"
-        kind = "RollingFile"
+        kind = "rolling_file"
         "#;
     const ROLLING_FILE_CONFIG_TOML: &str = r#"
-        rotation = "Daily"
+        rotation = "daily"
         directory = "/var/logs"
         prefix = "app"
         "#;

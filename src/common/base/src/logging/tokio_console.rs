@@ -36,7 +36,7 @@ where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {
     fn create_layer_and_guard(
-        &self,
+        self,
     ) -> Result<(BoxedLayer<S>, Option<WorkerGuard>), LogConfigError> {
         let mut builder = console_subscriber::ConsoleLayer::builder();
         if let Some(bind) = &self.bind {
