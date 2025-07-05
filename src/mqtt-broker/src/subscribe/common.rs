@@ -21,6 +21,7 @@ use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
 use protocol::mqtt::common::{Filter, MqttProtocol, RetainHandling, SubscribeProperties};
 use protocol::mqtt::common::{MqttPacket, QoS};
 use protocol::placement_center::placement_center_mqtt::{
@@ -31,8 +32,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 
-const SHARE_SUB_PREFIX: &str = "$share";
-const QUEUE_SUB_PREFIX: &str = "$queue";
 const SUBSCRIBE_WILDCARDS_1: &str = "+";
 const SUBSCRIBE_WILDCARDS_2: &str = "#";
 const SUBSCRIBE_SPLIT_DELIMITER: &str = "/";
@@ -174,10 +173,10 @@ pub fn build_sub_path_regex(sub_path: &str) -> Result<Regex, MqttBrokerError> {
 }
 
 pub fn decode_sub_path(sub_path: &str) -> String {
-    if is_share_sub(sub_path) {
+    if is_mqtt_share_sub(sub_path) {
         let (_, group_path) = decode_share_info(sub_path);
         group_path
-    } else if is_queue_sub(sub_path) {
+    } else if is_mqtt_queue_sub(sub_path) {
         decode_queue_info(sub_path)
     } else if is_exclusive_sub(sub_path) {
         decode_exclusive_sub_path_to_topic_name(sub_path).to_owned()
@@ -217,15 +216,18 @@ pub async fn get_sub_topic_id_list(
     result
 }
 
-pub fn is_share_sub(sub_name: &str) -> bool {
-    sub_name.starts_with(SHARE_SUB_PREFIX)
+pub fn decode_share_group_and_path(path: &str) -> (String, String) {
+    if is_mqtt_queue_sub(path) {
+        (
+            SHARE_QUEUE_DEFAULT_GROUP_NAME.to_string(),
+            decode_queue_info(path),
+        )
+    } else {
+        decode_share_info(path)
+    }
 }
 
-pub fn is_queue_sub(sub_name: &str) -> bool {
-    sub_name.starts_with(QUEUE_SUB_PREFIX)
-}
-
-pub fn decode_share_info(sub_name: &str) -> (String, String) {
+fn decode_share_info(sub_name: &str) -> (String, String) {
     let mut str_slice: Vec<&str> = sub_name.split("/").collect();
     str_slice.remove(0);
     let group_name = str_slice.remove(0).to_string();
@@ -233,7 +235,7 @@ pub fn decode_share_info(sub_name: &str) -> (String, String) {
     (group_name, sub_name)
 }
 
-pub fn decode_queue_info(sub_name: &str) -> String {
+fn decode_queue_info(sub_name: &str) -> String {
     let mut str_slice: Vec<&str> = sub_name.split("/").collect();
     str_slice.remove(0);
     format!("/{}", str_slice.join("/"))
@@ -272,14 +274,14 @@ mod tests {
 
     use common_base::tools::unique_id;
     use grpc_clients::pool::ClientPool;
+    use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
     use metadata_struct::mqtt::topic::MQTTTopic;
     use protocol::mqtt::common::QoS;
 
     use crate::handler::cache::CacheManager;
     use crate::subscribe::common::{
         build_sub_path_regex, decode_queue_info, decode_share_info, decode_sub_path,
-        get_sub_topic_id_list, is_match_sub_and_topic, is_queue_sub, is_share_sub, is_wildcards,
-        min_qos, sub_path_validator,
+        get_sub_topic_id_list, is_match_sub_and_topic, is_wildcards, min_qos, sub_path_validator,
     };
 
     #[tokio::test]
@@ -399,21 +401,21 @@ mod tests {
         let sub3 = "$share/consumer1/sport/#".to_string();
         let sub4 = "$share/comsumer1/finance/#".to_string();
 
-        assert!(is_share_sub(&sub1));
-        assert!(is_share_sub(&sub2));
-        assert!(is_share_sub(&sub3));
-        assert!(is_share_sub(&sub4));
+        assert!(is_mqtt_share_sub(&sub1));
+        assert!(is_mqtt_share_sub(&sub2));
+        assert!(is_mqtt_share_sub(&sub3));
+        assert!(is_mqtt_share_sub(&sub4));
 
         let sub5 = "/comsumer1/$share/finance/#".to_string();
         let sub6 = "/comsumer1/$share/finance/$share".to_string();
 
-        assert!(!is_share_sub(&sub5));
-        assert!(!is_share_sub(&sub6));
+        assert!(!is_mqtt_share_sub(&sub5));
+        assert!(!is_mqtt_share_sub(&sub6));
     }
 
     #[tokio::test]
     async fn is_queue_sub_test() {
-        assert!(is_queue_sub("$queue/vvv/v1"));
+        assert!(is_mqtt_queue_sub("$queue/vvv/v1"));
     }
 
     #[tokio::test]

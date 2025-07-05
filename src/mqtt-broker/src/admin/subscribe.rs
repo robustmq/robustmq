@@ -12,19 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
-
+use crate::subscribe::common::{decode_share_group_and_path, get_share_sub_leader, Subscriber};
 use crate::subscribe::manager::SubscribeManager;
-use common_base::utils::time_util::timestamp_to_local_datetime;
 use common_config::mqtt::broker_mqtt_conf;
+use grpc_clients::mqtt::admin::call::mqtt_broker_subscribe_detail;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
+use metadata_struct::mqtt::node_extend::MqttNodeExtend;
+use metadata_struct::mqtt::subscribe_data::is_mqtt_share_subscribe;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest, ListAutoSubscribeRuleReply,
-    ListSubscribeReply, MqttSubscribeRaw, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
-    SubscribeDetailReply,
+    ListSubscribeReply, ListSubscribeRequest, MqttSubscribeRaw, SetAutoSubscribeRuleReply,
+    SetAutoSubscribeRuleRequest, SubscribeDetailRaw, SubscribeDetailReply, SubscribeDetailRequest,
 };
 use protocol::mqtt::common::{qos, retain_forward_rule, Error};
 use std::sync::Arc;
@@ -120,31 +123,108 @@ pub async fn list_auto_subscribe_rule_by_req(
 
 pub async fn list_subscribe(
     subscribe_manager: &Arc<SubscribeManager>,
+    request: ListSubscribeRequest,
 ) -> Result<ListSubscribeReply, MqttBrokerError> {
-    let mut results = Vec::new();
+    let mut subscriptions = Vec::new();
     for (_, raw) in subscribe_manager.subscribe_list.clone() {
-        results.push(MqttSubscribeRaw {
-            broker_id: raw.broker_id,
-            client_id: raw.client_id,
-            create_time: timestamp_to_local_datetime(raw.create_time as i64),
-            no_local: if raw.filter.nolocal { 1 } else { 0 },
-            path: raw.path,
-            pk_id: raw.pkid as u32,
-            preserve_retain: if raw.filter.preserve_retain { 1 } else { 0 },
-            properties: serde_json::to_string(&raw.subscribe_properties)?,
-            protocol: format!("{:?}", raw.protocol),
-            qos: format!("{:?}", raw.filter.qos),
-            retain_handling: format!("{:?}", raw.filter.retain_handling),
-        });
+        subscriptions.push(MqttSubscribeRaw::from(raw));
     }
 
+    let filtered = apply_filters(subscriptions, &request.options);
+    let sorted = apply_sorting(filtered, &request.options);
+    let pagination = apply_pagination(sorted, &request.options);
+
     Ok(ListSubscribeReply {
-        subscriptions: results,
+        subscriptions: pagination.0,
+        total_count: pagination.1 as u32,
     })
 }
 
 pub async fn subscribe_detail(
-    _subscribe_manager: &Arc<SubscribeManager>,
+    subscribe_manager: &Arc<SubscribeManager>,
+    client_pool: &Arc<ClientPool>,
+    request: SubscribeDetailRequest,
 ) -> Result<SubscribeDetailReply, MqttBrokerError> {
-    Ok(SubscribeDetailReply::default())
+    let subscribe = if let Some(subscribe) =
+        subscribe_manager.get_subscribe(&request.client_id, &request.path)
+    {
+        subscribe
+    } else {
+        return Ok(SubscribeDetailReply::default());
+    };
+
+    if !is_mqtt_share_subscribe(&subscribe.path) {
+        let mut details = vec![];
+        for (key, value) in subscribe_manager.exclusive_push.clone() {
+            if value.client_id == request.client_id && value.sub_path == request.path {
+                let thread_data =
+                    if let Some(thread) = subscribe_manager.exclusive_push_thread.get(&key) {
+                        serde_json::to_string(&thread.clone())?
+                    } else {
+                        "{}".to_string()
+                    };
+                let sub_data = serde_json::to_string(&value)?;
+
+                details.push(SubscribeDetailRaw {
+                    sub: sub_data,
+                    thread: thread_data,
+                });
+            }
+        }
+
+        return Ok(SubscribeDetailReply {
+            sub_info: serde_json::to_string(&subscribe)?,
+            details,
+        });
+    }
+
+    let conf = broker_mqtt_conf();
+    let (group, _) = decode_share_group_and_path(&subscribe.path);
+    let reply = get_share_sub_leader(client_pool, &group).await?;
+
+    if conf.broker_id == reply.broker_id {
+        let mut raw_details = vec![];
+        for (key, value) in subscribe_manager.share_leader_push.clone() {
+            if value.path == request.path {
+                let data: Vec<Subscriber> = value
+                    .sub_list
+                    .iter()
+                    .map(|entry| entry.value().clone())
+                    .collect();
+                let thread_data =
+                    if let Some(thread) = subscribe_manager.share_leader_push_thread.get(&key) {
+                        serde_json::to_string(&thread.clone())?
+                    } else {
+                        "{}".to_string()
+                    };
+                let sub_data = serde_json::to_string(&data)?;
+                raw_details.push(SubscribeDetailRaw {
+                    sub: sub_data,
+                    thread: thread_data,
+                });
+            }
+        }
+        return Ok(SubscribeDetailReply {
+            sub_info: serde_json::to_string(&subscribe)?,
+            details: raw_details,
+        });
+    }
+
+    let extend_info: MqttNodeExtend = serde_json::from_str::<MqttNodeExtend>(&reply.extend_info)?;
+    let req = SubscribeDetailRequest {
+        client_id: request.client_id.clone(),
+        path: request.path.clone(),
+    };
+    let reply = mqtt_broker_subscribe_detail(client_pool, &[extend_info.grpc_addr], req).await?;
+    Ok(reply)
+}
+
+impl Queryable for MqttSubscribeRaw {
+    fn get_field_str(&self, field: &str) -> Option<String> {
+        match field {
+            "client_id" => Some(self.client_id.clone()),
+            "path" => Some(self.path.clone()),
+            _ => None,
+        }
+    }
 }

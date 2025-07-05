@@ -19,12 +19,13 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterOverviewMetricsReply, ClusterOverviewMetricsRequest, ClusterStatusReply,
     ClusterStatusRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
     GetClusterConfigReply, GetClusterConfigRequest, ListAutoSubscribeRuleReply,
-    ListAutoSubscribeRuleRequest, ListSessionReply, ListSessionRequest, ListSystemAlarmReply,
-    ListSystemAlarmRequest, MqttCreateConnectorReply, MqttCreateConnectorRequest,
-    MqttDeleteConnectorReply, MqttDeleteConnectorRequest, MqttListConnectorReply,
-    MqttListConnectorRequest, MqttUpdateConnectorReply, MqttUpdateConnectorRequest,
-    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetClusterConfigReply,
-    SetClusterConfigRequest, SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest,
+    ListAutoSubscribeRuleRequest, ListSessionReply, ListSessionRequest, ListSubscribeReply,
+    ListSubscribeRequest, ListSystemAlarmReply, ListSystemAlarmRequest, MqttCreateConnectorReply,
+    MqttCreateConnectorRequest, MqttDeleteConnectorReply, MqttDeleteConnectorRequest,
+    MqttListConnectorReply, MqttListConnectorRequest, MqttUpdateConnectorReply,
+    MqttUpdateConnectorRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
+    SetClusterConfigReply, SetClusterConfigRequest, SetSystemAlarmConfigReply,
+    SetSystemAlarmConfigRequest, SubscribeDetailReply, SubscribeDetailRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
@@ -368,4 +369,20 @@ impl_retriable_request!(
     ClusterOverviewMetricsReply,
     mqtt_broker_admin_services_client,
     cluster_overview_metrics
+);
+
+impl_retriable_request!(
+    ListSubscribeRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    ListSubscribeReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_list_subscribe
+);
+
+impl_retriable_request!(
+    SubscribeDetailRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    SubscribeDetailReply,
+    mqtt_broker_admin_services_client,
+    mqtt_broker_subscribe_detail
 );
