@@ -14,7 +14,6 @@
 
 use proc_macro::TokenStream;
 
-
 #[cfg(feature = "validate-req")]
 mod parse;
 #[cfg(feature = "validate-req")]
