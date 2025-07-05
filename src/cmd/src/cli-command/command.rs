@@ -38,9 +38,9 @@ use protocol::placement_center::placement_center_openraft::{
 
 use crate::mqtt::admin::{
     process_acl_args, process_blacklist_args, process_connector_args, process_slow_sub_args,
-    process_system_alarm_args, process_topic_rewrite_args, process_user_args, AclArgs,
-    BlacklistArgs, ConnectorArgs, FlappingDetectArgs, SlowSubArgs, SystemAlarmArgs,
-    TopicRewriteArgs, UserArgs,
+    process_subscribes_args, process_system_alarm_args, process_topic_rewrite_args,
+    process_user_args, AclArgs, BlacklistArgs, ConnectorArgs, FlappingDetectArgs, SlowSubArgs,
+    SubscribesArgs, SystemAlarmArgs, TopicRewriteArgs, UserArgs,
 };
 use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 
@@ -90,6 +90,8 @@ enum MQTTAction {
     Config(ClusterConfigArgs),
     // session admin
     Session(SessionArgs),
+    // session admin
+    Subscribes(SubscribesArgs),
     // user admin
     User(UserArgs),
     // access control list admin
@@ -124,6 +126,7 @@ enum MQTTAction {
     //auto subscribe
     AutoSubscribeRule(AutoSubscribeRuleCommand),
 
+    // pub/sub
     Publish(PubSubArgs),
     Subscribe(PubSubArgs),
 }
@@ -204,6 +207,8 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             MQTTAction::Config(args) => process_config_args(args),
             // session list
             MQTTAction::Session(args) => process_session_args(args),
+            // subscribe list
+            MQTTAction::Subscribes(args) => process_subscribes_args(args),
             // user admin
             MQTTAction::User(args) => process_user_args(args),
             // access control list admin
@@ -230,6 +235,7 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             // topic rewrite rule
             MQTTAction::TopicRewriteRule(args) => process_topic_rewrite_args(args),
             MQTTAction::SlowSub(args) => process_slow_sub_args(args),
+            // pub/sub
             MQTTAction::Publish(args) => process_publish_args(args),
             MQTTAction::Subscribe(args) => process_subscribe_args(args),
             // schema

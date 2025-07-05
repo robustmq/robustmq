@@ -24,9 +24,9 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     CreateAclRequest, CreateBlacklistRequest, CreateTopicRewriteRuleRequest, CreateUserRequest,
     DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest,
     DeleteTopicRewriteRuleRequest, DeleteUserRequest, ListAutoSubscribeRuleRequest,
-    ListSystemAlarmRequest, MqttCreateConnectorRequest, MqttDeleteConnectorRequest,
-    MqttListConnectorRequest, MqttUpdateConnectorRequest, SetAutoSubscribeRuleRequest,
-    SetClusterConfigRequest,
+    ListSubscribeRequest, ListSystemAlarmRequest, MqttCreateConnectorRequest,
+    MqttDeleteConnectorRequest, MqttListConnectorRequest, MqttUpdateConnectorRequest,
+    SetAutoSubscribeRuleRequest, SetClusterConfigRequest, SubscribeDetailRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ListSlowSubscribeRequest, SetSystemAlarmConfigRequest,
@@ -45,6 +45,24 @@ pub(crate) struct SessionArgs {
 pub enum SessionActionType {
     #[command(author = "RobustMQ", about = "action: list sessions", long_about = None)]
     List,
+}
+
+// subscribe
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "related operations of mqtt session, such as listing", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct SubscribesArgs {
+    #[command(subcommand)]
+    pub action: SubscribesActionType,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum SubscribesActionType {
+    #[command(author = "RobustMQ", about = "action: list sessions", long_about = None)]
+    List,
+
+    #[command(author = "RobustMQ", about = "action: detail sessions", long_about = None)]
+    Detail(DetailSubscribeArgs),
 }
 
 // connection
@@ -106,6 +124,16 @@ pub(crate) struct CreateUserArgs {
     pub(crate) password: String,
     #[arg(short, long, default_value_t = false)]
     pub(crate) is_superuser: bool,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "action: create user", long_about = None)]
+#[command(next_line_help = true)]
+pub(crate) struct DetailSubscribeArgs {
+    #[arg(short, long, required = true)]
+    pub(crate) client_id: String,
+    #[arg(short, long, required = true)]
+    pub(crate) path: String,
 }
 
 #[derive(clap::Args, Debug)]
@@ -553,6 +581,20 @@ pub fn process_system_alarm_args(args: SystemAlarmArgs) -> MqttActionType {
 pub fn process_session_args(args: SessionArgs) -> MqttActionType {
     match args.action {
         SessionActionType::List => MqttActionType::ListSession,
+    }
+}
+
+pub fn process_subscribes_args(args: SubscribesArgs) -> MqttActionType {
+    match args.action {
+        SubscribesActionType::List => {
+            MqttActionType::ListSubscribe(ListSubscribeRequest::default())
+        }
+        SubscribesActionType::Detail(args) => {
+            MqttActionType::DetailSubscribe(SubscribeDetailRequest {
+                client_id: args.client_id,
+                path: args.path,
+            })
+        }
     }
 }
 

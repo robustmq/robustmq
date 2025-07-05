@@ -61,7 +61,7 @@ impl From<MqttSubscribe> for MqttSubscribeRaw {
 }
 
 pub fn is_mqtt_share_subscribe(sub_name: &str) -> bool {
-    is_mqtt_queue_sub(sub_name) || is_mqtt_queue_sub(sub_name)
+    is_mqtt_share_sub(sub_name) || is_mqtt_queue_sub(sub_name)
 }
 
 pub fn is_mqtt_share_sub(sub_name: &str) -> bool {
@@ -70,4 +70,16 @@ pub fn is_mqtt_share_sub(sub_name: &str) -> bool {
 
 pub fn is_mqtt_queue_sub(sub_name: &str) -> bool {
     sub_name.starts_with(QUEUE_SUB_PREFIX)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::mqtt::subscribe_data::{is_mqtt_share_sub, is_mqtt_share_subscribe};
+
+    #[test]
+    fn is_mqtt_share_subscribe_test() {
+        assert!(is_mqtt_share_sub("$share/g1/test/hello"));
+        assert!(is_mqtt_share_subscribe("$share/g1/test/hello"));
+        assert!(is_mqtt_share_subscribe("/test/hello"));
+    }
 }

@@ -27,10 +27,10 @@ use grpc_clients::mqtt::admin::call::{
     mqtt_broker_list_acl, mqtt_broker_list_auto_subscribe_rule, mqtt_broker_list_bind_schema,
     mqtt_broker_list_blacklist, mqtt_broker_list_connection, mqtt_broker_list_connector,
     mqtt_broker_list_schema, mqtt_broker_list_session, mqtt_broker_list_slow_subscribe,
-    mqtt_broker_list_system_alarm, mqtt_broker_list_topic, mqtt_broker_list_user,
-    mqtt_broker_set_auto_subscribe_rule, mqtt_broker_set_cluster_config,
-    mqtt_broker_set_system_alarm_config, mqtt_broker_unbind_schema, mqtt_broker_update_connector,
-    mqtt_broker_update_schema,
+    mqtt_broker_list_subscribe, mqtt_broker_list_system_alarm, mqtt_broker_list_topic,
+    mqtt_broker_list_user, mqtt_broker_set_auto_subscribe_rule, mqtt_broker_set_cluster_config,
+    mqtt_broker_set_system_alarm_config, mqtt_broker_subscribe_detail, mqtt_broker_unbind_schema,
+    mqtt_broker_update_connector, mqtt_broker_update_schema,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -44,12 +44,12 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteTopicRewriteRuleRequest,
     DeleteUserRequest, EnableFlappingDetectRequest, GetClusterConfigRequest, ListAclRequest,
     ListAutoSubscribeRuleRequest, ListBlacklistRequest, ListConnectionRequest, ListSessionRequest,
-    ListSlowSubscribeRequest, ListSystemAlarmRequest, ListTopicRequest, ListUserRequest,
-    MqttBindSchemaRequest, MqttCreateConnectorRequest, MqttCreateSchemaRequest,
+    ListSlowSubscribeRequest, ListSubscribeRequest, ListSystemAlarmRequest, ListTopicRequest,
+    ListUserRequest, MqttBindSchemaRequest, MqttCreateConnectorRequest, MqttCreateSchemaRequest,
     MqttDeleteConnectorRequest, MqttDeleteSchemaRequest, MqttListBindSchemaRequest,
     MqttListConnectorRequest, MqttListSchemaRequest, MqttUnbindSchemaRequest,
     MqttUpdateConnectorRequest, MqttUpdateSchemaRequest, SetAutoSubscribeRuleRequest,
-    SetClusterConfigRequest, SetSystemAlarmConfigRequest,
+    SetClusterConfigRequest, SetSystemAlarmConfigRequest, SubscribeDetailRequest,
 };
 use std::str::FromStr;
 use std::sync::Arc;
@@ -77,6 +77,10 @@ pub enum MqttActionType {
 
     // session
     ListSession,
+
+    // subscribe
+    ListSubscribe(ListSubscribeRequest),
+    DetailSubscribe(SubscribeDetailRequest),
 
     // user admin
     ListUser,
@@ -307,6 +311,16 @@ impl MqttBrokerCommand {
             }
             MqttActionType::ListSystemAlarm(ref request) => {
                 self.list_system_alarm(&client_pool, params.clone(), *request)
+                    .await;
+            }
+
+            // subscribe
+            MqttActionType::ListSubscribe(ref request) => {
+                self.list_subscribe(&client_pool, params.clone(), request.to_owned())
+                    .await;
+            }
+            MqttActionType::DetailSubscribe(ref request) => {
+                self.detail_subscribe(&client_pool, params.clone(), request.to_owned())
                     .await;
             }
         }
@@ -1044,6 +1058,82 @@ impl MqttBrokerCommand {
             }
             Err(e) => {
                 println!("MQTT broker list system alarm exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    // ------------------ subscribe ----------------
+    async fn list_subscribe(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: ListSubscribeRequest,
+    ) {
+        match mqtt_broker_list_subscribe(client_pool, &grpc_addr(params.server), cli_request).await
+        {
+            Ok(data) => {
+                let mut table = Table::new();
+                table.set_titles(row![
+                    "client_id",
+                    "is_share_sub",
+                    "path",
+                    "broker_id",
+                    "protocol",
+                    "qos",
+                    "no_local",
+                    "preserve_retain",
+                    "retain_handling",
+                    "create_time",
+                    "pk_id",
+                    "properties"
+                ]);
+                for raw in data.subscriptions {
+                    table.add_row(row![
+                        raw.client_id,
+                        raw.is_share_sub,
+                        raw.path,
+                        raw.broker_id,
+                        raw.protocol,
+                        raw.qos,
+                        raw.no_local,
+                        raw.preserve_retain,
+                        raw.retain_handling,
+                        raw.create_time,
+                        raw.pk_id,
+                        raw.properties
+                    ]);
+                }
+                // output cmd
+                table.printstd()
+            }
+            Err(e) => {
+                println!("MQTT broker list subscribe exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn detail_subscribe(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: SubscribeDetailRequest,
+    ) {
+        match mqtt_broker_subscribe_detail(client_pool, &grpc_addr(params.server), cli_request)
+            .await
+        {
+            Ok(data) => {
+                println!("subscribe info:{}", data.sub_info);
+                for raw in data.details {
+                    println!("=======================");
+                    println!("sub:{}", raw.sub);
+                    println!("thread:{}", raw.thread);
+                    println!("=======================");
+                }
+            }
+            Err(e) => {
+                println!("MQTT broker detail subscribe exception");
                 error_info(e.to_string());
             }
         }

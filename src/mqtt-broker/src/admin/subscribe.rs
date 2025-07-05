@@ -19,8 +19,10 @@ use crate::storage::auto_subscribe::AutoSubscribeStorage;
 use crate::subscribe::common::{decode_share_group_and_path, get_share_sub_leader, Subscriber};
 use crate::subscribe::manager::SubscribeManager;
 use common_config::mqtt::broker_mqtt_conf;
+use grpc_clients::mqtt::admin::call::mqtt_broker_subscribe_detail;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
+use metadata_struct::mqtt::node_extend::MqttNodeExtend;
 use metadata_struct::mqtt::subscribe_data::is_mqtt_share_subscribe;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest, ListAutoSubscribeRuleReply,
@@ -176,10 +178,11 @@ pub async fn subscribe_detail(
         });
     }
 
+    let conf = broker_mqtt_conf();
     let (group, _) = decode_share_group_and_path(&subscribe.path);
     let reply = get_share_sub_leader(client_pool, &group).await?;
-    let conf = broker_mqtt_conf();
-    let details = if conf.broker_id == reply.broker_id {
+
+    if conf.broker_id == reply.broker_id {
         let mut raw_details = vec![];
         for (key, value) in subscribe_manager.share_leader_push.clone() {
             if value.path == request.path {
@@ -201,15 +204,19 @@ pub async fn subscribe_detail(
                 });
             }
         }
-        raw_details
-    } else {
-        vec![]
-    };
+        return Ok(SubscribeDetailReply {
+            sub_info: serde_json::to_string(&subscribe)?,
+            details: raw_details,
+        });
+    }
 
-    Ok(SubscribeDetailReply {
-        sub_info: serde_json::to_string(&subscribe)?,
-        details,
-    })
+    let extend_info: MqttNodeExtend = serde_json::from_str::<MqttNodeExtend>(&reply.extend_info)?;
+    let req = SubscribeDetailRequest {
+        client_id: request.client_id.clone(),
+        path: request.path.clone(),
+    };
+    let reply = mqtt_broker_subscribe_detail(client_pool, &[extend_info.grpc_addr], req).await?;
+    Ok(reply)
 }
 
 impl Queryable for MqttSubscribeRaw {
