@@ -80,6 +80,6 @@ mod tests {
     fn is_mqtt_share_subscribe_test() {
         assert!(is_mqtt_share_sub("$share/g1/test/hello"));
         assert!(is_mqtt_share_subscribe("$share/g1/test/hello"));
-        assert!(is_mqtt_share_subscribe("/test/hello"));
+        assert!(!is_mqtt_share_subscribe("/test/hello"));
     }
 }
