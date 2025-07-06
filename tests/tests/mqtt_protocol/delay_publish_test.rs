@@ -32,11 +32,10 @@ mod tests {
 
         for t in [2, 4, 6] {
             let uniq_tp = uniq_topic();
-            let topic = format!("$delayed/{}{}", t, uniq_tp);
+            let topic = format!("$delayed/{t}{uniq_tp}");
 
             // publish
-            let client_id =
-                build_client_id(format!("delay_publish_test_{}_{}", network, qos).as_str());
+            let client_id = build_client_id(format!("delay_publish_test_{network}_{qos}").as_str());
             let client_properties = ClientTestProperties {
                 mqtt_version: 5,
                 client_id: client_id.to_string(),
@@ -47,14 +46,13 @@ mod tests {
             };
             let cli = connect_server(&client_properties);
 
-            let message_content = format!("delay_publish_test mqtt message,{}", uniq_tp);
+            let message_content = format!("delay_publish_test mqtt message,{uniq_tp}");
             let msg = Message::new(topic.clone(), message_content.clone(), QOS_1);
             publish_data(&cli, msg, false);
             distinct_conn(cli);
 
             // subscribe +
-            let client_id =
-                build_client_id(format!("delay_publish_test_{}_{}", network, qos).as_str());
+            let client_id = build_client_id(format!("delay_publish_test_{network}_{qos}").as_str());
 
             let client_properties = ClientTestProperties {
                 mqtt_version: 5,
@@ -73,7 +71,7 @@ mod tests {
                 // Avoid auto-subscribe to subscribe to data
                 if msg.properties().len() != 4 {
                     println!("properties:{:?}", msg.properties());
-                    println!("payload:{}", payload);
+                    println!("payload:{payload}");
                     return false;
                 }
 

@@ -59,7 +59,7 @@ fn parse_timezone(timezone: &str) -> Result<TimeZoneWrapper, String> {
         return Ok(TimeZoneWrapper::FixedOffset(offset));
     }
 
-    Err(format!("Invalid timezone: '{}'. Expected IANA timezone (e.g. 'Asia/Shanghai') or UTC offset (e.g. 'UTC+8')", timezone))
+    Err(format!("Invalid timezone: '{timezone}'. Expected IANA timezone (e.g. 'Asia/Shanghai') or UTC offset (e.g. 'UTC+8')"))
 }
 
 fn parse_utc_offset(tz: impl AsRef<str>) -> Option<FixedOffset> {

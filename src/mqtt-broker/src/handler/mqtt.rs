@@ -449,7 +449,7 @@ where
         .await
         {
             Ok(da) => {
-                format!("{:?}", da)
+                format!("{da:?}")
             }
             Err(e) => {
                 return Some(build_pub_ack_fail(

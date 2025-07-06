@@ -132,7 +132,7 @@ mod tests {
         let shard_storage = ShardStorage::new(rocksdb_engine.clone());
 
         let clusters = (0..num_clusters)
-            .map(|i| format!("cluster_{}", i))
+            .map(|i| format!("cluster_{i}"))
             .collect::<Vec<_>>();
 
         let namespaces = (0..num_namespace_per_cluster)
@@ -140,7 +140,7 @@ mod tests {
             .collect::<Vec<_>>();
 
         let shards = (0..num_shards_per_namespace)
-            .map(|i| format!("shard_{}", i))
+            .map(|i| format!("shard_{i}"))
             .collect::<Vec<_>>();
 
         for cluster in clusters.iter() {

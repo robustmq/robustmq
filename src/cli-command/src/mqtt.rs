@@ -362,7 +362,7 @@ impl MqttBrokerCommand {
                     line = lines.next_line() => {
                         match line {
                             Ok(Some(input)) => {
-                                    println!("You typed: {}", input);
+                                    println!("You typed: {input}");
 
                                     let msg = MessageBuilder::new()
                                     .properties(props.clone())
@@ -375,7 +375,7 @@ impl MqttBrokerCommand {
                                     match cli.publish(msg) {
                                         Ok(_) => {}
                                         Err(e) => {
-                                            panic!("{:?}", e);
+                                            panic!("{e:?}");
                                         }
                                     }
                                     if retained {
@@ -389,7 +389,7 @@ impl MqttBrokerCommand {
                                 break;
                             }
                             Err(e) => {
-                                eprintln!("Error reading input: {}", e);
+                                eprintln!("Error reading input: {e}");
                                 break;
                             }
                     }
@@ -421,7 +421,7 @@ impl MqttBrokerCommand {
                 println!("subscribe success")
             }
             Err(e) => {
-                panic!("subscribe_many: {}", e)
+                panic!("subscribe_many: {e}")
             }
         }
 
@@ -444,11 +444,11 @@ impl MqttBrokerCommand {
                     if let Some(raw) = raw {
                         if raw.0 == "retain_push_flag" && raw.1 == "true" {
                             let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                            println!("Retain message: {}", payload);
+                            println!("Retain message: {payload}");
                         }
                     }
                     let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                    println!("payload: {}", payload);
+                    println!("payload: {payload}");
                 }
                 None => {
                     println!("End of input stream.");
@@ -471,13 +471,13 @@ impl MqttBrokerCommand {
             Ok(reply) => {
                 let feature_name = reply.feature_name.as_str();
                 if reply.is_enable {
-                    println!("Enabled successfully! feature name: {}", feature_name);
+                    println!("Enabled successfully! feature name: {feature_name}");
                 } else {
-                    println!("Disabled successfully! feature name: {}", feature_name);
+                    println!("Disabled successfully! feature name: {feature_name}");
                 }
             }
             Err(e) => {
-                println!("MQTT broker enable feature normal exception: {}", e);
+                println!("MQTT broker enable feature normal exception: {e}");
                 error_info(e.to_string());
             }
         }
@@ -511,7 +511,7 @@ impl MqttBrokerCommand {
                         return;
                     }
                 };
-                println!("{}", json);
+                println!("{json}");
             }
             Err(e) => {
                 println!("MQTT broker cluster normal exception");
@@ -630,7 +630,7 @@ impl MqttBrokerCommand {
             }
 
             Err(e) => {
-                eprintln!("Failed to list connections: {:?}", e);
+                eprintln!("Failed to list connections: {e:?}");
                 std::process::exit(1);
             }
         };

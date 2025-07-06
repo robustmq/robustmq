@@ -241,7 +241,7 @@ mod tests {
         );
 
         // test display of puback and puback_properties in v5
-        println!("puback is {}", puback);
-        println!("puback_properties is {}", puback_properties);
+        println!("puback is {puback}");
+        println!("puback_properties is {puback_properties}");
     }
 }

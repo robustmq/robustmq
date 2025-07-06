@@ -45,10 +45,10 @@ mod tests {
         let request = ClusterStatusRequest {};
         match mqtt_broker_cluster_status(&client_pool, &addrs, request).await {
             Ok(data) => {
-                println!("{:?}", data);
+                println!("{data:?}");
             }
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
     }
@@ -69,7 +69,7 @@ mod tests {
         match mqtt_broker_create_user(&client_pool, &addrs, user.clone()).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -84,7 +84,7 @@ mod tests {
                 assert!(flag, "user1 has been created");
             }
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         };
 
@@ -99,7 +99,7 @@ mod tests {
         {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -114,7 +114,7 @@ mod tests {
                 assert!(flag, "user1 should be deleted");
             }
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         };
     }
@@ -150,7 +150,7 @@ mod tests {
         match mqtt_broker_create_schema(&client_pool, &addrs, create_request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("create schema failed: {}", e);
+                panic!("create schema failed: {e}");
             }
         }
 
@@ -171,7 +171,7 @@ mod tests {
             }
 
             Err(e) => {
-                panic!("list schema failed: {}", e);
+                panic!("list schema failed: {e}");
             }
         }
 
@@ -196,7 +196,7 @@ mod tests {
         match mqtt_broker_update_schema(&client_pool, &addrs, update_request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("update schema failed: {}", e);
+                panic!("update schema failed: {e}");
             }
         }
 
@@ -214,7 +214,7 @@ mod tests {
             }
 
             Err(e) => {
-                panic!("list schema failed: {}", e);
+                panic!("list schema failed: {e}");
             }
         }
 
@@ -226,7 +226,7 @@ mod tests {
         match mqtt_broker_delete_schema(&client_pool, &addrs, delete_request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("delete schema failed: {}", e);
+                panic!("delete schema failed: {e}");
             }
         }
 
@@ -236,7 +236,7 @@ mod tests {
             }
 
             Err(e) => {
-                panic!("list schema failed: {}", e);
+                panic!("list schema failed: {e}");
             }
         }
     }
@@ -262,7 +262,7 @@ mod tests {
         match mqtt_broker_create_connector(&client_pool, &addrs, create_request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -280,7 +280,7 @@ mod tests {
                 }
 
                 Err(e) => {
-                    panic!("{:?}", e);
+                    panic!("{e:?}");
                 }
             };
 
@@ -312,7 +312,7 @@ mod tests {
         match mqtt_broker_update_connector(&client_pool, &addrs, update_request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -326,7 +326,7 @@ mod tests {
             }
 
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         };
 
@@ -352,7 +352,7 @@ mod tests {
         match mqtt_broker_delete_connector(&client_pool, &addrs, delete_request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -363,7 +363,7 @@ mod tests {
             }
 
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
     }

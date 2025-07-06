@@ -40,7 +40,7 @@ mod tests {
         match placement_set(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -68,7 +68,7 @@ mod tests {
                 assert!(da.flag)
             }
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -78,7 +78,7 @@ mod tests {
                 assert_eq!(da.value, value);
             }
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -86,7 +86,7 @@ mod tests {
         match placement_delete(&client_pool, &addrs, exist_req).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -96,7 +96,7 @@ mod tests {
                 assert!(!da.flag)
             }
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
     }

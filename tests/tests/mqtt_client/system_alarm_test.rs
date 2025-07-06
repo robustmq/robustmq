@@ -70,7 +70,7 @@ pub async fn set_cluster_system_alarm_config() {
             }
 
             Err(e) => {
-                eprintln!("Failed enable_offline_message: {:?}", e);
+                eprintln!("Failed enable_offline_message: {e:?}");
                 std::process::exit(1);
             }
         }
@@ -95,7 +95,7 @@ pub async fn list_cluster_system_alarm() {
             assert!(!data.list_system_alarm_raw.is_empty());
         }
         Err(e) => {
-            eprintln!("Failed to list system alarm: {:?}", e);
+            eprintln!("Failed to list system alarm: {e:?}");
             std::process::exit(1);
         }
     }

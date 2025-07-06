@@ -206,10 +206,7 @@ where
             )
             .await
             {
-                panic!(
-                    "Initializing system topic {} Failed, error message :{}",
-                    new_topic_name, e
-                );
+                panic!("Initializing system topic {new_topic_name} Failed, error message :{e}");
             }
         }
     }
@@ -829,7 +826,7 @@ mod test {
         let topic_name = "$SYS/brokers/${node}/version".to_string();
         let replaced_name = super::replace_topic_name(topic_name.clone());
         let local_ip = get_local_ip();
-        let expected_name = format!("$SYS/brokers/{}/version", local_ip);
+        let expected_name = format!("$SYS/brokers/{local_ip}/version");
         assert!(replaced_name.contains("brokers/"));
         assert!(!replaced_name.contains("${node}"));
         assert_eq!(expected_name, replaced_name)

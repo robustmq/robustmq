@@ -75,13 +75,13 @@ pub async fn start_openraft_node(raft_node: Raft<TypeConfig>) {
                         info!("Node {:?} was initialized successfully", nodes);
                     }
                     Err(e) => {
-                        panic!("openraft init fail,{}", e);
+                        panic!("openraft init fail,{e}");
                     }
                 }
             }
         }
         Err(e) => {
-            panic!("openraft initialized fail,{}", e);
+            panic!("openraft initialized fail,{e}");
         }
     }
 }
@@ -116,10 +116,7 @@ pub async fn create_raft_node(
     {
         Ok(data) => data,
         Err(e) => {
-            panic!(
-                "Failed to initialize openraft node with error message :{}",
-                e
-            );
+            panic!("Failed to initialize openraft node with error message :{e}");
         }
     }
 }

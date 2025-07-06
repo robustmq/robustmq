@@ -46,7 +46,7 @@ impl MemoryStorageAdapter {
     }
 
     pub fn shard_key(&self, namespace: &str, shard_name: &str) -> String {
-        format!("{}_{}", namespace, shard_name)
+        format!("{namespace}_{shard_name}")
     }
 }
 

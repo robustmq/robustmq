@@ -410,7 +410,7 @@ mod tests {
             sleep(Duration::from_millis(1000)).await;
         }
         let esp = now_second() - start;
-        println!("{}", esp);
+        println!("{esp}");
         assert!((3..=5).contains(&esp));
     }
 

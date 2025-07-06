@@ -27,11 +27,7 @@ mod tests {
         for protocol_ver in protocol_versions() {
             for network in network_types() {
                 let client_id = build_client_id(
-                    format!(
-                        "client_connect_wrong_password_test_{}_{}",
-                        protocol_ver, network
-                    )
-                    .as_str(),
+                    format!("client_connect_wrong_password_test_{protocol_ver}_{network}").as_str(),
                 );
                 let addr = broker_addr_by_type(&network);
                 let client_properties = ClientTestProperties {
@@ -52,11 +48,8 @@ mod tests {
         for protocol_ver in protocol_versions() {
             for network in network_types() {
                 let client_id = build_client_id(
-                    format!(
-                        "client_connect_session_present_test_{}_{}",
-                        protocol_ver, network
-                    )
-                    .as_str(),
+                    format!("client_connect_session_present_test_{protocol_ver}_{network}")
+                        .as_str(),
                 );
                 let addr = broker_addr_by_type(&network);
                 let client_properties = ClientTestProperties {
@@ -84,10 +77,7 @@ mod tests {
 
         let conn_opts = build_conn_pros(client_properties.clone(), true);
         let result = cli.connect(conn_opts);
-        println!(
-            "client_test_properties:{:?},result:{:?}",
-            client_properties, result
-        );
+        println!("client_test_properties:{client_properties:?},result:{result:?}");
         assert!(result.is_err());
     }
 
@@ -112,7 +102,7 @@ mod tests {
             assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
         }
 
-        println!("client_properties:{:?},resp:{:?}", client_properties, resp);
+        println!("client_properties:{client_properties:?},resp:{resp:?}");
 
         if present {
             assert!(resp.session_present);

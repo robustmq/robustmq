@@ -123,10 +123,7 @@ async fn is_send_a_new_system_event<S>(
 {
     let mut message = SystemAlarmEventMessage {
         name: alarm_type.to_string(),
-        message: format!(
-            "{} is {}%, but config is {}%",
-            alarm_type, current_usage, config_usage
-        ),
+        message: format!("{alarm_type} is {current_usage}%, but config is {config_usage}%"),
         activate_at: chrono::Utc::now().timestamp(),
         activated: false,
     };
@@ -350,8 +347,7 @@ mod tests {
         let except_value = SystemAlarmEventMessage {
             name: except_key.to_string(),
             message: format!(
-                "{} is {}%, but config is {}%",
-                except_key, current_cpu_usage, config_cpu_usage
+                "{except_key} is {current_cpu_usage}%, but config is {config_cpu_usage}%"
             ),
             activate_at: chrono::Utc::now().timestamp(),
             activated: true,
@@ -392,8 +388,7 @@ mod tests {
         let except_value = SystemAlarmEventMessage {
             name: except_key.to_string(),
             message: format!(
-                "{} is {}%, but config is {}%",
-                except_key, current_cpu_usage, config_cpu_usage
+                "{except_key} is {current_cpu_usage}%, but config is {config_cpu_usage}%"
             ),
             activate_at: chrono::Utc::now().timestamp(),
             activated: false,
@@ -434,8 +429,7 @@ mod tests {
         let except_value = SystemAlarmEventMessage {
             name: except_key.to_string(),
             message: format!(
-                "{} is {}%, but config is {}%",
-                except_key, current_cpu_usage, config_cpu_usage
+                "{except_key} is {current_cpu_usage}%, but config is {config_cpu_usage}%"
             ),
             activate_at: chrono::Utc::now().timestamp(),
             activated: true,
@@ -461,8 +455,7 @@ mod tests {
         let except_value = SystemAlarmEventMessage {
             name: except_key.to_string(),
             message: format!(
-                "{} is {}%, but config is {}%",
-                except_key, current_cpu_usage, config_cpu_usage
+                "{except_key} is {current_cpu_usage}%, but config is {config_cpu_usage}%"
             ),
             activate_at: chrono::Utc::now().timestamp(),
             activated: false,
@@ -502,8 +495,7 @@ mod tests {
         let except_value = SystemAlarmEventMessage {
             name: except_key.to_string(),
             message: format!(
-                "{} is {}%, but config is {}%",
-                except_key, current_cpu_usage, config_cpu_usage
+                "{except_key} is {current_cpu_usage}%, but config is {config_cpu_usage}%"
             ),
             activate_at: chrono::Utc::now().timestamp(),
             activated: true,
@@ -561,8 +553,7 @@ mod tests {
         let except_memory_value = SystemAlarmEventMessage {
             name: except_cpu_key.to_string(),
             message: format!(
-                "{} is {}%, but config is {}%",
-                except_cpu_key, current_cpu_usage, config_cpu_usage
+                "{except_cpu_key} is {current_cpu_usage}%, but config is {config_cpu_usage}%"
             ),
             activate_at: chrono::Utc::now().timestamp(),
             activated: true,
@@ -593,8 +584,7 @@ mod tests {
         let except_memory_value = SystemAlarmEventMessage {
             name: except_memory_key.to_string(),
             message: format!(
-                "{} is {}%, but config is {}%",
-                except_memory_key, current_memory_usage, config_memory_usage
+                "{except_memory_key} is {current_memory_usage}%, but config is {config_memory_usage}%"
             ),
             activate_at: chrono::Utc::now().timestamp(),
             activated: true,

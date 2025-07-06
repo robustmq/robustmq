@@ -84,7 +84,7 @@ fn gen_rewrite_topic(
                 .replace(&prefix, capture.unwrap().as_str())
                 .clone();
         }
-        return Ok(format!("{}{}", prefix, rewrite_topic));
+        return Ok(format!("{prefix}{rewrite_topic}"));
     }
     Ok(input.to_owned())
 }

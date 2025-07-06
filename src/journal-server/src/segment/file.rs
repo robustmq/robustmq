@@ -261,12 +261,12 @@ impl SegmentFile {
 }
 
 pub fn data_fold_shard(namespace: &str, shard_name: &str, data_fold: &str) -> String {
-    let file_name = format!("{}/{}", namespace, shard_name);
-    format!("{}/{}", data_fold, file_name)
+    let file_name = format!("{namespace}/{shard_name}");
+    format!("{data_fold}/{file_name}")
 }
 
 pub fn data_file_segment(data_fold: &str, segment_no: u32) -> String {
-    format!("{}/{}.msg", data_fold, segment_no)
+    format!("{data_fold}/{segment_no}.msg")
 }
 
 #[cfg(test)]
@@ -290,9 +290,9 @@ mod tests {
         let data_fold = "/tmp/d1".to_string();
         let segment_no = 10;
         let fold = data_fold_shard(&namespace, &shard_name, &data_fold);
-        assert_eq!(fold, format!("{}/{}/{}", data_fold, namespace, shard_name));
+        assert_eq!(fold, format!("{data_fold}/{namespace}/{shard_name}"));
         let file = data_file_segment(&fold, segment_no);
-        assert_eq!(file, format!("{}/{}.msg", fold, segment_no));
+        assert_eq!(file, format!("{fold}/{segment_no}.msg"));
     }
 
     #[tokio::test]
@@ -369,11 +369,11 @@ mod tests {
 
         segment.try_create().await.unwrap();
         for i in 0..10 {
-            let value = format!("data1#-{}", i);
+            let value = format!("data1#-{i}");
             let record = JournalRecord {
                 content: value.as_bytes().to_vec(),
                 create_time: now_second(),
-                key: format!("k{}", i),
+                key: format!("k{i}"),
                 namespace: "n1".to_string(),
                 shard_name: "s1".to_string(),
                 offset: 1000 + i,
@@ -384,7 +384,7 @@ mod tests {
             match segment.write(&[record.clone()]).await {
                 Ok(_) => {}
                 Err(e) => {
-                    panic!("{:?}", e);
+                    panic!("{e:?}");
                 }
             }
         }
@@ -410,11 +410,11 @@ mod tests {
 
         segment.try_create().await.unwrap();
         for i in 0..10 {
-            let value = format!("data1#-{}", i);
+            let value = format!("data1#-{i}");
             let record = JournalRecord {
                 content: value.as_bytes().to_vec(),
                 create_time: now_second(),
-                key: format!("k{}", i),
+                key: format!("k{i}"),
                 namespace: "n1".to_string(),
                 shard_name: "s1".to_string(),
                 offset: 1000 + i,
@@ -425,7 +425,7 @@ mod tests {
             match segment.write(&[record.clone()]).await {
                 Ok(_) => {}
                 Err(e) => {
-                    panic!("{:?}", e);
+                    panic!("{e:?}");
                 }
             }
         }

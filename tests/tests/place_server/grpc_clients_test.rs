@@ -90,7 +90,7 @@ mod tests {
                 _ => unreachable!(),
             }
             {
-                println!("{:?}", test_request);
+                println!("{test_request:?}");
                 let response = test_client
                     .register_node(tonic::Request::new(test_request))
                     .await;
@@ -324,7 +324,7 @@ mod tests {
         match client.create_shard(tonic::Request::new(request)).await {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e);
+                println!("{e}");
             }
         }
     }
@@ -341,7 +341,7 @@ mod tests {
         match client.delete_shard(tonic::Request::new(request)).await {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e);
+                println!("{e}");
             }
         }
     }
@@ -361,7 +361,7 @@ mod tests {
         {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e);
+                println!("{e}");
             }
         }
     }
@@ -379,7 +379,7 @@ mod tests {
         match client.delete_segment(tonic::Request::new(request)).await {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e);
+                println!("{e}");
             }
         }
     }

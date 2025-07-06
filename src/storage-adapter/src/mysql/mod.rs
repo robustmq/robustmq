@@ -227,7 +227,7 @@ impl StorageAdapter for MySQLStorageAdapter {
 
         let table_name = Self::record_table_name(&shard.namespace, &shard.shard_name);
 
-        let check_table_exists_sql = format!("SHOW TABLES LIKE '{}';", table_name);
+        let check_table_exists_sql = format!("SHOW TABLES LIKE '{table_name}';");
 
         if conn
             .query_first::<Row, _>(check_table_exists_sql)?
@@ -240,7 +240,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         };
 
         let create_table_sql = format!(
-            "CREATE TABLE `{}` (
+            "CREATE TABLE `{table_name}` (
                 `offset` bigint unsigned PRIMARY KEY,
                 `key` varchar(255) DEFAULT NULL,
                 `data` blob,
@@ -250,8 +250,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                 INDEX `key_idx` (`key`),
                 INDEX `ts_idx` (`ts`),
                 INDEX `ts_offset_idx` (`ts`, `offset`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;",
-            table_name
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;"
         );
 
         conn.query_drop(create_table_sql)?;
@@ -336,7 +335,7 @@ impl StorageAdapter for MySQLStorageAdapter {
     async fn delete_shard(&self, namespace: String, shard_name: String) -> Result<(), CommonError> {
         let table_name = Self::record_table_name(&namespace, &shard_name);
 
-        let check_table_exists_sql = format!("SHOW TABLES LIKE '{}';", table_name);
+        let check_table_exists_sql = format!("SHOW TABLES LIKE '{table_name}';");
 
         let mut conn = self.pool.get_conn()?;
 
@@ -350,7 +349,7 @@ impl StorageAdapter for MySQLStorageAdapter {
             )));
         };
 
-        let drop_table_sql = format!("DROP TABLE IF EXISTS `{}`", table_name);
+        let drop_table_sql = format!("DROP TABLE IF EXISTS `{table_name}`");
 
         conn.query_drop(drop_table_sql)?;
 
@@ -574,7 +573,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                 ..Default::default()
             })
         })
-        .map_err(|e| CommonError::CommonError(format!("Failed to get offset by timestamp: {}", e)))
+        .map_err(|e| CommonError::CommonError(format!("Failed to get offset by timestamp: {e}")))
     }
 
     async fn get_offset_by_group(
@@ -634,7 +633,7 @@ impl StorageAdapter for MySQLStorageAdapter {
 
     async fn close(&self) -> Result<(), CommonError> {
         self.stop_send.send(true).await.map_err(|err| {
-            CommonError::CommonError(format!("Failed to send stop signal: {}", err))
+            CommonError::CommonError(format!("Failed to send stop signal: {err}"))
         })?;
         Ok(())
     }
@@ -664,7 +663,7 @@ mod tests {
             .unwrap()
             .into_iter()
             .for_each(|row| {
-                conn.query_drop(format!("DROP TABLE IF EXISTS `{}`", row))
+                conn.query_drop(format!("DROP TABLE IF EXISTS `{row}`"))
                     .unwrap();
             });
     }
@@ -1053,10 +1052,10 @@ mod tests {
 
                 // push 100 records for each task
                 for i in 0..100 {
-                    let value = format!("test-{}-{}", tid, i).as_bytes().to_vec();
+                    let value = format!("test-{tid}-{i}").as_bytes().to_vec();
                     data.push(Record {
                         data: value.clone(),
-                        key: format!("k-{}-{}", tid, i),
+                        key: format!("k-{tid}-{i}"),
                         header: header.clone(),
                         offset: None,
                         timestamp: 1737600096,
@@ -1090,8 +1089,8 @@ mod tests {
                         .cloned()
                         .unwrap();
 
-                    assert_eq!(record.data, format!("test-{}-{}", tid, idx).as_bytes());
-                    assert_eq!(record.key, format!("k-{}-{}", tid, idx));
+                    assert_eq!(record.data, format!("test-{tid}-{idx}").as_bytes());
+                    assert_eq!(record.key, format!("k-{tid}-{idx}"));
                     assert_eq!(record.offset, Some(offset));
                 }
             });

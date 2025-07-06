@@ -405,8 +405,8 @@ async fn process_conn_ack_packet(
         subscribe_to_leader(follower_sub_leader_pkid, share_sub, write_stream).await?;
         return Ok(());
     }
-    Err(MqttBrokerError::CommonError(format!("client_id:[{}], group_name:[{}], sub_name:[{}] Follower forwarding subscription connection request error,
-                            error message: {:?},{:?}",mqtt_client_id,group_name,sub_name,connack,connack_properties)))
+    Err(MqttBrokerError::CommonError(format!("client_id:[{mqtt_client_id}], group_name:[{group_name}], sub_name:[{sub_name}] Follower forwarding subscription connection request error,
+                            error message: {connack:?},{connack_properties:?}")))
 }
 
 async fn process_sub_ack(suback: SubAck) -> Result<(), MqttBrokerError> {
@@ -418,7 +418,7 @@ async fn process_sub_ack(suback: SubAck) -> Result<(), MqttBrokerError> {
             || reason == SubscribeReasonCode::QoS1
             || reason == SubscribeReasonCode::QoS2)
         {
-            return Err(MqttBrokerError::CommonError(format!("{:?}", suback)));
+            return Err(MqttBrokerError::CommonError(format!("{suback:?}")));
         }
     }
     Ok(())

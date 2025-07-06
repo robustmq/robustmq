@@ -52,7 +52,7 @@ mod tests {
             }
 
             Err(e) => {
-                eprintln!("Failed enable_slow_subscribe: {:?}", e);
+                eprintln!("Failed enable_slow_subscribe: {e:?}");
                 std::process::exit(1);
             }
         }
@@ -75,7 +75,7 @@ mod tests {
             }
 
             Err(e) => {
-                eprintln!("Failed enable_slow_subscribe: {:?}", e);
+                eprintln!("Failed enable_slow_subscribe: {e:?}");
                 std::process::exit(1);
             }
         }

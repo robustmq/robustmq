@@ -357,7 +357,7 @@ mod test {
 
         for i in 0..10 {
             rocksdb_engine
-                .write(cf.clone(), format!("key-{}", i).as_str(), &i)
+                .write(cf.clone(), format!("key-{i}").as_str(), &i)
                 .unwrap();
         }
 
@@ -398,7 +398,7 @@ mod test {
         // check value again
         for i in 0..10 {
             let value = new_rocksdb_engine
-                .read::<i32>(cf.clone(), format!("key-{}", i).as_str())
+                .read::<i32>(cf.clone(), format!("key-{i}").as_str())
                 .unwrap()
                 .unwrap();
 

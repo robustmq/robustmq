@@ -36,10 +36,9 @@ mod tests {
             for qos in qos_list() {
                 let uid = unique_id();
                 let topic = format!(
-                    "/mqtt5_should_not_recv_msg_when_no_local_is_true/{}/{}/{}",
-                    uid, network, qos
+                    "/mqtt5_should_not_recv_msg_when_no_local_is_true/{uid}/{network}/{qos}"
                 );
-                let client_id = build_client_id(format!("no_local_is_true_{}", uid).as_str());
+                let client_id = build_client_id(format!("no_local_is_true_{uid}").as_str());
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,
                     client_id: client_id.to_string(),
@@ -67,7 +66,7 @@ mod tests {
                     loop {
                         let res = receiver.recv_timeout(Duration::from_secs(5));
                         if res.is_ok() {
-                            println!("{:?}", res);
+                            println!("{res:?}");
                             assert!(res.is_ok());
                             let msg = res.unwrap().unwrap();
                             let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
@@ -92,10 +91,10 @@ mod tests {
         for network in network_types() {
             for qos in qos_list() {
                 let uid = unique_id();
-                let topic = format!("/no_local_is_false/{}/{}/{}", uid, network, qos);
+                let topic = format!("/no_local_is_false/{uid}/{network}/{qos}");
 
                 // publish
-                let client_id = build_client_id(format!("no_local_is_false{}", uid).as_str());
+                let client_id = build_client_id(format!("no_local_is_false{uid}").as_str());
 
                 let client_test_properties = ClientTestProperties {
                     mqtt_version: 5,
@@ -142,10 +141,10 @@ mod tests {
             for network in network_types() {
                 for qos in qos_list() {
                     let uid = unique_id();
-                    let topic = format!("/retain_as_published/{}/{}/{}", uid, network, qos);
+                    let topic = format!("/retain_as_published/{uid}/{network}/{qos}");
 
                     // publish
-                    let client_id = build_client_id(format!("retain_as_published{}", uid).as_str());
+                    let client_id = build_client_id(format!("retain_as_published{uid}").as_str());
                     let client_properties = ClientTestProperties {
                         mqtt_version: 5,
                         client_id: client_id.to_string(),
@@ -196,10 +195,10 @@ mod tests {
         for network in network_types() {
             for qos in qos_list() {
                 let uid = unique_id();
-                let topic = format!("/retain_handling_is_0/{}/{}/{}", uid, network, qos);
+                let topic = format!("/retain_handling_is_0/{uid}/{network}/{qos}");
 
                 // publish
-                let client_id = build_client_id(format!("retain_handling_is_0{}", uid).as_str());
+                let client_id = build_client_id(format!("retain_handling_is_0{uid}").as_str());
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,
                     client_id: client_id.to_string(),
@@ -216,7 +215,7 @@ mod tests {
 
                 // sub new
                 let sub_cli =
-                    build_client_id(format!("retain_handling_is_0{}_{}", network, qos).as_str());
+                    build_client_id(format!("retain_handling_is_0{network}_{qos}").as_str());
                 let sub_cli = connect_server(&ClientTestProperties {
                     mqtt_version: 5,
                     client_id: sub_cli.to_string(),
@@ -283,10 +282,10 @@ mod tests {
         for network in network_types() {
             for qos in qos_list() {
                 let uid = unique_id();
-                let topic = format!("/handling_is_1/{}/{}/{}", uid, network, qos);
+                let topic = format!("/handling_is_1/{uid}/{network}/{qos}");
 
                 // publish
-                let client_id = build_client_id(format!("handling_is_1{}", uid).as_str());
+                let client_id = build_client_id(format!("handling_is_1{uid}").as_str());
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,
                     client_id: client_id.to_string(),
@@ -302,7 +301,7 @@ mod tests {
                 distinct_conn(cli);
 
                 // sub new
-                let sub_cli = build_client_id(format!("handling_is_1{}_{}", network, qos).as_str());
+                let sub_cli = build_client_id(format!("handling_is_1{network}_{qos}").as_str());
                 let sub_cli = connect_server(&ClientTestProperties {
                     mqtt_version: 5,
                     client_id: sub_cli.to_string(),
@@ -378,10 +377,10 @@ mod tests {
         for network in network_types() {
             for qos in qos_list() {
                 let uid = unique_id();
-                let topic = format!("/handling_is_2/{}/{}/{}", uid, network, qos);
+                let topic = format!("/handling_is_2/{uid}/{network}/{qos}");
 
                 // publish
-                let client_id = build_client_id(format!("handling_is_2{}", uid).as_str());
+                let client_id = build_client_id(format!("handling_is_2{uid}").as_str());
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,
                     client_id: client_id.to_string(),
@@ -398,7 +397,7 @@ mod tests {
 
                 // sub
                 let sub_client_id =
-                    build_client_id(format!("handling_is_2{}_{}", network, qos).as_str());
+                    build_client_id(format!("handling_is_2{network}_{qos}").as_str());
                 let sub_cli = connect_server(&ClientTestProperties {
                     mqtt_version: 5,
                     client_id: sub_client_id.to_string(),

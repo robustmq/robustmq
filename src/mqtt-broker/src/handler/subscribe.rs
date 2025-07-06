@@ -198,7 +198,7 @@ async fn parse_share_subscribe(
     req: &mut ParseShareQueueSubscribeRequest,
 ) -> Result<(), MqttBrokerError> {
     let (group_name, sub_name) = decode_share_group_and_path(&req.filter.path);
-    req.group_name = format!("{}_{}", group_name, sub_name);
+    req.group_name = format!("{group_name}_{sub_name}");
     req.sub_name = sub_name;
     let conf = broker_mqtt_conf();
 

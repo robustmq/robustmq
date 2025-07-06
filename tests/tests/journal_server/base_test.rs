@@ -46,7 +46,7 @@ mod tests {
 
         if let Some(data) = stream.next().await {
             let resp = data.unwrap();
-            println!("{:?}", resp);
+            println!("{resp:?}");
         }
     }
 
@@ -72,7 +72,7 @@ mod tests {
 
         if let Some(data) = stream.next().await {
             let resp = data.unwrap();
-            println!("{:?}", resp);
+            println!("{resp:?}");
         }
     }
 
@@ -98,7 +98,7 @@ mod tests {
 
         if let Some(data) = stream.next().await {
             let resp = data.unwrap();
-            println!("{:?}", resp);
+            println!("{resp:?}");
         }
     }
 
@@ -122,7 +122,7 @@ mod tests {
 
         if let Some(data) = stream.next().await {
             let resp = data.unwrap();
-            println!("{:?}", resp);
+            println!("{resp:?}");
         }
     }
 
@@ -155,7 +155,7 @@ mod tests {
 
         if let Some(data) = stream.next().await {
             let resp = data.unwrap();
-            println!("{:?}", resp);
+            println!("{resp:?}");
         }
     }
 
@@ -188,7 +188,7 @@ mod tests {
 
         if let Some(data) = stream.next().await {
             let resp = data.unwrap();
-            println!("{:?}", resp);
+            println!("{resp:?}");
         }
     }
 
@@ -211,7 +211,7 @@ mod tests {
 
         if let Some(data) = stream.next().await {
             let resp = data.unwrap();
-            println!("{:?}", resp);
+            println!("{resp:?}");
         }
     }
 }

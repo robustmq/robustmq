@@ -33,9 +33,8 @@ mod tests {
         for network in network_types() {
             for qos in qos_list() {
                 let topic = format!("/tests/{}/{}/{}", unique_id(), network, qos);
-                let client_id = build_client_id(
-                    format!("retain_message_sub_test_{}_{}", network, qos).as_str(),
-                );
+                let client_id =
+                    build_client_id(format!("retain_message_sub_test_{network}_{qos}").as_str());
 
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,

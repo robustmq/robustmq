@@ -147,13 +147,13 @@ mod tests {
     #[tokio::test]
     async fn os_info_test() {
         let info = os_info::get();
-        println!("{}", info);
+        println!("{info}");
     }
 
     #[tokio::test]
     async fn version_test() {
         let version = env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "-".to_string());
-        println!("{}", version);
+        println!("{version}");
         assert_ne!(version, "-".to_string());
     }
 }

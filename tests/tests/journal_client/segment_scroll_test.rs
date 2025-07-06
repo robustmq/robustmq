@@ -36,9 +36,9 @@ mod tests {
         assert!(res.is_ok());
 
         for i in 0..100 {
-            let content = format!("x{}", i).repeat(1024);
+            let content = format!("x{i}").repeat(1024);
             let data = JournalClientWriteData {
-                key: format!("key-{}", i),
+                key: format!("key-{i}"),
                 content: content.as_bytes().to_vec(),
                 tags: vec![format!("tag-{}", i)],
             };

@@ -94,14 +94,14 @@ pub fn build_conn_pros(
 
 pub fn connect_server(client_properties: &ClientTestProperties) -> Client {
     let create_opts = build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
-    println!("{:?}", client_properties);
+    println!("{client_properties:?}");
     let cli_res = Client::new(create_opts);
     assert!(cli_res.is_ok());
     let cli = cli_res.unwrap();
 
     let conn_opts = build_conn_pros(client_properties.clone(), client_properties.err_pwd);
     let result = cli.connect(conn_opts);
-    print!("result:{:?}", result);
+    print!("result:{result:?}");
     if client_properties.conn_is_err {
         assert!(result.is_err());
     } else {
@@ -112,7 +112,7 @@ pub fn connect_server(client_properties: &ClientTestProperties) -> Client {
 
 pub fn publish_data(cli: &Client, message: Message, is_err: bool) {
     let err = cli.publish(message);
-    println!("{:?}", err);
+    println!("{err:?}");
     if is_err {
         assert!(err.is_err());
     } else {
@@ -130,7 +130,7 @@ where
 
     loop {
         let res = rx.recv_timeout(Duration::from_secs(10));
-        println!("{:?}", res);
+        println!("{res:?}");
         if let Ok(msg_opt) = res {
             assert!(msg_opt.is_some());
             let msg = msg_opt.unwrap();

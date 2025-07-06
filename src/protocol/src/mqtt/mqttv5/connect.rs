@@ -664,7 +664,7 @@ mod tests {
         // read the fixed header
         let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
         // test the display of fixheader
-        println!("fixheader: {}", fixedheader);
+        println!("fixheader: {fixedheader}");
         // read first byte and check its packet type which should be connect
         assert_eq!(fixedheader.byte1, 0b0001_0000);
         assert_eq!(fixedheader.fixed_header_len, 3);
@@ -735,11 +735,11 @@ mod tests {
         );
 
         println!("connect in v5 display starts...........................");
-        print!("{}", connect_properties);
-        print!("{}", login_read);
-        print!("{}", connect);
-        print!("{}", lastwill_read);
-        println!("{}", lastwillproperties_read);
+        print!("{connect_properties}");
+        print!("{login_read}");
+        print!("{connect}");
+        print!("{lastwill_read}");
+        println!("{lastwillproperties_read}");
         println!("connect in v5 display ends.............................");
     }
 }

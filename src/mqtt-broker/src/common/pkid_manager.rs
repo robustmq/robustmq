@@ -142,6 +142,6 @@ impl PkidManager {
     }
 
     fn key(&self, client_id: &str, pkid: u16) -> String {
-        format!("{}_{}", client_id, pkid)
+        format!("{client_id}_{pkid}")
     }
 }

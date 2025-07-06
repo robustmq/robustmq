@@ -30,7 +30,7 @@ mod tests {
         let network = "tcp";
         let qos = 1;
         let client_id =
-            build_client_id(format!("payload_format_indicator_test_{}_{}", network, qos).as_str());
+            build_client_id(format!("payload_format_indicator_test_{network}_{qos}").as_str());
 
         // payload_format_indicator = 0 => success
         let will_message_content = "Hello, world".as_bytes();
@@ -56,7 +56,7 @@ mod tests {
 
         // payload_format_indicator = 0 => success
         let client_id =
-            build_client_id(format!("payload_format_indicator_test_{}_{}", network, qos).as_str());
+            build_client_id(format!("payload_format_indicator_test_{network}_{qos}").as_str());
 
         let will_message_content = &[0xff, 0xfe, 0xfd];
         let will_topic = format!("/tests/{}", unique_id());
@@ -106,7 +106,7 @@ mod tests {
 
         // payload_format_indicator = 1 => success
         let client_id =
-            build_client_id(format!("payload_format_indicator_test_{}_{}", network, qos).as_str());
+            build_client_id(format!("payload_format_indicator_test_{network}_{qos}").as_str());
 
         let will_message_content = &[0xff, 0xfe, 0xfd];
         let will_topic = format!("/tests/{}", unique_id());
@@ -137,7 +137,7 @@ mod tests {
         let qos = 1;
         let topic = format!("/tests/{}/{}/{}", unique_id(), network, qos);
         let client_id = build_client_id(
-            format!("payload_format_indicator_publish_test_{}_{}", network, qos).as_str(),
+            format!("payload_format_indicator_publish_test_{network}_{qos}").as_str(),
         );
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
@@ -203,7 +203,7 @@ mod tests {
         let network = "tcp";
         let qos = 1;
         let topic = format!("/tests/{}/{}/{}", unique_id(), network, qos);
-        let client_id = build_client_id(format!("ucontent_type_test_{}_{}", network, qos).as_str());
+        let client_id = build_client_id(format!("ucontent_type_test_{network}_{qos}").as_str());
 
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
@@ -240,7 +240,7 @@ mod tests {
                 .properties()
                 .get_string(PropertyCode::ContentType)
                 .unwrap();
-            println!("content type:{}", ct);
+            println!("content type:{ct}");
             bl0 && ct == content_type
         };
 

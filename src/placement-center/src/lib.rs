@@ -170,7 +170,7 @@ impl PlacementCenter {
             )
             .await
             {
-                panic!("Failed to start grpc server,{}", e);
+                panic!("Failed to start grpc server,{e}");
             }
         });
     }
@@ -256,7 +256,7 @@ impl PlacementCenter {
 
     pub fn init_cache(&self) {
         if let Err(e) = load_journal_cache(&self.engine_cache, &self.rocksdb_engine_handler) {
-            panic!("Failed to load Journal Cache,{}", e);
+            panic!("Failed to load Journal Cache,{e}");
         }
 
         if let Err(e) = load_mqtt_cache(
@@ -264,7 +264,7 @@ impl PlacementCenter {
             &self.rocksdb_engine_handler,
             &self.cluster_cache,
         ) {
-            panic!("Failed to load Mqtt Cache,{}", e);
+            panic!("Failed to load Mqtt Cache,{e}");
         }
     }
 }

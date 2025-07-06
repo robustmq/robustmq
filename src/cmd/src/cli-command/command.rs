@@ -313,5 +313,5 @@ async fn handle_placement(args: PlacementArgs, cmd: PlacementCenterCommand) {
 
 // TODO: implement journal engine
 async fn handle_journal(args: JournalArgs) {
-    println!("{:?}", args);
+    println!("{args:?}");
 }

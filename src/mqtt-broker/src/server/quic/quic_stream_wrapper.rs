@@ -38,8 +38,7 @@ impl QuicFramedWriteStream {
 
         if let Err(e) = self.codec.encode(packet, &mut bytes_mut) {
             return Err(MqttBrokerError::from(CommonError(format!(
-                "encode packet failed: {}",
-                e
+                "encode packet failed: {e}"
             ))));
         }
 
@@ -51,22 +50,19 @@ impl QuicFramedWriteStream {
 
         if let Err(e) = self.write_stream.write_all(bytes_mut.as_mut()).await {
             return Err(MqttBrokerError::from(CommonError(format!(
-                "write packet failed: {}",
-                e
+                "write packet failed: {e}"
             ))));
         }
 
         if let Err(e) = self.write_stream.finish() {
             return Err(MqttBrokerError::from(CommonError(format!(
-                "write packet failed: {}",
-                e
+                "write packet failed: {e}"
             ))));
         }
 
         if let Err(e) = self.write_stream.stopped().await {
             return Err(MqttBrokerError::from(CommonError(format!(
-                "write packet failed: {}",
-                e
+                "write packet failed: {e}"
             ))));
         }
 
@@ -91,8 +87,7 @@ impl QuicFramedReadStream {
             }
             Err(e) => {
                 return Err(MqttBrokerError::from(CommonError(format!(
-                    "read packet failed: {}",
-                    e
+                    "read packet failed: {e}"
                 ))));
             }
         }
@@ -109,8 +104,7 @@ impl QuicFramedReadStream {
                 "decode packet failed: the packet is empty".to_string(),
             ))),
             Err(e) => Err(MqttBrokerError::from(CommonError(format!(
-                "decode packet failed: {}",
-                e
+                "decode packet failed: {e}"
             )))),
         }
     }

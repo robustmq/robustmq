@@ -55,8 +55,7 @@ pub async fn set_cluster_config_by_req(
 
         Err(e) => {
             return Err(MqttBrokerError::CommonError(format!(
-                "Failed to parse feature type: {}",
-                e
+                "Failed to parse feature type: {e}"
             )));
         }
     }

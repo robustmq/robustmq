@@ -246,7 +246,7 @@ mod tests {
         );
 
         // test display of puback and puback_properties in v5
-        println!("pubrec is {}", pubrec);
-        println!("pubrec_properties is {}", pubrec_properties);
+        println!("pubrec is {pubrec}");
+        println!("pubrec_properties is {pubrec_properties}");
     }
 }

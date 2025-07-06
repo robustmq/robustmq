@@ -32,8 +32,7 @@ mod tests {
     async fn last_will_message_test() {
         let network = "tcp";
         let qos = QOS_0;
-        let client_id =
-            build_client_id(format!("last_will_message_test_{}_{}", network, qos).as_str());
+        let client_id = build_client_id(format!("last_will_message_test_{network}_{qos}").as_str());
 
         // create will message
         let mut props = Properties::new();
@@ -63,7 +62,7 @@ mod tests {
 
         // subscribe
         let client_id =
-            build_client_id(format!("last_will_message_test_sub_{}_{}", network, qos).as_str());
+            build_client_id(format!("last_will_message_test_sub_{network}_{qos}").as_str());
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
             client_id: client_id.to_string(),
