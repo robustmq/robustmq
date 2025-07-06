@@ -38,7 +38,7 @@ pub struct SlowSubData {
 impl SlowSubData {
     pub fn build(sub_name: String, client_id: String, topic_name: String, time_ms: u64) -> Self {
         let ip = get_local_ip();
-        let node_info = format!("RobustMQ-MQTT@{}", ip);
+        let node_info = format!("RobustMQ-MQTT@{ip}");
         SlowSubData {
             sub_name,
             client_id,

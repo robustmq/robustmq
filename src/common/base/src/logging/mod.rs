@@ -42,10 +42,7 @@ pub fn init_tracing_subscriber(
     let log_path = log_path.as_ref();
 
     if !file_exists(log_config_file) {
-        panic!(
-            "Logging configuration file {:?} does not exist",
-            log_config_file
-        );
+        panic!("Logging configuration file {log_config_file:?} does not exist");
     }
 
     let content = match read_file(log_config_file) {
@@ -58,7 +55,7 @@ pub fn init_tracing_subscriber(
     match try_create_fold(log_path) {
         Ok(()) => {}
         Err(_) => {
-            panic!("Failed to initialize log directory {:?}", log_path);
+            panic!("Failed to initialize log directory {log_path:?}");
         }
     }
 

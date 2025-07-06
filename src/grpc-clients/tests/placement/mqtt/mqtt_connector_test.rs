@@ -77,7 +77,7 @@ mod test {
         match placement_create_connector(&client_pool, &addrs, create_request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -99,7 +99,7 @@ mod test {
                 }
             }
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -122,7 +122,7 @@ mod test {
         match placement_update_connector(&client_pool, &addrs, update_request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -139,7 +139,7 @@ mod test {
                 }
             }
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -152,7 +152,7 @@ mod test {
         match placement_delete_connector(&client_pool, &addrs, delete_request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -162,7 +162,7 @@ mod test {
                 assert_eq!(reply.connectors.len(), 0);
             }
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
     }

@@ -53,10 +53,7 @@ pub async fn load_metadata_cache(
     let cluster = match build_cluster_config(client_pool).await {
         Ok(cluster) => cluster,
         Err(e) => {
-            panic!(
-                "Failed to load the cluster configuration with error message:{}",
-                e
-            );
+            panic!("Failed to load the cluster configuration with error message:{e}");
         }
     };
     cache_manager.set_cluster_config(cluster);
@@ -66,7 +63,7 @@ pub async fn load_metadata_cache(
     let topic_list = match topic_storage.all().await {
         Ok(list) => list,
         Err(e) => {
-            panic!("Failed to load the topic list with error message:{}", e);
+            panic!("Failed to load the topic list with error message:{e}");
         }
     };
 
@@ -78,7 +75,7 @@ pub async fn load_metadata_cache(
     let user_list = match auth_driver.read_all_user().await {
         Ok(list) => list,
         Err(e) => {
-            panic!("Failed to load the user list with error message:{}", e);
+            panic!("Failed to load the user list with error message:{e}");
         }
     };
 
@@ -90,7 +87,7 @@ pub async fn load_metadata_cache(
     let acl_list = match auth_driver.read_all_acl().await {
         Ok(list) => list,
         Err(e) => {
-            panic!("Failed to load the acl list with error message:{}", e);
+            panic!("Failed to load the acl list with error message:{e}");
         }
     };
     for acl in acl_list {
@@ -101,7 +98,7 @@ pub async fn load_metadata_cache(
     let blacklist_list = match auth_driver.read_all_blacklist().await {
         Ok(list) => list,
         Err(e) => {
-            panic!("Failed to load the blacklist list with error message:{}", e);
+            panic!("Failed to load the blacklist list with error message:{e}");
         }
     };
     for blacklist in blacklist_list {
@@ -113,10 +110,7 @@ pub async fn load_metadata_cache(
     let topic_rewrite_rules = match topic_storage.all_topic_rewrite_rule().await {
         Ok(list) => list,
         Err(e) => {
-            panic!(
-                "Failed to load the topic_rewrite_rule list with error message:{}",
-                e
-            );
+            panic!("Failed to load the topic_rewrite_rule list with error message:{e}");
         }
     };
     for topic_rewrite_rule in topic_rewrite_rules {
@@ -128,7 +122,7 @@ pub async fn load_metadata_cache(
     let connectors = match connector_storage.list_all_connectors().await {
         Ok(list) => list,
         Err(e) => {
-            panic!("Failed to load the connector list with error message:{}", e);
+            panic!("Failed to load the connector list with error message:{e}");
         }
     };
     for connector in connectors.iter() {
@@ -156,7 +150,7 @@ pub async fn load_metadata_cache(
             }
         }
         Err(e) => {
-            panic!("Failed to load the schema list with error message:{}", e);
+            panic!("Failed to load the schema list with error message:{e}");
         }
     }
 
@@ -165,10 +159,7 @@ pub async fn load_metadata_cache(
     let auto_subscribe_rules = match auto_subscribe_storage.list_auto_subscribe_rule().await {
         Ok(list) => list,
         Err(e) => {
-            panic!(
-                "Failed to load the auto subscribe list with error message:{}",
-                e
-            );
+            panic!("Failed to load the auto subscribe list with error message:{e}");
         }
     };
     for auto_subscribe_rule in auto_subscribe_rules {

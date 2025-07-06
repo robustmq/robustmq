@@ -134,7 +134,7 @@ pub(crate) fn response_child_process(
                         let response_ms = now_mills();
 
                         if let Some(response_package) = val{
-                            let label = format!("handler-{}",index);
+                            let label = format!("handler-{index}");
                             metrics_response_queue_size(&label, response_process_rx.len());
 
                             if let Some(protocol) =

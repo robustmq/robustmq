@@ -34,7 +34,7 @@ mod tests {
 
                 // publish
                 let client_id =
-                    build_client_id(format!("sub_exclusive_test_{}_{}", network, qos).as_str());
+                    build_client_id(format!("sub_exclusive_test_{network}_{qos}").as_str());
 
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,
@@ -76,7 +76,7 @@ mod tests {
                 };
                 let cli2 = connect_server(&client_properties);
                 let result = cli2.subscribe_many_with_options(&[topic], &[qos], sub_opts, None);
-                println!("{:?}", result);
+                println!("{result:?}");
                 assert!(result.is_ok());
 
                 // subscribe exclusive topic fail

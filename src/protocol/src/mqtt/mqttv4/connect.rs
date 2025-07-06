@@ -270,7 +270,7 @@ mod tests {
         // test_client_id ————————————————————— 14 bytes (client id)
 
         println!("buff size is {}", buff_write.len());
-        println!("connect packet: {:?}", buff_write);
+        println!("connect packet: {buff_write:?}");
         assert_eq!(buff_write.len(), 28); // check the total length of the packet
         assert_eq!(buff_write[0], 0b0001_0000); // check the packet type is 0x10 which is connect type
         assert_eq!(buff_write[1], 26); // check the remaining length (length of variable header + payload) right or not
@@ -292,7 +292,7 @@ mod tests {
         // read the fixed header
         let fixheader: FixedHeader = parse_fixed_header(buff_write.iter()).unwrap();
         // test the display of fixheader
-        println!("fixheader: {}", fixheader);
+        println!("fixheader: {fixheader}");
         // read first byte and check its packet type which should be connect
         assert_eq!(fixheader.byte1, 0b0001_0000);
         assert_eq!(fixheader.fixed_header_len, 2);
@@ -331,9 +331,9 @@ mod tests {
             clean_session: true,
         };
         println!("connect display starts...........................");
-        print!("{}", login);
-        print!("{}", connect);
-        println!("{}", lastwill);
+        print!("{login}");
+        print!("{connect}");
+        println!("{lastwill}");
         println!("connect display ends.............................");
     }
 }

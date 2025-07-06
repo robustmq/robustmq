@@ -195,7 +195,7 @@ mod tests {
                 timestamp: cur_timestamp,
                 position: i * 5,
             };
-            let tag = format!("tag-{}", i);
+            let tag = format!("tag-{i}");
             let res = tag_index.save_tag_position(&segment_iden, tag, index_data);
             assert!(res.is_ok());
         }
@@ -252,7 +252,7 @@ mod tests {
                 timestamp: cur_timestamp,
                 position: i * 5,
             };
-            let key = format!("key-{}", i);
+            let key = format!("key-{i}");
             let res = tag_index.save_key_position(&segment_iden, key, index_data);
             assert!(res.is_ok());
         }

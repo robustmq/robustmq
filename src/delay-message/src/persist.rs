@@ -175,7 +175,7 @@ mod test {
 
         let target_topic = unique_id();
         for i in 0..10 {
-            let data = Record::build_str(format!("data{}", i));
+            let data = Record::build_str(format!("data{i}"));
             let res: Result<(), common_base::error::common::CommonError> =
                 delay_message_manager.send(&target_topic, i + 1, data).await;
 
@@ -217,12 +217,12 @@ mod test {
             let res =
                 read_offset_data(&message_storage_adapter, &namespace, &target_topic, i).await;
             assert!(res.is_ok());
-            println!("i:{},res:{:?}", i, res);
+            println!("i:{i},res:{res:?}");
             let raw = res.unwrap().unwrap();
             assert_eq!(raw.offset.unwrap(), i);
 
             let d: String = serde_json::from_slice(&raw.data).unwrap();
-            assert_eq!(d, format!("data{}", i));
+            assert_eq!(d, format!("data{i}"));
         }
     }
 }

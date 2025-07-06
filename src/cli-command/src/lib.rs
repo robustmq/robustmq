@@ -23,7 +23,7 @@ use paho_mqtt::{
     PropertyCode, SslOptionsBuilder,
 };
 pub(crate) fn error_info(err: String) {
-    println!("Exception:{}", err);
+    println!("Exception:{err}");
 }
 
 pub(crate) fn grpc_addr(addr: String) -> Vec<String> {
@@ -41,7 +41,7 @@ pub fn connect_server5(
     let props = build_v5_pros();
     let create_opts = build_create_pros(client_id, addr);
     let cli = Client::new(create_opts).unwrap_or_else(|err| {
-        println!("Error creating the client: {:?}", err);
+        println!("Error creating the client: {err:?}");
         process::exit(1);
     });
     let conn_opts = build_v5_conn_pros(props.clone(), username, password, ws, ssl);
@@ -51,7 +51,7 @@ pub fn connect_server5(
             println!("able to connect: {:?}", resp.server_uri);
         }
         Err(e) => {
-            println!("Unable to connect: {:?}", e);
+            println!("Unable to connect: {e:?}");
             process::exit(1);
         }
     }

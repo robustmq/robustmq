@@ -67,7 +67,7 @@ mod tests {
         .await;
 
         // Publish
-        let client_id = build_client_id(format!("schema_json_test_{}_{}", network, qos).as_str());
+        let client_id = build_client_id(format!("schema_json_test_{network}_{qos}").as_str());
 
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
@@ -84,7 +84,7 @@ mod tests {
         publish_data(&cli, msg, true);
 
         let message_content = json!({"name": "John Doe","age": 30}).to_string();
-        println!("message_content:{}", message_content);
+        println!("message_content:{message_content}");
         let msg = Message::new(topic_name.clone(), message_content, QOS_1);
         publish_data(&cli, msg, false);
 
@@ -135,7 +135,7 @@ mod tests {
         .await;
 
         // Publish
-        let client_id = build_client_id(format!("schema_avro_test_{}_{}", network, qos).as_str());
+        let client_id = build_client_id(format!("schema_avro_test_{network}_{qos}").as_str());
 
         let client_properties = ClientTestProperties {
             mqtt_version: 5,

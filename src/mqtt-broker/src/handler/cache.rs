@@ -397,12 +397,12 @@ impl CacheManager {
         action: &str,
         source_topic: &str,
     ) -> String {
-        format!("{}_{}_{}", cluster, action, source_topic)
+        format!("{cluster}_{action}_{source_topic}")
     }
 
     // auto subscribe rule
     pub fn auto_subscribe_rule_key(&self, cluster: &str, topic: &str) -> String {
-        format!("{}_{}", cluster, topic)
+        format!("{cluster}_{topic}")
     }
 
     pub fn add_auto_subscribe_rule(&self, auto_subscribe_rule: MqttAutoSubscribeRule) {

@@ -166,7 +166,7 @@ where
         let offsets = message_storage
             .append_topic_message(&topic.topic_id, vec![record])
             .await?;
-        return Ok(Some(format!("{:?}", offsets)));
+        return Ok(Some(format!("{offsets:?}")));
     }
 
     Err(MqttBrokerError::FailedToBuildMessage)

@@ -162,7 +162,7 @@ pub async fn st_report_disconnected_event<S>(
             username: connection.login_user.clone(),
             ts: now_mills(),
             sock_port: network_connection.addr.port(),
-            reason: format!("{:?}", reason),
+            reason: format!("{reason:?}"),
             proto_ver: network_connection.protocol.clone(),
             proto_name: "MQTT".to_string(),
             ip_address: connection.source_ip_addr.clone(),

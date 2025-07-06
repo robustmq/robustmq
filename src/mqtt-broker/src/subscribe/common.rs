@@ -294,7 +294,7 @@ mod tests {
     #[tokio::test]
     async fn decode_queue_info_test() {
         let res = decode_queue_info("$queue/vvv/v1");
-        println!("{}", res);
+        println!("{res}");
     }
 
     #[tokio::test]

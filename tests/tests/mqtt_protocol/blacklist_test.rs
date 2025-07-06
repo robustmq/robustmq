@@ -76,7 +76,7 @@ mod tests {
                 }
             }
             Err(e) => {
-                panic!("list blacklist error: {:?}", e);
+                panic!("list blacklist error: {e:?}");
             }
         };
         assert!(flag);
@@ -100,7 +100,7 @@ mod tests {
                 }
             }
             Err(e) => {
-                panic!("list blacklist error: {:?}", e);
+                panic!("list blacklist error: {e:?}");
             }
         };
 
@@ -156,7 +156,7 @@ mod tests {
         let network = "tcp";
         let qos = 1;
         let client_id =
-            build_client_id(format!("publish_deny_test_{}_{}_{}", protocol, network, qos).as_str());
+            build_client_id(format!("publish_deny_test_{protocol}_{network}_{qos}").as_str());
 
         let client_properties = ClientTestProperties {
             mqtt_version: protocol,
@@ -182,7 +182,7 @@ mod tests {
         let result = cli.publish(msg);
 
         if result.is_err() {
-            println!("{},{:?},{}", client_id, result, is_err);
+            println!("{client_id},{result:?},{is_err}");
         }
 
         if is_err {

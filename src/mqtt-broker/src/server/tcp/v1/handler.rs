@@ -131,7 +131,7 @@ fn handler_child_process<S>(
                     },
                     val = child_process_rx.recv()=>{
                         if let Some(packet) = val{
-                            let label = format!("handler-{}",index);
+                            let label = format!("handler-{index}");
                             metrics_request_queue_size(&label, child_process_rx.len());
                             if let Some(connect) = raw_connect_manager.get_connect(packet.connection_id) {
                                 let out_handler_queue_ms = now_mills();

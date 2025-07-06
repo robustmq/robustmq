@@ -104,7 +104,7 @@ mod test {
             let task = tokio::spawn(async move {
                 let family = family.write().unwrap();
                 let counter = family.get_or_create(&ClientConnectionLabels {
-                    client_id: format!("client-{}", tid),
+                    client_id: format!("client-{tid}"),
                 });
                 counter.inc();
             });

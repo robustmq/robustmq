@@ -67,7 +67,7 @@ mod tests {
             .await
             .unwrap();
         println!("resp broker_id:{}", resp.broker_id);
-        println!("node_id:{}", node_id);
+        println!("node_id:{node_id}");
         assert_eq!(resp.broker_id, node_id);
     }
 
@@ -111,7 +111,7 @@ mod tests {
             .await
             .unwrap();
         println!("resp broker_id:{}", resp.broker_id);
-        println!("node_id:{}", node_id);
+        println!("node_id:{node_id}");
         assert_eq!(resp.broker_id, node_id);
     }
 }

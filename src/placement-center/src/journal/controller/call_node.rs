@@ -97,7 +97,7 @@ impl JournalInnerCallManager {
     }
 
     fn node_key(&self, cluster: &str, node_id: u64) -> String {
-        format!("{}_{}", cluster, node_id)
+        format!("{cluster}_{node_id}")
     }
 }
 

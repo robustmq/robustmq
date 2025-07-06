@@ -52,7 +52,7 @@ mod tests {
 
         let server_nodes = DashMap::with_capacity(2);
         if let Some(Ok(JournalEnginePacket::GetClusterMetadataResp(data))) = stream.next().await {
-            println!("{:?}", data);
+            println!("{data:?}");
             assert!(resp_header_error(&data.header, req_packet).is_ok());
             for node in data.body.unwrap().nodes {
                 server_nodes.insert(node.node_id, node);
@@ -61,7 +61,7 @@ mod tests {
             panic!()
         }
 
-        println!("{:?}", server_nodes);
+        println!("{server_nodes:?}");
 
         let namespace = unique_id();
         let shard_name = "s1".to_string();
@@ -83,7 +83,7 @@ mod tests {
         let _ = stream.send(req_packet.clone()).await;
 
         if let Some(Ok(JournalEnginePacket::CreateShardResp(data))) = stream.next().await {
-            println!("{:?}", data);
+            println!("{data:?}");
             assert!(resp_header_error(&data.header, req_packet).is_ok());
         } else {
             panic!();
@@ -110,7 +110,7 @@ mod tests {
             data,
         ))) = stream.next().await
         {
-            println!("{:?}", data);
+            println!("{data:?}");
             assert!(resp_header_error(&data.header, req_packet).is_ok());
             let body = data.body.unwrap();
             let shards = body.shards.first().unwrap();
@@ -158,7 +158,7 @@ mod tests {
             let _ = stream.send(req_packet.clone()).await;
 
             if let Some(Ok(JournalEnginePacket::WriteResp(data))) = stream.next().await {
-                println!("{:?}", data);
+                println!("{data:?}");
                 assert!(resp_header_error(&data.header, req_packet).is_ok());
                 let body = data.body.unwrap();
                 let first_status = body.status.first().unwrap();
@@ -192,7 +192,7 @@ mod tests {
         let _ = stream.send(req_packet.clone()).await;
 
         if let Some(Ok(resp)) = stream.next().await {
-            println!("{:?}", resp);
+            println!("{resp:?}");
             if let JournalEnginePacket::ReadResp(data) = resp {
                 assert!(resp_header_error(&data.header, req_packet).is_ok());
                 let body = data.body.unwrap();
@@ -229,7 +229,7 @@ mod tests {
         let _ = stream.send(req_packet.clone()).await;
 
         if let Some(Ok(resp)) = stream.next().await {
-            println!("{:?}", resp);
+            println!("{resp:?}");
         } else {
             panic!();
         }

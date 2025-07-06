@@ -191,7 +191,7 @@ mod tests {
         );
         init_placement_center_conf_by_path(&path);
         let config: &PlacementCenterConfig = placement_center_conf();
-        println!("{:?}", config);
+        println!("{config:?}");
         assert_eq!(config.cluster_name, "placement-test");
         assert_eq!(config.node.node_id, 2);
         assert_eq!(config.node.nodes.len(), 2);

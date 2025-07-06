@@ -29,8 +29,7 @@ mod tests {
         for network in network_types() {
             let topic = format!("/packet_tcp/{}/{}", unique_id(), network);
 
-            let client_id =
-                build_client_id(format!("client5_packet_size_test_{}", network).as_str());
+            let client_id = build_client_id(format!("client5_packet_size_test_{network}").as_str());
 
             let client_properties = ClientTestProperties {
                 mqtt_version: 5,

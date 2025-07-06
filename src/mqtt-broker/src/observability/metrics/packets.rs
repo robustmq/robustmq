@@ -408,7 +408,7 @@ mod test {
             let task = tokio::spawn(async move {
                 let family = family.write().unwrap();
                 let gauge = family.get_or_create(&NetworkLabel {
-                    network: format!("network-{}", tid),
+                    network: format!("network-{tid}"),
                 });
                 gauge.inc();
             });

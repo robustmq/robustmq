@@ -186,11 +186,11 @@ mod tests {
                     name: "test_name".to_string(),
                     value: "test_value".to_string(),
                 }],
-                key: format!("test_key_{}", i),
-                data: format!("test_data_{}", i).as_bytes().to_vec(),
+                key: format!("test_key_{i}"),
+                data: format!("test_data_{i}").as_bytes().to_vec(),
                 tags: vec![],
                 timestamp: now_second(),
-                crc_num: calc_crc32(format!("test_data_{}", i).as_bytes()),
+                crc_num: calc_crc32(format!("test_data_{i}").as_bytes()),
             };
 
             test_data.push(record);

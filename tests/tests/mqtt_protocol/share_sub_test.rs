@@ -29,7 +29,7 @@ mod tests {
     async fn share_single_subscribe_test() {
         let topic = format!("/tests/{}", unique_id());
         let group_name = unique_id();
-        let sub_topic = format!("$share/{}{}", group_name, topic);
+        let sub_topic = format!("$share/{group_name}{topic}");
         single_test(topic, sub_topic, "share_single_subscribe_test").await;
     }
 
@@ -37,7 +37,7 @@ mod tests {
     async fn share_multi_subscribe_test() {
         let topic = format!("/tests/{}", unique_id());
         let group_name = unique_id();
-        let sub_topic = format!("$share/{}{}", group_name, topic);
+        let sub_topic = format!("$share/{group_name}{topic}");
         single_test(
             topic.clone(),
             sub_topic.clone(),
@@ -49,7 +49,7 @@ mod tests {
     #[tokio::test]
     async fn queue_single_subscribe_test() {
         let topic = format!("/tests/{}", unique_id());
-        let sub_topic = format!("$queue{}", topic);
+        let sub_topic = format!("$queue{topic}");
         single_test(
             topic.clone(),
             sub_topic.clone(),
@@ -61,7 +61,7 @@ mod tests {
     #[tokio::test]
     async fn queue_multi_subscribe_test() {
         let topic = format!("/tests/{}", unique_id());
-        let sub_topic = format!("$queue{}", topic);
+        let sub_topic = format!("$queue{topic}");
         single_test(
             topic.clone(),
             sub_topic.clone(),

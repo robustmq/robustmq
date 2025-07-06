@@ -166,7 +166,7 @@ impl CacheManager {
 
     pub fn get_shards_by_namespace(&self, namespace: &str) -> Vec<JournalShard> {
         let mut results = Vec::new();
-        let prefix = format!("{},", namespace);
+        let prefix = format!("{namespace},");
         for raw in self.shards.iter() {
             if raw.key().starts_with(&prefix) {
                 results.push(raw.value().clone());
@@ -402,17 +402,14 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
                 let node = match serde_json::from_slice::<BrokerNode>(&raw) {
                     Ok(data) => data,
                     Err(e) => {
-                        panic!("Failed to decode the BrokerNode information, {}", e);
+                        panic!("Failed to decode the BrokerNode information, {e}");
                     }
                 };
                 cache_manager.add_node(node);
             }
         }
         Err(e) => {
-            panic!(
-                "Loading the node cache from the Placement Center failed, {}",
-                e
-            );
+            panic!("Loading the node cache from the Placement Center failed, {e}");
         }
     }
 
@@ -433,14 +430,11 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
                 }
             }
             Err(e) => {
-                panic!("Failed to decode the JournalShard information, {}", e);
+                panic!("Failed to decode the JournalShard information, {e}");
             }
         },
         Err(e) => {
-            panic!(
-                "Loading the shardcache from the Placement Center failed, {}",
-                e
-            );
+            panic!("Loading the shardcache from the Placement Center failed, {e}");
         }
     }
 
@@ -462,14 +456,11 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
                 }
             }
             Err(e) => {
-                panic!("Failed to decode the JournalShard information, {}", e);
+                panic!("Failed to decode the JournalShard information, {e}");
             }
         },
         Err(e) => {
-            panic!(
-                "Loading the shardcache from the Placement Center failed, {}",
-                e
-            );
+            panic!("Loading the shardcache from the Placement Center failed, {e}");
         }
     }
     // load segment data
@@ -490,14 +481,11 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
                 }
             }
             Err(e) => {
-                panic!("Failed to decode the JournalShard information, {}", e);
+                panic!("Failed to decode the JournalShard information, {e}");
             }
         },
         Err(e) => {
-            panic!(
-                "Loading the shardcache from the Placement Center failed, {}",
-                e
-            );
+            panic!("Loading the shardcache from the Placement Center failed, {e}");
         }
     }
 

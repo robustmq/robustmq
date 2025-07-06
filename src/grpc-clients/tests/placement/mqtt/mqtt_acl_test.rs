@@ -71,7 +71,7 @@ mod tests {
                 assert!(flag);
             }
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -82,7 +82,7 @@ mod tests {
         match delete_acl(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -108,7 +108,7 @@ mod tests {
                 assert!(!flag);
             }
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
     }

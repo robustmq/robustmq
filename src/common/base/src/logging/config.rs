@@ -100,12 +100,7 @@ mod tests {
 
     #[test]
     fn test_deserialize_console_appender_toml() {
-        let config_toml = format!(
-            "{level}{kind}{config}",
-            level = DEBUG_LEVEL_TOML,
-            kind = CONSOLE_KIND_TOML,
-            config = CONSOLE_CONFIG_TOML
-        );
+        let config_toml = format!("{DEBUG_LEVEL_TOML}{CONSOLE_KIND_TOML}{CONSOLE_CONFIG_TOML}");
 
         let appender: super::Appender = toml::from_str(&config_toml).unwrap();
         assert!(matches!(appender, Appender::Console(_)));
@@ -113,12 +108,8 @@ mod tests {
 
     #[test]
     fn test_deserialize_rolling_file_appender_toml() {
-        let config_toml = format!(
-            "{level}{kind}{config}",
-            level = DEBUG_LEVEL_TOML,
-            kind = ROLLING_FILE_KIND_TOML,
-            config = ROLLING_FILE_CONFIG_TOML
-        );
+        let config_toml =
+            format!("{DEBUG_LEVEL_TOML}{ROLLING_FILE_KIND_TOML}{ROLLING_FILE_CONFIG_TOML}");
 
         let config: super::Appender = toml::from_str(&config_toml).unwrap();
         assert!(matches!(config, Appender::RollingFile(_)));
@@ -127,14 +118,7 @@ mod tests {
     #[test]
     fn test_deserializing_configs_toml() {
         let config_toml = format!(
-            "[{console_table}]\n{level}{console_kind}{console_config}[{rolling_file_table}]\n{level}{rolling_file_kind}{rolling_file_config}",
-            level = DEBUG_LEVEL_TOML,
-            console_table = CONSOLE_TABLE_NAME,
-            console_kind = CONSOLE_KIND_TOML,
-            console_config = CONSOLE_CONFIG_TOML,
-            rolling_file_table = ROLLING_FILE_TABLE_NAME,
-            rolling_file_kind = ROLLING_FILE_KIND_TOML,
-            rolling_file_config = ROLLING_FILE_CONFIG_TOML
+            "[{CONSOLE_TABLE_NAME}]\n{DEBUG_LEVEL_TOML}{CONSOLE_KIND_TOML}{CONSOLE_CONFIG_TOML}[{ROLLING_FILE_TABLE_NAME}]\n{DEBUG_LEVEL_TOML}{ROLLING_FILE_KIND_TOML}{ROLLING_FILE_CONFIG_TOML}"
         );
 
         let configs = toml::from_str::<Configs>(&config_toml).unwrap();

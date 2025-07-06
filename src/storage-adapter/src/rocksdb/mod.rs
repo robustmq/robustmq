@@ -108,25 +108,22 @@ impl RocksDBStorageAdapter {
 
     #[inline(always)]
     pub fn shard_record_key<S1: Display>(namespace: &S1, shard: &S1, record_offset: u64) -> String {
-        format!(
-            "/record/{}/{}/record/{:020}",
-            namespace, shard, record_offset
-        )
+        format!("/record/{namespace}/{shard}/record/{record_offset:020}")
     }
 
     #[inline(always)]
     pub fn shard_record_key_prefix<S1: Display>(namespace: &S1, shard: &S1) -> String {
-        format!("/record/{}/{}/record/", namespace, shard)
+        format!("/record/{namespace}/{shard}/record/")
     }
 
     #[inline(always)]
     pub fn shard_offset_key<S1: Display>(namespace: &S1, shard: &S1) -> String {
-        format!("/offset/{}/{}", namespace, shard)
+        format!("/offset/{namespace}/{shard}")
     }
 
     #[inline(always)]
     pub fn key_offset_key<S1: Display>(namespace: &S1, shard: &S1, key: &S1) -> String {
-        format!("/key/{}/{}/{}", namespace, shard, key)
+        format!("/key/{namespace}/{shard}/{key}")
     }
 
     #[inline(always)]
@@ -136,27 +133,27 @@ impl RocksDBStorageAdapter {
         tag: &S1,
         offset: u64,
     ) -> String {
-        format!("/tag/{}/{}/{}/{:020}", namespace, shard, tag, offset)
+        format!("/tag/{namespace}/{shard}/{tag}/{offset:020}")
     }
 
     #[inline(always)]
     pub fn tag_offsets_key_prefix<S1: Display>(namespace: &S1, shard: &S1, tag: &S1) -> String {
-        format!("/tag/{}/{}/{}/", namespace, shard, tag)
+        format!("/tag/{namespace}/{shard}/{tag}/")
     }
 
     #[inline(always)]
     pub fn group_record_offsets_key<S1: Display>(group: &S1, namespace: &S1, shard: &S1) -> String {
-        format!("/group/{}/{}/{}", group, namespace, shard)
+        format!("/group/{group}/{namespace}/{shard}")
     }
 
     #[inline(always)]
     pub fn group_record_offsets_key_prefix<S1: Display>(group: &S1) -> String {
-        format!("/group/{}/", group)
+        format!("/group/{group}/")
     }
 
     #[inline(always)]
     pub fn shard_info_key<S1: Display>(namespace: &S1, shard: &S1) -> String {
-        format!("/shard/{}/{}", namespace, shard)
+        format!("/shard/{namespace}/{shard}")
     }
 }
 
@@ -179,17 +176,15 @@ impl RocksDBStorageAdapter {
         let data = WriteThreadData::new(namespace, shard_name, messages, resp_sx);
 
         write_handle.data_sender.send(data).await.map_err(|err| {
-            CommonError::CommonError(format!("Failed to send data to write thread: {}", err))
+            CommonError::CommonError(format!("Failed to send data to write thread: {err}"))
         })?;
 
         timeout(Duration::from_secs(30), resp_rx)
             .await
             .map_err(|err| {
-                CommonError::CommonError(format!("Timeout while waiting for response: {}", err))
+                CommonError::CommonError(format!("Timeout while waiting for response: {err}"))
             })?
-            .map_err(|err| {
-                CommonError::CommonError(format!("Failed to receive response: {}", err))
-            })?
+            .map_err(|err| CommonError::CommonError(format!("Failed to receive response: {err}")))?
     }
 
     async fn get_write_handle(
@@ -291,8 +286,7 @@ impl RocksDBStorageAdapter {
             Some(offset) => offset,
             None => {
                 return Err(CommonError::CommonError(format!(
-                    "shard {} under {} not exists",
-                    shard_name, namespace
+                    "shard {shard_name} under {namespace} not exists"
                 )));
             }
         };
@@ -349,8 +343,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
             .is_some()
         {
             return Err(CommonError::CommonError(format!(
-                "shard {} under namespace {} already exists",
-                shard_name, namespace
+                "shard {shard_name} under namespace {namespace} already exists"
             )));
         }
 
@@ -895,7 +888,7 @@ mod tests {
 
         // create one namespace with 4 shards
         let namespace = unique_id();
-        let shards = (0..4).map(|i| format!("test-{}", i)).collect::<Vec<_>>();
+        let shards = (0..4).map(|i| format!("test-{i}")).collect::<Vec<_>>();
 
         // create shards
         for i in 0..shards.len() {
@@ -934,11 +927,11 @@ mod tests {
                 let mut batch_data = Vec::new();
 
                 for idx in 0..100 {
-                    let value = format!("data-{}-{}", tid, idx).as_bytes().to_vec();
+                    let value = format!("data-{tid}-{idx}").as_bytes().to_vec();
                     let data = Record {
                         offset: None,
                         header: header.clone(),
-                        key: format!("key-{}-{}", tid, idx),
+                        key: format!("key-{tid}-{idx}"),
                         data: value.clone(),
                         tags: vec![format!("task-{}", tid)],
                         timestamp: 0,
@@ -986,7 +979,7 @@ mod tests {
                         namespace.clone(),
                         shard_name.clone(),
                         0,
-                        format!("task-{}", tid),
+                        format!("task-{tid}"),
                         ReadConfig {
                             max_record_num: u64::MAX,
                             max_size: u64::MAX,

@@ -168,7 +168,7 @@ impl MqttCacheManager {
         connector_name: &str,
         heartbeat_time: u64,
     ) {
-        let key = format!("{}_{}", cluster_name, connector_name);
+        let key = format!("{cluster_name}_{connector_name}");
         let heartbeat = ConnectorHeartbeat {
             cluster_name: cluster_name.to_owned(),
             connector_name: connector_name.to_owned(),
@@ -178,7 +178,7 @@ impl MqttCacheManager {
     }
 
     pub fn remove_connector_heartbeat(&self, cluster_name: &str, connector_name: &str) {
-        let key = format!("{}_{}", cluster_name, connector_name);
+        let key = format!("{cluster_name}_{connector_name}");
         self.connector_heartbeat.remove(&key);
     }
 

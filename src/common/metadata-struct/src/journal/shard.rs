@@ -36,7 +36,7 @@ impl JournalShard {
 }
 
 pub fn shard_name_iden(namespace: &str, shard_name: &str) -> String {
-    format!("{},{}", namespace, shard_name)
+    format!("{namespace},{shard_name}")
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]

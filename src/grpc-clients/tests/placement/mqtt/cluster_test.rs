@@ -41,7 +41,7 @@ mod tests {
         match cluster_status(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -69,7 +69,7 @@ mod tests {
         match register_node(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
     }
@@ -85,7 +85,7 @@ mod tests {
         match cluster_status(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -129,7 +129,7 @@ mod tests {
         match cluster_status(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 

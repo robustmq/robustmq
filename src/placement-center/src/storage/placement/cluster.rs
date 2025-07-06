@@ -84,7 +84,7 @@ mod test {
             };
 
             let cluster_info = ClusterInfo {
-                cluster_name: format!("cluster_{}", i),
+                cluster_name: format!("cluster_{i}"),
                 cluster_type,
                 ..Default::default()
             };

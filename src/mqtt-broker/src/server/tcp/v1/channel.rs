@@ -158,6 +158,6 @@ impl RequestChannel {
     }
 
     fn key_name(&self, network_type: &NetworkConnectionType, index: usize) -> String {
-        format!("{}_{}", network_type, index)
+        format!("{network_type}_{index}")
     }
 }

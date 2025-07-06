@@ -50,7 +50,7 @@ mod tests {
         match placement_create_user(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -71,7 +71,7 @@ mod tests {
                 assert!(flag);
             }
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -83,7 +83,7 @@ mod tests {
         match placement_delete_user(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -104,7 +104,7 @@ mod tests {
                 assert!(!flag);
             }
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
     }

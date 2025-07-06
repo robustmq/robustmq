@@ -47,7 +47,7 @@ mod tests {
             }
 
             Err(e) => {
-                eprintln!("Failed enable_slow_subscribe: {:?}", e);
+                eprintln!("Failed enable_slow_subscribe: {e:?}");
                 std::process::exit(1);
             }
         }
@@ -62,11 +62,11 @@ mod tests {
 
         match mqtt_broker_list_slow_subscribe(&client_pool, &grpc_addr, request).await {
             Ok(data) => {
-                println!("{:?}", data);
+                println!("{data:?}");
             }
 
             Err(e) => {
-                eprintln!("Failed list slow subscribe: {:?}", e);
+                eprintln!("Failed list slow subscribe: {e:?}");
                 std::process::exit(1);
             }
         }
@@ -86,7 +86,7 @@ mod tests {
             }
 
             Err(e) => {
-                eprintln!("Failed enable_slow_subscribe: {:?}", e);
+                eprintln!("Failed enable_slow_subscribe: {e:?}");
                 std::process::exit(1);
             }
         }

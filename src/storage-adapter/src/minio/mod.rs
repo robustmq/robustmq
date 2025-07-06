@@ -197,17 +197,15 @@ impl MinIoStorageAdapter {
         let data = WriteThreadData::new(namespace, shard_name, messages, resp_sx);
 
         write_handle.data_sender.send(data).await.map_err(|err| {
-            CommonError::CommonError(format!("Failed to send data to write thread: {}", err))
+            CommonError::CommonError(format!("Failed to send data to write thread: {err}"))
         })?;
 
         timeout(Duration::from_secs(3600), resp_rx)
             .await
             .map_err(|err| {
-                CommonError::CommonError(format!("Timeout while waiting for response: {}", err))
+                CommonError::CommonError(format!("Timeout while waiting for response: {err}"))
             })?
-            .map_err(|err| {
-                CommonError::CommonError(format!("Failed to receive response: {}", err))
-            })?
+            .map_err(|err| CommonError::CommonError(format!("Failed to receive response: {err}")))?
     }
 
     async fn get_write_handle(
@@ -818,7 +816,7 @@ mod tests {
 
         // create one namespace with 10 shards
         let namespace = unique_id();
-        let shards = (0..10).map(|i| format!("test-{}", i)).collect::<Vec<_>>();
+        let shards = (0..10).map(|i| format!("test-{i}")).collect::<Vec<_>>();
 
         // create shards
         for i in 0..shards.len() {
@@ -849,11 +847,11 @@ mod tests {
                 let mut batch_data = Vec::new();
 
                 for idx in 0..100 {
-                    let value = format!("data-{}-{}", tid, idx).as_bytes().to_vec();
+                    let value = format!("data-{tid}-{idx}").as_bytes().to_vec();
                     let data = Record {
                         offset: None,
                         header: header.clone(),
-                        key: format!("key-{}-{}", tid, idx),
+                        key: format!("key-{tid}-{idx}"),
                         data: value.clone(),
                         tags: vec![format!("task-{}", tid)],
                         timestamp: 0,
@@ -901,7 +899,7 @@ mod tests {
                         namespace.clone(),
                         shard_name.clone(),
                         0,
-                        format!("task-{}", tid),
+                        format!("task-{tid}"),
                         ReadConfig {
                             max_record_num: u64::MAX,
                             max_size: u64::MAX,

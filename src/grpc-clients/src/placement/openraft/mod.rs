@@ -48,7 +48,7 @@ impl Manager for OpenRaftServiceManager {
             Ok(client) => {
                 return Ok(client);
             }
-            Err(err) => return Err(CommonError::CommonError(format!("{},{}", err, addr))),
+            Err(err) => return Err(CommonError::CommonError(format!("{err},{addr}"))),
         };
     }
 

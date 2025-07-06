@@ -55,7 +55,7 @@ impl JournalSegment {
 }
 
 pub fn segment_name(namespace: &str, shard_name: &str, segment_no: u32) -> String {
-    format!("{},{},{}", namespace, shard_name, segment_no)
+    format!("{namespace},{shard_name},{segment_no}")
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
