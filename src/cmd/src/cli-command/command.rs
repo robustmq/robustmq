@@ -27,9 +27,8 @@ use mqtt::admin::{
 };
 use mqtt::publish::process_subscribe_args;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    EnableFlappingDetectRequest, MqttBindSchemaRequest, MqttCreateSchemaRequest,
-    MqttDeleteSchemaRequest, MqttListBindSchemaRequest, MqttListSchemaRequest,
-    MqttUnbindSchemaRequest, MqttUpdateSchemaRequest,
+    BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, EnableFlappingDetectRequest,
+    ListBindSchemaRequest, ListSchemaRequest, UnbindSchemaRequest, UpdateSchemaRequest,
 };
 
 use protocol::placement_center::placement_center_openraft::{
@@ -239,46 +238,38 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             MQTTAction::Publish(args) => process_publish_args(args),
             MQTTAction::Subscribe(args) => process_subscribe_args(args),
             // schema
-            MQTTAction::ListSchema(args) => MqttActionType::ListSchema(MqttListSchemaRequest {
+            MQTTAction::ListSchema(args) => MqttActionType::ListSchema(ListSchemaRequest {
                 schema_name: args.schema_name,
             }),
-            MQTTAction::CreateSchema(args) => {
-                MqttActionType::CreateSchema(MqttCreateSchemaRequest {
-                    schema_name: args.schema_name,
-                    schema_type: args.schema_type,
-                    schema: args.schema,
-                    desc: args.desc,
-                })
-            }
-            MQTTAction::UpdateSchema(args) => {
-                MqttActionType::UpdateSchema(MqttUpdateSchemaRequest {
-                    schema_name: args.schema_name,
-                    schema_type: args.schema_type,
-                    schema: args.schema,
-                    desc: args.desc,
-                })
-            }
-            MQTTAction::DeleteSchema(args) => {
-                MqttActionType::DeleteSchema(MqttDeleteSchemaRequest {
-                    schema_name: args.schema_name,
-                })
-            }
+            MQTTAction::CreateSchema(args) => MqttActionType::CreateSchema(CreateSchemaRequest {
+                schema_name: args.schema_name,
+                schema_type: args.schema_type,
+                schema: args.schema,
+                desc: args.desc,
+            }),
+            MQTTAction::UpdateSchema(args) => MqttActionType::UpdateSchema(UpdateSchemaRequest {
+                schema_name: args.schema_name,
+                schema_type: args.schema_type,
+                schema: args.schema,
+                desc: args.desc,
+            }),
+            MQTTAction::DeleteSchema(args) => MqttActionType::DeleteSchema(DeleteSchemaRequest {
+                schema_name: args.schema_name,
+            }),
             MQTTAction::ListBindSchema(args) => {
-                MqttActionType::ListBindSchema(MqttListBindSchemaRequest {
+                MqttActionType::ListBindSchema(ListBindSchemaRequest {
                     schema_name: args.schema_name,
                     resource_name: args.resource_name,
                 })
             }
-            MQTTAction::BindSchema(args) => MqttActionType::BindSchema(MqttBindSchemaRequest {
+            MQTTAction::BindSchema(args) => MqttActionType::BindSchema(BindSchemaRequest {
                 schema_name: args.schema_name,
                 resource_name: args.resource_name,
             }),
-            MQTTAction::UnbindSchema(args) => {
-                MqttActionType::UnbindSchema(MqttUnbindSchemaRequest {
-                    schema_name: args.schema_name,
-                    resource_name: args.resource_name,
-                })
-            }
+            MQTTAction::UnbindSchema(args) => MqttActionType::UnbindSchema(UnbindSchemaRequest {
+                schema_name: args.schema_name,
+                resource_name: args.resource_name,
+            }),
             MQTTAction::AutoSubscribeRule(args) => process_auto_subscribe_args(args),
         },
     };

@@ -30,7 +30,7 @@ max_log_files = 10
 # kind = "TokioConsole"
 # bind = "127.0.0.1:5674"
 
-# # Uncomment the section below to enable example config for 
+# # Uncomment the section below to enable example config for
 # # separating logs by target.
 # #
 # # Use target or targets to filter logs by specific path
