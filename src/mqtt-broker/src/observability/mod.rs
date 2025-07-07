@@ -26,7 +26,7 @@ pub mod slow;
 pub mod system_topic;
 pub mod warn;
 
-pub async fn start_opservability<S>(
+pub async fn start_observability<S>(
     cache_manager: Arc<CacheManager>,
     message_storage_adapter: Arc<S>,
     client_pool: Arc<ClientPool>,

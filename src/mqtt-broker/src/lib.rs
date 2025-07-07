@@ -32,7 +32,7 @@ use handler::keep_alive::ClientKeepAlive;
 use handler::sub_parse_topic::start_parse_subscribe_by_new_topic_thread;
 use handler::user::{init_system_user, UpdateUserCache};
 use lazy_static::lazy_static;
-use observability::start_opservability;
+use observability::start_observability;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
 use schema_register::schema::SchemaRegisterManager;
 use security::AuthDriver;
@@ -59,10 +59,6 @@ use tokio::runtime::Runtime;
 use tokio::signal;
 use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
-
-lazy_static! {
-    pub static ref BROKER_START_TIME: u64 = now_second();
-}
 
 pub mod admin;
 pub mod bridge;
@@ -464,7 +460,7 @@ where
         let message_storage_adapter = self.message_storage_adapter.clone();
         let client_pool = self.client_pool.clone();
         self.daemon_runtime.spawn(async move {
-            start_opservability(
+            start_observability(
                 cache_manager,
                 message_storage_adapter,
                 client_pool,
