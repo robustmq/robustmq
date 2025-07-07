@@ -13,14 +13,14 @@
 # limitations under the License.
 
 [stdout]
-kind = "Console"
-level = "Info"
-formatter = "Json"
+kind = "console"
+level = "info"
+formatter = "json"
 
 [server]
-kind = "RollingFile"
-level = "Info"
-rotation = "Minutely"
+kind = "rolling_file"
+level = "info"
+rotation = "minutely"
 directory = "./logs"
 prefix = "journal-server-"
 suffix = "log"

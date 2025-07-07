@@ -13,29 +13,29 @@
 # limitations under the License.
 
 [stdout]
-kind = "Console"
-level = "Info"
-formatter = "Json"
+kind = "console"
+level = "info"
+formatter = "json"
 
 [server]
-kind = "RollingFile"
-level = "Info"
-rotation = "Minutely"
+kind = "rolling_file"
+level = "info"
+rotation = "minutely"
 directory = "./logs"
 prefix = "mqtt-server-"
 suffix = "log"
 max_log_files = 10
 
 [slow_sub]
-kind = "RollingFile"
-level = "Info"
-rotation = "Minutely"
+kind = "rolling_file"
+level = "info"
+rotation = "minutely"
 directory = "./logs"
 prefix = "mqtt-slow_sub-"
 suffix = "log"
 max_log_files = 10
 
 [tokio_console]
-kind = "TokioConsole"
+kind = "tokio_console"
 bind = "0.0.0.0:9999"
 grpc_enable = true
