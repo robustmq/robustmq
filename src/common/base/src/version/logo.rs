@@ -24,7 +24,17 @@ pub fn banner() {
                                                                                 \\
     ";
 
-    println!("{B}\n");
+    println!("{B}");
+    
+    // Print version information
+    let version = super::version();
+    println!("Version: {}", version);
+    
+    // Print components information
+    println!("Components:");
+    println!("  - MQTT Broker");
+    println!("  - Placement Center");
+    println!();
 }
 
 #[cfg(test)]
