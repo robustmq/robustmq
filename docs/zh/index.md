@@ -29,7 +29,7 @@ features:
   - title: 100% Rust
     details: 完全用 Rust 实现的消息队列内核，这是构建具有惊人性能、可靠性和生产力的软件的神奇语言。
   - title: 多协议
-    details: 支持 MQTT 3.1/3.1.1/5.0、AMQP、RocketMQ Remoting/GRPC、Kafka 协议、OpenMessing、JNS、SQS 等主流消息协议。
+    details: 支持 MQTT 3.1/3.1.1/5.0、AMQP、RocketMQ Remoting/GRPC、Kafka 协议、OpenMessaging、JNS、SQS 等主流消息协议。
   - title: 分层架构
     details: 三层独立架构，包括 Computing、Storage 和 Scheduling。每一层都具备集群部署能力和快速水平扩容能力。
   - title: 插件存储
