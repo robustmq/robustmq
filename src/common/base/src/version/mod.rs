@@ -14,16 +14,50 @@
 
 pub mod logo;
 use logo::DEFAULT_PLACEMENT_CENTER_CONFIG;
-use tracing::error;
+use std::sync::OnceLock;
+use tracing::{error, info};
 
 use crate::tools::read_file;
 
+// Static variable to hold the version in memory
+static VERSION: OnceLock<String> = OnceLock::new();
+
+/// Returns the RobustMQ version
+///
+/// On first call, reads version from config/version.ini file and caches it in memory.
+/// Subsequent calls return the cached version without file I/O.
+///
+/// # Return value
+/// Returns the version string. If version file cannot be read, returns the hardcoded version
+/// or a placeholder string.
 pub fn version() -> String {
-    match read_file(DEFAULT_PLACEMENT_CENTER_CONFIG) {
-        Ok(data) => data,
-        Err(e) => {
-            error!("{}", e.to_string());
-            "-".to_string()
-        }
+    // Return cached version if already loaded
+    if let Some(cached_version) = VERSION.get() {
+        return cached_version.clone();
     }
+
+    // Try to read version from file
+    let version_str = match read_file(DEFAULT_PLACEMENT_CENTER_CONFIG) {
+        Ok(data) => {
+            // Trim whitespace and newlines
+            let version = data.trim().to_string();
+            info!("Read version from file: {}", version);
+            version
+        }
+        Err(e) => {
+            error!("Failed to read version file: {}", e);
+            // Fallback to workspace version from Cargo.toml
+            let fallback = option_env!("CARGO_PKG_VERSION").unwrap_or("unknown");
+            error!("Using fallback version: {}", fallback);
+            fallback.to_string()
+        }
+    };
+
+    // Cache the version in memory
+    match VERSION.set(version_str.clone()) {
+        Ok(_) => info!("Version cached in memory"),
+        Err(_) => error!("Failed to cache version in memory (race condition)"),
+    }
+
+    version_str
 }
