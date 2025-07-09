@@ -27,8 +27,7 @@ mod tests {
     use grpc_clients::pool::ClientPool;
     use paho_mqtt::{Message, QOS_1};
     use protocol::broker_mqtt::broker_mqtt_admin::{
-        MqttBindSchemaRequest, MqttCreateSchemaRequest, MqttDeleteSchemaRequest,
-        MqttUnbindSchemaRequest,
+        BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, UnbindSchemaRequest,
     };
 
     use crate::mqtt_protocol::common::{
@@ -67,7 +66,7 @@ mod tests {
         .await;
 
         // Publish
-        let client_id = build_client_id(format!("schema_json_test_{}_{}", network, qos).as_str());
+        let client_id = build_client_id(format!("schema_json_test_{network}_{qos}").as_str());
 
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
@@ -84,7 +83,7 @@ mod tests {
         publish_data(&cli, msg, true);
 
         let message_content = json!({"name": "John Doe","age": 30}).to_string();
-        println!("message_content:{}", message_content);
+        println!("message_content:{message_content}");
         let msg = Message::new(topic_name.clone(), message_content, QOS_1);
         publish_data(&cli, msg, false);
 
@@ -135,7 +134,7 @@ mod tests {
         .await;
 
         // Publish
-        let client_id = build_client_id(format!("schema_avro_test_{}_{}", network, qos).as_str());
+        let client_id = build_client_id(format!("schema_avro_test_{network}_{qos}").as_str());
 
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
@@ -187,7 +186,7 @@ mod tests {
         schema: String,
         topic_name: String,
     ) {
-        let user = MqttCreateSchemaRequest {
+        let user = CreateSchemaRequest {
             schema_name: schema_name.clone(),
             schema_type,
             schema,
@@ -196,7 +195,7 @@ mod tests {
         let res = mqtt_broker_create_schema(&client_pool, &addrs, user.clone()).await;
         assert!(res.is_ok());
 
-        let request = MqttBindSchemaRequest {
+        let request = BindSchemaRequest {
             schema_name: schema_name.clone(),
             resource_name: topic_name,
         };
@@ -210,13 +209,13 @@ mod tests {
         schema_name: String,
         topic_name: String,
     ) {
-        let user = MqttDeleteSchemaRequest {
+        let user = DeleteSchemaRequest {
             schema_name: schema_name.clone(),
         };
         let res = mqtt_broker_delete_schema(&client_pool, &addrs, user.clone()).await;
         assert!(res.is_ok());
 
-        let request = MqttUnbindSchemaRequest {
+        let request = UnbindSchemaRequest {
             schema_name: schema_name.clone(),
             resource_name: topic_name,
         };

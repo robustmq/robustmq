@@ -274,7 +274,7 @@ impl JournalCacheManager {
     }
 
     fn shard_key(&self, cluster_name: &str, namespace: &str, shard_name: &str) -> String {
-        format!("{}_{}_{}", cluster_name, namespace, shard_name)
+        format!("{cluster_name}_{namespace}_{shard_name}")
     }
 
     fn segment_key(
@@ -284,10 +284,7 @@ impl JournalCacheManager {
         shard_name: &str,
         segment_seq: u32,
     ) -> String {
-        format!(
-            "{}_{}_{}_{}",
-            cluster_name, namespace, shard_name, segment_seq
-        )
+        format!("{cluster_name}_{namespace}_{shard_name}_{segment_seq}")
     }
 }
 

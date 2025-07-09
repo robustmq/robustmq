@@ -32,11 +32,11 @@ mod tests {
 
         match mqtt_broker_list_connection(&client_pool, &addrs, ListConnectionRequest {}).await {
             Ok(data) => {
-                println!("{:?}", data);
+                println!("{data:?}");
             }
 
             Err(e) => {
-                eprintln!("Failed to list connections: {:?}", e);
+                eprintln!("Failed to list connections: {e:?}");
                 std::process::exit(1);
             }
         };
@@ -67,7 +67,7 @@ mod tests {
             }
 
             Err(e) => {
-                eprintln!("Failed to list connections: {:?}", e);
+                eprintln!("Failed to list connections: {e:?}");
                 std::process::exit(1);
             }
         };

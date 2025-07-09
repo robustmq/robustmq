@@ -39,17 +39,18 @@ use metadata_struct::schema::SchemaData;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    ClusterOverviewMetricsRequest, ClusterStatusRequest, CreateAclRequest, CreateBlacklistRequest,
+    BindSchemaRequest, ClusterOverviewMetricsRequest, ClusterStatusRequest, CreateAclRequest,
+    CreateBlacklistRequest, CreateConnectorRequest, CreateSchemaRequest,
     CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
-    DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteTopicRewriteRuleRequest,
-    DeleteUserRequest, EnableFlappingDetectRequest, GetClusterConfigRequest, ListAclRequest,
-    ListAutoSubscribeRuleRequest, ListBlacklistRequest, ListConnectionRequest, ListSessionRequest,
+    DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteConnectorRequest,
+    DeleteSchemaRequest, DeleteTopicRewriteRuleRequest, DeleteUserRequest,
+    EnableFlappingDetectRequest, GetClusterConfigRequest, ListAclRequest,
+    ListAutoSubscribeRuleRequest, ListBindSchemaRequest, ListBlacklistRequest,
+    ListConnectionRequest, ListConnectorRequest, ListSchemaRequest, ListSessionRequest,
     ListSlowSubscribeRequest, ListSubscribeRequest, ListSystemAlarmRequest, ListTopicRequest,
-    ListUserRequest, MqttBindSchemaRequest, MqttCreateConnectorRequest, MqttCreateSchemaRequest,
-    MqttDeleteConnectorRequest, MqttDeleteSchemaRequest, MqttListBindSchemaRequest,
-    MqttListConnectorRequest, MqttListSchemaRequest, MqttUnbindSchemaRequest,
-    MqttUpdateConnectorRequest, MqttUpdateSchemaRequest, SetAutoSubscribeRuleRequest,
-    SetClusterConfigRequest, SetSystemAlarmConfigRequest, SubscribeDetailRequest,
+    ListUserRequest, SetAutoSubscribeRuleRequest, SetClusterConfigRequest,
+    SetSystemAlarmConfigRequest, SubscribeDetailRequest, UnbindSchemaRequest,
+    UpdateConnectorRequest, UpdateSchemaRequest,
 };
 use std::str::FromStr;
 use std::sync::Arc;
@@ -124,19 +125,19 @@ pub enum MqttActionType {
     ListTopic,
 
     // connector
-    ListConnector(MqttListConnectorRequest),
-    CreateConnector(MqttCreateConnectorRequest),
-    UpdateConnector(MqttUpdateConnectorRequest),
-    DeleteConnector(MqttDeleteConnectorRequest),
+    ListConnector(ListConnectorRequest),
+    CreateConnector(CreateConnectorRequest),
+    UpdateConnector(UpdateConnectorRequest),
+    DeleteConnector(DeleteConnectorRequest),
 
     // schema
-    ListSchema(MqttListSchemaRequest),
-    CreateSchema(MqttCreateSchemaRequest),
-    UpdateSchema(MqttUpdateSchemaRequest),
-    DeleteSchema(MqttDeleteSchemaRequest),
-    ListBindSchema(MqttListBindSchemaRequest),
-    BindSchema(MqttBindSchemaRequest),
-    UnbindSchema(MqttUnbindSchemaRequest),
+    ListSchema(ListSchemaRequest),
+    CreateSchema(CreateSchemaRequest),
+    UpdateSchema(UpdateSchemaRequest),
+    DeleteSchema(DeleteSchemaRequest),
+    ListBindSchema(ListBindSchemaRequest),
+    BindSchema(BindSchemaRequest),
+    UnbindSchema(UnbindSchemaRequest),
 
     //auto subscribe
     ListAutoSubscribeRule(ListAutoSubscribeRuleRequest),
@@ -362,7 +363,7 @@ impl MqttBrokerCommand {
                     line = lines.next_line() => {
                         match line {
                             Ok(Some(input)) => {
-                                    println!("You typed: {}", input);
+                                    println!("You typed: {input}");
 
                                     let msg = MessageBuilder::new()
                                     .properties(props.clone())
@@ -375,7 +376,7 @@ impl MqttBrokerCommand {
                                     match cli.publish(msg) {
                                         Ok(_) => {}
                                         Err(e) => {
-                                            panic!("{:?}", e);
+                                            panic!("{e:?}");
                                         }
                                     }
                                     if retained {
@@ -389,7 +390,7 @@ impl MqttBrokerCommand {
                                 break;
                             }
                             Err(e) => {
-                                eprintln!("Error reading input: {}", e);
+                                eprintln!("Error reading input: {e}");
                                 break;
                             }
                     }
@@ -421,7 +422,7 @@ impl MqttBrokerCommand {
                 println!("subscribe success")
             }
             Err(e) => {
-                panic!("subscribe_many: {}", e)
+                panic!("subscribe_many: {e}")
             }
         }
 
@@ -444,11 +445,11 @@ impl MqttBrokerCommand {
                     if let Some(raw) = raw {
                         if raw.0 == "retain_push_flag" && raw.1 == "true" {
                             let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                            println!("Retain message: {}", payload);
+                            println!("Retain message: {payload}");
                         }
                     }
                     let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                    println!("payload: {}", payload);
+                    println!("payload: {payload}");
                 }
                 None => {
                     println!("End of input stream.");
@@ -471,13 +472,13 @@ impl MqttBrokerCommand {
             Ok(reply) => {
                 let feature_name = reply.feature_name.as_str();
                 if reply.is_enable {
-                    println!("Enabled successfully! feature name: {}", feature_name);
+                    println!("Enabled successfully! feature name: {feature_name}");
                 } else {
-                    println!("Disabled successfully! feature name: {}", feature_name);
+                    println!("Disabled successfully! feature name: {feature_name}");
                 }
             }
             Err(e) => {
-                println!("MQTT broker enable feature normal exception: {}", e);
+                println!("MQTT broker enable feature normal exception: {e}");
                 error_info(e.to_string());
             }
         }
@@ -511,7 +512,7 @@ impl MqttBrokerCommand {
                         return;
                     }
                 };
-                println!("{}", json);
+                println!("{json}");
             }
             Err(e) => {
                 println!("MQTT broker cluster normal exception");
@@ -630,7 +631,7 @@ impl MqttBrokerCommand {
             }
 
             Err(e) => {
-                eprintln!("Failed to list connections: {:?}", e);
+                eprintln!("Failed to list connections: {e:?}");
                 std::process::exit(1);
             }
         };
@@ -1144,7 +1145,7 @@ impl MqttBrokerCommand {
         &self,
         client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: MqttListConnectorRequest,
+        cli_request: ListConnectorRequest,
     ) {
         match mqtt_broker_list_connector(client_pool, &grpc_addr(params.server), cli_request).await
         {
@@ -1193,7 +1194,7 @@ impl MqttBrokerCommand {
         &self,
         client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: MqttCreateConnectorRequest,
+        cli_request: CreateConnectorRequest,
     ) {
         match mqtt_broker_create_connector(client_pool, &grpc_addr(params.server), cli_request)
             .await
@@ -1212,7 +1213,7 @@ impl MqttBrokerCommand {
         &self,
         client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: MqttDeleteConnectorRequest,
+        cli_request: DeleteConnectorRequest,
     ) {
         match mqtt_broker_delete_connector(client_pool, &grpc_addr(params.server), cli_request)
             .await
@@ -1231,7 +1232,7 @@ impl MqttBrokerCommand {
         &self,
         client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: MqttUpdateConnectorRequest,
+        cli_request: UpdateConnectorRequest,
     ) {
         match mqtt_broker_update_connector(client_pool, &grpc_addr(params.server), cli_request)
             .await
@@ -1298,7 +1299,7 @@ impl MqttBrokerCommand {
         &self,
         client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: MqttListSchemaRequest,
+        cli_request: ListSchemaRequest,
     ) {
         match mqtt_broker_list_schema(client_pool, &grpc_addr(params.server), cli_request).await {
             Ok(data) => {
@@ -1332,7 +1333,7 @@ impl MqttBrokerCommand {
         &self,
         client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: MqttCreateSchemaRequest,
+        cli_request: CreateSchemaRequest,
     ) {
         match mqtt_broker_create_schema(client_pool, &grpc_addr(params.server), cli_request).await {
             Ok(_) => {
@@ -1349,7 +1350,7 @@ impl MqttBrokerCommand {
         &self,
         client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: MqttUpdateSchemaRequest,
+        cli_request: UpdateSchemaRequest,
     ) {
         match mqtt_broker_update_schema(client_pool, &grpc_addr(params.server), cli_request).await {
             Ok(_) => {
@@ -1366,7 +1367,7 @@ impl MqttBrokerCommand {
         &self,
         client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: MqttDeleteSchemaRequest,
+        cli_request: DeleteSchemaRequest,
     ) {
         match mqtt_broker_delete_schema(client_pool, &grpc_addr(params.server), cli_request).await {
             Ok(_) => {
@@ -1383,7 +1384,7 @@ impl MqttBrokerCommand {
         &self,
         client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: MqttBindSchemaRequest,
+        cli_request: BindSchemaRequest,
     ) {
         match mqtt_broker_bind_schema(client_pool, &grpc_addr(params.server), cli_request).await {
             Ok(_) => {
@@ -1400,7 +1401,7 @@ impl MqttBrokerCommand {
         &self,
         client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: MqttUnbindSchemaRequest,
+        cli_request: UnbindSchemaRequest,
     ) {
         match mqtt_broker_unbind_schema(client_pool, &grpc_addr(params.server), cli_request).await {
             Ok(_) => {
@@ -1417,7 +1418,7 @@ impl MqttBrokerCommand {
         &self,
         client_pool: &ClientPool,
         params: MqttCliCommandParam,
-        cli_request: MqttListBindSchemaRequest,
+        cli_request: ListBindSchemaRequest,
     ) {
         match mqtt_broker_list_bind_schema(client_pool, &grpc_addr(params.server), cli_request)
             .await

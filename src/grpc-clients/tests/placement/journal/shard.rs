@@ -71,7 +71,7 @@ mod tests {
             node: node.encode(),
         };
         if let Err(e) = register_node(&client_pool, &addrs, request).await {
-            println!("{}", e);
+            println!("{e}");
             panic!();
         }
 
@@ -88,7 +88,7 @@ mod tests {
             shard_config: serde_json::to_vec(&config).unwrap(),
         };
         if let Err(e) = create_shard(&client_pool, &addrs, request).await {
-            println!("{}", e);
+            println!("{e}");
             panic!();
         }
 
@@ -290,7 +290,7 @@ mod tests {
             node: node.encode(),
         };
         if let Err(e) = register_node(&client_pool, &addrs, request).await {
-            println!("{}", e);
+            println!("{e}");
             panic!();
         }
         let config = JournalShardConfig {
@@ -305,7 +305,7 @@ mod tests {
             shard_config: serde_json::to_vec(&config).unwrap(),
         };
         if let Err(e) = create_shard(&client_pool, &addrs, request).await {
-            println!("{}", e);
+            println!("{e}");
             panic!();
         }
 
@@ -319,7 +319,7 @@ mod tests {
             next_status: "PreSealUp".to_string(),
         };
         if let Err(e) = update_segment_status(&client_pool, &addrs, request).await {
-            println!("{}", e);
+            println!("{e}");
             panic!();
         }
         // List Segment
@@ -346,7 +346,7 @@ mod tests {
             next_status: "SealUp".to_string(),
         };
         if let Err(e) = update_segment_status(&client_pool, &addrs, request).await {
-            println!("{}", e);
+            println!("{e}");
             panic!();
         }
 
@@ -376,7 +376,7 @@ mod tests {
             end_timestamp: 1731576014,
         };
         if let Err(e) = update_segment_meta(&client_pool, &addrs, request).await {
-            println!("{}", e);
+            println!("{e}");
             panic!();
         }
 
@@ -437,7 +437,7 @@ mod tests {
         };
 
         if let Err(e) = register_node(&client_pool, &addrs, request).await {
-            println!("{}", e);
+            println!("{e}");
             unreachable!();
         }
 
@@ -453,7 +453,7 @@ mod tests {
             shard_config: serde_json::to_vec(&config).unwrap(),
         };
         if let Err(e) = create_shard(&client_pool, &addrs, request).await {
-            println!("{}", e);
+            println!("{e}");
             unreachable!();
         }
 
@@ -475,7 +475,7 @@ mod tests {
             segment_seq: 0,
         };
         if let Err(e) = delete_segment(&client_pool, &addrs, request).await {
-            println!("{}", e);
+            println!("{e}");
         } else {
             unreachable!();
         }
@@ -490,7 +490,7 @@ mod tests {
             next_status: "SealUp".to_string(),
         };
         if let Err(e) = update_segment_status(&client_pool, &addrs, request).await {
-            println!("{}", e);
+            println!("{e}");
             panic!();
         }
 
@@ -551,7 +551,7 @@ mod tests {
             node: node.encode(),
         };
         if let Err(e) = register_node(&client_pool, &addrs, request).await {
-            println!("{}", e);
+            println!("{e}");
             panic!();
         }
 
@@ -567,7 +567,7 @@ mod tests {
             shard_config: serde_json::to_vec(&config).unwrap(),
         };
         if let Err(e) = create_shard(&client_pool, &addrs, request).await {
-            println!("{}", e);
+            println!("{e}");
             panic!();
         }
 

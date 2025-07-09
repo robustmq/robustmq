@@ -46,7 +46,7 @@ mod tests {
         match placement_save_last_will_message(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
     }

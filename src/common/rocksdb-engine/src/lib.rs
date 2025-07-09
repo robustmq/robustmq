@@ -61,15 +61,13 @@ impl RocksDBEngine {
             Ok(serialized) => {
                 if let Err(e) = self.db.put_cf(&cf.clone(), key, serialized) {
                     return Err(CommonError::CommonError(format!(
-                        "Failed to put to ColumnFamily:{:?}",
-                        e
+                        "Failed to put to ColumnFamily:{e:?}"
                     )));
                 }
             }
             Err(err) => {
                 return Err(CommonError::CommonError(format!(
-                    "Failed to serialize to String. T: {:?}, err: {:?}",
-                    value, err
+                    "Failed to serialize to String. T: {value:?}, err: {err:?}"
                 )))
             }
         }
@@ -93,8 +91,7 @@ impl RocksDBEngine {
     ) -> Result<(), CommonError> {
         if let Err(e) = self.db.put_cf(&cf.clone(), key, value) {
             return Err(CommonError::CommonError(format!(
-                "Failed to put to ColumnFamily:{:?}",
-                e
+                "Failed to put to ColumnFamily:{e:?}"
             )));
         }
         Ok(())
@@ -115,15 +112,13 @@ impl RocksDBEngine {
                 match serde_json::from_slice::<T>(&found) {
                     Ok(t) => Ok(Some(t)),
                     Err(err) => Err(CommonError::CommonError(format!(
-                        "Failed to deserialize: {:?}",
-                        err
+                        "Failed to deserialize: {err:?}"
                     ))),
                 }
             }
             Ok(None) => Ok(None),
             Err(err) => Err(CommonError::CommonError(format!(
-                "Failed to get from ColumnFamily: {:?}",
-                err
+                "Failed to get from ColumnFamily: {err:?}"
             ))),
         }
     }
@@ -267,8 +262,8 @@ mod tests {
         for i in 1..100 {
             let rs = rs_handler.clone();
             let task = tokio::spawn(async move {
-                let key = format!("name2{}", i);
-                let name = format!("lobo{}", i);
+                let key = format!("name2{i}");
+                let name = format!("lobo{i}");
                 let user = User {
                     name: name.clone(),
                     age: 18,
@@ -281,7 +276,7 @@ mod tests {
                 let r = res1.unwrap();
                 assert!(r.is_some());
                 assert_eq!(r.unwrap().name, name);
-                println!("spawn {}, key:{}", i, key);
+                println!("spawn {i}, key:{key}");
                 // sleep(Duration::from_secs(5)).await;
             });
             tasks.push(task);

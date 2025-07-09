@@ -13,7 +13,7 @@
 # limitations under the License.
 
 [toolchain]
-channel = "1.87.0"
+channel = "stable"
 components = [ "rustfmt", "rust-src", "rust-analyzer"]
 # The component named miri is supported in the nightly version
 # so we will use it until the stable version can be supported.

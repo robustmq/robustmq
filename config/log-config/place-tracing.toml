@@ -13,19 +13,59 @@
 # limitations under the License.
 
 [stdout]
-kind = "Console"
-level = "Info"
+kind = "console"
+level = "info"
 
 [server]
-kind = "RollingFile"
-level = "Info"
-rotation = "Daily"
+kind = "rolling_file"
+level = "info"
+rotation = "daily"
 directory = "./data/placement-center/logs"
 prefix = "server"
 suffix = "log"
 max_log_files = 10
 
-## Uncomment the section below to enable troubleshooting with `tokio-console`.
+# # Uncomment the section below to enable troubleshooting with `tokio-console`.
 # [tokio_console]
 # kind = "TokioConsole"
 # bind = "127.0.0.1:5674"
+
+# # Uncomment the section below to enable example config for
+# # separating logs by target.
+# #
+# # Use target or targets to filter logs by specific path
+
+# # Place all openraft logs in files starting with `openraft`
+# [openraft]
+# kind = "rolling_file"
+# target = { path = "openraft", level = "info" }
+# rotation = "minutely"
+# directory = "./data/placement-center/logs"
+# prefix = "openraft"
+# suffix = "log"
+# max_log_files = 10
+
+# # Place all placement center logs in files starting with `placement_center`
+# [placement_center]
+# kind = "rolling_file"
+# target = { path = "placement_center", level = "info" }
+# rotation = "minutely"
+# directory = "./data/placement-center/logs"
+# prefix = "placement-center"
+# suffix = "log"
+# max_log_files = 10
+
+# # Use targets to filter logs by multiple paths. Here we would
+# # want all openraft logs except those that are under the "openraft::engine"
+# # path.
+# [openraft_except_engine]
+# kind = "rolling_file"
+# targets = [
+#     { path = "openraft", level = "info" },
+#     { path = "openraft::engine", level = "off" }
+# ]
+# rotation = "minutely"
+# directory = "./data/placement-center/logs"
+# prefix = "openraft-except-engine"
+# suffix = "log"
+# max_log_files = 10

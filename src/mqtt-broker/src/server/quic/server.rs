@@ -186,7 +186,7 @@ impl QuicServer {
         let local_addr = match endpoint.local_addr() {
             Ok(local_addr) => local_addr,
             Err(e) => {
-                panic!("we can not to bind this address: {}", e)
+                panic!("we can not to bind this address: {e}")
             }
         };
 
@@ -203,7 +203,7 @@ impl QuicServer {
                 endpoint
             }
             Err(e) => {
-                panic!("Failed to start a quic server: {}", e)
+                panic!("Failed to start a quic server: {e}")
             }
         }
     }
@@ -235,8 +235,7 @@ impl QuicServer {
         match incoming.unwrap().await {
             Ok(connection) => Ok(connection),
             Err(e) => Err(MqttBrokerError::CommonError(format!(
-                "Failed to accept connection: {}",
-                e
+                "Failed to accept connection: {e}"
             ))),
         }
     }

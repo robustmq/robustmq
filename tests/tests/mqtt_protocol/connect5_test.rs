@@ -59,7 +59,7 @@ mod tests {
                 .unwrap()
                 .get_string()
                 .unwrap();
-            println!("{:?}", assign_client_id);
+            println!("{assign_client_id:?}");
             assert!(!assign_client_id.is_empty());
             assert_eq!(assign_client_id.len(), unique_id().len());
 
@@ -72,7 +72,7 @@ mod tests {
         for network in network_types() {
             let addr = broker_addr_by_type(&network);
             let client_id =
-                build_client_id(format!("response_properties_check_test_{}", network).as_str());
+                build_client_id(format!("response_properties_check_test_{network}").as_str());
             let client_properties = ClientTestProperties {
                 mqtt_version: 5,
                 client_id,
@@ -90,13 +90,13 @@ mod tests {
 
             let conn_opts = build_conn_pros(client_properties.clone(), false);
             let result = cli.connect(conn_opts);
-            println!("{:?}", result);
+            println!("{result:?}");
             assert!(result.is_ok());
             let response = result.unwrap();
             assert_eq!(response.reason_code(), ReasonCode::Success);
 
             let resp_pros = response.properties();
-            println!("{:?}", resp_pros);
+            println!("{resp_pros:?}");
             assert_eq!(
                 resp_pros
                     .get(PropertyCode::SessionExpiryInterval)
@@ -208,7 +208,7 @@ mod tests {
     async fn request_response_test() {
         for network in network_types() {
             let addr = broker_addr_by_type(&network);
-            let client_id = build_client_id(format!("request_response_test_{}", network).as_str());
+            let client_id = build_client_id(format!("request_response_test_{network}").as_str());
             let client_properties = ClientTestProperties {
                 mqtt_version: 5,
                 client_id,
@@ -224,17 +224,17 @@ mod tests {
             let cli_res = Client::new(create_opts);
             assert!(cli_res.is_ok());
             let cli = cli_res.unwrap();
-            println!("{:?}", client_properties);
+            println!("{client_properties:?}");
 
             let conn_opts = build_conn_pros(client_properties.clone(), false);
             let result = cli.connect(conn_opts);
-            println!("{:?}", result);
+            println!("{result:?}");
             assert!(result.is_ok());
             let response = result.unwrap();
             assert_eq!(response.reason_code(), ReasonCode::Success);
 
             let resp_pros = response.properties();
-            println!("{:?}", resp_pros);
+            println!("{resp_pros:?}");
             assert_eq!(
                 resp_pros
                     .get(PropertyCode::ResponseInformation)

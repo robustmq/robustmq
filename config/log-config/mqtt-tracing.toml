@@ -13,31 +13,31 @@
 # limitations under the License.
 
 [stdout]
-kind = "Console"
-level = "Info"
+kind = "console"
+level = "info"
 
 [server]
-kind = "RollingFile"
-level = "Info"
-rotation = "Daily"
+kind = "rolling_file"
+level = "info"
+rotation = "daily"
 directory = "./data/mqtt-broker/logs"
 prefix = "server"
 suffix = "log"
 max_log_files = 10
 
 [server_error]
-kind = "RollingFile"
-level = "Warn"
-rotation = "Daily"
+kind = "rolling_file"
+level = "warn"
+rotation = "daily"
 directory = "./data/mqtt-broker/logs"
 prefix = "error"
 suffix = "log"
 max_log_files = 10
 
 [slow_sub]
-kind = "RollingFile"
-level = "Info"
-rotation = "Daily"
+kind = "rolling_file"
+level = "info"
+rotation = "daily"
 directory = "./data/mqtt-broker/logs"
 prefix = "slow-sub"
 suffix = "log"

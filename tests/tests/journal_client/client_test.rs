@@ -62,7 +62,7 @@ mod tests {
         let res = client
             .read_by_key(&namespace, &shard_name, 0, "k1", &read_config)
             .await;
-        println!("{:?}", res);
+        println!("{res:?}");
         assert!(res.is_ok());
         let list = res.unwrap();
         assert_eq!(list.len(), 1);
@@ -73,7 +73,7 @@ mod tests {
         let res = client
             .read_by_key(&namespace, &shard_name, 3, "k1", &read_config)
             .await;
-        println!("{:?}", res);
+        println!("{res:?}");
         assert!(res.is_ok());
         let list = res.unwrap();
         assert_eq!(list.len(), 0);
@@ -83,7 +83,7 @@ mod tests {
         let res = client
             .read_by_tag(&namespace, &shard_name, 0, "tag1", &read_config)
             .await;
-        println!("{:?}", res);
+        println!("{res:?}");
         assert!(res.is_ok());
         let list = res.unwrap();
         assert_eq!(list.len(), 1);
@@ -94,7 +94,7 @@ mod tests {
         let res = client
             .read_by_tag(&namespace, &shard_name, 3, "tag1", &read_config)
             .await;
-        println!("{:?}", res);
+        println!("{res:?}");
         assert!(res.is_ok());
         let list = res.unwrap();
         assert_eq!(list.len(), 0);
@@ -104,7 +104,7 @@ mod tests {
         let res = client
             .read_by_offset(&namespace, &shard_name, 0, &read_config)
             .await;
-        println!("{:?}", res);
+        println!("{res:?}");
         assert!(res.is_ok());
         let list = res.unwrap();
         assert_eq!(list.len(), 5);
@@ -114,7 +114,7 @@ mod tests {
         let res = client
             .read_by_offset(&namespace, &shard_name, 3, &read_config)
             .await;
-        println!("{:?}", res);
+        println!("{res:?}");
         assert!(res.is_ok());
         let list = res.unwrap();
         assert_eq!(list.len(), 2);
@@ -133,7 +133,7 @@ mod tests {
         assert!(res_opt.is_ok());
 
         let res = res_opt.unwrap();
-        println!("{:?}", res);
+        println!("{res:?}");
         assert!(res.is_ok());
         assert_eq!(res.offset, 0);
 
@@ -148,7 +148,7 @@ mod tests {
         assert!(res_opt.is_ok());
 
         let res = res_opt.unwrap();
-        println!("{:?}", res);
+        println!("{res:?}");
         assert!(res.is_ok());
         assert_eq!(res.offset, 1);
 

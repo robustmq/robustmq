@@ -254,7 +254,7 @@ mod test {
         let connect_id = 1;
         let client_id = "client_id-***".to_string();
         let cluster = default_broker_mqtt();
-        println!("{:?}", cluster);
+        println!("{cluster:?}");
         let connect = Connect {
             keep_alive: 10,
             client_id: client_id.clone(),

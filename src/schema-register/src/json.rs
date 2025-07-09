@@ -50,7 +50,7 @@ mod test {
         }"#;
 
         let result = json_validate(schema, data);
-        println!("{:?}", result);
+        println!("{result:?}");
         assert!(result.is_ok());
         assert!(result.unwrap());
     }

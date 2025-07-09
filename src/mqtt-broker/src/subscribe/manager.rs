@@ -427,18 +427,18 @@ impl SubscribeManager {
 
     // key
     fn subscribe_key(&self, client_id: &str, path: &str) -> String {
-        format!("{}_{}", client_id, path)
+        format!("{client_id}_{path}")
     }
 
     fn exclusive_key(&self, client_id: &str, sub_name: &str, topic_id: &str) -> String {
-        format!("{}_{}_{}", client_id, sub_name, topic_id)
+        format!("{client_id}_{sub_name}_{topic_id}")
     }
 
     fn share_leader_key(&self, group_name: &str, sub_name: &str, topic_id: &str) -> String {
-        format!("{}_{}_{}", group_name, sub_name, topic_id)
+        format!("{group_name}_{sub_name}_{topic_id}")
     }
     fn share_follower_key(&self, client_id: &str, group_name: &str, topic_id: &str) -> String {
-        format!("{}_{}_{}", client_id, group_name, topic_id)
+        format!("{client_id}_{group_name}_{topic_id}")
     }
 }
 

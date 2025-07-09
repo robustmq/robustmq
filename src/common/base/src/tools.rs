@@ -134,7 +134,7 @@ pub fn local_hostname() -> String {
 }
 
 pub fn get_addr_by_local_hostname(port: u32) -> String {
-    format!("127.0.0.1:{}", port)
+    format!("127.0.0.1:{port}")
 }
 
 /// Check if the file exists
@@ -162,8 +162,7 @@ pub fn read_file(path: impl AsRef<Path>) -> Result<String, CommonError> {
     let path = path.as_ref();
     if !path.exists() {
         return Err(CommonError::CommonError(format!(
-            "File {:?} does not exist",
-            path
+            "File {path:?} does not exist"
         )));
     }
 

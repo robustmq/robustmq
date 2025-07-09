@@ -146,7 +146,7 @@ mod test {
         let reply = set_system_alarm_config_by_req(&cache_manager, &req)
             .await
             .unwrap_or_else(|e| {
-                panic!("Failed to set system alarm config: {}", e);
+                panic!("Failed to set system alarm config: {e}");
             });
 
         let mqtt_conf = broker_mqtt_conf();
@@ -183,7 +183,7 @@ mod test {
         let reply = list_system_alarm_by_req(&cache_manager, &req)
             .await
             .unwrap_or_else(|e| {
-                panic!("Failed to list system alarms: {}", e);
+                panic!("Failed to list system alarms: {e}");
             });
 
         assert!(!reply.list_system_alarm_raw.is_empty());

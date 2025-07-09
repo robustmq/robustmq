@@ -21,11 +21,11 @@ pub fn column_family_list() -> Vec<String> {
 }
 
 pub fn storage_data_fold(path: &str) -> String {
-    format!("{}/_data", path)
+    format!("{path}/_data")
 }
 
 pub fn storage_raft_fold(path: &str) -> String {
-    format!("{}/_raft", path)
+    format!("{path}/_raft")
 }
 
 #[cfg(test)]

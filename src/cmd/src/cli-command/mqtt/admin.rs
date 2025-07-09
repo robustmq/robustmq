@@ -21,12 +21,13 @@ use common_base::enum_type::feature_type::FeatureType;
 use common_base::enum_type::sort_type::SortType;
 use core::option::Option::Some;
 use protocol::broker_mqtt::broker_mqtt_admin::{
-    CreateAclRequest, CreateBlacklistRequest, CreateTopicRewriteRuleRequest, CreateUserRequest,
-    DeleteAclRequest, DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest,
+    CreateAclRequest, CreateBlacklistRequest, CreateConnectorRequest,
+    CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
+    DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteConnectorRequest,
     DeleteTopicRewriteRuleRequest, DeleteUserRequest, ListAutoSubscribeRuleRequest,
-    ListSubscribeRequest, ListSystemAlarmRequest, MqttCreateConnectorRequest,
-    MqttDeleteConnectorRequest, MqttListConnectorRequest, MqttUpdateConnectorRequest,
+    ListConnectorRequest, ListSubscribeRequest, ListSystemAlarmRequest,
     SetAutoSubscribeRuleRequest, SetClusterConfigRequest, SubscribeDetailRequest,
+    UpdateConnectorRequest,
 };
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ListSlowSubscribeRequest, SetSystemAlarmConfigRequest,
@@ -34,7 +35,8 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 
 // session
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of mqtt session, such as listing", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of mqtt session, such as listing", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct SessionArgs {
     #[command(subcommand)]
@@ -67,7 +69,8 @@ pub enum SubscribesActionType {
 
 // connection
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of mqtt connection, such as listing", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of mqtt connection, such as listing", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct ConnectionArgs {
     #[command(subcommand)]
@@ -82,7 +85,8 @@ pub enum ConnectionActionType {
 
 // cluster config
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of mqtt session, such as listing", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of mqtt session, such as listing", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct ClusterConfigArgs {
     #[command(subcommand)]
@@ -97,7 +101,8 @@ pub enum ClusterConfigActionType {
 
 // user
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of mqtt users, such as listing, creating, and deleting", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of mqtt users, such as listing, creating, and deleting", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct UserArgs {
     #[command(subcommand)]
@@ -146,7 +151,8 @@ pub(crate) struct DeleteUserArgs {
 
 // acl feat
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of access control list, such as listing, creating, and deleting", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of access control list, such as listing, creating, and deleting", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct AclArgs {
     #[command(subcommand)]
@@ -185,7 +191,8 @@ pub(crate) struct DeleteAclArgs {
 
 // blacklist feat
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of blacklist, such as listing, creating, and deleting", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of blacklist, such as listing, creating, and deleting", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct BlacklistArgs {
     #[command(subcommand)]
@@ -353,7 +360,8 @@ pub(crate) struct SlowSubArgs {
 
 // ---- system alarm ----
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of system alarm, such as setting and listing", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of system alarm, such as setting and listing", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct SystemAlarmArgs {
     #[command(subcommand)]
@@ -386,7 +394,8 @@ pub(crate) struct SetSystemAlarmArgs {
 
 // topic rewrite rule
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of topic rewrite, such as creating and deleting", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of topic rewrite, such as creating and deleting", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct TopicRewriteArgs {
     #[command(subcommand)]
@@ -426,7 +435,8 @@ pub(crate) struct DeleteTopicRewriteArgs {
 
 // connector feat
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of connector, such as listing, creating, updating and deleting", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of connector, such as listing, creating, updating and deleting", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct ConnectorArgs {
     #[command(subcommand)]
@@ -659,11 +669,11 @@ pub fn process_connection_args(args: ConnectionArgs) -> MqttActionType {
 
 pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
     match args.action {
-        ConnectorActionType::List(arg) => MqttActionType::ListConnector(MqttListConnectorRequest {
+        ConnectorActionType::List(arg) => MqttActionType::ListConnector(ListConnectorRequest {
             connector_name: arg.connector_name,
         }),
         ConnectorActionType::Create(arg) => {
-            MqttActionType::CreateConnector(MqttCreateConnectorRequest {
+            MqttActionType::CreateConnector(CreateConnectorRequest {
                 connector_name: arg.connector_name,
                 connector_type: arg.connector_type.parse().unwrap(),
                 config: arg.config,
@@ -671,12 +681,12 @@ pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
             })
         }
         ConnectorActionType::Delete(arg) => {
-            MqttActionType::DeleteConnector(MqttDeleteConnectorRequest {
+            MqttActionType::DeleteConnector(DeleteConnectorRequest {
                 connector_name: arg.connector_name,
             })
         }
         ConnectorActionType::Update(arg) => {
-            MqttActionType::UpdateConnector(MqttUpdateConnectorRequest {
+            MqttActionType::UpdateConnector(UpdateConnectorRequest {
                 connector: Vec::from(arg.connector),
             })
         }
@@ -703,7 +713,8 @@ pub fn process_topic_rewrite_args(args: TopicRewriteArgs) -> MqttActionType {
 }
 
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of mqtt auto subscribe, such as listing, setting, and deleting", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of mqtt auto subscribe, such as listing, setting, and deleting", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct AutoSubscribeRuleCommand {
     #[command(subcommand)]
@@ -768,7 +779,6 @@ pub fn process_auto_subscribe_args(args: AutoSubscribeRuleCommand) -> MqttAction
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
     #[tokio::test]
     async fn test_process_slow_sub_args_function_field_is_enable_not_none() {

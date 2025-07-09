@@ -145,7 +145,7 @@ mod tests {
 
                 let new_content = override_default_by_env(content, "MQTT_SERVER");
 
-                println!("update content:{}", new_content);
+                println!("update content:{new_content}");
 
                 let _: BrokerMqttConfig =
                     toml::from_str(&new_content).unwrap_or_else(|e| panic!("{}", e));

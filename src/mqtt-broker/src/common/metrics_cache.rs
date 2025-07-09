@@ -274,7 +274,7 @@ mod test {
             }
             let now = now_second();
             if now % 60 == 0 {
-                println!("{}", now);
+                println!("{now}");
                 times += 1;
             }
             sleep(Duration::from_secs(1)).await;

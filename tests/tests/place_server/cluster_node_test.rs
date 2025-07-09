@@ -66,7 +66,7 @@ mod tests {
                 assert!(flag);
             }
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
         let request = UnRegisterNodeRequest {
@@ -95,7 +95,7 @@ mod tests {
                 assert!(!flag);
             }
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
     }

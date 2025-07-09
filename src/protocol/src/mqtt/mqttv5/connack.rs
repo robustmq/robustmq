@@ -473,7 +473,7 @@ mod tests {
         // read the fixed header
         let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
         // test the display of fixheader
-        println!("fixheader: {}", fixedheader);
+        println!("fixheader: {fixedheader}");
         // read first byte and check its packet type which should be connect
         assert_eq!(fixedheader.byte1, 0b0010_0000);
         assert_eq!(fixedheader.fixed_header_len, 2);
@@ -491,7 +491,7 @@ mod tests {
         assert_eq!(connack_properties.max_qos, Some(1u8));
         assert_eq!(connack_properties.retain_available, Some(1u8));
 
-        println!("connack in v5 {}", connack_read);
-        println!("connack_properties in v5 {}", connack_properties);
+        println!("connack in v5 {connack_read}");
+        println!("connack_properties in v5 {connack_properties}");
     }
 }

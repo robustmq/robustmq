@@ -204,7 +204,7 @@ mod test {
 
         let topic_name = "test/$1".to_string();
         if let Err(err) = topic_name_validator(&topic_name) {
-            println!("{:?}", err);
+            println!("{err:?}");
         }
 
         let topic_name = "test/1".to_string();

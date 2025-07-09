@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod parse;
-mod tools;
-mod validate_req;
-use crate::parse::ParseItem;
 use proc_macro::TokenStream;
+
+#[cfg(feature = "validate-req")]
+mod parse;
+#[cfg(feature = "validate-req")]
+mod tools;
+#[cfg(feature = "validate-req")]
+mod validate_req;
 
 /// A procedural macro for automatic request validation in Tonic gRPC services.
 ///
@@ -98,6 +101,8 @@ use proc_macro::TokenStream;
 #[cfg(feature = "validate-req")]
 #[proc_macro_attribute]
 pub fn validate_req(attr: TokenStream, input: TokenStream) -> TokenStream {
+    use crate::parse::ParseItem;
+
     let origin = input.clone();
 
     let arg: validate_req::Arg = match syn::parse(attr) {

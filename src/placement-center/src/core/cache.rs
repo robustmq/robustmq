@@ -173,6 +173,6 @@ impl PlacementCacheManager {
     }
 
     fn node_key(&self, cluster_name: &str, node_id: u64) -> String {
-        format!("{}_{}", cluster_name, node_id)
+        format!("{cluster_name}_{node_id}")
     }
 }
