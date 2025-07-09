@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::server::connection::{NetworkConnection, NetworkConnectionType};
+use crate::server::common::connection::{NetworkConnection, NetworkConnectionType};
 use prometheus_client::encoding::EncodeLabelSet;
 use protocol::mqtt::{
     codec::{calc_mqtt_packet_size, MqttPacketWrapper},

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::server::connection::NetworkConnectionType;
+use crate::server::common::connection::NetworkConnectionType;
 use common_base::tools::now_mills;
 use prometheus_client::encoding::EncodeLabelSet;
 

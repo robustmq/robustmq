@@ -23,7 +23,7 @@ use crate::handler::sub_option::{
 use crate::observability::metrics::packets::{
     record_retain_recv_metrics, record_retain_sent_metrics,
 };
-use crate::server::connection_manager::ConnectionManager;
+use crate::server::common::connection_manager::ConnectionManager;
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::common::Subscriber;
 use crate::subscribe::common::{get_sub_topic_id_list, min_qos};

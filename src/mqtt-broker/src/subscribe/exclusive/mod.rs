@@ -18,7 +18,7 @@ use super::manager::SubscribeManager;
 use super::push::{build_publish_message, send_publish_packet_to_client};
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
-use crate::server::connection_manager::ConnectionManager;
+use crate::server::common::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
 use crate::subscribe::common::is_ignore_push_error;
 use crate::subscribe::manager::SubPushThreadData;

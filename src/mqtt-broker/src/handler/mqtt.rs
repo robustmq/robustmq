@@ -62,7 +62,7 @@ use crate::observability::system_topic::event::{
     st_report_unsubscribed_event,
 };
 use crate::security::AuthDriver;
-use crate::server::connection_manager::ConnectionManager;
+use crate::server::common::connection_manager::ConnectionManager;
 use crate::subscribe::common::min_qos;
 use crate::subscribe::manager::SubscribeManager;
 

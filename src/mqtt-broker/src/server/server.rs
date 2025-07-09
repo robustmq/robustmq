@@ -15,11 +15,8 @@
 use crate::{
     handler::{cache::CacheManager, command::Command, error::MqttBrokerError},
     security::AuthDriver,
-    server::{
-        connection::NetworkConnectionType,
-        connection_manager::ConnectionManager,
-        tcp::v1::server::{ProcessorConfig, TcpServer},
-    },
+    server::common::{connection::NetworkConnectionType, connection_manager::ConnectionManager},
+    server::tcp::v1::server::{ProcessorConfig, TcpServer},
     subscribe::manager::SubscribeManager,
 };
 use common_config::mqtt::broker_mqtt_conf;

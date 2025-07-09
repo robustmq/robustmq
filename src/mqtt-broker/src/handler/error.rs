@@ -15,6 +15,7 @@
 use std::{num::ParseIntError, string::FromUtf8Error};
 
 use common_base::error::common::CommonError;
+use quinn::{ReadToEndError, StoppedError, WriteError};
 use rdkafka::error::KafkaError;
 use thiserror::Error;
 use tonic::Status;
@@ -59,6 +60,18 @@ pub enum MqttBrokerError {
 
     #[error("{0}")]
     GrepError(#[from] grep::regex::Error),
+
+    #[error("{0}")]
+    QuinnWriteError(#[from] WriteError),
+
+    #[error("{0}")]
+    QuinnClosedStreamError(#[from] quinn::ClosedStream),
+
+    #[error("{0}")]
+    QuinnStoppedError(#[from] StoppedError),
+
+    #[error("{0}")]
+    QuinnReadToEndError(#[from] ReadToEndError),
 
     #[error("{0}")]
     FromProtocolMQTTCommonError(#[from] protocol::mqtt::common::Error),

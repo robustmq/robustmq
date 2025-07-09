@@ -33,8 +33,8 @@ use super::cache::{CacheManager, ConnectionLiveTime};
 use super::connection::disconnect_connection;
 use super::response::response_packet_mqtt_distinct_by_reason;
 use crate::handler::error::MqttBrokerError;
-use crate::server::connection::NetworkConnection;
-use crate::server::connection_manager::ConnectionManager;
+use crate::server::common::connection::NetworkConnection;
+use crate::server::common::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
 
 pub struct ClientKeepAlive {
@@ -241,7 +241,7 @@ mod test {
     use super::keep_live_time;
     use crate::handler::cache::CacheManager;
     use crate::handler::keep_alive::{client_keep_live_time, ClientKeepAlive};
-    use crate::server::connection_manager::ConnectionManager;
+    use crate::server::common::connection_manager::ConnectionManager;
     use crate::subscribe::manager::SubscribeManager;
 
     #[tokio::test]

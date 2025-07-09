@@ -21,8 +21,8 @@ use crate::handler::command::Command;
 use crate::handler::error::MqttBrokerError;
 use crate::observability::metrics::server::record_ws_request_duration;
 use crate::security::AuthDriver;
-use crate::server::connection::NetworkConnection;
-use crate::server::connection_manager::ConnectionManager;
+use crate::server::common::connection::NetworkConnection;
+use crate::server::common::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{ConnectInfo, State, WebSocketUpgrade};
@@ -210,7 +210,7 @@ async fn handle_socket<S>(
 {
     let (sender, mut receiver) = socket.split();
     let mut tcp_connection = NetworkConnection::new(
-        crate::server::connection::NetworkConnectionType::WebSocket,
+        crate::server::common::connection::NetworkConnectionType::WebSocket,
         addr,
         None,
     );

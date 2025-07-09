@@ -30,7 +30,7 @@ use super::{
     SYSTEM_TOPIC_BROKERS_SUBSCRIBED, SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED,
 };
 use crate::handler::cache::CacheManager;
-use crate::server::connection_manager::ConnectionManager;
+use crate::server::common::connection_manager::ConnectionManager;
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct SystemTopicConnectedEventMessage {

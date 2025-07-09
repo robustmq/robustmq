@@ -16,12 +16,12 @@ use crate::handler::cache::CacheManager;
 use crate::handler::command::Command;
 use crate::handler::error::MqttBrokerError;
 use crate::security::AuthDriver;
-use crate::server::connection::NetworkConnectionType;
-use crate::server::connection_manager::ConnectionManager;
-use crate::server::packet::{RequestPackage, ResponsePackage};
-use crate::server::quic::handler::handler_process;
-use crate::server::quic::quic_server_handler::acceptor_process;
-use crate::server::quic::response::response_process;
+use crate::server::common::channel::RequestChannel;
+use crate::server::common::connection::NetworkConnectionType;
+use crate::server::common::connection_manager::ConnectionManager;
+use crate::server::common::handler::handler_process;
+use crate::server::common::response::response_process;
+use crate::server::quic::acceptor::acceptor_process;
 use crate::subscribe::manager::SubscribeManager;
 
 use common_config::mqtt::broker_mqtt_conf;
@@ -34,7 +34,7 @@ use schema_register::schema::SchemaRegisterManager;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::broadcast;
 use tracing::info;
 
 pub fn generate_self_signed_cert() -> (Vec<CertificateDer<'static>>, PrivateKeyDer<'static>) {
@@ -76,46 +76,42 @@ pub async fn start_quic_server<S>(
     server.start();
 
     let quic_endpoint = server.get_endpoint();
-
-    let (request_queue_sx, request_queue_rx) = mpsc::channel::<RequestPackage>(1000);
-    let (response_queue_sx, response_queue_rx) = mpsc::channel::<ResponsePackage>(1000);
-
     let arc_quic_endpoint = Arc::new(quic_endpoint);
-
-    let accept_thread_num = conf.network_thread.accept_thread_num;
-    let handler_process_num = conf.network_thread.handler_thread_num;
-    let response_thread_num = conf.network_thread.response_thread_num;
-
-    let connection_type = NetworkConnectionType::Quic;
+    let network_type = NetworkConnectionType::QUIC;
+    let request_channel = Arc::new(RequestChannel::new(conf.network_thread.queue_size));
+    let request_recv_channel = request_channel.create_request_channel(&network_type);
+    let response_recv_channel = request_channel.create_response_channel(&network_type);
 
     acceptor_process(
-        accept_thread_num,
+        conf.network_thread.accept_thread_num,
         connection_manager.clone(),
-        stop_sx.clone(),
         arc_quic_endpoint.clone(),
-        request_queue_sx,
-        cache_manager.clone(),
-        connection_type,
+        request_channel.clone(),
+        network_type.clone(),
+        stop_sx.clone(),
     )
     .await;
 
     handler_process(
-        handler_process_num,
-        request_queue_rx,
+        conf.network_thread.handler_thread_num,
+        request_recv_channel,
         connection_manager.clone(),
-        response_queue_sx,
-        stop_sx.clone(),
         command.clone(),
+        request_channel.clone(),
+        NetworkConnectionType::QUIC,
+        stop_sx.clone(),
     )
     .await;
 
     response_process(
-        response_thread_num,
+        conf.network_thread.response_thread_num,
         connection_manager.clone(),
         cache_manager.clone(),
         subscribe_manager.clone(),
-        response_queue_rx,
+        response_recv_channel,
         client_pool.clone(),
+        request_channel.clone(),
+        NetworkConnectionType::QUIC,
         stop_sx.clone(),
     )
     .await;

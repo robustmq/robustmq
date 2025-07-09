@@ -20,7 +20,6 @@ use bridge::core::start_connector_thread;
 use bridge::manager::ConnectorManager;
 use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
-use common_base::tools::now_second;
 use common_config::mqtt::broker_mqtt_conf;
 use delay_message::{start_delay_message_manager, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
@@ -31,12 +30,11 @@ use handler::heartbreat::{register_node, report_heartbeat};
 use handler::keep_alive::ClientKeepAlive;
 use handler::sub_parse_topic::start_parse_subscribe_by_new_topic_thread;
 use handler::user::{init_system_user, UpdateUserCache};
-use lazy_static::lazy_static;
-use observability::start_opservability;
+use observability::start_observability;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
 use schema_register::schema::SchemaRegisterManager;
 use security::AuthDriver;
-use server::connection_manager::ConnectionManager;
+use server::common::connection_manager::ConnectionManager;
 use server::grpc::server::GrpcServer;
 use server::websocket::server::{websocket_server, websockets_server, WebSocketServerState};
 use std::str::FromStr;
@@ -59,10 +57,6 @@ use tokio::runtime::Runtime;
 use tokio::signal;
 use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
-
-lazy_static! {
-    pub static ref BROKER_START_TIME: u64 = now_second();
-}
 
 pub mod admin;
 pub mod bridge;
@@ -464,7 +458,7 @@ where
         let message_storage_adapter = self.message_storage_adapter.clone();
         let client_pool = self.client_pool.clone();
         self.daemon_runtime.spawn(async move {
-            start_opservability(
+            start_observability(
                 cache_manager,
                 message_storage_adapter,
                 client_pool,

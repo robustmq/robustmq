@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env;
 use std::sync::Arc;
 
 use common_base::tools::now_second;
+use common_base::version::version;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
@@ -29,7 +29,6 @@ use super::{
 };
 use crate::handler::cache::CacheManager;
 use crate::storage::cluster::ClusterStorage;
-use crate::BROKER_START_TIME;
 
 pub(crate) async fn report_cluster_status<S>(
     client_pool: &Arc<ClientPool>,
@@ -63,7 +62,7 @@ pub(crate) async fn report_broker_version<S>(
         metadata_cache,
         message_storage_adapter,
         SYSTEM_TOPIC_BROKERS_VERSION,
-        || async { env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "-".to_string()) },
+        || async { version() },
     )
     .await;
 }
@@ -82,7 +81,7 @@ pub(crate) async fn report_broker_time<S>(
         message_storage_adapter,
         SYSTEM_TOPIC_BROKERS_UPTIME,
         || async {
-            let start_long_time: u64 = now_second() - *BROKER_START_TIME;
+            let start_long_time: u64 = now_second() - metadata_cache.get_start_time();
             start_long_time.to_string()
         },
     )

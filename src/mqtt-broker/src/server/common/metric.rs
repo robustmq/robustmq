@@ -17,7 +17,7 @@ use crate::{
         metrics_request_handler_ms, metrics_request_queue_ms, metrics_request_response_ms,
         metrics_request_response_queue_ms, metrics_request_total_ms,
     },
-    server::{
+    server::common::{
         connection::NetworkConnectionType,
         packet::{RequestPackage, ResponsePackage},
     },
@@ -87,5 +87,5 @@ pub fn record_packet_handler_info_by_response(
 }
 
 fn is_record_ms_log(total: u128) -> bool {
-    total >= 20
+    total >= 10
 }

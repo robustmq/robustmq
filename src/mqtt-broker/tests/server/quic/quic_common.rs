@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use mqtt_broker::server::quic::client::QuicClient;
 use mqtt_broker::server::quic::server::QuicServer;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
+use crate::server::quic::client::QuicClient;
 
 fn create_client() -> QuicClient {
     let client_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);

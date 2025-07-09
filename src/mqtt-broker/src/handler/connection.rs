@@ -26,7 +26,7 @@ use super::error::MqttBrokerError;
 use super::keep_alive::client_keep_live_time;
 use crate::handler::flow_control::is_connection_rate_exceeded;
 use crate::handler::response::response_packet_mqtt_distinct_by_reason;
-use crate::server::connection_manager::ConnectionManager;
+use crate::server::common::connection_manager::ConnectionManager;
 use crate::storage::session::SessionStorage;
 use crate::subscribe::manager::SubscribeManager;
 use futures_util::SinkExt;

@@ -15,19 +15,16 @@
 #[cfg(test)]
 mod tests {
     use bytes::BytesMut;
-    use mqtt_broker::server::quic::client::QuicClient;
     use mqtt_broker::server::quic::server::QuicServer;
     use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
     use robustmq_test::mqtt_build_tool::build_connack::build_mqtt5_pg_connect_ack_wrapper;
     use robustmq_test::mqtt_build_tool::build_connect::build_mqtt5_pg_connect_wrapper;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-    use crate::server::quic::quic_common::set_up;
+    use crate::server::quic::{client::QuicClient, quic_common::set_up};
     use googletest::assert_that;
     use googletest::matchers::eq;
-    use mqtt_broker::server::quic::quic_stream_wrapper::{
-        QuicFramedReadStream, QuicFramedWriteStream,
-    };
+    use mqtt_broker::server::quic::stream::{QuicFramedReadStream, QuicFramedWriteStream};
     use protocol::mqtt::common::MqttPacket;
     use std::sync::Arc;
     use tokio_util::codec::{Decoder, Encoder};
@@ -121,7 +118,7 @@ mod tests {
                 QuicFramedReadStream::new(server_recv_stream, MqttCodec::new(Some(5)));
             match quic_framed_read_stream.receive().await {
                 Ok(packet) => {
-                    assert_eq!(packet, verify_mqtt_packet)
+                    assert_eq!(packet.unwrap(), verify_mqtt_packet)
                 }
                 Err(_) => {
                     unreachable!()
@@ -160,7 +157,7 @@ mod tests {
         match quic_framed_read_stream.receive().await {
             Ok(packet) => {
                 // verify receive packet
-                assert_eq!(packet, verify_mqtt_packet)
+                assert_eq!(packet.unwrap(), verify_mqtt_packet)
             }
             Err(_) => {
                 unreachable!()

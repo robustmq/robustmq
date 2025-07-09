@@ -27,7 +27,7 @@ use super::inner::GrpcInnerServices;
 use crate::bridge::manager::ConnectorManager;
 use crate::common::metrics_cache::MetricsCacheManager;
 use crate::handler::cache::CacheManager;
-use crate::server::connection_manager::ConnectionManager;
+use crate::server::common::connection_manager::ConnectionManager;
 use crate::server::grpc::admin::GrpcAdminServices;
 use crate::subscribe::manager::SubscribeManager;
 
