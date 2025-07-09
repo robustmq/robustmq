@@ -118,7 +118,7 @@ mod tests {
                 QuicFramedReadStream::new(server_recv_stream, MqttCodec::new(Some(5)));
             match quic_framed_read_stream.receive().await {
                 Ok(packet) => {
-                    assert_eq!(packet, verify_mqtt_packet)
+                    assert_eq!(packet.unwrap(), verify_mqtt_packet)
                 }
                 Err(_) => {
                     unreachable!()
@@ -157,7 +157,7 @@ mod tests {
         match quic_framed_read_stream.receive().await {
             Ok(packet) => {
                 // verify receive packet
-                assert_eq!(packet, verify_mqtt_packet)
+                assert_eq!(packet.unwrap(), verify_mqtt_packet)
             }
             Err(_) => {
                 unreachable!()

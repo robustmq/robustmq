@@ -118,7 +118,9 @@ fn read_frame_process(
                 package = read_frame_stream.receive() => {
                     match package {
                         Ok(pack) => {
-                            read_packet(pack, &request_channel, &connection, &network_type).await;
+                            if let Some(pk) = pack{
+                                read_packet(pk, &request_channel, &connection, &network_type).await;
+                            }
                         }
                         Err(e) => {
                             record_received_error_metrics(network_type.clone());

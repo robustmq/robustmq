@@ -76,21 +76,14 @@ pub async fn start_quic_server<S>(
     server.start();
 
     let quic_endpoint = server.get_endpoint();
-
     let arc_quic_endpoint = Arc::new(quic_endpoint);
-
-    let accept_thread_num = conf.network_thread.accept_thread_num;
-    let handler_process_num = conf.network_thread.handler_thread_num;
-    let response_thread_num = conf.network_thread.response_thread_num;
-
     let network_type = NetworkConnectionType::QUIC;
-
-    let request_channel = Arc::new(RequestChannel::new(1000));
+    let request_channel = Arc::new(RequestChannel::new(conf.network_thread.queue_size));
     let request_recv_channel = request_channel.create_request_channel(&network_type);
     let response_recv_channel = request_channel.create_response_channel(&network_type);
 
     acceptor_process(
-        accept_thread_num,
+        conf.network_thread.accept_thread_num,
         connection_manager.clone(),
         arc_quic_endpoint.clone(),
         request_channel.clone(),
@@ -100,7 +93,7 @@ pub async fn start_quic_server<S>(
     .await;
 
     handler_process(
-        handler_process_num,
+        conf.network_thread.handler_thread_num,
         request_recv_channel,
         connection_manager.clone(),
         command.clone(),
@@ -111,7 +104,7 @@ pub async fn start_quic_server<S>(
     .await;
 
     response_process(
-        response_thread_num,
+        conf.network_thread.response_thread_num,
         connection_manager.clone(),
         cache_manager.clone(),
         subscribe_manager.clone(),

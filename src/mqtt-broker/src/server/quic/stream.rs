@@ -14,7 +14,6 @@
 
 use crate::handler::error::MqttBrokerError;
 use bytes::BytesMut;
-use common_base::error::common::CommonError::CommonError;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::MqttPacket;
 use quinn::{RecvStream, SendStream};
@@ -35,35 +34,12 @@ impl QuicFramedWriteStream {
 
     pub async fn send(&mut self, packet: MqttPacketWrapper) -> Result<(), MqttBrokerError> {
         let mut bytes_mut = BytesMut::new();
+        self.codec.encode(packet, &mut bytes_mut)?;
 
-        if let Err(e) = self.codec.encode(packet, &mut bytes_mut) {
-            return Err(MqttBrokerError::from(CommonError(format!(
-                "encode packet failed: {e}"
-            ))));
-        }
-
-        if bytes_mut.is_empty() {
-            return Err(MqttBrokerError::from(CommonError(
-                "encode packet failed: the packet is empty".to_string(),
-            )));
-        }
-
-        if let Err(e) = self.write_stream.write_all(bytes_mut.as_mut()).await {
-            return Err(MqttBrokerError::from(CommonError(format!(
-                "write packet failed: {e}"
-            ))));
-        }
-
-        if let Err(e) = self.write_stream.finish() {
-            return Err(MqttBrokerError::from(CommonError(format!(
-                "write packet failed: {e}"
-            ))));
-        }
-
-        if let Err(e) = self.write_stream.stopped().await {
-            return Err(MqttBrokerError::from(CommonError(format!(
-                "write packet failed: {e}"
-            ))));
+        if !bytes_mut.is_empty() {
+            self.write_stream.write_all(bytes_mut.as_mut()).await?;
+            self.write_stream.finish()?;
+            self.write_stream.stopped().await?;
         }
 
         Ok(())
@@ -79,33 +55,15 @@ impl QuicFramedReadStream {
     pub fn new(read_stream: RecvStream, codec: MqttCodec) -> Self {
         Self { read_stream, codec }
     }
-    pub async fn receive(&mut self) -> Result<MqttPacket, MqttBrokerError> {
+    pub async fn receive(&mut self) -> Result<Option<MqttPacket>, MqttBrokerError> {
         let mut decode_bytes = BytesMut::with_capacity(0);
-        match self.read_stream.read_to_end(1024).await {
-            Ok(vec) => {
-                decode_bytes.extend(vec);
-            }
-            Err(e) => {
-                return Err(MqttBrokerError::from(CommonError(format!(
-                    "read packet failed: {e}"
-                ))));
-            }
+        let vec = self.read_stream.read_to_end(1024).await?;
+        decode_bytes.extend(vec);
+
+        if !decode_bytes.is_empty() {
+            return Ok(self.codec.decode(&mut decode_bytes)?);
         }
 
-        if decode_bytes.is_empty() {
-            return Err(MqttBrokerError::from(CommonError(
-                "decode packet failed: the packet is empty".to_string(),
-            )));
-        }
-
-        match self.codec.decode(&mut decode_bytes) {
-            Ok(Some(packet)) => Ok(packet),
-            Ok(None) => Err(MqttBrokerError::from(CommonError(
-                "decode packet failed: the packet is empty".to_string(),
-            ))),
-            Err(e) => Err(MqttBrokerError::from(CommonError(format!(
-                "decode packet failed: {e}"
-            )))),
-        }
+        Ok(None)
     }
 }
