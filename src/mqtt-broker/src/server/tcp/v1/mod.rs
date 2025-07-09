@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod channel;
-pub mod common;
-pub mod handler;
-pub mod response;
 pub mod server;
 mod tcp_acceptor;
 mod tls_acceptor;

@@ -19,10 +19,10 @@ use crate::{
     common::tool::is_ignore_print,
     observability::metrics::packets::record_received_metrics,
     server::common::{
+        channel::RequestChannel,
         connection::{NetworkConnection, NetworkConnectionType},
         packet::RequestPackage,
     },
-    server::tcp::v1::channel::RequestChannel,
 };
 
 pub async fn read_packet(

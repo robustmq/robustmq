@@ -14,10 +14,10 @@
 
 use crate::handler::connection::tcp_establish_connection_check;
 use crate::observability::metrics::packets::record_received_error_metrics;
+use crate::server::common::channel::RequestChannel;
 use crate::server::common::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::common::connection_manager::ConnectionManager;
-use crate::server::tcp::v1::channel::RequestChannel;
-use crate::server::tcp::v1::common::read_packet;
+use crate::server::common::tool::read_packet;
 use futures_util::StreamExt;
 use protocol::mqtt::codec::MqttCodec;
 use std::sync::Arc;

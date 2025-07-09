@@ -17,11 +17,11 @@ use crate::handler::connection::disconnect_connection;
 use crate::observability::metrics::server::{
     metrics_response_queue_size, record_response_and_total_ms,
 };
+use crate::server::common::channel::RequestChannel;
 use crate::server::common::connection::NetworkConnectionType;
 use crate::server::common::connection_manager::ConnectionManager;
 use crate::server::common::metric::record_packet_handler_info_by_response;
 use crate::server::common::packet::ResponsePackage;
-use crate::server::tcp::v1::channel::RequestChannel;
 use crate::subscribe::manager::SubscribeManager;
 use common_base::tools::now_mills;
 use grpc_clients::pool::ClientPool;
