@@ -19,9 +19,10 @@ use crate::security::AuthDriver;
 use crate::server::connection::NetworkConnectionType;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::{RequestPackage, ResponsePackage};
-use crate::server::quic::handler::handler_process;
 use crate::server::quic::quic_server_handler::acceptor_process;
-use crate::server::quic::response::response_process;
+use crate::server::tcp::v1::channel::RequestChannel;
+use crate::server::tcp::v1::handler::handler_process;
+use crate::server::tcp::v1::response::response_process;
 use crate::subscribe::manager::SubscribeManager;
 
 use common_config::mqtt::broker_mqtt_conf;
@@ -86,7 +87,11 @@ pub async fn start_quic_server<S>(
     let handler_process_num = conf.network_thread.handler_thread_num;
     let response_thread_num = conf.network_thread.response_thread_num;
 
-    let connection_type = NetworkConnectionType::Quic;
+    let network_type = NetworkConnectionType::QUIC;
+
+    let request_channel = Arc::new(RequestChannel::new(1000));
+    let request_recv_channel = request_channel.create_request_channel(&network_type);
+    let response_recv_channel = request_channel.create_response_channel(&network_type);
 
     acceptor_process(
         accept_thread_num,
@@ -95,7 +100,7 @@ pub async fn start_quic_server<S>(
         arc_quic_endpoint.clone(),
         request_queue_sx,
         cache_manager.clone(),
-        connection_type,
+        network_type,
     )
     .await;
 
@@ -103,9 +108,10 @@ pub async fn start_quic_server<S>(
         handler_process_num,
         request_queue_rx,
         connection_manager.clone(),
-        response_queue_sx,
-        stop_sx.clone(),
         command.clone(),
+        request_channel.clone(),
+        NetworkConnectionType::QUIC,
+        stop_sx.clone(),
     )
     .await;
 

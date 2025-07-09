@@ -75,7 +75,7 @@ pub(crate) async fn acceptor_process(
 
                                                 let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
                                                 let connection = NetworkConnection::new(
-                                                    NetworkConnectionType::Quic,
+                                                    NetworkConnectionType::QUIC,
                                                     client_addr,
                                                     Some(connection_stop_sx.clone())
                                                 );
