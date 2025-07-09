@@ -17,7 +17,7 @@ use crate::{
         metrics_request_handler_ms, metrics_request_queue_ms, metrics_request_response_ms,
         metrics_request_response_queue_ms, metrics_request_total_ms,
     },
-    server::{
+    server::common::{
         connection::NetworkConnectionType,
         packet::{RequestPackage, ResponsePackage},
     },

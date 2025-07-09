@@ -22,8 +22,8 @@ use crate::handler::response::{
     response_packet_mqtt_connect_fail, response_packet_mqtt_distinct_by_reason,
 };
 use crate::security::AuthDriver;
-use crate::server::connection::NetworkConnection;
-use crate::server::connection_manager::ConnectionManager;
+use crate::server::common::connection::NetworkConnection;
+use crate::server::common::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;

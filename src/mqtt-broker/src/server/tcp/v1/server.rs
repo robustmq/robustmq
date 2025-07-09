@@ -27,13 +27,13 @@ use crate::handler::cache::CacheManager;
 use crate::handler::command::Command;
 use crate::handler::error::MqttBrokerError;
 use crate::observability::metrics::server::record_broker_thread_num;
-use crate::server::connection::NetworkConnectionType;
-use crate::server::connection_manager::ConnectionManager;
+use crate::server::common::connection::NetworkConnectionType;
+use crate::server::common::connection_manager::ConnectionManager;
 use crate::server::tcp::v1::channel::RequestChannel;
 use crate::server::tcp::v1::handler::handler_process;
 use crate::server::tcp::v1::response::response_process;
-use crate::server::tcp::v1::tcp_server::acceptor_process;
-use crate::server::tcp::v1::tls_server::acceptor_tls_process;
+use crate::server::tcp::v1::tcp_acceptor::acceptor_process;
+use crate::server::tcp::v1::tls_acceptor::acceptor_tls_process;
 use crate::subscribe::manager::SubscribeManager;
 
 #[derive(Debug, Clone, Copy)]

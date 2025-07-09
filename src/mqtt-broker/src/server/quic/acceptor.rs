@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::observability::metrics::packets::record_received_error_metrics;
-use crate::server::connection::{NetworkConnection, NetworkConnectionType};
-use crate::server::connection_manager::ConnectionManager;
+use crate::server::common::connection::{NetworkConnection, NetworkConnectionType};
+use crate::server::common::connection_manager::ConnectionManager;
 use crate::server::quic::stream::{QuicFramedReadStream, QuicFramedWriteStream};
 use crate::server::tcp::v1::channel::RequestChannel;
 use crate::server::tcp::v1::common::read_packet;
@@ -41,55 +41,54 @@ pub(crate) async fn acceptor_process(
         let raw_request_channel = request_channel.clone();
         let network_type = network_type.clone();
         tokio::spawn(async move {
-            debug!("Quic Server acceptor thread {} start successfully.", index);
+            debug!(
+                "{} Server acceptor thread {} start successfully.",
+                network_type, index
+            );
             loop {
                 select! {
                     val = stop_rx.recv() =>{
                         if let Ok(flag) = val {
                             if flag {
-                                debug!("Quic Server acceptor thread {} stopped successfully.",index);
+                                debug!("{} Server acceptor thread {} stopped successfully.", network_type, index);
                                 break;
                             }
                         }
                     }
                     val = endpoint.accept()=> {
-                        match val {
-                            Some(incoming) => {
-                                match incoming.await {
+                        if let Some(incoming) = val{
+                            match incoming.await {
                                 Ok(connection) => {
-                                        info!("accept quic connection:{:?}",connection.remote_address());
-                                        let client_addr = connection.remote_address();
-                                        match connection.accept_bi().await {
-                                            Ok((w_stream, r_stream)) => {
-                                                    let codec = MqttCodec::new(None);
-                                                    let quic_framed_write_stream = QuicFramedWriteStream::new(w_stream, codec.clone());
-                                                    let quic_framed_read_stream = QuicFramedReadStream::new(r_stream, codec.clone());
-                                                    // todo we need to add quic_establish_connection_check
+                                    info!("Accept {} connection:{:?}", network_type, connection.remote_address());
+                                    let client_addr = connection.remote_address();
+                                    match connection.accept_bi().await {
+                                        Ok((w_stream, r_stream)) => {
+                                            let codec = MqttCodec::new(None);
+                                            let codec_write = QuicFramedWriteStream::new(w_stream, codec.clone());
+                                            let codec_read = QuicFramedReadStream::new(r_stream, codec.clone());
+                                            // todo we need to add quic_establish_connection_check
 
-                                                let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
-                                                let connection = NetworkConnection::new(
-                                                    NetworkConnectionType::QUIC,
-                                                    client_addr,
-                                                    Some(connection_stop_sx.clone())
-                                                );
-                                                connection_manager.add_connection(connection.clone());
-                                                connection_manager.add_quic_write(connection.connection_id, quic_framed_write_stream);
-                                                read_frame_process(quic_framed_read_stream,  raw_request_channel.clone(),connection.clone(),network_type.clone(), connection_stop_rx)
-                                            },
-                                            Err(e) => {
-                                                error!("Quic accept failed to create connection with error message :{:?}",e);
-                                            }
+                                            let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
+                                            let connection = NetworkConnection::new(
+                                                NetworkConnectionType::QUIC,
+                                                client_addr,
+                                                Some(connection_stop_sx.clone())
+                                            );
+
+                                            connection_manager.add_connection(connection.clone());
+                                            connection_manager.add_quic_write(connection.connection_id, codec_write);
+
+                                            read_frame_process(codec_read,  raw_request_channel.clone(),connection.clone(),network_type.clone(), connection_stop_rx)
+                                        },
+                                        Err(e) => {
+                                            error!("{} accept failed to create connection with error message :{:?}", network_type, e);
                                         }
+                                    }
                                 },
                                 Err(e) => {
-                                        error!("Quic accept failed to create connection with error message :{:?}",e);
-                                    }
+                                    error!("{} accept failed to wait connection with error message :{:?}", network_type, e);
                                 }
-                            },
-                            None => {
-                                error!("Quic Server acceptor thread {} stopped unexpectedly.",index);
                             }
-
                         }
                     }
                 };

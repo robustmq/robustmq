@@ -14,7 +14,7 @@
 
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
-use crate::server::connection_manager::ConnectionManager;
+use crate::server::common::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
 use crate::subscribe::common::is_ignore_push_error;
 use crate::subscribe::common::loop_commit_offset;

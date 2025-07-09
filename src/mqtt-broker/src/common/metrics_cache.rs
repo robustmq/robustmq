@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    handler::cache::CacheManager, server::connection_manager::ConnectionManager,
+    handler::cache::CacheManager, server::common::connection_manager::ConnectionManager,
     subscribe::manager::SubscribeManager,
 };
 use common_base::tools::now_second;
@@ -261,7 +261,7 @@ mod test {
     use crate::{
         common::metrics_cache::{metrics_gc_thread, metrics_record_thread, MetricsCacheManager},
         handler::cache::CacheManager,
-        server::connection_manager::ConnectionManager,
+        server::common::connection_manager::ConnectionManager,
         subscribe::manager::SubscribeManager,
     };
 

@@ -34,7 +34,7 @@ use observability::start_observability;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
 use schema_register::schema::SchemaRegisterManager;
 use security::AuthDriver;
-use server::connection_manager::ConnectionManager;
+use server::common::connection_manager::ConnectionManager;
 use server::grpc::server::GrpcServer;
 use server::websocket::server::{websocket_server, websockets_server, WebSocketServerState};
 use std::str::FromStr;

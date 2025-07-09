@@ -18,11 +18,11 @@ use tracing::info;
 use crate::{
     common::tool::is_ignore_print,
     observability::metrics::packets::record_received_metrics,
-    server::{
+    server::common::{
         connection::{NetworkConnection, NetworkConnectionType},
         packet::RequestPackage,
-        tcp::v1::channel::RequestChannel,
     },
+    server::tcp::v1::channel::RequestChannel,
 };
 
 pub async fn read_packet(
