@@ -580,7 +580,7 @@ mod tests {
         };
         cluster_cache.add_broker_node(node);
         let res = calc_node_fold(&cluster_cache, &config.cluster_name, 1).unwrap();
-        println!("{}", res);
+        println!("{res}");
         assert!(!res.is_empty())
     }
 

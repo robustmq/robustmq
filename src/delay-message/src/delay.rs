@@ -139,7 +139,7 @@ where
 }
 
 pub(crate) fn get_delay_message_shard_name(no: u64) -> String {
-    format!("{}{}", DELAY_MESSAGE_SHARD_NAME_PREFIX, no)
+    format!("{DELAY_MESSAGE_SHARD_NAME_PREFIX}{no}")
 }
 
 #[cfg(test)]

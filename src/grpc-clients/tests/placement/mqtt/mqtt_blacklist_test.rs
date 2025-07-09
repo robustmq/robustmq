@@ -47,7 +47,7 @@ mod tests {
         match create_blacklist(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -71,7 +71,7 @@ mod tests {
                 assert!(flag);
             }
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -83,7 +83,7 @@ mod tests {
         match delete_blacklist(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
 
@@ -107,7 +107,7 @@ mod tests {
                 assert!(!flag);
             }
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         }
     }

@@ -130,7 +130,7 @@ pub(crate) fn response_child_process(
                     val = response_process_rx.recv()=>{
                         if let Some(response_package) = val{
                             let out_response_queue_ms = now_mills();
-                            let label = format!("handler-{}",index);
+                            let label = format!("handler-{index}");
                             metrics_response_queue_size(&label, response_process_rx.len());
                             let mut response_ms = now_mills();
                             if let Some(protocol) =raw_connect_manager.get_connect_protocol(response_package.connection_id)

@@ -229,7 +229,7 @@ mod tests {
         );
 
         // test display of puback and puback_properties in v5
-        println!("pubcomp is {}", pubcomp);
-        println!("pubcomp_properties is {}", pubcomp_properties);
+        println!("pubcomp is {pubcomp}");
+        println!("pubcomp_properties is {pubcomp_properties}");
     }
 }

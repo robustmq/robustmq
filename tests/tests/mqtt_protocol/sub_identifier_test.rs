@@ -30,14 +30,13 @@ mod tests {
     async fn sub_identifier_test() {
         for network in network_types() {
             for qos in qos_list() {
-                let client_id = build_client_id(
-                    format!("sub_identifier_test_pub_{}_{}", network, qos).as_str(),
-                );
+                let client_id =
+                    build_client_id(format!("sub_identifier_test_pub_{network}_{qos}").as_str());
 
                 let topic = unique_id();
-                let topic1 = format!("/test_tcp/{}/+", topic);
-                let topic2 = format!("/test_tcp/{}/test", topic);
-                let topic3 = format!("/test_tcp/{}/test_one", topic);
+                let topic1 = format!("/test_tcp/{topic}/+");
+                let topic2 = format!("/test_tcp/{topic}/test");
+                let topic3 = format!("/test_tcp/{topic}/test_one");
 
                 // publish
                 let client_properties = ClientTestProperties {
@@ -60,9 +59,8 @@ mod tests {
                 distinct_conn(cli);
 
                 // subscribe
-                let client_id = build_client_id(
-                    format!("sub_identifier_test_sub_{}_{}", network, qos).as_str(),
-                );
+                let client_id =
+                    build_client_id(format!("sub_identifier_test_sub_{network}_{qos}").as_str());
 
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,
@@ -109,7 +107,7 @@ mod tests {
                 loop {
                     let res_opt = rx.recv_timeout(Duration::from_secs(10));
                     let message = res_opt.unwrap();
-                    println!("message: {:?}", message);
+                    println!("message: {message:?}");
                     if let Some(msg) = message {
                         let sub_identifier = if let Some(id) = msg
                             .properties()
@@ -120,7 +118,7 @@ mod tests {
                             continue;
                         };
 
-                        println!("sub_identifier: {}", sub_identifier);
+                        println!("sub_identifier: {sub_identifier}");
 
                         match sub_identifier {
                             1 => {
@@ -134,7 +132,7 @@ mod tests {
                             }
                         }
                     }
-                    println!("r_one: {}, r_two: {}", r_one, r_two);
+                    println!("r_one: {r_one}, r_two: {r_two}");
                     if r_one && r_two {
                         break;
                     }
@@ -151,7 +149,7 @@ mod tests {
                 loop {
                     let res_opt = rx.recv_timeout(Duration::from_secs(10));
                     if res_opt.is_err() {
-                        println!("{:?}", res_opt);
+                        println!("{res_opt:?}");
                         continue;
                     }
                     let message = res_opt.unwrap();

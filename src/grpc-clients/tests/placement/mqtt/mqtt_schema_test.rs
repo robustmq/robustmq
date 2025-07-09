@@ -72,7 +72,7 @@ mod test {
         match create_schema(&client_pool, &addrs, create_request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("create schema failed: {}", e);
+                panic!("create schema failed: {e}");
             }
         }
 
@@ -91,7 +91,7 @@ mod test {
             }
 
             Err(e) => {
-                panic!("list schema failed: {}", e);
+                panic!("list schema failed: {e}");
             }
         }
 
@@ -117,7 +117,7 @@ mod test {
         match update_schema(&client_pool, &addrs, update_request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("update schema failed: {}", e);
+                panic!("update schema failed: {e}");
             }
         }
 
@@ -132,7 +132,7 @@ mod test {
             }
 
             Err(e) => {
-                panic!("list schema failed: {}", e);
+                panic!("list schema failed: {e}");
             }
         }
 
@@ -145,7 +145,7 @@ mod test {
         match delete_schema(&client_pool, &addrs, delete_request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("delete schema failed: {}", e);
+                panic!("delete schema failed: {e}");
             }
         }
 
@@ -155,7 +155,7 @@ mod test {
             }
 
             Err(e) => {
-                panic!("list schema failed: {}", e);
+                panic!("list schema failed: {e}");
             }
         }
     }

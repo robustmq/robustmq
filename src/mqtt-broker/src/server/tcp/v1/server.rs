@@ -102,7 +102,7 @@ where
             conf.network_port.tcp_port
         };
 
-        let listener = TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
+        let listener = TcpListener::bind(format!("0.0.0.0:{port}")).await?;
         let arc_listener = Arc::new(listener);
         let request_recv_channel = self
             .request_channel

@@ -36,7 +36,7 @@ mod tests {
             for network in network_types() {
                 for qos in qos_list() {
                     let client_id =
-                        build_client_id(format!("login_auth_test_{}_{}", network, qos).as_str());
+                        build_client_id(format!("login_auth_test_{network}_{qos}").as_str());
 
                     let username = unique_id();
                     let password = "permission".to_string();

@@ -31,7 +31,7 @@ mod tests {
             for qos in qos_list() {
                 let topic = format!("/tests/{}/{}/{}", unique_id(), network, qos);
                 let client_id =
-                    build_client_id(format!("user_properties_test_{}_{}", network, qos).as_str());
+                    build_client_id(format!("user_properties_test_{network}_{qos}").as_str());
 
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,

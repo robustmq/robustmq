@@ -32,11 +32,11 @@ mod tests {
         for network in network_types() {
             for qos in qos_list() {
                 let uniq = unique_id();
-                let topic = format!("/tests/v1/v2/{}", uniq);
+                let topic = format!("/tests/v1/v2/{uniq}");
 
                 // publish
                 let client_id =
-                    build_client_id(format!("sub_wildcards_test_{}_{}", network, qos).as_str());
+                    build_client_id(format!("sub_wildcards_test_{network}_{qos}").as_str());
 
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,
@@ -55,7 +55,7 @@ mod tests {
 
                 // subscribe +
                 let client_id: String =
-                    build_client_id(format!("sub_wildcards_test_+_{}_{}", network, qos).as_str());
+                    build_client_id(format!("sub_wildcards_test_+_{network}_{qos}").as_str());
 
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,
@@ -67,7 +67,7 @@ mod tests {
                 };
                 let cli = connect_server(&client_properties);
 
-                let sub_topic = format!("/tests/v1/+/{}", uniq);
+                let sub_topic = format!("/tests/v1/+/{uniq}");
                 let call_fn = |msg: Message| {
                     let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
                     payload == message_content
@@ -85,7 +85,7 @@ mod tests {
 
                 // subscribe #
                 let client_id =
-                    build_client_id(format!("sub_wildcards_test_#_{}_{}", network, qos).as_str());
+                    build_client_id(format!("sub_wildcards_test_#_{network}_{qos}").as_str());
 
                 let client_properties = ClientTestProperties {
                     mqtt_version: 5,
@@ -103,7 +103,7 @@ mod tests {
                         Ok(payload) => payload,
                         Err(_) => return false,
                     };
-                    println!("payload: {:?}", payload);
+                    println!("payload: {payload:?}");
                     payload == message_content
                 };
 

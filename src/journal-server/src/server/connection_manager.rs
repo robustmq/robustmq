@@ -164,7 +164,7 @@ impl ConnectionManager {
                     if times > response_max_try_mut_times {
                         return Err(CommonError::CommonError(
                             format!(
-                                "[write_frame]Connection management failed to get tcp connection variable reference, connection ID: {}",connection_id
+                                "[write_frame]Connection management failed to get tcp connection variable reference, connection ID: {connection_id}"
                             )
                         ));
                     }
@@ -216,7 +216,7 @@ impl ConnectionManager {
                     if times > response_max_try_mut_times {
                         return Err(CommonError::CommonError(
                             format!(
-                                "[write_frame]Connection management failed to get tcp connection variable reference, connection ID: {}",connection_id
+                                "[write_frame]Connection management failed to get tcp connection variable reference, connection ID: {connection_id}"
                             )
                         ));
                     }

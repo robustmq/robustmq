@@ -284,7 +284,7 @@ mod tests {
         );
 
         // test display of puback and puback_properties in v5
-        println!("auth is {}", auth);
-        println!("auth_properties is {}", auth_properties);
+        println!("auth is {auth}");
+        println!("auth_properties is {auth_properties}");
     }
 }

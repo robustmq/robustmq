@@ -78,7 +78,7 @@ mod tests {
                 let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
                 let mut write_frame_stream = FramedWrite::new(w_stream, codec.clone());
                 while let Some(Ok(data)) = read_frame_stream.next().await {
-                    println!("Got: {:?}", data);
+                    println!("Got: {data:?}");
 
                     // 发送的消息也只需要发送消息主体，不需要提供长度
                     // Framed/LengthDelimitedCodec 会自动计算并添加
@@ -101,10 +101,10 @@ mod tests {
             match data {
                 Ok(da) => {
                     // assert_eq!(da, resp_packet.packet)
-                    println!("{:?}", da);
+                    println!("{da:?}");
                 }
                 Err(e) => {
-                    panic!("error: {:?}", e);
+                    panic!("error: {e:?}");
                 }
             }
         }
@@ -120,10 +120,10 @@ mod tests {
             match data {
                 Ok(da) => {
                     // assert_eq!(da, resp_packet.packet)
-                    println!("{:?}", da);
+                    println!("{da:?}");
                 }
                 Err(e) => {
-                    panic!("error: {:?}", e);
+                    panic!("error: {e:?}");
                 }
             }
         }

@@ -133,7 +133,7 @@ pub fn metrics_grpc_request_ms(service: &str, path: &str, ms: f64) {
 
 pub fn metrics_raft_storage_total_incr(storage_type: &StorageDataType) {
     let label = MetricsLabel {
-        raft_storage_type: format!("{:?}", storage_type),
+        raft_storage_type: format!("{storage_type:?}"),
         ..Default::default()
     };
     common_base::gauge_metric_inc!(RAFT_STORAGE_TOTAL_NUM, label)
@@ -141,7 +141,7 @@ pub fn metrics_raft_storage_total_incr(storage_type: &StorageDataType) {
 
 pub fn metrics_raft_storage_error_incr(storage_type: &StorageDataType) {
     let label = MetricsLabel {
-        raft_storage_type: format!("{:?}", storage_type),
+        raft_storage_type: format!("{storage_type:?}"),
         ..Default::default()
     };
     common_base::gauge_metric_inc!(RAFT_STORAGE_ERROR_NUM, label)
@@ -149,7 +149,7 @@ pub fn metrics_raft_storage_error_incr(storage_type: &StorageDataType) {
 
 pub fn metrics_raft_storage_total_ms(storage_type: &StorageDataType, ms: f64) {
     let label = MetricsLabel {
-        raft_storage_type: format!("{:?}", storage_type),
+        raft_storage_type: format!("{storage_type:?}"),
         ..Default::default()
     };
 

@@ -272,8 +272,8 @@ mod tests {
 
         let mut i = 5;
         for row in resp {
-            println!("{:?}", row);
-            assert_eq!(row.record.key, format!("key-{}", i));
+            println!("{row:?}");
+            assert_eq!(row.record.key, format!("key-{i}"));
             i += 1;
         }
 
@@ -299,8 +299,8 @@ mod tests {
 
         let mut i = 10;
         for row in resp {
-            println!("{:?}", row);
-            assert_eq!(row.record.key, format!("key-{}", i));
+            println!("{row:?}");
+            assert_eq!(row.record.key, format!("key-{i}"));
             i += 1;
         }
     }
@@ -346,7 +346,7 @@ mod tests {
             &read_options,
         )
         .await;
-        println!("{:?}", res);
+        println!("{res:?}");
         assert!(res.is_ok());
         let resp = res.unwrap();
         assert_eq!(resp.len(), 1);
@@ -395,7 +395,7 @@ mod tests {
             &read_options,
         )
         .await;
-        println!("{:?}", res);
+        println!("{res:?}");
         assert!(res.is_ok());
         let resp = res.unwrap();
         assert_eq!(resp.len(), 1);
@@ -443,7 +443,7 @@ mod tests {
             conf.node_id,
         )
         .await;
-        println!("{:?}", res);
+        println!("{res:?}");
         assert!(res.is_ok());
         let resp = res.unwrap();
         assert_eq!(resp.len(), 1);
@@ -483,7 +483,7 @@ mod tests {
             conf.node_id,
         )
         .await;
-        println!("{:?}", res);
+        println!("{res:?}");
         assert!(res.is_ok());
         let resp = res.unwrap();
         assert_eq!(resp.len(), 1);
@@ -519,7 +519,7 @@ mod tests {
             conf.node_id,
         )
         .await;
-        println!("{:?}", res);
+        println!("{res:?}");
         assert!(res.is_ok());
         let resp = res.unwrap();
         assert_eq!(resp.len(), 1);

@@ -358,7 +358,7 @@ mod tests {
         assert!(res.is_ok());
 
         let res = get_last_offset_build_index(&rocksdb_engine_handler, &segment_iden);
-        println!("{:?}", res);
+        println!("{res:?}");
         assert!(res.is_ok());
         assert!(res.unwrap().is_some());
     }
@@ -465,14 +465,14 @@ mod tests {
 
             if key.contains("offset/position") {
                 let last_offset = serde_json::from_str::<IndexData>(&val.data).unwrap();
-                println!("key: {},val={:?}", key, last_offset);
+                println!("key: {key},val={last_offset:?}");
                 assert_eq!(last_offset.offset, 9999);
                 offset_num += 1;
             }
 
             if key.contains("timestamp/time-") {
                 let last_offset = serde_json::from_str::<IndexData>(&val.data).unwrap();
-                println!("key: {},val={:?}", key, last_offset);
+                println!("key: {key},val={last_offset:?}");
                 assert_eq!(last_offset.offset, 9999);
                 timestamp_num += 1;
             }

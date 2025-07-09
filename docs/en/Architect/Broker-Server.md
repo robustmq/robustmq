@@ -1,6 +1,6 @@
 # Broker Server
 ## Overview
-Broker Server is a computation layer component, primarily responsible for the data access of various messaging protocols and the implementation of their related functions. From a design perspective, it aims to support mainstream messaging protocols such as MQTT 3.1/3.1.1/5.0, AMQP, RocketMQ Remoting/GRPC, Kafka Protocol, OpenMessing, JNS, SQS, etc. The architecture is as follows:
+Broker Server is a computation layer component, primarily responsible for the data access of various messaging protocols and the implementation of their related functions. From a design perspective, it aims to support mainstream messaging protocols such as MQTT 3.1/3.1.1/5.0, AMQP, RocketMQ Remoting/GRPC, Kafka Protocol, OpenMessaging, JNS, SQS, etc. The architecture is as follows:
 ![image](../../images/doc-image2.png)
 
 - Broker Server relies on Placement Center to complete cluster formation, such as node discovery, cluster metadata storage, etc.

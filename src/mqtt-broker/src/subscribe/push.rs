@@ -338,8 +338,7 @@ pub async fn wait_packet_ack(
         Ok(Some(data)) => Ok(Some(data)),
         Ok(None) => Ok(None),
         Err(_) => Err(MqttBrokerError::CommonError(format!(
-            "Publish message to client {}, wait {} timeout, more than {}s",
-            client_id, type_name, client_id
+            "Publish message to client {client_id}, wait {type_name} timeout, more than {client_id}s"
         ))),
     }
 }

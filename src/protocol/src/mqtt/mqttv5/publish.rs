@@ -339,7 +339,7 @@ mod tests {
         assert_eq!(pub_properties_read.content_type, Some("String".to_string()));
 
         // test the display of publish packet
-        println!("publish display in v5: {}", publish);
-        println!("publish properties in v5: {}", pub_properties_read);
+        println!("publish display in v5: {publish}");
+        println!("publish properties in v5: {pub_properties_read}");
     }
 }

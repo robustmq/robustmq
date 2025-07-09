@@ -97,7 +97,7 @@ impl QuicClient {
                 quinn_quic_client_config.bind_addr(addr);
             }
             Err(e) => {
-                panic!("failed to bind ip in quic client: {}", e)
+                panic!("failed to bind ip in quic client: {e}")
             }
         }
     }
@@ -114,7 +114,7 @@ impl QuicClient {
                 endpoint
             }
             Err(e) => {
-                panic!("failed to create quic client endpoint: {}", e)
+                panic!("failed to create quic client endpoint: {e}")
             }
         };
         (quinn_quic_client_config, endpoint)
@@ -143,8 +143,7 @@ impl QuicClient {
             Ok(connecting) => connecting,
             Err(e) => {
                 return Err(MqttBrokerError::CommonError(format!(
-                    "failed to connect quic server, error: {:?}",
-                    e
+                    "failed to connect quic server, error: {e:?}"
                 )))
             }
         };
@@ -153,8 +152,7 @@ impl QuicClient {
             Ok(connection) => connection,
             Err(e) => {
                 return Err(MqttBrokerError::CommonError(format!(
-                    "can not get a connection, error: {:?}",
-                    e
+                    "can not get a connection, error: {e:?}"
                 )))
             }
         };

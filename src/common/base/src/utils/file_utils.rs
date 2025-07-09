@@ -65,8 +65,8 @@ mod tests {
     #[test]
     fn test_temp_dir_test() {
         let path = test_temp_dir();
-        println!("{}", path);
+        println!("{path}");
         let path = test_temp_dir();
-        println!("{}", path);
+        println!("{path}");
     }
 }

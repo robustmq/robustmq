@@ -14,7 +14,7 @@
 
 ### 1.4 特点
 - 100% Rust：完全基于 Rust 语言实现的消息队列引擎。
-- 多协议：支持MQTT 3.1/3.1.1/5.0、AMQP、Kafka Protocol、RocketMQ Remoting/GRPC、OpenMessing、JNS、SQS 等主流消息协议。
+- 多协议：支持MQTT 3.1/3.1.1/5.0、AMQP、Kafka Protocol、RocketMQ Remoting/GRPC、OpenMessaging、JNS、SQS 等主流消息协议。
 - 分层架构：计算、存储、调度完全独立的三层架构，职责清晰、独立。
 - Serverless：所有组件均具备分布式集群化部署，快速扩缩容的能力。
 - 插件式存储：独立插件式的存储层实现，支持独立部署和共享存储两种架构。

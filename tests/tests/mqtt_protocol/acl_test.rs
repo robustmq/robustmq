@@ -234,7 +234,7 @@ mod tests {
                 );
             }
             Err(e) => {
-                panic!("list acl error: {:?}", e);
+                panic!("list acl error: {e:?}");
             }
         }
     }
@@ -243,7 +243,7 @@ mod tests {
             for network in network_types() {
                 for qos in qos_list() {
                     let client_id = build_client_id(
-                        format!("publish_user_acl_test_{}_{}_{}", protocol, network, qos).as_str(),
+                        format!("publish_user_acl_test_{protocol}_{network}_{qos}").as_str(),
                     );
 
                     let client_properties = ClientTestProperties {
@@ -270,7 +270,7 @@ mod tests {
                     let result = cli.publish(msg);
 
                     if result.is_err() {
-                        println!("{},{:?},{}", client_id, result, is_err);
+                        println!("{client_id},{result:?},{is_err}");
                     }
 
                     if protocol == 5 && is_err && qos != 0 {
@@ -320,7 +320,7 @@ mod tests {
         let result = cli.publish(msg);
 
         if result.is_err() {
-            println!("{},{:?},{}", client_id, result, is_err);
+            println!("{client_id},{result:?},{is_err}");
         }
 
         if is_err {

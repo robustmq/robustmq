@@ -532,7 +532,7 @@ mod tests {
                 namespace: segment_iden.namespace.clone(),
                 shard_name: segment_iden.shard_name.clone(),
                 segment: segment_iden.segment_seq,
-                content: format!("data-{}", i).encode_to_vec(),
+                content: format!("data-{i}").encode_to_vec(),
                 pkid: i,
                 producer_id: producer_id.clone(),
                 ..Default::default()
@@ -548,7 +548,7 @@ mod tests {
         )
         .await;
 
-        println!("{:?}", res);
+        println!("{res:?}");
         assert!(res.is_ok());
         let resp = res.unwrap();
         assert!(resp.error.is_none());
@@ -561,7 +561,7 @@ mod tests {
                 namespace: segment_iden.namespace.clone(),
                 shard_name: segment_iden.shard_name.clone(),
                 segment: segment_iden.segment_seq,
-                content: format!("data-{}", i).encode_to_vec(),
+                content: format!("data-{i}").encode_to_vec(),
                 pkid: i,
                 producer_id: producer_id.clone(),
                 ..Default::default()
@@ -577,7 +577,7 @@ mod tests {
         )
         .await;
 
-        println!("{:?}", res);
+        println!("{res:?}");
         assert!(res.is_ok());
         let resp = res.unwrap();
         assert!(resp.error.is_none());

@@ -34,7 +34,7 @@ mod tests {
     async fn session_expire_test() {
         let network = "tcp";
         let qos = QOS_1;
-        let client_id = build_client_id(format!("sub_auto_test_{}_{}", network, qos).as_str());
+        let client_id = build_client_id(format!("sub_auto_test_{network}_{qos}").as_str());
 
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
@@ -72,7 +72,7 @@ mod tests {
         let res = timeout(Duration::from_secs(40), check_fn).await;
         assert!(res.is_ok());
         let total = now_second() - start_time;
-        println!("{}", total);
+        println!("{total}");
         let sei = session_expiry_interval() as u64;
         assert!(total >= (sei - 2) && total <= (sei + 2));
     }
@@ -81,7 +81,7 @@ mod tests {
     async fn session_close_test() {
         let network = "tcp";
         let qos = QOS_1;
-        let client_id = build_client_id(format!("sub_auto_test_{}_{}", network, qos).as_str());
+        let client_id = build_client_id(format!("sub_auto_test_{network}_{qos}").as_str());
 
         let client_properties = ClientTestProperties {
             mqtt_version: 5,

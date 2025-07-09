@@ -48,7 +48,7 @@ async fn test_enable_offline_message() {
             }
 
             Err(e) => {
-                eprintln!("Failed enable_offline_message: {:?}", e);
+                eprintln!("Failed enable_offline_message: {e:?}");
                 std::process::exit(1);
             }
         }
@@ -61,7 +61,7 @@ async fn test_enable_offline_message() {
             {
                 Ok(data) => deserialize(&data.mqtt_broker_cluster_dynamic_config).unwrap(),
                 Err(e) => {
-                    eprintln!("Failed get_cluster_config: {:?}", e);
+                    eprintln!("Failed get_cluster_config: {e:?}");
                     std::process::exit(1);
                 }
             };

@@ -97,6 +97,6 @@ mod tests {
         assert!(!connack_return.session_present);
         assert_eq!(connack_return.code, ConnectReturnCode::Success);
         // test the display function
-        println!("connack display: {}", connack);
+        println!("connack display: {connack}");
     }
 }

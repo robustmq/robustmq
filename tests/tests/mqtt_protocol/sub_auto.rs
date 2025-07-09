@@ -42,7 +42,7 @@ mod tests {
         let grpc_addr = vec![broker_grpc_addr()];
 
         let uniq = unique_id();
-        let topic = format!("/tests/v1/v2/{}", uniq);
+        let topic = format!("/tests/v1/v2/{uniq}");
 
         let network = "tcp";
         let qos = 2;
@@ -51,7 +51,7 @@ mod tests {
         create_auto_subscribe_rule(&client_pool, grpc_addr.clone(), &topic).await;
 
         // publish
-        let client_id = build_client_id(format!("sub_auto_test_{}_{}", network, qos).as_str());
+        let client_id = build_client_id(format!("sub_auto_test_{network}_{qos}").as_str());
 
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
@@ -71,11 +71,11 @@ mod tests {
         let rx = cli.start_consuming();
         loop {
             let res = rx.recv_timeout(Duration::from_secs(10));
-            println!("{:?}", res);
+            println!("{res:?}");
             if let Ok(msg_opt) = res {
                 assert!(msg_opt.is_some());
                 let msg = msg_opt.unwrap();
-                println!("{:?}", msg);
+                println!("{msg:?}");
                 break;
             }
         }

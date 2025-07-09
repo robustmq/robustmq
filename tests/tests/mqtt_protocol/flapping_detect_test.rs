@@ -56,7 +56,7 @@ mod tests {
             &client_test_properties.addr,
         );
         let cli = Client::new(create_opts).unwrap_or_else(|err| {
-            println!("Error creating the client: {:?}", err);
+            println!("Error creating the client: {err:?}");
             process::exit(1);
         });
 
@@ -70,7 +70,7 @@ mod tests {
             &client_test_properties.addr,
         );
         let cli = Client::new(create_opts).unwrap_or_else(|err| {
-            println!("Error creating the client: {:?}", err);
+            println!("Error creating the client: {err:?}");
             process::exit(1);
         });
 

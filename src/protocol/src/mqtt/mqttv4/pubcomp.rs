@@ -64,6 +64,6 @@ mod tests {
         assert_eq!(pubcomp_read.pkid, 5u16);
 
         // test the display function of puback
-        println!("pubcomp display: {}", pubcomp_read);
+        println!("pubcomp display: {pubcomp_read}");
     }
 }

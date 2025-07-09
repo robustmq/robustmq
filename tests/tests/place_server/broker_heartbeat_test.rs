@@ -72,7 +72,7 @@ mod tests {
             sleep(Duration::from_millis(100)).await;
         }
         let total_ms = now_second() - start_time;
-        println!("{}", total_ms);
+        println!("{total_ms}");
         assert!((4..=10).contains(&total_ms));
     }
 }

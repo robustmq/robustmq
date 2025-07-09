@@ -47,7 +47,7 @@ mod tests {
         match placement_openraft_add_learner(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         };
     }
@@ -65,7 +65,7 @@ mod tests {
         match placement_openraft_change_membership(&client_pool, &addrs, request).await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{:?}", e);
+                panic!("{e:?}");
             }
         };
     }

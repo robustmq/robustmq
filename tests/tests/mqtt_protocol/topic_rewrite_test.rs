@@ -40,15 +40,15 @@ mod tests {
 
         let req = CreateTopicRewriteRuleRequest {
             action: action.clone(),
-            source_topic: format!("{}y/+/z/#", prefix),
-            dest_topic: format!("{}y/z/$2", prefix),
-            regex: format!("^{}y/(.+)/z/(.+)$", prefix),
+            source_topic: format!("{prefix}y/+/z/#"),
+            dest_topic: format!("{prefix}y/z/$2"),
+            regex: format!("^{prefix}y/(.+)/z/(.+)$"),
         };
         let res = mqtt_broker_create_topic_rewrite_rule(&client_pool, &grpc_addr, req).await;
         assert!(res.is_ok());
 
-        let source_topic = format!("{}y/a/z/b", prefix);
-        let rewrite_topic = format!("{}y/z/b", prefix);
+        let source_topic = format!("{prefix}y/a/z/b");
+        let rewrite_topic = format!("{prefix}y/z/b");
 
         let network = "tcp";
         let protocol = 5;
@@ -118,14 +118,14 @@ mod tests {
 
         let req = CreateTopicRewriteRuleRequest {
             action: action.clone(),
-            source_topic: format!("{}y/+/z/#", prefix),
-            dest_topic: format!("{}y/z/$2", prefix),
-            regex: format!("^{}y/(.+)/z/(.+)$", prefix),
+            source_topic: format!("{prefix}y/+/z/#"),
+            dest_topic: format!("{prefix}y/z/$2"),
+            regex: format!("^{prefix}y/(.+)/z/(.+)$"),
         };
         let res = mqtt_broker_create_topic_rewrite_rule(&client_pool, &grpc_addr, req).await;
         assert!(res.is_ok());
 
-        let source_topic = format!("{}y/a/z/b", prefix);
+        let source_topic = format!("{prefix}y/a/z/b");
 
         let network = "tcp";
         let protocol = 5;

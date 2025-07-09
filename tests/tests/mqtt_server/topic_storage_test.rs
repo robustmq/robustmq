@@ -102,7 +102,7 @@ mod tests {
         topic_storage.save_topic(topic).await.unwrap();
 
         let result = topic_storage.get_topic(&topic_name).await.unwrap().unwrap();
-        println!("{:?}", result);
+        println!("{result:?}");
 
         let result_message = topic_storage.get_retain_message(&topic_name).await.unwrap();
         assert!(result_message.is_none());

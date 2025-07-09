@@ -130,7 +130,7 @@ mod test {
         };
         let mut writer = Writer::new(&schema, Vec::new());
         let res = writer.append_ser(test_data2);
-        println!("{:?}", res);
+        println!("{res:?}");
         assert!(res.is_err());
     }
 
@@ -162,7 +162,7 @@ mod test {
         for record in reader {
             let raw = record.unwrap();
             let data: TestData = from_value(&raw).unwrap();
-            println!("Deserialized data: {:?}", data);
+            println!("Deserialized data: {data:?}");
             assert_eq!(data.a, 1);
             assert_eq!(data.b, "test".to_string());
         }

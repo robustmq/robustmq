@@ -32,39 +32,17 @@ pub(super) trait AppenderConfig<S = Registry>
 where
     S: tracing::Subscriber,
 {
-    fn create_layer_and_guard(
-        &self,
-    ) -> Result<(BoxedLayer<S>, Option<WorkerGuard>), LogConfigError>;
+    fn create_layer_and_guard(self)
+        -> Result<(BoxedLayer<S>, Option<WorkerGuard>), LogConfigError>;
 }
 
 /// Supported configurations for log appenders.
 #[derive(Debug, Clone, Deserialize, PartialEq)]
-#[serde(tag = "kind")]
+#[serde(tag = "kind", rename_all = "snake_case")]
 pub(super) enum Appender {
     Console(ConsoleAppenderConfig),
     RollingFile(RollingFileAppenderConfig),
     TokioConsole(TokioConsoleAppenderConfig),
-}
-
-#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub(super) enum Level {
-    Error,
-    Warn,
-    Info,
-    Debug,
-    Trace,
-}
-
-impl From<Level> for tracing::Level {
-    fn from(value: Level) -> Self {
-        match value {
-            Level::Error => tracing::Level::ERROR,
-            Level::Warn => tracing::Level::WARN,
-            Level::Info => tracing::Level::INFO,
-            Level::Debug => tracing::Level::DEBUG,
-            Level::Trace => tracing::Level::TRACE,
-        }
-    }
 }
 
 impl Appender {
@@ -101,33 +79,28 @@ mod tests {
     use super::*;
 
     const DEBUG_LEVEL_TOML: &str = r#"
-        level = "Debug"
+        level = "debug"
         "#;
 
     const CONSOLE_TABLE_NAME: &str = r#"stdout"#;
     const CONSOLE_KIND_TOML: &str = r#"
-        kind = "Console"
+        kind = "console"
         "#;
     const CONSOLE_CONFIG_TOML: &str = r#""#;
 
     const ROLLING_FILE_TABLE_NAME: &str = r#"server"#;
     const ROLLING_FILE_KIND_TOML: &str = r#"
-        kind = "RollingFile"
+        kind = "rolling_file"
         "#;
     const ROLLING_FILE_CONFIG_TOML: &str = r#"
-        rotation = "Daily"
+        rotation = "daily"
         directory = "/var/logs"
         prefix = "app"
         "#;
 
     #[test]
     fn test_deserialize_console_appender_toml() {
-        let config_toml = format!(
-            "{level}{kind}{config}",
-            level = DEBUG_LEVEL_TOML,
-            kind = CONSOLE_KIND_TOML,
-            config = CONSOLE_CONFIG_TOML
-        );
+        let config_toml = format!("{DEBUG_LEVEL_TOML}{CONSOLE_KIND_TOML}{CONSOLE_CONFIG_TOML}");
 
         let appender: super::Appender = toml::from_str(&config_toml).unwrap();
         assert!(matches!(appender, Appender::Console(_)));
@@ -135,12 +108,8 @@ mod tests {
 
     #[test]
     fn test_deserialize_rolling_file_appender_toml() {
-        let config_toml = format!(
-            "{level}{kind}{config}",
-            level = DEBUG_LEVEL_TOML,
-            kind = ROLLING_FILE_KIND_TOML,
-            config = ROLLING_FILE_CONFIG_TOML
-        );
+        let config_toml =
+            format!("{DEBUG_LEVEL_TOML}{ROLLING_FILE_KIND_TOML}{ROLLING_FILE_CONFIG_TOML}");
 
         let config: super::Appender = toml::from_str(&config_toml).unwrap();
         assert!(matches!(config, Appender::RollingFile(_)));
@@ -149,14 +118,7 @@ mod tests {
     #[test]
     fn test_deserializing_configs_toml() {
         let config_toml = format!(
-            "[{console_table}]\n{level}{console_kind}{console_config}[{rolling_file_table}]\n{level}{rolling_file_kind}{rolling_file_config}",
-            level = DEBUG_LEVEL_TOML,
-            console_table = CONSOLE_TABLE_NAME,
-            console_kind = CONSOLE_KIND_TOML,
-            console_config = CONSOLE_CONFIG_TOML,
-            rolling_file_table = ROLLING_FILE_TABLE_NAME,
-            rolling_file_kind = ROLLING_FILE_KIND_TOML,
-            rolling_file_config = ROLLING_FILE_CONFIG_TOML
+            "[{CONSOLE_TABLE_NAME}]\n{DEBUG_LEVEL_TOML}{CONSOLE_KIND_TOML}{CONSOLE_CONFIG_TOML}[{ROLLING_FILE_TABLE_NAME}]\n{DEBUG_LEVEL_TOML}{ROLLING_FILE_KIND_TOML}{ROLLING_FILE_CONFIG_TOML}"
         );
 
         let configs = toml::from_str::<Configs>(&config_toml).unwrap();
