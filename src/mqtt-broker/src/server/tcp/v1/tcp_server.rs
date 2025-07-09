@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::handler::connection::tcp_establish_connection_check;
+use crate::observability::metrics::packets::record_received_error_metrics;
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::tcp::v1::channel::RequestChannel;
@@ -20,9 +21,11 @@ use crate::server::tcp::v1::common::read_packet;
 use futures_util::StreamExt;
 use protocol::mqtt::codec::MqttCodec;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver};
+use tokio::time::sleep;
 use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
 use tracing::{debug, error, info};
@@ -128,7 +131,22 @@ fn read_frame_process(
                 }
 
                 package = read_frame_stream.next()=>{
-                   read_packet(package, &request_channel, &connection, &network_type).await;
+                     if let Some(pkg) = package {
+                        match pkg {
+                            Ok(pack) => {
+                                read_packet(pack, &request_channel, &connection, &network_type).await;
+                            }
+                            Err(e) => {
+                                record_received_error_metrics(network_type.clone());
+                                debug!(
+                                    "{} connection parsing packet format error message :{:?}",
+                                    network_type, e
+                                )
+                            }
+                        }
+                     }else{
+                        sleep(Duration::from_millis(100)).await;
+                     }
                 }
             }
         }

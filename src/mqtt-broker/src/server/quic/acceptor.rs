@@ -12,40 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::CacheManager;
-use crate::observability::metrics::packets::{
-    record_received_error_metrics, record_received_metrics,
-};
-use crate::observability::slow::request::try_record_total_request_ms;
+use crate::observability::metrics::packets::record_received_error_metrics;
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::connection_manager::ConnectionManager;
-use crate::server::packet::RequestPackage;
-use crate::server::quic::quic_stream_wrapper::{QuicFramedReadStream, QuicFramedWriteStream};
+use crate::server::quic::stream::{QuicFramedReadStream, QuicFramedWriteStream};
+use crate::server::tcp::v1::channel::RequestChannel;
+use crate::server::tcp::v1::common::read_packet;
 use protocol::mqtt::codec::MqttCodec;
 use quinn::Endpoint;
 use std::sync::Arc;
 use tokio::select;
 use tokio::sync::broadcast;
-use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::mpsc::{self, Receiver};
 use tracing::{debug, error, info};
 
-#[allow(dead_code)]
 pub(crate) async fn acceptor_process(
     accept_thread_num: usize,
     connection_manager: Arc<ConnectionManager>,
-    stop_sx: broadcast::Sender<bool>,
     endpoint_arc: Arc<Endpoint>,
-    request_queue_sx: Sender<RequestPackage>,
-    cache_manager: Arc<CacheManager>,
-    network_connection_type: NetworkConnectionType,
+    request_channel: Arc<RequestChannel>,
+    network_type: NetworkConnectionType,
+    stop_sx: broadcast::Sender<bool>,
 ) {
     for index in 1..=accept_thread_num {
         let endpoint = endpoint_arc.clone();
         let connection_manager = connection_manager.clone();
         let mut stop_rx = stop_sx.subscribe();
-        let raw_request_queue_sx = request_queue_sx.clone();
-        let network_type = network_connection_type.clone();
-        let cache_manager = cache_manager.clone();
+        let raw_request_channel = request_channel.clone();
+        let network_type = network_type.clone();
         tokio::spawn(async move {
             debug!("Quic Server acceptor thread {} start successfully.", index);
             loop {
@@ -58,7 +52,6 @@ pub(crate) async fn acceptor_process(
                             }
                         }
                     }
-                    // todo 这部分需要修改
                     val = endpoint.accept()=> {
                         match val {
                             Some(incoming) => {
@@ -81,7 +74,7 @@ pub(crate) async fn acceptor_process(
                                                 );
                                                 connection_manager.add_connection(connection.clone());
                                                 connection_manager.add_quic_write(connection.connection_id, quic_framed_write_stream);
-                                                read_frame_process(quic_framed_read_stream, connection.clone(), raw_request_queue_sx.clone(),connection_stop_rx, network_type.clone(), cache_manager.clone())
+                                                read_frame_process(quic_framed_read_stream,  raw_request_channel.clone(),connection.clone(),network_type.clone(), connection_stop_rx)
                                             },
                                             Err(e) => {
                                                 error!("Quic accept failed to create connection with error message :{:?}",e);
@@ -107,11 +100,10 @@ pub(crate) async fn acceptor_process(
 
 fn read_frame_process(
     mut read_frame_stream: QuicFramedReadStream,
+    request_channel: Arc<RequestChannel>,
     connection: NetworkConnection,
-    request_queue_sx: Sender<RequestPackage>,
-    mut connection_stop_rx: Receiver<bool>,
     network_type: NetworkConnectionType,
-    cache_manager: Arc<CacheManager>,
+    mut connection_stop_rx: Receiver<bool>,
 ) {
     tokio::spawn(async move {
         loop {
@@ -119,32 +111,23 @@ fn read_frame_process(
                 val = connection_stop_rx.recv() =>{
                     if let Some(flag) = val{
                         if flag {
-                            debug!("TCP connection 【{}】 acceptor thread stopped successfully.",connection.connection_id);
+                            debug!("{} connection 【{}】 acceptor thread stopped successfully.", network_type, connection.connection_id);
                             break;
                         }
                     }
                 }
-                val = read_frame_stream.receive() => {
-                      match val {
-
-                            Ok(packet) => {
-                                    record_received_metrics(&connection, &packet, &network_type);
-
-                                    info!("revc quic packet:{:?}", packet);
-                                    let package =
-                                        RequestPackage::new(connection.connection_id, connection.addr, packet);
-
-                                    match request_queue_sx.send(package.clone()).await {
-                                        Ok(_) => {
-                                            try_record_total_request_ms(cache_manager.clone(),package.clone());
-                                        }
-                                        Err(err) => error!("Failed to write data to the request queue, error message: {:?}",err),
-                                    }
-                                },
-                            Err(e) => {
-                                record_received_error_metrics(network_type.clone());
-                                debug!("Quic connection parsing packet format error message :{:?}",e)
-                            }
+                package = read_frame_stream.receive() => {
+                    match package {
+                        Ok(pack) => {
+                            read_packet(pack, &request_channel, &connection, &network_type).await;
+                        }
+                        Err(e) => {
+                            record_received_error_metrics(network_type.clone());
+                            debug!(
+                                "{} connection parsing packet format error message :{:?}",
+                                network_type, e
+                            )
+                        }
                     }
                 }
             }

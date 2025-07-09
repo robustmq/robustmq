@@ -151,7 +151,7 @@ pub fn metrics_record_thread(
             metrics_cache_manager.record_topic_num(now, cache_manager.topic_info.len() as u32);
             metrics_cache_manager
                 .record_subscribe_num(now, subscribe_manager.subscribe_list.len() as u32);
-            metrics_cache_manager.record_message_in_num(now,1000);
+            metrics_cache_manager.record_message_in_num(now, 1000);
             metrics_cache_manager.record_message_out_num(now, 1000);
             metrics_cache_manager.record_message_drop_num(now, 30);
         }

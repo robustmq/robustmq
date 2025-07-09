@@ -18,8 +18,7 @@ use crate::handler::error::MqttBrokerError;
 use crate::security::AuthDriver;
 use crate::server::connection::NetworkConnectionType;
 use crate::server::connection_manager::ConnectionManager;
-use crate::server::packet::{RequestPackage, ResponsePackage};
-use crate::server::quic::quic_server_handler::acceptor_process;
+use crate::server::quic::acceptor::acceptor_process;
 use crate::server::tcp::v1::channel::RequestChannel;
 use crate::server::tcp::v1::handler::handler_process;
 use crate::server::tcp::v1::response::response_process;
@@ -35,7 +34,7 @@ use schema_register::schema::SchemaRegisterManager;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::broadcast;
 use tracing::info;
 
 pub fn generate_self_signed_cert() -> (Vec<CertificateDer<'static>>, PrivateKeyDer<'static>) {
@@ -78,9 +77,6 @@ pub async fn start_quic_server<S>(
 
     let quic_endpoint = server.get_endpoint();
 
-    let (request_queue_sx, request_queue_rx) = mpsc::channel::<RequestPackage>(1000);
-    let (response_queue_sx, response_queue_rx) = mpsc::channel::<ResponsePackage>(1000);
-
     let arc_quic_endpoint = Arc::new(quic_endpoint);
 
     let accept_thread_num = conf.network_thread.accept_thread_num;
@@ -96,17 +92,16 @@ pub async fn start_quic_server<S>(
     acceptor_process(
         accept_thread_num,
         connection_manager.clone(),
-        stop_sx.clone(),
         arc_quic_endpoint.clone(),
-        request_queue_sx,
-        cache_manager.clone(),
-        network_type,
+        request_channel.clone(),
+        network_type.clone(),
+        stop_sx.clone(),
     )
     .await;
 
     handler_process(
         handler_process_num,
-        request_queue_rx,
+        request_recv_channel,
         connection_manager.clone(),
         command.clone(),
         request_channel.clone(),
@@ -120,8 +115,10 @@ pub async fn start_quic_server<S>(
         connection_manager.clone(),
         cache_manager.clone(),
         subscribe_manager.clone(),
-        response_queue_rx,
+        response_recv_channel,
         client_pool.clone(),
+        request_channel.clone(),
+        NetworkConnectionType::QUIC,
         stop_sx.clone(),
     )
     .await;

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::error::MqttBrokerError;
 use crate::server::quic::skip_server_verification::SkipServerVerification;
+use mqtt_broker::handler::error::MqttBrokerError;
 use quinn::{ClientConfig, Connection, Endpoint, VarInt};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
@@ -120,6 +120,7 @@ impl QuicClient {
         (quinn_quic_client_config, endpoint)
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_endpoint(&self) -> Result<Endpoint, MqttBrokerError> {
         let endpoint = match &self.endpoint {
             None => {
@@ -171,7 +172,7 @@ impl QuicClient {
         }
     }
 
-    pub fn close(&mut self, error_code: VarInt, error_message: &[u8]) {
+    pub fn _close(&mut self, error_code: VarInt, error_message: &[u8]) {
         match &self.endpoint {
             None => {
                 panic!("quic client is not initialized");
