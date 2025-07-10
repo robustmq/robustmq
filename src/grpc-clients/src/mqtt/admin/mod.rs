@@ -28,14 +28,15 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     EnableFlappingDetectRequest, GetClusterConfigReply, GetClusterConfigRequest, ListAclReply,
     ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBindSchemaReply,
     ListBindSchemaRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectionReply,
-    ListConnectionRequest, ListConnectorReply, ListConnectorRequest, ListSchemaReply,
-    ListSchemaRequest, ListSessionReply, ListSessionRequest, ListSlowSubscribeReply,
-    ListSlowSubscribeRequest, ListSubscribeReply, ListSubscribeRequest, ListSystemAlarmReply,
-    ListSystemAlarmRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetClusterConfigReply,
-    SetClusterConfigRequest, SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest,
-    SubscribeDetailReply, SubscribeDetailRequest, UnbindSchemaReply, UnbindSchemaRequest,
-    UpdateConnectorReply, UpdateConnectorRequest, UpdateSchemaReply, UpdateSchemaRequest,
+    ListConnectionRequest, ListConnectorReply, ListConnectorRequest, ListFlappingDetectReply,
+    ListFlappingDetectRequest, ListSchemaReply, ListSchemaRequest, ListSessionReply,
+    ListSessionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListSubscribeReply,
+    ListSubscribeRequest, ListSystemAlarmReply, ListSystemAlarmRequest, ListTopicReply,
+    ListTopicRequest, ListUserReply, ListUserRequest, SetAutoSubscribeRuleReply,
+    SetAutoSubscribeRuleRequest, SetClusterConfigReply, SetClusterConfigRequest,
+    SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest, SubscribeDetailReply,
+    SubscribeDetailRequest, UnbindSchemaReply, UnbindSchemaRequest, UpdateConnectorReply,
+    UpdateConnectorRequest, UpdateSchemaReply, UpdateSchemaRequest,
 };
 use tonic::transport::Channel;
 
@@ -184,6 +185,14 @@ impl_retriable_request!(
     EnableFlappingDetectReply,
     mqtt_broker_admin_services_client,
     enable_flapping_detect
+);
+
+impl_retriable_request!(
+    ListFlappingDetectRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    ListFlappingDetectReply,
+    mqtt_broker_admin_services_client,
+    list_flapping_detect
 );
 
 // #### observability ####

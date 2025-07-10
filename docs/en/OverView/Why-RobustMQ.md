@@ -7,11 +7,11 @@ Write the first line of code in October 2023. There were two goals:
 Apache License 2.0, our goal is to enter the Apache Foundation. Super cool.
 
 ## About the Vision
-Our vision is: To create the next-generation cloud-native integrated messaging queue, tailor a unified messaging infrastructure for AI systems, and provide a unified and efficient communication foundation for AI applications. 
+Our vision is: To create the next-generation cloud-native integrated messaging queue, tailor a unified messaging infrastructure for AI systems, and provide a unified and efficient communication foundation for AI applications.
 
-Is this vision too pretentious? 
+Is this vision too pretentious?
 
-In my opinion, if you don't do it, how can you know if it can be achieved? As someone in the technical field, one should always have some ideals. Look up at the sky, walk down with your head down. Having walked on the technical path for so long, one should leave some traces. I hope to do something cool and interesting with you all. 
+In my opinion, if you don't do it, how can you know if it can be achieved? As someone in the technical field, one should always have some ideals. Look up at the sky, walk down with your head down. Having walked on the technical path for so long, one should leave some traces. I hope to do something cool and interesting with you all.
 
 
 ## Is this a commercial project?

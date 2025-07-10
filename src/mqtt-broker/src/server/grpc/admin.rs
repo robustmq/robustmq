@@ -41,7 +41,7 @@ use crate::admin::topic::{
 use crate::admin::user::{create_user_by_req, delete_user_by_req, list_user_by_req};
 use crate::admin::{
     cluster_overview_metrics_by_req, cluster_status_by_req, enable_flapping_detect_by_req,
-    list_connection_by_req,
+    list_connection_by_req, list_flapping_detect_by_req,
 };
 use crate::common::metrics_cache::MetricsCacheManager;
 use crate::handler::cache::CacheManager;
@@ -63,14 +63,15 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBindSchemaReply,
     ListBindSchemaRequest, ListBlacklistReply, ListBlacklistRequest, ListClientReply,
     ListClientRequest, ListConnectionReply, ListConnectionRequest, ListConnectorReply,
-    ListConnectorRequest, ListRewriteTopicRuleReply, ListRewriteTopicRuleRequest, ListSchemaReply,
-    ListSchemaRequest, ListSessionReply, ListSessionRequest, ListSlowSubscribeReply,
-    ListSlowSubscribeRequest, ListSubscribeReply, ListSubscribeRequest, ListSystemAlarmReply,
-    ListSystemAlarmRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetClusterConfigReply,
-    SetClusterConfigRequest, SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest,
-    SubscribeDetailReply, SubscribeDetailRequest, UnbindSchemaReply, UnbindSchemaRequest,
-    UpdateConnectorReply, UpdateConnectorRequest, UpdateSchemaReply, UpdateSchemaRequest,
+    ListConnectorRequest, ListFlappingDetectReply, ListFlappingDetectRequest,
+    ListRewriteTopicRuleReply, ListRewriteTopicRuleRequest, ListSchemaReply, ListSchemaRequest,
+    ListSessionReply, ListSessionRequest, ListSlowSubscribeReply, ListSlowSubscribeRequest,
+    ListSubscribeReply, ListSubscribeRequest, ListSystemAlarmReply, ListSystemAlarmRequest,
+    ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest, SetAutoSubscribeRuleReply,
+    SetAutoSubscribeRuleRequest, SetClusterConfigReply, SetClusterConfigRequest,
+    SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest, SubscribeDetailReply,
+    SubscribeDetailRequest, UnbindSchemaReply, UnbindSchemaRequest, UpdateConnectorReply,
+    UpdateConnectorRequest, UpdateSchemaReply, UpdateSchemaRequest,
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
@@ -278,6 +279,17 @@ impl MqttBrokerAdminService for GrpcAdminServices {
     ) -> Result<Response<EnableFlappingDetectReply>, Status> {
         let request = request.into_inner();
         enable_flapping_detect_by_req(&self.client_pool, &self.cache_manager, &request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
+    }
+
+    async fn list_flapping_detect(
+        &self,
+        request: Request<ListFlappingDetectRequest>,
+    ) -> Result<Response<ListFlappingDetectReply>, Status> {
+        let request = request.into_inner();
+        list_flapping_detect_by_req(&self.cache_manager, &request)
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
