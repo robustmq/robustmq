@@ -13,7 +13,31 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
+use crate::storage::user::UserStorage;
+use common_config::mqtt::broker_mqtt_conf;
+use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::user::MqttUser;
 use std::sync::Arc;
+
+pub async fn init_system_user(cache_manager: &Arc<CacheManager>, client_pool: &Arc<ClientPool>) {
+    let conf = broker_mqtt_conf();
+    let system_user_info = MqttUser {
+        username: conf.system.default_user.clone(),
+        password: conf.system.default_password.clone(),
+        is_superuser: true,
+    };
+    let user_storage = UserStorage::new(client_pool.clone());
+    match user_storage.save_user(system_user_info.clone()).await {
+        Ok(_) => {
+            cache_manager.add_user(system_user_info);
+        }
+        Err(e) => {
+            if !e.to_string().contains("already exist") {
+                panic!("{}", e.to_string());
+            }
+        }
+    }
+}
 
 pub fn is_super_user(cache_manager: &Arc<CacheManager>, username: &str) -> bool {
     if username.is_empty() {

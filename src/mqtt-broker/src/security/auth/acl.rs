@@ -17,7 +17,7 @@ use crate::{
     security::auth::common::{ip_match, topic_match},
 };
 use metadata_struct::{
-    acl::mqtt_acl::{MqttAclAction, MqttAclPermission},
+    acl::mqtt_acl::{MqttAcl, MqttAclAction, MqttAclPermission},
     mqtt::connection::MQTTConnection,
 };
 use std::sync::Arc;
@@ -34,31 +34,44 @@ pub fn is_acl_deny(
         .acl_user
         .get(&connection.login_user)
     {
-        for raw in acl_list.clone() {
-            if topic_match(topic_name, &raw.topic)
-                && ip_match(&connection.source_ip_addr, &raw.ip)
-                && (raw.action == action || raw.action == MqttAclAction::All)
-                && raw.permission == MqttAclPermission::Deny
-            {
-                return true;
-            }
-        }
+        return acl_allow(
+            acl_list.clone(),
+            &action,
+            topic_name,
+            &connection.source_ip_addr,
+        );
     }
 
     // check client id acl
-    if let Some(client_id_list) = cache_manager
+    if let Some(acl_list) = cache_manager
         .acl_metadata
         .acl_client_id
         .get(&connection.client_id)
     {
-        for raw in client_id_list.clone() {
-            if topic_match(topic_name, &raw.topic)
-                && ip_match(&connection.source_ip_addr, &raw.ip)
-                && (raw.action == action || raw.action == MqttAclAction::All)
-                && raw.permission == MqttAclPermission::Deny
-            {
-                return true;
-            }
+        return acl_allow(
+            acl_list.clone(),
+            &action,
+            topic_name,
+            &connection.source_ip_addr,
+        );
+    }
+
+    false
+}
+
+fn acl_allow(
+    acl_list: Vec<MqttAcl>,
+    action: &MqttAclAction,
+    topic_name: &str,
+    source_ip: &str,
+) -> bool {
+    for acl in acl_list.iter() {
+        if topic_match(topic_name, &acl.topic)
+            && ip_match(source_ip, &acl.ip)
+            && (acl.action == *action || acl.action == MqttAclAction::All)
+            && acl.permission == MqttAclPermission::Deny
+        {
+            return true;
         }
     }
     false

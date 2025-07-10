@@ -40,5 +40,4 @@ pub mod subscribe;
 pub mod topic;
 mod topic_rewrite;
 pub mod unsubscribe;
-pub mod user;
 pub mod validator;

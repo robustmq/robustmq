@@ -225,6 +225,16 @@ impl AuthDriver {
         self.cache_manager.remove_blacklist(blacklist.clone());
         Ok(())
     }
+
+    pub async fn update_blacklist_cache(&self) -> Result<(), MqttBrokerError> {
+        let all_blacklist = self.driver.read_all_blacklist().await?;
+
+        for acl in all_blacklist.iter() {
+            self.cache_manager.add_blacklist(acl.to_owned());
+        }
+
+        Ok(())
+    }
 }
 
 pub fn build_driver(

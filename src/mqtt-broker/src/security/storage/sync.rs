@@ -20,6 +20,7 @@ use tracing::{debug, error};
 pub fn sync_auth_storage_info(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {
     sync_user_cache(auth_driver.clone(), stop_send.clone());
     sync_acl_cache(auth_driver.clone(), stop_send.clone());
+    sync_blacklist_cache(auth_driver.clone(), stop_send.clone());
 }
 
 fn sync_user_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {
@@ -60,6 +61,30 @@ fn sync_acl_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<boo
                     }
                 }
                 val = auth_driver.update_acl_cache()=>{
+                    if let Err(e) = val{
+                        error!("{}", e);
+                    }
+                    sleep(Duration::from_secs(5)).await;
+                }
+            }
+        }
+    });
+}
+
+fn sync_blacklist_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {
+    tokio::spawn(async move {
+        loop {
+            let mut stop_rx = stop_send.subscribe();
+            select! {
+                val = stop_rx.recv() =>{
+                    if let Ok(flag) = val {
+                        if flag {
+                            debug!("{}","User cache updating thread stopped successfully.");
+                            break;
+                        }
+                    }
+                }
+                val = auth_driver.update_blacklist_cache()=>{
                     if let Err(e) = val{
                         error!("{}", e);
                     }
