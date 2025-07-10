@@ -317,8 +317,7 @@ impl MqttBrokerCommand {
                     .await;
             }
             MqttActionType::ListFlappingDetect(ref request) => {
-                self.list_flapping_detect(&client_pool, params.clone(), *request)
-                    .await;
+                todo!()
             }
 
             // subscribe
@@ -909,31 +908,7 @@ impl MqttBrokerCommand {
         params: MqttCliCommandParam,
         cli_request: ListFlappingDetectRequest,
     ) {
-        match mqtt_broker_list_flapping_detect(client_pool, &grpc_addr(params.server), cli_request)
-            .await
-        {
-            Ok(mut data_stream) => {
-                println!("flapping detect list result:");
-                let mut table = Table::new();
-                table.set_titles(row!["client_id", "count", "first_request_time"]);
-                while let Ok(Some(list_flapping_reply)) = data_stream.message().await {
-                    if let Some(raw) = list_flapping_reply.list_flapping_detect_raw {
-                        let row = row![
-                            raw.client_id,
-                            raw.before_last_windows_connections,
-                            raw.first_request_time
-                        ];
-                        table.add_row(row);
-                    }
-                }
-                // output cmd
-                table.printstd()
-            }
-            Err(e) => {
-                println!("MQTT broker list flapping detect exception");
-                error_info(e.to_string());
-            }
-        }
+        todo!()
     }
 
     // #### observability ###

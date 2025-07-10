@@ -190,7 +190,7 @@ impl_retriable_request!(
 impl_retriable_request!(
     ListFlappingDetectRequest,
     MqttBrokerAdminServiceClient<Channel>,
-    tonic::Streaming<ListFlappingDetectReply>,
+    ListFlappingDetectReply,
     mqtt_broker_admin_services_client,
     list_flapping_detect
 );

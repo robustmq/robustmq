@@ -36,7 +36,6 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     SubscribeDetailRequest, UnbindSchemaReply, UnbindSchemaRequest, UpdateConnectorReply,
     UpdateConnectorRequest, UpdateSchemaReply, UpdateSchemaRequest,
 };
-use tonic::Streaming;
 
 use crate::pool::ClientPool;
 
@@ -153,7 +152,7 @@ generate_mqtt_admin_service_call!(
 generate_mqtt_admin_service_call!(
     mqtt_broker_list_flapping_detect,
     ListFlappingDetectRequest,
-    Streaming<ListFlappingDetectReply>,
+    ListFlappingDetectReply,
     ListFlappingDetect
 );
 

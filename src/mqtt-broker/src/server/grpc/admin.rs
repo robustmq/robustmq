@@ -47,7 +47,6 @@ use crate::common::metrics_cache::MetricsCacheManager;
 use crate::handler::cache::CacheManager;
 use crate::server::common::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
-use futures::Stream;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
 use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -74,7 +73,6 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     SubscribeDetailRequest, UnbindSchemaReply, UnbindSchemaRequest, UpdateConnectorReply,
     UpdateConnectorRequest, UpdateSchemaReply, UpdateSchemaRequest,
 };
-use std::pin::Pin;
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
@@ -286,14 +284,12 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
-    type ListFlappingDetectStream =
-        Pin<Box<dyn Stream<Item = Result<ListFlappingDetectReply, Status>> + Send>>;
-
     async fn list_flapping_detect(
         &self,
-        _request: Request<ListFlappingDetectRequest>,
-    ) -> Result<Response<Self::ListFlappingDetectStream>, Status> {
-        list_flapping_detect_by_req(&self.cache_manager)
+        request: Request<ListFlappingDetectRequest>,
+    ) -> Result<Response<ListFlappingDetectReply>, Status> {
+        let request = request.into_inner();
+        list_flapping_detect_by_req(&self.cache_manager, &request)
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)

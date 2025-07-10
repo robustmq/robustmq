@@ -25,6 +25,7 @@ pub mod subscribe;
 pub mod topic;
 pub mod user;
 
+use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
 use crate::common::metrics_cache::MetricsCacheManager;
 use crate::handler::cache::CacheManager;
 use crate::handler::flapping_detect::enable_flapping_detect;
@@ -33,16 +34,13 @@ use crate::subscribe::manager::SubscribeManager;
 use crate::{handler::error::MqttBrokerError, storage::cluster::ClusterStorage};
 use common_base::tools::now_second;
 use common_config::mqtt::broker_mqtt_conf;
-use futures::Stream;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     BrokerNodeRaw, ClusterOverviewMetricsReply, ClusterOverviewMetricsRequest, ClusterStatusReply,
-    EnableFlappingDetectReply, EnableFlappingDetectRequest, ListConnectionRaw, ListConnectionReply,
-    ListFlappingDetectRaw, ListFlappingDetectReply,
+    EnableFlappingDetectReply, EnableFlappingDetectRequest, FlappingDetectRaw, ListConnectionRaw,
+    ListConnectionReply, ListFlappingDetectReply, ListFlappingDetectRequest,
 };
-use std::pin::Pin;
 use std::sync::Arc;
-use tonic::Status;
 
 pub async fn cluster_status_by_req(
     client_pool: &Arc<ClientPool>,
@@ -169,22 +167,40 @@ pub async fn list_connection_by_req(
 
 pub async fn list_flapping_detect_by_req(
     cache_manager: &Arc<CacheManager>,
-) -> Result<
-    Pin<Box<dyn Stream<Item = Result<ListFlappingDetectReply, Status>> + Send>>,
-    MqttBrokerError,
-> {
-    let map = cache_manager.acl_metadata.flapping_detect_map.clone();
-    let output = async_stream::try_stream! {
-        for (_, raw) in map {
-            let raw = ListFlappingDetectRaw {
-            client_id: raw.client_id,
-                before_last_windows_connections: raw.before_last_window_connections,
-                first_request_time: raw.first_request_time,
-            };
-            yield ListFlappingDetectReply {
-                list_flapping_detect_raw: Some(raw),
-            };
+    request: &ListFlappingDetectRequest,
+) -> Result<ListFlappingDetectReply, MqttBrokerError> {
+    let flapping_detects = extract_flapping_detect(cache_manager);
+    let filtered = apply_filters(flapping_detects, &request.options);
+    let sorted = apply_sorting(filtered, &request.options);
+    let pagination = apply_pagination(sorted, &request.options);
+
+    Ok(ListFlappingDetectReply {
+        flapping_detect_raw: pagination.0,
+        total_count: pagination.1 as u32,
+    })
+}
+
+fn extract_flapping_detect(cache_manager: &Arc<CacheManager>) -> Vec<FlappingDetectRaw> {
+    cache_manager
+        .acl_metadata
+        .flapping_detect_map
+        .iter()
+        .map(|entry| {
+            let flapping_detect = entry.value();
+            FlappingDetectRaw {
+                client_id: flapping_detect.client_id.clone(),
+                before_last_windows_connections: flapping_detect.before_last_window_connections,
+                first_request_time: flapping_detect.first_request_time,
+            }
+        })
+        .collect()
+}
+
+impl Queryable for FlappingDetectRaw {
+    fn get_field_str(&self, field: &str) -> Option<String> {
+        match field {
+            "client_id" => Some(self.client_id.clone()),
+            _ => None,
         }
-    };
-    Ok(Box::pin(output))
+    }
 }
