@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::tool::loop_select;
 use crate::handler::cache::CacheManager;
+use crate::handler::error::MqttBrokerError;
 use crate::handler::topic::try_init_topic;
 use crate::observability::system_topic::packet::bytes::{
     SYSTEM_TOPIC_BROKERS_METRICS_BYTES_RECEIVED, SYSTEM_TOPIC_BROKERS_METRICS_BYTES_SENT,
@@ -81,10 +83,9 @@ use metadata_struct::mqtt::message::MqttMessage;
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::storage::StorageAdapter;
-use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
-use tracing::{error, info};
+use tracing::error;
 
 // Cluster status information
 pub const SYSTEM_TOPIC_BROKERS: &str = "$SYS/brokers";
@@ -146,52 +147,39 @@ where
 
     pub async fn start_thread(&self, stop_send: broadcast::Sender<bool>) {
         self.try_init_system_topic().await;
-        let mut stop_rx = stop_send.subscribe();
-        loop {
-            select! {
-                val = stop_rx.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
-                            info!("System topic thread stopped successfully");
-                            break;
-                        }
-                    }
-                }
-                _ = self.report_info()=>{
-                    sleep(Duration::from_secs(60)).await;
-                }
-            }
-        }
-    }
+        let ac_fn = async || -> Result<(), MqttBrokerError> {
+            report_broker_info(
+                &self.client_pool,
+                &self.metadata_cache,
+                &self.message_storage_adapter,
+            )
+            .await;
 
-    pub async fn report_info(&self) {
-        report_broker_info(
-            &self.client_pool,
-            &self.metadata_cache,
-            &self.message_storage_adapter,
-        )
-        .await;
+            report_stats_info(
+                &self.client_pool,
+                &self.metadata_cache,
+                &self.message_storage_adapter,
+            )
+            .await;
 
-        report_stats_info(
-            &self.client_pool,
-            &self.metadata_cache,
-            &self.message_storage_adapter,
-        )
-        .await;
+            report_packet_info(
+                &self.client_pool,
+                &self.metadata_cache,
+                &self.message_storage_adapter,
+            )
+            .await;
 
-        report_packet_info(
-            &self.client_pool,
-            &self.metadata_cache,
-            &self.message_storage_adapter,
-        )
-        .await;
+            report_alarm_info(
+                &self.client_pool,
+                &self.metadata_cache,
+                &self.message_storage_adapter,
+            )
+            .await;
+            sleep(Duration::from_secs(1)).await;
+            Ok(())
+        };
 
-        report_alarm_info(
-            &self.client_pool,
-            &self.metadata_cache,
-            &self.message_storage_adapter,
-        )
-        .await;
+        loop_select(ac_fn, &stop_send).await;
     }
 
     pub async fn try_init_system_topic(&self) {

@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use local_ip_address::local_ip;
 use std::fs;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
-
-use local_ip_address::local_ip;
 use tonic::Status;
 use tracing::warn;
 use uuid::Uuid;

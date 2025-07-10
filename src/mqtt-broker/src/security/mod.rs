@@ -40,6 +40,7 @@ pub mod auth;
 pub mod login;
 pub mod storage;
 
+#[derive(Clone)]
 pub struct AuthDriver {
     cache_manager: Arc<CacheManager>,
     driver: Arc<dyn AuthStorageAdapter + Send + 'static + Sync>,

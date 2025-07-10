@@ -18,8 +18,6 @@ use axum::async_trait;
 pub mod http;
 pub mod jwt;
 pub mod plaintext;
-pub mod psk;
-pub mod x509;
 
 #[async_trait]
 pub trait Authentication {
