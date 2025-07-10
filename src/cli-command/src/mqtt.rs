@@ -26,11 +26,12 @@ use grpc_clients::mqtt::admin::call::{
     mqtt_broker_delete_user, mqtt_broker_enable_flapping_detect, mqtt_broker_get_cluster_config,
     mqtt_broker_list_acl, mqtt_broker_list_auto_subscribe_rule, mqtt_broker_list_bind_schema,
     mqtt_broker_list_blacklist, mqtt_broker_list_connection, mqtt_broker_list_connector,
-    mqtt_broker_list_schema, mqtt_broker_list_session, mqtt_broker_list_slow_subscribe,
-    mqtt_broker_list_subscribe, mqtt_broker_list_system_alarm, mqtt_broker_list_topic,
-    mqtt_broker_list_user, mqtt_broker_set_auto_subscribe_rule, mqtt_broker_set_cluster_config,
-    mqtt_broker_set_system_alarm_config, mqtt_broker_subscribe_detail, mqtt_broker_unbind_schema,
-    mqtt_broker_update_connector, mqtt_broker_update_schema,
+    mqtt_broker_list_flapping_detect, mqtt_broker_list_schema, mqtt_broker_list_session,
+    mqtt_broker_list_slow_subscribe, mqtt_broker_list_subscribe, mqtt_broker_list_system_alarm,
+    mqtt_broker_list_topic, mqtt_broker_list_user, mqtt_broker_set_auto_subscribe_rule,
+    mqtt_broker_set_cluster_config, mqtt_broker_set_system_alarm_config,
+    mqtt_broker_subscribe_detail, mqtt_broker_unbind_schema, mqtt_broker_update_connector,
+    mqtt_broker_update_schema,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -46,9 +47,9 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteSchemaRequest, DeleteTopicRewriteRuleRequest, DeleteUserRequest,
     EnableFlappingDetectRequest, GetClusterConfigRequest, ListAclRequest,
     ListAutoSubscribeRuleRequest, ListBindSchemaRequest, ListBlacklistRequest,
-    ListConnectionRequest, ListConnectorRequest, ListSchemaRequest, ListSessionRequest,
-    ListSlowSubscribeRequest, ListSubscribeRequest, ListSystemAlarmRequest, ListTopicRequest,
-    ListUserRequest, SetAutoSubscribeRuleRequest, SetClusterConfigRequest,
+    ListConnectionRequest, ListConnectorRequest, ListFlappingDetectRequest, ListSchemaRequest,
+    ListSessionRequest, ListSlowSubscribeRequest, ListSubscribeRequest, ListSystemAlarmRequest,
+    ListTopicRequest, ListUserRequest, SetAutoSubscribeRuleRequest, SetClusterConfigRequest,
     SetSystemAlarmConfigRequest, SubscribeDetailRequest, UnbindSchemaRequest,
     UpdateConnectorRequest, UpdateSchemaRequest,
 };
@@ -903,34 +904,25 @@ impl MqttBrokerCommand {
     }
 
     async fn list_flapping_detect(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
-        let request = ListSessionRequest { options: None };
-        match mqtt_broker_list_session(client_pool, &grpc_addr(params.server), request).await {
+        let request = ListFlappingDetectRequest { options: None };
+        match mqtt_broker_list_flapping_detect(client_pool, &grpc_addr(params.server), request)
+            .await
+        {
             Ok(data) => {
                 let mut table = Table::new();
                 table.set_titles(row![
                     "client_id",
-                    "session_expiry",
-                    "is_contain_last_will",
-                    "last_will_delay_interval",
-                    "create_time",
-                    "connection_id",
-                    "broker_id",
-                    "reconnect_time",
-                    "distinct_time"
+                    "before_last_windows_connections",
+                    "first_request_time",
                 ]);
-                for blacklist in data.sessions {
+                for raw in data.flapping_detect_raw {
                     table.add_row(row![
-                        blacklist.client_id,
-                        blacklist.session_expiry,
-                        blacklist.is_contain_last_will,
-                        blacklist.last_will_delay_interval.unwrap_or_default(),
-                        blacklist.create_time,
-                        blacklist.connection_id.unwrap_or_default(),
-                        blacklist.broker_id.unwrap_or_default(),
-                        blacklist.reconnect_time.unwrap_or_default(),
-                        blacklist.distinct_time.unwrap_or_default(),
+                        raw.client_id,
+                        raw.before_last_windows_connections,
+                        raw.first_request_time
                     ]);
                 }
+
                 // output cmd
                 table.printstd()
             }
