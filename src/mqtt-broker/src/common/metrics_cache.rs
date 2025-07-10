@@ -20,7 +20,7 @@ use common_base::tools::now_second;
 use dashmap::DashMap;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::{select, sync::broadcast, time::sleep};
-use tracing::info;
+use tracing::{debug, info};
 
 #[derive(Clone, Default)]
 pub struct MetricsCacheManager {
@@ -144,23 +144,23 @@ pub fn metrics_record_thread(
     stop_send: broadcast::Sender<bool>,
 ) {
     let record_func = async move || {
+        debug!("Metrics record thread triggers execution");
         let now = now_second();
-        if now_second() % time_window == 0 {
-            metrics_cache_manager
-                .record_connection_num(now, connection_manager.connections.len() as u32);
-            metrics_cache_manager.record_topic_num(now, cache_manager.topic_info.len() as u32);
-            metrics_cache_manager
-                .record_subscribe_num(now, subscribe_manager.subscribe_list.len() as u32);
-            metrics_cache_manager.record_message_in_num(now, 1000);
-            metrics_cache_manager.record_message_out_num(now, 1000);
-            metrics_cache_manager.record_message_drop_num(now, 30);
-        }
 
-        sleep(Duration::from_secs(1)).await;
+        metrics_cache_manager
+            .record_connection_num(now, connection_manager.connections.len() as u32);
+        metrics_cache_manager.record_topic_num(now, cache_manager.topic_info.len() as u32);
+        metrics_cache_manager
+            .record_subscribe_num(now, subscribe_manager.subscribe_list.len() as u32);
+        metrics_cache_manager.record_message_in_num(now, 1000);
+        metrics_cache_manager.record_message_out_num(now, 1000);
+        metrics_cache_manager.record_message_drop_num(now, 30);
     };
 
     info!("Metrics record thread start successfully");
     tokio::spawn(async move {
+        let mut internal = tokio::time::interval(Duration::from_secs(time_window));
+
         let mut sub_thread_stop_rx = stop_send.subscribe();
         loop {
             select! {
@@ -172,7 +172,8 @@ pub fn metrics_record_thread(
                         }
                     }
                 },
-                _ = record_func()=> {
+                _ = internal.tick() => {
+                    record_func().await
                 }
             }
         }
