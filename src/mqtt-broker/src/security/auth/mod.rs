@@ -13,15 +13,15 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
-use crate::security::acl::acls::is_acl_deny;
-use crate::security::acl::blacklist::is_blacklist;
-use crate::security::acl::super_user::is_super_user;
+use crate::security::auth::acl::is_acl_deny;
+use crate::security::auth::blacklist::is_blacklist;
+use crate::security::auth::super_user::is_super_user;
 use metadata_struct::acl::mqtt_acl::MqttAclAction;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::QoS;
 use std::sync::Arc;
 
-pub mod acls;
+pub mod acl;
 pub mod blacklist;
 pub mod common;
 pub mod metadata;

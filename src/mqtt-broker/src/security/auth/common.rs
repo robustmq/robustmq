@@ -42,7 +42,7 @@ pub fn topic_match(topic_name: &str, match_topic_name: &str) -> bool {
 mod test {
     use crate::{
         handler::constant::WILDCARD_RESOURCE,
-        security::acl::common::{ip_match, topic_match},
+        security::auth::common::{ip_match, topic_match},
     };
 
     #[tokio::test]

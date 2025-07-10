@@ -14,8 +14,8 @@
 
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
-use crate::security::acl::blacklist::is_blacklist;
-use crate::security::acl::is_allow_acl;
+use crate::security::auth::blacklist::is_blacklist;
+use crate::security::auth::is_allow_acl;
 use crate::security::login::plaintext::plaintext_check_login;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
 use crate::subscribe::common::get_sub_topic_id_list;
@@ -36,7 +36,7 @@ use storage::mysql::MySQLAuthStorageAdapter;
 use storage::placement::PlacementAuthStorageAdapter;
 use storage_adapter::StorageType;
 
-pub mod acl;
+pub mod auth;
 pub mod login;
 pub mod storage;
 

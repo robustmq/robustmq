@@ -14,7 +14,7 @@
 
 use crate::{
     handler::cache::CacheManager,
-    security::acl::common::{ip_match, topic_match},
+    security::auth::common::{ip_match, topic_match},
 };
 use metadata_struct::{
     acl::mqtt_acl::{MqttAclAction, MqttAclPermission},

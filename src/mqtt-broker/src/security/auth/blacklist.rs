@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{handler::cache::CacheManager, security::acl::common::ip_match};
+use crate::{handler::cache::CacheManager, security::auth::common::ip_match};
 use common_base::tools::now_second;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use regex::Regex;
