@@ -4564,7 +4564,7 @@ dependencies = [
 [[package]]
 name = "robustmq-proto-build"
 version = "0.1.0"
-source = "git+https://github.com/PorterZhang2021/robustmq-proto.git?branch=list-flapping-detect#6be0cb03a9832bf5127cadd757334c3ee254c498"
+source = "git+https://github.com/robustmq/robustmq-proto.git?branch=main#94fbb2c87eed520060ac0e5db169a9392808cf89"
 dependencies = [
  "prost-build",
  "prost-validate-build",
