@@ -12,5 +12,48 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod auth;
+use crate::handler::cache::CacheManager;
+use crate::security::acl::acls::is_acl_deny;
+use crate::security::acl::blacklist::is_blacklist;
+use crate::security::acl::super_user::is_super_user;
+use metadata_struct::acl::mqtt_acl::MqttAclAction;
+use metadata_struct::mqtt::connection::MQTTConnection;
+use protocol::mqtt::common::QoS;
+use std::sync::Arc;
+
+pub mod acls;
+pub mod blacklist;
+pub mod common;
 pub mod metadata;
+pub mod super_user;
+
+pub fn is_allow_acl(
+    cache_manager: &Arc<CacheManager>,
+    connection: &MQTTConnection,
+    topic_name: &str,
+    action: MqttAclAction,
+    retain: bool,
+    _: QoS,
+) -> bool {
+    // check super user
+    if is_super_user(cache_manager, &connection.login_user) {
+        return true;
+    }
+
+    // check blacklist
+    if is_blacklist(cache_manager, connection) {
+        return false;
+    }
+
+    // check acl
+    if is_acl_deny(cache_manager, connection, topic_name, action) {
+        return false;
+    }
+
+    // check retain acl
+    if retain && is_acl_deny(cache_manager, connection, topic_name, MqttAclAction::Retain) {
+        return false;
+    }
+
+    true
+}
