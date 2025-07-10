@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::security::AuthDriver;
+use crate::{common::tool::loop_select, handler::error::MqttBrokerError, security::AuthDriver};
 use std::{sync::Arc, time::Duration};
-use tokio::{select, sync::broadcast, time::sleep};
-use tracing::{debug, error};
+use tokio::{sync::broadcast, time::sleep};
 
 pub fn sync_auth_storage_info(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {
     sync_user_cache(auth_driver.clone(), stop_send.clone());
@@ -25,72 +24,36 @@ pub fn sync_auth_storage_info(auth_driver: Arc<AuthDriver>, stop_send: broadcast
 
 fn sync_user_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {
     tokio::spawn(async move {
-        loop {
-            let mut stop_rx = stop_send.subscribe();
-            select! {
-                val = stop_rx.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
-                            debug!("{}","Acl cache updating thread stopped successfully.");
-                            break;
-                        }
-                    }
-                }
-                val = auth_driver.update_user_cache()=>{
-                    if let Err(e) = val{
-                        error!("{}", e);
-                    }
-                    sleep(Duration::from_secs(5)).await;
-                }
-            }
-        }
+        let ac_fn = async || -> Result<(), MqttBrokerError> {
+            let driver = auth_driver.clone();
+            driver.update_user_cache().await?;
+            sleep(Duration::from_secs(1)).await;
+            Ok(())
+        };
+        loop_select(ac_fn, &stop_send).await;
     });
 }
 
 fn sync_acl_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {
     tokio::spawn(async move {
-        loop {
-            let mut stop_rx = stop_send.subscribe();
-            select! {
-                val = stop_rx.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
-                            debug!("{}","User cache updating thread stopped successfully.");
-                            break;
-                        }
-                    }
-                }
-                val = auth_driver.update_acl_cache()=>{
-                    if let Err(e) = val{
-                        error!("{}", e);
-                    }
-                    sleep(Duration::from_secs(5)).await;
-                }
-            }
-        }
+        let ac_fn = async || -> Result<(), MqttBrokerError> {
+            let driver = auth_driver.clone();
+            driver.update_acl_cache().await?;
+            sleep(Duration::from_secs(1)).await;
+            Ok(())
+        };
+        loop_select(ac_fn, &stop_send).await;
     });
 }
 
 fn sync_blacklist_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {
     tokio::spawn(async move {
-        loop {
-            let mut stop_rx = stop_send.subscribe();
-            select! {
-                val = stop_rx.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
-                            debug!("{}","User cache updating thread stopped successfully.");
-                            break;
-                        }
-                    }
-                }
-                val = auth_driver.update_blacklist_cache()=>{
-                    if let Err(e) = val{
-                        error!("{}", e);
-                    }
-                    sleep(Duration::from_secs(5)).await;
-                }
-            }
-        }
+        let ac_fn = async || -> Result<(), MqttBrokerError> {
+            let driver = auth_driver.clone();
+            driver.update_blacklist_cache().await?;
+            sleep(Duration::from_secs(1)).await;
+            Ok(())
+        };
+        loop_select(ac_fn, &stop_send).await;
     });
 }

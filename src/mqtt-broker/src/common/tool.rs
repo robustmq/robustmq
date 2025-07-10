@@ -12,7 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::future::Future;
+
 use protocol::mqtt::common::MqttPacket;
+use tokio::{select, sync::broadcast};
+
+use crate::handler::error::MqttBrokerError;
 
 pub fn is_ignore_print(packet: &MqttPacket) -> bool {
     if let MqttPacket::PingResp(_) = packet {
@@ -22,4 +27,26 @@ pub fn is_ignore_print(packet: &MqttPacket) -> bool {
         return true;
     }
     false
+}
+
+pub async fn loop_select<F, Fut>(ac_fn: F, stop_sx: &broadcast::Sender<bool>)
+where
+    F: FnOnce() -> Fut + Copy,
+    Fut: Future<Output = Result<(), MqttBrokerError>>,
+{
+    let mut stop_recv = stop_sx.subscribe();
+    loop {
+        select! {
+            val = stop_recv.recv() => {
+                if let Ok(flag) = val {
+                    if flag {
+                        break;
+                    }
+                }
+            }
+            _ = ac_fn() => {
+
+            }
+        }
+    }
 }
