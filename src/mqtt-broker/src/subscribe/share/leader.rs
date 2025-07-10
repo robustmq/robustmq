@@ -323,7 +323,7 @@ where
                 }
 
                 debug!(
-                    "Shared subscription failed to send a message to client {}. I attempted to 
+                    "Shared subscription failed to send a message to client {}. I attempted to
                     send it to the next client. Error message :{}, offset: {:?}",
                     subscriber.client_id, e, record.offset
                 );
