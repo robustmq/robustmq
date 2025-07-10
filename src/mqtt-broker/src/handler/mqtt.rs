@@ -145,7 +145,7 @@ where
             addr,
         );
 
-        if self.auth_driver.allow_connect(&connection).await {
+        if self.auth_driver.auth_connect_check(&connection).await {
             return response_packet_mqtt_connect_fail(
                 &self.protocol,
                 ConnectReturnCode::Banned,
@@ -157,7 +157,7 @@ where
         // login check
         match self
             .auth_driver
-            .check_login_auth(login, connect_properties, addr)
+            .auth_login_check(login, connect_properties, addr)
             .await
         {
             Ok(flag) => {
@@ -369,7 +369,7 @@ where
 
         if !self
             .auth_driver
-            .allow_publish(&connection, &topic_name, publish.retain, publish.qos)
+            .auth_publish_check(&connection, &topic_name, publish.retain, publish.qos)
             .await
         {
             if is_pub_ack {

@@ -12,64 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashSet;
-use std::net::SocketAddr;
-use std::str::FromStr;
-use std::sync::Arc;
-
-use acl::auth::is_allow_acl;
-use axum::async_trait;
-
+use crate::handler::cache::CacheManager;
+use crate::handler::error::MqttBrokerError;
+use crate::security::auth::blacklist::is_blacklist;
+use crate::security::auth::is_allow_acl;
+use crate::security::login::plaintext::plaintext_check_login;
+use crate::security::storage::storage_trait::AuthStorageAdapter;
+use crate::subscribe::common::get_sub_topic_id_list;
 use common_config::mqtt::broker_mqtt_conf;
 use common_config::mqtt::config::AuthStorage;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
-use login::plaintext::Plaintext;
-use login::Authentication;
 use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclAction, MqttAclResourceType};
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::mqtt::common::{ConnectProperties, Login, QoS, Subscribe};
+use std::collections::HashSet;
+use std::net::SocketAddr;
+use std::str::FromStr;
+use std::sync::Arc;
 use storage::mysql::MySQLAuthStorageAdapter;
 use storage::placement::PlacementAuthStorageAdapter;
 use storage_adapter::StorageType;
 
-use crate::handler::cache::CacheManager;
-use crate::handler::error::MqttBrokerError;
-use crate::security::acl::auth::is_blacklist;
-use crate::subscribe::common::get_sub_topic_id_list;
-
-pub mod acl;
+pub mod auth;
 pub mod login;
 pub mod storage;
 
-#[async_trait]
-pub trait AuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError>;
-
-    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError>;
-
-    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError>;
-
-    async fn get_user(&self, username: String) -> Result<Option<MqttUser>, MqttBrokerError>;
-
-    async fn save_user(&self, user_info: MqttUser) -> Result<(), MqttBrokerError>;
-
-    async fn delete_user(&self, username: String) -> Result<(), MqttBrokerError>;
-
-    async fn save_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError>;
-
-    async fn delete_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError>;
-
-    async fn save_blacklist(&self, blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError>;
-
-    async fn delete_blacklist(&self, blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError>;
-}
-
 pub struct AuthDriver {
     cache_manager: Arc<CacheManager>,
-    client_pool: Arc<ClientPool>,
     driver: Arc<dyn AuthStorageAdapter + Send + 'static + Sync>,
 }
 
@@ -80,22 +52,87 @@ impl AuthDriver {
         let driver = match build_driver(client_pool.clone(), conf.auth_storage.clone()) {
             Ok(driver) => driver,
             Err(e) => {
-                panic!("{},auth storage:{:?}", e, conf.auth_storage);
+                panic!("{}, auth storage:{:?}", e, conf.auth_storage);
             }
         };
+
         AuthDriver {
             cache_manager,
             driver,
-            client_pool,
         }
     }
 
-    pub fn update_driver(&mut self, auth: AuthStorage) -> Result<(), MqttBrokerError> {
-        let driver = build_driver(self.client_pool.clone(), auth)?;
-        self.driver = driver;
-        Ok(())
+    // Permission: Allow && Deny
+    pub async fn auth_login_check(
+        &self,
+        login: &Option<Login>,
+        _connect_properties: &Option<ConnectProperties>,
+        _socket_addr: &SocketAddr,
+    ) -> Result<bool, MqttBrokerError> {
+        let cluster = self.cache_manager.get_cluster_config();
+
+        if cluster.security.secret_free_login {
+            return Ok(true);
+        }
+
+        if let Some(info) = login {
+            return plaintext_check_login(
+                &self.driver,
+                &self.cache_manager,
+                &info.username,
+                &info.password,
+            )
+            .await;
+        }
+
+        Ok(false)
     }
 
+    pub async fn auth_connect_check(&self, connection: &MQTTConnection) -> bool {
+        is_blacklist(&self.cache_manager, connection)
+    }
+
+    pub async fn auth_publish_check(
+        &self,
+        connection: &MQTTConnection,
+        topic_name: &str,
+        retain: bool,
+        qos: QoS,
+    ) -> bool {
+        is_allow_acl(
+            &self.cache_manager,
+            connection,
+            topic_name,
+            MqttAclAction::Publish,
+            retain,
+            qos,
+        )
+    }
+
+    pub async fn auth_subscribe_check(
+        &self,
+        connection: &MQTTConnection,
+        subscribe: &Subscribe,
+    ) -> bool {
+        for filter in subscribe.filters.iter() {
+            let topic_list = get_sub_topic_id_list(&self.cache_manager, &filter.path).await;
+            for topic in topic_list {
+                if !is_allow_acl(
+                    &self.cache_manager,
+                    connection,
+                    &topic,
+                    MqttAclAction::Subscribe,
+                    false,
+                    filter.qos,
+                ) {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
+    // User
     pub async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError> {
         self.driver.read_all_user().await
     }
@@ -141,27 +178,7 @@ impl AuthDriver {
         Ok(())
     }
 
-    pub async fn check_login_auth(
-        &self,
-        login: &Option<Login>,
-        _: &Option<ConnectProperties>,
-        _: &SocketAddr,
-    ) -> Result<bool, MqttBrokerError> {
-        let cluster = self.cache_manager.get_cluster_config();
-
-        if cluster.security.secret_free_login {
-            return Ok(true);
-        }
-
-        if let Some(info) = login {
-            return self
-                .plaintext_check_login(&info.username, &info.password)
-                .await;
-        }
-
-        Ok(false)
-    }
-
+    // ACL
     pub async fn save_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError> {
         self.cache_manager.add_acl(acl.clone());
         self.driver.save_acl(acl).await
@@ -194,6 +211,7 @@ impl AuthDriver {
         Ok(())
     }
 
+    // BlackList
     pub async fn save_blacklist(&self, blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError> {
         self.cache_manager.add_blacklist(blacklist.clone());
         self.driver.save_blacklist(blacklist).await
@@ -208,94 +226,14 @@ impl AuthDriver {
         Ok(())
     }
 
-    pub async fn allow_connect(&self, connection: &MQTTConnection) -> bool {
-        // check blacklist
-        is_blacklist(&self.cache_manager, connection)
-    }
+    pub async fn update_blacklist_cache(&self) -> Result<(), MqttBrokerError> {
+        let all_blacklist = self.driver.read_all_blacklist().await?;
 
-    pub async fn allow_publish(
-        &self,
-        connection: &MQTTConnection,
-        topic_name: &str,
-        retain: bool,
-        qos: QoS,
-    ) -> bool {
-        is_allow_acl(
-            &self.cache_manager,
-            connection,
-            topic_name,
-            MqttAclAction::Publish,
-            retain,
-            qos,
-        )
-    }
-
-    pub async fn allow_subscribe(
-        &self,
-        connection: &MQTTConnection,
-        subscribe: &Subscribe,
-    ) -> bool {
-        for filter in subscribe.filters.iter() {
-            let topic_list = get_sub_topic_id_list(&self.cache_manager, &filter.path).await;
-            for topic in topic_list {
-                if !is_allow_acl(
-                    &self.cache_manager,
-                    connection,
-                    &topic,
-                    MqttAclAction::Subscribe,
-                    false,
-                    filter.qos,
-                ) {
-                    return false;
-                }
-            }
-        }
-        true
-    }
-
-    async fn plaintext_check_login(
-        &self,
-        username: &str,
-        password: &str,
-    ) -> Result<bool, MqttBrokerError> {
-        let plaintext = Plaintext::new(
-            username.to_owned(),
-            password.to_owned(),
-            self.cache_manager.clone(),
-        );
-        match plaintext.apply().await {
-            Ok(flag) => {
-                if flag {
-                    return Ok(true);
-                }
-            }
-            Err(e) => {
-                // If the user does not exist, try to get the user information from the storage layer
-                if e.to_string() == MqttBrokerError::UserDoesNotExist.to_string() {
-                    return self.try_get_check_user_by_driver(username).await;
-                }
-                return Err(e);
-            }
-        }
-        Ok(false)
-    }
-
-    async fn try_get_check_user_by_driver(&self, username: &str) -> Result<bool, MqttBrokerError> {
-        if let Some(user) = self.driver.get_user(username.to_owned()).await? {
-            self.cache_manager.add_user(user.clone());
-
-            let plaintext = Plaintext::new(
-                user.username.clone(),
-                user.password.clone(),
-                self.cache_manager.clone(),
-            );
-
-            if plaintext.apply().await? {
-                return Ok(true);
-            }
+        for acl in all_blacklist.iter() {
+            self.cache_manager.add_blacklist(acl.to_owned());
         }
 
-        Ok(false)
+        Ok(())
     }
 }
 

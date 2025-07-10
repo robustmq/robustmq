@@ -242,7 +242,7 @@ impl AclMetadata {
 #[cfg(test)]
 mod test {
     use crate::handler::flapping_detect::FlappingDetectCondition;
-    use crate::security::acl::metadata::AclMetadata;
+    use crate::security::auth::metadata::AclMetadata;
     use common_base::tools::now_second;
     use common_config::mqtt::config::FlappingDetect;
     use metadata_struct::acl::mqtt_acl::{

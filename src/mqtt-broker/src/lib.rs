@@ -15,6 +15,8 @@
 #![allow(clippy::result_large_err)]
 use crate::common::metrics_cache::{metrics_gc_thread, metrics_record_thread, MetricsCacheManager};
 use crate::handler::error::MqttBrokerError;
+use crate::security::auth::super_user::init_system_user;
+use crate::security::storage::sync::sync_auth_storage_info;
 use crate::server::server::Server;
 use bridge::core::start_connector_thread;
 use bridge::manager::ConnectorManager;
@@ -23,13 +25,11 @@ use common_base::runtime::create_runtime;
 use common_config::mqtt::broker_mqtt_conf;
 use delay_message::{start_delay_message_manager, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
-use handler::acl::UpdateAclCache;
 use handler::cache::CacheManager;
 use handler::dynamic_cache::load_metadata_cache;
 use handler::heartbreat::{register_node, report_heartbeat};
 use handler::keep_alive::ClientKeepAlive;
 use handler::sub_parse_topic::start_parse_subscribe_by_new_topic_thread;
-use handler::user::{init_system_user, UpdateUserCache};
 use observability::start_observability;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
 use schema_register::schema::SchemaRegisterManager;
@@ -434,17 +434,7 @@ where
     }
 
     fn start_update_cache_thread(&self, stop_send: broadcast::Sender<bool>) {
-        let update_user_cache = UpdateUserCache::new(stop_send.clone(), self.auth_driver.clone());
-
-        self.daemon_runtime.spawn(async move {
-            update_user_cache.start_update().await;
-        });
-
-        let update_acl_cache = UpdateAclCache::new(stop_send.clone(), self.auth_driver.clone());
-
-        self.daemon_runtime.spawn(async move {
-            update_acl_cache.start_update().await;
-        });
+        sync_auth_storage_info(self.auth_driver.clone(), stop_send.clone());
 
         let update_flapping_detect_cache =
             UpdateFlappingDetectCache::new(stop_send.clone(), self.cache_manager.clone());

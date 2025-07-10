@@ -23,7 +23,6 @@ use crate::server::common::handler::handler_process;
 use crate::server::common::response::response_process;
 use crate::server::quic::acceptor::acceptor_process;
 use crate::subscribe::manager::SubscribeManager;
-
 use common_config::mqtt::broker_mqtt_conf;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
@@ -43,6 +42,7 @@ pub fn generate_self_signed_cert() -> (Vec<CertificateDer<'static>>, PrivateKeyD
     let priv_key = PrivatePkcs8KeyDer::from(cert.key_pair.serialize_der());
     (vec![cert_der.clone()], priv_key.into())
 }
+
 #[allow(clippy::too_many_arguments)]
 pub async fn start_quic_server<S>(
     subscribe_manager: Arc<SubscribeManager>,

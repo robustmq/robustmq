@@ -12,20 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use crate::handler::error::MqttBrokerError;
+use crate::security::AuthStorageAdapter;
+use crate::storage::acl::AclStorage;
+use crate::storage::blacklist::BlackListStorage;
+use crate::storage::user::UserStorage;
 use axum::async_trait;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::user::MqttUser;
-
-use crate::handler::error::MqttBrokerError;
-use crate::security::AuthStorageAdapter;
-use crate::storage::acl::AclStorage;
-use crate::storage::blacklist::BlackListStorage;
-use crate::storage::user::UserStorage;
+use std::sync::Arc;
 
 pub struct PlacementAuthStorageAdapter {
     client_pool: Arc<ClientPool>,
