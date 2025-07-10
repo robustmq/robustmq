@@ -81,10 +81,8 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
 use std::sync::Arc;
-use std::time::Duration;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast;
-use tokio::time::sleep;
 use tracing::error;
 
 // Cluster status information
@@ -175,11 +173,10 @@ where
                 &self.message_storage_adapter,
             )
             .await;
-            sleep(Duration::from_secs(1)).await;
             Ok(())
         };
 
-        loop_select(ac_fn, &stop_send).await;
+        loop_select(ac_fn, 1, &stop_send).await;
     }
 
     pub async fn try_init_system_topic(&self) {

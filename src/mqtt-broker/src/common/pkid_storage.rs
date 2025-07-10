@@ -23,6 +23,7 @@ use protocol::placement_center::placement_center_inner::{
     DeleteIdempotentDataRequest, ExistsIdempotentDataRequest, SetIdempotentDataRequest,
 };
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 
@@ -31,7 +32,7 @@ pub async fn pkid_save(
     client_pool: &Arc<ClientPool>,
     client_id: &str,
     pkid: u16,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     if cache_manager
         .get_cluster_config()
         .mqtt_protocol_config

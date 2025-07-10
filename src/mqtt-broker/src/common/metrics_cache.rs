@@ -13,14 +13,16 @@
 // limitations under the License.
 
 use crate::{
-    handler::cache::CacheManager, server::common::connection_manager::ConnectionManager,
+    common::tool::loop_select,
+    handler::{cache::CacheManager, error::MqttBrokerError},
+    server::common::connection_manager::ConnectionManager,
     subscribe::manager::SubscribeManager,
 };
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use std::{collections::HashMap, sync::Arc, time::Duration};
-use tokio::{select, sync::broadcast, time::sleep};
-use tracing::{debug, info};
+use std::{collections::HashMap, sync::Arc};
+use tokio::sync::broadcast;
+use tracing::info;
 
 #[derive(Clone, Default)]
 pub struct MetricsCacheManager {
@@ -143,40 +145,23 @@ pub fn metrics_record_thread(
     time_window: u64,
     stop_send: broadcast::Sender<bool>,
 ) {
-    let record_func = async move || {
-        debug!("Metrics record thread triggers execution");
-        let now = now_second();
-
-        metrics_cache_manager
-            .record_connection_num(now, connection_manager.connections.len() as u32);
-        metrics_cache_manager.record_topic_num(now, cache_manager.topic_info.len() as u32);
-        metrics_cache_manager
-            .record_subscribe_num(now, subscribe_manager.subscribe_list.len() as u32);
-        metrics_cache_manager.record_message_in_num(now, 1000);
-        metrics_cache_manager.record_message_out_num(now, 1000);
-        metrics_cache_manager.record_message_drop_num(now, 30);
-    };
-
     info!("Metrics record thread start successfully");
     tokio::spawn(async move {
-        let mut internal = tokio::time::interval(Duration::from_secs(time_window));
-
-        let mut sub_thread_stop_rx = stop_send.subscribe();
-        loop {
-            select! {
-                val = sub_thread_stop_rx.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
-                            info!("Metrics record thread exited successfully");
-                            break;
-                        }
-                    }
-                },
-                _ = internal.tick() => {
-                    record_func().await
-                }
-            }
-        }
+        let record_func = async || -> Result<(), MqttBrokerError> {
+            let now = now_second();
+            let metrics_cache_manager = metrics_cache_manager.clone();
+            let connection_manager = connection_manager.clone();
+            metrics_cache_manager
+                .record_connection_num(now, connection_manager.connections.len() as u32);
+            metrics_cache_manager.record_topic_num(now, cache_manager.topic_info.len() as u32);
+            metrics_cache_manager
+                .record_subscribe_num(now, subscribe_manager.subscribe_list.len() as u32);
+            metrics_cache_manager.record_message_in_num(now, 1000);
+            metrics_cache_manager.record_message_out_num(now, 1000);
+            metrics_cache_manager.record_message_drop_num(now, 30);
+            Ok(())
+        };
+        loop_select(record_func, time_window, &stop_send).await;
     });
 }
 
@@ -184,70 +169,57 @@ pub fn metrics_gc_thread(
     metrics_cache_manager: Arc<MetricsCacheManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
-    let save_time = 3600 * 24 * 3;
-    let now_time = now_second();
-    let record_func = async move || {
-        // connection_num
-        for (time, _) in metrics_cache_manager.connection_num.clone() {
-            if (time + save_time) < now_time {
-                metrics_cache_manager.connection_num.remove(&time);
-            }
-        }
-
-        // topic_num
-        for (time, _) in metrics_cache_manager.topic_num.clone() {
-            if (time + save_time) < now_time {
-                metrics_cache_manager.topic_num.remove(&time);
-            }
-        }
-
-        // subscribe_num
-        for (time, _) in metrics_cache_manager.subscribe_num.clone() {
-            if (time + save_time) < now_time {
-                metrics_cache_manager.subscribe_num.remove(&time);
-            }
-        }
-
-        // message_in_num
-        for (time, _) in metrics_cache_manager.message_in_num.clone() {
-            if (time + save_time) < now_time {
-                metrics_cache_manager.message_in_num.remove(&time);
-            }
-        }
-
-        // message_out_num
-        for (time, _) in metrics_cache_manager.message_out_num.clone() {
-            if (time + save_time) < now_time {
-                metrics_cache_manager.message_out_num.remove(&time);
-            }
-        }
-
-        // message_drop_num
-        for (time, _) in metrics_cache_manager.message_drop_num.clone() {
-            if (time + save_time) < now_time {
-                metrics_cache_manager.message_drop_num.remove(&time);
-            }
-        }
-
-        sleep(Duration::from_secs(3600)).await;
-    };
     info!("Metrics gc thread start successfully");
     tokio::spawn(async move {
-        let mut sub_thread_stop_rx = stop_send.subscribe();
-        loop {
-            select! {
-                val = sub_thread_stop_rx.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
-                            info!("Metrics gc thread exited successfully");
-                            break;
-                        }
-                    }
-                },
-                _ = record_func()=> {
+        let record_func = async || -> Result<(), MqttBrokerError> {
+            let now_time = now_second();
+            let save_time = 3600 * 24 * 3;
+
+            // connection_num
+            for (time, _) in metrics_cache_manager.connection_num.clone() {
+                if (time + save_time) < now_time {
+                    metrics_cache_manager.connection_num.remove(&time);
                 }
             }
-        }
+
+            // topic_num
+            for (time, _) in metrics_cache_manager.topic_num.clone() {
+                if (time + save_time) < now_time {
+                    metrics_cache_manager.topic_num.remove(&time);
+                }
+            }
+
+            // subscribe_num
+            for (time, _) in metrics_cache_manager.subscribe_num.clone() {
+                if (time + save_time) < now_time {
+                    metrics_cache_manager.subscribe_num.remove(&time);
+                }
+            }
+
+            // message_in_num
+            for (time, _) in metrics_cache_manager.message_in_num.clone() {
+                if (time + save_time) < now_time {
+                    metrics_cache_manager.message_in_num.remove(&time);
+                }
+            }
+
+            // message_out_num
+            for (time, _) in metrics_cache_manager.message_out_num.clone() {
+                if (time + save_time) < now_time {
+                    metrics_cache_manager.message_out_num.remove(&time);
+                }
+            }
+
+            // message_drop_num
+            for (time, _) in metrics_cache_manager.message_drop_num.clone() {
+                if (time + save_time) < now_time {
+                    metrics_cache_manager.message_drop_num.remove(&time);
+                }
+            }
+
+            Ok(())
+        };
+        loop_select(record_func, 3600, &stop_send).await;
     });
 }
 
