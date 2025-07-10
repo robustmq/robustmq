@@ -15,3 +15,5 @@
 pub mod mysql;
 pub mod placement;
 pub mod redis;
+pub mod storage_trait;
+pub mod sync;

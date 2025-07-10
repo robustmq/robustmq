@@ -70,7 +70,6 @@ impl UpdateFlappingDetectCache {
     async fn update_flapping_detect_cache(&self) {
         let config = self.cache_manager.get_flapping_detect_config().clone();
         let window_time = config.window_time as u64;
-        let window_time_2_seconds = convert_seconds(window_time, TimeUnit::Minutes);
         match self
             .cache_manager
             .acl_metadata
@@ -84,7 +83,11 @@ impl UpdateFlappingDetectCache {
                 error!("{}", e);
             }
         }
-        sleep(Duration::from_secs(window_time_2_seconds)).await;
+        sleep(Duration::from_secs(convert_seconds(
+            window_time,
+            TimeUnit::Minutes,
+        )))
+        .await;
     }
 }
 

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod acl;
 pub mod cache;
 pub mod command;
 pub mod connection;

@@ -397,7 +397,10 @@ pub async fn subscribe_validator(
         ));
     }
 
-    if !auth_driver.allow_subscribe(connection, subscribe).await {
+    if !auth_driver
+        .auth_subscribe_check(connection, subscribe)
+        .await
+    {
         return Some(response_packet_mqtt_suback(
             protocol,
             connection,

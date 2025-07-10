@@ -12,63 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
-
+use super::cache::CacheManager;
+use crate::storage::user::UserStorage;
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
-use tokio::select;
-use tokio::sync::broadcast;
-use tokio::time::sleep;
-use tracing::{error, info};
-
-use crate::security::AuthDriver;
-use crate::storage::user::UserStorage;
-
-use super::cache::CacheManager;
-
-pub struct UpdateUserCache {
-    stop_send: broadcast::Sender<bool>,
-    auth_driver: Arc<AuthDriver>,
-}
-
-impl UpdateUserCache {
-    pub fn new(stop_send: broadcast::Sender<bool>, auth_driver: Arc<AuthDriver>) -> Self {
-        UpdateUserCache {
-            stop_send,
-            auth_driver,
-        }
-    }
-
-    pub async fn start_update(&self) {
-        loop {
-            let mut stop_rx = self.stop_send.subscribe();
-            select! {
-                val = stop_rx.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
-                            info!("{}","User cache updating thread stopped successfully.");
-                            break;
-                        }
-                    }
-                }
-                _ = self.update_user_cache()=>{
-                }
-            }
-        }
-    }
-
-    async fn update_user_cache(&self) {
-        match self.auth_driver.update_user_cache().await {
-            Ok(_) => {}
-            Err(e) => {
-                error!("Updating user info normal exceptio,{}", e);
-            }
-        };
-        sleep(Duration::from_secs(5)).await;
-    }
-}
+use std::sync::Arc;
 
 pub async fn init_system_user(cache_manager: &Arc<CacheManager>, client_pool: &Arc<ClientPool>) {
     let conf = broker_mqtt_conf();
