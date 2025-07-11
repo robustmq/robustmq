@@ -42,8 +42,10 @@ use std::sync::Arc;
 use std::time::Duration;
 use storage::cluster::ClusterStorage;
 use storage_adapter::memory::MemoryStorageAdapter;
+use storage_adapter::mysql::MySQLStorageAdapter;
+use storage_adapter::rocksdb::RocksDBStorageAdapter;
+use third_driver::mysql::build_mysql_conn_pool;
 use tracing::{error, info};
-// use storage_adapter::mysql::MySQLStorageAdapter;
 // use storage_adapter::rocksdb::RocksDBStorageAdapter;
 use crate::handler::flapping_detect::UpdateFlappingDetectCache;
 use crate::server::quic::server::start_quic_server;
@@ -68,7 +70,7 @@ pub mod server;
 pub mod storage;
 mod subscribe;
 
-pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
+pub async fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
     let conf = broker_mqtt_conf();
     let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
     let metadata_cache = Arc::new(CacheManager::new(
@@ -89,27 +91,32 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
             );
             server.start(stop_send);
         }
-        // StorageType::Mysql => {
-        //     if conf.storage.mysql_addr.is_empty() {
-        //         panic!("storaget type is [mysql],[storage.mysql_addr] cannot be empty");
-        //     }
-        //     let pool = build_mysql_conn_pool(&conf.storage.mysql_addr).unwrap();
-        //     let message_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()));
-        //     let server: MqttBroker<MySQLStorageAdapter> =
-        //         MqttBroker::new(client_pool, message_storage_adapter, metadata_cache);
-        //     server.start(stop_send);
-        // }
-        // StorageType::RocksDB => {
-        //     if conf.storage.rocksdb_data_path.is_empty() {
-        //         panic!("storaget type is [rocksdb],[storage.rocksdb_path] cannot be empty");
-        //     }
-        //     let message_storage_adapter = Arc::new(RocksDBStorageAdapter::new(
-        //         conf.storage.rocksdb_data_path.as_str(),
-        //         conf.storage.rocksdb_max_open_files.unwrap_or(10000),
-        //     ));
-        //     let server = MqttBroker::new(client_pool, message_storage_adapter, metadata_cache);
-        //     server.start(stop_send);
-        // }
+        StorageType::Mysql => {
+            let pool = build_mysql_conn_pool(&conf.storage.mysql_addr).unwrap();
+            let message_storage_adapter =
+                Arc::new(MySQLStorageAdapter::new(pool.clone()).await.unwrap());
+            let server = MqttBroker::new(
+                client_pool,
+                message_storage_adapter,
+                metadata_cache,
+                stop_send.clone(),
+            );
+            server.start(stop_send);
+        }
+
+        StorageType::RocksDB => {
+            let message_storage_adapter = Arc::new(RocksDBStorageAdapter::new(
+                conf.storage.rocksdb_data_path.as_str(),
+                conf.storage.rocksdb_max_open_files.unwrap_or(10000),
+            ));
+            let server = MqttBroker::new(
+                client_pool,
+                message_storage_adapter,
+                metadata_cache,
+                stop_send.clone(),
+            );
+            server.start(stop_send);
+        }
         _ => {
             panic!("Message data storage type configuration error, optional :mysql, memory");
         }

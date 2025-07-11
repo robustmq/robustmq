@@ -25,6 +25,7 @@ use tokio::{
 
 use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
 
+#[derive(Clone)]
 pub struct MySQLStorageAdapter {
     pool: Pool,
     stop_send: mpsc::Sender<bool>,

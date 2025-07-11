@@ -37,6 +37,7 @@ fn column_family_list() -> Vec<String> {
     vec![DB_COLUMN_FAMILY.to_string()]
 }
 
+#[derive(Clone)]
 pub struct RocksDBStorageAdapter {
     pub db: Arc<RocksDBEngine>,
     write_handles: DashMap<String, ThreadWriteHandle>,
