@@ -22,6 +22,7 @@ use protocol::placement_center::placement_center_mqtt::{
     CreateAclRequest, DeleteAclRequest, ListAclRequest,
 };
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 
 pub struct AclStorage {
@@ -46,7 +47,7 @@ impl AclStorage {
         Ok(list)
     }
 
-    pub async fn save_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError> {
+    pub async fn save_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
         let config = broker_mqtt_conf();
 
         let value = acl.encode()?;
@@ -58,7 +59,7 @@ impl AclStorage {
         Ok(())
     }
 
-    pub async fn delete_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError> {
+    pub async fn delete_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
         let config = broker_mqtt_conf();
         let value = acl.encode()?;
         let request = DeleteAclRequest {

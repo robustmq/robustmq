@@ -28,6 +28,7 @@ use protocol::placement_center::placement_center_mqtt::{
     DeleteConnectorRequest, ListConnectorRequest, UpdateConnectorRequest,
 };
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 
 pub struct ConnectorStorage {
@@ -61,7 +62,7 @@ impl ConnectorStorage {
         self.list_connector("").await
     }
 
-    pub async fn create_connector(&self, connector: MQTTConnector) -> Result<(), MqttBrokerError> {
+    pub async fn create_connector(&self, connector: MQTTConnector) -> ResultMqttBrokerError {
         let config = broker_mqtt_conf();
         let request = CreateConnectorRequest {
             cluster_name: config.cluster_name.clone(),
@@ -72,7 +73,7 @@ impl ConnectorStorage {
         Ok(())
     }
 
-    pub async fn update_connector(&self, connector: MQTTConnector) -> Result<(), MqttBrokerError> {
+    pub async fn update_connector(&self, connector: MQTTConnector) -> ResultMqttBrokerError {
         let config = broker_mqtt_conf();
         let request = UpdateConnectorRequest {
             cluster_name: config.cluster_name.clone(),
@@ -87,7 +88,7 @@ impl ConnectorStorage {
         &self,
         cluster_name: &str,
         connector_name: &str,
-    ) -> Result<(), MqttBrokerError> {
+    ) -> ResultMqttBrokerError {
         let config = broker_mqtt_conf();
         let request = DeleteConnectorRequest {
             cluster_name: cluster_name.to_owned(),
@@ -100,7 +101,7 @@ impl ConnectorStorage {
     pub async fn connector_heartbeat(
         &self,
         heatbeats: Vec<ConnectorHeartbeatRaw>,
-    ) -> Result<(), MqttBrokerError> {
+    ) -> ResultMqttBrokerError {
         let config = broker_mqtt_conf();
         let request = ConnectorHeartbeatRequest {
             cluster_name: config.cluster_name.clone(),

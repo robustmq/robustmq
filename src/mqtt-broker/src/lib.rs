@@ -14,7 +14,7 @@
 
 #![allow(clippy::result_large_err)]
 use crate::common::metrics_cache::{metrics_gc_thread, metrics_record_thread, MetricsCacheManager};
-use crate::handler::error::MqttBrokerError;
+use crate::common::types::ResultMqttBrokerError;
 use crate::security::auth::super_user::init_system_user;
 use crate::security::storage::sync::sync_auth_storage_info;
 use crate::server::server::Server;
@@ -538,7 +538,7 @@ where
         });
     }
 
-    async fn stop_server(&self) -> Result<(), MqttBrokerError> {
+    async fn stop_server(&self) -> ResultMqttBrokerError {
         let cluster_storage = ClusterStorage::new(self.client_pool.clone());
         let config = broker_mqtt_conf();
         let _ = self.delay_message_manager.stop().await;

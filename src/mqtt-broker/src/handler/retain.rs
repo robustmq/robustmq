@@ -14,8 +14,8 @@
 
 use super::cache::CacheManager;
 use super::constant::{SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE};
-use super::error::MqttBrokerError;
 use super::message::build_message_expire;
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::sub_option::{
     get_retain_flag_by_retain_as_published, is_send_msg_by_bo_local,
     is_send_retain_msg_by_retain_handling,
@@ -65,7 +65,7 @@ pub async fn save_retain_message(
     client_id: &str,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     if !publish.retain {
         return Ok(());
     }
@@ -144,7 +144,7 @@ async fn send_retain_message(
     connection_manager: &Arc<ConnectionManager>,
     stop_sx: &broadcast::Sender<bool>,
     is_new_subs: &DashMap<String, bool>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let mut sub_ids = Vec::new();
     if let Some(properties) = subscribe_properties {
         if let Some(id) = properties.subscription_identifier {

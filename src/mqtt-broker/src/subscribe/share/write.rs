@@ -22,7 +22,7 @@ use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
 use tracing::error;
 
-use crate::handler::error::MqttBrokerError;
+use crate::common::types::ResultMqttBrokerError;
 
 pub struct WriteStream {
     write_list:
@@ -49,7 +49,7 @@ impl WriteStream {
         self.write_list.insert(self.key.clone(), write);
     }
 
-    pub async fn write_frame(&self, resp: MqttPacket) -> Result<(), MqttBrokerError> {
+    pub async fn write_frame(&self, resp: MqttPacket) -> ResultMqttBrokerError {
         loop {
             if let Ok(flag) = self.stop_sx.subscribe().try_recv() {
                 if flag {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::error::MqttBrokerError;
+use crate::common::types::ResultMqttBrokerError;
 use crate::subscribe::{common::decode_share_group_and_path, manager::SubscribeManager};
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::{placement::mqtt::call::placement_delete_subscribe, pool::ClientPool};
@@ -27,7 +27,7 @@ pub async fn remove_subscribe(
     un_subscribe: &Unsubscribe,
     client_pool: &Arc<ClientPool>,
     subscribe_manager: &Arc<SubscribeManager>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let conf = broker_mqtt_conf();
 
     for path in un_subscribe.filters.clone() {
@@ -51,7 +51,7 @@ fn unsubscribe_by_path(
     subscribe_manager: &Arc<SubscribeManager>,
     client_id: &str,
     filter_path: &[String],
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     for path in filter_path {
         if is_mqtt_share_sub(path) && is_mqtt_queue_sub(path) {
             let (group_name, sub_name) = decode_share_group_and_path(path);

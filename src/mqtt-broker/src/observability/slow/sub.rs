@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 use common_base::tools::{get_local_ip, now_second};
 use grep::matcher::Matcher;
@@ -50,7 +51,7 @@ impl SlowSubData {
     }
 }
 
-pub fn record_slow_sub_data(slow_data: SlowSubData, whole_ms: u64) -> Result<(), MqttBrokerError> {
+pub fn record_slow_sub_data(slow_data: SlowSubData, whole_ms: u64) -> ResultMqttBrokerError {
     let data = serde_json::to_string(&slow_data)?;
 
     if slow_data.time_ms > whole_ms {

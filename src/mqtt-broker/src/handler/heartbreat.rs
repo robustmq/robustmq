@@ -15,7 +15,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::error::MqttBrokerError;
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::storage::cluster::ClusterStorage;
 
@@ -30,7 +30,7 @@ use tracing::{debug, error};
 pub async fn register_node(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let config = broker_mqtt_conf();
     let node = cluster_storage.register_node(cache_manager, config).await?;

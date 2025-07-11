@@ -21,7 +21,8 @@ use storage_adapter::storage::StorageAdapter;
 use tokio::{select, sync::broadcast, time::sleep};
 use tracing::{error, info};
 
-use crate::{handler::error::MqttBrokerError, storage::message::MessageStorage};
+use crate::common::types::ResultMqttBrokerError;
+use crate::storage::message::MessageStorage;
 
 use super::{
     core::{BridgePlugin, BridgePluginReadConfig},
@@ -60,7 +61,7 @@ where
         &self,
         records: &Vec<Record>,
         producer: FutureProducer,
-    ) -> Result<(), MqttBrokerError> {
+    ) -> ResultMqttBrokerError {
         for record in records {
             let data = serde_json::to_string(record)?;
             producer
@@ -84,7 +85,7 @@ impl<S> BridgePlugin for KafkaBridgePlugin<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
-    async fn exec(&self, config: BridgePluginReadConfig) -> Result<(), MqttBrokerError> {
+    async fn exec(&self, config: BridgePluginReadConfig) -> ResultMqttBrokerError {
         let message_storage = MessageStorage::new(self.message_storage.clone());
         let group_name = self.connector_name.clone();
         let offset = message_storage.get_group_offset(&group_name).await?;

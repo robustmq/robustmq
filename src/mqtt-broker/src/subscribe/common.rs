@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::message::MessageStorage;
@@ -103,7 +104,7 @@ pub fn is_ignore_push_error(e: &MqttBrokerError) -> bool {
     true
 }
 
-pub fn sub_path_validator(sub_path: &str) -> Result<(), MqttBrokerError> {
+pub fn sub_path_validator(sub_path: &str) -> ResultMqttBrokerError {
     let regex = Regex::new(SUBSCRIBE_NAME_REGEX)?;
 
     if !regex.is_match(sub_path) {
@@ -126,7 +127,7 @@ pub fn is_wildcards(sub_path: &str) -> bool {
     sub_path.contains(SUBSCRIBE_WILDCARDS_1) || sub_path.contains(SUBSCRIBE_WILDCARDS_2)
 }
 
-pub fn is_match_sub_and_topic(sub_path: &str, topic: &str) -> Result<(), MqttBrokerError> {
+pub fn is_match_sub_and_topic(sub_path: &str, topic: &str) -> ResultMqttBrokerError {
     let path = decode_sub_path(sub_path);
     let topic_name = decode_sub_path(topic);
 
@@ -258,7 +259,7 @@ pub async fn loop_commit_offset<S>(
     topic_id: &str,
     group_id: &str,
     offset: u64,
-) -> Result<(), MqttBrokerError>
+) -> ResultMqttBrokerError
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {

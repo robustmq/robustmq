@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::common::tool::loop_select;
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
-use crate::handler::error::MqttBrokerError;
 use crate::handler::topic::try_init_topic;
 use crate::observability::system_topic::packet::bytes::{
     SYSTEM_TOPIC_BROKERS_METRICS_BYTES_RECEIVED, SYSTEM_TOPIC_BROKERS_METRICS_BYTES_SENT,
@@ -145,7 +145,7 @@ where
 
     pub async fn start_thread(&self, stop_send: broadcast::Sender<bool>) {
         self.try_init_system_topic().await;
-        let ac_fn = async || -> Result<(), MqttBrokerError> {
+        let ac_fn = async || -> ResultMqttBrokerError {
             report_broker_info(
                 &self.client_pool,
                 &self.metadata_cache,

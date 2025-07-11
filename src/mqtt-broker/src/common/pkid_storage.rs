@@ -92,7 +92,7 @@ pub async fn pkid_delete(
     client_pool: &Arc<ClientPool>,
     client_id: &str,
     pkid: u16,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     if cache_manager
         .get_cluster_config()
         .mqtt_protocol_config

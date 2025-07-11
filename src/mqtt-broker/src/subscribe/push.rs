@@ -18,6 +18,7 @@ use std::time::Duration;
 
 use super::common::min_qos;
 use super::common::Subscriber;
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
 use crate::handler::error::MqttBrokerError;
 use crate::handler::message::is_message_expire;
@@ -143,7 +144,7 @@ pub async fn send_publish_packet_to_client(
     sub_pub_param: &SubPublishParam,
     qos: &QoS,
     stop_sx: &Sender<bool>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     match qos {
         QoS::AtMostOnce => {
             push_packet_to_client(cache_manager, connection_manager, sub_pub_param, stop_sx)
@@ -230,7 +231,7 @@ pub async fn push_packet_to_client(
     connection_manager: &Arc<ConnectionManager>,
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let action_fn = || async {
         let client_id = sub_pub_param.subscribe.client_id.clone();
 
@@ -268,7 +269,7 @@ pub async fn exclusive_publish_message_qos1(
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
     wait_puback_sx: &broadcast::Sender<QosAckPackageData>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     // 1. send Publish to Client
     push_packet_to_client(metadata_cache, connection_manager, sub_pub_param, stop_sx).await?;
 
@@ -295,7 +296,7 @@ pub async fn exclusive_publish_message_qos2(
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
     wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     // 1. send Publish to Client
     push_packet_to_client(metadata_cache, connection_manager, sub_pub_param, stop_sx).await?;
 
@@ -348,7 +349,7 @@ pub async fn send_message_to_client(
     sub_pub_param: &SubPublishParam,
     connection_manager: &Arc<ConnectionManager>,
     metadata_cache: &Arc<CacheManager>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let protocol =
         if let Some(protocol) = connection_manager.get_connect_protocol(resp.connection_id) {
             protocol
@@ -395,8 +396,8 @@ pub async fn wait_pub_ack(
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
     wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
-) -> Result<(), MqttBrokerError> {
-    let wait_pub_ack_fn = async || -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
+    let wait_pub_ack_fn = async || -> ResultMqttBrokerError {
         let mut wait_ack_rx = wait_ack_sx.subscribe();
         loop {
             let package = wait_ack_rx.recv().await?;
@@ -407,7 +408,7 @@ pub async fn wait_pub_ack(
         }
     };
 
-    let ac_fn = async || -> Result<(), MqttBrokerError> {
+    let ac_fn = async || -> ResultMqttBrokerError {
         loop {
             if timeout(Duration::from_secs(5), wait_pub_ack_fn())
                 .await
@@ -431,8 +432,8 @@ pub async fn wait_pub_rec(
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
     wait_rec_sx: &broadcast::Sender<QosAckPackageData>,
-) -> Result<(), MqttBrokerError> {
-    let wait_pub_rec_fn = async || -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
+    let wait_pub_rec_fn = async || -> ResultMqttBrokerError {
         let mut wait_ack_rx = wait_rec_sx.subscribe();
         loop {
             let package = wait_ack_rx.recv().await?;
@@ -443,7 +444,7 @@ pub async fn wait_pub_rec(
         }
     };
 
-    let ac_fn = async || -> Result<(), MqttBrokerError> {
+    let ac_fn = async || -> ResultMqttBrokerError {
         loop {
             if timeout(Duration::from_secs(5), wait_pub_rec_fn())
                 .await
@@ -467,8 +468,8 @@ pub async fn wait_pub_comp(
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
     wait_comp_sx: &broadcast::Sender<QosAckPackageData>,
-) -> Result<(), MqttBrokerError> {
-    let wait_pub_rec_fn = async || -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
+    let wait_pub_rec_fn = async || -> ResultMqttBrokerError {
         let mut wait_ack_rx = wait_comp_sx.subscribe();
         loop {
             let package = wait_ack_rx.recv().await?;
@@ -480,7 +481,7 @@ pub async fn wait_pub_comp(
         }
     };
 
-    let ac_fn = async || -> Result<(), MqttBrokerError> {
+    let ac_fn = async || -> ResultMqttBrokerError {
         loop {
             if timeout(Duration::from_secs(5), wait_pub_rec_fn())
                 .await
@@ -503,7 +504,7 @@ pub async fn qos2_send_pubrel(
     sub_pub_param: &SubPublishParam,
     connection_manager: &Arc<ConnectionManager>,
     stop_sx: &broadcast::Sender<bool>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let mut new_sub_pub_param = sub_pub_param.to_owned();
 
     let pubrel = PubRel {
@@ -525,10 +526,10 @@ async fn retry_tool_fn_timeout<F, Fut>(
     ac_fn: F,
     stop_sx: &broadcast::Sender<bool>,
     action: &str,
-) -> Result<(), MqttBrokerError>
+) -> ResultMqttBrokerError
 where
     F: FnOnce() -> Fut + Copy,
-    Fut: Future<Output = Result<(), MqttBrokerError>>,
+    Fut: Future<Output = ResultMqttBrokerError>,
 {
     let to = 3;
     match timeout(Duration::from_secs(to), retry_tool_fn(ac_fn, stop_sx)).await {
@@ -538,13 +539,10 @@ where
     Ok(())
 }
 
-async fn retry_tool_fn<F, Fut>(
-    ac_fn: F,
-    stop_sx: &broadcast::Sender<bool>,
-) -> Result<(), MqttBrokerError>
+async fn retry_tool_fn<F, Fut>(ac_fn: F, stop_sx: &broadcast::Sender<bool>) -> ResultMqttBrokerError
 where
     F: FnOnce() -> Fut + Copy,
-    Fut: Future<Output = Result<(), MqttBrokerError>>,
+    Fut: Future<Output = ResultMqttBrokerError>,
 {
     let mut stop_recv = stop_sx.subscribe();
     loop {
