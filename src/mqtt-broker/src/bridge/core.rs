@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::tool::loop_select;
 use crate::common::types::ResultMqttBrokerError;
 use axum::async_trait;
 
@@ -22,7 +23,7 @@ use metadata_struct::mqtt::bridge::{
 };
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
-use tokio::{select, sync::broadcast, time::sleep};
+use tokio::{sync::broadcast, time::sleep};
 use tracing::{error, info};
 
 use super::{file::FileBridgePlugin, manager::ConnectorManager};
@@ -44,32 +45,23 @@ pub trait BridgePlugin {
     async fn exec(&self, config: BridgePluginReadConfig) -> ResultMqttBrokerError;
 }
 
-pub async fn start_connector_thread<S>(
+pub fn start_connector_thread<S>(
     message_storage: Arc<S>,
     connector_manager: Arc<ConnectorManager>,
     stop_send: broadcast::Sender<bool>,
 ) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
-    let mut recv = stop_send.subscribe();
-    loop {
-        select! {
-            val = recv.recv() =>{
-                if let Ok(flag) = val {
-                    if flag {
-                        info!("{}","Connector thread exited successfully");
-                        break;
-                    }
-                }
-            }
-            _ = check_connector(
-                &message_storage,
-                &connector_manager,
-            ) => {
-                sleep(Duration::from_secs(1)).await;
-            }
-        }
-    }
+    tokio::spawn(async move {
+        let ac_fn = async || -> ResultMqttBrokerError {
+            check_connector(&message_storage, &connector_manager).await;
+            sleep(Duration::from_secs(1)).await;
+            Ok(())
+        };
+
+        loop_select(ac_fn, 1, &stop_send).await;
+        info!("Connector thread exited successfully");
+    });
 }
 
 async fn check_connector<S>(message_storage: &Arc<S>, connector_manager: &Arc<ConnectorManager>)
