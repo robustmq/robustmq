@@ -67,6 +67,9 @@ cross_build(){
 
     mkdir -p ${package_path}/{bin,libs,config}
 
+    # Create version.ini file with version information
+    echo "${version}" > ${package_path}/config/version.ini
+    log "Created version.ini with version: ${version}"
 
     binaries="mqtt-server placement-center journal-server cli-command cli-bench"
 
@@ -159,6 +162,10 @@ build_local(){
     fi
 
     mkdir -p ${package_path}/{bin,libs,config}
+
+    # Create version.ini file with version information
+    echo "${version}" > ${package_path}/config/version.ini
+    log "Created version.ini with version: ${version}"
 
     binaries="mqtt-server placement-center journal-server cli-command cli-bench"
 

@@ -61,3 +61,6 @@ chrono-tz.workspace = true
 # Enable this by running with `RUSTFLAGS="--cfg tokio_console"`
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_console)'] }
+
+[features]
+embed_version = []
