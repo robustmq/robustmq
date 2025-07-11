@@ -23,6 +23,7 @@ use mysql::prelude::Queryable;
 use mysql::Pool;
 use third_driver::mysql::build_mysql_conn_pool;
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 use crate::security::AuthStorageAdapter;
 
@@ -134,7 +135,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
         return Ok(None);
     }
 
-    async fn save_user(&self, user_info: MqttUser) -> Result<(), MqttBrokerError> {
+    async fn save_user(&self, user_info: MqttUser) -> ResultMqttBrokerError {
         let mut conn = self.pool.get_conn()?;
         let sql = format!(
             "insert into {} ( `username`, `password`, `is_superuser`, `salt`) values ('{}', '{}', '{}', null);",
@@ -147,7 +148,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
         return Ok(());
     }
 
-    async fn delete_user(&self, username: String) -> Result<(), MqttBrokerError> {
+    async fn delete_user(&self, username: String) -> ResultMqttBrokerError {
         let mut conn = self.pool.get_conn()?;
         let sql = format!(
             "delete from {} where username = '{}';",
@@ -158,7 +159,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
         return Ok(());
     }
 
-    async fn save_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError> {
+    async fn save_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
         let allow: u8 = match acl.permission {
             MqttAclPermission::Allow => 1,
             MqttAclPermission::Deny => 0,
@@ -200,7 +201,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
         return Ok(());
     }
 
-    async fn delete_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError> {
+    async fn delete_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
         let mut conn = self.pool.get_conn()?;
         let sql = match acl.resource_type.clone() {
             MqttAclResourceType::ClientId => format!(
@@ -224,10 +225,10 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
         )> = conn.query(sql)?;
         return Ok(());
     }
-    async fn save_blacklist(&self, _blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError> {
+    async fn save_blacklist(&self, _blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
         return Ok(());
     }
-    async fn delete_blacklist(&self, _blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError> {
+    async fn delete_blacklist(&self, _blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
         return Ok(());
     }
 }

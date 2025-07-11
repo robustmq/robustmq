@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::error::MqttBrokerError;
+use crate::common::types::ResultMqttBrokerError;
 use axum::async_trait;
 
 use common_config::mqtt::broker_mqtt_conf;
@@ -41,7 +41,7 @@ pub struct BridgePluginThread {
 
 #[async_trait]
 pub trait BridgePlugin {
-    async fn exec(&self, config: BridgePluginReadConfig) -> Result<(), MqttBrokerError>;
+    async fn exec(&self, config: BridgePluginReadConfig) -> ResultMqttBrokerError;
 }
 
 pub async fn start_connector_thread<S>(
@@ -188,7 +188,7 @@ fn start_thread<S>(
     });
 }
 
-fn stop_thread(thread: BridgePluginThread) -> Result<(), MqttBrokerError> {
+fn stop_thread(thread: BridgePluginThread) -> ResultMqttBrokerError {
     thread.stop_send.send(true)?;
     Ok(())
 }

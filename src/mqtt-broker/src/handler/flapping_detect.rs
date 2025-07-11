@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::dynamic_config::{save_cluster_dynamic_config, ClusterDynamicConfig};
-use crate::handler::error::MqttBrokerError;
 use crate::observability::metrics::event_metrics;
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
@@ -177,7 +177,7 @@ pub async fn enable_flapping_detect(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
     request: EnableFlappingDetectRequest,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let connection_jitter = FlappingDetect {
         enable: request.is_enable,
         window_time: request.window_time,

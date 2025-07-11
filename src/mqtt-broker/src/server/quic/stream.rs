@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 use bytes::BytesMut;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
@@ -32,7 +33,7 @@ impl QuicFramedWriteStream {
         }
     }
 
-    pub async fn send(&mut self, packet: MqttPacketWrapper) -> Result<(), MqttBrokerError> {
+    pub async fn send(&mut self, packet: MqttPacketWrapper) -> ResultMqttBrokerError {
         let mut bytes_mut = BytesMut::new();
         self.codec.encode(packet, &mut bytes_mut)?;
 

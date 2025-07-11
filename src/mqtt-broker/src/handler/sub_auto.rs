@@ -18,9 +18,10 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use protocol::mqtt::common::{Filter, Login, MqttProtocol, Subscribe};
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::subscribe::manager::SubscribeManager;
 
-use super::{cache::CacheManager, error::MqttBrokerError, subscribe::save_subscribe};
+use super::{cache::CacheManager, subscribe::save_subscribe};
 
 pub async fn try_auto_subscribe(
     client_id: String,
@@ -29,7 +30,7 @@ pub async fn try_auto_subscribe(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let auto_subscribe_rules: Vec<MqttAutoSubscribeRule> = cache_manager
         .auto_subscribe_rule
         .iter()

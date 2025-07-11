@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::{
-    handler::{cache::CacheManager, command::Command, error::MqttBrokerError},
+    handler::{cache::CacheManager, command::Command},
     security::AuthDriver,
     server::common::{connection::NetworkConnectionType, connection_manager::ConnectionManager},
     server::tcp::v1::server::{ProcessorConfig, TcpServer},
@@ -94,7 +95,7 @@ where
         }
     }
 
-    pub async fn start(&self) -> Result<(), MqttBrokerError> {
+    pub async fn start(&self) -> ResultMqttBrokerError {
         self.tcp_server.start(false).await?;
         self.tls_server.start(true).await?;
         Ok(())

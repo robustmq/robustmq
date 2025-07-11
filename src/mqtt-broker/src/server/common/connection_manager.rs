@@ -28,6 +28,7 @@ use tracing::{debug, info};
 
 use super::connection::{NetworkConnection, NetworkConnectionType};
 use crate::common::tool::is_ignore_print;
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::observability::metrics::packets::record_sent_metrics;
@@ -151,7 +152,7 @@ impl ConnectionManager {
         connection_id: u64,
         packet_wrapper: MqttPacketWrapper,
         resp: Message,
-    ) -> Result<(), MqttBrokerError> {
+    ) -> ResultMqttBrokerError {
         if !is_ignore_print(&packet_wrapper.packet) {
             info!("WebSockets response packet:{resp:?},connection_id:{connection_id}");
         }
@@ -211,7 +212,7 @@ impl ConnectionManager {
         &self,
         connection_id: u64,
         resp: MqttPacketWrapper,
-    ) -> Result<(), MqttBrokerError> {
+    ) -> ResultMqttBrokerError {
         if !is_ignore_print(&resp.packet) {
             info!("Tcp response packet:{resp:?},connection_id:{connection_id}");
         }
@@ -277,7 +278,7 @@ impl ConnectionManager {
         &self,
         connection_id: u64,
         resp: MqttPacketWrapper,
-    ) -> Result<(), MqttBrokerError> {
+    ) -> ResultMqttBrokerError {
         let mut times = 0;
         let cluster = self.cache_manager.get_cluster_config();
         loop {

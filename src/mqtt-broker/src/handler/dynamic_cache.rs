@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::bridge::manager::ConnectorManager;
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::dynamic_config::{update_cluster_dynamic_config, ClusterDynamicConfig};
-use crate::handler::error::MqttBrokerError;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
 use crate::storage::connector::ConnectorStorage;
 use crate::storage::topic::TopicStorage;
@@ -173,7 +173,7 @@ pub async fn update_cache_metadata(
     subscribe_manager: &Arc<SubscribeManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
     request: UpdateMqttCacheRequest,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     match request.resource_type() {
         MqttBrokerUpdateCacheResourceType::Node => match request.action_type() {
             MqttBrokerUpdateCacheActionType::Set => {

@@ -17,7 +17,7 @@ use std::{future::Future, time::Duration};
 use protocol::mqtt::common::MqttPacket;
 use tokio::{select, sync::broadcast};
 
-use crate::handler::error::MqttBrokerError;
+use crate::common::types::ResultMqttBrokerError;
 
 pub fn is_ignore_print(packet: &MqttPacket) -> bool {
     if let MqttPacket::PingResp(_) = packet {
@@ -32,7 +32,7 @@ pub fn is_ignore_print(packet: &MqttPacket) -> bool {
 pub async fn loop_select<F, Fut>(ac_fn: F, tick_secs: u64, stop_sx: &broadcast::Sender<bool>)
 where
     F: FnOnce() -> Fut + Copy,
-    Fut: Future<Output = Result<(), MqttBrokerError>>,
+    Fut: Future<Output = ResultMqttBrokerError>,
 {
     let mut stop_recv = stop_sx.subscribe();
     let mut internal = tokio::time::interval(Duration::from_secs(tick_secs));
