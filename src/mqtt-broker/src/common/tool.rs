@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::future::Future;
+use std::{future::Future, time::Duration};
 
 use protocol::mqtt::common::MqttPacket;
 use tokio::{select, sync::broadcast};
@@ -29,12 +29,13 @@ pub fn is_ignore_print(packet: &MqttPacket) -> bool {
     false
 }
 
-pub async fn loop_select<F, Fut>(ac_fn: F, stop_sx: &broadcast::Sender<bool>)
+pub async fn loop_select<F, Fut>(ac_fn: F, tick_secs: u64, stop_sx: &broadcast::Sender<bool>)
 where
     F: FnOnce() -> Fut + Copy,
     Fut: Future<Output = Result<(), MqttBrokerError>>,
 {
     let mut stop_recv = stop_sx.subscribe();
+    let mut internal = tokio::time::interval(Duration::from_secs(tick_secs));
     loop {
         select! {
             val = stop_recv.recv() => {
@@ -44,8 +45,8 @@ where
                     }
                 }
             }
-            _ = ac_fn() => {
-
+            _ = internal.tick() => {
+                let _ = ac_fn().await;
             }
         }
     }

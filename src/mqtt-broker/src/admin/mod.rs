@@ -17,6 +17,7 @@ pub mod blacklist;
 pub mod client;
 pub mod cluster;
 pub mod connector;
+pub mod inner;
 pub mod observability;
 pub mod query;
 pub mod schema;

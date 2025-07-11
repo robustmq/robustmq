@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{common::tool::loop_select, handler::error::MqttBrokerError, security::AuthDriver};
-use std::{sync::Arc, time::Duration};
-use tokio::{sync::broadcast, time::sleep};
+use crate::{
+    common::{tool::loop_select, types::ResultMqttBrokerError},
+    security::AuthDriver,
+};
+use std::sync::Arc;
+use tokio::sync::broadcast;
 
 pub fn sync_auth_storage_info(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {
     sync_user_cache(auth_driver.clone(), stop_send.clone());
@@ -24,36 +27,30 @@ pub fn sync_auth_storage_info(auth_driver: Arc<AuthDriver>, stop_send: broadcast
 
 fn sync_user_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {
     tokio::spawn(async move {
-        let ac_fn = async || -> Result<(), MqttBrokerError> {
-            let driver = auth_driver.clone();
-            driver.update_user_cache().await?;
-            sleep(Duration::from_secs(1)).await;
+        let ac_fn = async || -> ResultMqttBrokerError {
+            auth_driver.update_user_cache().await?;
             Ok(())
         };
-        loop_select(ac_fn, &stop_send).await;
+        loop_select(ac_fn, 1, &stop_send).await;
     });
 }
 
 fn sync_acl_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {
     tokio::spawn(async move {
-        let ac_fn = async || -> Result<(), MqttBrokerError> {
-            let driver = auth_driver.clone();
-            driver.update_acl_cache().await?;
-            sleep(Duration::from_secs(1)).await;
+        let ac_fn = async || -> ResultMqttBrokerError {
+            auth_driver.update_acl_cache().await?;
             Ok(())
         };
-        loop_select(ac_fn, &stop_send).await;
+        loop_select(ac_fn, 1, &stop_send).await;
     });
 }
 
 fn sync_blacklist_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {
     tokio::spawn(async move {
-        let ac_fn = async || -> Result<(), MqttBrokerError> {
-            let driver = auth_driver.clone();
-            driver.update_blacklist_cache().await?;
-            sleep(Duration::from_secs(1)).await;
+        let ac_fn = async || -> ResultMqttBrokerError {
+            auth_driver.update_blacklist_cache().await?;
             Ok(())
         };
-        loop_select(ac_fn, &stop_send).await;
+        loop_select(ac_fn, 1, &stop_send).await;
     });
 }
