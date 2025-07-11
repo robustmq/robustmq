@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::common::tool::loop_select;
-use crate::handler::error::MqttBrokerError;
+use crate::common::types::ResultMqttBrokerError;
 use axum::async_trait;
 
 use common_config::mqtt::broker_mqtt_conf;
@@ -42,7 +42,7 @@ pub struct BridgePluginThread {
 
 #[async_trait]
 pub trait BridgePlugin {
-    async fn exec(&self, config: BridgePluginReadConfig) -> Result<(), MqttBrokerError>;
+    async fn exec(&self, config: BridgePluginReadConfig) -> ResultMqttBrokerError;
 }
 
 pub fn start_connector_thread<S>(
@@ -53,7 +53,7 @@ pub fn start_connector_thread<S>(
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     tokio::spawn(async move {
-        let ac_fn = async || -> Result<(), MqttBrokerError> {
+        let ac_fn = async || -> ResultMqttBrokerError {
             check_connector(&message_storage, &connector_manager).await;
             sleep(Duration::from_secs(1)).await;
             Ok(())
@@ -180,7 +180,7 @@ fn start_thread<S>(
     });
 }
 
-fn stop_thread(thread: BridgePluginThread) -> Result<(), MqttBrokerError> {
+fn stop_thread(thread: BridgePluginThread) -> ResultMqttBrokerError {
     thread.stop_send.send(true)?;
     Ok(())
 }

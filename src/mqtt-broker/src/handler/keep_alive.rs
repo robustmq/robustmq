@@ -30,7 +30,7 @@ use super::cache::{CacheManager, ConnectionLiveTime};
 use super::connection::disconnect_connection;
 use super::response::response_packet_mqtt_distinct_by_reason;
 use crate::common::tool::loop_select;
-use crate::handler::error::MqttBrokerError;
+use crate::common::types::ResultMqttBrokerError;
 use crate::server::common::connection::NetworkConnection;
 use crate::server::common::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
@@ -64,14 +64,14 @@ impl ClientKeepAlive {
     pub fn start_heartbeat_check(&self) {
         let self_clone = self.clone();
         tokio::spawn(async move {
-            let ac_fn = async || -> Result<(), MqttBrokerError> { self_clone.keep_alive().await };
+            let ac_fn = async || -> ResultMqttBrokerError { self_clone.keep_alive().await };
 
             loop_select(ac_fn, 1, &self_clone.stop_send).await;
             info!("Heartbeat check thread stopped successfully.");
         });
     }
 
-    async fn keep_alive(&self) -> Result<(), MqttBrokerError> {
+    async fn keep_alive(&self) -> ResultMqttBrokerError {
         let expire_connection = self.get_expire_connection().await;
 
         for connect_id in expire_connection {
