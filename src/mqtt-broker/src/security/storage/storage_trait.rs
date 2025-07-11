@@ -18,6 +18,7 @@ use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::user::MqttUser;
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 
 #[async_trait]
@@ -30,15 +31,15 @@ pub trait AuthStorageAdapter {
 
     async fn get_user(&self, username: String) -> Result<Option<MqttUser>, MqttBrokerError>;
 
-    async fn save_user(&self, user_info: MqttUser) -> Result<(), MqttBrokerError>;
+    async fn save_user(&self, user_info: MqttUser) -> ResultMqttBrokerError;
 
-    async fn delete_user(&self, username: String) -> Result<(), MqttBrokerError>;
+    async fn delete_user(&self, username: String) -> ResultMqttBrokerError;
 
-    async fn save_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError>;
+    async fn save_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError;
 
-    async fn delete_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError>;
+    async fn delete_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError;
 
-    async fn save_blacklist(&self, blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError>;
+    async fn save_blacklist(&self, blacklist: MqttAclBlackList) -> ResultMqttBrokerError;
 
-    async fn delete_blacklist(&self, blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError>;
+    async fn delete_blacklist(&self, blacklist: MqttAclBlackList) -> ResultMqttBrokerError;
 }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::error::MqttBrokerError;
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::flapping_detect::FlappingDetectCondition;
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
@@ -89,7 +89,7 @@ impl AclMetadata {
     pub async fn remove_flapping_detect_conditions(
         &self,
         config: FlappingDetect,
-    ) -> Result<(), MqttBrokerError> {
+    ) -> ResultMqttBrokerError {
         let current_time = now_second();
         let window_time = convert_seconds(config.window_time as u64, TimeUnit::Minutes);
         self.flapping_detect_map

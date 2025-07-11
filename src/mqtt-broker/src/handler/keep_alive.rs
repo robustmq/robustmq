@@ -32,7 +32,7 @@ use tracing::{debug, error, info};
 use super::cache::{CacheManager, ConnectionLiveTime};
 use super::connection::disconnect_connection;
 use super::response::response_packet_mqtt_distinct_by_reason;
-use crate::handler::error::MqttBrokerError;
+use crate::common::types::ResultMqttBrokerError;
 use crate::server::common::connection::NetworkConnection;
 use crate::server::common::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
@@ -84,7 +84,7 @@ impl ClientKeepAlive {
         }
     }
 
-    async fn keep_alive(&self) -> Result<(), MqttBrokerError> {
+    async fn keep_alive(&self) -> ResultMqttBrokerError {
         let expire_connection = self.get_expire_connection().await;
 
         for connect_id in expire_connection {

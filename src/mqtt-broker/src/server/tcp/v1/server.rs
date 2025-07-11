@@ -23,9 +23,9 @@ use tokio::sync::broadcast;
 use tokio::time::sleep;
 use tracing::{error, info};
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::command::Command;
-use crate::handler::error::MqttBrokerError;
 use crate::observability::metrics::server::record_broker_thread_num;
 use crate::server::common::channel::RequestChannel;
 use crate::server::common::connection::NetworkConnectionType;
@@ -94,7 +94,7 @@ where
         }
     }
 
-    pub async fn start(&self, tls: bool) -> Result<(), MqttBrokerError> {
+    pub async fn start(&self, tls: bool) -> ResultMqttBrokerError {
         let conf = broker_mqtt_conf();
         let port = if tls {
             conf.network_port.tcps_port

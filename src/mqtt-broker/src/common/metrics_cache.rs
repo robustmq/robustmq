@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::{
-    common::tool::loop_select,
-    handler::{cache::CacheManager, error::MqttBrokerError},
-    server::common::connection_manager::ConnectionManager,
-    subscribe::manager::SubscribeManager,
+    common::tool::loop_select, handler::cache::CacheManager,
+    server::common::connection_manager::ConnectionManager, subscribe::manager::SubscribeManager,
 };
 use common_base::tools::now_second;
 use dashmap::DashMap;
@@ -147,7 +146,7 @@ pub fn metrics_record_thread(
 ) {
     info!("Metrics record thread start successfully");
     tokio::spawn(async move {
-        let record_func = async || -> Result<(), MqttBrokerError> {
+        let record_func = async || -> ResultMqttBrokerError {
             let now = now_second();
             let metrics_cache_manager = metrics_cache_manager.clone();
             let connection_manager = connection_manager.clone();
@@ -171,7 +170,7 @@ pub fn metrics_gc_thread(
 ) {
     info!("Metrics gc thread start successfully");
     tokio::spawn(async move {
-        let record_func = async || -> Result<(), MqttBrokerError> {
+        let record_func = async || -> ResultMqttBrokerError {
             let now_time = now_second();
             let save_time = 3600 * 24 * 3;
 

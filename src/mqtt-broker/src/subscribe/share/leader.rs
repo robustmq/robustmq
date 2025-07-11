@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::server::common::connection_manager::ConnectionManager;
@@ -135,7 +136,7 @@ where
         &self,
         share_leader_key: String,
         sub_data: ShareLeaderSubscribeData,
-    ) -> Result<(), MqttBrokerError> {
+    ) -> ResultMqttBrokerError {
         let (sub_thread_stop_sx, mut sub_thread_stop_rx) = broadcast::channel(1);
         let group_id = format!(
             "system_sub_{}_{}_{}",
@@ -250,7 +251,7 @@ where
         .read_topic_message(&sub_data.topic_id, offset, 100)
         .await?;
 
-    let mut push_fn = async |record: &Record| -> Result<(), MqttBrokerError> {
+    let mut push_fn = async |record: &Record| -> ResultMqttBrokerError {
         let record_offset = if let Some(offset) = record.offset {
             offset
         } else {

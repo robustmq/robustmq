@@ -41,6 +41,7 @@ use crate::subscribe::{
 use super::{
     cache::CacheManager, error::MqttBrokerError, topic_rewrite::convert_sub_path_by_rewrite_rule,
 };
+use crate::common::types::ResultMqttBrokerError;
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct ParseShareQueueSubscribeRequest {
@@ -63,7 +64,7 @@ pub async fn save_subscribe(
     subscribe_manager: &Arc<SubscribeManager>,
     subscribe: &Subscribe,
     subscribe_properties: &Option<SubscribeProperties>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let conf = broker_mqtt_conf();
     let filters = &subscribe.filters;
     for filter in filters {
@@ -154,7 +155,7 @@ pub async fn parse_subscribe(
     filter: &Filter,
     subscribe_properties: &Option<SubscribeProperties>,
     rewrite_sub_path: &Option<String>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let sub_identifier = if let Some(properties) = subscribe_properties.clone() {
         properties.subscription_identifier
     } else {
@@ -196,7 +197,7 @@ async fn parse_share_subscribe(
     client_pool: &Arc<ClientPool>,
     subscribe_manager: &Arc<SubscribeManager>,
     req: &mut ParseShareQueueSubscribeRequest,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let (group_name, sub_name) = decode_share_group_and_path(&req.filter.path);
     req.group_name = format!("{group_name}_{sub_name}");
     req.sub_name = sub_name;
@@ -269,7 +270,7 @@ fn add_exclusive_push(
     sub_identifier: &Option<usize>,
     filter: &Filter,
     rewrite_sub_path: &Option<String>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let path = if is_exclusive_sub(&filter.path) {
         decode_exclusive_sub_path_to_topic_name(&filter.path).to_owned()
     } else {

@@ -25,6 +25,7 @@ use protocol::placement_center::placement_center_mqtt::{
     DeleteAutoSubscribeRuleRequest, ListAutoSubscribeRuleRequest, SetAutoSubscribeRuleRequest,
 };
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 
 pub struct AutoSubscribeStorage {
@@ -61,7 +62,7 @@ impl AutoSubscribeStorage {
     pub async fn set_auto_subscribe_rule(
         &self,
         auto_subscribe_rule: MqttAutoSubscribeRule,
-    ) -> Result<(), MqttBrokerError> {
+    ) -> ResultMqttBrokerError {
         let config = broker_mqtt_conf();
         let request = SetAutoSubscribeRuleRequest {
             cluster_name: config.cluster_name.clone(),
@@ -76,7 +77,7 @@ impl AutoSubscribeStorage {
         Ok(())
     }
 
-    pub async fn delete_auto_subscribe_rule(&self, topic: String) -> Result<(), MqttBrokerError> {
+    pub async fn delete_auto_subscribe_rule(&self, topic: String) -> ResultMqttBrokerError {
         let config = broker_mqtt_conf();
         let request = DeleteAutoSubscribeRuleRequest {
             cluster_name: config.cluster_name.clone(),

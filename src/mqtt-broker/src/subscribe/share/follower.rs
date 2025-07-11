@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::types::ResultMqttBrokerError;
 use common_base::network::{broker_not_available, is_port_open};
 use common_base::tools::{get_local_ip, now_mills, now_second, unique_id};
 use common_config::mqtt::broker_mqtt_conf;
@@ -85,7 +86,7 @@ impl ShareFollowerResub {
         }
     }
 
-    async fn start_resub_thread(&self) -> Result<(), MqttBrokerError> {
+    async fn start_resub_thread(&self) -> ResultMqttBrokerError {
         let conf = broker_mqtt_conf();
 
         for (follower_resub_key, share_sub) in self.subscribe_manager.share_follower_resub.clone() {
@@ -205,7 +206,7 @@ async fn resub_sub_mqtt5(
     connection_manager: Arc<ConnectionManager>,
     subscribe_manager: Arc<SubscribeManager>,
     follower_resub_key: &str,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let mqtt_client_id = share_sub.client_id.clone();
     let group_name = share_sub.group_name.clone();
     let sub_name = share_sub.sub_name.clone();
@@ -283,7 +284,7 @@ async fn process_packet(
     sub_name: &str,
     subscribe_manager: &Arc<SubscribeManager>,
     sub_key: &str,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     if !is_ignore_print(&packet) {
         info!("Follower node receives packet:{:?}", packet);
     }
@@ -390,7 +391,7 @@ async fn process_conn_ack_packet(
     subscribe_manager: &Arc<SubscribeManager>,
     sub_key: &str,
     stop_sx: &Sender<bool>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     if connack.code == ConnectReturnCode::Success {
         // Ping
         start_ping_thread(
@@ -409,7 +410,7 @@ async fn process_conn_ack_packet(
                             error message: {connack:?},{connack_properties:?}")))
 }
 
-async fn process_sub_ack(suback: SubAck) -> Result<(), MqttBrokerError> {
+async fn process_sub_ack(suback: SubAck) -> ResultMqttBrokerError {
     for reason in suback.return_codes.clone() {
         if !(reason == SubscribeReasonCode::Success(protocol::mqtt::common::QoS::AtLeastOnce)
             || reason == SubscribeReasonCode::Success(protocol::mqtt::common::QoS::AtMostOnce)
@@ -434,7 +435,7 @@ async fn process_publish_packet(
     mqtt_client_id: &str,
     follower_sub_leader_client_id: &str,
     stop_sx: &Sender<bool>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let subscriber = Subscriber {
         client_id: mqtt_client_id.to_string(),
         ..Default::default()
@@ -542,7 +543,7 @@ async fn start_ping_thread(
 ) {
     tokio::spawn(async move {
         loop {
-            let send_ping = async || -> Result<(), MqttBrokerError> {
+            let send_ping = async || -> ResultMqttBrokerError {
                 let ping_packet = MqttPacket::PingReq(PingReq {});
                 if let Err(e) = write_stream.write_frame(ping_packet.clone()).await {
                     if broker_not_available(&e.to_string()) && !is_port_open(&write_stream.address)
@@ -599,7 +600,7 @@ async fn resub_publish_message_qos1(
     stop_sx: &broadcast::Sender<bool>,
     wait_puback_sx: &broadcast::Sender<QosAckPackageData>,
     write_stream: &Arc<WriteStream>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     exclusive_publish_message_qos1(
         cache_manager,
         connection_manager,
@@ -641,7 +642,7 @@ pub async fn resub_publish_message_qos2(
     follower_sub_leader_client_id: &str,
     mqtt_client_id: &str,
     current_message_pkid: u16,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     debug!("{}", sub_pub_param.group_id);
 
     // 1. Publish message to client
@@ -684,7 +685,7 @@ async fn try_close_connection(
     let _ = disconnect_to_leader(write_stream).await;
 }
 
-async fn disconnect_to_leader(write_stream: &Arc<WriteStream>) -> Result<(), MqttBrokerError> {
+async fn disconnect_to_leader(write_stream: &Arc<WriteStream>) -> ResultMqttBrokerError {
     let packet = MqttPacket::Disconnect(
         Disconnect {
             reason_code: Some(protocol::mqtt::common::DisconnectReasonCode::NormalDisconnection),
@@ -729,7 +730,7 @@ async fn connection_to_leader(
 async fn publish_rec_to_leader(
     write_stream: &Arc<WriteStream>,
     current_message_pkid: u16,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let puback = PubRec {
         pkid: current_message_pkid,
         reason: Some(PubRecReason::Success),
@@ -748,7 +749,7 @@ async fn publish_comp_to_leader(
     write_stream: &Arc<WriteStream>,
     pkid: u16,
     reason: PubCompReason,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let pubcomp = PubComp {
         pkid,
         reason: Some(reason),
@@ -762,7 +763,7 @@ async fn subscribe_to_leader(
     follower_sub_leader_pkid: u16,
     share_sub: &ShareSubShareSub,
     write_stream: &Arc<WriteStream>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let subscribe = Subscribe {
         packet_identifier: follower_sub_leader_pkid,
         filters: vec![share_sub.filter.clone()],
@@ -781,7 +782,7 @@ async fn un_subscribe_to_leader(
     follower_sub_leader_pkid: u16,
     write_stream: &Arc<WriteStream>,
     path: &str,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let pkg = MqttPacket::Unsubscribe(
         Unsubscribe {
             pkid: follower_sub_leader_pkid,

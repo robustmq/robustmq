@@ -16,9 +16,9 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::command::Command;
-use crate::handler::error::MqttBrokerError;
 use crate::observability::metrics::server::record_ws_request_duration;
 use crate::security::AuthDriver;
 use crate::server::common::connection::NetworkConnection;
@@ -281,7 +281,7 @@ async fn process_socket_packet_by_binary<S>(
     tcp_connection: &mut NetworkConnection,
     addr: &SocketAddr,
     data: Vec<u8>,
-) -> Result<(), MqttBrokerError>
+) -> ResultMqttBrokerError
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {

@@ -26,6 +26,7 @@ use super::error::MqttBrokerError;
 use super::message::build_message_expire;
 use super::retain::save_retain_message;
 use super::topic::try_init_topic;
+use crate::common::types::ResultMqttBrokerError;
 use crate::storage::message::MessageStorage;
 use crate::storage::session::SessionStorage;
 
@@ -36,7 +37,7 @@ pub async fn send_last_will_message<S>(
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
     message_storage_adapter: Arc<S>,
-) -> Result<(), MqttBrokerError>
+) -> ResultMqttBrokerError
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
@@ -125,7 +126,7 @@ pub async fn save_last_will_message(
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
     client_pool: &Arc<ClientPool>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     if last_will.is_none() {
         return Ok(());
     }
