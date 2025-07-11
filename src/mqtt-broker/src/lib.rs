@@ -119,6 +119,7 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
 pub struct MqttBroker<S> {
     cache_manager: Arc<CacheManager>,
     daemon_runtime: Runtime,
+    #[allow(dead_code)]
     connector_runtime: Runtime,
     publish_runtime: Runtime,
     subscribe_runtime: Runtime,
@@ -347,9 +348,7 @@ where
     fn start_connector_thread(&self, stop_send: broadcast::Sender<bool>) {
         let message_storage = self.message_storage_adapter.clone();
         let connector_manager = self.connector_manager.clone();
-        self.connector_runtime.spawn(async move {
-            start_connector_thread(message_storage, connector_manager, stop_send).await;
-        });
+        start_connector_thread(message_storage, connector_manager, stop_send);
     }
 
     fn start_subscribe_push(&self, stop_send: broadcast::Sender<bool>) {
@@ -402,16 +401,14 @@ where
     }
 
     fn start_keep_alive_thread(&self, stop_send: broadcast::Sender<bool>) {
-        let mut keep_alive = ClientKeepAlive::new(
+        let keep_alive = ClientKeepAlive::new(
             self.client_pool.clone(),
             self.connection_manager.clone(),
             self.subscribe_manager.clone(),
             self.cache_manager.clone(),
             stop_send,
         );
-        self.daemon_runtime.spawn(async move {
-            keep_alive.start_heartbeat_check().await;
-        });
+        keep_alive.start_heartbeat_check();
     }
 
     fn start_delay_message_thread(&self) {

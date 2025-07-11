@@ -161,13 +161,11 @@ impl JournalServer {
         let client_pool = self.client_pool.clone();
         let cache_manager = self.cache_manager.clone();
         let stop_sx = self.stop_send.clone();
-        self.daemon_runtime
-            .spawn(async move { report_heartbeat(&client_pool, &cache_manager, stop_sx).await });
+        report_heartbeat(&client_pool, &cache_manager, stop_sx);
 
         let client_pool = self.client_pool.clone();
         let stop_sx = self.stop_send.clone();
-        self.daemon_runtime
-            .spawn(async move { report_monitor(client_pool, stop_sx).await });
+        report_monitor(client_pool, stop_sx);
 
         let segment_scroll = SegmentScrollManager::new(
             self.cache_manager.clone(),

@@ -25,12 +25,12 @@ use metadata_struct::placement::node::BrokerNode;
 use protocol::placement_center::placement_center_inner::{
     ClusterType, HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
 };
-use tokio::select;
-use tokio::sync::broadcast;
-use tokio::time::sleep;
+use tokio::{sync::broadcast, time::sleep};
 use tracing::{debug, error};
 
 use crate::core::cache::CacheManager;
+use crate::core::error::JournalServerError;
+use crate::core::tool::loop_select;
 
 pub async fn register_journal_node(
     client_pool: &Arc<ClientPool>,
@@ -77,28 +77,25 @@ pub async fn unregister_journal_node(
     Ok(())
 }
 
-pub async fn report_heartbeat(
+pub fn report_heartbeat(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
-    sleep(Duration::from_secs(10)).await;
-    loop {
-        let mut stop_recv = stop_send.subscribe();
-        select! {
-            val = stop_recv.recv() =>{
-                if let Ok(flag) = val {
-                    if flag {
-                        debug!("{}","Heartbeat reporting thread exited successfully");
-                        break;
-                    }
-                }
-            }
-            _ = report_report0(client_pool, cache_manager) => {
+    let client_pool_clone = client_pool.clone();
+    let cache_manager_clone = cache_manager.clone();
 
-            }
-        }
-    }
+    tokio::spawn(async move {
+        sleep(Duration::from_secs(10)).await;
+
+        let ac_fn = async || -> Result<(), JournalServerError> {
+            report_report0(&client_pool_clone, &cache_manager_clone).await;
+            Ok(())
+        };
+
+        loop_select(ac_fn, 1, &stop_send).await;
+        debug!("Heartbeat reporting thread exited successfully");
+    });
 }
 
 async fn report_report0(client_pool: &Arc<ClientPool>, cache_manager: &Arc<CacheManager>) {
@@ -128,23 +125,16 @@ async fn report_report0(client_pool: &Arc<ClientPool>, cache_manager: &Arc<Cache
     sleep(Duration::from_secs(1)).await;
 }
 
-pub async fn report_monitor(client_pool: Arc<ClientPool>, stop_send: broadcast::Sender<bool>) {
-    loop {
-        let mut stop_recv = stop_send.subscribe();
-        select! {
-            val = stop_recv.recv() =>{
-                if let Ok(flag) = val {
-                    if flag {
-                        debug!("{}","Monitor reporting thread exited successfully");
-                        break;
-                    }
-                }
-            }
-            _ = report_monitor0(client_pool.clone()) => {
+pub fn report_monitor(client_pool: Arc<ClientPool>, stop_send: broadcast::Sender<bool>) {
+    tokio::spawn(async move {
+        let ac_fn = async || -> Result<(), JournalServerError> {
+            report_monitor0(client_pool.clone()).await;
+            Ok(())
+        };
 
-            }
-        }
-    }
+        loop_select(ac_fn, 1, &stop_send).await;
+        debug!("Monitor reporting thread exited successfully");
+    });
 }
 
 async fn report_monitor0(_client_pool: Arc<ClientPool>) {
