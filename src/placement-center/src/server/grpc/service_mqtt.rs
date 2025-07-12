@@ -33,8 +33,8 @@ use crate::mqtt::services::subscribe::{
 };
 use crate::mqtt::services::topic::{
     create_topic_by_req, create_topic_rewrite_rule_by_req, delete_topic_by_req,
-    delete_topic_rewrite_rule_by_req, list_topic_by_req, list_topic_rewrite_rule_by_req,
-    save_last_will_message_by_req, set_topic_retain_message_by_req,
+    delete_topic_rewrite_rule_by_req, get_topic_retain_message_by_req, list_topic_by_req,
+    list_topic_rewrite_rule_by_req, save_last_will_message_by_req, set_topic_retain_message_by_req,
 };
 use crate::mqtt::services::user::{create_user_by_req, delete_user_by_req, list_user_by_req};
 use crate::route::apply::RaftMachineApply;
@@ -52,15 +52,15 @@ use protocol::placement_center::placement_center_mqtt::{
     DeleteSessionReply, DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest,
     DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
     DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
-    GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply,
-    ListAutoSubscribeRuleRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectorReply,
-    ListConnectorRequest, ListSessionReply, ListSessionRequest, ListSubscribeReply,
-    ListSubscribeRequest, ListTopicReply, ListTopicRequest, ListTopicRewriteRuleReply,
-    ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest, SaveLastWillMessageReply,
-    SaveLastWillMessageRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
-    SetSubscribeReply, SetSubscribeRequest, SetTopicRetainMessageReply,
-    SetTopicRetainMessageRequest, UpdateConnectorReply, UpdateConnectorRequest, UpdateSessionReply,
-    UpdateSessionRequest,
+    GetShareSubLeaderRequest, GetTopicRetainMessageReply, GetTopicRetainMessageRequest,
+    ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
+    ListBlacklistReply, ListBlacklistRequest, ListConnectorReply, ListConnectorRequest,
+    ListSessionReply, ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply,
+    ListTopicRequest, ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply,
+    ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest,
+    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetSubscribeReply, SetSubscribeRequest,
+    SetTopicRetainMessageReply, SetTopicRetainMessageRequest, UpdateConnectorReply,
+    UpdateConnectorRequest, UpdateSessionReply, UpdateSessionRequest,
 };
 use std::pin::Pin;
 use std::sync::Arc;
@@ -279,6 +279,18 @@ impl MqttService for GrpcMqttService {
         .await
         .map_err(|e| Status::internal(e.to_string()))
         .map(Response::new)
+    }
+
+    async fn get_topic_retain_message(
+        &self,
+        request: Request<GetTopicRetainMessageRequest>,
+    ) -> Result<Response<GetTopicRetainMessageReply>, Status> {
+        let req = request.into_inner();
+
+        get_topic_retain_message_by_req(&self.rocksdb_engine_handler, &req)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 
     async fn get_share_sub_leader(
