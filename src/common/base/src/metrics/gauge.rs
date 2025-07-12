@@ -100,6 +100,25 @@ macro_rules! gauge_metric_get {
     }};
 }
 
+#[macro_export]
+macro_rules! gauge_metrics_set {
+    ($family:ident,$label:ident,$value:expr) => {
+        let family = $family.clone();
+        let mut found = false;
+        {
+            let family_r = family.read().unwrap();
+            if let Some(gauge) = family_r.get(&$label) {
+                gauge.set($value);
+                found = true;
+            };
+        }
+        if !found {
+            let family_w = family.write().unwrap();
+            family_w.get_or_create(&$label).set($value);
+        }
+    };
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
