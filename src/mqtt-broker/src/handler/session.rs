@@ -22,7 +22,7 @@ use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillPrope
 
 use super::cache::CacheManager;
 use super::error::MqttBrokerError;
-use super::lastwill::last_will_delay_interval;
+use super::last_will::last_will_delay_interval;
 use crate::common::types::ResultMqttBrokerError;
 use crate::storage::session::SessionStorage;
 

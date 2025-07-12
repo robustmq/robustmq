@@ -44,7 +44,7 @@ use crate::handler::cache::{
 };
 use crate::handler::connection::{build_connection, get_client_id};
 use crate::handler::flapping_detect::check_flapping_detect;
-use crate::handler::lastwill::save_last_will_message;
+use crate::handler::last_will::save_last_will_message;
 use crate::handler::response::{
     build_puback, build_pubrec, response_packet_mqtt_connect_fail,
     response_packet_mqtt_connect_success, response_packet_mqtt_distinct_by_reason,

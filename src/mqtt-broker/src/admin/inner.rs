@@ -16,7 +16,7 @@ use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::CacheManager;
 use crate::handler::dynamic_cache::update_cache_metadata;
 use crate::handler::error::MqttBrokerError;
-use crate::handler::lastwill::send_last_will_message;
+use crate::handler::last_will::send_last_will_message;
 use crate::subscribe::manager::SubscribeManager;
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
