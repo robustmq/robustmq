@@ -32,7 +32,7 @@ pub struct MySQLStorageAdapter {
 }
 
 impl MySQLStorageAdapter {
-    pub async fn new(pool: Pool) -> Result<Self, CommonError> {
+    pub fn new(pool: Pool) -> Result<Self, CommonError> {
         // init tags and groups table
         let mut conn = pool.get_conn()?;
 
@@ -78,7 +78,7 @@ impl MySQLStorageAdapter {
 
         let (stop_send, stop_recv) = mpsc::channel(1);
 
-        Self::spawn_clean_thread(pool.clone(), stop_recv).await;
+        Self::spawn_clean_thread(pool.clone(), stop_recv);
 
         Ok(MySQLStorageAdapter { pool, stop_send })
     }
@@ -181,7 +181,7 @@ impl MySQLStorageAdapter {
         Ok(offsets)
     }
 
-    async fn spawn_clean_thread(pool: Pool, mut stop_recv: Receiver<bool>) {
+    fn spawn_clean_thread(pool: Pool, mut stop_recv: Receiver<bool>) {
         tokio::spawn(async move {
             loop {
                 if let Ok(true) = stop_recv.try_recv() {
@@ -675,7 +675,7 @@ mod tests {
         let addr = "mysql://root@127.0.0.1:3306/mqtt";
         let pool = build_mysql_conn_pool(addr).unwrap();
 
-        let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).await.unwrap();
+        let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).unwrap();
         let shard_name = String::from("test");
         let namespace = unique_id();
         mysql_adapter
@@ -700,7 +700,7 @@ mod tests {
     async fn mysql_batch_write() {
         let addr = "mysql://root@127.0.0.1:3306/mqtt";
         let pool = build_mysql_conn_pool(addr).unwrap();
-        let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).await.unwrap();
+        let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).unwrap();
         let shard_name = String::from("test");
         let namespace = unique_id();
         mysql_adapter
@@ -780,7 +780,7 @@ mod tests {
         let addr = "mysql://root@127.0.0.1:3306/mqtt";
         let pool = build_mysql_conn_pool(addr).unwrap();
 
-        let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).await.unwrap();
+        let mysql_adapter = MySQLStorageAdapter::new(pool.clone()).unwrap();
 
         let namespace = unique_id();
         let shard_name = "test-11".to_string();
@@ -1021,7 +1021,7 @@ mod tests {
         let addr = "mysql://root@127.0.0.1:3306/mqtt";
         let pool = build_mysql_conn_pool(addr).unwrap();
 
-        let mysql_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()).await.unwrap());
+        let mysql_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()).unwrap());
 
         let namespace = unique_id();
         let shard_name = "test-concurrent".to_string();

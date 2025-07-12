@@ -17,9 +17,17 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use common_config::mqtt::broker_mqtt_conf;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
+use storage_adapter::memory::MemoryStorageAdapter;
+use storage_adapter::mysql::MySQLStorageAdapter;
 use storage_adapter::storage::StorageAdapter;
+use storage_adapter::StorageType;
+use third_driver::mysql::build_mysql_conn_pool;
+
+use crate::handler::cache::CacheManager;
+use crate::MqttBroker;
 
 pub fn cluster_name() -> String {
     let conf = broker_mqtt_conf();
@@ -103,5 +111,35 @@ where
         self.storage_adapter
             .commit_offset(group_id.to_owned(), namespace, offset_data)
             .await
+    }
+}
+
+pub fn build_storage_driver(client_pool: &Arc<ClientPool>, metadata_cache: &Arc<CacheManager>) {
+    let conf = broker_mqtt_conf();
+    let storage_type = StorageType::from_str(conf.storage.storage_type.as_str())
+        .expect("Storage type not supported");
+    match storage_type {
+        StorageType::Memory => Arc::new(MemoryStorageAdapter::new()),
+        StorageType::Mysql => {
+            let pool = build_mysql_conn_pool(&conf.storage.mysql_addr).unwrap();
+            Arc::new(MySQLStorageAdapter::new(pool.clone()).unwrap())
+        }
+
+        StorageType::RocksDB => {
+            let message_storage_adapter = Arc::new(RocksDBStorageAdapter::new(
+                conf.storage.rocksdb_data_path.as_str(),
+                conf.storage.rocksdb_max_open_files.unwrap_or(10000),
+            ));
+            let server = MqttBroker::new(
+                client_pool,
+                message_storage_adapter,
+                metadata_cache,
+                stop_send.clone(),
+            );
+            server.start(stop_send);
+        }
+        _ => {
+            panic!("Message data storage type configuration error, optional :mysql, memory");
+        }
     }
 }

@@ -70,10 +70,10 @@ pub mod server;
 pub mod storage;
 mod subscribe;
 
-pub async fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
+pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
     let conf = broker_mqtt_conf();
     let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
-    let metadata_cache = Arc::new(CacheManager::new(
+    let metadata_cache: Arc<CacheManager> = Arc::new(CacheManager::new(
         client_pool.clone(),
         conf.cluster_name.clone(),
     ));
@@ -93,8 +93,7 @@ pub async fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
         }
         StorageType::Mysql => {
             let pool = build_mysql_conn_pool(&conf.storage.mysql_addr).unwrap();
-            let message_storage_adapter =
-                Arc::new(MySQLStorageAdapter::new(pool.clone()).await.unwrap());
+            let message_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()).unwrap());
             let server = MqttBroker::new(
                 client_pool,
                 message_storage_adapter,
