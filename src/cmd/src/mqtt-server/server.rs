@@ -15,7 +15,7 @@
 use clap::{command, Parser};
 
 use common_config::{mqtt::init_broker_mqtt_conf_by_path, DEFAULT_MQTT_SERVER_CONFIG};
-use mqtt_broker::{common::log::init_broker_mqtt_log, start_mqtt_broker_server};
+use mqtt_broker::{common::log::init_broker_mqtt_log, start_broker};
 use tokio::sync::broadcast;
 
 #[derive(Parser, Debug)]
@@ -33,5 +33,5 @@ fn main() {
     // Need to keep the guard alive until the application terminates
     let _appender_guards = init_broker_mqtt_log().unwrap();
     let (stop_send, _) = broadcast::channel(2);
-    start_mqtt_broker_server(stop_send);
+    start_broker(stop_send);
 }

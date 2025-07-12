@@ -12,14 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-use std::sync::Arc;
-
+use crate::handler::error::MqttBrokerError;
 use common_base::error::common::CommonError;
 use common_config::mqtt::broker_mqtt_conf;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
-use storage_adapter::storage::StorageAdapter;
+use std::collections::HashMap;
+use std::str::FromStr;
+use storage_adapter::memory::MemoryStorageAdapter;
+use storage_adapter::mysql::MySQLStorageAdapter;
+use storage_adapter::rocksdb::RocksDBStorageAdapter;
+use storage_adapter::storage::{ArcStorageAdapter, StorageAdapter};
+use storage_adapter::StorageType;
+use third_driver::mysql::build_mysql_conn_pool;
 
 pub fn cluster_name() -> String {
     let conf = broker_mqtt_conf();
@@ -27,15 +32,12 @@ pub fn cluster_name() -> String {
 }
 
 #[derive(Clone)]
-pub struct MessageStorage<T> {
-    storage_adapter: Arc<T>,
+pub struct MessageStorage {
+    storage_adapter: ArcStorageAdapter,
 }
 
-impl<T> MessageStorage<T>
-where
-    T: StorageAdapter + Send + Sync + 'static,
-{
-    pub fn new(storage_adapter: Arc<T>) -> Self {
+impl MessageStorage {
+    pub fn new(storage_adapter: ArcStorageAdapter) -> Self {
         MessageStorage { storage_adapter }
     }
 
@@ -104,4 +106,31 @@ where
             .commit_offset(group_id.to_owned(), namespace, offset_data)
             .await
     }
+}
+
+pub fn build_message_storage_driver(
+) -> Result<Box<dyn StorageAdapter + Send + Sync>, MqttBrokerError> {
+    let conf = broker_mqtt_conf();
+    let storage_type = StorageType::from_str(conf.storage.storage_type.as_str())
+        .expect("Storage type not supported");
+
+    let storage: Box<dyn StorageAdapter + Send + Sync> = match storage_type {
+        StorageType::Memory => Box::new(MemoryStorageAdapter::new()),
+
+        StorageType::Mysql => {
+            let pool = build_mysql_conn_pool(&conf.storage.mysql_addr)?;
+            Box::new(MySQLStorageAdapter::new(pool.clone())?)
+        }
+
+        StorageType::RocksDB => Box::new(RocksDBStorageAdapter::new(
+            conf.storage.rocksdb_data_path.as_str(),
+            conf.storage.rocksdb_max_open_files.unwrap_or(10000),
+        )),
+
+        _ => {
+            return Err(MqttBrokerError::UnavailableStorageType);
+        }
+    };
+
+    Ok(storage)
 }

@@ -16,7 +16,7 @@ use std::{sync::Arc, time::Duration};
 
 use common_base::error::common::CommonError;
 use metadata_struct::adapter::{read_config::ReadConfig, record::Record};
-use storage_adapter::storage::{ShardInfo, StorageAdapter};
+use storage_adapter::storage::{ArcStorageAdapter, ShardInfo};
 use tokio::{select, sync::broadcast, time::sleep};
 use tracing::{debug, info};
 
@@ -24,14 +24,12 @@ use crate::{persist::recover_delay_queue, pop::pop_delay_queue, DelayMessageMana
 
 const DELAY_MESSAGE_SHARD_NAME_PREFIX: &str = "$delay-message-shard-";
 
-pub(crate) fn start_recover_delay_queue<S>(
-    delay_message_manager: &Arc<DelayMessageManager<S>>,
-    message_storage_adapter: &Arc<S>,
+pub(crate) fn start_recover_delay_queue(
+    delay_message_manager: &Arc<DelayMessageManager>,
+    message_storage_adapter: &ArcStorageAdapter,
     namespace: &str,
     shard_num: u64,
-) where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) {
     let read_config = ReadConfig {
         max_record_num: 100,
         max_size: 1024 * 1024 * 1024,
@@ -52,14 +50,12 @@ pub(crate) fn start_recover_delay_queue<S>(
     });
 }
 
-pub(crate) fn start_delay_message_pop<S>(
-    delay_message_manager: &Arc<DelayMessageManager<S>>,
-    message_storage_adapter: &Arc<S>,
+pub(crate) fn start_delay_message_pop(
+    delay_message_manager: &Arc<DelayMessageManager>,
+    message_storage_adapter: &ArcStorageAdapter,
     namespace: &str,
     shard_num: u64,
-) where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) {
     for shard_no in 0..shard_num {
         let new_delay_message_manager = delay_message_manager.clone();
         let new_message_storage_adapter = message_storage_adapter.clone();
@@ -94,15 +90,12 @@ pub(crate) fn start_delay_message_pop<S>(
     }
 }
 
-pub(crate) async fn persist_delay_message<S>(
-    message_storage_adapter: &Arc<S>,
+pub(crate) async fn persist_delay_message(
+    message_storage_adapter: &ArcStorageAdapter,
     namespace: &str,
     shard_name: &str,
     data: Record,
-) -> Result<u64, CommonError>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) -> Result<u64, CommonError> {
     let offset = message_storage_adapter
         .write(namespace.to_owned(), shard_name.to_owned(), data.clone())
         .await?;
@@ -110,14 +103,11 @@ where
     Ok(offset)
 }
 
-pub(crate) async fn init_delay_message_shard<S>(
-    message_storage_adapter: &Arc<S>,
+pub(crate) async fn init_delay_message_shard(
+    message_storage_adapter: &ArcStorageAdapter,
     namespace: &str,
     shard_num: u64,
-) -> Result<(), CommonError>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) -> Result<(), CommonError> {
     for i in 0..shard_num {
         let shard_name = get_delay_message_shard_name(i);
         let results = message_storage_adapter
@@ -144,11 +134,9 @@ pub(crate) fn get_delay_message_shard_name(no: u64) -> String {
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
     use common_base::tools::unique_id;
     use metadata_struct::adapter::record::Record;
-    use storage_adapter::{memory::MemoryStorageAdapter, storage::StorageAdapter};
+    use storage_adapter::storage::build_memory_storage_driver;
 
     use crate::{
         get_delay_message_shard_name, init_delay_message_shard, persist_delay_message,
@@ -175,7 +163,7 @@ mod test {
 
     #[tokio::test]
     pub async fn init_delay_message_shard_test() {
-        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let message_storage_adapter = build_memory_storage_driver();
         let namespace = unique_id();
         let shard_num = 1;
         let res = init_delay_message_shard(&message_storage_adapter, &namespace, shard_num).await;
@@ -193,7 +181,7 @@ mod test {
 
     #[tokio::test]
     pub async fn persist_delay_message_test() {
-        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let message_storage_adapter = build_memory_storage_driver();
         let namespace = unique_id();
         let shard_name = "test".to_string();
         let data = Record::build_str("test".to_string());

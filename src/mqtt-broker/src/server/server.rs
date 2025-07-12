@@ -25,25 +25,22 @@ use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 use tokio::sync::broadcast;
 
-pub struct Server<S> {
-    tcp_server: TcpServer<S>,
-    tls_server: TcpServer<S>,
+pub struct Server {
+    tcp_server: TcpServer,
+    tls_server: TcpServer,
 }
 
-impl<S> Server<S>
-where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+impl Server {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         subscribe_manager: Arc<SubscribeManager>,
         cache_manager: Arc<CacheManager>,
         connection_manager: Arc<ConnectionManager>,
-        message_storage_adapter: Arc<S>,
-        delay_message_manager: Arc<DelayMessageManager<S>>,
+        message_storage_adapter: ArcStorageAdapter,
+        delay_message_manager: Arc<DelayMessageManager>,
         schema_manager: Arc<SchemaRegisterManager>,
         client_pool: Arc<ClientPool>,
         stop_sx: broadcast::Sender<bool>,
@@ -68,7 +65,7 @@ where
             channel_size: conf.network_thread.queue_size,
         };
 
-        let tcp_server = TcpServer::<S>::new(
+        let tcp_server = TcpServer::new(
             connection_manager.clone(),
             subscribe_manager.clone(),
             cache_manager.clone(),
@@ -79,7 +76,7 @@ where
             stop_sx.clone(),
         );
 
-        let tls_server = TcpServer::<S>::new(
+        let tls_server = TcpServer::new(
             connection_manager.clone(),
             subscribe_manager.clone(),
             cache_manager.clone(),

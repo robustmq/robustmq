@@ -12,15 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use bytes::Bytes;
-use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::lastwill::LastWillData;
-use metadata_struct::mqtt::message::MqttMessage;
-use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishProperties};
-use storage_adapter::storage::StorageAdapter;
-
 use super::cache::CacheManager;
 use super::error::MqttBrokerError;
 use super::message::build_message_expire;
@@ -29,18 +20,22 @@ use super::topic::try_init_topic;
 use crate::common::types::ResultMqttBrokerError;
 use crate::storage::message::MessageStorage;
 use crate::storage::session::SessionStorage;
+use bytes::Bytes;
+use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::lastwill::LastWillData;
+use metadata_struct::mqtt::message::MqttMessage;
+use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishProperties};
+use std::sync::Arc;
+use storage_adapter::storage::ArcStorageAdapter;
 
-pub async fn send_last_will_message<S>(
+pub async fn send_last_will_message(
     client_id: &str,
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
-    message_storage_adapter: Arc<S>,
-) -> ResultMqttBrokerError
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+    message_storage_adapter: ArcStorageAdapter,
+) -> ResultMqttBrokerError {
     let (topic_name, publish_res, publish_properties) =
         build_publish_message_by_lastwill(last_will, last_will_properties).await?;
 

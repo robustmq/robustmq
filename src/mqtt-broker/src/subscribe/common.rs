@@ -31,7 +31,6 @@ use protocol::placement_center::placement_center_mqtt::{
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use storage_adapter::storage::StorageAdapter;
 
 const SUBSCRIBE_WILDCARDS_1: &str = "+";
 const SUBSCRIBE_WILDCARDS_2: &str = "#";
@@ -254,15 +253,12 @@ pub async fn get_share_sub_leader(
     placement_get_share_sub_leader(client_pool, &conf.placement_center, req).await
 }
 
-pub async fn loop_commit_offset<S>(
-    message_storage: &MessageStorage<S>,
+pub async fn loop_commit_offset(
+    message_storage: &MessageStorage,
     topic_id: &str,
     group_id: &str,
     offset: u64,
-) -> ResultMqttBrokerError
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) -> ResultMqttBrokerError {
     message_storage
         .commit_group_offset(group_id, topic_id, offset)
         .await?;

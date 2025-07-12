@@ -22,7 +22,7 @@ use metadata_struct::mqtt::bridge::{
     connector_type::ConnectorType, status::MQTTStatus,
 };
 use std::{sync::Arc, time::Duration};
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{sync::broadcast, time::sleep};
 use tracing::{error, info};
 
@@ -45,29 +45,25 @@ pub trait BridgePlugin {
     async fn exec(&self, config: BridgePluginReadConfig) -> ResultMqttBrokerError;
 }
 
-pub fn start_connector_thread<S>(
-    message_storage: Arc<S>,
+pub async fn start_connector_thread(
+    message_storage: ArcStorageAdapter,
     connector_manager: Arc<ConnectorManager>,
     stop_send: broadcast::Sender<bool>,
-) where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
-    tokio::spawn(async move {
-        let ac_fn = async || -> ResultMqttBrokerError {
-            check_connector(&message_storage, &connector_manager).await;
-            sleep(Duration::from_secs(1)).await;
-            Ok(())
-        };
+) {
+    let ac_fn = async || -> ResultMqttBrokerError {
+        check_connector(&message_storage, &connector_manager).await;
+        sleep(Duration::from_secs(1)).await;
+        Ok(())
+    };
 
-        loop_select(ac_fn, 1, &stop_send).await;
-        info!("Connector thread exited successfully");
-    });
+    loop_select(ac_fn, 1, &stop_send).await;
+    info!("Connector thread exited successfully");
 }
 
-async fn check_connector<S>(message_storage: &Arc<S>, connector_manager: &Arc<ConnectorManager>)
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+async fn check_connector(
+    message_storage: &ArcStorageAdapter,
+    connector_manager: &Arc<ConnectorManager>,
+) {
     let config = broker_mqtt_conf();
 
     // Start connector thread
@@ -130,14 +126,12 @@ where
     }
 }
 
-fn start_thread<S>(
+fn start_thread(
     connector_manager: Arc<ConnectorManager>,
-    message_storage: Arc<S>,
+    message_storage: ArcStorageAdapter,
     connector: MQTTConnector,
     thread: BridgePluginThread,
-) where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) {
     tokio::spawn(async move {
         match connector.connector_type {
             ConnectorType::LocalFile => {

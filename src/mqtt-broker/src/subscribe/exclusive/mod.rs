@@ -29,26 +29,23 @@ use metadata_struct::adapter::record::Record;
 use protocol::mqtt::common::QoS;
 use std::sync::Arc;
 use std::time::Duration;
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
 use tracing::warn;
 use tracing::{error, info};
 
-pub struct ExclusivePush<S> {
+pub struct ExclusivePush {
     cache_manager: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
-    message_storage: Arc<S>,
+    message_storage: ArcStorageAdapter,
 }
 
-impl<S> ExclusivePush<S>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+impl ExclusivePush {
     pub fn new(
-        message_storage: Arc<S>,
+        message_storage: ArcStorageAdapter,
         cache_manager: Arc<CacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
@@ -203,10 +200,10 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn pub_message<S>(
+async fn pub_message(
     subscribe_manager: &Arc<SubscribeManager>,
     connection_manager: &Arc<ConnectionManager>,
-    message_storage: &MessageStorage<S>,
+    message_storage: &MessageStorage,
     cache_manager: &Arc<CacheManager>,
     subscriber: &Subscriber,
     group_id: &str,
@@ -215,10 +212,7 @@ async fn pub_message<S>(
     offset: u64,
     exclusive_key: &str,
     sub_thread_stop_sx: &broadcast::Sender<bool>,
-) -> Result<Option<u64>, MqttBrokerError>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) -> Result<Option<u64>, MqttBrokerError> {
     let record_num = 5;
     let results = message_storage
         .read_topic_message(&subscriber.topic_id, offset, record_num)

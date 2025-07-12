@@ -16,7 +16,7 @@ use crate::handler::cache::CacheManager;
 use crate::observability::system_topic::report_system_data;
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 
 // Stats
 // connections
@@ -25,13 +25,11 @@ pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_COUNT: &str =
 pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_MAX: &str =
     "$SYS/brokers/${node}/stats/connections/max";
 
-pub(crate) async fn report_broker_stat_connections_count<S>(
+pub(crate) async fn report_broker_stat_connections(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+    message_storage_adapter: &ArcStorageAdapter,
+) {
     report_system_data(
         client_pool,
         metadata_cache,
@@ -43,15 +41,7 @@ pub(crate) async fn report_broker_stat_connections_count<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_stat_connections_max<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,

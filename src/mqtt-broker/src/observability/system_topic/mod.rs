@@ -62,7 +62,8 @@ use crate::observability::system_topic::stats::client::{
     SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_COUNT, SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_MAX,
 };
 use crate::observability::system_topic::stats::route::{
-    SYSTEM_TOPIC_BROKERS_STATS_ROUTES_COUNT, SYSTEM_TOPIC_BROKERS_STATS_ROUTES_MAX,
+    report_broker_stat_routes, SYSTEM_TOPIC_BROKERS_STATS_ROUTES_COUNT,
+    SYSTEM_TOPIC_BROKERS_STATS_ROUTES_MAX,
 };
 use crate::observability::system_topic::stats::subscription::{
     SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_COUNT, SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_MAX,
@@ -81,7 +82,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
 use std::sync::Arc;
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 use tokio::sync::broadcast;
 use tracing::error;
 
@@ -119,21 +120,17 @@ pub mod event;
 pub mod packet;
 pub mod stats;
 pub mod sysmon;
-pub mod warn;
 
-pub struct SystemTopic<S> {
+pub struct SystemTopic {
     pub metadata_cache: Arc<CacheManager>,
-    pub message_storage_adapter: Arc<S>,
+    pub message_storage_adapter: ArcStorageAdapter,
     pub client_pool: Arc<ClientPool>,
 }
 
-impl<S> SystemTopic<S>
-where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+impl SystemTopic {
     pub fn new(
         metadata_cache: Arc<CacheManager>,
-        message_storage_adapter: Arc<S>,
+        message_storage_adapter: ArcStorageAdapter,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         SystemTopic {
@@ -161,6 +158,13 @@ where
             .await;
 
             report_packet_info(
+                &self.client_pool,
+                &self.metadata_cache,
+                &self.message_storage_adapter,
+            )
+            .await;
+
+            report_broker_stat_routes(
                 &self.client_pool,
                 &self.metadata_cache,
                 &self.message_storage_adapter,
@@ -270,296 +274,51 @@ where
     }
 }
 
-pub(crate) async fn report_alarm_info<S>(
+pub(crate) async fn report_alarm_info(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+    message_storage_adapter: &ArcStorageAdapter,
+) {
     let conf = broker_mqtt_conf();
     if conf.system_monitor.enable {
         sysmon::st_check_system_alarm(client_pool, metadata_cache, message_storage_adapter).await;
     }
 }
 
-pub(crate) async fn report_broker_info<S>(
+pub(crate) async fn report_broker_info(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+    message_storage_adapter: &ArcStorageAdapter,
+) {
     broker::report_cluster_status(client_pool, metadata_cache, message_storage_adapter).await;
     broker::report_broker_version(client_pool, metadata_cache, message_storage_adapter).await;
     broker::report_broker_time(client_pool, metadata_cache, message_storage_adapter).await;
     broker::report_broker_sysdescr(client_pool, metadata_cache, message_storage_adapter).await;
 }
 
-pub(crate) async fn report_packet_info<S>(
+pub(crate) async fn report_packet_info(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+    message_storage_adapter: &ArcStorageAdapter,
+) {
     // bytes
-    packet::bytes::report_broker_metrics_bytes_received(
+    packet::bytes::report_broker_metrics_bytes(
         client_pool,
         metadata_cache,
         message_storage_adapter,
     )
     .await;
-    packet::bytes::report_broker_metrics_bytes_sent(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_sent(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_received(
+
+    packet::packets::report_broker_metrics_packets(
         client_pool,
         metadata_cache,
         message_storage_adapter,
     )
     .await;
     // connect
-    packet::packets::report_broker_metrics_packets_connect(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_connack(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    // publish
-    packet::packets::report_broker_metrics_packets_publish_received(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_publish_sent(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_puback_received(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_puback_sent(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_puback_missed(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_pubrec_received(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_pubrec_sent(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_pubrec_missed(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_pubrel_received(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_pubrel_sent(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_pubrel_missed(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_pubcomp_received(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_pubcomp_sent(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_pubcomp_missed(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_subscribe(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_suback(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_unsubscribe(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_unsuback(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_pingreq(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_pingresp(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_disconnect_received(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_disconnect_sent(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::packets::report_broker_metrics_packets_auth(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
+
     // messages
-    packet::messages::report_broker_metrics_messages_received(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::messages::report_broker_metrics_messages_sent(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::messages::report_broker_metrics_messages_expired(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::messages::report_broker_metrics_messages_retained(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::messages::report_broker_metrics_messages_dropped(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::messages::report_broker_metrics_messages_forward(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::messages::report_broker_metrics_messages_qos0_received(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::messages::report_broker_metrics_messages_qos0_sent(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::messages::report_broker_metrics_messages_qos1_received(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::messages::report_broker_metrics_messages_qos1_sent(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::messages::report_broker_metrics_messages_qos2_received(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::messages::report_broker_metrics_messages_qos2_sent(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::messages::report_broker_metrics_messages_qos2_expired(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    packet::messages::report_broker_metrics_messages_qos2_dropped(
+    packet::messages::report_broker_metrics_messages(
         client_pool,
         metadata_cache,
         message_storage_adapter,
@@ -567,35 +326,13 @@ pub(crate) async fn report_packet_info<S>(
     .await;
 }
 
-pub(crate) async fn report_stats_info<S>(
+pub(crate) async fn report_stats_info(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+    message_storage_adapter: &ArcStorageAdapter,
+) {
     // client
-    stats::client::report_broker_stat_connections_count(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    stats::client::report_broker_stat_connections_max(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-
-    // route
-    stats::route::report_broker_stat_routes_count(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    stats::route::report_broker_stat_routes_max(
+    stats::client::report_broker_stat_connections(
         client_pool,
         metadata_cache,
         message_storage_adapter,
@@ -603,49 +340,7 @@ pub(crate) async fn report_stats_info<S>(
     .await;
 
     // subscription
-    stats::subscription::report_broker_stat_suboptions_count(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    stats::subscription::report_broker_stat_suboptions_max(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    stats::subscription::report_broker_stat_subscribers_count(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    stats::subscription::report_broker_stat_subscribers_max(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    stats::subscription::report_broker_stat_subscriptions_count(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    stats::subscription::report_broker_stat_subscriptions_max(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    stats::subscription::report_broker_stat_subscriptions_shared_count(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    stats::subscription::report_broker_stat_subscriptions_shared_max(
+    stats::subscription::report_broker_stat_sub_options(
         client_pool,
         metadata_cache,
         message_storage_adapter,
@@ -653,28 +348,17 @@ pub(crate) async fn report_stats_info<S>(
     .await;
 
     //topics
-    stats::topics::report_broker_stat_topics_count(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
-    stats::topics::report_broker_stat_topics_max(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-    )
-    .await;
+    stats::topics::report_broker_stat_topics(client_pool, metadata_cache, message_storage_adapter)
+        .await;
 }
 
-pub(crate) async fn report_system_data<S, F, Fut>(
+pub(crate) async fn report_system_data<F, Fut>(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
+    message_storage_adapter: &ArcStorageAdapter,
     topic_const: &str,
     data_generator: F,
 ) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = String>,
 {
@@ -701,15 +385,13 @@ pub(crate) fn replace_topic_name(mut topic_name: String) -> String {
     topic_name
 }
 
-pub(crate) async fn write_topic_data<S>(
-    message_storage_adapter: &Arc<S>,
+pub(crate) async fn write_topic_data(
+    message_storage_adapter: &ArcStorageAdapter,
     metadata_cache: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     topic_name: String,
     record: Record,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+) {
     match try_init_topic(
         &topic_name,
         &metadata_cache.clone(),
@@ -756,8 +438,7 @@ mod test {
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::mqtt::topic::MQTTTopic;
     use std::sync::Arc;
-    use storage_adapter::memory::MemoryStorageAdapter;
-    use storage_adapter::storage::StorageAdapter;
+    use storage_adapter::storage::build_memory_storage_driver;
 
     #[tokio::test]
     async fn test_write_topic_data() {
@@ -772,7 +453,7 @@ mod test {
         let mqtt_topic = MQTTTopic::new(unique_id(), cluster_name(), topic_name.clone());
         cache_manger.add_topic(&topic_name, &mqtt_topic);
 
-        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let message_storage_adapter = build_memory_storage_driver();
         let data = "test_write_topic_data".to_string();
 
         let topic_message =
@@ -826,7 +507,7 @@ mod test {
         init_broker_mqtt_conf_by_path(&path);
         let client_pool = Arc::new(ClientPool::new(3));
         let cache_manger = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
-        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let message_storage_adapter = build_memory_storage_driver();
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
         let mqtt_topic = MQTTTopic::new(unique_id(), cluster_name(), topic_name.clone());
         cache_manger.add_topic(&topic_name, &mqtt_topic);

@@ -14,16 +14,12 @@
 
 pub mod logo;
 use logo::DEFAULT_PLACEMENT_CENTER_CONFIG;
-use tracing::error;
 
 use crate::tools::read_file;
 
 pub fn version() -> String {
     match read_file(DEFAULT_PLACEMENT_CENTER_CONFIG) {
         Ok(data) => data,
-        Err(e) => {
-            error!("{}", e.to_string());
-            "-".to_string()
-        }
+        Err(_) => "-".to_string(),
     }
 }

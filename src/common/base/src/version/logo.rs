@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use tracing::info;
+
 pub const DEFAULT_PLACEMENT_CENTER_CONFIG: &str = "./version.ini";
 
 pub fn banner() {
@@ -29,7 +31,7 @@ pub fn banner() {
 
     ";
 
-    println!("{B}\n");
+    info!("{B}\n");
 }
 
 #[cfg(test)]

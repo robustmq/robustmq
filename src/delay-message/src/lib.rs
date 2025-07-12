@@ -24,7 +24,7 @@ use std::{
     sync::{atomic::AtomicU64, Arc},
     time::Duration,
 };
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 use tokio::{sync::broadcast, time::Instant};
 use tokio_util::time::DelayQueue;
 
@@ -32,15 +32,12 @@ pub mod delay;
 pub mod persist;
 pub mod pop;
 
-pub async fn start_delay_message_manager<S>(
-    delay_message_manager: &Arc<DelayMessageManager<S>>,
-    message_storage_adapter: &Arc<S>,
+pub async fn start_delay_message_manager(
+    delay_message_manager: &Arc<DelayMessageManager>,
+    message_storage_adapter: &ArcStorageAdapter,
     namespace: &str,
     shard_num: u64,
-) -> Result<(), CommonError>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) -> Result<(), CommonError> {
     delay_message_manager.start().await;
     init_delay_message_shard(message_storage_adapter, namespace, shard_num).await?;
 
@@ -61,20 +58,21 @@ where
     Ok(())
 }
 
-pub struct DelayMessageManager<S> {
+pub struct DelayMessageManager {
     namespace: String,
     shard_num: u64,
-    message_storage_adapter: Arc<S>,
+    message_storage_adapter: ArcStorageAdapter,
     incr_no: AtomicU64,
     delay_queue_list: DashMap<u64, DelayQueue<DelayMessageInfo>>,
     delay_queue_pop_thread: DashMap<u64, broadcast::Sender<bool>>,
 }
 
-impl<S> DelayMessageManager<S>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
-    pub fn new(namespace: String, shard_num: u64, message_storage_adapter: Arc<S>) -> Self {
+impl DelayMessageManager {
+    pub fn new(
+        namespace: String,
+        shard_num: u64,
+        message_storage_adapter: ArcStorageAdapter,
+    ) -> Self {
         DelayMessageManager {
             namespace,
             shard_num,

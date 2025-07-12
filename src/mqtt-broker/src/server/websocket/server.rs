@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::net::SocketAddr;
-use std::path::PathBuf;
-use std::sync::Arc;
-
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::command::Command;
@@ -33,7 +29,6 @@ use axum_extra::headers::UserAgent;
 use axum_extra::TypedHeader;
 use axum_server::tls_rustls::RustlsConfig;
 use bytes::{BufMut, BytesMut};
-
 use common_base::tools::now_mills;
 use common_config::mqtt::broker_mqtt_conf;
 use delay_message::DelayMessageManager;
@@ -42,7 +37,10 @@ use grpc_clients::pool::ClientPool;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::MqttPacket;
 use schema_register::schema::SchemaRegisterManager;
-use storage_adapter::storage::StorageAdapter;
+use std::net::SocketAddr;
+use std::path::PathBuf;
+use std::sync::Arc;
+use storage_adapter::storage::ArcStorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self};
 use tracing::{error, info, warn};
@@ -50,11 +48,11 @@ use tracing::{error, info, warn};
 pub const ROUTE_ROOT: &str = "/mqtt";
 
 #[derive(Clone)]
-pub struct WebSocketServerState<S> {
+pub struct WebSocketServerState {
     sucscribe_manager: Arc<SubscribeManager>,
     cache_manager: Arc<CacheManager>,
-    message_storage_adapter: Arc<S>,
-    delay_message_manager: Arc<DelayMessageManager<S>>,
+    message_storage_adapter: ArcStorageAdapter,
+    delay_message_manager: Arc<DelayMessageManager>,
     client_pool: Arc<ClientPool>,
     stop_sx: broadcast::Sender<bool>,
     connection_manager: Arc<ConnectionManager>,
@@ -62,17 +60,14 @@ pub struct WebSocketServerState<S> {
     auth_driver: Arc<AuthDriver>,
 }
 
-impl<S> WebSocketServerState<S>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+impl WebSocketServerState {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         sucscribe_manager: Arc<SubscribeManager>,
         cache_manager: Arc<CacheManager>,
         connection_manager: Arc<ConnectionManager>,
-        message_storage_adapter: Arc<S>,
-        delay_message_manager: Arc<DelayMessageManager<S>>,
+        message_storage_adapter: ArcStorageAdapter,
+        delay_message_manager: Arc<DelayMessageManager>,
         schema_manager: Arc<SchemaRegisterManager>,
         client_pool: Arc<ClientPool>,
         auth_driver: Arc<AuthDriver>,
@@ -92,10 +87,7 @@ where
     }
 }
 
-pub async fn websocket_server<S>(state: WebSocketServerState<S>)
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+pub async fn websocket_server(state: WebSocketServerState) {
     let config = broker_mqtt_conf();
     let ip: SocketAddr = format!("0.0.0.0:{}", config.network_port.websocket_port)
         .parse()
@@ -114,10 +106,7 @@ where
     }
 }
 
-pub async fn websockets_server<S>(state: WebSocketServerState<S>)
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+pub async fn websockets_server(state: WebSocketServerState) {
     let config = broker_mqtt_conf();
     let ip: SocketAddr = format!("0.0.0.0:{}", config.network_port.websockets_port)
         .parse()
@@ -149,25 +138,19 @@ where
     }
 }
 
-fn routes_v1<S>(state: WebSocketServerState<S>) -> Router
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+fn routes_v1(state: WebSocketServerState) -> Router {
     let mqtt_ws = Router::new().route(ROUTE_ROOT, get(ws_handler));
 
     let app = Router::new().merge(mqtt_ws);
     app.with_state(state)
 }
 
-async fn ws_handler<S>(
+async fn ws_handler(
     ws: WebSocketUpgrade,
-    State(state): State<WebSocketServerState<S>>,
+    State(state): State<WebSocketServerState>,
     user_agent: Option<TypedHeader<UserAgent>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-) -> Response
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) -> Response {
     let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
         user_agent.to_string()
     } else {
@@ -198,16 +181,14 @@ where
         })
 }
 
-async fn handle_socket<S>(
+async fn handle_socket(
     socket: WebSocket,
     addr: SocketAddr,
-    mut command: Command<S>,
+    mut command: Command,
     mut codec: MqttCodec,
     connection_manager: Arc<ConnectionManager>,
     stop_sx: broadcast::Sender<bool>,
-) where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) {
     let (sender, mut receiver) = socket.split();
     let mut tcp_connection = NetworkConnection::new(
         crate::server::common::connection::NetworkConnectionType::WebSocket,
@@ -274,17 +255,14 @@ async fn handle_socket<S>(
     }
 }
 
-async fn process_socket_packet_by_binary<S>(
+async fn process_socket_packet_by_binary(
     connection_manager: &Arc<ConnectionManager>,
     codec: &mut MqttCodec,
-    command: &mut Command<S>,
+    command: &mut Command,
     tcp_connection: &mut NetworkConnection,
     addr: &SocketAddr,
     data: Vec<u8>,
-) -> ResultMqttBrokerError
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) -> ResultMqttBrokerError {
     let receive_ms = now_mills();
     let mut buf = BytesMut::with_capacity(data.len());
     buf.put(data.as_slice());
