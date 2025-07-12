@@ -12,14 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{handler::cache::CacheManager, security::auth::common::ip_match};
+use crate::{
+    handler::{cache::CacheManager, error::MqttBrokerError},
+    security::auth::common::ip_match,
+};
 use common_base::tools::now_second;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use regex::Regex;
 use std::sync::Arc;
 use tracing::info;
 
-pub fn is_blacklist(cache_manager: &Arc<CacheManager>, connection: &MQTTConnection) -> bool {
+pub fn is_blacklist(
+    cache_manager: &Arc<CacheManager>,
+    connection: &MQTTConnection,
+) -> Result<bool, MqttBrokerError> {
     // todo: I believe this code can be refactored using the Chain of Responsibility pattern.
     // check user blacklist
     if let Some(data) = cache_manager
@@ -29,19 +35,19 @@ pub fn is_blacklist(cache_manager: &Arc<CacheManager>, connection: &MQTTConnecti
     {
         if data.end_time > now_second() {
             info!("user blacklist banned,user:{}", &connection.login_user);
-            return true;
+            return Ok(true);
         }
     }
 
     if let Some(data) = cache_manager.acl_metadata.get_blacklist_user_match() {
         for raw in data {
-            let re = Regex::new(&format!("^{}$", raw.resource_name)).unwrap();
+            let re = Regex::new(&format!("^{}$", raw.resource_name))?;
             if re.is_match(&connection.login_user) && raw.end_time > now_second() {
                 info!(
                     "user blacklist banned by match,user:{}",
                     &connection.login_user
                 );
-                return true;
+                return Ok(true);
             }
         }
     }
@@ -57,19 +63,19 @@ pub fn is_blacklist(cache_manager: &Arc<CacheManager>, connection: &MQTTConnecti
                 "client_id blacklist banned, client_id:{}",
                 &connection.client_id
             );
-            return true;
+            return Ok(true);
         }
     }
 
     if let Some(data) = cache_manager.acl_metadata.get_blacklist_client_id_match() {
         for raw in data {
-            let re = Regex::new(&format!("^{}$", raw.resource_name)).unwrap();
+            let re = Regex::new(&format!("^{}$", raw.resource_name))?;
             if re.is_match(&connection.client_id) && raw.end_time > now_second() {
                 info!(
                     "client_id blacklist banned by match,client_id:{}",
                     &connection.client_id
                 );
-                return true;
+                return Ok(true);
             }
         }
     }
@@ -80,30 +86,30 @@ pub fn is_blacklist(cache_manager: &Arc<CacheManager>, connection: &MQTTConnecti
         .blacklist_ip
         .get(&connection.source_ip_addr)
     {
-        if data.end_time < now_second() {
+        if data.end_time > now_second() {
             info!(
                 "ip blacklist banned,source_ip_addr:{}",
                 &connection.source_ip_addr
             );
-            return true;
+            return Ok(true);
         }
     }
 
     if let Some(data) = cache_manager.acl_metadata.get_blacklist_ip_match() {
         for raw in data {
             if ip_match(&connection.source_ip_addr, &raw.resource_name)
-                && raw.end_time < now_second()
+                && raw.end_time > now_second()
             {
                 info!(
                     "ip blacklist banned by match,source_ip_addr:{}",
                     &connection.source_ip_addr
                 );
-                return true;
+                return Ok(true);
             }
         }
     }
 
-    false
+    Ok(false)
 }
 
 #[cfg(test)]
@@ -117,11 +123,17 @@ mod test {
     use metadata_struct::mqtt::user::MqttUser;
     use std::sync::Arc;
 
-    #[tokio::test]
-    pub async fn check_black_list_test() {
+    struct TestFixture {
+        cache_manager: Arc<CacheManager>,
+        connection: MQTTConnection,
+        user: MqttUser,
+    }
+
+    fn setup() -> TestFixture {
         let client_pool = Arc::new(ClientPool::new(1));
         let cluster_name = "test".to_string();
         let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
+
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
@@ -129,6 +141,7 @@ mod test {
         };
 
         cache_manager.add_user(user.clone());
+
         let config = ConnectionConfig {
             connect_id: 1,
             client_id: "client_id-1".to_string(),
@@ -142,64 +155,95 @@ mod test {
         let mut connection = MQTTConnection::new(config);
         connection.login_success(user.username.clone());
 
-        // not black list
-        assert!(!is_blacklist(&cache_manager, &connection));
+        TestFixture {
+            cache_manager,
+            connection,
+            user,
+        }
+    }
 
-        // user blacklist
+    fn assert_is_blacklisted(
+        fixture: &TestFixture,
+        blacklist_type: MqttAclBlackListType,
+        resource_name: String,
+    ) {
         let blacklist = MqttAclBlackList {
-            blacklist_type: MqttAclBlackListType::User,
-            resource_name: user.username.clone(),
+            blacklist_type,
+            resource_name,
             end_time: now_second() + 100,
             desc: "".to_string(),
         };
-        cache_manager.add_blacklist(blacklist);
-        assert!(is_blacklist(&cache_manager, &connection));
+        fixture.cache_manager.add_blacklist(blacklist);
 
-        let blacklist = MqttAclBlackList {
-            blacklist_type: MqttAclBlackListType::UserMatch,
-            resource_name: user.username.clone(),
-            end_time: now_second() + 100,
-            desc: "".to_string(),
-        };
-        cache_manager.add_blacklist(blacklist);
-        assert!(is_blacklist(&cache_manager, &connection));
+        assert!(
+            is_blacklist(&fixture.cache_manager, &fixture.connection).unwrap(),
+            "Expected to be blacklisted but was not"
+        );
+    }
 
-        // client id blacklist
-        let blacklist = MqttAclBlackList {
-            blacklist_type: MqttAclBlackListType::ClientId,
-            resource_name: connection.client_id.clone(),
-            end_time: now_second() + 100,
-            desc: "".to_string(),
-        };
-        cache_manager.add_blacklist(blacklist);
-        assert!(is_blacklist(&cache_manager, &connection));
+    #[tokio::test]
+    async fn test_not_blacklist_default() {
+        let fixture = setup();
+        assert!(!is_blacklist(&fixture.cache_manager, &fixture.connection).unwrap_or(true))
+    }
 
-        let blacklist = MqttAclBlackList {
-            blacklist_type: MqttAclBlackListType::ClientIdMatch,
-            resource_name: connection.client_id.clone(),
-            end_time: now_second() + 100,
-            desc: "".to_string(),
-        };
-        cache_manager.add_blacklist(blacklist);
-        assert!(is_blacklist(&cache_manager, &connection));
+    #[tokio::test]
+    async fn test_blacklist_client_id() {
+        let fixture = setup();
+        assert_is_blacklisted(
+            &fixture,
+            MqttAclBlackListType::ClientId,
+            fixture.connection.client_id.clone(),
+        );
+    }
 
-        // client ip blacklist
-        let blacklist = MqttAclBlackList {
-            blacklist_type: MqttAclBlackListType::Ip,
-            resource_name: connection.source_ip_addr.clone(),
-            end_time: now_second() + 100,
-            desc: "".to_string(),
-        };
-        cache_manager.add_blacklist(blacklist);
-        assert!(is_blacklist(&cache_manager, &connection));
+    #[tokio::test]
+    async fn test_blacklist_user() {
+        let fixture = setup();
+        assert_is_blacklisted(
+            &fixture,
+            MqttAclBlackListType::User,
+            fixture.user.username.clone(),
+        );
+    }
 
-        let blacklist = MqttAclBlackList {
-            blacklist_type: MqttAclBlackListType::IPCIDR,
-            resource_name: "127.0.0.0/24".to_string(),
-            end_time: now_second() + 100,
-            desc: "".to_string(),
-        };
-        cache_manager.add_blacklist(blacklist);
-        assert!(is_blacklist(&cache_manager, &connection));
+    #[tokio::test]
+    async fn test_blacklist_ip() {
+        let fixture = setup();
+        assert_is_blacklisted(
+            &fixture,
+            MqttAclBlackListType::Ip,
+            fixture.connection.source_ip_addr.clone(),
+        );
+    }
+
+    #[tokio::test]
+    async fn test_blacklist_client_id_match() {
+        let fixture = setup();
+        assert_is_blacklisted(
+            &fixture,
+            MqttAclBlackListType::ClientIdMatch,
+            fixture.connection.client_id.clone(),
+        );
+    }
+
+    #[tokio::test]
+    async fn test_blacklist_user_match() {
+        let fixture = setup();
+        assert_is_blacklisted(
+            &fixture,
+            MqttAclBlackListType::UserMatch,
+            "lobo.*".to_string(),
+        );
+    }
+
+    #[tokio::test]
+    async fn test_blacklist_ip_cidr() {
+        let fixture = setup();
+        assert_is_blacklisted(
+            &fixture,
+            MqttAclBlackListType::IPCIDR,
+            "127.0.0.0/24".to_string(),
+        );
     }
 }
