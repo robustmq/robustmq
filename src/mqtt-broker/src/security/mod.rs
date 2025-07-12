@@ -91,7 +91,8 @@ impl AuthDriver {
     }
 
     pub async fn auth_connect_check(&self, connection: &MQTTConnection) -> bool {
-        is_blacklist(&self.cache_manager, connection)
+        // default true if blacklist check fails
+        is_blacklist(&self.cache_manager, connection).unwrap_or(true)
     }
 
     pub async fn auth_publish_check(

@@ -41,7 +41,8 @@ pub fn is_allow_acl(
     }
 
     // check blacklist
-    if is_blacklist(cache_manager, connection) {
+    // default true if blacklist check fails
+    if is_blacklist(cache_manager, connection).unwrap_or(true) {
         return false;
     }
 
