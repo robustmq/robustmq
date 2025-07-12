@@ -23,7 +23,7 @@ pub mod dynamic_config;
 pub mod error;
 pub mod flapping_detect;
 pub mod flow_control;
-pub mod heartbreat;
+pub mod heatbeat;
 pub mod keep_alive;
 pub mod lastwill;
 pub mod message;

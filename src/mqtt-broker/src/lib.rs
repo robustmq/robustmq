@@ -30,7 +30,7 @@ use delay_message::{start_delay_message_manager, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
 use handler::cache::CacheManager;
 use handler::dynamic_cache::load_metadata_cache;
-use handler::heartbreat::{register_node, report_heartbeat};
+use handler::heatbeat::{register_node, report_heartbeat};
 use handler::keep_alive::ClientKeepAlive;
 use handler::sub_parse_topic::start_parse_subscribe_by_new_topic_thread;
 use observability::start_observability;
@@ -318,7 +318,9 @@ impl MqttBroker {
     fn start_connector_thread(&self, stop_send: broadcast::Sender<bool>) {
         let message_storage = self.message_storage_adapter.clone();
         let connector_manager = self.connector_manager.clone();
-        start_connector_thread(message_storage, connector_manager, stop_send);
+        self.daemon_runtime.spawn(async move {
+            start_connector_thread(message_storage, connector_manager, stop_send).await;
+        });
     }
 
     fn start_subscribe_push(&self, stop_send: broadcast::Sender<bool>) {
@@ -378,7 +380,9 @@ impl MqttBroker {
             self.cache_manager.clone(),
             stop_send,
         );
-        keep_alive.start_heartbeat_check();
+        self.daemon_runtime.spawn(async move {
+            keep_alive.start_heartbeat_check().await;
+        });
     }
 
     fn start_delay_message_thread(&self) {
@@ -400,11 +404,13 @@ impl MqttBroker {
     }
 
     fn start_update_cache_thread(&self, stop_send: broadcast::Sender<bool>) {
-        sync_auth_storage_info(self.auth_driver.clone(), stop_send.clone());
-
         let update_flapping_detect_cache =
             UpdateFlappingDetectCache::new(stop_send.clone(), self.cache_manager.clone());
+        let auth_driver = self.auth_driver.clone();
+
         self.daemon_runtime.spawn(async move {
+            sync_auth_storage_info(auth_driver.clone(), stop_send.clone());
+
             update_flapping_detect_cache.start_update().await;
         });
     }

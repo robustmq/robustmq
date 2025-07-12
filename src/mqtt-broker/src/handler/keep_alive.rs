@@ -12,8 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use super::cache::{CacheManager, ConnectionLiveTime};
+use super::connection::disconnect_connection;
+use super::response::response_packet_mqtt_distinct_by_reason;
+use crate::common::tool::loop_select;
+use crate::common::types::ResultMqttBrokerError;
+use crate::server::common::connection::NetworkConnection;
+use crate::server::common::connection_manager::ConnectionManager;
+use crate::subscribe::manager::SubscribeManager;
 use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::tools::now_second;
@@ -23,17 +29,9 @@ use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{DisconnectReasonCode, MqttProtocol};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tokio::sync::broadcast::{self};
 use tracing::{debug, info};
-
-use super::cache::{CacheManager, ConnectionLiveTime};
-use super::connection::disconnect_connection;
-use super::response::response_packet_mqtt_distinct_by_reason;
-use crate::common::tool::loop_select;
-use crate::common::types::ResultMqttBrokerError;
-use crate::server::common::connection::NetworkConnection;
-use crate::server::common::connection_manager::ConnectionManager;
-use crate::subscribe::manager::SubscribeManager;
 
 #[derive(Clone)]
 pub struct ClientKeepAlive {
@@ -61,14 +59,10 @@ impl ClientKeepAlive {
         }
     }
 
-    pub fn start_heartbeat_check(&self) {
-        let self_clone = self.clone();
-        tokio::spawn(async move {
-            let ac_fn = async || -> ResultMqttBrokerError { self_clone.keep_alive().await };
-
-            loop_select(ac_fn, 1, &self_clone.stop_send).await;
-            info!("Heartbeat check thread stopped successfully.");
-        });
+    pub async fn start_heartbeat_check(&self) {
+        let ac_fn = async || -> ResultMqttBrokerError { self.keep_alive().await };
+        loop_select(ac_fn, 1, &self.stop_send).await;
+        info!("Heartbeat check thread stopped successfully.");
     }
 
     async fn keep_alive(&self) -> ResultMqttBrokerError {

@@ -45,21 +45,19 @@ pub trait BridgePlugin {
     async fn exec(&self, config: BridgePluginReadConfig) -> ResultMqttBrokerError;
 }
 
-pub fn start_connector_thread(
+pub async fn start_connector_thread(
     message_storage: ArcStorageAdapter,
     connector_manager: Arc<ConnectorManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
-    tokio::spawn(async move {
-        let ac_fn = async || -> ResultMqttBrokerError {
-            check_connector(&message_storage, &connector_manager).await;
-            sleep(Duration::from_secs(1)).await;
-            Ok(())
-        };
+    let ac_fn = async || -> ResultMqttBrokerError {
+        check_connector(&message_storage, &connector_manager).await;
+        sleep(Duration::from_secs(1)).await;
+        Ok(())
+    };
 
-        loop_select(ac_fn, 1, &stop_send).await;
-        info!("Connector thread exited successfully");
-    });
+    loop_select(ac_fn, 1, &stop_send).await;
+    info!("Connector thread exited successfully");
 }
 
 async fn check_connector(
