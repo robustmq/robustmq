@@ -51,45 +51,11 @@ impl FromStr for StorageType {
     }
 }
 
-// pub fn storage_is_journal(storage_type: &str) -> bool {
-
-// }
-
-// pub fn storage_is_memory(storage_type: &str) -> bool {
-//     let st = format!("{:?}", StorageType::Memory).to_lowercase();
-//     st == storage_type
-// }
-
-// pub fn storage_is_placement(storage_type: &str) -> bool {
-//     let st = format!("{:?}", StorageType::Placement).to_lowercase();
-//     st == storage_type
-// }
-
-// pub fn storage_is_mysql(storage_type: &str) -> bool {
-//     let st = format!("{:?}", StorageType::Mysql).to_lowercase();
-//     st == storage_type
-// }
-
-// pub fn storage_is_rocksdb(storage_type: &str) -> bool {
-//     let st = format!("{:?}", StorageType::RocksDB).to_lowercase();
-//     st == storage_type
-// }
-
 #[cfg(test)]
 mod tests {
-    // use crate::{storage_is_journal, storage_is_memory, storage_is_mysql, storage_is_rocksdb};
-
-    // #[tokio::test]
-    // async fn storage_type_test() {
-    //     assert!(storage_is_journal("journal"));
-    //     assert!(storage_is_memory("memory"));
-    //     assert!(storage_is_mysql("mysql"));
-    //     assert!(storage_is_rocksdb("rocksdb"));
-    // }
-
-    use std::str::FromStr;
 
     use crate::StorageType;
+    use std::str::FromStr;
 
     #[test]
     fn storage_type_from_str() {

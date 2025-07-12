@@ -22,27 +22,24 @@ use axum::async_trait;
 use metadata_struct::{
     adapter::record::Record, mqtt::bridge::config_local_file::LocalFileConnectorConfig,
 };
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 use tokio::fs::File;
 use tokio::io::{AsyncWriteExt, BufWriter};
 use tokio::{fs::OpenOptions, select, sync::broadcast, time::sleep};
 use tracing::error;
 
-pub struct FileBridgePlugin<S> {
+pub struct FileBridgePlugin {
     connector_manager: Arc<ConnectorManager>,
-    message_storage: Arc<S>,
+    message_storage: ArcStorageAdapter,
     connector_name: String,
     config: LocalFileConnectorConfig,
     stop_send: broadcast::Sender<bool>,
 }
 
-impl<S> FileBridgePlugin<S>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+impl FileBridgePlugin {
     pub fn new(
         connector_manager: Arc<ConnectorManager>,
-        message_storage: Arc<S>,
+        message_storage: ArcStorageAdapter,
         connector_name: String,
         config: LocalFileConnectorConfig,
         stop_send: broadcast::Sender<bool>,
@@ -71,10 +68,7 @@ where
 }
 
 #[async_trait]
-impl<S> BridgePlugin for FileBridgePlugin<S>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+impl BridgePlugin for FileBridgePlugin {
     async fn exec(&self, config: BridgePluginReadConfig) -> ResultMqttBrokerError {
         let message_storage = MessageStorage::new(self.message_storage.clone());
         let group_name = self.connector_name.clone();
@@ -139,10 +133,7 @@ mod tests {
         adapter::record::{Header, Record},
         mqtt::bridge::config_local_file::LocalFileConnectorConfig,
     };
-    use storage_adapter::{
-        memory::MemoryStorageAdapter,
-        storage::{ShardInfo, StorageAdapter},
-    };
+    use storage_adapter::storage::{build_memory_storage_driver, ShardInfo};
     use tokio::{fs::File, io::AsyncReadExt, sync::broadcast, time::sleep};
 
     use crate::bridge::{
@@ -164,7 +155,7 @@ mod tests {
 
         init_broker_mqtt_conf_by_config(mqtt_config);
 
-        let storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let storage_adapter = build_memory_storage_driver();
 
         let shard_name = "test_topic".to_string();
 

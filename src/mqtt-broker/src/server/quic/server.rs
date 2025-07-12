@@ -32,7 +32,7 @@ use rustls_pki_types::PrivateKeyDer;
 use schema_register::schema::SchemaRegisterManager;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 use tokio::sync::broadcast;
 use tracing::info;
 
@@ -44,19 +44,17 @@ pub fn generate_self_signed_cert() -> (Vec<CertificateDer<'static>>, PrivateKeyD
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn start_quic_server<S>(
+pub async fn start_quic_server(
     subscribe_manager: Arc<SubscribeManager>,
     cache_manager: Arc<CacheManager>,
     connection_manager: Arc<ConnectionManager>,
-    message_storage_adapter: Arc<S>,
-    delay_message_manager: Arc<DelayMessageManager<S>>,
+    message_storage_adapter: ArcStorageAdapter,
+    delay_message_manager: Arc<DelayMessageManager>,
     client_pool: Arc<ClientPool>,
     stop_sx: broadcast::Sender<bool>,
     auth_driver: Arc<AuthDriver>,
     schema_register_manager: Arc<SchemaRegisterManager>,
-) where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) {
     let conf = broker_mqtt_conf();
     let command = Command::new(
         cache_manager.clone(),

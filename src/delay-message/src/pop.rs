@@ -21,17 +21,15 @@ use metadata_struct::{
     adapter::{read_config::ReadConfig, record::Record},
     delay_info::DelayMessageInfo,
 };
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 use tracing::{error, info};
 
-pub async fn pop_delay_queue<S>(
+pub async fn pop_delay_queue(
     namespace: &str,
-    message_storage_adapter: &Arc<S>,
-    delay_message_manager: &Arc<DelayMessageManager<S>>,
+    message_storage_adapter: &ArcStorageAdapter,
+    delay_message_manager: &Arc<DelayMessageManager>,
     shard_no: u64,
-) where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) {
     if let Some(mut delay_queue) = delay_message_manager.delay_queue_list.get_mut(&shard_no) {
         while let Some(expired) = delay_queue.next().await {
             let delay_message = expired.into_inner();
@@ -49,13 +47,11 @@ pub async fn pop_delay_queue<S>(
     }
 }
 
-async fn send_delay_message_to_shard<S>(
-    message_storage_adapter: &Arc<S>,
+async fn send_delay_message_to_shard(
+    message_storage_adapter: &ArcStorageAdapter,
     namespace: &str,
     delay_message: DelayMessageInfo,
-) where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) {
     let mut times = 0;
     info!(
         "send_delay_message_to_shard start,namespace:{},shard_name:{},offset:{}",
@@ -107,15 +103,12 @@ async fn send_delay_message_to_shard<S>(
     }
 }
 
-pub(crate) async fn read_offset_data<S>(
-    message_storage_adapter: &Arc<S>,
+pub(crate) async fn read_offset_data(
+    message_storage_adapter: &ArcStorageAdapter,
     namespace: &str,
     shard_name: &str,
     offset: u64,
-) -> Result<Option<Record>, CommonError>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) -> Result<Option<Record>, CommonError> {
     let read_config = ReadConfig {
         max_record_num: 1,
         max_size: 1024 * 1024 * 1024,
@@ -143,7 +136,7 @@ mod test {
 
     use common_base::tools::unique_id;
     use metadata_struct::{adapter::record::Record, delay_info::DelayMessageInfo};
-    use storage_adapter::{memory::MemoryStorageAdapter, storage::StorageAdapter};
+    use storage_adapter::storage::build_memory_storage_driver;
     use tokio::time::sleep;
 
     use crate::{
@@ -153,7 +146,7 @@ mod test {
 
     #[tokio::test]
     pub async fn read_offset_data_test() {
-        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let message_storage_adapter = build_memory_storage_driver();
         let namespace = unique_id();
         let shard_name = "s1".to_string();
         for i in 0..100 {
@@ -177,7 +170,7 @@ mod test {
 
     #[tokio::test]
     pub async fn send_delay_message_to_shard_test() {
-        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let message_storage_adapter = build_memory_storage_driver();
         let namespace = unique_id();
         let shard_name = "s1".to_string();
         for i in 0..100 {
@@ -215,7 +208,7 @@ mod test {
     pub async fn pop_delay_queue_test() {
         let namespace = unique_id();
         let shard_num = 1;
-        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let message_storage_adapter = build_memory_storage_driver();
         let delay_message_manager = Arc::new(DelayMessageManager::new(
             namespace.clone(),
             shard_num,

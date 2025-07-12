@@ -32,16 +32,16 @@ use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::{message::MqttMessage, topic::MQTTTopic};
 use protocol::mqtt::common::{Publish, PublishProperties};
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 
 pub fn is_exist_subscribe(subscribe_manager: &Arc<SubscribeManager>, topic: &str) -> bool {
     subscribe_manager.contain_topic_subscribe(topic)
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn save_message<S>(
-    message_storage_adapter: &Arc<S>,
-    delay_message_manager: &Arc<DelayMessageManager<S>>,
+pub async fn save_message(
+    message_storage_adapter: &ArcStorageAdapter,
+    delay_message_manager: &Arc<DelayMessageManager>,
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     publish: &Publish,
@@ -50,10 +50,7 @@ pub async fn save_message<S>(
     client_id: &str,
     topic: &MQTTTopic,
     delay_info: &Option<DelayPublishTopic>,
-) -> Result<Option<String>, MqttBrokerError>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) -> Result<Option<String>, MqttBrokerError> {
     let offline_message_disabled = !cache_manager.get_cluster_config().offline_messages.enable;
     let not_exist_subscribe = !is_exist_subscribe(subscribe_manager, &topic.topic_name);
     if offline_message_disabled && not_exist_subscribe {
@@ -97,17 +94,14 @@ where
     .await;
 }
 
-async fn save_delay_message<S>(
-    delay_message_manager: &Arc<DelayMessageManager<S>>,
+async fn save_delay_message(
+    delay_message_manager: &Arc<DelayMessageManager>,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
     client_id: &str,
     message_expire: u64,
     delay_info: &DelayPublishTopic,
-) -> Result<Option<String>, MqttBrokerError>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) -> Result<Option<String>, MqttBrokerError> {
     let new_publish_properties = if let Some(mut properties) = publish_properties.clone() {
         properties.user_properties = vec![
             (DELAY_MESSAGE_FLAG.to_string(), "true".to_string()),
@@ -148,17 +142,14 @@ where
     Err(MqttBrokerError::FailedToBuildMessage)
 }
 
-async fn save_simple_message<S>(
-    message_storage_adapter: &Arc<S>,
+async fn save_simple_message(
+    message_storage_adapter: &ArcStorageAdapter,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
     client_id: &str,
     topic: &MQTTTopic,
     message_expire: u64,
-) -> Result<Option<String>, MqttBrokerError>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) -> Result<Option<String>, MqttBrokerError> {
     if let Some(record) =
         MqttMessage::build_record(client_id, publish, publish_properties, message_expire)
     {

@@ -26,26 +26,26 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
 };
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 use tonic::{Request, Response, Status};
 
-pub struct GrpcInnerServices<S> {
+pub struct GrpcInnerServices {
     cache_manager: Arc<CacheManager>,
     connector_manager: Arc<ConnectorManager>,
     subscribe_manager: Arc<SubscribeManager>,
     schema_manager: Arc<SchemaRegisterManager>,
     client_pool: Arc<ClientPool>,
-    message_storage_adapter: Arc<S>,
+    message_storage_adapter: ArcStorageAdapter,
 }
 
-impl<S> GrpcInnerServices<S> {
+impl GrpcInnerServices {
     pub fn new(
         cache_manager: Arc<CacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
         connector_manager: Arc<ConnectorManager>,
         schema_manager: Arc<SchemaRegisterManager>,
         client_pool: Arc<ClientPool>,
-        message_storage_adapter: Arc<S>,
+        message_storage_adapter: ArcStorageAdapter,
     ) -> Self {
         GrpcInnerServices {
             cache_manager,
@@ -59,10 +59,7 @@ impl<S> GrpcInnerServices<S> {
 }
 
 #[tonic::async_trait]
-impl<S> MqttBrokerInnerService for GrpcInnerServices<S>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+impl MqttBrokerInnerService for GrpcInnerServices {
     async fn update_cache(
         &self,
         request: Request<UpdateMqttCacheRequest>,

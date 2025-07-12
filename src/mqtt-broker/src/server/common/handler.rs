@@ -23,24 +23,21 @@ use common_base::tools::now_mills;
 use protocol::mqtt::common::mqtt_packet_to_string;
 use std::sync::Arc;
 use std::time::Duration;
-use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::Receiver;
 use tokio::time::sleep;
 use tracing::{debug, error, info};
 
-pub(crate) async fn handler_process<S>(
+pub(crate) async fn handler_process(
     handler_process_num: usize,
     mut request_queue_rx: Receiver<RequestPackage>,
     connection_manager: Arc<ConnectionManager>,
-    command: Command<S>,
+    command: Command,
     request_channel: Arc<RequestChannel>,
     network_type: NetworkConnectionType,
     stop_sx: broadcast::Sender<bool>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+) {
     tokio::spawn(async move {
         handler_child_process(
             handler_process_num,
@@ -95,16 +92,14 @@ pub(crate) async fn handler_process<S>(
     });
 }
 
-fn handler_child_process<S>(
+fn handler_child_process(
     handler_process_num: usize,
     connection_manager: Arc<ConnectionManager>,
     request_channel: Arc<RequestChannel>,
-    command: Command<S>,
+    command: Command,
     network_type: NetworkConnectionType,
     stop_sx: broadcast::Sender<bool>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+) {
     for index in 1..=handler_process_num {
         let mut child_process_rx =
             request_channel.create_handler_child_channel(&network_type, index);

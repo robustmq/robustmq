@@ -23,7 +23,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
 use regex::Regex;
-use storage_adapter::storage::{ShardInfo, StorageAdapter};
+use storage_adapter::storage::{ArcStorageAdapter, ShardInfo};
 use tokio::time::sleep;
 
 use super::error::MqttBrokerError;
@@ -140,15 +140,12 @@ pub async fn get_topic_alias(
     Err(MqttBrokerError::TopicAliasInvalid(topic_alias))
 }
 
-pub async fn try_init_topic<S>(
+pub async fn try_init_topic(
     topic_name: &str,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
+    message_storage_adapter: &ArcStorageAdapter,
     client_pool: &Arc<ClientPool>,
-) -> Result<MQTTTopic, MqttBrokerError>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) -> Result<MQTTTopic, MqttBrokerError> {
     let topic = if let Some(tp) = metadata_cache.get_topic_by_name(topic_name) {
         tp
     } else {

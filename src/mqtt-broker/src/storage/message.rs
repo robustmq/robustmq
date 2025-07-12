@@ -12,22 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-use std::sync::Arc;
-
+use crate::handler::error::MqttBrokerError;
 use common_base::error::common::CommonError;
 use common_config::mqtt::broker_mqtt_conf;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
+use std::collections::HashMap;
+use std::str::FromStr;
 use storage_adapter::memory::MemoryStorageAdapter;
 use storage_adapter::mysql::MySQLStorageAdapter;
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::rocksdb::RocksDBStorageAdapter;
+use storage_adapter::storage::{ArcStorageAdapter, StorageAdapter};
 use storage_adapter::StorageType;
 use third_driver::mysql::build_mysql_conn_pool;
-
-use crate::handler::cache::CacheManager;
-use crate::MqttBroker;
 
 pub fn cluster_name() -> String {
     let conf = broker_mqtt_conf();
@@ -35,15 +32,12 @@ pub fn cluster_name() -> String {
 }
 
 #[derive(Clone)]
-pub struct MessageStorage<T> {
-    storage_adapter: Arc<T>,
+pub struct MessageStorage {
+    storage_adapter: ArcStorageAdapter,
 }
 
-impl<T> MessageStorage<T>
-where
-    T: StorageAdapter + Send + Sync + 'static,
-{
-    pub fn new(storage_adapter: Arc<T>) -> Self {
+impl MessageStorage {
+    pub fn new(storage_adapter: ArcStorageAdapter) -> Self {
         MessageStorage { storage_adapter }
     }
 
@@ -114,32 +108,29 @@ where
     }
 }
 
-pub fn build_storage_driver(client_pool: &Arc<ClientPool>, metadata_cache: &Arc<CacheManager>) {
+pub fn build_message_storage_driver(
+) -> Result<Box<dyn StorageAdapter + Send + Sync>, MqttBrokerError> {
     let conf = broker_mqtt_conf();
     let storage_type = StorageType::from_str(conf.storage.storage_type.as_str())
         .expect("Storage type not supported");
-    match storage_type {
-        StorageType::Memory => Arc::new(MemoryStorageAdapter::new()),
+
+    let storage: Box<dyn StorageAdapter + Send + Sync> = match storage_type {
+        StorageType::Memory => Box::new(MemoryStorageAdapter::new()),
+
         StorageType::Mysql => {
-            let pool = build_mysql_conn_pool(&conf.storage.mysql_addr).unwrap();
-            Arc::new(MySQLStorageAdapter::new(pool.clone()).unwrap())
+            let pool = build_mysql_conn_pool(&conf.storage.mysql_addr)?;
+            Box::new(MySQLStorageAdapter::new(pool.clone())?)
         }
 
-        StorageType::RocksDB => {
-            let message_storage_adapter = Arc::new(RocksDBStorageAdapter::new(
-                conf.storage.rocksdb_data_path.as_str(),
-                conf.storage.rocksdb_max_open_files.unwrap_or(10000),
-            ));
-            let server = MqttBroker::new(
-                client_pool,
-                message_storage_adapter,
-                metadata_cache,
-                stop_send.clone(),
-            );
-            server.start(stop_send);
-        }
+        StorageType::RocksDB => Box::new(RocksDBStorageAdapter::new(
+            conf.storage.rocksdb_data_path.as_str(),
+            conf.storage.rocksdb_max_open_files.unwrap_or(10000),
+        )),
+
         _ => {
-            panic!("Message data storage type configuration error, optional :mysql, memory");
+            return Err(MqttBrokerError::UnavailableStorageType);
         }
-    }
+    };
+
+    Ok(storage)
 }

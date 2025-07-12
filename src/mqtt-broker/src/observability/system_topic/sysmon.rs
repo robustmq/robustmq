@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::sync::Arc;
 use std::time::Duration;
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 use sysinfo::{Pid, ProcessExt, System, SystemExt};
 use tokio::time::sleep;
 use tracing::error;
@@ -68,13 +68,11 @@ pub struct SystemAlarmEventMessage {
     pub activated: bool,
 }
 
-pub async fn st_check_system_alarm<S>(
+pub async fn st_check_system_alarm(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+    message_storage_adapter: &ArcStorageAdapter,
+) {
     let mqtt_conf = broker_mqtt_conf();
     let cpu_usage =
         get_process_every_cpu_usage(mqtt_conf.system_monitor.os_cpu_check_interval_ms).await;
@@ -111,16 +109,14 @@ pub async fn st_check_system_alarm<S>(
     .await;
 }
 
-async fn is_send_a_new_system_event<S>(
+async fn is_send_a_new_system_event(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
+    message_storage_adapter: &ArcStorageAdapter,
     alarm_type: AlarmType,
     current_usage: f32,
     config_usage: f32,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+) {
     let mut message = SystemAlarmEventMessage {
         name: alarm_type.to_string(),
         message: format!("{alarm_type} is {current_usage}%, but config is {config_usage}%"),
@@ -154,14 +150,12 @@ async fn is_send_a_new_system_event<S>(
     metadata_cache.add_alarm_event(alarm_type.to_string(), message);
 }
 
-pub async fn st_report_system_alarm_event<S>(
+pub async fn st_report_system_alarm_event(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
+    message_storage_adapter: &ArcStorageAdapter,
     message_event: &SystemAlarmEventMessage,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+) {
     match serde_json::to_string(message_event) {
         Ok(data) => {
             let mut topic_name =
@@ -245,7 +239,7 @@ mod tests {
     use common_config::mqtt::init_broker_mqtt_conf_by_path;
     use metadata_struct::adapter::read_config::ReadConfig;
     use metadata_struct::mqtt::topic::MQTTTopic;
-    use storage_adapter::memory::MemoryStorageAdapter;
+    use storage_adapter::storage::build_memory_storage_driver;
 
     #[tokio::test]
     async fn test_alarm_type_to_string() {
@@ -282,7 +276,7 @@ mod tests {
         init_broker_mqtt_conf_by_path(&path);
         let client_pool = Arc::new(ClientPool::new(3));
         let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
-        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let message_storage_adapter = build_memory_storage_driver();
 
         let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE.to_string());
         let mqtt_topic = MQTTTopic::new(unique_id(), cluster_name(), topic_name.clone());
@@ -338,7 +332,7 @@ mod tests {
         init_broker_mqtt_conf_by_path(&path);
         let client_pool = Arc::new(ClientPool::new(3));
         let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
-        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let message_storage_adapter = build_memory_storage_driver();
 
         let current_cpu_usage = 90.0; // Simulate current CPU usage
         let config_cpu_usage = broker_mqtt_conf().system_monitor.os_cpu_high_watermark;
@@ -379,7 +373,7 @@ mod tests {
         init_broker_mqtt_conf_by_path(&path);
         let client_pool = Arc::new(ClientPool::new(3));
         let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
-        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let message_storage_adapter = build_memory_storage_driver();
 
         let current_cpu_usage = 50.0; // Simulate current CPU usage
         let config_cpu_usage = broker_mqtt_conf().system_monitor.os_cpu_high_watermark;
@@ -420,7 +414,7 @@ mod tests {
         init_broker_mqtt_conf_by_path(&path);
         let client_pool = Arc::new(ClientPool::new(3));
         let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
-        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let message_storage_adapter = build_memory_storage_driver();
 
         let current_cpu_usage = 90.0; // Simulate current CPU usage
         let config_cpu_usage = broker_mqtt_conf().system_monitor.os_cpu_high_watermark;
@@ -486,7 +480,7 @@ mod tests {
         init_broker_mqtt_conf_by_path(&path);
         let client_pool = Arc::new(ClientPool::new(3));
         let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
-        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let message_storage_adapter = build_memory_storage_driver();
 
         let current_cpu_usage = 90.0; // Simulate current CPU usage
         let config_cpu_usage = broker_mqtt_conf().system_monitor.os_cpu_high_watermark;
@@ -544,7 +538,7 @@ mod tests {
         init_broker_mqtt_conf_by_path(&path);
         let client_pool = Arc::new(ClientPool::new(3));
         let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
-        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let message_storage_adapter = build_memory_storage_driver();
 
         let current_cpu_usage = 90.0; // Simulate current CPU usage
         let config_cpu_usage = broker_mqtt_conf().system_monitor.os_cpu_high_watermark;

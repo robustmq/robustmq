@@ -19,7 +19,7 @@ use common_base::version::version;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 use tracing::error;
 
 use super::{
@@ -30,13 +30,11 @@ use super::{
 use crate::handler::cache::CacheManager;
 use crate::storage::cluster::ClusterStorage;
 
-pub(crate) async fn report_cluster_status<S>(
+pub(crate) async fn report_cluster_status(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+    message_storage_adapter: &ArcStorageAdapter,
+) {
     let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS.to_string());
     if let Some(record) = build_node_cluster(&topic_name, client_pool).await {
         write_topic_data(
@@ -50,13 +48,11 @@ pub(crate) async fn report_cluster_status<S>(
     }
 }
 
-pub(crate) async fn report_broker_version<S>(
+pub(crate) async fn report_broker_version(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+    message_storage_adapter: &ArcStorageAdapter,
+) {
     report_system_data(
         client_pool,
         metadata_cache,
@@ -67,13 +63,11 @@ pub(crate) async fn report_broker_version<S>(
     .await;
 }
 
-pub(crate) async fn report_broker_time<S>(
+pub(crate) async fn report_broker_time(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+    message_storage_adapter: &ArcStorageAdapter,
+) {
     //  report system uptime
     report_system_data(
         client_pool,
@@ -98,13 +92,11 @@ pub(crate) async fn report_broker_time<S>(
     .await;
 }
 
-pub(crate) async fn report_broker_sysdescr<S>(
+pub(crate) async fn report_broker_sysdescr(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+    message_storage_adapter: &ArcStorageAdapter,
+) {
     report_system_data(
         client_pool,
         metadata_cache,

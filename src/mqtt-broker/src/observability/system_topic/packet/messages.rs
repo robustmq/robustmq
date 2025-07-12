@@ -16,7 +16,7 @@ use crate::handler::cache::CacheManager;
 use crate::observability::system_topic::report_system_data;
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 
 // MQTT Message Received and Sent
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_RECEIVED: &str =
@@ -48,13 +48,11 @@ pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_EXPIRED: &str =
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_DROPPED: &str =
     "$SYS/brokers/${node}/metrics/messages/qos2/dropped";
 
-pub(crate) async fn report_broker_metrics_messages_received<S>(
+pub(crate) async fn report_broker_metrics_messages(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+    message_storage_adapter: &ArcStorageAdapter,
+) {
     report_system_data(
         client_pool,
         metadata_cache,
@@ -66,15 +64,7 @@ pub(crate) async fn report_broker_metrics_messages_received<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_messages_sent<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -86,15 +76,7 @@ pub(crate) async fn report_broker_metrics_messages_sent<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_messages_expired<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -106,15 +88,7 @@ pub(crate) async fn report_broker_metrics_messages_expired<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_messages_retained<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -126,15 +100,7 @@ pub(crate) async fn report_broker_metrics_messages_retained<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_messages_dropped<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -146,15 +112,7 @@ pub(crate) async fn report_broker_metrics_messages_dropped<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_messages_forward<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -166,15 +124,7 @@ pub(crate) async fn report_broker_metrics_messages_forward<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_messages_qos0_received<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -186,15 +136,7 @@ pub(crate) async fn report_broker_metrics_messages_qos0_received<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_messages_qos0_sent<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -206,15 +148,7 @@ pub(crate) async fn report_broker_metrics_messages_qos0_sent<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_messages_qos1_received<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -226,15 +160,7 @@ pub(crate) async fn report_broker_metrics_messages_qos1_received<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_messages_qos1_sent<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -246,15 +172,7 @@ pub(crate) async fn report_broker_metrics_messages_qos1_sent<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_messages_qos2_received<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -266,15 +184,7 @@ pub(crate) async fn report_broker_metrics_messages_qos2_received<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_messages_qos2_sent<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -286,15 +196,7 @@ pub(crate) async fn report_broker_metrics_messages_qos2_sent<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_messages_qos2_expired<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -306,15 +208,7 @@ pub(crate) async fn report_broker_metrics_messages_qos2_expired<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_messages_qos2_dropped<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,

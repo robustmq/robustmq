@@ -12,17 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
-
-use common_config::mqtt::broker_mqtt_conf;
-use grpc_clients::pool::ClientPool;
-use storage_adapter::storage::StorageAdapter;
-use tokio::net::TcpListener;
-use tokio::sync::broadcast;
-use tokio::time::sleep;
-use tracing::{error, info};
-
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::command::Command;
@@ -35,6 +24,14 @@ use crate::server::common::response::response_process;
 use crate::server::tcp::v1::tcp_acceptor::acceptor_process;
 use crate::server::tcp::v1::tls_acceptor::acceptor_tls_process;
 use crate::subscribe::manager::SubscribeManager;
+use common_config::mqtt::broker_mqtt_conf;
+use grpc_clients::pool::ClientPool;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::net::TcpListener;
+use tokio::sync::broadcast;
+use tokio::time::sleep;
+use tracing::{error, info};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ProcessorConfig {
@@ -46,8 +43,8 @@ pub struct ProcessorConfig {
 
 // U: codec: encoder + decoder
 // S: message storage adapter
-pub struct TcpServer<S> {
-    command: Command<S>,
+pub struct TcpServer {
+    command: Command,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
@@ -59,17 +56,14 @@ pub struct TcpServer<S> {
     stop_sx: broadcast::Sender<bool>,
 }
 
-impl<S> TcpServer<S>
-where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+impl TcpServer {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         connection_manager: Arc<ConnectionManager>,
         subscribe_manager: Arc<SubscribeManager>,
         cache_manager: Arc<CacheManager>,
         client_pool: Arc<ClientPool>,
-        command: Command<S>,
+        command: Command,
         network_type: NetworkConnectionType,
         proc_config: ProcessorConfig,
         stop_sx: broadcast::Sender<bool>,

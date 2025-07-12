@@ -15,9 +15,12 @@
 #![allow(clippy::result_large_err)]
 use crate::common::metrics_cache::{metrics_gc_thread, metrics_record_thread, MetricsCacheManager};
 use crate::common::types::ResultMqttBrokerError;
+use crate::handler::flapping_detect::UpdateFlappingDetectCache;
 use crate::security::auth::super_user::init_system_user;
 use crate::security::storage::sync::sync_auth_storage_info;
+use crate::server::quic::server::start_quic_server;
 use crate::server::server::Server;
+use crate::storage::message::build_message_storage_driver;
 use bridge::core::start_connector_thread;
 use bridge::manager::ConnectorManager;
 use common_base::metrics::register_prometheus_export;
@@ -37,20 +40,10 @@ use security::AuthDriver;
 use server::common::connection_manager::ConnectionManager;
 use server::grpc::server::GrpcServer;
 use server::websocket::server::{websocket_server, websockets_server, WebSocketServerState};
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use storage::cluster::ClusterStorage;
-use storage_adapter::memory::MemoryStorageAdapter;
-use storage_adapter::mysql::MySQLStorageAdapter;
-use storage_adapter::rocksdb::RocksDBStorageAdapter;
-use third_driver::mysql::build_mysql_conn_pool;
-use tracing::{error, info};
-// use storage_adapter::rocksdb::RocksDBStorageAdapter;
-use crate::handler::flapping_detect::UpdateFlappingDetectCache;
-use crate::server::quic::server::start_quic_server;
-use storage_adapter::storage::StorageAdapter;
-use storage_adapter::StorageType;
+use storage_adapter::storage::ArcStorageAdapter;
 use subscribe::exclusive::ExclusivePush;
 use subscribe::manager::SubscribeManager;
 use subscribe::share::follower::ShareFollowerResub;
@@ -59,6 +52,7 @@ use tokio::runtime::Runtime;
 use tokio::signal;
 use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
+use tracing::{error, info};
 
 pub mod admin;
 pub mod bridge;
@@ -77,52 +71,25 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
         client_pool.clone(),
         conf.cluster_name.clone(),
     ));
-    // let storage_type = conf.storage.storage_type.clone();
-    let storage_type = StorageType::from_str(conf.storage.storage_type.as_str())
-        .expect("Storage type not supported");
-    match storage_type {
-        StorageType::Memory => {
-            let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
-            let server = MqttBroker::new(
-                client_pool,
-                message_storage_adapter,
-                metadata_cache,
-                stop_send.clone(),
-            );
-            server.start(stop_send);
-        }
-        StorageType::Mysql => {
-            let pool = build_mysql_conn_pool(&conf.storage.mysql_addr).unwrap();
-            let message_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()).unwrap());
-            let server = MqttBroker::new(
-                client_pool,
-                message_storage_adapter,
-                metadata_cache,
-                stop_send.clone(),
-            );
-            server.start(stop_send);
-        }
 
-        StorageType::RocksDB => {
-            let message_storage_adapter = Arc::new(RocksDBStorageAdapter::new(
-                conf.storage.rocksdb_data_path.as_str(),
-                conf.storage.rocksdb_max_open_files.unwrap_or(10000),
-            ));
-            let server = MqttBroker::new(
-                client_pool,
-                message_storage_adapter,
-                metadata_cache,
-                stop_send.clone(),
-            );
-            server.start(stop_send);
+    let storage_driver = match build_message_storage_driver() {
+        Ok(storage) => storage,
+        Err(e) => {
+            panic!("{}", e.to_string());
         }
-        _ => {
-            panic!("Message data storage type configuration error, optional :mysql, memory");
-        }
-    }
+    };
+
+    let server = MqttBroker::new(
+        client_pool,
+        Arc::new(storage_driver),
+        metadata_cache,
+        stop_send.clone(),
+    );
+
+    server.start(stop_send);
 }
 
-pub struct MqttBroker<S> {
+pub struct MqttBroker {
     cache_manager: Arc<CacheManager>,
     daemon_runtime: Runtime,
     #[allow(dead_code)]
@@ -131,24 +98,21 @@ pub struct MqttBroker<S> {
     subscribe_runtime: Runtime,
     grpc_runtime: Runtime,
     client_pool: Arc<ClientPool>,
-    message_storage_adapter: Arc<S>,
+    message_storage_adapter: ArcStorageAdapter,
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     connector_manager: Arc<ConnectorManager>,
     auth_driver: Arc<AuthDriver>,
-    delay_message_manager: Arc<DelayMessageManager<S>>,
+    delay_message_manager: Arc<DelayMessageManager>,
     schema_manager: Arc<SchemaRegisterManager>,
     metrics_cache_manager: Arc<MetricsCacheManager>,
-    server: Arc<Server<S>>,
+    server: Arc<Server>,
 }
 
-impl<S> MqttBroker<S>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+impl MqttBroker {
     pub fn new(
         client_pool: Arc<ClientPool>,
-        message_storage_adapter: Arc<S>,
+        message_storage_adapter: ArcStorageAdapter,
         cache_manager: Arc<CacheManager>,
         stop_sx: broadcast::Sender<bool>,
     ) -> Self {

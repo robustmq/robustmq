@@ -27,7 +27,7 @@ use protocol::mqtt::common::{
     UnsubscribeProperties,
 };
 use schema_register::schema::SchemaRegisterManager;
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 use tracing::{error, warn};
 
 use super::connection::{disconnect_connection, is_delete_session};
@@ -67,29 +67,26 @@ use crate::subscribe::common::min_qos;
 use crate::subscribe::manager::SubscribeManager;
 
 #[derive(Clone)]
-pub struct MqttService<S> {
+pub struct MqttService {
     protocol: MqttProtocol,
     cache_manager: Arc<CacheManager>,
     connection_manager: Arc<ConnectionManager>,
-    message_storage_adapter: Arc<S>,
-    delay_message_manager: Arc<DelayMessageManager<S>>,
+    message_storage_adapter: ArcStorageAdapter,
+    delay_message_manager: Arc<DelayMessageManager>,
     subscribe_manager: Arc<SubscribeManager>,
     schema_manager: Arc<SchemaRegisterManager>,
     client_pool: Arc<ClientPool>,
     auth_driver: Arc<AuthDriver>,
 }
 
-impl<S> MqttService<S>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+impl MqttService {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         protocol: MqttProtocol,
         cache_manager: Arc<CacheManager>,
         connection_manager: Arc<ConnectionManager>,
-        message_storage_adapter: Arc<S>,
-        delay_message_manager: Arc<DelayMessageManager<S>>,
+        message_storage_adapter: ArcStorageAdapter,
+        delay_message_manager: Arc<DelayMessageManager>,
         subscribe_manager: Arc<SubscribeManager>,
         schema_manager: Arc<SchemaRegisterManager>,
         client_pool: Arc<ClientPool>,
