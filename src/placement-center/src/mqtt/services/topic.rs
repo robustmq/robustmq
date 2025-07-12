@@ -25,9 +25,10 @@ use prost::Message;
 use protocol::placement_center::placement_center_mqtt::{
     CreateTopicReply, CreateTopicRequest, CreateTopicRewriteRuleReply,
     CreateTopicRewriteRuleRequest, DeleteTopicReply, DeleteTopicRequest,
-    DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, ListTopicReply, ListTopicRequest,
-    ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, SaveLastWillMessageReply,
-    SaveLastWillMessageRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
+    DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, GetTopicRetainMessageReply,
+    GetTopicRetainMessageRequest, ListTopicReply, ListTopicRequest, ListTopicRewriteRuleReply,
+    ListTopicRewriteRuleRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest,
+    SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
 };
 use rocksdb_engine::RocksDBEngine;
 use std::pin::Pin;
@@ -152,6 +153,21 @@ pub async fn set_topic_retain_message_by_req(
 
     raft_machine_apply.client_write(data).await?;
     Ok(SetTopicRetainMessageReply {})
+}
+
+pub async fn get_topic_retain_message_by_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    req: &GetTopicRetainMessageRequest,
+) -> Result<GetTopicRetainMessageReply, PlacementCenterError> {
+    let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
+    let topic = topic_storage
+        .get(&req.cluster_name, &req.topic_name)?
+        .ok_or_else(|| PlacementCenterError::TopicDoesNotExist(req.topic_name.clone()))?;
+
+    Ok(GetTopicRetainMessageReply {
+        retain_message: topic.retain_message.clone(),
+        retain_message_expired_at: topic.retain_message_expired_at,
+    })
 }
 
 pub async fn save_last_will_message_by_req(
