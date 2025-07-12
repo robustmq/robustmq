@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::storage::user::UserStorage;
 use common_config::mqtt::broker_mqtt_conf;
@@ -19,7 +20,10 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use std::sync::Arc;
 
-pub async fn init_system_user(cache_manager: &Arc<CacheManager>, client_pool: &Arc<ClientPool>) {
+pub async fn init_system_user(
+    cache_manager: &Arc<CacheManager>,
+    client_pool: &Arc<ClientPool>,
+) -> ResultMqttBrokerError {
     let conf = broker_mqtt_conf();
     let system_user_info = MqttUser {
         username: conf.system.default_user.clone(),
@@ -27,16 +31,15 @@ pub async fn init_system_user(cache_manager: &Arc<CacheManager>, client_pool: &A
         is_superuser: true,
     };
     let user_storage = UserStorage::new(client_pool.clone());
-    match user_storage.save_user(system_user_info.clone()).await {
-        Ok(_) => {
-            cache_manager.add_user(system_user_info);
-        }
-        Err(e) => {
-            if !e.to_string().contains("already exist") {
-                panic!("{}", e.to_string());
-            }
-        }
+    let res = user_storage
+        .get_user(system_user_info.username.clone())
+        .await?;
+    if res.is_some() {
+        return Ok(());
     }
+    user_storage.save_user(system_user_info.clone()).await?;
+    cache_manager.add_user(system_user_info);
+    Ok(())
 }
 
 pub fn is_super_user(cache_manager: &Arc<CacheManager>, username: &str) -> bool {

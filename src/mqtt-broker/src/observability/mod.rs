@@ -37,7 +37,5 @@ pub async fn start_observability(
         client_pool.clone(),
     );
 
-    tokio::spawn(async move {
-        system_topic.start_thread(stop_send).await;
-    });
+    system_topic.start_thread(stop_send).await;
 }
