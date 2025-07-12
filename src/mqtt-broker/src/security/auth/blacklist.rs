@@ -86,7 +86,7 @@ pub fn is_blacklist(
         .blacklist_ip
         .get(&connection.source_ip_addr)
     {
-        if data.end_time < now_second() {
+        if data.end_time > now_second() {
             info!(
                 "ip blacklist banned,source_ip_addr:{}",
                 &connection.source_ip_addr
@@ -98,7 +98,7 @@ pub fn is_blacklist(
     if let Some(data) = cache_manager.acl_metadata.get_blacklist_ip_match() {
         for raw in data {
             if ip_match(&connection.source_ip_addr, &raw.resource_name)
-                && raw.end_time < now_second()
+                && raw.end_time > now_second()
             {
                 info!(
                     "ip blacklist banned by match,source_ip_addr:{}",
