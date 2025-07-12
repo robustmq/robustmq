@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::connection::tcp_tls_establish_connection_check;
 use crate::handler::error::MqttBrokerError;
 use crate::observability::metrics::packets::record_received_error_metrics;
@@ -56,7 +57,7 @@ pub(crate) async fn acceptor_tls_process(
     network_type: NetworkConnectionType,
     connection_manager: Arc<ConnectionManager>,
     request_channel: Arc<RequestChannel>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let tls_acceptor = create_tls_accept()?;
 
     for index in 1..=accept_thread_num {

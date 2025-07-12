@@ -14,6 +14,7 @@
 
 use std::sync::Arc;
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::cluster::ClusterStorage;
@@ -185,7 +186,7 @@ pub async fn update_cluster_dynamic_config(
     cache_manager: &Arc<CacheManager>,
     resource_type: ClusterDynamicConfig,
     config: Vec<u8>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     match resource_type {
         ClusterDynamicConfig::SlowSub => {
             let slow_sub = serde_json::from_slice(&config)?;
@@ -231,7 +232,7 @@ pub async fn save_cluster_dynamic_config(
     client_pool: &Arc<ClientPool>,
     resource_config: ClusterDynamicConfig,
     data: Vec<u8>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let conf = broker_mqtt_conf();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     cluster_storage

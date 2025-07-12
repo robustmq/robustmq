@@ -16,6 +16,7 @@ use super::common::loop_commit_offset;
 use super::common::Subscriber;
 use super::manager::SubscribeManager;
 use super::push::{build_publish_message, send_publish_packet_to_client};
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::server::common::connection_manager::ConnectionManager;
@@ -223,7 +224,7 @@ where
         .read_topic_message(&subscriber.topic_id, offset, record_num)
         .await?;
 
-    let push_fn = async |record: &Record| -> Result<(), MqttBrokerError> {
+    let push_fn = async |record: &Record| -> ResultMqttBrokerError {
         let record_offset = if let Some(offset) = record.offset {
             offset
         } else {

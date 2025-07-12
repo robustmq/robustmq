@@ -16,7 +16,8 @@ use std::{sync::Arc, time::Duration};
 
 use super::core::{BridgePlugin, BridgePluginReadConfig};
 use super::manager::ConnectorManager;
-use crate::{handler::error::MqttBrokerError, storage::message::MessageStorage};
+use crate::common::types::ResultMqttBrokerError;
+use crate::storage::message::MessageStorage;
 use axum::async_trait;
 use metadata_struct::{
     adapter::record::Record, mqtt::bridge::config_local_file::LocalFileConnectorConfig,
@@ -59,7 +60,7 @@ where
         &self,
         records: &Vec<Record>,
         writer: &mut BufWriter<File>,
-    ) -> Result<(), MqttBrokerError> {
+    ) -> ResultMqttBrokerError {
         for record in records {
             let data = serde_json::to_string(record)?;
             writer.write_all(data.as_ref()).await?;
@@ -74,7 +75,7 @@ impl<S> BridgePlugin for FileBridgePlugin<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
-    async fn exec(&self, config: BridgePluginReadConfig) -> Result<(), MqttBrokerError> {
+    async fn exec(&self, config: BridgePluginReadConfig) -> ResultMqttBrokerError {
         let message_storage = MessageStorage::new(self.message_storage.clone());
         let group_name = self.connector_name.clone();
         let mut recv = self.stop_send.subscribe();

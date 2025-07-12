@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::security::auth::blacklist::is_blacklist;
@@ -146,7 +147,7 @@ impl AuthDriver {
         self.driver.read_all_blacklist().await
     }
 
-    pub async fn save_user(&self, user_info: MqttUser) -> Result<(), MqttBrokerError> {
+    pub async fn save_user(&self, user_info: MqttUser) -> ResultMqttBrokerError {
         let username = user_info.username.clone();
         if let Some(_user) = self.cache_manager.user_info.get(&username) {
             return Err(MqttBrokerError::UserAlreadyExist);
@@ -155,7 +156,7 @@ impl AuthDriver {
         self.driver.save_user(user_info).await
     }
 
-    pub async fn delete_user(&self, username: String) -> Result<(), MqttBrokerError> {
+    pub async fn delete_user(&self, username: String) -> ResultMqttBrokerError {
         if self.cache_manager.user_info.get(&username).is_none() {
             return Err(MqttBrokerError::UserDoesNotExist);
         }
@@ -164,7 +165,7 @@ impl AuthDriver {
         Ok(())
     }
 
-    pub async fn update_user_cache(&self) -> Result<(), MqttBrokerError> {
+    pub async fn update_user_cache(&self) -> ResultMqttBrokerError {
         let all_users: DashMap<String, MqttUser> = self.driver.read_all_user().await?;
 
         for entry in all_users.iter() {
@@ -180,18 +181,18 @@ impl AuthDriver {
     }
 
     // ACL
-    pub async fn save_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError> {
+    pub async fn save_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
         self.cache_manager.add_acl(acl.clone());
         self.driver.save_acl(acl).await
     }
 
-    pub async fn delete_acl(&self, acl: MqttAcl) -> Result<(), MqttBrokerError> {
+    pub async fn delete_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
         self.driver.delete_acl(acl.clone()).await?;
         self.cache_manager.remove_acl(acl.clone());
         Ok(())
     }
 
-    pub async fn update_acl_cache(&self) -> Result<(), MqttBrokerError> {
+    pub async fn update_acl_cache(&self) -> ResultMqttBrokerError {
         let all_acls: Vec<MqttAcl> = self.driver.read_all_acl().await?;
 
         for acl in all_acls.iter() {
@@ -213,21 +214,18 @@ impl AuthDriver {
     }
 
     // BlackList
-    pub async fn save_blacklist(&self, blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError> {
+    pub async fn save_blacklist(&self, blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
         self.cache_manager.add_blacklist(blacklist.clone());
         self.driver.save_blacklist(blacklist).await
     }
 
-    pub async fn delete_blacklist(
-        &self,
-        blacklist: MqttAclBlackList,
-    ) -> Result<(), MqttBrokerError> {
+    pub async fn delete_blacklist(&self, blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
         self.driver.delete_blacklist(blacklist.clone()).await?;
         self.cache_manager.remove_blacklist(blacklist.clone());
         Ok(())
     }
 
-    pub async fn update_blacklist_cache(&self) -> Result<(), MqttBrokerError> {
+    pub async fn update_blacklist_cache(&self) -> ResultMqttBrokerError {
         let all_blacklist = self.driver.read_all_blacklist().await?;
 
         for acl in all_blacklist.iter() {

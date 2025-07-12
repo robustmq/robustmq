@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::connector::ConnectorStorage;
 use common_base::tools::now_second;
@@ -113,7 +114,7 @@ pub async fn delete_connector_by_req(
 fn connector_config_validator(
     connector_type: &ConnectorType,
     config: &str,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     match connector_type {
         ConnectorType::LocalFile => {
             let _file_config: LocalFileConnectorConfig = serde_json::from_str(config)?;

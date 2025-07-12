@@ -22,6 +22,7 @@ use protocol::placement_center::placement_center_mqtt::{
     CreateBlacklistRequest, DeleteBlacklistRequest, ListBlacklistRequest,
 };
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 
 pub struct BlackListStorage {
@@ -46,7 +47,7 @@ impl BlackListStorage {
         Ok(list)
     }
 
-    pub async fn save_blacklist(&self, blacklist: MqttAclBlackList) -> Result<(), MqttBrokerError> {
+    pub async fn save_blacklist(&self, blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
         let config = broker_mqtt_conf();
         let request = CreateBlacklistRequest {
             cluster_name: config.cluster_name.clone(),
@@ -56,10 +57,7 @@ impl BlackListStorage {
         Ok(())
     }
 
-    pub async fn delete_blacklist(
-        &self,
-        blacklist: MqttAclBlackList,
-    ) -> Result<(), MqttBrokerError> {
+    pub async fn delete_blacklist(&self, blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
         let config = broker_mqtt_conf();
         let request = DeleteBlacklistRequest {
             cluster_name: config.cluster_name.clone(),
