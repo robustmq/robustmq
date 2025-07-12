@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::server::common::connection::NetworkConnectionType;
+use common_base::metrics::NoLabelSet;
 use common_base::tools::now_mills;
 use prometheus_client::encoding::EncodeLabelSet;
 
@@ -95,6 +96,13 @@ common_base::register_gauge_metric!(
     "broker_active_thread_num",
     "The number of execution active threads started by the broker",
     BrokerThreadLabel
+);
+
+common_base::register_gauge_metric!(
+    BROKER_CONNECTIONS_NUM,
+    "broker_connections_num",
+    "The number of active connections by the broker",
+    NoLabelSet
 );
 
 pub fn metrics_request_total_ms(network_connection: &NetworkConnectionType, ms: f64) {
@@ -188,4 +196,8 @@ pub fn record_broker_thread_num(
         thread_type: "response".to_string(),
     };
     common_base::gauge_metric_inc_by!(BROKER_ACTIVE_THREAD_NUM, accept_label, response as i64);
+}
+
+pub fn record_broker_connections_num(value: i64) {
+    common_base::gauge_metrics_set!(BROKER_CONNECTIONS_NUM, NoLabelSet, value);
 }

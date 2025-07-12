@@ -55,3 +55,20 @@ pub async fn register_prometheus_export(port: u32) {
 pub async fn route_metrics() -> String {
     dump_metrics()
 }
+
+/// `NoLabelSet` is an empty label set type, used to build **unlabeled metrics**
+/// Implemented `EncodeLabelSet` so that it can be correctly encoded as `{}` (empty labels) by Prometheus
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Default)]
+pub struct NoLabelSet;
+
+mod impl_encode_label_set {
+    use crate::metrics::NoLabelSet;
+    use prometheus_client::encoding::{EncodeLabelSet, LabelSetEncoder};
+    use std::fmt::Error;
+
+    impl EncodeLabelSet for NoLabelSet {
+        fn encode(&self, _: LabelSetEncoder) -> Result<(), Error> {
+            Ok(())
+        }
+    }
+}

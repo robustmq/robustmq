@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::common::types::ResultMqttBrokerError;
+use crate::observability::metrics::server::record_broker_connections_num;
 use crate::{
     common::tool::loop_select, handler::cache::CacheManager,
     server::common::connection_manager::ConnectionManager, subscribe::manager::SubscribeManager,
@@ -117,6 +118,13 @@ impl MetricsCacheManager {
         self.search_by_time(self.message_drop_num.clone(), start_time, end_time)
     }
 
+    pub fn export_metrics(&self) {
+        if let Some(connection_num) = self.latest_by_time(&self.connection_num) {
+            record_broker_connections_num(connection_num as i64);
+        }
+    }
+
+    // Get the value within a given time interval
     fn search_by_time(
         &self,
         data_list: DashMap<u64, u32>,
@@ -133,6 +141,14 @@ impl MetricsCacheManager {
             }
         }
         results
+    }
+
+    // Get the latest time value
+    fn latest_by_time(&self, data_list: &DashMap<u64, u32>) -> Option<u32> {
+        data_list
+            .iter()
+            .max_by_key(|kv| *kv.key())
+            .map(|kv| *kv.value())
     }
 }
 
@@ -158,6 +174,13 @@ pub fn metrics_record_thread(
             metrics_cache_manager.record_message_in_num(now, 1000);
             metrics_cache_manager.record_message_out_num(now, 1000);
             metrics_cache_manager.record_message_drop_num(now, 30);
+
+            // Many system metrics can be reused here. We only need to get the instantaneous value.
+            // However, it should be noted that prometheus export itself is periodic,
+            // and the current function is also periodic.
+            // Further, we can conclude that the time range of
+            // indicator export is [min(metrics_export_interval,time_window), metrics_export_interval + time_window]
+            metrics_cache_manager.export_metrics();
             Ok(())
         };
         loop_select(record_func, time_window, &stop_send).await;
@@ -224,7 +247,11 @@ pub fn metrics_gc_thread(
 
 #[cfg(test)]
 mod test {
-    use std::{sync::Arc, time::Duration};
+    use std::{
+        net::{Ipv4Addr, SocketAddrV4},
+        sync::Arc,
+        time::Duration,
+    };
 
     use common_base::tools::now_second;
     use grpc_clients::pool::ClientPool;
@@ -233,7 +260,10 @@ mod test {
     use crate::{
         common::metrics_cache::{metrics_gc_thread, metrics_record_thread, MetricsCacheManager},
         handler::cache::CacheManager,
-        server::common::connection_manager::ConnectionManager,
+        server::common::{
+            connection::{NetworkConnection, NetworkConnectionType},
+            connection_manager::ConnectionManager,
+        },
         subscribe::manager::SubscribeManager,
     };
 
@@ -261,7 +291,15 @@ mod test {
         let cluster_name = "test".to_string();
         let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
         let subscribe_manager = Arc::new(SubscribeManager::new());
-        let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
+
+        // add mock connection
+        let connection_mgr = ConnectionManager::new(cache_manager.clone());
+        connection_mgr.add_connection(NetworkConnection::new(
+            NetworkConnectionType::Tls,
+            std::net::SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080)),
+            None,
+        ));
+        let connection_manager = Arc::new(connection_mgr);
 
         let now = now_second();
         metrics_gc_thread(metrics_cache_manager.clone(), stop_send.clone());
@@ -320,5 +358,10 @@ mod test {
                 .len(),
             7
         );
+
+        assert_eq!(
+            metrics_cache_manager.latest_by_time(&metrics_cache_manager.connection_num),
+            Some(1)
+        )
     }
 }
