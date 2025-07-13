@@ -38,6 +38,7 @@ static VERSION: OnceLock<String> = OnceLock::new();
 /// Returns the version string. If version file cannot be read, returns the hardcoded version
 /// or a placeholder string.
 pub fn version() -> String {
+
     // Return cached version if already loaded
     if let Some(cached_version) = VERSION.get() {
         return cached_version.clone();
