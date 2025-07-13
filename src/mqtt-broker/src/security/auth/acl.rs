@@ -81,308 +81,233 @@ mod test {
     use metadata_struct::mqtt::user::MqttUser;
     use std::sync::Arc;
 
+    struct TestFixture {
+        cache_manager: Arc<CacheManager>,
+        connection: MQTTConnection,
+        user: MqttUser,
+        topic_name: String,
+    }
+
+    fn setup() -> TestFixture {
+        let client_pool = Arc::new(ClientPool::new(1));
+        let cluster_name = "test".to_string();
+        let topic_name = "tp-1".to_string();
+        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
+        let user = MqttUser {
+            username: "loboxu".to_string(),
+            password: "lobo_123".to_string(),
+            is_superuser: true,
+        };
+
+        cache_manager.add_user(user.clone());
+        let config = ConnectionConfig {
+            connect_id: 1,
+            client_id: "client_id-1".to_string(),
+            receive_maximum: 3,
+            max_packet_size: 3,
+            topic_alias_max: 3,
+            request_problem_info: 1,
+            keep_alive: 2,
+            source_ip_addr: local_hostname(),
+        };
+        let mut connection = MQTTConnection::new(config);
+        connection.login_success(user.username.clone());
+
+        TestFixture {
+            cache_manager,
+            connection,
+            user,
+            topic_name,
+        }
+    }
+
+    fn add_deny_rule(
+        fixture: &TestFixture,
+        resource_type: MqttAclResourceType,
+        topic: &str,
+        action: MqttAclAction,
+    ) {
+        let resource_name = match resource_type {
+            MqttAclResourceType::User => fixture.user.username.clone(),
+            MqttAclResourceType::ClientId => fixture.connection.client_id.clone(),
+        };
+
+        let acl = MqttAcl {
+            resource_type,
+            resource_name,
+            topic: topic.to_string(),
+            ip: WILDCARD_RESOURCE.to_string(),
+            action: action.clone(),
+            permission: MqttAclPermission::Deny,
+        };
+        fixture.cache_manager.add_acl(acl);
+    }
+
     #[tokio::test]
     pub async fn check_empty_acl_test() {
-        let client_pool = Arc::new(ClientPool::new(1));
-        let cluster_name = "test".to_string();
-        let topic_name = "tp-1".to_string();
-        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
-        let user = MqttUser {
-            username: "loboxu".to_string(),
-            password: "lobo_123".to_string(),
-            is_superuser: true,
-        };
-
-        cache_manager.add_user(user.clone());
-        let config = ConnectionConfig {
-            connect_id: 1,
-            client_id: "client_id-1".to_string(),
-            receive_maximum: 3,
-            max_packet_size: 3,
-            topic_alias_max: 3,
-            request_problem_info: 1,
-            keep_alive: 2,
-            source_ip_addr: local_hostname(),
-        };
-        let mut connection = MQTTConnection::new(config);
-        connection.login_success(user.username.clone());
-
+        let fixture = setup();
         assert!(!is_acl_deny(
-            &cache_manager,
-            &connection,
-            &topic_name,
-            MqttAclAction::Publish
+            &fixture.cache_manager,
+            &fixture.connection,
+            &fixture.topic_name,
+            MqttAclAction::Publish,
         ));
 
         assert!(!is_acl_deny(
-            &cache_manager,
-            &connection,
-            &topic_name,
+            &fixture.cache_manager,
+            &fixture.connection,
+            &fixture.topic_name,
             MqttAclAction::Subscribe
         ));
     }
 
     #[tokio::test]
-    pub async fn check_user_wildcard_acl_test() {
-        let client_pool = Arc::new(ClientPool::new(1));
-        let cluster_name = "test".to_string();
-        let topic_name = "tp-1".to_string();
-        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
-        let user = MqttUser {
-            username: "loboxu".to_string(),
-            password: "lobo_123".to_string(),
-            is_superuser: true,
-        };
+    async fn test_user_is_denied_by_specific_topic_rule() {
+        let fixture = setup();
+        add_deny_rule(
+            &fixture,
+            MqttAclResourceType::User,
+            &fixture.topic_name,
+            MqttAclAction::Publish,
+        );
 
-        cache_manager.add_user(user.clone());
-        let config = ConnectionConfig {
-            connect_id: 1,
-            client_id: "client_id-1".to_string(),
-            receive_maximum: 3,
-            max_packet_size: 3,
-            topic_alias_max: 3,
-            request_problem_info: 1,
-            keep_alive: 2,
-            source_ip_addr: local_hostname(),
-        };
-        let mut connection = MQTTConnection::new(config);
-        connection.login_success(user.username.clone());
-
-        let acl = MqttAcl {
-            resource_type: MqttAclResourceType::User,
-            resource_name: user.username.clone(),
-            topic: WILDCARD_RESOURCE.to_string(),
-            ip: WILDCARD_RESOURCE.to_string(),
-            action: MqttAclAction::Publish,
-            permission: MqttAclPermission::Deny,
-        };
-        cache_manager.add_acl(acl);
         assert!(is_acl_deny(
-            &cache_manager,
-            &connection,
-            &topic_name,
+            &fixture.cache_manager,
+            &fixture.connection,
+            &fixture.topic_name,
             MqttAclAction::Publish
-        ));
+        ),);
 
         assert!(!is_acl_deny(
-            &cache_manager,
-            &connection,
-            &topic_name,
+            &fixture.cache_manager,
+            &fixture.connection,
+            &fixture.topic_name,
             MqttAclAction::Subscribe
-        ));
-
-        let acl = MqttAcl {
-            resource_type: MqttAclResourceType::User,
-            resource_name: user.username.clone(),
-            topic: WILDCARD_RESOURCE.to_string(),
-            ip: WILDCARD_RESOURCE.to_string(),
-            action: MqttAclAction::Subscribe,
-            permission: MqttAclPermission::Deny,
-        };
-        cache_manager.add_acl(acl);
-        assert!(is_acl_deny(
-            &cache_manager,
-            &connection,
-            &topic_name,
-            MqttAclAction::Subscribe
-        ));
+        ),);
     }
 
     #[tokio::test]
-    pub async fn check_user_match_acl_test() {
-        let client_pool = Arc::new(ClientPool::new(1));
-        let cluster_name = "test".to_string();
-        let topic_name = "tp-1".to_string();
-        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
-        let user = MqttUser {
-            username: "loboxu".to_string(),
-            password: "lobo_123".to_string(),
-            is_superuser: true,
-        };
+    async fn test_clientid_is_denied_by_wildcard_topic_rule() {
+        let fixture = setup();
+        add_deny_rule(
+            &fixture,
+            MqttAclResourceType::ClientId,
+            WILDCARD_RESOURCE,
+            MqttAclAction::All,
+        );
 
-        cache_manager.add_user(user.clone());
-        let config = ConnectionConfig {
-            connect_id: 1,
-            client_id: "client_id-1".to_string(),
-            receive_maximum: 3,
-            max_packet_size: 3,
-            topic_alias_max: 3,
-            request_problem_info: 1,
-            keep_alive: 2,
-            source_ip_addr: local_hostname(),
-        };
-        let mut connection = MQTTConnection::new(config);
-        connection.login_success(user.username.clone());
-
-        let acl = MqttAcl {
-            resource_type: MqttAclResourceType::User,
-            resource_name: user.username.clone(),
-            topic: topic_name.clone(),
-            ip: WILDCARD_RESOURCE.to_string(),
-            action: MqttAclAction::Publish,
-            permission: MqttAclPermission::Deny,
-        };
-        cache_manager.add_acl(acl);
         assert!(is_acl_deny(
-            &cache_manager,
-            &connection,
-            &topic_name,
+            &fixture.cache_manager,
+            &fixture.connection,
+            &fixture.topic_name,
             MqttAclAction::Publish
-        ));
+        ),);
 
-        assert!(!is_acl_deny(
-            &cache_manager,
-            &connection,
-            &topic_name,
-            MqttAclAction::Subscribe
-        ));
-
-        let acl = MqttAcl {
-            resource_type: MqttAclResourceType::User,
-            resource_name: user.username.clone(),
-            topic: topic_name.clone(),
-            ip: WILDCARD_RESOURCE.to_string(),
-            action: MqttAclAction::Subscribe,
-            permission: MqttAclPermission::Deny,
-        };
-        cache_manager.add_acl(acl);
         assert!(is_acl_deny(
-            &cache_manager,
-            &connection,
-            &topic_name,
+            &fixture.cache_manager,
+            &fixture.connection,
+            "tp-2",
             MqttAclAction::Subscribe
-        ));
+        ),);
     }
 
-    #[tokio::test]
-    pub async fn check_client_id_wildcard_acl_test() {
-        let client_pool = Arc::new(ClientPool::new(1));
-        let cluster_name = "test".to_string();
-        let topic_name = "tp-1".to_string();
-        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
-        let user = MqttUser {
-            username: "loboxu".to_string(),
-            password: "lobo_123".to_string(),
-            is_superuser: true,
-        };
+    mod check_for_deny_tests {
+        use crate::security::auth::acl::check_for_deny;
 
-        cache_manager.add_user(user.clone());
-        let config = ConnectionConfig {
-            connect_id: 1,
-            client_id: "client_id-1".to_string(),
-            receive_maximum: 3,
-            max_packet_size: 3,
-            topic_alias_max: 3,
-            request_problem_info: 1,
-            keep_alive: 2,
-            source_ip_addr: local_hostname(),
-        };
-        let mut connection = MQTTConnection::new(config);
-        connection.login_success(user.username.clone());
+        use super::*;
 
-        let acl = MqttAcl {
-            resource_type: MqttAclResourceType::ClientId,
-            resource_name: connection.client_id.clone(),
-            topic: WILDCARD_RESOURCE.to_string(),
-            ip: WILDCARD_RESOURCE.to_string(),
-            action: MqttAclAction::Publish,
-            permission: MqttAclPermission::Deny,
-        };
-        cache_manager.add_acl(acl);
-        assert!(is_acl_deny(
-            &cache_manager,
-            &connection,
-            &topic_name,
-            MqttAclAction::Publish
-        ));
+        #[test]
+        fn returns_false_for_empty_rule_list() {
+            let rules: Vec<MqttAcl> = vec![];
+            assert!(!check_for_deny(
+                &rules,
+                &MqttAclAction::Publish,
+                "test/topic",
+                "127.0.0.1"
+            ));
+        }
 
-        assert!(!is_acl_deny(
-            &cache_manager,
-            &connection,
-            &topic_name,
-            MqttAclAction::Subscribe
-        ));
+        #[test]
+        fn returns_true_for_matching_deny_rule() {
+            let rules = vec![MqttAcl {
+                permission: MqttAclPermission::Deny,
+                action: MqttAclAction::Publish,
+                topic: "test/topic".to_string(),
+                ip: "127.0.0.1".to_string(),
+                resource_type: MqttAclResourceType::User,
+                resource_name: "resource_name".to_string(),
+            }];
+            assert!(check_for_deny(
+                &rules,
+                &MqttAclAction::Publish,
+                "test/topic",
+                "127.0.0.1"
+            ),);
+        }
 
-        let acl = MqttAcl {
-            resource_type: MqttAclResourceType::ClientId,
-            resource_name: connection.client_id.clone(),
-            topic: WILDCARD_RESOURCE.to_string(),
-            ip: WILDCARD_RESOURCE.to_string(),
-            action: MqttAclAction::Subscribe,
-            permission: MqttAclPermission::Deny,
-        };
-        cache_manager.add_acl(acl);
-        assert!(is_acl_deny(
-            &cache_manager,
-            &connection,
-            &topic_name,
-            MqttAclAction::Subscribe
-        ));
-    }
+        #[test]
+        fn returns_false_for_matching_allow_rule() {
+            let rules = vec![MqttAcl {
+                permission: MqttAclPermission::Allow,
+                action: MqttAclAction::Publish,
+                topic: "test/topic".to_string(),
+                ip: "127.0.0.1".to_string(),
 
-    #[tokio::test]
-    pub async fn check_client_id_match_acl_test() {
-        let client_pool = Arc::new(ClientPool::new(1));
-        let cluster_name = "test".to_string();
-        let topic_name = "tp-1".to_string();
-        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
-        let user = MqttUser {
-            username: "loboxu".to_string(),
-            password: "lobo_123".to_string(),
-            is_superuser: true,
-        };
+                resource_type: MqttAclResourceType::User,
+                resource_name: "resource_name".to_string(),
+            }];
 
-        cache_manager.add_user(user.clone());
-        let config = ConnectionConfig {
-            connect_id: 1,
-            client_id: "client_id-1".to_string(),
-            receive_maximum: 3,
-            max_packet_size: 3,
-            topic_alias_max: 3,
-            request_problem_info: 1,
-            keep_alive: 2,
-            source_ip_addr: local_hostname(),
-        };
-        let mut connection = MQTTConnection::new(config);
-        connection.login_success(user.username.clone());
+            assert!(!check_for_deny(
+                &rules,
+                &MqttAclAction::Publish,
+                "test/topic",
+                "127.0.0.1"
+            ),);
+        }
 
-        let acl = MqttAcl {
-            resource_type: MqttAclResourceType::ClientId,
-            resource_name: connection.client_id.clone(),
-            topic: topic_name.clone(),
-            ip: WILDCARD_RESOURCE.to_string(),
-            action: MqttAclAction::Publish,
-            permission: MqttAclPermission::Deny,
-        };
-        cache_manager.add_acl(acl);
-        assert!(is_acl_deny(
-            &cache_manager,
-            &connection,
-            &topic_name,
-            MqttAclAction::Publish
-        ));
+        #[test]
+        fn returns_false_when_action_does_not_match() {
+            let rules = vec![MqttAcl {
+                permission: MqttAclPermission::Deny,
+                action: MqttAclAction::Subscribe,
+                topic: "test/topic".to_string(),
+                ip: "127.0.0.1".to_string(),
 
-        assert!(!is_acl_deny(
-            &cache_manager,
-            &connection,
-            &topic_name,
-            MqttAclAction::Subscribe
-        ));
+                resource_type: MqttAclResourceType::User,
+                resource_name: "resource_name".to_string(),
+            }];
 
-        let acl = MqttAcl {
-            resource_type: MqttAclResourceType::ClientId,
-            resource_name: connection.client_id.clone(),
-            topic: topic_name.clone(),
-            ip: WILDCARD_RESOURCE.to_string(),
-            action: MqttAclAction::Subscribe,
-            permission: MqttAclPermission::Deny,
-        };
-        cache_manager.add_acl(acl);
-        assert!(is_acl_deny(
-            &cache_manager,
-            &connection,
-            &topic_name,
-            MqttAclAction::Subscribe
-        ));
+            assert!(!check_for_deny(
+                &rules,
+                &MqttAclAction::Publish,
+                "test/topic",
+                "127.0.0.1"
+            ),);
+        }
+
+        #[test]
+        fn returns_true_when_rule_action_is_all() {
+            let rules = vec![MqttAcl {
+                permission: MqttAclPermission::Deny,
+                action: MqttAclAction::All,
+                topic: "test/topic".to_string(),
+                ip: "127.0.0.1".to_string(),
+
+                resource_type: MqttAclResourceType::User,
+                resource_name: "resource_name".to_string(),
+            }];
+            assert!(check_for_deny(
+                &rules,
+                &MqttAclAction::Publish,
+                "test/topic",
+                "127.0.0.1"
+            ),);
+            assert!(check_for_deny(
+                &rules,
+                &MqttAclAction::Subscribe,
+                "test/topic",
+                "127.0.0.1"
+            ),);
+        }
     }
 }
