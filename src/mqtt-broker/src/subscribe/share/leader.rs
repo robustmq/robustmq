@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
-use crate::server::connection_manager::ConnectionManager;
+use crate::server::common::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
 use crate::subscribe::common::is_ignore_push_error;
 use crate::subscribe::common::loop_commit_offset;
@@ -29,7 +30,7 @@ use common_base::tools::now_second;
 use metadata_struct::adapter::record::Record;
 use std::sync::Arc;
 use std::time::Duration;
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::sleep;
@@ -38,20 +39,17 @@ use tracing::warn;
 use tracing::{error, info};
 
 #[derive(Clone)]
-pub struct ShareLeaderPush<S> {
+pub struct ShareLeaderPush {
     pub subscribe_manager: Arc<SubscribeManager>,
-    message_storage: Arc<S>,
+    message_storage: ArcStorageAdapter,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
 }
 
-impl<S> ShareLeaderPush<S>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+impl ShareLeaderPush {
     pub fn new(
         subscribe_manager: Arc<SubscribeManager>,
-        message_storage: Arc<S>,
+        message_storage: ArcStorageAdapter,
         connection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<CacheManager>,
     ) -> Self {
@@ -135,7 +133,7 @@ where
         &self,
         share_leader_key: String,
         sub_data: ShareLeaderSubscribeData,
-    ) -> Result<(), MqttBrokerError> {
+    ) -> ResultMqttBrokerError {
         let (sub_thread_stop_sx, mut sub_thread_stop_rx) = broadcast::channel(1);
         let group_id = format!(
             "system_sub_{}_{}_{}",
@@ -231,10 +229,10 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn read_message_process<S>(
+async fn read_message_process(
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<CacheManager>,
-    message_storage: &MessageStorage<S>,
+    message_storage: &MessageStorage,
     subscribe_manager: &Arc<SubscribeManager>,
     share_leader_key: &str,
     sub_data: &ShareLeaderSubscribeData,
@@ -242,15 +240,12 @@ async fn read_message_process<S>(
     offset: u64,
     mut seq: u64,
     stop_sx: &Sender<bool>,
-) -> Result<(Option<u64>, u64), MqttBrokerError>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) -> Result<(Option<u64>, u64), MqttBrokerError> {
     let results = message_storage
         .read_topic_message(&sub_data.topic_id, offset, 100)
         .await?;
 
-    let mut push_fn = async |record: &Record| -> Result<(), MqttBrokerError> {
+    let mut push_fn = async |record: &Record| -> ResultMqttBrokerError {
         let record_offset = if let Some(offset) = record.offset {
             offset
         } else {
@@ -323,7 +318,7 @@ where
                 }
 
                 debug!(
-                    "Shared subscription failed to send a message to client {}. I attempted to 
+                    "Shared subscription failed to send a message to client {}. I attempted to
                     send it to the next client. Error message :{}, offset: {:?}",
                     subscriber.client_id, e, record.offset
                 );

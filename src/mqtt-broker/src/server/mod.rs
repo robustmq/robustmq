@@ -12,11 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod connection;
-pub mod connection_manager;
+pub mod common;
 pub mod grpc;
-mod metric;
-pub mod packet;
 pub mod quic;
 #[allow(clippy::module_inception)]
 pub mod server;

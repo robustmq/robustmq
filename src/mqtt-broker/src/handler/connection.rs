@@ -22,11 +22,11 @@ use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
 use protocol::mqtt::common::{Connect, ConnectProperties, DisconnectReasonCode, MqttProtocol};
 
 use super::cache::CacheManager;
-use super::error::MqttBrokerError;
 use super::keep_alive::client_keep_live_time;
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::flow_control::is_connection_rate_exceeded;
 use crate::handler::response::response_packet_mqtt_distinct_by_reason;
-use crate::server::connection_manager::ConnectionManager;
+use crate::server::common::connection_manager::ConnectionManager;
 use crate::storage::session::SessionStorage;
 use crate::subscribe::manager::SubscribeManager;
 use futures_util::SinkExt;
@@ -134,7 +134,7 @@ pub async fn disconnect_connection(
     connection_manager: &Arc<ConnectionManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     delete_session: bool,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let session_storage = SessionStorage::new(client_pool.clone());
     if delete_session {
         session_storage.delete_session(client_id.to_owned()).await?;

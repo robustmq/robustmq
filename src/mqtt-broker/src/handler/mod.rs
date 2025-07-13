@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod acl;
 pub mod cache;
 pub mod command;
 pub mod connection;
@@ -24,9 +23,9 @@ pub mod dynamic_config;
 pub mod error;
 pub mod flapping_detect;
 pub mod flow_control;
-pub mod heartbreat;
+pub mod heartbeat;
 pub mod keep_alive;
-pub mod lastwill;
+pub mod last_will;
 pub mod message;
 pub mod mqtt;
 pub mod offline_message;
@@ -41,5 +40,4 @@ pub mod subscribe;
 pub mod topic;
 mod topic_rewrite;
 pub mod unsubscribe;
-pub mod user;
 pub mod validator;

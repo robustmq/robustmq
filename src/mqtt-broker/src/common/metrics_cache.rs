@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::types::ResultMqttBrokerError;
+use crate::observability::metrics::server::record_broker_connections_num;
 use crate::{
-    handler::cache::CacheManager, server::connection_manager::ConnectionManager,
-    subscribe::manager::SubscribeManager,
+    common::tool::loop_select, handler::cache::CacheManager,
+    server::common::connection_manager::ConnectionManager, subscribe::manager::SubscribeManager,
 };
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use std::{collections::HashMap, sync::Arc, time::Duration};
-use tokio::{select, sync::broadcast, time::sleep};
+use std::{collections::HashMap, sync::Arc};
+use tokio::sync::broadcast;
 use tracing::info;
 
 #[derive(Clone, Default)]
@@ -116,6 +118,13 @@ impl MetricsCacheManager {
         self.search_by_time(self.message_drop_num.clone(), start_time, end_time)
     }
 
+    pub fn export_metrics(&self) {
+        if let Some(connection_num) = self.latest_by_time(&self.connection_num) {
+            record_broker_connections_num(connection_num as i64);
+        }
+    }
+
+    // Get the value within a given time interval
     fn search_by_time(
         &self,
         data_list: DashMap<u64, u32>,
@@ -133,6 +142,14 @@ impl MetricsCacheManager {
         }
         results
     }
+
+    // Get the latest time value
+    fn latest_by_time(&self, data_list: &DashMap<u64, u32>) -> Option<u32> {
+        data_list
+            .iter()
+            .max_by_key(|kv| *kv.key())
+            .map(|kv| *kv.value())
+    }
 }
 
 pub fn metrics_record_thread(
@@ -143,39 +160,30 @@ pub fn metrics_record_thread(
     time_window: u64,
     stop_send: broadcast::Sender<bool>,
 ) {
-    let record_func = async move || {
-        let now = now_second();
-        if now_second() % time_window == 0 {
+    info!("Metrics record thread start successfully");
+    tokio::spawn(async move {
+        let record_func = async || -> ResultMqttBrokerError {
+            let now = now_second();
+            let metrics_cache_manager = metrics_cache_manager.clone();
+            let connection_manager = connection_manager.clone();
             metrics_cache_manager
                 .record_connection_num(now, connection_manager.connections.len() as u32);
             metrics_cache_manager.record_topic_num(now, cache_manager.topic_info.len() as u32);
             metrics_cache_manager
                 .record_subscribe_num(now, subscribe_manager.subscribe_list.len() as u32);
-            metrics_cache_manager.record_message_in_num(now, 0);
-            metrics_cache_manager.record_message_out_num(now, 0);
-            metrics_cache_manager.record_message_drop_num(now, 0);
-        }
+            metrics_cache_manager.record_message_in_num(now, 1000);
+            metrics_cache_manager.record_message_out_num(now, 1000);
+            metrics_cache_manager.record_message_drop_num(now, 30);
 
-        sleep(Duration::from_secs(1)).await;
-    };
-
-    info!("Metrics record thread start successfully");
-    tokio::spawn(async move {
-        let mut sub_thread_stop_rx = stop_send.subscribe();
-        loop {
-            select! {
-                val = sub_thread_stop_rx.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
-                            info!("Metrics record thread exited successfully");
-                            break;
-                        }
-                    }
-                },
-                _ = record_func()=> {
-                }
-            }
-        }
+            // Many system metrics can be reused here. We only need to get the instantaneous value.
+            // However, it should be noted that prometheus export itself is periodic,
+            // and the current function is also periodic.
+            // Further, we can conclude that the time range of
+            // indicator export is [min(metrics_export_interval,time_window), metrics_export_interval + time_window]
+            metrics_cache_manager.export_metrics();
+            Ok(())
+        };
+        loop_select(record_func, time_window, &stop_send).await;
     });
 }
 
@@ -183,76 +191,67 @@ pub fn metrics_gc_thread(
     metrics_cache_manager: Arc<MetricsCacheManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
-    let save_time = 3600 * 24 * 3;
-    let now_time = now_second();
-    let record_func = async move || {
-        // connection_num
-        for (time, _) in metrics_cache_manager.connection_num.clone() {
-            if (time + save_time) < now_time {
-                metrics_cache_manager.connection_num.remove(&time);
-            }
-        }
-
-        // topic_num
-        for (time, _) in metrics_cache_manager.topic_num.clone() {
-            if (time + save_time) < now_time {
-                metrics_cache_manager.topic_num.remove(&time);
-            }
-        }
-
-        // subscribe_num
-        for (time, _) in metrics_cache_manager.subscribe_num.clone() {
-            if (time + save_time) < now_time {
-                metrics_cache_manager.subscribe_num.remove(&time);
-            }
-        }
-
-        // message_in_num
-        for (time, _) in metrics_cache_manager.message_in_num.clone() {
-            if (time + save_time) < now_time {
-                metrics_cache_manager.message_in_num.remove(&time);
-            }
-        }
-
-        // message_out_num
-        for (time, _) in metrics_cache_manager.message_out_num.clone() {
-            if (time + save_time) < now_time {
-                metrics_cache_manager.message_out_num.remove(&time);
-            }
-        }
-
-        // message_drop_num
-        for (time, _) in metrics_cache_manager.message_drop_num.clone() {
-            if (time + save_time) < now_time {
-                metrics_cache_manager.message_drop_num.remove(&time);
-            }
-        }
-
-        sleep(Duration::from_secs(3600)).await;
-    };
     info!("Metrics gc thread start successfully");
     tokio::spawn(async move {
-        let mut sub_thread_stop_rx = stop_send.subscribe();
-        loop {
-            select! {
-                val = sub_thread_stop_rx.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
-                            info!("Metrics gc thread exited successfully");
-                            break;
-                        }
-                    }
-                },
-                _ = record_func()=> {
+        let record_func = async || -> ResultMqttBrokerError {
+            let now_time = now_second();
+            let save_time = 3600 * 24 * 3;
+
+            // connection_num
+            for (time, _) in metrics_cache_manager.connection_num.clone() {
+                if (time + save_time) < now_time {
+                    metrics_cache_manager.connection_num.remove(&time);
                 }
             }
-        }
+
+            // topic_num
+            for (time, _) in metrics_cache_manager.topic_num.clone() {
+                if (time + save_time) < now_time {
+                    metrics_cache_manager.topic_num.remove(&time);
+                }
+            }
+
+            // subscribe_num
+            for (time, _) in metrics_cache_manager.subscribe_num.clone() {
+                if (time + save_time) < now_time {
+                    metrics_cache_manager.subscribe_num.remove(&time);
+                }
+            }
+
+            // message_in_num
+            for (time, _) in metrics_cache_manager.message_in_num.clone() {
+                if (time + save_time) < now_time {
+                    metrics_cache_manager.message_in_num.remove(&time);
+                }
+            }
+
+            // message_out_num
+            for (time, _) in metrics_cache_manager.message_out_num.clone() {
+                if (time + save_time) < now_time {
+                    metrics_cache_manager.message_out_num.remove(&time);
+                }
+            }
+
+            // message_drop_num
+            for (time, _) in metrics_cache_manager.message_drop_num.clone() {
+                if (time + save_time) < now_time {
+                    metrics_cache_manager.message_drop_num.remove(&time);
+                }
+            }
+
+            Ok(())
+        };
+        loop_select(record_func, 3600, &stop_send).await;
     });
 }
 
 #[cfg(test)]
 mod test {
-    use std::{sync::Arc, time::Duration};
+    use std::{
+        net::{Ipv4Addr, SocketAddrV4},
+        sync::Arc,
+        time::Duration,
+    };
 
     use common_base::tools::now_second;
     use grpc_clients::pool::ClientPool;
@@ -261,7 +260,10 @@ mod test {
     use crate::{
         common::metrics_cache::{metrics_gc_thread, metrics_record_thread, MetricsCacheManager},
         handler::cache::CacheManager,
-        server::connection_manager::ConnectionManager,
+        server::common::{
+            connection::{NetworkConnection, NetworkConnectionType},
+            connection_manager::ConnectionManager,
+        },
         subscribe::manager::SubscribeManager,
     };
 
@@ -289,7 +291,15 @@ mod test {
         let cluster_name = "test".to_string();
         let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
         let subscribe_manager = Arc::new(SubscribeManager::new());
-        let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
+
+        // add mock connection
+        let connection_mgr = ConnectionManager::new(cache_manager.clone());
+        connection_mgr.add_connection(NetworkConnection::new(
+            NetworkConnectionType::Tls,
+            std::net::SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080)),
+            None,
+        ));
+        let connection_manager = Arc::new(connection_mgr);
 
         let now = now_second();
         metrics_gc_thread(metrics_cache_manager.clone(), stop_send.clone());
@@ -348,5 +358,10 @@ mod test {
                 .len(),
             7
         );
+
+        assert_eq!(
+            metrics_cache_manager.latest_by_time(&metrics_cache_manager.connection_num),
+            Some(1)
+        )
     }
 }

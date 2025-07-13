@@ -27,7 +27,7 @@ use protocol::mqtt::common::{
     UnsubscribeProperties,
 };
 use schema_register::schema::SchemaRegisterManager;
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 use tracing::{error, warn};
 
 use super::connection::{disconnect_connection, is_delete_session};
@@ -44,7 +44,7 @@ use crate::handler::cache::{
 };
 use crate::handler::connection::{build_connection, get_client_id};
 use crate::handler::flapping_detect::check_flapping_detect;
-use crate::handler::lastwill::save_last_will_message;
+use crate::handler::last_will::save_last_will_message;
 use crate::handler::response::{
     build_puback, build_pubrec, response_packet_mqtt_connect_fail,
     response_packet_mqtt_connect_success, response_packet_mqtt_distinct_by_reason,
@@ -62,34 +62,31 @@ use crate::observability::system_topic::event::{
     st_report_unsubscribed_event,
 };
 use crate::security::AuthDriver;
-use crate::server::connection_manager::ConnectionManager;
+use crate::server::common::connection_manager::ConnectionManager;
 use crate::subscribe::common::min_qos;
 use crate::subscribe::manager::SubscribeManager;
 
 #[derive(Clone)]
-pub struct MqttService<S> {
+pub struct MqttService {
     protocol: MqttProtocol,
     cache_manager: Arc<CacheManager>,
     connection_manager: Arc<ConnectionManager>,
-    message_storage_adapter: Arc<S>,
-    delay_message_manager: Arc<DelayMessageManager<S>>,
+    message_storage_adapter: ArcStorageAdapter,
+    delay_message_manager: Arc<DelayMessageManager>,
     subscribe_manager: Arc<SubscribeManager>,
     schema_manager: Arc<SchemaRegisterManager>,
     client_pool: Arc<ClientPool>,
     auth_driver: Arc<AuthDriver>,
 }
 
-impl<S> MqttService<S>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+impl MqttService {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         protocol: MqttProtocol,
         cache_manager: Arc<CacheManager>,
         connection_manager: Arc<ConnectionManager>,
-        message_storage_adapter: Arc<S>,
-        delay_message_manager: Arc<DelayMessageManager<S>>,
+        message_storage_adapter: ArcStorageAdapter,
+        delay_message_manager: Arc<DelayMessageManager>,
         subscribe_manager: Arc<SubscribeManager>,
         schema_manager: Arc<SchemaRegisterManager>,
         client_pool: Arc<ClientPool>,
@@ -145,7 +142,7 @@ where
             addr,
         );
 
-        if self.auth_driver.allow_connect(&connection).await {
+        if self.auth_driver.auth_connect_check(&connection).await {
             return response_packet_mqtt_connect_fail(
                 &self.protocol,
                 ConnectReturnCode::Banned,
@@ -157,7 +154,7 @@ where
         // login check
         match self
             .auth_driver
-            .check_login_auth(login, connect_properties, addr)
+            .auth_login_check(login, connect_properties, addr)
             .await
         {
             Ok(flag) => {
@@ -369,7 +366,7 @@ where
 
         if !self
             .auth_driver
-            .allow_publish(&connection, &topic_name, publish.retain, publish.qos)
+            .auth_publish_check(&connection, &topic_name, publish.retain, publish.qos)
             .await
         {
             if is_pub_ack {

@@ -22,7 +22,8 @@ use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillPrope
 
 use super::cache::CacheManager;
 use super::error::MqttBrokerError;
-use super::lastwill::last_will_delay_interval;
+use super::last_will::last_will_delay_interval;
+use crate::common::types::ResultMqttBrokerError;
 use crate::storage::session::SessionStorage;
 
 #[allow(clippy::too_many_arguments)]
@@ -82,7 +83,7 @@ pub async fn save_session(
     new_session: bool,
     client_id: String,
     client_pool: &Arc<ClientPool>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let conf = broker_mqtt_conf();
     let session_storage = SessionStorage::new(client_pool.clone());
     if new_session {

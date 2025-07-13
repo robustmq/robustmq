@@ -18,7 +18,7 @@ use metadata_struct::{
     delay_info::DelayMessageInfo,
 };
 use std::{sync::Arc, time::Duration};
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 use tokio::time::sleep;
 use tracing::{error, info};
 
@@ -26,14 +26,11 @@ use crate::DelayMessageManager;
 
 const DELAY_QUEUE_INFO_SHARD_NAME: &str = "$delay-queue-info-shard";
 
-pub async fn persist_delay_info<S>(
-    message_storage_adapter: &Arc<S>,
+pub async fn persist_delay_info(
+    message_storage_adapter: &ArcStorageAdapter,
     namespace: &str,
     delay_info: DelayMessageInfo,
-) -> Result<(), CommonError>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) -> Result<(), CommonError> {
     let data = Record::build_byte(serde_json::to_vec(&delay_info)?);
     message_storage_adapter
         .write(
@@ -45,15 +42,13 @@ where
     Ok(())
 }
 
-pub async fn recover_delay_queue<S>(
-    message_storage_adapter: &Arc<S>,
-    delay_message_manager: &Arc<DelayMessageManager<S>>,
+pub async fn recover_delay_queue(
+    message_storage_adapter: &ArcStorageAdapter,
+    delay_message_manager: &Arc<DelayMessageManager>,
     namespace: &str,
     read_config: ReadConfig,
     shard_num: u64,
-) where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) {
     let mut offset = 0;
     let mut total_num = 0;
     loop {
@@ -113,7 +108,7 @@ mod test {
         adapter::{read_config::ReadConfig, record::Record},
         delay_info::DelayMessageInfo,
     };
-    use storage_adapter::memory::MemoryStorageAdapter;
+    use storage_adapter::storage::build_memory_storage_driver;
     use tokio::time::sleep;
 
     use crate::{
@@ -124,7 +119,7 @@ mod test {
 
     #[tokio::test]
     pub async fn persist_delay_info_test() {
-        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let message_storage_adapter = build_memory_storage_driver();
         let namespace = unique_id();
 
         let target_shard_name = unique_id();
@@ -165,7 +160,7 @@ mod test {
     pub async fn build_delay_queue_test() {
         let namespace = unique_id();
         let shard_num = 1;
-        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let message_storage_adapter = build_memory_storage_driver();
         let delay_message_manager = Arc::new(DelayMessageManager::new(
             namespace.clone(),
             shard_num,

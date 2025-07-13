@@ -39,7 +39,7 @@ use server::grpc::server::GrpcServer;
 use server::tcp::server::start_tcp_server;
 use tokio::runtime::Runtime;
 use tokio::signal;
-use tokio::sync::broadcast;
+use tokio::sync::broadcast::Sender;
 use tokio::time::sleep;
 use tracing::{error, info};
 
@@ -54,7 +54,7 @@ mod server;
 
 pub struct JournalServer {
     config: JournalServerConfig,
-    stop_send: broadcast::Sender<bool>,
+    stop_send: Sender<bool>,
     server_runtime: Runtime,
     daemon_runtime: Runtime,
     client_pool: Arc<ClientPool>,
@@ -65,7 +65,7 @@ pub struct JournalServer {
 }
 
 impl JournalServer {
-    pub fn new(stop_send: broadcast::Sender<bool>) -> Self {
+    pub fn new(stop_send: Sender<bool>) -> Self {
         let config = journal_server_conf().clone();
         let server_runtime = create_runtime(
             "storage-engine-server-runtime",
@@ -158,16 +158,7 @@ impl JournalServer {
     }
 
     fn start_daemon_thread(&self) {
-        let client_pool = self.client_pool.clone();
-        let cache_manager = self.cache_manager.clone();
-        let stop_sx = self.stop_send.clone();
-        self.daemon_runtime
-            .spawn(async move { report_heartbeat(&client_pool, &cache_manager, stop_sx).await });
-
-        let client_pool = self.client_pool.clone();
-        let stop_sx = self.stop_send.clone();
-        self.daemon_runtime
-            .spawn(async move { report_monitor(client_pool, stop_sx).await });
+        self.start_daemon_report(self.stop_send.clone());
 
         let segment_scroll = SegmentScrollManager::new(
             self.cache_manager.clone(),
@@ -176,6 +167,19 @@ impl JournalServer {
         );
         self.daemon_runtime.spawn(async move {
             segment_scroll.trigger_segment_scroll().await;
+        });
+    }
+
+    fn start_daemon_report(&self, stop_sx: Sender<bool>) {
+        let (heartbeat_sx, monitor_sx) = (stop_sx.clone(), stop_sx.clone());
+        let (heartbeat_client_pool, monitor_client_pool) =
+            (self.client_pool.clone(), self.client_pool.clone());
+
+        let cache_manager = self.cache_manager.clone();
+        self.daemon_runtime.spawn(async move {
+            report_heartbeat(&heartbeat_client_pool, &cache_manager, heartbeat_sx);
+
+            report_monitor(monitor_client_pool, monitor_sx)
         });
     }
 

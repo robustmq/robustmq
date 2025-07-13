@@ -95,6 +95,7 @@ Refers to external, independent storage engines such as cloud object storage (e.
 
 RobustMQ MQTT is a full-featured implementation of the MQTT protocol built on the RobustMQ platform. Designed in Rust, it aims to provide a high-performance, enterprise-grade message queuing solution that supports clustered deployment at scale. The long-term vision is to deliver a product that rivals leading enterprise MQTT brokers such as **EMQX** and **HiveMQ**.
 
+![img](docs/images/mqtt-start.png)
 ### Features
 
 1. **Cluster-Ready**

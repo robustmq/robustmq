@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::net::SocketAddr;
-use std::sync::Arc;
-
 use super::flow_control::is_qos_message;
 use super::mqtt::MqttService;
 use crate::handler::cache::CacheManager;
@@ -22,8 +19,8 @@ use crate::handler::response::{
     response_packet_mqtt_connect_fail, response_packet_mqtt_distinct_by_reason,
 };
 use crate::security::AuthDriver;
-use crate::server::connection::NetworkConnection;
-use crate::server::connection_manager::ConnectionManager;
+use crate::server::common::connection::NetworkConnection;
+use crate::server::common::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
@@ -31,27 +28,26 @@ use protocol::mqtt::common::{
     is_mqtt3, is_mqtt4, is_mqtt5, ConnectReturnCode, DisconnectReasonCode, MqttPacket, MqttProtocol,
 };
 use schema_register::schema::SchemaRegisterManager;
-use storage_adapter::storage::StorageAdapter;
+use std::net::SocketAddr;
+use std::sync::Arc;
+use storage_adapter::storage::ArcStorageAdapter;
 use tracing::info;
 
 // S: message storage adapter
 #[derive(Clone)]
-pub struct Command<S> {
-    mqtt3_service: MqttService<S>,
-    mqtt4_service: MqttService<S>,
-    mqtt5_service: MqttService<S>,
+pub struct Command {
+    mqtt3_service: MqttService,
+    mqtt4_service: MqttService,
+    mqtt5_service: MqttService,
     metadata_cache: Arc<CacheManager>,
 }
 
-impl<S> Command<S>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+impl Command {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         cache_manager: Arc<CacheManager>,
-        message_storage_adapter: Arc<S>,
-        delay_message_manager: Arc<DelayMessageManager<S>>,
+        message_storage_adapter: ArcStorageAdapter,
+        delay_message_manager: Arc<DelayMessageManager>,
         subscribe_manager: Arc<SubscribeManager>,
         client_pool: Arc<ClientPool>,
         connection_manager: Arc<ConnectionManager>,

@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod client;
-mod handler;
-mod quic_server_handler;
-pub mod quic_stream_wrapper;
-mod response;
+mod acceptor;
 pub mod server;
-mod skip_server_verification;
+pub mod stream;

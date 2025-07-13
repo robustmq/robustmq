@@ -25,6 +25,7 @@ use protocol::placement_center::placement_center_mqtt::{
     CreateUserRequest, DeleteUserRequest, ListUserRequest,
 };
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 
 pub struct UserStorage {
@@ -35,7 +36,7 @@ impl UserStorage {
         UserStorage { client_pool }
     }
 
-    pub async fn save_user(&self, user_info: MqttUser) -> Result<(), MqttBrokerError> {
+    pub async fn save_user(&self, user_info: MqttUser) -> ResultMqttBrokerError {
         let config = broker_mqtt_conf();
         let request = CreateUserRequest {
             cluster_name: config.cluster_name.clone(),
@@ -46,7 +47,7 @@ impl UserStorage {
         Ok(())
     }
 
-    pub async fn delete_user(&self, user_name: String) -> Result<(), MqttBrokerError> {
+    pub async fn delete_user(&self, user_name: String) -> ResultMqttBrokerError {
         let config = broker_mqtt_conf();
         let request = DeleteUserRequest {
             cluster_name: config.cluster_name.clone(),

@@ -23,15 +23,15 @@ use protocol::placement_center::placement_center_mqtt::{
     DeleteSessionReply, DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest,
     DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
     DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
-    GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply,
-    ListAutoSubscribeRuleRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectorReply,
-    ListConnectorRequest, ListSessionReply, ListSessionRequest, ListSubscribeReply,
-    ListSubscribeRequest, ListTopicReply, ListTopicRequest, ListTopicRewriteRuleReply,
-    ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest, SaveLastWillMessageReply,
-    SaveLastWillMessageRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
-    SetSubscribeReply, SetSubscribeRequest, SetTopicRetainMessageReply,
-    SetTopicRetainMessageRequest, UpdateConnectorReply, UpdateConnectorRequest, UpdateSessionReply,
-    UpdateSessionRequest,
+    GetShareSubLeaderRequest, GetTopicRetainMessageReply, GetTopicRetainMessageRequest,
+    ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
+    ListBlacklistReply, ListBlacklistRequest, ListConnectorReply, ListConnectorRequest,
+    ListSessionReply, ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply,
+    ListTopicRequest, ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply,
+    ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest,
+    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetSubscribeReply, SetSubscribeRequest,
+    SetTopicRetainMessageReply, SetTopicRetainMessageRequest, UpdateConnectorReply,
+    UpdateConnectorRequest, UpdateSessionReply, UpdateSessionRequest,
 };
 use tonic::Streaming;
 
@@ -97,6 +97,14 @@ generate_mqtt_service_call!(
     SetTopicRetainMessageReply,
     SetTopicRetainMessage
 );
+
+generate_mqtt_service_call!(
+    placement_get_topic_retain_message,
+    GetTopicRetainMessageRequest,
+    GetTopicRetainMessageReply,
+    GetTopicRetainMessage
+);
+
 generate_mqtt_service_call!(
     placement_create_session,
     CreateSessionRequest,

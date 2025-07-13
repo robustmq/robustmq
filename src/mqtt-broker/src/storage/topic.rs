@@ -30,6 +30,7 @@ use protocol::placement_center::placement_center_mqtt::{
 };
 use std::sync::Arc;
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 
 pub struct TopicStorage {
@@ -41,7 +42,7 @@ impl TopicStorage {
         TopicStorage { client_pool }
     }
 
-    pub async fn save_topic(&self, topic: MQTTTopic) -> Result<(), MqttBrokerError> {
+    pub async fn save_topic(&self, topic: MQTTTopic) -> ResultMqttBrokerError {
         let config = broker_mqtt_conf();
         let request = CreateTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -52,7 +53,7 @@ impl TopicStorage {
         Ok(())
     }
 
-    pub async fn delete_topic(&self, topic_name: String) -> Result<(), MqttBrokerError> {
+    pub async fn delete_topic(&self, topic_name: String) -> ResultMqttBrokerError {
         let config = broker_mqtt_conf();
         let request = DeleteTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -102,7 +103,7 @@ impl TopicStorage {
         topic_name: String,
         retain_message: &MqttMessage,
         retain_message_expired_at: u64,
-    ) -> Result<(), MqttBrokerError> {
+    ) -> ResultMqttBrokerError {
         let config = broker_mqtt_conf();
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
@@ -115,7 +116,7 @@ impl TopicStorage {
         Ok(())
     }
 
-    pub async fn delete_retain_message(&self, topic_name: String) -> Result<(), MqttBrokerError> {
+    pub async fn delete_retain_message(&self, topic_name: String) -> ResultMqttBrokerError {
         let config = broker_mqtt_conf();
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
@@ -168,7 +169,7 @@ impl TopicStorage {
     pub async fn create_topic_rewrite_rule(
         &self,
         req: MqttTopicRewriteRule,
-    ) -> Result<(), MqttBrokerError> {
+    ) -> ResultMqttBrokerError {
         let config = broker_mqtt_conf();
         let request = CreateTopicRewriteRuleRequest {
             cluster_name: config.cluster_name.clone(),
@@ -186,7 +187,7 @@ impl TopicStorage {
         &self,
         action: String,
         source_topic: String,
-    ) -> Result<(), MqttBrokerError> {
+    ) -> ResultMqttBrokerError {
         let config = broker_mqtt_conf();
         let request = DeleteTopicRewriteRuleRequest {
             cluster_name: config.cluster_name.clone(),

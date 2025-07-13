@@ -12,29 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use tracing::info;
+
 pub const DEFAULT_PLACEMENT_CENTER_CONFIG: &str = "./config/version.ini";
 
 pub fn banner() {
     const B: &str = r"
-         _____     ____    ______            _____ ________ _         _    _____
-        ||    \\ //    \\ ||     ||||     ||||     --------||\\      //|| //    \\
-        ||----//||      ||||____// ||     || \\____   ||   || \\    // ||||      ||
-        ||   // ||      ||||     \\||     ||      ||  ||   ||  \\  //  ||||      ||
-        ||_|__\\ \\____// ||__|__||||__|__|| __|__||  ||   ||   \\//   || \\___\\//
-                                                                                \\
+
+     /$$$$$$$            /$$                             /$$     /$$      /$$  /$$$$$$
+    | $$__  $$          | $$                            | $$    | $$$    /$$$ /$$__  $$
+    | $$  \ $$  /$$$$$$ | $$$$$$$  /$$   /$$  /$$$$$$$ /$$$$$$  | $$$$  /$$$$| $$  \ $$
+    | $$$$$$$/ /$$__  $$| $$__  $$| $$  | $$ /$$_____/|_  $$_/  | $$ $$/$$ $$| $$  | $$
+    | $$__  $$| $$  \ $$| $$  \ $$| $$  | $$|  $$$$$$   | $$    | $$  $$$| $$| $$  | $$
+    | $$  \ $$| $$  | $$| $$  | $$| $$  | $$ \____  $$  | $$ /$$| $$\  $ | $$| $$/$$ $$
+    | $$  | $$|  $$$$$$/| $$$$$$$/|  $$$$$$/ /$$$$$$$/  |  $$$$/| $$ \/  | $$|  $$$$$$/
+    |__/  |__/ \______/ |_______/  \______/ |_______/    \___/  |__/     |__/ \____ $$$
+                                                                                   \__/
+
     ";
 
-    println!("{B}");
-    
+    info!("{B}");
+
     // Print version information
     let version = super::version();
-    println!("Version: {}", version);
-    
+    info!("Version: {}", version);
+
     // Print components information
-    println!("Components:");
-    println!("  - MQTT Broker");
-    println!("  - Placement Center");
-    println!();
+    info!("Components:");
+    info!("  - MQTT Broker");
+    info!("  - Placement Center");
 }
 
 #[cfg(test)]

@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env;
 use std::sync::Arc;
 
 use common_base::tools::now_second;
+use common_base::version::version;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 use tracing::error;
 
 use super::{
@@ -29,15 +29,12 @@ use super::{
 };
 use crate::handler::cache::CacheManager;
 use crate::storage::cluster::ClusterStorage;
-use crate::BROKER_START_TIME;
 
-pub(crate) async fn report_cluster_status<S>(
+pub(crate) async fn report_cluster_status(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+    message_storage_adapter: &ArcStorageAdapter,
+) {
     let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS.to_string());
     if let Some(record) = build_node_cluster(&topic_name, client_pool).await {
         write_topic_data(
@@ -51,30 +48,26 @@ pub(crate) async fn report_cluster_status<S>(
     }
 }
 
-pub(crate) async fn report_broker_version<S>(
+pub(crate) async fn report_broker_version(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+    message_storage_adapter: &ArcStorageAdapter,
+) {
     report_system_data(
         client_pool,
         metadata_cache,
         message_storage_adapter,
         SYSTEM_TOPIC_BROKERS_VERSION,
-        || async { env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "-".to_string()) },
+        || async { version() },
     )
     .await;
 }
 
-pub(crate) async fn report_broker_time<S>(
+pub(crate) async fn report_broker_time(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+    message_storage_adapter: &ArcStorageAdapter,
+) {
     //  report system uptime
     report_system_data(
         client_pool,
@@ -82,7 +75,7 @@ pub(crate) async fn report_broker_time<S>(
         message_storage_adapter,
         SYSTEM_TOPIC_BROKERS_UPTIME,
         || async {
-            let start_long_time: u64 = now_second() - *BROKER_START_TIME;
+            let start_long_time: u64 = now_second() - metadata_cache.get_start_time();
             start_long_time.to_string()
         },
     )
@@ -99,13 +92,11 @@ pub(crate) async fn report_broker_time<S>(
     .await;
 }
 
-pub(crate) async fn report_broker_sysdescr<S>(
+pub(crate) async fn report_broker_sysdescr(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+    message_storage_adapter: &ArcStorageAdapter,
+) {
     report_system_data(
         client_pool,
         metadata_cache,

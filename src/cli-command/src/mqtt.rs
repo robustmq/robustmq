@@ -26,11 +26,12 @@ use grpc_clients::mqtt::admin::call::{
     mqtt_broker_delete_user, mqtt_broker_enable_flapping_detect, mqtt_broker_get_cluster_config,
     mqtt_broker_list_acl, mqtt_broker_list_auto_subscribe_rule, mqtt_broker_list_bind_schema,
     mqtt_broker_list_blacklist, mqtt_broker_list_connection, mqtt_broker_list_connector,
-    mqtt_broker_list_schema, mqtt_broker_list_session, mqtt_broker_list_slow_subscribe,
-    mqtt_broker_list_subscribe, mqtt_broker_list_system_alarm, mqtt_broker_list_topic,
-    mqtt_broker_list_user, mqtt_broker_set_auto_subscribe_rule, mqtt_broker_set_cluster_config,
-    mqtt_broker_set_system_alarm_config, mqtt_broker_subscribe_detail, mqtt_broker_unbind_schema,
-    mqtt_broker_update_connector, mqtt_broker_update_schema,
+    mqtt_broker_list_flapping_detect, mqtt_broker_list_schema, mqtt_broker_list_session,
+    mqtt_broker_list_slow_subscribe, mqtt_broker_list_subscribe, mqtt_broker_list_system_alarm,
+    mqtt_broker_list_topic, mqtt_broker_list_user, mqtt_broker_set_auto_subscribe_rule,
+    mqtt_broker_set_cluster_config, mqtt_broker_set_system_alarm_config,
+    mqtt_broker_subscribe_detail, mqtt_broker_unbind_schema, mqtt_broker_update_connector,
+    mqtt_broker_update_schema,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -46,9 +47,9 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteSchemaRequest, DeleteTopicRewriteRuleRequest, DeleteUserRequest,
     EnableFlappingDetectRequest, GetClusterConfigRequest, ListAclRequest,
     ListAutoSubscribeRuleRequest, ListBindSchemaRequest, ListBlacklistRequest,
-    ListConnectionRequest, ListConnectorRequest, ListSchemaRequest, ListSessionRequest,
-    ListSlowSubscribeRequest, ListSubscribeRequest, ListSystemAlarmRequest, ListTopicRequest,
-    ListUserRequest, SetAutoSubscribeRuleRequest, SetClusterConfigRequest,
+    ListConnectionRequest, ListConnectorRequest, ListFlappingDetectRequest, ListSchemaRequest,
+    ListSessionRequest, ListSlowSubscribeRequest, ListSubscribeRequest, ListSystemAlarmRequest,
+    ListTopicRequest, ListUserRequest, SetAutoSubscribeRuleRequest, SetClusterConfigRequest,
     SetSystemAlarmConfigRequest, SubscribeDetailRequest, UnbindSchemaRequest,
     UpdateConnectorRequest, UpdateSchemaRequest,
 };
@@ -123,6 +124,7 @@ pub enum MqttActionType {
     Subscribe(SubscribeArgsRequest),
 
     ListTopic,
+    ListFlappingDetect,
 
     // connector
     ListConnector(ListConnectorRequest),
@@ -313,6 +315,10 @@ impl MqttBrokerCommand {
             MqttActionType::ListSystemAlarm(ref request) => {
                 self.list_system_alarm(&client_pool, params.clone(), *request)
                     .await;
+            }
+            MqttActionType::ListFlappingDetect => {
+                self.list_flapping_detect(&client_pool, params.clone())
+                    .await
             }
 
             // subscribe
@@ -892,6 +898,36 @@ impl MqttBrokerCommand {
                 println!(
                     "The flapping detect feature failed to enable, with the specific reason being:"
                 );
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn list_flapping_detect(&self, client_pool: &ClientPool, params: MqttCliCommandParam) {
+        let request = ListFlappingDetectRequest { options: None };
+        match mqtt_broker_list_flapping_detect(client_pool, &grpc_addr(params.server), request)
+            .await
+        {
+            Ok(data) => {
+                let mut table = Table::new();
+                table.set_titles(row![
+                    "client_id",
+                    "before_last_windows_connections",
+                    "first_request_time",
+                ]);
+                for raw in data.flapping_detect_raw {
+                    table.add_row(row![
+                        raw.client_id,
+                        raw.before_last_windows_connections,
+                        raw.first_request_time
+                    ]);
+                }
+
+                // output cmd
+                table.printstd()
+            }
+            Err(e) => {
+                println!("MQTT broker cluster normal exception");
                 error_info(e.to_string());
             }
         }

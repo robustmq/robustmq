@@ -19,7 +19,7 @@ use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminServiceServer;
 use protocol::broker_mqtt::broker_mqtt_inner::mqtt_broker_inner_service_server::MqttBrokerInnerServiceServer;
 use schema_register::schema::SchemaRegisterManager;
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 use tonic::transport::Server;
 use tracing::info;
 
@@ -27,11 +27,11 @@ use super::inner::GrpcInnerServices;
 use crate::bridge::manager::ConnectorManager;
 use crate::common::metrics_cache::MetricsCacheManager;
 use crate::handler::cache::CacheManager;
-use crate::server::connection_manager::ConnectionManager;
+use crate::server::common::connection_manager::ConnectionManager;
 use crate::server::grpc::admin::GrpcAdminServices;
 use crate::subscribe::manager::SubscribeManager;
 
-pub struct GrpcServer<S> {
+pub struct GrpcServer {
     port: u32,
     metadata_cache: Arc<CacheManager>,
     connector_manager: Arc<ConnectorManager>,
@@ -39,14 +39,11 @@ pub struct GrpcServer<S> {
     subscribe_manager: Arc<SubscribeManager>,
     schema_manager: Arc<SchemaRegisterManager>,
     client_pool: Arc<ClientPool>,
-    message_storage_adapter: Arc<S>,
+    message_storage_adapter: ArcStorageAdapter,
     metrics_cache_manager: Arc<MetricsCacheManager>,
 }
 
-impl<S> GrpcServer<S>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+impl GrpcServer {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         port: u32,
@@ -56,7 +53,7 @@ where
         connection_manager: Arc<ConnectionManager>,
         schema_manager: Arc<SchemaRegisterManager>,
         client_pool: Arc<ClientPool>,
-        message_storage_adapter: Arc<S>,
+        message_storage_adapter: ArcStorageAdapter,
         metrics_cache_manager: Arc<MetricsCacheManager>,
     ) -> Self {
         Self {

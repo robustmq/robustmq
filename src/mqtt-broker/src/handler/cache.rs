@@ -14,7 +14,7 @@
 
 use crate::common::pkid_manager::PkidManager;
 use crate::observability::system_topic::sysmon::SystemAlarmEventMessage;
-use crate::security::acl::metadata::AclMetadata;
+use crate::security::auth::metadata::AclMetadata;
 use common_base::tools::now_second;
 use common_config::mqtt::config::BrokerMqttConfig;
 use dashmap::DashMap;

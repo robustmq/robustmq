@@ -22,7 +22,7 @@ use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::mqtt::session::MqttSession;
 use protocol::mqtt::common::{DisconnectReasonCode, MqttProtocol, Subscribe, Unsubscribe};
 use serde::{Deserialize, Serialize};
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 use tracing::error;
 
 use super::{
@@ -30,7 +30,7 @@ use super::{
     SYSTEM_TOPIC_BROKERS_SUBSCRIBED, SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED,
 };
 use crate::handler::cache::CacheManager;
-use crate::server::connection_manager::ConnectionManager;
+use crate::server::common::connection_manager::ConnectionManager;
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct SystemTopicConnectedEventMessage {
@@ -90,17 +90,15 @@ pub struct SystemTopicUnSubscribedEventMessage {
 }
 
 // Go live event. When any client comes online, messages for that topic will be published
-pub async fn st_report_connected_event<S>(
-    message_storage_adapter: &Arc<S>,
+pub async fn st_report_connected_event(
+    message_storage_adapter: &ArcStorageAdapter,
     metadata_cache: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     session: &MqttSession,
     connection: &MQTTConnection,
     connect_id: u64,
     connection_manager: &Arc<ConnectionManager>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+) {
     if let Some(network_connection) = connection_manager.get_connect(connect_id) {
         let event_data = SystemTopicConnectedEventMessage {
             username: connection.login_user.clone(),
@@ -145,8 +143,8 @@ pub async fn st_report_connected_event<S>(
 
 // Offline events. When any client goes offline, a message for that topic is published
 #[allow(clippy::too_many_arguments)]
-pub async fn st_report_disconnected_event<S>(
-    message_storage_adapter: &Arc<S>,
+pub async fn st_report_disconnected_event(
+    message_storage_adapter: &ArcStorageAdapter,
     metadata_cache: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     session: &MqttSession,
@@ -154,9 +152,7 @@ pub async fn st_report_disconnected_event<S>(
     connect_id: u64,
     connection_manager: &Arc<ConnectionManager>,
     reason: Option<DisconnectReasonCode>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+) {
     if let Some(network_connection) = connection_manager.get_connect(connect_id) {
         let event_data = SystemTopicDisConnectedEventMessage {
             username: connection.login_user.clone(),
@@ -198,17 +194,15 @@ pub async fn st_report_disconnected_event<S>(
 }
 
 // Subscribe to events. When any client subscribes to a topic, messages for that topic are published
-pub async fn st_report_subscribed_event<S>(
-    message_storage_adapter: &Arc<S>,
+pub async fn st_report_subscribed_event(
+    message_storage_adapter: &ArcStorageAdapter,
     metadata_cache: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     connection: &MQTTConnection,
     connect_id: u64,
     connection_manager: &Arc<ConnectionManager>,
     subscribe: &Subscribe,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+) {
     if let Some(network_connection) = connection_manager.get_connect(connect_id) {
         for filter in subscribe.filters.clone() {
             let subopts = SystemTopicSubscribedEventMessageSUbopts {
@@ -256,17 +250,15 @@ pub async fn st_report_subscribed_event<S>(
 }
 
 // Unsubscribe from an event. When any client unsubscribes to a topic, messages for that topic are published
-pub async fn st_report_unsubscribed_event<S>(
-    message_storage_adapter: &Arc<S>,
+pub async fn st_report_unsubscribed_event(
+    message_storage_adapter: &ArcStorageAdapter,
     metadata_cache: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     connection: &MQTTConnection,
     connect_id: u64,
     connection_manager: &Arc<ConnectionManager>,
     un_subscribe: &Unsubscribe,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+) {
     if let Some(network_connection) = connection_manager.get_connect(connect_id) {
         for path in un_subscribe.filters.clone() {
             let event_data = SystemTopicUnSubscribedEventMessage {

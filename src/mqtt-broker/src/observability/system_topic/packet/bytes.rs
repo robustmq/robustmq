@@ -16,7 +16,7 @@ use crate::handler::cache::CacheManager;
 use crate::observability::system_topic::report_system_data;
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 
 // metrics
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_BYTES_RECEIVED: &str =
@@ -24,13 +24,11 @@ pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_BYTES_RECEIVED: &str =
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_BYTES_SENT: &str =
     "$SYS/brokers/${node}/metrics/bytes/sent";
 
-pub(crate) async fn report_broker_metrics_bytes_received<S>(
+pub(crate) async fn report_broker_metrics_bytes(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+    message_storage_adapter: &ArcStorageAdapter,
+) {
     report_system_data(
         client_pool,
         metadata_cache,
@@ -42,15 +40,7 @@ pub(crate) async fn report_broker_metrics_bytes_received<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_bytes_sent<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,

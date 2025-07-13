@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
 use crate::handler::cache::CacheManager;
-use crate::server::packet::RequestPackage;
+use crate::server::common::packet::RequestPackage;
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct SlowRequestMs {

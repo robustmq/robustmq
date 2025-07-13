@@ -23,10 +23,11 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
 use regex::Regex;
-use storage_adapter::storage::{ShardInfo, StorageAdapter};
+use storage_adapter::storage::{ArcStorageAdapter, ShardInfo};
 use tokio::time::sleep;
 
 use super::error::MqttBrokerError;
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::topic_rewrite::convert_publish_topic_by_rewrite_rule;
 use crate::storage::message::cluster_name;
@@ -48,7 +49,7 @@ pub fn payload_format_validator(
     false
 }
 
-pub fn topic_name_validator(topic_name: &str) -> Result<(), MqttBrokerError> {
+pub fn topic_name_validator(topic_name: &str) -> ResultMqttBrokerError {
     if topic_name.is_empty() {
         return Err(MqttBrokerError::TopicNameIsEmpty);
     }
@@ -139,15 +140,12 @@ pub async fn get_topic_alias(
     Err(MqttBrokerError::TopicAliasInvalid(topic_alias))
 }
 
-pub async fn try_init_topic<S>(
+pub async fn try_init_topic(
     topic_name: &str,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
+    message_storage_adapter: &ArcStorageAdapter,
     client_pool: &Arc<ClientPool>,
-) -> Result<MQTTTopic, MqttBrokerError>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) -> Result<MQTTTopic, MqttBrokerError> {
     let topic = if let Some(tp) = metadata_cache.get_topic_by_name(topic_name) {
         tp
     } else {

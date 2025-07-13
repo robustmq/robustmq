@@ -16,7 +16,7 @@ use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::CacheManager;
 use crate::handler::dynamic_cache::update_cache_metadata;
 use crate::handler::error::MqttBrokerError;
-use crate::handler::lastwill::send_last_will_message;
+use crate::handler::last_will::send_last_will_message;
 use crate::subscribe::manager::SubscribeManager;
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
@@ -27,7 +27,7 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
 };
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 use tracing::info;
 
 pub async fn update_cache_by_req(
@@ -78,15 +78,12 @@ pub async fn delete_session_by_req(
     Ok(DeleteSessionReply::default())
 }
 
-pub async fn send_last_will_message_by_req<S>(
+pub async fn send_last_will_message_by_req(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    message_storage_adapter: &Arc<S>,
+    message_storage_adapter: &ArcStorageAdapter,
     req: &SendLastWillMessageRequest,
-) -> Result<SendLastWillMessageReply, MqttBrokerError>
-where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) -> Result<SendLastWillMessageReply, MqttBrokerError> {
     let data = match serde_json::from_slice::<LastWillData>(req.last_will_message.as_slice()) {
         Ok(data) => data,
         Err(e) => {

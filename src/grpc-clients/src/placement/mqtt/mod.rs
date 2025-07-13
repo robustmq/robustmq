@@ -25,15 +25,15 @@ use protocol::placement_center::placement_center_mqtt::{
     DeleteSessionReply, DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest,
     DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
     DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetShareSubLeaderReply,
-    GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply,
-    ListAutoSubscribeRuleRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectorReply,
-    ListConnectorRequest, ListSessionReply, ListSessionRequest, ListSubscribeReply,
-    ListSubscribeRequest, ListTopicReply, ListTopicRequest, ListTopicRewriteRuleReply,
-    ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest, SaveLastWillMessageReply,
-    SaveLastWillMessageRequest, SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest,
-    SetSubscribeReply, SetSubscribeRequest, SetTopicRetainMessageReply,
-    SetTopicRetainMessageRequest, UpdateConnectorReply, UpdateConnectorRequest, UpdateSessionReply,
-    UpdateSessionRequest,
+    GetShareSubLeaderRequest, GetTopicRetainMessageReply, GetTopicRetainMessageRequest,
+    ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
+    ListBlacklistReply, ListBlacklistRequest, ListConnectorReply, ListConnectorRequest,
+    ListSessionReply, ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply,
+    ListTopicRequest, ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply,
+    ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest,
+    SetAutoSubscribeRuleReply, SetAutoSubscribeRuleRequest, SetSubscribeReply, SetSubscribeRequest,
+    SetTopicRetainMessageReply, SetTopicRetainMessageRequest, UpdateConnectorReply,
+    UpdateConnectorRequest, UpdateSessionReply, UpdateSessionRequest,
 };
 use tonic::transport::Channel;
 use tonic::Streaming;
@@ -147,6 +147,15 @@ impl_retriable_request!(
     SetTopicRetainMessageReply,
     placement_center_mqtt_services_client,
     set_topic_retain_message,
+    true
+);
+
+impl_retriable_request!(
+    GetTopicRetainMessageRequest,
+    MqttServiceClient<Channel>,
+    GetTopicRetainMessageReply,
+    placement_center_mqtt_services_client,
+    get_topic_retain_message,
     true
 );
 

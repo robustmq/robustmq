@@ -6,6 +6,29 @@ Write the first line of code in October 2023. There were two goals:
 ## About License
 Apache License 2.0, our goal is to enter the Apache Foundation. Super cool.
 
+## About the Vision
+Our vision is: To create the next-generation cloud-native integrated messaging queue, tailor a unified messaging infrastructure for AI systems, and provide a unified and efficient communication foundation for AI applications.
+
+Is this vision too pretentious?
+
+In my opinion, if you don't do it, how can you know if it can be achieved? As someone in the technical field, one should always have some ideals. Look up at the sky, walk down with your head down. Having walked on the technical path for so long, one should leave some traces. I hope to do something cool and interesting with you all.
+
+
+## Is this a commercial project?
+No, this is a self-indulgent community project based on technology. The ultimate goal is to create an excellent message queue component, then enter the Apache Foundation. And then it'll be all about showing off. Ha ha ha ha.
+
+## Will we be competitive in the long run
+There must be some good, absolutely confident.
+
+Combined with the current development of Rust, cloud native, AI and other fields, continuous integration and learning, on the basis of no historical baggage. We are absolutely confident that we will be able to build a competitive message queue product for the AI age.
+
+The key words are: multi-protocol, Serverless, plug-in storage. That is:
+
+>  Based on Rust language, create a message queue product that supports multi-protocol, supports complete Serverless capabilities in the architecture, and has plug-in storage capabilities.
+
+This definition will be refined over time, and the combination of MQ and AI will be explored next. And there are some explorations in the financial level Message Queue.
+
+
 ## Now the message queue component is doing something
 Some of the things that mainstream message queuing components are currently doing:
 -Separation of storage and computation: solving the problem of elastic expansion and shrinkage of the system.
@@ -30,18 +53,6 @@ In doing this, we found two types of problems:
 
 ## And existing message queues
 Not yet dare to say the difference, salute the community. But as we continue to try, we will be able to make a message queue product that is better than the current open source components.
-
-## Will we be competitive in the long run
-There must be some good, absolutely confident.
-
-Combined with the current development of Rust, cloud native, AI and other fields, continuous integration and learning, on the basis of no historical baggage. We are absolutely confident that we will be able to build a competitive message queue product for the AI age.
-
-The key words are: multi-protocol, Serverless, plug-in storage. That is:
-
->  Based on Rust language, create a message queue product that supports multi-protocol, supports complete Serverless capabilities in the architecture, and has plug-in storage capabilities.
-
-This definition will be refined over time, and the combination of MQ and AI will be explored next. And there are some explorations in the financial level Message Queue.
-
 
 ## Expectation
 I hope we stand on the shoulders of giants, look up at the sky, walk with heads down, work at ease, and build the best MQ Infra component.

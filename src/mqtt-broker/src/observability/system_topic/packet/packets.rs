@@ -16,7 +16,7 @@ use crate::handler::cache::CacheManager;
 use crate::observability::system_topic::report_system_data;
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::ArcStorageAdapter;
 
 // MQTT Packet Received and Sent
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_RECEIVED: &str =
@@ -74,13 +74,11 @@ pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_SENT: &str =
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_AUTH: &str =
     "$SYS/brokers/${node}/metrics/packets/auth";
 
-pub(crate) async fn report_broker_metrics_packets_received<S>(
+pub(crate) async fn report_broker_metrics_packets(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+    message_storage_adapter: &ArcStorageAdapter,
+) {
     report_system_data(
         client_pool,
         metadata_cache,
@@ -92,15 +90,7 @@ pub(crate) async fn report_broker_metrics_packets_received<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_packets_sent<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -112,15 +102,7 @@ pub(crate) async fn report_broker_metrics_packets_sent<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_packets_connect<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -132,15 +114,7 @@ pub(crate) async fn report_broker_metrics_packets_connect<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_packets_connack<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -152,15 +126,7 @@ pub(crate) async fn report_broker_metrics_packets_connack<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_packets_publish_received<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -172,15 +138,7 @@ pub(crate) async fn report_broker_metrics_packets_publish_received<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_packets_publish_sent<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -192,15 +150,7 @@ pub(crate) async fn report_broker_metrics_packets_publish_sent<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_packets_puback_received<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -212,15 +162,7 @@ pub(crate) async fn report_broker_metrics_packets_puback_received<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_packets_puback_sent<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -232,15 +174,7 @@ pub(crate) async fn report_broker_metrics_packets_puback_sent<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_packets_puback_missed<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -252,15 +186,7 @@ pub(crate) async fn report_broker_metrics_packets_puback_missed<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_packets_pubrec_received<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -272,15 +198,7 @@ pub(crate) async fn report_broker_metrics_packets_pubrec_received<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_packets_pubrec_sent<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -292,15 +210,7 @@ pub(crate) async fn report_broker_metrics_packets_pubrec_sent<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_packets_pubrec_missed<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -312,15 +222,7 @@ pub(crate) async fn report_broker_metrics_packets_pubrec_missed<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_packets_pubrel_received<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -332,15 +234,7 @@ pub(crate) async fn report_broker_metrics_packets_pubrel_received<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_packets_pubrel_sent<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -352,15 +246,7 @@ pub(crate) async fn report_broker_metrics_packets_pubrel_sent<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_packets_pubrel_missed<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -372,15 +258,7 @@ pub(crate) async fn report_broker_metrics_packets_pubrel_missed<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_packets_pubcomp_received<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -392,175 +270,7 @@ pub(crate) async fn report_broker_metrics_packets_pubcomp_received<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_packets_pubcomp_sent<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_SENT,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_pubcomp_sent().to_string()
-        },
-    )
-    .await;
-}
-
-pub(crate) async fn report_broker_metrics_packets_pubcomp_missed<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_MISSED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_pubcomp_missed().to_string()
-        },
-    )
-    .await;
-}
-
-pub(crate) async fn report_broker_metrics_packets_subscribe<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBSCRIBE,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_subscribe().to_string()
-        },
-    )
-    .await;
-}
-
-pub(crate) async fn report_broker_metrics_packets_suback<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBACK,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_suback().to_string()
-        },
-    )
-    .await;
-}
-
-pub(crate) async fn report_broker_metrics_packets_unsubscribe<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBSCRIBE,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_unsubscribe().to_string()
-        },
-    )
-    .await;
-}
-
-pub(crate) async fn report_broker_metrics_packets_unsuback<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBACK,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_unsuback().to_string()
-        },
-    )
-    .await;
-}
-
-pub(crate) async fn report_broker_metrics_packets_pingreq<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGREQ,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_pingreq().to_string()
-        },
-    )
-    .await;
-}
-
-pub(crate) async fn report_broker_metrics_packets_pingresp<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        message_storage_adapter,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGRESP,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_pingresp().to_string()
-        },
-    )
-    .await;
-}
-
-pub(crate) async fn report_broker_metrics_packets_disconnect_received<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -572,15 +282,7 @@ pub(crate) async fn report_broker_metrics_packets_disconnect_received<S>(
         },
     )
     .await;
-}
 
-pub(crate) async fn report_broker_metrics_packets_disconnect_sent<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -592,15 +294,6 @@ pub(crate) async fn report_broker_metrics_packets_disconnect_sent<S>(
         },
     )
     .await;
-}
-
-pub(crate) async fn report_broker_metrics_packets_auth<S>(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<CacheManager>,
-    message_storage_adapter: &Arc<S>,
-) where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
     report_system_data(
         client_pool,
         metadata_cache,
@@ -609,6 +302,96 @@ pub(crate) async fn report_broker_metrics_packets_auth<S>(
         || async {
             "".to_string()
             // metadata_cache.get_packets_auth().to_string()
+        },
+    )
+    .await;
+    report_system_data(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBACK,
+        || async {
+            "".to_string()
+            // metadata_cache.get_packets_suback().to_string()
+        },
+    )
+    .await;
+    report_system_data(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBSCRIBE,
+        || async {
+            "".to_string()
+            // metadata_cache.get_packets_unsubscribe().to_string()
+        },
+    )
+    .await;
+    report_system_data(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBACK,
+        || async {
+            "".to_string()
+            // metadata_cache.get_packets_unsuback().to_string()
+        },
+    )
+    .await;
+
+    report_system_data(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGREQ,
+        || async {
+            "".to_string()
+            // metadata_cache.get_packets_pingreq().to_string()
+        },
+    )
+    .await;
+    report_system_data(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGRESP,
+        || async {
+            "".to_string()
+            // metadata_cache.get_packets_pingresp().to_string()
+        },
+    )
+    .await;
+
+    report_system_data(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_SENT,
+        || async {
+            "".to_string()
+            // metadata_cache.get_packets_pubcomp_sent().to_string()
+        },
+    )
+    .await;
+    report_system_data(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_MISSED,
+        || async {
+            "".to_string()
+            // metadata_cache.get_packets_pubcomp_missed().to_string()
+        },
+    )
+    .await;
+    report_system_data(
+        client_pool,
+        metadata_cache,
+        message_storage_adapter,
+        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBSCRIBE,
+        || async {
+            "".to_string()
+            // metadata_cache.get_packets_subscribe().to_string()
         },
     )
     .await;

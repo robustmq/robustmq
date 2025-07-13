@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, sync::Arc};
+
+use crate::memory::MemoryStorageAdapter;
+
+pub type ArcStorageAdapter = Arc<Box<dyn StorageAdapter + Send + Sync>>;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct ShardInfo {
@@ -107,4 +110,8 @@ pub trait StorageAdapter {
     ) -> Result<(), CommonError>;
 
     async fn close(&self) -> Result<(), CommonError>;
+}
+
+pub fn build_memory_storage_driver() -> ArcStorageAdapter {
+    Arc::new(Box::new(MemoryStorageAdapter::new()))
 }

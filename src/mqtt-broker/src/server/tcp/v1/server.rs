@@ -12,29 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
-
+use crate::common::types::ResultMqttBrokerError;
+use crate::handler::cache::CacheManager;
+use crate::handler::command::Command;
+use crate::observability::metrics::server::record_broker_thread_num;
+use crate::server::common::channel::RequestChannel;
+use crate::server::common::connection::NetworkConnectionType;
+use crate::server::common::connection_manager::ConnectionManager;
+use crate::server::common::handler::handler_process;
+use crate::server::common::response::response_process;
+use crate::server::tcp::v1::tcp_acceptor::acceptor_process;
+use crate::server::tcp::v1::tls_acceptor::acceptor_tls_process;
+use crate::subscribe::manager::SubscribeManager;
 use common_config::mqtt::broker_mqtt_conf;
 use grpc_clients::pool::ClientPool;
-use storage_adapter::storage::StorageAdapter;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
 use tracing::{error, info};
-
-use crate::handler::cache::CacheManager;
-use crate::handler::command::Command;
-use crate::handler::error::MqttBrokerError;
-use crate::observability::metrics::server::record_broker_thread_num;
-use crate::server::connection::NetworkConnectionType;
-use crate::server::connection_manager::ConnectionManager;
-use crate::server::tcp::v1::channel::RequestChannel;
-use crate::server::tcp::v1::handler::handler_process;
-use crate::server::tcp::v1::response::response_process;
-use crate::server::tcp::v1::tcp_server::acceptor_process;
-use crate::server::tcp::v1::tls_server::acceptor_tls_process;
-use crate::subscribe::manager::SubscribeManager;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ProcessorConfig {
@@ -46,8 +43,8 @@ pub struct ProcessorConfig {
 
 // U: codec: encoder + decoder
 // S: message storage adapter
-pub struct TcpServer<S> {
-    command: Command<S>,
+pub struct TcpServer {
+    command: Command,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
@@ -59,17 +56,14 @@ pub struct TcpServer<S> {
     stop_sx: broadcast::Sender<bool>,
 }
 
-impl<S> TcpServer<S>
-where
-    S: StorageAdapter + Clone + Send + Sync + 'static,
-{
+impl TcpServer {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         connection_manager: Arc<ConnectionManager>,
         subscribe_manager: Arc<SubscribeManager>,
         cache_manager: Arc<CacheManager>,
         client_pool: Arc<ClientPool>,
-        command: Command<S>,
+        command: Command,
         network_type: NetworkConnectionType,
         proc_config: ProcessorConfig,
         stop_sx: broadcast::Sender<bool>,
@@ -94,7 +88,7 @@ where
         }
     }
 
-    pub async fn start(&self, tls: bool) -> Result<(), MqttBrokerError> {
+    pub async fn start(&self, tls: bool) -> ResultMqttBrokerError {
         let conf = broker_mqtt_conf();
         let port = if tls {
             conf.network_port.tcps_port

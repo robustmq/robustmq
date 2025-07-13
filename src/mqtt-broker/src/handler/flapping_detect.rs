@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::dynamic_config::{save_cluster_dynamic_config, ClusterDynamicConfig};
-use crate::handler::error::MqttBrokerError;
 use crate::observability::metrics::event_metrics;
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
@@ -70,7 +70,6 @@ impl UpdateFlappingDetectCache {
     async fn update_flapping_detect_cache(&self) {
         let config = self.cache_manager.get_flapping_detect_config().clone();
         let window_time = config.window_time as u64;
-        let window_time_2_seconds = convert_seconds(window_time, TimeUnit::Minutes);
         match self
             .cache_manager
             .acl_metadata
@@ -84,7 +83,11 @@ impl UpdateFlappingDetectCache {
                 error!("{}", e);
             }
         }
-        sleep(Duration::from_secs(window_time_2_seconds)).await;
+        sleep(Duration::from_secs(convert_seconds(
+            window_time,
+            TimeUnit::Minutes,
+        )))
+        .await;
     }
 }
 
@@ -174,7 +177,7 @@ pub async fn enable_flapping_detect(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
     request: EnableFlappingDetectRequest,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     let connection_jitter = FlappingDetect {
         enable: request.is_enable,
         window_time: request.window_time,
