@@ -34,12 +34,7 @@ pub fn is_acl_deny(
         .acl_user
         .get(&connection.login_user)
     {
-        return acl_allow(
-            acl_list.clone(),
-            &action,
-            topic_name,
-            &connection.source_ip_addr,
-        );
+        return check_for_deny(&acl_list, &action, topic_name, &connection.source_ip_addr);
     }
 
     // check client id acl
@@ -48,19 +43,14 @@ pub fn is_acl_deny(
         .acl_client_id
         .get(&connection.client_id)
     {
-        return acl_allow(
-            acl_list.clone(),
-            &action,
-            topic_name,
-            &connection.source_ip_addr,
-        );
+        return check_for_deny(&acl_list, &action, topic_name, &connection.source_ip_addr);
     }
 
     false
 }
 
-fn acl_allow(
-    acl_list: Vec<MqttAcl>,
+fn check_for_deny(
+    acl_list: &[MqttAcl],
     action: &MqttAclAction,
     topic_name: &str,
     source_ip: &str,
