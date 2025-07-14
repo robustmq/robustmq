@@ -61,11 +61,9 @@ impl KafkaCodec {
         let header = RequestHeader::decode(&mut buf, 2).map_err(|e| {
             Error::new(
                 ErrorKind::InvalidData,
-                format!("Header decode failed: {}", e),
+                format!("Header decode failed: {e}"),
             )
         })?;
-
-        println!("{:?}", header);
 
         let req = match header.request_api_key {
             0 => {
