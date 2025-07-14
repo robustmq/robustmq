@@ -14,7 +14,7 @@
 
 use prometheus_client::encoding::EncodeLabelSet;
 
-use crate::route::data::StorageDataType;
+use crate::raft::route::data::StorageDataType;
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq, Default)]
 pub struct MetricsLabel {

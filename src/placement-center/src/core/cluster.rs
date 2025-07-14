@@ -31,8 +31,8 @@ use crate::journal::controller::call_node::{
 use crate::mqtt::controller::call_broker::{
     update_cache_by_add_node, update_cache_by_delete_node, MQTTInnerCallManager,
 };
-use crate::route::apply::RaftMachineApply;
-use crate::route::data::{StorageData, StorageDataType};
+use crate::raft::route::apply::RaftMachineApply;
+use crate::raft::route::data::{StorageData, StorageDataType};
 
 pub async fn register_node_by_req(
     cluster_cache: &Arc<PlacementCacheManager>,

@@ -25,7 +25,7 @@ use super::cluster::un_register_node_by_req;
 use crate::core::cache::PlacementCacheManager;
 use crate::journal::controller::call_node::JournalInnerCallManager;
 use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
-use crate::route::apply::RaftMachineApply;
+use crate::raft::route::apply::RaftMachineApply;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct NodeHeartbeatData {

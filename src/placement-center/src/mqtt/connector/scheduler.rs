@@ -28,7 +28,7 @@ use crate::{
         cache::MqttCacheManager, connector::status::update_connector_status_to_idle,
         controller::call_broker::MQTTInnerCallManager,
     },
-    route::apply::RaftMachineApply,
+    raft::route::apply::RaftMachineApply,
 };
 
 use super::status::{save_connector, update_connector_status_to_running};

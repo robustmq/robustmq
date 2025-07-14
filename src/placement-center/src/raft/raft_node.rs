@@ -25,7 +25,7 @@ use tracing::info;
 use super::network::network::Network;
 use super::store::new_storage;
 use super::typeconfig::TypeConfig;
-use crate::route::DataRoute;
+use crate::raft::route::DataRoute;
 use crate::storage::rocksdb::storage_raft_fold;
 pub type NodeId = u64;
 

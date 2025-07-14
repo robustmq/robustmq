@@ -24,7 +24,7 @@ use protocol::placement_center::placement_center_kv::{
 };
 use tonic::{Request, Response, Status};
 
-use crate::route::apply::RaftMachineApply;
+use crate::raft::route::apply::RaftMachineApply;
 use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct GrpcKvService {

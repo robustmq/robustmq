@@ -37,7 +37,7 @@ use crate::mqtt::services::topic::{
     list_topic_rewrite_rule_by_req, save_last_will_message_by_req, set_topic_retain_message_by_req,
 };
 use crate::mqtt::services::user::{create_user_by_req, delete_user_by_req, list_user_by_req};
-use crate::route::apply::RaftMachineApply;
+use crate::raft::route::apply::RaftMachineApply;
 use crate::storage::rocksdb::RocksDBEngine;
 use grpc_clients::pool::ClientPool;
 use prost_validate::Validator;

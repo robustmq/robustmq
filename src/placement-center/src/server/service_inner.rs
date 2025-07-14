@@ -28,7 +28,7 @@ use crate::inner::services::{
 };
 use crate::journal::controller::call_node::JournalInnerCallManager;
 use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
-use crate::route::apply::RaftMachineApply;
+use crate::raft::route::apply::RaftMachineApply;
 use crate::storage::rocksdb::RocksDBEngine;
 use grpc_clients::pool::ClientPool;
 use prost_validate::Validator;

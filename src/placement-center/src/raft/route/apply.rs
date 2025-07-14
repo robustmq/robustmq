@@ -19,8 +19,8 @@ use openraft::Raft;
 use tokio::time::timeout;
 
 use crate::core::error::PlacementCenterError;
+use crate::raft::route::data::StorageData;
 use crate::raft::typeconfig::TypeConfig;
-use crate::route::data::StorageData;
 
 pub struct RaftMachineApply {
     pub openraft_node: Raft<TypeConfig>,

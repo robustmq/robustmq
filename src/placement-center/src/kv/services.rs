@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::core::error::PlacementCenterError;
-use crate::route::apply::RaftMachineApply;
-use crate::route::data::{StorageData, StorageDataType};
+use crate::raft::route::apply::RaftMachineApply;
+use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::kv::KvStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 use prost::Message;

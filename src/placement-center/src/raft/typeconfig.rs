@@ -15,8 +15,8 @@
 use std::io::Cursor;
 
 use crate::raft::raft_node::Node;
+use crate::raft::route::data::StorageData;
 use crate::raft::route::AppResponseData;
-use crate::route::data::StorageData;
 
 pub type SnapshotData = Cursor<Vec<u8>>;
 

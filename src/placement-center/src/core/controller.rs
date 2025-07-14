@@ -25,7 +25,7 @@ use super::heartbeat::BrokerHeartbeat;
 use crate::core::cache::PlacementCacheManager;
 use crate::journal::controller::call_node::JournalInnerCallManager;
 use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
-use crate::route::apply::RaftMachineApply;
+use crate::raft::route::apply::RaftMachineApply;
 
 pub struct ClusterController {
     cluster_cache: Arc<PlacementCacheManager>,

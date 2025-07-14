@@ -23,7 +23,7 @@ use tracing::info;
 
 use super::cache::JournalCacheManager;
 use crate::core::cache::PlacementCacheManager;
-use crate::route::apply::RaftMachineApply;
+use crate::raft::route::apply::RaftMachineApply;
 
 pub mod call_node;
 pub mod gc;

@@ -175,7 +175,7 @@ mod tests {
     use protocol::placement_center::placement_center_inner::ClusterType;
 
     use crate::core::cache::PlacementCacheManager;
-    use crate::route::common::DataRouteCluster;
+    use crate::raft::route::common::DataRouteCluster;
     use crate::storage::placement::node::NodeStorage;
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 

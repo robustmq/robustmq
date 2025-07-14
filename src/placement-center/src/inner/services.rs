@@ -17,8 +17,8 @@ use crate::core::error::PlacementCenterError;
 use crate::mqtt::controller::call_broker::{
     update_cache_by_set_resource_config, MQTTInnerCallManager,
 };
-use crate::route::apply::RaftMachineApply;
-use crate::route::data::{StorageData, StorageDataType};
+use crate::raft::route::apply::RaftMachineApply;
+use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::placement::offset::OffsetStorage;

@@ -29,12 +29,12 @@ use crate::journal::cache::JournalCacheManager;
 use crate::journal::controller::call_node::JournalInnerCallManager;
 use crate::mqtt::cache::MqttCacheManager;
 use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
-use crate::route::apply::RaftMachineApply;
-use crate::server::grpc::service_inner::GrpcPlacementService;
-use crate::server::grpc::service_journal::GrpcEngineService;
-use crate::server::grpc::service_kv::GrpcKvService;
-use crate::server::grpc::service_mqtt::GrpcMqttService;
-use crate::server::grpc::service_openraft::GrpcOpenRaftServices;
+use crate::raft::route::apply::RaftMachineApply;
+use crate::server::service_inner::GrpcPlacementService;
+use crate::server::service_journal::GrpcEngineService;
+use crate::server::service_kv::GrpcKvService;
+use crate::server::service_mqtt::GrpcMqttService;
+use crate::server::service_openraft::GrpcOpenRaftServices;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterServiceServer;
 use protocol::placement_center::placement_center_journal::engine_service_server::EngineServiceServer;
 use protocol::placement_center::placement_center_kv::kv_service_server::KvServiceServer;
@@ -194,7 +194,7 @@ fn parse_path(uri: &str) -> (String, String) {
 #[cfg(test)]
 mod test {
 
-    use crate::server::grpc::server::parse_path;
+    use crate::server::grpc_server::parse_path;
 
     #[tokio::test]
     async fn parse_path_test() {

@@ -35,7 +35,7 @@ use crate::journal::services::segment::{
 use crate::journal::services::shard::{
     sync_delete_shard_info, update_shard_status, update_start_segment_by_shard,
 };
-use crate::route::apply::RaftMachineApply;
+use crate::raft::route::apply::RaftMachineApply;
 
 pub async fn gc_shard_thread(
     raft_machine_apply: Arc<RaftMachineApply>,

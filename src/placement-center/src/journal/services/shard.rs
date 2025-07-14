@@ -22,8 +22,8 @@ use crate::journal::controller::call_node::{
     update_cache_by_set_segment, update_cache_by_set_segment_meta, update_cache_by_set_shard,
     JournalInnerCallManager,
 };
-use crate::route::apply::RaftMachineApply;
-use crate::route::data::{StorageData, StorageDataType};
+use crate::raft::route::apply::RaftMachineApply;
+use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::journal::shard::ShardStorage;
 use common_base::tools::{now_mills, unique_id};
 use grpc_clients::pool::ClientPool;

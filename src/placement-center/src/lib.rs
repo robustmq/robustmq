@@ -24,7 +24,7 @@ use mqtt::connector::scheduler::start_connector_scheduler;
 use mqtt::controller::call_broker::{mqtt_call_thread_manager, MQTTInnerCallManager};
 use openraft::Raft;
 use raft::leadership::monitoring_leader_transition;
-use server::grpc::server::start_grpc_server;
+use server::grpc_server::start_grpc_server;
 use storage::rocksdb::{column_family_list, storage_data_fold, RocksDBEngine};
 use tokio::signal;
 use tokio::sync::broadcast::Sender;
@@ -37,9 +37,9 @@ use crate::journal::cache::{load_journal_cache, JournalCacheManager};
 use crate::journal::controller::call_node::{journal_call_thread_manager, JournalInnerCallManager};
 use crate::mqtt::cache::MqttCacheManager;
 use crate::raft::raft_node::{create_raft_node, start_openraft_node};
+use crate::raft::route::apply::RaftMachineApply;
+use crate::raft::route::DataRoute;
 use crate::raft::typeconfig::TypeConfig;
-use crate::route::apply::RaftMachineApply;
-use crate::route::DataRoute;
 
 pub mod core;
 mod inner;
@@ -47,7 +47,6 @@ mod journal;
 mod kv;
 mod mqtt;
 mod raft;
-mod route;
 mod server;
 mod storage;
 

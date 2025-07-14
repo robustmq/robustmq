@@ -37,7 +37,7 @@ use crate::journal::services::segment::{
 use crate::journal::services::shard::{
     create_shard_by_req, delete_shard_by_req, list_shard_by_req,
 };
-use crate::route::apply::RaftMachineApply;
+use crate::raft::route::apply::RaftMachineApply;
 
 pub struct GrpcEngineService {
     raft_machine_apply: Arc<RaftMachineApply>,

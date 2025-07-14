@@ -18,7 +18,7 @@ use crate::{
     core::cache::PlacementCacheManager,
     journal::{cache::JournalCacheManager, controller::StorageEngineController},
     mqtt::{cache::MqttCacheManager, controller::MqttController},
-    route::apply::RaftMachineApply,
+    raft::route::apply::RaftMachineApply,
 };
 
 use super::typeconfig::TypeConfig;
