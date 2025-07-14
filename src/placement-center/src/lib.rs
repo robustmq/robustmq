@@ -44,6 +44,8 @@ mod server;
 mod storage;
 
 pub struct PlacementCenter {
+    raf_node: Raft<TypeConfig>,
+    storage_driver: Arc<StorageDriver>,
     // Cache metadata information for the Storage Engine cluster
     cache_manager: Arc<CacheManager>,
     // Raft Global read and write pointer
@@ -56,14 +58,8 @@ pub struct PlacementCenter {
     mqtt_call_manager: Arc<MQTTInnerCallManager>,
 }
 
-impl Default for PlacementCenter {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl PlacementCenter {
-    pub fn new() -> PlacementCenter {
+    pub async fn new() -> PlacementCenter {
         let config = placement_center_conf();
         let client_pool = Arc::new(ClientPool::new(100));
         let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(
@@ -77,66 +73,52 @@ impl PlacementCenter {
 
         let journal_call_manager = Arc::new(JournalInnerCallManager::new(cache_manager.clone()));
         let mqtt_call_manager = Arc::new(MQTTInnerCallManager::new(cache_manager.clone()));
+
+        let data_route = Arc::new(DataRoute::new(
+            rocksdb_engine_handler.clone(),
+            cache_manager.clone(),
+        ));
+        let raf_node: Raft<TypeConfig> = create_raft_node(client_pool.clone(), data_route).await;
+        let storage_driver: Arc<StorageDriver> = Arc::new(StorageDriver::new(raf_node.clone()));
         PlacementCenter {
             cache_manager,
             rocksdb_engine_handler,
             client_pool,
             journal_call_manager,
             mqtt_call_manager,
+            raf_node,
+            storage_driver,
         }
     }
 
     pub async fn start(&mut self, stop_send: Sender<bool>) {
         self.start_init();
 
-        let data_route = Arc::new(DataRoute::new(
-            self.rocksdb_engine_handler.clone(),
-            self.cache_manager.clone(),
-        ));
+        self.start_raft_machine();
 
-        self.start_call_thread();
-
-        let raf_node = create_raft_node(self.client_pool.clone(), data_route).await;
-
-        let storage_driver = Arc::new(StorageDriver::new(raf_node.clone()));
-
-        self.start_heartbeat(storage_driver.clone(), stop_send.clone());
-
-        self.start_raft_machine(raf_node.clone());
+        self.start_heartbeat(stop_send.clone());
 
         self.start_prometheus();
 
-        self.start_grpc_server(storage_driver.clone());
+        self.start_mqtt_controller(stop_send.clone());
 
-        self.monitoring_leader_transition(raf_node.clone(), storage_driver.clone());
+        self.start_journal_controller();
+
+        self.start_grpc_server();
 
         self.awaiting_stop(stop_send).await;
     }
 
-    pub fn monitoring_leader_transition(
-        &self,
-        raft: Raft<TypeConfig>,
-        raft_machine_apply: Arc<StorageDriver>,
-    ) {
-        monitoring_leader_transition(
-            &raft,
-            self.rocksdb_engine_handler.clone(),
-            self.cache_manager.clone(),
-            self.client_pool.clone(),
-            raft_machine_apply,
-        );
-    }
-
-    // Start Grpc Server
-    pub fn start_grpc_server(&self, raft_machine_apply: Arc<StorageDriver>) {
+    pub fn start_grpc_server(&self) {
         let cache_manager = self.cache_manager.clone();
         let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
         let client_pool = self.client_pool.clone();
         let journal_call_manager = self.journal_call_manager.clone();
         let mqtt_call_manager = self.mqtt_call_manager.clone();
+        let storage_driver = self.storage_driver.clone();
         tokio::spawn(async move {
             if let Err(e) = start_grpc_server(
-                raft_machine_apply,
+                storage_driver,
                 cache_manager,
                 rocksdb_engine_handler,
                 client_pool,
@@ -150,23 +132,59 @@ impl PlacementCenter {
         });
     }
 
-    pub fn start_heartbeat(&self, raft_machine_apply: Arc<StorageDriver>, stop_send: Sender<bool>) {
+    pub fn start_heartbeat(&self, stop_send: Sender<bool>) {
         let ctrl = ClusterController::new(
             self.cache_manager.clone(),
-            raft_machine_apply.clone(),
+            self.storage_driver.clone(),
             stop_send.clone(),
             self.client_pool.clone(),
             self.journal_call_manager.clone(),
             self.mqtt_call_manager.clone(),
         );
+
         tokio::spawn(async move {
             ctrl.start_node_heartbeat_check().await;
+        });
+    }
+
+    fn start_raft_machine(&self) {
+        // create raft node
+        let raft_node = self.raf_node.clone();
+        tokio::spawn(async move {
+            start_raft_node(raft_node).await;
+        });
+
+        // monitor leader switch
+        monitoring_leader_transition(
+            &self.raf_node,
+            self.rocksdb_engine_handler.clone(),
+            self.cache_manager.clone(),
+            self.client_pool.clone(),
+            self.storage_driver.clone(),
+        );
+    }
+
+    fn start_prometheus(&self) {
+        let conf = placement_center_conf();
+        if conf.prometheus.enable {
+            tokio::spawn(async move {
+                register_prometheus_export(conf.prometheus.port).await;
+            });
+        }
+    }
+
+    fn start_mqtt_controller(&self, stop_send: Sender<bool>) {
+        let mqtt_all_manager = self.mqtt_call_manager.clone();
+        let client_pool = self.client_pool.clone();
+        tokio::spawn(async move {
+            mqtt_call_thread_manager(&mqtt_all_manager, &client_pool).await;
         });
 
         // start mqtt connector scheduler thread
         let call_manager = self.mqtt_call_manager.clone();
         let client_pool = self.client_pool.clone();
         let cache_manager = self.cache_manager.clone();
+        let raft_machine_apply = self.storage_driver.clone();
         tokio::spawn(async move {
             start_connector_scheduler(
                 &cache_manager,
@@ -179,32 +197,11 @@ impl PlacementCenter {
         });
     }
 
-    fn start_raft_machine(&self, raft_node: Raft<TypeConfig>) {
-        tokio::spawn(async move {
-            start_raft_node(raft_node).await;
-        });
-    }
-
-    fn start_prometheus(&self) {
-        let conf = placement_center_conf();
-        if conf.prometheus.enable {
-            tokio::spawn(async move {
-                register_prometheus_export(conf.prometheus.port).await;
-            });
-        }
-    }
-
-    fn start_call_thread(&self) {
+    fn start_journal_controller(&self) {
         let client_pool = self.client_pool.clone();
         let journal_all_manager = self.journal_call_manager.clone();
         tokio::spawn(async move {
             journal_call_thread_manager(&journal_all_manager, &client_pool).await;
-        });
-
-        let mqtt_all_manager = self.mqtt_call_manager.clone();
-        let client_pool = self.client_pool.clone();
-        tokio::spawn(async move {
-            mqtt_call_thread_manager(&mqtt_all_manager, &client_pool).await;
         });
     }
 
