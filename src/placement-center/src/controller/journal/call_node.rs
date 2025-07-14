@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
-
+use crate::core::cache::CacheManager;
+use crate::core::error::PlacementCenterError;
 use dashmap::DashMap;
 use grpc_clients::journal::inner::call::journal_inner_update_cache;
 use grpc_clients::pool::ClientPool;
@@ -25,13 +24,12 @@ use metadata_struct::placement::node::BrokerNode;
 use protocol::journal_server::journal_inner::{
     JournalUpdateCacheActionType, JournalUpdateCacheResourceType, UpdateJournalCacheRequest,
 };
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
-
-use crate::core::cache::CacheManager;
-use crate::core::error::PlacementCenterError;
 
 #[derive(Clone)]
 pub struct JournalInnerCallMessage {
