@@ -51,6 +51,7 @@ pub struct CacheManager {
     // (cluster_name_node_id, NodeHeartbeatData)
     pub node_heartbeat: DashMap<String, NodeHeartbeatData>,
 
+    // MQTT
     // (cluster_name,(topic_name,topic))
     pub topic_list: DashMap<String, DashMap<String, MQTTTopic>>,
 
@@ -66,6 +67,7 @@ pub struct CacheManager {
     //(cluster_connector_name, ConnectorHeartbeat)
     pub connector_heartbeat: DashMap<String, ConnectorHeartbeat>,
 
+    // Journal
     //（cluster_name_namespace_shard_name, JournalShard）
     pub shard_list: DashMap<String, JournalShard>,
     pub segment_list: DashMap<String, DashMap<u32, JournalSegment>>,
@@ -228,6 +230,9 @@ pub fn load_cache(
     cache_manager: &Arc<CacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
 ) -> Result<(), PlacementCenterError> {
+    // placement
+
+    // journal
     let shard_storage = ShardStorage::new(rocksdb_engine_handler.clone());
     let res = shard_storage.all_shard()?;
     for shard in res {
@@ -246,6 +251,7 @@ pub fn load_cache(
         cache_manager.set_segment_meta(&meta);
     }
 
+    // mqtt
     for cluster in cache_manager.get_all_cluster() {
         if cluster.cluster_type == *ClusterType::MqttBrokerServer.as_str_name() {
             // Topic
