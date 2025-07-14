@@ -854,6 +854,7 @@ dependencies = [
 name = "common-base"
 version = "0.1.25"
 dependencies = [
+ "anyhow",
  "apache-avro",
  "axum",
  "bincode",
@@ -2488,7 +2489,8 @@ dependencies = [
 [[package]]
 name = "kafka-protocol"
 version = "0.15.1"
-source = "git+https://github.com/tychedelia/kafka-protocol-rs.git?branch=main#0dee82c42535df2f8bc6e98e1af61165c905ecd5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6509e79955e012e08bce83c5f8ef2a40c69ed1c807ec7c4f7670f70a5feb1e5b"
 dependencies = [
  "anyhow",
  "bytes",

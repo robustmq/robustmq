@@ -34,7 +34,7 @@ common-base.workspace = true
 serde.workspace = true
 validator.workspace = true
 prost-validate = { workspace = true, features = ["derive"] }
-kafka-protocol= { git = "https://github.com/tychedelia/kafka-protocol-rs.git", branch = "main" }
+kafka-protocol = "0.15.1"
 
 [dev-dependencies]
 robustmq-test.workspace = true

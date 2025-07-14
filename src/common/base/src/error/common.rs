@@ -17,6 +17,7 @@ use std::net::AddrParseError;
 use std::num::ParseIntError;
 use std::string::FromUtf8Error;
 
+use anyhow;
 use thiserror::Error;
 use tonic::Status;
 use valico::json_schema::SchemaError;
@@ -46,6 +47,9 @@ pub enum CommonError {
 
     #[error("{0}")]
     FromIoError(#[from] io::Error),
+
+    #[error("{0}")]
+    AnyHowError(#[from] anyhow::Error),
 
     #[error("{0}")]
     FromUtf8Error(#[from] FromUtf8Error),
@@ -79,6 +83,12 @@ pub enum CommonError {
 
     #[error("Module {0} does not support this feature {1}")]
     NotSupportFeature(String, String),
+
+    #[error("Cannot recognize Kafka protocol {0}")]
+    NotSupportKafkaRequest(i16),
+
+    #[error("Kafka Encode cannot recognize package {0}")]
+    NotSupportKafkaEncodePacket(String),
 
     #[error("Unavailable cluster type")]
     UnavailableClusterType,

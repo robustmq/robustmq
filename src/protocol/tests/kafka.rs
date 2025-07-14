@@ -14,29 +14,24 @@
 
 #[cfg(test)]
 mod tests {
-    use futures::{SinkExt, StreamExt};
+    use futures::StreamExt;
     use protocol::kafka::codec::KafkaCodec;
-    use robustmq_test::mqtt_build_tool::build_connect::build_mqtt4_pg_connect;
     use tokio::net::TcpListener;
     use tokio::{io, net::TcpStream};
-    use tokio_util::codec::{Framed, FramedRead, FramedWrite};
+    use tokio_util::codec::{FramedRead, FramedWrite};
 
     #[tokio::test]
     #[ignore = "reason"]
     async fn kafka_server() {
         let ip = "127.0.0.1:9092";
         let listener = TcpListener::bind(ip).await.unwrap();
-        println!("555");
         let (stream, _) = listener.accept().await.unwrap();
-        println!("444");
         let (r_stream, w_stream) = io::split(stream);
         let codec = KafkaCodec::new();
         let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
-        let write_frame_stream = FramedWrite::new(w_stream, codec.clone());
+        let _write_frame_stream = FramedWrite::new(w_stream, codec.clone());
         loop {
-            println!("xxxx1");
-            let data = read_frame_stream.next().await;
-            println!("Got: {data:?}");
+            let _data = read_frame_stream.next().await;
         }
     }
 

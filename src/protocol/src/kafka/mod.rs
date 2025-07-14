@@ -12,5 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[allow(clippy::result_large_err)]
 pub mod codec;
 pub mod packet;

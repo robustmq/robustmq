@@ -11,3 +11,29 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+use kafka_protocol::messages::{
+    ApiVersionsRequest, ApiVersionsResponse, FetchRequest, FetchResponse, ListOffsetsRequest,
+    ListOffsetsResponse, MetadataRequest, MetadataResponse, ProduceRequest, ProduceResponse,
+    RequestHeader,
+};
+
+#[derive(Debug)]
+pub struct KafkaPacketWrapper {
+    pub header: RequestHeader,
+    pub packet: KafkaPacket,
+}
+
+#[derive(Debug)]
+pub enum KafkaPacket {
+    ProduceReq(ProduceRequest),
+    ProduceResponse(ProduceResponse),
+    FetchReq(FetchRequest),
+    FetchResponse(FetchResponse),
+    ListOffsetsReq(ListOffsetsRequest),
+    ListOffsetsResponse(ListOffsetsResponse),
+    MetadataReq(MetadataRequest),
+    MetadataResponse(MetadataResponse),
+    ApiVersionReq(ApiVersionsRequest),
+    ApiVersionResponse(ApiVersionsResponse),
+}
