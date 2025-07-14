@@ -14,7 +14,7 @@
 
 use tracing::info;
 
-pub const DEFAULT_PLACEMENT_CENTER_CONFIG: &str = "./version.ini";
+pub const DEFAULT_PLACEMENT_CENTER_CONFIG: &str = "./config/version.ini";
 
 pub fn banner() {
     const B: &str = r"
@@ -31,7 +31,16 @@ pub fn banner() {
 
     ";
 
-    info!("{B}\n");
+    info!("{B}");
+
+    // Print version information
+    let version = super::version();
+    info!("Version: {}", version);
+
+    // Print components information
+    info!("Components:");
+    info!("  - MQTT Broker");
+    info!("  - Placement Center");
 }
 
 #[cfg(test)]
