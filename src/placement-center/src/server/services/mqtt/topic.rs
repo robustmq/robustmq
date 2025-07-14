@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::error::PlacementCenterError;
-use crate::mqtt::controller::call_broker::{
+use crate::controller::mqtt::call_broker::{
     update_cache_by_add_topic, update_cache_by_delete_topic, MQTTInnerCallManager,
 };
+use crate::core::error::PlacementCenterError;
 use crate::raft::route::apply::RaftMachineApply;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::topic::MqttTopicStorage;

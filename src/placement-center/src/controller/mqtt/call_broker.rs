@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::cache::CacheManager;
+use crate::core::error::PlacementCenterError;
 use dashmap::DashMap;
 use grpc_clients::mqtt::inner::call::broker_mqtt_update_cache;
 use grpc_clients::pool::ClientPool;
@@ -29,16 +31,12 @@ use protocol::broker_mqtt::broker_mqtt_inner::{
 };
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::error;
-use tracing::info;
-use tracing::warn;
-
 use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::sleep;
-
-use crate::core::cache::PlacementCacheManager;
-use crate::core::error::PlacementCenterError;
+use tracing::error;
+use tracing::info;
+use tracing::warn;
 
 #[derive(Clone)]
 pub struct MQTTInnerCallMessage {
@@ -57,11 +55,11 @@ pub struct MQTTInnerCallNodeSender {
 pub struct MQTTInnerCallManager {
     node_sender: DashMap<String, MQTTInnerCallNodeSender>,
     node_stop_sender: DashMap<String, Sender<bool>>,
-    placement_cache_manager: Arc<PlacementCacheManager>,
+    placement_cache_manager: Arc<CacheManager>,
 }
 
 impl MQTTInnerCallManager {
-    pub fn new(placement_cache_manager: Arc<PlacementCacheManager>) -> Self {
+    pub fn new(placement_cache_manager: Arc<CacheManager>) -> Self {
         let node_sender = DashMap::with_capacity(2);
         let node_sender_thread = DashMap::with_capacity(2);
         MQTTInnerCallManager {

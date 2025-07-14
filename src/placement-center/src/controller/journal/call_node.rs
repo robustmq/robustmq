@@ -30,7 +30,7 @@ use tokio::sync::broadcast::{self, Sender};
 use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
 
-use crate::core::cache::PlacementCacheManager;
+use crate::core::cache::CacheManager;
 use crate::core::error::PlacementCenterError;
 
 #[derive(Clone)]
@@ -50,11 +50,11 @@ pub struct JournalInnerCallNodeSender {
 pub struct JournalInnerCallManager {
     node_sender: DashMap<String, JournalInnerCallNodeSender>,
     node_stop_sender: DashMap<String, Sender<bool>>,
-    placement_cache_manager: Arc<PlacementCacheManager>,
+    placement_cache_manager: Arc<CacheManager>,
 }
 
 impl JournalInnerCallManager {
-    pub fn new(placement_cache_manager: Arc<PlacementCacheManager>) -> Self {
+    pub fn new(placement_cache_manager: Arc<CacheManager>) -> Self {
         let node_sender = DashMap::with_capacity(2);
         let node_sender_thread = DashMap::with_capacity(2);
         JournalInnerCallManager {

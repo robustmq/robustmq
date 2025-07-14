@@ -18,3 +18,4 @@ pub mod service_journal;
 pub mod service_kv;
 pub mod service_mqtt;
 pub mod service_openraft;
+pub mod services;

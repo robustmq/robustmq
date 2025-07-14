@@ -12,33 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{collections::HashMap, sync::Arc};
-
+use super::status::{save_connector, update_connector_status_to_running};
+use crate::{
+    controller::mqtt::{
+        call_broker::MQTTInnerCallManager, connector::status::update_connector_status_to_idle,
+    },
+    core::{cache::CacheManager, error::PlacementCenterError},
+    raft::route::apply::RaftMachineApply,
+};
 use common_base::tools::now_second;
 use common_config::place::config::placement_center_conf;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::status::MQTTStatus;
 use protocol::placement_center::placement_center_mqtt::CreateConnectorRequest;
+use std::{collections::HashMap, sync::Arc};
 use tokio::{select, sync::broadcast};
 use tracing::{info, warn};
 
-use crate::{
-    core::{cache::PlacementCacheManager, error::PlacementCenterError},
-    mqtt::{
-        cache::MqttCacheManager, connector::status::update_connector_status_to_idle,
-        controller::call_broker::MQTTInnerCallManager,
-    },
-    raft::route::apply::RaftMachineApply,
-};
-
-use super::status::{save_connector, update_connector_status_to_running};
-
 pub async fn start_connector_scheduler(
+    cache_manager: &Arc<CacheManager>,
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-    mqtt_cache: &Arc<MqttCacheManager>,
-    placement_cache: &Arc<PlacementCacheManager>,
+
     stop_send: broadcast::Sender<bool>,
 ) {
     let mut recv = stop_send.subscribe();
@@ -51,7 +47,7 @@ pub async fn start_connector_scheduler(
                     }
                 }
             }
-            _ = scheduler_thread(raft_machine_apply,call_manager,client_pool,mqtt_cache,placement_cache)=>{
+            _ = scheduler_thread(raft_machine_apply, call_manager, client_pool, cache_manager)=>{
                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             }
         }
@@ -62,22 +58,17 @@ async fn scheduler_thread(
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-    mqtt_cache: &Arc<MqttCacheManager>,
-    placement_cache: &Arc<PlacementCacheManager>,
+    cache_manager: &Arc<CacheManager>,
 ) {
-    if let Err(e) = check_heartbeat(raft_machine_apply, call_manager, client_pool, mqtt_cache).await
+    if let Err(e) =
+        check_heartbeat(raft_machine_apply, call_manager, client_pool, cache_manager).await
     {
         info!("check heartbeat error: {:?}", e);
     }
 
-    if let Err(e) = start_stop_connector_thread(
-        raft_machine_apply,
-        call_manager,
-        client_pool,
-        mqtt_cache,
-        placement_cache,
-    )
-    .await
+    if let Err(e) =
+        start_stop_connector_thread(raft_machine_apply, call_manager, client_pool, cache_manager)
+            .await
     {
         info!("start stop connector thread error: {:?}", e);
     }
@@ -87,16 +78,16 @@ async fn check_heartbeat(
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-    mqtt_cache: &Arc<MqttCacheManager>,
+    cache_manager: &Arc<CacheManager>,
 ) -> Result<(), PlacementCenterError> {
     let config = placement_center_conf();
-    for heartbeat in mqtt_cache.get_all_connector_heartbeat() {
+    for heartbeat in cache_manager.get_all_connector_heartbeat() {
         let connector = if let Some(connector) =
-            mqtt_cache.get_connector(&heartbeat.cluster_name, &heartbeat.connector_name)
+            cache_manager.get_connector(&heartbeat.cluster_name, &heartbeat.connector_name)
         {
             connector
         } else {
-            mqtt_cache
+            cache_manager
                 .remove_connector_heartbeat(&heartbeat.cluster_name, &heartbeat.connector_name);
             continue;
         };
@@ -111,7 +102,7 @@ async fn check_heartbeat(
                 raft_machine_apply,
                 call_manager,
                 client_pool,
-                mqtt_cache,
+                cache_manager,
                 &heartbeat.cluster_name,
                 &heartbeat.connector_name,
             )
@@ -125,18 +116,16 @@ async fn start_stop_connector_thread(
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-    mqtt_cache: &Arc<MqttCacheManager>,
-    placement_cache: &Arc<PlacementCacheManager>,
+    cache_manager: &Arc<CacheManager>,
 ) -> Result<(), PlacementCenterError> {
-    for mut connector in mqtt_cache.get_all_connector() {
+    for mut connector in cache_manager.get_all_connector() {
         if connector.broker_id.is_none() && connector.status == MQTTStatus::Running {
             warn!("Connector {} has an abnormal state, which is Running, but the execution node is empty.", connector.cluster_name);
         }
 
         if connector.broker_id.is_none() {
-            connector.broker_id = Some(
-                calc_connector_broker(mqtt_cache, placement_cache, &connector.cluster_name).await?,
-            );
+            connector.broker_id =
+                Some(calc_connector_broker(cache_manager, &connector.cluster_name).await?);
             connector.status = MQTTStatus::Idle;
 
             info!("Connector execution nodes are assigned and Connector {} is assigned to Broker {:?} for execution.",
@@ -168,7 +157,7 @@ async fn start_stop_connector_thread(
                 raft_machine_apply,
                 call_manager,
                 client_pool,
-                mqtt_cache,
+                cache_manager,
                 &connector.cluster_name,
                 &connector.connector_name,
             )
@@ -179,12 +168,11 @@ async fn start_stop_connector_thread(
 }
 
 async fn calc_connector_broker(
-    mqtt_cache: &Arc<MqttCacheManager>,
-    placement_cache: &Arc<PlacementCacheManager>,
+    cache_manager: &Arc<CacheManager>,
     cluster_name: &str,
 ) -> Result<u64, PlacementCenterError> {
     let mut connector_broker_id_nums = HashMap::new();
-    for connector in mqtt_cache.get_all_connector() {
+    for connector in cache_manager.get_all_connector() {
         if let Some(broker_id) = connector.broker_id {
             if let Some(num) = connector_broker_id_nums.get(&broker_id) {
                 connector_broker_id_nums.insert(broker_id, *num + 1);
@@ -195,7 +183,7 @@ async fn calc_connector_broker(
     }
 
     let mut all_broker_id_nums = HashMap::new();
-    for broker_id in placement_cache.get_broker_node_id_by_cluster(cluster_name) {
+    for broker_id in cache_manager.get_broker_node_id_by_cluster(cluster_name) {
         if let Some(num) = connector_broker_id_nums.get(&broker_id) {
             all_broker_id_nums.insert(broker_id, *num);
         } else {

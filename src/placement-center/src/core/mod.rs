@@ -13,6 +13,8 @@
 // limitations under the License.
 
 pub mod cache;
+pub mod cache_journal;
+pub mod cache_mqtt;
 pub mod cluster;
 pub mod controller;
 pub mod error;

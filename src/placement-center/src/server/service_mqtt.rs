@@ -12,32 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::PlacementCacheManager;
-use crate::mqtt::cache::MqttCacheManager;
-use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
-use crate::mqtt::services::acl::{
+use crate::controller::mqtt::call_broker::MQTTInnerCallManager;
+use crate::core::cache::CacheManager;
+use crate::raft::route::apply::RaftMachineApply;
+use crate::server::services::mqtt::acl::{
     create_acl_by_req, create_blacklist_by_req, delete_acl_by_req, delete_blacklist_by_req,
     list_acl_by_req, list_blacklist_by_req,
 };
-use crate::mqtt::services::connector::{
+use crate::server::services::mqtt::connector::{
     connector_heartbeat_by_req, create_connector_by_req, delete_connector_by_req,
     list_connectors_by_req, update_connector_by_req,
 };
-use crate::mqtt::services::session::{
+use crate::server::services::mqtt::session::{
     create_session_by_req, delete_session_by_req, list_session_by_req, update_session_by_req,
 };
-use crate::mqtt::services::share_sub::get_share_sub_leader_by_req;
-use crate::mqtt::services::subscribe::{
+use crate::server::services::mqtt::share_sub::get_share_sub_leader_by_req;
+use crate::server::services::mqtt::subscribe::{
     delete_auto_subscribe_rule_by_req, delete_subscribe_by_req, list_auto_subscribe_rule_by_req,
     list_subscribe_by_req, set_auto_subscribe_rule_by_req, set_subscribe_by_req,
 };
-use crate::mqtt::services::topic::{
+use crate::server::services::mqtt::topic::{
     create_topic_by_req, create_topic_rewrite_rule_by_req, delete_topic_by_req,
     delete_topic_rewrite_rule_by_req, get_topic_retain_message_by_req, list_topic_by_req,
     list_topic_rewrite_rule_by_req, save_last_will_message_by_req, set_topic_retain_message_by_req,
 };
-use crate::mqtt::services::user::{create_user_by_req, delete_user_by_req, list_user_by_req};
-use crate::raft::route::apply::RaftMachineApply;
+use crate::server::services::mqtt::user::{
+    create_user_by_req, delete_user_by_req, list_user_by_req,
+};
 use crate::storage::rocksdb::RocksDBEngine;
 use grpc_clients::pool::ClientPool;
 use prost_validate::Validator;
@@ -68,8 +69,7 @@ use tonic::codegen::tokio_stream::Stream;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcMqttService {
-    cluster_cache: Arc<PlacementCacheManager>,
-    mqtt_cache: Arc<MqttCacheManager>,
+    cache_manager: Arc<CacheManager>,
     raft_machine_apply: Arc<RaftMachineApply>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     mqtt_call_manager: Arc<MQTTInnerCallManager>,
@@ -78,16 +78,14 @@ pub struct GrpcMqttService {
 
 impl GrpcMqttService {
     pub fn new(
-        cluster_cache: Arc<PlacementCacheManager>,
-        mqtt_cache: Arc<MqttCacheManager>,
+        cache_manager: Arc<CacheManager>,
         raft_machine_apply: Arc<RaftMachineApply>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         mqtt_call_manager: Arc<MQTTInnerCallManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         GrpcMqttService {
-            cluster_cache,
-            mqtt_cache,
+            cache_manager,
             raft_machine_apply,
             rocksdb_engine_handler,
             mqtt_call_manager,
@@ -203,7 +201,7 @@ impl MqttService for GrpcMqttService {
             &self.mqtt_call_manager,
             &self.client_pool,
             &self.rocksdb_engine_handler,
-            &self.mqtt_cache,
+            &self.cache_manager,
             &req,
         )
         .await
@@ -301,7 +299,7 @@ impl MqttService for GrpcMqttService {
         req.validate()
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        get_share_sub_leader_by_req(&self.cluster_cache, &self.rocksdb_engine_handler, &req)
+        get_share_sub_leader_by_req(&self.cache_manager, &self.rocksdb_engine_handler, &req)
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
     }
@@ -544,7 +542,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<ConnectorHeartbeatReply>, Status> {
         let req = request.into_inner();
 
-        connector_heartbeat_by_req(&self.mqtt_cache, &req)
+        connector_heartbeat_by_req(&self.cache_manager, &req)
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
     }

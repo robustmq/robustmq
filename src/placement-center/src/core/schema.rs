@@ -14,7 +14,7 @@
 
 use super::error::PlacementCenterError;
 use crate::{
-    mqtt::controller::call_broker::{
+    controller::mqtt::call_broker::{
         update_cache_by_add_schema, update_cache_by_add_schema_bind, update_cache_by_delete_schema,
         update_cache_by_delete_schema_bind, MQTTInnerCallManager,
     },

@@ -12,28 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::user::MqttUser;
-use protocol::placement_center::placement_center_mqtt::{
-    CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListUserReply,
-    ListUserRequest,
-};
-use rocksdb_engine::RocksDBEngine;
-
 use crate::{
-    core::error::PlacementCenterError,
-    mqtt::controller::call_broker::{
+    controller::mqtt::call_broker::{
         update_cache_by_add_user, update_cache_by_delete_user, MQTTInnerCallManager,
     },
+    core::error::PlacementCenterError,
     raft::route::{
         apply::RaftMachineApply,
         data::{StorageData, StorageDataType},
     },
     storage::mqtt::user::MqttUserStorage,
 };
+use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::user::MqttUser;
 use prost::Message;
+use protocol::placement_center::placement_center_mqtt::{
+    CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListUserReply,
+    ListUserRequest,
+};
+use rocksdb_engine::RocksDBEngine;
+use std::sync::Arc;
 
 pub fn list_user_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,

@@ -12,28 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use super::typeconfig::TypeConfig;
 use crate::{
-    core::cache::PlacementCacheManager,
-    journal::{cache::JournalCacheManager, controller::StorageEngineController},
-    mqtt::{cache::MqttCacheManager, controller::MqttController},
+    controller::{journal::StorageEngineController, mqtt::MqttController},
+    core::cache::CacheManager,
     raft::route::apply::RaftMachineApply,
 };
-
-use super::typeconfig::TypeConfig;
 use grpc_clients::pool::ClientPool;
 use openraft::Raft;
 use rocksdb_engine::RocksDBEngine;
+use std::sync::Arc;
 use tokio::sync::broadcast::{self, Sender};
 use tracing::{error, info};
 
 pub fn monitoring_leader_transition(
     raft: &Raft<TypeConfig>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    cluster_cache: Arc<PlacementCacheManager>,
-    mqtt_cache: Arc<MqttCacheManager>,
-    engine_cache: Arc<JournalCacheManager>,
+    cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
     raft_machine_apply: Arc<RaftMachineApply>,
 ) {
@@ -56,9 +51,7 @@ pub fn monitoring_leader_transition(
                                 );
                                 start_controller(
                                     &rocksdb_engine_handler,
-                                    &cluster_cache,
-                                    &mqtt_cache,
-                                    &engine_cache,
+                                    &cache_manager,
                                     &client_pool,
                                     &raft_machine_apply,
                                     stop_send.clone(),
@@ -84,17 +77,14 @@ pub fn monitoring_leader_transition(
 
 pub fn start_controller(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    cluster_cache: &Arc<PlacementCacheManager>,
-    mqtt_cache: &Arc<MqttCacheManager>,
-    engine_cache: &Arc<JournalCacheManager>,
+    cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
     raft_machine_apply: &Arc<RaftMachineApply>,
     stop_send: Sender<bool>,
 ) {
     let mqtt_controller = MqttController::new(
         rocksdb_engine_handler.clone(),
-        cluster_cache.clone(),
-        mqtt_cache.clone(),
+        cache_manager.clone(),
         client_pool.clone(),
         stop_send.clone(),
     );
@@ -104,8 +94,7 @@ pub fn start_controller(
 
     let journal_controller = StorageEngineController::new(
         raft_machine_apply.clone(),
-        engine_cache.clone(),
-        cluster_cache.clone(),
+        cache_manager.clone(),
         client_pool.clone(),
     );
     tokio::spawn(async move {

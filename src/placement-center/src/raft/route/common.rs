@@ -23,7 +23,7 @@ use protocol::placement_center::placement_center_inner::{
 };
 use std::sync::Arc;
 
-use crate::core::cache::PlacementCacheManager;
+use crate::core::cache::CacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::storage::placement::cluster::ClusterStorage;
 use crate::storage::placement::config::ResourceConfigStorage;
@@ -36,13 +36,13 @@ use crate::storage::rocksdb::RocksDBEngine;
 #[derive(Clone)]
 pub struct DataRouteCluster {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    cluster_cache: Arc<PlacementCacheManager>,
+    cluster_cache: Arc<CacheManager>,
 }
 
 impl DataRouteCluster {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        cluster_cache: Arc<PlacementCacheManager>,
+        cluster_cache: Arc<CacheManager>,
     ) -> Self {
         DataRouteCluster {
             rocksdb_engine_handler,
@@ -174,7 +174,7 @@ mod tests {
     use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::ClusterType;
 
-    use crate::core::cache::PlacementCacheManager;
+    use crate::core::cache::CacheManager;
     use crate::raft::route::common::DataRouteCluster;
     use crate::storage::placement::node::NodeStorage;
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
@@ -200,7 +200,7 @@ mod tests {
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));
-        let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine.clone()));
+        let cluster_cache = Arc::new(CacheManager::new(rocksdb_engine.clone()));
         let route = DataRouteCluster::new(rocksdb_engine.clone(), cluster_cache);
         route.add_node(data).await.unwrap();
 

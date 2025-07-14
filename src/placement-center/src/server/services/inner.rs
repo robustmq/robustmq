@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::PlacementCacheManager;
-use crate::core::error::PlacementCenterError;
-use crate::mqtt::controller::call_broker::{
+use crate::controller::mqtt::call_broker::{
     update_cache_by_set_resource_config, MQTTInnerCallManager,
 };
+use crate::core::cache::CacheManager;
+use crate::core::error::PlacementCenterError;
 use crate::raft::route::apply::RaftMachineApply;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::config::ResourceConfigStorage;
@@ -56,7 +56,7 @@ pub async fn cluster_status_by_req(
 }
 
 pub async fn node_list_by_req(
-    cluster_cache: &Arc<PlacementCacheManager>,
+    cluster_cache: &Arc<CacheManager>,
     req: &NodeListRequest,
 ) -> Result<NodeListReply, PlacementCenterError> {
     let mut nodes = Vec::new();
@@ -69,7 +69,7 @@ pub async fn node_list_by_req(
 }
 
 pub async fn heartbeat_by_req(
-    cluster_cache: &Arc<PlacementCacheManager>,
+    cluster_cache: &Arc<CacheManager>,
     req: &HeartbeatRequest,
 ) -> Result<HeartbeatReply, PlacementCenterError> {
     match cluster_cache.get_broker_node(&req.cluster_name, req.node_id) {

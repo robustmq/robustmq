@@ -12,8 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use crate::core::cache::CacheManager;
+use crate::core::error::PlacementCenterError;
+use crate::storage::mqtt::acl::AclStorage;
+use crate::storage::mqtt::blacklist::MqttBlackListStorage;
+use crate::storage::mqtt::connector::MqttConnectorStorage;
+use crate::storage::mqtt::lastwill::MqttLastWillStorage;
+use crate::storage::mqtt::session::MqttSessionStorage;
+use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
+use crate::storage::mqtt::topic::MqttTopicStorage;
+use crate::storage::mqtt::user::MqttUserStorage;
+use crate::storage::rocksdb::RocksDBEngine;
 use common_base::tools::now_mills;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
@@ -34,32 +43,21 @@ use protocol::placement_center::placement_center_mqtt::{
     DeleteTopicRewriteRuleRequest, DeleteUserRequest, SaveLastWillMessageRequest,
     SetAutoSubscribeRuleRequest, SetSubscribeRequest, UpdateSessionRequest,
 };
-
-use crate::core::error::PlacementCenterError;
-use crate::mqtt::cache::MqttCacheManager;
-use crate::storage::mqtt::acl::AclStorage;
-use crate::storage::mqtt::blacklist::MqttBlackListStorage;
-use crate::storage::mqtt::connector::MqttConnectorStorage;
-use crate::storage::mqtt::lastwill::MqttLastWillStorage;
-use crate::storage::mqtt::session::MqttSessionStorage;
-use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
-use crate::storage::mqtt::topic::MqttTopicStorage;
-use crate::storage::mqtt::user::MqttUserStorage;
-use crate::storage::rocksdb::RocksDBEngine;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct DataRouteMqtt {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
-    mqtt_cache: Arc<MqttCacheManager>,
+    cache_manager: Arc<CacheManager>,
 }
 impl DataRouteMqtt {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        mqtt_cache: Arc<MqttCacheManager>,
+        cache_manager: Arc<CacheManager>,
     ) -> Self {
         DataRouteMqtt {
             rocksdb_engine_handler,
-            mqtt_cache,
+            cache_manager,
         }
     }
 
@@ -69,7 +67,7 @@ impl DataRouteMqtt {
         let storage = MqttUserStorage::new(self.rocksdb_engine_handler.clone());
         let user = serde_json::from_slice::<MqttUser>(&req.content)?;
         storage.save(&req.cluster_name, &req.user_name, user.clone())?;
-        self.mqtt_cache.add_user(&req.cluster_name, user);
+        self.cache_manager.add_user(&req.cluster_name, user);
         Ok(())
     }
 
@@ -77,7 +75,7 @@ impl DataRouteMqtt {
         let req = DeleteUserRequest::decode(value.as_ref())?;
         let storage = MqttUserStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&req.cluster_name, &req.user_name)?;
-        self.mqtt_cache
+        self.cache_manager
             .remove_user(&req.cluster_name, &req.user_name);
         Ok(())
     }
@@ -88,7 +86,7 @@ impl DataRouteMqtt {
         let topic = serde_json::from_slice::<MQTTTopic>(&req.content)?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         storage.save(&topic.cluster_name, &topic.topic_name, topic.clone())?;
-        self.mqtt_cache
+        self.cache_manager
             .add_topic(&topic.cluster_name, topic.clone());
         Ok(())
     }
@@ -97,7 +95,7 @@ impl DataRouteMqtt {
         let req = DeleteTopicRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&req.cluster_name, &req.topic_name)?;
-        self.mqtt_cache
+        self.cache_manager
             .remove_topic(&req.cluster_name, &req.topic_name);
         Ok(())
     }
@@ -212,7 +210,8 @@ impl DataRouteMqtt {
         let req = CreateConnectorRequest::decode(value.as_ref())?;
         let connector = serde_json::from_slice::<MQTTConnector>(&req.connector)?;
         storage.save(&req.cluster_name, &req.connector_name, &connector)?;
-        self.mqtt_cache.add_connector(&req.cluster_name, &connector);
+        self.cache_manager
+            .add_connector(&req.cluster_name, &connector);
         Ok(())
     }
 
@@ -220,7 +219,7 @@ impl DataRouteMqtt {
         let storage = MqttConnectorStorage::new(self.rocksdb_engine_handler.clone());
         let req = DeleteConnectorRequest::decode(value.as_ref())?;
         storage.delete(&req.cluster_name, &req.connector_name)?;
-        self.mqtt_cache
+        self.cache_manager
             .remove_connector(&req.cluster_name, &req.connector_name);
         Ok(())
     }

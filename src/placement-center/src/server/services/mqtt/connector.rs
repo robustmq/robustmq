@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::error::PlacementCenterError;
-use crate::mqtt::cache::MqttCacheManager;
-use crate::mqtt::connector::status::save_connector;
-use crate::mqtt::controller::call_broker::{
+use crate::controller::mqtt::call_broker::{
     update_cache_by_delete_connector, MQTTInnerCallManager,
 };
+use crate::controller::mqtt::connector::status::save_connector;
+use crate::core::cache::CacheManager;
+use crate::core::error::PlacementCenterError;
 use crate::raft::route::apply::RaftMachineApply;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::connector::MqttConnectorStorage;
@@ -29,10 +29,11 @@ use protocol::placement_center::placement_center_mqtt::{
     ListConnectorRequest, UpdateConnectorReply, UpdateConnectorRequest,
 };
 use rocksdb_engine::RocksDBEngine;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::warn;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ConnectorHeartbeat {
     pub cluster_name: String,
     pub connector_name: String,
@@ -40,11 +41,12 @@ pub struct ConnectorHeartbeat {
 }
 
 pub fn connector_heartbeat_by_req(
-    mqtt_cache: &Arc<MqttCacheManager>,
+    cache_manager: &Arc<CacheManager>,
     req: &ConnectorHeartbeatRequest,
 ) -> Result<ConnectorHeartbeatReply, PlacementCenterError> {
     for raw in &req.heatbeats {
-        if let Some(connector) = mqtt_cache.get_connector(&req.cluster_name, &raw.connector_name) {
+        if let Some(connector) = cache_manager.get_connector(&req.cluster_name, &raw.connector_name)
+        {
             if connector.broker_id.is_none() {
                 warn!("connector:{} not register", raw.connector_name);
                 continue;
@@ -55,7 +57,7 @@ pub fn connector_heartbeat_by_req(
                 continue;
             }
 
-            mqtt_cache.report_connector_heartbeat(
+            cache_manager.report_connector_heartbeat(
                 &req.cluster_name,
                 &raw.connector_name,
                 raw.heartbeat_time,

@@ -12,30 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
-
+use crate::controller::mqtt::session_expire::ExpireLastWill;
+use crate::core::cache::CacheManager;
+use crate::storage::rocksdb::RocksDBEngine;
+use common_base::tools::now_second;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use message_expire::MessageExpire;
 use session_expire::SessionExpire;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
 use tracing::info;
 
-use crate::core::cache::PlacementCacheManager;
-use crate::mqtt::cache::MqttCacheManager;
-use crate::storage::rocksdb::RocksDBEngine;
-
 pub mod call_broker;
+pub mod connector;
 pub mod message_expire;
 pub mod session_expire;
 
+pub fn is_send_last_will(lastwill: &ExpireLastWill) -> bool {
+    if now_second() >= lastwill.delay_sec {
+        return true;
+    }
+    false
+}
+
 pub struct MqttController {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    placement_center_cache: Arc<PlacementCacheManager>,
-    mqtt_cache_manager: Arc<MqttCacheManager>,
+    cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
     thread_running_info: DashMap<String, bool>,
     stop_send: broadcast::Sender<bool>,
@@ -44,15 +50,13 @@ pub struct MqttController {
 impl MqttController {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        placement_center_cache: Arc<PlacementCacheManager>,
-        mqtt_cache_manager: Arc<MqttCacheManager>,
+        cache_manager: Arc<CacheManager>,
         client_pool: Arc<ClientPool>,
         stop_send: broadcast::Sender<bool>,
     ) -> MqttController {
         MqttController {
             rocksdb_engine_handler,
-            placement_center_cache,
-            mqtt_cache_manager,
+            cache_manager,
             client_pool,
             thread_running_info: DashMap::with_capacity(2),
             stop_send,
@@ -79,7 +83,7 @@ impl MqttController {
     }
 
     pub async fn check_start_thread(&self) {
-        for cluster_name in self.placement_center_cache.get_all_cluster_name() {
+        for cluster_name in self.cache_manager.get_all_cluster_name() {
             if self.thread_running_info.contains_key(&cluster_name) {
                 sleep(Duration::from_secs(1)).await;
                 continue;
@@ -87,8 +91,7 @@ impl MqttController {
             // Periodically check if the session has expired
             let session = SessionExpire::new(
                 self.rocksdb_engine_handler.clone(),
-                self.mqtt_cache_manager.clone(),
-                self.placement_center_cache.clone(),
+                self.cache_manager.clone(),
                 self.client_pool.clone(),
                 cluster_name.clone(),
             );
@@ -113,8 +116,7 @@ impl MqttController {
             // Periodically check if the session has expired
             let session = SessionExpire::new(
                 self.rocksdb_engine_handler.clone(),
-                self.mqtt_cache_manager.clone(),
-                self.placement_center_cache.clone(),
+                self.cache_manager.clone(),
                 self.client_pool.clone(),
                 cluster_name.clone(),
             );

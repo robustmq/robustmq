@@ -12,10 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::PlacementCacheManager;
+use crate::core::cache::CacheManager;
 use crate::core::error::PlacementCenterError;
-use crate::journal::cache::JournalCacheManager;
-use crate::mqtt::cache::MqttCacheManager;
 use crate::raft::route::common::DataRouteCluster;
 use crate::raft::route::journal::DataRouteJournal;
 use crate::raft::route::kv::DataRouteKv;
@@ -52,16 +50,14 @@ pub struct DataRoute {
 impl DataRoute {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        cluster_cache: Arc<PlacementCacheManager>,
-        engine_cache: Arc<JournalCacheManager>,
-        mqtt_cache: Arc<MqttCacheManager>,
+        cache_manager: Arc<CacheManager>,
     ) -> DataRoute {
         let route_kv = DataRouteKv::new(rocksdb_engine_handler.clone());
-        let route_mqtt = DataRouteMqtt::new(rocksdb_engine_handler.clone(), mqtt_cache.clone());
+        let route_mqtt = DataRouteMqtt::new(rocksdb_engine_handler.clone(), cache_manager.clone());
         let route_cluster =
-            DataRouteCluster::new(rocksdb_engine_handler.clone(), cluster_cache.clone());
+            DataRouteCluster::new(rocksdb_engine_handler.clone(), cache_manager.clone());
         let route_journal =
-            DataRouteJournal::new(rocksdb_engine_handler.clone(), engine_cache.clone());
+            DataRouteJournal::new(rocksdb_engine_handler.clone(), cache_manager.clone());
         DataRoute {
             route_kv,
             route_mqtt,
@@ -338,16 +334,12 @@ impl DataRoute {
 
 #[cfg(test)]
 mod test {
+    use crate::{core::cache::CacheManager, storage::rocksdb::DB_COLUMN_FAMILY_CLUSTER};
+
+    use super::DataRoute;
     use rocksdb_engine::RocksDBEngine;
     use std::sync::Arc;
     use tempfile::tempdir;
-
-    use crate::{
-        core::cache::PlacementCacheManager, journal::cache::JournalCacheManager,
-        mqtt::cache::MqttCacheManager, storage::rocksdb::DB_COLUMN_FAMILY_CLUSTER,
-    };
-
-    use super::DataRoute;
 
     #[test]
     pub fn snapshot_test() {
@@ -365,17 +357,8 @@ mod test {
                 .unwrap();
         }
 
-        let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine.clone()));
-        let engine_cache = Arc::new(JournalCacheManager::new());
-        let mqtt_cache = Arc::new(MqttCacheManager::new());
-
-        let data_route = DataRoute::new(
-            rocksdb_engine.clone(),
-            cluster_cache.clone(),
-            engine_cache.clone(),
-            mqtt_cache.clone(),
-        );
-
+        let cache_manager = Arc::new(CacheManager::new(rocksdb_engine.clone()));
+        let data_route = DataRoute::new(rocksdb_engine.clone(), cache_manager.clone());
         let snapshot = data_route.build_snapshot();
 
         // GET A NEW ONE
@@ -386,12 +369,7 @@ mod test {
             vec![DB_COLUMN_FAMILY_CLUSTER.to_string()],
         ));
 
-        let new_data_route = DataRoute::new(
-            new_rocksdb_engine.clone(),
-            cluster_cache,
-            engine_cache,
-            mqtt_cache,
-        );
+        let new_data_route = DataRoute::new(new_rocksdb_engine.clone(), cache_manager);
 
         new_data_route.recover_snapshot(snapshot).unwrap();
 

@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use rocksdb_engine::warp::StorageDataWrap;
+use std::sync::Arc;
 use tokio::time::{self, Duration, Interval};
 use tracing::error;
 

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::PlacementCacheManager;
+use crate::core::cache::CacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::storage::keys::storage_key_mqtt_node_sub_group_leader;
 use crate::storage::placement::kv::KvStorage;
@@ -25,17 +25,17 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 pub struct ShareSubLeader {
-    cluster_cache: Arc<PlacementCacheManager>,
+    cache_manager: Arc<CacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl ShareSubLeader {
     pub fn new(
-        cluster_cache: Arc<PlacementCacheManager>,
+        cache_manager: Arc<CacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
         ShareSubLeader {
-            cluster_cache,
+            cache_manager,
             rocksdb_engine_handler,
         }
     }
@@ -46,7 +46,7 @@ impl ShareSubLeader {
         group_name: &String,
     ) -> Result<u64, CommonError> {
         let mut broker_ids = self
-            .cluster_cache
+            .cache_manager
             .get_broker_node_id_by_cluster(cluster_name);
 
         broker_ids.sort();
@@ -198,11 +198,11 @@ impl ShareSubLeader {
 }
 
 pub fn get_share_sub_leader_by_req(
-    cluster_cache: &Arc<PlacementCacheManager>,
+    cache_manager: &Arc<CacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &GetShareSubLeaderRequest,
 ) -> Result<GetShareSubLeaderReply, PlacementCenterError> {
-    let share_sub = ShareSubLeader::new(cluster_cache.clone(), rocksdb_engine_handler.clone());
+    let share_sub = ShareSubLeader::new(cache_manager.clone(), rocksdb_engine_handler.clone());
 
     // Get leader broker ID for the shared subscription group
     let leader_broker = share_sub
@@ -210,7 +210,7 @@ pub fn get_share_sub_leader_by_req(
         .map_err(|e| PlacementCenterError::CommonError(e.to_string()))?;
 
     // Get broker node details from cache
-    match cluster_cache.get_broker_node(&req.cluster_name, leader_broker) {
+    match cache_manager.get_broker_node(&req.cluster_name, leader_broker) {
         Some(node) => Ok(GetShareSubLeaderReply {
             broker_id: node.node_id,
             broker_addr: node.node_ip,
@@ -222,16 +222,15 @@ pub fn get_share_sub_leader_by_req(
 
 #[cfg(test)]
 mod tests {
+    use super::ShareSubLeader;
+    use crate::core::cache::CacheManager;
+    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
     use common_base::tools::{now_second, unique_id};
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::place::config::placement_center_test_conf;
     use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::ClusterType;
     use std::sync::Arc;
-
-    use super::ShareSubLeader;
-    use crate::core::cache::PlacementCacheManager;
-    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     #[test]
     fn node_leader_info_test() {
@@ -242,7 +241,7 @@ mod tests {
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));
-        let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
+        let cluster_cache = Arc::new(CacheManager::new(rocksdb_engine_handler.clone()));
         let share_sub = ShareSubLeader::new(cluster_cache, rocksdb_engine_handler.clone());
         let cluster_name = unique_id();
         let broker_id = 1;
@@ -293,7 +292,7 @@ mod tests {
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));
-        let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
+        let cluster_cache = Arc::new(CacheManager::new(rocksdb_engine_handler.clone()));
         cluster_cache.add_broker_node(BrokerNode {
             cluster_name: cluster_name.clone(),
             cluster_type: ClusterType::MqttBrokerServer.as_str_name().to_string(),

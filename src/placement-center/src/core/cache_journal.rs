@@ -12,43 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use crate::core::cache::CacheManager;
 use dashmap::DashMap;
 use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
-use rocksdb_engine::RocksDBEngine;
-use serde::{Deserialize, Serialize};
 
-use crate::core::error::PlacementCenterError;
-use crate::storage::journal::segment::SegmentStorage;
-use crate::storage::journal::segment_meta::SegmentMetadataStorage;
-use crate::storage::journal::shard::ShardStorage;
-
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
-pub struct JournalCacheManager {
-    //（cluster_name_namespace_shard_name, JournalShard）
-    shard_list: DashMap<String, JournalShard>,
-
-    // ()
-    segment_list: DashMap<String, DashMap<u32, JournalSegment>>,
-    segment_meta_list: DashMap<String, DashMap<u32, JournalSegmentMetadata>>,
-    wait_delete_shard_list: DashMap<String, JournalShard>,
-    wait_delete_segment_list: DashMap<String, JournalSegment>,
-}
-
-impl JournalCacheManager {
-    pub fn new() -> JournalCacheManager {
-        JournalCacheManager {
-            shard_list: DashMap::with_capacity(8),
-            segment_list: DashMap::with_capacity(256),
-            segment_meta_list: DashMap::with_capacity(256),
-            wait_delete_shard_list: DashMap::with_capacity(8),
-            wait_delete_segment_list: DashMap::with_capacity(8),
-        }
-    }
-
+impl CacheManager {
     // Shard
     pub fn get_shard(
         &self,
@@ -286,28 +256,4 @@ impl JournalCacheManager {
     ) -> String {
         format!("{cluster_name}_{namespace}_{shard_name}_{segment_seq}")
     }
-}
-
-pub fn load_journal_cache(
-    engine_cache: &Arc<JournalCacheManager>,
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-) -> Result<(), PlacementCenterError> {
-    let shard_storage = ShardStorage::new(rocksdb_engine_handler.clone());
-    let res = shard_storage.all_shard()?;
-    for shard in res {
-        engine_cache.set_shard(&shard);
-    }
-
-    let segment_storage = SegmentStorage::new(rocksdb_engine_handler.clone());
-    let res = segment_storage.all_segment()?;
-    for segment in res {
-        engine_cache.set_segment(&segment);
-    }
-
-    let segment_metadata_storage = SegmentMetadataStorage::new(rocksdb_engine_handler.clone());
-    let res = segment_metadata_storage.all_segment()?;
-    for meta in res {
-        engine_cache.set_segment_meta(&meta);
-    }
-    Ok(())
 }

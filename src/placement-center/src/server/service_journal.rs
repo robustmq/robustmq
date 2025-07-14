@@ -26,23 +26,21 @@ use protocol::placement_center::placement_center_journal::{
 use rocksdb_engine::RocksDBEngine;
 use tonic::{Request, Response, Status};
 
-use crate::core::cache::PlacementCacheManager;
+use crate::controller::journal::call_node::JournalInnerCallManager;
+use crate::core::cache::CacheManager;
 use crate::core::error::PlacementCenterError;
-use crate::journal::cache::JournalCacheManager;
-use crate::journal::controller::call_node::JournalInnerCallManager;
-use crate::journal::services::segment::{
+use crate::raft::route::apply::RaftMachineApply;
+use crate::server::services::journal::segment::{
     create_segment_by_req, delete_segment_by_req, list_segment_by_req, list_segment_meta_by_req,
     update_segment_meta_by_req, update_segment_status_req,
 };
-use crate::journal::services::shard::{
+use crate::server::services::journal::shard::{
     create_shard_by_req, delete_shard_by_req, list_shard_by_req,
 };
-use crate::raft::route::apply::RaftMachineApply;
 
 pub struct GrpcEngineService {
     raft_machine_apply: Arc<RaftMachineApply>,
-    engine_cache: Arc<JournalCacheManager>,
-    cluster_cache: Arc<PlacementCacheManager>,
+    cache_manager: Arc<CacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     call_manager: Arc<JournalInnerCallManager>,
     client_pool: Arc<ClientPool>,
@@ -51,16 +49,14 @@ pub struct GrpcEngineService {
 impl GrpcEngineService {
     pub fn new(
         raft_machine_apply: Arc<RaftMachineApply>,
-        engine_cache: Arc<JournalCacheManager>,
-        cluster_cache: Arc<PlacementCacheManager>,
+        cache_manager: Arc<CacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         call_manager: Arc<JournalInnerCallManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         GrpcEngineService {
             raft_machine_apply,
-            engine_cache,
-            cluster_cache,
+            cache_manager,
             rocksdb_engine_handler,
             call_manager,
             client_pool,
@@ -88,8 +84,7 @@ impl EngineService for GrpcEngineService {
     ) -> Result<Response<CreateShardReply>, Status> {
         let req = request.into_inner();
         create_shard_by_req(
-            &self.engine_cache,
-            &self.cluster_cache,
+            &self.cache_manager,
             &self.raft_machine_apply,
             &self.call_manager,
             &self.client_pool,
@@ -106,7 +101,7 @@ impl EngineService for GrpcEngineService {
     ) -> Result<Response<DeleteShardReply>, Status> {
         let req = request.into_inner();
 
-        if self.cluster_cache.get_cluster(&req.cluster_name).is_none() {
+        if self.cache_manager.get_cluster(&req.cluster_name).is_none() {
             return Err(Status::cancelled(
                 PlacementCenterError::ClusterDoesNotExist(req.cluster_name).to_string(),
             ));
@@ -114,7 +109,7 @@ impl EngineService for GrpcEngineService {
 
         delete_shard_by_req(
             &self.raft_machine_apply,
-            &self.engine_cache,
+            &self.cache_manager,
             &self.call_manager,
             &self.client_pool,
             &req,
@@ -147,19 +142,17 @@ impl EngineService for GrpcEngineService {
     ) -> Result<Response<CreateNextSegmentReply>, Status> {
         let req = request.into_inner();
 
-        if self.cluster_cache.get_cluster(&req.cluster_name).is_none() {
+        if self.cache_manager.get_cluster(&req.cluster_name).is_none() {
             return Err(Status::cancelled(
                 PlacementCenterError::ClusterDoesNotExist(req.cluster_name).to_string(),
             ));
         }
 
         match create_segment_by_req(
-            &self.engine_cache,
-            &self.cluster_cache,
+            &self.cache_manager,
             &self.raft_machine_apply,
             &self.call_manager,
             &self.client_pool,
-            &self.rocksdb_engine_handler,
             &req,
         )
         .await
@@ -179,14 +172,14 @@ impl EngineService for GrpcEngineService {
     ) -> Result<Response<DeleteSegmentReply>, Status> {
         let req = request.into_inner();
 
-        if self.cluster_cache.get_cluster(&req.cluster_name).is_none() {
+        if self.cache_manager.get_cluster(&req.cluster_name).is_none() {
             return Err(Status::cancelled(
                 PlacementCenterError::ClusterDoesNotExist(req.cluster_name).to_string(),
             ));
         }
 
         delete_segment_by_req(
-            &self.engine_cache,
+            &self.cache_manager,
             &self.raft_machine_apply,
             &self.call_manager,
             &self.client_pool,
@@ -209,7 +202,7 @@ impl EngineService for GrpcEngineService {
         }
 
         update_segment_status_req(
-            &self.engine_cache,
+            &self.cache_manager,
             &self.raft_machine_apply,
             &self.call_manager,
             &self.client_pool,
@@ -244,7 +237,7 @@ impl EngineService for GrpcEngineService {
         let req = request.into_inner();
 
         update_segment_meta_by_req(
-            &self.engine_cache,
+            &self.cache_manager,
             &self.raft_machine_apply,
             &self.call_manager,
             &self.client_pool,

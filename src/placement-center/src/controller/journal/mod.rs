@@ -12,41 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
-
+use crate::core::cache::CacheManager;
+use crate::raft::route::apply::RaftMachineApply;
 use gc::{gc_segment_thread, gc_shard_thread};
 use grpc_clients::pool::ClientPool;
-use preferred_election::PreferredElection;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::time::sleep;
 use tracing::info;
 
-use super::cache::JournalCacheManager;
-use crate::core::cache::PlacementCacheManager;
-use crate::raft::route::apply::RaftMachineApply;
-
 pub mod call_node;
 pub mod gc;
-pub mod preferred_election;
 
 pub struct StorageEngineController {
     raft_machine_apply: Arc<RaftMachineApply>,
-    engine_cache: Arc<JournalCacheManager>,
-    cluster_cache: Arc<PlacementCacheManager>,
+    cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
 }
 
 impl StorageEngineController {
     pub fn new(
         raft_machine_apply: Arc<RaftMachineApply>,
-        engine_cache: Arc<JournalCacheManager>,
-        cluster_cache: Arc<PlacementCacheManager>,
+        cache_manager: Arc<CacheManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         StorageEngineController {
             raft_machine_apply,
-            engine_cache,
-            cluster_cache,
+            cache_manager,
             client_pool,
         }
     }
@@ -54,21 +46,18 @@ impl StorageEngineController {
     pub async fn start(&self) {
         self.delete_shard_gc_thread();
         self.delete_segment_gc_thread();
-        self.preferred_replica_election();
         info!("Storage Engine Controller started successfully");
     }
 
     pub fn delete_shard_gc_thread(&self) {
         let raft_machine_apply = self.raft_machine_apply.clone();
-        let engine_cache = self.engine_cache.clone();
-        let cluster_cache = self.cluster_cache.clone();
+        let cache_manager = self.cache_manager.clone();
         let client_pool = self.client_pool.clone();
         tokio::spawn(async move {
             loop {
                 gc_shard_thread(
                     raft_machine_apply.clone(),
-                    engine_cache.clone(),
-                    cluster_cache.clone(),
+                    cache_manager.clone(),
                     client_pool.clone(),
                 )
                 .await;
@@ -79,27 +68,18 @@ impl StorageEngineController {
 
     pub fn delete_segment_gc_thread(&self) {
         let raft_machine_apply = self.raft_machine_apply.clone();
-        let engine_cache = self.engine_cache.clone();
-        let cluster_cache = self.cluster_cache.clone();
+        let cache_manager = self.cache_manager.clone();
         let client_pool = self.client_pool.clone();
         tokio::spawn(async move {
             loop {
                 gc_segment_thread(
                     raft_machine_apply.clone(),
-                    engine_cache.clone(),
-                    cluster_cache.clone(),
+                    cache_manager.clone(),
                     client_pool.clone(),
                 )
                 .await;
                 sleep(Duration::from_secs(1)).await;
             }
-        });
-    }
-
-    pub fn preferred_replica_election(&self) {
-        let election = PreferredElection::new();
-        tokio::spawn(async move {
-            election.start().await;
         });
     }
 }

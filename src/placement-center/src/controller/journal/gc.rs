@@ -12,8 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use crate::core::cache::CacheManager;
+use crate::raft::route::apply::RaftMachineApply;
+use crate::server::services::journal::segment::{
+    sync_delete_segment_info, sync_delete_segment_metadata_info, update_segment_status,
+};
+use crate::server::services::journal::shard::{
+    sync_delete_shard_info, update_shard_status, update_start_segment_by_shard,
+};
 use grpc_clients::journal::inner::call::{
     journal_inner_delete_segment_file, journal_inner_delete_shard_file,
     journal_inner_get_segment_delete_status, journal_inner_get_shard_delete_status,
@@ -25,25 +31,15 @@ use protocol::journal_server::journal_inner::{
     DeleteSegmentFileRequest, DeleteShardFileRequest, GetSegmentDeleteStatusRequest,
     GetShardDeleteStatusRequest,
 };
+use std::sync::Arc;
 use tracing::{error, warn};
-
-use crate::core::cache::PlacementCacheManager;
-use crate::journal::cache::JournalCacheManager;
-use crate::journal::services::segment::{
-    sync_delete_segment_info, sync_delete_segment_metadata_info, update_segment_status,
-};
-use crate::journal::services::shard::{
-    sync_delete_shard_info, update_shard_status, update_start_segment_by_shard,
-};
-use crate::raft::route::apply::RaftMachineApply;
 
 pub async fn gc_shard_thread(
     raft_machine_apply: Arc<RaftMachineApply>,
-    engine_cache: Arc<JournalCacheManager>,
-    cluster_cache: Arc<PlacementCacheManager>,
+    cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
 ) {
-    for shard in engine_cache.get_wait_delete_shard_list() {
+    for shard in cache_manager.get_wait_delete_shard_list() {
         if shard.status != JournalShardStatus::PrepareDelete {
             warn!(
                 "shard {} in wait_delete_shard_list is in the wrong state, current state is {:?}",
@@ -56,7 +52,7 @@ pub async fn gc_shard_thread(
         // to deleting
         if let Err(e) = update_shard_status(
             &raft_machine_apply,
-            &engine_cache,
+            &cache_manager,
             &shard.clone(),
             JournalShardStatus::Deleting,
         )
@@ -69,7 +65,7 @@ pub async fn gc_shard_thread(
             continue;
         }
 
-        let node_addrs = cluster_cache.get_broker_node_addr_by_cluster(&shard.cluster_name);
+        let node_addrs = cache_manager.get_broker_node_addr_by_cluster(&shard.cluster_name);
 
         // call all jen delete shard
         for node_addr in node_addrs.iter() {
@@ -111,7 +107,7 @@ pub async fn gc_shard_thread(
         // delete shard/segment by storage/cache
         if !flag {
             // delete segment
-            for segment in engine_cache.get_segment_list_by_shard(
+            for segment in cache_manager.get_segment_list_by_shard(
                 &shard.cluster_name,
                 &shard.namespace,
                 &shard.shard_name,
@@ -128,7 +124,7 @@ pub async fn gc_shard_thread(
             }
 
             // delete segment meta
-            for segment in engine_cache.get_segment_meta_list_by_shard(
+            for segment in cache_manager.get_segment_meta_list_by_shard(
                 &shard.cluster_name,
                 &shard.namespace,
                 &shard.shard_name,
@@ -153,18 +149,17 @@ pub async fn gc_shard_thread(
                 );
             };
 
-            engine_cache.remove_wait_delete_shard(&shard);
+            cache_manager.remove_wait_delete_shard(&shard);
         }
     }
 }
 
 pub async fn gc_segment_thread(
     raft_machine_apply: Arc<RaftMachineApply>,
-    engine_cache: Arc<JournalCacheManager>,
-    cluster_cache: Arc<PlacementCacheManager>,
+    cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
 ) {
-    for segment in engine_cache.get_wait_delete_segment_list() {
+    for segment in cache_manager.get_wait_delete_segment_list() {
         if segment.status != SegmentStatus::PreDelete {
             warn!(
                 "segment {} in wait_delete_segment_list is in the wrong state, current state is {:?}",
@@ -174,20 +169,20 @@ pub async fn gc_segment_thread(
             continue;
         }
 
-        let mut shard = if let Some(shard) = engine_cache.get_shard(
+        let mut shard = if let Some(shard) = cache_manager.get_shard(
             &segment.cluster_name,
             &segment.namespace,
             &segment.shard_name,
         ) {
             shard
         } else {
-            engine_cache.remove_wait_delete_segment(&segment);
+            cache_manager.remove_wait_delete_segment(&segment);
             continue;
         };
 
         // to deleting
         if let Err(e) = update_segment_status(
-            &engine_cache,
+            &cache_manager,
             &raft_machine_apply,
             &segment.clone(),
             SegmentStatus::Deleting,
@@ -204,7 +199,7 @@ pub async fn gc_segment_thread(
 
         // call all jen delete segment
         for node_id in node_ids.iter() {
-            if let Some(node) = cluster_cache.get_broker_node(&segment.cluster_name, *node_id) {
+            if let Some(node) = cache_manager.get_broker_node(&segment.cluster_name, *node_id) {
                 let addrs = vec![node.node_inner_addr.clone()];
                 let request = DeleteSegmentFileRequest {
                     cluster_name: segment.cluster_name.clone(),
@@ -226,7 +221,7 @@ pub async fn gc_segment_thread(
         // get delete segment file status
         let mut flag = true;
         for node_id in node_ids.iter() {
-            if let Some(node) = cluster_cache.get_broker_node(&segment.cluster_name, *node_id) {
+            if let Some(node) = cache_manager.get_broker_node(&segment.cluster_name, *node_id) {
                 let addrs = vec![node.node_inner_addr.clone()];
                 let request = GetSegmentDeleteStatusRequest {
                     cluster_name: segment.cluster_name.clone(),
@@ -259,7 +254,7 @@ pub async fn gc_segment_thread(
             };
 
             // delete segment meta
-            if let Some(meta) = engine_cache.get_segment_meta(
+            if let Some(meta) = cache_manager.get_segment_meta(
                 &segment.cluster_name,
                 &segment.namespace,
                 &segment.shard_name,
@@ -278,7 +273,7 @@ pub async fn gc_segment_thread(
             // update start segment by shard
             if let Err(e) = update_start_segment_by_shard(
                 &raft_machine_apply,
-                &engine_cache,
+                &cache_manager,
                 &mut shard,
                 segment.segment_seq,
             )
@@ -291,7 +286,7 @@ pub async fn gc_segment_thread(
                 );
             }
 
-            engine_cache.remove_wait_delete_segment(&segment);
+            cache_manager.remove_wait_delete_segment(&segment);
         }
     }
 }

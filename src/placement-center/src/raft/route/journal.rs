@@ -12,33 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use metadata_struct::journal::segment::JournalSegment;
-use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
-use metadata_struct::journal::shard::JournalShard;
-
+use crate::core::cache::CacheManager;
 use crate::core::error::PlacementCenterError;
-use crate::journal::cache::JournalCacheManager;
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
 use crate::storage::journal::shard::ShardStorage;
 use crate::storage::rocksdb::RocksDBEngine;
+use metadata_struct::journal::segment::JournalSegment;
+use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
+use metadata_struct::journal::shard::JournalShard;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct DataRouteJournal {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    engine_cache: Arc<JournalCacheManager>,
+    cache_manager: Arc<CacheManager>,
 }
 
 impl DataRouteJournal {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        engine_cache: Arc<JournalCacheManager>,
+        cache_manager: Arc<CacheManager>,
     ) -> Self {
         DataRouteJournal {
             rocksdb_engine_handler,
-            engine_cache,
+            cache_manager,
         }
     }
 
@@ -48,7 +46,7 @@ impl DataRouteJournal {
         let shard_info = serde_json::from_slice::<JournalShard>(&value)?;
         shard_storage.save(&shard_info)?;
 
-        self.engine_cache.set_shard(&shard_info);
+        self.cache_manager.set_shard(&shard_info);
 
         Ok(value)
     }
@@ -63,7 +61,7 @@ impl DataRouteJournal {
             &shard_info.shard_name,
         )?;
 
-        self.engine_cache.remove_shard(
+        self.cache_manager.remove_shard(
             &shard_info.cluster_name,
             &shard_info.namespace,
             &shard_info.shard_name,
@@ -78,7 +76,7 @@ impl DataRouteJournal {
         let storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
         storage.save(segment.clone())?;
 
-        self.engine_cache.set_segment(&segment);
+        self.cache_manager.set_segment(&segment);
 
         Ok(value)
     }
@@ -94,7 +92,7 @@ impl DataRouteJournal {
             segment.segment_seq,
         )?;
 
-        self.engine_cache.remove_segment(
+        self.cache_manager.remove_segment(
             &segment.cluster_name,
             &segment.namespace,
             &segment.shard_name,
@@ -109,7 +107,7 @@ impl DataRouteJournal {
         let storage = SegmentMetadataStorage::new(self.rocksdb_engine_handler.clone());
         storage.save(meta.clone())?;
 
-        self.engine_cache.set_segment_meta(&meta);
+        self.cache_manager.set_segment_meta(&meta);
 
         Ok(value)
     }
@@ -125,7 +123,7 @@ impl DataRouteJournal {
             meta.segment_seq,
         )?;
 
-        self.engine_cache.remove_segment_meta(
+        self.cache_manager.remove_segment_meta(
             &meta.cluster_name,
             &meta.namespace,
             &meta.shard_name,

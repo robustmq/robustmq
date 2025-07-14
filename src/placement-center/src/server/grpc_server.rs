@@ -12,45 +12,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use axum::http::{self};
-use common_base::tools::now_mills;
-use common_config::place::config::placement_center_conf;
-use grpc_clients::pool::ClientPool;
-use rocksdb_engine::RocksDBEngine;
-use tracing::info;
-
-use crate::core::cache::PlacementCacheManager;
+use crate::controller::journal::call_node::JournalInnerCallManager;
+use crate::controller::mqtt::call_broker::MQTTInnerCallManager;
+use crate::core::cache::CacheManager;
 use crate::core::error::PlacementCenterError;
-
 use crate::core::metrics::{metrics_grpc_request_incr, metrics_grpc_request_ms};
-use crate::journal::cache::JournalCacheManager;
-use crate::journal::controller::call_node::JournalInnerCallManager;
-use crate::mqtt::cache::MqttCacheManager;
-use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
 use crate::raft::route::apply::RaftMachineApply;
 use crate::server::service_inner::GrpcPlacementService;
 use crate::server::service_journal::GrpcEngineService;
 use crate::server::service_kv::GrpcKvService;
 use crate::server::service_mqtt::GrpcMqttService;
 use crate::server::service_openraft::GrpcOpenRaftServices;
+use axum::http::{self};
+use common_base::tools::now_mills;
+use common_config::place::config::placement_center_conf;
+use grpc_clients::pool::ClientPool;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterServiceServer;
 use protocol::placement_center::placement_center_journal::engine_service_server::EngineServiceServer;
 use protocol::placement_center::placement_center_kv::kv_service_server::KvServiceServer;
 use protocol::placement_center::placement_center_mqtt::mqtt_service_server::MqttServiceServer;
 use protocol::placement_center::placement_center_openraft::open_raft_service_server::OpenRaftServiceServer;
+use rocksdb_engine::RocksDBEngine;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 use tonic::transport::Server;
 use tower::{Layer, Service};
+use tracing::info;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn start_grpc_server(
     raft_machine_apply: Arc<RaftMachineApply>,
-    cluster_cache: Arc<PlacementCacheManager>,
-    engine_cache: Arc<JournalCacheManager>,
-    mqtt_cache: Arc<MqttCacheManager>,
+    cache_manager: Arc<CacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_pool: Arc<ClientPool>,
     journal_call_manager: Arc<JournalInnerCallManager>,
@@ -61,7 +54,7 @@ pub async fn start_grpc_server(
 
     let placement_handler = GrpcPlacementService::new(
         raft_machine_apply.clone(),
-        cluster_cache.clone(),
+        cache_manager.clone(),
         rocksdb_engine_handler.clone(),
         client_pool.clone(),
         journal_call_manager.clone(),
@@ -72,8 +65,7 @@ pub async fn start_grpc_server(
 
     let engine_handler = GrpcEngineService::new(
         raft_machine_apply.clone(),
-        engine_cache.clone(),
-        cluster_cache.clone(),
+        cache_manager.clone(),
         rocksdb_engine_handler.clone(),
         journal_call_manager.clone(),
         client_pool.clone(),
@@ -82,8 +74,7 @@ pub async fn start_grpc_server(
     let openraft_handler = GrpcOpenRaftServices::new(raft_machine_apply.openraft_node.clone());
 
     let mqtt_handler = GrpcMqttService::new(
-        cluster_cache.clone(),
-        mqtt_cache.clone(),
+        cache_manager.clone(),
         raft_machine_apply.clone(),
         rocksdb_engine_handler.clone(),
         mqtt_call_manager.clone(),

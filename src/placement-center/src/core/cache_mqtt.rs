@@ -12,53 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use crate::controller::mqtt::is_send_last_will;
+use crate::controller::mqtt::session_expire::ExpireLastWill;
+use crate::core::cache::CacheManager;
+use crate::server::services::mqtt::connector::ConnectorHeartbeat;
 use dashmap::DashMap;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MqttUser;
-use protocol::placement_center::placement_center_inner::ClusterType;
 
-use super::controller::session_expire::ExpireLastWill;
-use super::is_send_last_will;
-use crate::core::cache::PlacementCacheManager;
-use crate::core::error::PlacementCenterError;
-use crate::mqtt::services::connector::ConnectorHeartbeat;
-use crate::storage::mqtt::connector::MqttConnectorStorage;
-use crate::storage::mqtt::topic::MqttTopicStorage;
-use crate::storage::mqtt::user::MqttUserStorage;
-use crate::storage::rocksdb::RocksDBEngine;
-
-#[derive(Debug, Clone)]
-pub struct MqttCacheManager {
-    // (cluster_name,(topic_name,topic))
-    topic_list: DashMap<String, DashMap<String, MQTTTopic>>,
-
-    // (cluster_name,(username,user))
-    user_list: DashMap<String, DashMap<String, MqttUser>>,
-
-    // (cluster_name,(client_id,ExpireLastWill))
-    expire_last_wills: DashMap<String, DashMap<String, ExpireLastWill>>,
-
-    // (cluster_name,(client_id,MQTTConnector))
-    connector_list: DashMap<String, DashMap<String, MQTTConnector>>,
-
-    //(cluster_connector_name, ConnectorHeartbeat)
-    connector_heartbeat: DashMap<String, ConnectorHeartbeat>,
-}
-
-impl MqttCacheManager {
-    pub fn new() -> MqttCacheManager {
-        MqttCacheManager {
-            topic_list: DashMap::with_capacity(8),
-            user_list: DashMap::with_capacity(8),
-            expire_last_wills: DashMap::with_capacity(8),
-            connector_list: DashMap::with_capacity(8),
-            connector_heartbeat: DashMap::with_capacity(8),
-        }
-    }
-
+impl CacheManager {
     // Topic
     pub fn add_topic(&self, cluster_name: &str, topic: MQTTTopic) {
         if let Some(data) = self.topic_list.get_mut(cluster_name) {
@@ -189,36 +152,4 @@ impl MqttCacheManager {
         }
         results
     }
-}
-
-pub fn load_mqtt_cache(
-    mqtt_cache: &Arc<MqttCacheManager>,
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    placement_cache: &Arc<PlacementCacheManager>,
-) -> Result<(), PlacementCenterError> {
-    for cluster in placement_cache.get_all_cluster() {
-        if cluster.cluster_type == *ClusterType::MqttBrokerServer.as_str_name() {
-            // Topic
-            let topic = MqttTopicStorage::new(rocksdb_engine_handler.clone());
-            let data = topic.list(&cluster.cluster_name)?;
-            for topic in data {
-                mqtt_cache.add_topic(&cluster.cluster_name, topic);
-            }
-
-            // User
-            let user = MqttUserStorage::new(rocksdb_engine_handler.clone());
-            let data = user.list_by_cluster(&cluster.cluster_name)?;
-            for user in data {
-                mqtt_cache.add_user(&cluster.cluster_name, user);
-            }
-
-            // connector
-            let connector = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
-            let data = connector.list(&cluster.cluster_name)?;
-            for connector in data {
-                mqtt_cache.add_connector(&cluster.cluster_name, &connector);
-            }
-        }
-    }
-    Ok(())
 }

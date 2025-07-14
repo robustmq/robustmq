@@ -12,23 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
-
+use super::heartbeat::BrokerHeartbeat;
+use crate::controller::journal::call_node::JournalInnerCallManager;
+use crate::controller::mqtt::call_broker::MQTTInnerCallManager;
+use crate::core::cache::CacheManager;
+use crate::raft::route::apply::RaftMachineApply;
 use common_config::place::config::placement_center_conf;
 use grpc_clients::pool::ClientPool;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
 
-use super::heartbeat::BrokerHeartbeat;
-use crate::core::cache::PlacementCacheManager;
-use crate::journal::controller::call_node::JournalInnerCallManager;
-use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
-use crate::raft::route::apply::RaftMachineApply;
-
 pub struct ClusterController {
-    cluster_cache: Arc<PlacementCacheManager>,
+    cluster_cache: Arc<CacheManager>,
     placement_center_storage: Arc<RaftMachineApply>,
     stop_send: broadcast::Sender<bool>,
     client_pool: Arc<ClientPool>,
@@ -38,7 +36,7 @@ pub struct ClusterController {
 
 impl ClusterController {
     pub fn new(
-        cluster_cache: Arc<PlacementCacheManager>,
+        cluster_cache: Arc<CacheManager>,
         placement_center_storage: Arc<RaftMachineApply>,
         stop_send: broadcast::Sender<bool>,
         client_pool: Arc<ClientPool>,

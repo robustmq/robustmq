@@ -12,8 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use super::shard::update_last_segment_by_shard;
+use crate::controller::journal::call_node::{
+    update_cache_by_set_segment, update_cache_by_set_segment_meta, update_cache_by_set_shard,
+    JournalInnerCallManager,
+};
+use crate::core::cache::CacheManager;
+use crate::core::error::PlacementCenterError;
+use crate::raft::route::apply::RaftMachineApply;
+use crate::raft::route::data::{StorageData, StorageDataType};
+use crate::storage::journal::segment::SegmentStorage;
+use crate::storage::journal::segment_meta::SegmentMetadataStorage;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::node_extend::JournalNodeExtend;
 use metadata_struct::journal::segment::{
@@ -30,19 +39,7 @@ use protocol::placement_center::placement_center_journal::{
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
 use rocksdb_engine::RocksDBEngine;
-
-use super::shard::update_last_segment_by_shard;
-use crate::core::cache::PlacementCacheManager;
-use crate::core::error::PlacementCenterError;
-use crate::journal::cache::{load_journal_cache, JournalCacheManager};
-use crate::journal::controller::call_node::{
-    update_cache_by_set_segment, update_cache_by_set_segment_meta, update_cache_by_set_shard,
-    JournalInnerCallManager,
-};
-use crate::raft::route::apply::RaftMachineApply;
-use crate::raft::route::data::{StorageData, StorageDataType};
-use crate::storage::journal::segment::SegmentStorage;
-use crate::storage::journal::segment_meta::SegmentMetadataStorage;
+use std::sync::Arc;
 
 pub async fn list_segment_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -76,16 +73,14 @@ pub async fn list_segment_by_req(
 }
 
 pub async fn create_segment_by_req(
-    engine_cache: &Arc<JournalCacheManager>,
-    cluster_cache: &Arc<PlacementCacheManager>,
+    cache_manager: &Arc<CacheManager>,
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &CreateNextSegmentRequest,
 ) -> Result<CreateNextSegmentReply, PlacementCenterError> {
     let mut shard = if let Some(shard) =
-        engine_cache.get_shard(&req.cluster_name, &req.namespace, &req.shard_name)
+        cache_manager.get_shard(&req.cluster_name, &req.namespace, &req.shard_name)
     {
         shard
     } else {
@@ -95,21 +90,21 @@ pub async fn create_segment_by_req(
     };
 
     let next_segment_no = if let Some(segment_no) =
-        engine_cache.next_segment_seq(&req.cluster_name, &req.namespace, &req.shard_name)
+        cache_manager.next_segment_seq(&req.cluster_name, &req.namespace, &req.shard_name)
     {
         segment_no
     } else {
         return Err(PlacementCenterError::ShardDoesNotExist(shard.name()));
     };
 
-    if engine_cache.shard_idle_segment_num(&req.cluster_name, &req.namespace, &req.shard_name) >= 1
+    if cache_manager.shard_idle_segment_num(&req.cluster_name, &req.namespace, &req.shard_name) >= 1
     {
         return Ok(CreateNextSegmentReply {});
     }
 
     let mut shard_notice = false;
     // If the next Segment hasn't already been created, it triggers the creation of the next Segment
-    if engine_cache
+    if cache_manager
         .get_segment(
             &req.cluster_name,
             &req.namespace,
@@ -118,7 +113,7 @@ pub async fn create_segment_by_req(
         )
         .is_none()
     {
-        let segment = build_segment(&shard, engine_cache, cluster_cache, next_segment_no).await?;
+        let segment = build_segment(&shard, cache_manager, next_segment_no).await?;
         sync_save_segment_info(raft_machine_apply, &segment).await?;
 
         let metadata = JournalSegmentMetadata {
@@ -135,7 +130,7 @@ pub async fn create_segment_by_req(
 
         update_last_segment_by_shard(
             raft_machine_apply,
-            engine_cache,
+            cache_manager,
             &mut shard,
             next_segment_no,
         )
@@ -154,7 +149,7 @@ pub async fn create_segment_by_req(
         shard_notice = true;
     }
 
-    let active_segment = if let Some(segment) = engine_cache.get_segment(
+    let active_segment = if let Some(segment) = cache_manager.get_segment(
         &req.cluster_name,
         &req.namespace,
         &req.shard_name,
@@ -162,7 +157,6 @@ pub async fn create_segment_by_req(
     ) {
         segment
     } else {
-        load_journal_cache(engine_cache, rocksdb_engine_handler)?;
         return Err(PlacementCenterError::SegmentDoesNotExist(shard.name()));
     };
 
@@ -182,13 +176,13 @@ pub async fn create_segment_by_req(
 }
 
 pub async fn delete_segment_by_req(
-    engine_cache: &Arc<JournalCacheManager>,
+    cache_manager: &Arc<CacheManager>,
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteSegmentRequest,
 ) -> Result<DeleteSegmentReply, PlacementCenterError> {
-    if engine_cache
+    if cache_manager
         .get_shard(&req.cluster_name, &req.namespace, &req.shard_name)
         .is_none()
     {
@@ -197,7 +191,7 @@ pub async fn delete_segment_by_req(
         ));
     };
 
-    let mut segment = if let Some(segment) = engine_cache.get_segment(
+    let mut segment = if let Some(segment) = cache_manager.get_segment(
         &req.cluster_name,
         &req.namespace,
         &req.shard_name,
@@ -219,7 +213,7 @@ pub async fn delete_segment_by_req(
     }
 
     update_segment_status(
-        engine_cache,
+        cache_manager,
         raft_machine_apply,
         &segment,
         SegmentStatus::PreDelete,
@@ -227,7 +221,7 @@ pub async fn delete_segment_by_req(
     .await?;
 
     segment.status = SegmentStatus::PreDelete;
-    engine_cache.add_wait_delete_segment(&segment);
+    cache_manager.add_wait_delete_segment(&segment);
 
     update_cache_by_set_segment(
         &segment.cluster_name,
@@ -241,13 +235,13 @@ pub async fn delete_segment_by_req(
 }
 
 pub async fn update_segment_status_req(
-    engine_cache: &Arc<JournalCacheManager>,
+    cache_manager: &Arc<CacheManager>,
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UpdateSegmentStatusRequest,
 ) -> Result<UpdateSegmentStatusReply, PlacementCenterError> {
-    let mut segment = if let Some(segment) = engine_cache.get_segment(
+    let mut segment = if let Some(segment) = cache_manager.get_segment(
         &req.cluster_name,
         &req.namespace,
         &req.shard_name,
@@ -315,7 +309,7 @@ pub async fn list_segment_meta_by_req(
 }
 
 pub async fn update_segment_meta_by_req(
-    engine_cache: &Arc<JournalCacheManager>,
+    cache_manager: &Arc<CacheManager>,
     raft_machine_apply: &Arc<RaftMachineApply>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -327,7 +321,7 @@ pub async fn update_segment_meta_by_req(
         ));
     }
 
-    if engine_cache
+    if cache_manager
         .get_segment(
             &req.cluster_name,
             &req.namespace,
@@ -342,7 +336,7 @@ pub async fn update_segment_meta_by_req(
         )));
     };
 
-    let mut segment_meta = if let Some(meta) = engine_cache.get_segment_meta(
+    let mut segment_meta = if let Some(meta) = cache_manager.get_segment_meta(
         &req.cluster_name,
         &req.namespace,
         &req.shard_name,
@@ -382,11 +376,10 @@ pub async fn update_segment_meta_by_req(
 
 pub async fn build_segment(
     shard_info: &JournalShard,
-    engine_cache: &Arc<JournalCacheManager>,
-    cluster_cache: &Arc<PlacementCacheManager>,
+    cache_manager: &Arc<CacheManager>,
     segment_no: u32,
 ) -> Result<JournalSegment, PlacementCenterError> {
-    if let Some(segment) = engine_cache.get_segment(
+    if let Some(segment) = cache_manager.get_segment(
         &shard_info.cluster_name,
         &shard_info.namespace,
         &shard_info.shard_name,
@@ -395,7 +388,7 @@ pub async fn build_segment(
         return Ok(segment.clone());
     }
 
-    let node_list = cluster_cache.get_broker_node_id_by_cluster(&shard_info.cluster_name);
+    let node_list = cache_manager.get_broker_node_id_by_cluster(&shard_info.cluster_name);
     if node_list.len() < shard_info.config.replica_num as usize {
         return Err(PlacementCenterError::NotEnoughNodes(
             shard_info.config.replica_num,
@@ -412,7 +405,7 @@ pub async fn build_segment(
     let mut replicas = Vec::new();
     for i in 0..node_ids.len() {
         let node_id = *node_ids.get(i).unwrap();
-        let fold = calc_node_fold(cluster_cache, &shard_info.cluster_name, node_id)?;
+        let fold = calc_node_fold(cache_manager, &shard_info.cluster_name, node_id)?;
         replicas.push(Replica {
             replica_seq: i as u64,
             node_id,
@@ -448,11 +441,11 @@ fn calc_leader_node(replicas: &[Replica]) -> u64 {
 }
 
 fn calc_node_fold(
-    cluster_cache: &Arc<PlacementCacheManager>,
+    cache_manager: &Arc<CacheManager>,
     cluster_name: &str,
     node_id: u64,
 ) -> Result<String, PlacementCenterError> {
-    let node = if let Some(node) = cluster_cache.get_broker_node(cluster_name, node_id) {
+    let node = if let Some(node) = cache_manager.get_broker_node(cluster_name, node_id) {
         node
     } else {
         return Err(PlacementCenterError::NodeDoesNotExist(node_id));
@@ -468,7 +461,7 @@ fn calc_node_fold(
 }
 
 pub async fn update_segment_status(
-    engine_cache: &Arc<JournalCacheManager>,
+    cache_manager: &Arc<CacheManager>,
     raft_machine_apply: &Arc<RaftMachineApply>,
     segment: &JournalSegment,
     status: SegmentStatus,
@@ -477,7 +470,7 @@ pub async fn update_segment_status(
     new_segment.status = status;
     sync_save_segment_info(raft_machine_apply, &new_segment).await?;
 
-    engine_cache.set_segment(&new_segment);
+    cache_manager.set_segment(&new_segment);
 
     Ok(())
 }
@@ -540,18 +533,16 @@ pub async fn sync_delete_segment_metadata_info(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
+    use super::calc_node_fold;
+    use crate::core::cache::CacheManager;
+    use crate::storage::rocksdb::{column_family_list, storage_data_fold};
     use common_base::tools::now_second;
     use common_config::place::config::placement_center_test_conf;
     use metadata_struct::journal::node_extend::JournalNodeExtend;
     use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::ClusterType;
     use rocksdb_engine::RocksDBEngine;
-
-    use super::calc_node_fold;
-    use crate::core::cache::PlacementCacheManager;
-    use crate::storage::rocksdb::{column_family_list, storage_data_fold};
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn calc_node_fold_test() {
@@ -561,7 +552,7 @@ mod tests {
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));
-        let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler));
+        let cache_manager = Arc::new(CacheManager::new(rocksdb_engine_handler));
         let extend_info = JournalNodeExtend {
             data_fold: vec!["/tmp/t1".to_string(), "/tmp/t2".to_string()],
             tcp_addr: "127.0.0.1:3110".to_string(),
@@ -578,8 +569,8 @@ mod tests {
             node_inner_addr: "".to_string(),
             node_ip: "".to_string(),
         };
-        cluster_cache.add_broker_node(node);
-        let res = calc_node_fold(&cluster_cache, &config.cluster_name, 1).unwrap();
+        cache_manager.add_broker_node(node);
+        let res = calc_node_fold(&cache_manager, &config.cluster_name, 1).unwrap();
         println!("{res}");
         assert!(!res.is_empty())
     }

@@ -12,23 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use crate::core::cache::PlacementCacheManager;
+use crate::controller::journal::call_node::JournalInnerCallManager;
+use crate::controller::mqtt::call_broker::MQTTInnerCallManager;
+use crate::core::cache::CacheManager;
 use crate::core::cluster::{register_node_by_req, un_register_node_by_req};
 use crate::core::schema::{
     bind_schema_req, create_schema_req, delete_schema_req, list_bind_schema_req, list_schema_req,
     un_bind_schema_req, update_schema_req,
 };
-use crate::inner::services::{
+use crate::raft::route::apply::RaftMachineApply;
+use crate::server::services::inner::{
     cluster_status_by_req, delete_idempotent_data_by_req, delete_resource_config_by_req,
     exists_idempotent_data_by_req, get_offset_data_by_req, get_resource_config_by_req,
     heartbeat_by_req, node_list_by_req, save_offset_data_by_req, set_idempotent_data_by_req,
     set_resource_config_by_req,
 };
-use crate::journal::controller::call_node::JournalInnerCallManager;
-use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
-use crate::raft::route::apply::RaftMachineApply;
 use crate::storage::rocksdb::RocksDBEngine;
 use grpc_clients::pool::ClientPool;
 use prost_validate::Validator;
@@ -46,12 +44,13 @@ use protocol::placement_center::placement_center_inner::{
     SetResourceConfigRequest, UnBindSchemaReply, UnBindSchemaRequest, UnRegisterNodeReply,
     UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest,
 };
+use std::sync::Arc;
 use tonic::{Request, Response, Status};
 use tracing::info;
 
 pub struct GrpcPlacementService {
     raft_machine_apply: Arc<RaftMachineApply>,
-    cluster_cache: Arc<PlacementCacheManager>,
+    cluster_cache: Arc<CacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_pool: Arc<ClientPool>,
     journal_call_manager: Arc<JournalInnerCallManager>,
@@ -61,7 +60,7 @@ pub struct GrpcPlacementService {
 impl GrpcPlacementService {
     pub fn new(
         raft_machine_apply: Arc<RaftMachineApply>,
-        cluster_cache: Arc<PlacementCacheManager>,
+        cluster_cache: Arc<CacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         client_pool: Arc<ClientPool>,
         journal_call_manager: Arc<JournalInnerCallManager>,

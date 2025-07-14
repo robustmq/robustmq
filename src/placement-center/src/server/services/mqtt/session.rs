@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::controller::mqtt::call_broker::{
+    update_cache_by_add_session, update_cache_by_delete_session, MQTTInnerCallManager,
+};
+use crate::controller::mqtt::session_expire::ExpireLastWill;
+use crate::core::cache::CacheManager;
 use crate::core::error::PlacementCenterError;
-use crate::mqtt::cache::MqttCacheManager;
-use crate::mqtt::controller::session_expire::ExpireLastWill;
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::{
-    mqtt::controller::call_broker::{
-        update_cache_by_add_session, update_cache_by_delete_session, MQTTInnerCallManager,
-    },
     raft::route::{
         apply::RaftMachineApply,
         data::{StorageData, StorageDataType},
@@ -101,7 +101,7 @@ pub async fn delete_session_by_req(
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    mqtt_cache_manager: &Arc<MqttCacheManager>,
+    cache_manager: &Arc<CacheManager>,
     req: &DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, PlacementCenterError> {
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
@@ -121,7 +121,7 @@ pub async fn delete_session_by_req(
     match storage.get(&req.cluster_name, &req.client_id) {
         Ok(Some(will_message)) => {
             let delay = session.last_will_delay_interval.unwrap_or_default();
-            mqtt_cache_manager.add_expire_last_will(ExpireLastWill {
+            cache_manager.add_expire_last_will(ExpireLastWill {
                 client_id: will_message.client_id.clone(),
                 delay_sec: now_second() + delay,
                 cluster_name: req.cluster_name.to_owned(),
