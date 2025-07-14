@@ -20,4 +20,4 @@ pub mod raft_node;
 pub mod route;
 pub mod services;
 pub mod store;
-pub mod typeconfig;
+pub mod type_config;

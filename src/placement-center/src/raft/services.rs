@@ -14,7 +14,7 @@
 
 use crate::core::error::PlacementCenterError;
 use crate::raft::raft_node::Node;
-use crate::raft::typeconfig::TypeConfig;
+use crate::raft::type_config::TypeConfig;
 use bincode::{deserialize, serialize};
 use openraft::Raft;
 use protocol::placement_center::placement_center_openraft::{

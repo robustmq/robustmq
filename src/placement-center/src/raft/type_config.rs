@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::Cursor;
-
 use crate::raft::raft_node::Node;
 use crate::raft::route::data::StorageData;
 use crate::raft::route::AppResponseData;
+use std::io::Cursor;
 
 pub type SnapshotData = Cursor<Vec<u8>>;
 

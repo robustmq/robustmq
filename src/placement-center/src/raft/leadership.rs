@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::typeconfig::TypeConfig;
+use super::type_config::TypeConfig;
 use crate::{
     controller::{journal::StorageEngineController, mqtt::MqttController},
     core::cache::CacheManager,

@@ -15,7 +15,7 @@
 use common_base::error::common::CommonError;
 use openraft::error::{RPCError, Unreachable};
 
-use super::typeconfig::TypeConfig;
+use super::type_config::TypeConfig;
 
 pub fn to_error<E: std::error::Error + 'static + Clone>(e: CommonError) -> RPCError<TypeConfig, E> {
     RPCError::Unreachable(Unreachable::new(&e))

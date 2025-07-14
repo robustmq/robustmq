@@ -21,7 +21,7 @@ use common_base::error::common::CommonError;
 use openraft::error::{ClientWriteError, RaftError};
 use thiserror::Error;
 
-use crate::raft::typeconfig::TypeConfig;
+use crate::raft::type_config::TypeConfig;
 
 #[derive(Error, Debug)]
 pub enum PlacementCenterError {

@@ -19,7 +19,7 @@ use openraft::RaftNetworkFactory;
 
 use super::connection::NetworkConnection;
 use crate::raft::raft_node::{Node, NodeId};
-use crate::raft::typeconfig::TypeConfig;
+use crate::raft::type_config::TypeConfig;
 
 pub struct Network {
     client_pool: Arc<ClientPool>,

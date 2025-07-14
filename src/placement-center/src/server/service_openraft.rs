@@ -23,7 +23,7 @@ use tonic::{Request, Response, Status};
 use crate::raft::services::{
     add_learner_by_req, append_by_req, change_membership_by_req, snapshot_by_req, vote_by_req,
 };
-use crate::raft::typeconfig::TypeConfig;
+use crate::raft::type_config::TypeConfig;
 
 pub struct GrpcOpenRaftServices {
     raft_node: Raft<TypeConfig>,

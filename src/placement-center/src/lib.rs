@@ -21,7 +21,7 @@ use crate::core::controller::ClusterController;
 use crate::raft::raft_node::{create_raft_node, start_openraft_node};
 use crate::raft::route::apply::RaftMachineApply;
 use crate::raft::route::DataRoute;
-use crate::raft::typeconfig::TypeConfig;
+use crate::raft::type_config::TypeConfig;
 use common_base::metrics::register_prometheus_export;
 use common_base::version::logo::banner;
 use common_config::place::config::placement_center_conf;

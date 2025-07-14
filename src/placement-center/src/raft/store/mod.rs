@@ -22,7 +22,7 @@ use rocksdb::{ColumnFamilyDescriptor, Options, DB};
 use serde::{Deserialize, Serialize};
 use state_machine_store::StateMachineStore;
 
-use super::typeconfig::TypeConfig;
+use super::type_config::TypeConfig;
 use crate::raft::route::DataRoute;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StoredSnapshot {

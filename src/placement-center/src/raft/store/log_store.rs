@@ -22,7 +22,7 @@ use crate::core::metrics::{
     metrics_rocksdb_stroge_total_ms, RocksDBLabels,
 };
 use crate::raft::store::bin_to_id;
-use crate::raft::typeconfig::TypeConfig;
+use crate::raft::type_config::TypeConfig;
 use common_base::tools::now_mills;
 use openraft::storage::{IOFlushed, RaftLogStorage};
 use openraft::{
