@@ -14,9 +14,12 @@
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use futures::StreamExt;
     use protocol::kafka::codec::KafkaCodec;
     use tokio::net::TcpListener;
+    use tokio::time::sleep;
     use tokio::{io, net::TcpStream};
     use tokio_util::codec::{FramedRead, FramedWrite};
 
@@ -31,7 +34,12 @@ mod tests {
         let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
         let _write_frame_stream = FramedWrite::new(w_stream, codec.clone());
         loop {
-            let _data = read_frame_stream.next().await;
+            let data = read_frame_stream.next().await;
+            if let Some(pack) = data {
+                println!("recv:{:?}", pack);
+            } else {
+                sleep(Duration::from_millis(10)).await;
+            }
         }
     }
 

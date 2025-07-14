@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::kafka::packet::{KafkaPacket, KafkaPacketWrapper};
+use crate::kafka::packet::{KafkaHeader, KafkaPacket, KafkaPacketWrapper};
 use bytes::{Buf, BufMut, BytesMut};
 use common_base::error::common::CommonError;
 use kafka_protocol::{
@@ -92,7 +92,8 @@ impl KafkaCodec {
             }
         };
         Ok(Some(KafkaPacketWrapper {
-            header,
+            api_version: header.request_api_version,
+            header: super::packet::KafkaHeader::Request(header),
             packet: req,
         }))
     }
@@ -103,36 +104,59 @@ impl KafkaCodec {
         buffer: &mut BytesMut,
     ) -> Result<(), CommonError> {
         let mut header_bytes = BytesMut::new();
-        wrapper.header.encode(&mut header_bytes, 2)?;
         let mut body_bytes = BytesMut::new();
-        match wrapper.packet {
-            KafkaPacket::ProduceResponse(rep) => {
-                rep.encode(&mut body_bytes, wrapper.header.request_api_version)?;
+
+        match wrapper.header {
+            KafkaHeader::Request(header) => {
+                header.encode(&mut header_bytes, 2)?;
+                match wrapper.packet {
+                    KafkaPacket::ProduceReq(rep) => {
+                        rep.encode(&mut body_bytes, header.request_api_version)?;
+                    }
+                    KafkaPacket::MetadataReq(rep) => {
+                        rep.encode(&mut body_bytes, header.request_api_version)?;
+                    }
+                    _ => {
+                        return Err(CommonError::NotSupportKafkaEncodePacket(format!(
+                            "{:?}",
+                            wrapper.packet
+                        )));
+                    }
+                }
             }
-            KafkaPacket::FetchResponse(rep) => {
-                rep.encode(&mut body_bytes, wrapper.header.request_api_version)?;
-            }
-            KafkaPacket::ListOffsetsResponse(rep) => {
-                rep.encode(&mut body_bytes, wrapper.header.request_api_version)?;
-            }
-            KafkaPacket::MetadataResponse(rep) => {
-                rep.encode(&mut body_bytes, wrapper.header.request_api_version)?;
-            }
-            KafkaPacket::ApiVersionResponse(rep) => {
-                rep.encode(&mut body_bytes, wrapper.header.request_api_version)?;
-            }
-            _ => {
-                return Err(CommonError::NotSupportKafkaEncodePacket(format!(
-                    "{:?}",
-                    wrapper.packet
-                )));
+            KafkaHeader::Response(header) => {
+                header.encode(&mut header_bytes, 2)?;
+                match wrapper.packet {
+                    KafkaPacket::ProduceResponse(rep) => {
+                        rep.encode(&mut body_bytes, wrapper.api_version)?;
+                    }
+                    KafkaPacket::FetchResponse(rep) => {
+                        rep.encode(&mut body_bytes, wrapper.api_version)?;
+                    }
+                    KafkaPacket::ListOffsetsResponse(rep) => {
+                        rep.encode(&mut body_bytes, wrapper.api_version)?;
+                    }
+                    KafkaPacket::MetadataResponse(rep) => {
+                        rep.encode(&mut body_bytes, wrapper.api_version)?;
+                    }
+                    KafkaPacket::ApiVersionResponse(rep) => {
+                        rep.encode(&mut body_bytes, wrapper.api_version)?;
+                    }
+                    _ => {
+                        return Err(CommonError::NotSupportKafkaEncodePacket(format!(
+                            "{:?}",
+                            wrapper.packet
+                        )));
+                    }
+                }
             }
         }
+
         let total_len = header_bytes.len() + body_bytes.len();
-        let len_byte = total_len.to_be_bytes();
+        let len_byte = (total_len as u32).to_be_bytes();
         buffer.put_slice(&len_byte);
         buffer.put_slice(&header_bytes);
-        buffer.put_slice(&header_bytes);
+        buffer.put_slice(&body_bytes);
 
         Ok(())
     }
@@ -159,7 +183,37 @@ impl codec::Decoder for KafkaCodec {
 
 #[cfg(test)]
 mod tests {
+    use crate::kafka::{
+        codec::KafkaCodec,
+        packet::{KafkaHeader, KafkaPacket, KafkaPacketWrapper},
+    };
+    use bytes::BytesMut;
+    use kafka_protocol::{
+        messages::{ApiKey, ProduceRequest, RequestHeader},
+        protocol::StrBytes,
+    };
 
     #[tokio::test]
-    async fn protocol_decode() {}
+    async fn producer_req_test() {
+        let mut codec = KafkaCodec::new();
+        let mut buffer = BytesMut::new();
+
+        // encode
+        let header = RequestHeader::default()
+            .with_client_id(Some(StrBytes::from_static_str("my-client")))
+            .with_request_api_key(ApiKey::Produce as i16)
+            .with_request_api_version(2);
+
+        let packet = ProduceRequest::default().with_acks(1).with_timeout_ms(3000);
+        let wrapper = KafkaPacketWrapper {
+            api_version: 2,
+            header: KafkaHeader::Request(header),
+            packet: KafkaPacket::ProduceReq(packet),
+        };
+        codec.encode_data(wrapper, &mut buffer).unwrap();
+
+        // decode
+        let wrap = codec.decode_data(&mut buffer).unwrap();
+        println!("{wrap:?}");
+    }
 }

@@ -15,13 +15,20 @@
 use kafka_protocol::messages::{
     ApiVersionsRequest, ApiVersionsResponse, FetchRequest, FetchResponse, ListOffsetsRequest,
     ListOffsetsResponse, MetadataRequest, MetadataResponse, ProduceRequest, ProduceResponse,
-    RequestHeader,
+    RequestHeader, ResponseHeader,
 };
 
 #[derive(Debug)]
 pub struct KafkaPacketWrapper {
-    pub header: RequestHeader,
+    pub api_version: i16,
+    pub header: KafkaHeader,
     pub packet: KafkaPacket,
+}
+
+#[derive(Debug)]
+pub enum KafkaHeader {
+    Request(RequestHeader),
+    Response(ResponseHeader),
 }
 
 #[derive(Debug)]
