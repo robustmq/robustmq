@@ -150,11 +150,7 @@ impl PlacementCenter {
         });
     }
 
-    pub fn start_heartbeat(
-        &self,
-        raft_machine_apply: Arc<StorageDriver>,
-        stop_send: Sender<bool>,
-    ) {
+    pub fn start_heartbeat(&self, raft_machine_apply: Arc<StorageDriver>, stop_send: Sender<bool>) {
         let ctrl = ClusterController::new(
             self.cache_manager.clone(),
             raft_machine_apply.clone(),
@@ -228,7 +224,7 @@ impl PlacementCenter {
     pub fn start_init(&self) {
         banner();
         if let Err(e) = load_cache(&self.cache_manager, &self.rocksdb_engine_handler) {
-            panic!("Failed to load Journal Cache,{e}");
+            panic!("Failed to load Cache,{e}");
         }
     }
 }
