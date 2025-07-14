@@ -23,6 +23,7 @@ use crate::raft::route::apply::RaftMachineApply;
 use crate::raft::route::DataRoute;
 use crate::raft::typeconfig::TypeConfig;
 use common_base::metrics::register_prometheus_export;
+use common_base::version::logo::banner;
 use common_config::place::config::placement_center_conf;
 use grpc_clients::pool::ClientPool;
 use openraft::Raft;
@@ -86,6 +87,7 @@ impl PlacementCenter {
     }
 
     pub async fn start(&mut self, stop_send: Sender<bool>) {
+        banner();
         self.init_cache();
 
         let data_route = Arc::new(DataRoute::new(
