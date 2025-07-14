@@ -12,20 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
-
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::storage::cluster::ClusterStorage;
-
 use common_config::mqtt::broker_mqtt_conf;
 use common_config::mqtt::default::default_heartbeat_timeout;
 use grpc_clients::pool::ClientPool;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::{sleep, timeout};
-use tracing::{debug, error};
+use tracing::{debug, error, info, warn};
 
 pub async fn register_node(
     client_pool: &Arc<ClientPool>,
@@ -91,4 +90,29 @@ async fn report(client_pool: &Arc<ClientPool>, cache_manager: &Arc<CacheManager>
     } else {
         debug!("heartbeat report success");
     }
+}
+
+#[derive(Deserialize, Serialize)]
+struct PlacementCenterStatus {
+    pub current_leader: u32,
+}
+
+pub async fn check_placement_center_status(client_pool: Arc<ClientPool>) -> ResultMqttBrokerError {
+    loop {
+        let cluster_storage = ClusterStorage::new(client_pool.clone());
+        let data = cluster_storage.place_cluster_status().await?;
+        let status = serde_json::from_str::<PlacementCenterStatus>(&data)?;
+        if status.current_leader > 0 {
+            info!(
+                "Placement Center cluster is in normal condition. current leader node is {}.",
+                status.current_leader
+            );
+            break;
+        } else {
+            warn!("Placement Center cluster does not have a Leader. It is waiting for a new Leader to be elected before starting the Broker.");
+            sleep(Duration::from_secs(1)).await;
+        }
+    }
+
+    Ok(())
 }

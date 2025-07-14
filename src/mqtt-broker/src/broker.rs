@@ -20,7 +20,7 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::dynamic_cache::load_metadata_cache;
 use crate::handler::flapping_detect::UpdateFlappingDetectCache;
-use crate::handler::heartbeat::{register_node, report_heartbeat};
+use crate::handler::heartbeat::{check_placement_center_status, register_node, report_heartbeat};
 use crate::handler::keep_alive::ClientKeepAlive;
 use crate::handler::sub_parse_topic::start_parse_subscribe_by_new_topic_thread;
 use crate::observability::start_observability;
@@ -387,6 +387,10 @@ impl MqttBroker {
 
     fn start_init(&self) {
         self.daemon_runtime.block_on(async move {
+            if let Err(e) = check_placement_center_status(self.client_pool.clone()).await {
+                panic!("{}", e);
+            }
+
             if let Err(e) = init_system_user(&self.cache_manager, &self.client_pool).await {
                 panic!("{}", e);
             }
