@@ -12,23 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::time::Duration;
-
-use openraft::raft::ClientWriteResponse;
-use openraft::Raft;
-use tokio::time::timeout;
-
 use crate::core::error::PlacementCenterError;
 use crate::raft::route::data::StorageData;
 use crate::raft::type_config::TypeConfig;
+use openraft::raft::ClientWriteResponse;
+use openraft::Raft;
+use std::time::Duration;
+use tokio::time::timeout;
 
-pub struct RaftMachineApply {
-    pub openraft_node: Raft<TypeConfig>,
+pub struct StorageDriver {
+    pub raft_node: Raft<TypeConfig>,
 }
 
-impl RaftMachineApply {
-    pub fn new(openraft_node: Raft<TypeConfig>) -> Self {
-        RaftMachineApply { openraft_node }
+impl StorageDriver {
+    pub fn new(raft_node: Raft<TypeConfig>) -> Self {
+        StorageDriver { raft_node }
     }
 
     pub async fn client_write(
@@ -45,11 +43,7 @@ impl RaftMachineApply {
         &self,
         data: StorageData,
     ) -> Result<ClientWriteResponse<TypeConfig>, PlacementCenterError> {
-        let resp = timeout(
-            Duration::from_secs(10),
-            self.openraft_node.client_write(data),
-        )
-        .await?;
+        let resp = timeout(Duration::from_secs(10), self.raft_node.client_write(data)).await?;
         Ok(resp?)
     }
 }

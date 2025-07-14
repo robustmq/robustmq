@@ -50,7 +50,7 @@ pub mod types {
     pub type Entry = openraft::Entry<TypeConfig>;
 }
 
-pub async fn start_openraft_node(raft_node: Raft<TypeConfig>) {
+pub async fn start_raft_node(raft_node: Raft<TypeConfig>) {
     let conf = placement_center_conf();
     let mut nodes = BTreeMap::new();
     for (node_id, addr) in conf.node.nodes.clone() {
@@ -116,7 +116,7 @@ pub async fn create_raft_node(
     {
         Ok(data) => data,
         Err(e) => {
-            panic!("Failed to initialize openraft node with error message :{e}");
+            panic!("Failed to initialize raft node with error message :{e}");
         }
     }
 }

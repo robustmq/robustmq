@@ -17,7 +17,7 @@ use crate::controller::mqtt::call_broker::{
 };
 use crate::core::cache::CacheManager;
 use crate::core::error::PlacementCenterError;
-use crate::raft::route::apply::RaftMachineApply;
+use crate::raft::route::apply::StorageDriver;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
@@ -40,10 +40,10 @@ use std::sync::Arc;
 use tracing::debug;
 
 pub async fn cluster_status_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
 ) -> Result<ClusterStatusReply, PlacementCenterError> {
     let mut reply = ClusterStatusReply::default();
-    let status = raft_machine_apply.openraft_node.metrics().borrow().clone();
+    let status = raft_machine_apply.raft_node.metrics().borrow().clone();
 
     reply.content = match serde_json::to_string(&status) {
         Ok(data) => data,
@@ -89,7 +89,7 @@ pub async fn heartbeat_by_req(
 }
 
 pub async fn set_resource_config_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &SetResourceConfigRequest,
@@ -127,7 +127,7 @@ pub async fn get_resource_config_by_req(
 }
 
 pub async fn delete_resource_config_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     req: &DeleteResourceConfigRequest,
 ) -> Result<DeleteResourceConfigReply, PlacementCenterError> {
     let data = StorageData::new(
@@ -142,7 +142,7 @@ pub async fn delete_resource_config_by_req(
 }
 
 pub async fn set_idempotent_data_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     req: &SetIdempotentDataRequest,
 ) -> Result<SetIdempotentDataReply, PlacementCenterError> {
     let data = StorageData::new(
@@ -169,7 +169,7 @@ pub async fn exists_idempotent_data_by_req(
 }
 
 pub async fn delete_idempotent_data_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     req: &DeleteIdempotentDataRequest,
 ) -> Result<DeleteIdempotentDataReply, PlacementCenterError> {
     let data = StorageData::new(
@@ -184,7 +184,7 @@ pub async fn delete_idempotent_data_by_req(
 }
 
 pub async fn save_offset_data_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     req: &SaveOffsetDataRequest,
 ) -> Result<SaveOffsetDataReply, PlacementCenterError> {
     let data = StorageData::new(

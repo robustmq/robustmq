@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::cache::CacheManager;
-use crate::raft::route::apply::RaftMachineApply;
+use crate::raft::route::apply::StorageDriver;
 use gc::{gc_segment_thread, gc_shard_thread};
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
@@ -25,14 +25,14 @@ pub mod call_node;
 pub mod gc;
 
 pub struct StorageEngineController {
-    raft_machine_apply: Arc<RaftMachineApply>,
+    raft_machine_apply: Arc<StorageDriver>,
     cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
 }
 
 impl StorageEngineController {
     pub fn new(
-        raft_machine_apply: Arc<RaftMachineApply>,
+        raft_machine_apply: Arc<StorageDriver>,
         cache_manager: Arc<CacheManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {

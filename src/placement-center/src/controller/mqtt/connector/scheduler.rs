@@ -18,7 +18,7 @@ use crate::{
         call_broker::MQTTInnerCallManager, connector::status::update_connector_status_to_idle,
     },
     core::{cache::CacheManager, error::PlacementCenterError},
-    raft::route::apply::RaftMachineApply,
+    raft::route::apply::StorageDriver,
 };
 use common_base::tools::now_second;
 use common_config::place::config::placement_center_conf;
@@ -31,7 +31,7 @@ use tracing::{info, warn};
 
 pub async fn start_connector_scheduler(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
 
@@ -55,7 +55,7 @@ pub async fn start_connector_scheduler(
 }
 
 async fn scheduler_thread(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
@@ -75,7 +75,7 @@ async fn scheduler_thread(
 }
 
 async fn check_heartbeat(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
@@ -113,7 +113,7 @@ async fn check_heartbeat(
 }
 
 async fn start_stop_connector_thread(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,

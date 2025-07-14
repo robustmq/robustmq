@@ -18,7 +18,7 @@ use crate::{
     },
     core::error::PlacementCenterError,
     raft::route::{
-        apply::RaftMachineApply,
+        apply::StorageDriver,
         data::{StorageData, StorageDataType},
     },
     storage::mqtt::subscribe::MqttSubscribeStorage,
@@ -37,7 +37,7 @@ use std::sync::Arc;
 use tracing::warn;
 
 pub async fn delete_subscribe_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -86,7 +86,7 @@ pub fn list_subscribe_by_req(
 }
 
 pub async fn set_subscribe_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &SetSubscribeRequest,
@@ -112,7 +112,7 @@ pub async fn set_subscribe_by_req(
 }
 
 pub async fn set_auto_subscribe_rule_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     req: &SetAutoSubscribeRuleRequest,
 ) -> Result<SetAutoSubscribeRuleReply, PlacementCenterError> {
     let data = StorageData::new(
@@ -125,7 +125,7 @@ pub async fn set_auto_subscribe_rule_by_req(
 }
 
 pub async fn delete_auto_subscribe_rule_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     req: &DeleteAutoSubscribeRuleRequest,
 ) -> Result<DeleteAutoSubscribeRuleReply, PlacementCenterError> {
     let data = StorageData::new(

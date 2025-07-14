@@ -18,8 +18,8 @@ use crate::controller::mqtt::call_broker::{mqtt_call_thread_manager, MQTTInnerCa
 use crate::controller::mqtt::connector::scheduler::start_connector_scheduler;
 use crate::core::cache::{load_cache, CacheManager};
 use crate::core::controller::ClusterController;
-use crate::raft::raft_node::{create_raft_node, start_openraft_node};
-use crate::raft::route::apply::RaftMachineApply;
+use crate::raft::raft_node::{create_raft_node, start_raft_node};
+use crate::raft::route::apply::StorageDriver;
 use crate::raft::route::DataRoute;
 use crate::raft::type_config::TypeConfig;
 use common_base::metrics::register_prometheus_export;
@@ -87,8 +87,7 @@ impl PlacementCenter {
     }
 
     pub async fn start(&mut self, stop_send: Sender<bool>) {
-        banner();
-        self.init_cache();
+        self.start_init();
 
         let data_route = Arc::new(DataRoute::new(
             self.rocksdb_engine_handler.clone(),
@@ -97,19 +96,19 @@ impl PlacementCenter {
 
         self.start_call_thread();
 
-        let openraft_node = create_raft_node(self.client_pool.clone(), data_route).await;
+        let raf_node = create_raft_node(self.client_pool.clone(), data_route).await;
 
-        let placement_center_storage = Arc::new(RaftMachineApply::new(openraft_node.clone()));
+        let storage_driver = Arc::new(StorageDriver::new(raf_node.clone()));
 
-        self.start_heartbeat(placement_center_storage.clone(), stop_send.clone());
+        self.start_heartbeat(storage_driver.clone(), stop_send.clone());
 
-        self.start_raft_machine(openraft_node.clone());
+        self.start_raft_machine(raf_node.clone());
 
         self.start_prometheus();
 
-        self.start_grpc_server(placement_center_storage.clone());
+        self.start_grpc_server(storage_driver.clone());
 
-        self.monitoring_leader_transition(openraft_node.clone(), placement_center_storage.clone());
+        self.monitoring_leader_transition(raf_node.clone(), storage_driver.clone());
 
         self.awaiting_stop(stop_send).await;
     }
@@ -117,9 +116,8 @@ impl PlacementCenter {
     pub fn monitoring_leader_transition(
         &self,
         raft: Raft<TypeConfig>,
-        raft_machine_apply: Arc<RaftMachineApply>,
+        raft_machine_apply: Arc<StorageDriver>,
     ) {
-        info!("Initiate Monitoring of Raft Leader Transitions");
         monitoring_leader_transition(
             &raft,
             self.rocksdb_engine_handler.clone(),
@@ -130,7 +128,7 @@ impl PlacementCenter {
     }
 
     // Start Grpc Server
-    pub fn start_grpc_server(&self, raft_machine_apply: Arc<RaftMachineApply>) {
+    pub fn start_grpc_server(&self, raft_machine_apply: Arc<StorageDriver>) {
         let cache_manager = self.cache_manager.clone();
         let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
         let client_pool = self.client_pool.clone();
@@ -154,10 +152,9 @@ impl PlacementCenter {
 
     pub fn start_heartbeat(
         &self,
-        raft_machine_apply: Arc<RaftMachineApply>,
+        raft_machine_apply: Arc<StorageDriver>,
         stop_send: Sender<bool>,
     ) {
-        // start cluster node heartbeate check
         let ctrl = ClusterController::new(
             self.cache_manager.clone(),
             raft_machine_apply.clone(),
@@ -186,10 +183,9 @@ impl PlacementCenter {
         });
     }
 
-    // Start Raft Status Machine
-    fn start_raft_machine(&self, openraft_node: Raft<TypeConfig>) {
+    fn start_raft_machine(&self, raft_node: Raft<TypeConfig>) {
         tokio::spawn(async move {
-            start_openraft_node(openraft_node).await;
+            start_raft_node(raft_node).await;
         });
     }
 
@@ -229,7 +225,8 @@ impl PlacementCenter {
         }
     }
 
-    pub fn init_cache(&self) {
+    pub fn start_init(&self) {
+        banner();
         if let Err(e) = load_cache(&self.cache_manager, &self.rocksdb_engine_handler) {
             panic!("Failed to load Journal Cache,{e}");
         }

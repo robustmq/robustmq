@@ -19,7 +19,7 @@ use crate::controller::journal::call_node::{
 };
 use crate::core::cache::CacheManager;
 use crate::core::error::PlacementCenterError;
-use crate::raft::route::apply::RaftMachineApply;
+use crate::raft::route::apply::StorageDriver;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
@@ -74,7 +74,7 @@ pub async fn list_segment_by_req(
 
 pub async fn create_segment_by_req(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateNextSegmentRequest,
@@ -177,7 +177,7 @@ pub async fn create_segment_by_req(
 
 pub async fn delete_segment_by_req(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteSegmentRequest,
@@ -236,7 +236,7 @@ pub async fn delete_segment_by_req(
 
 pub async fn update_segment_status_req(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UpdateSegmentStatusRequest,
@@ -310,7 +310,7 @@ pub async fn list_segment_meta_by_req(
 
 pub async fn update_segment_meta_by_req(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UpdateSegmentMetaRequest,
@@ -462,7 +462,7 @@ fn calc_node_fold(
 
 pub async fn update_segment_status(
     cache_manager: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     segment: &JournalSegment,
     status: SegmentStatus,
 ) -> Result<(), PlacementCenterError> {
@@ -476,7 +476,7 @@ pub async fn update_segment_status(
 }
 
 pub async fn sync_save_segment_info(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     segment: &JournalSegment,
 ) -> Result<(), PlacementCenterError> {
     let data = StorageData::new(
@@ -490,7 +490,7 @@ pub async fn sync_save_segment_info(
 }
 
 pub async fn sync_delete_segment_info(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     segment: &JournalSegment,
 ) -> Result<(), PlacementCenterError> {
     let data = StorageData::new(
@@ -504,7 +504,7 @@ pub async fn sync_delete_segment_info(
 }
 
 pub async fn sync_save_segment_metadata_info(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     segment: &JournalSegmentMetadata,
 ) -> Result<(), PlacementCenterError> {
     let data = StorageData::new(
@@ -518,7 +518,7 @@ pub async fn sync_save_segment_metadata_info(
 }
 
 pub async fn sync_delete_segment_metadata_info(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     segment: &JournalSegmentMetadata,
 ) -> Result<(), PlacementCenterError> {
     let data = StorageData::new(

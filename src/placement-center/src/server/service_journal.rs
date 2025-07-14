@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use grpc_clients::pool::ClientPool;
 use protocol::placement_center::placement_center_journal::engine_service_server::EngineService;
 use protocol::placement_center::placement_center_journal::{
@@ -24,12 +22,13 @@ use protocol::placement_center::placement_center_journal::{
     UpdateSegmentStatusReply, UpdateSegmentStatusRequest,
 };
 use rocksdb_engine::RocksDBEngine;
+use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 use crate::controller::journal::call_node::JournalInnerCallManager;
 use crate::core::cache::CacheManager;
 use crate::core::error::PlacementCenterError;
-use crate::raft::route::apply::RaftMachineApply;
+use crate::raft::route::apply::StorageDriver;
 use crate::server::services::journal::segment::{
     create_segment_by_req, delete_segment_by_req, list_segment_by_req, list_segment_meta_by_req,
     update_segment_meta_by_req, update_segment_status_req,
@@ -39,7 +38,7 @@ use crate::server::services::journal::shard::{
 };
 
 pub struct GrpcEngineService {
-    raft_machine_apply: Arc<RaftMachineApply>,
+    raft_machine_apply: Arc<StorageDriver>,
     cache_manager: Arc<CacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     call_manager: Arc<JournalInnerCallManager>,
@@ -48,7 +47,7 @@ pub struct GrpcEngineService {
 
 impl GrpcEngineService {
     pub fn new(
-        raft_machine_apply: Arc<RaftMachineApply>,
+        raft_machine_apply: Arc<StorageDriver>,
         cache_manager: Arc<CacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         call_manager: Arc<JournalInnerCallManager>,

@@ -14,7 +14,7 @@
 
 use crate::controller::mqtt::call_broker::MQTTInnerCallManager;
 use crate::core::cache::CacheManager;
-use crate::raft::route::apply::RaftMachineApply;
+use crate::raft::route::apply::StorageDriver;
 use crate::server::services::mqtt::acl::{
     create_acl_by_req, create_blacklist_by_req, delete_acl_by_req, delete_blacklist_by_req,
     list_acl_by_req, list_blacklist_by_req,
@@ -70,7 +70,7 @@ use tonic::{Request, Response, Status};
 
 pub struct GrpcMqttService {
     cache_manager: Arc<CacheManager>,
-    raft_machine_apply: Arc<RaftMachineApply>,
+    raft_machine_apply: Arc<StorageDriver>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     mqtt_call_manager: Arc<MQTTInnerCallManager>,
     client_pool: Arc<ClientPool>,
@@ -79,7 +79,7 @@ pub struct GrpcMqttService {
 impl GrpcMqttService {
     pub fn new(
         cache_manager: Arc<CacheManager>,
-        raft_machine_apply: Arc<RaftMachineApply>,
+        raft_machine_apply: Arc<StorageDriver>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         mqtt_call_manager: Arc<MQTTInnerCallManager>,
         client_pool: Arc<ClientPool>,
