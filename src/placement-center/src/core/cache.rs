@@ -12,37 +12,84 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use common_base::tools::now_second;
-use dashmap::DashMap;
-use metadata_struct::placement::cluster::ClusterInfo;
-use metadata_struct::placement::node::BrokerNode;
-use serde::{Deserialize, Serialize};
-
 use super::heartbeat::NodeHeartbeatData;
+use crate::core::error::PlacementCenterError;
+use crate::server::services::mqtt::connector::ConnectorHeartbeat;
+use crate::storage::journal::segment::SegmentStorage;
+use crate::storage::journal::segment_meta::SegmentMetadataStorage;
+use crate::storage::journal::shard::ShardStorage;
+use crate::storage::mqtt::connector::MqttConnectorStorage;
+use crate::storage::mqtt::user::MqttUserStorage;
 use crate::storage::placement::cluster::ClusterStorage;
 use crate::storage::placement::node::NodeStorage;
 use crate::storage::rocksdb::RocksDBEngine;
+use crate::{
+    controller::mqtt::session_expire::ExpireLastWill, storage::mqtt::topic::MqttTopicStorage,
+};
+use common_base::tools::now_second;
+use dashmap::DashMap;
+use metadata_struct::journal::segment::JournalSegment;
+use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
+use metadata_struct::journal::shard::JournalShard;
+use metadata_struct::mqtt::bridge::connector::MQTTConnector;
+use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::placement::cluster::ClusterInfo;
+use metadata_struct::placement::node::BrokerNode;
+use protocol::placement_center::placement_center_inner::ClusterType;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
-pub struct PlacementCacheManager {
+pub struct CacheManager {
     // (cluster_name, ClusterInfo)
-    cluster_list: DashMap<String, ClusterInfo>,
+    pub cluster_list: DashMap<String, ClusterInfo>,
 
     // (cluster_name, (node_id, BrokerNode))
-    node_list: DashMap<String, DashMap<u64, BrokerNode>>,
+    pub node_list: DashMap<String, DashMap<u64, BrokerNode>>,
 
     // (cluster_name_node_id, NodeHeartbeatData)
-    node_heartbeat: DashMap<String, NodeHeartbeatData>,
+    pub node_heartbeat: DashMap<String, NodeHeartbeatData>,
+
+    // (cluster_name,(topic_name,topic))
+    pub topic_list: DashMap<String, DashMap<String, MQTTTopic>>,
+
+    // (cluster_name,(username,user))
+    pub user_list: DashMap<String, DashMap<String, MqttUser>>,
+
+    // (cluster_name,(client_id,ExpireLastWill))
+    pub expire_last_wills: DashMap<String, DashMap<String, ExpireLastWill>>,
+
+    // (cluster_name,(client_id,MQTTConnector))
+    pub connector_list: DashMap<String, DashMap<String, MQTTConnector>>,
+
+    //(cluster_connector_name, ConnectorHeartbeat)
+    pub connector_heartbeat: DashMap<String, ConnectorHeartbeat>,
+
+    //（cluster_name_namespace_shard_name, JournalShard）
+    pub shard_list: DashMap<String, JournalShard>,
+    pub segment_list: DashMap<String, DashMap<u32, JournalSegment>>,
+    pub segment_meta_list: DashMap<String, DashMap<u32, JournalSegmentMetadata>>,
+    pub wait_delete_shard_list: DashMap<String, JournalShard>,
+    pub wait_delete_segment_list: DashMap<String, JournalSegment>,
 }
 
-impl PlacementCacheManager {
-    pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> PlacementCacheManager {
-        let mut cache = PlacementCacheManager {
+impl CacheManager {
+    pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> CacheManager {
+        let mut cache = CacheManager {
             cluster_list: DashMap::with_capacity(2),
             node_heartbeat: DashMap::with_capacity(2),
             node_list: DashMap::with_capacity(2),
+            topic_list: DashMap::with_capacity(8),
+            user_list: DashMap::with_capacity(8),
+            expire_last_wills: DashMap::with_capacity(8),
+            connector_list: DashMap::with_capacity(8),
+            connector_heartbeat: DashMap::with_capacity(8),
+            shard_list: DashMap::with_capacity(8),
+            segment_list: DashMap::with_capacity(256),
+            segment_meta_list: DashMap::with_capacity(256),
+            wait_delete_shard_list: DashMap::with_capacity(8),
+            wait_delete_segment_list: DashMap::with_capacity(8),
         };
         cache.load_cache(rocksdb_engine_handler);
         cache
@@ -175,4 +222,53 @@ impl PlacementCacheManager {
     fn node_key(&self, cluster_name: &str, node_id: u64) -> String {
         format!("{cluster_name}_{node_id}")
     }
+}
+
+pub fn load_cache(
+    cache_manager: &Arc<CacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+) -> Result<(), PlacementCenterError> {
+    let shard_storage = ShardStorage::new(rocksdb_engine_handler.clone());
+    let res = shard_storage.all_shard()?;
+    for shard in res {
+        cache_manager.set_shard(&shard);
+    }
+
+    let segment_storage = SegmentStorage::new(rocksdb_engine_handler.clone());
+    let res = segment_storage.all_segment()?;
+    for segment in res {
+        cache_manager.set_segment(&segment);
+    }
+
+    let segment_metadata_storage = SegmentMetadataStorage::new(rocksdb_engine_handler.clone());
+    let res = segment_metadata_storage.all_segment()?;
+    for meta in res {
+        cache_manager.set_segment_meta(&meta);
+    }
+
+    for cluster in cache_manager.get_all_cluster() {
+        if cluster.cluster_type == *ClusterType::MqttBrokerServer.as_str_name() {
+            // Topic
+            let topic = MqttTopicStorage::new(rocksdb_engine_handler.clone());
+            let data = topic.list(&cluster.cluster_name)?;
+            for topic in data {
+                cache_manager.add_topic(&cluster.cluster_name, topic);
+            }
+
+            // User
+            let user = MqttUserStorage::new(rocksdb_engine_handler.clone());
+            let data = user.list_by_cluster(&cluster.cluster_name)?;
+            for user in data {
+                cache_manager.add_user(&cluster.cluster_name, user);
+            }
+
+            // connector
+            let connector = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
+            let data = connector.list(&cluster.cluster_name)?;
+            for connector in data {
+                cache_manager.add_connector(&cluster.cluster_name, &connector);
+            }
+        }
+    }
+    Ok(())
 }

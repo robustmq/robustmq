@@ -12,11 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::error::common::CommonError;
-use openraft::error::{RPCError, Unreachable};
-
-use super::type_config::TypeConfig;
-
-pub fn to_error<E: std::error::Error + 'static + Clone>(e: CommonError) -> RPCError<TypeConfig, E> {
-    RPCError::Unreachable(Unreachable::new(&e))
-}
+pub mod journal;
+pub mod mqtt;

@@ -32,8 +32,8 @@ use crate::core::metrics::{
 };
 use crate::raft::raft_node::types;
 use crate::raft::route::AppResponseData;
-use crate::raft::typeconfig::{SnapshotData, TypeConfig};
-use crate::route::DataRoute;
+use crate::raft::route::DataRoute;
+use crate::raft::type_config::{SnapshotData, TypeConfig};
 
 #[derive(Clone)]
 pub struct StateMachineStore {

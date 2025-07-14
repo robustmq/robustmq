@@ -12,8 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use super::cache::CacheManager;
+use super::error::PlacementCenterError;
+use crate::controller::journal::call_node::{
+    update_cache_by_add_journal_node, update_cache_by_delete_journal_node, JournalInnerCallManager,
+};
+use crate::controller::mqtt::call_broker::{
+    update_cache_by_add_node, update_cache_by_delete_node, MQTTInnerCallManager,
+};
+use crate::raft::route::apply::RaftMachineApply;
+use crate::raft::route::data::{StorageData, StorageDataType};
 use common_base::tools::now_mills;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::placement::cluster::ClusterInfo;
@@ -22,20 +30,10 @@ use prost::Message as _;
 use protocol::placement_center::placement_center_inner::{
     ClusterType, RegisterNodeReply, RegisterNodeRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
-
-use super::cache::PlacementCacheManager;
-use super::error::PlacementCenterError;
-use crate::journal::controller::call_node::{
-    update_cache_by_add_journal_node, update_cache_by_delete_journal_node, JournalInnerCallManager,
-};
-use crate::mqtt::controller::call_broker::{
-    update_cache_by_add_node, update_cache_by_delete_node, MQTTInnerCallManager,
-};
-use crate::route::apply::RaftMachineApply;
-use crate::route::data::{StorageData, StorageDataType};
+use std::sync::Arc;
 
 pub async fn register_node_by_req(
-    cluster_cache: &Arc<PlacementCacheManager>,
+    cluster_cache: &Arc<CacheManager>,
     raft_machine_apply: &Arc<RaftMachineApply>,
     client_pool: &Arc<ClientPool>,
     journal_call_manager: &Arc<JournalInnerCallManager>,
@@ -79,7 +77,7 @@ pub async fn register_node_by_req(
 }
 
 pub async fn un_register_node_by_req(
-    cluster_cache: &Arc<PlacementCacheManager>,
+    cluster_cache: &Arc<CacheManager>,
     raft_machine_apply: &Arc<RaftMachineApply>,
     client_pool: &Arc<ClientPool>,
     journal_call_manager: &Arc<JournalInnerCallManager>,

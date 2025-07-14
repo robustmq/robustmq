@@ -36,11 +36,6 @@ pub fn banner() {
     // Print version information
     let version = super::version();
     info!("Version: {}", version);
-
-    // Print components information
-    info!("Components:");
-    info!("  - MQTT Broker");
-    info!("  - Placement Center");
 }
 
 #[cfg(test)]

@@ -12,20 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use super::cluster::un_register_node_by_req;
+use crate::controller::journal::call_node::JournalInnerCallManager;
+use crate::raft::route::apply::RaftMachineApply;
+use crate::{controller::mqtt::call_broker::MQTTInnerCallManager, core::cache::CacheManager};
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::placement::node::str_to_cluster_type;
 use protocol::placement_center::placement_center_inner::UnRegisterNodeRequest;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tracing::{error, info};
-
-use super::cluster::un_register_node_by_req;
-use crate::core::cache::PlacementCacheManager;
-use crate::journal::controller::call_node::JournalInnerCallManager;
-use crate::mqtt::controller::call_broker::MQTTInnerCallManager;
-use crate::route::apply::RaftMachineApply;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct NodeHeartbeatData {
@@ -36,7 +33,7 @@ pub struct NodeHeartbeatData {
 
 pub struct BrokerHeartbeat {
     timeout_ms: u64,
-    cluster_cache: Arc<PlacementCacheManager>,
+    cluster_cache: Arc<CacheManager>,
     raft_machine_apply: Arc<RaftMachineApply>,
     client_pool: Arc<ClientPool>,
     journal_call_manager: Arc<JournalInnerCallManager>,
@@ -46,7 +43,7 @@ pub struct BrokerHeartbeat {
 impl BrokerHeartbeat {
     pub fn new(
         timeout_ms: u64,
-        cluster_cache: Arc<PlacementCacheManager>,
+        cluster_cache: Arc<CacheManager>,
         raft_machine_apply: Arc<RaftMachineApply>,
         client_pool: Arc<ClientPool>,
         journal_call_manager: Arc<JournalInnerCallManager>,

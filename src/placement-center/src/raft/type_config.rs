@@ -12,11 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::error::common::CommonError;
-use openraft::error::{RPCError, Unreachable};
+use crate::raft::raft_node::Node;
+use crate::raft::route::data::StorageData;
+use crate::raft::route::AppResponseData;
+use std::io::Cursor;
 
-use super::type_config::TypeConfig;
+pub type SnapshotData = Cursor<Vec<u8>>;
 
-pub fn to_error<E: std::error::Error + 'static + Clone>(e: CommonError) -> RPCError<TypeConfig, E> {
-    RPCError::Unreachable(Unreachable::new(&e))
-}
+openraft::declare_raft_types!(
+    pub TypeConfig:
+        D = StorageData,
+        R = AppResponseData,
+        Node = Node,
+);

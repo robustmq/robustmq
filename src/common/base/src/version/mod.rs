@@ -48,7 +48,6 @@ pub fn version() -> String {
         Ok(data) => {
             // Trim whitespace and newlines
             let version = data.trim().to_string();
-            info!("Read version from file: {}", version);
             version
         }
         Err(e) => {
@@ -68,9 +67,8 @@ pub fn version() -> String {
     };
 
     // Cache the version in memory
-    match VERSION.set(version_str.clone()) {
-        Ok(_) => info!("Version cached in memory"),
-        Err(_) => error!("Failed to cache version in memory (race condition)"),
+    if let Err(e) = VERSION.set(version_str.clone()) {
+        error!("Failed to cache version in memory (race condition),error message:{e}");
     }
 
     version_str

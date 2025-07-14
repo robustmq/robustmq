@@ -24,8 +24,8 @@ use tracing::info;
 
 use super::network::network::Network;
 use super::store::new_storage;
-use super::typeconfig::TypeConfig;
-use crate::route::DataRoute;
+use super::type_config::TypeConfig;
+use crate::raft::route::DataRoute;
 use crate::storage::rocksdb::storage_raft_fold;
 pub type NodeId = u64;
 
@@ -46,7 +46,7 @@ impl Display for Node {
 }
 
 pub mod types {
-    use crate::raft::typeconfig::TypeConfig;
+    use crate::raft::type_config::TypeConfig;
     pub type Entry = openraft::Entry<TypeConfig>;
 }
 

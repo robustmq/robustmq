@@ -29,7 +29,7 @@ use openraft::RaftNetwork;
 use protocol::placement_center::placement_center_openraft::{AppendRequest, SnapshotRequest};
 
 use crate::raft::error::to_error;
-use crate::raft::typeconfig::TypeConfig;
+use crate::raft::type_config::TypeConfig;
 
 pub struct NetworkConnection {
     addr: String,
