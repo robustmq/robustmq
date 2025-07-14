@@ -81,10 +81,6 @@ impl ExclusivePush {
                         exclusive_key, e
                     );
                 }
-                info!(
-                    "exclusive push thread gc success, exclusive_key: {:?}",
-                    exclusive_key
-                );
                 self.subscribe_manager
                     .exclusive_push_thread
                     .remove(&exclusive_key);

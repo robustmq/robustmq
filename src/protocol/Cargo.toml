@@ -30,10 +30,11 @@ tokio-util.workspace = true
 bincode.workspace = true
 tokio.workspace = true
 futures.workspace = true
-common-base.workspace =true
-serde.workspace =true
+common-base.workspace = true
+serde.workspace = true
 validator.workspace = true
 prost-validate = { workspace = true, features = ["derive"] }
+kafka-protocol = "0.15.1"
 
 [dev-dependencies]
 robustmq-test.workspace = true
