@@ -36,7 +36,7 @@ mod tests {
         loop {
             let data = read_frame_stream.next().await;
             if let Some(pack) = data {
-                println!("recv:{:?}", pack);
+                println!("recv:{pack:?}");
             } else {
                 sleep(Duration::from_millis(10)).await;
             }
