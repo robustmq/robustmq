@@ -16,7 +16,7 @@ use super::type_config::TypeConfig;
 use crate::{
     controller::{journal::StorageEngineController, mqtt::MqttController},
     core::cache::CacheManager,
-    raft::route::apply::RaftMachineApply,
+    raft::route::apply::StorageDriver,
 };
 use grpc_clients::pool::ClientPool;
 use openraft::Raft;
@@ -30,7 +30,7 @@ pub fn monitoring_leader_transition(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
-    raft_machine_apply: Arc<RaftMachineApply>,
+    raft_machine_apply: Arc<StorageDriver>,
 ) {
     let mut metrics_rx = raft.metrics();
     let (stop_send, _) = broadcast::channel::<bool>(2);
@@ -79,7 +79,7 @@ pub fn start_controller(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     stop_send: Sender<bool>,
 ) {
     let mqtt_controller = MqttController::new(

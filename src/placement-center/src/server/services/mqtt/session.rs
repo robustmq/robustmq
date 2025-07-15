@@ -21,7 +21,7 @@ use crate::core::error::PlacementCenterError;
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::{
     raft::route::{
-        apply::RaftMachineApply,
+        apply::StorageDriver,
         data::{StorageData, StorageDataType},
     },
     storage::mqtt::session::MqttSessionStorage,
@@ -57,7 +57,7 @@ pub fn list_session_by_req(
 }
 
 pub async fn create_session_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateSessionRequest,
@@ -77,7 +77,7 @@ pub async fn create_session_by_req(
 }
 
 pub async fn update_session_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -97,7 +97,7 @@ pub async fn update_session_by_req(
 }
 
 pub async fn delete_session_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,

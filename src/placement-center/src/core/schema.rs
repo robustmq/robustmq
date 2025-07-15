@@ -19,7 +19,7 @@ use crate::{
         update_cache_by_delete_schema_bind, MQTTInnerCallManager,
     },
     raft::route::{
-        apply::RaftMachineApply,
+        apply::StorageDriver,
         data::{StorageData, StorageDataType},
     },
     storage::placement::schema::SchemaStorage,
@@ -62,7 +62,7 @@ pub fn list_schema_req(
 }
 
 pub async fn create_schema_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateSchemaRequest,
@@ -105,7 +105,7 @@ pub async fn create_schema_req(
 
 pub async fn update_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UpdateSchemaRequest,
@@ -148,7 +148,7 @@ pub async fn update_schema_req(
 
 pub async fn delete_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteSchemaRequest,
@@ -223,7 +223,7 @@ pub async fn list_bind_schema_req(
 }
 
 pub async fn bind_schema_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &BindSchemaRequest,
@@ -262,7 +262,7 @@ pub async fn bind_schema_req(
 }
 
 pub async fn un_bind_schema_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UnBindSchemaRequest,

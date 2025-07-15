@@ -20,7 +20,7 @@ use crate::controller::journal::call_node::{
 use crate::controller::mqtt::call_broker::{
     update_cache_by_add_node, update_cache_by_delete_node, MQTTInnerCallManager,
 };
-use crate::raft::route::apply::RaftMachineApply;
+use crate::raft::route::apply::StorageDriver;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use common_base::tools::now_mills;
 use grpc_clients::pool::ClientPool;
@@ -34,7 +34,7 @@ use std::sync::Arc;
 
 pub async fn register_node_by_req(
     cluster_cache: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     client_pool: &Arc<ClientPool>,
     journal_call_manager: &Arc<JournalInnerCallManager>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
@@ -78,7 +78,7 @@ pub async fn register_node_by_req(
 
 pub async fn un_register_node_by_req(
     cluster_cache: &Arc<CacheManager>,
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     client_pool: &Arc<ClientPool>,
     journal_call_manager: &Arc<JournalInnerCallManager>,
     mqtt_call_manager: &Arc<MQTTInnerCallManager>,
@@ -111,7 +111,7 @@ pub async fn un_register_node_by_req(
 }
 
 async fn sync_save_node(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     node: &BrokerNode,
 ) -> Result<(), PlacementCenterError> {
     let data = StorageData::new(StorageDataType::ClusterAddNode, serde_json::to_vec(&node)?);
@@ -122,7 +122,7 @@ async fn sync_save_node(
 }
 
 pub async fn sync_delete_node(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     req: &UnRegisterNodeRequest,
 ) -> Result<(), PlacementCenterError> {
     let data = StorageData::new(
@@ -136,7 +136,7 @@ pub async fn sync_delete_node(
 }
 
 async fn sync_save_cluster(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     node: &ClusterInfo,
 ) -> Result<(), PlacementCenterError> {
     let data = StorageData::new(

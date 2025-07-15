@@ -18,7 +18,7 @@ use crate::{
     },
     core::error::PlacementCenterError,
     raft::route::{
-        apply::RaftMachineApply,
+        apply::StorageDriver,
         data::{StorageData, StorageDataType},
     },
     storage::mqtt::user::MqttUserStorage,
@@ -55,7 +55,7 @@ pub fn list_user_by_req(
 }
 
 pub async fn create_user_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -81,7 +81,7 @@ pub async fn create_user_by_req(
 }
 
 pub async fn delete_user_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,

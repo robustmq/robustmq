@@ -16,7 +16,7 @@ use crate::controller::mqtt::call_broker::{
     update_cache_by_add_topic, update_cache_by_delete_topic, MQTTInnerCallManager,
 };
 use crate::core::error::PlacementCenterError;
-use crate::raft::route::apply::RaftMachineApply;
+use crate::raft::route::apply::StorageDriver;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use grpc_clients::pool::ClientPool;
@@ -65,7 +65,7 @@ pub async fn list_topic_by_req(
 }
 
 pub async fn create_topic_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -97,7 +97,7 @@ pub async fn create_topic_by_req(
 
 pub async fn delete_topic_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteTopicRequest,
@@ -120,7 +120,7 @@ pub async fn delete_topic_by_req(
 }
 
 pub async fn set_topic_retain_message_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &SetTopicRetainMessageRequest,
 ) -> Result<SetTopicRetainMessageReply, PlacementCenterError> {
@@ -171,7 +171,7 @@ pub async fn get_topic_retain_message_by_req(
 }
 
 pub async fn save_last_will_message_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     req: &SaveLastWillMessageRequest,
 ) -> Result<SaveLastWillMessageReply, PlacementCenterError> {
     let data = StorageData::new(
@@ -184,7 +184,7 @@ pub async fn save_last_will_message_by_req(
 }
 
 pub async fn create_topic_rewrite_rule_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     req: &CreateTopicRewriteRuleRequest,
 ) -> Result<CreateTopicRewriteRuleReply, PlacementCenterError> {
     let data = StorageData::new(
@@ -197,7 +197,7 @@ pub async fn create_topic_rewrite_rule_by_req(
 }
 
 pub async fn delete_topic_rewrite_rule_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     req: &DeleteTopicRewriteRuleRequest,
 ) -> Result<DeleteTopicRewriteRuleReply, PlacementCenterError> {
     let data = StorageData::new(

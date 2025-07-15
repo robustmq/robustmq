@@ -17,12 +17,12 @@ use crate::controller::mqtt::call_broker::MQTTInnerCallManager;
 use crate::core::cache::CacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::core::metrics::{metrics_grpc_request_incr, metrics_grpc_request_ms};
-use crate::raft::route::apply::RaftMachineApply;
+use crate::raft::route::apply::StorageDriver;
 use crate::server::service_inner::GrpcPlacementService;
 use crate::server::service_journal::GrpcEngineService;
 use crate::server::service_kv::GrpcKvService;
 use crate::server::service_mqtt::GrpcMqttService;
-use crate::server::service_openraft::GrpcOpenRaftServices;
+use crate::server::service_raft::GrpcOpenRaftServices;
 use axum::http::{self};
 use common_base::tools::now_mills;
 use common_config::place::config::placement_center_conf;
@@ -42,7 +42,7 @@ use tracing::info;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn start_grpc_server(
-    raft_machine_apply: Arc<RaftMachineApply>,
+    raft_machine_apply: Arc<StorageDriver>,
     cache_manager: Arc<CacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_pool: Arc<ClientPool>,
@@ -71,7 +71,7 @@ pub async fn start_grpc_server(
         client_pool.clone(),
     );
 
-    let openraft_handler = GrpcOpenRaftServices::new(raft_machine_apply.openraft_node.clone());
+    let openraft_handler = GrpcOpenRaftServices::new(raft_machine_apply.raft_node.clone());
 
     let mqtt_handler = GrpcMqttService::new(
         cache_manager.clone(),

@@ -16,7 +16,7 @@ use crate::{
     controller::mqtt::call_broker::{update_cache_by_add_connector, MQTTInnerCallManager},
     core::{cache::CacheManager, error::PlacementCenterError},
     raft::route::{
-        apply::RaftMachineApply,
+        apply::StorageDriver,
         data::{StorageData, StorageDataType},
     },
 };
@@ -27,7 +27,7 @@ use protocol::placement_center::placement_center_mqtt::CreateConnectorRequest;
 use std::sync::Arc;
 
 pub async fn update_connector_status_to_idle(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
@@ -47,7 +47,7 @@ pub async fn update_connector_status_to_idle(
 }
 
 pub async fn update_connector_status_to_running(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
@@ -67,7 +67,7 @@ pub async fn update_connector_status_to_running(
 }
 
 async fn update_connector_status(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
@@ -93,7 +93,7 @@ async fn update_connector_status(
 }
 
 pub async fn save_connector(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     req: CreateConnectorRequest,
     call_manager: &Arc<MQTTInnerCallManager>,
     client_pool: &Arc<ClientPool>,

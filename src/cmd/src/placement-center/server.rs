@@ -33,8 +33,8 @@ async fn main() {
     init_placement_center_conf_by_path(&args.conf);
 
     // Need to keep the guard alive until the application terminates
-    let _appender_guards = init_placement_center_log().unwrap();
+    let _ = init_placement_center_log().unwrap();
     let (stop_send, _) = broadcast::channel(2);
-    let mut pc = PlacementCenter::new();
+    let mut pc = PlacementCenter::new().await;
     pc.start(stop_send).await;
 }

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::error::PlacementCenterError;
-use crate::raft::route::apply::RaftMachineApply;
+use crate::raft::route::apply::StorageDriver;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::kv::KvStorage;
 use crate::storage::rocksdb::RocksDBEngine;
@@ -25,7 +25,7 @@ use protocol::placement_center::placement_center_kv::{
 use std::sync::Arc;
 
 pub async fn set_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     req: &SetRequest,
 ) -> Result<SetReply, PlacementCenterError> {
     if req.key.is_empty() || req.value.is_empty() {
@@ -65,7 +65,7 @@ pub async fn get_by_req(
 }
 
 pub async fn delete_by_req(
-    raft_machine_apply: &Arc<RaftMachineApply>,
+    raft_machine_apply: &Arc<StorageDriver>,
     req: &DeleteRequest,
 ) -> Result<DeleteReply, PlacementCenterError> {
     if req.key.is_empty() {
