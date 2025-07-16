@@ -21,15 +21,12 @@ use cli_command::placement::{
 };
 use mqtt::admin::{
     process_auto_subscribe_args, process_config_args, process_connection_args, process_schema_args,
-    process_session_args, AutoSubscribeRuleCommand, BindSchemaArgs, ClusterConfigArgs,
-    ConnectionArgs, CreateSchemaArgs, DeleteSchemaArgs, ListBindSchemaArgs, ListSchemaArgs,
-    SchemaArgs, SessionArgs, UnbindSchemaArgs, UpdateSchemaArgs,
+    process_session_args, AutoSubscribeRuleCommand, ClusterConfigArgs,
+    ConnectionArgs,
+    SchemaArgs, SessionArgs,
 };
 use mqtt::publish::process_subscribe_args;
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, EnableFlappingDetectRequest,
-    ListBindSchemaRequest, ListSchemaRequest, UnbindSchemaRequest, UpdateSchemaRequest,
-};
+use protocol::broker_mqtt::broker_mqtt_admin::EnableFlappingDetectRequest;
 
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
