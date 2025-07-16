@@ -14,7 +14,7 @@
 
 use clap::{command, Parser};
 use common_config::{
-    journal::config::init_journal_server_conf_by_path, DEFAULT_JOURNAL_SERVER_CONFIG,
+    journal::config::init_journal_server_conf_by_path, DEFAULT_BROKER_SERVER_CONFIG,
 };
 use journal_server::{core::log::init_journal_server_log, JournalServer};
 use tokio::sync::broadcast;
@@ -23,7 +23,7 @@ use tokio::sync::broadcast;
 #[command(author="robustmq", version="0.0.1", about=" RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
 #[command(next_line_help = true)]
 struct ArgsParams {
-    #[arg(short, long, default_value_t=String::from(DEFAULT_JOURNAL_SERVER_CONFIG))]
+    #[arg(short, long, default_value_t=String::from(DEFAULT_BROKER_SERVER_CONFIG))]
     conf: String,
 }
 

@@ -29,7 +29,7 @@ pub fn init_broker_conf_by_path(config_path: &str) -> &'static BrokerConfig {
                 panic!("{}", e.to_string())
             }
         };
-        let new_content = override_default_by_env(content, "MQTT_SERVER");
+        let new_content = override_default_by_env(content, "ROBUST_MQ_SERVER");
         let config: BrokerConfig = toml::from_str(&new_content).unwrap_or_else(|e| panic!("{}", e));
         match try_create_fold(&config.log.log_path) {
             Ok(()) => {}
