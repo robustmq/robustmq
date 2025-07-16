@@ -21,25 +21,21 @@ use cli_command::placement::{
 };
 use mqtt::admin::{
     process_auto_subscribe_args, process_config_args, process_connection_args,
-    process_session_args, AutoSubscribeRuleCommand, BindSchemaArgs, ClusterConfigArgs,
-    ConnectionArgs, CreateSchemaArgs, DeleteSchemaArgs, ListBindSchemaArgs, ListSchemaArgs,
-    SessionArgs, UnbindSchemaArgs, UpdateSchemaArgs,
+    process_session_args, AutoSubscribeRuleCommand, ClusterConfigArgs, ConnectionArgs, SchemaArgs,
+    SessionArgs,
 };
 use mqtt::publish::process_subscribe_args;
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, EnableFlappingDetectRequest,
-    ListBindSchemaRequest, ListSchemaRequest, UnbindSchemaRequest, UpdateSchemaRequest,
-};
+use protocol::broker_mqtt::broker_mqtt_admin::EnableFlappingDetectRequest;
 
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
 };
 
 use crate::mqtt::admin::{
-    process_acl_args, process_blacklist_args, process_connector_args, process_slow_sub_args,
-    process_subscribes_args, process_system_alarm_args, process_topic_rewrite_args,
-    process_user_args, AclArgs, BlacklistArgs, ConnectorArgs, FlappingDetectArgs, SlowSubArgs,
-    SubscribesArgs, SystemAlarmArgs, TopicRewriteArgs, UserArgs,
+    process_acl_args, process_blacklist_args, process_connector_args, process_schema_args,
+    process_slow_sub_args, process_subscribes_args, process_system_alarm_args,
+    process_topic_rewrite_args, process_user_args, AclArgs, BlacklistArgs, ConnectorArgs,
+    FlappingDetectArgs, SlowSubArgs, SubscribesArgs, SystemAlarmArgs, TopicRewriteArgs, UserArgs,
 };
 use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 
@@ -114,13 +110,7 @@ enum MQTTAction {
     Connector(ConnectorArgs),
 
     // schema
-    ListSchema(ListSchemaArgs),
-    CreateSchema(CreateSchemaArgs),
-    UpdateSchema(UpdateSchemaArgs),
-    DeleteSchema(DeleteSchemaArgs),
-    ListBindSchema(ListBindSchemaArgs),
-    BindSchema(BindSchemaArgs),
-    UnbindSchema(UnbindSchemaArgs),
+    Schema(SchemaArgs),
 
     //auto subscribe
     AutoSubscribeRule(AutoSubscribeRuleCommand),
@@ -238,38 +228,8 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             MQTTAction::Publish(args) => process_publish_args(args),
             MQTTAction::Subscribe(args) => process_subscribe_args(args),
             // schema
-            MQTTAction::ListSchema(args) => MqttActionType::ListSchema(ListSchemaRequest {
-                schema_name: args.schema_name,
-            }),
-            MQTTAction::CreateSchema(args) => MqttActionType::CreateSchema(CreateSchemaRequest {
-                schema_name: args.schema_name,
-                schema_type: args.schema_type,
-                schema: args.schema,
-                desc: args.desc,
-            }),
-            MQTTAction::UpdateSchema(args) => MqttActionType::UpdateSchema(UpdateSchemaRequest {
-                schema_name: args.schema_name,
-                schema_type: args.schema_type,
-                schema: args.schema,
-                desc: args.desc,
-            }),
-            MQTTAction::DeleteSchema(args) => MqttActionType::DeleteSchema(DeleteSchemaRequest {
-                schema_name: args.schema_name,
-            }),
-            MQTTAction::ListBindSchema(args) => {
-                MqttActionType::ListBindSchema(ListBindSchemaRequest {
-                    schema_name: args.schema_name,
-                    resource_name: args.resource_name,
-                })
-            }
-            MQTTAction::BindSchema(args) => MqttActionType::BindSchema(BindSchemaRequest {
-                schema_name: args.schema_name,
-                resource_name: args.resource_name,
-            }),
-            MQTTAction::UnbindSchema(args) => MqttActionType::UnbindSchema(UnbindSchemaRequest {
-                schema_name: args.schema_name,
-                resource_name: args.resource_name,
-            }),
+            MQTTAction::Schema(args) => process_schema_args(args),
+            // auto subscribe rule
             MQTTAction::AutoSubscribeRule(args) => process_auto_subscribe_args(args),
         },
     };
