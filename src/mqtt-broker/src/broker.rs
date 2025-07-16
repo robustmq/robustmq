@@ -378,15 +378,6 @@ impl MqttBrokerServer {
                 &self.schema_manager,
             )
             .await;
-
-            let config = broker_config();
-            info!("config:");
-            match serde_json::to_string_pretty(config) {
-                Ok(data) => info!("{}", data),
-                Err(e) => {
-                    panic!("{}", e);
-                }
-            };
         });
     }
 

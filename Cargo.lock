@@ -552,6 +552,7 @@ dependencies = [
  "placement-center",
  "protocol",
  "schema-register",
+ "serde_json",
  "thiserror 1.0.69",
  "tokio",
  "tonic",

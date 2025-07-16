@@ -14,6 +14,7 @@
 
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
+use crate::handler::error::MqttBrokerError;
 use crate::storage::cluster::ClusterStorage;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
@@ -97,29 +98,36 @@ struct PlacementCenterStatus {
     pub current_leader: u32,
 }
 
-pub async fn check_placement_center_status(client_pool: Arc<ClientPool>) -> ResultMqttBrokerError {
-    loop {
+pub async fn check_placement_center_status(client_pool: Arc<ClientPool>) {
+    let fun = async move || -> Result<Option<bool>, MqttBrokerError> {
         let cluster_storage = ClusterStorage::new(client_pool.clone());
-        match cluster_storage.place_cluster_status().await {
-            Ok(data) => {
-                let status = serde_json::from_str::<PlacementCenterStatus>(&data)?;
-                if status.current_leader > 0 {
-                    info!(
+        let data = cluster_storage.place_cluster_status().await?;
+        let status = serde_json::from_str::<PlacementCenterStatus>(&data)?;
+        if status.current_leader > 0 {
+            info!(
                 "Placement Center cluster is in normal condition. current leader node is {}.",
                 status.current_leader
             );
-                    break;
-                } else {
-                    warn!("Placement Center cluster does not have a Leader. It is waiting for a new Leader to be elected before starting the Broker.");
-                    sleep(Duration::from_secs(1)).await;
+            return Ok(Some(true));
+        };
+        Ok(None)
+    };
+
+    loop {
+        match fun().await {
+            Ok(bol) => {
+                if let Some(b) = bol {
+                    if b {
+                        break;
+                    }
                 }
+
+                sleep(Duration::from_secs(1)).await;
             }
             Err(e) => {
-                println!("Error occurred while retrieving cluster status. Error message: {e}");
+                warn!(" cluster is not yet ready. Error message: {}", e);
                 sleep(Duration::from_secs(1)).await;
             }
         }
     }
-
-    Ok(())
 }

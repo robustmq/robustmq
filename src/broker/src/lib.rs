@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::{sync::Arc, thread::sleep, time::Duration};
+
 use crate::grpc::start_grpc_server;
 use common_base::runtime::create_runtime;
 use common_config::broker::{broker_config, config::BrokerConfig};
@@ -42,9 +44,7 @@ use placement_center::{
     PlacementCenterServer, PlacementCenterServerParams,
 };
 use schema_register::schema::SchemaRegisterManager;
-use std::sync::Arc;
-use tokio::signal;
-use tokio::{runtime::Runtime, sync::broadcast};
+use tokio::{runtime::Runtime, signal, sync::broadcast};
 use tracing::{error, info};
 
 pub mod common;
@@ -85,16 +85,13 @@ impl BrokerServer {
     }
     pub fn start(&self) {
         self.start_grpc_server();
+        sleep(Duration::from_secs(3));
 
         let place_stop = self.start_placement_center();
 
         // check placement ready
         self.runtime.block_on(async move {
-            if let Err(e) =
-                check_placement_center_status(self.place_params.client_pool.clone()).await
-            {
-                panic!("{}", e);
-            }
+            check_placement_center_status(self.place_params.client_pool.clone()).await
         });
 
         // start journal server

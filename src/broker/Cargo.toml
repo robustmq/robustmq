@@ -39,3 +39,4 @@ tracing-appender.workspace = true
 delay-message.workspace = true
 schema-register.workspace = true
 tracing.workspace = true
+serde_json.workspace = true

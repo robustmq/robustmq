@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use broker_server::{common::init_broker_log, BrokerServer};
+use broker_server::{
+    common::{init_broker_log, print_conf},
+    BrokerServer,
+};
 use clap::{command, Parser};
 use common_base::version::logo::banner;
 use common_config::{broker::init_broker_conf_by_path, DEFAULT_BROKER_SERVER_CONFIG};
@@ -32,6 +35,7 @@ fn main() {
     #[allow(unused_variables)]
     let append = init_broker_log().unwrap();
     banner();
+    print_conf();
     let server = BrokerServer::new();
     server.start();
 }

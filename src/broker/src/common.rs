@@ -14,9 +14,16 @@
 
 use common_base::{error::log_config::LogConfigError, logging::init_tracing_subscriber};
 use common_config::broker::broker_config;
+use tracing::info;
 use tracing_appender::non_blocking::WorkerGuard;
 
 pub fn init_broker_log() -> Result<Vec<WorkerGuard>, LogConfigError> {
     let conf = broker_config();
     init_tracing_subscriber(&conf.log.log_config, &conf.log.log_path)
+}
+
+pub fn print_conf() {
+    let conf = broker_config();
+    let json = serde_json::to_string_pretty(conf).unwrap();
+    info!("broker config:{}", json);
 }

@@ -36,6 +36,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use tonic::transport::Server;
 use tower::{Layer, Service};
+use tracing::info;
 
 pub async fn start_grpc_server(
     place_params: &PlacementCenterServerParams,
@@ -49,40 +50,38 @@ pub async fn start_grpc_server(
         .into_inner();
 
     let grpc_max_decoding_message_size = 268435456;
-    let mut server = Server::builder()
+    info!("Broker Grpc Server start success. addr:{}", ip);
+    Server::builder()
         .accept_http1(true)
         .layer(cors_layer)
         .layer(tonic_web::GrpcWebLayer::new())
-        .layer(layer);
-
-    // Placement Center
-    server.add_service(
-        PlacementCenterServiceServer::new(get_place_inner_handler(place_params))
-            .max_decoding_message_size(grpc_max_decoding_message_size),
-    );
-    server.add_service(
-        KvServiceServer::new(get_place_kv_handler(place_params))
-            .max_decoding_message_size(grpc_max_decoding_message_size),
-    );
-    server.add_service(
-        MqttServiceServer::new(get_place_mqtt_handler(place_params))
-            .max_decoding_message_size(grpc_max_decoding_message_size),
-    );
-    server.add_service(
-        EngineServiceServer::new(get_place_engine_handler(place_params))
-            .max_decoding_message_size(grpc_max_decoding_message_size),
-    );
-    server.add_service(
-        OpenRaftServiceServer::new(get_place_raft_handler(place_params))
-            .max_decoding_message_size(grpc_max_decoding_message_size),
-    );
-
-    // Mqtt Server
-    server.add_service(
-        MqttBrokerInnerServiceServer::new(get_mqtt_inner_handler(mqtt_params))
-            .max_decoding_message_size(grpc_max_decoding_message_size),
-    );
-    server
+        .layer(layer)
+        // Placement Center
+        .add_service(
+            PlacementCenterServiceServer::new(get_place_inner_handler(place_params))
+                .max_decoding_message_size(grpc_max_decoding_message_size),
+        )
+        .add_service(
+            KvServiceServer::new(get_place_kv_handler(place_params))
+                .max_decoding_message_size(grpc_max_decoding_message_size),
+        )
+        .add_service(
+            MqttServiceServer::new(get_place_mqtt_handler(place_params))
+                .max_decoding_message_size(grpc_max_decoding_message_size),
+        )
+        .add_service(
+            EngineServiceServer::new(get_place_engine_handler(place_params))
+                .max_decoding_message_size(grpc_max_decoding_message_size),
+        )
+        .add_service(
+            OpenRaftServiceServer::new(get_place_raft_handler(place_params))
+                .max_decoding_message_size(grpc_max_decoding_message_size),
+        )
+        // Mqtt Server
+        .add_service(
+            MqttBrokerInnerServiceServer::new(get_mqtt_inner_handler(mqtt_params))
+                .max_decoding_message_size(grpc_max_decoding_message_size),
+        )
         .add_service(
             MqttBrokerAdminServiceServer::new(get_mqtt_admin_handler(mqtt_params))
                 .max_decoding_message_size(grpc_max_decoding_message_size),
