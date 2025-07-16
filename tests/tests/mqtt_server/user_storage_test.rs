@@ -14,16 +14,15 @@
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use common_config::mqtt::init_broker_mqtt_conf_by_path;
+    use common_config::broker::init_broker_conf_by_path;
     use grpc_clients::pool::ClientPool;
     use mqtt_broker::storage::user::UserStorage;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn user_test() {
         let path = format!("{}/../config/mqtt-server.toml", env!("CARGO_MANIFEST_DIR"));
-        init_broker_mqtt_conf_by_path(&path);
+        init_broker_conf_by_path(&path);
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let user_storage = UserStorage::new(client_pool);

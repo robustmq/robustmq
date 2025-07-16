@@ -152,7 +152,7 @@ mod tests {
 
     use common_base::tools::now_second;
     use common_base::utils::file_utils::test_temp_dir;
-    use common_config::place::config::placement_center_test_conf;
+    use common_config::broker::broker_config;
     use metadata_struct::mqtt::topic::MQTTTopic;
 
     use crate::storage::mqtt::topic::MqttTopicStorage;
@@ -160,7 +160,7 @@ mod tests {
 
     #[tokio::test]
     async fn topic_storage_test() {
-        let config = placement_center_test_conf();
+        let config = broker_config();
 
         let rs = Arc::new(RocksDBEngine::new(
             &test_temp_dir(),

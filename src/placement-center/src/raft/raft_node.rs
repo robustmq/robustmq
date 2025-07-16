@@ -12,21 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::BTreeMap;
-use std::fmt::Display;
-use std::path::Path;
-use std::sync::Arc;
-
-use common_config::place::config::placement_center_conf;
-use grpc_clients::pool::ClientPool;
-use openraft::{Config, Raft};
-use tracing::info;
-
 use super::network::network::Network;
 use super::store::new_storage;
 use super::type_config::TypeConfig;
 use crate::raft::route::DataRoute;
 use crate::storage::rocksdb::storage_raft_fold;
+use common_config::broker::broker_config;
+use grpc_clients::pool::ClientPool;
+use openraft::{Config, Raft};
+use std::collections::BTreeMap;
+use std::fmt::Display;
+use std::path::Path;
+use std::sync::Arc;
+use tracing::info;
 pub type NodeId = u64;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]
@@ -51,9 +49,9 @@ pub mod types {
 }
 
 pub async fn start_raft_node(raft_node: Raft<TypeConfig>) {
-    let conf = placement_center_conf();
+    let conf = broker_config();
     let mut nodes = BTreeMap::new();
-    for (node_id, addr) in conf.node.nodes.clone() {
+    for (node_id, addr) in conf.placement_center.clone() {
         let mut addr = addr.to_string();
         addr = addr.replace("\"", "");
         let node = Node {
@@ -98,7 +96,7 @@ pub async fn create_raft_node(
     };
 
     let config = Arc::new(config.validate().unwrap());
-    let conf = placement_center_conf();
+    let conf = broker_config();
     let path = storage_raft_fold(&conf.rocksdb.data_path);
     let dir = Path::new(&path);
     let (log_store, state_machine_store) = new_storage(&dir, route).await;
@@ -106,7 +104,7 @@ pub async fn create_raft_node(
     let network = Network::new(client_pool);
 
     match Raft::new(
-        conf.node.node_id,
+        conf.broker_id,
         config.clone(),
         network,
         log_store,

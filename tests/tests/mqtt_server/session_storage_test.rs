@@ -14,18 +14,17 @@
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use common_base::tools::now_second;
-    use common_config::mqtt::init_broker_mqtt_conf_by_path;
+    use common_config::broker::init_broker_conf_by_path;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
     use mqtt_broker::storage::session::SessionStorage;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn session_test() {
         let path = format!("{}/../config/mqtt-server.toml", env!("CARGO_MANIFEST_DIR"));
-        init_broker_mqtt_conf_by_path(&path);
+        init_broker_conf_by_path(&path);
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let session_storage = SessionStorage::new(client_pool);

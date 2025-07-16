@@ -227,14 +227,14 @@ mod tests {
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
     use common_base::tools::{now_second, unique_id};
     use common_base::utils::file_utils::test_temp_dir;
-    use common_config::place::config::placement_center_test_conf;
+    use common_config::broker::broker_config;
     use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::ClusterType;
     use std::sync::Arc;
 
     #[test]
     fn node_leader_info_test() {
-        let config = placement_center_test_conf();
+        let config = broker_config();
 
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &test_temp_dir(),
@@ -284,7 +284,7 @@ mod tests {
 
     #[test]
     fn get_leader_node_test() {
-        let config = placement_center_test_conf();
+        let config = broker_config();
 
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(

@@ -15,7 +15,7 @@
 use crate::handler::cache::CacheManager;
 use crate::observability::system_topic::{replace_topic_name, write_topic_data};
 
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use serde::{Deserialize, Serialize};
@@ -73,9 +73,9 @@ pub async fn st_check_system_alarm(
     metadata_cache: &Arc<CacheManager>,
     message_storage_adapter: &ArcStorageAdapter,
 ) {
-    let mqtt_conf = broker_mqtt_conf();
+    let mqtt_conf = broker_config();
     let cpu_usage =
-        get_process_every_cpu_usage(mqtt_conf.system_monitor.os_cpu_check_interval_ms).await;
+        get_process_every_cpu_usage(mqtt_conf.mqtt_system_monitor.os_cpu_check_interval_ms).await;
 
     is_send_a_new_system_event(
         client_pool,
@@ -83,7 +83,7 @@ pub async fn st_check_system_alarm(
         message_storage_adapter,
         AlarmType::HighCpuUsage,
         cpu_usage,
-        mqtt_conf.system_monitor.os_cpu_high_watermark,
+        mqtt_conf.mqtt_system_monitor.os_cpu_high_watermark,
     )
     .await;
 
@@ -93,7 +93,7 @@ pub async fn st_check_system_alarm(
         message_storage_adapter,
         AlarmType::LowCpuUsage,
         cpu_usage,
-        mqtt_conf.system_monitor.os_cpu_low_watermark,
+        mqtt_conf.mqtt_system_monitor.os_cpu_low_watermark,
     )
     .await;
 
@@ -104,7 +104,7 @@ pub async fn st_check_system_alarm(
         message_storage_adapter,
         AlarmType::MemoryUsage,
         memory_usage,
-        mqtt_conf.system_monitor.os_memory_high_watermark,
+        mqtt_conf.mqtt_system_monitor.os_memory_high_watermark,
     )
     .await;
 }
@@ -236,7 +236,7 @@ mod tests {
     use crate::storage::message::cluster_name;
 
     use common_base::tools::unique_id;
-    use common_config::mqtt::init_broker_mqtt_conf_by_path;
+    use common_config::broker::init_broker_conf_by_path;
     use metadata_struct::adapter::read_config::ReadConfig;
     use metadata_struct::mqtt::topic::MQTTTopic;
     use storage_adapter::storage::build_memory_storage_driver;
@@ -273,7 +273,7 @@ mod tests {
             "{}/../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
-        init_broker_mqtt_conf_by_path(&path);
+        init_broker_conf_by_path(&path);
         let client_pool = Arc::new(ClientPool::new(3));
         let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();
@@ -329,13 +329,13 @@ mod tests {
             "{}/../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
-        init_broker_mqtt_conf_by_path(&path);
+        init_broker_conf_by_path(&path);
         let client_pool = Arc::new(ClientPool::new(3));
         let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();
 
         let current_cpu_usage = 90.0; // Simulate current CPU usage
-        let config_cpu_usage = broker_mqtt_conf().system_monitor.os_cpu_high_watermark;
+        let config_cpu_usage = broker_config().mqtt_system_monitor.os_cpu_high_watermark;
 
         let except_key = AlarmType::HighCpuUsage;
         let except_value = SystemAlarmEventMessage {
@@ -370,13 +370,13 @@ mod tests {
             "{}/../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
-        init_broker_mqtt_conf_by_path(&path);
+        init_broker_conf_by_path(&path);
         let client_pool = Arc::new(ClientPool::new(3));
         let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();
 
         let current_cpu_usage = 50.0; // Simulate current CPU usage
-        let config_cpu_usage = broker_mqtt_conf().system_monitor.os_cpu_high_watermark;
+        let config_cpu_usage = broker_config().mqtt_system_monitor.os_cpu_high_watermark;
 
         let except_key = AlarmType::HighCpuUsage;
         let except_value = SystemAlarmEventMessage {
@@ -411,13 +411,13 @@ mod tests {
             "{}/../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
-        init_broker_mqtt_conf_by_path(&path);
+        init_broker_conf_by_path(&path);
         let client_pool = Arc::new(ClientPool::new(3));
         let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();
 
         let current_cpu_usage = 90.0; // Simulate current CPU usage
-        let config_cpu_usage = broker_mqtt_conf().system_monitor.os_cpu_high_watermark;
+        let config_cpu_usage = broker_config().mqtt_system_monitor.os_cpu_high_watermark;
 
         let except_key = AlarmType::HighCpuUsage;
         let except_value = SystemAlarmEventMessage {
@@ -477,13 +477,13 @@ mod tests {
             "{}/../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
-        init_broker_mqtt_conf_by_path(&path);
+        init_broker_conf_by_path(&path);
         let client_pool = Arc::new(ClientPool::new(3));
         let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();
 
         let current_cpu_usage = 90.0; // Simulate current CPU usage
-        let config_cpu_usage = broker_mqtt_conf().system_monitor.os_cpu_high_watermark;
+        let config_cpu_usage = broker_config().mqtt_system_monitor.os_cpu_high_watermark;
 
         let except_key = AlarmType::HighCpuUsage;
         let except_value = SystemAlarmEventMessage {
@@ -535,13 +535,13 @@ mod tests {
             "{}/../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
-        init_broker_mqtt_conf_by_path(&path);
+        init_broker_conf_by_path(&path);
         let client_pool = Arc::new(ClientPool::new(3));
         let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();
 
         let current_cpu_usage = 90.0; // Simulate current CPU usage
-        let config_cpu_usage = broker_mqtt_conf().system_monitor.os_cpu_high_watermark;
+        let config_cpu_usage = broker_config().mqtt_system_monitor.os_cpu_high_watermark;
 
         let except_cpu_key = AlarmType::HighCpuUsage;
         let except_memory_value = SystemAlarmEventMessage {
@@ -572,7 +572,7 @@ mod tests {
         assert_eq!(cpu_check_message.activated, except_memory_value.activated);
 
         let current_memory_usage = 95.0; // Simulate current CPU usage
-        let config_memory_usage = broker_mqtt_conf().system_monitor.os_memory_high_watermark;
+        let config_memory_usage = broker_config().mqtt_system_monitor.os_memory_high_watermark;
 
         let except_memory_key = AlarmType::MemoryUsage;
         let except_memory_value = SystemAlarmEventMessage {

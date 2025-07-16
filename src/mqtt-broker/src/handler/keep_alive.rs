@@ -23,7 +23,7 @@ use crate::subscribe::manager::SubscribeManager;
 use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::tools::now_second;
-use common_config::mqtt::config::BrokerMqttConfig;
+use common_config::broker::config::BrokerConfig;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
@@ -189,7 +189,7 @@ pub fn keep_live_time(keep_alive: u16) -> u16 {
     new_keep_alive as u16
 }
 
-pub fn client_keep_live_time(cluster: &BrokerMqttConfig, mut keep_alive: u16) -> u16 {
+pub fn client_keep_live_time(cluster: &BrokerConfig, mut keep_alive: u16) -> u16 {
     if keep_alive == 0 {
         keep_alive = cluster.mqtt_protocol_config.default_server_keep_alive;
     }
@@ -212,7 +212,7 @@ mod test {
     use std::time::Duration;
 
     use common_base::tools::{local_hostname, now_second, unique_id};
-    use common_config::mqtt::config::BrokerMqttConfig;
+    use common_config::broker::config::BrokerConfig;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
     use metadata_struct::mqtt::session::MqttSession;
@@ -227,7 +227,7 @@ mod test {
 
     #[tokio::test]
     pub async fn keep_live_test() {
-        let mut config = BrokerMqttConfig::default();
+        let mut config = BrokerConfig::default();
         config.mqtt_protocol_config.default_server_keep_alive = 60;
         config.mqtt_protocol_config.max_server_keep_alive = 300;
 
@@ -254,7 +254,7 @@ mod test {
 
     #[tokio::test]
     pub async fn client_keep_live_time_test() {
-        let mut config = BrokerMqttConfig::default();
+        let mut config = BrokerConfig::default();
         config.mqtt_protocol_config.default_server_keep_alive = 60;
         config.mqtt_protocol_config.max_server_keep_alive = 300;
 
@@ -275,7 +275,7 @@ mod test {
 
     #[tokio::test]
     pub async fn get_expire_connection_test() {
-        let conf = BrokerMqttConfig {
+        let conf = BrokerConfig {
             cluster_name: "test".to_string(),
             ..Default::default()
         };

@@ -21,7 +21,7 @@ use crate::{
     raft::route::apply::StorageDriver,
 };
 use common_base::tools::now_second;
-use common_config::place::config::placement_center_conf;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::status::MQTTStatus;
 use protocol::placement_center::placement_center_mqtt::CreateConnectorRequest;
@@ -80,7 +80,7 @@ async fn check_heartbeat(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
 ) -> Result<(), PlacementCenterError> {
-    let config = placement_center_conf();
+    let config = broker_config();
     for heartbeat in cache_manager.get_all_connector_heartbeat() {
         let connector = if let Some(connector) =
             cache_manager.get_connector(&heartbeat.cluster_name, &heartbeat.connector_name)
@@ -92,7 +92,9 @@ async fn check_heartbeat(
             continue;
         };
 
-        if now_second() - heartbeat.last_heartbeat > config.heartbeat.heartbeat_timeout_ms / 1000 {
+        if now_second() - heartbeat.last_heartbeat
+            > config.place_runtime.heartbeat_timeout_ms / 1000
+        {
             info!(
                 "cluster:{},Connector {} heartbeat expired, rescheduled, new node: {}",
                 connector.cluster_name, connector.connector_name, 1

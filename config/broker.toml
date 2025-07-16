@@ -16,9 +16,7 @@ cluster_name = "broker-server"
 broker_id = 1
 roles = ["place", "broker"]
 grpc_port = 1228
-
-[place]
-nodes = { 1 = "127.0.0.1:1228" }
+placement_center = { 1 = "127.0.0.1:1228" }
 
 [prometheus]
 enable = true
@@ -44,6 +42,14 @@ response_thread_num = 32
 queue_size = 1000
 lock_max_try_mut_times = 30
 lock_try_mut_sleep_time_ms = 50
+
+[rocksdb]
+data_path = "./data/placement-center/data"
+max_open_files = 10000
+
+[place.runtime]
+heartbeat_timeout_ms = 5000
+heartbeat_check_time_ms = 1000
 
 [mqtt.server]
 tcp_port = 1883
@@ -72,7 +78,7 @@ os_cpu_low_watermark = 50.0
 os_memory_check_interval_ms = 60
 os_memory_high_watermark = 80.0
 
-[mqtt.offline_messages]
+[mqtt.offline_message]
 enable = true
 expire_ms = 3600
 max_messages_num = 1000

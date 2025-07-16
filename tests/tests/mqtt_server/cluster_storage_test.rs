@@ -14,22 +14,21 @@
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use common_config::mqtt::{
-        broker_mqtt_conf, config::MqttProtocolConfig, init_broker_mqtt_conf_by_path,
+    use common_config::broker::{
+        broker_config, config::MqttProtocolConfig, init_broker_conf_by_path,
     };
     use grpc_clients::pool::ClientPool;
     use mqtt_broker::{
         handler::{cache::CacheManager, dynamic_config::ClusterDynamicConfig},
         storage::cluster::ClusterStorage,
     };
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn cluster_node_test() {
         let path = format!("{}/../config/mqtt-server.toml", env!("CARGO_MANIFEST_DIR"));
-        init_broker_mqtt_conf_by_path(&path);
-        let mut config = broker_mqtt_conf().clone();
+        init_broker_conf_by_path(&path);
+        let mut config = broker_config().clone();
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let cluster_storage = ClusterStorage::new(client_pool.clone());
@@ -59,7 +58,7 @@ mod tests {
     #[tokio::test]
     async fn cluster_config_test() {
         let path = format!("{}/../config/mqtt-server.toml", env!("CARGO_MANIFEST_DIR"));
-        init_broker_mqtt_conf_by_path(&path);
+        init_broker_conf_by_path(&path);
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let cluster_storage = ClusterStorage::new(client_pool);
@@ -69,7 +68,7 @@ mod tests {
             topic_alias_max: 999,
             ..Default::default()
         };
-        let resource = &ClusterDynamicConfig::Protocol.to_string();
+        let resource = &ClusterDynamicConfig::MqttProtocol.to_string();
         cluster_storage
             .set_dynamic_config(&cluster_name, resource, protocol.encode())
             .await

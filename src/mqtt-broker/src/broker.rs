@@ -39,7 +39,7 @@ use crate::subscribe::share::follower::ShareFollowerResub;
 use crate::subscribe::share::leader::ShareLeaderPush;
 use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use delay_message::{start_delay_message_manager, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
@@ -79,16 +79,16 @@ impl MqttBroker {
         cache_manager: Arc<CacheManager>,
         stop_sx: broadcast::Sender<bool>,
     ) -> Self {
-        let conf = broker_mqtt_conf();
-        let daemon_runtime = create_runtime("daemon-runtime", conf.system.runtime_worker_threads);
-        let admin_runtime = create_runtime("admin-runtime", conf.system.runtime_worker_threads);
+        let conf = broker_config();
+        let daemon_runtime = create_runtime("daemon-runtime", conf.runtime.runtime_worker_threads);
+        let admin_runtime = create_runtime("admin-runtime", conf.runtime.runtime_worker_threads);
 
         let connector_runtime =
-            create_runtime("connector-runtime", conf.system.runtime_worker_threads);
+            create_runtime("connector-runtime", conf.runtime.runtime_worker_threads);
 
-        let server_runtime = create_runtime("server-runtime", conf.system.runtime_worker_threads);
+        let server_runtime = create_runtime("server-runtime", conf.runtime.runtime_worker_threads);
         let subscribe_runtime =
-            create_runtime("subscribe-runtime", conf.system.runtime_worker_threads);
+            create_runtime("subscribe-runtime", conf.runtime.runtime_worker_threads);
 
         let subscribe_manager = Arc::new(SubscribeManager::new());
         let connector_manager = Arc::new(ConnectorManager::new());
@@ -213,7 +213,7 @@ impl MqttBroker {
 
     fn start_server(&self, stop_send: broadcast::Sender<bool>) {
         // grpc server
-        let conf = broker_mqtt_conf();
+        let conf = broker_config();
         let server = GrpcServer::new(
             conf.grpc_port,
             self.cache_manager.clone(),
@@ -239,10 +239,10 @@ impl MqttBroker {
         }
 
         // pprof server
-        let conf = broker_mqtt_conf();
-        if conf.pprof.enable {
+        let conf = broker_config();
+        if conf.p_prof.enable {
             self.admin_runtime.spawn(async move {
-                start_pprof_monitor(conf.pprof.port, conf.pprof.frequency).await;
+                start_pprof_monitor(conf.p_prof.port, conf.p_prof.frequency).await;
             });
         }
 
@@ -371,7 +371,7 @@ impl MqttBroker {
         let delay_message_manager = self.delay_message_manager.clone();
         let message_storage_adapter = self.message_storage_adapter.clone();
         self.daemon_runtime.spawn(async move {
-            let conf = broker_mqtt_conf();
+            let conf = broker_config();
             if let Err(e) = start_delay_message_manager(
                 &delay_message_manager,
                 &message_storage_adapter,
@@ -403,7 +403,7 @@ impl MqttBroker {
             )
             .await;
 
-            let config = broker_mqtt_conf();
+            let config = broker_config();
             info!("config:");
             match serde_json::to_string_pretty(config) {
                 Ok(data) => info!("{}", data),
@@ -423,7 +423,7 @@ impl MqttBroker {
         // Wait for the stop signal
         self.daemon_runtime.block_on(async move {
             // register node
-            let config = broker_mqtt_conf();
+            let config = broker_config();
             match register_node(&self.client_pool, &self.cache_manager).await {
                 Ok(()) => {
                     let client_pool = self.client_pool.clone();
@@ -432,11 +432,11 @@ impl MqttBroker {
                     // heartbeat report
                     let raw_stop_send = stop_send.clone();
                     self.daemon_runtime.spawn(async move {
-                        let conf = broker_mqtt_conf();
+                        let conf = broker_config();
                         report_heartbeat(
                             &client_pool,
                             &cache_manager,
-                            &conf.system.heartbeat_timeout,
+                            &conf.mqtt_runtime.heartbeat_timeout,
                             raw_stop_send.clone(),
                         )
                         .await;
@@ -475,7 +475,7 @@ impl MqttBroker {
 
     async fn stop_server(&self) -> ResultMqttBrokerError {
         let cluster_storage = ClusterStorage::new(self.client_pool.clone());
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let _ = self.delay_message_manager.stop().await;
         cluster_storage.unregister_node(config).await?;
         info!(

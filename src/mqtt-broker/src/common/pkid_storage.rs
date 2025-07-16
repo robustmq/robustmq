@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::placement::inner::call::{
     delete_idempotent_data, exists_idempotent_data, set_idempotent_data,
 };
@@ -38,13 +38,13 @@ pub async fn pkid_save(
         .mqtt_protocol_config
         .client_pkid_persistent
     {
-        let conf = broker_mqtt_conf();
+        let conf = broker_config();
         let request = SetIdempotentDataRequest {
             cluster_name: conf.cluster_name.clone(),
             producer_id: client_id.to_owned(),
             seq_num: pkid as u64,
         };
-        match set_idempotent_data(client_pool, &conf.placement_center, request).await {
+        match set_idempotent_data(client_pool, &conf.get_placement_center_addr(), request).await {
             Ok(_) => {
                 return Ok(());
             }
@@ -69,13 +69,14 @@ pub async fn pkid_exists(
         .mqtt_protocol_config
         .client_pkid_persistent
     {
-        let conf = broker_mqtt_conf();
+        let conf = broker_config();
         let request = ExistsIdempotentDataRequest {
             cluster_name: conf.cluster_name.clone(),
             producer_id: client_id.to_owned(),
             seq_num: pkid as u64,
         };
-        match exists_idempotent_data(client_pool, &conf.placement_center, request).await {
+        match exists_idempotent_data(client_pool, &conf.get_placement_center_addr(), request).await
+        {
             Ok(reply) => Ok(reply.exists),
             Err(e) => Err(MqttBrokerError::CommonError(e.to_string())),
         }
@@ -98,13 +99,14 @@ pub async fn pkid_delete(
         .mqtt_protocol_config
         .client_pkid_persistent
     {
-        let conf = broker_mqtt_conf();
+        let conf = broker_config();
         let request = DeleteIdempotentDataRequest {
             cluster_name: conf.cluster_name.clone(),
             producer_id: client_id.to_owned(),
             seq_num: pkid as u64,
         };
-        match delete_idempotent_data(client_pool, &conf.placement_center, request).await {
+        match delete_idempotent_data(client_pool, &conf.get_placement_center_addr(), request).await
+        {
             Ok(_) => {
                 return Ok(());
             }
@@ -122,7 +124,7 @@ pub async fn pkid_delete(
 
 #[cfg(test)]
 mod test {
-    use common_config::mqtt::init_broker_mqtt_conf_by_path;
+    use common_config::broker::init_broker_conf_by_path;
     use grpc_clients::pool::ClientPool;
     use std::sync::Arc;
 
@@ -136,7 +138,7 @@ mod test {
             "{}/../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
-        init_broker_mqtt_conf_by_path(&path);
+        init_broker_conf_by_path(&path);
 
         let cluster_name = "test".to_string();
         let client_pool = Arc::new(ClientPool::new(10));

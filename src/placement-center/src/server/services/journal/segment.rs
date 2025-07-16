@@ -537,7 +537,7 @@ mod tests {
     use crate::core::cache::CacheManager;
     use crate::storage::rocksdb::{column_family_list, storage_data_fold};
     use common_base::tools::now_second;
-    use common_config::place::config::placement_center_test_conf;
+    use common_config::broker::broker_config;
     use metadata_struct::journal::node_extend::JournalNodeExtend;
     use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::ClusterType;
@@ -546,7 +546,7 @@ mod tests {
 
     #[tokio::test]
     async fn calc_node_fold_test() {
-        let config = placement_center_test_conf();
+        let config = broker_config();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &storage_data_fold(&config.rocksdb.data_path),
             config.rocksdb.max_open_files.unwrap(),
@@ -577,7 +577,7 @@ mod tests {
 
     // #[tokio::test]
     // async fn create_segment_test() {
-    //     let config = placement_center_test_conf();
+    //     let config = broker_config();;
     //     let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
     //         &storage_data_fold(&config.rocksdb.data_path),
     //         config.rocksdb.max_open_files.unwrap(),
@@ -672,7 +672,7 @@ mod tests {
 
     // #[tokio::test]
     // async fn create_first_segment_test() {
-    //     let config = placement_center_test_conf();
+    //     let config = broker_config();;
     //     let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
     //         &storage_data_fold(&config.rocksdb.data_path),
     //         config.rocksdb.max_open_files.unwrap(),
@@ -749,7 +749,7 @@ mod tests {
 
     // #[tokio::test]
     // async fn create_next_segment_test() {
-    //     let config = placement_center_test_conf();
+    //     let config = broker_config();;
     //     let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
     //         &storage_data_fold(&config.rocksdb.data_path),
     //         config.rocksdb.max_open_files.unwrap(),

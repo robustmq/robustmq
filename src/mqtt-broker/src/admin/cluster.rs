@@ -35,7 +35,7 @@ pub async fn set_cluster_config_by_req(
             cache_manager.update_slow_sub_config(config.clone());
             save_cluster_dynamic_config(
                 client_pool,
-                ClusterDynamicConfig::FlappingDetect,
+                ClusterDynamicConfig::MqttFlappingDetect,
                 config.encode(),
             )
             .await?;
@@ -47,7 +47,7 @@ pub async fn set_cluster_config_by_req(
             cache_manager.update_offline_message_config(config.clone());
             save_cluster_dynamic_config(
                 client_pool,
-                ClusterDynamicConfig::OfflineMessage,
+                ClusterDynamicConfig::MqttOfflineMessage,
                 config.encode(),
             )
             .await?;

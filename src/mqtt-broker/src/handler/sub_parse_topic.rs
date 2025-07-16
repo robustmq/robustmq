@@ -18,7 +18,7 @@ use super::{
 };
 use crate::subscribe::manager::SubscribeManager;
 use common_base::tools::now_second;
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use std::{sync::Arc, time::Duration};
 use tokio::{select, sync::broadcast, time::sleep};
@@ -61,7 +61,7 @@ async fn parse_subscribe_by_new_topic(
     subscribe_manager: &Arc<SubscribeManager>,
     last_update_time: u64,
 ) {
-    let conf = broker_mqtt_conf();
+    let conf = broker_config();
 
     for (_, subscribe) in subscribe_manager.subscribe_list.clone() {
         if subscribe.broker_id != conf.broker_id {

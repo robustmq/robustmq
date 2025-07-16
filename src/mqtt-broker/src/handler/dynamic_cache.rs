@@ -20,7 +20,7 @@ use crate::storage::connector::ConnectorStorage;
 use crate::storage::topic::TopicStorage;
 use crate::{security::AuthDriver, subscribe::manager::SubscribeManager};
 
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::placement::inner::call::list_schema;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
@@ -130,13 +130,13 @@ pub async fn load_metadata_cache(
     }
 
     // load all schemas
-    let config = broker_mqtt_conf();
+    let config = broker_config();
     let request = ListSchemaRequest {
         cluster_name: config.cluster_name.clone(),
         schema_name: "".to_owned(),
     };
 
-    match list_schema(client_pool, &config.placement_center, request).await {
+    match list_schema(client_pool, &config.get_placement_center_addr(), request).await {
         Ok(reply) => {
             for raw in reply.schemas {
                 match serde_json::from_slice::<SchemaData>(raw.as_slice()) {

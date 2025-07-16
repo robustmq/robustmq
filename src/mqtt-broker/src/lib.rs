@@ -15,7 +15,7 @@
 #![allow(clippy::result_large_err)]
 use crate::{broker::MqttBroker, storage::message::build_message_storage_driver};
 use common_base::version::logo::banner;
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use handler::cache::CacheManager;
 use std::sync::Arc;
@@ -33,7 +33,7 @@ mod subscribe;
 
 pub fn start_broker(stop_send: broadcast::Sender<bool>) {
     banner();
-    let conf = broker_mqtt_conf();
+    let conf = broker_config();
     let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
     let metadata_cache: Arc<CacheManager> = Arc::new(CacheManager::new(
         client_pool.clone(),

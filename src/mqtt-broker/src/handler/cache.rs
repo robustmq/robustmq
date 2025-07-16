@@ -16,7 +16,7 @@ use crate::common::pkid_manager::PkidManager;
 use crate::observability::system_topic::sysmon::SystemAlarmEventMessage;
 use crate::security::auth::metadata::AclMetadata;
 use common_base::tools::now_second;
-use common_config::mqtt::config::BrokerMqttConfig;
+use common_config::broker::config::BrokerConfig;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
@@ -100,7 +100,7 @@ pub struct CacheManager {
     pub cluster_name: String,
 
     // (cluster_name, Cluster)
-    pub cluster_info: DashMap<String, BrokerMqttConfig>,
+    pub cluster_info: DashMap<String, BrokerConfig>,
 
     // (username, User)
     pub user_info: DashMap<String, MqttUser>,

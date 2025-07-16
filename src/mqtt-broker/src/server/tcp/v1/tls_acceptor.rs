@@ -20,7 +20,7 @@ use crate::server::common::channel::RequestChannel;
 use crate::server::common::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::common::connection_manager::ConnectionManager;
 use crate::server::common::tool::read_packet;
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use futures_util::StreamExt;
 use protocol::mqtt::codec::MqttCodec;
 use rustls_pemfile::{certs, private_key};
@@ -172,9 +172,9 @@ pub(crate) fn read_tls_frame_process(
 }
 
 fn create_tls_accept() -> Result<TlsAcceptor, MqttBrokerError> {
-    let conf = broker_mqtt_conf();
-    let certs = load_certs(Path::new(&conf.network_port.tls_cert))?;
-    let key = load_key(Path::new(&conf.network_port.tls_key))?;
+    let conf = broker_config();
+    let certs = load_certs(Path::new(&conf.runtime.tls_cert))?;
+    let key = load_key(Path::new(&conf.runtime.tls_key))?;
     let config = ServerConfig::builder()
         .with_no_client_auth()
         .with_single_cert(certs, key)?;

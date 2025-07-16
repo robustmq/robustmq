@@ -178,7 +178,7 @@ impl ConnectionManager {
                             if broker_not_available(&e.to_string()) {
                                 return Err(MqttBrokerError::CommonError(e.to_string()));
                             }
-                            if times > cluster.network_thread.lock_max_try_mut_times {
+                            if times > cluster.network.lock_max_try_mut_times {
                                 return Err(MqttBrokerError::FailedToWriteClient(
                                     "websocket".to_string(),
                                     e.to_string(),
@@ -189,7 +189,7 @@ impl ConnectionManager {
                 }
 
                 dashmap::try_result::TryResult::Absent => {
-                    if times > cluster.network_thread.lock_max_try_mut_times {
+                    if times > cluster.network.lock_max_try_mut_times {
                         return Err(MqttBrokerError::NotObtainAvailableConnection(
                             "websocket".to_string(),
                             connection_id,
@@ -201,7 +201,7 @@ impl ConnectionManager {
             }
             times += 1;
             sleep(Duration::from_millis(
-                cluster.network_thread.lock_try_mut_sleep_time_ms,
+                cluster.network.lock_try_mut_sleep_time_ms,
             ))
             .await
         }
@@ -246,7 +246,7 @@ impl ConnectionManager {
                                 return Err(MqttBrokerError::CommonError(e.to_string()));
                             }
 
-                            if times > cluster.network_thread.lock_max_try_mut_times {
+                            if times > cluster.network.lock_max_try_mut_times {
                                 return Err(MqttBrokerError::FailedToWriteClient(
                                     "tcp".to_string(),
                                     e.to_string(),
@@ -256,7 +256,7 @@ impl ConnectionManager {
                     }
                 }
                 dashmap::try_result::TryResult::Absent => {
-                    if times > cluster.network_thread.lock_max_try_mut_times {
+                    if times > cluster.network.lock_max_try_mut_times {
                         return Err(MqttBrokerError::NotObtainAvailableConnection(
                             "tcp".to_string(),
                             connection_id,
@@ -267,7 +267,7 @@ impl ConnectionManager {
             }
             times += 1;
             sleep(Duration::from_millis(
-                cluster.network_thread.lock_try_mut_sleep_time_ms,
+                cluster.network.lock_try_mut_sleep_time_ms,
             ))
             .await
         }
@@ -297,7 +297,7 @@ impl ConnectionManager {
                             break;
                         }
                         Err(e) => {
-                            if times > cluster.network_thread.lock_max_try_mut_times {
+                            if times > cluster.network.lock_max_try_mut_times {
                                 return Err(MqttBrokerError::FailedToWriteClient(
                                     "tcp".to_string(),
                                     e.to_string(),
@@ -307,7 +307,7 @@ impl ConnectionManager {
                     }
                 }
                 dashmap::try_result::TryResult::Absent => {
-                    if times > cluster.network_thread.lock_max_try_mut_times {
+                    if times > cluster.network.lock_max_try_mut_times {
                         return Err(MqttBrokerError::NotObtainAvailableConnection(
                             "tcp".to_string(),
                             connection_id,
@@ -318,7 +318,7 @@ impl ConnectionManager {
             }
             times += 1;
             sleep(Duration::from_millis(
-                cluster.network_thread.lock_try_mut_sleep_time_ms,
+                cluster.network.lock_try_mut_sleep_time_ms,
             ))
             .await
         }
@@ -327,7 +327,7 @@ impl ConnectionManager {
 
     pub fn tcp_connect_num_check(&self) -> bool {
         let cluster = self.cache_manager.get_cluster_config();
-        if self.connections.len() >= cluster.network_thread.max_connection_num {
+        if self.connections.len() >= cluster.mqtt_runtime.max_connection_num {
             return true;
         }
         false

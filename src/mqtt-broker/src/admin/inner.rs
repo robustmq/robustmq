@@ -18,7 +18,7 @@ use crate::handler::dynamic_cache::update_cache_metadata;
 use crate::handler::error::MqttBrokerError;
 use crate::handler::last_will::send_last_will_message;
 use crate::subscribe::manager::SubscribeManager;
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use protocol::broker_mqtt::broker_mqtt_inner::{
@@ -37,7 +37,7 @@ pub async fn update_cache_by_req(
     schema_manager: &Arc<SchemaRegisterManager>,
     req: &UpdateMqttCacheRequest,
 ) -> Result<UpdateMqttCacheReply, MqttBrokerError> {
-    let conf = broker_mqtt_conf();
+    let conf = broker_config();
     if conf.cluster_name != req.cluster_name {
         return Ok(UpdateMqttCacheReply::default());
     }

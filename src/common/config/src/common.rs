@@ -101,6 +101,13 @@ pub fn default_pprof_frequency() -> i32 {
     100
 }
 
+pub fn default_log() -> Log {
+    Log {
+        log_path: "./logs".to_string(),
+        log_config: "./config/log4rs.yaml".to_string(),
+    }
+}
+
 /** `override_default_by_env` Cover the content based on the environment variables
 
 ```

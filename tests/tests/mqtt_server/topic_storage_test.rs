@@ -19,7 +19,7 @@ mod tests {
     use bytes::Bytes;
     use common_base::logging::init_tracing_subscriber;
     use common_base::tools::unique_id;
-    use common_config::mqtt::{broker_mqtt_conf, init_broker_mqtt_conf_by_path};
+    use common_config::broker::{broker_config, init_broker_conf_by_path};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::mqtt::topic::MQTTTopic;
@@ -35,13 +35,13 @@ mod tests {
         );
         let log_path = format!("{}/../logs/tests", env!("CARGO_MANIFEST_DIR"));
 
-        init_broker_mqtt_conf_by_path(&path);
+        init_broker_conf_by_path(&path);
         let guards = init_tracing_subscriber(&log_config, &log_path).unwrap();
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_pool);
 
-        let mqtt_conf = broker_mqtt_conf();
+        let mqtt_conf = broker_config();
 
         let topic_name: String = "test_password".to_string();
         let topic = MQTTTopic::new(
@@ -78,7 +78,7 @@ mod tests {
     async fn topic_retain_message_test() {
         let path = format!("{}/../config/mqtt-server.toml", env!("CARGO_MANIFEST_DIR"));
 
-        init_broker_mqtt_conf_by_path(&path);
+        init_broker_conf_by_path(&path);
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_pool);
@@ -92,7 +92,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mqtt_conf = broker_mqtt_conf();
+        let mqtt_conf = broker_config();
 
         let topic = MQTTTopic::new(
             unique_id(),

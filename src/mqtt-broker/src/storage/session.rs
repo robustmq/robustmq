@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::placement::mqtt::call::{
     placement_create_session, placement_delete_session, placement_list_session,
@@ -42,14 +42,19 @@ impl SessionStorage {
         client_id: String,
         session: &MqttSession,
     ) -> Result<(), CommonError> {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = CreateSessionRequest {
             cluster_name: config.cluster_name.clone(),
             client_id,
             session: session.encode(),
         };
 
-        placement_create_session(&self.client_pool, &config.placement_center, request).await?;
+        placement_create_session(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         Ok(())
     }
 
@@ -61,7 +66,7 @@ impl SessionStorage {
         reconnect_time: u64,
         distinct_time: u64,
     ) -> Result<(), CommonError> {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = UpdateSessionRequest {
             cluster_name: config.cluster_name.clone(),
             client_id,
@@ -71,30 +76,44 @@ impl SessionStorage {
             distinct_time,
         };
 
-        placement_update_session(&self.client_pool, &config.placement_center, request).await?;
+        placement_update_session(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         Ok(())
     }
 
     pub async fn delete_session(&self, client_id: String) -> Result<(), CommonError> {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = DeleteSessionRequest {
             cluster_name: config.cluster_name.clone(),
             client_id,
         };
 
-        placement_delete_session(&self.client_pool, &config.placement_center, request).await?;
+        placement_delete_session(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         Ok(())
     }
 
     pub async fn get_session(&self, client_id: String) -> Result<Option<MqttSession>, CommonError> {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = ListSessionRequest {
             cluster_name: config.cluster_name.clone(),
             client_id,
         };
 
-        let reply =
-            placement_list_session(&self.client_pool, &config.placement_center, request).await?;
+        let reply = placement_list_session(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         if reply.sessions.is_empty() {
             return Ok(None);
         }
@@ -105,14 +124,18 @@ impl SessionStorage {
     }
 
     pub async fn list_session(&self) -> Result<DashMap<String, MqttSession>, CommonError> {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = ListSessionRequest {
             cluster_name: config.cluster_name.clone(),
             client_id: "".to_string(),
         };
 
-        let reply =
-            placement_list_session(&self.client_pool, &config.placement_center, request).await?;
+        let reply = placement_list_session(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         let results = DashMap::with_capacity(2);
 
         for raw in reply.sessions {
@@ -128,15 +151,19 @@ impl SessionStorage {
         client_id: String,
         last_will_message: Vec<u8>,
     ) -> Result<(), CommonError> {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = SaveLastWillMessageRequest {
             cluster_name: config.cluster_name.clone(),
             client_id,
             last_will_message,
         };
 
-        placement_save_last_will_message(&self.client_pool, &config.placement_center, request)
-            .await?;
+        placement_save_last_will_message(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
 
         Ok(())
     }

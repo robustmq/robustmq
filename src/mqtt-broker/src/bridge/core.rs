@@ -16,7 +16,7 @@ use crate::common::tool::loop_select;
 use crate::common::types::ResultMqttBrokerError;
 use axum::async_trait;
 
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use metadata_struct::mqtt::bridge::{
     config_local_file::LocalFileConnectorConfig, connector::MQTTConnector,
     connector_type::ConnectorType, status::MQTTStatus,
@@ -64,7 +64,7 @@ async fn check_connector(
     message_storage: &ArcStorageAdapter,
     connector_manager: &Arc<ConnectorManager>,
 ) {
-    let config = broker_mqtt_conf();
+    let config = broker_config();
 
     // Start connector thread
     for raw in connector_manager.get_all_connector() {

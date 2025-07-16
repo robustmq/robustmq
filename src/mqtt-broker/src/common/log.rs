@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use common_base::{error::log_config::LogConfigError, logging::init_tracing_subscriber};
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use tracing_appender::non_blocking::WorkerGuard;
 
 pub fn init_broker_mqtt_log() -> Result<Vec<WorkerGuard>, LogConfigError> {
-    let conf = broker_mqtt_conf();
+    let conf = broker_config();
     init_tracing_subscriber(&conf.log.log_config, &conf.log.log_path)
 }

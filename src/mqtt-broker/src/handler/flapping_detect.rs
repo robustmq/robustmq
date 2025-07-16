@@ -18,7 +18,7 @@ use crate::handler::dynamic_config::{save_cluster_dynamic_config, ClusterDynamic
 use crate::observability::metrics::event_metrics;
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
-use common_config::mqtt::config::FlappingDetect;
+use common_config::broker::config::MqttFlappingDetect;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
 use protocol::broker_mqtt::broker_mqtt_admin::EnableFlappingDetectRequest;
@@ -142,7 +142,7 @@ pub fn check_flapping_detect(client_id: String, cache_manager: &Arc<CacheManager
 
 fn add_blacklist_4_connection_jitter(
     cache_manager: &Arc<CacheManager>,
-    config: FlappingDetect,
+    config: MqttFlappingDetect,
     client_id: String,
 ) {
     let client_id_blacklist = MqttAclBlackList {
@@ -178,7 +178,7 @@ pub async fn enable_flapping_detect(
     cache_manager: &Arc<CacheManager>,
     request: EnableFlappingDetectRequest,
 ) -> ResultMqttBrokerError {
-    let connection_jitter = FlappingDetect {
+    let connection_jitter = MqttFlappingDetect {
         enable: request.is_enable,
         window_time: request.window_time,
         max_client_connections: request.max_client_connections as u64,
@@ -187,7 +187,7 @@ pub async fn enable_flapping_detect(
 
     save_cluster_dynamic_config(
         client_pool,
-        ClusterDynamicConfig::FlappingDetect,
+        ClusterDynamicConfig::MqttFlappingDetect,
         connection_jitter.encode(),
     )
     .await?;

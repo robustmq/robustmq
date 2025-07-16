@@ -18,7 +18,7 @@ use common_base::{
     tools::now_second,
     utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub},
 };
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::{placement::mqtt::call::placement_set_subscribe, pool::ClientPool};
 use metadata_struct::mqtt::{
     subscribe_data::{is_mqtt_share_subscribe, MqttSubscribe},
@@ -65,7 +65,7 @@ pub async fn save_subscribe(
     subscribe: &Subscribe,
     subscribe_properties: &Option<SubscribeProperties>,
 ) -> ResultMqttBrokerError {
-    let conf = broker_mqtt_conf();
+    let conf = broker_config();
     let filters = &subscribe.filters;
     for filter in filters {
         let subscribe_data = MqttSubscribe {
@@ -88,7 +88,8 @@ pub async fn save_subscribe(
             subscribe: subscribe_data.encode(),
         };
 
-        if let Err(e) = placement_set_subscribe(client_pool, &conf.placement_center, request).await
+        if let Err(e) =
+            placement_set_subscribe(client_pool, &conf.get_placement_center_addr(), request).await
         {
             error!(
                 "Failed to set subscribe to placement center, error message: {}",
@@ -201,7 +202,7 @@ async fn parse_share_subscribe(
     let (group_name, sub_name) = decode_share_group_and_path(&req.filter.path);
     req.group_name = format!("{group_name}_{sub_name}");
     req.sub_name = sub_name;
-    let conf = broker_mqtt_conf();
+    let conf = broker_config();
 
     if is_match_sub_and_topic(&req.sub_name, &req.topic_name).is_ok() {
         let reply = get_share_sub_leader(client_pool, &req.group_name).await?;

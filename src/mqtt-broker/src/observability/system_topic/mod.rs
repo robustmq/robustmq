@@ -77,7 +77,7 @@ use crate::observability::system_topic::sysmon::{
 };
 use crate::storage::message::MessageStorage;
 use common_base::tools::get_local_ip;
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
@@ -279,8 +279,8 @@ pub(crate) async fn report_alarm_info(
     metadata_cache: &Arc<CacheManager>,
     message_storage_adapter: &ArcStorageAdapter,
 ) {
-    let conf = broker_mqtt_conf();
-    if conf.system_monitor.enable {
+    let conf = broker_config();
+    if conf.mqtt_system_monitor.enable {
         sysmon::st_check_system_alarm(client_pool, metadata_cache, message_storage_adapter).await;
     }
 }
@@ -432,7 +432,7 @@ mod test {
     use crate::observability::system_topic::write_topic_data;
     use crate::storage::message::cluster_name;
     use common_base::tools::{get_local_ip, unique_id};
-    use common_config::mqtt::init_broker_mqtt_conf_by_path;
+    use common_config::broker::init_broker_conf_by_path;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::adapter::read_config::ReadConfig;
     use metadata_struct::mqtt::message::MqttMessage;
@@ -446,7 +446,7 @@ mod test {
             "{}/../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
-        init_broker_mqtt_conf_by_path(&path);
+        init_broker_conf_by_path(&path);
         let client_pool = Arc::new(ClientPool::new(3));
         let cache_manger = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
@@ -504,7 +504,7 @@ mod test {
             "{}/../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
-        init_broker_mqtt_conf_by_path(&path);
+        init_broker_conf_by_path(&path);
         let client_pool = Arc::new(ClientPool::new(3));
         let cache_manger = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();

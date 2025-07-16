@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_config::mqtt::config::BrokerMqttConfig;
+use common_config::broker::config::BrokerConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
     ConnAck, ConnAckProperties, ConnectProperties, ConnectReturnCode, Disconnect,
@@ -57,7 +57,7 @@ pub fn build_pub_ack_fail(
 #[allow(clippy::too_many_arguments)]
 pub fn response_packet_mqtt_connect_success(
     protocol: &MqttProtocol,
-    cluster: &BrokerMqttConfig,
+    cluster: &BrokerConfig,
     client_id: String,
     auto_client_id: bool,
     session_expiry_interval: u32,
@@ -85,21 +85,15 @@ pub fn response_packet_mqtt_connect_success(
         session_expiry_interval: Some(session_expiry_interval),
         receive_max: Some(cluster.mqtt_protocol_config.receive_max),
         max_qos: Some(cluster.mqtt_protocol_config.max_qos),
-        retain_available: Some(cluster.feature.retain_available.clone() as u8),
+        retain_available: Some(1),
         max_packet_size: Some(cluster.mqtt_protocol_config.max_packet_size),
         assigned_client_identifier,
         topic_alias_max: Some(cluster.mqtt_protocol_config.topic_alias_max),
         reason_string: None,
         user_properties: Vec::new(),
-        wildcard_subscription_available: Some(
-            cluster.feature.wildcard_subscription_available.clone() as u8,
-        ),
-        subscription_identifiers_available: Some(
-            cluster.feature.subscription_identifiers_available.clone() as u8,
-        ),
-        shared_subscription_available: Some(
-            cluster.feature.shared_subscription_available.clone() as u8
-        ),
+        wildcard_subscription_available: Some(1),
+        subscription_identifiers_available: Some(1),
+        shared_subscription_available: Some(1),
         server_keep_alive: Some(keep_alive),
         response_information: response_information(connect_properties),
         server_reference: None,

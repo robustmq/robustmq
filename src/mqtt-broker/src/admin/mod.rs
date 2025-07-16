@@ -34,7 +34,7 @@ use crate::server::common::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
 use crate::{handler::error::MqttBrokerError, storage::cluster::ClusterStorage};
 use common_base::tools::now_second;
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     BrokerNodeRaw, ClusterOverviewMetricsReply, ClusterOverviewMetricsRequest, ClusterStatusReply,
@@ -49,7 +49,7 @@ pub async fn cluster_status_by_req(
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<CacheManager>,
 ) -> Result<ClusterStatusReply, MqttBrokerError> {
-    let config = broker_mqtt_conf();
+    let config = broker_config();
 
     let mut broker_node_list = Vec::new();
     let cluster_storage = ClusterStorage::new(client_pool.clone());

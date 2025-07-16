@@ -24,7 +24,7 @@ use crate::raft::route::DataRoute;
 use crate::raft::type_config::TypeConfig;
 use common_base::metrics::register_prometheus_export;
 use common_base::version::logo::banner;
-use common_config::place::config::placement_center_conf;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use openraft::Raft;
 use raft::leadership::monitoring_leader_transition;
@@ -60,7 +60,7 @@ pub struct PlacementCenter {
 
 impl PlacementCenter {
     pub async fn new() -> PlacementCenter {
-        let config = placement_center_conf();
+        let config = broker_config();
         let client_pool = Arc::new(ClientPool::new(100));
         let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(
             &storage_data_fold(&config.rocksdb.data_path),
@@ -165,7 +165,7 @@ impl PlacementCenter {
     }
 
     fn start_prometheus(&self) {
-        let conf = placement_center_conf();
+        let conf = broker_config();
         if conf.prometheus.enable {
             tokio::spawn(async move {
                 register_prometheus_export(conf.prometheus.port).await;

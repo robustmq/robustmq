@@ -15,8 +15,7 @@
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::storage::cluster::ClusterStorage;
-use common_config::mqtt::broker_mqtt_conf;
-use common_config::mqtt::default::default_heartbeat_timeout;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -31,7 +30,7 @@ pub async fn register_node(
     cache_manager: &Arc<CacheManager>,
 ) -> ResultMqttBrokerError {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
-    let config = broker_mqtt_conf();
+    let config = broker_config();
     let node = cluster_storage.register_node(cache_manager, config).await?;
     cache_manager.add_node(node);
     Ok(())
@@ -43,6 +42,7 @@ pub async fn report_heartbeat(
     heartbeat_timeout: &String,
     stop_send: broadcast::Sender<bool>,
 ) {
+    let config = broker_config();
     let actual_timeout = match humantime::parse_duration(heartbeat_timeout) {
         Ok(v) => v.as_secs(),
         Err(e) => {
@@ -51,7 +51,7 @@ pub async fn report_heartbeat(
                 heartbeat_timeout, e
             );
 
-            humantime::parse_duration(default_heartbeat_timeout().as_ref())
+            humantime::parse_duration(&config.mqtt_runtime.heartbeat_timeout)
                 .unwrap()
                 .as_secs()
         }

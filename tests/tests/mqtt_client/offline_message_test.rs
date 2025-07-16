@@ -15,7 +15,7 @@
 use crate::mqtt_protocol::common::broker_grpc_addr;
 use bincode::deserialize;
 use common_base::enum_type::feature_type::FeatureType;
-use common_config::mqtt::config::BrokerMqttConfig;
+use common_config::broker::config::BrokerConfig;
 use grpc_clients::mqtt::admin::call::{
     mqtt_broker_get_cluster_config, mqtt_broker_set_cluster_config,
 };
@@ -55,7 +55,7 @@ async fn test_enable_offline_message() {
 
         let get_cluster_request = GetClusterConfigRequest {};
 
-        let mqtt_cluster_dynamic_config: BrokerMqttConfig =
+        let mqtt_cluster_dynamic_config: BrokerConfig =
             match mqtt_broker_get_cluster_config(&client_pool, &grpc_addr, get_cluster_request)
                 .await
             {
@@ -66,7 +66,7 @@ async fn test_enable_offline_message() {
                 }
             };
         assert_eq!(
-            mqtt_cluster_dynamic_config.offline_messages.enable,
+            mqtt_cluster_dynamic_config.mqtt_offline_message.enable,
             *is_enable,
         )
     }

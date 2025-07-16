@@ -19,7 +19,7 @@ use crate::storage::message::MessageStorage;
 
 use common_base::error::common::CommonError;
 use common_base::utils::topic_util::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
@@ -245,12 +245,12 @@ pub async fn get_share_sub_leader(
     client_pool: &Arc<ClientPool>,
     group_name: &String,
 ) -> Result<GetShareSubLeaderReply, CommonError> {
-    let conf = broker_mqtt_conf();
+    let conf = broker_config();
     let req = GetShareSubLeaderRequest {
         cluster_name: conf.cluster_name.to_owned(),
         group_name: group_name.to_owned(),
     };
-    placement_get_share_sub_leader(client_pool, &conf.placement_center, req).await
+    placement_get_share_sub_leader(client_pool, &conf.get_placement_center_addr(), req).await
 }
 
 pub async fn loop_commit_offset(

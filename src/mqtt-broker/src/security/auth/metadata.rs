@@ -16,7 +16,7 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::handler::flapping_detect::FlappingDetectCondition;
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
-use common_config::mqtt::config::FlappingDetect;
+use common_config::broker::config::MqttFlappingDetect;
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclResourceType};
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
@@ -88,7 +88,7 @@ impl AclMetadata {
 
     pub async fn remove_flapping_detect_conditions(
         &self,
-        config: FlappingDetect,
+        config: MqttFlappingDetect,
     ) -> ResultMqttBrokerError {
         let current_time = now_second();
         let window_time = convert_seconds(config.window_time as u64, TimeUnit::Minutes);
@@ -244,7 +244,7 @@ mod test {
     use crate::handler::flapping_detect::FlappingDetectCondition;
     use crate::security::auth::metadata::AclMetadata;
     use common_base::tools::now_second;
-    use common_config::mqtt::config::FlappingDetect;
+    use common_config::broker::config::MqttFlappingDetect;
     use metadata_struct::acl::mqtt_acl::{
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
@@ -271,7 +271,7 @@ mod test {
         assert!(acl_metadata.flapping_detect_map.contains_key("test_id_1"));
         assert!(acl_metadata.flapping_detect_map.contains_key("test_id_2"));
 
-        let jitter_config = FlappingDetect {
+        let jitter_config = MqttFlappingDetect {
             enable: true,
             window_time: 1,
             max_client_connections: 15,

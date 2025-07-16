@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::tools::now_second;
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
 use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillProperties};
@@ -70,7 +70,7 @@ pub async fn build_session(
         )
     };
 
-    let conf = broker_mqtt_conf();
+    let conf = broker_config();
     session.update_connnction_id(Some(connect_id));
     session.update_broker_id(Some(conf.broker_id));
     session.update_reconnect_time();
@@ -84,7 +84,7 @@ pub async fn save_session(
     client_id: String,
     client_pool: &Arc<ClientPool>,
 ) -> ResultMqttBrokerError {
-    let conf = broker_mqtt_conf();
+    let conf = broker_config();
     let session_storage = SessionStorage::new(client_pool.clone());
     if new_session {
         session_storage
@@ -130,15 +130,13 @@ fn session_expiry_interval(
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
-    use common_config::mqtt::{config::BrokerMqttConfig, default_broker_mqtt};
+    use super::session_expiry_interval;
+    use crate::handler::cache::CacheManager;
+    use common_config::broker::{config::BrokerConfig, default_broker_config};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
     use protocol::mqtt::common::ConnectProperties;
-
-    use super::session_expiry_interval;
-    use crate::handler::cache::CacheManager;
+    use std::sync::Arc;
 
     #[tokio::test]
     pub async fn build_session_test() {
@@ -157,7 +155,7 @@ mod test {
 
     #[test]
     pub fn session_expiry_interval_test() {
-        let conf = BrokerMqttConfig {
+        let conf = BrokerConfig {
             cluster_name: "test".to_string(),
             ..Default::default()
         };
@@ -166,7 +164,7 @@ mod test {
             client_pool.clone(),
             conf.cluster_name.clone(),
         ));
-        cache_manager.set_cluster_config(default_broker_mqtt());
+        cache_manager.set_cluster_config(default_broker_config());
         let res = session_expiry_interval(&cache_manager, &None);
         assert_eq!(
             res,

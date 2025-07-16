@@ -127,7 +127,7 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::utils::file_utils::test_temp_dir;
-    use common_config::place::config::placement_center_test_conf;
+    use common_config::broker::broker_config;
     use metadata_struct::acl::mqtt_acl::{
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
@@ -139,7 +139,7 @@ mod tests {
 
     #[tokio::test]
     async fn acl_storage_test() {
-        let config = placement_center_test_conf();
+        let config = broker_config();
         let rs = Arc::new(RocksDBEngine::new(
             &test_temp_dir(),
             config.rocksdb.max_open_files.unwrap(),

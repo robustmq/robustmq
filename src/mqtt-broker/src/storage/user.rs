@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::placement::mqtt::call::{
     placement_create_user, placement_delete_user, placement_list_user,
@@ -37,36 +37,50 @@ impl UserStorage {
     }
 
     pub async fn save_user(&self, user_info: MqttUser) -> ResultMqttBrokerError {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = CreateUserRequest {
             cluster_name: config.cluster_name.clone(),
             user_name: user_info.username.clone(),
             content: user_info.encode(),
         };
-        placement_create_user(&self.client_pool, &config.placement_center, request).await?;
+        placement_create_user(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         Ok(())
     }
 
     pub async fn delete_user(&self, user_name: String) -> ResultMqttBrokerError {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = DeleteUserRequest {
             cluster_name: config.cluster_name.clone(),
             user_name,
         };
-        placement_delete_user(&self.client_pool, &config.placement_center, request).await?;
+        placement_delete_user(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         Ok(())
     }
 
     pub async fn get_user(&self, username: String) -> Result<Option<MqttUser>, MqttBrokerError> {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
 
         let request = ListUserRequest {
             cluster_name: config.cluster_name.clone(),
             user_name: username.clone(),
         };
 
-        let reply =
-            placement_list_user(&self.client_pool, &config.placement_center, request).await?;
+        let reply = placement_list_user(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
 
         if let Some(raw) = reply.users.first() {
             return Ok(Some(serde_json::from_slice::<MqttUser>(raw)?));
@@ -76,14 +90,18 @@ impl UserStorage {
     }
 
     pub async fn user_list(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError> {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = ListUserRequest {
             cluster_name: config.cluster_name.clone(),
             ..Default::default()
         };
 
-        let reply =
-            placement_list_user(&self.client_pool, &config.placement_center, request).await?;
+        let reply = placement_list_user(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
 
         let results = DashMap::with_capacity(2);
         for raw in reply.users {

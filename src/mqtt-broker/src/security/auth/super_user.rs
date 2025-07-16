@@ -15,7 +15,7 @@
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::storage::user::UserStorage;
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use std::sync::Arc;
@@ -24,10 +24,10 @@ pub async fn init_system_user(
     cache_manager: &Arc<CacheManager>,
     client_pool: &Arc<ClientPool>,
 ) -> ResultMqttBrokerError {
-    let conf = broker_mqtt_conf();
+    let conf = broker_config();
     let system_user_info = MqttUser {
-        username: conf.system.default_user.clone(),
-        password: conf.system.default_password.clone(),
+        username: conf.mqtt_runtime.default_user.clone(),
+        password: conf.mqtt_runtime.default_password.clone(),
         is_superuser: true,
     };
     let user_storage = UserStorage::new(client_pool.clone());

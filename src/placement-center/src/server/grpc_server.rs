@@ -24,8 +24,8 @@ use crate::server::service_kv::GrpcKvService;
 use crate::server::service_mqtt::GrpcMqttService;
 use crate::server::service_raft::GrpcOpenRaftServices;
 use axum::http::{self};
-use common_base::tools::now_mills;
-use common_config::place::config::placement_center_conf;
+use common_base::tools::{get_local_ip, now_mills};
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterServiceServer;
 use protocol::placement_center::placement_center_journal::engine_service_server::EngineServiceServer;
@@ -49,8 +49,8 @@ pub async fn start_grpc_server(
     journal_call_manager: Arc<JournalInnerCallManager>,
     mqtt_call_manager: Arc<MQTTInnerCallManager>,
 ) -> Result<(), PlacementCenterError> {
-    let config = placement_center_conf();
-    let ip = format!("{}:{}", config.network.local_ip, config.network.grpc_port).parse()?;
+    let config = broker_config();
+    let ip = format!("{}:{}", get_local_ip(), config.grpc_port).parse()?;
 
     let placement_handler = GrpcPlacementService::new(
         raft_machine_apply.clone(),
@@ -81,7 +81,7 @@ pub async fn start_grpc_server(
         client_pool.clone(),
     );
 
-    let grpc_max_decoding_message_size = config.network.grpc_max_decoding_message_size as usize;
+    let grpc_max_decoding_message_size = 268435456;
 
     let layer = tower::ServiceBuilder::new()
         .layer(BaseMiddlewareLayer::default())
