@@ -100,17 +100,24 @@ struct PlacementCenterStatus {
 pub async fn check_placement_center_status(client_pool: Arc<ClientPool>) -> ResultMqttBrokerError {
     loop {
         let cluster_storage = ClusterStorage::new(client_pool.clone());
-        let data = cluster_storage.place_cluster_status().await?;
-        let status = serde_json::from_str::<PlacementCenterStatus>(&data)?;
-        if status.current_leader > 0 {
-            info!(
+        match cluster_storage.place_cluster_status().await {
+            Ok(data) => {
+                let status = serde_json::from_str::<PlacementCenterStatus>(&data)?;
+                if status.current_leader > 0 {
+                    info!(
                 "Placement Center cluster is in normal condition. current leader node is {}.",
                 status.current_leader
             );
-            break;
-        } else {
-            warn!("Placement Center cluster does not have a Leader. It is waiting for a new Leader to be elected before starting the Broker.");
-            sleep(Duration::from_secs(1)).await;
+                    break;
+                } else {
+                    warn!("Placement Center cluster does not have a Leader. It is waiting for a new Leader to be elected before starting the Broker.");
+                    sleep(Duration::from_secs(1)).await;
+                }
+            }
+            Err(e) => {
+                println!("Error occurred while retrieving cluster status. Error message: {e}");
+                sleep(Duration::from_secs(1)).await;
+            }
         }
     }
 

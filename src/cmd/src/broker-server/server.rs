@@ -14,6 +14,7 @@
 
 use broker_server::{common::init_broker_log, BrokerServer};
 use clap::{command, Parser};
+use common_base::version::logo::banner;
 use common_config::{broker::init_broker_conf_by_path, DEFAULT_BROKER_SERVER_CONFIG};
 
 #[derive(Parser, Debug)]
@@ -25,12 +26,12 @@ struct ArgsParams {
     conf: String,
 }
 
+#[warn(unused_variables)]
 fn main() {
     let args = ArgsParams::parse();
     init_broker_conf_by_path(&args.conf);
-    if let Err(e) = init_broker_log() {
-        panic!("{e}");
-    }
+    let append = init_broker_log().unwrap();
+    banner();
     let server = BrokerServer::new();
     server.start();
 }

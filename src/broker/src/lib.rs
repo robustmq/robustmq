@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::grpc::start_grpc_server;
-use common_base::{runtime::create_runtime, version::logo::banner};
+use common_base::runtime::create_runtime;
 use common_config::broker::{broker_config, config::BrokerConfig};
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
@@ -84,9 +84,8 @@ impl BrokerServer {
         }
     }
     pub fn start(&self) {
-        banner();
+        self.start_grpc_server();
 
-        // start placement center
         let place_stop = self.start_placement_center();
 
         // check placement ready
@@ -102,9 +101,6 @@ impl BrokerServer {
 
         // start mqtt server
         let mqtt_stop = self.start_mqtt_server();
-
-        // start grpc
-        self.start_grpc_server();
 
         self.awaiting_stop(place_stop, mqtt_stop);
     }
