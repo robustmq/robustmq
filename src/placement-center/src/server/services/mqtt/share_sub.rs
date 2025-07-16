@@ -238,7 +238,7 @@ mod tests {
 
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &test_temp_dir(),
-            config.rocksdb.max_open_files.unwrap(),
+            config.rocksdb.max_open_files,
             column_family_list(),
         ));
         let cluster_cache = Arc::new(CacheManager::new(rocksdb_engine_handler.clone()));
@@ -289,7 +289,7 @@ mod tests {
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &test_temp_dir(),
-            config.rocksdb.max_open_files.unwrap(),
+            config.rocksdb.max_open_files,
             column_family_list(),
         ));
         let cluster_cache = Arc::new(CacheManager::new(rocksdb_engine_handler.clone()));

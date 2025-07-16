@@ -549,7 +549,7 @@ mod tests {
         let config = broker_config();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &storage_data_fold(&config.rocksdb.data_path),
-            config.rocksdb.max_open_files.unwrap(),
+            config.rocksdb.max_open_files,
             column_family_list(),
         ));
         let cache_manager = Arc::new(CacheManager::new(rocksdb_engine_handler));

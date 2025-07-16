@@ -12,57 +12,89 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::default::{
+    default_broker_id, default_cluster_name, default_flapping_detect, default_grpc_port,
+    default_mqtt_auth_storage, default_mqtt_message_storage, default_mqtt_offline_message,
+    default_mqtt_protocol_config, default_mqtt_runtime, default_mqtt_schema, default_mqtt_security,
+    default_mqtt_server, default_mqtt_slow_sub, default_mqtt_system_monitor, default_network,
+    default_place_runtime, default_placement_center, default_rocksdb, default_roles,
+    default_runtime,
+};
 use crate::common::Log;
 use crate::common::Prometheus;
+use crate::common::{default_log, default_pprof, default_prometheus};
 use serde::{Deserialize, Serialize};
 use toml::Table;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct BrokerConfig {
+    #[serde(default = "default_cluster_name")]
     pub cluster_name: String,
 
+    #[serde(default = "default_broker_id")]
     pub broker_id: u64,
 
+    #[serde(default = "default_roles")]
     pub roles: Vec<String>,
 
+    #[serde(default = "default_grpc_port")]
     pub grpc_port: u32,
 
+    #[serde(default = "default_placement_center")]
     pub placement_center: Table,
 
+    #[serde(default = "default_prometheus")]
     pub prometheus: Prometheus,
 
+    #[serde(default = "default_log")]
     pub log: Log,
 
+    #[serde(default = "default_runtime")]
     pub runtime: Runtime,
 
+    #[serde(default = "default_network")]
     pub network: Network,
 
+    #[serde(default = "default_rocksdb")]
     pub rocksdb: Rocksdb,
 
+    #[serde(default = "default_place_runtime")]
     pub place_runtime: PlaceRuntime,
 
+    #[serde(default = "default_pprof")]
     pub p_prof: PProf,
 
+    #[serde(default = "default_mqtt_server")]
     pub mqtt_server: MqttServer,
 
+    #[serde(default = "default_mqtt_auth_storage")]
     pub mqtt_auth_storage: MqttAuthStorage,
 
+    #[serde(default = "default_mqtt_message_storage")]
     pub mqtt_message_storage: MqttMessageStorage,
 
+    #[serde(default = "default_mqtt_runtime")]
     pub mqtt_runtime: MqttRuntime,
 
+    #[serde(default = "default_mqtt_offline_message")]
     pub mqtt_offline_message: MqttOfflineMessage,
 
+    #[serde(default = "default_mqtt_slow_sub")]
     pub mqtt_slow_sub: MqttSlowSub,
 
+    #[serde(default = "default_flapping_detect")]
     pub mqtt_flapping_detect: MqttFlappingDetect,
 
+    #[serde(default = "default_mqtt_protocol_config")]
     pub mqtt_protocol_config: MqttProtocolConfig,
 
+    #[serde(default = "default_mqtt_security")]
     pub mqtt_security: MqttSecurity,
 
+    #[serde(default = "default_mqtt_schema")]
     pub mqtt_schema: MqttSchema,
 
+    #[serde(default = "default_mqtt_system_monitor")]
     pub mqtt_system_monitor: MqttSystemMonitor,
 }
 
@@ -102,7 +134,7 @@ pub struct Network {
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Rocksdb {
     pub data_path: String,
-    pub max_open_files: Option<i32>,
+    pub max_open_files: i32,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]

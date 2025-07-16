@@ -185,7 +185,7 @@ mod tests {
         let config = broker_config();
         let db = Arc::new(RocksDBEngine::new(
             &test_temp_dir(),
-            config.rocksdb.max_open_files.unwrap(),
+            config.rocksdb.max_open_files,
             column_family_list(),
         ));
         let storage = MqttSubscribeStorage::new(db);
@@ -263,7 +263,7 @@ mod tests {
         let config = broker_config();
         let db = Arc::new(RocksDBEngine::new(
             &test_temp_dir(),
-            config.rocksdb.max_open_files.unwrap(),
+            config.rocksdb.max_open_files,
             column_family_list(),
         ));
 

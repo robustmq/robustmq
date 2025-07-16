@@ -253,7 +253,7 @@ mod tests {
 
         let rs_handler = Arc::new(RocksDBEngine::new(
             &test_temp_dir(),
-            config.rocksdb.max_open_files.unwrap(),
+            config.rocksdb.max_open_files,
             vec![cf_name()],
         ));
         let mut tasks = Vec::new();
@@ -290,7 +290,7 @@ mod tests {
 
         let rs = RocksDBEngine::new(
             &test_temp_dir(),
-            config.rocksdb.max_open_files.unwrap(),
+            config.rocksdb.max_open_files,
             vec!["cluster".to_string()],
         );
         let cf = rs.cf_handle(&cf_name()).unwrap();
@@ -321,7 +321,7 @@ mod tests {
 
         let rs = RocksDBEngine::new(
             &test_temp_dir(),
-            config.rocksdb.max_open_files.unwrap(),
+            config.rocksdb.max_open_files,
             vec!["cluster".to_string()],
         );
 
@@ -355,7 +355,7 @@ mod tests {
 
         let rs = RocksDBEngine::new(
             &test_temp_dir(),
-            config.rocksdb.max_open_files.unwrap(),
+            config.rocksdb.max_open_files,
             vec!["cluster".to_string()],
         );
 

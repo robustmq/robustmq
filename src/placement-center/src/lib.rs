@@ -64,7 +64,7 @@ impl PlacementCenter {
         let client_pool = Arc::new(ClientPool::new(100));
         let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(
             &storage_data_fold(&config.rocksdb.data_path),
-            config.rocksdb.max_open_files.unwrap(),
+            config.rocksdb.max_open_files,
             column_family_list(),
         ));
 

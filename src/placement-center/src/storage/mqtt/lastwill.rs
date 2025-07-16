@@ -84,7 +84,7 @@ mod tests {
 
         let rs = Arc::new(RocksDBEngine::new(
             &test_temp_dir(),
-            config.rocksdb.max_open_files.unwrap(),
+            config.rocksdb.max_open_files,
             column_family_list(),
         ));
         let session_storage = MqttSessionStorage::new(rs.clone());
