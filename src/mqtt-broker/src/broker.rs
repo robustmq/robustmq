@@ -20,7 +20,7 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::dynamic_cache::load_metadata_cache;
 use crate::handler::flapping_detect::UpdateFlappingDetectCache;
-use crate::handler::heartbeat::{check_placement_center_status, register_node, report_heartbeat};
+use crate::handler::heartbeat::{register_node, report_heartbeat};
 use crate::handler::keep_alive::ClientKeepAlive;
 use crate::handler::sub_parse_topic::start_parse_subscribe_by_new_topic_thread;
 use crate::observability::start_observability;
@@ -28,7 +28,6 @@ use crate::security::auth::super_user::init_system_user;
 use crate::security::storage::sync::sync_auth_storage_info;
 use crate::security::AuthDriver;
 use crate::server::common::connection_manager::ConnectionManager;
-use crate::server::grpc::server::GrpcServer;
 use crate::server::quic::server::start_quic_server;
 use crate::server::server::Server;
 use crate::server::websocket::server::{websocket_server, websockets_server, WebSocketServerState};
@@ -48,12 +47,25 @@ use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::runtime::Runtime;
-use tokio::signal;
 use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
 use tracing::{error, info};
 
-pub struct MqttBroker {
+#[derive(Clone)]
+pub struct MqttBrokerServerParams {
+    pub cache_manager: Arc<CacheManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub message_storage_adapter: ArcStorageAdapter,
+    pub subscribe_manager: Arc<SubscribeManager>,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub connector_manager: Arc<ConnectorManager>,
+    pub auth_driver: Arc<AuthDriver>,
+    pub delay_message_manager: Arc<DelayMessageManager>,
+    pub schema_manager: Arc<SchemaRegisterManager>,
+    pub metrics_cache_manager: Arc<MetricsCacheManager>,
+}
+
+pub struct MqttBrokerServer {
     cache_manager: Arc<CacheManager>,
     daemon_runtime: Runtime,
     connector_runtime: Runtime,
@@ -72,13 +84,8 @@ pub struct MqttBroker {
     server: Arc<Server>,
 }
 
-impl MqttBroker {
-    pub fn new(
-        client_pool: Arc<ClientPool>,
-        message_storage_adapter: ArcStorageAdapter,
-        cache_manager: Arc<CacheManager>,
-        stop_sx: broadcast::Sender<bool>,
-    ) -> Self {
+impl MqttBrokerServer {
+    pub fn new(params: MqttBrokerServerParams, stop_sx: broadcast::Sender<bool>) -> Self {
         let conf = broker_config();
         let daemon_runtime = create_runtime("daemon-runtime", conf.runtime.runtime_worker_threads);
         let admin_runtime = create_runtime("admin-runtime", conf.runtime.runtime_worker_threads);
@@ -90,45 +97,34 @@ impl MqttBroker {
         let subscribe_runtime =
             create_runtime("subscribe-runtime", conf.runtime.runtime_worker_threads);
 
-        let subscribe_manager = Arc::new(SubscribeManager::new());
-        let connector_manager = Arc::new(ConnectorManager::new());
-        let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
-        let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_pool.clone()));
-        let delay_message_manager = Arc::new(DelayMessageManager::new(
-            conf.cluster_name.clone(),
-            1,
-            message_storage_adapter.clone(),
-        ));
-        let metrics_cache_manager = Arc::new(MetricsCacheManager::new());
-        let schema_manager = Arc::new(SchemaRegisterManager::new());
         let server = Arc::new(Server::new(
-            subscribe_manager.clone(),
-            cache_manager.clone(),
-            connection_manager.clone(),
-            message_storage_adapter.clone(),
-            delay_message_manager.clone(),
-            schema_manager.clone(),
-            client_pool.clone(),
+            params.subscribe_manager.clone(),
+            params.cache_manager.clone(),
+            params.connection_manager.clone(),
+            params.message_storage_adapter.clone(),
+            params.delay_message_manager.clone(),
+            params.schema_manager.clone(),
+            params.client_pool.clone(),
             stop_sx,
-            auth_driver.clone(),
+            params.auth_driver.clone(),
         ));
-        MqttBroker {
+        MqttBrokerServer {
             daemon_runtime,
             connector_runtime,
             server_runtime,
             subscribe_runtime,
             admin_runtime,
-            cache_manager,
-            client_pool,
-            message_storage_adapter,
-            subscribe_manager,
-            connector_manager,
-            connection_manager,
-            auth_driver,
-            delay_message_manager,
-            schema_manager,
+            cache_manager: params.cache_manager,
+            client_pool: params.client_pool,
+            message_storage_adapter: params.message_storage_adapter,
+            subscribe_manager: params.subscribe_manager,
+            connector_manager: params.connector_manager,
+            connection_manager: params.connection_manager,
+            auth_driver: params.auth_driver,
+            delay_message_manager: params.delay_message_manager,
+            schema_manager: params.schema_manager,
             server,
-            metrics_cache_manager,
+            metrics_cache_manager: params.metrics_cache_manager,
         }
     }
 
@@ -214,22 +210,6 @@ impl MqttBroker {
     fn start_server(&self, stop_send: broadcast::Sender<bool>) {
         // grpc server
         let conf = broker_config();
-        let server = GrpcServer::new(
-            conf.grpc_port,
-            self.cache_manager.clone(),
-            self.connector_manager.clone(),
-            self.subscribe_manager.clone(),
-            self.connection_manager.clone(),
-            self.schema_manager.clone(),
-            self.client_pool.clone(),
-            self.message_storage_adapter.clone(),
-            self.metrics_cache_manager.clone(),
-        );
-        self.admin_runtime.spawn(async move {
-            if let Err(e) = server.start().await {
-                panic!("{}", e.to_string());
-            }
-        });
 
         // prometheus server
         if conf.prometheus.enable {
@@ -387,10 +367,6 @@ impl MqttBroker {
 
     fn start_init(&self) {
         self.daemon_runtime.block_on(async move {
-            if let Err(e) = check_placement_center_status(self.client_pool.clone()).await {
-                panic!("{}", e);
-            }
-
             if let Err(e) = init_system_user(&self.cache_manager, &self.client_pool).await {
                 panic!("{}", e);
             }
@@ -421,20 +397,23 @@ impl MqttBroker {
         });
 
         // Wait for the stop signal
-        self.daemon_runtime.block_on(async move {
+        let client_pool = self.client_pool.clone();
+        let cache_manager = self.cache_manager.clone();
+        let server = self.server.clone();
+        let delay_message_manager = self.delay_message_manager.clone();
+        let connection_manager = self.connection_manager.clone();
+        self.daemon_runtime.spawn(async move {
             // register node
             let config = broker_config();
-            match register_node(&self.client_pool, &self.cache_manager).await {
+            match register_node(&client_pool, &cache_manager).await {
                 Ok(()) => {
-                    let client_pool = self.client_pool.clone();
-                    let cache_manager = self.cache_manager.clone();
-
                     // heartbeat report
                     let raw_stop_send = stop_send.clone();
-                    self.daemon_runtime.spawn(async move {
+                    let raw_client_pool = client_pool.clone();
+                    tokio::spawn(async move {
                         let conf = broker_config();
                         report_heartbeat(
-                            &client_pool,
+                            &raw_client_pool,
                             &cache_manager,
                             &conf.mqtt_runtime.heartbeat_timeout,
                             raw_stop_send.clone(),
@@ -448,18 +427,19 @@ impl MqttBroker {
                     panic!("{}", e);
                 }
             }
-            // Wait for all the request packets in the TCP Channel to be processed completely before starting to stop other processing threads.
-            signal::ctrl_c().await.expect("failed to listen for event");
-            info!(
-                "{}",
-                "When ctrl + c is received, the service starts to stop"
-            );
+
             // Stop the Server first, indicating that it will no longer receive request packets.
-            self.server.stop().await;
+            server.stop().await;
             match stop_send.send(true) {
                 Ok(_) => {
                     info!("Process stop signal was sent successfully.");
-                    if let Err(e) = self.stop_server().await {
+                    if let Err(e) = MqttBrokerServer::stop_server(
+                        &client_pool,
+                        &delay_message_manager,
+                        &connection_manager,
+                    )
+                    .await
+                    {
                         error!("{}", e);
                     }
                     info!("Service has been stopped successfully. Exiting the process.");
@@ -473,16 +453,20 @@ impl MqttBroker {
         // todo tokio runtime shutdown
     }
 
-    async fn stop_server(&self) -> ResultMqttBrokerError {
-        let cluster_storage = ClusterStorage::new(self.client_pool.clone());
+    async fn stop_server(
+        client_pool: &Arc<ClientPool>,
+        delay_message_manager: &Arc<DelayMessageManager>,
+        connection_manager: &Arc<ConnectionManager>,
+    ) -> ResultMqttBrokerError {
+        let cluster_storage = ClusterStorage::new(client_pool.clone());
         let config = broker_config();
-        let _ = self.delay_message_manager.stop().await;
+        let _ = delay_message_manager.stop().await;
         cluster_storage.unregister_node(config).await?;
         info!(
             "Node {} has been successfully unregistered",
             config.broker_id
         );
-        self.connection_manager.close_all_connect().await;
+        connection_manager.close_all_connect().await;
         info!("All TCP, TLS, WS, and WSS network connections have been successfully closed.");
         Ok(())
     }

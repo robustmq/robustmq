@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use broker_server::{common::init_broker_log, BrokerServer};
 use clap::{command, Parser};
-
 use common_config::{broker::init_broker_conf_by_path, DEFAULT_BROKER_SERVER_CONFIG};
-use mqtt_broker::{common::log::init_broker_mqtt_log, start_broker};
-use tokio::sync::broadcast;
 
 #[derive(Parser, Debug)]
-#[command(author="robustmq", version="0.0.1", about=" RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
+#[command(author="RobustMQ", version="0.0.1", about=" RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
 #[command(next_line_help = true)]
 struct ArgsParams {
     /// broker server configuration file path
@@ -30,7 +28,9 @@ struct ArgsParams {
 fn main() {
     let args = ArgsParams::parse();
     init_broker_conf_by_path(&args.conf);
-    init_broker_mqtt_log().unwrap();
-    let (stop_send, _) = broadcast::channel(2);
-    start_broker(stop_send);
+    if let Err(e) = init_broker_log() {
+        panic!("{e}");
+    }
+    let server = BrokerServer::new();
+    server.start();
 }

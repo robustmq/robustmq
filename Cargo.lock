@@ -543,7 +543,23 @@ version = "0.1.25"
 dependencies = [
  "axum",
  "bytes",
+ "common-base",
+ "common-config",
+ "delay-message",
+ "grpc-clients",
+ "mqtt-broker",
+ "openraft",
+ "placement-center",
+ "protocol",
+ "schema-register",
  "thiserror 1.0.69",
+ "tokio",
+ "tonic",
+ "tonic-web",
+ "tower 0.5.2",
+ "tower-http 0.5.2",
+ "tracing",
+ "tracing-appender",
 ]
 
 [[package]]
@@ -827,6 +843,7 @@ dependencies = [
 name = "cmd"
 version = "0.1.25"
 dependencies = [
+ "broker-server",
  "clap",
  "clap-cargo",
  "cli-bench",
@@ -837,8 +854,6 @@ dependencies = [
  "journal-server",
  "lazy_static",
  "mockall",
- "mqtt-broker",
- "placement-center",
  "protocol",
  "tokio",
 ]

@@ -16,7 +16,7 @@ use common_base::{error::log_config::LogConfigError, logging::init_tracing_subsc
 use common_config::broker::broker_config;
 use tracing_appender::non_blocking::WorkerGuard;
 
-pub fn init_broker_mqtt_log() -> Result<Vec<WorkerGuard>, LogConfigError> {
+pub fn init_broker_log() -> Result<Vec<WorkerGuard>, LogConfigError> {
     let conf = broker_config();
     init_tracing_subscriber(&conf.log.log_config, &conf.log.log_path)
 }

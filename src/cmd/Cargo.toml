@@ -24,16 +24,8 @@ name = "broker-server"
 path = "src/broker-server/server.rs"
 
 [[bin]]
-name = "mqtt-server"
-path = "src/mqtt-server/server.rs"
-
-[[bin]]
 name = "journal-server"
 path = "src/journal-server/server.rs"
-
-[[bin]]
-name = "placement-center"
-path = "src/placement-center/server.rs"
 
 [[bin]]
 name = "cli-command"
@@ -49,14 +41,13 @@ common-base.workspace = true
 common-config.workspace = true
 lazy_static.workspace = true
 tokio.workspace = true
-mqtt-broker.workspace = true
-placement-center.workspace = true
 journal-server.workspace = true
 cli-command.workspace = true
 cli-bench.workspace = true
 clap-cargo.workspace = true
 protocol.workspace = true
 console-subscriber.workspace = true
+broker-server.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true

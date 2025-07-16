@@ -63,7 +63,7 @@ pub struct SubscribeData {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct SubPublishParam {
+pub struct SubPublishParam {
     pub subscribe: Subscriber,
     pub packet: MqttPacket,
     pub create_time: u128,

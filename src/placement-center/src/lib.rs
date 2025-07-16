@@ -18,32 +18,40 @@ use crate::controller::mqtt::call_broker::{mqtt_call_thread_manager, MQTTInnerCa
 use crate::controller::mqtt::connector::scheduler::start_connector_scheduler;
 use crate::core::cache::{load_cache, CacheManager};
 use crate::core::controller::ClusterController;
-use crate::raft::raft_node::{create_raft_node, start_raft_node};
+use crate::raft::raft_node::start_raft_node;
 use crate::raft::route::apply::StorageDriver;
-use crate::raft::route::DataRoute;
 use crate::raft::type_config::TypeConfig;
 use common_base::metrics::register_prometheus_export;
-use common_base::version::logo::banner;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use openraft::Raft;
 use raft::leadership::monitoring_leader_transition;
-use server::grpc_server::start_grpc_server;
 use std::sync::Arc;
-use std::time::Duration;
-use storage::rocksdb::{column_family_list, storage_data_fold, RocksDBEngine};
-use tokio::signal;
+use storage::rocksdb::RocksDBEngine;
 use tokio::sync::broadcast::Sender;
-use tokio::time::sleep;
-use tracing::info;
 
 pub mod controller;
 pub mod core;
-mod raft;
-mod server;
-mod storage;
+pub mod raft;
+pub mod server;
+pub mod storage;
 
-pub struct PlacementCenter {
+#[derive(Clone)]
+pub struct PlacementCenterServerParams {
+    pub raf_node: Raft<TypeConfig>,
+    pub storage_driver: Arc<StorageDriver>,
+    // Cache metadata information for the Storage Engine cluster
+    pub cache_manager: Arc<CacheManager>,
+    // Raft Global read and write pointer
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
+    // Global GRPC client connection pool
+    pub client_pool: Arc<ClientPool>,
+    // Global call thread manager
+    pub journal_call_manager: Arc<JournalInnerCallManager>,
+    // Global call thread manager
+    pub mqtt_call_manager: Arc<MQTTInnerCallManager>,
+}
+pub struct PlacementCenterServer {
     raf_node: Raft<TypeConfig>,
     storage_driver: Arc<StorageDriver>,
     // Cache metadata information for the Storage Engine cluster
@@ -58,36 +66,16 @@ pub struct PlacementCenter {
     mqtt_call_manager: Arc<MQTTInnerCallManager>,
 }
 
-impl PlacementCenter {
-    pub async fn new() -> PlacementCenter {
-        let config = broker_config();
-        let client_pool = Arc::new(ClientPool::new(100));
-        let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(
-            &storage_data_fold(&config.rocksdb.data_path),
-            config.rocksdb.max_open_files,
-            column_family_list(),
-        ));
-
-        let cache_manager: Arc<CacheManager> =
-            Arc::new(CacheManager::new(rocksdb_engine_handler.clone()));
-
-        let journal_call_manager = Arc::new(JournalInnerCallManager::new(cache_manager.clone()));
-        let mqtt_call_manager = Arc::new(MQTTInnerCallManager::new(cache_manager.clone()));
-
-        let data_route = Arc::new(DataRoute::new(
-            rocksdb_engine_handler.clone(),
-            cache_manager.clone(),
-        ));
-        let raf_node: Raft<TypeConfig> = create_raft_node(client_pool.clone(), data_route).await;
-        let storage_driver: Arc<StorageDriver> = Arc::new(StorageDriver::new(raf_node.clone()));
-        PlacementCenter {
-            cache_manager,
-            rocksdb_engine_handler,
-            client_pool,
-            journal_call_manager,
-            mqtt_call_manager,
-            raf_node,
-            storage_driver,
+impl PlacementCenterServer {
+    pub fn new(params: PlacementCenterServerParams) -> PlacementCenterServer {
+        PlacementCenterServer {
+            cache_manager: params.cache_manager,
+            rocksdb_engine_handler: params.rocksdb_engine_handler,
+            client_pool: params.client_pool,
+            journal_call_manager: params.journal_call_manager,
+            mqtt_call_manager: params.mqtt_call_manager,
+            raf_node: params.raf_node,
+            storage_driver: params.storage_driver,
         }
     }
 
@@ -103,33 +91,6 @@ impl PlacementCenter {
         self.start_mqtt_controller(stop_send.clone());
 
         self.start_journal_controller();
-
-        self.start_grpc_server();
-
-        self.awaiting_stop(stop_send).await;
-    }
-
-    pub fn start_grpc_server(&self) {
-        let cache_manager = self.cache_manager.clone();
-        let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
-        let client_pool = self.client_pool.clone();
-        let journal_call_manager = self.journal_call_manager.clone();
-        let mqtt_call_manager = self.mqtt_call_manager.clone();
-        let storage_driver = self.storage_driver.clone();
-        tokio::spawn(async move {
-            if let Err(e) = start_grpc_server(
-                storage_driver,
-                cache_manager,
-                rocksdb_engine_handler,
-                client_pool,
-                journal_call_manager,
-                mqtt_call_manager,
-            )
-            .await
-            {
-                panic!("Failed to start grpc server,{e}");
-            }
-        });
     }
 
     pub fn start_heartbeat(&self, stop_send: Sender<bool>) {
@@ -205,21 +166,7 @@ impl PlacementCenter {
         });
     }
 
-    // Wait Stop Signal
-    pub async fn awaiting_stop(&self, stop_send: Sender<bool>) {
-        tokio::spawn(async move {
-            sleep(Duration::from_millis(5)).await;
-            info!("Placement Center service started successfully...");
-        });
-
-        signal::ctrl_c().await.expect("failed to listen for event");
-        if stop_send.send(true).is_ok() {
-            info!("When ctrl + c is received, the service starts to stop");
-        }
-    }
-
     pub fn start_init(&self) {
-        banner();
         if let Err(e) = load_cache(&self.cache_manager, &self.rocksdb_engine_handler) {
             panic!("Failed to load Cache,{e}");
         }
