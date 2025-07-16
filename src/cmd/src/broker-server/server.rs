@@ -26,10 +26,10 @@ struct ArgsParams {
     conf: String,
 }
 
-#[warn(unused_variables)]
 fn main() {
     let args = ArgsParams::parse();
     init_broker_conf_by_path(&args.conf);
+    #[allow(unused_variables)]
     let append = init_broker_log().unwrap();
     banner();
     let server = BrokerServer::new();
