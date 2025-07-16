@@ -538,6 +538,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "broker-server"
+version = "0.1.25"
+dependencies = [
+ "axum",
+ "bytes",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "bstr"
 version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2198,23 +2207,6 @@ dependencies = [
  "zerofrom",
  "zerotrie",
  "zerovec",
-]
-
-[[package]]
-name = "idempotent-message"
-version = "0.1.25"
-dependencies = [
- "axum",
- "bytes",
- "common-base",
- "dashmap",
- "futures",
- "metadata-struct",
- "storage-adapter",
- "thiserror 1.0.69",
- "tokio",
- "tokio-util",
- "tracing",
 ]
 
 [[package]]

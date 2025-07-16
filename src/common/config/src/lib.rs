@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub const DEFAULT_BROKER_SERVER_CONFIG: &str = "config/broker-server.toml";
 pub const DEFAULT_MQTT_SERVER_CONFIG: &str = "config/mqtt-server.toml";
 pub const DEFAULT_PLACEMENT_CENTER_CONFIG: &str = "config/placement-center.toml";
 pub const DEFAULT_JOURNAL_SERVER_CONFIG: &str = "config/journal-server.toml";

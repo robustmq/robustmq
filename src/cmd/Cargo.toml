@@ -20,6 +20,10 @@ license.workspace = true
 default-run = "cli-command"
 
 [[bin]]
+name = "broker-server"
+path = "src/broker-server/server.rs"
+
+[[bin]]
 name = "mqtt-server"
 path = "src/mqtt-server/server.rs"
 
