@@ -21,9 +21,8 @@ use cli_command::placement::{
 };
 use mqtt::admin::{
     process_auto_subscribe_args, process_config_args, process_connection_args, process_schema_args,
-    process_session_args, AutoSubscribeRuleCommand, ClusterConfigArgs,
-    ConnectionArgs,
-    SchemaArgs, SessionArgs,
+    process_session_args, AutoSubscribeRuleCommand, ClusterConfigArgs, ConnectionArgs, SchemaArgs,
+    SessionArgs,
 };
 use mqtt::publish::process_subscribe_args;
 use protocol::broker_mqtt::broker_mqtt_admin::EnableFlappingDetectRequest;
