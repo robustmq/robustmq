@@ -206,7 +206,7 @@ pub fn broker_wss_addr() -> String {
 }
 
 pub fn broker_grpc_addr() -> String {
-    "127.0.0.1:9981".to_string()
+    "127.0.0.1:1228".to_string()
 }
 
 pub fn username() -> String {
@@ -214,7 +214,7 @@ pub fn username() -> String {
 }
 
 pub fn password() -> String {
-    "pwd123".to_string()
+    "robustmq".to_string()
 }
 
 pub fn err_password() -> String {

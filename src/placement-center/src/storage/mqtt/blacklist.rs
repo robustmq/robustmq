@@ -70,7 +70,7 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::utils::file_utils::test_temp_dir;
-    use common_config::broker::broker_config;
+    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
 
     use crate::storage::mqtt::blacklist::MqttBlackListStorage;
@@ -78,7 +78,8 @@ mod tests {
 
     #[tokio::test]
     async fn blacklist_storage_test() {
-        let config = broker_config();
+        let config = default_broker_config();
+        init_broker_conf_by_config(config.clone());
         let rs = Arc::new(RocksDBEngine::new(
             &test_temp_dir(),
             config.rocksdb.max_open_files,

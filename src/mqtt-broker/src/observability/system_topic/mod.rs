@@ -432,7 +432,7 @@ mod test {
     use crate::observability::system_topic::write_topic_data;
     use crate::storage::message::cluster_name;
     use common_base::tools::{get_local_ip, unique_id};
-    use common_config::broker::init_broker_conf_by_path;
+    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::adapter::read_config::ReadConfig;
     use metadata_struct::mqtt::message::MqttMessage;
@@ -442,11 +442,7 @@ mod test {
 
     #[tokio::test]
     async fn test_write_topic_data() {
-        let path = format!(
-            "{}/../../config/mqtt-server.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        init_broker_conf_by_path(&path);
+        init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
         let cache_manger = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
         let topic_name = format!("$SYS/brokers/{}-test", unique_id());
@@ -500,11 +496,7 @@ mod test {
 
     #[tokio::test]
     async fn test_report_system_data() {
-        let path = format!(
-            "{}/../../config/mqtt-server.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        init_broker_conf_by_path(&path);
+        init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
         let cache_manger = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();

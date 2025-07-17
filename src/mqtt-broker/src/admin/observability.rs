@@ -122,16 +122,12 @@ mod test {
     use crate::storage::message::cluster_name;
 
     use common_config::broker::config::BrokerConfig;
-    use common_config::broker::{default_broker_config, init_broker_conf_by_path};
+    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
 
     #[tokio::test]
     pub async fn test_set_system_alarm_config_by_req() {
-        let path = format!(
-            "{}/../../config/mqtt-server.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        init_broker_conf_by_path(&path);
+        init_broker_conf_by_config(default_broker_config());
         let cache_client_pool = Arc::new(ClientPool::new(3));
         let cache_manager = Arc::new(CacheManager::new(cache_client_pool, cluster_name()));
         cache_manager.set_cluster_config(default_broker_config());
@@ -162,11 +158,7 @@ mod test {
 
     #[tokio::test]
     pub async fn test_list_system_alarm_by_req() {
-        let path = format!(
-            "{}/../../config/mqtt-server.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        init_broker_conf_by_path(&path);
+        init_broker_conf_by_config(default_broker_config());
         let cache_client_pool = Arc::new(ClientPool::new(3));
         let cache_manager = Arc::new(CacheManager::new(cache_client_pool, cluster_name()));
         cache_manager.set_cluster_config(BrokerConfig::default());

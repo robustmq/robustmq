@@ -22,3 +22,4 @@ pc-1.log
 config/log-config/mqtt-tracing.toml
 config/log-config/place-tracing.toml
 .cargo
+src/placement-center/data

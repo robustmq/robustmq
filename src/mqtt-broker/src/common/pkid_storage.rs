@@ -124,7 +124,7 @@ pub async fn pkid_delete(
 
 #[cfg(test)]
 mod test {
-    use common_config::broker::init_broker_conf_by_path;
+    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
     use std::sync::Arc;
 
@@ -134,11 +134,7 @@ mod test {
     #[tokio::test]
     #[ignore]
     pub async fn pkid_test() {
-        let path = format!(
-            "{}/../../config/mqtt-server.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        init_broker_conf_by_path(&path);
+        init_broker_conf_by_config(default_broker_config());
 
         let cluster_name = "test".to_string();
         let client_pool = Arc::new(ClientPool::new(10));

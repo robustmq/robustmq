@@ -236,7 +236,7 @@ mod tests {
     use crate::storage::message::cluster_name;
 
     use common_base::tools::unique_id;
-    use common_config::broker::init_broker_conf_by_path;
+    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::adapter::read_config::ReadConfig;
     use metadata_struct::mqtt::topic::MQTTTopic;
     use storage_adapter::storage::build_memory_storage_driver;
@@ -269,11 +269,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_report_system_alarm_event() {
-        let path = format!(
-            "{}/../../config/mqtt-server.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        init_broker_conf_by_path(&path);
+        init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
         let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();
@@ -325,11 +321,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_is_send_a_new_system_event_current_usage_gt_config_usage() {
-        let path = format!(
-            "{}/../../config/mqtt-server.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        init_broker_conf_by_path(&path);
+        init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
         let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();
@@ -366,11 +358,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_is_send_a_new_system_event_current_usage_le_config_usage() {
-        let path = format!(
-            "{}/../../config/mqtt-server.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        init_broker_conf_by_path(&path);
+        init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
         let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();
@@ -407,11 +395,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_is_send_a_new_system_event_metadata_exist_value_but_the_value_is_different() {
-        let path = format!(
-            "{}/../../config/mqtt-server.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        init_broker_conf_by_path(&path);
+        init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
         let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();
@@ -473,11 +457,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_is_send_a_new_system_event_metadata_exist_value_and_the_value_is_same() {
-        let path = format!(
-            "{}/../../config/mqtt-server.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        init_broker_conf_by_path(&path);
+        init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
         let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();
@@ -531,11 +511,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_is_send_a_new_system_event_metadata_param_is_different() {
-        let path = format!(
-            "{}/../../config/mqtt-server.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        init_broker_conf_by_path(&path);
+        init_broker_conf_by_config(default_broker_config());
         let client_pool = Arc::new(ClientPool::new(3));
         let metadata_cache = Arc::new(CacheManager::new(client_pool.clone(), cluster_name()));
         let message_storage_adapter = build_memory_storage_driver();
