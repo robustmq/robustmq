@@ -14,6 +14,7 @@
 
 use super::default::{
     default_broker_id, default_cluster_name, default_flapping_detect, default_grpc_port,
+    default_journal_runtime, default_journal_server, default_journal_storage,
     default_mqtt_auth_storage, default_mqtt_message_storage, default_mqtt_offline_message,
     default_mqtt_protocol_config, default_mqtt_runtime, default_mqtt_schema, default_mqtt_security,
     default_mqtt_server, default_mqtt_slow_sub, default_mqtt_system_monitor, default_network,
@@ -68,10 +69,13 @@ pub struct BrokerConfig {
     pub rocksdb: Rocksdb,
 
     // Journal Engine
+    #[serde(default = "default_journal_server")]
     pub journal_server: JournalServer,
 
+    #[serde(default = "default_journal_runtime")]
     pub journal_runtime: JournalRuntime,
 
+    #[serde(default = "default_journal_storage")]
     pub journal_storage: JournalStorage,
 
     // MQTT
@@ -325,7 +329,7 @@ pub struct JournalRuntime {
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct JournalStorage {
     pub data_path: Vec<String>,
-    pub rocksdb_max_open_files: Option<i32>,
+    pub rocksdb_max_open_files: i32,
 }
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]

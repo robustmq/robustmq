@@ -16,10 +16,10 @@ use common_base::runtime::get_runtime_worker_threads;
 use toml::Table;
 
 use crate::config::{
-    MqttAuthStorage, MqttFlappingDetect, MqttMessageStorage, MqttOfflineMessage,
-    MqttProtocolConfig, MqttRuntime, MqttSchema, MqttSecurity, MqttServer, MqttSlowSub,
-    MqttSystemMonitor, Network, PlaceRuntime, Rocksdb, Runtime, SchemaFailedOperation,
-    SchemaStrategy,
+    JournalRuntime, JournalServer, JournalStorage, MqttAuthStorage, MqttFlappingDetect,
+    MqttMessageStorage, MqttOfflineMessage, MqttProtocolConfig, MqttRuntime, MqttSchema,
+    MqttSecurity, MqttServer, MqttSlowSub, MqttSystemMonitor, Network, PlaceRuntime, Rocksdb,
+    Runtime, SchemaFailedOperation, SchemaStrategy,
 };
 
 pub fn default_roles() -> Vec<String> {
@@ -182,5 +182,24 @@ pub fn default_mqtt_system_monitor() -> MqttSystemMonitor {
         os_cpu_low_watermark: 50.0,
         os_memory_check_interval_ms: 60,
         os_memory_high_watermark: 80.0,
+    }
+}
+
+pub fn default_journal_server() -> JournalServer {
+    JournalServer { tcp_port: 1778 }
+}
+
+pub fn default_journal_runtime() -> JournalRuntime {
+    JournalRuntime {
+        enable_auto_create_shard: true,
+        shard_replica_num: 2,
+        max_segment_size: 1073741824,
+    }
+}
+
+pub fn default_journal_storage() -> JournalStorage {
+    JournalStorage {
+        data_path: vec!["./data/journal".to_string()],
+        rocksdb_max_open_files: 10000,
     }
 }
