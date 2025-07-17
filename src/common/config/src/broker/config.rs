@@ -175,8 +175,6 @@ pub struct MqttMessageStorage {
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct MqttRuntime {
-    pub heartbeat_timeout: String,
-
     pub default_user: String,
 
     pub default_password: String,

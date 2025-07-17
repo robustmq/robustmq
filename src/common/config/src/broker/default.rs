@@ -112,7 +112,6 @@ pub fn default_mqtt_runtime() -> MqttRuntime {
     MqttRuntime {
         default_user: "admin".to_string(),
         default_password: "robustmq".to_string(),
-        heartbeat_timeout: "10s".to_string(),
         max_connection_num: 1000000,
     }
 }

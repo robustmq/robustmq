@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::tool::loop_select;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
@@ -40,57 +41,24 @@ pub async fn register_node(
 pub async fn report_heartbeat(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
-    heartbeat_timeout: &String,
     stop_send: broadcast::Sender<bool>,
 ) {
-    let config = broker_config();
-    let actual_timeout = match humantime::parse_duration(heartbeat_timeout) {
-        Ok(v) => v.as_secs(),
-        Err(e) => {
-            error!(
-                "Failed to parse '{}' heartbeat timeout by err: {}",
-                heartbeat_timeout, e
-            );
-
-            humantime::parse_duration(&config.mqtt_runtime.heartbeat_timeout)
-                .unwrap()
-                .as_secs()
+    let ac_fn = async || -> ResultMqttBrokerError {
+        let cluster_storage = ClusterStorage::new(client_pool.clone());
+        if let Err(e) = cluster_storage.heartbeat().await {
+            if e.to_string().contains("Node") && e.to_string().contains("does not exist") {
+                if let Err(e) = register_node(client_pool, cache_manager).await {
+                    error!("{}", e);
+                }
+            }
+            error!("{}", e);
+        } else {
+            debug!("heartbeat report success");
         }
+        Ok(())
     };
 
-    loop {
-        let mut stop_recv = stop_send.subscribe();
-        select! {
-            val = stop_recv.recv() =>{
-                if let Ok(flag) = val {
-                    if flag {
-                        debug!("{}","Heartbeat reporting thread exited successfully");
-                        break;
-                    }
-                }
-            }
-            val = timeout(Duration::from_secs(actual_timeout),report(client_pool,cache_manager)) => {
-                if let Err(e) = val{
-                    error!("Broker heartbeat report timeout, error message:{}",e);
-                }
-                sleep(Duration::from_secs(1)).await;
-            }
-        }
-    }
-}
-
-async fn report(client_pool: &Arc<ClientPool>, cache_manager: &Arc<CacheManager>) {
-    let cluster_storage = ClusterStorage::new(client_pool.clone());
-    if let Err(e) = cluster_storage.heartbeat().await {
-        if e.to_string().contains("Node") && e.to_string().contains("does not exist") {
-            if let Err(e) = register_node(client_pool, cache_manager).await {
-                error!("{}", e);
-            }
-        }
-        error!("{}", e);
-    } else {
-        debug!("heartbeat report success");
-    }
+    loop_select(ac_fn, 3, &stop_send).await;
 }
 
 #[derive(Deserialize, Serialize)]

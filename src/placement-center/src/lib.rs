@@ -111,6 +111,7 @@ impl PlacementCenterServer {
     fn start_raft_machine(&self) {
         // create raft node
         let raft_node = self.raf_node.clone();
+
         tokio::spawn(async move {
             start_raft_node(raft_node).await;
         });

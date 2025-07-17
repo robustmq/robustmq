@@ -400,13 +400,8 @@ impl MqttBrokerServer {
                     let raw_client_pool = client_pool.clone();
                     tokio::spawn(async move {
                         let conf = broker_config();
-                        report_heartbeat(
-                            &raw_client_pool,
-                            &cache_manager,
-                            &conf.mqtt_runtime.heartbeat_timeout,
-                            raw_stop_send.clone(),
-                        )
-                        .await;
+                        report_heartbeat(&raw_client_pool, &cache_manager, raw_stop_send.clone())
+                            .await;
                     });
 
                     info!("Node {} has been successfully registered", config.broker_id);
