@@ -101,8 +101,8 @@ impl BrokerServer {
         let raw_place_stop_send = place_stop_send.clone();
         let place_params = self.place_params.clone();
         place_runtime.spawn(async move {
-            let mut pc = PlacementCenterServer::new(place_params.clone());
-            pc.start(raw_place_stop_send).await;
+            let mut pc = PlacementCenterServer::new(place_params.clone(), raw_place_stop_send);
+            pc.start().await;
         });
 
         // check placement ready

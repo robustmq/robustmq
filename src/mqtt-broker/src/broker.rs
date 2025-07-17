@@ -399,7 +399,6 @@ impl MqttBrokerServer {
                     let raw_stop_send = raw_stop_send.clone();
                     let raw_client_pool = client_pool.clone();
                     tokio::spawn(async move {
-                        let conf = broker_config();
                         report_heartbeat(&raw_client_pool, &cache_manager, raw_stop_send.clone())
                             .await;
                     });

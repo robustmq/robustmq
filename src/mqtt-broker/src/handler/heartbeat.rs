@@ -22,9 +22,8 @@ use grpc_clients::pool::ClientPool;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::select;
 use tokio::sync::broadcast;
-use tokio::time::{sleep, timeout};
+use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
 
 pub async fn register_node(

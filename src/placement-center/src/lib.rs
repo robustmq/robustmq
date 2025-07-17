@@ -28,7 +28,8 @@ use openraft::Raft;
 use raft::leadership::monitoring_leader_transition;
 use std::sync::Arc;
 use storage::rocksdb::RocksDBEngine;
-use tokio::sync::broadcast::Sender;
+use tokio::sync::broadcast;
+use tracing::error;
 
 pub mod controller;
 pub mod core;
@@ -64,10 +65,16 @@ pub struct PlacementCenterServer {
     journal_call_manager: Arc<JournalInnerCallManager>,
     // Global call thread manager
     mqtt_call_manager: Arc<MQTTInnerCallManager>,
+    main_stop: broadcast::Sender<bool>,
+    inner_stop: broadcast::Sender<bool>,
 }
 
 impl PlacementCenterServer {
-    pub fn new(params: PlacementCenterServerParams) -> PlacementCenterServer {
+    pub fn new(
+        params: PlacementCenterServerParams,
+        main_stop: broadcast::Sender<bool>,
+    ) -> PlacementCenterServer {
+        let (inner_stop, _) = broadcast::channel(2);
         PlacementCenterServer {
             cache_manager: params.cache_manager,
             rocksdb_engine_handler: params.rocksdb_engine_handler,
@@ -76,28 +83,32 @@ impl PlacementCenterServer {
             mqtt_call_manager: params.mqtt_call_manager,
             raf_node: params.raf_node,
             storage_driver: params.storage_driver,
+            main_stop,
+            inner_stop,
         }
     }
 
-    pub async fn start(&mut self, stop_send: Sender<bool>) {
+    pub async fn start(&mut self) {
         self.start_init();
 
         self.start_raft_machine();
 
-        self.start_heartbeat(stop_send.clone());
+        self.start_heartbeat();
 
         self.start_prometheus();
 
-        self.start_mqtt_controller(stop_send.clone());
+        self.start_mqtt_controller();
 
         self.start_journal_controller();
+
+        self.awaiting_stop();
     }
 
-    pub fn start_heartbeat(&self, stop_send: Sender<bool>) {
+    pub fn start_heartbeat(&self) {
         let ctrl = ClusterController::new(
             self.cache_manager.clone(),
             self.storage_driver.clone(),
-            stop_send.clone(),
+            self.inner_stop.clone(),
             self.client_pool.clone(),
             self.journal_call_manager.clone(),
             self.mqtt_call_manager.clone(),
@@ -123,6 +134,7 @@ impl PlacementCenterServer {
             self.cache_manager.clone(),
             self.client_pool.clone(),
             self.storage_driver.clone(),
+            self.main_stop.clone(),
         );
     }
 
@@ -135,7 +147,7 @@ impl PlacementCenterServer {
         }
     }
 
-    fn start_mqtt_controller(&self, stop_send: Sender<bool>) {
+    fn start_mqtt_controller(&self) {
         let mqtt_all_manager = self.mqtt_call_manager.clone();
         let client_pool = self.client_pool.clone();
         tokio::spawn(async move {
@@ -147,6 +159,7 @@ impl PlacementCenterServer {
         let client_pool = self.client_pool.clone();
         let cache_manager = self.cache_manager.clone();
         let raft_machine_apply = self.storage_driver.clone();
+        let stop_send = self.inner_stop.clone();
         tokio::spawn(async move {
             start_connector_scheduler(
                 &cache_manager,
@@ -171,5 +184,29 @@ impl PlacementCenterServer {
         if let Err(e) = load_cache(&self.cache_manager, &self.rocksdb_engine_handler) {
             panic!("Failed to load Cache,{e}");
         }
+    }
+
+    pub fn awaiting_stop(&self) {
+        let main_stop = self.main_stop.clone();
+        let raw_raf_node = self.raf_node.clone();
+        let inner_stop = self.inner_stop.clone();
+        tokio::spawn(async move {
+            // Stop the Server first, indicating that it will no longer receive request packets.
+            let mut recv = main_stop.subscribe();
+            match recv.recv().await {
+                Ok(_) => {
+                    if let Err(e) = raw_raf_node.shutdown().await {
+                        error!("{}", e);
+                    }
+
+                    if let Err(e) = inner_stop.send(true) {
+                        error!("{}", e);
+                    }
+                }
+                Err(e) => {
+                    error!("{}", e);
+                }
+            }
+        });
     }
 }
