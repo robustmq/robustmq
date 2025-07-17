@@ -45,7 +45,7 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::now_second;
-    use common_config::broker::config::{BrokerConfig, MqttProtocolConfig};
+    use common_config::config::{BrokerConfig, MqttProtocolConfig};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
     use protocol::mqtt::common::PublishProperties;

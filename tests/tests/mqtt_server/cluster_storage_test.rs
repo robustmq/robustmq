@@ -14,8 +14,9 @@
 
 #[cfg(test)]
 mod tests {
-    use common_config::broker::{
-        config::MqttProtocolConfig, default_broker_config, init_broker_conf_by_config,
+    use common_config::{
+        broker::{default_broker_config, init_broker_conf_by_config},
+        config::MqttProtocolConfig,
     };
     use grpc_clients::pool::ClientPool;
     use mqtt_broker::{

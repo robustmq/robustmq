@@ -23,7 +23,7 @@ use crate::subscribe::manager::SubscribeManager;
 use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::tools::now_second;
-use common_config::broker::config::BrokerConfig;
+use common_config::config::BrokerConfig;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
@@ -212,7 +212,7 @@ mod test {
     use std::time::Duration;
 
     use common_base::tools::{local_hostname, now_second, unique_id};
-    use common_config::broker::config::BrokerConfig;
+    use common_config::config::BrokerConfig;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
     use metadata_struct::mqtt::session::MqttSession;

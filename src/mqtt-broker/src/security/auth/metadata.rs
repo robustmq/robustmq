@@ -16,7 +16,7 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::handler::flapping_detect::FlappingDetectCondition;
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
-use common_config::broker::config::MqttFlappingDetect;
+use common_config::config::MqttFlappingDetect;
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclResourceType};
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
@@ -244,7 +244,7 @@ mod test {
     use crate::handler::flapping_detect::FlappingDetectCondition;
     use crate::security::auth::metadata::AclMetadata;
     use common_base::tools::now_second;
-    use common_config::broker::config::MqttFlappingDetect;
+    use common_config::config::MqttFlappingDetect;
     use metadata_struct::acl::mqtt_acl::{
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };

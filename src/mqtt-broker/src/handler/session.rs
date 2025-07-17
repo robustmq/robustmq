@@ -132,7 +132,7 @@ fn session_expiry_interval(
 mod test {
     use super::session_expiry_interval;
     use crate::handler::cache::CacheManager;
-    use common_config::broker::{config::BrokerConfig, default_broker_config};
+    use common_config::{broker::default_broker_config, config::BrokerConfig};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
     use protocol::mqtt::common::ConnectProperties;

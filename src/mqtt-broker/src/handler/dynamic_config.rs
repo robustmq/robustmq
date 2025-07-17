@@ -18,12 +18,10 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::cluster::ClusterStorage;
-use common_config::broker::{
-    broker_config,
-    config::{
-        BrokerConfig, MqttFlappingDetect, MqttOfflineMessage, MqttProtocolConfig, MqttSchema,
-        MqttSecurity, MqttSlowSub, MqttSystemMonitor,
-    },
+use common_config::broker::broker_config;
+use common_config::config::{
+    BrokerConfig, MqttFlappingDetect, MqttOfflineMessage, MqttProtocolConfig, MqttSchema,
+    MqttSecurity, MqttSlowSub, MqttSystemMonitor,
 };
 use grpc_clients::pool::ClientPool;
 use strum_macros::{Display, EnumString};

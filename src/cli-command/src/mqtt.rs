@@ -16,7 +16,7 @@ use crate::template::{PublishArgsRequest, SubscribeArgsRequest};
 use crate::{connect_server5, error_info, grpc_addr};
 use common_base::enum_type::sort_type::SortType;
 use common_base::tools::{now_second, unique_id};
-use common_config::broker::config::BrokerConfig;
+use common_config::config::BrokerConfig;
 use grpc_clients::mqtt::admin::call::{
     mqtt_broker_bind_schema, mqtt_broker_cluster_overview_metrics, mqtt_broker_cluster_status,
     mqtt_broker_create_acl, mqtt_broker_create_blacklist, mqtt_broker_create_connector,

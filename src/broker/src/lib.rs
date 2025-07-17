@@ -14,7 +14,7 @@
 
 use crate::grpc::start_grpc_server;
 use common_base::runtime::create_runtime;
-use common_config::broker::{broker_config, config::BrokerConfig};
+use common_config::{broker::broker_config, config::BrokerConfig};
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use mqtt_broker::{

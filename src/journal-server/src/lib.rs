@@ -27,7 +27,7 @@ use std::time::Duration;
 use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
 use common_config::broker::broker_config;
-use common_config::broker::config::BrokerConfig;
+use common_config::config::BrokerConfig;
 use grpc_clients::pool::ClientPool;
 use index::engine::{column_family_list, storage_data_fold};
 use rocksdb_engine::RocksDBEngine;

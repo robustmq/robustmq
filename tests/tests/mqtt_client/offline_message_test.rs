@@ -15,7 +15,7 @@
 use crate::mqtt_protocol::common::broker_grpc_addr;
 use bincode::deserialize;
 use common_base::enum_type::feature_type::FeatureType;
-use common_config::broker::config::BrokerConfig;
+use common_config::config::BrokerConfig;
 use grpc_clients::mqtt::admin::call::{
     mqtt_broker_get_cluster_config, mqtt_broker_set_cluster_config,
 };

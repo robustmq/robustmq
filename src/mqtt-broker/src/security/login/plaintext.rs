@@ -99,7 +99,7 @@ impl Authentication for Plaintext {
 mod test {
     use std::sync::Arc;
 
-    use common_config::broker::config::BrokerConfig;
+    use common_config::config::BrokerConfig;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::user::MqttUser;
     use protocol::mqtt::common::Login;

@@ -18,7 +18,7 @@ use std::time::Duration;
 use common_base::error::common::CommonError;
 use common_base::tools::{get_local_ip, now_second};
 use common_config::broker::broker_config;
-use common_config::broker::config::BrokerConfig;
+use common_config::config::BrokerConfig;
 use grpc_clients::placement::inner::call::{heartbeat, register_node, unregister_node};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::node_extend::JournalNodeExtend;

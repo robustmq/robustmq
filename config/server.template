@@ -82,3 +82,18 @@ os_memory_high_watermark = 80.0
 enable = true
 expire_ms = 3600
 max_messages_num = 1000
+
+[journal.server]
+tcp_port = 1771
+
+[journal.storage]
+data_path = [
+    "./robust-data/journal-server/storage/data1",
+    "./robust-data/journal-server/storage/data2",
+]
+rocksdb_max_open_files = 10000
+
+[journal.runtime]
+enable_auto_create_shard = false
+shard_replica_num = 1
+max_segment_size = 1048576

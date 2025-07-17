@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
 
-use crate::broker::config::PProf;
+use crate::config::PProf;
 
 #[derive(Serialize, Deserialize, PartialEq, Default, Clone, Debug)]
 pub enum AvailableFlag {

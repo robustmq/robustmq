@@ -121,8 +121,8 @@ mod test {
     use crate::observability::system_topic::sysmon::SystemAlarmEventMessage;
     use crate::storage::message::cluster_name;
 
-    use common_config::broker::config::BrokerConfig;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
+    use common_config::config::BrokerConfig;
     use grpc_clients::pool::ClientPool;
 
     #[tokio::test]

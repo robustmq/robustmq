@@ -21,7 +21,7 @@ use crate::security::login::plaintext::plaintext_check_login;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
 use crate::subscribe::common::get_sub_topic_id_list;
 use common_config::broker::broker_config;
-use common_config::broker::config::MqttAuthStorage;
+use common_config::config::MqttAuthStorage;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclAction, MqttAclResourceType};

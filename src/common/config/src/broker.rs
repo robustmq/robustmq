@@ -12,12 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{broker::config::BrokerConfig, common::override_default_by_env};
+use crate::{common::override_default_by_env, config::BrokerConfig};
 use common_base::tools::{read_file, try_create_fold};
 use std::sync::OnceLock;
-
-pub mod config;
-pub mod default;
 
 static BROKER_MQTT_CONF: OnceLock<BrokerConfig> = OnceLock::new();
 

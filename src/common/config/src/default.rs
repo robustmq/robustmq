@@ -15,7 +15,7 @@
 use common_base::runtime::get_runtime_worker_threads;
 use toml::Table;
 
-use crate::broker::config::{
+use crate::config::{
     MqttAuthStorage, MqttFlappingDetect, MqttMessageStorage, MqttOfflineMessage,
     MqttProtocolConfig, MqttRuntime, MqttSchema, MqttSecurity, MqttServer, MqttSlowSub,
     MqttSystemMonitor, Network, PlaceRuntime, Rocksdb, Runtime, SchemaFailedOperation,
@@ -50,8 +50,8 @@ pub fn default_placement_center() -> Table {
 pub fn default_runtime() -> Runtime {
     Runtime {
         runtime_worker_threads: get_runtime_worker_threads(),
-        tls_cert: "./config/example/certs/cert.pem".to_string(),
-        tls_key: "./config/example/certs/key.pem".to_string(),
+        tls_cert: "./config/certs/cert.pem".to_string(),
+        tls_key: "./config/certs/key.pem".to_string(),
     }
 }
 
