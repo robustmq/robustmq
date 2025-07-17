@@ -38,6 +38,12 @@ pub struct ConnectionManager {
     >,
 }
 
+impl Default for ConnectionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConnectionManager {
     pub fn new() -> ConnectionManager {
         let connections = DashMap::with_capacity(64);

@@ -16,6 +16,9 @@ use crate::metrics::{metrics_grpc_request_incr, metrics_grpc_request_ms};
 use axum::http::{self};
 use common_base::error::common::CommonError;
 use common_base::tools::now_mills;
+use journal_server::server::grpc::admin::GrpcJournalServerAdminService;
+use journal_server::server::grpc::inner::GrpcJournalServerInnerService;
+use journal_server::JournalServerParams;
 use mqtt_broker::broker::MqttBrokerServerParams;
 use mqtt_broker::server::grpc::admin::GrpcAdminServices;
 use mqtt_broker::server::grpc::inner::GrpcInnerServices;
@@ -27,6 +30,8 @@ use placement_center::server::service_raft::GrpcOpenRaftServices;
 use placement_center::PlacementCenterServerParams;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminServiceServer;
 use protocol::broker_mqtt::broker_mqtt_inner::mqtt_broker_inner_service_server::MqttBrokerInnerServiceServer;
+use protocol::journal_server::journal_admin::journal_server_admin_service_server::JournalServerAdminServiceServer;
+use protocol::journal_server::journal_inner::journal_server_inner_service_server::JournalServerInnerServiceServer;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterServiceServer;
 use protocol::placement_center::placement_center_journal::engine_service_server::EngineServiceServer;
 use protocol::placement_center::placement_center_kv::kv_service_server::KvServiceServer;
@@ -41,6 +46,7 @@ use tracing::info;
 pub async fn start_grpc_server(
     place_params: &PlacementCenterServerParams,
     mqtt_params: &MqttBrokerServerParams,
+    journal_params: &JournalServerParams,
     grpc_port: u32,
 ) -> Result<(), CommonError> {
     let ip = format!("0.0.0.0:{}", grpc_port).parse()?;
@@ -77,6 +83,13 @@ pub async fn start_grpc_server(
             OpenRaftServiceServer::new(get_place_raft_handler(place_params))
                 .max_decoding_message_size(grpc_max_decoding_message_size),
         )
+        // Journal Server
+        .add_service(JournalServerAdminServiceServer::new(
+            get_journal_admin_handler(journal_params),
+        ))
+        .add_service(JournalServerInnerServiceServer::new(
+            get_journal_inner_handler(journal_params),
+        ))
         // Mqtt Server
         .add_service(
             MqttBrokerInnerServiceServer::new(get_mqtt_inner_handler(mqtt_params))
@@ -152,6 +165,18 @@ fn get_mqtt_admin_handler(mqtt_params: &MqttBrokerServerParams) -> GrpcAdminServ
         mqtt_params.connection_manager.clone(),
         mqtt_params.subscribe_manager.clone(),
         mqtt_params.metrics_cache_manager.clone(),
+    )
+}
+
+fn get_journal_admin_handler(params: &JournalServerParams) -> GrpcJournalServerAdminService {
+    GrpcJournalServerAdminService::new(params.cache_manager.clone())
+}
+
+fn get_journal_inner_handler(params: &JournalServerParams) -> GrpcJournalServerInnerService {
+    GrpcJournalServerInnerService::new(
+        params.cache_manager.clone(),
+        params.segment_file_manager.clone(),
+        params.rocksdb_engine_handler.clone(),
     )
 }
 

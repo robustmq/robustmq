@@ -547,6 +547,7 @@ dependencies = [
  "common-config",
  "delay-message",
  "grpc-clients",
+ "journal-server",
  "mqtt-broker",
  "openraft",
  "placement-center",

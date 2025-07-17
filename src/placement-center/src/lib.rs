@@ -21,8 +21,6 @@ use crate::core::controller::ClusterController;
 use crate::raft::raft_node::start_raft_node;
 use crate::raft::route::apply::StorageDriver;
 use crate::raft::type_config::TypeConfig;
-use common_base::metrics::register_prometheus_export;
-use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use openraft::Raft;
 use raft::leadership::monitoring_leader_transition;
@@ -95,8 +93,6 @@ impl PlacementCenterServer {
 
         self.start_heartbeat();
 
-        self.start_prometheus();
-
         self.start_mqtt_controller();
 
         self.start_journal_controller();
@@ -136,15 +132,6 @@ impl PlacementCenterServer {
             self.storage_driver.clone(),
             self.main_stop.clone(),
         );
-    }
-
-    fn start_prometheus(&self) {
-        let conf = broker_config();
-        if conf.prometheus.enable {
-            tokio::spawn(async move {
-                register_prometheus_export(conf.prometheus.port).await;
-            });
-        }
     }
 
     fn start_mqtt_controller(&self) {

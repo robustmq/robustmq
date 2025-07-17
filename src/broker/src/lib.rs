@@ -13,17 +13,22 @@
 // limitations under the License.
 
 use crate::grpc::start_grpc_server;
-use common_base::runtime::create_runtime;
+use common_base::{metrics::register_prometheus_export, runtime::create_runtime};
 use common_config::{broker::broker_config, config::BrokerConfig};
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
+use journal_server::{
+    core::cache::CacheManager as JournalCacheManager, segment::manager::SegmentFileManager,
+    server::connection_manager::ConnectionManager as JournalConnectionManager, JournalServer,
+    JournalServerParams,
+};
 use mqtt_broker::{
     bridge::manager::ConnectorManager,
     broker::{MqttBrokerServer, MqttBrokerServerParams},
     common::metrics_cache::MetricsCacheManager,
     handler::{cache::CacheManager as MqttCacheManager, heartbeat::check_placement_center_status},
     security::AuthDriver,
-    server::common::connection_manager::ConnectionManager,
+    server::common::connection_manager::ConnectionManager as MqttConnectionManager,
     storage::message::build_message_storage_driver,
     subscribe::manager::SubscribeManager,
 };
@@ -54,6 +59,7 @@ pub struct BrokerServer {
     main_runtime: Runtime,
     place_params: PlacementCenterServerParams,
     mqtt_params: MqttBrokerServerParams,
+    journal_params: JournalServerParams,
     config: BrokerConfig,
 }
 
@@ -74,10 +80,12 @@ impl BrokerServer {
         });
 
         let mqtt_params = BrokerServer::build_mqtt_server(client_pool.clone());
+        let journal_params = BrokerServer::build_journal_server(client_pool.clone());
 
         BrokerServer {
             main_runtime,
             place_params: place_params.unwrap(),
+            journal_params: journal_params.clone(),
             config: config.clone(),
             mqtt_params,
         }
@@ -86,10 +94,18 @@ impl BrokerServer {
         // start grpc server
         let place_params = self.place_params.clone();
         let mqtt_params = self.mqtt_params.clone();
+        let journal_params = self.journal_params.clone();
         let config = self.config.clone();
         let runtime = create_runtime("grpc-runtime", self.config.runtime.runtime_worker_threads);
         runtime.spawn(async move {
-            if let Err(e) = start_grpc_server(&place_params, &mqtt_params, config.grpc_port).await {
+            if let Err(e) = start_grpc_server(
+                &place_params,
+                &mqtt_params,
+                &journal_params,
+                config.grpc_port,
+            )
+            .await
+            {
                 panic!("{e}")
             }
         });
@@ -111,6 +127,21 @@ impl BrokerServer {
         });
 
         // start journal server
+        let server_runtime = create_runtime(
+            "journal-runtime",
+            self.config.runtime.runtime_worker_threads,
+        );
+        let daemon_runtime =
+            create_runtime("daemon-runtime", self.config.runtime.runtime_worker_threads);
+
+        let (journal_stop_send, _) = broadcast::channel(2);
+        let server = JournalServer::new(
+            self.journal_params.clone(),
+            server_runtime,
+            daemon_runtime,
+            journal_stop_send.clone(),
+        );
+        server.start();
 
         // start mqtt server
         let daemon_runtime =
@@ -140,8 +171,16 @@ impl BrokerServer {
         );
         server.start();
 
+        // start prometheus
+        let prometheus_port = self.config.prometheus.port;
+        if self.config.prometheus.enable {
+            runtime.spawn(async move {
+                register_prometheus_export(prometheus_port).await;
+            });
+        }
+
         // awaiting stop
-        self.awaiting_stop(place_stop_send, mqtt_stop_send);
+        self.awaiting_stop(place_stop_send, mqtt_stop_send, journal_stop_send);
     }
 
     async fn build_placement_center(client_pool: Arc<ClientPool>) -> PlacementCenterServerParams {
@@ -190,7 +229,7 @@ impl BrokerServer {
         let arc_storage_driver = Arc::new(storage_driver);
         let subscribe_manager = Arc::new(SubscribeManager::new());
         let connector_manager = Arc::new(ConnectorManager::new());
-        let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
+        let connection_manager = Arc::new(MqttConnectionManager::new(cache_manager.clone()));
         let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_pool.clone()));
         let delay_message_manager = Arc::new(DelayMessageManager::new(
             config.cluster_name.clone(),
@@ -214,10 +253,33 @@ impl BrokerServer {
         }
     }
 
+    fn build_journal_server(client_pool: Arc<ClientPool>) -> JournalServerParams {
+        let config = broker_config();
+        let connection_manager = Arc::new(JournalConnectionManager::new());
+        let cache_manager = Arc::new(JournalCacheManager::new());
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
+            &storage_data_fold(config.journal_storage.data_path.first().unwrap()),
+            10000,
+            column_family_list(),
+        ));
+
+        let segment_file_manager =
+            Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
+
+        JournalServerParams {
+            cache_manager,
+            client_pool,
+            connection_manager,
+            segment_file_manager,
+            rocksdb_engine_handler,
+        }
+    }
+
     pub fn awaiting_stop(
         &self,
         place_stop: broadcast::Sender<bool>,
         mqtt_stop: broadcast::Sender<bool>,
+        journal_stop: broadcast::Sender<bool>,
     ) {
         self.main_runtime.block_on(async {
             // Wait for all the request packets in the TCP Channel to be processed completely before starting to stop other processing threads.
@@ -226,6 +288,12 @@ impl BrokerServer {
                 "{}",
                 "When ctrl + c is received, the service starts to stop"
             );
+
+            if let Err(e) = journal_stop.send(true) {
+                error!("{}", e);
+            }
+            sleep(Duration::from_secs(3)).await;
+
             if let Err(e) = mqtt_stop.send(true) {
                 error!("{}", e);
             }

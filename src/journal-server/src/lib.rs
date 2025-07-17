@@ -15,47 +15,48 @@
 // #![allow(dead_code, unused_variables)]
 #![allow(clippy::result_large_err)]
 #![allow(clippy::large_enum_variant)]
-
+use common_config::broker::broker_config;
+use common_config::config::BrokerConfig;
 use core::cache::{load_metadata_cache, CacheManager};
 use core::cluster::{
     register_journal_node, report_heartbeat, report_monitor, unregister_journal_node,
 };
-use std::path::Path;
-use std::sync::Arc;
-use std::time::Duration;
-
-use common_base::metrics::register_prometheus_export;
-use common_base::runtime::create_runtime;
-use common_config::broker::broker_config;
-use common_config::config::BrokerConfig;
 use grpc_clients::pool::ClientPool;
-use index::engine::{column_family_list, storage_data_fold};
 use rocksdb_engine::RocksDBEngine;
 use segment::manager::{
     load_local_segment_cache, metadata_and_local_segment_diff_check, SegmentFileManager,
 };
 use segment::scroll::SegmentScrollManager;
 use server::connection_manager::ConnectionManager;
-use server::grpc::server::GrpcServer;
 use server::tcp::server::start_tcp_server;
+use std::path::Path;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::runtime::Runtime;
-use tokio::signal;
-use tokio::sync::broadcast::Sender;
+use tokio::sync::broadcast::{self, Sender};
 use tokio::time::sleep;
 use tracing::{error, info};
 
-mod admin;
+pub mod admin;
 pub mod core;
-mod handler;
-mod index;
-mod inner;
-mod isr;
-mod segment;
-mod server;
+pub mod handler;
+pub mod index;
+pub mod inner;
+pub mod isr;
+pub mod segment;
+pub mod server;
+
+#[derive(Clone)]
+pub struct JournalServerParams {
+    pub cache_manager: Arc<CacheManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub segment_file_manager: Arc<SegmentFileManager>,
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
+}
 
 pub struct JournalServer {
     config: BrokerConfig,
-    stop_send: Sender<bool>,
     server_runtime: Runtime,
     daemon_runtime: Runtime,
     client_pool: Arc<ClientPool>,
@@ -63,49 +64,36 @@ pub struct JournalServer {
     cache_manager: Arc<CacheManager>,
     segment_file_manager: Arc<SegmentFileManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
+    main_stop: broadcast::Sender<bool>,
+    inner_stop: broadcast::Sender<bool>,
 }
 
 impl JournalServer {
-    pub fn new(stop_send: Sender<bool>) -> Self {
-        let config = broker_config().clone();
-        let server_runtime = create_runtime(
-            "storage-engine-server-runtime",
-            config.runtime.runtime_worker_threads,
-        );
-        let daemon_runtime =
-            create_runtime("daemon-runtime", config.runtime.runtime_worker_threads);
+    pub fn new(
+        params: JournalServerParams,
+        server_runtime: Runtime,
+        daemon_runtime: Runtime,
+        main_stop: Sender<bool>,
+    ) -> Self {
+        let config = broker_config();
 
-        let client_pool = Arc::new(ClientPool::new(3));
-        let connection_manager = Arc::new(ConnectionManager::new());
-        let cache_manager = Arc::new(CacheManager::new());
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &storage_data_fold(&config.journal_storage.data_path),
-            10000,
-            column_family_list(),
-        ));
-
-        let segment_file_manager =
-            Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
-
+        let (inner_stop, _) = broadcast::channel(2);
         JournalServer {
-            config,
-            stop_send,
+            config: config.clone(),
             server_runtime,
             daemon_runtime,
-            client_pool,
-            connection_manager,
-            cache_manager,
-            segment_file_manager,
-            rocksdb_engine_handler,
+            client_pool: params.client_pool,
+            connection_manager: params.connection_manager,
+            cache_manager: params.cache_manager,
+            segment_file_manager: params.segment_file_manager,
+            rocksdb_engine_handler: params.rocksdb_engine_handler,
+            main_stop,
+            inner_stop,
         }
     }
 
     pub fn start(&self) {
-        self.start_grpc_server();
-
         self.start_tcp_server();
-
-        self.start_prometheus();
 
         self.init_node();
 
@@ -114,27 +102,11 @@ impl JournalServer {
         self.waiting_stop();
     }
 
-    fn start_grpc_server(&self) {
-        let server = GrpcServer::new(
-            self.cache_manager.clone(),
-            self.segment_file_manager.clone(),
-            self.rocksdb_engine_handler.clone(),
-        );
-        self.server_runtime.spawn(async move {
-            match server.start().await {
-                Ok(()) => {}
-                Err(e) => {
-                    panic!("{}", e.to_string());
-                }
-            }
-        });
-    }
-
     fn start_tcp_server(&self) {
         let client_pool = self.client_pool.clone();
         let connection_manager = self.connection_manager.clone();
         let cache_manager = self.cache_manager.clone();
-        let stop_sx = self.stop_send.clone();
+        let inner_stop = self.inner_stop.clone();
         let segment_file_manager = self.segment_file_manager.clone();
         let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
         self.server_runtime.spawn(async {
@@ -144,23 +116,23 @@ impl JournalServer {
                 cache_manager,
                 segment_file_manager,
                 rocksdb_engine_handler,
-                stop_sx,
+                inner_stop,
             )
             .await;
         });
     }
 
-    fn start_prometheus(&self) {
-        if self.config.prometheus.enable {
-            let prometheus_port = self.config.prometheus.port;
-            self.server_runtime.spawn(async move {
-                register_prometheus_export(prometheus_port).await;
-            });
-        }
-    }
-
     fn start_daemon_thread(&self) {
-        self.start_daemon_report(self.stop_send.clone());
+        let (heartbeat_sx, monitor_sx) = (self.inner_stop.clone(), self.inner_stop.clone());
+        let (heartbeat_client_pool, monitor_client_pool) =
+            (self.client_pool.clone(), self.client_pool.clone());
+
+        let cache_manager = self.cache_manager.clone();
+        self.daemon_runtime.spawn(async move {
+            report_heartbeat(&heartbeat_client_pool, &cache_manager, heartbeat_sx);
+
+            report_monitor(monitor_client_pool, monitor_sx)
+        });
 
         let segment_scroll = SegmentScrollManager::new(
             self.cache_manager.clone(),
@@ -172,30 +144,20 @@ impl JournalServer {
         });
     }
 
-    fn start_daemon_report(&self, stop_sx: Sender<bool>) {
-        let (heartbeat_sx, monitor_sx) = (stop_sx.clone(), stop_sx.clone());
-        let (heartbeat_client_pool, monitor_client_pool) =
-            (self.client_pool.clone(), self.client_pool.clone());
-
-        let cache_manager = self.cache_manager.clone();
-        self.daemon_runtime.spawn(async move {
-            report_heartbeat(&heartbeat_client_pool, &cache_manager, heartbeat_sx);
-
-            report_monitor(monitor_client_pool, monitor_sx)
-        });
-    }
-
     fn waiting_stop(&self) {
-        self.daemon_runtime.block_on(async move {
-            loop {
-                signal::ctrl_c().await.expect("failed to listen for event");
-                if self.stop_send.send(true).is_ok() {
-                    info!(
-                        "{}",
-                        "When ctrl + c is received, the service starts to stop"
-                    );
-                    self.stop_server().await;
-                    break;
+        let inner_stop = self.inner_stop.clone();
+        let client_pool = self.client_pool.clone();
+        let cache_manager = self.cache_manager.clone();
+        let mut recv = self.main_stop.subscribe();
+        self.daemon_runtime.spawn(async move {
+            match recv.recv().await {
+                Ok(_) => {
+                    if inner_stop.send(true).is_ok() {
+                        JournalServer::stop_server(cache_manager, client_pool).await;
+                    }
+                }
+                Err(e) => {
+                    error!("{}", e)
                 }
             }
         });
@@ -238,14 +200,11 @@ impl JournalServer {
         });
     }
 
-    async fn stop_server(&self) {
-        self.cache_manager.stop_all_build_index_thread();
-
-        match unregister_journal_node(self.client_pool.clone(), self.config.clone()).await {
-            Ok(()) => {}
-            Err(e) => {
-                error!("{}", e);
-            }
+    async fn stop_server(cache_manager: Arc<CacheManager>, client_pool: Arc<ClientPool>) {
+        let config = broker_config();
+        cache_manager.stop_all_build_index_thread();
+        if let Err(e) = unregister_journal_node(client_pool.clone(), config.clone()).await {
+            error!("{}", e);
         }
     }
 }

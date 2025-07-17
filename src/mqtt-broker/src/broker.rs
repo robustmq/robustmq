@@ -36,7 +36,6 @@ use crate::subscribe::exclusive::ExclusivePush;
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::share::follower::ShareFollowerResub;
 use crate::subscribe::share::leader::ShareLeaderPush;
-use common_base::metrics::register_prometheus_export;
 use common_config::broker::broker_config;
 use delay_message::{start_delay_message_manager, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
@@ -210,16 +209,6 @@ impl MqttBrokerServer {
     }
 
     fn start_server(&self) {
-        // grpc server
-        let conf = broker_config();
-
-        // prometheus server
-        if conf.prometheus.enable {
-            self.admin_runtime.spawn(async move {
-                register_prometheus_export(conf.prometheus.port).await;
-            });
-        }
-
         // pprof server
         let conf = broker_config();
         if conf.p_prof.enable {
