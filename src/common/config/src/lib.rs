@@ -16,6 +16,6 @@ pub const DEFAULT_BROKER_SERVER_CONFIG: &str = "config/server.toml";
 
 pub mod broker;
 pub mod common;
-pub mod journal;
+// pub mod journal;
 // pub mod mqtt;
 // pub mod place;

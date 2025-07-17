@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use common_config::journal::config::journal_server_conf;
+use common_config::broker::broker_config;
 use protocol::journal_server::journal_admin::journal_server_admin_service_server::JournalServerAdminServiceServer;
 use protocol::journal_server::journal_inner::journal_server_inner_service_server::JournalServerInnerServiceServer;
 use rocksdb_engine::RocksDBEngine;
@@ -46,8 +46,8 @@ impl GrpcServer {
         }
     }
     pub async fn start(&self) -> Result<(), CommonError> {
-        let conf = journal_server_conf();
-        let addr = format!("{}:{}", conf.network.local_ip, conf.network.grpc_port).parse()?;
+        let conf = broker_config();
+        let addr = format!("0.0.0.0:{}", conf.grpc_port).parse()?;
         info!("Journal Engine Grpc Server start success. addr:{}", addr);
         let admin_handler = GrpcJournalServerAdminService::new(self.cache_manager.clone());
         let inner_handler = GrpcJournalServerInnerService::new(

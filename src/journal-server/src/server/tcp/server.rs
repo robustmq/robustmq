@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_config::journal::config::journal_server_conf;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use rocksdb_engine::RocksDBEngine;
 use tokio::net::TcpListener;
@@ -30,7 +30,6 @@ use crate::server::packet::{RequestPackage, ResponsePackage};
 use crate::server::tcp::handler::handler_process;
 use crate::server::tcp::response::response_process;
 use crate::server::tcp::tcp_server::acceptor_process;
-use crate::server::tcp::tls_server::acceptor_tls_process;
 
 /// Start the TCP server in the journal engine from the config fire.
 pub async fn start_tcp_server(
@@ -41,7 +40,7 @@ pub async fn start_tcp_server(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     stop_sx: broadcast::Sender<bool>,
 ) {
-    let conf = journal_server_conf();
+    let conf = broker_config();
     let command = Command::new(
         client_pool.clone(),
         cache_manager.clone(),
@@ -50,9 +49,9 @@ pub async fn start_tcp_server(
     );
 
     let proc_config = ProcessorConfig {
-        accept_thread_num: conf.tcp_thread.accept_thread_num,
-        handler_process_num: conf.tcp_thread.handler_thread_num,
-        response_process_num: conf.tcp_thread.response_thread_num,
+        accept_thread_num: conf.network.accept_thread_num,
+        handler_process_num: conf.network.handler_thread_num,
+        response_process_num: conf.network.response_thread_num,
     };
 
     let mut server = TcpServer::new(
@@ -64,16 +63,6 @@ pub async fn start_tcp_server(
         client_pool.clone(),
     );
     server.start().await;
-
-    let mut server = TcpServer::new(
-        command,
-        proc_config,
-        stop_sx.clone(),
-        connection_manager,
-        cache_manager,
-        client_pool,
-    );
-    server.start_tls().await;
 }
 
 struct TcpServer {
@@ -118,8 +107,8 @@ impl TcpServer {
     }
 
     pub async fn start(&mut self) {
-        let conf = journal_server_conf();
-        let addr = format!("{}:{}", conf.network.local_ip, conf.network.tcp_port);
+        let conf = broker_config();
+        let addr = format!("0.0.0.0:{}", conf.journal_server.tcp_port);
         let listener = match TcpListener::bind(&addr).await {
             Ok(tl) => tl,
             Err(e) => {
@@ -164,52 +153,5 @@ impl TcpServer {
 
         self.network_connection_type = NetworkConnectionType::Tcp;
         info!("Journal Engine Server started successfully, addr: {addr}");
-    }
-
-    pub async fn start_tls(&mut self) {
-        let conf = journal_server_conf();
-        let addr = format!("{}:{}", conf.network.local_ip, conf.network.tcps_port);
-        let listener = match TcpListener::bind(&addr).await {
-            Ok(tl) => tl,
-            Err(e) => {
-                panic!("{}", e.to_string());
-            }
-        };
-        let (request_queue_sx, request_queue_rx) = mpsc::channel::<RequestPackage>(1000);
-        let (response_queue_sx, response_queue_rx) = mpsc::channel::<ResponsePackage>(1000);
-
-        let arc_listener = Arc::new(listener);
-
-        acceptor_tls_process(
-            self.accept_thread_num,
-            arc_listener.clone(),
-            self.stop_sx.clone(),
-            self.network_connection_type.clone(),
-            self.connection_manager.clone(),
-            request_queue_sx,
-        )
-        .await;
-
-        handler_process(
-            self.handler_process_num,
-            request_queue_rx,
-            self.connection_manager.clone(),
-            response_queue_sx,
-            self.stop_sx.clone(),
-            self.command.clone(),
-        )
-        .await;
-
-        response_process(
-            self.response_process_num,
-            self.connection_manager.clone(),
-            self.cache_manager.clone(),
-            response_queue_rx,
-            self.client_pool.clone(),
-            self.stop_sx.clone(),
-        )
-        .await;
-        self.network_connection_type = NetworkConnectionType::Tls;
-        info!("Journal Engine TLS Server started successfully, addr: {addr}");
     }
 }

@@ -24,10 +24,6 @@ name = "broker-server"
 path = "src/broker-server/server.rs"
 
 [[bin]]
-name = "journal-server"
-path = "src/journal-server/server.rs"
-
-[[bin]]
 name = "cli-command"
 path = "src/cli-command/command.rs"
 

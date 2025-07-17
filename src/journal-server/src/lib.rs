@@ -26,7 +26,8 @@ use std::time::Duration;
 
 use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
-use common_config::journal::config::{journal_server_conf, JournalServerConfig};
+use common_config::broker::broker_config;
+use common_config::broker::config::BrokerConfig;
 use grpc_clients::pool::ClientPool;
 use index::engine::{column_family_list, storage_data_fold};
 use rocksdb_engine::RocksDBEngine;
@@ -53,7 +54,7 @@ mod segment;
 mod server;
 
 pub struct JournalServer {
-    config: JournalServerConfig,
+    config: BrokerConfig,
     stop_send: Sender<bool>,
     server_runtime: Runtime,
     daemon_runtime: Runtime,
@@ -66,18 +67,19 @@ pub struct JournalServer {
 
 impl JournalServer {
     pub fn new(stop_send: Sender<bool>) -> Self {
-        let config = journal_server_conf().clone();
+        let config = broker_config().clone();
         let server_runtime = create_runtime(
             "storage-engine-server-runtime",
-            config.system.runtime_work_threads,
+            config.runtime.runtime_worker_threads,
         );
-        let daemon_runtime = create_runtime("daemon-runtime", config.system.runtime_work_threads);
+        let daemon_runtime =
+            create_runtime("daemon-runtime", config.runtime.runtime_worker_threads);
 
         let client_pool = Arc::new(ClientPool::new(3));
         let connection_manager = Arc::new(ConnectionManager::new());
         let cache_manager = Arc::new(CacheManager::new());
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &storage_data_fold(&config.storage.data_path),
+            &storage_data_fold(&config.journal_storage.data_path),
             10000,
             column_family_list(),
         ));
@@ -206,13 +208,13 @@ impl JournalServer {
 
             load_metadata_cache(&self.cache_manager, &self.client_pool).await;
 
-            for path in self.config.storage.data_path.clone() {
+            for path in self.config.journal_storage.data_path.clone() {
                 let path = Path::new(&path);
                 match load_local_segment_cache(
                     path,
                     &self.rocksdb_engine_handler,
                     &self.segment_file_manager,
-                    &self.config.storage.data_path,
+                    &self.config.journal_storage.data_path,
                 ) {
                     Ok(()) => {}
                     Err(e) => {

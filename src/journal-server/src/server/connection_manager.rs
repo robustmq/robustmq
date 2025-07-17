@@ -67,17 +67,6 @@ impl ConnectionManager {
         self.tcp_write_list.insert(connection_id, write);
     }
 
-    pub fn add_tcp_tls_write(
-        &self,
-        connection_id: u64,
-        write: FramedWrite<
-            tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
-            JournalServerCodec,
-        >,
-    ) {
-        self.tcp_tls_write_list.insert(connection_id, write);
-    }
-
     pub async fn _close_all_connect(&self) {
         for (connect_id, _) in self.connections.clone() {
             self.close_connect(connect_id).await;

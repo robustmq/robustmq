@@ -53,7 +53,6 @@ mod tests {
         let extend = JournalNodeExtend {
             data_fold: vec![node_fold.clone()],
             tcp_addr: "".to_string(),
-            tcps_addr: "".to_string(),
         };
 
         let node = BrokerNode {
@@ -272,7 +271,6 @@ mod tests {
         let extend = JournalNodeExtend {
             data_fold: vec![node_fold.clone()],
             tcp_addr: "".to_string(),
-            tcps_addr: "".to_string(),
         };
 
         let node = BrokerNode {
@@ -418,7 +416,6 @@ mod tests {
         let extend = JournalNodeExtend {
             data_fold: vec![node_fold.clone()],
             tcp_addr: "".to_string(),
-            tcps_addr: "".to_string(),
         };
 
         let node = BrokerNode {
@@ -534,7 +531,6 @@ mod tests {
         let extend = JournalNodeExtend {
             data_fold: vec![node_fold.clone()],
             tcp_addr: "".to_string(),
-            tcps_addr: "".to_string(),
         };
 
         let node = BrokerNode {

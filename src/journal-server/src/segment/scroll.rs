@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use common_base::tools::now_second;
-use common_config::journal::config::journal_server_conf;
+use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::placement::journal::call::create_next_segment;
 use grpc_clients::pool::ClientPool;
@@ -56,7 +56,7 @@ impl SegmentScrollManager {
     }
 
     pub async fn trigger_segment_scroll(&self) {
-        let conf = journal_server_conf();
+        let conf = broker_config();
         info!("Segment scroll thread started successfully");
         loop {
             for segment_iden in self.cache_manager.get_leader_segment() {
@@ -101,8 +101,12 @@ impl SegmentScrollManager {
                         shard_name: segment_iden.shard_name.clone(),
                     };
 
-                    match create_next_segment(&self.client_pool, &conf.placement_center, request)
-                        .await
+                    match create_next_segment(
+                        &self.client_pool,
+                        &conf.get_placement_center_addr(),
+                        request,
+                    )
+                    .await
                     {
                         Ok(_) => {
                             self.percentage50_cache.insert(key.clone(), now_second());

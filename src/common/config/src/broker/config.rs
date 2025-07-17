@@ -28,6 +28,7 @@ use toml::Table;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct BrokerConfig {
+    // Base
     #[serde(default = "default_cluster_name")]
     pub cluster_name: String,
 
@@ -43,6 +44,7 @@ pub struct BrokerConfig {
     #[serde(default = "default_placement_center")]
     pub placement_center: Table,
 
+    // Common
     #[serde(default = "default_prometheus")]
     pub prometheus: Prometheus,
 
@@ -55,15 +57,24 @@ pub struct BrokerConfig {
     #[serde(default = "default_network")]
     pub network: Network,
 
-    #[serde(default = "default_rocksdb")]
-    pub rocksdb: Rocksdb,
-
-    #[serde(default = "default_place_runtime")]
-    pub place_runtime: PlaceRuntime,
-
     #[serde(default = "default_pprof")]
     pub p_prof: PProf,
 
+    // Placement
+    #[serde(default = "default_place_runtime")]
+    pub place_runtime: PlaceRuntime,
+
+    #[serde(default = "default_rocksdb")]
+    pub rocksdb: Rocksdb,
+
+    // Journal Engine
+    pub journal_server: JournalServer,
+
+    pub journal_runtime: JournalRuntime,
+
+    pub journal_storage: JournalStorage,
+
+    // MQTT
     #[serde(default = "default_mqtt_server")]
     pub mqtt_server: MqttServer,
 
@@ -302,4 +313,22 @@ impl MqttSchema {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
     }
+}
+
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+pub struct JournalRuntime {
+    pub enable_auto_create_shard: bool,
+    pub shard_replica_num: u32,
+    pub max_segment_size: u32,
+}
+
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+pub struct JournalStorage {
+    pub data_path: Vec<String>,
+    pub rocksdb_max_open_files: Option<i32>,
+}
+
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+pub struct JournalServer {
+    pub tcp_port: u32,
 }
