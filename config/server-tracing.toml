@@ -23,7 +23,34 @@ rotation = "daily"
 directory = "./data/broker/logs"
 prefix = "server"
 suffix = "log"
-max_log_files = 10
+max_log_files = 50
+
+[raft]
+kind = "rolling_file"
+targets = [{ path = "openraft", level = "info" }]
+rotation = "daily"
+directory = "./data/broker/logs"
+prefix = "raft"
+suffix = "log"
+max_log_files = 50
+
+[journal]
+kind = "rolling_file"
+targets = [{ path = "journal_server", level = "info" }]
+rotation = "daily"
+directory = "./data/broker/logs"
+prefix = "journal"
+suffix = "log"
+max_log_files = 50
+
+[place]
+kind = "rolling_file"
+targets = [{ path = "placement_center", level = "info" }]
+rotation = "daily"
+directory = "./data/broker/logs"
+prefix = "place"
+suffix = "log"
+max_log_files = 50
 
 ## Uncomment the section below to enable troubleshooting with `tokio-console`.
 # [tokio_console]
@@ -60,17 +87,17 @@ max_log_files = 10
 # suffix = "log"
 # max_log_files = 10
 
-# # Use targets to filter logs by multiple paths. Here we would
-# # want all openraft logs except those that are under the "openraft::engine"
-# # path.
-# [openraft_except_engine]
-# kind = "rolling_file"
-# targets = [
-#     { path = "openraft", level = "info" },
-#     { path = "openraft::engine", level = "off" }
-# ]
-# rotation = "minutely"
-# directory = "./data/placement-center/logs"
-# prefix = "openraft-except-engine"
-# suffix = "log"
-# max_log_files = 10
+# Use targets to filter logs by multiple paths. Here we would
+# want all openraft logs except those that are under the "openraft::engine"
+# path.
+[openraft_except_engine]
+kind = "rolling_file"
+targets = [
+    { path = "openraft", level = "info" },
+    { path = "openraft::engine", level = "off" },
+]
+rotation = "minutely"
+directory = "./data/placement-center/logs"
+prefix = "openraft-except-engine"
+suffix = "log"
+max_log_files = 10

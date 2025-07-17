@@ -43,7 +43,7 @@ use placement_center::{
         route::{apply::StorageDriver, DataRoute},
         type_config::TypeConfig,
     },
-    storage::rocksdb::{column_family_list, storage_data_fold, RocksDBEngine},
+    storage::rocksdb::{column_family_list, RocksDBEngine},
     PlacementCenterServer, PlacementCenterServerParams,
 };
 use schema_register::schema::SchemaRegisterManager;
@@ -57,9 +57,10 @@ mod metrics;
 
 pub struct BrokerServer {
     main_runtime: Runtime,
-    place_params: PlacementCenterServerParams,
-    mqtt_params: MqttBrokerServerParams,
-    journal_params: JournalServerParams,
+    place_params: Option<PlacementCenterServerParams>,
+    mqtt_params: Option<MqttBrokerServerParams>,
+    journal_params: Option<JournalServerParams>,
+    client_pool: Arc<ClientPool>,
     config: BrokerConfig,
 }
 
@@ -75,19 +76,33 @@ impl BrokerServer {
         let client_pool = Arc::new(ClientPool::new(100));
         let main_runtime = create_runtime("init_runtime", config.runtime.runtime_worker_threads);
         let mut place_params = None;
-        main_runtime.block_on(async {
-            place_params = Some(BrokerServer::build_placement_center(client_pool.clone()).await);
-        });
 
-        let mqtt_params = BrokerServer::build_mqtt_server(client_pool.clone());
-        let journal_params = BrokerServer::build_journal_server(client_pool.clone());
+        if config.is_start_place() {
+            main_runtime.block_on(async {
+                place_params =
+                    Some(BrokerServer::build_placement_center(client_pool.clone()).await);
+            });
+        }
+
+        let mqtt_params = if config.is_start_mqtt_broker() {
+            Some(BrokerServer::build_mqtt_server(client_pool.clone()))
+        } else {
+            None
+        };
+
+        let journal_params = if config.is_start_journal() {
+            Some(BrokerServer::build_journal_server(client_pool.clone()))
+        } else {
+            None
+        };
 
         BrokerServer {
             main_runtime,
-            place_params: place_params.unwrap(),
-            journal_params: journal_params.clone(),
+            place_params,
+            journal_params,
             config: config.clone(),
             mqtt_params,
+            client_pool,
         }
     }
     pub fn start(&self) {
@@ -98,78 +113,78 @@ impl BrokerServer {
         let config = self.config.clone();
         let runtime = create_runtime("grpc-runtime", self.config.runtime.runtime_worker_threads);
         runtime.spawn(async move {
-            if let Err(e) = start_grpc_server(
-                &place_params,
-                &mqtt_params,
-                &journal_params,
-                config.grpc_port,
-            )
-            .await
+            if let Err(e) =
+                start_grpc_server(place_params, mqtt_params, journal_params, config.grpc_port).await
             {
                 panic!("{e}")
             }
         });
 
+        let place_stop_send = None;
+        let mqtt_stop_send = None;
+        let journal_stop_send = None;
+
         // start placement center
-        let (place_stop_send, _) = broadcast::channel(2);
-        let place_runtime =
-            create_runtime("place-runtime", self.config.runtime.runtime_worker_threads);
-        let raw_place_stop_send = place_stop_send.clone();
-        let place_params = self.place_params.clone();
-        place_runtime.spawn(async move {
-            let mut pc = PlacementCenterServer::new(place_params.clone(), raw_place_stop_send);
-            pc.start().await;
-        });
+        if let Some(params) = self.place_params.clone() {
+            let (stop_send, _) = broadcast::channel(2);
+            let place_runtime =
+                create_runtime("place-runtime", self.config.runtime.runtime_worker_threads);
+            let stop_send = stop_send.clone();
+            place_runtime.spawn(async move {
+                let mut pc = PlacementCenterServer::new(params, stop_send);
+                pc.start().await;
+            });
+        }
 
         // check placement ready
         self.main_runtime.block_on(async {
-            check_placement_center_status(self.place_params.client_pool.clone()).await;
+            check_placement_center_status(self.client_pool.clone()).await;
         });
 
         // start journal server
-        let server_runtime = create_runtime(
-            "journal-runtime",
-            self.config.runtime.runtime_worker_threads,
-        );
-        let daemon_runtime =
-            create_runtime("daemon-runtime", self.config.runtime.runtime_worker_threads);
+        if let Some(params) = self.journal_params.clone() {
+            let server_runtime = create_runtime(
+                "journal-runtime",
+                self.config.runtime.runtime_worker_threads,
+            );
+            let daemon_runtime =
+                create_runtime("daemon-runtime", self.config.runtime.runtime_worker_threads);
 
-        let (journal_stop_send, _) = broadcast::channel(2);
-        let server = JournalServer::new(
-            self.journal_params.clone(),
-            server_runtime,
-            daemon_runtime,
-            journal_stop_send.clone(),
-        );
-        server.start();
+            let (stop_send, _) = broadcast::channel(2);
+            let server =
+                JournalServer::new(params, server_runtime, daemon_runtime, stop_send.clone());
+            server.start();
+        }
 
         // start mqtt server
-        let daemon_runtime =
-            create_runtime("daemon-runtime", self.config.runtime.runtime_worker_threads);
-        let admin_runtime =
-            create_runtime("admin-runtime", self.config.runtime.runtime_worker_threads);
-        let connector_runtime = create_runtime(
-            "connector-runtime",
-            self.config.runtime.runtime_worker_threads,
-        );
-        let server_runtime =
-            create_runtime("server-runtime", self.config.runtime.runtime_worker_threads);
-        let subscribe_runtime = create_runtime(
-            "subscribe-runtime",
-            self.config.runtime.runtime_worker_threads,
-        );
+        if let Some(params) = self.mqtt_params.clone() {
+            let daemon_runtime =
+                create_runtime("daemon-runtime", self.config.runtime.runtime_worker_threads);
+            let admin_runtime =
+                create_runtime("admin-runtime", self.config.runtime.runtime_worker_threads);
+            let connector_runtime = create_runtime(
+                "connector-runtime",
+                self.config.runtime.runtime_worker_threads,
+            );
+            let server_runtime =
+                create_runtime("server-runtime", self.config.runtime.runtime_worker_threads);
+            let subscribe_runtime = create_runtime(
+                "subscribe-runtime",
+                self.config.runtime.runtime_worker_threads,
+            );
 
-        let (mqtt_stop_send, _) = broadcast::channel(2);
-        let server = MqttBrokerServer::new(
-            daemon_runtime,
-            connector_runtime,
-            server_runtime,
-            subscribe_runtime,
-            admin_runtime,
-            self.mqtt_params.clone(),
-            mqtt_stop_send.clone(),
-        );
-        server.start();
+            let (stop_send, _) = broadcast::channel(2);
+            let server = MqttBrokerServer::new(
+                daemon_runtime,
+                connector_runtime,
+                server_runtime,
+                subscribe_runtime,
+                admin_runtime,
+                params,
+                stop_send.clone(),
+            );
+            server.start();
+        }
 
         // start prometheus
         let prometheus_port = self.config.prometheus.port;
@@ -186,7 +201,7 @@ impl BrokerServer {
     async fn build_placement_center(client_pool: Arc<ClientPool>) -> PlacementCenterServerParams {
         let config = broker_config();
         let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(
-            &storage_data_fold(&config.rocksdb.data_path),
+            &placement_center::storage::rocksdb::storage_data_fold(&config.rocksdb.data_path),
             config.rocksdb.max_open_files,
             column_family_list(),
         ));
@@ -258,7 +273,7 @@ impl BrokerServer {
         let connection_manager = Arc::new(JournalConnectionManager::new());
         let cache_manager = Arc::new(JournalCacheManager::new());
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &storage_data_fold(config.journal_storage.data_path.first().unwrap()),
+            &journal_server::index::engine::storage_data_fold(&config.journal_storage.data_path),
             10000,
             column_family_list(),
         ));
@@ -277,9 +292,9 @@ impl BrokerServer {
 
     pub fn awaiting_stop(
         &self,
-        place_stop: broadcast::Sender<bool>,
-        mqtt_stop: broadcast::Sender<bool>,
-        journal_stop: broadcast::Sender<bool>,
+        place_stop: Option<broadcast::Sender<bool>>,
+        mqtt_stop: Option<broadcast::Sender<bool>>,
+        journal_stop: Option<broadcast::Sender<bool>>,
     ) {
         self.main_runtime.block_on(async {
             // Wait for all the request packets in the TCP Channel to be processed completely before starting to stop other processing threads.
@@ -289,18 +304,24 @@ impl BrokerServer {
                 "When ctrl + c is received, the service starts to stop"
             );
 
-            if let Err(e) = journal_stop.send(true) {
-                error!("{}", e);
+            if let Some(sx) = journal_stop {
+                if let Err(e) = sx.send(true) {
+                    error!("{}", e);
+                }
+                sleep(Duration::from_secs(3)).await;
             }
-            sleep(Duration::from_secs(3)).await;
 
-            if let Err(e) = mqtt_stop.send(true) {
-                error!("{}", e);
+            if let Some(sx) = mqtt_stop {
+                if let Err(e) = sx.send(true) {
+                    error!("{}", e);
+                }
+                sleep(Duration::from_secs(3)).await;
             }
-            sleep(Duration::from_secs(3)).await;
 
-            if let Err(e) = place_stop.send(true) {
-                error!("{}", e);
+            if let Some(sx) = place_stop {
+                if let Err(e) = sx.send(true) {
+                    error!("{}", e);
+                }
             }
         });
     }

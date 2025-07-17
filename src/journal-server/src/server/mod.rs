@@ -16,5 +16,4 @@ pub mod connection;
 pub mod connection_manager;
 pub mod grpc;
 pub mod packet;
-pub mod quic;
 pub mod tcp;

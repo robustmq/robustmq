@@ -199,7 +199,7 @@ pub fn default_journal_runtime() -> JournalRuntime {
 
 pub fn default_journal_storage() -> JournalStorage {
     JournalStorage {
-        data_path: vec!["./data/journal".to_string()],
+        data_path: vec!["./data/journal/".to_string()],
         rocksdb_max_open_files: 10000,
     }
 }

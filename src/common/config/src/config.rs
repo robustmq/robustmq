@@ -120,6 +120,18 @@ impl BrokerConfig {
             .filter_map(|v| v.as_str().map(String::from))
             .collect()
     }
+
+    pub fn is_start_place(&self) -> bool {
+        self.roles.contains(&"place".to_string())
+    }
+
+    pub fn is_start_journal(&self) -> bool {
+        self.roles.contains(&"journal".to_string())
+    }
+
+    pub fn is_start_mqtt_broker(&self) -> bool {
+        self.roles.contains(&"mqtt".to_string())
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
