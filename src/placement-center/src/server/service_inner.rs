@@ -111,7 +111,6 @@ impl PlacementCenterService for GrpcPlacementService {
         req.validate()
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        info!("register node:{:?}", req);
         register_node_by_req(
             &self.cluster_cache,
             &self.raft_machine_apply,
@@ -133,7 +132,7 @@ impl PlacementCenterService for GrpcPlacementService {
         req.validate()
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        info!("un register node:{:?}", req);
+        info!("unregister node:{:?}", req.node_id);
         un_register_node_by_req(
             &self.cluster_cache,
             &self.raft_machine_apply,

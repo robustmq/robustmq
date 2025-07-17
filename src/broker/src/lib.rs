@@ -42,8 +42,8 @@ use placement_center::{
     PlacementCenterServer, PlacementCenterServerParams,
 };
 use schema_register::schema::SchemaRegisterManager;
-use std::sync::Arc;
-use tokio::{runtime::Runtime, signal, sync::broadcast};
+use std::{sync::Arc, time::Duration};
+use tokio::{runtime::Runtime, signal, sync::broadcast, time::sleep};
 use tracing::{error, info};
 
 pub mod common;
@@ -138,7 +138,7 @@ impl BrokerServer {
             self.mqtt_params.clone(),
             mqtt_stop_send.clone(),
         );
-        server.start(mqtt_stop_send.clone());
+        server.start();
 
         // awaiting stop
         self.awaiting_stop(place_stop_send, mqtt_stop_send);
@@ -229,7 +229,7 @@ impl BrokerServer {
             if let Err(e) = mqtt_stop.send(true) {
                 error!("{}", e);
             }
-            // todo
+            sleep(Duration::from_secs(3)).await;
 
             if let Err(e) = place_stop.send(true) {
                 error!("{}", e);

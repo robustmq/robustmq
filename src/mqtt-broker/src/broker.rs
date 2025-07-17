@@ -81,6 +81,8 @@ pub struct MqttBrokerServer {
     schema_manager: Arc<SchemaRegisterManager>,
     metrics_cache_manager: Arc<MetricsCacheManager>,
     server: Arc<Server>,
+    main_stop: broadcast::Sender<bool>,
+    inner_stop: broadcast::Sender<bool>,
 }
 
 impl MqttBrokerServer {
@@ -91,8 +93,9 @@ impl MqttBrokerServer {
         subscribe_runtime: Runtime,
         admin_runtime: Runtime,
         params: MqttBrokerServerParams,
-        stop_sx: broadcast::Sender<bool>,
+        main_stop: broadcast::Sender<bool>,
     ) -> Self {
+        let (inner_stop, _) = broadcast::channel(2);
         let server = Arc::new(Server::new(
             params.subscribe_manager.clone(),
             params.cache_manager.clone(),
@@ -101,10 +104,13 @@ impl MqttBrokerServer {
             params.delay_message_manager.clone(),
             params.schema_manager.clone(),
             params.client_pool.clone(),
-            stop_sx,
+            inner_stop.clone(),
             params.auth_driver.clone(),
         ));
+
         MqttBrokerServer {
+            main_stop,
+            inner_stop,
             daemon_runtime,
             connector_runtime,
             server_runtime,
@@ -124,25 +130,25 @@ impl MqttBrokerServer {
         }
     }
 
-    pub fn start(&self, stop_send: broadcast::Sender<bool>) {
+    pub fn start(&self) {
         self.start_init();
 
-        self.start_daemon_thread(stop_send.clone());
+        self.start_daemon_thread();
 
         self.start_delay_message_thread();
 
-        self.start_connector_thread(stop_send.clone());
+        self.start_connector_thread();
 
-        self.start_subscribe_push(stop_send.clone());
+        self.start_subscribe_push();
 
-        self.start_server(stop_send.clone());
+        self.start_server();
 
-        self.awaiting_stop(stop_send);
+        self.awaiting_stop();
     }
 
-    fn start_daemon_thread(&self, stop_send: broadcast::Sender<bool>) {
+    fn start_daemon_thread(&self) {
         // client keep alive
-        let raw_stop_send = stop_send.clone();
+        let raw_stop_send = self.inner_stop.clone();
         let keep_alive = ClientKeepAlive::new(
             self.client_pool.clone(),
             self.connection_manager.clone(),
@@ -156,14 +162,14 @@ impl MqttBrokerServer {
 
         // sync auth info
         let auth_driver = self.auth_driver.clone();
-        let raw_stop_send = stop_send.clone();
+        let raw_stop_send = self.inner_stop.clone();
         self.daemon_runtime.spawn(async move {
             sync_auth_storage_info(auth_driver.clone(), raw_stop_send.clone());
         });
 
         // flapping detect
         let update_flapping_detect_cache =
-            UpdateFlappingDetectCache::new(stop_send.clone(), self.cache_manager.clone());
+            UpdateFlappingDetectCache::new(self.inner_stop.clone(), self.cache_manager.clone());
         self.daemon_runtime.spawn(async move {
             update_flapping_detect_cache.start_update().await;
         });
@@ -172,7 +178,7 @@ impl MqttBrokerServer {
         let cache_manager = self.cache_manager.clone();
         let message_storage_adapter = self.message_storage_adapter.clone();
         let client_pool = self.client_pool.clone();
-        let raw_stop_send = stop_send.clone();
+        let raw_stop_send = self.inner_stop.clone();
         self.daemon_runtime.spawn(async move {
             start_observability(
                 cache_manager,
@@ -188,7 +194,7 @@ impl MqttBrokerServer {
         let cache_manager = self.cache_manager.clone();
         let subscribe_manager = self.subscribe_manager.clone();
         let connection_manager = self.connection_manager.clone();
-        let raw_stop_send = stop_send.clone();
+        let raw_stop_send = self.inner_stop.clone();
         self.daemon_runtime.spawn(async move {
             metrics_record_thread(
                 metrics_cache_manager.clone(),
@@ -203,7 +209,7 @@ impl MqttBrokerServer {
         });
     }
 
-    fn start_server(&self, stop_send: broadcast::Sender<bool>) {
+    fn start_server(&self) {
         // grpc server
         let conf = broker_config();
 
@@ -239,7 +245,7 @@ impl MqttBrokerServer {
         let auth_driver = self.auth_driver.clone();
         let delay_message_manager = self.delay_message_manager.clone();
         let schema_manager = self.schema_manager.clone();
-        let raw_stop_send = stop_send.clone();
+        let raw_stop_send = self.inner_stop.clone();
         self.server_runtime.spawn(async move {
             start_quic_server(
                 subscribe_manager,
@@ -265,7 +271,7 @@ impl MqttBrokerServer {
             self.schema_manager.clone(),
             self.client_pool.clone(),
             self.auth_driver.clone(),
-            stop_send.clone(),
+            self.inner_stop.clone(),
         );
         self.server_runtime
             .spawn(async move { websocket_server(ws_state).await });
@@ -279,25 +285,27 @@ impl MqttBrokerServer {
             self.schema_manager.clone(),
             self.client_pool.clone(),
             self.auth_driver.clone(),
-            stop_send.clone(),
+            self.inner_stop.clone(),
         );
 
         self.server_runtime
             .spawn(async move { websockets_server(ws_state).await });
     }
 
-    fn start_connector_thread(&self, stop_send: broadcast::Sender<bool>) {
+    fn start_connector_thread(&self) {
         let message_storage = self.message_storage_adapter.clone();
         let connector_manager = self.connector_manager.clone();
+        let stop_send = self.inner_stop.clone();
         self.connector_runtime.spawn(async move {
             start_connector_thread(message_storage, connector_manager, stop_send).await;
         });
     }
 
-    fn start_subscribe_push(&self, stop_send: broadcast::Sender<bool>) {
+    fn start_subscribe_push(&self) {
         let subscribe_manager = self.subscribe_manager.clone();
         let client_pool = self.client_pool.clone();
         let metadata_cache = self.cache_manager.clone();
+        let stop_send = self.inner_stop.clone();
 
         self.subscribe_runtime.spawn(async move {
             start_parse_subscribe_by_new_topic_thread(
@@ -377,25 +385,18 @@ impl MqttBrokerServer {
         });
     }
 
-    pub fn awaiting_stop(&self, stop_send: broadcast::Sender<bool>) {
-        self.daemon_runtime.spawn(async move {
-            sleep(Duration::from_millis(10)).await;
-            info!("MQTT Broker service started successfully...");
-        });
-
-        // Wait for the stop signal
+    pub fn awaiting_stop(&self) {
+        // register node
         let client_pool = self.client_pool.clone();
         let cache_manager = self.cache_manager.clone();
-        let server = self.server.clone();
-        let delay_message_manager = self.delay_message_manager.clone();
-        let connection_manager = self.connection_manager.clone();
+        let raw_stop_send = self.inner_stop.clone();
         self.daemon_runtime.spawn(async move {
             // register node
             let config = broker_config();
             match register_node(&client_pool, &cache_manager).await {
                 Ok(()) => {
                     // heartbeat report
-                    let raw_stop_send = stop_send.clone();
+                    let raw_stop_send = raw_stop_send.clone();
                     let raw_client_pool = client_pool.clone();
                     tokio::spawn(async move {
                         let conf = broker_config();
@@ -414,25 +415,44 @@ impl MqttBrokerServer {
                     panic!("{}", e);
                 }
             }
+            sleep(Duration::from_millis(10)).await;
+            info!("MQTT Broker service started successfully...");
+        });
 
+        // Wait for the stop signal
+        let client_pool = self.client_pool.clone();
+        let server = self.server.clone();
+        let delay_message_manager = self.delay_message_manager.clone();
+        let connection_manager = self.connection_manager.clone();
+        let raw_main_stop = self.main_stop.clone();
+        let raw_inner_stop = self.inner_stop.clone();
+        self.daemon_runtime.spawn(async move {
             // Stop the Server first, indicating that it will no longer receive request packets.
-            server.stop().await;
-            match stop_send.send(true) {
+            let mut recv = raw_main_stop.subscribe();
+            match recv.recv().await {
                 Ok(_) => {
-                    info!("Process stop signal was sent successfully.");
-                    if let Err(e) = MqttBrokerServer::stop_server(
-                        &client_pool,
-                        &delay_message_manager,
-                        &connection_manager,
-                    )
-                    .await
-                    {
-                        error!("{}", e);
+                    server.stop().await;
+                    match raw_inner_stop.send(true) {
+                        Ok(_) => {
+                            info!("Process stop signal was sent successfully.");
+                            if let Err(e) = MqttBrokerServer::stop_server(
+                                &client_pool,
+                                &delay_message_manager,
+                                &connection_manager,
+                            )
+                            .await
+                            {
+                                error!("{}", e);
+                            }
+                            info!("Service has been stopped successfully. Exiting the process.");
+                        }
+                        Err(_) => {
+                            error!("Failed to send stop signal");
+                        }
                     }
-                    info!("Service has been stopped successfully. Exiting the process.");
                 }
-                Err(_) => {
-                    error!("Failed to send stop signal");
+                Err(e) => {
+                    error!("{}", e);
                 }
             }
         });
