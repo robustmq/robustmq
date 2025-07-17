@@ -50,7 +50,8 @@ pub fn default_placement_center() -> Table {
 pub fn default_runtime() -> Runtime {
     Runtime {
         runtime_worker_threads: get_runtime_worker_threads(),
-        ..Default::default()
+        tls_cert: "./config/example/certs/cert.pem".to_string(),
+        tls_key: "./config/example/certs/key.pem".to_string(),
     }
 }
 

@@ -37,7 +37,6 @@ use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::share::follower::ShareFollowerResub;
 use crate::subscribe::share::leader::ShareLeaderPush;
 use common_base::metrics::register_prometheus_export;
-use common_base::runtime::create_runtime;
 use common_config::broker::broker_config;
 use delay_message::{start_delay_message_manager, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
@@ -85,18 +84,15 @@ pub struct MqttBrokerServer {
 }
 
 impl MqttBrokerServer {
-    pub fn new(params: MqttBrokerServerParams, stop_sx: broadcast::Sender<bool>) -> Self {
-        let conf = broker_config();
-        let daemon_runtime = create_runtime("daemon-runtime", conf.runtime.runtime_worker_threads);
-        let admin_runtime = create_runtime("admin-runtime", conf.runtime.runtime_worker_threads);
-
-        let connector_runtime =
-            create_runtime("connector-runtime", conf.runtime.runtime_worker_threads);
-
-        let server_runtime = create_runtime("server-runtime", conf.runtime.runtime_worker_threads);
-        let subscribe_runtime =
-            create_runtime("subscribe-runtime", conf.runtime.runtime_worker_threads);
-
+    pub fn new(
+        daemon_runtime: Runtime,
+        connector_runtime: Runtime,
+        server_runtime: Runtime,
+        subscribe_runtime: Runtime,
+        admin_runtime: Runtime,
+        params: MqttBrokerServerParams,
+        stop_sx: broadcast::Sender<bool>,
+    ) -> Self {
         let server = Arc::new(Server::new(
             params.subscribe_manager.clone(),
             params.cache_manager.clone(),
