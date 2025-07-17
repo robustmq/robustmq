@@ -119,7 +119,7 @@ pub fn default_mqtt_runtime() -> MqttRuntime {
 
 pub fn default_mqtt_offline_message() -> MqttOfflineMessage {
     MqttOfflineMessage {
-        enable: false,
+        enable: true,
         expire_ms: 0,
         max_messages_num: 0,
     }

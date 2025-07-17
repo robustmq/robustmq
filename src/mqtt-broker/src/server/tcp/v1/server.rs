@@ -152,7 +152,10 @@ impl TcpServer {
         .await;
 
         self.record_pre_server_metrics();
-        info!("MQTT TCP Server started successfully, listening port: {port}");
+        info!(
+            "MQTT {} Server started successfully, listening port: {port}",
+            self.network_type
+        );
         Ok(())
     }
 

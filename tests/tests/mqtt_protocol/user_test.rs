@@ -23,70 +23,72 @@ mod tests {
 
     use crate::mqtt_protocol::common::{
         broker_addr_by_type, broker_grpc_addr, build_client_id, connect_server, distinct_conn,
-        ssl_by_type, ws_by_type,
+        network_types, ssl_by_type, ws_by_type,
     };
     use crate::mqtt_protocol::ClientTestProperties;
 
     #[tokio::test]
     async fn login_auth_test() {
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let grpc_addr = vec![broker_grpc_addr()];
-        let network = "tcp".to_string();
-        let qos = 1;
-        let client_id = build_client_id(format!("login_auth_test_{network}_{qos}").as_str());
+        for network in network_types() {
+            let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
+            let grpc_addr = vec![broker_grpc_addr()];
 
-        let username = unique_id();
-        let password = "permission".to_string();
+            let qos = 1;
+            let client_id = build_client_id(format!("login_auth_test_{network}_{qos}").as_str());
 
-        let client_properties = ClientTestProperties {
-            mqtt_version: 5,
-            client_id: client_id.to_string(),
-            addr: broker_addr_by_type(&network),
-            ws: ws_by_type(&network),
-            ssl: ssl_by_type(&network),
-            user_name: username.clone(),
-            password: password.clone(),
-            conn_is_err: true,
-            ..Default::default()
-        };
-        connect_server(&client_properties);
+            let username = unique_id();
+            let password = "permission".to_string();
 
-        create_user(
-            client_pool.clone(),
-            grpc_addr.clone(),
-            username.clone(),
-            password.clone(),
-        )
-        .await;
+            let client_properties = ClientTestProperties {
+                mqtt_version: 5,
+                client_id: client_id.to_string(),
+                addr: broker_addr_by_type(&network),
+                ws: ws_by_type(&network),
+                ssl: ssl_by_type(&network),
+                user_name: username.clone(),
+                password: password.clone(),
+                conn_is_err: true,
+                ..Default::default()
+            };
+            connect_server(&client_properties);
 
-        let client_properties = ClientTestProperties {
-            mqtt_version: 5,
-            client_id: client_id.to_string(),
-            addr: broker_addr_by_type(&network),
-            ws: ws_by_type(&network),
-            ssl: ssl_by_type(&network),
-            user_name: username.clone(),
-            password: password.clone(),
-            conn_is_err: false,
-            ..Default::default()
-        };
-        let cli = connect_server(&client_properties);
-        distinct_conn(cli);
+            create_user(
+                client_pool.clone(),
+                grpc_addr.clone(),
+                username.clone(),
+                password.clone(),
+            )
+            .await;
 
-        delete_user(client_pool.clone(), grpc_addr.clone(), username.clone()).await;
+            let client_properties = ClientTestProperties {
+                mqtt_version: 5,
+                client_id: client_id.to_string(),
+                addr: broker_addr_by_type(&network),
+                ws: ws_by_type(&network),
+                ssl: ssl_by_type(&network),
+                user_name: username.clone(),
+                password: password.clone(),
+                conn_is_err: false,
+                ..Default::default()
+            };
+            let cli = connect_server(&client_properties);
+            distinct_conn(cli);
 
-        let client_properties = ClientTestProperties {
-            mqtt_version: 5,
-            client_id: client_id.to_string(),
-            addr: broker_addr_by_type(&network),
-            ws: ws_by_type(&network),
-            ssl: ssl_by_type(&network),
-            user_name: username.clone(),
-            password: password.clone(),
-            conn_is_err: true,
-            ..Default::default()
-        };
-        connect_server(&client_properties);
+            delete_user(client_pool.clone(), grpc_addr.clone(), username.clone()).await;
+
+            let client_properties = ClientTestProperties {
+                mqtt_version: 5,
+                client_id: client_id.to_string(),
+                addr: broker_addr_by_type(&network),
+                ws: ws_by_type(&network),
+                ssl: ssl_by_type(&network),
+                user_name: username.clone(),
+                password: password.clone(),
+                conn_is_err: true,
+                ..Default::default()
+            };
+            connect_server(&client_properties);
+        }
     }
 
     async fn create_user(
