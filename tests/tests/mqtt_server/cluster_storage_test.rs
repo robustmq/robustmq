@@ -15,7 +15,7 @@
 #[cfg(test)]
 mod tests {
     use common_config::broker::{
-        broker_config, config::MqttProtocolConfig, init_broker_conf_by_path,
+        config::MqttProtocolConfig, default_broker_config, init_broker_conf_by_config,
     };
     use grpc_clients::pool::ClientPool;
     use mqtt_broker::{
@@ -26,9 +26,8 @@ mod tests {
 
     #[tokio::test]
     async fn cluster_node_test() {
-        let path = format!("{}/../config/mqtt-server.toml", env!("CARGO_MANIFEST_DIR"));
-        init_broker_conf_by_path(&path);
-        let mut config = broker_config().clone();
+        let mut config = default_broker_config();
+        init_broker_conf_by_config(config.clone());
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let cluster_storage = ClusterStorage::new(client_pool.clone());
@@ -57,8 +56,8 @@ mod tests {
 
     #[tokio::test]
     async fn cluster_config_test() {
-        let path = format!("{}/../config/mqtt-server.toml", env!("CARGO_MANIFEST_DIR"));
-        init_broker_conf_by_path(&path);
+        let config = default_broker_config();
+        init_broker_conf_by_config(config.clone());
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let cluster_storage = ClusterStorage::new(client_pool);

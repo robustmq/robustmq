@@ -15,7 +15,7 @@
 #[cfg(test)]
 mod tests {
     use common_base::tools::now_second;
-    use common_config::broker::init_broker_conf_by_path;
+    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
     use mqtt_broker::storage::session::SessionStorage;
@@ -23,8 +23,8 @@ mod tests {
 
     #[tokio::test]
     async fn session_test() {
-        let path = format!("{}/../config/mqtt-server.toml", env!("CARGO_MANIFEST_DIR"));
-        init_broker_conf_by_path(&path);
+        let config = default_broker_config();
+        init_broker_conf_by_config(config.clone());
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let session_storage = SessionStorage::new(client_pool);

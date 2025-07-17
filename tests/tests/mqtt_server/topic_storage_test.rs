@@ -17,9 +17,8 @@ mod tests {
     use std::sync::Arc;
 
     use bytes::Bytes;
-    use common_base::logging::init_tracing_subscriber;
     use common_base::tools::unique_id;
-    use common_config::broker::{broker_config, init_broker_conf_by_path};
+    use common_config::broker::{broker_config, default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::mqtt::topic::MQTTTopic;
@@ -28,27 +27,13 @@ mod tests {
 
     #[tokio::test]
     async fn topic_test() {
-        let path = format!("{}/../config/mqtt-server.toml", env!("CARGO_MANIFEST_DIR"));
-        let log_config = format!(
-            "{}/../config/log-config/mqtt-tracing.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        let log_path = format!("{}/../logs/tests", env!("CARGO_MANIFEST_DIR"));
-
-        init_broker_conf_by_path(&path);
-        let guards = init_tracing_subscriber(&log_config, &log_path).unwrap();
-
+        let config = default_broker_config();
+        init_broker_conf_by_config(config.clone());
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_pool);
 
-        let mqtt_conf = broker_config();
-
         let topic_name: String = "test_password".to_string();
-        let topic = MQTTTopic::new(
-            unique_id(),
-            mqtt_conf.cluster_name.clone(),
-            topic_name.clone(),
-        );
+        let topic = MQTTTopic::new(unique_id(), config.cluster_name.clone(), topic_name.clone());
         match topic_storage.save_topic(topic).await {
             Ok(_) => {}
             Err(e) => panic!("{}", e),
@@ -71,14 +56,12 @@ mod tests {
         assert!(result.is_none());
 
         topic_storage.all().await.unwrap();
-        drop(guards)
     }
 
     #[tokio::test]
     async fn topic_retain_message_test() {
-        let path = format!("{}/../config/mqtt-server.toml", env!("CARGO_MANIFEST_DIR"));
-
-        init_broker_conf_by_path(&path);
+        let config = default_broker_config();
+        init_broker_conf_by_config(config.clone());
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_pool);
