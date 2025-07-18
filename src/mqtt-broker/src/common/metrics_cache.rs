@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::common::types::ResultMqttBrokerError;
-use crate::observability::metrics::server::record_broker_connections_num;
+use crate::observability::metrics::server::{record_broker_connections_max, record_broker_connections_num};
 use crate::{
     common::tool::loop_select, handler::cache::CacheManager,
     server::common::connection_manager::ConnectionManager, subscribe::manager::SubscribeManager,
@@ -121,6 +121,7 @@ impl MetricsCacheManager {
     pub fn export_metrics(&self) {
         if let Some(connection_num) = self.latest_by_time(&self.connection_num) {
             record_broker_connections_num(connection_num as i64);
+            record_broker_connections_max(connection_num as i64);
         }
     }
 

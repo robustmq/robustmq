@@ -105,6 +105,13 @@ common_base::register_gauge_metric!(
     NoLabelSet
 );
 
+common_base::register_gauge_metric!(
+    BROKER_CONNECTIONS_MAX,
+    "broker_connections_max",
+    "The number of max active connections by the broker",
+    NoLabelSet
+);
+
 pub fn metrics_request_total_ms(network_connection: &NetworkConnectionType, ms: f64) {
     let label = NetworkLabel {
         network: network_connection.to_string(),
@@ -200,4 +207,13 @@ pub fn record_broker_thread_num(
 
 pub fn record_broker_connections_num(value: i64) {
     common_base::gauge_metrics_set!(BROKER_CONNECTIONS_NUM, NoLabelSet, value);
+}
+
+pub fn record_broker_connections_max(value: i64) {
+    let mut current_val = 0i64;
+    common_base::gauge_metric_get!(BROKER_CONNECTIONS_MAX, NoLabelSet, current_val);
+
+    if current_val < value {
+        common_base::gauge_metrics_set!(BROKER_CONNECTIONS_MAX, NoLabelSet, value);
+    }
 }
