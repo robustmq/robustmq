@@ -47,6 +47,7 @@ edition = "2021"
 license = "Apache-2.0"
 
 [workspace.dependencies]
+anyhow = { version = "1.0.98" }
 rustls-pki-types = { version = "1.11.0" }
 bindgen = { version = "0.69.5" }
 ## async lib

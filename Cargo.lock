@@ -2872,6 +2872,7 @@ dependencies = [
 name = "mqtt-broker"
 version = "0.1.25"
 dependencies = [
+ "anyhow",
  "async-stream",
  "axum",
  "axum-extra",
