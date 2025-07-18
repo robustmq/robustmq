@@ -227,7 +227,7 @@ async fn read_by_tag(
 mod tests {
     use std::time::Duration;
 
-    use common_config::journal::config::journal_server_conf;
+    use common_config::broker::broker_config;
     use protocol::journal_server::journal_engine::{
         ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
     };
@@ -435,12 +435,12 @@ mod tests {
                 }),
             }],
         };
-        let conf = journal_server_conf();
+        let conf = broker_config();
         let res = read_data_req(
             &cache_manager,
             &rocksdb_engine_handler,
             &req_body,
-            conf.node_id,
+            conf.broker_id,
         )
         .await;
         println!("{res:?}");
@@ -475,12 +475,12 @@ mod tests {
                 }),
             }],
         };
-        let conf = journal_server_conf();
+        let conf = broker_config();
         let res = read_data_req(
             &cache_manager,
             &rocksdb_engine_handler,
             &req_body,
-            conf.node_id,
+            conf.broker_id,
         )
         .await;
         println!("{res:?}");
@@ -511,12 +511,12 @@ mod tests {
                 }),
             }],
         };
-        let conf = journal_server_conf();
+        let conf = broker_config();
         let res = read_data_req(
             &cache_manager,
             &rocksdb_engine_handler,
             &req_body,
-            conf.node_id,
+            conf.broker_id,
         )
         .await;
         println!("{res:?}");

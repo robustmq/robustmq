@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::placement::mqtt::call::{
     placement_delete_auto_subscribe_rule, placement_list_auto_subscribe_rule,
     placement_set_auto_subscribe_rule,
@@ -40,13 +40,13 @@ impl AutoSubscribeStorage {
     pub async fn list_auto_subscribe_rule(
         &self,
     ) -> Result<Vec<MqttAutoSubscribeRule>, MqttBrokerError> {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = ListAutoSubscribeRuleRequest {
             cluster_name: config.cluster_name.clone(),
         };
         let reply = placement_list_auto_subscribe_rule(
             &self.client_pool,
-            &config.placement_center,
+            &config.get_placement_center_addr(),
             request,
         )
         .await?;
@@ -63,7 +63,7 @@ impl AutoSubscribeStorage {
         &self,
         auto_subscribe_rule: MqttAutoSubscribeRule,
     ) -> ResultMqttBrokerError {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = SetAutoSubscribeRuleRequest {
             cluster_name: config.cluster_name.clone(),
             topic: auto_subscribe_rule.topic.clone(),
@@ -72,19 +72,27 @@ impl AutoSubscribeStorage {
             retain_as_published: auto_subscribe_rule.retain_as_published,
             retained_handling: Into::<u8>::into(auto_subscribe_rule.retained_handling) as u32,
         };
-        placement_set_auto_subscribe_rule(&self.client_pool, &config.placement_center, request)
-            .await?;
+        placement_set_auto_subscribe_rule(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         Ok(())
     }
 
     pub async fn delete_auto_subscribe_rule(&self, topic: String) -> ResultMqttBrokerError {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = DeleteAutoSubscribeRuleRequest {
             cluster_name: config.cluster_name.clone(),
             topic,
         };
-        placement_delete_auto_subscribe_rule(&self.client_pool, &config.placement_center, request)
-            .await?;
+        placement_delete_auto_subscribe_rule(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         Ok(())
     }
 }

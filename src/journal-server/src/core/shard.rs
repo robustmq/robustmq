@@ -17,7 +17,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use common_config::journal::config::journal_server_conf;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::shard::{shard_name_iden, JournalShardConfig};
 use protocol::journal_server::journal_inner::{
@@ -72,8 +72,8 @@ pub fn delete_local_shard(
         cache_manager.delete_shard(&req.namespace, &req.shard_name);
 
         // delete file
-        let conf = journal_server_conf();
-        for data_fold in conf.storage.data_path.iter() {
+        let conf = broker_config();
+        for data_fold in conf.journal_storage.data_path.iter() {
             let shard_fold_name = data_fold_shard(&req.namespace, &req.shard_name, data_fold);
             if Path::new(&shard_fold_name).exists() {
                 match remove_dir_all(shard_fold_name) {
@@ -92,8 +92,8 @@ pub fn delete_local_shard(
 }
 
 pub fn is_delete_by_shard(req: &GetShardDeleteStatusRequest) -> Result<bool, JournalServerError> {
-    let conf = journal_server_conf();
-    for data_fold in conf.storage.data_path.iter() {
+    let conf = broker_config();
+    for data_fold in conf.journal_storage.data_path.iter() {
         let shard_fold_name = data_fold_shard(&req.namespace, &req.shard_name, data_fold);
         if Path::new(&shard_fold_name).exists() {
             return Ok(false);
@@ -119,7 +119,7 @@ pub async fn create_shard_to_place(
         replica_num: cluster_config.shard_replica_num,
         max_segment_size: cluster_config.max_segment_size,
     };
-    let conf = journal_server_conf();
+    let conf = broker_config();
     let request = CreateShardRequest {
         cluster_name: conf.cluster_name.to_string(),
         namespace: namespace.to_string(),
@@ -128,7 +128,7 @@ pub async fn create_shard_to_place(
     };
     grpc_clients::placement::journal::call::create_shard(
         client_pool,
-        &conf.placement_center,
+        &conf.get_placement_center_addr(),
         request,
     )
     .await?;
@@ -161,7 +161,7 @@ pub async fn delete_shard_to_place(
     namespace: &str,
     shard_name: &str,
 ) -> Result<(), JournalServerError> {
-    let conf = journal_server_conf();
+    let conf = broker_config();
     let request = DeleteShardRequest {
         cluster_name: conf.cluster_name.clone(),
         namespace: namespace.to_string(),
@@ -170,7 +170,7 @@ pub async fn delete_shard_to_place(
 
     grpc_clients::placement::journal::call::delete_shard(
         &client_pool,
-        &conf.placement_center,
+        &conf.get_placement_center_addr(),
         request,
     )
     .await?;

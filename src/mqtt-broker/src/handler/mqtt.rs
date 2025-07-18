@@ -178,7 +178,7 @@ impl MqttService {
         }
 
         // flapping detect check
-        if cluster.flapping_detect.enable {
+        if cluster.mqtt_flapping_detect.enable {
             check_flapping_detect(connect.client_id.clone(), &self.cache_manager);
         }
 
@@ -680,7 +680,6 @@ impl MqttService {
         if let Some(packet) = subscribe_validator(
             &self.protocol,
             &self.auth_driver,
-            &self.cache_manager,
             &self.subscribe_manager,
             &connection,
             subscribe,

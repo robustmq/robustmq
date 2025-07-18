@@ -16,8 +16,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use common_base::error::common::CommonError;
-use common_base::tools::now_second;
-use common_config::journal::config::{journal_server_conf, JournalServerConfig};
+use common_base::tools::{get_local_ip, now_second};
+use common_config::broker::broker_config;
+use common_config::config::BrokerConfig;
 use grpc_clients::placement::inner::call::{heartbeat, register_node, unregister_node};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::node_extend::JournalNodeExtend;
@@ -36,20 +37,19 @@ pub async fn register_journal_node(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
 ) -> Result<(), CommonError> {
-    let conf = journal_server_conf();
-    let local_ip = conf.network.local_ip.clone();
+    let conf = broker_config();
+    let local_ip = get_local_ip();
     let extend = JournalNodeExtend {
-        data_fold: conf.storage.data_path.clone(),
-        tcp_addr: format!("{}:{}", local_ip, conf.network.tcp_port),
-        tcps_addr: format!("{}:{}", local_ip, conf.network.tcps_port),
+        data_fold: conf.journal_storage.data_path.clone(),
+        tcp_addr: format!("{}:{}", local_ip, conf.journal_server.tcp_port),
     };
 
     let node = BrokerNode {
         cluster_type: ClusterType::JournalServer.as_str_name().to_string(),
         cluster_name: conf.cluster_name.to_owned(),
-        node_id: conf.node_id,
+        node_id: conf.broker_id,
         node_ip: local_ip.clone(),
-        node_inner_addr: format!("{}:{}", local_ip.clone(), conf.network.grpc_port),
+        node_inner_addr: format!("{}:{}", local_ip.clone(), conf.grpc_port),
         extend: extend.encode(),
         start_time: cache_manager.get_start_time(),
         register_time: now_second(),
@@ -58,22 +58,27 @@ pub async fn register_journal_node(
     let req = RegisterNodeRequest {
         node: node.encode(),
     };
-    register_node(client_pool, &conf.placement_center, req.clone()).await?;
-    debug!("Node {} register successfully", conf.node_id);
+    register_node(client_pool, &conf.get_placement_center_addr(), req.clone()).await?;
+    debug!("Node {} register successfully", conf.broker_id);
     Ok(())
 }
 
 pub async fn unregister_journal_node(
     client_pool: Arc<ClientPool>,
-    config: JournalServerConfig,
+    config: BrokerConfig,
 ) -> Result<(), CommonError> {
     let req = UnRegisterNodeRequest {
         cluster_type: ClusterType::JournalServer.into(),
-        cluster_name: config.cluster_name,
-        node_id: config.node_id,
+        cluster_name: config.cluster_name.clone(),
+        node_id: config.broker_id,
     };
-    unregister_node(&client_pool, &config.placement_center, req.clone()).await?;
-    debug!("Node {} exits successfully", config.node_id);
+    unregister_node(
+        &client_pool,
+        &config.get_placement_center_addr(),
+        req.clone(),
+    )
+    .await?;
+    debug!("Node {} exits successfully", config.broker_id);
     Ok(())
 }
 
@@ -99,17 +104,23 @@ pub fn report_heartbeat(
 }
 
 async fn report_report0(client_pool: &Arc<ClientPool>, cache_manager: &Arc<CacheManager>) {
-    let config = journal_server_conf();
+    let config = broker_config();
     let req = HeartbeatRequest {
         cluster_name: config.cluster_name.clone(),
         cluster_type: ClusterType::JournalServer.into(),
-        node_id: config.node_id,
+        node_id: config.broker_id,
     };
-    match heartbeat(client_pool, &config.placement_center, req.clone()).await {
+    match heartbeat(
+        client_pool,
+        &config.get_placement_center_addr(),
+        req.clone(),
+    )
+    .await
+    {
         Ok(_) => {
             debug!(
                 "Node {} successfully reports the heartbeat communication",
-                config.node_id
+                config.broker_id
             );
         }
         Err(e) => {

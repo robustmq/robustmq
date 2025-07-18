@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_config::journal::config::journal_server_conf;
+use common_config::broker::broker_config;
 use grpc_clients::placement::journal::call::update_segment_meta;
 use grpc_clients::pool::ClientPool;
 use protocol::placement_center::placement_center_journal::UpdateSegmentMetaRequest;
@@ -45,7 +45,7 @@ pub async fn update_meta_start_timestamp(
     segment_iden: &SegmentIdentity,
     start_timestamp: u64,
 ) -> Result<(), JournalServerError> {
-    let conf = journal_server_conf();
+    let conf = broker_config();
     let next_segment_no = segment_iden.segment_seq;
     let request = UpdateSegmentMetaRequest {
         cluster_name: conf.cluster_name.clone(),
@@ -57,7 +57,7 @@ pub async fn update_meta_start_timestamp(
         start_timestamp: start_timestamp as i64,
         end_timestamp: -1,
     };
-    update_segment_meta(client_pool, &conf.placement_center, request).await?;
+    update_segment_meta(client_pool, &conf.get_placement_center_addr(), request).await?;
     Ok(())
 }
 
@@ -66,7 +66,7 @@ pub async fn update_meta_end_timestamp(
     segment_iden: &SegmentIdentity,
     segment_file_manager: &Arc<SegmentFileManager>,
 ) -> Result<(), JournalServerError> {
-    let conf = journal_server_conf();
+    let conf = broker_config();
     if let Some(file) = segment_file_manager.get_segment_file(segment_iden) {
         let next_segment_no = segment_iden.segment_seq;
 
@@ -81,7 +81,7 @@ pub async fn update_meta_end_timestamp(
                 start_timestamp: -1,
                 end_timestamp: file.end_timestamp,
             };
-            update_segment_meta(client_pool, &conf.placement_center, request).await?;
+            update_segment_meta(client_pool, &conf.get_placement_center_addr(), request).await?;
         } else {
             warn!("");
         }
@@ -94,7 +94,7 @@ async fn update_meta_start_offset(
     segment_iden: &SegmentIdentity,
     start_offset: i64,
 ) -> Result<(), JournalServerError> {
-    let conf = journal_server_conf();
+    let conf = broker_config();
     let next_segment_no = segment_iden.segment_seq;
     let request = UpdateSegmentMetaRequest {
         cluster_name: conf.cluster_name.clone(),
@@ -106,7 +106,7 @@ async fn update_meta_start_offset(
         start_timestamp: -1,
         end_timestamp: -1,
     };
-    update_segment_meta(&client_pool, &conf.placement_center, request).await?;
+    update_segment_meta(&client_pool, &conf.get_placement_center_addr(), request).await?;
     Ok(())
 }
 
@@ -115,7 +115,7 @@ async fn update_meta_end_offset(
     segment_iden: &SegmentIdentity,
     end_offset: i64,
 ) -> Result<(), JournalServerError> {
-    let conf = journal_server_conf();
+    let conf = broker_config();
     let next_segment_no = segment_iden.segment_seq;
     let request = UpdateSegmentMetaRequest {
         cluster_name: conf.cluster_name.clone(),
@@ -127,6 +127,6 @@ async fn update_meta_end_offset(
         start_timestamp: -1,
         end_timestamp: -1,
     };
-    update_segment_meta(&client_pool, &conf.placement_center, request).await?;
+    update_segment_meta(&client_pool, &conf.get_placement_center_addr(), request).await?;
     Ok(())
 }

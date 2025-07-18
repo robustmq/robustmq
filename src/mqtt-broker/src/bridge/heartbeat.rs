@@ -14,7 +14,7 @@
 
 use std::{sync::Arc, time::Duration};
 
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use protocol::placement_center::placement_center_mqtt::ConnectorHeartbeatRaw;
 use tokio::{select, sync::broadcast, time::sleep};
@@ -55,7 +55,7 @@ async fn report_heartbeat(
     connector_manager: &Arc<ConnectorManager>,
 ) {
     let storage = ConnectorStorage::new(client_pool.clone());
-    let conf = broker_mqtt_conf();
+    let conf = broker_config();
     let mut heatbeats = Vec::new();
 
     for (connector_name, heartbeat_time) in connector_manager.connector_heartbeat.clone() {

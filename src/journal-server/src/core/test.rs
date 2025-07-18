@@ -12,24 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use super::cache::CacheManager;
+use crate::index::engine::{column_family_list, storage_data_fold};
+use crate::segment::manager::{create_local_segment, SegmentFileManager};
+use crate::segment::write::{create_write_thread, write_data};
+use crate::segment::SegmentIdentity;
 use common_base::tools::{now_second, unique_id};
-use common_config::journal::config::{
-    init_journal_server_conf_by_config, journal_server_conf, JournalServerConfig,
-};
+use common_config::broker::{broker_config, default_broker_config, init_broker_conf_by_config};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use prost::Message;
 use protocol::journal_server::journal_record::JournalRecord;
 use rocksdb_engine::RocksDBEngine;
-
-use super::cache::CacheManager;
-use crate::index::engine::{column_family_list, storage_data_fold};
-use crate::segment::manager::{create_local_segment, SegmentFileManager};
-use crate::segment::write::{create_write_thread, write_data};
-use crate::segment::SegmentIdentity;
+use std::sync::Arc;
 
 #[allow(dead_code)]
 pub fn test_build_rocksdb_sgement() -> (Arc<RocksDBEngine>, SegmentIdentity) {
@@ -65,11 +61,7 @@ pub fn test_build_data_fold() -> Vec<String> {
 
 #[allow(dead_code)]
 pub fn test_init_conf() {
-    init_journal_server_conf_by_config(JournalServerConfig {
-        node_id: 1,
-        cluster_name: unique_id(),
-        ..Default::default()
-    });
+    init_broker_conf_by_config(default_broker_config());
 }
 
 #[allow(dead_code)]
@@ -105,7 +97,7 @@ pub async fn test_init_segment() -> (
         .await
         .unwrap();
 
-    let conf = journal_server_conf();
+    let conf = broker_config();
     let segment_meta = JournalSegmentMetadata {
         cluster_name: conf.cluster_name.clone(),
         namespace: segment_iden.namespace.clone(),

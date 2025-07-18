@@ -53,7 +53,7 @@ fn parse_node(
     match action_type {
         JournalUpdateCacheActionType::Set => match serde_json::from_str::<BrokerNode>(data) {
             Ok(node) => {
-                info!("Update the cache, Set node, node: {:?}", node);
+                info!("Update the cache, Set node, node: {:?}", node.node_id);
                 cache_manager.add_node(node);
             }
             Err(e) => {

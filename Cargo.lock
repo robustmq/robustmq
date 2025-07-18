@@ -538,6 +538,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "broker-server"
+version = "0.1.25"
+dependencies = [
+ "axum",
+ "bytes",
+ "common-base",
+ "common-config",
+ "delay-message",
+ "grpc-clients",
+ "journal-server",
+ "mqtt-broker",
+ "openraft",
+ "placement-center",
+ "protocol",
+ "schema-register",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tonic",
+ "tonic-web",
+ "tower 0.5.2",
+ "tower-http 0.5.2",
+ "tracing",
+ "tracing-appender",
+]
+
+[[package]]
 name = "bstr"
 version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -818,6 +845,7 @@ dependencies = [
 name = "cmd"
 version = "0.1.25"
 dependencies = [
+ "broker-server",
  "clap",
  "clap-cargo",
  "cli-bench",
@@ -828,8 +856,6 @@ dependencies = [
  "journal-server",
  "lazy_static",
  "mockall",
- "mqtt-broker",
- "placement-center",
  "protocol",
  "tokio",
 ]
@@ -2198,23 +2224,6 @@ dependencies = [
  "zerofrom",
  "zerotrie",
  "zerovec",
-]
-
-[[package]]
-name = "idempotent-message"
-version = "0.1.25"
-dependencies = [
- "axum",
- "bytes",
- "common-base",
- "dashmap",
- "futures",
- "metadata-struct",
- "storage-adapter",
- "thiserror 1.0.69",
- "tokio",
- "tokio-util",
- "tracing",
 ]
 
 [[package]]

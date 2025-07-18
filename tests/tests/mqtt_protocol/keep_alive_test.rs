@@ -24,7 +24,7 @@ mod tests {
     use tokio::time::{sleep, Instant};
     use tokio_util::codec::Framed;
 
-    use crate::mqtt_protocol::common::build_client_id;
+    use crate::mqtt_protocol::common::{build_client_id, password};
 
     #[tokio::test]
     async fn mqtt4_keep_alive_test() {
@@ -62,7 +62,7 @@ mod tests {
         let client_id = build_client_id("mqtt4_keep_alive_test");
         let login = Some(Login {
             username: "admin".to_string(),
-            password: "pwd123".to_string(),
+            password: password(),
         });
         let lastwill = Some(LastWill {
             topic: Bytes::from("topic1"),

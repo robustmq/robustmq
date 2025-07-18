@@ -38,6 +38,12 @@ pub struct ConnectionManager {
     >,
 }
 
+impl Default for ConnectionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConnectionManager {
     pub fn new() -> ConnectionManager {
         let connections = DashMap::with_capacity(64);
@@ -65,17 +71,6 @@ impl ConnectionManager {
         write: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, JournalServerCodec>,
     ) {
         self.tcp_write_list.insert(connection_id, write);
-    }
-
-    pub fn add_tcp_tls_write(
-        &self,
-        connection_id: u64,
-        write: FramedWrite<
-            tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
-            JournalServerCodec,
-        >,
-    ) {
-        self.tcp_tls_write_list.insert(connection_id, write);
     }
 
     pub async fn _close_all_connect(&self) {

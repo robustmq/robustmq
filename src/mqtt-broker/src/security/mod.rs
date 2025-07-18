@@ -20,8 +20,8 @@ use crate::security::auth::is_allow_acl;
 use crate::security::login::plaintext::plaintext_check_login;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
 use crate::subscribe::common::get_sub_topic_id_list;
-use common_config::mqtt::broker_mqtt_conf;
-use common_config::mqtt::config::AuthStorage;
+use common_config::broker::broker_config;
+use common_config::config::MqttAuthStorage;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclAction, MqttAclResourceType};
@@ -49,12 +49,12 @@ pub struct AuthDriver {
 
 impl AuthDriver {
     pub fn new(cache_manager: Arc<CacheManager>, client_pool: Arc<ClientPool>) -> AuthDriver {
-        let conf = broker_mqtt_conf();
+        let conf = broker_config();
 
-        let driver = match build_driver(client_pool.clone(), conf.auth_storage.clone()) {
+        let driver = match build_driver(client_pool.clone(), conf.mqtt_auth_storage.clone()) {
             Ok(driver) => driver,
             Err(e) => {
-                panic!("{}, auth storage:{:?}", e, conf.auth_storage);
+                panic!("{}, auth storage:{:?}", e, conf.mqtt_auth_storage);
             }
         };
 
@@ -73,7 +73,7 @@ impl AuthDriver {
     ) -> Result<bool, MqttBrokerError> {
         let cluster = self.cache_manager.get_cluster_config();
 
-        if cluster.security.secret_free_login {
+        if cluster.mqtt_security.secret_free_login {
             return Ok(true);
         }
 
@@ -239,7 +239,7 @@ impl AuthDriver {
 
 pub fn build_driver(
     client_pool: Arc<ClientPool>,
-    auth: AuthStorage,
+    auth: MqttAuthStorage,
 ) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, MqttBrokerError> {
     let storage_type = StorageType::from_str(&auth.storage_type)
         .map_err(|_| MqttBrokerError::UnavailableStorageType)?;

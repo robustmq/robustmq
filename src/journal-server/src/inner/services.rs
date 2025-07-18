@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_config::journal::config::journal_server_conf;
+use common_config::broker::broker_config;
 use protocol::journal_server::journal_inner::{
     DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
     GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply,
@@ -36,7 +36,7 @@ pub async fn update_cache_by_req(
     segment_file_manager: &Arc<SegmentFileManager>,
     request: &UpdateJournalCacheRequest,
 ) -> Result<UpdateJournalCacheReply, JournalServerError> {
-    let conf = journal_server_conf();
+    let conf = broker_config();
     if request.cluster_name != conf.cluster_name {
         return Ok(UpdateJournalCacheReply::default());
     }
@@ -60,7 +60,7 @@ pub async fn delete_shard_file_by_req(
     segment_file_manager: &Arc<SegmentFileManager>,
     request: &DeleteShardFileRequest,
 ) -> Result<DeleteShardFileReply, JournalServerError> {
-    let conf = journal_server_conf();
+    let conf = broker_config();
     if request.cluster_name != conf.cluster_name {
         return Ok(DeleteShardFileReply::default());
     }
@@ -79,7 +79,7 @@ pub async fn delete_shard_file_by_req(
 pub async fn get_shard_delete_status_by_req(
     request: &GetShardDeleteStatusRequest,
 ) -> Result<GetShardDeleteStatusReply, JournalServerError> {
-    let conf = journal_server_conf();
+    let conf = broker_config();
     if request.cluster_name != conf.cluster_name {
         return Ok(GetShardDeleteStatusReply::default());
     }
@@ -95,7 +95,7 @@ pub async fn delete_segment_file_by_req(
     segment_file_manager: &Arc<SegmentFileManager>,
     request: &DeleteSegmentFileRequest,
 ) -> Result<DeleteSegmentFileReply, JournalServerError> {
-    let conf = journal_server_conf();
+    let conf = broker_config();
     if request.cluster_name != conf.cluster_name {
         return Ok(DeleteSegmentFileReply::default());
     }
@@ -118,7 +118,7 @@ pub async fn get_segment_delete_status_by_req(
     cache_manager: &Arc<CacheManager>,
     request: &GetSegmentDeleteStatusRequest,
 ) -> Result<GetSegmentDeleteStatusReply, JournalServerError> {
-    let conf = journal_server_conf();
+    let conf = broker_config();
     if request.cluster_name != conf.cluster_name {
         return Ok(GetSegmentDeleteStatusReply::default());
     }

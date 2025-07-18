@@ -14,7 +14,7 @@
 
 use crate::handler::error::MqttBrokerError;
 
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::{
     placement::inner::call::{
         bind_schema, create_schema, delete_schema, list_bind_schema, list_schema, un_bind_schema,
@@ -32,13 +32,13 @@ pub async fn list_schema_by_req(
     client_pool: &Arc<ClientPool>,
     request: &broker_mqtt_admin::ListSchemaRequest,
 ) -> Result<broker_mqtt_admin::ListSchemaReply, MqttBrokerError> {
-    let config = broker_mqtt_conf();
+    let config = broker_config();
     let request = placement_center_inner::ListSchemaRequest {
         cluster_name: config.cluster_name.clone(),
         schema_name: request.schema_name.clone(),
     };
 
-    let schemas = list_schema(client_pool, &config.placement_center, request)
+    let schemas = list_schema(client_pool, &config.get_placement_center_addr(), request)
         .await
         .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?
         .schemas;
@@ -51,7 +51,7 @@ pub async fn create_schema_by_req(
     client_pool: &Arc<ClientPool>,
     request: &broker_mqtt_admin::CreateSchemaRequest,
 ) -> Result<broker_mqtt_admin::CreateSchemaReply, MqttBrokerError> {
-    let config = broker_mqtt_conf();
+    let config = broker_config();
 
     let schema_type = match request.schema_type.as_str() {
         "" | "json" => SchemaType::JSON,
@@ -79,7 +79,7 @@ pub async fn create_schema_by_req(
             .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?,
     };
 
-    create_schema(client_pool, &config.placement_center, request)
+    create_schema(client_pool, &config.get_placement_center_addr(), request)
         .await
         .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
 
@@ -91,7 +91,7 @@ pub async fn update_schema_by_req(
     client_pool: &Arc<ClientPool>,
     request: &broker_mqtt_admin::UpdateSchemaRequest,
 ) -> Result<broker_mqtt_admin::UpdateSchemaReply, MqttBrokerError> {
-    let config = broker_mqtt_conf();
+    let config = broker_config();
 
     let schema_type = match request.schema_type.as_str() {
         "" | "json" => SchemaType::JSON,
@@ -119,7 +119,7 @@ pub async fn update_schema_by_req(
             .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?,
     };
 
-    update_schema(client_pool, &config.placement_center, request)
+    update_schema(client_pool, &config.get_placement_center_addr(), request)
         .await
         .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
 
@@ -131,13 +131,13 @@ pub async fn delete_schema_by_req(
     client_pool: &Arc<ClientPool>,
     request: &broker_mqtt_admin::DeleteSchemaRequest,
 ) -> Result<broker_mqtt_admin::DeleteSchemaReply, MqttBrokerError> {
-    let config = broker_mqtt_conf();
+    let config = broker_config();
     let request = placement_center_inner::DeleteSchemaRequest {
         cluster_name: config.cluster_name.clone(),
         schema_name: request.schema_name.clone(),
     };
 
-    delete_schema(client_pool, &config.placement_center, request)
+    delete_schema(client_pool, &config.get_placement_center_addr(), request)
         .await
         .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
 
@@ -149,14 +149,14 @@ pub async fn list_bind_schema_by_req(
     client_pool: &Arc<ClientPool>,
     request: &broker_mqtt_admin::ListBindSchemaRequest,
 ) -> Result<broker_mqtt_admin::ListBindSchemaReply, MqttBrokerError> {
-    let config = broker_mqtt_conf();
+    let config = broker_config();
     let request = placement_center_inner::ListBindSchemaRequest {
         cluster_name: config.cluster_name.clone(),
         schema_name: request.schema_name.clone(),
         resource_name: request.resource_name.clone(),
     };
 
-    let schema_binds = list_bind_schema(client_pool, &config.placement_center, request)
+    let schema_binds = list_bind_schema(client_pool, &config.get_placement_center_addr(), request)
         .await
         .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?
         .schema_binds;
@@ -169,14 +169,14 @@ pub async fn bind_schema_by_req(
     client_pool: &Arc<ClientPool>,
     request: &broker_mqtt_admin::BindSchemaRequest,
 ) -> Result<broker_mqtt_admin::BindSchemaReply, MqttBrokerError> {
-    let config = broker_mqtt_conf();
+    let config = broker_config();
     let request = placement_center_inner::BindSchemaRequest {
         cluster_name: config.cluster_name.clone(),
         schema_name: request.schema_name.clone(),
         resource_name: request.resource_name.clone(),
     };
 
-    bind_schema(client_pool, &config.placement_center, request)
+    bind_schema(client_pool, &config.get_placement_center_addr(), request)
         .await
         .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
 
@@ -188,14 +188,14 @@ pub async fn unbind_schema_by_req(
     client_pool: &Arc<ClientPool>,
     request: &broker_mqtt_admin::UnbindSchemaRequest,
 ) -> Result<broker_mqtt_admin::UnbindSchemaReply, MqttBrokerError> {
-    let config = broker_mqtt_conf();
+    let config = broker_config();
     let request = placement_center_inner::UnBindSchemaRequest {
         cluster_name: config.cluster_name.clone(),
         schema_name: request.schema_name.clone(),
         resource_name: request.resource_name.clone(),
     };
 
-    un_bind_schema(client_pool, &config.placement_center, request)
+    un_bind_schema(client_pool, &config.get_placement_center_addr(), request)
         .await
         .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
 

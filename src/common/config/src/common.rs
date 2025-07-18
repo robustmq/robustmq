@@ -16,6 +16,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
 
+use crate::config::PProf;
+
 #[derive(Serialize, Deserialize, PartialEq, Default, Clone, Debug)]
 pub enum AvailableFlag {
     #[default]
@@ -26,18 +28,8 @@ pub enum AvailableFlag {
 // Prometheus
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Prometheus {
-    #[serde(default)]
     pub enable: bool,
-    #[serde(default)]
-    pub model: String,
-    #[serde(default = "default_prometheus_port")]
     pub port: u32,
-    #[serde(default)]
-    pub push_gateway_server: String,
-    #[serde(default)]
-    pub interval: u32,
-    #[serde(default)]
-    pub header: String,
 }
 
 // Log
@@ -68,25 +60,17 @@ pub struct Pprof {
 
 pub fn default_prometheus() -> Prometheus {
     Prometheus {
-        enable: false,
-        model: "pull".to_string(),
-        port: default_prometheus_port(),
-        push_gateway_server: "".to_string(),
-        interval: 10,
-        header: "".to_string(),
+        enable: true,
+        port: 9090,
     }
 }
 
-pub fn default_pprof() -> Pprof {
-    Pprof {
+pub fn default_pprof() -> PProf {
+    PProf {
         enable: false,
         port: default_pprof_port(),
         frequency: default_pprof_frequency(),
     }
-}
-
-pub fn default_prometheus_port() -> u32 {
-    9090
 }
 
 pub fn default_false() -> bool {
@@ -99,6 +83,13 @@ pub fn default_pprof_port() -> u16 {
 
 pub fn default_pprof_frequency() -> i32 {
     100
+}
+
+pub fn default_log() -> Log {
+    Log {
+        log_path: "./logs".to_string(),
+        log_config: "./config/broker-tracing.toml".to_string(),
+    }
 }
 
 /** `override_default_by_env` Cover the content based on the environment variables

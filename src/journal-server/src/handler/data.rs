@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_config::journal::config::journal_server_conf;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::shard::shard_name_iden;
 use protocol::journal_server::journal_engine::{
@@ -118,12 +118,12 @@ impl DataHandler {
             self.validator(&segment_identity)?;
         }
 
-        let conf = journal_server_conf();
+        let conf = broker_config();
         let results = read_data_req(
             &self.cache_manager,
             &self.rocksdb_engine_handler,
             &req_body,
-            conf.node_id,
+            conf.broker_id,
         )
         .await?;
         Ok(results)
@@ -296,8 +296,8 @@ impl DataHandler {
             ));
         }
 
-        let conf = journal_server_conf();
-        if segment.leader != conf.node_id {
+        let conf = broker_config();
+        if segment.leader != conf.broker_id {
             return Err(JournalServerError::NotLeader(segment_identity.name()));
         }
 

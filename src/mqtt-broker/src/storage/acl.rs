@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::placement::mqtt::call::{create_acl, delete_acl, list_acl};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
@@ -35,11 +35,16 @@ impl AclStorage {
     }
 
     pub async fn list_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = ListAclRequest {
             cluster_name: config.cluster_name.clone(),
         };
-        let reply = list_acl(&self.client_pool, &config.placement_center, request).await?;
+        let reply = list_acl(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         let mut list = Vec::new();
         for raw in reply.acls {
             list.push(serde_json::from_slice::<MqttAcl>(raw.as_slice())?);
@@ -48,25 +53,35 @@ impl AclStorage {
     }
 
     pub async fn save_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
 
         let value = acl.encode()?;
         let request = CreateAclRequest {
             cluster_name: config.cluster_name.clone(),
             acl: value,
         };
-        create_acl(&self.client_pool, &config.placement_center, request).await?;
+        create_acl(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         Ok(())
     }
 
     pub async fn delete_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let value = acl.encode()?;
         let request = DeleteAclRequest {
             cluster_name: config.cluster_name.clone(),
             acl: value,
         };
-        delete_acl(&self.client_pool, &config.placement_center, request).await?;
+        delete_acl(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         Ok(())
     }
 }

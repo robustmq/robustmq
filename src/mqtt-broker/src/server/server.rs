@@ -20,7 +20,7 @@ use crate::{
     server::tcp::v1::server::{ProcessorConfig, TcpServer},
     subscribe::manager::SubscribeManager,
 };
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use schema_register::schema::SchemaRegisterManager;
@@ -46,7 +46,7 @@ impl Server {
         stop_sx: broadcast::Sender<bool>,
         auth_driver: Arc<AuthDriver>,
     ) -> Self {
-        let conf = broker_mqtt_conf();
+        let conf = broker_config();
         let command = Command::new(
             cache_manager.clone(),
             message_storage_adapter.clone(),
@@ -59,10 +59,10 @@ impl Server {
         );
 
         let proc_config = ProcessorConfig {
-            accept_thread_num: conf.network_thread.accept_thread_num,
-            handler_process_num: conf.network_thread.handler_thread_num,
-            response_process_num: conf.network_thread.response_thread_num,
-            channel_size: conf.network_thread.queue_size,
+            accept_thread_num: conf.network.accept_thread_num,
+            handler_process_num: conf.network.handler_thread_num,
+            response_process_num: conf.network.response_thread_num,
+            channel_size: conf.network.queue_size,
         };
 
         let tcp_server = TcpServer::new(

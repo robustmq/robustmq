@@ -17,7 +17,7 @@ use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::topic::TopicStorage;
 use common_base::tools::now_mills;
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -73,7 +73,7 @@ pub async fn delete_topic_rewrite_rule_by_req(
         .await
         .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
 
-    let config = broker_mqtt_conf();
+    let config = broker_config();
     cache_manager.delete_topic_rewrite_rule(
         &config.cluster_name,
         &request.action,
@@ -89,7 +89,7 @@ pub async fn create_topic_rewrite_rule_by_req(
     cache_manager: &Arc<CacheManager>,
     request: &CreateTopicRewriteRuleRequest,
 ) -> Result<CreateTopicRewriteRuleReply, MqttBrokerError> {
-    let config = broker_mqtt_conf();
+    let config = broker_config();
     let rule = MqttTopicRewriteRule {
         cluster: config.cluster_name.clone(),
         action: request.action.clone(),

@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_config::journal::config::journal_server_conf;
+use common_config::broker::broker_config;
 use grpc_clients::placement::journal::call::update_segment_status;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
@@ -233,7 +233,7 @@ impl ShardHandler {
         namespace: &str,
         shard_name: &str,
     ) -> Result<(), JournalServerError> {
-        let conf = journal_server_conf();
+        let conf = broker_config();
         let request = CreateNextSegmentRequest {
             cluster_name: conf.cluster_name.to_string(),
             namespace: namespace.to_string(),
@@ -241,7 +241,7 @@ impl ShardHandler {
         };
         grpc_clients::placement::journal::call::create_next_segment(
             &self.client_pool,
-            &conf.placement_center,
+            &conf.get_placement_center_addr(),
             request,
         )
         .await?;
@@ -255,7 +255,7 @@ impl ShardHandler {
         segment: &JournalSegment,
         client_pool: &Arc<ClientPool>,
     ) -> Result<(), JournalServerError> {
-        let conf = journal_server_conf();
+        let conf = broker_config();
         // When the state is Idle, reverse the state to PreWrite
         if segment.status == SegmentStatus::Idle {
             let request = UpdateSegmentStatusRequest {
@@ -266,7 +266,7 @@ impl ShardHandler {
                 cur_status: segment.status.to_string(),
                 next_status: SegmentStatus::PreWrite.to_string(),
             };
-            update_segment_status(client_pool, &conf.placement_center, request).await?;
+            update_segment_status(client_pool, &conf.get_placement_center_addr(), request).await?;
         }
 
         // When the state SealUp/PreDelete/Deleteing,

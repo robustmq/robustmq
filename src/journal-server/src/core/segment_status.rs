@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_config::journal::config::journal_server_conf;
+use common_config::broker::broker_config;
 use grpc_clients::placement::journal::call::update_segment_status;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::SegmentStatus;
@@ -58,7 +58,7 @@ async fn update_segment_status_to_pre_write(
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {
-    let conf = journal_server_conf();
+    let conf = broker_config();
     if let Some(segment) = cache_manager.get_segment(segment_iden) {
         if segment.status != SegmentStatus::Idle {
             warn!("Segment {} enters the PreWrite state, but the current state is not Idle, possibly because the Status checking thread is not running.",
@@ -78,7 +78,7 @@ async fn update_segment_status_to_pre_write(
             cur_status: segment.status.to_string(),
             next_status: SegmentStatus::PreWrite.to_string(),
         };
-        update_segment_status(client_pool, &conf.placement_center, request).await?;
+        update_segment_status(client_pool, &conf.get_placement_center_addr(), request).await?;
     }
     Ok(())
 }
@@ -88,7 +88,7 @@ async fn update_segment_status_to_write(
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {
-    let conf = journal_server_conf();
+    let conf = broker_config();
     if let Some(segment) = cache_manager.get_segment(segment_iden) {
         if segment.status != SegmentStatus::PreWrite {
             warn!("segment {} enters the sealup state and the next Segment is not currently in the PreWrite state, possibly because the Status checking thread is not running.",
@@ -106,7 +106,7 @@ async fn update_segment_status_to_write(
             cur_status: segment.status.to_string(),
             next_status: SegmentStatus::Write.to_string(),
         };
-        update_segment_status(client_pool, &conf.placement_center, request).await?;
+        update_segment_status(client_pool, &conf.get_placement_center_addr(), request).await?;
     }
     Ok(())
 }
@@ -116,7 +116,7 @@ async fn update_segment_status_to_pre_seal_up(
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {
-    let conf = journal_server_conf();
+    let conf = broker_config();
     if let Some(segment) = cache_manager.get_segment(segment_iden) {
         if segment.status != SegmentStatus::Write {
             warn!("Segment {} enters the PreSealup state, but the current state is not Write, possibly because the Status checking thread is not running.",
@@ -136,7 +136,7 @@ async fn update_segment_status_to_pre_seal_up(
             cur_status: segment.status.to_string(),
             next_status: SegmentStatus::PreSealUp.to_string(),
         };
-        update_segment_status(client_pool, &conf.placement_center, request).await?;
+        update_segment_status(client_pool, &conf.get_placement_center_addr(), request).await?;
     }
 
     Ok(())
@@ -147,7 +147,7 @@ async fn update_segment_status_to_seal_up(
     client_pool: &Arc<ClientPool>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), JournalServerError> {
-    let conf = journal_server_conf();
+    let conf = broker_config();
     if let Some(segment) = cache_manager.get_segment(segment_iden) {
         if segment.status != SegmentStatus::PreSealUp {
             warn!("Segment {} enters the sealup state, but the current state is not PreSealUp, possibly because the Status checking thread is not running.",
@@ -167,7 +167,7 @@ async fn update_segment_status_to_seal_up(
             cur_status: segment.status.to_string(),
             next_status: SegmentStatus::SealUp.to_string(),
         };
-        update_segment_status(client_pool, &conf.placement_center, request).await?;
+        update_segment_status(client_pool, &conf.get_placement_center_addr(), request).await?;
     }
     Ok(())
 }

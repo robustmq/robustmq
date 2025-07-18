@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use common_base::{error::log_config::LogConfigError, logging::init_tracing_subscriber};
-use common_config::place::config::placement_center_conf;
+use common_config::broker::broker_config;
 use tracing_appender::non_blocking::WorkerGuard;
 
 pub fn init_placement_center_log() -> Result<Vec<WorkerGuard>, LogConfigError> {
-    let conf = placement_center_conf();
+    let conf = broker_config();
     init_tracing_subscriber(&conf.log.log_config, &conf.log.log_path)
 }

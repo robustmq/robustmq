@@ -17,7 +17,7 @@ use crate::controller::journal::call_node::JournalInnerCallManager;
 use crate::controller::mqtt::call_broker::MQTTInnerCallManager;
 use crate::core::cache::CacheManager;
 use crate::raft::route::apply::StorageDriver;
-use common_config::place::config::placement_center_conf;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
 use std::time::Duration;
@@ -56,9 +56,9 @@ impl ClusterController {
     // Start the heartbeat detection thread of the Storage Engine node
     pub async fn start_node_heartbeat_check(&self) {
         let mut stop_recv = self.stop_send.subscribe();
-        let config = placement_center_conf();
+        let config = broker_config();
         let mut heartbeat = BrokerHeartbeat::new(
-            config.heartbeat.heartbeat_timeout_ms,
+            config.place_runtime.heartbeat_timeout_ms,
             self.cluster_cache.clone(),
             self.placement_center_storage.clone(),
             self.client_pool.clone(),
@@ -75,7 +75,7 @@ impl ClusterController {
                     }
                 }
                 _ = heartbeat.start()=>{
-                    sleep(Duration::from_millis(config.heartbeat.heartbeat_check_time_ms)).await;
+                    sleep(Duration::from_millis(config.place_runtime.heartbeat_check_time_ms)).await;
                 }
             }
         }

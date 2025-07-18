@@ -99,7 +99,7 @@ impl Authentication for Plaintext {
 mod test {
     use std::sync::Arc;
 
-    use common_config::mqtt::config::BrokerMqttConfig;
+    use common_config::config::BrokerConfig;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::user::MqttUser;
     use protocol::mqtt::common::Login;
@@ -110,7 +110,7 @@ mod test {
 
     #[tokio::test]
     pub async fn plaintext_test() {
-        let conf = BrokerMqttConfig {
+        let conf = BrokerConfig {
             cluster_name: "test".to_string(),
             ..Default::default()
         };

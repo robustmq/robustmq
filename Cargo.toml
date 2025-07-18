@@ -14,6 +14,7 @@
 
 [workspace]
 members = [
+    "src/broker",
     "src/mqtt-broker",
     "src/amqp-broker",
     "src/kafka-broker",
@@ -21,7 +22,6 @@ members = [
     "src/cli-command",
     "src/cli-bench",
     "src/delay-message",
-    "src/idempotent-message",
     "src/schema-register",
     "src/message-expire",
     "src/grpc-clients",
@@ -156,9 +156,9 @@ prettytable-rs = "^0.10"
 ## workspaces members
 mqtt-broker = { path = "src/mqtt-broker" }
 amqp-broker = { path = "src/amqp-broker" }
+broker-server = { path = "src/broker" }
 kafka-broker = { path = "src/kafka-broker" }
 delay-message = { path = "src/delay-message" }
-idempotent-message = { path = "src/idempotent-message" }
 placement-center = { path = "src/placement-center" }
 schema-register = { path = "src/schema-register" }
 message-expire = { path = "src/message-expire" }

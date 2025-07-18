@@ -167,7 +167,7 @@ build_local(){
     echo "${version}" > ${package_path}/config/version.ini
     log "Created version.ini with version: ${version}"
 
-    binaries="mqtt-server placement-center journal-server cli-command cli-bench"
+    binaries="broker-server cli-command cli-bench"
 
     for binary in ${binaries}; do
         local bin_path="target/debug/${binary}"
@@ -181,7 +181,6 @@ build_local(){
 
     cp -rf "${PROJECT_ROOT_DIR}/bin/"* ${package_path}/bin/
     cp -rf config/* ${package_path}/config/
-    cp -rf example/* ${package_path}/config/example
 
     # Recommended to use the 755
     chmod -R 777 ${package_path}/bin/*

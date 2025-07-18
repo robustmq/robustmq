@@ -40,7 +40,6 @@ mod tests {
         // register_node
         let extend = JournalNodeExtend {
             tcp_addr: "".to_string(),
-            tcps_addr: "".to_string(),
             data_fold: vec!["/data".to_string()],
         };
 

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_config::journal::config::journal_server_conf;
+use common_config::broker::broker_config;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -28,11 +28,11 @@ impl JournalEngineClusterConfig {
         // todo load placement config
 
         // load local config
-        let conf = journal_server_conf();
+        let conf = broker_config();
         JournalEngineClusterConfig {
-            enable_auto_create_shard: conf.shard.enable_auto_create_shard,
-            shard_replica_num: conf.shard.shard_replica_num,
-            max_segment_size: conf.shard.max_segment_size,
+            enable_auto_create_shard: conf.journal_runtime.enable_auto_create_shard,
+            shard_replica_num: conf.journal_runtime.shard_replica_num,
+            max_segment_size: conf.journal_runtime.max_segment_size,
             last_update_local_cache_time: 0,
         }
     }

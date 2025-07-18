@@ -18,7 +18,6 @@ use serde::{Deserialize, Serialize};
 pub struct JournalNodeExtend {
     pub data_fold: Vec<String>,
     pub tcp_addr: String,
-    pub tcps_addr: String,
 }
 
 impl JournalNodeExtend {

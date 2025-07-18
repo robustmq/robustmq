@@ -23,7 +23,7 @@ use crate::server::common::handler::handler_process;
 use crate::server::common::response::response_process;
 use crate::server::quic::acceptor::acceptor_process;
 use crate::subscribe::manager::SubscribeManager;
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use quinn::{Connection, Endpoint, ServerConfig, VarInt};
@@ -55,7 +55,7 @@ pub async fn start_quic_server(
     auth_driver: Arc<AuthDriver>,
     schema_register_manager: Arc<SchemaRegisterManager>,
 ) {
-    let conf = broker_mqtt_conf();
+    let conf = broker_config();
     let command = Command::new(
         cache_manager.clone(),
         message_storage_adapter.clone(),
@@ -69,19 +69,19 @@ pub async fn start_quic_server(
 
     let mut server = QuicServer::new(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-        conf.network_port.quic_port as u16,
+        conf.mqtt_server.quic_port as u16,
     ));
     server.start();
 
     let quic_endpoint = server.get_endpoint();
     let arc_quic_endpoint = Arc::new(quic_endpoint);
     let network_type = NetworkConnectionType::QUIC;
-    let request_channel = Arc::new(RequestChannel::new(conf.network_thread.queue_size));
+    let request_channel = Arc::new(RequestChannel::new(conf.network.queue_size));
     let request_recv_channel = request_channel.create_request_channel(&network_type);
     let response_recv_channel = request_channel.create_response_channel(&network_type);
 
     acceptor_process(
-        conf.network_thread.accept_thread_num,
+        conf.network.accept_thread_num,
         connection_manager.clone(),
         arc_quic_endpoint.clone(),
         request_channel.clone(),
@@ -91,7 +91,7 @@ pub async fn start_quic_server(
     .await;
 
     handler_process(
-        conf.network_thread.handler_thread_num,
+        conf.network.handler_thread_num,
         request_recv_channel,
         connection_manager.clone(),
         command.clone(),
@@ -102,7 +102,7 @@ pub async fn start_quic_server(
     .await;
 
     response_process(
-        conf.network_thread.response_thread_num,
+        conf.network.response_thread_num,
         connection_manager.clone(),
         cache_manager.clone(),
         subscribe_manager.clone(),

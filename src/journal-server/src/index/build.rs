@@ -425,7 +425,7 @@ mod tests {
     async fn build_thread_test() {
         let (segment_iden, cache_manager, segment_file_manager, _, rocksdb_engine_handler) =
             test_base_write_data(10001).await;
-        let res = try_trigger_build_index(
+        let res: Result<(), crate::core::error::JournalServerError> = try_trigger_build_index(
             &cache_manager,
             &segment_file_manager,
             &rocksdb_engine_handler,

@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::{
     placement::mqtt::call::{
         placement_connector_heartbeat, placement_create_connector, placement_delete_connector,
@@ -44,13 +44,17 @@ impl ConnectorStorage {
         &self,
         connector_name: &str,
     ) -> Result<Vec<MQTTConnector>, MqttBrokerError> {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = ListConnectorRequest {
             cluster_name: config.cluster_name.clone(),
             connector_name: connector_name.to_owned(),
         };
-        let reply =
-            placement_list_connector(&self.client_pool, &config.placement_center, request).await?;
+        let reply = placement_list_connector(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         let mut list = Vec::new();
         for raw in reply.connectors {
             list.push(serde_json::from_slice::<MQTTConnector>(raw.as_slice())?);
@@ -63,24 +67,34 @@ impl ConnectorStorage {
     }
 
     pub async fn create_connector(&self, connector: MQTTConnector) -> ResultMqttBrokerError {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = CreateConnectorRequest {
             cluster_name: config.cluster_name.clone(),
             connector_name: connector.connector_name.clone(),
             connector: connector.encode(),
         };
-        placement_create_connector(&self.client_pool, &config.placement_center, request).await?;
+        placement_create_connector(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         Ok(())
     }
 
     pub async fn update_connector(&self, connector: MQTTConnector) -> ResultMqttBrokerError {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = UpdateConnectorRequest {
             cluster_name: config.cluster_name.clone(),
             connector_name: connector.connector_name.clone(),
             connector: connector.encode(),
         };
-        placement_update_connector(&self.client_pool, &config.placement_center, request).await?;
+        placement_update_connector(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         Ok(())
     }
 
@@ -89,12 +103,17 @@ impl ConnectorStorage {
         cluster_name: &str,
         connector_name: &str,
     ) -> ResultMqttBrokerError {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = DeleteConnectorRequest {
             cluster_name: cluster_name.to_owned(),
             connector_name: connector_name.to_owned(),
         };
-        placement_delete_connector(&self.client_pool, &config.placement_center, request).await?;
+        placement_delete_connector(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         Ok(())
     }
 
@@ -102,12 +121,17 @@ impl ConnectorStorage {
         &self,
         heatbeats: Vec<ConnectorHeartbeatRaw>,
     ) -> ResultMqttBrokerError {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = ConnectorHeartbeatRequest {
             cluster_name: config.cluster_name.clone(),
             heatbeats,
         };
-        placement_connector_heartbeat(&self.client_pool, &config.placement_center, request).await?;
+        placement_connector_heartbeat(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         Ok(())
     }
 }

@@ -18,7 +18,7 @@ use crate::handler::error::MqttBrokerError;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
 use crate::subscribe::common::{decode_share_group_and_path, get_share_sub_leader, Subscriber};
 use crate::subscribe::manager::SubscribeManager;
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::mqtt::admin::call::mqtt_broker_subscribe_detail;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -37,7 +37,7 @@ pub async fn set_auto_subscribe_rule_by_req(
     cache_manager: &Arc<CacheManager>,
     request: &SetAutoSubscribeRuleRequest,
 ) -> Result<SetAutoSubscribeRuleReply, MqttBrokerError> {
-    let config = broker_mqtt_conf();
+    let config = broker_config();
 
     // Validate and convert QoS
     let _qos = if request.qos <= u8::MAX as u32 {
@@ -92,7 +92,7 @@ pub async fn delete_auto_subscribe_rule_by_req(
     cache_manager: &Arc<CacheManager>,
     request: &DeleteAutoSubscribeRuleRequest,
 ) -> Result<DeleteAutoSubscribeRuleReply, MqttBrokerError> {
-    let config = broker_mqtt_conf();
+    let config = broker_config();
 
     let auto_subscribe_storage = AutoSubscribeStorage::new(client_pool.clone());
     auto_subscribe_storage
@@ -178,7 +178,7 @@ pub async fn subscribe_detail_by_req(
         });
     }
 
-    let conf = broker_mqtt_conf();
+    let conf = broker_config();
     let (group, _) = decode_share_group_and_path(&subscribe.path);
     let reply = get_share_sub_leader(client_pool, &group).await?;
 

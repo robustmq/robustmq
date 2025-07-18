@@ -51,7 +51,10 @@ pub async fn save_message(
     topic: &MQTTTopic,
     delay_info: &Option<DelayPublishTopic>,
 ) -> Result<Option<String>, MqttBrokerError> {
-    let offline_message_disabled = !cache_manager.get_cluster_config().offline_messages.enable;
+    let offline_message_disabled = !cache_manager
+        .get_cluster_config()
+        .mqtt_offline_message
+        .enable;
     let not_exist_subscribe = !is_exist_subscribe(subscribe_manager, &topic.topic_name);
     if offline_message_disabled && not_exist_subscribe {
         record_messages_dropped_discard_metrics(publish.qos);

@@ -133,6 +133,10 @@ pub fn create_runtime(runtime_name: &str, worker_threads: usize) -> Runtime {
         .build()
 }
 
+pub fn get_runtime_worker_threads() -> usize {
+    16
+}
+
 #[cfg(test)]
 mod tests {
     use std::thread::sleep;

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::mqtt_protocol::common::broker_grpc_addr;
-use common_config::mqtt::{broker_mqtt_conf, init_broker_mqtt_conf_by_path};
+use common_config::broker::{default_broker_config, init_broker_conf_by_config};
 use grpc_clients::mqtt::admin::call::mqtt_broker_set_system_alarm_config;
 use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::{
@@ -23,9 +23,8 @@ use std::sync::Arc;
 
 #[tokio::test]
 pub async fn set_cluster_system_alarm_config() {
-    let path = format!("{}/../config/mqtt-server.toml", env!("CARGO_MANIFEST_DIR"));
-    init_broker_mqtt_conf_by_path(&path);
-    let mqtt_broker_conf = broker_mqtt_conf();
+    let config = default_broker_config();
+    init_broker_conf_by_config(config.clone());
 
     let client_pool = Arc::new(ClientPool::new(3));
     let grpc_addr = vec![broker_grpc_addr()];
@@ -45,22 +44,22 @@ pub async fn set_cluster_system_alarm_config() {
             os_cpu_high_watermark: Some(
                 valid_request
                     .os_cpu_high_watermark
-                    .unwrap_or(mqtt_broker_conf.system_monitor.os_cpu_high_watermark),
+                    .unwrap_or(config.mqtt_system_monitor.os_cpu_high_watermark),
             ),
             os_cpu_low_watermark: Some(
                 valid_request
                     .os_cpu_low_watermark
-                    .unwrap_or(mqtt_broker_conf.system_monitor.os_cpu_low_watermark),
+                    .unwrap_or(config.mqtt_system_monitor.os_cpu_low_watermark),
             ),
             os_memory_high_watermark: Some(
                 valid_request
                     .os_memory_high_watermark
-                    .unwrap_or(mqtt_broker_conf.system_monitor.os_memory_high_watermark),
+                    .unwrap_or(config.mqtt_system_monitor.os_memory_high_watermark),
             ),
             os_cpu_check_interval_ms: Some(
                 valid_request
                     .os_cpu_check_interval_ms
-                    .unwrap_or(mqtt_broker_conf.system_monitor.os_cpu_check_interval_ms),
+                    .unwrap_or(config.mqtt_system_monitor.os_cpu_check_interval_ms),
             ),
         };
 

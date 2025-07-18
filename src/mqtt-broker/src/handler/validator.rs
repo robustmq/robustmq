@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_config::mqtt::config::BrokerMqttConfig;
+use common_config::config::BrokerConfig;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
@@ -42,14 +42,14 @@ use crate::subscribe::manager::SubscribeManager;
 
 pub fn connect_validator(
     protocol: &MqttProtocol,
-    cluster: &BrokerMqttConfig,
+    cluster: &BrokerConfig,
     connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
     login: &Option<Login>,
 ) -> Option<MqttPacket> {
-    if cluster.security.is_self_protection_status {
+    if cluster.mqtt_security.is_self_protection_status {
         return Some(response_packet_mqtt_connect_fail(
             protocol,
             ConnectReturnCode::ServerBusy,
@@ -343,7 +343,6 @@ pub async fn publish_validator(
 pub async fn subscribe_validator(
     protocol: &MqttProtocol,
     auth_driver: &Arc<AuthDriver>,
-    metadata_cache: &Arc<CacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     connection: &MQTTConnection,
     subscribe: &Subscribe,
@@ -377,7 +376,7 @@ pub async fn subscribe_validator(
         ));
     }
 
-    if !allow_exclusive_subscribe(metadata_cache, subscribe) {
+    if !allow_exclusive_subscribe(subscribe) {
         return Some(response_packet_mqtt_suback(
             protocol,
             connection,
@@ -460,7 +459,7 @@ pub fn is_request_problem_info(connect_properties: &Option<ConnectProperties>) -
 
 pub fn connection_max_packet_size(
     connect_properties: &Option<ConnectProperties>,
-    cluster: &BrokerMqttConfig,
+    cluster: &BrokerConfig,
 ) -> u32 {
     if let Some(properties) = connect_properties {
         if let Some(size) = properties.max_packet_size {

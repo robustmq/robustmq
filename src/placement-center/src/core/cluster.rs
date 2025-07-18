@@ -31,6 +31,7 @@ use protocol::placement_center::placement_center_inner::{
     ClusterType, RegisterNodeReply, RegisterNodeRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
 use std::sync::Arc;
+use tracing::info;
 
 pub async fn register_node_by_req(
     cluster_cache: &Arc<CacheManager>,
@@ -41,7 +42,7 @@ pub async fn register_node_by_req(
     req: RegisterNodeRequest,
 ) -> Result<RegisterNodeReply, PlacementCenterError> {
     let node = serde_json::from_slice::<BrokerNode>(&req.node)?;
-
+    info!("register node:{:?}", node.node_id);
     cluster_cache.report_broker_heart(&node.cluster_name, node.node_id);
     sync_save_node(raft_machine_apply, &node).await?;
 
