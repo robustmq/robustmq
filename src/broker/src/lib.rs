@@ -120,20 +120,21 @@ impl BrokerServer {
             }
         });
 
-        let place_stop_send = None;
-        let mqtt_stop_send = None;
-        let journal_stop_send = None;
+        let mut place_stop_send = None;
+        let mut mqtt_stop_send = None;
+        let mut journal_stop_send = None;
 
         // start placement center
+        let (stop_send, _) = broadcast::channel(2);
+        let place_runtime =
+            create_runtime("place-runtime", self.config.runtime.runtime_worker_threads);
+        let raw_stop_send = stop_send.clone();
         if let Some(params) = self.place_params.clone() {
-            let (stop_send, _) = broadcast::channel(2);
-            let place_runtime =
-                create_runtime("place-runtime", self.config.runtime.runtime_worker_threads);
-            let stop_send = stop_send.clone();
             place_runtime.spawn(async move {
-                let mut pc = PlacementCenterServer::new(params, stop_send);
+                let mut pc = PlacementCenterServer::new(params, raw_stop_send);
                 pc.start().await;
             });
+            place_stop_send = Some(stop_send.clone());
         }
 
         // check placement ready
@@ -141,39 +142,40 @@ impl BrokerServer {
             check_placement_center_status(self.client_pool.clone()).await;
         });
 
+        let (stop_send, _) = broadcast::channel(2);
+        let server_runtime = create_runtime(
+            "journal-runtime",
+            self.config.runtime.runtime_worker_threads,
+        );
+        let daemon_runtime =
+            create_runtime("daemon-runtime", self.config.runtime.runtime_worker_threads);
+
         // start journal server
         if let Some(params) = self.journal_params.clone() {
-            let server_runtime = create_runtime(
-                "journal-runtime",
-                self.config.runtime.runtime_worker_threads,
-            );
-            let daemon_runtime =
-                create_runtime("daemon-runtime", self.config.runtime.runtime_worker_threads);
-
-            let (stop_send, _) = broadcast::channel(2);
             let server =
                 JournalServer::new(params, server_runtime, daemon_runtime, stop_send.clone());
             server.start();
+            journal_stop_send = Some(stop_send.clone());
         }
 
         // start mqtt server
-        if let Some(params) = self.mqtt_params.clone() {
-            let daemon_runtime =
-                create_runtime("daemon-runtime", self.config.runtime.runtime_worker_threads);
-            let admin_runtime =
-                create_runtime("admin-runtime", self.config.runtime.runtime_worker_threads);
-            let connector_runtime = create_runtime(
-                "connector-runtime",
-                self.config.runtime.runtime_worker_threads,
-            );
-            let server_runtime =
-                create_runtime("server-runtime", self.config.runtime.runtime_worker_threads);
-            let subscribe_runtime = create_runtime(
-                "subscribe-runtime",
-                self.config.runtime.runtime_worker_threads,
-            );
+        let daemon_runtime =
+            create_runtime("daemon-runtime", self.config.runtime.runtime_worker_threads);
+        let admin_runtime =
+            create_runtime("admin-runtime", self.config.runtime.runtime_worker_threads);
+        let connector_runtime = create_runtime(
+            "connector-runtime",
+            self.config.runtime.runtime_worker_threads,
+        );
+        let server_runtime =
+            create_runtime("server-runtime", self.config.runtime.runtime_worker_threads);
+        let subscribe_runtime = create_runtime(
+            "subscribe-runtime",
+            self.config.runtime.runtime_worker_threads,
+        );
 
-            let (stop_send, _) = broadcast::channel(2);
+        let (stop_send, _) = broadcast::channel(2);
+        if let Some(params) = self.mqtt_params.clone() {
             let server = MqttBrokerServer::new(
                 daemon_runtime,
                 connector_runtime,
@@ -184,6 +186,7 @@ impl BrokerServer {
                 stop_send.clone(),
             );
             server.start();
+            mqtt_stop_send = Some(stop_send);
         }
 
         // start prometheus
@@ -304,23 +307,23 @@ impl BrokerServer {
                 "When ctrl + c is received, the service starts to stop"
             );
 
-            if let Some(sx) = journal_stop {
+            if let Some(sx) = mqtt_stop {
                 if let Err(e) = sx.send(true) {
-                    error!("{}", e);
+                    error!("mqtt stop signal, error message:{}", e);
                 }
                 sleep(Duration::from_secs(3)).await;
             }
 
-            if let Some(sx) = mqtt_stop {
+            if let Some(sx) = journal_stop {
                 if let Err(e) = sx.send(true) {
-                    error!("{}", e);
+                    error!("journal stop signal, error message{}", e);
                 }
                 sleep(Duration::from_secs(3)).await;
             }
 
             if let Some(sx) = place_stop {
                 if let Err(e) = sx.send(true) {
-                    error!("{}", e);
+                    error!("place stop signal, error message{}", e);
                 }
             }
         });

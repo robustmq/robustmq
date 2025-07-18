@@ -233,14 +233,14 @@ async fn start_call_thread(
             let mut data_recv = node_send.sender.subscribe();
             info!(
                 "Inner communication between Placement Center and Journal Engine node [{:?}].",
-                node
+                node.node_id
             );
             loop {
                 select! {
                     val = raw_stop_rx.recv() =>{
                         if let Ok(flag) = val {
                             if flag {
-                                info!("Inner communication between Placement Center and Journal Engine node [{:?}].",node);
+                                info!("Inner communication between Placement Center and Journal Engine node [{:?}].",node.node_id);
                                 break;
                             }
                         }
