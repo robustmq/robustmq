@@ -175,6 +175,7 @@ impl BrokerServer {
         );
 
         let (stop_send, _) = broadcast::channel(2);
+
         if let Some(params) = self.mqtt_params.clone() {
             let server = MqttBrokerServer::new(
                 daemon_runtime,

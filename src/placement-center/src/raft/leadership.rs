@@ -57,8 +57,8 @@ pub fn monitoring_leader_transition(
                         Ok(_) => {
                             let mm = metrics_rx.borrow().clone();
                             if let Some(current_leader) = mm.current_leader {
+                                info!("Leader transition has occurred. current leader is  {:?}. Previous leader was {:?}.mm id:{}", current_leader, last_leader, mm.id);
                                 if last_leader != Some(current_leader) && mm.id == current_leader {
-                                    info!("Leader transition has occurred. current leader is Node {:?}. Previous leader was Node {:?}.", mm.current_leader, last_leader);
                                     start_controller(
                                         &rocksdb_engine_handler,
                                         &cache_manager,
