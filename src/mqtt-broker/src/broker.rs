@@ -394,14 +394,18 @@ impl MqttBroker {
             if let Err(e) = init_system_user(&self.cache_manager, &self.client_pool).await {
                 panic!("{}", e);
             }
-            load_metadata_cache(
+
+            if let Err(e) = load_metadata_cache(
                 &self.cache_manager,
                 &self.client_pool,
                 &self.auth_driver,
                 &self.connector_manager,
                 &self.schema_manager,
             )
-            .await;
+            .await
+            {
+                panic!("{}", e);
+            }
 
             let config = broker_mqtt_conf();
             info!("config:");
