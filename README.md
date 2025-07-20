@@ -75,7 +75,7 @@ Each layer is independently designed, allowing for rapid horizontal scaling and 
 
 ![image](docs/images/robustmq-architecture.png)
 
-- Placement Center
+- Metadata Service
 
 The metadata storage and scheduling component of the RobustMQ cluster. It is responsible for managing cluster metadata, node registration, configuration storage and distribution, as well as task scheduling. Key responsibilities include cluster node discovery, configuration propagation, and orchestration of cluster-wide behaviors.
 
@@ -95,41 +95,12 @@ Refers to external, independent storage engines such as cloud object storage (e.
 
 RobustMQ MQTT is a full-featured implementation of the MQTT protocol built on the RobustMQ platform. Designed in Rust, it aims to provide a high-performance, enterprise-grade message queuing solution that supports clustered deployment at scale. The long-term vision is to deliver a product that rivals leading enterprise MQTT brokers such as **EMQX** and **HiveMQ**.
 
-![img](docs/images/mqtt-start.png)
-### Features
+![img](docs/images/console-start.png)
 
-1. **Cluster-Ready**
-
-  Supports massive clustered deployments with thousands of Broker nodes and seamless, non-intrusive horizontal scaling.
-
-2. **Full Protocol Coverage**
-
-  Implements all features from MQTT 3.1, 3.1.1, and 5.0 specifications.
-
-3. **High Performance**
-
-  A single instance can handle millions of concurrent connections and extremely high throughput for real-time messaging.
-
-4. **Multi-Transport Support**
-
-Supports a wide range of access protocols including TCP, TCP + SSL, WebSocket, WebSocket + SSL, QUIC, and HTTP.
-
-5. **Pluggable Storage**
-
-Supports offline messaging and multiple persistence engines, allowing flexible storage backend selection based on use case.
-
-6. **Comprehensive Functionality**
-
-Supports critical MQTT features such as Will Messages (testament messages), Retained Messages, and more—all aligned with the MQTT protocol spec.
-
-### Docs
-
-1. [《RobustMQ Quick Start》](https://robustmq.com/QuickGuide/Overview.html)
-2. [《RobsustMQ MQTT Doc》](https://robustmq.com/RobustMQ-MQTT/Overview.html)
-3. [《RobustMQ MQTT Command》](https://robustmq.com/RobustMQ-Command/Mqtt-Broker.html)
-
-### MQTT Web UI
-RobustMQ MQTT has a corresponding console page, and the address is[Robustmq Web UI](https://github.com/robustmq/robustmq-copilot)
+1. [RobustMQ Quick Start](https://robustmq.com/QuickGuide/Overview.html)
+2. [RobsustMQ MQTT Doc](https://robustmq.com/RobustMQ-MQTT/Overview.html)
+3. [RobustMQ MQTT Command](https://robustmq.com/RobustMQ-Command/Mqtt-Broker.html)
+4. [Robustmq Web UI](https://github.com/robustmq/robustmq-copilot)
 
 ![img](docs/images/web-ui.png)
 ## Run Test Cases
