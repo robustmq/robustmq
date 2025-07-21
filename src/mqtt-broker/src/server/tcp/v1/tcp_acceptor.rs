@@ -97,7 +97,15 @@ pub(crate) async fn acceptor_process(
                                 connection_manager.add_connection(connection.clone());
                                 connection_manager.add_tcp_write(connection.connection_id, write_frame_stream);
 
-                                read_frame_process(read_frame_stream,connection, request_channel.clone(), connection_stop_rx, network_type.clone());
+                                info!("acceptor_process => connection_id = {}",connection.connection_id);
+                                read_frame_process(
+                                    read_frame_stream,
+                                    connection.connection_id(),
+                                    connection_manager.clone(),
+                                    request_channel.clone(),
+                                    connection_stop_rx,
+                                    network_type.clone(),
+                                );
                             }
                             Err(e) => {
                                 error!("{} accept failed to create connection with error message :{:?}", network_type, e);
@@ -113,7 +121,8 @@ pub(crate) async fn acceptor_process(
 // spawn connection read thread
 fn read_frame_process(
     mut read_frame_stream: FramedRead<io::ReadHalf<tokio::net::TcpStream>, MqttCodec>,
-    connection: NetworkConnection,
+    connection_id: u64,
+    connection_manager: Arc<ConnectionManager>,
     request_channel: Arc<RequestChannel>,
     mut connection_stop_rx: Receiver<bool>,
     network_type: NetworkConnectionType,
@@ -124,7 +133,7 @@ fn read_frame_process(
                 val = connection_stop_rx.recv() =>{
                     if let Some(flag) = val{
                         if flag {
-                            debug!("{} connection 【{}】 acceptor thread stopped successfully.", network_type, connection.connection_id);
+                            debug!("{} connection 【{}】 acceptor thread stopped successfully.", network_type, connection_id);
                             break;
                         }
                     }
@@ -134,6 +143,7 @@ fn read_frame_process(
                      if let Some(pkg) = package {
                         match pkg {
                             Ok(pack) => {
+                                let connection = connection_manager.get_connect(connection_id).unwrap();
                                 read_packet(pack, &request_channel, &connection, &network_type).await;
                             }
                             Err(e) => {
