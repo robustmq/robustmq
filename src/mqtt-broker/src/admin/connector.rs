@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Queryable};
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::connector::ConnectorStorage;
@@ -24,27 +25,43 @@ use metadata_struct::mqtt::bridge::config_local_file::LocalFileConnectorConfig;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::bridge::connector_type::ConnectorType;
 use metadata_struct::mqtt::bridge::status::MQTTStatus;
-use protocol::broker_mqtt::broker_mqtt_admin;
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    self, ConnectorRaw, ListConnectorReply, ListConnectorRequest,
+};
 use protocol::placement_center::placement_center_mqtt;
 use std::sync::Arc;
 
 // List connectors by request
 pub async fn list_connector_by_req(
     client_pool: &Arc<ClientPool>,
-    request: &broker_mqtt_admin::ListConnectorRequest,
+    request: &ListConnectorRequest,
 ) -> Result<broker_mqtt_admin::ListConnectorReply, MqttBrokerError> {
     let config = broker_mqtt_conf();
-    let request = placement_center_mqtt::ListConnectorRequest {
+    let placement_request = placement_center_mqtt::ListConnectorRequest {
         cluster_name: config.cluster_name.clone(),
         connector_name: request.connector_name.clone(),
     };
 
-    let connectors = placement_list_connector(client_pool, &config.placement_center, request)
-        .await
-        .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?
-        .connectors;
+    let connectors_byte =
+        placement_list_connector(client_pool, &config.placement_center, placement_request)
+            .await
+            .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?
+            .connectors;
+    let mut connectors = Vec::new();
 
-    Ok(broker_mqtt_admin::ListConnectorReply { connectors })
+    for connector_byte in connectors_byte {
+        let restored_connector = MQTTConnector::decode(&connector_byte);
+        connectors.push(ConnectorRaw::from(restored_connector));
+    }
+
+    let filtered = apply_filters(connectors, &request.options);
+    let sorted = apply_sorting(filtered, &request.options);
+    let pagination = apply_pagination(sorted, &request.options);
+
+    Ok(ListConnectorReply {
+        connectors: pagination.0,
+        total_count: pagination.1 as u32,
+    })
 }
 
 // Create a new connector
@@ -76,6 +93,7 @@ pub async fn create_connector_by_req(
 
     Ok(broker_mqtt_admin::CreateConnectorReply {})
 }
+
 // Update an existing connector
 pub async fn update_connector_by_req(
     client_pool: &Arc<ClientPool>,
@@ -130,5 +148,21 @@ fn parse_mqtt_connector_type(connector_type: broker_mqtt_admin::ConnectorType) -
     match connector_type {
         broker_mqtt_admin::ConnectorType::File => ConnectorType::LocalFile,
         broker_mqtt_admin::ConnectorType::Kafka => ConnectorType::Kafka,
+    }
+}
+
+impl Queryable for ConnectorRaw {
+    fn get_field_str(&self, field: &str) -> Option<String> {
+        match field {
+            "connector_name" => Some(self.connector_name.clone()),
+            "status" => Some(self.status.to_string()),
+            "connector_type" => Some(self.connector_type.to_string()),
+            "topic_id" => Some(self.topic_id.clone()),
+            "cluster_name" => Some(self.cluster_name.clone()),
+            "create_time" => Some(self.create_time.to_string()),
+            "update_time" => Some(self.update_time.to_string()),
+            "broker_id" => self.broker_id.map(|id| id.to_string()),
+            _ => None,
+        }
     }
 }

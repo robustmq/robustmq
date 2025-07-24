@@ -4616,7 +4616,7 @@ dependencies = [
 [[package]]
 name = "robustmq-proto-build"
 version = "0.1.0"
-source = "git+https://github.com/robustmq/robustmq-proto.git?branch=main#88b554724d2ed41047a39ac6d183a258df529735"
+source = "git+https://github.com/HeartLinked/robustmq-proto.git?branch=dev_lfy_dashboard#0d5ae618a032d3826b9b163eed283dca5d1418fe"
 dependencies = [
  "prost-build",
  "prost-validate-build",

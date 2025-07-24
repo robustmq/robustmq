@@ -35,7 +35,6 @@ use grpc_clients::mqtt::admin::call::{
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
-use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::schema::SchemaData;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
@@ -1201,8 +1200,8 @@ impl MqttBrokerCommand {
                     "update time",
                 ]);
 
-                for mqtt_connector in data.connectors {
-                    let connector = MQTTConnector::decode(&mqtt_connector);
+                for connector in data.connectors {
+                    // let connector = MQTTConnector::decode(&mqtt_connector);
                     table.add_row(row![
                         connector.cluster_name,
                         connector.connector_name,

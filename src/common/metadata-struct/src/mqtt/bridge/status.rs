@@ -14,6 +14,7 @@
 
 use std::fmt::Display;
 
+use protocol::broker_mqtt::broker_mqtt_admin::MqttStatus as ProtoMQTTStatus;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
@@ -26,5 +27,14 @@ pub enum MQTTStatus {
 impl Display for MQTTStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self:?}")
+    }
+}
+
+impl From<MQTTStatus> for ProtoMQTTStatus {
+    fn from(status: MQTTStatus) -> Self {
+        match status {
+            MQTTStatus::Idle => ProtoMQTTStatus::Idle,
+            MQTTStatus::Running => ProtoMQTTStatus::Running,
+        }
     }
 }
