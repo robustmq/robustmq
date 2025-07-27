@@ -1201,7 +1201,6 @@ impl MqttBrokerCommand {
                 ]);
 
                 for connector in data.connectors {
-                    // let connector = MQTTConnector::decode(&mqtt_connector);
                     table.add_row(row![
                         connector.cluster_name,
                         connector.connector_name,
