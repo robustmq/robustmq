@@ -107,6 +107,7 @@ pub async fn create_blacklist_by_req(
 
     Ok(CreateBlacklistReply {})
 }
+
 impl Queryable for BlacklistRaw {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {

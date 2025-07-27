@@ -694,6 +694,7 @@ pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
     match args.action {
         ConnectorActionType::List(arg) => MqttActionType::ListConnector(ListConnectorRequest {
             connector_name: arg.connector_name,
+            options: None,
         }),
         ConnectorActionType::Create(arg) => {
             MqttActionType::CreateConnector(CreateConnectorRequest {
