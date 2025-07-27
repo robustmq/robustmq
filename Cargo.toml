@@ -177,8 +177,7 @@ metadata-struct = { path = "src/common/metadata-struct" }
 third-driver = { path = "src/common/third-driver" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }
-# robustmq-proto-build = { git = "https://github.com/robustmq/robustmq-proto.git", branch = "main" }
-robustmq-proto-build = { git = "https://github.com/HeartLinked/robustmq-proto.git", branch = "dev_lfy_dashboard" }
+robustmq-proto-build = { git = "https://github.com/robustmq/robustmq-proto.git", branch = "main" }
 pprof-monitor = { path = "src/common/pprof-monitor" }
 sysinfo = "0.29.10"
 chrono = "0.4.41"
