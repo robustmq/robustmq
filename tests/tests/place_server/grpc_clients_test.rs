@@ -14,7 +14,6 @@
 
 #[cfg(test)]
 mod tests {
-    use common_base::error::common::CommonError;
     use common_base::tools::now_second;
     use metadata_struct::journal::shard::JournalShardConfig;
     use metadata_struct::placement::node::BrokerNode;
@@ -27,7 +26,6 @@ mod tests {
     use protocol::placement_center::placement_center_journal::{
         CreateNextSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
     };
-    use tonic::{Code, Status};
 
     use crate::place_server::common::{
         cluster_name, cluster_type, extend_info, namespace, node_id, node_ip, pc_addr, producer_id,

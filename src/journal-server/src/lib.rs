@@ -32,7 +32,6 @@ use server::tcp::server::start_tcp_server;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::runtime::Runtime;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::sleep;
 use tracing::{error, info};
@@ -57,8 +56,6 @@ pub struct JournalServerParams {
 
 pub struct JournalServer {
     config: BrokerConfig,
-    server_runtime: Runtime,
-    daemon_runtime: Runtime,
     client_pool: Arc<ClientPool>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
@@ -69,19 +66,12 @@ pub struct JournalServer {
 }
 
 impl JournalServer {
-    pub fn new(
-        params: JournalServerParams,
-        server_runtime: Runtime,
-        daemon_runtime: Runtime,
-        main_stop: Sender<bool>,
-    ) -> Self {
+    pub fn new(params: JournalServerParams, main_stop: Sender<bool>) -> Self {
         let config = broker_config();
 
         let (inner_stop, _) = broadcast::channel(2);
         JournalServer {
             config: config.clone(),
-            server_runtime,
-            daemon_runtime,
             client_pool: params.client_pool,
             connection_manager: params.connection_manager,
             cache_manager: params.cache_manager,
@@ -92,14 +82,14 @@ impl JournalServer {
         }
     }
 
-    pub fn start(&self) {
-        self.start_tcp_server();
+    pub async fn start(&self) {
+        self.init_node().await;
 
-        self.init_node();
+        self.start_tcp_server();
 
         self.start_daemon_thread();
 
-        self.waiting_stop();
+        self.waiting_stop().await;
     }
 
     fn start_tcp_server(&self) {
@@ -109,7 +99,7 @@ impl JournalServer {
         let inner_stop = self.inner_stop.clone();
         let segment_file_manager = self.segment_file_manager.clone();
         let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
-        self.server_runtime.spawn(async {
+        tokio::spawn(async {
             start_tcp_server(
                 client_pool,
                 connection_manager,
@@ -128,7 +118,7 @@ impl JournalServer {
             (self.client_pool.clone(), self.client_pool.clone());
 
         let cache_manager = self.cache_manager.clone();
-        self.daemon_runtime.spawn(async move {
+        tokio::spawn(async move {
             report_heartbeat(&heartbeat_client_pool, &cache_manager, heartbeat_sx);
 
             report_monitor(monitor_client_pool, monitor_sx)
@@ -139,65 +129,63 @@ impl JournalServer {
             self.client_pool.clone(),
             self.segment_file_manager.clone(),
         );
-        self.daemon_runtime.spawn(async move {
+        tokio::spawn(async move {
             segment_scroll.trigger_segment_scroll().await;
         });
     }
 
-    fn waiting_stop(&self) {
+    async fn waiting_stop(&self) {
         let inner_stop = self.inner_stop.clone();
         let client_pool = self.client_pool.clone();
         let cache_manager = self.cache_manager.clone();
         let mut recv = self.main_stop.subscribe();
-        self.daemon_runtime.spawn(async move {
-            match recv.recv().await {
-                Ok(_) => {
-                    if inner_stop.send(true).is_ok() {
-                        JournalServer::stop_server(cache_manager, client_pool).await;
-                    }
-                }
-                Err(e) => {
-                    error!("{}", e)
+
+        match recv.recv().await {
+            Ok(_) => {
+                info!("Journal has stopped.");
+                if inner_stop.send(true).is_ok() {
+                    JournalServer::stop_server(cache_manager, client_pool).await;
                 }
             }
-        });
+            Err(e) => {
+                error!("{}", e)
+            }
+        }
     }
 
-    fn init_node(&self) {
-        self.daemon_runtime.block_on(async move {
-            // todo
-            self.cache_manager.init_cluster();
+    async fn init_node(&self) {
+        // todo
+        self.cache_manager.init_cluster();
 
-            load_metadata_cache(&self.cache_manager, &self.client_pool).await;
+        load_metadata_cache(&self.cache_manager, &self.client_pool).await;
 
-            for path in self.config.journal_storage.data_path.clone() {
-                let path = Path::new(&path);
-                match load_local_segment_cache(
-                    path,
-                    &self.rocksdb_engine_handler,
-                    &self.segment_file_manager,
-                    &self.config.journal_storage.data_path,
-                ) {
-                    Ok(()) => {}
-                    Err(e) => {
-                        panic!("{}", e);
-                    }
-                }
-            }
-
-            metadata_and_local_segment_diff_check();
-
-            // todo
-            sleep(Duration::from_secs(1)).await;
-            match register_journal_node(&self.client_pool, &self.cache_manager).await {
+        for path in self.config.journal_storage.data_path.clone() {
+            let path = Path::new(&path);
+            match load_local_segment_cache(
+                path,
+                &self.rocksdb_engine_handler,
+                &self.segment_file_manager,
+                &self.config.journal_storage.data_path,
+            ) {
                 Ok(()) => {}
                 Err(e) => {
                     panic!("{}", e);
                 }
             }
+        }
 
-            info!("Journal Node was initialized successfully");
-        });
+        metadata_and_local_segment_diff_check();
+
+        // todo
+        sleep(Duration::from_secs(1)).await;
+        match register_journal_node(&self.client_pool, &self.cache_manager).await {
+            Ok(()) => {}
+            Err(e) => {
+                panic!("{}", e);
+            }
+        }
+
+        info!("Journal Node was initialized successfully");
     }
 
     async fn stop_server(cache_manager: Arc<CacheManager>, client_pool: Arc<ClientPool>) {

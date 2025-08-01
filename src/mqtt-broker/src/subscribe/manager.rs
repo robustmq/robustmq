@@ -501,9 +501,7 @@ mod tests {
         };
         subscribe_manager.add_share_subscribe_leader("queue_", sub.clone());
         assert_eq!(subscribe_manager.share_leader_push.len(), 1);
-
         subscribe_manager.remove_share_subscribe_leader_by_client_id(&sub.client_id);
-        println!("{:?}", subscribe_manager.share_leader_push);
         assert_eq!(subscribe_manager.share_leader_push.len(), 0);
     }
 

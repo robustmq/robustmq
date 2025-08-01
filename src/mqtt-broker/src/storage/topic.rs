@@ -102,31 +102,17 @@ impl TopicStorage {
             topic_name: topic_name.to_owned(),
         };
 
-        println!("f1");
-        println!("{:?}",config.get_placement_center_addr());
-        println!("{:?}",request);
-        let mut data_stream = match placement_list_topic(
+        let mut data_stream = placement_list_topic(
             &self.client_pool,
             &config.get_placement_center_addr(),
             request,
         )
-        .await{
-            Ok(da) => {
-                  println!("vvvvv");
-                da
-            },
-            Err(e) => {
-                println!("fsdfsdfa");
-                println!("{:?}",e.to_string());
-                return Ok(None);
-            }
-        };
-        println!("f2");
+        .await?;
         if let Some(data) = data_stream.message().await? {
             let topic = serde_json::from_slice::<MQTTTopic>(data.topic.as_slice())?;
             return Ok(Some(topic));
         }
-        
+
         Ok(None)
     }
 

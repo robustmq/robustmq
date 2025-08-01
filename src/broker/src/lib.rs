@@ -153,62 +153,34 @@ impl BrokerServer {
             check_placement_center_status(self.client_pool.clone()).await;
         });
 
-        // // start journal server
-        // let (stop_send, _) = broadcast::channel(2);
-        // let journal_runtime = create_runtime(
-        //     "journal-runtime",
-        //     self.config.runtime.runtime_worker_threads,
-        // );
-        // let daemon_runtime = create_runtime(
-        //     "journal-daemon-runtime",
-        //     self.config.runtime.runtime_worker_threads,
-        // );
-        // if let Some(params) = self.journal_params.clone() {
-        //     let server =
-        //         JournalServer::new(params, journal_runtime, daemon_runtime, stop_send.clone());
-        //     server.start();
-        //     journal_stop_send = Some(stop_send.clone());
-        // }
+        // start journal server
+        let (stop_send, _) = broadcast::channel(2);
+        let journal_runtime = create_runtime(
+            "journal-runtime",
+            self.config.runtime.runtime_worker_threads,
+        );
+        if let Some(params) = self.journal_params.clone() {
+            journal_stop_send = Some(stop_send.clone());
+            let server = JournalServer::new(params, stop_send.clone());
+            journal_runtime.spawn(async move {
+                server.start().await;
+            });
+        }
 
         // check journal ready
         //todo
 
         // start mqtt server
-        // let daemon_runtime = create_runtime(
-        //     "broker-daemon-runtime",
-        //     self.config.runtime.runtime_worker_threads,
-        // );
-        // let admin_runtime = create_runtime(
-        //     "broker-admin-runtime",
-        //     self.config.runtime.runtime_worker_threads,
-        // );
-        // let connector_runtime = create_runtime(
-        //     "broker-connector-runtime",
-        //     self.config.runtime.runtime_worker_threads,
-        // );
-        // let server_runtime = create_runtime(
-        //     "broker-server-runtime",
-        //     self.config.runtime.runtime_worker_threads,
-        // );
-        // let subscribe_runtime = create_runtime(
-        //     "broker-subscribe-runtime",
-        //     self.config.runtime.runtime_worker_threads,
-        // );
-
-        // let (stop_send, _) = broadcast::channel(2);
-        // if let Some(params) = self.mqtt_params.clone() {
-        //     mqtt_stop_send = Some(stop_send.clone());
-        //     let server = MqttBrokerServer::new(
-        //         daemon_runtime,
-        //         connector_runtime,
-        //         server_runtime,
-        //         subscribe_runtime,
-        //         admin_runtime,
-        //         params,
-        //         stop_send,
-        //     );
-        //     server.start();
-        // }
+        let (stop_send, _) = broadcast::channel(2);
+        let mqtt_runtime =
+            create_runtime("mqtt-runtime", self.config.runtime.runtime_worker_threads);
+        if let Some(params) = self.mqtt_params.clone() {
+            mqtt_stop_send = Some(stop_send.clone());
+            let server = MqttBrokerServer::new(params, stop_send);
+            mqtt_runtime.spawn(async move {
+                server.start().await;
+            });
+        }
 
         // awaiting stop
         self.awaiting_stop(place_stop_send, mqtt_stop_send, journal_stop_send);
@@ -339,7 +311,7 @@ impl BrokerServer {
                     error!("place stop signal, error message{}", e);
                 }
             }
-            sleep(Duration::from_secs(10));
+            sleep(Duration::from_secs(3));
         });
     }
 }

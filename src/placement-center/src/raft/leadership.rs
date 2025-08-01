@@ -45,49 +45,48 @@ pub fn monitoring_leader_transition(
         let (controller_stop_recv, _) = broadcast::channel::<bool>(2);
         loop {
             select! {
-                val = stop_recv.recv() => {
-                    if let Ok(flag) = val {
-                        if flag {
-                            break;
-                        }
-                    }
-                }
-
-                val =  metrics_rx.changed() => {
-                    match val {
-                        Ok(_) => {
-                            let mm = metrics_rx.borrow().clone();
-                            if let Some(current_leader) = mm.current_leader {
-                                if last_leader != Some(current_leader)  {
-                                    if mm.id == current_leader{
-                                        info!("Leader transition has occurred. current leader is  {:?}. Previous leader was {:?}.mm id:{}", current_leader, last_leader, mm.id);
-                                        start_controller(
-                                            &rocksdb_engine_handler,
-                                            &cache_manager,
-                                            &client_pool,
-                                            &raft_machine_apply,
-                                            controller_stop_recv.clone(),
-                                        );
-                                        controller_running = true;
-                                    } else if controller_running {
-                                        stop_controller(controller_stop_recv.clone());
-                                        controller_running = false
-                                    }
-
-                                    last_leader = Some(current_leader);
-                                }
-                            }
-                        }
-
-                        Err(changed_err) => {
-                            error!("Error while watching metrics_rx: {}; quitting monitoring_leader_transition() loop",changed_err);}
-                        }
+            val = stop_recv.recv() => {
+                if let Ok(flag) = val {
+                    if flag {
+                        break;
                     }
                 }
             }
-            sleep(Duration::from_secs(1)).await;
+
+            val =  metrics_rx.changed() => {
+                match val {
+                    Ok(_) => {
+                        let mm = metrics_rx.borrow().clone();
+                        if let Some(current_leader) = mm.current_leader {
+                            if last_leader != Some(current_leader)  {
+                                if mm.id == current_leader{
+                                    info!("Leader transition has occurred. current leader is  {:?}. Previous leader was {:?}.mm id:{}", current_leader, last_leader, mm.id);
+                                    start_controller(
+                                        &rocksdb_engine_handler,
+                                        &cache_manager,
+                                        &client_pool,
+                                        &raft_machine_apply,
+                                        controller_stop_recv.clone(),
+                                    );
+                                    controller_running = true;
+                                } else if controller_running {
+                                    stop_controller(controller_stop_recv.clone());
+                                    controller_running = false
+                                }
+
+                                last_leader = Some(current_leader);
+                            }
+                        }
+                    }
+
+                    Err(changed_err) => {
+                        error!("Error while watching metrics_rx: {}; quitting monitoring_leader_transition() loop",changed_err);}
+                    }
+                }
+            }
         }
-    );
+        sleep(Duration::from_secs(1)).await;
+    });
 }
 
 pub fn start_controller(

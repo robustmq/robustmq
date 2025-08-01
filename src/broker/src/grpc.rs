@@ -30,6 +30,8 @@ use placement_center::server::service_raft::GrpcOpenRaftServices;
 use placement_center::PlacementCenterServerParams;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminServiceServer;
 use protocol::broker_mqtt::broker_mqtt_inner::mqtt_broker_inner_service_server::MqttBrokerInnerServiceServer;
+use protocol::journal_server::journal_admin::journal_server_admin_service_server::JournalServerAdminServiceServer;
+use protocol::journal_server::journal_inner::journal_server_inner_service_server::JournalServerInnerServiceServer;
 // use protocol::journal_server::journal_admin::journal_server_admin_service_server::JournalServerAdminServiceServer;
 // use protocol::journal_server::journal_inner::journal_server_inner_service_server::JournalServerInnerServiceServer;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterServiceServer;
@@ -46,7 +48,7 @@ use tracing::info;
 pub async fn start_grpc_server(
     place_params: Option<PlacementCenterServerParams>,
     mqtt_params: Option<MqttBrokerServerParams>,
-    _journal_params: Option<JournalServerParams>,
+    journal_params: Option<JournalServerParams>,
     grpc_port: u32,
 ) -> Result<(), CommonError> {
     let ip = format!("0.0.0.0:{}", grpc_port).parse()?;
@@ -59,6 +61,7 @@ pub async fn start_grpc_server(
     info!("Broker Grpc Server start success. addr:{}", ip);
     let m_params = place_params.unwrap();
     let b_params = mqtt_params.unwrap();
+    let j_params = journal_params.unwrap();
     Server::builder()
         .accept_http1(true)
         .layer(cors_layer)
@@ -92,12 +95,19 @@ pub async fn start_grpc_server(
             MqttBrokerAdminServiceServer::new(get_mqtt_admin_handler(&b_params))
                 .max_decoding_message_size(grpc_max_decoding_message_size),
         )
+        .add_service(
+            JournalServerAdminServiceServer::new(get_journal_admin_handler(&j_params))
+                .max_decoding_message_size(grpc_max_decoding_message_size),
+        )
+        .add_service(
+            JournalServerInnerServiceServer::new(get_journal_inner_handler(&j_params))
+                .max_decoding_message_size(grpc_max_decoding_message_size),
+        )
         .serve(ip)
         .await?;
 
     Ok(())
 }
-
 
 fn get_place_inner_handler(place_params: &PlacementCenterServerParams) -> GrpcPlacementService {
     GrpcPlacementService::new(
@@ -162,11 +172,11 @@ fn get_mqtt_admin_handler(mqtt_params: &MqttBrokerServerParams) -> GrpcAdminServ
     )
 }
 
-fn _get_journal_admin_handler(params: &JournalServerParams) -> GrpcJournalServerAdminService {
+fn get_journal_admin_handler(params: &JournalServerParams) -> GrpcJournalServerAdminService {
     GrpcJournalServerAdminService::new(params.cache_manager.clone())
 }
 
-fn _get_journal_inner_handler(params: &JournalServerParams) -> GrpcJournalServerInnerService {
+fn get_journal_inner_handler(params: &JournalServerParams) -> GrpcJournalServerInnerService {
     GrpcJournalServerInnerService::new(
         params.cache_manager.clone(),
         params.segment_file_manager.clone(),

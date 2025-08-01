@@ -18,7 +18,7 @@ pub mod blacklist;
 pub mod cluster;
 pub mod connector;
 pub mod message;
+pub mod schema;
 pub mod session;
 pub mod topic;
 pub mod user;
-pub mod schema;
