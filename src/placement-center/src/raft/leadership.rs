@@ -77,16 +77,17 @@ pub fn monitoring_leader_transition(
                                     last_leader = Some(current_leader);
                                 }
                             }
-                            sleep(Duration::from_secs(1)).await;
                         }
 
                         Err(changed_err) => {
-                            info!("Error while watching metrics_rx: {}; quitting monitoring_leader_transition() loop",changed_err);}
+                            error!("Error while watching metrics_rx: {}; quitting monitoring_leader_transition() loop",changed_err);}
                         }
                     }
+                }
             }
+            sleep(Duration::from_secs(1)).await;
         }
-    });
+    );
 }
 
 pub fn start_controller(
