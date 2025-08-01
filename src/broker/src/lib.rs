@@ -130,7 +130,7 @@ impl BrokerServer {
         }
 
         // check grpc service ready
-        sleep(Duration::from_secs(1));
+        sleep(Duration::from_secs(3));
 
         let mut place_stop_send = None;
         let mut mqtt_stop_send = None;
@@ -168,6 +168,7 @@ impl BrokerServer {
         }
 
         // check journal ready
+        sleep(Duration::from_secs(3));
         //todo
 
         // start mqtt server

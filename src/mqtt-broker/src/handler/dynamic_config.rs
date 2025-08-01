@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::sync::Arc;
-
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;

@@ -46,7 +46,6 @@ use protocol::placement_center::placement_center_inner::{
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
-use tracing::info;
 
 pub struct GrpcPlacementService {
     raft_machine_apply: Arc<StorageDriver>,
@@ -132,7 +131,6 @@ impl PlacementCenterService for GrpcPlacementService {
         req.validate()
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
-        info!("unregister node:{:?}", req.node_id);
         un_register_node_by_req(
             &self.cluster_cache,
             &self.raft_machine_apply,

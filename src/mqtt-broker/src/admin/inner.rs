@@ -62,6 +62,7 @@ pub async fn delete_session_by_req(
         "Received request from Placement center to delete expired Session. Cluster name :{}, clientId: {:?}",
         req.cluster_name, req.client_id
     );
+    
     if cache_manager.cluster_name != req.cluster_name {
         return Err(MqttBrokerError::ClusterNotMatch(req.cluster_name.clone()));
     }
