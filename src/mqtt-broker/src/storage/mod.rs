@@ -21,3 +21,4 @@ pub mod message;
 pub mod session;
 pub mod topic;
 pub mod user;
+pub mod schema;

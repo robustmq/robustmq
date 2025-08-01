@@ -27,7 +27,7 @@ use raft::leadership::monitoring_leader_transition;
 use std::sync::Arc;
 use storage::rocksdb::RocksDBEngine;
 use tokio::sync::broadcast;
-use tracing::error;
+use tracing::{error, info};
 
 pub mod controller;
 pub mod core;
@@ -97,7 +97,7 @@ impl PlacementCenterServer {
 
         self.start_journal_controller();
 
-        self.awaiting_stop();
+        self.awaiting_stop().await;
     }
 
     pub fn start_heartbeat(&self) {
@@ -173,27 +173,26 @@ impl PlacementCenterServer {
         }
     }
 
-    pub fn awaiting_stop(&self) {
+    pub async fn awaiting_stop(&self) {
         let main_stop = self.main_stop.clone();
         let raw_raf_node = self.raf_node.clone();
         let inner_stop = self.inner_stop.clone();
-        tokio::spawn(async move {
-            // Stop the Server first, indicating that it will no longer receive request packets.
-            let mut recv = main_stop.subscribe();
-            match recv.recv().await {
-                Ok(_) => {
-                    if let Err(e) = raw_raf_node.shutdown().await {
-                        error!("{}", e);
-                    }
-
-                    if let Err(e) = inner_stop.send(true) {
-                        error!("{}", e);
-                    }
+        // Stop the Server first, indicating that it will no longer receive request packets.
+        let mut recv = main_stop.subscribe();
+        match recv.recv().await {
+            Ok(_) => {
+                info!("Meta service has stopped.");
+                if let Err(e) = raw_raf_node.shutdown().await {
+                    error!("{}", e);
                 }
-                Err(e) => {
+
+                if let Err(e) = inner_stop.send(true) {
                     error!("{}", e);
                 }
             }
-        });
+            Err(e) => {
+                error!("{}", e);
+            }
+        }
     }
 }

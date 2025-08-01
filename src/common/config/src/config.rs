@@ -121,16 +121,16 @@ impl BrokerConfig {
             .collect()
     }
 
-    pub fn is_start_place(&self) -> bool {
-        self.roles.contains(&"place".to_string())
+    pub fn is_start_meta(&self) -> bool {
+        self.roles.contains(&"meta".to_string())
     }
 
     pub fn is_start_journal(&self) -> bool {
         self.roles.contains(&"journal".to_string())
     }
 
-    pub fn is_start_mqtt_broker(&self) -> bool {
-        self.roles.contains(&"mqtt".to_string())
+    pub fn is_start_broker(&self) -> bool {
+        self.roles.contains(&"broker".to_string())
     }
 }
 

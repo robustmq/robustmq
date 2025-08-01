@@ -21,10 +21,11 @@ use crate::{
 use grpc_clients::pool::ClientPool;
 use openraft::Raft;
 use rocksdb_engine::RocksDBEngine;
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 use tokio::{
     select,
     sync::broadcast::{self, Sender},
+    time::sleep,
 };
 use tracing::{error, info};
 
@@ -57,26 +58,30 @@ pub fn monitoring_leader_transition(
                         Ok(_) => {
                             let mm = metrics_rx.borrow().clone();
                             if let Some(current_leader) = mm.current_leader {
-                                if last_leader != Some(current_leader) && mm.id == current_leader {
-                                    info!("Leader transition has occurred. current leader is  {:?}. Previous leader was {:?}.mm id:{}", current_leader, last_leader, mm.id);
-                                    start_controller(
-                                        &rocksdb_engine_handler,
-                                        &cache_manager,
-                                        &client_pool,
-                                        &raft_machine_apply,
-                                        controller_stop_recv.clone(),
-                                    );
-                                    controller_running = true;
-                                } else if controller_running {
-                                    stop_controller(controller_stop_recv.clone());
-                                    controller_running = false
+                                if last_leader != Some(current_leader)  {
+                                    if mm.id == current_leader{
+                                        info!("Leader transition has occurred. current leader is  {:?}. Previous leader was {:?}.mm id:{}", current_leader, last_leader, mm.id);
+                                        start_controller(
+                                            &rocksdb_engine_handler,
+                                            &cache_manager,
+                                            &client_pool,
+                                            &raft_machine_apply,
+                                            controller_stop_recv.clone(),
+                                        );
+                                        controller_running = true;
+                                    } else if controller_running {
+                                        stop_controller(controller_stop_recv.clone());
+                                        controller_running = false
+                                    }
+
+                                    last_leader = Some(current_leader);
                                 }
-                                last_leader = Some(current_leader);
                             }
+                            sleep(Duration::from_secs(1)).await;
                         }
 
                         Err(changed_err) => {
-                            error!("Error while watching metrics_rx: {}; quitting monitoring_leader_transition() loop",changed_err);}
+                            info!("Error while watching metrics_rx: {}; quitting monitoring_leader_transition() loop",changed_err);}
                         }
                     }
             }

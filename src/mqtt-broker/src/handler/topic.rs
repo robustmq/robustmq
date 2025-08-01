@@ -147,6 +147,7 @@ pub async fn try_init_topic(
     client_pool: &Arc<ClientPool>,
 ) -> Result<MQTTTopic, MqttBrokerError> {
     let topic = if let Some(tp) = metadata_cache.get_topic_by_name(topic_name) {
+        println!("000000");
         tp
     } else {
         let namespace = cluster_name();
@@ -162,19 +163,25 @@ pub async fn try_init_topic(
             topic_storage.save_topic(topic.clone()).await?;
             topic
         };
+
+        println!("h11111888");
         metadata_cache.add_topic(topic_name, &topic);
 
+        println!("h22");
         // Create the resource object of the storage layer
         let list = message_storage_adapter
             .list_shard(namespace.clone(), topic_name.to_owned())
             .await?;
+        println!("h2233");
         if list.is_empty() {
             let shard = ShardInfo {
                 namespace: namespace.clone(),
                 shard_name: topic_name.to_owned(),
                 replica_num: 1,
             };
+            println!("h22099");
             message_storage_adapter.create_shard(shard).await?;
+            println!("h22533");
         }
         return Ok(topic);
     };

@@ -47,8 +47,8 @@ use placement_center::{
     PlacementCenterServer, PlacementCenterServerParams,
 };
 use schema_register::schema::SchemaRegisterManager;
-use std::{sync::Arc, time::Duration};
-use tokio::{runtime::Runtime, signal, sync::broadcast, time::sleep};
+use std::{sync::Arc, thread::sleep, time::Duration};
+use tokio::{runtime::Runtime, signal, sync::broadcast};
 use tracing::{error, info};
 
 pub mod common;
@@ -77,14 +77,14 @@ impl BrokerServer {
         let main_runtime = create_runtime("init_runtime", config.runtime.runtime_worker_threads);
         let mut place_params = None;
 
-        if config.is_start_place() {
+        if config.is_start_meta() {
             main_runtime.block_on(async {
                 place_params =
                     Some(BrokerServer::build_placement_center(client_pool.clone()).await);
             });
         }
 
-        let mqtt_params = if config.is_start_mqtt_broker() {
+        let mqtt_params = if config.is_start_broker() {
             Some(BrokerServer::build_mqtt_server(client_pool.clone()))
         } else {
             None
@@ -110,15 +110,27 @@ impl BrokerServer {
         let place_params = self.place_params.clone();
         let mqtt_params = self.mqtt_params.clone();
         let journal_params = self.journal_params.clone();
-        let config = self.config.clone();
-        let runtime = create_runtime("grpc-runtime", self.config.runtime.runtime_worker_threads);
-        runtime.spawn(async move {
+        let server_runtime =
+            create_runtime("server-runtime", self.config.runtime.runtime_worker_threads);
+        let grpc_port = self.config.grpc_port;
+        server_runtime.spawn(async move {
             if let Err(e) =
-                start_grpc_server(place_params, mqtt_params, journal_params, config.grpc_port).await
+                start_grpc_server(place_params, mqtt_params, journal_params, grpc_port).await
             {
                 panic!("{e}")
             }
         });
+
+        // start prometheus
+        let prometheus_port = self.config.prometheus.port;
+        if self.config.prometheus.enable {
+            server_runtime.spawn(async move {
+                register_prometheus_export(prometheus_port).await;
+            });
+        }
+
+        // check grpc service ready
+        sleep(Duration::from_secs(1));
 
         let mut place_stop_send = None;
         let mut mqtt_stop_send = None;
@@ -128,13 +140,12 @@ impl BrokerServer {
         let (stop_send, _) = broadcast::channel(2);
         let place_runtime =
             create_runtime("place-runtime", self.config.runtime.runtime_worker_threads);
-        let raw_stop_send = stop_send.clone();
         if let Some(params) = self.place_params.clone() {
+            place_stop_send = Some(stop_send.clone());
             place_runtime.spawn(async move {
-                let mut pc = PlacementCenterServer::new(params, raw_stop_send);
+                let mut pc = PlacementCenterServer::new(params, stop_send.clone());
                 pc.start().await;
             });
-            place_stop_send = Some(stop_send.clone());
         }
 
         // check placement ready
@@ -142,61 +153,62 @@ impl BrokerServer {
             check_placement_center_status(self.client_pool.clone()).await;
         });
 
-        let (stop_send, _) = broadcast::channel(2);
-        let server_runtime = create_runtime(
-            "journal-runtime",
-            self.config.runtime.runtime_worker_threads,
-        );
-        let daemon_runtime =
-            create_runtime("daemon-runtime", self.config.runtime.runtime_worker_threads);
+        // // start journal server
+        // let (stop_send, _) = broadcast::channel(2);
+        // let journal_runtime = create_runtime(
+        //     "journal-runtime",
+        //     self.config.runtime.runtime_worker_threads,
+        // );
+        // let daemon_runtime = create_runtime(
+        //     "journal-daemon-runtime",
+        //     self.config.runtime.runtime_worker_threads,
+        // );
+        // if let Some(params) = self.journal_params.clone() {
+        //     let server =
+        //         JournalServer::new(params, journal_runtime, daemon_runtime, stop_send.clone());
+        //     server.start();
+        //     journal_stop_send = Some(stop_send.clone());
+        // }
 
-        // start journal server
-        if let Some(params) = self.journal_params.clone() {
-            let server =
-                JournalServer::new(params, server_runtime, daemon_runtime, stop_send.clone());
-            server.start();
-            journal_stop_send = Some(stop_send.clone());
-        }
+        // check journal ready
+        //todo
 
         // start mqtt server
-        let daemon_runtime =
-            create_runtime("daemon-runtime", self.config.runtime.runtime_worker_threads);
-        let admin_runtime =
-            create_runtime("admin-runtime", self.config.runtime.runtime_worker_threads);
-        let connector_runtime = create_runtime(
-            "connector-runtime",
-            self.config.runtime.runtime_worker_threads,
-        );
-        let server_runtime =
-            create_runtime("server-runtime", self.config.runtime.runtime_worker_threads);
-        let subscribe_runtime = create_runtime(
-            "subscribe-runtime",
-            self.config.runtime.runtime_worker_threads,
-        );
+        // let daemon_runtime = create_runtime(
+        //     "broker-daemon-runtime",
+        //     self.config.runtime.runtime_worker_threads,
+        // );
+        // let admin_runtime = create_runtime(
+        //     "broker-admin-runtime",
+        //     self.config.runtime.runtime_worker_threads,
+        // );
+        // let connector_runtime = create_runtime(
+        //     "broker-connector-runtime",
+        //     self.config.runtime.runtime_worker_threads,
+        // );
+        // let server_runtime = create_runtime(
+        //     "broker-server-runtime",
+        //     self.config.runtime.runtime_worker_threads,
+        // );
+        // let subscribe_runtime = create_runtime(
+        //     "broker-subscribe-runtime",
+        //     self.config.runtime.runtime_worker_threads,
+        // );
 
-        let (stop_send, _) = broadcast::channel(2);
-
-        if let Some(params) = self.mqtt_params.clone() {
-            let server = MqttBrokerServer::new(
-                daemon_runtime,
-                connector_runtime,
-                server_runtime,
-                subscribe_runtime,
-                admin_runtime,
-                params,
-                stop_send.clone(),
-            );
-            server.start();
-            mqtt_stop_send = Some(stop_send);
-        }
-
-        // start prometheus
-        let prometheus_port = self.config.prometheus.port;
-        if self.config.prometheus.enable {
-            runtime.spawn(async move {
-                register_prometheus_export(prometheus_port).await;
-            });
-        }
+        // let (stop_send, _) = broadcast::channel(2);
+        // if let Some(params) = self.mqtt_params.clone() {
+        //     mqtt_stop_send = Some(stop_send.clone());
+        //     let server = MqttBrokerServer::new(
+        //         daemon_runtime,
+        //         connector_runtime,
+        //         server_runtime,
+        //         subscribe_runtime,
+        //         admin_runtime,
+        //         params,
+        //         stop_send,
+        //     );
+        //     server.start();
+        // }
 
         // awaiting stop
         self.awaiting_stop(place_stop_send, mqtt_stop_send, journal_stop_send);
@@ -312,14 +324,14 @@ impl BrokerServer {
                 if let Err(e) = sx.send(true) {
                     error!("mqtt stop signal, error message:{}", e);
                 }
-                sleep(Duration::from_secs(3)).await;
+                sleep(Duration::from_secs(3));
             }
 
             if let Some(sx) = journal_stop {
                 if let Err(e) = sx.send(true) {
                     error!("journal stop signal, error message{}", e);
                 }
-                sleep(Duration::from_secs(3)).await;
+                sleep(Duration::from_secs(3));
             }
 
             if let Some(sx) = place_stop {
@@ -327,6 +339,7 @@ impl BrokerServer {
                     error!("place stop signal, error message{}", e);
                 }
             }
+            sleep(Duration::from_secs(10));
         });
     }
 }

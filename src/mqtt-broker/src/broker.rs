@@ -130,17 +130,17 @@ impl MqttBrokerServer {
     }
 
     pub fn start(&self) {
-        self.start_init();
+        // self.start_init();
 
-        self.start_daemon_thread();
+        // self.start_daemon_thread();
 
-        self.start_delay_message_thread();
+        // self.start_delay_message_thread();
 
-        self.start_connector_thread();
+        // self.start_connector_thread();
 
-        self.start_subscribe_push();
+        // self.start_subscribe_push();
 
-        self.start_server();
+        // self.start_server();
 
         self.awaiting_stop();
     }
@@ -359,27 +359,34 @@ impl MqttBrokerServer {
     }
 
     fn start_init(&self) {
+        let client_pool = self.client_pool.clone();
+        let cache_manager = self.cache_manager.clone();
+        let connector_manager = self.connector_manager.clone();
+        let schema_manager = self.schema_manager.clone();
+        let auth_driver = self.auth_driver.clone();
         self.daemon_runtime.block_on(async move {
-            if let Err(e) = init_system_user(&self.cache_manager, &self.client_pool).await {
+            if let Err(e) = init_system_user(&cache_manager, &client_pool).await {
                 panic!("{}", e);
             }
-            load_metadata_cache(
-                &self.cache_manager,
-                &self.client_pool,
-                &self.auth_driver,
-                &self.connector_manager,
-                &self.schema_manager,
-            )
-            .await;
-        });
-    }
 
-    pub fn awaiting_stop(&self) {
+            if let Err(e) = load_metadata_cache(
+                &cache_manager,
+                &client_pool,
+                &auth_driver,
+                &connector_manager,
+                &schema_manager,
+            )
+            .await
+            {
+                panic!("{}", e);
+            }
+        });
+
         // register node
         let client_pool = self.client_pool.clone();
         let cache_manager = self.cache_manager.clone();
         let raw_stop_send = self.inner_stop.clone();
-        self.daemon_runtime.spawn(async move {
+        self.admin_runtime.spawn(async move {
             // register node
             let config = broker_config();
             match register_node(&client_pool, &cache_manager).await {
@@ -395,25 +402,27 @@ impl MqttBrokerServer {
                     info!("Node {} has been successfully registered", config.broker_id);
                 }
                 Err(e) => {
-                    panic!("{}", e);
+                    error!("Node registration failed. Error message:{}", e);
                 }
             }
-            sleep(Duration::from_millis(10)).await;
-            info!("MQTT Broker service started successfully...");
         });
+    }
 
+    pub fn awaiting_stop(&self) {
         // Wait for the stop signal
         let client_pool = self.client_pool.clone();
         let server = self.server.clone();
         let delay_message_manager = self.delay_message_manager.clone();
         let connection_manager = self.connection_manager.clone();
-        let raw_main_stop = self.main_stop.clone();
+        let mut recv = self.main_stop.subscribe();
         let raw_inner_stop = self.inner_stop.clone();
-        self.daemon_runtime.spawn(async move {
+        println!("1");
+        self.admin_runtime.spawn(async move {
             // Stop the Server first, indicating that it will no longer receive request packets.
-            let mut recv = raw_main_stop.subscribe();
+            println!("2");
             match recv.recv().await {
                 Ok(_) => {
+                    info!("Broker has stopped.");
                     server.stop().await;
                     match raw_inner_stop.send(true) {
                         Ok(_) => {
@@ -435,12 +444,11 @@ impl MqttBrokerServer {
                     }
                 }
                 Err(e) => {
-                    error!("{}", e);
+                    error!("recv error {}", e);
                 }
             }
+            println!("3");
         });
-
-        // todo tokio runtime shutdown
     }
 
     async fn stop_server(

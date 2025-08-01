@@ -106,14 +106,12 @@ impl ClusterStorage {
         let req = RegisterNodeRequest {
             node: node.encode(),
         };
-
         register_node(
             &self.client_pool,
             &config.get_placement_center_addr(),
             req.clone(),
         )
         .await?;
-
         Ok(node)
     }
 

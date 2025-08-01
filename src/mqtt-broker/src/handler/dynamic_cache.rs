@@ -17,9 +17,9 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::handler::dynamic_config::{update_cluster_dynamic_config, ClusterDynamicConfig};
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
 use crate::storage::connector::ConnectorStorage;
+use crate::storage::schema::SchemaStorage;
 use crate::storage::topic::TopicStorage;
 use crate::{security::AuthDriver, subscribe::manager::SubscribeManager};
-
 use common_config::broker::broker_config;
 use grpc_clients::placement::inner::call::list_schema;
 use grpc_clients::pool::ClientPool;
@@ -34,7 +34,6 @@ use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use protocol::broker_mqtt::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateMqttCacheRequest,
 };
-use protocol::placement_center::placement_center_inner::ListSchemaRequest;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use tracing::{error, info};
@@ -48,123 +47,77 @@ pub async fn load_metadata_cache(
     auth_driver: &Arc<AuthDriver>,
     connector_manager: &Arc<ConnectorManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
-) {
+) -> ResultMqttBrokerError {
     // load cluster config
-    let cluster = match build_cluster_config(client_pool).await {
-        Ok(cluster) => cluster,
-        Err(e) => {
-            panic!("Failed to load the cluster configuration with error message:{e}");
-        }
-    };
+    let cluster = build_cluster_config(client_pool).await?;
     cache_manager.set_cluster_config(cluster);
 
     // load all topic
     let topic_storage = TopicStorage::new(client_pool.clone());
-    let topic_list = match topic_storage.all().await {
-        Ok(list) => list,
-        Err(e) => {
-            panic!("Failed to load the topic list with error message:{e}");
-        }
-    };
-
-    for (_, topic) in topic_list {
-        cache_manager.add_topic(&topic.topic_name, &topic);
+    let topic_list = topic_storage.all().await?;
+    for topic in topic_list.iter() {
+        cache_manager.add_topic(&topic.topic_name, &topic.clone());
     }
 
     // load all user
-    let user_list = match auth_driver.read_all_user().await {
-        Ok(list) => list,
-        Err(e) => {
-            panic!("Failed to load the user list with error message:{e}");
-        }
-    };
-
-    for (_, user) in user_list {
-        cache_manager.add_user(user);
+    let user_list = auth_driver.read_all_user().await?;
+    for user in user_list.iter() {
+        cache_manager.add_user(user.clone());
     }
 
     // load all acl
-    let acl_list = match auth_driver.read_all_acl().await {
-        Ok(list) => list,
-        Err(e) => {
-            panic!("Failed to load the acl list with error message:{e}");
-        }
-    };
-    for acl in acl_list {
-        cache_manager.add_acl(acl);
+    let acl_list = auth_driver.read_all_acl().await?;
+    for acl in acl_list.iter() {
+        cache_manager.add_acl(acl.clone());
     }
 
     // load all blacklist
-    let blacklist_list = match auth_driver.read_all_blacklist().await {
-        Ok(list) => list,
-        Err(e) => {
-            panic!("Failed to load the blacklist list with error message:{e}");
-        }
-    };
-    for blacklist in blacklist_list {
-        cache_manager.add_blacklist(blacklist);
+    let blacklist_list = auth_driver.read_all_blacklist().await?;
+    for blacklist in blacklist_list.iter() {
+        cache_manager.add_blacklist(blacklist.clone());
     }
 
     // load All topic_rewrite rule
     let topic_storage = TopicStorage::new(client_pool.clone());
-    let topic_rewrite_rules = match topic_storage.all_topic_rewrite_rule().await {
-        Ok(list) => list,
-        Err(e) => {
-            panic!("Failed to load the topic_rewrite_rule list with error message:{e}");
-        }
-    };
-    for topic_rewrite_rule in topic_rewrite_rules {
-        cache_manager.add_topic_rewrite_rule(topic_rewrite_rule);
+    let topic_rewrite_rules = topic_storage.all_topic_rewrite_rule().await?;
+    for topic_rewrite_rule in topic_rewrite_rules.iter() {
+        cache_manager.add_topic_rewrite_rule(topic_rewrite_rule.clone());
     }
 
     // load all connectors
     let connector_storage = ConnectorStorage::new(client_pool.clone());
-    let connectors = match connector_storage.list_all_connectors().await {
-        Ok(list) => list,
-        Err(e) => {
-            panic!("Failed to load the connector list with error message:{e}");
-        }
-    };
+    let connectors = connector_storage.list_all_connectors().await?;
     for connector in connectors.iter() {
         connector_manager.add_connector(connector);
     }
 
     // load all schemas
-    let config = broker_config();
-    let request = ListSchemaRequest {
-        cluster_name: config.cluster_name.clone(),
-        schema_name: "".to_owned(),
-    };
-
-    match list_schema(client_pool, &config.get_placement_center_addr(), request).await {
-        Ok(reply) => {
-            for raw in reply.schemas {
-                match serde_json::from_slice::<SchemaData>(raw.as_slice()) {
-                    Ok(schema) => {
-                        schema_manager.add_schema(schema);
-                    }
-                    Err(e) => {
-                        error!("{}", e);
-                    }
-                }
-            }
-        }
-        Err(e) => {
-            panic!("Failed to load the schema list with error message:{e}");
-        }
+    let schema_storage = SchemaStorage::new(client_pool.clone());
+    let schemas = schema_storage.list("".to_string()).await?;
+    for schema in schemas.iter() {
+        schema_manager.add_schema(schema.clone());
     }
 
     // load all auto subscribe rule
     let auto_subscribe_storage = AutoSubscribeStorage::new(client_pool.clone());
-    let auto_subscribe_rules = match auto_subscribe_storage.list_auto_subscribe_rule().await {
-        Ok(list) => list,
-        Err(e) => {
-            panic!("Failed to load the auto subscribe list with error message:{e}");
-        }
-    };
-    for auto_subscribe_rule in auto_subscribe_rules {
-        cache_manager.add_auto_subscribe_rule(auto_subscribe_rule);
+    let auto_subscribe_rules = auto_subscribe_storage.list_auto_subscribe_rule().await?;
+    for auto_subscribe_rule in auto_subscribe_rules.iter() {
+        cache_manager.add_auto_subscribe_rule(auto_subscribe_rule.clone());
     }
+
+    info!(
+        "Cache loading successful.topic:{},user:{},acl:{},blacklist:{},topic_rewrite_rule:{},connectors:{},schemas:{},auto_subscribe_rules:{}",
+        topic_list.len(),
+        user_list.len(),
+        acl_list.len(),
+        blacklist_list.len(),
+        topic_rewrite_rules.len(),
+        connectors.len(),
+        schemas.len(),
+        auto_subscribe_rules.len(),
+    );
+
+    Ok(())
 }
 
 pub async fn update_cache_metadata(
