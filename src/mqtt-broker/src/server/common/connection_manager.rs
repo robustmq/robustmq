@@ -154,7 +154,7 @@ impl ConnectionManager {
         resp: Message,
     ) -> ResultMqttBrokerError {
         if !is_ignore_print(&packet_wrapper.packet) {
-            info!("WebSockets response packet:{resp:?},connection_id:{connection_id}");
+            info!("WebSockets response packet:{packet_wrapper:?},connection_id:{connection_id}");
         }
 
         let mut times = 0;

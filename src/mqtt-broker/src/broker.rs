@@ -390,10 +390,14 @@ impl MqttBrokerServer {
         let connection_manager = self.connection_manager.clone();
         let mut recv = self.main_stop.subscribe();
         let raw_inner_stop = self.inner_stop.clone();
+        self.cache_manager
+            .set_status(common_base::node_status::NodeStatus::Running);
         // Stop the Server first, indicating that it will no longer receive request packets.
         match recv.recv().await {
             Ok(_) => {
                 info!("Broker has stopped.");
+                self.cache_manager
+                    .set_status(common_base::node_status::NodeStatus::Stopping);
                 server.stop().await;
                 match raw_inner_stop.send(true) {
                     Ok(_) => {

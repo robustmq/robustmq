@@ -129,12 +129,11 @@ pub async fn websockets_server(state: WebSocketServerState) {
         "Broker WebSocket TLS Server start success. port:{}",
         config.mqtt_server.websockets_port
     );
-    match axum_server::bind_rustls(ip, tls_config)
+    if let Err(e) = axum_server::bind_rustls(ip, tls_config)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await
     {
-        Ok(()) => {}
-        Err(e) => panic!("{}", e.to_string()),
+        panic!("{}", e.to_string());
     }
 }
 

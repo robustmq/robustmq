@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
@@ -23,6 +22,7 @@ use common_config::config::{
     MqttSecurity, MqttSlowSub, MqttSystemMonitor,
 };
 use grpc_clients::pool::ClientPool;
+use std::sync::Arc;
 use strum_macros::{Display, EnumString};
 
 #[derive(Default, EnumString, Display)]

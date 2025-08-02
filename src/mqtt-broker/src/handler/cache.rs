@@ -15,6 +15,7 @@
 use crate::common::pkid_manager::PkidManager;
 use crate::observability::system_topic::sysmon::SystemAlarmEventMessage;
 use crate::security::auth::metadata::AclMetadata;
+use common_base::node_status::NodeStatus;
 use common_base::tools::now_second;
 use common_config::config::BrokerConfig;
 use dashmap::DashMap;
@@ -102,6 +103,9 @@ pub struct CacheManager {
     // (cluster_name, Cluster)
     pub cluster_info: DashMap<String, BrokerConfig>,
 
+    // (cluster_name, Status)
+    pub status: DashMap<String, NodeStatus>,
+
     // (username, User)
     pub user_info: DashMap<String, MqttUser>,
 
@@ -138,12 +142,13 @@ pub struct CacheManager {
 
 impl CacheManager {
     pub fn new(client_pool: Arc<ClientPool>, cluster_name: String) -> Self {
-        CacheManager {
+        let cache = CacheManager {
             start_time: now_second(),
             client_pool,
             cluster_name,
             node_lists: DashMap::with_capacity(2),
             cluster_info: DashMap::with_capacity(1),
+            status: DashMap::with_capacity(2),
             user_info: DashMap::with_capacity(8),
             session_info: DashMap::with_capacity(8),
             topic_info: DashMap::with_capacity(8),
@@ -155,7 +160,9 @@ impl CacheManager {
             topic_rewrite_rule: DashMap::with_capacity(8),
             auto_subscribe_rule: DashMap::with_capacity(8),
             alarm_events: DashMap::with_capacity(8),
-        }
+        };
+        cache.set_status(NodeStatus::Starting);
+        cache
     }
 
     // node
@@ -388,6 +395,16 @@ impl CacheManager {
 
     pub fn remove_blacklist(&self, blacklist: MqttAclBlackList) {
         self.acl_metadata.remove_mqtt_blacklist(blacklist);
+    }
+
+    // status
+    pub fn set_status(&self, status: NodeStatus) {
+        self.status.insert(self.cluster_name.clone(), status);
+    }
+
+    // status
+    pub fn get_status(&self) -> NodeStatus {
+        self.status.get(&self.cluster_name).unwrap().clone()
     }
 
     // key
