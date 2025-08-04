@@ -25,10 +25,10 @@ mod tests {
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::bridge::config_kafka::KafkaConnectorConfig;
     use metadata_struct::mqtt::bridge::config_local_file::LocalFileConnectorConfig;
-    use metadata_struct::mqtt::bridge::connector::MQTTConnector;
     use metadata_struct::mqtt::bridge::connector_type::ConnectorType;
     use metadata_struct::schema::{SchemaData, SchemaType};
-    use protocol::broker_mqtt::broker_mqtt_admin;
+    use prost::Message;
+    use protocol::broker_mqtt::broker_mqtt_admin::{self, ConnectorRaw};
     use protocol::broker_mqtt::broker_mqtt_admin::{
         ClusterStatusRequest, CreateConnectorRequest, CreateSchemaRequest, CreateUserRequest,
         DeleteConnectorRequest, DeleteSchemaRequest, DeleteUserRequest, ListConnectorRequest,
@@ -269,14 +269,14 @@ mod tests {
         // list connector we just created
         let list_request = ListConnectorRequest {
             connector_name: connector_name.clone(),
+            options: None,
         };
 
-        let mut connector =
+        let mut connector: ConnectorRaw =
             match mqtt_broker_list_connector(&client_pool, &addrs, list_request.clone()).await {
                 Ok(reply) => {
                     assert_eq!(reply.connectors.len(), 1);
-                    serde_json::from_slice::<MQTTConnector>(reply.connectors.first().unwrap())
-                        .unwrap()
+                    reply.connectors.first().unwrap().clone()
                 }
 
                 Err(e) => {
@@ -285,7 +285,8 @@ mod tests {
             };
 
         assert_eq!(&connector.connector_name, &connector_name);
-        assert_eq!(connector.connector_type.clone(), ConnectorType::LocalFile);
+        // assert_eq!(connector.connector_type.clone(), ConnectorType::LocalFile);
+        assert_eq!(connector.connector_type, ConnectorType::LocalFile as i32);
         assert_eq!(
             &connector.config,
             &serde_json::to_string(&LocalFileConnectorConfig {
@@ -296,7 +297,7 @@ mod tests {
         assert_eq!(&connector.topic_id, "test-topic-1");
 
         // update
-        connector.connector_type = ConnectorType::Kafka;
+        connector.connector_type = ConnectorType::Kafka as i32;
         connector.config = serde_json::to_string(&KafkaConnectorConfig {
             bootstrap_servers: "127.0.0.1:9092".to_string(),
             topic: "test-topic".to_string(),
@@ -306,7 +307,8 @@ mod tests {
         connector.topic_id = "test-topic-2".to_string();
 
         let update_request = UpdateConnectorRequest {
-            connector: serde_json::to_vec(&connector).unwrap(),
+            // connector: serde_json::to_vec(&connector).unwrap(),
+            connector: connector.encode_to_vec(),
         };
 
         match mqtt_broker_update_connector(&client_pool, &addrs, update_request).await {
@@ -317,21 +319,23 @@ mod tests {
         }
 
         // list connector we just updated
-        connector = match mqtt_broker_list_connector(&client_pool, &addrs, list_request.clone())
-            .await
-        {
-            Ok(reply) => {
-                assert_eq!(reply.connectors.len(), 1);
-                serde_json::from_slice::<MQTTConnector>(reply.connectors.first().unwrap()).unwrap()
-            }
+        connector =
+            match mqtt_broker_list_connector(&client_pool, &addrs, list_request.clone()).await {
+                Ok(reply) => {
+                    assert_eq!(reply.connectors.len(), 1);
+                    reply.connectors.first().unwrap().clone()
+                }
 
-            Err(e) => {
-                panic!("{e:?}");
-            }
-        };
+                Err(e) => {
+                    panic!("{e:?}");
+                }
+            };
 
         assert_eq!(&connector.connector_name, &connector_name);
-        assert_eq!(connector.connector_type.clone(), ConnectorType::Kafka);
+        assert_eq!(
+            connector.connector_type.clone(),
+            ConnectorType::Kafka as i32
+        );
 
         assert_eq!(
             &connector.config,

@@ -26,9 +26,13 @@
 
 ## 🚀 Introduction
 
-RobustMQ is a next-generation, high-performance, multi-protocol message queue system built in Rust. Our vision is to create a unified messaging infrastructure tailored for AI systems.
+RobustMQ is a next-generation, high-performance, multi-protocol message queue system built in Rust. Our vision is to
+create a unified messaging infrastructure tailored for AI systems.
 
-The goal of RobustMQ is to deliver a Rust-based message queue that supports multiple mainstream messaging protocols while embracing a fully serverless architecture. By integrating multi-protocol compatibility, high performance, and a distributed, elastic design, RobustMQ provides a unified and efficient communication foundation for AI applications—reducing architectural complexity while improving system performance and reliability.
+The goal of RobustMQ is to deliver a Rust-based message queue that supports multiple mainstream messaging protocols
+while embracing a fully serverless architecture. By integrating multi-protocol compatibility, high performance, and a
+distributed, elastic design, RobustMQ provides a unified and efficient communication foundation for AI
+applications—reducing architectural complexity while improving system performance and reliability.
 
 We aim to support multiple protocols within a truly serverless architecture. At the same time, we strive to keep the architecture simple and adaptable to various deployment scenarios and operational requirements. This approach ultimately reduces the cost of deployment, operations, and usage.
 <picture>
@@ -71,29 +75,46 @@ RobustMQ adopts a typical distributed, layered architecture composed of four mai
 - Storage Adapter Layer
 - Standalone Remote Storage Engine
 
-Each layer is independently designed, allowing for rapid horizontal scaling and dynamic resource allocation. This modular separation enables RobustMQ to achieve full serverless capabilities across the entire system, providing flexibility, scalability, and resilience in diverse deployment environments.
+Each layer is independently designed, allowing for rapid horizontal scaling and dynamic resource allocation. This
+modular separation enables RobustMQ to achieve full serverless capabilities across the entire system, providing
+flexibility, scalability, and resilience in diverse deployment environments.
 
 ![image](docs/images/robustmq-architecture.png)
 
 **Metadata Service**
 
-The metadata storage and scheduling component of the RobustMQ cluster. It is responsible for managing cluster metadata, node registration, configuration storage and distribution, as well as task scheduling. Key responsibilities include cluster node discovery, configuration propagation, and orchestration of cluster-wide behaviors.
+The metadata storage and scheduling component of the RobustMQ cluster. It is responsible for managing cluster metadata,
+node registration, configuration storage and distribution, as well as task scheduling. Key responsibilities include
+cluster node discovery, configuration propagation, and orchestration of cluster-wide behaviors.
 
 **Multi-Protocol Computing Layer**
 
-This is the Broker Cluster—the computing layer of the RobustMQ system. It handles adaptation and processing of various messaging protocols, and implements core messaging features. Incoming messages are forwarded to the storage layer via the Storage Adapter Layer after protocol-specific processing.
+This is the Broker Cluster—the computing layer of the RobustMQ system. It handles adaptation and processing of various
+messaging protocols, and implements core messaging features. Incoming messages are forwarded to the storage layer via
+the Storage Adapter Layer after protocol-specific processing.
 
 **Storage Adapter Layer**
 
-This layer provides abstraction and translation between messaging semantics and storage backends. It unifies various protocol concepts such as Topic, Queue, and Partition into the internal Shard model. It also interfaces with different storage systems including local file systems, HDFS, object storage, or custom-built storage engines—ensuring message data is persistently stored to the appropriate backend.
+This layer provides abstraction and translation between messaging semantics and storage backends. It unifies various
+protocol concepts such as Topic, Queue, and Partition into the internal Shard model. It also interfaces with different
+storage systems including local file systems, HDFS, object storage, or custom-built storage engines—ensuring message
+data is persistently stored to the appropriate backend.
 
 **Standalone Storage Engine**
 
-Refers to external, independent storage engines such as cloud object storage (e.g., AWS S3), HDFS clusters, or data lake platforms (e.g., Apache Iceberg, Hudi). Similar to RobustMQ's Journal Server or Apache BookKeeper, this layer provides distributed, segmented, high-performance, and reliable message data storage. It supports seamless horizontal scaling and is designed to operate transparently to upstream layers.
+Refers to external, independent storage engines such as cloud object storage (e.g., AWS S3), HDFS clusters, or data lake
+platforms (e.g., Apache Iceberg, Hudi). Similar to RobustMQ's Journal Server or Apache BookKeeper, this layer provides
+distributed, segmented, high-performance, and reliable message data storage. It supports seamless horizontal scaling and
+is designed to operate transparently to upstream layers.
 
 ## RobustMQ MQTT
 
-RobustMQ MQTT is a full-featured implementation of the MQTT protocol built on the RobustMQ platform. Designed in Rust, it aims to provide a high-performance, enterprise-grade message queuing solution that supports clustered deployment at scale. The long-term vision is to deliver a product that rivals leading enterprise MQTT brokers such as **EMQX** and **HiveMQ**.
+RobustMQ MQTT is a full-featured implementation of the MQTT protocol built on the RobustMQ platform. Designed in Rust,
+it aims to provide a high-performance, enterprise-grade message queuing solution that supports clustered deployment at
+scale. The long-term vision is to deliver a product that rivals leading enterprise MQTT brokers such as **EMQX** and *
+*HiveMQ**.
+
+![img](docs/images/wechat-group.png)
 
 ![img](docs/images/console-start.png)
 
@@ -103,6 +124,7 @@ RobustMQ MQTT is a full-featured implementation of the MQTT protocol built on th
 4. [RobustMQ Web UI](https://github.com/robustmq/robustmq-copilot)
 
 ![img](docs/images/web-ui.png)
+
 ## Run Test Cases
 
 [Run Test Cases](https://robustmq.com/Architect/Test-Case.html)
@@ -120,7 +142,7 @@ RobustMQ MQTT is a full-featured implementation of the MQTT protocol built on th
 - **Discord Group**: Join our community on Discord for discussions, questions, and collaboration 👉 [Discord Link](https://discord.gg/sygeGRh5)
 - **WeChat Group**: If you're interested in contributing to the project or discussing development topics, scan the QR code below to join our WeChat group for real-time discussion and collaboration:
 <div align="center">
-  <img src="docs/images/WechatGroup.jpg" alt="WeChat QR Code" width=200 />
+  <img src="docs/images/wechat-group.png" alt="WeChat Group QR Code" width=200 />
 </div>
 
 - **Personal WeChat**: The WeChat group QR code is updated periodically. If the group QR code has expired, you can add the developer's personal WeChat below to be invited directly:
