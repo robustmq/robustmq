@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::CacheManager;
 use crate::handler::dynamic_cache::update_cache_metadata;
 use crate::handler::error::MqttBrokerError;
 use crate::handler::last_will::send_last_will_message;
 use crate::subscribe::manager::SubscribeManager;
-use common_config::mqtt::broker_mqtt_conf;
+use crate::{bridge::manager::ConnectorManager, common::tool::wait_cluster_running};
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use protocol::broker_mqtt::broker_mqtt_inner::{
@@ -37,11 +37,11 @@ pub async fn update_cache_by_req(
     schema_manager: &Arc<SchemaRegisterManager>,
     req: &UpdateMqttCacheRequest,
 ) -> Result<UpdateMqttCacheReply, MqttBrokerError> {
-    let conf = broker_mqtt_conf();
+    let conf = broker_config();
     if conf.cluster_name != req.cluster_name {
         return Ok(UpdateMqttCacheReply::default());
     }
-
+    wait_cluster_running(cache_manager).await;
     update_cache_metadata(
         cache_manager,
         connector_manager,
@@ -59,9 +59,11 @@ pub async fn delete_session_by_req(
     req: &DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, MqttBrokerError> {
     info!(
-        "Received request from Placement center to delete expired Session. Cluster name :{}, clientId: {:?}",
-        req.cluster_name, req.client_id
+        "Received request from Placement center to delete expired Session. Cluster name :{}, clientId count: {:?}",
+        req.cluster_name, req.client_id.len()
     );
+    wait_cluster_running(cache_manager).await;
+
     if cache_manager.cluster_name != req.cluster_name {
         return Err(MqttBrokerError::ClusterNotMatch(req.cluster_name.clone()));
     }
@@ -90,9 +92,10 @@ pub async fn send_last_will_message_by_req(
             return Err(MqttBrokerError::CommonError(e.to_string()));
         }
     };
+    wait_cluster_running(cache_manager).await;
     info!(
         "Received will message from placement center, source client id: {},data:{:?}",
-        req.client_id, data
+        req.client_id, data.client_id
     );
     send_last_will_message(
         req.client_id.as_str(),

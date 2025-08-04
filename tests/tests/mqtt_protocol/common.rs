@@ -194,19 +194,19 @@ pub fn broker_addr() -> String {
 }
 
 pub fn broker_ssl_addr() -> String {
-    "mqtts://localhost:8883".to_string()
+    "mqtts://127.0.0.1:1884".to_string()
 }
 
 pub fn broker_ws_addr() -> String {
-    "ws://127.0.0.1:8093".to_string()
+    "ws://127.0.0.1:8083".to_string()
 }
 
 pub fn broker_wss_addr() -> String {
-    "wss://localhost:8094".to_string()
+    "wss://127.0.0.1:8084".to_string()
 }
 
 pub fn broker_grpc_addr() -> String {
-    "127.0.0.1:9981".to_string()
+    "127.0.0.1:1228".to_string()
 }
 
 pub fn username() -> String {
@@ -214,7 +214,7 @@ pub fn username() -> String {
 }
 
 pub fn password() -> String {
-    "pwd123".to_string()
+    "robustmq".to_string()
 }
 
 pub fn err_password() -> String {

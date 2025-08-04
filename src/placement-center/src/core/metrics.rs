@@ -48,23 +48,6 @@ impl RocksDBLabels {
 }
 
 common_base::register_counter_metric!(
-    GRPC_REQUEST_NUM,
-    "grpc_request_num",
-    "Number of calls to the grpc request",
-    MetricsLabel
-);
-
-common_base::register_histogram_metric!(
-    GRPC_REQUEST_TOTAL_MS,
-    "grpc_request_total_ms",
-    "TotalMs of calls to the grpc request",
-    MetricsLabel,
-    1.0,
-    2.0,
-    10
-);
-
-common_base::register_counter_metric!(
     RAFT_STORAGE_TOTAL_NUM,
     "raft_storage_num",
     "Total number of calls to the raft storage",
@@ -111,25 +94,6 @@ common_base::register_histogram_metric!(
     2.0,
     12
 );
-
-pub fn metrics_grpc_request_incr(service: &str, path: &str) {
-    let label = MetricsLabel {
-        grpc_service: service.to_string(),
-        grpc_path: path.to_string(),
-        ..Default::default()
-    };
-    common_base::gauge_metric_inc!(GRPC_REQUEST_NUM, label)
-}
-
-pub fn metrics_grpc_request_ms(service: &str, path: &str, ms: f64) {
-    let label = MetricsLabel {
-        grpc_service: service.to_string(),
-        grpc_path: path.to_string(),
-        ..Default::default()
-    };
-
-    common_base::histogram_metric_observe!(GRPC_REQUEST_TOTAL_MS, ms, label)
-}
 
 pub fn metrics_raft_storage_total_incr(storage_type: &StorageDataType) {
     let label = MetricsLabel {

@@ -14,7 +14,7 @@
 
 use crate::common::types::ResultMqttBrokerError;
 use crate::subscribe::{common::decode_share_group_and_path, manager::SubscribeManager};
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::{placement::mqtt::call::placement_delete_subscribe, pool::ClientPool};
 use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
 use protocol::{
@@ -28,7 +28,7 @@ pub async fn remove_subscribe(
     client_pool: &Arc<ClientPool>,
     subscribe_manager: &Arc<SubscribeManager>,
 ) -> ResultMqttBrokerError {
-    let conf = broker_mqtt_conf();
+    let conf = broker_config();
 
     for path in un_subscribe.filters.clone() {
         let request = DeleteSubscribeRequest {
@@ -37,7 +37,7 @@ pub async fn remove_subscribe(
             path: path.clone(),
         };
 
-        placement_delete_subscribe(client_pool, &conf.placement_center, request).await?;
+        placement_delete_subscribe(client_pool, &conf.get_placement_center_addr(), request).await?;
 
         subscribe_manager.remove_subscribe(client_id, &path);
     }

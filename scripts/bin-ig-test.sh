@@ -14,26 +14,11 @@
 
 VERSION=`grep '^version = ' Cargo.toml | head -n1 | cut -d'"' -f2`
 echo "Version: ${VERSION}"
-
-make build
-sleep 5
-
 cargo clean
 
-cd build
-tar -xzvf robustmq-${VERSION}.tar.gz
-cd robustmq-${VERSION}
-pwd
-bin/robust-server place stop
-bin/robust-server mqtt stop
-bin/robust-server journal stop
+# start server
+nohup cargo run --package cmd --bin broker-server >> 1.log 2>&1 &
 
-sleep 10
-bin/robust-server place start
-sleep 10
-bin/robust-server mqtt start
-sleep 10
-bin/robust-server journal start
 sleep 10
 
 # place
@@ -47,8 +32,6 @@ else
     echo "place test passed"
 fi
 
-cargo clean
-
 # journal
 cargo nextest run  --profile ci --package grpc-clients --test mod -- journal
 cargo nextest run  --profile ci --package robustmq-test --test mod -- journal_client
@@ -61,7 +44,6 @@ else
     echo "journal test passed"
 fi
 
-cargo clean
 # mqtt
 cargo nextest run --profile ci --package grpc-clients --test mod -- mqtt
 cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt_server
@@ -74,16 +56,9 @@ else
     echo "mqtt test passed"
 fi
 
-cargo clean
 # storage-adapter
 cargo nextest run --profile ci --package storage-adapter --lib -- placement
 cargo nextest run  --profile ci --package robustmq-test --test mod -- journal_server
 
-cargo clean
 # mqtt protocol
 cargo nextest run --profile ci --package robustmq-test --test mod -- mqtt_protocol
-
-sleep 10
-bin/robust-server place stop
-bin/robust-server mqtt stop
-bin/robust-server journal stop

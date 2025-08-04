@@ -231,13 +231,16 @@ async fn start_call_thread(
         let mut raw_stop_rx = stop_send.subscribe();
         if let Some(node_send) = call_manager.get_node_sender(&cluster_name, node.node_id) {
             let mut data_recv = node_send.sender.subscribe();
-            info!("Thread starts successfully, Inner communication between Placement Center and Journal Engine node [{:?}].",node);
+            info!(
+                "Inner communication between Placement Center and Journal Engine node [{:?}].",
+                node.node_id
+            );
             loop {
                 select! {
                     val = raw_stop_rx.recv() =>{
                         if let Ok(flag) = val {
                             if flag {
-                                info!("Thread stops successfully, Inner communication between Placement Center and Journal Engine node [{:?}].",node);
+                                info!("Inner communication between Placement Center and Journal Engine node [{:?}].",node.node_id);
                                 break;
                             }
                         }

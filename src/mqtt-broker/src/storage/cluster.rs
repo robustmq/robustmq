@@ -16,8 +16,8 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use common_base::tools::{get_local_ip, now_second};
-use common_config::mqtt::broker_mqtt_conf;
-use common_config::mqtt::config::BrokerMqttConfig;
+use common_config::broker::broker_config;
+use common_config::config::BrokerConfig;
 use grpc_clients::placement::inner::call::{
     cluster_status, delete_resource_config, get_resource_config, heartbeat, node_list,
     register_node, set_resource_config, unregister_node,
@@ -44,18 +44,28 @@ impl ClusterStorage {
 
     pub async fn place_cluster_status(&self) -> Result<String, CommonError> {
         let request = ClusterStatusRequest {};
-        let conf = broker_mqtt_conf();
-        let reply = cluster_status(&self.client_pool, &conf.placement_center, request).await?;
+        let conf = broker_config();
+        let reply = cluster_status(
+            &self.client_pool,
+            &conf.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         Ok(reply.content)
     }
 
     pub async fn node_list(&self) -> Result<Vec<BrokerNode>, CommonError> {
-        let conf = broker_mqtt_conf();
+        let conf = broker_config();
         let request = NodeListRequest {
             cluster_name: conf.cluster_name.clone(),
         };
 
-        let reply = node_list(&self.client_pool, &conf.placement_center, request).await?;
+        let reply = node_list(
+            &self.client_pool,
+            &conf.get_placement_center_addr(),
+            request,
+        )
+        .await?;
 
         let mut node_list: Vec<BrokerNode> = Vec::new();
         for node in reply.nodes {
@@ -69,17 +79,17 @@ impl ClusterStorage {
     pub async fn register_node(
         &self,
         cache_manager: &Arc<CacheManager>,
-        config: &BrokerMqttConfig,
+        config: &BrokerConfig,
     ) -> Result<BrokerNode, CommonError> {
         let local_ip = get_local_ip();
 
         let extend = MqttNodeExtend {
             grpc_addr: format!("{}:{}", local_ip, config.grpc_port),
-            mqtt_addr: format!("{}:{}", local_ip, config.network_port.tcp_port),
-            mqtts_addr: format!("{}:{}", local_ip, config.network_port.tcps_port),
-            websocket_addr: format!("{}:{}", local_ip, config.network_port.websocket_port),
-            websockets_addr: format!("{}:{}", local_ip, config.network_port.websockets_port),
-            quic_addr: format!("{}:{}", local_ip, config.network_port.quic_port),
+            mqtt_addr: format!("{}:{}", local_ip, config.mqtt_server.tcp_port),
+            mqtts_addr: format!("{}:{}", local_ip, config.mqtt_server.tls_port),
+            websocket_addr: format!("{}:{}", local_ip, config.mqtt_server.websocket_port),
+            websockets_addr: format!("{}:{}", local_ip, config.mqtt_server.websockets_port),
+            quic_addr: format!("{}:{}", local_ip, config.mqtt_server.quic_port),
         };
 
         let node = BrokerNode {
@@ -96,32 +106,45 @@ impl ClusterStorage {
         let req = RegisterNodeRequest {
             node: node.encode(),
         };
-
-        register_node(&self.client_pool, &config.placement_center, req.clone()).await?;
-
+        register_node(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            req.clone(),
+        )
+        .await?;
         Ok(node)
     }
 
-    pub async fn unregister_node(&self, config: &BrokerMqttConfig) -> Result<(), CommonError> {
+    pub async fn unregister_node(&self, config: &BrokerConfig) -> Result<(), CommonError> {
         let req = UnRegisterNodeRequest {
             cluster_type: ClusterType::MqttBrokerServer.into(),
             cluster_name: config.cluster_name.clone(),
             node_id: config.broker_id,
         };
 
-        unregister_node(&self.client_pool, &config.placement_center, req.clone()).await?;
+        unregister_node(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            req.clone(),
+        )
+        .await?;
         Ok(())
     }
 
     pub async fn heartbeat(&self) -> Result<(), CommonError> {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let req = HeartbeatRequest {
             cluster_name: config.cluster_name.clone(),
             cluster_type: ClusterType::MqttBrokerServer.into(),
             node_id: config.broker_id,
         };
 
-        heartbeat(&self.client_pool, &config.placement_center, req.clone()).await?;
+        heartbeat(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            req.clone(),
+        )
+        .await?;
 
         Ok(())
     }
@@ -132,7 +155,7 @@ impl ClusterStorage {
         resource: &str,
         data: Vec<u8>,
     ) -> Result<(), CommonError> {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let resources = self.dynamic_config_resources(cluster_name, resource);
         let request = SetResourceConfigRequest {
             cluster_name: cluster_name.to_string(),
@@ -140,7 +163,12 @@ impl ClusterStorage {
             config: data,
         };
 
-        set_resource_config(&self.client_pool, &config.placement_center, request).await?;
+        set_resource_config(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
 
         Ok(())
     }
@@ -150,14 +178,19 @@ impl ClusterStorage {
         cluster_name: &str,
         resource: &str,
     ) -> Result<(), CommonError> {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let resources = self.dynamic_config_resources(cluster_name, resource);
         let request = DeleteResourceConfigRequest {
             cluster_name: cluster_name.to_string(),
             resources,
         };
 
-        delete_resource_config(&self.client_pool, &config.placement_center, request).await?;
+        delete_resource_config(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         Ok(())
     }
 
@@ -166,15 +199,19 @@ impl ClusterStorage {
         cluster_name: &str,
         resource: &str,
     ) -> Result<Vec<u8>, CommonError> {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let resources = self.dynamic_config_resources(cluster_name, resource);
         let request = GetResourceConfigRequest {
             cluster_name: cluster_name.to_string(),
             resources,
         };
 
-        let reply =
-            get_resource_config(&self.client_pool, &config.placement_center, request).await?;
+        let reply = get_resource_config(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         Ok(reply.config)
     }
 

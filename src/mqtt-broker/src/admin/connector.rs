@@ -17,7 +17,7 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::handler::error::MqttBrokerError;
 use crate::storage::connector::ConnectorStorage;
 use common_base::tools::now_second;
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::placement::mqtt::call::placement_list_connector;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::config_kafka::KafkaConnectorConfig;
@@ -36,17 +36,20 @@ pub async fn list_connector_by_req(
     client_pool: &Arc<ClientPool>,
     request: &ListConnectorRequest,
 ) -> Result<broker_mqtt_admin::ListConnectorReply, MqttBrokerError> {
-    let config = broker_mqtt_conf();
+    let config = broker_config();
     let placement_request = placement_center_mqtt::ListConnectorRequest {
         cluster_name: config.cluster_name.clone(),
         connector_name: request.connector_name.clone(),
     };
 
-    let connectors_byte =
-        placement_list_connector(client_pool, &config.placement_center, placement_request)
-            .await
-            .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?
-            .connectors;
+    let connectors_byte = placement_list_connector(
+        client_pool,
+        &config.get_placement_center_addr(),
+        placement_request,
+    )
+    .await
+    .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?
+    .connectors;
     let mut connectors = Vec::new();
 
     for connector_byte in connectors_byte {
@@ -72,7 +75,7 @@ pub async fn create_connector_by_req(
     let connector_type = parse_mqtt_connector_type(request.connector_type());
     connector_config_validator(&connector_type, &request.config)?;
 
-    let config = broker_mqtt_conf();
+    let config = broker_config();
     let storage = ConnectorStorage::new(client_pool.clone());
     let connector = MQTTConnector {
         cluster_name: config.cluster_name.clone(),
@@ -118,7 +121,7 @@ pub async fn delete_connector_by_req(
     client_pool: &Arc<ClientPool>,
     request: &broker_mqtt_admin::DeleteConnectorRequest,
 ) -> Result<broker_mqtt_admin::DeleteConnectorReply, MqttBrokerError> {
-    let config = broker_mqtt_conf();
+    let config = broker_config();
     let storage = ConnectorStorage::new(client_pool.clone());
 
     storage

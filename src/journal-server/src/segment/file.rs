@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use bytes::BytesMut;
 use common_base::tools::{file_exists, try_create_fold};
-use common_config::journal::config::journal_server_conf;
+use common_config::broker::broker_config;
 use prost::Message;
 use protocol::journal_server::journal_record::JournalRecord;
 use tokio::fs::{self, File, OpenOptions};
@@ -47,13 +47,13 @@ pub async fn open_segment_write(
         return Err(JournalServerError::SegmentNotExist(segment_iden.name()));
     };
 
-    let conf = journal_server_conf();
-    let fold = if let Some(fold) = segment.get_fold(conf.node_id) {
+    let conf = broker_config();
+    let fold = if let Some(fold) = segment.get_fold(conf.broker_id) {
         fold
     } else {
         return Err(JournalServerError::SegmentDataDirectoryNotFound(
             segment_iden.name(),
-            conf.node_id,
+            conf.broker_id,
         ));
     };
 
@@ -274,7 +274,7 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::{now_second, unique_id};
-    use common_config::journal::config::{init_journal_server_conf_by_config, JournalServerConfig};
+    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
     use protocol::journal_server::journal_record::JournalRecord;
 
@@ -297,10 +297,7 @@ mod tests {
 
     #[tokio::test]
     async fn open_segment_write_test() {
-        init_journal_server_conf_by_config(JournalServerConfig {
-            node_id: 1,
-            ..Default::default()
-        });
+        init_broker_conf_by_config(default_broker_config());
         let cluster_name = "c1".to_string();
         let namespace = unique_id();
         let shard_name = "s1".to_string();

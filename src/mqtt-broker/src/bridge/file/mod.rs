@@ -128,7 +128,7 @@ mod tests {
         tools::{now_second, unique_id},
         utils::crc::calc_crc32,
     };
-    use common_config::mqtt::{config::BrokerMqttConfig, init_broker_mqtt_conf_by_config};
+    use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
     use metadata_struct::{
         adapter::record::{Header, Record},
         mqtt::bridge::config_local_file::LocalFileConnectorConfig,
@@ -148,12 +148,12 @@ mod tests {
         // init a dummy mqtt broker config
         let namespace = unique_id();
 
-        let mqtt_config = BrokerMqttConfig {
+        let mqtt_config = BrokerConfig {
             cluster_name: namespace.clone(),
             ..Default::default()
         };
 
-        init_broker_mqtt_conf_by_config(mqtt_config);
+        init_broker_conf_by_config(mqtt_config);
 
         let storage_adapter = build_memory_storage_driver();
 

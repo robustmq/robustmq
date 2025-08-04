@@ -24,7 +24,7 @@ use crate::server::common::response::response_process;
 use crate::server::tcp::v1::tcp_acceptor::acceptor_process;
 use crate::server::tcp::v1::tls_acceptor::acceptor_tls_process;
 use crate::subscribe::manager::SubscribeManager;
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
 use std::time::Duration;
@@ -89,11 +89,11 @@ impl TcpServer {
     }
 
     pub async fn start(&self, tls: bool) -> ResultMqttBrokerError {
-        let conf = broker_mqtt_conf();
+        let conf = broker_config();
         let port = if tls {
-            conf.network_port.tcps_port
+            conf.mqtt_server.tls_port
         } else {
-            conf.network_port.tcp_port
+            conf.mqtt_server.tcp_port
         };
 
         let listener = TcpListener::bind(format!("0.0.0.0:{port}")).await?;
@@ -152,7 +152,10 @@ impl TcpServer {
         .await;
 
         self.record_pre_server_metrics();
-        info!("MQTT TCP Server started successfully, listening port: {port}");
+        info!(
+            "MQTT {} Server started successfully, listening port: {port}",
+            self.network_type
+        );
         Ok(())
     }
 

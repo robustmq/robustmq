@@ -16,7 +16,7 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
-use common_config::journal::config::journal_server_conf;
+use common_config::broker::broker_config;
 use dashmap::DashMap;
 use metadata_struct::journal::segment::{segment_name, JournalSegment};
 use rocksdb_engine::RocksDBEngine;
@@ -237,13 +237,13 @@ pub async fn create_local_segment(
         return Ok(());
     }
 
-    let conf = journal_server_conf();
-    let fold = if let Some(fold) = segment.get_fold(conf.node_id) {
+    let conf = broker_config();
+    let fold = if let Some(fold) = segment.get_fold(conf.broker_id) {
         fold
     } else {
         return Err(JournalServerError::SegmentDataDirectoryNotFound(
             segment_iden.name(),
-            conf.node_id,
+            conf.broker_id,
         ));
     };
 

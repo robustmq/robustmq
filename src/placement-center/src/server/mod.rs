@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod grpc_server;
 pub mod service_inner;
 pub mod service_journal;
 pub mod service_kv;

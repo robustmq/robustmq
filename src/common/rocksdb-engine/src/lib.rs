@@ -230,14 +230,12 @@ impl RocksDBEngine {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
+    use super::RocksDBEngine;
     use common_base::utils::file_utils::test_temp_dir;
-    use common_config::place::config::placement_center_test_conf;
+    use common_config::broker::default_broker_config;
     use futures::future;
     use serde::{Deserialize, Serialize};
-
-    use super::RocksDBEngine;
+    use std::sync::Arc;
 
     #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
     struct User {
@@ -251,11 +249,11 @@ mod tests {
 
     #[tokio::test]
     async fn multi_rocksdb_instance() {
-        let config = placement_center_test_conf();
+        let config = default_broker_config();
 
         let rs_handler = Arc::new(RocksDBEngine::new(
             &test_temp_dir(),
-            config.rocksdb.max_open_files.unwrap(),
+            config.rocksdb.max_open_files,
             vec![cf_name()],
         ));
         let mut tasks = Vec::new();
@@ -288,11 +286,11 @@ mod tests {
 
     #[tokio::test]
     async fn base_rw() {
-        let config = placement_center_test_conf();
+        let config = default_broker_config();
 
         let rs = RocksDBEngine::new(
             &test_temp_dir(),
-            config.rocksdb.max_open_files.unwrap(),
+            config.rocksdb.max_open_files,
             vec!["cluster".to_string()],
         );
         let cf = rs.cf_handle(&cf_name()).unwrap();
@@ -319,11 +317,11 @@ mod tests {
 
     #[tokio::test]
     async fn read_all() {
-        let config = placement_center_test_conf();
+        let config = default_broker_config();
 
         let rs = RocksDBEngine::new(
             &test_temp_dir(),
-            config.rocksdb.max_open_files.unwrap(),
+            config.rocksdb.max_open_files,
             vec!["cluster".to_string()],
         );
 
@@ -353,11 +351,11 @@ mod tests {
 
     #[tokio::test]
     async fn read_prefix() {
-        let config = placement_center_test_conf();
+        let config = default_broker_config();
 
         let rs = RocksDBEngine::new(
             &test_temp_dir(),
-            config.rocksdb.max_open_files.unwrap(),
+            config.rocksdb.max_open_files,
             vec!["cluster".to_string()],
         );
 

@@ -170,7 +170,7 @@ mod tests {
 
     use common_base::tools::unique_id;
     use common_base::utils::file_utils::test_temp_dir;
-    use common_config::place::config::placement_center_test_conf;
+    use common_config::broker::default_broker_config;
     use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::ClusterType;
 
@@ -181,7 +181,7 @@ mod tests {
 
     #[tokio::test]
     async fn register_unregister_node() {
-        let config = placement_center_test_conf();
+        let config = default_broker_config();
 
         let cluster_name = unique_id();
         let node_id = 999;
@@ -197,7 +197,7 @@ mod tests {
         let data = serde_json::to_vec(&node).unwrap();
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
             &test_temp_dir(),
-            config.rocksdb.max_open_files.unwrap(),
+            config.rocksdb.max_open_files,
             column_family_list(),
         ));
         let cluster_cache = Arc::new(CacheManager::new(rocksdb_engine.clone()));

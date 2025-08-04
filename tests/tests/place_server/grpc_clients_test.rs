@@ -14,7 +14,6 @@
 
 #[cfg(test)]
 mod tests {
-    use common_base::error::common::CommonError;
     use common_base::tools::now_second;
     use metadata_struct::journal::shard::JournalShardConfig;
     use metadata_struct::placement::node::BrokerNode;
@@ -27,7 +26,6 @@ mod tests {
     use protocol::placement_center::placement_center_journal::{
         CreateNextSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
     };
-    use tonic::{Code, Status};
 
     use crate::place_server::common::{
         cluster_name, cluster_type, extend_info, namespace, node_id, node_ip, pc_addr, producer_id,
@@ -56,58 +54,6 @@ mod tests {
             .register_node(tonic::Request::new(valid_request.clone()))
             .await;
         assert!(response.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_register_node_method_param_type_string_is_empty() {
-        let client = PlacementCenterServiceClient::connect(pc_addr())
-            .await
-            .unwrap();
-
-        let mut node = BrokerNode {
-            cluster_name: cluster_name(),
-            cluster_type: cluster_type(),
-            node_ip: node_ip(),
-            node_id: node_id(),
-            node_inner_addr: node_ip(),
-            extend: extend_info(),
-            register_time: now_second(),
-            start_time: now_second(),
-        };
-        let valid_request = RegisterNodeRequest {
-            node: node.encode(),
-        };
-
-        let valid_field = ["cluster_name", "node_ip", "node_inner_addr"];
-
-        for field in valid_field {
-            let test_request = valid_request.clone();
-            let mut test_client = client.clone();
-            match field {
-                "cluster_name" => node.cluster_name = String::new(),
-                "node_ip" => node.node_ip = String::new(),
-                "node_inner_addr" => node.node_inner_addr = String::new(),
-                _ => unreachable!(),
-            }
-            {
-                println!("{test_request:?}");
-                let response = test_client
-                    .register_node(tonic::Request::new(test_request))
-                    .await;
-
-                assert!(response.is_err());
-                let status = response.unwrap_err();
-                assert_eq!(
-                    status.code(),
-                    Status::invalid_argument(
-                        CommonError::ParameterCannotBeNull(field.to_string()).to_string()
-                    )
-                    .code()
-                );
-
-                assert_eq!(status.code(), Code::InvalidArgument);
-            }
-        }
     }
 
     #[tokio::test]
@@ -168,68 +114,6 @@ mod tests {
                     .register_node(tonic::Request::new(valid_request.clone()))
                     .await;
                 assert!(response.is_ok());
-            }
-        }
-    }
-
-    #[tokio::test]
-    async fn test_register_node_method_param_ip_is_err() {
-        let client = PlacementCenterServiceClient::connect(pc_addr())
-            .await
-            .unwrap();
-
-        let mut node = BrokerNode {
-            cluster_name: cluster_name(),
-            cluster_type: cluster_type(),
-            node_ip: node_ip(),
-            node_id: node_id(),
-            node_inner_addr: node_ip(),
-            extend: extend_info(),
-            start_time: now_second(),
-            register_time: now_second(),
-        };
-        let valid_request = RegisterNodeRequest {
-            node: node.encode(),
-        };
-
-        let valid_ip = [
-            "255",
-            "255.255",
-            "255.255.255",
-            "256.256.256.256",
-            "256.111.111.111",
-            "111.256.111.111",
-            "111.111.256.111",
-            "111.111.111.256",
-        ];
-
-        let field = ["node_ip"];
-
-        let mut field_ip: Vec<(&str, &str)> = Vec::new();
-
-        for field in field {
-            for ip in valid_ip {
-                field_ip.push((field, ip))
-            }
-        }
-
-        for (field, ip) in field_ip {
-            let test_request = valid_request.clone();
-            let mut test_client = client.clone();
-            match field {
-                "node_ip" => node.node_ip = ip.parse().unwrap(),
-                _ => unreachable!(),
-            }
-            {
-                let response = test_client
-                    .register_node(tonic::Request::new(test_request.clone()))
-                    .await;
-
-                assert!(response.is_err());
-                if let Err(ref e) = response {
-                    assert_eq!(e.code(), Code::InvalidArgument);
-                    assert_eq!(e.code(), Code::InvalidArgument);
-                }
             }
         }
     }

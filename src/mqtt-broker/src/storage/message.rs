@@ -14,7 +14,7 @@
 
 use crate::handler::error::MqttBrokerError;
 use common_base::error::common::CommonError;
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use metadata_struct::adapter::read_config::ReadConfig;
 use metadata_struct::adapter::record::Record;
 use std::collections::HashMap;
@@ -27,7 +27,7 @@ use storage_adapter::StorageType;
 use third_driver::mysql::build_mysql_conn_pool;
 
 pub fn cluster_name() -> String {
-    let conf = broker_mqtt_conf();
+    let conf = broker_config();
     conf.cluster_name.clone()
 }
 
@@ -110,21 +110,23 @@ impl MessageStorage {
 
 pub fn build_message_storage_driver(
 ) -> Result<Box<dyn StorageAdapter + Send + Sync>, MqttBrokerError> {
-    let conf = broker_mqtt_conf();
-    let storage_type = StorageType::from_str(conf.storage.storage_type.as_str())
+    let conf = broker_config();
+    let storage_type = StorageType::from_str(conf.mqtt_message_storage.storage_type.as_str())
         .expect("Storage type not supported");
 
     let storage: Box<dyn StorageAdapter + Send + Sync> = match storage_type {
         StorageType::Memory => Box::new(MemoryStorageAdapter::new()),
 
         StorageType::Mysql => {
-            let pool = build_mysql_conn_pool(&conf.storage.mysql_addr)?;
+            let pool = build_mysql_conn_pool(&conf.mqtt_message_storage.mysql_addr)?;
             Box::new(MySQLStorageAdapter::new(pool.clone())?)
         }
 
         StorageType::RocksDB => Box::new(RocksDBStorageAdapter::new(
-            conf.storage.rocksdb_data_path.as_str(),
-            conf.storage.rocksdb_max_open_files.unwrap_or(10000),
+            conf.mqtt_message_storage.rocksdb_data_path.as_str(),
+            conf.mqtt_message_storage
+                .rocksdb_max_open_files
+                .unwrap_or(10000),
         )),
 
         _ => {

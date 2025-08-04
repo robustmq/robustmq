@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{future::Future, time::Duration};
+use std::{future::Future, sync::Arc, time::Duration};
 
+use common_base::node_status::NodeStatus;
 use protocol::mqtt::common::MqttPacket;
-use tokio::{select, sync::broadcast};
+use tokio::{select, sync::broadcast, time::sleep};
 
-use crate::common::types::ResultMqttBrokerError;
+use crate::{common::types::ResultMqttBrokerError, handler::cache::CacheManager};
 
 pub fn is_ignore_print(packet: &MqttPacket) -> bool {
     if let MqttPacket::PingResp(_) = packet {
@@ -49,5 +50,14 @@ where
                 let _ = ac_fn().await;
             }
         }
+    }
+}
+
+pub async fn wait_cluster_running(cache_manager: &Arc<CacheManager>) {
+    loop {
+        if cache_manager.get_status() == NodeStatus::Running {
+            break;
+        }
+        sleep(Duration::from_secs(1)).await;
     }
 }

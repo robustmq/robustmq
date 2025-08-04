@@ -17,14 +17,12 @@
 
 
 <h3 align="center">
-    Next generation cloud-native converged message queue.
+    Next-generation cloud-native converged message queue.
 </h3>
 
-> Tips:</br>
-> - This project is currently in its early preview stage and is undergoing rapid iteration and testing. A stable release
-    is expected in the second half of 2025.</br>
-> - We are still growing—please give us time to mature. Our ambition is for RobustMQ to become the next top-level Apache
-    project in the message queue ecosystem.</br>
+> Tips:<br/>
+> - This project is currently in its early preview stage and is undergoing rapid iteration and testing. A stable release is expected in the second half of 2025.<br/>
+> - We are still growing—please give us time to mature. Our ambition is for RobustMQ to become the next top-level Apache project in the message queue ecosystem.<br/>
 
 ## 🚀 Introduction
 
@@ -36,9 +34,7 @@ while embracing a fully serverless architecture. By integrating multi-protocol c
 distributed, elastic design, RobustMQ provides a unified and efficient communication foundation for AI
 applications—reducing architectural complexity while improving system performance and reliability.
 
-We have long aimed to support multiple protocols within a truly serverless architecture. At the same time, we strive to
-keep the architecture simple and adaptable to various deployment scenarios and operational requirements, ultimately
-reducing the cost of deployment, operations, and usage.
+We aim to support multiple protocols within a truly serverless architecture. At the same time, we strive to keep the architecture simple and adaptable to various deployment scenarios and operational requirements. This approach ultimately reduces the cost of deployment, operations, and usage.
 <picture>
 
   <source
@@ -62,17 +58,11 @@ reducing the cost of deployment, operations, and usage.
 ## 💡 Features
 
 - **100% Rust**: The message queuing core is implemented entirely in Rust for safety, performance, and reliability.
-- **Multi-Protocol Support**: Compatible with MQTT 3.1/3.1.1/5.0, AMQP, RocketMQ Remoting/gRPC, Kafka protocol,
-  OpenMessaging, JNS, SQS, and other mainstream messaging protocols.
-- **Layered Architecture**: Follows a three-tier design—compute, storage, and scheduling—where each layer can scale
-  independently and supports clustered deployments for horizontal scalability.
-- **Pluggable Storage Layer**: Offers a standalone, pluggable storage architecture. Users can choose the most suitable
-  storage backend, with compatibility across traditional and cloud-native environments, supporting both cloud and IDC
-  deployments.
-- **High-Cohesion Design**: Includes built-in metadata storage and distributed journal storage services, enabling fast,
-  cohesive, and easy deployment.
-- **Feature-Rich Messaging**: Supports a wide range of advanced messaging features such as sequential messages,
-  dead-letter messages, transactional messages, idempotent messages, and delayed messages.
+- **Multi-Protocol Support**: Compatible with MQTT 3.1/3.1.1/5.0, AMQP, RocketMQ Remoting/gRPC, Kafka protocol, OpenMessaging, JNS, SQS, and other mainstream messaging protocols.
+- **Layered Architecture**: Follows a three-tier design—compute, storage, and scheduling—where each layer can scale independently and supports clustered deployments for horizontal scalability.
+- **Pluggable Storage Layer**: Offers a standalone, pluggable storage architecture. Users can choose the most suitable storage backend, with compatibility across traditional and cloud-native environments, supporting both cloud and IDC deployments.
+- **High-Cohesion Design**: Includes built-in metadata storage and distributed journal storage services, enabling rapid, cohesive, and streamlined deployment.
+- **Feature-Rich Messaging**: Supports a wide range of advanced messaging features such as sequential messages, dead-letter messages, transactional messages, idempotent messages, and delayed messages.
 
 > In the first phase (through the end of 2025), RobustMQ will initially support RobustMQ MQTT.
 
@@ -91,26 +81,26 @@ flexibility, scalability, and resilience in diverse deployment environments.
 
 ![image](docs/images/robustmq-architecture.png)
 
-- Placement Center
+**Metadata Service**
 
 The metadata storage and scheduling component of the RobustMQ cluster. It is responsible for managing cluster metadata,
 node registration, configuration storage and distribution, as well as task scheduling. Key responsibilities include
 cluster node discovery, configuration propagation, and orchestration of cluster-wide behaviors.
 
-- Multi-protocol computing layer
+**Multi-Protocol Computing Layer**
 
 This is the Broker Cluster—the computing layer of the RobustMQ system. It handles adaptation and processing of various
 messaging protocols, and implements core messaging features. Incoming messages are forwarded to the storage layer via
 the Storage Adapter Layer after protocol-specific processing.
 
-- Storage Adapter Layer
+**Storage Adapter Layer**
 
 This layer provides abstraction and translation between messaging semantics and storage backends. It unifies various
 protocol concepts such as Topic, Queue, and Partition into the internal Shard model. It also interfaces with different
 storage systems including local file systems, HDFS, object storage, or custom-built storage engines—ensuring message
 data is persistently stored to the appropriate backend.
 
-- Standalone storage engine
+**Standalone Storage Engine**
 
 Refers to external, independent storage engines such as cloud object storage (e.g., AWS S3), HDFS clusters, or data lake
 platforms (e.g., Apache Iceberg, Hudi). Similar to RobustMQ's Journal Server or Apache BookKeeper, this layer provides
@@ -124,46 +114,12 @@ it aims to provide a high-performance, enterprise-grade message queuing solution
 scale. The long-term vision is to deliver a product that rivals leading enterprise MQTT brokers such as **EMQX** and *
 *HiveMQ**.
 
-![img](docs/images/wechat-group.png)
+![img](docs/images/console-start.png)
 
-### Features
-
-1. **Cluster-Ready**
-
-Supports massive clustered deployments with thousands of Broker nodes and seamless, non-intrusive horizontal scaling.
-
-2. **Full Protocol Coverage**
-
-Implements all features from MQTT 3.1, 3.1.1, and 5.0 specifications.
-
-3. **High Performance**
-
-A single instance can handle millions of concurrent connections and extremely high throughput for real-time messaging.
-
-4. **Multi-Transport Support**
-
-Supports a wide range of access protocols including TCP, TCP + SSL, WebSocket, WebSocket + SSL, QUIC, and HTTP.
-
-5. **Pluggable Storage**
-
-Supports offline messaging and multiple persistence engines, allowing flexible storage backend selection based on use
-case.
-
-6. **Comprehensive Functionality**
-
-Supports critical MQTT features such as Will Messages (testament messages), Retained Messages, and more—all aligned with
-the MQTT protocol spec.
-
-### Docs
-
-1. [《RobustMQ Quick Start》](https://robustmq.com/QuickGuide/Overview.html)
-2. [《RobsustMQ MQTT Doc》](https://robustmq.com/RobustMQ-MQTT/Overview.html)
-3. [《RobustMQ MQTT Command》](https://robustmq.com/RobustMQ-Command/Mqtt-Broker.html)
-
-### MQTT Web UI
-
-RobustMQ MQTT has a corresponding console page, and the address
-is[Robustmq Web UI](https://github.com/robustmq/robustmq-copilot)
+1. [RobustMQ Quick Start](https://robustmq.com/QuickGuide/Overview.html)
+2. [RobustMQ MQTT Doc](https://robustmq.com/RobustMQ-MQTT/Overview.html)
+3. [RobustMQ MQTT Command](https://robustmq.com/RobustMQ-Command/Mqtt-Broker.html)
+4. [RobustMQ Web UI](https://github.com/robustmq/robustmq-copilot)
 
 ![img](docs/images/web-ui.png)
 
@@ -179,25 +135,18 @@ is[Robustmq Web UI](https://github.com/robustmq/robustmq-copilot)
 
 [GitHub Contribution Guide](https://robustmq.com/ContributionGuide/GitHub-Contribution-Guide.html)
 
-## Contact us
+## Contact Us
 
-- **Discord Group**: Join our community on Discord for discussions, questions, and collaboration
-  👉 [Discord Link](https://discord.gg/sygeGRh5)
-- **Wechat Group**: If you're interested in contributing to the project or discussing development topics, scan the QR
-  code below to join our WeChat group for real-time discussion and collaboration:
-
+- **Discord Group**: Join our community on Discord for discussions, questions, and collaboration 👉 [Discord Link](https://discord.gg/sygeGRh5)
+- **WeChat Group**: If you're interested in contributing to the project or discussing development topics, scan the QR code below to join our WeChat group for real-time discussion and collaboration:
 <div align="center">
-  <img src="docs/images/wechat-group.png" alt="WeChat Group QR Code" width=200 />
+  <img src="docs/images/wechat-group.jpg" alt="WeChat Group QR Code" width=200 />
 </div>
 
-- **Personal wechat**: The WeChat group QR code is updated periodically. If the group QR code has expired, you can add
-  the developer's personal WeChat below to be invited directly:
-
+- **Personal WeChat**: The WeChat group QR code is updated periodically. If the group QR code has expired, you can add the developer's personal WeChat below to be invited directly:
 <div align="center">
   <img src="docs/images/wechat.jpg" alt="WeChat QR Code" width=200 />
 </div>
 
 ## License
-
-RobustMQ uses the Apache 2.0 license to strike a balance between open contributions and allowing you to use the software
-however you want
+RobustMQ uses the Apache 2.0 license to strike a balance between open contributions and allowing you to use the software however you want.

@@ -15,14 +15,11 @@
 use crate::bridge::manager::ConnectorManager;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::dynamic_config::{update_cluster_dynamic_config, ClusterDynamicConfig};
-use crate::handler::error::MqttBrokerError;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
 use crate::storage::connector::ConnectorStorage;
+use crate::storage::schema::SchemaStorage;
 use crate::storage::topic::TopicStorage;
 use crate::{security::AuthDriver, subscribe::manager::SubscribeManager};
-
-use common_config::mqtt::broker_mqtt_conf;
-use grpc_clients::placement::inner::call::list_schema;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
@@ -35,7 +32,6 @@ use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use protocol::broker_mqtt::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateMqttCacheRequest,
 };
-use protocol::placement_center::placement_center_inner::ListSchemaRequest;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use tracing::info;
@@ -49,44 +45,41 @@ pub async fn load_metadata_cache(
     auth_driver: &Arc<AuthDriver>,
     connector_manager: &Arc<ConnectorManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
-) -> Result<(), MqttBrokerError> {
+) -> ResultMqttBrokerError {
     // load cluster config
     let cluster = build_cluster_config(client_pool).await?;
-
     cache_manager.set_cluster_config(cluster);
 
     // load all topic
     let topic_storage = TopicStorage::new(client_pool.clone());
     let topic_list = topic_storage.all().await?;
-
-    for (_, topic) in topic_list {
-        cache_manager.add_topic(&topic.topic_name, &topic);
+    for topic in topic_list.iter() {
+        cache_manager.add_topic(&topic.topic_name, &topic.clone());
     }
 
     // load all user
     let user_list = auth_driver.read_all_user().await?;
-
-    for (_, user) in user_list {
-        cache_manager.add_user(user);
+    for user in user_list.iter() {
+        cache_manager.add_user(user.clone());
     }
 
     // load all acl
     let acl_list = auth_driver.read_all_acl().await?;
-    for acl in acl_list {
-        cache_manager.add_acl(acl);
+    for acl in acl_list.iter() {
+        cache_manager.add_acl(acl.clone());
     }
 
     // load all blacklist
     let blacklist_list = auth_driver.read_all_blacklist().await?;
-    for blacklist in blacklist_list {
-        cache_manager.add_blacklist(blacklist);
+    for blacklist in blacklist_list.iter() {
+        cache_manager.add_blacklist(blacklist.clone());
     }
 
     // load All topic_rewrite rule
     let topic_storage = TopicStorage::new(client_pool.clone());
     let topic_rewrite_rules = topic_storage.all_topic_rewrite_rule().await?;
-    for topic_rewrite_rule in topic_rewrite_rules {
-        cache_manager.add_topic_rewrite_rule(topic_rewrite_rule);
+    for topic_rewrite_rule in topic_rewrite_rules.iter() {
+        cache_manager.add_topic_rewrite_rule(topic_rewrite_rule.clone());
     }
 
     // load all connectors
@@ -97,24 +90,30 @@ pub async fn load_metadata_cache(
     }
 
     // load all schemas
-    let config = broker_mqtt_conf();
-    let request = ListSchemaRequest {
-        cluster_name: config.cluster_name.clone(),
-        schema_name: "".to_owned(),
-    };
-
-    let reply = list_schema(client_pool, &config.placement_center, request).await?;
-    for raw in reply.schemas {
-        let schema = serde_json::from_slice::<SchemaData>(raw.as_slice())?;
-        schema_manager.add_schema(schema);
+    let schema_storage = SchemaStorage::new(client_pool.clone());
+    let schemas = schema_storage.list("".to_string()).await?;
+    for schema in schemas.iter() {
+        schema_manager.add_schema(schema.clone());
     }
 
     // load all auto subscribe rule
     let auto_subscribe_storage = AutoSubscribeStorage::new(client_pool.clone());
     let auto_subscribe_rules = auto_subscribe_storage.list_auto_subscribe_rule().await?;
-    for auto_subscribe_rule in auto_subscribe_rules {
-        cache_manager.add_auto_subscribe_rule(auto_subscribe_rule);
+    for auto_subscribe_rule in auto_subscribe_rules.iter() {
+        cache_manager.add_auto_subscribe_rule(auto_subscribe_rule.clone());
     }
+
+    info!(
+        "Cache loading successful.topic:{},user:{},acl:{},blacklist:{},topic_rewrite_rule:{},connectors:{},schemas:{},auto_subscribe_rules:{}",
+        topic_list.len(),
+        user_list.len(),
+        acl_list.len(),
+        blacklist_list.len(),
+        topic_rewrite_rules.len(),
+        connectors.len(),
+        schemas.len(),
+        auto_subscribe_rules.len(),
+    );
 
     Ok(())
 }

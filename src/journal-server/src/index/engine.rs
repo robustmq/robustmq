@@ -20,7 +20,7 @@ pub fn column_family_list() -> Vec<String> {
 
 pub fn storage_data_fold(data_fold: &Vec<String>) -> String {
     if let Some(fold) = data_fold.first() {
-        return format!("{fold}/_index");
+        return format!("{fold}_index");
     }
     panic!("No configuration data storage directory, configuration info :{data_fold:?}");
 }

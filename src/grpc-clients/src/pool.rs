@@ -12,11 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::error::common::CommonError;
-use dashmap::mapref::one::Ref;
-use dashmap::DashMap;
-use mobc::{Connection, Pool};
-use tracing::info;
+use std::time::Duration;
 
 use crate::journal::admin::JournalAdminServiceManager;
 use crate::journal::inner::JournalInnerServiceManager;
@@ -27,6 +23,11 @@ use crate::placement::journal::JournalServiceManager;
 use crate::placement::kv::KvServiceManager;
 use crate::placement::mqtt::MqttServiceManager;
 use crate::placement::openraft::OpenRaftServiceManager;
+use common_base::error::common::CommonError;
+use dashmap::mapref::one::Ref;
+use dashmap::DashMap;
+use mobc::{Connection, Pool};
+use tracing::info;
 
 #[derive(Clone)]
 pub struct ClientPool {
@@ -84,7 +85,7 @@ impl ClientPool {
         }
 
         if let Some(pool) = self.placement_center_inner_pools.get(addr) {
-            match pool.get().await {
+            match pool.get_timeout(Duration::from_secs(3)).await {
                 Ok(conn) => return Ok(conn),
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
@@ -118,7 +119,7 @@ impl ClientPool {
                 .insert(addr.to_owned(), pool);
         }
         if let Some(pool) = self.placement_center_journal_service_pools.get(addr) {
-            match pool.get().await {
+            match pool.get_timeout(Duration::from_secs(3)).await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
@@ -152,7 +153,7 @@ impl ClientPool {
         }
 
         if let Some(pool) = self.placement_center_kv_service_pools.get(addr) {
-            match pool.get().await {
+            match pool.get_timeout(Duration::from_secs(3)).await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
@@ -188,7 +189,7 @@ impl ClientPool {
                 .insert(addr.to_owned(), pool);
         }
         if let Some(pool) = self.placement_center_mqtt_service_pools.get(addr) {
-            match pool.get().await {
+            match pool.get_timeout(Duration::from_secs(3)).await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
@@ -227,7 +228,7 @@ impl ClientPool {
         }
 
         if let Some(pool) = self.placement_center_openraft_service_pools.get(addr) {
-            match pool.get().await {
+            match pool.get_timeout(Duration::from_secs(3)).await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
@@ -263,7 +264,7 @@ impl ClientPool {
         }
 
         if let Some(pool) = self.mqtt_broker_placement_service_pools.get(addr) {
-            match pool.get().await {
+            match pool.get_timeout(Duration::from_secs(3)).await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
@@ -299,7 +300,7 @@ impl ClientPool {
         }
 
         if let Some(pool) = self.mqtt_broker_admin_service_pools.get(addr) {
-            match pool.get().await {
+            match pool.get_timeout(Duration::from_secs(3)).await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
@@ -336,7 +337,7 @@ impl ClientPool {
         }
 
         if let Some(pool) = self.journal_inner_service_pools.get(addr) {
-            match pool.get().await {
+            match pool.get_timeout(Duration::from_secs(3)).await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
@@ -373,7 +374,7 @@ impl ClientPool {
         }
 
         if let Some(pool) = self.journal_admin_service_pools.get(addr) {
-            match pool.get().await {
+            match pool.get_timeout(Duration::from_secs(3)).await {
                 Ok(conn) => {
                     return Ok(conn);
                 }

@@ -15,7 +15,7 @@
 use crate::common::types::ResultMqttBrokerError;
 use common_base::network::{broker_not_available, is_port_open};
 use common_base::tools::{get_local_ip, now_mills, now_second, unique_id};
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use futures::StreamExt;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::node_extend::MqttNodeExtend;
@@ -140,7 +140,7 @@ impl ShareFollowerResub {
     }
 
     async fn start_resub_thread(&self) -> ResultMqttBrokerError {
-        let conf = broker_mqtt_conf();
+        let conf = broker_config();
 
         for (follower_resub_key, share_sub) in self.subscribe_manager.share_follower_resub.clone() {
             let metadata_cache = self.cache_manager.clone();
@@ -846,7 +846,7 @@ async fn un_subscribe_to_leader(
 }
 
 fn build_resub_connect_pkg(protocol_level: u8, client_id: String) -> MqttPacket {
-    let conf = broker_mqtt_conf();
+    let conf = broker_config();
     let connect = Connect {
         keep_alive: 6000,
         client_id,
@@ -860,8 +860,8 @@ fn build_resub_connect_pkg(protocol_level: u8, client_id: String) -> MqttPacket 
     };
 
     let login = Login {
-        username: conf.system.default_user.clone(),
-        password: conf.system.default_password.clone(),
+        username: conf.mqtt_runtime.default_user.clone(),
+        password: conf.mqtt_runtime.default_password.clone(),
     };
 
     MqttPacket::Connect(

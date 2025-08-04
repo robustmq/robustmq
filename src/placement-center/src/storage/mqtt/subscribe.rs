@@ -173,7 +173,7 @@ mod tests {
     use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
     use crate::storage::rocksdb::column_family_list;
     use common_base::utils::file_utils::test_temp_dir;
-    use common_config::place::config::placement_center_test_conf;
+    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
     use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
     use protocol::mqtt::common::{Filter, QoS, RetainHandling};
@@ -182,10 +182,11 @@ mod tests {
 
     #[tokio::test]
     async fn subscribe_storage_ops() {
-        let config = placement_center_test_conf();
+        let config = default_broker_config();
+        init_broker_conf_by_config(config.clone());
         let db = Arc::new(RocksDBEngine::new(
             &test_temp_dir(),
-            config.rocksdb.max_open_files.unwrap(),
+            config.rocksdb.max_open_files,
             column_family_list(),
         ));
         let storage = MqttSubscribeStorage::new(db);
@@ -260,10 +261,11 @@ mod tests {
 
     #[tokio::test]
     async fn auto_subscribe_rule_storage_basic_ops() {
-        let config = placement_center_test_conf();
+        let config = default_broker_config();
+        init_broker_conf_by_config(config.clone());
         let db = Arc::new(RocksDBEngine::new(
             &test_temp_dir(),
-            config.rocksdb.max_open_files.unwrap(),
+            config.rocksdb.max_open_files,
             column_family_list(),
         ));
 

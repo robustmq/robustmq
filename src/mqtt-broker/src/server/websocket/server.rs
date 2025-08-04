@@ -30,7 +30,7 @@ use axum_extra::TypedHeader;
 use axum_server::tls_rustls::RustlsConfig;
 use bytes::{BufMut, BytesMut};
 use common_base::tools::now_mills;
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use delay_message::DelayMessageManager;
 use futures_util::stream::StreamExt;
 use grpc_clients::pool::ClientPool;
@@ -88,14 +88,14 @@ impl WebSocketServerState {
 }
 
 pub async fn websocket_server(state: WebSocketServerState) {
-    let config = broker_mqtt_conf();
-    let ip: SocketAddr = format!("0.0.0.0:{}", config.network_port.websocket_port)
+    let config = broker_config();
+    let ip: SocketAddr = format!("0.0.0.0:{}", config.mqtt_server.websocket_port)
         .parse()
         .unwrap();
     let app = routes_v1(state);
     info!(
         "Broker WebSocket Server start success. port:{}",
-        config.network_port.websocket_port
+        config.mqtt_server.websocket_port
     );
     match axum_server::bind(ip)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
@@ -107,15 +107,15 @@ pub async fn websocket_server(state: WebSocketServerState) {
 }
 
 pub async fn websockets_server(state: WebSocketServerState) {
-    let config = broker_mqtt_conf();
-    let ip: SocketAddr = format!("0.0.0.0:{}", config.network_port.websockets_port)
+    let config = broker_config();
+    let ip: SocketAddr = format!("0.0.0.0:{}", config.mqtt_server.websockets_port)
         .parse()
         .unwrap();
     let app = routes_v1(state);
 
     let tls_config = match RustlsConfig::from_pem_file(
-        PathBuf::from(config.network_port.tls_cert.clone()),
-        PathBuf::from(config.network_port.tls_key.clone()),
+        PathBuf::from(config.runtime.tls_cert.clone()),
+        PathBuf::from(config.runtime.tls_key.clone()),
     )
     .await
     {
@@ -127,14 +127,13 @@ pub async fn websockets_server(state: WebSocketServerState) {
 
     info!(
         "Broker WebSocket TLS Server start success. port:{}",
-        config.network_port.websockets_port
+        config.mqtt_server.websockets_port
     );
-    match axum_server::bind_rustls(ip, tls_config)
+    if let Err(e) = axum_server::bind_rustls(ip, tls_config)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await
     {
-        Ok(()) => {}
-        Err(e) => panic!("{}", e.to_string()),
+        panic!("{}", e.to_string());
     }
 }
 

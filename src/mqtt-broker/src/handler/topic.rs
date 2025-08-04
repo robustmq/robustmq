@@ -18,7 +18,7 @@ use std::time::Duration;
 use bytes::Bytes;
 
 use common_base::tools::unique_id;
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
@@ -154,7 +154,7 @@ pub async fn try_init_topic(
         // create Topic
         let topic_storage = TopicStorage::new(client_pool.clone());
         let topic_id = unique_id();
-        let conf = broker_mqtt_conf();
+        let conf = broker_config();
         let topic = if let Some(topic) = topic_storage.get_topic(topic_name).await? {
             topic
         } else {
@@ -162,6 +162,7 @@ pub async fn try_init_topic(
             topic_storage.save_topic(topic.clone()).await?;
             topic
         };
+
         metadata_cache.add_topic(topic_name, &topic);
 
         // Create the resource object of the storage layer

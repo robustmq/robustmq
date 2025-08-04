@@ -16,7 +16,7 @@ use crate::handler::cache::CacheManager;
 use crate::observability::slow::sub::{read_slow_sub_record, SlowSubData};
 
 use common_base::utils::file_utils::get_project_root;
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ListSlowSubScribeRaw, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListSystemAlarmRaw,
     ListSystemAlarmReply, ListSystemAlarmRequest, SetSystemAlarmConfigReply,
@@ -31,7 +31,7 @@ pub async fn list_slow_subscribe_by_req(
     request: &ListSlowSubscribeRequest,
 ) -> Result<ListSlowSubscribeReply, crate::handler::error::MqttBrokerError> {
     let mut list_slow_subscribe_raw: Vec<ListSlowSubScribeRaw> = Vec::new();
-    let mqtt_config = broker_mqtt_conf();
+    let mqtt_config = broker_config();
     if cache_manager.get_slow_sub_config().enable {
         let path = mqtt_config.log.log_path.clone();
         let path_buf = get_project_root()?.join(path.replace("./", "") + "/slow_sub.log");
@@ -121,20 +121,16 @@ mod test {
     use crate::observability::system_topic::sysmon::SystemAlarmEventMessage;
     use crate::storage::message::cluster_name;
 
-    use common_config::mqtt::config::BrokerMqttConfig;
-    use common_config::mqtt::{default_broker_mqtt, init_broker_mqtt_conf_by_path};
+    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
+    use common_config::config::BrokerConfig;
     use grpc_clients::pool::ClientPool;
 
     #[tokio::test]
     pub async fn test_set_system_alarm_config_by_req() {
-        let path = format!(
-            "{}/../../config/mqtt-server.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        init_broker_mqtt_conf_by_path(&path);
+        init_broker_conf_by_config(default_broker_config());
         let cache_client_pool = Arc::new(ClientPool::new(3));
         let cache_manager = Arc::new(CacheManager::new(cache_client_pool, cluster_name()));
-        cache_manager.set_cluster_config(default_broker_mqtt());
+        cache_manager.set_cluster_config(default_broker_config());
 
         let req = SetSystemAlarmConfigRequest {
             enable: Some(true),
@@ -149,27 +145,23 @@ mod test {
                 panic!("Failed to set system alarm config: {e}");
             });
 
-        let mqtt_conf = broker_mqtt_conf();
+        let mqtt_conf = broker_config();
         assert_eq!(reply.enable, req.enable.unwrap());
         assert_eq!(reply.os_cpu_high_watermark, req.os_cpu_high_watermark);
         assert_eq!(reply.os_cpu_low_watermark, req.os_cpu_low_watermark);
         assert_eq!(reply.os_memory_high_watermark, req.os_memory_high_watermark);
         assert_eq!(
             reply.os_cpu_check_interval_ms,
-            Some(mqtt_conf.system_monitor.os_cpu_check_interval_ms)
+            Some(mqtt_conf.mqtt_system_monitor.os_cpu_check_interval_ms)
         );
     }
 
     #[tokio::test]
     pub async fn test_list_system_alarm_by_req() {
-        let path = format!(
-            "{}/../../config/mqtt-server.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        init_broker_mqtt_conf_by_path(&path);
+        init_broker_conf_by_config(default_broker_config());
         let cache_client_pool = Arc::new(ClientPool::new(3));
         let cache_manager = Arc::new(CacheManager::new(cache_client_pool, cluster_name()));
-        cache_manager.set_cluster_config(BrokerMqttConfig::default());
+        cache_manager.set_cluster_config(BrokerConfig::default());
 
         let req = ListSystemAlarmRequest {};
         let test_event = "test_event";

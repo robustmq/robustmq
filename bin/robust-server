@@ -15,39 +15,23 @@
 
 # help info
 usage() {
-    echo "Usage: $0 <module> <action> [config_file]"
-    echo "  module: mqtt | journal | place"
+    echo "Usage: $0 <action> [config_file]"
     echo "  action: start | stop"
     echo "  config_file: optional, default is config/<module>.toml"
-    echo "  example start Placement-Center: $0 place start config/placement-center.toml"
-    echo "  example stop Placement-Center: $0 place stop"
+    echo "  example start: $0 start config/placement-center.toml"
+    echo "  example stop: $0 stop"
     exit 1
 }
 
-#get bin_name by mod
-get_bin_name() {
-    case "${1}" in
-        mqtt)    echo "mqtt-server" ;;
-        journal) echo "journal-server" ;;
-        place)   echo "placement-center" ;;
-    esac
-}
 
 # check args
-[ $# -lt 2 ] && usage
+[ $# -lt 1 ] && usage
 
 
 workdir=$(cd $(dirname $0); pwd)
 mkdir -p ${workdir}/../logs
-mod=$1
-action=$2
-conf=$3
-
-# check mod
-case "${mod}" in
-    mqtt|journal|place) ;;
-    *) echo "Invalid module type : ${mod}, optional: mqtt, journal, place"; usage ;;
-esac
+action=$1
+conf=$2
 
 # check action
 case "${action}" in
@@ -55,42 +39,40 @@ case "${action}" in
     *) echo "Invalid action: ${action}, optional: start, stop"; usage ;;
 esac
 
-bin_name=$(get_bin_name $mod)
-[ -z $conf ] && conf=${workdir}/../config/${bin_name}.toml
-log_file=${workdir}/../logs/${bin_name}-nohup.log
+[ -z $conf ] && conf=${workdir}/../config/server.toml
+log_file=${workdir}/../logs/nohup.log
 
 start_service() {
-  echo "Starting ${bin_name} with config: ${conf}"
-  local bin_path="${workdir}/../libs/${bin_name}"
+  local bin_path="${workdir}/../libs/broker-server"
   [ ! -x "$bin_path" ] && echo "ERROR: $bin_path not found or not executable" && exit 1
   [ ! -f $conf ] && echo "Config file not found: $conf" && exit 1
   echo "Config:$conf"
   nohup "${bin_path}" --conf="${conf}" >> "${log_file}" 2>&1 &
   sleep 3
-  num=` ps -ef | grep /libs/${bin_name} | grep -v grep | wc -l`
+  num=` ps -ef | grep /libs/broker-server | grep -v grep | wc -l`
   if [ $num -ge 1 ]
   then
-    echo "${bin_name} started successfully."
+    echo "broker started successfully."
   else
-    echo "WARN: ${bin_name} started failure. please check detail in ${log_file}"
+    echo "WARN: broker started failure. please check detail in ${log_file}"
   fi
 
 }
 
 stop_service() {
-  no=$(ps -ef | grep "${bin_name}" | grep conf | grep -v grep | awk '{print $2}')
-  [ ! -n "$no" ] && echo "No running processes found for ${bin_name}." && exit 0
+  no=$(ps -ef | grep "broker-server" | grep conf | grep -v grep | awk '{print $2}')
+  [ ! -n "$no" ] && echo "No running processes found for broker-server." && exit 0
   echo "Currently running process numbers: $no"
   for pid in $no; do
     echo "Killing process: $pid"
     kill "$pid"
   done
   sleep 3
-  num=$(ps -ef | grep "/libs/${bin_name}" | grep conf | grep -v grep | wc -l)
+  num=$(ps -ef | grep "/libs/broker-server" | grep conf | grep -v grep | wc -l)
   if [ "$num" -eq 0 ]; then
-    echo "${bin_name} stopped successfully."
+    echo "broker stopped successfully."
   else
-    echo "WARN: ${bin_name} stop failure."
+    echo "WARN: broker stop failure."
   fi
 }
 

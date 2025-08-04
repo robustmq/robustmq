@@ -35,7 +35,7 @@ pub fn banner() {
 
     // Print version information
     let version = super::version();
-    info!("Version: {}", version);
+    info!("version: {}", version);
 }
 
 #[cfg(test)]

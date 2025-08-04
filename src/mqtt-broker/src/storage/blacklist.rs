@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_config::mqtt::broker_mqtt_conf;
+use common_config::broker::broker_config;
 use grpc_clients::placement::mqtt::call::{create_blacklist, delete_blacklist, list_blacklist};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
@@ -35,11 +35,16 @@ impl BlackListStorage {
     }
 
     pub async fn list_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = ListBlacklistRequest {
             cluster_name: config.cluster_name.clone(),
         };
-        let reply = list_blacklist(&self.client_pool, &config.placement_center, request).await?;
+        let reply = list_blacklist(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         let mut list = Vec::new();
         for raw in reply.blacklists {
             list.push(serde_json::from_slice::<MqttAclBlackList>(raw.as_slice())?);
@@ -48,23 +53,33 @@ impl BlackListStorage {
     }
 
     pub async fn save_blacklist(&self, blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = CreateBlacklistRequest {
             cluster_name: config.cluster_name.clone(),
             blacklist: blacklist.encode()?,
         };
-        create_blacklist(&self.client_pool, &config.placement_center, request).await?;
+        create_blacklist(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         Ok(())
     }
 
     pub async fn delete_blacklist(&self, blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
-        let config = broker_mqtt_conf();
+        let config = broker_config();
         let request = DeleteBlacklistRequest {
             cluster_name: config.cluster_name.clone(),
             blacklist_type: blacklist.blacklist_type.to_string(),
             resource_name: blacklist.resource_name,
         };
-        delete_blacklist(&self.client_pool, &config.placement_center, request).await?;
+        delete_blacklist(
+            &self.client_pool,
+            &config.get_placement_center_addr(),
+            request,
+        )
+        .await?;
         Ok(())
     }
 }

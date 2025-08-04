@@ -70,7 +70,7 @@ pub const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling:
 #[command(author="RobustMQ", about="Command line tool for mqtt broker", long_about = None)]
 #[command(next_line_help = true)]
 struct MqttArgs {
-    #[arg(short, long,default_value_t =String::from("127.0.0.1:9981"))]
+    #[arg(short, long,default_value_t =String::from("127.0.0.1:1228"))]
     server: String,
 
     #[clap(subcommand)]
