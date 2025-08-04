@@ -65,7 +65,7 @@ $ cd build
 $ cd robustmq-0.1.25
 $ bin/robust-server start
 ```
-
+![img](docs/images/console-start.png)
 ## RobustMQ MQTT
 RobustMQ fully supports the MQTT 3/4/5 protocols, aiming to align with the functions of the EMQX enterprise edition.
 
