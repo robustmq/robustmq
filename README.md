@@ -78,6 +78,7 @@ RobustMQ fully supports the MQTT 3/4/5 protocols, aiming to align with the funct
 
 
 ## Contribution Guidelines
+RobustMQ is still quite young. We hope to meet more people who are interested in Rust, infrastructure, and message queues, and explore the application of Rust in the field of message queues together.
 
 [GitHub Contribution Guide](https://robustmq.com/ContributionGuide/GitHub-Contribution-Guide.html)
 
