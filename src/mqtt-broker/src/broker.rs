@@ -341,21 +341,21 @@ impl MqttBrokerServer {
         let connector_manager = self.connector_manager.clone();
         let schema_manager = self.schema_manager.clone();
         let auth_driver = self.auth_driver.clone();
-            if let Err(e) = init_system_user(&self.cache_manager, &self.client_pool).await {
-                panic!("{}", e);
-            }
+        if let Err(e) = init_system_user(&self.cache_manager, &self.client_pool).await {
+            panic!("{}", e);
+        }
 
-            if let Err(e) = load_metadata_cache(
-                &self.cache_manager,
-                &self.client_pool,
-                &self.auth_driver,
-                &self.connector_manager,
-                &self.schema_manager,
-            )
-            .await
-            {
-                panic!("{}", e);
-            }
+        if let Err(e) = load_metadata_cache(
+            &self.cache_manager,
+            &self.client_pool,
+            &self.auth_driver,
+            &self.connector_manager,
+            &self.schema_manager,
+        )
+        .await
+        {
+            panic!("{}", e);
+        }
 
         if let Err(e) = load_metadata_cache(
             &cache_manager,
