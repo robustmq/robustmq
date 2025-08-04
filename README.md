@@ -114,8 +114,6 @@ it aims to provide a high-performance, enterprise-grade message queuing solution
 scale. The long-term vision is to deliver a product that rivals leading enterprise MQTT brokers such as **EMQX** and *
 *HiveMQ**.
 
-![img](docs/images/wechat-group.png)
-
 ![img](docs/images/console-start.png)
 
 1. [RobustMQ Quick Start](https://robustmq.com/QuickGuide/Overview.html)
@@ -142,7 +140,7 @@ scale. The long-term vision is to deliver a product that rivals leading enterpri
 - **Discord Group**: Join our community on Discord for discussions, questions, and collaboration 👉 [Discord Link](https://discord.gg/sygeGRh5)
 - **WeChat Group**: If you're interested in contributing to the project or discussing development topics, scan the QR code below to join our WeChat group for real-time discussion and collaboration:
 <div align="center">
-  <img src="docs/images/wechat-group.png" alt="WeChat Group QR Code" width=200 />
+  <img src="docs/images/wechat-group.jpg" alt="WeChat Group QR Code" width=200 />
 </div>
 
 - **Personal WeChat**: The WeChat group QR code is updated periodically. If the group QR code has expired, you can add the developer's personal WeChat below to be invited directly:
@@ -151,32 +149,4 @@ scale. The long-term vision is to deliver a product that rivals leading enterpri
 </div>
 
 ## License
-
 RobustMQ uses the Apache 2.0 license to strike a balance between open contributions and allowing you to use the software however you want.
-
-
-```
-robustmq-0.1.25 % tree
-.
-├── bin
-│   ├── robust-bench
-│   ├── robust-ctl
-│   └── robust-server
-├── config
-│   ├── certs
-│   │   ├── ca.pem
-│   │   ├── cert.pem
-│   │   └── key.pem
-│   ├── server-tracing.toml
-│   ├── server.toml
-│   ├── server.toml.template
-│   └── version.ini
-├── libs
-│   ├── broker-server
-│   ├── cli-bench
-│   └── cli-command
-└── logs
-    └── nohup.log
-
-
-```
