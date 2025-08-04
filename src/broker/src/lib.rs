@@ -22,17 +22,6 @@ use journal_server::{
     server::connection_manager::ConnectionManager as JournalConnectionManager, JournalServer,
     JournalServerParams,
 };
-use mqtt_broker::{
-    bridge::manager::ConnectorManager,
-    broker::{MqttBrokerServer, MqttBrokerServerParams},
-    common::metrics_cache::MetricsCacheManager,
-    handler::{cache::CacheManager as MqttCacheManager, heartbeat::check_placement_center_status},
-    security::AuthDriver,
-    server::common::connection_manager::ConnectionManager as MqttConnectionManager,
-    storage::message::build_message_storage_driver,
-    subscribe::manager::SubscribeManager,
-};
-use openraft::Raft;
 use meta_service::{
     controller::{
         journal::call_node::JournalInnerCallManager, mqtt::call_broker::MQTTInnerCallManager,
@@ -46,6 +35,17 @@ use meta_service::{
     storage::rocksdb::{column_family_list, RocksDBEngine},
     PlacementCenterServer, PlacementCenterServerParams,
 };
+use mqtt_broker::{
+    bridge::manager::ConnectorManager,
+    broker::{MqttBrokerServer, MqttBrokerServerParams},
+    common::metrics_cache::MetricsCacheManager,
+    handler::{cache::CacheManager as MqttCacheManager, heartbeat::check_placement_center_status},
+    security::AuthDriver,
+    server::common::connection_manager::ConnectionManager as MqttConnectionManager,
+    storage::message::build_message_storage_driver,
+    subscribe::manager::SubscribeManager,
+};
+use openraft::Raft;
 use schema_register::schema::SchemaRegisterManager;
 use std::{sync::Arc, thread::sleep, time::Duration};
 use tokio::{runtime::Runtime, signal, sync::broadcast};
