@@ -51,7 +51,7 @@ pub async fn start_grpc_server(
     journal_params: Option<JournalServerParams>,
     grpc_port: u32,
 ) -> Result<(), CommonError> {
-    let ip = format!("0.0.0.0:{}", grpc_port).parse()?;
+    let ip = format!("0.0.0.0:{grpc_port}").parse()?;
     let cors_layer = tower_http::cors::CorsLayer::very_permissive();
     let layer = tower::ServiceBuilder::new()
         .layer(BaseMiddlewareLayer::default())
