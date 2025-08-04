@@ -41,12 +41,6 @@
 
 RobustMQ is a next-generation, high-performance, multi-protocol message queue built in Rust. Our vision is to create a unified messaging infrastructure tailored for modern cloud-native and AI systems.
 
-**Why RobustMQ?**
-- Built from the ground up with Rust for maximum performance, safety, and reliability
-- Cloud-native architecture designed for Kubernetes and containerized environments
-- Multi-protocol support reducing infrastructure complexity
-- Designed specifically for the demands of AI/ML workloads and real-time systems
-
 ## ✨ Features
 
 - **🚀 High Performance**: Built with Rust, ensuring memory safety, zero-cost abstractions, and blazing-fast performance
@@ -66,7 +60,7 @@ RobustMQ is a next-generation, high-performance, multi-protocol message queue bu
 ### Core Components
 
 - **Broker Server**: High-performance message handling with multi-protocol support
-- **Placement Center**: Metadata management and cluster coordination using Raft consensus
+- **Meta Service**: Metadata management and cluster coordination using Raft consensus
 - **Journal Server**: Persistent storage layer with pluggable backends
 - **Web Console**: Management interface for monitoring and administration
 
