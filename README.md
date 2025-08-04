@@ -67,12 +67,7 @@ $ bin/robust-server start
 ```
 
 ## RobustMQ MQTT
-RobustMQ MQTT is a full-featured implementation of the MQTT protocol built on the RobustMQ platform. Designed in Rust,
-it aims to provide a high-performance, enterprise-grade message queuing solution that supports clustered deployment at
-scale. The long-term vision is to deliver a product that rivals leading enterprise MQTT brokers such as **EMQX** and *
-*HiveMQ**.
-
-
+RobustMQ fully supports the MQTT 3/4/5 protocols, aiming to align with the functions of the EMQX enterprise edition.
 
 1. [RobustMQ Quick Start](https://robustmq.com/QuickGuide/Overview.html)
 2. [RobustMQ MQTT Doc](https://robustmq.com/RobustMQ-MQTT/Overview.html)
