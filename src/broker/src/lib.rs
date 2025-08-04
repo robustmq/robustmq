@@ -33,7 +33,7 @@ use mqtt_broker::{
     subscribe::manager::SubscribeManager,
 };
 use openraft::Raft;
-use placement_center::{
+use meta_service::{
     controller::{
         journal::call_node::JournalInnerCallManager, mqtt::call_broker::MQTTInnerCallManager,
     },
@@ -190,7 +190,7 @@ impl BrokerServer {
     async fn build_placement_center(client_pool: Arc<ClientPool>) -> PlacementCenterServerParams {
         let config = broker_config();
         let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(
-            &placement_center::storage::rocksdb::storage_data_fold(&config.rocksdb.data_path),
+            &meta_service::storage::rocksdb::storage_data_fold(&config.rocksdb.data_path),
             config.rocksdb.max_open_files,
             column_family_list(),
         ));

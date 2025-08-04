@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use placement_center::core::metrics::MetricsLabel;
+use meta_service::core::metrics::MetricsLabel;
 
 common_base::register_counter_metric!(
     GRPC_REQUEST_NUM,
