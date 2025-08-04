@@ -20,7 +20,7 @@ pub mod journal;
 pub mod memory;
 pub mod minio;
 pub mod mysql;
-pub mod placement;
+pub mod meta;
 pub mod rocksdb;
 pub mod s3;
 pub mod storage;

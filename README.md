@@ -18,7 +18,7 @@
 </p>
 
 <h3 align="center">
-    A next-generation, high-performance, cloud-native distributed message queue built with Rust
+    A high-performance distributed message queue built with Rust.
 </h3>
 
 <p align="center">
