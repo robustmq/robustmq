@@ -42,11 +42,14 @@ pub async fn list_connector_by_req(
         connector_name: request.connector_name.clone(),
     };
 
-    let connectors_byte =
-        placement_list_connector(client_pool, &config.placement_center, placement_request)
-            .await
-            .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?
-            .connectors;
+    let connectors_byte = placement_list_connector(
+        client_pool,
+        &config.get_placement_center_addr(),
+        placement_request,
+    )
+    .await
+    .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?
+    .connectors;
     let mut connectors = Vec::new();
 
     for connector_byte in connectors_byte {
