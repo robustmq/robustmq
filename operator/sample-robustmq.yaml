@@ -1,0 +1,177 @@
+apiVersion: robustmq.io/v1alpha1
+kind: RobustMQ
+metadata:
+  name: robustmq-sample
+  namespace: default
+spec:
+  # Deployment mode: AllInOne or Microservices
+  deploymentMode: AllInOne
+  
+  # Image configuration
+  image:
+    repository: robustmq/robustmq
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  # AllInOne configuration
+  allInOne:
+    replicas: 1
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+  
+  # Storage configuration
+  storage:
+    storageClass: standard
+    size: "10Gi"
+    accessModes:
+      - ReadWriteOnce
+  
+  # Network configuration
+  network:
+    mqtt:
+      tcpPort: 1883
+      tlsPort: 1884
+      webSocketPort: 8083
+      webSocketTLSPort: 8084
+      serviceType: ClusterIP
+    kafka:
+      port: 9092
+      serviceType: ClusterIP
+    grpc:
+      port: 1228
+      serviceType: ClusterIP
+    amqp:
+      port: 5672
+      serviceType: ClusterIP
+  
+  # Monitoring configuration
+  monitoring:
+    enabled: true
+    prometheus:
+      enable: true
+      port: 9091
+      model: "pull"
+    serviceMonitor:
+      enabled: true
+      interval: "30s"
+      labels:
+        prometheus: "kube-prometheus"
+  
+  # Security configuration
+  security:
+    tls:
+      enabled: false
+    auth:
+      defaultUser: "admin"
+      storageType: "placement"
+  
+  # Additional configuration
+  config:
+    additional:
+      custom_setting: "value"
+
+---
+apiVersion: robustmq.io/v1alpha1
+kind: RobustMQ
+metadata:
+  name: robustmq-microservices
+  namespace: default
+spec:
+  # Microservices deployment mode
+  deploymentMode: Microservices
+  
+  # Image configuration
+  image:
+    repository: robustmq/robustmq
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  # Microservices configuration
+  microservices:
+    metaService:
+      replicas: 3
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "250m"
+        limits:
+          memory: "1Gi"
+          cpu: "500m"
+    brokerService:
+      replicas: 2
+      resources:
+        requests:
+          memory: "1Gi"
+          cpu: "500m"
+        limits:
+          memory: "2Gi"
+          cpu: "1000m"
+    journalService:
+      replicas: 3
+      resources:
+        requests:
+          memory: "1Gi"
+          cpu: "500m"
+        limits:
+          memory: "2Gi"
+          cpu: "1000m"
+      storage:
+        size: "50Gi"
+        additionalPaths:
+          - "/robustmq/journal-data-1"
+          - "/robustmq/journal-data-2"
+  
+  # Storage configuration
+  storage:
+    storageClass: fast-ssd
+    size: "20Gi"
+    accessModes:
+      - ReadWriteOnce
+  
+  # Network configuration
+  network:
+    mqtt:
+      tcpPort: 1883
+      tlsPort: 1884
+      webSocketPort: 8083
+      webSocketTLSPort: 8084
+      serviceType: LoadBalancer
+    kafka:
+      port: 9092
+      serviceType: LoadBalancer
+    grpc:
+      port: 1228
+      serviceType: ClusterIP
+    amqp:
+      port: 5672
+      serviceType: ClusterIP
+  
+  # Monitoring configuration
+  monitoring:
+    enabled: true
+    prometheus:
+      enable: true
+      port: 9091
+      model: "pull"
+    serviceMonitor:
+      enabled: true
+      interval: "30s"
+      labels:
+        prometheus: "kube-prometheus"
+  
+  # Security configuration
+  security:
+    tls:
+      enabled: true
+      secretName: "robustmq-tls"
+      ca:
+        autoGenerate: true
+    auth:
+      defaultUser: "admin"
+      passwordSecret: "robustmq-auth"
+      storageType: "placement"

@@ -1,0 +1,668 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.13.0
+  name: robustmqs.robustmq.io
+spec:
+  group: robustmq.io
+  names:
+    kind: RobustMQ
+    listKind: RobustMQList
+    plural: robustmqs
+    singular: robustmq
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.deploymentMode
+      name: Mode
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.clusterInfo.clusterName
+      name: Cluster
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: RobustMQ is the Schema for the robustmqs API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: RobustMQSpec defines the desired state of RobustMQ
+            properties:
+              allInOne:
+                description: AllInOne configuration (used when DeploymentMode is AllInOne)
+                properties:
+                  affinity:
+                    description: Affinity specifies the pod's scheduling constraints
+                    type: object
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    description: NodeSelector is a selector which must be true for
+                      the pod to fit on a node
+                    type: object
+                  replicas:
+                    default: 1
+                    description: Replicas is the number of replicas for the all-in-one
+                      deployment
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  resources:
+                    description: Resources specifies the resource requirements
+                    type: object
+                  tolerations:
+                    description: Tolerations specifies the pod's tolerations
+                    items:
+                      type: object
+                    type: array
+                type: object
+              config:
+                description: Configuration overrides
+                properties:
+                  additional:
+                    additionalProperties:
+                      type: string
+                    description: Additional configuration as key-value pairs
+                    type: object
+                  configMapName:
+                    description: ConfigMap name containing additional configuration
+                    type: string
+                type: object
+              deploymentMode:
+                default: AllInOne
+                description: DeploymentMode specifies how to deploy RobustMQ services
+                enum:
+                - AllInOne
+                - Microservices
+                type: string
+              image:
+                description: Image configuration
+                properties:
+                  pullPolicy:
+                    default: IfNotPresent
+                    description: PullPolicy is the image pull policy
+                    type: string
+                  pullSecrets:
+                    description: PullSecrets is a list of secrets for pulling images
+                    items:
+                      type: object
+                    type: array
+                  repository:
+                    default: robustmq/robustmq
+                    description: Repository is the image repository
+                    type: string
+                  tag:
+                    default: latest
+                    description: Tag is the image tag
+                    type: string
+                type: object
+              microservices:
+                description: Microservices configuration (used when DeploymentMode
+                  is Microservices)
+                properties:
+                  brokerService:
+                    description: BrokerService configuration
+                    type: object
+                  journalService:
+                    description: JournalService configuration
+                    type: object
+                  metaService:
+                    description: MetaService configuration
+                    type: object
+                type: object
+              monitoring:
+                description: Monitoring configuration
+                properties:
+                  enabled:
+                    default: true
+                    description: Enable Prometheus monitoring
+                    type: boolean
+                  prometheus:
+                    description: Prometheus configuration
+                    properties:
+                      enable:
+                        default: true
+                        description: Enable Prometheus metrics collection
+                        type: boolean
+                      model:
+                        default: pull
+                        description: Prometheus model (pull/push)
+                        type: string
+                      port:
+                        default: 9091
+                        description: Prometheus port
+                        format: int32
+                        type: integer
+                    type: object
+                  serviceMonitor:
+                    description: ServiceMonitor configuration
+                    properties:
+                      enabled:
+                        default: true
+                        description: Enable ServiceMonitor creation
+                        type: boolean
+                      interval:
+                        default: 30s
+                        description: Scrape interval
+                        type: string
+                      labels:
+                        additionalProperties:
+                          type: string
+                        description: Additional labels for ServiceMonitor
+                        type: object
+                    type: object
+                type: object
+              network:
+                description: Network configuration
+                properties:
+                  amqp:
+                    description: AMQP configuration
+                    properties:
+                      port:
+                        default: 5672
+                        description: Port for AMQP
+                        format: int32
+                        type: integer
+                      serviceType:
+                        default: ClusterIP
+                        description: Service type for AMQP service
+                        type: string
+                    type: object
+                  grpc:
+                    description: gRPC configuration
+                    properties:
+                      port:
+                        default: 1228
+                        description: Port for gRPC
+                        format: int32
+                        type: integer
+                      serviceType:
+                        default: ClusterIP
+                        description: Service type for gRPC service
+                        type: string
+                    type: object
+                  kafka:
+                    description: Kafka configuration
+                    properties:
+                      port:
+                        default: 9092
+                        description: Port for Kafka protocol
+                        format: int32
+                        type: integer
+                      serviceType:
+                        default: ClusterIP
+                        description: Service type for Kafka service
+                        type: string
+                    type: object
+                  mqtt:
+                    description: MQTT configuration
+                    properties:
+                      serviceType:
+                        default: ClusterIP
+                        description: Service type for MQTT services
+                        type: string
+                      tcpPort:
+                        default: 1883
+                        description: TCP port for MQTT
+                        format: int32
+                        type: integer
+                      tlsPort:
+                        default: 1884
+                        description: TLS port for MQTT
+                        format: int32
+                        type: integer
+                      webSocketPort:
+                        default: 8083
+                        description: WebSocket port for MQTT
+                        format: int32
+                        type: integer
+                      webSocketTLSPort:
+                        default: 8084
+                        description: WebSocket TLS port for MQTT
+                        format: int32
+                        type: integer
+                    type: object
+                type: object
+              security:
+                description: Security configuration
+                properties:
+                  auth:
+                    description: Authentication configuration
+                    properties:
+                      defaultUser:
+                        default: admin
+                        description: Default username
+                        type: string
+                      passwordSecret:
+                        description: Secret name containing default password
+                        type: string
+                      storageType:
+                        default: placement
+                        description: Storage type for authentication data
+                        type: string
+                    type: object
+                  tls:
+                    description: TLS configuration
+                    properties:
+                      ca:
+                        description: CA certificate configuration
+                        properties:
+                          autoGenerate:
+                            description: Auto-generate CA certificate
+                            type: boolean
+                          secretName:
+                            description: Secret name containing CA certificate
+                            type: string
+                        type: object
+                      enabled:
+                        description: Enable TLS
+                        type: boolean
+                      secretName:
+                        description: Secret name containing TLS certificates
+                        type: string
+                    type: object
+                type: object
+              storage:
+                description: Storage configuration
+                properties:
+                  accessModes:
+                    default:
+                    - ReadWriteOnce
+                    description: AccessModes for the persistent volume
+                    items:
+                      type: string
+                    type: array
+                  size:
+                    default: 10Gi
+                    description: Size of the persistent volume
+                    type: string
+                  storageClass:
+                    description: StorageClass for persistent volumes
+                    type: string
+                type: object
+            type: object
+          status:
+            description: RobustMQStatus defines the observed state of RobustMQ
+            properties:
+              clusterInfo:
+                description: ClusterInfo contains information about the RobustMQ cluster
+                properties:
+                  clusterName:
+                    description: ClusterName is the name of the RobustMQ cluster
+                    type: string
+                  metaLeader:
+                    description: MetaLeader is the current meta service leader
+                    type: string
+                  nodes:
+                    description: Nodes is a list of cluster nodes
+                    items:
+                      description: NodeInfo contains information about a cluster node
+                      properties:
+                        address:
+                          description: Address is the network address of the node
+                          type: string
+                        id:
+                          description: ID is the node ID
+                          type: string
+                        roles:
+                          description: Roles is a list of roles this node serves
+                          items:
+                            description: ServiceRole defines the role of a RobustMQ
+                              service
+                            enum:
+                            - meta
+                            - broker
+                            - journal
+                            type: string
+                          type: array
+                        status:
+                          description: Status is the current status of the node
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              conditions:
+                description: Conditions represent the latest available observations
+                  of an object's state
+                items:
+                  type: object
+                type: array
+              deploymentStatuses:
+                additionalProperties:
+                  description: DeploymentStatus represents the status of a deployment
+                  properties:
+                    availableReplicas:
+                      description: AvailableReplicas is the number of available replicas
+                      format: int32
+                      type: integer
+                    readyReplicas:
+                      description: ReadyReplicas is the number of ready replicas
+                      format: int32
+                      type: integer
+                    replicas:
+                      description: Replicas is the number of desired replicas
+                      format: int32
+                      type: integer
+                  type: object
+                description: DeploymentStatuses represent the status of individual
+                  deployments
+                type: object
+              phase:
+                description: Phase represents the current phase of the RobustMQ deployment
+                type: string
+              serviceStatuses:
+                additionalProperties:
+                  description: ServiceStatus represents the status of a service
+                  properties:
+                    clusterIP:
+                      description: ClusterIP is the cluster IP address of the service
+                      type: string
+                    externalIPs:
+                      description: ExternalIPs is a list of external IP addresses
+                      items:
+                        type: string
+                      type: array
+                    loadBalancerIngress:
+                      description: LoadBalancerIngress represents the status of load
+                        balancer ingress
+                      items:
+                        type: object
+                      type: array
+                  type: object
+                description: ServiceStatuses represent the status of services
+                type: object
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: robustmq-operator-controller-manager
+  namespace: robustmq-system
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: robustmq-operator-leader-election-role
+  namespace: robustmq-system
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: robustmq-operator-manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - robustmq.io
+  resources:
+  - robustmqs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - robustmq.io
+  resources:
+  - robustmqs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - robustmq.io
+  resources:
+  - robustmqs/status
+  verbs:
+  - get
+  - patch
+  - update
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: robustmq-operator-leader-election-rolebinding
+  namespace: robustmq-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: robustmq-operator-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: robustmq-operator-controller-manager
+  namespace: robustmq-system
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: robustmq-operator-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: robustmq-operator-manager-role
+subjects:
+- kind: ServiceAccount
+  name: robustmq-operator-controller-manager
+  namespace: robustmq-system
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: robustmq-operator-controller-manager
+  namespace: robustmq-system
+  labels:
+    app.kubernetes.io/name: robustmq-operator
+    app.kubernetes.io/instance: controller-manager
+    app.kubernetes.io/component: manager
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: robustmq-operator
+      app.kubernetes.io/instance: controller-manager
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        app.kubernetes.io/name: robustmq-operator
+        app.kubernetes.io/instance: controller-manager
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - arm64
+                - ppc64le
+                - s390x
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+      securityContext:
+        runAsNonRoot: true
+      containers:
+      - command:
+        - /manager
+        args:
+        - --leader-elect
+        image: robustmq/robustmq-operator:latest
+        name: manager
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - "ALL"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+      serviceAccountName: robustmq-operator-controller-manager
+      terminationGracePeriodSeconds: 10
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: robustmq-system
