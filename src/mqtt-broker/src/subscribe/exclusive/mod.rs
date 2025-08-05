@@ -247,6 +247,7 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
             return Ok(());
         };
 
+        let send_time = now_second();
         // publish data to client
         send_publish_packet_to_client(
             &context.connection_manager,
@@ -256,6 +257,12 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
             &context.sub_thread_stop_sx,
         )
         .await?;
+        let finish_time = now_second();
+
+        let receive_time = record.timestamp;
+        let _whole_time = finish_time - receive_time;
+        let _internal_time = send_time - receive_time;
+        let _response_time = finish_time - send_time;
 
         // commit offset
         loop_commit_offset(

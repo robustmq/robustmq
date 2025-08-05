@@ -23,7 +23,7 @@ use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, 
 use crate::handler::error::MqttBrokerError;
 use crate::handler::message::is_message_expire;
 use crate::handler::sub_option::{get_retain_flag_by_retain_as_published, is_send_msg_by_bo_local};
-use crate::observability::slow::sub::{record_slow_sub_data, SlowSubData};
+use crate::observability::slow::sub::{record_slow_sub_data, SlowSubscribeData};
 use crate::server::common::connection_manager::ConnectionManager;
 use crate::server::common::packet::ResponsePackage;
 use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
@@ -389,7 +389,7 @@ pub async fn send_message_to_client(
 
     // record slow sub data
     if metadata_cache.get_slow_sub_config().enable && sub_pub_param.create_time > 0 {
-        let slow_data = SlowSubData::build(
+        let slow_data = SlowSubscribeData::build(
             sub_pub_param.subscribe.sub_path.clone(),
             sub_pub_param.subscribe.client_id.clone(),
             sub_pub_param.subscribe.topic_name.clone(),

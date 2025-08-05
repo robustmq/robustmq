@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
-use crate::observability::slow::sub::{read_slow_sub_record, SlowSubData};
+use crate::observability::slow::sub::{read_slow_sub_record, SlowSubscribeData};
 
 use common_base::utils::file_utils::get_project_root;
 use common_config::broker::broker_config;
@@ -37,15 +37,15 @@ pub async fn list_slow_subscribe_by_req(
         let path_buf = get_project_root()?.join(path.replace("./", "") + "/slow_sub.log");
         let deque = read_slow_sub_record(request.clone(), path_buf)?;
         for slow_sub_data in deque {
-            match serde_json::from_str::<SlowSubData>(slow_sub_data.as_str()) {
+            match serde_json::from_str::<SlowSubscribeData>(slow_sub_data.as_str()) {
                 Ok(data) => {
                     let raw = ListSlowSubScribeRaw {
                         client_id: data.client_id,
-                        topic: data.topic,
-                        time_ms: data.time_ms,
+                        topic: data.topic_name,
+                        time_ms: data.last_update_time,
                         node_info: data.node_info,
                         create_time: data.create_time,
-                        sub_name: data.sub_name,
+                        sub_name: data.subscribe_name,
                     };
                     list_slow_subscribe_raw.push(raw);
                 }

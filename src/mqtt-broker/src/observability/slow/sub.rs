@@ -27,34 +27,39 @@ use std::path::PathBuf;
 use tracing::info;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
-pub struct SlowSubData {
-    pub(crate) sub_name: String,
+pub struct SlowSubscribeData {
+    pub(crate) subscribe_name: String,
     pub(crate) client_id: String,
-    pub(crate) topic: String,
-    pub(crate) time_ms: u64,
+    pub(crate) topic_name: String,
     pub(crate) node_info: String,
+    pub(crate) last_update_time: u64,
     pub(crate) create_time: u64,
 }
 
-impl SlowSubData {
-    pub fn build(sub_name: String, client_id: String, topic_name: String, time_ms: u64) -> Self {
+impl SlowSubscribeData {
+    pub fn build(
+        subscribe_name: String,
+        client_id: String,
+        topic_name: String,
+        last_update_time: u64,
+    ) -> Self {
         let ip = get_local_ip();
         let node_info = format!("RobustMQ-MQTT@{ip}");
-        SlowSubData {
-            sub_name,
+        SlowSubscribeData {
+            subscribe_name,
             client_id,
-            topic: topic_name,
-            time_ms,
+            topic_name,
+            last_update_time,
             node_info,
             create_time: now_second(),
         }
     }
 }
 
-pub fn record_slow_sub_data(slow_data: SlowSubData, whole_ms: u64) -> ResultMqttBrokerError {
+pub fn record_slow_sub_data(slow_data: SlowSubscribeData, whole_ms: u64) -> ResultMqttBrokerError {
     let data = serde_json::to_string(&slow_data)?;
 
-    if slow_data.time_ms > whole_ms {
+    if slow_data.last_update_time > whole_ms {
         info!("{}", data);
     }
 
