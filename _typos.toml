@@ -19,7 +19,8 @@
 # This words is a spelling error for paho-mqtt package.
 # we need to ignore it.
 Identifer = "Identifer"
+mosquitto ="mosquitto"
 
 
 [files]
-extend-exclude = []
+extend-exclude = ["/operator/*"]

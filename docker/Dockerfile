@@ -1,4 +1,5 @@
 # Copyright 2023 RobustMQ Team
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,78 +12,172 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM rust:bullseye AS builder
+# ==============================================================================
+# Build Stage
+# ==============================================================================
+FROM rust:1.70-bookworm AS builder
 
-RUN sed -i "s@http://\(deb\|security\).debian.org@https://mirrors.aliyun.com@g" /etc/apt/sources.list && \
-    apt-get update && apt-get install -y clang libclang-dev cmake libssl-dev pkg-config
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    clang \
+    libclang-dev \
+    cmake \
+    libssl-dev \
+    pkg-config \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# download and install protoc
-RUN curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v23.4/protoc-23.4-linux-x86_64.zip && \
-    unzip protoc-23.4-linux-x86_64.zip -d /usr/local && \
-    rm protoc-23.4-linux-x86_64.zip
+# Install protoc (Protocol Buffers compiler)
+ARG PROTOC_VERSION=23.4
+RUN curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip" \
+    && unzip "protoc-${PROTOC_VERSION}-linux-x86_64.zip" -d /usr/local \
+    && rm "protoc-${PROTOC_VERSION}-linux-x86_64.zip"
 
+# Set environment variables for compilation
+ENV LIBCLANG_PATH=/usr/lib/llvm-14/lib/
+ENV PATH="/usr/local/bin:${PATH}"
+
+# Create app directory
 WORKDIR /robustmq
 
+# Copy dependency files first for better cache utilization
+COPY Cargo.toml Cargo.lock ./
+COPY src/*/Cargo.toml ./src/*/
+COPY src/common/*/Cargo.toml ./src/common/*/
+COPY tests/Cargo.toml ./tests/
+
+# Create dummy source files to build dependencies
+RUN find src -name "Cargo.toml" -exec dirname {} \; | xargs -I {} mkdir -p {}/src
+RUN find src -name "Cargo.toml" -exec dirname {} \; | xargs -I {} touch {}/src/lib.rs
+RUN touch src/cmd/src/main.rs
+
+# Build dependencies (this will be cached unless Cargo.toml changes)
+RUN cargo build --release || true
+
+# Remove dummy source files
+RUN find . -name "*.rs" -delete
+
+# Copy the actual source code
 COPY . .
 
-COPY mirror $HOME/.cargo/config.toml
+# Build the application
+RUN cargo build --release \
+    && strip target/release/broker-server \
+    && strip target/release/cli-command \
+    && strip target/release/cli-bench
 
-ENV LIBCLANG_PATH=/usr/lib/llvm-11/lib/
+# ==============================================================================
+# Runtime Stage
+# ==============================================================================
+FROM debian:bookworm-slim AS runtime
 
-RUN make build
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# placement-center
-FROM rust:bullseye AS placement-center
+# Create robustmq user and group
+RUN groupadd -r robustmq && useradd -r -g robustmq robustmq
 
-RUN sed -i "s@http://\(deb\|security\).debian.org@https://mirrors.aliyun.com@g" /etc/apt/sources.list && \
-    apt-get update && apt-get install -y clang libclang-dev
+# Create necessary directories
+RUN mkdir -p /robustmq/{bin,libs,config,data,logs} \
+    && chown -R robustmq:robustmq /robustmq
 
+# Set working directory
 WORKDIR /robustmq
 
-COPY --from=builder bin/* /robustmq/bin/
-COPY --from=builder /robustmq/target/release/placement-center /robustmq/libs/placement-center
-COPY --from=builder /robustmq/config/* /robustmq/config/
+# Copy binaries from builder
+COPY --from=builder /robustmq/target/release/broker-server ./libs/
+COPY --from=builder /robustmq/target/release/cli-command ./libs/
+COPY --from=builder /robustmq/target/release/cli-bench ./libs/
 
-ENTRYPOINT ["/robustmq/robustmq-server","start","place"]
+# Copy configuration files and scripts
+COPY --chown=robustmq:robustmq config/ ./config/
+COPY --chown=robustmq:robustmq bin/ ./bin/
 
-# broker-mqtt
-FROM rust:bullseye AS mqtt-server
+# Make scripts executable
+RUN chmod +x ./bin/*
 
-RUN sed -i "s@http://\(deb\|security\).debian.org@https://mirrors.aliyun.com@g" /etc/apt/sources.list && \
-    apt-get update && apt-get install -y clang libclang-dev
+# Create default configuration if not exists
+RUN if [ ! -f ./config/server.toml ]; then \
+        cp ./config/server.toml.template ./config/server.toml 2>/dev/null || true; \
+    fi
 
-WORKDIR /robustmq
+# Switch to non-root user
+USER robustmq
 
-COPY --from=builder bin/* /robustmq/bin/
-COPY --from=builder /robustmq/target/release/mqtt-server /robustmq/libs/mqtt-server
-COPY --from=builder /robustmq/config/* /robustmq/config/
+# Expose ports
+# MQTT: 1883 (TCP), 1884 (SSL), 8083 (WebSocket), 8084 (WSS)
+# Kafka: 9092
+# gRPC: 1228
+# AMQP: 5672
+EXPOSE 1883 1884 8083 8084 9092 1228 5672
 
-ENTRYPOINT ["/robustmq/robustmq-server","start","mqtt"]
+# Add health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8083/health || exit 1
 
-# journal-server
-FROM rust:bullseye AS journal-server
+# Default environment variables
+ENV ROBUSTMQ_CONFIG_PATH="/robustmq/config/server.toml"
+ENV ROBUSTMQ_LOG_PATH="/robustmq/logs"
+ENV ROBUSTMQ_DATA_PATH="/robustmq/data"
 
-RUN sed -i "s@http://\(deb\|security\).debian.org@https://mirrors.aliyun.com@g" /etc/apt/sources.list && \
-    apt-get update && apt-get install -y clang libclang-dev
+# Entry point
+ENTRYPOINT ["./libs/broker-server"]
+CMD ["--conf=/robustmq/config/server.toml"]
 
-WORKDIR /robustmq
+# ==============================================================================
+# Alternative: Service-specific stages for microservice deployment
+# ==============================================================================
 
-COPY --from=builder bin/* /robustmq/bin/
-COPY --from=builder /robustmq/target/release/journal-server /robustmq/libs/journal-server
-COPY --from=builder /robustmq/config/* /robustmq/config/
+# Meta Service (Placement Center)
+FROM runtime AS meta-service
+ENV ROBUSTMQ_ROLES="meta"
+EXPOSE 1228
+CMD ["--conf=/robustmq/config/server.toml"]
 
-ENTRYPOINT ["/robustmq/robustmq-server","start","journal"]
+# MQTT Broker Service
+FROM runtime AS mqtt-broker
+ENV ROBUSTMQ_ROLES="broker"
+EXPOSE 1883 1884 8083 8084
+CMD ["--conf=/robustmq/config/server.toml"]
 
-# cli-command
-FROM rust:bullseye AS cli-command
+# Journal Service
+FROM runtime AS journal-service
+ENV ROBUSTMQ_ROLES="journal"
+EXPOSE 1228
+CMD ["--conf=/robustmq/config/server.toml"]
 
-RUN sed -i "s@http://\(deb\|security\).debian.org@https://mirrors.aliyun.com@g" /etc/apt/sources.list && \
-    apt-get update && apt-get install -y clang libclang-dev
+# All-in-one (default)
+FROM runtime AS all-in-one
+ENV ROBUSTMQ_ROLES="meta,broker,journal"
+CMD ["--conf=/robustmq/config/server.toml"]
 
-WORKDIR /robustmq
+# ==============================================================================
+# Development Stage (for development and debugging)
+# ==============================================================================
+FROM builder AS development
 
-COPY --from=builder bin/* /robustmq/bin/
-COPY --from=builder /robustmq/target/release/cli-command /robustmq/libs/cli-command
-COPY --from=builder /robustmq/config/* /robustmq/config/
+# Install additional development tools
+RUN apt-get update && apt-get install -y \
+    gdb \
+    strace \
+    valgrind \
+    && rm -rf /var/lib/apt/lists/*
 
-ENTRYPOINT ["/robustmq/libs/cli-command","-h"]
+# Build debug version
+RUN cargo build
+
+# Copy configuration
+COPY config/ ./config/
+COPY bin/ ./bin/
+RUN chmod +x ./bin/*
+
+EXPOSE 1883 1884 8083 8084 9092 1228 5672
+
+# Development entry point
+ENTRYPOINT ["cargo", "run", "--package", "cmd", "--bin", "broker-server", "--"]
+CMD ["--conf=./config/server.toml"]
