@@ -131,7 +131,6 @@ snowflake = "1.3.0"
 rumqttc = "0.24.0"
 paho-mqtt = { version = "0.13.3", default-features = false, features = [
     "bundled",
-    "vendored-ssl",
 ] }
 ipnet = "2.3.0"
 os_info = "3.8.2"
