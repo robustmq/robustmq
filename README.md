@@ -200,13 +200,6 @@ Join our growing community of developers, users, and contributors:
     <img src="docs/images/wechat.jpg" alt="Personal WeChat QR Code" width="200" />
   </div>
 
-## 🗺️ Roadmap
-
-- **Q1 2025**: Production-ready MQTT 5.0 implementation
-- **Q2 2025**: Kafka protocol compatibility and performance optimization
-- **Q3 2025**: Advanced clustering and multi-tenancy features
-- **Q4 2025**: Apache incubation proposal
-
 ## 📄 License
 
 RobustMQ is licensed under the [Apache License 2.0](LICENSE), which strikes a balance between open collaboration and allowing you to use the software in your projects, whether open source or proprietary.
