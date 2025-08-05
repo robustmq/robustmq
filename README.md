@@ -10,88 +10,202 @@
   <img alt="License" src="https://img.shields.io/github/license/robustmq/robustmq?style=flat">
   <img alt="GitHub issues" src="https://img.shields.io/github/issues/robustmq/robustmq?style=flat">
   <img alt="GitHub stars" src="https://img.shields.io/github/stars/robustmq/robustmq?style=flat">
-  <a href="https://codecov.io/gh/robustmq/robustmq" >
-  <img src="https://codecov.io/gh/robustmq/robustmq/graph/badge.svg?token=MRFFAX9QZO"/>
- </a>
+  <a href="https://codecov.io/gh/robustmq/robustmq">
+    <img src="https://codecov.io/gh/robustmq/robustmq/graph/badge.svg?token=MRFFAX9QZO" alt="Coverage"/>
+  </a>
+  <img alt="Build Status" src="https://img.shields.io/github/actions/workflow/status/robustmq/robustmq/ci.yml?branch=main&style=flat">
+  <img alt="Rust Version" src="https://img.shields.io/badge/rust-1.70+-orange.svg">
 </p>
-
 
 <h3 align="center">
     A high-performance distributed message queue built with Rust.
 </h3>
 
-> Tips:<br/>
-> - This project is currently in its early preview stage and is undergoing rapid iteration and testing. A stable release is expected in the second half of 2025.<br/>
-> - We are still growing—please give us time to mature. Our ambition is for RobustMQ to become the next top-level Apache project in the message queue ecosystem.<br/>
+<p align="center">
+  <a href="#-introduction">Introduction</a> •
+  <a href="#-features">Features</a> •
+  <a href="#-architecture">Architecture</a> •
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-protocols">Protocols</a> •
+  <a href="#-documentation">Documentation</a> •
+  <a href="#-contributing">Contributing</a> •
+  <a href="#-community">Community</a>
+</p>
+
+---
+
+> **⚠️ Development Status**  
+> This project is currently in its early preview stage and is undergoing rapid iteration and testing. A stable release is expected in the second half of 2025. We are actively working towards making RobustMQ production-ready and aim to become a top-level Apache project in the message queue ecosystem.
 
 ## 🚀 Introduction
 
-RobustMQ is a next-generation, high-performance, multi-protocol message queue system built in Rust. Our vision is to
-create a unified messaging infrastructure tailored for AI systems. features:
-- **High Performance**: Built with Rust, ensuring speed, efficiency and security.
-- **Distributed architecture**: Computing, storage and scheduling are separated. Targeting cluster deployment, allowing for rapid expansion and contraction of capacity.
-- **Multi-protocol**: Supports mainstream messaging protocols such as MQTT, AMQP, Kafka, and RocketMQ.
-- **Plugin-based storage**: The storage layer is modularized, allowing for the selection of the appropriate storage engine based on the scenario, such as file storage, S3, HDFS, etc.
-- **User-Friendly**: Designed with simplicity in mind, making it easy to deploy and manage.
-- **Multi-tenancy**: In a physical cluster, multiple virtual clusters are allowed, thereby reducing deployment costs.
+RobustMQ is a next-generation, high-performance, multi-protocol message queue built in Rust. Our vision is to create a unified messaging infrastructure tailored for modern cloud-native and AI systems.
 
-For more information, please refer to the official [website documentation](https://robustmq.com/).
+## ✨ Features
 
-## Architecture
-![image](docs/images/robustmq-architecture.png)
-- One binary, one process
-- Support multiple network communication protocols
-- Multi-protocol encoding and decoding，Different protocols use different ports: MQTT (1883/1884/8083/8084), Kafka (9092), Grpc (1228)
-- Plugin-based storage configuration
-- Metadata Service Based on Raft and RocksDB
+- **🚀 High Performance**: Built with Rust, ensuring memory safety, zero-cost abstractions, and blazing-fast performance
+- **🏗️ Distributed Architecture**: Separation of compute, storage, and scheduling for optimal scalability and resource utilization
+- **🔌 Multi-Protocol Support**: Native support for MQTT (3.x/4.x/5.x), AMQP, Kafka, and RocketMQ protocols
+- **💾 Pluggable Storage**: Modular storage layer supporting local files, S3, HDFS, and other storage backends
+- **☁️ Cloud-Native**: Kubernetes-ready with auto-scaling, service discovery, and observability built-in
+- **🏢 Multi-Tenancy**: Support for virtual clusters within a single physical deployment
+- **🔐 Security First**: Built-in authentication, authorization, and encryption support
+- **📊 Observability**: Comprehensive metrics, tracing, and logging with Prometheus and OpenTelemetry integration
+- **🎯 User-Friendly**: Simple deployment, intuitive management console, and extensive documentation
 
-## Quick Start
-### Cargo startup
+## 🏗️ Architecture
+
+![RobustMQ Architecture](docs/images/robustmq-architecture.png)
+
+### Core Components
+
+- **Broker Server**: High-performance message handling with multi-protocol support
+- **Meta Service**: Metadata management and cluster coordination using Raft consensus
+- **Journal Server**: Persistent storage layer with pluggable backends
+- **Web Console**: Management interface for monitoring and administration
+
+### Key Design Principles
+
+- **One Binary, One Process**: Simplified deployment and operations
+- **Protocol Isolation**: Different protocols use dedicated ports (MQTT: 1883/1884/8083/8084, Kafka: 9092, gRPC: 1228)
+- **Fault Tolerance**: Built-in replication and automatic failover
+- **Horizontal Scaling**: Add capacity by simply adding more nodes
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Rust**: 1.70 or later
+- **Operating System**: Linux, macOS, or Windows
+- **Memory**: Minimum 2GB RAM
+- **Storage**: At least 1GB available disk space
+
+### Installation Options
+
+#### Option 1: Build from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/robustmq/robustmq.git
+cd robustmq
+
+# Build and run
+cargo run --package cmd --bin broker-server
 ```
-$ git clone https://github.com/robustmq/robustmq.git
-$ cd robustmq
-$ cargo run --package cmd --bin broker-server 
+
+#### Option 2: Pre-built Binaries
+
+```bash
+# Download and extract
+make build
+
+# Run the server
+cd build/robustmq-0.1.25
+bin/robust-server start
 ```
 
-### Packaging
+#### Option 3: Docker (Coming Soon)
+
+```bash
+docker run -p 1883:1883 -p 9092:9092 robustmq/robustmq:latest
 ```
-$ make build
+
+### Verify Installation
+
+Once RobustMQ is running, you should see output similar to:
+
+![Console Start](docs/images/console-start.png)
+
+You can verify the installation by connecting with any MQTT client to `localhost:1883` or using the web console.
+
+## 🔌 Supported Protocols
+
+### MQTT (Message Queuing Telemetry Transport)
+
+- **Versions**: 3.1, 3.1.1, 5.0
+- **Features**: QoS levels, retained messages, last will, shared subscriptions
+- **Ports**: 1883 (TCP), 1884 (SSL), 8083 (WebSocket), 8084 (WSS)
+
+### Apache Kafka Protocol
+
+- **Compatibility**: Kafka 2.8+ wire protocol
+- **Features**: Topics, partitions, consumer groups, transactions
+- **Port**: 9092
+
+### AMQP (Advanced Message Queuing Protocol)
+
+- **Version**: 1.0
+- **Features**: Exchanges, queues, routing, transactions
+- **Port**: 5672
+
+## 📚 Documentation
+
+- **📖 [Official Documentation](https://robustmq.com/)** - Comprehensive guides and API references
+- **🚀 [Quick Start Guide](https://robustmq.com/QuickGuide/Overview.html)** - Get up and running in minutes
+- **🔧 [MQTT Documentation](https://robustmq.com/RobustMQ-MQTT/Overview.html)** - MQTT-specific features and configuration
+- **💻 [Command Reference](https://robustmq.com/RobustMQ-Command/Mqtt-Broker.html)** - CLI commands and usage
+- **🎛️ [Web Console](https://github.com/robustmq/robustmq-copilot)** - Management interface
+
+![Web UI](docs/images/web-ui.png)
+
+## 🤝 Contributing
+
+We welcome contributions from the community! RobustMQ is an open-source project, and we're excited to collaborate with developers interested in Rust, distributed systems, and message queues.
+
+### How to Contribute
+
+1. **📋 Read our [Contribution Guide](https://robustmq.com/ContributionGuide/GitHub-Contribution-Guide.html)**
+2. **🔍 Check [Good First Issues](https://github.com/robustmq/robustmq/labels/good%20first%20issue)**
+3. **🍴 Fork the repository**
+4. **🌿 Create a feature branch**
+5. **✅ Make your changes with tests**
+6. **📤 Submit a pull request**
+
+### Development Setup
+
+```bash
+# Clone and setup
+git clone https://github.com/robustmq/robustmq.git
+cd robustmq
+
+# Run tests
+cargo test
+
+# Check code style
+cargo clippy
+cargo fmt
 ```
-Generated binary packages are located in the "build" directory.
 
-### Binary startup
-```
-$ cd build
-$ cd robustmq-0.1.25
-$ bin/robust-server start
-```
-![img](docs/images/console-start.png)
-## RobustMQ MQTT
-RobustMQ fully supports the MQTT 3/4/5 protocols, aiming to align with the functions of the EMQX enterprise edition.
+## 🌐 Community
 
-1. [RobustMQ Quick Start](https://robustmq.com/QuickGuide/Overview.html)
-2. [RobustMQ MQTT Doc](https://robustmq.com/RobustMQ-MQTT/Overview.html)
-3. [RobustMQ MQTT Command](https://robustmq.com/RobustMQ-Command/Mqtt-Broker.html)
-4. [RobustMQ Web UI](https://github.com/robustmq/robustmq-copilot)
+Join our growing community of developers, users, and contributors:
 
-![img](docs/images/web-ui.png)
+### 💬 Discussion & Support
 
+- **🎮 [Discord Server](https://discord.gg/sygeGRh5)** - Real-time chat, questions, and collaboration
+- **🐛 [GitHub Issues](https://github.com/robustmq/robustmq/issues)** - Bug reports and feature requests
+- **💡 [GitHub Discussions](https://github.com/robustmq/robustmq/discussions)** - General discussions and ideas
 
-## Contribution Guidelines
-RobustMQ is still quite young. We hope to meet more people who are interested in Rust, infrastructure, and message queues, and explore the application of Rust in the field of message queues together. [GitHub Contribution Guide](https://robustmq.com/ContributionGuide/GitHub-Contribution-Guide.html)
+### 🇨🇳 Chinese Community
 
-## Contact Us
+- **微信群**: Join our WeChat group for Chinese-speaking users
+  
+  <div align="center">
+    <img src="docs/images/wechat-group.jpg" alt="WeChat Group QR Code" width="200" />
+  </div>
 
-- **Discord Group**: Join our community on Discord for discussions, questions, and collaboration 👉 [Discord Link](https://discord.gg/sygeGRh5)
-- **WeChat Group**: If you're interested in contributing to the project or discussing development topics, scan the QR code below to join our WeChat group for real-time discussion and collaboration:
+- **个人微信**: If the group QR code has expired, add the developer's personal WeChat:
+  
+  <div align="center">
+    <img src="docs/images/wechat.jpg" alt="Personal WeChat QR Code" width="200" />
+  </div>
+
+## 📄 License
+
+RobustMQ is licensed under the [Apache License 2.0](LICENSE), which strikes a balance between open collaboration and allowing you to use the software in your projects, whether open source or proprietary.
+
+---
+
 <div align="center">
-  <img src="docs/images/wechat-group.jpg" alt="WeChat Group QR Code" width=200 />
+  <sub>Built with ❤️ by the RobustMQ team and <a href="https://github.com/robustmq/robustmq/graphs/contributors">contributors</a>.</sub>
 </div>
-
-- **Personal WeChat**: The WeChat group QR code is updated periodically. If the group QR code has expired, you can add the developer's personal WeChat below to be invited directly:
-<div align="center">
-  <img src="docs/images/wechat.jpg" alt="WeChat QR Code" width=200 />
-</div>
-
-## License
-RobustMQ uses the Apache 2.0 license to strike a balance between open contributions and allowing you to use the software however you want.

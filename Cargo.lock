@@ -548,9 +548,9 @@ dependencies = [
  "delay-message",
  "grpc-clients",
  "journal-server",
+ "meta-service",
  "mqtt-broker",
  "openraft",
- "placement-center",
  "protocol",
  "schema-register",
  "serde_json",
@@ -2775,6 +2775,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "meta-service"
+version = "0.1.25"
+dependencies = [
+ "async-stream",
+ "axum",
+ "bincode",
+ "byteorder",
+ "common-base",
+ "common-config",
+ "dashmap",
+ "grpc-clients",
+ "metadata-struct",
+ "mobc",
+ "openraft",
+ "prometheus-client",
+ "prost",
+ "prost-validate",
+ "protocol",
+ "rand 0.8.5",
+ "rocksdb",
+ "rocksdb-engine",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tonic",
+ "tonic-web",
+ "tower 0.5.2",
+ "tower-http 0.5.2",
+ "tracing",
+ "tracing-appender",
+]
+
+[[package]]
 name = "metadata-struct"
 version = "0.1.25"
 dependencies = [
@@ -3260,28 +3295,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d05e27ee213611ffe7d6348b942e8f942b37114c00cc03cec254295a4a17852e"
 
 [[package]]
-name = "openssl-src"
-version = "300.5.0+3.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8ce546f549326b0e6052b649198487d91320875da901e7bd11a06d1ee3f9c2f"
-dependencies = [
- "cc",
-]
-
-[[package]]
-name = "openssl-sys"
-version = "0.9.109"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90096e2e47630d78b7d1c20952dc621f957103f8bc2c8359ec81290d75238571"
-dependencies = [
- "cc",
- "libc",
- "openssl-src",
- "pkg-config",
- "vcpkg",
-]
-
-[[package]]
 name = "opentelemetry"
 version = "0.27.1"
 source = "git+https://github.com/open-telemetry/opentelemetry-rust.git?rev=b6783a10984146c62ceaa6997fef1385d2ee5ae8#b6783a10984146c62ceaa6997fef1385d2ee5ae8"
@@ -3418,7 +3431,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4d3094e35ab92c9ffa90775d8faad0e8ecac0a0ed4c409c3e683cbf84f784287"
 dependencies = [
  "cmake",
- "openssl-sys",
 ]
 
 [[package]]
@@ -3604,41 +3616,6 @@ name = "pkg-config"
 version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
-
-[[package]]
-name = "placement-center"
-version = "0.1.25"
-dependencies = [
- "async-stream",
- "axum",
- "bincode",
- "byteorder",
- "common-base",
- "common-config",
- "dashmap",
- "grpc-clients",
- "metadata-struct",
- "mobc",
- "openraft",
- "prometheus-client",
- "prost",
- "prost-validate",
- "protocol",
- "rand 0.8.5",
- "rocksdb",
- "rocksdb-engine",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tonic",
- "tonic-web",
- "tower 0.5.2",
- "tower-http 0.5.2",
- "tracing",
- "tracing-appender",
-]
 
 [[package]]
 name = "plist"

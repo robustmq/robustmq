@@ -18,7 +18,7 @@ members = [
     "src/mqtt-broker",
     "src/amqp-broker",
     "src/kafka-broker",
-    "src/placement-center",
+    "src/meta-service",
     "src/cli-command",
     "src/cli-bench",
     "src/delay-message",
@@ -131,7 +131,6 @@ snowflake = "1.3.0"
 rumqttc = "0.24.0"
 paho-mqtt = { version = "0.13.3", default-features = false, features = [
     "bundled",
-    "vendored-ssl",
 ] }
 ipnet = "2.3.0"
 os_info = "3.8.2"
@@ -160,7 +159,7 @@ amqp-broker = { path = "src/amqp-broker" }
 broker-server = { path = "src/broker" }
 kafka-broker = { path = "src/kafka-broker" }
 delay-message = { path = "src/delay-message" }
-placement-center = { path = "src/placement-center" }
+meta-service = { path = "src/meta-service" }
 schema-register = { path = "src/schema-register" }
 message-expire = { path = "src/message-expire" }
 cli-command = { path = "src/cli-command" }

@@ -24,7 +24,7 @@ bytes.workspace = true
 axum.workspace = true
 thiserror.workspace = true
 mqtt-broker.workspace = true
-placement-center.workspace = true
+meta-service.workspace = true
 tonic.workspace = true
 tower-http = { workspace = true, features = ["cors"] }
 tonic-web.workspace = true
