@@ -16,12 +16,15 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::observability::metrics::server::{
     record_broker_connections_max, record_broker_connections_num,
 };
+use crate::observability::slow::slow_subscribe_key::SlowSubscribeKey;
+use crate::observability::slow::sub::SlowSubscribeData;
 use crate::{
     common::tool::loop_select, handler::cache::CacheManager,
     server::common::connection_manager::ConnectionManager, subscribe::manager::SubscribeManager,
 };
 use common_base::tools::now_second;
 use dashmap::DashMap;
+use std::collections::BTreeMap;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;
 use tracing::info;
@@ -34,6 +37,8 @@ pub struct MetricsCacheManager {
     pub message_in_num: DashMap<u64, u32>,
     pub message_out_num: DashMap<u64, u32>,
     pub message_drop_num: DashMap<u64, u32>,
+    pub slow_subscribe_index: BTreeMap<(String, String), (u64, String, String)>,
+    pub slow_subscribe_info: BTreeMap<SlowSubscribeKey, SlowSubscribeData>,
 }
 
 impl MetricsCacheManager {
@@ -45,7 +50,48 @@ impl MetricsCacheManager {
             message_in_num: DashMap::with_capacity(4),
             message_out_num: DashMap::with_capacity(4),
             message_drop_num: DashMap::with_capacity(4),
+            slow_subscribe_index: BTreeMap::new(),
+            slow_subscribe_info: BTreeMap::new(),
         }
+    }
+
+    pub fn get_slow_subscribe_index_value(
+        &self,
+        client_id: String,
+        topic_name: String,
+    ) -> Option<(u64, String, String)> {
+        // Return the latest slow subscribe data for the given client_id and topic_name
+        self.slow_subscribe_index
+            .get(&(client_id, topic_name))
+            .cloned()
+    }
+
+    pub fn record_slow_subscribe_index(
+        &mut self,
+        client_id: String,
+        topic_name: String,
+        last_update_time: u64,
+    ) {
+        self.slow_subscribe_index.insert(
+            (client_id.clone(), topic_name.clone()),
+            (last_update_time, client_id, topic_name),
+        );
+    }
+
+    pub fn get_slow_subscribe_info(
+        &self,
+        slow_subscribe_key: SlowSubscribeKey,
+    ) -> Option<SlowSubscribeData> {
+        self.slow_subscribe_info.get(&slow_subscribe_key).cloned()
+    }
+
+    pub fn record_slow_subscribe_info(
+        &mut self,
+        slow_subscribe_key: SlowSubscribeKey,
+        slow_subscribe_data: SlowSubscribeData,
+    ) {
+        self.slow_subscribe_info
+            .insert(slow_subscribe_key, slow_subscribe_data);
     }
 
     pub fn record_connection_num(&self, time: u64, num: u32) {
@@ -250,6 +296,8 @@ pub fn metrics_gc_thread(
 
 #[cfg(test)]
 mod test {
+    use crate::observability::slow::slow_subscribe_key::SlowSubscribeKey;
+    use crate::observability::slow::sub::SlowSubscribeData;
     use std::{
         net::{Ipv4Addr, SocketAddrV4},
         sync::Arc,
@@ -366,5 +414,215 @@ mod test {
             metrics_cache_manager.latest_by_time(&metrics_cache_manager.connection_num),
             Some(1)
         )
+    }
+
+    #[test]
+    fn test_slow_subscribe_index_insert_and_get() {
+        let mut manager = MetricsCacheManager::new();
+
+        // Insert a value
+        manager.record_slow_subscribe_index("client1".into(), "topicA".into(), 10);
+
+        // Get the value
+        let result = manager.get_slow_subscribe_index_value("client1".into(), "topicA".into());
+        assert_eq!(result, Some((10, "client1".into(), "topicA".into())));
+    }
+
+    #[test]
+    fn test_slow_subscribe_index_update_and_get() {
+        let mut manager = MetricsCacheManager::new();
+
+        // Insert a value
+        manager.record_slow_subscribe_index("client1".into(), "topicA".into(), 10);
+
+        // Update the value
+        manager.record_slow_subscribe_index("client1".into(), "topicA".into(), 20);
+
+        // Get the updated value
+        let result = manager.get_slow_subscribe_index_value("client1".into(), "topicA".into());
+        assert_eq!(result, Some((20, "client1".into(), "topicA".into())));
+    }
+
+    #[test]
+    fn test_slow_subscribe_index_get_nonexistent() {
+        let manager = MetricsCacheManager::new();
+
+        // Get a nonexistent value
+        let result = manager.get_slow_subscribe_index_value("client1".into(), "topicA".into());
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_slow_subscribe_info_insert_and_get() {
+        let mut manager = MetricsCacheManager::new();
+
+        // Insert a value
+        let key = SlowSubscribeKey {
+            time_span: 10,
+            client_id: "client1".into(),
+            topic_name: "topicA".into(),
+        };
+        let data = SlowSubscribeData {
+            subscribe_name: "subscribe_name".to_string(),
+            client_id: "client_id".to_string(),
+            topic_name: "topic_name".to_string(),
+            node_info: "node_info".to_string(),
+            last_update_time: 0,
+            create_time: 0,
+        };
+        manager.record_slow_subscribe_info(key.clone(), data.clone());
+
+        // Get the value
+        let result = manager.get_slow_subscribe_info(key);
+        assert_eq!(result, Some(data));
+    }
+
+    #[test]
+    fn test_slow_subscribe_info_update_and_get() {
+        let mut manager = MetricsCacheManager::new();
+
+        // Insert a value
+        let key = SlowSubscribeKey {
+            time_span: 10,
+            client_id: "client1".into(),
+            topic_name: "topicA".into(),
+        };
+        let data1 = SlowSubscribeData {
+            subscribe_name: "subscribe_name".to_string(),
+            client_id: "client_id".to_string(),
+            topic_name: "topic_name".to_string(),
+            node_info: "node_info".to_string(),
+            last_update_time: 0,
+            create_time: 0,
+        };
+        manager.record_slow_subscribe_info(key.clone(), data1);
+
+        // Update the value
+        let data2 = SlowSubscribeData {
+            subscribe_name: "subscribe_name_1".to_string(),
+            client_id: "client_id_1".to_string(),
+            topic_name: "topic_name_1".to_string(),
+            node_info: "node_info_1".to_string(),
+            last_update_time: 0,
+            create_time: 0,
+        };
+        manager.record_slow_subscribe_info(key.clone(), data2.clone());
+
+        // Get the updated value
+        let result = manager.get_slow_subscribe_info(key);
+        assert_eq!(result, Some(data2));
+    }
+
+    #[test]
+    fn test_slow_subscribe_info_get_nonexistent() {
+        let manager = MetricsCacheManager::new();
+
+        // Get a nonexistent value
+        let key = SlowSubscribeKey {
+            time_span: 10,
+            client_id: "client1".into(),
+            topic_name: "topicA".into(),
+        };
+        let result = manager.get_slow_subscribe_info(key);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_slow_subscribe_info_insert_and_iterate() {
+        let mut manager = MetricsCacheManager::new();
+
+        manager.record_slow_subscribe_info(
+            SlowSubscribeKey {
+                time_span: 10,
+                client_id: "client1".into(),
+                topic_name: "topicA".into(),
+            },
+            SlowSubscribeData {
+                subscribe_name: "subscribe_name_1".to_string(),
+                client_id: "client_id".to_string(),
+                topic_name: "topic_name".to_string(),
+                node_info: "node_info".to_string(),
+                last_update_time: 0,
+                create_time: 0,
+            },
+        );
+
+        manager.record_slow_subscribe_info(
+            SlowSubscribeKey {
+                time_span: 15,
+                client_id: "client2".into(),
+                topic_name: "topicB".into(),
+            },
+            SlowSubscribeData {
+                subscribe_name: "subscribe_name_2".to_string(),
+                client_id: "client_id".to_string(),
+                topic_name: "topic_name".to_string(),
+                node_info: "node_info".to_string(),
+                last_update_time: 0,
+                create_time: 0,
+            },
+        );
+
+        manager.record_slow_subscribe_info(
+            SlowSubscribeKey {
+                time_span: 10,
+                client_id: "client1".into(),
+                topic_name: "topicC".into(),
+            },
+            SlowSubscribeData {
+                subscribe_name: "subscribe_name_3".to_string(),
+                client_id: "client_id".to_string(),
+                topic_name: "topic_name".to_string(),
+                node_info: "node_info".to_string(),
+                last_update_time: 0,
+                create_time: 0,
+            },
+        );
+
+        manager.record_slow_subscribe_info(
+            SlowSubscribeKey {
+                time_span: 5,
+                client_id: "client3".into(),
+                topic_name: "topicD".into(),
+            },
+            SlowSubscribeData {
+                subscribe_name: "subscribe_name_4".to_string(),
+                client_id: "client_id".to_string(),
+                topic_name: "topic_name".to_string(),
+                node_info: "node_info".to_string(),
+                last_update_time: 0,
+                create_time: 0,
+            },
+        );
+
+        let expected_order = vec![
+            SlowSubscribeKey {
+                time_span: 15,
+                client_id: "client2".into(),
+                topic_name: "topicB".into(),
+            },
+            SlowSubscribeKey {
+                time_span: 10,
+                client_id: "client1".into(),
+                topic_name: "topicA".into(),
+            },
+            SlowSubscribeKey {
+                time_span: 10,
+                client_id: "client1".into(),
+                topic_name: "topicC".into(),
+            },
+            SlowSubscribeKey {
+                time_span: 5,
+                client_id: "client3".into(),
+                topic_name: "topicD".into(),
+            },
+        ];
+
+        let mut actual_order = Vec::new();
+        for key in manager.slow_subscribe_info.keys() {
+            actual_order.push(key.clone());
+        }
+
+        assert_eq!(actual_order, expected_order);
     }
 }

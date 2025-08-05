@@ -13,4 +13,5 @@
 // limitations under the License.
 
 pub mod request;
+pub mod slow_subscribe_key;
 pub mod sub;
