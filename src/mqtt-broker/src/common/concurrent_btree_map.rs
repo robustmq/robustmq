@@ -18,6 +18,80 @@ use std::hash::{Hash, Hasher};
 use std::sync::RwLock;
 use tracing::warn;
 
+/// Direction for iteration
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IterationDirection {
+    Forward,
+    Reverse,
+}
+
+/// Iterator for ShardedConcurrentBTreeMap
+pub struct ShardedBTreeMapIterator<K, V> {
+    items: Vec<(K, V)>,
+    current_index: usize,
+    direction: IterationDirection,
+}
+
+impl<K, V> Iterator for ShardedBTreeMapIterator<K, V>
+where
+    K: Clone,
+    V: Clone,
+{
+    type Item = (K, V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.direction {
+            IterationDirection::Forward => {
+                if self.current_index < self.items.len() {
+                    let item = self.items[self.current_index].clone();
+                    self.current_index += 1;
+                    Some(item)
+                } else {
+                    None
+                }
+            }
+            IterationDirection::Reverse => {
+                if self.current_index > 0 {
+                    self.current_index -= 1;
+                    Some(self.items[self.current_index].clone())
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = match self.direction {
+            IterationDirection::Forward => self.items.len().saturating_sub(self.current_index),
+            IterationDirection::Reverse => self.current_index,
+        };
+        (remaining, Some(remaining))
+    }
+}
+
+impl<K, V> ExactSizeIterator for ShardedBTreeMapIterator<K, V>
+where
+    K: Clone,
+    V: Clone,
+{
+}
+
+impl<K, V> ShardedBTreeMapIterator<K, V> {
+    fn new(items: Vec<(K, V)>, direction: IterationDirection) -> Self {
+        let current_index = match direction {
+            IterationDirection::Forward => 0,
+            IterationDirection::Reverse => items.len(),
+        };
+
+        Self {
+            items,
+            current_index,
+            direction,
+        }
+    }
+}
+
 // Cache-aligned to avoid false sharing, similar to DashMap's design
 #[repr(align(64))]
 struct CachePadded<T> {
@@ -419,6 +493,42 @@ where
 
         min_pair
     }
+
+    /// Creates an iterator over the map in forward order (smallest to largest key)
+    /// Note: This operation locks all shards sequentially and collects all data, so it's expensive
+    pub fn iter_forward(&self) -> ShardedBTreeMapIterator<K, V>
+    where
+        K: Clone,
+        V: Clone,
+    {
+        let items = self.iter_cloned();
+        ShardedBTreeMapIterator::new(items, IterationDirection::Forward)
+    }
+
+    /// Creates an iterator over the map in reverse order (largest to smallest key)
+    /// Note: This operation locks all shards sequentially and collects all data, so it's expensive
+    pub fn iter_reverse(&self) -> ShardedBTreeMapIterator<K, V>
+    where
+        K: Clone,
+        V: Clone,
+    {
+        let items = self.iter_cloned();
+        ShardedBTreeMapIterator::new(items, IterationDirection::Reverse)
+    }
+
+    /// Creates an iterator with specified direction
+    /// Note: This operation locks all shards sequentially and collects all data, so it's expensive
+    pub fn iter_with_direction(
+        &self,
+        direction: IterationDirection,
+    ) -> ShardedBTreeMapIterator<K, V>
+    where
+        K: Clone,
+        V: Clone,
+    {
+        let items = self.iter_cloned();
+        ShardedBTreeMapIterator::new(items, direction)
+    }
 }
 
 // Additional convenience methods for common use cases
@@ -453,6 +563,20 @@ where
             map.insert(k, v);
         }
         map
+    }
+}
+
+// Implement IntoIterator for direct use in for loops (forward iteration by default)
+impl<K, V> IntoIterator for &ShardedConcurrentBTreeMap<K, V>
+where
+    K: Ord + Hash + Clone,
+    V: Clone,
+{
+    type Item = (K, V);
+    type IntoIter = ShardedBTreeMapIterator<K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_forward()
     }
 }
 
@@ -735,5 +859,155 @@ mod tests {
         map.remove(&42);
         assert_eq!(map.min_key(), None);
         assert_eq!(map.min_key_value(), None);
+    }
+
+    #[test]
+    fn test_iteration_forward() {
+        let map = ShardedConcurrentBTreeMap::new();
+
+        // Insert values in random order
+        let values = vec![50, 10, 30, 70, 20, 60, 40];
+        for &val in &values {
+            map.insert(val, format!("value_{val}"));
+        }
+
+        // Test forward iteration
+        let mut collected_keys = Vec::new();
+        for (key, _value) in map.iter_forward() {
+            collected_keys.push(key);
+        }
+
+        // Should be in ascending order
+        let expected_keys = vec![10, 20, 30, 40, 50, 60, 70];
+        assert_eq!(collected_keys, expected_keys);
+
+        // Test using IntoIterator (default forward iteration)
+        let mut collected_keys_2 = Vec::new();
+        for (key, _value) in &map {
+            collected_keys_2.push(key);
+        }
+        assert_eq!(collected_keys_2, expected_keys);
+    }
+
+    #[test]
+    fn test_iteration_reverse() {
+        let map = ShardedConcurrentBTreeMap::new();
+
+        // Insert values in random order
+        let values = vec![50, 10, 30, 70, 20, 60, 40];
+        for &val in &values {
+            map.insert(val, format!("value_{val}"));
+        }
+
+        // Test reverse iteration
+        let mut collected_keys = Vec::new();
+        for (key, _value) in map.iter_reverse() {
+            collected_keys.push(key);
+        }
+
+        // Should be in descending order
+        let expected_keys = vec![70, 60, 50, 40, 30, 20, 10];
+        assert_eq!(collected_keys, expected_keys);
+    }
+
+    #[test]
+    fn test_iteration_with_direction() {
+        let map = ShardedConcurrentBTreeMap::new();
+
+        // Insert values
+        for i in [3, 1, 4, 1, 5, 9, 2, 6] {
+            map.insert(i, format!("pi_{i}"));
+        }
+
+        // Test forward direction
+        let forward_keys: Vec<i32> = map
+            .iter_with_direction(IterationDirection::Forward)
+            .map(|(k, _)| k)
+            .collect();
+        assert_eq!(forward_keys, vec![1, 2, 3, 4, 5, 6, 9]);
+
+        // Test reverse direction
+        let reverse_keys: Vec<i32> = map
+            .iter_with_direction(IterationDirection::Reverse)
+            .map(|(k, _)| k)
+            .collect();
+        assert_eq!(reverse_keys, vec![9, 6, 5, 4, 3, 2, 1]);
+    }
+
+    #[test]
+    fn test_iteration_empty_map() {
+        let map: ShardedConcurrentBTreeMap<i32, String> = ShardedConcurrentBTreeMap::new();
+
+        // Test forward iteration on empty map
+        let forward_items: Vec<(i32, String)> = map.iter_forward().collect();
+        assert_eq!(forward_items.len(), 0);
+
+        // Test reverse iteration on empty map
+        let reverse_items: Vec<(i32, String)> = map.iter_reverse().collect();
+        assert_eq!(reverse_items.len(), 0);
+
+        // Test IntoIterator on empty map
+        let items: Vec<(i32, String)> = (&map).into_iter().collect();
+        assert_eq!(items.len(), 0);
+    }
+
+    #[test]
+    fn test_iteration_single_element() {
+        let map = ShardedConcurrentBTreeMap::new();
+        map.insert(42, "single".to_string());
+
+        // Test forward iteration
+        let forward_items: Vec<(i32, String)> = map.iter_forward().collect();
+        assert_eq!(forward_items, vec![(42, "single".to_string())]);
+
+        // Test reverse iteration
+        let reverse_items: Vec<(i32, String)> = map.iter_reverse().collect();
+        assert_eq!(reverse_items, vec![(42, "single".to_string())]);
+    }
+
+    #[test]
+    fn test_iteration_values() {
+        let map = ShardedConcurrentBTreeMap::new();
+
+        // Insert key-value pairs where value is key * 10
+        for i in [5, 2, 8, 1, 9] {
+            map.insert(i, i * 10);
+        }
+
+        // Test that values are returned correctly in forward order
+        let forward_pairs: Vec<(i32, i32)> = map.iter_forward().collect();
+        assert_eq!(
+            forward_pairs,
+            vec![(1, 10), (2, 20), (5, 50), (8, 80), (9, 90)]
+        );
+
+        // Test that values are returned correctly in reverse order
+        let reverse_pairs: Vec<(i32, i32)> = map.iter_reverse().collect();
+        assert_eq!(
+            reverse_pairs,
+            vec![(9, 90), (8, 80), (5, 50), (2, 20), (1, 10)]
+        );
+    }
+
+    #[test]
+    fn test_iterator_size_hint() {
+        let map = ShardedConcurrentBTreeMap::new();
+
+        // Insert some values
+        for i in 1..=5 {
+            map.insert(i, format!("value_{i}"));
+        }
+
+        // Test size hint for forward iterator
+        let forward_iter = map.iter_forward();
+        let (lower, upper) = forward_iter.size_hint();
+        assert_eq!(lower, 5);
+        assert_eq!(upper, Some(5));
+
+        // Test size hint for reverse iterator
+        let reverse_iter = map.iter_reverse();
+        let (lower, upper) = reverse_iter.size_hint();
+        assert_eq!(lower, 5);
+        assert_eq!(upper, Some(5));
     }
 }

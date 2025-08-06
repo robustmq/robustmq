@@ -623,4 +623,132 @@ mod test {
 
         assert_eq!(actual_order, expected_order);
     }
+
+    #[test]
+    fn test_slow_subscribe_info_min_key_operations() {
+        let manager = MetricsCacheManager::new();
+
+        // Test empty case
+        assert_eq!(manager.slow_subscribe_info.min_key(), None);
+        assert_eq!(manager.slow_subscribe_info.min_key_value(), None);
+
+        // Insert test data with different time_spans
+        // Note: SlowSubscribeKey is ordered by time_span (descending), then client_id, then topic_name
+        // So min_key() returns the key with the HIGHEST time_span (most concerning slow subscribe)
+        manager.record_slow_subscribe_info(
+            SlowSubscribeKey {
+                time_span: 50,
+                client_id: "client_b".into(),
+                topic_name: "topic_x".into(),
+            },
+            SlowSubscribeData {
+                subscribe_name: "subscribe_50".to_string(),
+                client_id: "client_b".to_string(),
+                topic_name: "topic_x".to_string(),
+                node_info: "node_1".to_string(),
+                last_update_time: 1000,
+                create_time: 1000,
+            },
+        );
+
+        manager.record_slow_subscribe_info(
+            SlowSubscribeKey {
+                time_span: 100,
+                client_id: "client_a".into(),
+                topic_name: "topic_z".into(),
+            },
+            SlowSubscribeData {
+                subscribe_name: "subscribe_100".to_string(),
+                client_id: "client_a".to_string(),
+                topic_name: "topic_z".to_string(),
+                node_info: "node_2".to_string(),
+                last_update_time: 2000,
+                create_time: 2000,
+            },
+        );
+
+        manager.record_slow_subscribe_info(
+            SlowSubscribeKey {
+                time_span: 75,
+                client_id: "client_c".into(),
+                topic_name: "topic_y".into(),
+            },
+            SlowSubscribeData {
+                subscribe_name: "subscribe_75".to_string(),
+                client_id: "client_c".to_string(),
+                topic_name: "topic_y".to_string(),
+                node_info: "node_3".to_string(),
+                last_update_time: 1500,
+                create_time: 1500,
+            },
+        );
+
+        // Test same time_span with different client_id
+        manager.record_slow_subscribe_info(
+            SlowSubscribeKey {
+                time_span: 100,
+                client_id: "client_b".into(),
+                topic_name: "topic_a".into(),
+            },
+            SlowSubscribeData {
+                subscribe_name: "subscribe_100_b".to_string(),
+                client_id: "client_b".to_string(),
+                topic_name: "topic_a".to_string(),
+                node_info: "node_4".to_string(),
+                last_update_time: 2100,
+                create_time: 2100,
+            },
+        );
+
+        // The "minimum" key in BTreeMap ordering is the one with highest time_span (100),
+        // and among those with same time_span, the one with smallest client_id ("client_a")
+        // This represents the MOST concerning slow subscribe (highest time_span)
+        let expected_min_key = SlowSubscribeKey {
+            time_span: 100,
+            client_id: "client_a".into(),
+            topic_name: "topic_z".into(),
+        };
+
+        let expected_min_data = SlowSubscribeData {
+            subscribe_name: "subscribe_100".to_string(),
+            client_id: "client_a".to_string(),
+            topic_name: "topic_z".to_string(),
+            node_info: "node_2".to_string(),
+            last_update_time: 2000,
+            create_time: 2000,
+        };
+
+        // Test min_key - should return the most concerning slow subscribe (highest time_span)
+        assert_eq!(
+            manager.slow_subscribe_info.min_key(),
+            Some(expected_min_key.clone())
+        );
+
+        // Test min_key_value
+        assert_eq!(
+            manager.slow_subscribe_info.min_key_value(),
+            Some((expected_min_key.clone(), expected_min_data))
+        );
+
+        // Remove the "minimum" key (highest time_span) and test again
+        let removed_data = manager.slow_subscribe_info.remove(&expected_min_key);
+        assert!(removed_data.is_some());
+
+        // Now the minimum should be the other key with time_span 100
+        let new_expected_min_key = SlowSubscribeKey {
+            time_span: 100,
+            client_id: "client_b".into(),
+            topic_name: "topic_a".into(),
+        };
+
+        assert_eq!(
+            manager.slow_subscribe_info.min_key(),
+            Some(new_expected_min_key.clone())
+        );
+
+        // Clear all and test empty case again
+        manager.slow_subscribe_info.clear();
+        assert_eq!(manager.slow_subscribe_info.min_key(), None);
+        assert_eq!(manager.slow_subscribe_info.min_key_value(), None);
+    }
 }
