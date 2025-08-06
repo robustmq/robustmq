@@ -1,0 +1,86 @@
+# Prometheus Configuration Example for RobustMQ MQTT Broker Monitoring
+# This is a sample configuration showing how to scrape metrics from RobustMQ
+
+global:
+  scrape_interval: 15s        # Set the scrape interval to every 15 seconds
+  evaluation_interval: 15s    # Evaluate rules every 15 seconds
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+# Load rules once and periodically evaluate them according to the global 'evaluation_interval'
+rule_files:
+  - "robustmq-alerts.yml"
+
+# A scrape configuration containing exactly one endpoint to scrape:
+scrape_configs:
+  # RobustMQ MQTT Broker metrics
+  - job_name: 'robustmq-mqtt-broker'
+    static_configs:
+      - targets: ['localhost:9090']    # Adjust to your broker's metrics endpoint
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scheme: http
+    
+    # Optional: Add labels to identify this instance
+    relabel_configs:
+      - target_label: instance
+        replacement: 'robustmq-mqtt-broker'
+      - target_label: service
+        replacement: 'mqtt-broker'
+      - target_label: environment
+        replacement: 'production'       # Change to your environment
+
+  # Additional RobustMQ services (if you have multiple instances)
+  - job_name: 'robustmq-mqtt-broker-cluster'
+    static_configs:
+      - targets: 
+        - 'robustmq-node1:9090'
+        - 'robustmq-node2:9090'
+        - 'robustmq-node3:9090'
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scheme: http
+    
+    relabel_configs:
+      - target_label: service
+        replacement: 'mqtt-broker-cluster'
+      - target_label: environment
+        replacement: 'production'
+
+  # Journal Server metrics (if enabled)
+  - job_name: 'robustmq-journal-server'
+    static_configs:
+      - targets: ['localhost:9091']    # Adjust to your journal server's metrics endpoint
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scheme: http
+    
+    relabel_configs:
+      - target_label: service
+        replacement: 'journal-server'
+
+  # Placement Center metrics (if enabled)
+  - job_name: 'robustmq-placement-center'
+    static_configs:
+      - targets: ['localhost:9092']    # Adjust to your placement center's metrics endpoint
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scheme: http
+    
+    relabel_configs:
+      - target_label: service
+        replacement: 'placement-center'
+
+  # System metrics (optional, for complete monitoring)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['localhost:9100']
+    scrape_interval: 15s
+
+# Recording rules for better performance (optional)
+# Create a separate file: robustmq-recording-rules.yml
