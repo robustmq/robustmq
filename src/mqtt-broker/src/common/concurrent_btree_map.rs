@@ -483,9 +483,12 @@ where
         for shard in self.shards.iter() {
             match shard.read() {
                 Ok(guard) => {
-                    if let Some(shard_min) = guard.keys().next() {
+                    // Use first_key_value which is more efficient than keys().next()
+                    if let Some((shard_min, _)) = guard.first_key_value() {
                         match &min_key {
-                            None => min_key = Some(shard_min.clone()),
+                            None => {
+                                min_key = Some(shard_min.clone());
+                            }
                             Some(current_min) => {
                                 if shard_min < current_min {
                                     min_key = Some(shard_min.clone());
@@ -493,6 +496,7 @@ where
                             }
                         }
                     }
+                    // If this shard is empty, continue to next shard without cloning
                 }
                 Err(e) => {
                     warn!("Failed to acquire read lock for shard in ShardedConcurrentBTreeMap::min_key, error: {}", e);
@@ -516,10 +520,11 @@ where
         for shard in self.shards.iter() {
             match shard.read() {
                 Ok(guard) => {
-                    if let Some((shard_min_key, shard_min_value)) = guard.iter().next() {
+                    // Use first_key_value which is more efficient than iter().next()
+                    if let Some((shard_min_key, shard_min_value)) = guard.first_key_value() {
                         match &min_pair {
                             None => {
-                                min_pair = Some((shard_min_key.clone(), shard_min_value.clone()))
+                                min_pair = Some((shard_min_key.clone(), shard_min_value.clone()));
                             }
                             Some((current_min_key, _)) => {
                                 if shard_min_key < current_min_key {
@@ -529,6 +534,7 @@ where
                             }
                         }
                     }
+                    // If this shard is empty, continue to next shard without cloning
                 }
                 Err(e) => {
                     warn!("Failed to acquire read lock for shard in ShardedConcurrentBTreeMap::min_key_value, error: {}", e);
@@ -551,9 +557,12 @@ where
         for shard in self.shards.iter() {
             match shard.read() {
                 Ok(guard) => {
-                    if let Some(shard_max) = guard.keys().next_back() {
+                    // Use last_key_value which is more efficient than keys().next_back()
+                    if let Some((shard_max, _)) = guard.last_key_value() {
                         match &max_key {
-                            None => max_key = Some(shard_max.clone()),
+                            None => {
+                                max_key = Some(shard_max.clone());
+                            }
                             Some(current_max) => {
                                 if shard_max > current_max {
                                     max_key = Some(shard_max.clone());
@@ -561,6 +570,7 @@ where
                             }
                         }
                     }
+                    // If this shard is empty, continue to next shard without cloning
                 }
                 Err(e) => {
                     warn!("Failed to acquire read lock for shard in ShardedConcurrentBTreeMap::max_key, error: {}", e);
@@ -584,7 +594,8 @@ where
         for shard in self.shards.iter() {
             match shard.read() {
                 Ok(guard) => {
-                    if let Some((shard_max_key, shard_max_value)) = guard.iter().next_back() {
+                    // Use last_key_value which is more efficient than iter().next_back()
+                    if let Some((shard_max_key, shard_max_value)) = guard.last_key_value() {
                         match &max_pair {
                             None => {
                                 max_pair = Some((shard_max_key.clone(), shard_max_value.clone()))
