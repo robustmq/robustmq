@@ -351,6 +351,74 @@ where
             }
         }
     }
+
+    /// Gets the minimum key across all shards
+    /// Returns None if the map is empty
+    /// Note: This operation locks all shards sequentially, so it's expensive
+    pub fn min_key(&self) -> Option<K>
+    where
+        K: Clone,
+    {
+        let mut min_key: Option<K> = None;
+
+        for shard in self.shards.iter() {
+            match shard.read() {
+                Ok(guard) => {
+                    if let Some(shard_min) = guard.keys().next() {
+                        match &min_key {
+                            None => min_key = Some(shard_min.clone()),
+                            Some(current_min) => {
+                                if shard_min < current_min {
+                                    min_key = Some(shard_min.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    warn!("Failed to acquire read lock for shard in ShardedConcurrentBTreeMap::min_key, error: {}", e);
+                }
+            }
+        }
+
+        min_key
+    }
+
+    /// Gets the minimum key-value pair across all shards
+    /// Returns None if the map is empty
+    /// Note: This operation locks all shards sequentially, so it's expensive
+    pub fn min_key_value(&self) -> Option<(K, V)>
+    where
+        K: Clone,
+        V: Clone,
+    {
+        let mut min_pair: Option<(K, V)> = None;
+
+        for shard in self.shards.iter() {
+            match shard.read() {
+                Ok(guard) => {
+                    if let Some((shard_min_key, shard_min_value)) = guard.iter().next() {
+                        match &min_pair {
+                            None => {
+                                min_pair = Some((shard_min_key.clone(), shard_min_value.clone()))
+                            }
+                            Some((current_min_key, _)) => {
+                                if shard_min_key < current_min_key {
+                                    min_pair =
+                                        Some((shard_min_key.clone(), shard_min_value.clone()));
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    warn!("Failed to acquire read lock for shard in ShardedConcurrentBTreeMap::min_key_value, error: {}", e);
+                }
+            }
+        }
+
+        min_pair
+    }
 }
 
 // Additional convenience methods for common use cases
@@ -568,5 +636,104 @@ mod tests {
         map1.insert(11, "new_value".to_string());
         assert!(map1.contains_key(&11));
         assert!(!map2.contains_key(&11));
+    }
+
+    #[test]
+    fn test_min_key() {
+        let map = ShardedConcurrentBTreeMap::new();
+
+        // Test empty map
+        assert_eq!(map.min_key(), None);
+
+        // Insert values in random order
+        let values = vec![50, 10, 30, 70, 20, 60, 40];
+        for &val in &values {
+            map.insert(val, format!("value_{val}"));
+        }
+
+        // Minimum key should be 10
+        assert_eq!(map.min_key(), Some(10));
+
+        // Remove the minimum key
+        map.remove(&10);
+        assert_eq!(map.min_key(), Some(20));
+
+        // Remove more keys
+        map.remove(&20);
+        map.remove(&30);
+        assert_eq!(map.min_key(), Some(40));
+
+        // Clear the map
+        map.clear();
+        assert_eq!(map.min_key(), None);
+    }
+
+    #[test]
+    fn test_min_key_value() {
+        let map = ShardedConcurrentBTreeMap::new();
+
+        // Test empty map
+        assert_eq!(map.min_key_value(), None);
+
+        // Insert values in random order
+        let values = vec![50, 10, 30, 70, 20, 60, 40];
+        for &val in &values {
+            map.insert(val, val * 100);
+        }
+
+        // Minimum key-value pair should be (10, 1000)
+        assert_eq!(map.min_key_value(), Some((10, 1000)));
+
+        // Remove the minimum key
+        map.remove(&10);
+        assert_eq!(map.min_key_value(), Some((20, 2000)));
+
+        // Test with string keys
+        let string_map = ShardedConcurrentBTreeMap::new();
+        string_map.insert("zebra".to_string(), 1);
+        string_map.insert("apple".to_string(), 2);
+        string_map.insert("banana".to_string(), 3);
+
+        assert_eq!(string_map.min_key_value(), Some(("apple".to_string(), 2)));
+    }
+
+    #[test]
+    fn test_min_key_with_sharding() {
+        // Test with multiple shards to ensure min_key works across shards
+        let map = ShardedConcurrentBTreeMap::with_shard_count(8);
+
+        // Insert many values that will be distributed across shards
+        for i in (1..=100).rev() {
+            map.insert(i, format!("value_{i}"));
+        }
+
+        // Minimum should still be 1
+        assert_eq!(map.min_key(), Some(1));
+        assert_eq!(map.min_key_value(), Some((1, "value_1".to_string())));
+
+        // Remove some small values
+        for i in 1..=10 {
+            map.remove(&i);
+        }
+
+        // Now minimum should be 11
+        assert_eq!(map.min_key(), Some(11));
+        assert_eq!(map.min_key_value(), Some((11, "value_11".to_string())));
+    }
+
+    #[test]
+    fn test_min_key_single_element() {
+        let map = ShardedConcurrentBTreeMap::new();
+
+        // Insert single element
+        map.insert(42, "answer".to_string());
+
+        assert_eq!(map.min_key(), Some(42));
+        assert_eq!(map.min_key_value(), Some((42, "answer".to_string())));
+
+        // Remove the only element
+        map.remove(&42);
+        assert_eq!(map.min_key(), None);
+        assert_eq!(map.min_key_value(), None);
     }
 }
