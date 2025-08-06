@@ -46,7 +46,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # Configuration variables
 VERSION="${VERSION:-$(git describe --tags --always 2>/dev/null || echo 'dev')}"
-COMPONENT="${COMPONENT:-all}"  # server, operator, or all
+COMPONENT="${COMPONENT:-server}"  # server, operator, or all
 PLATFORM="${PLATFORM:-auto}"  # auto, specific platform, or all
 BUILD_TYPE="${BUILD_TYPE:-release}"  # release or debug
 OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_ROOT}/build}"
@@ -137,7 +137,7 @@ ${BOLD}USAGE:${NC}
 ${BOLD}OPTIONS:${NC}
     -h, --help                  Show this help message
     -v, --version VERSION       Build version (default: auto-detect from git)
-    -c, --component COMP        Component to build: server, operator, or all (default: all)
+    -c, --component COMP        Component to build: server, operator, or all (default: server)
     -p, --platform PLATFORM    Target platform (default: auto-detect)
     -a, --all-platforms         Build for all supported platforms
     -t, --type TYPE            Build type: release or debug (default: release)
@@ -177,7 +177,7 @@ ${BOLD}ENVIRONMENT VARIABLES:${NC}
     PARALLEL                  Parallel builds (true/false)
 
 ${BOLD}EXAMPLES:${NC}
-    # Build for current platform
+    # Build for current platform (server only)
     $0
 
     # Build specific component for specific platform
@@ -301,7 +301,7 @@ prepare_rust_target() {
 build_server_component() {
     local platform="$1"
     local rust_target="$(get_rust_target "$platform")"
-    local output_name="robustmq-${platform}"
+    local output_name="robustmq-${VERSION}-${platform}"
     local package_path="${OUTPUT_DIR}/${output_name}"
     
     if [ -z "$rust_target" ]; then
@@ -336,7 +336,7 @@ build_server_component() {
     mkdir -p "$package_path"/{bin,libs,config,docs}
     
     # Copy binaries
-    local target_dir="build/$rust_target"
+    local target_dir="target/$rust_target"
     if [ "$BUILD_TYPE" = "release" ]; then
         target_dir="$target_dir/release"
     else
@@ -410,7 +410,7 @@ EOF
 build_operator_component() {
     local platform="$1"
     local go_target="$(get_go_target "$platform")"
-    local output_name="robustmq-operator-${platform}"
+    local output_name="robustmq-operator-${VERSION}-${platform}"
     local package_path="${OUTPUT_DIR}/${output_name}"
     
     if [ -z "$go_target" ]; then
