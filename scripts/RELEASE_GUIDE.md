@@ -9,7 +9,36 @@ The `release.sh` script provides a complete automated release workflow:
 1. **Version Extraction** - Automatically extract version information from `Cargo.toml`
 2. **Release Creation** - Create corresponding release versions on GitHub with auto-generated release notes
 3. **Package Building** - Call `build.sh` to build multi-platform binary packages
-4. **Asset Upload** - Upload tar.gz packages to GitHub release
+4. **Asset Upload** - Upload tar.gz packages to GitHub release (SHA256 checksums kept locally)
+
+### 🎯 Default Behavior Change (v0.1.30+)
+
+**NEW**: The script now defaults to building only the current platform instead of all platforms:
+
+- **⚡ Faster**: Significantly reduces build time for development and testing
+- **💾 Efficient**: Uses less disk space and bandwidth
+- **🎯 Targeted**: Perfect for platform-specific releases
+- **🔄 Compatible**: Use `--platform all` for multi-platform releases
+
+| Scenario | Command | Build Time | Use Case |
+|----------|---------|------------|----------|
+| Development/Testing | `./scripts/release.sh` | ~2-5 min | Quick testing |
+| Platform-specific Release | `./scripts/release.sh --platform linux-amd64` | ~2-5 min | Single platform |
+| Full Release | `./scripts/release.sh --platform all` | ~10-20 min | All platforms |
+
+### 🔐 Security & Verification
+
+**SHA256 Checksums**: The build process generates SHA256 checksum files for all packages, but these are **kept locally only** for manual verification:
+
+- **📦 GitHub Release**: Only contains `.tar.gz` files for cleaner downloads
+- **🔍 Local Verification**: SHA256 files available in `build/` directory
+- **🛡️ Security**: Users can verify downloads using locally generated checksums
+
+```bash
+# Verify downloaded package (example)
+cd build/
+sha256sum -c robustmq-v0.1.30-linux-amd64.tar.gz.sha256
+```
 
 ## 🔧 Prerequisites
 
@@ -39,7 +68,7 @@ The `release.sh` script provides a complete automated release workflow:
 # 1. Set GitHub Token
 export GITHUB_TOKEN="ghp_xxxxxxxxxxxxxxxxxxxx"
 
-# 2. Release current version from Cargo.toml
+# 2. Release current version for current platform (default)
 ./scripts/release.sh
 
 # 3. Check build results
@@ -79,7 +108,7 @@ ls -la build/
 |--------|-------------|---------|
 | `-h, --help` | Show help message | - |
 | `-v, --version VERSION` | Specify release version | Extract from Cargo.toml |
-| `-p, --platform PLATFORM` | Target platform | all |
+| `-p, --platform PLATFORM` | Target platform | auto (current) |
 | `-t, --token TOKEN` | GitHub Personal Access Token | $GITHUB_TOKEN |
 | `-r, --repo REPO` | GitHub repository | robustmq/robustmq |
 | `--dry-run` | Dry run mode | false |
@@ -91,6 +120,7 @@ ls -la build/
 
 | Platform ID | Description |
 |-------------|-------------|
+| `auto` | Auto-detect current platform (default) |
 | `all` | Build for all supported platforms |
 | `linux-amd64` | Linux x86_64 |
 | `linux-arm64` | Linux ARM64 |
@@ -124,8 +154,11 @@ export GITHUB_TOKEN="your_token"
 # Perform dry run first
 ./scripts/release.sh --dry-run --verbose
 
-# Execute actual release after confirmation
+# Execute actual release for current platform
 ./scripts/release.sh --verbose
+
+# For cross-platform release (all platforms)
+./scripts/release.sh --platform all --verbose
 ```
 
 ### 3. Verify Release
