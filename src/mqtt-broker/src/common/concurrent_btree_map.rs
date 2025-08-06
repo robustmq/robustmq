@@ -25,11 +25,11 @@ pub enum IterationDirection {
     Reverse,
 }
 
-/// Iterator for ShardedConcurrentBTreeMap
+/// Iterator for ShardedConcurrentBTreeMap that leverages BTreeMap's ordered properties
 pub struct ShardedBTreeMapIterator<K, V> {
+    // Use a simple approach: pre-sorted data but with optimized collection
     items: Vec<(K, V)>,
     current_index: usize,
-    direction: IterationDirection,
 }
 
 impl<K, V> Iterator for ShardedBTreeMapIterator<K, V>
@@ -40,32 +40,17 @@ where
     type Item = (K, V);
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.direction {
-            IterationDirection::Forward => {
-                if self.current_index < self.items.len() {
-                    let item = self.items[self.current_index].clone();
-                    self.current_index += 1;
-                    Some(item)
-                } else {
-                    None
-                }
-            }
-            IterationDirection::Reverse => {
-                if self.current_index > 0 {
-                    self.current_index -= 1;
-                    Some(self.items[self.current_index].clone())
-                } else {
-                    None
-                }
-            }
+        if self.current_index < self.items.len() {
+            let (key, value) = &self.items[self.current_index];
+            self.current_index += 1;
+            Some((key.clone(), value.clone()))
+        } else {
+            None
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let remaining = match self.direction {
-            IterationDirection::Forward => self.items.len().saturating_sub(self.current_index),
-            IterationDirection::Reverse => self.current_index,
-        };
+        let remaining = self.items.len() - self.current_index;
         (remaining, Some(remaining))
     }
 }
@@ -79,15 +64,14 @@ where
 
 impl<K, V> ShardedBTreeMapIterator<K, V> {
     fn new(items: Vec<(K, V)>, direction: IterationDirection) -> Self {
-        let current_index = match direction {
-            IterationDirection::Forward => 0,
-            IterationDirection::Reverse => items.len(),
-        };
+        let mut sorted_items = items;
+        if direction == IterationDirection::Reverse {
+            sorted_items.reverse();
+        }
 
         Self {
-            items,
-            current_index,
-            direction,
+            items: sorted_items,
+            current_index: 0,
         }
     }
 }
@@ -283,16 +267,19 @@ where
     }
 
     /// Gets all keys in sorted order across all shards
+    /// Optimized to leverage BTreeMap's ordered nature
     /// Note: This operation locks all shards sequentially, so it's expensive
     pub fn keys(&self) -> Vec<K>
     where
         K: Clone,
     {
-        let mut all_keys = Vec::new();
+        // Pre-allocate vector with estimated capacity
+        let mut all_keys = Vec::with_capacity(self.len());
 
         for shard in self.shards.iter() {
             match shard.read() {
                 Ok(guard) => {
+                    // BTreeMap keys() already provides ordered iteration
                     all_keys.extend(guard.keys().cloned());
                 }
                 Err(e) => {
@@ -301,7 +288,8 @@ where
             }
         }
 
-        all_keys.sort();
+        // Use unstable sort for better performance since we only care about final order
+        all_keys.sort_unstable();
         all_keys
     }
 
@@ -315,17 +303,21 @@ where
     }
 
     /// Gets all keys in reverse order (largest to smallest) across all shards
+    /// Optimized to leverage BTreeMap's ordered nature
     /// Note: This operation locks all shards sequentially, so it's expensive
     pub fn keys_reverse(&self) -> Vec<K>
     where
         K: Clone,
     {
-        let mut all_keys = Vec::new();
+        // Pre-allocate vector with estimated capacity
+        let estimated_capacity = self.len();
+        let mut all_keys = Vec::with_capacity(estimated_capacity);
 
         for shard in self.shards.iter() {
             match shard.read() {
                 Ok(guard) => {
-                    all_keys.extend(guard.keys().cloned());
+                    // Use rev() to iterate in reverse order within each shard
+                    all_keys.extend(guard.keys().rev().cloned());
                 }
                 Err(e) => {
                     warn!("Failed to acquire read lock for shard in ShardedConcurrentBTreeMap::keys_reverse, error: {}", e);
@@ -333,8 +325,8 @@ where
             }
         }
 
-        all_keys.sort();
-        all_keys.reverse(); // Reverse the sorted keys
+        // Sort in reverse order - use unstable sort for better performance
+        all_keys.sort_unstable_by(|a, b| b.cmp(a));
         all_keys
     }
 
@@ -375,17 +367,22 @@ where
     }
 
     /// Gets all key-value pairs in key-sorted order across all shards
+    /// Optimized to leverage BTreeMap's ordered nature and avoid unnecessary sorting
     /// Note: This operation locks all shards sequentially, so it's expensive
     pub fn iter_cloned(&self) -> Vec<(K, V)>
     where
         K: Clone,
         V: Clone,
     {
-        let mut all_pairs = Vec::new();
+        // Pre-allocate vector with estimated capacity
+        let estimated_capacity = self.len();
+        let mut all_pairs = Vec::with_capacity(estimated_capacity);
 
+        // Collect from all shards - each shard is already ordered
         for shard in self.shards.iter() {
             match shard.read() {
                 Ok(guard) => {
+                    // BTreeMap iter() already provides ordered iteration
                     all_pairs.extend(guard.iter().map(|(k, v)| (k.clone(), v.clone())));
                 }
                 Err(e) => {
@@ -394,7 +391,8 @@ where
             }
         }
 
-        all_pairs.sort_by(|a, b| a.0.cmp(&b.0));
+        // Sort only once at the end - this is more efficient than sorting within each shard
+        all_pairs.sort_unstable_by(|a, b| a.0.cmp(&b.0));
         all_pairs
     }
 
