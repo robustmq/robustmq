@@ -13,8 +13,9 @@
 // limitations under the License.
 
 use std::cmp::Ordering;
+use std::hash::Hash;
 
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct SlowSubscribeKey {
     pub time_span: u64,
     pub client_id: String,
@@ -40,14 +41,6 @@ impl SlowSubscribeKey {
 
     pub fn topic_name(&self) -> &str {
         &self.topic_name
-    }
-}
-
-impl PartialEq for SlowSubscribeKey {
-    fn eq(&self, other: &Self) -> bool {
-        self.time_span == other.time_span
-            && self.client_id == other.client_id
-            && self.topic_name == other.topic_name
     }
 }
 

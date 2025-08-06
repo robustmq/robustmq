@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::concurrent_btree_map::ShardedConcurrentBTreeMap;
 use crate::common::types::ResultMqttBrokerError;
 use crate::observability::metrics::server::{
     record_broker_connections_max, record_broker_connections_num,
@@ -24,12 +25,11 @@ use crate::{
 };
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use std::collections::BTreeMap;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;
 use tracing::info;
 
-#[derive(Clone, Default)]
+#[derive(Default, Clone)]
 pub struct MetricsCacheManager {
     pub connection_num: DashMap<u64, u32>,
     pub topic_num: DashMap<u64, u32>,
@@ -37,8 +37,8 @@ pub struct MetricsCacheManager {
     pub message_in_num: DashMap<u64, u32>,
     pub message_out_num: DashMap<u64, u32>,
     pub message_drop_num: DashMap<u64, u32>,
-    pub slow_subscribe_index: BTreeMap<(String, String), (u64, String, String)>,
-    pub slow_subscribe_info: BTreeMap<SlowSubscribeKey, SlowSubscribeData>,
+    pub slow_subscribe_index: ShardedConcurrentBTreeMap<(String, String), (u64, String, String)>,
+    pub slow_subscribe_info: ShardedConcurrentBTreeMap<SlowSubscribeKey, SlowSubscribeData>,
 }
 
 impl MetricsCacheManager {
@@ -50,8 +50,8 @@ impl MetricsCacheManager {
             message_in_num: DashMap::with_capacity(4),
             message_out_num: DashMap::with_capacity(4),
             message_drop_num: DashMap::with_capacity(4),
-            slow_subscribe_index: BTreeMap::new(),
-            slow_subscribe_info: BTreeMap::new(),
+            slow_subscribe_index: ShardedConcurrentBTreeMap::new(),
+            slow_subscribe_info: ShardedConcurrentBTreeMap::new(),
         }
     }
 
@@ -61,20 +61,18 @@ impl MetricsCacheManager {
         topic_name: String,
     ) -> Option<(u64, String, String)> {
         // Return the latest slow subscribe data for the given client_id and topic_name
-        self.slow_subscribe_index
-            .get(&(client_id, topic_name))
-            .cloned()
+        self.slow_subscribe_index.get(&(client_id, topic_name))
     }
 
     pub fn record_slow_subscribe_index(
-        &mut self,
+        &self,
         client_id: String,
         topic_name: String,
-        last_update_time: u64,
+        time_span: u64,
     ) {
         self.slow_subscribe_index.insert(
             (client_id.clone(), topic_name.clone()),
-            (last_update_time, client_id, topic_name),
+            (time_span, client_id, topic_name),
         );
     }
 
@@ -82,11 +80,11 @@ impl MetricsCacheManager {
         &self,
         slow_subscribe_key: SlowSubscribeKey,
     ) -> Option<SlowSubscribeData> {
-        self.slow_subscribe_info.get(&slow_subscribe_key).cloned()
+        self.slow_subscribe_info.get(&slow_subscribe_key)
     }
 
     pub fn record_slow_subscribe_info(
-        &mut self,
+        &self,
         slow_subscribe_key: SlowSubscribeKey,
         slow_subscribe_data: SlowSubscribeData,
     ) {
@@ -418,7 +416,7 @@ mod test {
 
     #[test]
     fn test_slow_subscribe_index_insert_and_get() {
-        let mut manager = MetricsCacheManager::new();
+        let manager = MetricsCacheManager::new();
 
         // Insert a value
         manager.record_slow_subscribe_index("client1".into(), "topicA".into(), 10);
@@ -430,7 +428,7 @@ mod test {
 
     #[test]
     fn test_slow_subscribe_index_update_and_get() {
-        let mut manager = MetricsCacheManager::new();
+        let manager = MetricsCacheManager::new();
 
         // Insert a value
         manager.record_slow_subscribe_index("client1".into(), "topicA".into(), 10);
@@ -454,7 +452,7 @@ mod test {
 
     #[test]
     fn test_slow_subscribe_info_insert_and_get() {
-        let mut manager = MetricsCacheManager::new();
+        let manager = MetricsCacheManager::new();
 
         // Insert a value
         let key = SlowSubscribeKey {
@@ -479,7 +477,7 @@ mod test {
 
     #[test]
     fn test_slow_subscribe_info_update_and_get() {
-        let mut manager = MetricsCacheManager::new();
+        let manager = MetricsCacheManager::new();
 
         // Insert a value
         let key = SlowSubscribeKey {
@@ -529,7 +527,7 @@ mod test {
 
     #[test]
     fn test_slow_subscribe_info_insert_and_iterate() {
-        let mut manager = MetricsCacheManager::new();
+        let manager = MetricsCacheManager::new();
 
         manager.record_slow_subscribe_info(
             SlowSubscribeKey {
@@ -618,10 +616,8 @@ mod test {
             },
         ];
 
-        let mut actual_order = Vec::new();
-        for key in manager.slow_subscribe_info.keys() {
-            actual_order.push(key.clone());
-        }
+        // Use the keys() method from ConcurrentBTreeMap which returns keys in sorted order
+        let actual_order = manager.slow_subscribe_info.keys();
 
         assert_eq!(actual_order, expected_order);
     }

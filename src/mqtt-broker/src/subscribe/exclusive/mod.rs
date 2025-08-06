@@ -37,12 +37,14 @@ use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
 use tracing::warn;
 use tracing::{error, info};
+use crate::common::metrics_cache::MetricsCacheManager;
 
 pub struct ExclusivePush {
     cache_manager: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     message_storage: ArcStorageAdapter,
+    metrics_cache_manager: Arc<MetricsCacheManager>,
 }
 
 impl ExclusivePush {
@@ -51,12 +53,14 @@ impl ExclusivePush {
         cache_manager: Arc<CacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
+        metrics_cache_manager: Arc<MetricsCacheManager>,
     ) -> Self {
         ExclusivePush {
             message_storage,
             cache_manager,
             subscribe_manager,
             connection_manager,
+            metrics_cache_manager,
         }
     }
 
@@ -108,6 +112,7 @@ impl ExclusivePush {
             let cache_manager = self.cache_manager.clone();
             let connection_manager = self.connection_manager.clone();
             let subscribe_manager = self.subscribe_manager.clone();
+            let metrics_cache_manager = self.metrics_cache_manager.clone();
 
             // Subscribe to the data push thread
             self.subscribe_manager.exclusive_push_thread.insert(
@@ -164,6 +169,7 @@ impl ExclusivePush {
                                 connection_manager: connection_manager.clone(),
                                 message_storage: message_storage.clone(),
                                 cache_manager: cache_manager.clone(),
+                                metrics_cache_manager: metrics_cache_manager.clone(),
                                 subscriber: subscriber.clone(),
                                 group_id: group_id.clone(),
                                 qos,
@@ -205,6 +211,7 @@ pub struct ExclusivePushContext {
     pub connection_manager: Arc<ConnectionManager>,
     pub message_storage: MessageStorage,
     pub cache_manager: Arc<CacheManager>,
+    pub metrics_cache_manager: Arc<MetricsCacheManager>,
     pub subscriber: Subscriber,
     pub group_id: String,
     pub qos: QoS,
@@ -260,9 +267,15 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
         let finish_time = now_second();
 
         let receive_time = record.timestamp;
-        let _whole_time = finish_time - receive_time;
+        let whole_time = finish_time - receive_time;
         let _internal_time = send_time - receive_time;
         let _response_time = finish_time - send_time;
+
+        &context.metrics_cache_manager.record_slow_subscribe_index(
+            sub_pub_param.subscribe.client_id.clone(),
+            sub_pub_param.subscribe.topic_name.clone(),
+            whole_time,
+        );
 
         // commit offset
         loop_commit_offset(
