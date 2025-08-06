@@ -49,6 +49,6 @@ jobs:
         with:
           crate: cargo-nextest
           args: --locked
-      # - uses: actions/checkout@v3
-      # - name: Run tests
-      #   run: sh ./scripts/bin-ig-test.sh
+      - uses: actions/checkout@v3
+      - name: Run tests
+        run: sh ./scripts/bin-ig-test.sh

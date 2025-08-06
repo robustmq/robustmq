@@ -19,7 +19,7 @@ cargo clean
 # start server
 nohup cargo run --package cmd --bin broker-server >> 1.log 2>&1 &
 
-sleep 10
+sleep 30
 
 # place
 cargo nextest run --profile ci --package grpc-clients --package robustmq-test --test mod -- placement
