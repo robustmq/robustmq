@@ -265,10 +265,11 @@ create_github_release() {
 {
   "tag_name": "$version",
   "target_commitish": "main",
-  "name": "RobustMQ $version",
-  "body": "Release $version of RobustMQ\\n\\nFor detailed changes, please see the commit history.\\n\\n## Installation\\n\\n### Linux/macOS\\n\`\`\`bash\\nwget https://github.com/$GITHUB_REPO/releases/download/$version/robustmq-$version-linux-amd64.tar.gz\\ntar -xzf robustmq-$version-linux-amd64.tar.gz\\ncd robustmq-$version-linux-amd64\\n./bin/robust-server start\\n\`\`\`\\n\\n### Windows\\nDownload the Windows package and extract it to run the server.\\n\\nFor more information, visit: https://github.com/$GITHUB_REPO",
+  "name": "$version",
+  "body": "## What's Changed\\n\\n*This section will be automatically populated by GitHub's release notes generator.*\\n\\n## Installation\\n\\n### Linux/macOS\\n\`\`\`bash\\nwget https://github.com/$GITHUB_REPO/releases/download/$version/robustmq-$version-linux-amd64.tar.gz\\ntar -xzf robustmq-$version-linux-amd64.tar.gz\\ncd robustmq-$version-linux-amd64\\n./bin/robust-server start\\n\`\`\`\\n\\n### Windows\\nDownload the Windows package and extract it to run the server.\\n\\n### Docker (Coming Soon)\\n\`\`\`bash\\ndocker run -p 1883:1883 -p 9092:9092 robustmq/robustmq:$version\\n\`\`\`\\n\\n## Documentation\\n\\n- [📖 Documentation](https://robustmq.com/)\\n- [🚀 Quick Start Guide](https://github.com/$GITHUB_REPO/docs)\\n- [🔧 MQTT Guide](https://github.com/$GITHUB_REPO/docs)\\n\\nFor more information, visit: https://github.com/$GITHUB_REPO",
   "draft": false,
-  "prerelease": false
+  "prerelease": false,
+  "generate_release_notes": true
 }
 EOF
 )
