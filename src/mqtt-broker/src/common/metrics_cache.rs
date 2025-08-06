@@ -37,7 +37,7 @@ pub struct MetricsCacheManager {
     pub message_in_num: DashMap<u64, u32>,
     pub message_out_num: DashMap<u64, u32>,
     pub message_drop_num: DashMap<u64, u32>,
-    pub slow_subscribe_index: ShardedConcurrentBTreeMap<(String, String), (u64, String, String)>,
+    pub slow_subscribe_index: DashMap<(String, String), (u64, String, String)>,
     pub slow_subscribe_info: ShardedConcurrentBTreeMap<SlowSubscribeKey, SlowSubscribeData>,
 }
 
@@ -50,7 +50,7 @@ impl MetricsCacheManager {
             message_in_num: DashMap::with_capacity(4),
             message_out_num: DashMap::with_capacity(4),
             message_drop_num: DashMap::with_capacity(4),
-            slow_subscribe_index: ShardedConcurrentBTreeMap::new(),
+            slow_subscribe_index: DashMap::new(),
             slow_subscribe_info: ShardedConcurrentBTreeMap::new(),
         }
     }
@@ -61,7 +61,9 @@ impl MetricsCacheManager {
         topic_name: String,
     ) -> Option<(u64, String, String)> {
         // Return the latest slow subscribe data for the given client_id and topic_name
-        self.slow_subscribe_index.get(&(client_id, topic_name))
+        self.slow_subscribe_index
+            .get(&(client_id, topic_name))
+            .map(|entry| entry.value().clone())
     }
 
     pub fn record_slow_subscribe_index(
