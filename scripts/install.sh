@@ -16,7 +16,8 @@
 # RobustMQ Installation Script
 # 
 # This script automatically downloads and installs the latest version of RobustMQ
-# for your operating system and architecture.
+# for your operating system and architecture. It downloads pre-built binaries from
+# GitHub releases using the naming convention: robustmq-{VERSION}-{platform}.tar.gz
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
@@ -186,15 +187,16 @@ detect_arch() {
         i386|i686)
             ARCH_TYPE="386"
             ;;
-        armv6l)
-            ARCH_TYPE="armv6"
-            ;;
         armv7l)
             ARCH_TYPE="armv7"
             ;;
+        armv6l)
+            ARCH_TYPE="armv6"
+            ;;
         *)
             log_error "Unsupported CPU architecture: $arch_type"
-            log_info "Supported architectures: amd64, arm64, 386, armv6, armv7"
+            log_info "Supported architectures (based on build.sh): amd64, arm64, armv7"
+            log_info "Your architecture '$arch_type' may not have pre-built binaries available"
             exit 1
             ;;
     esac
@@ -247,6 +249,28 @@ get_latest_version() {
     fi
     
     VERSION="$version"
+}
+
+check_platform_support() {
+    local component="$1"
+    local platform="${OS_TYPE}-${ARCH_TYPE}"
+    
+    # Check if this platform is supported based on build.sh logic
+    case "$platform" in
+        "linux-amd64"|"linux-arm64"|"darwin-amd64"|"darwin-arm64"|"windows-amd64")
+            log_info "Platform $platform is supported"
+            return 0
+            ;;
+        "linux-386"|"windows-386"|"freebsd-amd64"|"linux-armv7")
+            log_warning "Platform $platform has limited support"
+            return 0
+            ;;
+        *)
+            log_error "Platform $platform is not supported"
+            log_info "Supported platforms: linux-amd64, linux-arm64, darwin-amd64, darwin-arm64, windows-amd64"
+            return 1
+            ;;
+    esac
 }
 
 download_file() {
@@ -306,13 +330,16 @@ verify_checksum() {
 install_component() {
     local component="$1"
     local binary_name=""
+    local package_prefix=""
     
     case "$component" in
         server)
             binary_name="robustmq"
+            package_prefix="robustmq"
             ;;
         operator)
             binary_name="robustmq-operator"
+            package_prefix="robustmq-operator"
             ;;
         *)
             log_error "Unknown component: $component"
@@ -320,8 +347,11 @@ install_component() {
             ;;
     esac
     
-    local package_name="${binary_name}-${OS_TYPE}-${ARCH_TYPE}"
-    local archive_name="${package_name}.tar.gz"
+    # Convert platform format to match release naming convention
+    local platform="${OS_TYPE}-${ARCH_TYPE}"
+    
+    # Package naming follows the pattern: {package_prefix}-{VERSION}-{platform}.tar.gz
+    local archive_name="${package_prefix}-${VERSION}-${platform}.tar.gz"
     local download_url="https://github.com/${GITHUB_ORG}/${GITHUB_REPO}/releases/download/${VERSION}/${archive_name}"
     local temp_dir
     temp_dir=$(mktemp -d)
@@ -345,8 +375,14 @@ install_component() {
     log_step "Installing ${binary_name} ${VERSION}..."
     
     # Download the archive
+    log_info "Downloading ${archive_name}..."
     if ! download_file "$download_url" "$temp_file"; then
         log_error "Failed to download ${binary_name}"
+        log_info "Download URL: $download_url"
+        log_info "Please check:"
+        log_info "  1. Version '$VERSION' exists for platform '$platform'"
+        log_info "  2. Internet connection is working"
+        log_info "  3. GitHub releases page: https://github.com/${GITHUB_ORG}/${GITHUB_REPO}/releases"
         rm -rf "$temp_dir"
         return 1
     fi
@@ -363,11 +399,32 @@ install_component() {
     fi
     
     # Find the binary in the extracted files
-    local extracted_binary
-    extracted_binary=$(find "$temp_dir" -name "$binary_name" -type f | head -n1)
+    # Based on build.sh logic, binaries are in libs/ directory
+    local extracted_binary=""
+    local search_paths=(
+        "libs/${binary_name}"
+        "bin/${binary_name}"
+        "${binary_name}"
+    )
+    
+    # Try different possible locations for the binary
+    for search_path in "${search_paths[@]}"; do
+        local full_path=$(find "$temp_dir" -path "*/${search_path}" -type f | head -n1)
+        if [ -n "$full_path" ] && [ -f "$full_path" ]; then
+            extracted_binary="$full_path"
+            break
+        fi
+    done
+    
+    # If not found in expected paths, try generic search
+    if [ -z "$extracted_binary" ]; then
+        extracted_binary=$(find "$temp_dir" -name "$binary_name" -type f | head -n1)
+    fi
     
     if [ -z "$extracted_binary" ]; then
         log_error "Binary ${binary_name} not found in the archive"
+        log_info "Archive contents:"
+        find "$temp_dir" -type f | head -10
         rm -rf "$temp_dir"
         return 1
     fi
@@ -518,6 +575,11 @@ main() {
     log_info "Detected system: ${OS_TYPE}/${ARCH_TYPE}"
     log_info "Installation directory: ${INSTALL_DIR}"
     log_info "Component: ${COMPONENT}"
+    
+    # Check platform support
+    if ! check_platform_support "$COMPONENT"; then
+        exit 1
+    fi
     
     # Get version if latest
     if [ "$VERSION" = "latest" ]; then
