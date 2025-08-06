@@ -214,24 +214,46 @@ github_api_request() {
     local endpoint="$2"
     local data="${3:-}"
     
-    local curl_cmd="curl -s -X $method"
-    curl_cmd="$curl_cmd -H 'Authorization: token $GITHUB_TOKEN'"
-    curl_cmd="$curl_cmd -H 'Accept: application/vnd.github.v3+json'"
-    curl_cmd="$curl_cmd -H 'Content-Type: application/json'"
-    
-    if [ -n "$data" ]; then
-        curl_cmd="$curl_cmd -d '$data'"
-    fi
-    
-    curl_cmd="$curl_cmd '$GITHUB_API_URL/repos/$GITHUB_REPO$endpoint'"
-    
     log_debug "GitHub API request: $method $endpoint"
     
     if [ "$DRY_RUN" = "true" ]; then
-        log_debug "[DRY RUN] Would execute: $curl_cmd"
+        log_debug "[DRY RUN] Would make GitHub API request: $method $endpoint"
         echo '{"dry_run": true}'
+        return 0
+    fi
+    
+    local response
+    local http_code
+    
+    if [ -n "$data" ]; then
+        log_debug "Request data: $data"
+        response=$(curl -s -w "HTTPSTATUS:%{http_code}" \
+            -X "$method" \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Content-Type: application/json" \
+            -d "$data" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPO$endpoint")
     else
-        eval "$curl_cmd"
+        response=$(curl -s -w "HTTPSTATUS:%{http_code}" \
+            -X "$method" \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPO$endpoint")
+    fi
+    
+    http_code=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+    response_body=$(echo "$response" | sed 's/HTTPSTATUS:[0-9]*$//')
+    
+    log_debug "HTTP status code: $http_code"
+    
+    if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+        echo "$response_body"
+    else
+        log_error "GitHub API request failed with HTTP $http_code"
+        log_error "Response: $response_body"
+        echo "$response_body"
+        return 1
     fi
 }
 
@@ -261,6 +283,7 @@ create_github_release() {
         return 0
     fi
     
+    # Validate JSON first
     local release_data=$(cat << EOF
 {
   "tag_name": "$version",
@@ -274,14 +297,46 @@ create_github_release() {
 EOF
 )
     
+    # Validate JSON syntax
+    if ! echo "$release_data" | jq . >/dev/null 2>&1; then
+        log_error "Invalid JSON in release data"
+        log_error "JSON: $release_data"
+        return 1
+    fi
+    
+    log_debug "Making GitHub API request to create release..."
     response=$(github_api_request "POST" "/releases" "$release_data")
+    local api_exit_code=$?
+    
+    if [ $api_exit_code -ne 0 ]; then
+        log_error "GitHub API request failed with exit code $api_exit_code"
+        return 1
+    fi
     
     if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
+        local release_id=$(echo "$response" | jq -r '.id')
+        local release_url=$(echo "$response" | jq -r '.html_url // empty')
         log_success "GitHub release created successfully"
-        echo "$response" | jq -r '.id'
+        log_info "Release ID: $release_id"
+        if [ -n "$release_url" ]; then
+            log_info "Release URL: $release_url"
+        fi
+        echo "$release_id"
     else
         log_error "Failed to create GitHub release"
         log_error "Response: $response"
+        
+        # Try to extract error message
+        if echo "$response" | jq -e '.message' >/dev/null 2>&1; then
+            local error_msg=$(echo "$response" | jq -r '.message')
+            log_error "GitHub API error: $error_msg"
+        fi
+        
+        if echo "$response" | jq -e '.errors' >/dev/null 2>&1; then
+            local errors=$(echo "$response" | jq -r '.errors[]?.message // empty' | tr '\n' '; ')
+            log_error "Validation errors: $errors"
+        fi
+        
         return 1
     fi
 }
