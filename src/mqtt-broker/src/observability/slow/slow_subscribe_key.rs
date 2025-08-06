@@ -54,7 +54,6 @@ impl Ord for SlowSubscribeKey {
     fn cmp(&self, other: &Self) -> Ordering {
         self.time_span
             .cmp(&other.time_span)
-            .reverse()
             .then_with(|| self.client_id.cmp(&other.client_id))
             .then_with(|| self.topic_name.cmp(&other.topic_name))
     }
@@ -91,9 +90,9 @@ mod tests {
             sorted_keys,
             vec![
                 SlowSubscribeKey {
-                    time_span: 15,
-                    client_id: "client3".into(),
-                    topic_name: "topicC".into()
+                    time_span: 5,
+                    client_id: "client2".into(),
+                    topic_name: "topicB".into()
                 },
                 SlowSubscribeKey {
                     time_span: 10,
@@ -101,9 +100,9 @@ mod tests {
                     topic_name: "topicA".into()
                 },
                 SlowSubscribeKey {
-                    time_span: 5,
-                    client_id: "client2".into(),
-                    topic_name: "topicB".into()
+                    time_span: 15,
+                    client_id: "client3".into(),
+                    topic_name: "topicC".into()
                 },
             ]
         );

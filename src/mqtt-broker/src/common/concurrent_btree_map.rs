@@ -305,6 +305,51 @@ where
         all_keys
     }
 
+    /// Gets all keys in forward order (smallest to largest) across all shards
+    /// Note: This operation locks all shards sequentially, so it's expensive
+    pub fn keys_forward(&self) -> Vec<K>
+    where
+        K: Clone,
+    {
+        self.keys() // Default keys() method already returns forward order
+    }
+
+    /// Gets all keys in reverse order (largest to smallest) across all shards
+    /// Note: This operation locks all shards sequentially, so it's expensive
+    pub fn keys_reverse(&self) -> Vec<K>
+    where
+        K: Clone,
+    {
+        let mut all_keys = Vec::new();
+
+        for shard in self.shards.iter() {
+            match shard.read() {
+                Ok(guard) => {
+                    all_keys.extend(guard.keys().cloned());
+                }
+                Err(e) => {
+                    warn!("Failed to acquire read lock for shard in ShardedConcurrentBTreeMap::keys_reverse, error: {}", e);
+                }
+            }
+        }
+
+        all_keys.sort();
+        all_keys.reverse(); // Reverse the sorted keys
+        all_keys
+    }
+
+    /// Gets all keys with specified direction across all shards
+    /// Note: This operation locks all shards sequentially, so it's expensive
+    pub fn keys_with_direction(&self, direction: IterationDirection) -> Vec<K>
+    where
+        K: Clone,
+    {
+        match direction {
+            IterationDirection::Forward => self.keys_forward(),
+            IterationDirection::Reverse => self.keys_reverse(),
+        }
+    }
+
     /// Gets all values in key-sorted order across all shards
     /// Note: This operation locks all shards sequentially, so it's expensive
     pub fn values(&self) -> Vec<V>
@@ -492,6 +537,74 @@ where
         }
 
         min_pair
+    }
+
+    /// Gets the maximum key across all shards
+    /// Returns None if the map is empty
+    /// Note: This operation locks all shards sequentially, so it's expensive
+    pub fn max_key(&self) -> Option<K>
+    where
+        K: Clone,
+    {
+        let mut max_key: Option<K> = None;
+
+        for shard in self.shards.iter() {
+            match shard.read() {
+                Ok(guard) => {
+                    if let Some(shard_max) = guard.keys().next_back() {
+                        match &max_key {
+                            None => max_key = Some(shard_max.clone()),
+                            Some(current_max) => {
+                                if shard_max > current_max {
+                                    max_key = Some(shard_max.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    warn!("Failed to acquire read lock for shard in ShardedConcurrentBTreeMap::max_key, error: {}", e);
+                }
+            }
+        }
+
+        max_key
+    }
+
+    /// Gets the maximum key-value pair across all shards
+    /// Returns None if the map is empty
+    /// Note: This operation locks all shards sequentially, so it's expensive
+    pub fn max_key_value(&self) -> Option<(K, V)>
+    where
+        K: Clone,
+        V: Clone,
+    {
+        let mut max_pair: Option<(K, V)> = None;
+
+        for shard in self.shards.iter() {
+            match shard.read() {
+                Ok(guard) => {
+                    if let Some((shard_max_key, shard_max_value)) = guard.iter().next_back() {
+                        match &max_pair {
+                            None => {
+                                max_pair = Some((shard_max_key.clone(), shard_max_value.clone()))
+                            }
+                            Some((current_max_key, _)) => {
+                                if shard_max_key > current_max_key {
+                                    max_pair =
+                                        Some((shard_max_key.clone(), shard_max_value.clone()));
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    warn!("Failed to acquire read lock for shard in ShardedConcurrentBTreeMap::max_key_value, error: {}", e);
+                }
+            }
+        }
+
+        max_pair
     }
 
     /// Creates an iterator over the map in forward order (smallest to largest key)
@@ -822,6 +935,65 @@ mod tests {
     }
 
     #[test]
+    fn test_max_key() {
+        let map = ShardedConcurrentBTreeMap::new();
+
+        // Test empty map
+        assert_eq!(map.max_key(), None);
+
+        // Insert values in random order
+        let values = vec![50, 10, 30, 70, 20, 60, 40];
+        for &val in &values {
+            map.insert(val, format!("value_{val}"));
+        }
+
+        // Maximum key should be 70
+        assert_eq!(map.max_key(), Some(70));
+
+        // Remove the maximum key
+        map.remove(&70);
+        assert_eq!(map.max_key(), Some(60));
+
+        // Remove more keys
+        map.remove(&60);
+        map.remove(&50);
+        assert_eq!(map.max_key(), Some(40));
+
+        // Clear the map
+        map.clear();
+        assert_eq!(map.max_key(), None);
+    }
+
+    #[test]
+    fn test_max_key_value() {
+        let map = ShardedConcurrentBTreeMap::new();
+
+        // Test empty map
+        assert_eq!(map.max_key_value(), None);
+
+        // Insert values in random order
+        let values = vec![50, 10, 30, 70, 20, 60, 40];
+        for &val in &values {
+            map.insert(val, val * 100);
+        }
+
+        // Maximum key-value pair should be (70, 7000)
+        assert_eq!(map.max_key_value(), Some((70, 7000)));
+
+        // Remove the maximum key
+        map.remove(&70);
+        assert_eq!(map.max_key_value(), Some((60, 6000)));
+
+        // Test with string keys
+        let string_map = ShardedConcurrentBTreeMap::new();
+        string_map.insert("zebra".to_string(), 1);
+        string_map.insert("apple".to_string(), 2);
+        string_map.insert("banana".to_string(), 3);
+
+        assert_eq!(string_map.max_key_value(), Some(("zebra".to_string(), 1)));
+    }
+
+    #[test]
     fn test_min_key_with_sharding() {
         // Test with multiple shards to ensure min_key works across shards
         let map = ShardedConcurrentBTreeMap::with_shard_count(8);
@@ -1009,5 +1181,97 @@ mod tests {
         let (lower, upper) = reverse_iter.size_hint();
         assert_eq!(lower, 5);
         assert_eq!(upper, Some(5));
+    }
+
+    #[test]
+    fn test_keys_direction_methods() {
+        let map = ShardedConcurrentBTreeMap::new();
+
+        // Insert values in random order
+        let values = vec![50, 10, 30, 70, 20, 60, 40];
+        for &val in &values {
+            map.insert(val, format!("value_{val}"));
+        }
+
+        // Test keys_forward (should be same as keys)
+        let forward_keys = map.keys_forward();
+        let regular_keys = map.keys();
+        assert_eq!(forward_keys, regular_keys);
+        assert_eq!(forward_keys, vec![10, 20, 30, 40, 50, 60, 70]);
+
+        // Test keys_reverse
+        let reverse_keys = map.keys_reverse();
+        assert_eq!(reverse_keys, vec![70, 60, 50, 40, 30, 20, 10]);
+
+        // Test keys_with_direction - forward
+        let forward_direction_keys = map.keys_with_direction(IterationDirection::Forward);
+        assert_eq!(forward_direction_keys, vec![10, 20, 30, 40, 50, 60, 70]);
+
+        // Test keys_with_direction - reverse
+        let reverse_direction_keys = map.keys_with_direction(IterationDirection::Reverse);
+        assert_eq!(reverse_direction_keys, vec![70, 60, 50, 40, 30, 20, 10]);
+    }
+
+    #[test]
+    fn test_keys_direction_empty_map() {
+        let map: ShardedConcurrentBTreeMap<i32, String> = ShardedConcurrentBTreeMap::new();
+
+        // Test all keys methods on empty map
+        assert_eq!(map.keys().len(), 0);
+        assert_eq!(map.keys_forward().len(), 0);
+        assert_eq!(map.keys_reverse().len(), 0);
+        assert_eq!(
+            map.keys_with_direction(IterationDirection::Forward).len(),
+            0
+        );
+        assert_eq!(
+            map.keys_with_direction(IterationDirection::Reverse).len(),
+            0
+        );
+    }
+
+    #[test]
+    fn test_keys_direction_single_element() {
+        let map = ShardedConcurrentBTreeMap::new();
+        map.insert(42, "answer".to_string());
+
+        // All methods should return the same single key
+        let expected = vec![42];
+        assert_eq!(map.keys(), expected);
+        assert_eq!(map.keys_forward(), expected);
+        assert_eq!(map.keys_reverse(), expected);
+        assert_eq!(
+            map.keys_with_direction(IterationDirection::Forward),
+            expected
+        );
+        assert_eq!(
+            map.keys_with_direction(IterationDirection::Reverse),
+            expected
+        );
+    }
+
+    #[test]
+    fn test_keys_direction_with_string_keys() {
+        let map = ShardedConcurrentBTreeMap::new();
+
+        // Insert string keys
+        let keys = vec!["zebra", "apple", "banana", "cherry", "date"];
+        for &key in &keys {
+            map.insert(key.to_string(), format!("value_{key}"));
+        }
+
+        // Test forward order (alphabetical)
+        let forward_keys = map.keys_forward();
+        assert_eq!(
+            forward_keys,
+            vec!["apple", "banana", "cherry", "date", "zebra"]
+        );
+
+        // Test reverse order (reverse alphabetical)
+        let reverse_keys = map.keys_reverse();
+        assert_eq!(
+            reverse_keys,
+            vec!["zebra", "date", "cherry", "banana", "apple"]
+        );
     }
 }
