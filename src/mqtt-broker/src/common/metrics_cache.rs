@@ -94,6 +94,27 @@ impl MetricsCacheManager {
             .insert(slow_subscribe_key, slow_subscribe_data);
     }
 
+    /// Removes a slow subscribe index entry by client_id and topic_name
+    /// Returns the removed value if it existed
+    pub fn remove_slow_subscribe_index(
+        &self,
+        client_id: String,
+        topic_name: String,
+    ) -> Option<(u64, String, String)> {
+        self.slow_subscribe_index
+            .remove(&(client_id, topic_name))
+            .map(|(_, value)| value)
+    }
+
+    /// Removes a slow subscribe info entry by key
+    /// Returns the removed value if it existed
+    pub fn remove_slow_subscribe_info(
+        &self,
+        slow_subscribe_key: &SlowSubscribeKey,
+    ) -> Option<SlowSubscribeData> {
+        self.slow_subscribe_info.remove(slow_subscribe_key)
+    }
+
     pub fn record_connection_num(&self, time: u64, num: u32) {
         self.connection_num.insert(time, num);
     }
@@ -467,7 +488,7 @@ mod test {
             client_id: "client_id".to_string(),
             topic_name: "topic_name".to_string(),
             node_info: "node_info".to_string(),
-            last_update_time: 0,
+            time_span: 0,
             create_time: 0,
         };
         manager.record_slow_subscribe_info(key.clone(), data.clone());
@@ -492,7 +513,7 @@ mod test {
             client_id: "client_id".to_string(),
             topic_name: "topic_name".to_string(),
             node_info: "node_info".to_string(),
-            last_update_time: 0,
+            time_span: 0,
             create_time: 0,
         };
         manager.record_slow_subscribe_info(key.clone(), data1);
@@ -503,7 +524,7 @@ mod test {
             client_id: "client_id_1".to_string(),
             topic_name: "topic_name_1".to_string(),
             node_info: "node_info_1".to_string(),
-            last_update_time: 0,
+            time_span: 0,
             create_time: 0,
         };
         manager.record_slow_subscribe_info(key.clone(), data2.clone());
@@ -542,7 +563,7 @@ mod test {
                 client_id: "client_id".to_string(),
                 topic_name: "topic_name".to_string(),
                 node_info: "node_info".to_string(),
-                last_update_time: 0,
+                time_span: 0,
                 create_time: 0,
             },
         );
@@ -558,7 +579,7 @@ mod test {
                 client_id: "client_id".to_string(),
                 topic_name: "topic_name".to_string(),
                 node_info: "node_info".to_string(),
-                last_update_time: 0,
+                time_span: 0,
                 create_time: 0,
             },
         );
@@ -574,7 +595,7 @@ mod test {
                 client_id: "client_id".to_string(),
                 topic_name: "topic_name".to_string(),
                 node_info: "node_info".to_string(),
-                last_update_time: 0,
+                time_span: 0,
                 create_time: 0,
             },
         );
@@ -590,7 +611,7 @@ mod test {
                 client_id: "client_id".to_string(),
                 topic_name: "topic_name".to_string(),
                 node_info: "node_info".to_string(),
-                last_update_time: 0,
+                time_span: 0,
                 create_time: 0,
             },
         );
@@ -638,7 +659,7 @@ mod test {
                 client_id: "client_id".to_string(),
                 topic_name: "topic_name".to_string(),
                 node_info: "node_info".to_string(),
-                last_update_time: 0,
+                time_span: 0,
                 create_time: 0,
             },
         );
@@ -654,7 +675,7 @@ mod test {
                 client_id: "client_id".to_string(),
                 topic_name: "topic_name".to_string(),
                 node_info: "node_info".to_string(),
-                last_update_time: 0,
+                time_span: 0,
                 create_time: 0,
             },
         );
@@ -670,7 +691,7 @@ mod test {
                 client_id: "client_id".to_string(),
                 topic_name: "topic_name".to_string(),
                 node_info: "node_info".to_string(),
-                last_update_time: 0,
+                time_span: 0,
                 create_time: 0,
             },
         );
@@ -686,7 +707,7 @@ mod test {
                 client_id: "client_id".to_string(),
                 topic_name: "topic_name".to_string(),
                 node_info: "node_info".to_string(),
-                last_update_time: 0,
+                time_span: 0,
                 create_time: 0,
             },
         );
@@ -741,7 +762,7 @@ mod test {
                 client_id: "client_b".to_string(),
                 topic_name: "topic_x".to_string(),
                 node_info: "node_1".to_string(),
-                last_update_time: 1000,
+                time_span: 1000,
                 create_time: 1000,
             },
         );
@@ -757,7 +778,7 @@ mod test {
                 client_id: "client_a".to_string(),
                 topic_name: "topic_z".to_string(),
                 node_info: "node_2".to_string(),
-                last_update_time: 2000,
+                time_span: 2000,
                 create_time: 2000,
             },
         );
@@ -773,7 +794,7 @@ mod test {
                 client_id: "client_c".to_string(),
                 topic_name: "topic_y".to_string(),
                 node_info: "node_3".to_string(),
-                last_update_time: 1500,
+                time_span: 1500,
                 create_time: 1500,
             },
         );
@@ -790,7 +811,7 @@ mod test {
                 client_id: "client_b".to_string(),
                 topic_name: "topic_a".to_string(),
                 node_info: "node_4".to_string(),
-                last_update_time: 2100,
+                time_span: 2100,
                 create_time: 2100,
             },
         );
@@ -808,7 +829,7 @@ mod test {
             client_id: "client_b".to_string(),
             topic_name: "topic_x".to_string(),
             node_info: "node_1".to_string(),
-            last_update_time: 1000,
+            time_span: 1000,
             create_time: 1000,
         };
 
@@ -868,7 +889,7 @@ mod test {
                 client_id: "client_b".to_string(),
                 topic_name: "topic_x".to_string(),
                 node_info: "node_1".to_string(),
-                last_update_time: 1000,
+                time_span: 1000,
                 create_time: 1000,
             },
         );
@@ -884,7 +905,7 @@ mod test {
                 client_id: "client_a".to_string(),
                 topic_name: "topic_z".to_string(),
                 node_info: "node_2".to_string(),
-                last_update_time: 2000,
+                time_span: 2000,
                 create_time: 2000,
             },
         );
@@ -900,7 +921,7 @@ mod test {
                 client_id: "client_c".to_string(),
                 topic_name: "topic_y".to_string(),
                 node_info: "node_3".to_string(),
-                last_update_time: 1500,
+                time_span: 1500,
                 create_time: 1500,
             },
         );
@@ -917,7 +938,7 @@ mod test {
                 client_id: "client_b".to_string(),
                 topic_name: "topic_a".to_string(),
                 node_info: "node_4".to_string(),
-                last_update_time: 2100,
+                time_span: 2100,
                 create_time: 2100,
             },
         );
@@ -935,7 +956,7 @@ mod test {
             client_id: "client_b".to_string(),
             topic_name: "topic_a".to_string(),
             node_info: "node_4".to_string(),
-            last_update_time: 2100,
+            time_span: 2100,
             create_time: 2100,
         };
 
@@ -971,5 +992,170 @@ mod test {
         manager.slow_subscribe_info.clear();
         assert_eq!(manager.slow_subscribe_info.max_key(), None);
         assert_eq!(manager.slow_subscribe_info.max_key_value(), None);
+    }
+
+    #[test]
+    fn test_slow_subscribe_index_remove() {
+        let manager = MetricsCacheManager::new();
+
+        // Test remove from empty index
+        let result = manager.remove_slow_subscribe_index("client1".into(), "topicA".into());
+        assert_eq!(result, None);
+
+        // Insert a value
+        manager.record_slow_subscribe_index("client1".into(), "topicA".into(), 10);
+
+        // Verify it exists
+        let result = manager.get_slow_subscribe_index_value("client1".into(), "topicA".into());
+        assert_eq!(result, Some((10, "client1".into(), "topicA".into())));
+
+        // Remove the value
+        let removed = manager.remove_slow_subscribe_index("client1".into(), "topicA".into());
+        assert_eq!(removed, Some((10, "client1".into(), "topicA".into())));
+
+        // Verify it's gone
+        let result = manager.get_slow_subscribe_index_value("client1".into(), "topicA".into());
+        assert_eq!(result, None);
+
+        // Try to remove again
+        let result = manager.remove_slow_subscribe_index("client1".into(), "topicA".into());
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_slow_subscribe_index_remove_multiple() {
+        let manager = MetricsCacheManager::new();
+
+        // Insert multiple values
+        manager.record_slow_subscribe_index("client1".into(), "topicA".into(), 10);
+        manager.record_slow_subscribe_index("client1".into(), "topicB".into(), 20);
+        manager.record_slow_subscribe_index("client2".into(), "topicA".into(), 30);
+
+        // Remove one specific entry
+        let removed = manager.remove_slow_subscribe_index("client1".into(), "topicA".into());
+        assert_eq!(removed, Some((10, "client1".into(), "topicA".into())));
+
+        // Verify others still exist
+        let result1 = manager.get_slow_subscribe_index_value("client1".into(), "topicB".into());
+        assert_eq!(result1, Some((20, "client1".into(), "topicB".into())));
+
+        let result2 = manager.get_slow_subscribe_index_value("client2".into(), "topicA".into());
+        assert_eq!(result2, Some((30, "client2".into(), "topicA".into())));
+
+        // Verify removed entry is gone
+        let result3 = manager.get_slow_subscribe_index_value("client1".into(), "topicA".into());
+        assert_eq!(result3, None);
+    }
+
+    #[test]
+    fn test_slow_subscribe_info_remove() {
+        let manager = MetricsCacheManager::new();
+
+        let key = SlowSubscribeKey {
+            time_span: 10,
+            client_id: "client1".into(),
+            topic_name: "topicA".into(),
+        };
+
+        // Test remove from empty info
+        let result = manager.remove_slow_subscribe_info(&key);
+        assert_eq!(result, None);
+
+        // Insert a value
+        let data = SlowSubscribeData {
+            subscribe_name: "subscribe_name".to_string(),
+            client_id: "client1".to_string(),
+            topic_name: "topicA".to_string(),
+            node_info: "node_info".to_string(),
+            time_span: 100,
+            create_time: 123456789,
+        };
+        manager.record_slow_subscribe_info(key.clone(), data.clone());
+
+        // Verify it exists
+        let result = manager.get_slow_subscribe_info(key.clone());
+        assert_eq!(result, Some(data.clone()));
+
+        // Remove the value
+        let removed = manager.remove_slow_subscribe_info(&key);
+        assert_eq!(removed, Some(data));
+
+        // Verify it's gone
+        let result = manager.get_slow_subscribe_info(key.clone());
+        assert_eq!(result, None);
+
+        // Try to remove again
+        let result = manager.remove_slow_subscribe_info(&key);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_slow_subscribe_info_remove_multiple() {
+        let manager = MetricsCacheManager::new();
+
+        let key1 = SlowSubscribeKey {
+            time_span: 10,
+            client_id: "client1".into(),
+            topic_name: "topicA".into(),
+        };
+
+        let key2 = SlowSubscribeKey {
+            time_span: 20,
+            client_id: "client2".into(),
+            topic_name: "topicB".into(),
+        };
+
+        let key3 = SlowSubscribeKey {
+            time_span: 30,
+            client_id: "client3".into(),
+            topic_name: "topicC".into(),
+        };
+
+        let data1 = SlowSubscribeData {
+            subscribe_name: "subscribe1".to_string(),
+            client_id: "client1".to_string(),
+            topic_name: "topicA".to_string(),
+            node_info: "node1".to_string(),
+            time_span: 100,
+            create_time: 111,
+        };
+
+        let data2 = SlowSubscribeData {
+            subscribe_name: "subscribe2".to_string(),
+            client_id: "client2".to_string(),
+            topic_name: "topicB".to_string(),
+            node_info: "node2".to_string(),
+            time_span: 200,
+            create_time: 222,
+        };
+
+        let data3 = SlowSubscribeData {
+            subscribe_name: "subscribe3".to_string(),
+            client_id: "client3".to_string(),
+            topic_name: "topicC".to_string(),
+            node_info: "node3".to_string(),
+            time_span: 300,
+            create_time: 333,
+        };
+
+        // Insert multiple values
+        manager.record_slow_subscribe_info(key1.clone(), data1.clone());
+        manager.record_slow_subscribe_info(key2.clone(), data2.clone());
+        manager.record_slow_subscribe_info(key3.clone(), data3.clone());
+
+        // Remove one specific entry
+        let removed = manager.remove_slow_subscribe_info(&key2);
+        assert_eq!(removed, Some(data2));
+
+        // Verify others still exist
+        let result1 = manager.get_slow_subscribe_info(key1.clone());
+        assert_eq!(result1, Some(data1));
+
+        let result3 = manager.get_slow_subscribe_info(key3.clone());
+        assert_eq!(result3, Some(data3));
+
+        // Verify removed entry is gone
+        let result2 = manager.get_slow_subscribe_info(key2);
+        assert_eq!(result2, None);
     }
 }

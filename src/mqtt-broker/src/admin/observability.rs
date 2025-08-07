@@ -42,7 +42,7 @@ pub async fn list_slow_subscribe_by_req(
                     let raw = ListSlowSubScribeRaw {
                         client_id: data.client_id,
                         topic: data.topic_name,
-                        time_ms: data.last_update_time,
+                        time_ms: data.time_span,
                         node_info: data.node_info,
                         create_time: data.create_time,
                         sub_name: data.subscribe_name,

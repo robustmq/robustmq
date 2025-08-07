@@ -32,7 +32,7 @@ pub struct SlowSubscribeData {
     pub(crate) client_id: String,
     pub(crate) topic_name: String,
     pub(crate) node_info: String,
-    pub(crate) last_update_time: u64,
+    pub(crate) time_span: u64,
     pub(crate) create_time: u64,
 }
 
@@ -41,7 +41,7 @@ impl SlowSubscribeData {
         subscribe_name: String,
         client_id: String,
         topic_name: String,
-        last_update_time: u64,
+        time_span: u64,
     ) -> Self {
         let ip = get_local_ip();
         let node_info = format!("RobustMQ-MQTT@{ip}");
@@ -49,7 +49,7 @@ impl SlowSubscribeData {
             subscribe_name,
             client_id,
             topic_name,
-            last_update_time,
+            time_span,
             node_info,
             create_time: now_second(),
         }
@@ -59,7 +59,7 @@ impl SlowSubscribeData {
 pub fn record_slow_sub_data(slow_data: SlowSubscribeData, whole_ms: u64) -> ResultMqttBrokerError {
     let data = serde_json::to_string(&slow_data)?;
 
-    if slow_data.last_update_time > whole_ms {
+    if slow_data.time_span > whole_ms {
         info!("{}", data);
     }
 
