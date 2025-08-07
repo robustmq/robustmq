@@ -597,9 +597,9 @@ mod test {
 
         let expected_order = vec![
             SlowSubscribeKey {
-                time_span: 15,
-                client_id: "client2".into(),
-                topic_name: "topicB".into(),
+                time_span: 5,
+                client_id: "client3".into(),
+                topic_name: "topicD".into(),
             },
             SlowSubscribeKey {
                 time_span: 10,
@@ -612,14 +612,110 @@ mod test {
                 topic_name: "topicC".into(),
             },
             SlowSubscribeKey {
+                time_span: 15,
+                client_id: "client2".into(),
+                topic_name: "topicB".into(),
+            },
+        ];
+
+        // Use the keys() method from ConcurrentBTreeMap which returns keys in sorted order
+        let actual_order = manager.slow_subscribe_info.keys();
+
+        assert_eq!(actual_order, expected_order);
+    }
+    #[test]
+    fn test_slow_subscribe_info_insert_and_iterate_reverse() {
+        let manager = MetricsCacheManager::new();
+
+        manager.record_slow_subscribe_info(
+            SlowSubscribeKey {
+                time_span: 10,
+                client_id: "client1".into(),
+                topic_name: "topicA".into(),
+            },
+            SlowSubscribeData {
+                subscribe_name: "subscribe_name_1".to_string(),
+                client_id: "client_id".to_string(),
+                topic_name: "topic_name".to_string(),
+                node_info: "node_info".to_string(),
+                last_update_time: 0,
+                create_time: 0,
+            },
+        );
+
+        manager.record_slow_subscribe_info(
+            SlowSubscribeKey {
+                time_span: 15,
+                client_id: "client2".into(),
+                topic_name: "topicB".into(),
+            },
+            SlowSubscribeData {
+                subscribe_name: "subscribe_name_2".to_string(),
+                client_id: "client_id".to_string(),
+                topic_name: "topic_name".to_string(),
+                node_info: "node_info".to_string(),
+                last_update_time: 0,
+                create_time: 0,
+            },
+        );
+
+        manager.record_slow_subscribe_info(
+            SlowSubscribeKey {
+                time_span: 10,
+                client_id: "client1".into(),
+                topic_name: "topicC".into(),
+            },
+            SlowSubscribeData {
+                subscribe_name: "subscribe_name_3".to_string(),
+                client_id: "client_id".to_string(),
+                topic_name: "topic_name".to_string(),
+                node_info: "node_info".to_string(),
+                last_update_time: 0,
+                create_time: 0,
+            },
+        );
+
+        manager.record_slow_subscribe_info(
+            SlowSubscribeKey {
+                time_span: 5,
+                client_id: "client3".into(),
+                topic_name: "topicD".into(),
+            },
+            SlowSubscribeData {
+                subscribe_name: "subscribe_name_4".to_string(),
+                client_id: "client_id".to_string(),
+                topic_name: "topic_name".to_string(),
+                node_info: "node_info".to_string(),
+                last_update_time: 0,
+                create_time: 0,
+            },
+        );
+
+        let expected_order = vec![
+            SlowSubscribeKey {
+                time_span: 15,
+                client_id: "client2".into(),
+                topic_name: "topicB".into(),
+            },
+            SlowSubscribeKey {
+                time_span: 10,
+                client_id: "client1".into(),
+                topic_name: "topicC".into(),
+            },
+            SlowSubscribeKey {
+                time_span: 10,
+                client_id: "client1".into(),
+                topic_name: "topicA".into(),
+            },
+            SlowSubscribeKey {
                 time_span: 5,
                 client_id: "client3".into(),
                 topic_name: "topicD".into(),
             },
         ];
 
-        // Use the keys() method from ConcurrentBTreeMap which returns keys in sorted order
-        let actual_order = manager.slow_subscribe_info.keys();
+        // Use the keys() method from ConcurrentBTreeMap which returns keys in reverse order
+        let actual_order = manager.slow_subscribe_info.keys_reverse();
 
         assert_eq!(actual_order, expected_order);
     }
@@ -634,7 +730,6 @@ mod test {
 
         // Insert test data with different time_spans
         // Note: SlowSubscribeKey is ordered by time_span (descending), then client_id, then topic_name
-        // So min_key() returns the key with the HIGHEST time_span (most concerning slow subscribe)
         manager.record_slow_subscribe_info(
             SlowSubscribeKey {
                 time_span: 50,
@@ -702,20 +797,19 @@ mod test {
 
         // The "minimum" key in BTreeMap ordering is the one with highest time_span (100),
         // and among those with same time_span, the one with smallest client_id ("client_a")
-        // This represents the MOST concerning slow subscribe (highest time_span)
         let expected_min_key = SlowSubscribeKey {
-            time_span: 100,
-            client_id: "client_a".into(),
-            topic_name: "topic_z".into(),
+            time_span: 50,
+            client_id: "client_b".to_string(),
+            topic_name: "topic_x".to_string(),
         };
 
         let expected_min_data = SlowSubscribeData {
-            subscribe_name: "subscribe_100".to_string(),
-            client_id: "client_a".to_string(),
-            topic_name: "topic_z".to_string(),
-            node_info: "node_2".to_string(),
-            last_update_time: 2000,
-            create_time: 2000,
+            subscribe_name: "subscribe_50".to_string(),
+            client_id: "client_b".to_string(),
+            topic_name: "topic_x".to_string(),
+            node_info: "node_1".to_string(),
+            last_update_time: 1000,
+            create_time: 1000,
         };
 
         // Test min_key - should return the most concerning slow subscribe (highest time_span)
@@ -736,9 +830,9 @@ mod test {
 
         // Now the minimum should be the other key with time_span 100
         let new_expected_min_key = SlowSubscribeKey {
-            time_span: 100,
-            client_id: "client_b".into(),
-            topic_name: "topic_a".into(),
+            time_span: 75,
+            client_id: "client_c".into(),
+            topic_name: "topic_y".into(),
         };
 
         assert_eq!(
@@ -750,5 +844,132 @@ mod test {
         manager.slow_subscribe_info.clear();
         assert_eq!(manager.slow_subscribe_info.min_key(), None);
         assert_eq!(manager.slow_subscribe_info.min_key_value(), None);
+    }
+
+    #[test]
+    fn test_slow_subscribe_info_max_key_operations() {
+        let manager = MetricsCacheManager::new();
+
+        // Test empty case
+        assert_eq!(manager.slow_subscribe_info.max_key(), None);
+        assert_eq!(manager.slow_subscribe_info.max_key_value(), None);
+
+        // Insert test data with different time_spans
+        // Note: SlowSubscribeKey is ordered by time_span (ascending), then client_id, then topic_name
+        // So max_key() returns the key with the HIGHEST time_span (most concerning slow subscribe)
+        manager.record_slow_subscribe_info(
+            SlowSubscribeKey {
+                time_span: 50,
+                client_id: "client_b".into(),
+                topic_name: "topic_x".into(),
+            },
+            SlowSubscribeData {
+                subscribe_name: "subscribe_50".to_string(),
+                client_id: "client_b".to_string(),
+                topic_name: "topic_x".to_string(),
+                node_info: "node_1".to_string(),
+                last_update_time: 1000,
+                create_time: 1000,
+            },
+        );
+
+        manager.record_slow_subscribe_info(
+            SlowSubscribeKey {
+                time_span: 100,
+                client_id: "client_a".into(),
+                topic_name: "topic_z".into(),
+            },
+            SlowSubscribeData {
+                subscribe_name: "subscribe_100".to_string(),
+                client_id: "client_a".to_string(),
+                topic_name: "topic_z".to_string(),
+                node_info: "node_2".to_string(),
+                last_update_time: 2000,
+                create_time: 2000,
+            },
+        );
+
+        manager.record_slow_subscribe_info(
+            SlowSubscribeKey {
+                time_span: 75,
+                client_id: "client_c".into(),
+                topic_name: "topic_y".into(),
+            },
+            SlowSubscribeData {
+                subscribe_name: "subscribe_75".to_string(),
+                client_id: "client_c".to_string(),
+                topic_name: "topic_y".to_string(),
+                node_info: "node_3".to_string(),
+                last_update_time: 1500,
+                create_time: 1500,
+            },
+        );
+
+        // Test same time_span with different client_id
+        manager.record_slow_subscribe_info(
+            SlowSubscribeKey {
+                time_span: 100,
+                client_id: "client_b".into(),
+                topic_name: "topic_a".into(),
+            },
+            SlowSubscribeData {
+                subscribe_name: "subscribe_100_b".to_string(),
+                client_id: "client_b".to_string(),
+                topic_name: "topic_a".to_string(),
+                node_info: "node_4".to_string(),
+                last_update_time: 2100,
+                create_time: 2100,
+            },
+        );
+
+        // The "maximum" key in BTreeMap ordering is the one with highest time_span (100),
+        // and among those with same time_span, the one with largest client_id and topic_name
+        let expected_max_key = SlowSubscribeKey {
+            time_span: 100,
+            client_id: "client_b".to_string(),
+            topic_name: "topic_a".to_string(),
+        };
+
+        let expected_max_data = SlowSubscribeData {
+            subscribe_name: "subscribe_100_b".to_string(),
+            client_id: "client_b".to_string(),
+            topic_name: "topic_a".to_string(),
+            node_info: "node_4".to_string(),
+            last_update_time: 2100,
+            create_time: 2100,
+        };
+
+        // Test max_key - should return the most concerning slow subscribe (highest time_span)
+        assert_eq!(
+            manager.slow_subscribe_info.max_key(),
+            Some(expected_max_key.clone())
+        );
+
+        // Test max_key_value
+        assert_eq!(
+            manager.slow_subscribe_info.max_key_value(),
+            Some((expected_max_key.clone(), expected_max_data))
+        );
+
+        // Remove the "maximum" key and test again
+        let removed_data = manager.slow_subscribe_info.remove(&expected_max_key);
+        assert!(removed_data.is_some());
+
+        // Now the maximum should be the other key with time_span 100
+        let new_expected_max_key = SlowSubscribeKey {
+            time_span: 100,
+            client_id: "client_a".into(),
+            topic_name: "topic_z".into(),
+        };
+
+        assert_eq!(
+            manager.slow_subscribe_info.max_key(),
+            Some(new_expected_max_key.clone())
+        );
+
+        // Clear all and test empty case again
+        manager.slow_subscribe_info.clear();
+        assert_eq!(manager.slow_subscribe_info.max_key(), None);
+        assert_eq!(manager.slow_subscribe_info.max_key_value(), None);
     }
 }
