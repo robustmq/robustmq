@@ -53,7 +53,7 @@ impl RocksDBEngine {
     /// Write the data serialization to RocksDB
     pub fn write<T: Serialize + std::fmt::Debug>(
         &self,
-        cf: Arc<BoundColumnFamily>,
+        cf: Arc<BoundColumnFamily<'_>>,
         key: &str,
         value: &T,
     ) -> Result<(), CommonError> {
@@ -76,7 +76,7 @@ impl RocksDBEngine {
 
     pub fn write_str(
         &self,
-        cf: Arc<BoundColumnFamily>,
+        cf: Arc<BoundColumnFamily<'_>>,
         key: &str,
         value: String,
     ) -> Result<(), CommonError> {
@@ -85,7 +85,7 @@ impl RocksDBEngine {
 
     pub fn write_raw(
         &self,
-        cf: Arc<BoundColumnFamily>,
+        cf: Arc<BoundColumnFamily<'_>>,
         key: &str,
         value: &[u8],
     ) -> Result<(), CommonError> {
@@ -100,7 +100,7 @@ impl RocksDBEngine {
     // Read data from the RocksDB
     pub fn read<T: DeserializeOwned>(
         &self,
-        cf: Arc<BoundColumnFamily>,
+        cf: Arc<BoundColumnFamily<'_>>,
         key: &str,
     ) -> Result<Option<T>, CommonError> {
         match self.db.get_cf(&cf, key) {
@@ -126,7 +126,7 @@ impl RocksDBEngine {
     // Search data by prefix
     pub fn read_prefix(
         &self,
-        cf: Arc<BoundColumnFamily>,
+        cf: Arc<BoundColumnFamily<'_>>,
         search_key: &str,
     ) -> Result<Vec<(String, Vec<u8>)>, CommonError> {
         let mut iter = self.db.raw_iterator_cf(&cf);
@@ -152,7 +152,7 @@ impl RocksDBEngine {
     // Read all data in a ColumnFamily
     pub fn read_all_by_cf(
         &self,
-        cf: Arc<BoundColumnFamily>,
+        cf: Arc<BoundColumnFamily<'_>>,
     ) -> Result<Vec<(String, Vec<u8>)>, CommonError> {
         let mut iter = self.db.raw_iterator_cf(&cf);
         iter.seek_to_first();
@@ -170,13 +170,13 @@ impl RocksDBEngine {
         Ok(result)
     }
 
-    pub fn delete(&self, cf: Arc<BoundColumnFamily>, key: &str) -> Result<(), CommonError> {
+    pub fn delete(&self, cf: Arc<BoundColumnFamily<'_>>, key: &str) -> Result<(), CommonError> {
         Ok(self.db.delete_cf(&cf, key)?)
     }
 
     pub fn delete_prefix(
         &self,
-        cf: Arc<BoundColumnFamily>,
+        cf: Arc<BoundColumnFamily<'_>>,
         search_key: &str,
     ) -> Result<(), CommonError> {
         let mut iter = self.db.raw_iterator_cf(&cf);
@@ -191,11 +191,11 @@ impl RocksDBEngine {
         Ok(())
     }
 
-    pub fn exist(&self, cf: Arc<BoundColumnFamily>, key: &str) -> bool {
+    pub fn exist(&self, cf: Arc<BoundColumnFamily<'_>>, key: &str) -> bool {
         self.db.key_may_exist_cf(&cf, key)
     }
 
-    pub fn cf_handle(&self, name: &str) -> Option<Arc<BoundColumnFamily>> {
+    pub fn cf_handle(&self, name: &str) -> Option<Arc<BoundColumnFamily<'_>>> {
         if let Some(cf) = self.db.cf_handle(name) {
             return Some(cf);
         }

@@ -378,7 +378,7 @@ mod tests {
                 tags: vec![],
                 ..Default::default()
             };
-            match segment.write(&[record.clone()]).await {
+            match segment.write(std::slice::from_ref(&record)).await {
                 Ok(_) => {}
                 Err(e) => {
                     panic!("{e:?}");
@@ -419,7 +419,7 @@ mod tests {
                 tags: vec![],
                 ..Default::default()
             };
-            match segment.write(&[record.clone()]).await {
+            match segment.write(std::slice::from_ref(&record)).await {
                 Ok(_) => {}
                 Err(e) => {
                     panic!("{e:?}");

@@ -19,7 +19,7 @@ pub const DELAY_MESSAGE_FLAG: &str = "delay_message_flag";
 pub const DELAY_MESSAGE_RECV_MS: &str = "delay_message_recv_ms";
 pub const DELAY_MESSAGE_TARGET_MS: &str = "delay_message_save_ms";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DelayPublishTopic {
     pub target_topic_name: String,
     pub tagget_shard_name: Option<String>,

@@ -258,17 +258,16 @@ pub(crate) async fn create_write_thread(
 
     let (segment_write, _) = open_segment_write(cache_manager, segment_iden).await?;
 
-    create_write_thread0(
-        rocksdb_engine_handler.clone(),
-        segment_iden.clone(),
-        segment_file_manager.clone(),
-        cache_manager.clone(),
-        segment_file_meta.end_offset,
+    let context = WriteThreadContext {
+        rocksdb_engine_handler: rocksdb_engine_handler.clone(),
+        segment_iden: segment_iden.clone(),
+        segment_file_manager: segment_file_manager.clone(),
+        cache_manager: cache_manager.clone(),
+        local_segment_end_offset: segment_file_meta.end_offset,
         segment_write,
-        data_recv,
-        stop_recv,
-    )
-    .await;
+    };
+
+    create_write_thread0(context, data_recv, stop_recv).await;
 
     let write = SegmentWrite {
         data_sender,
@@ -278,25 +277,29 @@ pub(crate) async fn create_write_thread(
     Ok(write)
 }
 
+pub struct WriteThreadContext {
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
+    pub segment_iden: SegmentIdentity,
+    pub segment_file_manager: Arc<SegmentFileManager>,
+    pub cache_manager: Arc<CacheManager>,
+    pub local_segment_end_offset: i64,
+    pub segment_write: SegmentFile,
+}
+
 /// spawn the write thread for a segment
-#[allow(clippy::too_many_arguments)]
 async fn create_write_thread0(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    segment_iden: SegmentIdentity,
-    segment_file_manager: Arc<SegmentFileManager>,
-    cache_manager: Arc<CacheManager>,
-    mut local_segment_end_offset: i64,
-    segment_write: SegmentFile,
+    context: WriteThreadContext,
     mut data_recv: Receiver<SegmentWriteData>,
     mut stop_recv: broadcast::Receiver<bool>,
 ) {
+    let mut local_segment_end_offset = context.local_segment_end_offset;
     tokio::spawn(async move {
         loop {
             select! {
                 val = stop_recv.recv() =>{
                     if let Ok(flag) = val {
                         if flag {
-                            cache_manager.remove_segment_write_thread(&segment_iden);
+                            context.cache_manager.remove_segment_write_thread(&context.segment_iden);
                             break;
                         }
                     }
@@ -311,12 +314,12 @@ async fn create_write_thread0(
                     let packet = val.unwrap();
 
                     let resp = match batch_write(
-                        &rocksdb_engine_handler,
-                        &segment_iden,
-                        &segment_file_manager,
-                        &cache_manager,
+                        &context.rocksdb_engine_handler,
+                        &context.segment_iden,
+                        &context.segment_file_manager,
+                        &context.cache_manager,
                         local_segment_end_offset,
-                        &segment_write,
+                        &context.segment_write,
                         packet.data
                     ).await{
                         Ok(Some(resp)) => {

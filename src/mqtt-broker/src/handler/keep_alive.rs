@@ -34,6 +34,19 @@ use tokio::sync::broadcast::{self};
 use tracing::{debug, info};
 
 #[derive(Clone)]
+pub struct TrySendDistinctPacketContext {
+    pub cache_manager: Arc<CacheManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub subscribe_manager: Arc<SubscribeManager>,
+    pub network: NetworkConnection,
+    pub connection: MQTTConnection,
+    pub wrap: MqttPacketWrapper,
+    pub protocol: MqttProtocol,
+    pub connect_id: u64,
+}
+
+#[derive(Clone)]
 pub struct ClientKeepAlive {
     cache_manager: Arc<CacheManager>,
     stop_send: broadcast::Sender<bool>,
@@ -82,17 +95,18 @@ impl ClientKeepAlive {
                         packet: resp,
                     };
 
-                    self.try_send_distinct_packet(
-                        self.cache_manager.clone(),
-                        self.client_pool.clone(),
-                        self.connection_manager.to_owned(),
-                        self.subscribe_manager.clone(),
-                        network.clone(),
-                        connection.clone(),
+                    let context = TrySendDistinctPacketContext {
+                        cache_manager: self.cache_manager.clone(),
+                        client_pool: self.client_pool.clone(),
+                        connection_manager: self.connection_manager.clone(),
+                        subscribe_manager: self.subscribe_manager.clone(),
+                        network: network.clone(),
+                        connection: connection.clone(),
                         wrap,
-                        protocol.clone(),
+                        protocol: protocol.clone(),
                         connect_id,
-                    );
+                    };
+                    self.try_send_distinct_packet(context);
                 }
             }
         }
@@ -105,54 +119,44 @@ impl ClientKeepAlive {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn try_send_distinct_packet(
-        &self,
-        cache_manager: Arc<CacheManager>,
-        client_pool: Arc<ClientPool>,
-        connection_manager: Arc<ConnectionManager>,
-        subscribe_manager: Arc<SubscribeManager>,
-        network: NetworkConnection,
-        connection: MQTTConnection,
-        wrap: MqttPacketWrapper,
-        protocol: MqttProtocol,
-        connect_id: u64,
-    ) {
+    fn try_send_distinct_packet(&self, context: TrySendDistinctPacketContext) {
         tokio::spawn(async move {
-            if network.is_tcp() {
-                let _ = connection_manager
-                    .write_tcp_frame(connection.connect_id, wrap)
+            if context.network.is_tcp() {
+                let _ = context
+                    .connection_manager
+                    .write_tcp_frame(context.connection.connect_id, context.wrap.clone())
                     .await;
             } else {
-                let mut codec = MqttCodec::new(Some(protocol.into()));
+                let mut codec = MqttCodec::new(Some(context.protocol.clone().into()));
                 let mut buff = BytesMut::new();
-                if codec.encode_data(wrap.clone(), &mut buff).is_err() {
+                if codec.encode_data(context.wrap.clone(), &mut buff).is_err() {
                     return;
                 }
 
-                let _ = connection_manager
+                let _ = context
+                    .connection_manager
                     .write_websocket_frame(
-                        connection.connect_id,
-                        wrap,
+                        context.connection.connect_id,
+                        context.wrap.clone(),
                         Message::Binary(buff.to_vec()),
                     )
                     .await;
             }
 
             let _ = disconnect_connection(
-                &connection.client_id,
-                connect_id,
-                &cache_manager,
-                &client_pool,
-                &connection_manager,
-                &subscribe_manager,
+                &context.connection.client_id,
+                context.connect_id,
+                &context.cache_manager,
+                &context.client_pool,
+                &context.connection_manager,
+                &context.subscribe_manager,
                 false,
             )
             .await;
 
             info!(
                 "Heartbeat timeout, active disconnection {} successful",
-                connect_id
+                context.connect_id
             );
         });
     }

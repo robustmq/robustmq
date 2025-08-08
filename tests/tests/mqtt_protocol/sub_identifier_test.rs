@@ -78,7 +78,7 @@ mod tests {
                     .push_int(PropertyCode::SubscriptionIdentifier, 1)
                     .unwrap();
                 let res = cli.subscribe_many_with_options(
-                    &[topic1.clone()],
+                    std::slice::from_ref(&topic1),
                     &[qos],
                     &[SubscribeOptions::default()],
                     Some(props),
@@ -92,7 +92,7 @@ mod tests {
                     .unwrap();
 
                 let res = cli.subscribe_many_with_options(
-                    &[topic2.clone()],
+                    std::slice::from_ref(&topic2),
                     &[qos],
                     &[SubscribeOptions::default()],
                     Some(props),

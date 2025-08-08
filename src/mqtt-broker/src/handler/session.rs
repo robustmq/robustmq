@@ -26,28 +26,33 @@ use super::last_will::last_will_delay_interval;
 use crate::common::types::ResultMqttBrokerError;
 use crate::storage::session::SessionStorage;
 
-#[allow(clippy::too_many_arguments)]
-pub async fn build_session(
-    connect_id: u64,
-    client_id: String,
-    connect: &Connect,
-    connect_properties: &Option<ConnectProperties>,
-    last_will: &Option<LastWill>,
-    last_will_properties: &Option<LastWillProperties>,
-    client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<CacheManager>,
-) -> Result<(MqttSession, bool), MqttBrokerError> {
-    let session_expiry = session_expiry_interval(cache_manager, connect_properties);
-    let is_contain_last_will = !last_will.is_none();
-    let last_will_delay_interval = last_will_delay_interval(last_will_properties);
+#[derive(Clone)]
+pub struct BuildSessionContext {
+    pub connect_id: u64,
+    pub client_id: String,
+    pub connect: Connect,
+    pub connect_properties: Option<ConnectProperties>,
+    pub last_will: Option<LastWill>,
+    pub last_will_properties: Option<LastWillProperties>,
+    pub client_pool: Arc<ClientPool>,
+    pub cache_manager: Arc<CacheManager>,
+}
 
-    let (mut session, new_session) = if connect.clean_session {
-        let session_storage = SessionStorage::new(client_pool.clone());
-        match session_storage.get_session(client_id.clone()).await {
+pub async fn build_session(
+    context: BuildSessionContext,
+) -> Result<(MqttSession, bool), MqttBrokerError> {
+    let session_expiry =
+        session_expiry_interval(&context.cache_manager, &context.connect_properties);
+    let is_contain_last_will = context.last_will.is_some();
+    let last_will_delay_interval = last_will_delay_interval(&context.last_will_properties);
+
+    let (mut session, new_session) = if context.connect.clean_session {
+        let session_storage = SessionStorage::new(context.client_pool.clone());
+        match session_storage.get_session(context.client_id.clone()).await {
             Ok(Some(session)) => (session, false),
             Ok(None) => (
                 MqttSession::new(
-                    client_id,
+                    context.client_id,
                     session_expiry,
                     is_contain_last_will,
                     last_will_delay_interval,
@@ -61,7 +66,7 @@ pub async fn build_session(
     } else {
         (
             MqttSession::new(
-                client_id,
+                context.client_id,
                 session_expiry,
                 is_contain_last_will,
                 last_will_delay_interval,
@@ -71,7 +76,7 @@ pub async fn build_session(
     };
 
     let conf = broker_config();
-    session.update_connnction_id(Some(connect_id));
+    session.update_connnction_id(Some(context.connect_id));
     session.update_broker_id(Some(conf.broker_id));
     session.update_reconnect_time();
     Ok((session, new_session))

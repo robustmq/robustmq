@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #[derive(Debug, PartialEq, Eq, Default)]
+#[allow(dead_code)]
 pub struct TAuthUser {
     pub id: u64,
     pub username: String,
@@ -23,6 +24,7 @@ pub struct TAuthUser {
 }
 
 #[derive(Debug, PartialEq, Eq, Default)]
+#[allow(dead_code)]
 pub struct TAuthAcl {
     pub id: u64,
     pub allow: u64,

@@ -35,86 +35,91 @@ use tokio::sync::mpsc::Receiver;
 use tokio::time::sleep;
 use tracing::{debug, error};
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) async fn response_process(
-    response_process_num: usize,
-    connection_manager: Arc<ConnectionManager>,
-    cache_manager: Arc<CacheManager>,
-    subscribe_manager: Arc<SubscribeManager>,
-    mut response_queue_rx: Receiver<ResponsePackage>,
-    client_pool: Arc<ClientPool>,
-    request_channel: Arc<RequestChannel>,
-    network_type: NetworkConnectionType,
-    stop_sx: broadcast::Sender<bool>,
-) {
-    let mut stop_rx = stop_sx.subscribe();
-    tokio::spawn(async move {
-        response_child_process(
-            response_process_num,
-            request_channel.clone(),
-            connection_manager,
-            cache_manager,
-            subscribe_manager,
-            client_pool,
-            network_type.clone(),
-            stop_sx.clone(),
-        );
+pub struct ResponseProcessContext {
+    pub response_process_num: usize,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub cache_manager: Arc<CacheManager>,
+    pub subscribe_manager: Arc<SubscribeManager>,
+    pub response_queue_rx: Receiver<ResponsePackage>,
+    pub client_pool: Arc<ClientPool>,
+    pub request_channel: Arc<RequestChannel>,
+    pub network_type: NetworkConnectionType,
+    pub stop_sx: broadcast::Sender<bool>,
+}
 
-        let mut response_process_seq = 0;
-        loop {
-            select! {
-                val = stop_rx.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
-                            debug!("{}","TCP Server response process thread stopped successfully.");
-                            break;
-                        }
+#[derive(Clone)]
+pub struct ResponseChildProcessContext {
+    pub response_process_num: usize,
+    pub request_channel: Arc<RequestChannel>,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub cache_manager: Arc<CacheManager>,
+    pub subscribe_manager: Arc<SubscribeManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub network_type: NetworkConnectionType,
+    pub stop_sx: broadcast::Sender<bool>,
+}
+
+pub(crate) async fn response_process(mut context: ResponseProcessContext) {
+    let mut stop_rx = context.stop_sx.subscribe();
+
+    let child_context = ResponseChildProcessContext {
+        response_process_num: context.response_process_num,
+        request_channel: context.request_channel.clone(),
+        connection_manager: context.connection_manager.clone(),
+        cache_manager: context.cache_manager.clone(),
+        subscribe_manager: context.subscribe_manager.clone(),
+        client_pool: context.client_pool.clone(),
+        network_type: context.network_type.clone(),
+        stop_sx: context.stop_sx.clone(),
+    };
+
+    response_child_process(child_context);
+
+    let mut response_process_seq = 0;
+    loop {
+        select! {
+            val = stop_rx.recv() =>{
+                if let Ok(flag) = val {
+                    if flag {
+                        debug!("{}","TCP Server response process thread stopped successfully.");
+                        break;
                     }
                 }
+            }
 
-                val = response_queue_rx.recv()=>{
-                    if let Some(packet) = val{
-                        let mut sleep_ms = 0;
-                        metrics_response_queue_size("total", response_queue_rx.len());
+            val = context.response_queue_rx.recv()=>{
+                if let Some(packet) = val{
+                    let mut sleep_ms = 0;
+                    metrics_response_queue_size("total", context.response_queue_rx.len());
 
-                        loop {
-                            response_process_seq += 1;
-                            if let Some(handler_sx) = request_channel.get_available_response(&network_type,response_process_seq){
-                                if handler_sx.try_send(packet.clone()).is_ok() {
-                                    break;
-                                }
-                            }else{
-                                error!("{}","Response child thread, no request packet processing thread available");
+                    loop {
+                        response_process_seq += 1;
+                        if let Some(handler_sx) = context.request_channel.get_available_response(&context.network_type,response_process_seq){
+                            if handler_sx.try_send(packet.clone()).is_ok() {
+                                break;
                             }
-                            sleep_ms += 2;
-                            sleep(Duration::from_millis(sleep_ms)).await;
+                        }else{
+                            error!("{}","Response child thread, no request packet processing thread available");
                         }
+                        sleep_ms += 2;
+                        sleep(Duration::from_millis(sleep_ms)).await;
                     }
                 }
             }
         }
-    });
+    }
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn response_child_process(
-    response_process_num: usize,
-    request_channel: Arc<RequestChannel>,
-    connection_manager: Arc<ConnectionManager>,
-    cache_manager: Arc<CacheManager>,
-    subscribe_manager: Arc<SubscribeManager>,
-    client_pool: Arc<ClientPool>,
-    network_type: NetworkConnectionType,
-    stop_sx: broadcast::Sender<bool>,
-) {
-    for index in 1..=response_process_num {
-        let mut response_process_rx =
-            request_channel.create_response_child_channel(&network_type, index);
-        let mut raw_stop_rx = stop_sx.subscribe();
-        let raw_connect_manager = connection_manager.clone();
-        let raw_cache_manager = cache_manager.clone();
-        let raw_client_pool = client_pool.clone();
-        let raw_subscribe_manager = subscribe_manager.clone();
+pub(crate) fn response_child_process(context: ResponseChildProcessContext) {
+    for index in 1..=context.response_process_num {
+        let mut response_process_rx = context
+            .request_channel
+            .create_response_child_channel(&context.network_type, index);
+        let mut raw_stop_rx = context.stop_sx.subscribe();
+        let raw_connect_manager = context.connection_manager.clone();
+        let raw_cache_manager = context.cache_manager.clone();
+        let raw_client_pool = context.client_pool.clone();
+        let raw_subscribe_manager = context.subscribe_manager.clone();
         tokio::spawn(async move {
             debug!("Server response process thread {index} start successfully.");
             loop {

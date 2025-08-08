@@ -92,17 +92,19 @@ pub async fn save_retain_message(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
-pub async fn try_send_retain_message(
-    protocol: MqttProtocol,
-    client_id: String,
-    subscribe: Subscribe,
-    subscribe_properties: Option<SubscribeProperties>,
-    client_pool: Arc<ClientPool>,
-    cache_manager: Arc<CacheManager>,
-    connection_manager: Arc<ConnectionManager>,
-    is_new_subs: DashMap<String, bool>,
-) {
+#[derive(Clone)]
+pub struct TrySendRetainMessageContext {
+    pub protocol: MqttProtocol,
+    pub client_id: String,
+    pub subscribe: Subscribe,
+    pub subscribe_properties: Option<SubscribeProperties>,
+    pub client_pool: Arc<ClientPool>,
+    pub cache_manager: Arc<CacheManager>,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub is_new_subs: DashMap<String, bool>,
+}
+
+pub async fn try_send_retain_message(context: TrySendRetainMessageContext) {
     tokio::spawn(async move {
         // Do not send messages immediately. Avoid publishing and subing in the same connection successively.
         // At this point, the network model is processed in parallel.
@@ -110,68 +112,71 @@ pub async fn try_send_retain_message(
         // resulting in the subscription end not receiving the reserved message.
         sleep(Duration::from_secs(3)).await;
         let (stop_sx, _) = broadcast::channel(1);
-        if let Err(e) = send_retain_message(
-            &protocol,
-            &client_id,
-            &subscribe,
-            &subscribe_properties,
-            &client_pool,
-            &cache_manager,
-            &connection_manager,
-            &stop_sx,
-            &is_new_subs,
-        )
+        if let Err(e) = send_retain_message(SendRetainMessageContext {
+            protocol: context.protocol.clone(),
+            client_id: context.client_id.clone(),
+            subscribe: context.subscribe.clone(),
+            subscribe_properties: context.subscribe_properties.clone(),
+            client_pool: context.client_pool.clone(),
+            cache_manager: context.cache_manager.clone(),
+            connection_manager: context.connection_manager.clone(),
+            stop_sx,
+            is_new_subs: context.is_new_subs.clone(),
+        })
         .await
         {
             if !is_ignore_push_error(&e) {
                 warn!(
                     "Sending retain message failed with error message :{},client_id:{}",
-                    e, client_id
+                    e, context.client_id
                 );
             }
         }
     });
 }
 
-#[allow(clippy::too_many_arguments)]
-async fn send_retain_message(
-    protocol: &MqttProtocol,
-    client_id: &str,
-    subscribe: &Subscribe,
-    subscribe_properties: &Option<SubscribeProperties>,
-    client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<CacheManager>,
-    connection_manager: &Arc<ConnectionManager>,
-    stop_sx: &broadcast::Sender<bool>,
-    is_new_subs: &DashMap<String, bool>,
-) -> ResultMqttBrokerError {
+#[derive(Clone)]
+pub struct SendRetainMessageContext {
+    pub protocol: MqttProtocol,
+    pub client_id: String,
+    pub subscribe: Subscribe,
+    pub subscribe_properties: Option<SubscribeProperties>,
+    pub client_pool: Arc<ClientPool>,
+    pub cache_manager: Arc<CacheManager>,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub stop_sx: broadcast::Sender<bool>,
+    pub is_new_subs: DashMap<String, bool>,
+}
+
+async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBrokerError {
     let mut sub_ids = Vec::new();
-    if let Some(properties) = subscribe_properties {
+    if let Some(properties) = context.subscribe_properties {
         if let Some(id) = properties.subscription_identifier {
             sub_ids.push(id);
         }
     }
 
-    for filter in subscribe.filters.iter() {
+    for filter in context.subscribe.filters.iter() {
         if !is_send_retain_msg_by_retain_handling(
             &filter.path,
             &filter.retain_handling,
-            is_new_subs,
+            &context.is_new_subs,
         ) {
-            info!("retain messages: Determine whether to send retained messages based on the retain handling strategy. Client ID: {}", client_id);
+            info!("retain messages: Determine whether to send retained messages based on the retain handling strategy. Client ID: {}", context.client_id);
             continue;
         }
 
-        let topic_id_list = get_sub_topic_id_list(cache_manager, &filter.path).await;
-        let topic_storage = TopicStorage::new(client_pool.clone());
-        let cluster = cache_manager.get_cluster_config();
+        let topic_id_list = get_sub_topic_id_list(&context.cache_manager, &filter.path).await;
+        let topic_storage = TopicStorage::new(context.client_pool.clone());
+        let cluster = context.cache_manager.get_cluster_config();
 
         for topic_id in topic_id_list.iter() {
-            let topic_name = if let Some(topic_name) = cache_manager.topic_name_by_id(topic_id) {
-                topic_name
-            } else {
-                continue;
-            };
+            let topic_name =
+                if let Some(topic_name) = context.cache_manager.topic_name_by_id(topic_id) {
+                    topic_name
+                } else {
+                    continue;
+                };
 
             let msg = if let Some(message) = topic_storage.get_retain_message(&topic_name).await? {
                 message
@@ -179,8 +184,8 @@ async fn send_retain_message(
                 continue;
             };
 
-            if !is_send_msg_by_bo_local(filter.nolocal, client_id, &msg.client_id) {
-                info!("retain messages: Determine whether to send retained messages based on the no local strategy. Client ID: {}", client_id);
+            if !is_send_msg_by_bo_local(filter.nolocal, &context.client_id, &msg.client_id) {
+                info!("retain messages: Determine whether to send retained messages based on the no local strategy. Client ID: {}", context.client_id);
                 continue;
             }
 
@@ -207,9 +212,10 @@ async fn send_retain_message(
                 content_type: msg.content_type,
             };
 
-            let pkid = cache_manager
+            let pkid = context
+                .cache_manager
                 .pkid_metadata
-                .generate_pkid(client_id, &qos)
+                .generate_pkid(&context.client_id, &qos)
                 .await;
 
             let publish = Publish {
@@ -225,8 +231,8 @@ async fn send_retain_message(
 
             let sub_pub_param = SubPublishParam::new(
                 Subscriber {
-                    protocol: protocol.to_owned(),
-                    client_id: client_id.to_string(),
+                    protocol: context.protocol.to_owned(),
+                    client_id: context.client_id.to_string(),
                     ..Default::default()
                 },
                 packet,
@@ -236,16 +242,16 @@ async fn send_retain_message(
             );
 
             send_publish_packet_to_client(
-                connection_manager,
-                cache_manager,
+                &context.connection_manager,
+                &context.cache_manager,
                 &sub_pub_param,
                 &qos,
-                stop_sx,
+                &context.stop_sx,
             )
             .await?;
             info!(
                 "retain the successful message sending: client_id: {}, topi_id: {}",
-                client_id, topic_id
+                context.client_id, topic_id
             );
 
             record_retain_sent_metrics(qos);

@@ -37,11 +37,11 @@ pub struct LogStore {
 }
 
 impl LogStore {
-    fn store(&self) -> Arc<BoundColumnFamily> {
+    fn store(&self) -> Arc<BoundColumnFamily<'_>> {
         self.db.cf_handle(&cf_raft_store()).unwrap()
     }
 
-    fn logs(&self) -> Arc<BoundColumnFamily> {
+    fn logs(&self) -> Arc<BoundColumnFamily<'_>> {
         self.db.cf_handle(&cf_raft_logs()).unwrap()
     }
 

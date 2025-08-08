@@ -132,7 +132,7 @@ fn handler_child_process(
                                 let out_handler_queue_ms = now_mills();
 
                                 let response_data = raw_command
-                                    .apply(&raw_connect_manager, &connect, &packet.addr, &packet.packet)
+                                    .apply(&connect, &packet.addr, &packet.packet)
                                     .await;
                                 let end_handler_ms = now_mills();
 

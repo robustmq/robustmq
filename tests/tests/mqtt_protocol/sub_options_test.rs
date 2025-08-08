@@ -65,10 +65,9 @@ mod tests {
                 let timeout_fn = async || -> bool {
                     loop {
                         let res = receiver.recv_timeout(Duration::from_secs(5));
-                        if res.is_ok() {
+                        if let Ok(msg_opt) = &res {
                             println!("{res:?}");
-                            assert!(res.is_ok());
-                            let msg = res.unwrap().unwrap();
+                            let msg = msg_opt.as_ref().unwrap();
                             let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
                             if payload == message_content {
                                 return true;

@@ -32,6 +32,40 @@ use super::{
 use crate::handler::cache::CacheManager;
 use crate::server::common::connection_manager::ConnectionManager;
 
+#[derive(Clone)]
+pub struct StReportDisconnectedEventContext {
+    pub message_storage_adapter: ArcStorageAdapter,
+    pub metadata_cache: Arc<CacheManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub session: MqttSession,
+    pub connection: MQTTConnection,
+    pub connect_id: u64,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub reason: Option<DisconnectReasonCode>,
+}
+
+#[derive(Clone)]
+pub struct StReportSubscribedEventContext {
+    pub message_storage_adapter: ArcStorageAdapter,
+    pub metadata_cache: Arc<CacheManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub connection: MQTTConnection,
+    pub connect_id: u64,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub subscribe: Subscribe,
+}
+
+#[derive(Clone)]
+pub struct StReportUnsubscribedEventContext {
+    pub message_storage_adapter: ArcStorageAdapter,
+    pub metadata_cache: Arc<CacheManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub connection: MQTTConnection,
+    pub connect_id: u64,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub un_subscribe: Unsubscribe,
+}
+
 #[derive(Default, Serialize, Deserialize)]
 pub struct SystemTopicConnectedEventMessage {
     pub username: String,
@@ -89,45 +123,48 @@ pub struct SystemTopicUnSubscribedEventMessage {
     pub client_id: String,
 }
 
+#[derive(Clone)]
+pub struct StReportConnectedEventContext {
+    pub message_storage_adapter: ArcStorageAdapter,
+    pub metadata_cache: Arc<CacheManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub session: MqttSession,
+    pub connection: MQTTConnection,
+    pub connect_id: u64,
+    pub connection_manager: Arc<ConnectionManager>,
+}
+
 // Go live event. When any client comes online, messages for that topic will be published
-pub async fn st_report_connected_event(
-    message_storage_adapter: &ArcStorageAdapter,
-    metadata_cache: &Arc<CacheManager>,
-    client_pool: &Arc<ClientPool>,
-    session: &MqttSession,
-    connection: &MQTTConnection,
-    connect_id: u64,
-    connection_manager: &Arc<ConnectionManager>,
-) {
-    if let Some(network_connection) = connection_manager.get_connect(connect_id) {
+pub async fn st_report_connected_event(context: StReportConnectedEventContext) {
+    if let Some(network_connection) = context.connection_manager.get_connect(context.connect_id) {
         let event_data = SystemTopicConnectedEventMessage {
-            username: connection.login_user.clone(),
+            username: context.connection.login_user.clone(),
             ts: now_mills(),
             sock_port: network_connection.addr.port(),
             proto_ver: network_connection.protocol.clone(),
             proto_name: "MQTT".to_string(),
-            keepalive: connection.keep_alive,
-            ip_address: connection.source_ip_addr.clone(),
-            expiry_interval: session.session_expiry,
+            keepalive: context.connection.keep_alive,
+            ip_address: context.connection.source_ip_addr.clone(),
+            expiry_interval: context.session.session_expiry,
             connected_at: now_mills(),
             connect_ack: 1,
-            client_id: session.client_id.to_string(),
+            client_id: context.session.client_id.to_string(),
             clean_start: false,
         };
         match serde_json::to_string(&event_data) {
             Ok(data) => {
                 let topic_name = replace_name(
                     SYSTEM_TOPIC_BROKERS_CONNECTED.to_string(),
-                    session.client_id.to_string(),
+                    context.session.client_id.to_string(),
                 );
 
                 if let Some(record) =
                     MqttMessage::build_system_topic_message(topic_name.clone(), data)
                 {
                     write_topic_data(
-                        message_storage_adapter,
-                        metadata_cache,
-                        client_pool,
+                        &context.message_storage_adapter,
+                        &context.metadata_cache,
+                        &context.client_pool,
                         topic_name,
                         record,
                     )
@@ -142,27 +179,17 @@ pub async fn st_report_connected_event(
 }
 
 // Offline events. When any client goes offline, a message for that topic is published
-#[allow(clippy::too_many_arguments)]
-pub async fn st_report_disconnected_event(
-    message_storage_adapter: &ArcStorageAdapter,
-    metadata_cache: &Arc<CacheManager>,
-    client_pool: &Arc<ClientPool>,
-    session: &MqttSession,
-    connection: &MQTTConnection,
-    connect_id: u64,
-    connection_manager: &Arc<ConnectionManager>,
-    reason: Option<DisconnectReasonCode>,
-) {
-    if let Some(network_connection) = connection_manager.get_connect(connect_id) {
+pub async fn st_report_disconnected_event(context: StReportDisconnectedEventContext) {
+    if let Some(network_connection) = context.connection_manager.get_connect(context.connect_id) {
         let event_data = SystemTopicDisConnectedEventMessage {
-            username: connection.login_user.clone(),
+            username: context.connection.login_user.clone(),
             ts: now_mills(),
             sock_port: network_connection.addr.port(),
-            reason: format!("{reason:?}"),
+            reason: format!("{:?}", context.reason),
             proto_ver: network_connection.protocol.clone(),
             proto_name: "MQTT".to_string(),
-            ip_address: connection.source_ip_addr.clone(),
-            client_id: session.client_id.to_string(),
+            ip_address: context.connection.source_ip_addr.clone(),
+            client_id: context.session.client_id.to_string(),
             disconnected_at: now_mills(),
         };
 
@@ -170,16 +197,16 @@ pub async fn st_report_disconnected_event(
             Ok(data) => {
                 let topic_name = replace_name(
                     SYSTEM_TOPIC_BROKERS_DISCONNECTED.to_string(),
-                    session.client_id.to_string(),
+                    context.session.client_id.to_string(),
                 );
 
                 if let Some(record) =
                     MqttMessage::build_system_topic_message(topic_name.clone(), data)
                 {
                     write_topic_data(
-                        message_storage_adapter,
-                        metadata_cache,
-                        client_pool,
+                        &context.message_storage_adapter,
+                        &context.metadata_cache,
+                        &context.client_pool,
                         topic_name,
                         record,
                     )
@@ -194,17 +221,9 @@ pub async fn st_report_disconnected_event(
 }
 
 // Subscribe to events. When any client subscribes to a topic, messages for that topic are published
-pub async fn st_report_subscribed_event(
-    message_storage_adapter: &ArcStorageAdapter,
-    metadata_cache: &Arc<CacheManager>,
-    client_pool: &Arc<ClientPool>,
-    connection: &MQTTConnection,
-    connect_id: u64,
-    connection_manager: &Arc<ConnectionManager>,
-    subscribe: &Subscribe,
-) {
-    if let Some(network_connection) = connection_manager.get_connect(connect_id) {
-        for filter in subscribe.filters.clone() {
+pub async fn st_report_subscribed_event(context: StReportSubscribedEventContext) {
+    if let Some(network_connection) = context.connection_manager.get_connect(context.connect_id) {
+        for filter in context.subscribe.filters.clone() {
             let subopts = SystemTopicSubscribedEventMessageSUbopts {
                 sub_props: HashMap::new(),
                 rh: if filter.preserve_retain { 1 } else { 0 },
@@ -214,27 +233,27 @@ pub async fn st_report_subscribed_event(
                 is_new: true,
             };
             let event_data = SystemTopicSubscribedEventMessage {
-                username: connection.login_user.clone(),
+                username: context.connection.login_user.clone(),
                 ts: now_mills(),
                 subopts,
                 topic: filter.path,
                 protocol: format!("{:?}", network_connection.protocol.clone()),
-                client_id: connection.client_id.to_string(),
+                client_id: context.connection.client_id.to_string(),
             };
             match serde_json::to_string(&event_data) {
                 Ok(data) => {
                     let topic_name = replace_name(
                         SYSTEM_TOPIC_BROKERS_SUBSCRIBED.to_string(),
-                        connection.client_id.to_string(),
+                        context.connection.client_id.to_string(),
                     );
 
                     if let Some(record) =
                         MqttMessage::build_system_topic_message(topic_name.clone(), data)
                     {
                         write_topic_data(
-                            message_storage_adapter,
-                            metadata_cache,
-                            client_pool,
+                            &context.message_storage_adapter,
+                            &context.metadata_cache,
+                            &context.client_pool,
                             topic_name,
                             record,
                         )
@@ -250,38 +269,30 @@ pub async fn st_report_subscribed_event(
 }
 
 // Unsubscribe from an event. When any client unsubscribes to a topic, messages for that topic are published
-pub async fn st_report_unsubscribed_event(
-    message_storage_adapter: &ArcStorageAdapter,
-    metadata_cache: &Arc<CacheManager>,
-    client_pool: &Arc<ClientPool>,
-    connection: &MQTTConnection,
-    connect_id: u64,
-    connection_manager: &Arc<ConnectionManager>,
-    un_subscribe: &Unsubscribe,
-) {
-    if let Some(network_connection) = connection_manager.get_connect(connect_id) {
-        for path in un_subscribe.filters.clone() {
+pub async fn st_report_unsubscribed_event(context: StReportUnsubscribedEventContext) {
+    if let Some(network_connection) = context.connection_manager.get_connect(context.connect_id) {
+        for path in context.un_subscribe.filters.clone() {
             let event_data = SystemTopicUnSubscribedEventMessage {
-                username: connection.login_user.clone(),
+                username: context.connection.login_user.clone(),
                 ts: now_mills(),
                 topic: path,
                 protocol: format!("{:?}", network_connection.protocol.clone()),
-                client_id: connection.client_id.to_string(),
+                client_id: context.connection.client_id.to_string(),
             };
             match serde_json::to_string(&event_data) {
                 Ok(data) => {
                     let topic_name = replace_name(
                         SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED.to_string(),
-                        connection.client_id.to_string(),
+                        context.connection.client_id.to_string(),
                     );
 
                     if let Some(record) =
                         MqttMessage::build_system_topic_message(topic_name.clone(), data)
                     {
                         write_topic_data(
-                            message_storage_adapter,
-                            metadata_cache,
-                            client_pool,
+                            &context.message_storage_adapter,
+                            &context.metadata_cache,
+                            &context.client_pool,
                             topic_name,
                             record,
                         )

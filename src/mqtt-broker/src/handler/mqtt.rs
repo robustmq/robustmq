@@ -32,11 +32,11 @@ use tracing::{error, warn};
 
 use super::connection::{disconnect_connection, is_delete_session};
 use super::delay_message::{decode_delay_topic, is_delay_topic};
-use super::offline_message::save_message;
+use super::offline_message::{save_message, SaveMessageContext};
 use super::response::build_pub_ack_fail;
-use super::retain::{is_new_sub, try_send_retain_message};
+use super::retain::{is_new_sub, try_send_retain_message, TrySendRetainMessageContext};
 use super::sub_auto::try_auto_subscribe;
-use super::subscribe::save_subscribe;
+use super::subscribe::{save_subscribe, SaveSubscribeContext};
 use super::unsubscribe::remove_subscribe;
 use crate::common::pkid_storage::{pkid_delete, pkid_exists, pkid_save};
 use crate::handler::cache::{
@@ -50,16 +50,17 @@ use crate::handler::response::{
     response_packet_mqtt_connect_success, response_packet_mqtt_distinct_by_reason,
     response_packet_mqtt_ping_resp, response_packet_mqtt_pubcomp_fail,
     response_packet_mqtt_pubcomp_success, response_packet_mqtt_suback,
-    response_packet_mqtt_unsuback,
+    response_packet_mqtt_unsuback, ResponsePacketMqttConnectSuccessContext,
 };
-use crate::handler::session::{build_session, save_session};
+use crate::handler::session::{build_session, save_session, BuildSessionContext};
 use crate::handler::topic::{get_topic_name, try_init_topic};
 use crate::handler::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
 };
 use crate::observability::system_topic::event::{
     st_report_connected_event, st_report_disconnected_event, st_report_subscribed_event,
-    st_report_unsubscribed_event,
+    st_report_unsubscribed_event, StReportConnectedEventContext, StReportDisconnectedEventContext,
+    StReportSubscribedEventContext, StReportUnsubscribedEventContext,
 };
 use crate::security::AuthDriver;
 use crate::server::common::connection_manager::ConnectionManager;
@@ -79,74 +80,77 @@ pub struct MqttService {
     auth_driver: Arc<AuthDriver>,
 }
 
+#[derive(Clone)]
+pub struct MqttServiceContext {
+    pub protocol: MqttProtocol,
+    pub cache_manager: Arc<CacheManager>,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub message_storage_adapter: ArcStorageAdapter,
+    pub delay_message_manager: Arc<DelayMessageManager>,
+    pub subscribe_manager: Arc<SubscribeManager>,
+    pub schema_manager: Arc<SchemaRegisterManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub auth_driver: Arc<AuthDriver>,
+}
+
+#[derive(Clone)]
+pub struct MqttServiceConnectContext {
+    pub connect_id: u64,
+    pub connect: Connect,
+    pub connect_properties: Option<ConnectProperties>,
+    pub last_will: Option<LastWill>,
+    pub last_will_properties: Option<LastWillProperties>,
+    pub login: Option<Login>,
+    pub addr: SocketAddr,
+}
+
 impl MqttService {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        protocol: MqttProtocol,
-        cache_manager: Arc<CacheManager>,
-        connection_manager: Arc<ConnectionManager>,
-        message_storage_adapter: ArcStorageAdapter,
-        delay_message_manager: Arc<DelayMessageManager>,
-        subscribe_manager: Arc<SubscribeManager>,
-        schema_manager: Arc<SchemaRegisterManager>,
-        client_pool: Arc<ClientPool>,
-        auth_driver: Arc<AuthDriver>,
-    ) -> Self {
+    pub fn new(context: MqttServiceContext) -> Self {
         MqttService {
-            protocol,
-            cache_manager,
-            connection_manager,
-            message_storage_adapter,
-            delay_message_manager,
-            subscribe_manager,
-            client_pool,
-            auth_driver,
-            schema_manager,
+            protocol: context.protocol,
+            cache_manager: context.cache_manager,
+            connection_manager: context.connection_manager,
+            message_storage_adapter: context.message_storage_adapter,
+            delay_message_manager: context.delay_message_manager,
+            subscribe_manager: context.subscribe_manager,
+            client_pool: context.client_pool,
+            auth_driver: context.auth_driver,
+            schema_manager: context.schema_manager,
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub async fn connect(
-        &mut self,
-        connect_id: u64,
-        connect: &Connect,
-        connect_properties: &Option<ConnectProperties>,
-        last_will: &Option<LastWill>,
-        last_will_properties: &Option<LastWillProperties>,
-        login: &Option<Login>,
-        addr: &SocketAddr,
-    ) -> MqttPacket {
+    pub async fn connect(&mut self, context: MqttServiceConnectContext) -> MqttPacket {
         let cluster = self.cache_manager.get_cluster_config();
 
         // connect params validator
         if let Some(res) = connect_validator(
             &self.protocol,
             &cluster,
-            connect,
-            connect_properties,
-            last_will,
-            last_will_properties,
-            login,
+            &context.connect,
+            &context.connect_properties,
+            &context.last_will,
+            &context.last_will_properties,
+            &context.login,
         ) {
             return res;
         }
 
         // blacklist check
-        let (client_id, new_client_id) = get_client_id(&connect.client_id);
+        let (client_id, new_client_id) = get_client_id(&context.connect.client_id);
         let connection = build_connection(
-            connect_id,
+            context.connect_id,
             client_id.clone(),
             &cluster,
-            connect,
-            connect_properties,
-            addr,
+            &context.connect,
+            &context.connect_properties,
+            &context.addr,
         );
 
         if self.auth_driver.auth_connect_check(&connection).await {
             return response_packet_mqtt_connect_fail(
                 &self.protocol,
                 ConnectReturnCode::Banned,
-                connect_properties,
+                &context.connect_properties,
                 None,
             );
         }
@@ -154,7 +158,7 @@ impl MqttService {
         // login check
         match self
             .auth_driver
-            .auth_login_check(login, connect_properties, addr)
+            .auth_login_check(&context.login, &context.connect_properties, &context.addr)
             .await
         {
             Ok(flag) => {
@@ -162,7 +166,7 @@ impl MqttService {
                     return response_packet_mqtt_connect_fail(
                         &self.protocol,
                         ConnectReturnCode::NotAuthorized,
-                        connect_properties,
+                        &context.connect_properties,
                         None,
                     );
                 }
@@ -171,7 +175,7 @@ impl MqttService {
                 return response_packet_mqtt_connect_fail(
                     &self.protocol,
                     ConnectReturnCode::UnspecifiedError,
-                    connect_properties,
+                    &context.connect_properties,
                     Some(e.to_string()),
                 );
             }
@@ -179,19 +183,19 @@ impl MqttService {
 
         // flapping detect check
         if cluster.mqtt_flapping_detect.enable {
-            check_flapping_detect(connect.client_id.clone(), &self.cache_manager);
+            check_flapping_detect(context.connect.client_id.clone(), &self.cache_manager);
         }
 
-        let (session, new_session) = match build_session(
-            connect_id,
-            client_id.clone(),
-            connect,
-            connect_properties,
-            last_will,
-            last_will_properties,
-            &self.client_pool,
-            &self.cache_manager,
-        )
+        let (session, new_session) = match build_session(BuildSessionContext {
+            connect_id: context.connect_id,
+            client_id: client_id.clone(),
+            connect: context.connect.clone(),
+            connect_properties: context.connect_properties.clone(),
+            last_will: context.last_will.clone(),
+            last_will_properties: context.last_will_properties.clone(),
+            client_pool: self.client_pool.clone(),
+            cache_manager: self.cache_manager.clone(),
+        })
         .await
         {
             Ok(data) => data,
@@ -199,14 +203,14 @@ impl MqttService {
                 return response_packet_mqtt_connect_fail(
                     &self.protocol,
                     ConnectReturnCode::MalformedPacket,
-                    connect_properties,
+                    &context.connect_properties,
                     Some(e.to_string()),
                 );
             }
         };
 
         if let Err(e) = save_session(
-            connect_id,
+            context.connect_id,
             session.clone(),
             new_session,
             client_id.clone(),
@@ -217,15 +221,15 @@ impl MqttService {
             return response_packet_mqtt_connect_fail(
                 &self.protocol,
                 ConnectReturnCode::MalformedPacket,
-                connect_properties,
+                &context.connect_properties,
                 Some(e.to_string()),
             );
         }
 
         if let Err(e) = save_last_will_message(
             client_id.clone(),
-            last_will,
-            last_will_properties,
+            &context.last_will,
+            &context.last_will_properties,
             &self.client_pool,
         )
         .await
@@ -233,14 +237,14 @@ impl MqttService {
             return response_packet_mqtt_connect_fail(
                 &self.protocol,
                 ConnectReturnCode::UnspecifiedError,
-                connect_properties,
+                &context.connect_properties,
                 Some(e.to_string()),
             );
         }
 
         if let Err(e) = try_auto_subscribe(
             client_id.clone(),
-            login,
+            &context.login,
             &self.protocol,
             &self.client_pool,
             &self.cache_manager,
@@ -251,14 +255,14 @@ impl MqttService {
             return response_packet_mqtt_connect_fail(
                 &self.protocol,
                 ConnectReturnCode::UnspecifiedError,
-                connect_properties,
+                &context.connect_properties,
                 Some(e.to_string()),
             );
         }
 
         let live_time = ConnectionLiveTime {
             protocol: self.protocol.clone(),
-            keep_live: connection.keep_alive as u16,
+            keep_live: context.connect.keep_alive,
             heartbeat: now_second(),
         };
         self.cache_manager
@@ -266,28 +270,28 @@ impl MqttService {
 
         self.cache_manager.add_session(&client_id, &session);
         self.cache_manager
-            .add_connection(connect_id, connection.clone());
-        st_report_connected_event(
-            &self.message_storage_adapter,
-            &self.cache_manager,
-            &self.client_pool,
-            &session,
-            &connection,
-            connect_id,
-            &self.connection_manager,
-        )
+            .add_connection(context.connect_id, connection.clone());
+        st_report_connected_event(StReportConnectedEventContext {
+            message_storage_adapter: self.message_storage_adapter.clone(),
+            metadata_cache: self.cache_manager.clone(),
+            client_pool: self.client_pool.clone(),
+            session: session.clone(),
+            connection: connection.clone(),
+            connect_id: context.connect_id,
+            connection_manager: self.connection_manager.clone(),
+        })
         .await;
 
-        response_packet_mqtt_connect_success(
-            &self.protocol,
-            &cluster,
-            client_id,
-            new_client_id,
-            session.session_expiry as u32,
-            new_session,
-            connection.keep_alive,
-            connect_properties,
-        )
+        response_packet_mqtt_connect_success(ResponsePacketMqttConnectSuccessContext {
+            protocol: self.protocol.clone(),
+            cluster: cluster.clone(),
+            client_id: client_id.clone(),
+            auto_client_id: new_client_id,
+            session_expiry_interval: session.session_expiry as u32,
+            session_present: new_session,
+            keep_alive: connection.keep_alive,
+            connect_properties: context.connect_properties.clone(),
+        })
     }
 
     pub async fn publish(
@@ -431,18 +435,18 @@ impl MqttService {
         let client_id = connection.client_id.clone();
 
         // Persisting stores message data
-        let offset = match save_message(
-            &self.message_storage_adapter,
-            &self.delay_message_manager,
-            &self.cache_manager,
-            &self.client_pool,
-            publish,
-            publish_properties,
-            &self.subscribe_manager,
-            &client_id,
-            &topic,
-            &delay_info,
-        )
+        let offset = match save_message(SaveMessageContext {
+            message_storage_adapter: self.message_storage_adapter.clone(),
+            delay_message_manager: self.delay_message_manager.clone(),
+            cache_manager: self.cache_manager.clone(),
+            client_pool: self.client_pool.clone(),
+            publish: publish.clone(),
+            publish_properties: publish_properties.clone(),
+            subscribe_manager: self.subscribe_manager.clone(),
+            client_id: client_id.clone(),
+            topic: topic.clone(),
+            delay_info,
+        })
         .await
         {
             Ok(da) => {
@@ -691,15 +695,15 @@ impl MqttService {
 
         let new_subs = is_new_sub(&connection.client_id, subscribe, &self.subscribe_manager).await;
 
-        if let Err(e) = save_subscribe(
-            &connection.client_id,
-            &self.protocol,
-            &self.client_pool,
-            &self.cache_manager,
-            &self.subscribe_manager,
-            subscribe,
-            subscribe_properties,
-        )
+        if let Err(e) = save_subscribe(SaveSubscribeContext {
+            client_id: connection.client_id.clone(),
+            protocol: self.protocol.clone(),
+            client_pool: self.client_pool.clone(),
+            cache_manager: self.cache_manager.clone(),
+            subscribe_manager: self.subscribe_manager.clone(),
+            subscribe: subscribe.clone(),
+            subscribe_properties: subscribe_properties.clone(),
+        })
         .await
         {
             return response_packet_mqtt_suback(
@@ -711,27 +715,27 @@ impl MqttService {
             );
         }
 
-        st_report_subscribed_event(
-            &self.message_storage_adapter,
-            &self.cache_manager,
-            &self.client_pool,
-            &connection,
+        st_report_subscribed_event(StReportSubscribedEventContext {
+            message_storage_adapter: self.message_storage_adapter.clone(),
+            metadata_cache: self.cache_manager.clone(),
+            client_pool: self.client_pool.clone(),
+            connection: connection.clone(),
             connect_id,
-            &self.connection_manager,
-            subscribe,
-        )
+            connection_manager: self.connection_manager.clone(),
+            subscribe: subscribe.clone(),
+        })
         .await;
 
-        try_send_retain_message(
-            self.protocol.clone(),
-            connection.client_id.clone(),
-            subscribe.clone(),
-            subscribe_properties.clone(),
-            self.client_pool.clone(),
-            self.cache_manager.clone(),
-            self.connection_manager.clone(),
-            new_subs,
-        )
+        try_send_retain_message(TrySendRetainMessageContext {
+            protocol: self.protocol.clone(),
+            client_id: connection.client_id.clone(),
+            subscribe: subscribe.clone(),
+            subscribe_properties: subscribe_properties.clone(),
+            client_pool: self.client_pool.clone(),
+            cache_manager: self.cache_manager.clone(),
+            connection_manager: self.connection_manager.clone(),
+            is_new_subs: new_subs,
+        })
         .await;
 
         let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
@@ -824,15 +828,15 @@ impl MqttService {
             );
         }
 
-        st_report_unsubscribed_event(
-            &self.message_storage_adapter,
-            &self.cache_manager,
-            &self.client_pool,
-            &connection,
+        st_report_unsubscribed_event(StReportUnsubscribedEventContext {
+            message_storage_adapter: self.message_storage_adapter.clone(),
+            metadata_cache: self.cache_manager.clone(),
+            client_pool: self.client_pool.clone(),
+            connection: connection.clone(),
             connect_id,
-            &self.connection_manager,
-            un_subscribe,
-        )
+            connection_manager: self.connection_manager.clone(),
+            un_subscribe: un_subscribe.clone(),
+        })
         .await;
 
         response_packet_mqtt_unsuback(
@@ -856,16 +860,16 @@ impl MqttService {
         };
 
         if let Some(session) = self.cache_manager.get_session_info(&connection.client_id) {
-            st_report_disconnected_event(
-                &self.message_storage_adapter,
-                &self.cache_manager,
-                &self.client_pool,
-                &session,
-                &connection,
+            st_report_disconnected_event(StReportDisconnectedEventContext {
+                message_storage_adapter: self.message_storage_adapter.clone(),
+                metadata_cache: self.cache_manager.clone(),
+                client_pool: self.client_pool.clone(),
+                session: session.clone(),
+                connection: connection.clone(),
                 connect_id,
-                &self.connection_manager,
-                disconnect.reason_code,
-            )
+                connection_manager: self.connection_manager.clone(),
+                reason: disconnect.reason_code,
+            })
             .await;
         }
 
