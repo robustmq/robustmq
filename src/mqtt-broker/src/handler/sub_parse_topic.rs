@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use super::{
-    cache::CacheManager, subscribe::parse_subscribe,
+    cache::CacheManager,
+    subscribe::{parse_subscribe, ParseSubscribeContext},
     topic_rewrite::convert_sub_path_by_rewrite_rule,
 };
 use crate::subscribe::manager::SubscribeManager;
@@ -82,17 +83,17 @@ async fn parse_subscribe_by_new_topic(
             if topic.create_time < last_update_time {
                 continue;
             }
-            if let Err(e) = parse_subscribe(
-                client_pool,
-                subscribe_manager,
-                &subscribe.client_id,
-                &topic,
-                &subscribe.protocol,
-                subscribe.pkid,
-                &subscribe.filter,
-                &subscribe.subscribe_properties,
-                &rewrite_sub_path,
-            )
+            if let Err(e) = parse_subscribe(ParseSubscribeContext {
+                client_pool: client_pool.clone(),
+                subscribe_manager: subscribe_manager.clone(),
+                client_id: subscribe.client_id.clone(),
+                topic: topic.clone(),
+                protocol: subscribe.protocol.clone(),
+                pkid: subscribe.pkid,
+                filter: subscribe.filter.clone(),
+                subscribe_properties: subscribe.subscribe_properties.clone(),
+                rewrite_sub_path: rewrite_sub_path.clone(),
+            })
             .await
             {
                 error!("Failed to parse subscribe, error message: {}", e);

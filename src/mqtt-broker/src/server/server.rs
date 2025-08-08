@@ -14,10 +14,15 @@
 
 use crate::common::types::ResultMqttBrokerError;
 use crate::{
-    handler::{cache::CacheManager, command::Command},
+    handler::{
+        cache::CacheManager,
+        command::{Command, CommandContext},
+    },
     security::AuthDriver,
-    server::common::{connection::NetworkConnectionType, connection_manager::ConnectionManager},
-    server::tcp::v1::server::{ProcessorConfig, TcpServer},
+    server::{
+        common::{connection::NetworkConnectionType, connection_manager::ConnectionManager},
+        tcp::v1::server::{ProcessorConfig, TcpServer, TcpServerContext},
+    },
     subscribe::manager::SubscribeManager,
 };
 use common_config::broker::broker_config;
@@ -33,30 +38,33 @@ pub struct Server {
     tls_server: TcpServer,
 }
 
+#[derive(Clone)]
+pub struct ServerContext {
+    pub subscribe_manager: Arc<SubscribeManager>,
+    pub cache_manager: Arc<CacheManager>,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub message_storage_adapter: ArcStorageAdapter,
+    pub delay_message_manager: Arc<DelayMessageManager>,
+    pub schema_manager: Arc<SchemaRegisterManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub stop_sx: broadcast::Sender<bool>,
+    pub auth_driver: Arc<AuthDriver>,
+}
+
 impl Server {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        subscribe_manager: Arc<SubscribeManager>,
-        cache_manager: Arc<CacheManager>,
-        connection_manager: Arc<ConnectionManager>,
-        message_storage_adapter: ArcStorageAdapter,
-        delay_message_manager: Arc<DelayMessageManager>,
-        schema_manager: Arc<SchemaRegisterManager>,
-        client_pool: Arc<ClientPool>,
-        stop_sx: broadcast::Sender<bool>,
-        auth_driver: Arc<AuthDriver>,
-    ) -> Self {
+    pub fn new(context: ServerContext) -> Self {
         let conf = broker_config();
-        let command = Command::new(
-            cache_manager.clone(),
-            message_storage_adapter.clone(),
-            delay_message_manager.clone(),
-            subscribe_manager.clone(),
-            client_pool.clone(),
-            connection_manager.clone(),
-            schema_manager.clone(),
-            auth_driver.clone(),
-        );
+        let command_context = CommandContext {
+            cache_manager: context.cache_manager.clone(),
+            message_storage_adapter: context.message_storage_adapter.clone(),
+            delay_message_manager: context.delay_message_manager.clone(),
+            subscribe_manager: context.subscribe_manager.clone(),
+            client_pool: context.client_pool.clone(),
+            connection_manager: context.connection_manager.clone(),
+            schema_manager: context.schema_manager.clone(),
+            auth_driver: context.auth_driver.clone(),
+        };
+        let command = Command::new(command_context);
 
         let proc_config = ProcessorConfig {
             accept_thread_num: conf.network.accept_thread_num,
@@ -65,27 +73,27 @@ impl Server {
             channel_size: conf.network.queue_size,
         };
 
-        let tcp_server = TcpServer::new(
-            connection_manager.clone(),
-            subscribe_manager.clone(),
-            cache_manager.clone(),
-            client_pool.clone(),
-            command.clone(),
-            NetworkConnectionType::Tcp,
+        let tcp_server = TcpServer::new(TcpServerContext {
+            connection_manager: context.connection_manager.clone(),
+            subscribe_manager: context.subscribe_manager.clone(),
+            cache_manager: context.cache_manager.clone(),
+            client_pool: context.client_pool.clone(),
+            command: command.clone(),
+            network_type: NetworkConnectionType::Tcp,
             proc_config,
-            stop_sx.clone(),
-        );
+            stop_sx: context.stop_sx.clone(),
+        });
 
-        let tls_server = TcpServer::new(
-            connection_manager.clone(),
-            subscribe_manager.clone(),
-            cache_manager.clone(),
-            client_pool.clone(),
-            command.clone(),
-            NetworkConnectionType::Tls,
+        let tls_server = TcpServer::new(TcpServerContext {
+            connection_manager: context.connection_manager.clone(),
+            subscribe_manager: context.subscribe_manager.clone(),
+            cache_manager: context.cache_manager.clone(),
+            client_pool: context.client_pool.clone(),
+            command: command.clone(),
+            network_type: NetworkConnectionType::Tls,
             proc_config,
-            stop_sx.clone(),
-        );
+            stop_sx: context.stop_sx.clone(),
+        });
         Server {
             tcp_server,
             tls_server,

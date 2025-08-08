@@ -13,14 +13,14 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
-use crate::handler::command::Command;
+use crate::handler::command::{Command, CommandContext};
 use crate::handler::error::MqttBrokerError;
 use crate::security::AuthDriver;
 use crate::server::common::channel::RequestChannel;
 use crate::server::common::connection::NetworkConnectionType;
 use crate::server::common::connection_manager::ConnectionManager;
 use crate::server::common::handler::handler_process;
-use crate::server::common::response::response_process;
+use crate::server::common::response::{response_process, ResponseProcessContext};
 use crate::server::quic::acceptor::acceptor_process;
 use crate::subscribe::manager::SubscribeManager;
 use common_config::broker::broker_config;
@@ -43,29 +43,30 @@ pub fn generate_self_signed_cert() -> (Vec<CertificateDer<'static>>, PrivateKeyD
     (vec![cert_der.clone()], priv_key.into())
 }
 
-#[allow(clippy::too_many_arguments)]
-pub async fn start_quic_server(
-    subscribe_manager: Arc<SubscribeManager>,
-    cache_manager: Arc<CacheManager>,
-    connection_manager: Arc<ConnectionManager>,
-    message_storage_adapter: ArcStorageAdapter,
-    delay_message_manager: Arc<DelayMessageManager>,
-    client_pool: Arc<ClientPool>,
-    stop_sx: broadcast::Sender<bool>,
-    auth_driver: Arc<AuthDriver>,
-    schema_register_manager: Arc<SchemaRegisterManager>,
-) {
+pub struct QuicServerContext {
+    pub subscribe_manager: Arc<SubscribeManager>,
+    pub cache_manager: Arc<CacheManager>,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub message_storage_adapter: ArcStorageAdapter,
+    pub delay_message_manager: Arc<DelayMessageManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub stop_sx: broadcast::Sender<bool>,
+    pub auth_driver: Arc<AuthDriver>,
+    pub schema_register_manager: Arc<SchemaRegisterManager>,
+}
+
+pub async fn start_quic_server(context: QuicServerContext) {
     let conf = broker_config();
-    let command = Command::new(
-        cache_manager.clone(),
-        message_storage_adapter.clone(),
-        delay_message_manager.clone(),
-        subscribe_manager.clone(),
-        client_pool.clone(),
-        connection_manager.clone(),
-        schema_register_manager.clone(),
-        auth_driver.clone(),
-    );
+    let command = Command::new(CommandContext {
+        cache_manager: context.cache_manager.clone(),
+        message_storage_adapter: context.message_storage_adapter.clone(),
+        delay_message_manager: context.delay_message_manager.clone(),
+        subscribe_manager: context.subscribe_manager.clone(),
+        client_pool: context.client_pool.clone(),
+        connection_manager: context.connection_manager.clone(),
+        schema_manager: context.schema_register_manager.clone(),
+        auth_driver: context.auth_driver.clone(),
+    });
 
     let mut server = QuicServer::new(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
@@ -82,36 +83,36 @@ pub async fn start_quic_server(
 
     acceptor_process(
         conf.network.accept_thread_num,
-        connection_manager.clone(),
+        context.connection_manager.clone(),
         arc_quic_endpoint.clone(),
         request_channel.clone(),
         network_type.clone(),
-        stop_sx.clone(),
+        context.stop_sx.clone(),
     )
     .await;
 
     handler_process(
         conf.network.handler_thread_num,
         request_recv_channel,
-        connection_manager.clone(),
+        context.connection_manager.clone(),
         command.clone(),
         request_channel.clone(),
         NetworkConnectionType::QUIC,
-        stop_sx.clone(),
+        context.stop_sx.clone(),
     )
     .await;
 
-    response_process(
-        conf.network.response_thread_num,
-        connection_manager.clone(),
-        cache_manager.clone(),
-        subscribe_manager.clone(),
-        response_recv_channel,
-        client_pool.clone(),
-        request_channel.clone(),
-        NetworkConnectionType::QUIC,
-        stop_sx.clone(),
-    )
+    response_process(ResponseProcessContext {
+        response_process_num: conf.network.response_thread_num,
+        connection_manager: context.connection_manager.clone(),
+        cache_manager: context.cache_manager.clone(),
+        subscribe_manager: context.subscribe_manager.clone(),
+        response_queue_rx: response_recv_channel,
+        client_pool: context.client_pool.clone(),
+        request_channel: request_channel.clone(),
+        network_type: NetworkConnectionType::QUIC,
+        stop_sx: context.stop_sx.clone(),
+    })
     .await;
 
     info!(
