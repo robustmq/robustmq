@@ -165,7 +165,7 @@ fn insert_new_record(
     metrics_cache_manager.record_slow_subscribe_index(client_id, topic_name, calculate_time);
 }
 
-pub fn read_slow_sub_record(
+pub fn read_slow_subscribe_record(
     metrics_cache_manager: &Arc<MetricsCacheManager>,
 ) -> Vec<SlowSubscribeData> {
     // 从slow_subscribe_info中将所有的记录直接全部读取即可
@@ -433,18 +433,18 @@ mod tests {
     }
 
     #[test]
-    fn test_read_slow_sub_record_empty() {
+    fn test_read_slow_subscribe_record_empty() {
         // Test reading from empty cache
         let metrics_cache_manager = Arc::new(MetricsCacheManager::new());
 
-        let result = read_slow_sub_record(&metrics_cache_manager);
+        let result = read_slow_subscribe_record(&metrics_cache_manager);
 
         assert!(result.is_empty());
         assert_eq!(result.len(), 0);
     }
 
     #[test]
-    fn test_read_slow_sub_record_single_record() {
+    fn test_read_slow_subscribe_record_single_record() {
         // Test reading a single slow subscribe record
         let metrics_cache_manager = Arc::new(MetricsCacheManager::new());
         let subscriber = create_test_subscriber("client1", "test/topic", "test/topic");
@@ -453,7 +453,7 @@ mod tests {
         // Insert one record
         record_slow_subscribe_data(&metrics_cache_manager, calculate_time, 10, &subscriber);
 
-        let result = read_slow_sub_record(&metrics_cache_manager);
+        let result = read_slow_subscribe_record(&metrics_cache_manager);
 
         assert_eq!(result.len(), 1);
         let record = &result[0];
@@ -464,7 +464,7 @@ mod tests {
     }
 
     #[test]
-    fn test_read_slow_sub_record_multiple_records() {
+    fn test_read_slow_subscribe_record_multiple_records() {
         // Test reading multiple slow subscribe records
         let metrics_cache_manager = Arc::new(MetricsCacheManager::new());
         let config_num = 10;
@@ -481,7 +481,7 @@ mod tests {
             record_slow_subscribe_data(&metrics_cache_manager, *time_span, config_num, &subscriber);
         }
 
-        let result = read_slow_sub_record(&metrics_cache_manager);
+        let result = read_slow_subscribe_record(&metrics_cache_manager);
 
         assert_eq!(result.len(), test_data.len());
 
@@ -500,7 +500,7 @@ mod tests {
     }
 
     #[test]
-    fn test_read_slow_sub_record_reverse_order() {
+    fn test_read_slow_subscribe_record_reverse_order() {
         // Test that records are returned in reverse order (highest time_span first)
         let metrics_cache_manager = Arc::new(MetricsCacheManager::new());
         let config_num = 10;
@@ -514,7 +514,7 @@ mod tests {
             record_slow_subscribe_data(&metrics_cache_manager, time_span, config_num, &subscriber);
         }
 
-        let result = read_slow_sub_record(&metrics_cache_manager);
+        let result = read_slow_subscribe_record(&metrics_cache_manager);
 
         assert_eq!(result.len(), time_spans.len());
 
@@ -530,7 +530,7 @@ mod tests {
     }
 
     #[test]
-    fn test_read_slow_sub_record_after_updates() {
+    fn test_read_slow_subscribe_record_after_updates() {
         // Test reading records after some updates (old records removed)
         let metrics_cache_manager = Arc::new(MetricsCacheManager::new());
         let subscriber = create_test_subscriber("client1", "test/topic", "test/topic");
@@ -541,7 +541,7 @@ mod tests {
         // Update with higher time_span (should replace the old one)
         record_slow_subscribe_data(&metrics_cache_manager, 2500, 10, &subscriber);
 
-        let result = read_slow_sub_record(&metrics_cache_manager);
+        let result = read_slow_subscribe_record(&metrics_cache_manager);
 
         assert_eq!(result.len(), 1);
         let record = &result[0];
@@ -551,7 +551,7 @@ mod tests {
     }
 
     #[test]
-    fn test_read_slow_sub_record_with_capacity_limit() {
+    fn test_read_slow_subscribe_record_with_capacity_limit() {
         // Test reading records when capacity limit has been enforced
         let metrics_cache_manager = Arc::new(MetricsCacheManager::new());
         let config_num = 2; // Small capacity limit
@@ -568,7 +568,7 @@ mod tests {
             record_slow_subscribe_data(&metrics_cache_manager, *time_span, config_num, &subscriber);
         }
 
-        let result = read_slow_sub_record(&metrics_cache_manager);
+        let result = read_slow_subscribe_record(&metrics_cache_manager);
 
         // Should only have config_num records
         assert_eq!(result.len(), config_num);
@@ -588,7 +588,7 @@ mod tests {
     }
 
     #[test]
-    fn test_read_slow_sub_record_data_integrity() {
+    fn test_read_slow_subscribe_record_data_integrity() {
         // Test that all fields of SlowSubscribeData are correctly preserved
         let metrics_cache_manager = Arc::new(MetricsCacheManager::new());
         let subscriber =
@@ -597,7 +597,7 @@ mod tests {
 
         record_slow_subscribe_data(&metrics_cache_manager, calculate_time, 10, &subscriber);
 
-        let result = read_slow_sub_record(&metrics_cache_manager);
+        let result = read_slow_subscribe_record(&metrics_cache_manager);
 
         assert_eq!(result.len(), 1);
         let record = &result[0];
@@ -615,7 +615,7 @@ mod tests {
     }
 
     #[test]
-    fn test_read_slow_sub_record_concurrent_modification() {
+    fn test_read_slow_subscribe_record_concurrent_modification() {
         // Test reading while records might be modified (basic test)
         let metrics_cache_manager = Arc::new(MetricsCacheManager::new());
 
@@ -628,7 +628,7 @@ mod tests {
         }
 
         // Read records
-        let result1 = read_slow_sub_record(&metrics_cache_manager);
+        let result1 = read_slow_subscribe_record(&metrics_cache_manager);
         assert_eq!(result1.len(), 3);
 
         // Add another record
@@ -636,12 +636,12 @@ mod tests {
         record_slow_subscribe_data(&metrics_cache_manager, 4000, 10, &subscriber);
 
         // Read again
-        let result2 = read_slow_sub_record(&metrics_cache_manager);
+        let result2 = read_slow_subscribe_record(&metrics_cache_manager);
         assert_eq!(result2.len(), 4);
     }
 
     #[test]
-    fn test_read_slow_sub_record_reverse_order_after_updates() {
+    fn test_read_slow_subscribe_record_reverse_order_after_updates() {
         // Test that records maintain reverse order after updates
         let metrics_cache_manager = Arc::new(MetricsCacheManager::new());
         let config_num = 10;
@@ -656,7 +656,7 @@ mod tests {
         }
 
         // Step 2: First read - verify initial reverse order (descending: 4000, 3000, 2000, 1000)
-        let result_before = read_slow_sub_record(&metrics_cache_manager);
+        let result_before = read_slow_subscribe_record(&metrics_cache_manager);
         assert_eq!(result_before.len(), initial_time_spans.len());
 
         // Verify descending order
@@ -680,7 +680,7 @@ mod tests {
         );
 
         // Step 4: Second read - verify new order after first update
-        let result_after_first_update = read_slow_sub_record(&metrics_cache_manager);
+        let result_after_first_update = read_slow_subscribe_record(&metrics_cache_manager);
         assert_eq!(result_after_first_update.len(), initial_time_spans.len()); // Same count
 
         // New expected order: 5500(client2), 4000(client4), 3000(client3), 1000(client1)
@@ -711,7 +711,7 @@ mod tests {
         );
 
         // Step 6: Third read - verify final order after second update
-        let result_after_second_update = read_slow_sub_record(&metrics_cache_manager);
+        let result_after_second_update = read_slow_subscribe_record(&metrics_cache_manager);
         assert_eq!(result_after_second_update.len(), initial_time_spans.len()); // Same count
 
         // Final expected order: 5500(client2), 4000(client4), 3500(client1), 3000(client3)
