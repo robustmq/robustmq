@@ -168,7 +168,8 @@ fn insert_new_record(
 pub fn read_slow_subscribe_record(
     metrics_cache_manager: &Arc<MetricsCacheManager>,
 ) -> Vec<SlowSubscribeData> {
-    // 从slow_subscribe_info中将所有的记录直接全部读取即可
+    // Read all slow subscribe records in reverse order (highest time_span first)
+    // This ensures we get the most recent slow subscribe records first
     let mut slow_subscribe_data_list: Vec<SlowSubscribeData> = Vec::new();
     for (_, slow_subscribe_data) in metrics_cache_manager.slow_subscribe_info.iter_reverse() {
         slow_subscribe_data_list.push(slow_subscribe_data.clone());
