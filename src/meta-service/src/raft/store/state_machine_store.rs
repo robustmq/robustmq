@@ -182,7 +182,7 @@ impl StateMachineStore {
         Ok(())
     }
 
-    fn store(&self) -> Arc<BoundColumnFamily> {
+    fn store(&self) -> Arc<BoundColumnFamily<'_>> {
         self.db.cf_handle(&cf_raft_store()).unwrap()
     }
 }

@@ -38,60 +38,64 @@ pub fn is_exist_subscribe(subscribe_manager: &Arc<SubscribeManager>, topic: &str
     subscribe_manager.contain_topic_subscribe(topic)
 }
 
-#[allow(clippy::too_many_arguments)]
-pub async fn save_message(
-    message_storage_adapter: &ArcStorageAdapter,
-    delay_message_manager: &Arc<DelayMessageManager>,
-    cache_manager: &Arc<CacheManager>,
-    client_pool: &Arc<ClientPool>,
-    publish: &Publish,
-    publish_properties: &Option<PublishProperties>,
-    subscribe_manager: &Arc<SubscribeManager>,
-    client_id: &str,
-    topic: &MQTTTopic,
-    delay_info: &Option<DelayPublishTopic>,
-) -> Result<Option<String>, MqttBrokerError> {
-    let offline_message_disabled = !cache_manager
+#[derive(Clone)]
+pub struct SaveMessageContext {
+    pub message_storage_adapter: ArcStorageAdapter,
+    pub delay_message_manager: Arc<DelayMessageManager>,
+    pub cache_manager: Arc<CacheManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub publish: Publish,
+    pub publish_properties: Option<PublishProperties>,
+    pub subscribe_manager: Arc<SubscribeManager>,
+    pub client_id: String,
+    pub topic: MQTTTopic,
+    pub delay_info: Option<DelayPublishTopic>,
+}
+
+pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>, MqttBrokerError> {
+    let offline_message_disabled = !context
+        .cache_manager
         .get_cluster_config()
         .mqtt_offline_message
         .enable;
-    let not_exist_subscribe = !is_exist_subscribe(subscribe_manager, &topic.topic_name);
+    let not_exist_subscribe =
+        !is_exist_subscribe(&context.subscribe_manager, &context.topic.topic_name);
     if offline_message_disabled && not_exist_subscribe {
-        record_messages_dropped_discard_metrics(publish.qos);
+        record_messages_dropped_discard_metrics(context.publish.qos);
         return Ok(None);
     }
 
-    let message_expire = build_message_expire(cache_manager, publish_properties);
+    let message_expire = build_message_expire(&context.cache_manager, &context.publish_properties);
 
-    if delay_info.is_some() {
+    if context.delay_info.is_some() {
         return save_delay_message(
-            delay_message_manager,
-            publish,
-            publish_properties,
-            client_id,
+            &context.delay_message_manager,
+            &context.publish,
+            &context.publish_properties,
+            &context.client_id,
             message_expire,
-            delay_info.as_ref().unwrap(),
+            context.delay_info.as_ref().unwrap(),
         )
         .await;
     }
 
     // Persisting retain message data
     save_retain_message(
-        cache_manager,
-        client_pool,
-        topic.topic_name.clone(),
-        client_id,
-        publish,
-        publish_properties,
+        &context.cache_manager,
+        &context.client_pool,
+        context.topic.topic_name.clone(),
+        &context.client_id,
+        &context.publish,
+        &context.publish_properties,
     )
     .await?;
 
     return save_simple_message(
-        message_storage_adapter,
-        publish,
-        publish_properties,
-        client_id,
-        topic,
+        &context.message_storage_adapter,
+        &context.publish,
+        &context.publish_properties,
+        &context.client_id,
+        &context.topic,
         message_expire,
     )
     .await;
