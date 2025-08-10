@@ -18,11 +18,11 @@ use super::manager::SubscribeManager;
 use super::push::{
     build_publish_message, send_publish_packet_to_client, BuildPublishMessageContext,
 };
+use crate::common::metrics_cache::MetricsCacheManager;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
-use crate::observability::slow::slow_subscribe_key::SlowSubscribeKey;
-use crate::observability::slow::sub::SlowSubscribeData;
+use crate::observability::slow::record_slow_subscribe_data;
 use crate::server::common::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
 use crate::subscribe::common::is_ignore_push_error;
@@ -39,7 +39,6 @@ use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
 use tracing::warn;
 use tracing::{error, info};
-use crate::common::metrics_cache::MetricsCacheManager;
 
 pub struct ExclusivePush {
     cache_manager: Arc<CacheManager>,
@@ -325,79 +324,6 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
     }
 
     Ok(Some(results.last().unwrap().offset.unwrap()))
-}
-
-fn record_slow_subscribe_data(
-    metrics_cache_manager: &Arc<MetricsCacheManager>,
-    calculate_time: u64,
-    config_num: usize,
-    subscriber: &Subscriber,
-) {
-    let client_id = subscriber.client_id.clone();
-    let topic_name = subscriber.topic_name.clone();
-    let subscribe_name = subscriber.sub_path.clone();
-    // 如果索引当中有值那么就将对应的值拿出来
-    let option_slow_subscribe_index_value =
-        metrics_cache_manager.get_slow_subscribe_index_value(client_id.clone(), topic_name.clone());
-
-    // 处理新的
-    let new_slow_subscribe_info_key = SlowSubscribeKey {
-        time_span: calculate_time,
-        client_id: client_id.clone(),
-        topic_name: topic_name.clone(),
-    };
-
-    let slow_subscribe_info_data: SlowSubscribeData = SlowSubscribeData::build(
-        subscribe_name.clone(),
-        client_id.clone(),
-        topic_name.clone(),
-        calculate_time,
-    );
-
-    if let Some(slow_subscribe_index_value) = option_slow_subscribe_index_value {
-        let time_span = slow_subscribe_index_value.0;
-        if calculate_time > time_span {
-            // 处理旧的
-            let old_slow_subscribe_info_key = SlowSubscribeKey {
-                time_span,
-                client_id: client_id.clone(),
-                topic_name: topic_name.clone(),
-            };
-
-            metrics_cache_manager.remove_slow_subscribe_info(&old_slow_subscribe_info_key);
-        }
-    } else {
-        // 如果索引当中没有值，那么此时需要对info操作
-        if metrics_cache_manager.slow_subscribe_info.len() + 1 > config_num {
-            // info此时是否大于1000
-            // 这个时候拿出最小的time_span的key，比较对应的time_span值
-            let option_slow_subscribe_info_key =
-                metrics_cache_manager.slow_subscribe_info.min_key();
-            let min_time_span = if let Some(key) = option_slow_subscribe_info_key.clone() {
-                key.time_span
-            } else {
-                0
-            };
-
-            if calculate_time > min_time_span {
-                // 删除旧的
-                if let Some(key) = option_slow_subscribe_info_key {
-                    metrics_cache_manager
-                        .remove_slow_subscribe_index(key.client_id.clone(), key.topic_name.clone());
-                    metrics_cache_manager.remove_slow_subscribe_info(&key);
-                }
-            }
-        }
-    }
-
-    // 插入数据
-    metrics_cache_manager
-        .record_slow_subscribe_info(new_slow_subscribe_info_key, slow_subscribe_info_data);
-    metrics_cache_manager.record_slow_subscribe_index(
-        client_id.clone(),
-        topic_name.clone(),
-        calculate_time,
-    )
 }
 
 fn build_group_name(subscriber: &Subscriber) -> String {

@@ -23,7 +23,6 @@ use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, 
 use crate::handler::error::MqttBrokerError;
 use crate::handler::message::is_message_expire;
 use crate::handler::sub_option::{get_retain_flag_by_retain_as_published, is_send_msg_by_bo_local};
-use crate::observability::slow::sub::{record_slow_sub_data, SlowSubscribeData};
 use crate::server::common::connection_manager::ConnectionManager;
 use crate::server::common::packet::ResponsePackage;
 use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
@@ -264,7 +263,7 @@ pub async fn push_packet_to_client(
             "Subsceibe".to_string(),
         );
 
-        send_message_to_client(resp, sub_pub_param, connection_manager, cache_manager).await
+        send_message_to_client(resp, connection_manager).await
     };
 
     retry_tool_fn_timeout(action_fn, stop_sx, "push_packet_to_client").await
@@ -356,9 +355,7 @@ pub async fn wait_packet_ack(
 
 pub async fn send_message_to_client(
     resp: ResponsePackage,
-    sub_pub_param: &SubPublishParam,
     connection_manager: &Arc<ConnectionManager>,
-    metadata_cache: &Arc<CacheManager>,
 ) -> ResultMqttBrokerError {
     let protocol =
         if let Some(protocol) = connection_manager.get_connect_protocol(resp.connection_id) {
@@ -387,16 +384,6 @@ pub async fn send_message_to_client(
             .await?
     }
 
-    // record slow sub data
-    if metadata_cache.get_slow_sub_config().enable && sub_pub_param.create_time > 0 {
-        let slow_data = SlowSubscribeData::build(
-            sub_pub_param.subscribe.sub_path.clone(),
-            sub_pub_param.subscribe.client_id.clone(),
-            sub_pub_param.subscribe.topic_name.clone(),
-            (now_mills() - sub_pub_param.create_time) as u64,
-        );
-        record_slow_sub_data(slow_data, metadata_cache.get_slow_sub_config().whole_ms)?;
-    }
     Ok(())
 }
 

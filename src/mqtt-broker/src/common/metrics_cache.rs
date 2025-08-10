@@ -17,8 +17,8 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::observability::metrics::server::{
     record_broker_connections_max, record_broker_connections_num,
 };
+use crate::observability::slow::slow_subscribe_data::SlowSubscribeData;
 use crate::observability::slow::slow_subscribe_key::SlowSubscribeKey;
-use crate::observability::slow::sub::SlowSubscribeData;
 use crate::{
     common::tool::loop_select, handler::cache::CacheManager,
     server::common::connection_manager::ConnectionManager, subscribe::manager::SubscribeManager,
@@ -317,8 +317,8 @@ pub fn metrics_gc_thread(
 
 #[cfg(test)]
 mod test {
+    use crate::observability::slow::slow_subscribe_data::SlowSubscribeData;
     use crate::observability::slow::slow_subscribe_key::SlowSubscribeKey;
-    use crate::observability::slow::sub::SlowSubscribeData;
     use std::{
         net::{Ipv4Addr, SocketAddrV4},
         sync::Arc,

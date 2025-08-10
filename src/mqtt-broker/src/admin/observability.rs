@@ -13,8 +13,9 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
-use crate::observability::slow::sub::{read_slow_sub_record, SlowSubscribeData};
+use crate::observability::slow::slow_subscribe_data::SlowSubscribeData;
 
+use crate::observability::slow::read_slow_sub_record;
 use common_base::utils::file_utils::get_project_root;
 use common_config::broker::broker_config;
 use protocol::broker_mqtt::broker_mqtt_admin::{
