@@ -19,7 +19,7 @@ use crate::storage::cluster::ClusterStorage;
 use common_config::broker::broker_config;
 use common_config::config::{
     BrokerConfig, MqttFlappingDetect, MqttOfflineMessage, MqttProtocolConfig, MqttSchema,
-    MqttSecurity, MqttSlowSub, MqttSystemMonitor,
+    MqttSecurity, MqttSlowSubscribeConfig, MqttSystemMonitor,
 };
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
@@ -39,14 +39,14 @@ pub enum ClusterDynamicConfig {
 
 impl CacheManager {
     // slow sub
-    pub fn update_slow_sub_config(&self, slow_sub: MqttSlowSub) {
+    pub fn update_slow_sub_config(&self, slow_sub: MqttSlowSubscribeConfig) {
         if let Some(mut config) = self.cluster_info.get_mut(&self.cluster_name) {
-            config.mqtt_slow_sub = slow_sub.to_owned();
+            config.mqtt_slow_subscribe_config = slow_sub.to_owned();
         }
     }
 
-    pub fn get_slow_sub_config(&self) -> MqttSlowSub {
-        self.get_cluster_config().mqtt_slow_sub
+    pub fn get_slow_sub_config(&self) -> MqttSlowSubscribeConfig {
+        self.get_cluster_config().mqtt_slow_subscribe_config
     }
 
     // flapping detect
@@ -138,7 +138,7 @@ pub async fn build_cluster_config(
     }
 
     if let Some(data) = get_slow_sub(client_pool).await? {
-        conf.mqtt_slow_sub = data;
+        conf.mqtt_slow_subscribe_config = data;
     }
 
     if let Some(data) = get_flapping_detect(client_pool).await? {
@@ -250,7 +250,7 @@ async fn get_security_config(
 
 async fn get_slow_sub(
     client_pool: &Arc<ClientPool>,
-) -> Result<Option<MqttSlowSub>, MqttBrokerError> {
+) -> Result<Option<MqttSlowSubscribeConfig>, MqttBrokerError> {
     let conf = broker_config();
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
@@ -260,7 +260,9 @@ async fn get_slow_sub(
         )
         .await?;
     if !data.is_empty() {
-        return Ok(Some(serde_json::from_slice::<MqttSlowSub>(&data)?));
+        return Ok(Some(serde_json::from_slice::<MqttSlowSubscribeConfig>(
+            &data,
+        )?));
     }
     Ok(None)
 }
