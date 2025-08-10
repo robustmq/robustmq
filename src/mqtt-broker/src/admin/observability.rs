@@ -13,10 +13,7 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
-use crate::observability::slow::slow_subscribe_data::SlowSubscribeData;
 
-use crate::observability::slow::core::read_slow_sub_record;
-use common_base::utils::file_utils::get_project_root;
 use common_config::broker::broker_config;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ListSlowSubScribeRaw, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListSystemAlarmRaw,
@@ -31,32 +28,10 @@ pub async fn list_slow_subscribe_by_req(
     cache_manager: &Arc<CacheManager>,
     _request: &ListSlowSubscribeRequest,
 ) -> Result<ListSlowSubscribeReply, crate::handler::error::MqttBrokerError> {
-    let mut list_slow_subscribe_raw: Vec<ListSlowSubScribeRaw> = Vec::new();
-    let mqtt_config = broker_config();
+    let list_slow_subscribe_raw: Vec<ListSlowSubScribeRaw> = Vec::new();
+    let _mqtt_config = broker_config();
     if cache_manager.get_slow_sub_config().enable {
-        let path = mqtt_config.log.log_path.clone();
-        let _path_buf = get_project_root()?.join(path.replace("./", "") + "/slow_sub.log");
-        let deque = read_slow_sub_record()?;
-        for slow_sub_data in deque {
-            match serde_json::from_str::<SlowSubscribeData>(slow_sub_data.as_str()) {
-                Ok(data) => {
-                    let raw = ListSlowSubScribeRaw {
-                        client_id: data.client_id,
-                        topic: data.topic_name,
-                        time_ms: data.time_span,
-                        node_info: data.node_info,
-                        create_time: data.create_time,
-                        sub_name: data.subscribe_name,
-                    };
-                    list_slow_subscribe_raw.push(raw);
-                }
-                Err(e) => {
-                    return Err(crate::handler::error::MqttBrokerError::CommonError(
-                        e.to_string(),
-                    ));
-                }
-            }
-        }
+        todo!()
     }
     Ok(ListSlowSubscribeReply {
         list_slow_subscribe_raw,
