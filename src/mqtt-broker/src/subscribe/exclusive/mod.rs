@@ -22,7 +22,7 @@ use crate::common::metrics_cache::MetricsCacheManager;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
-use crate::observability::slow::record_slow_subscribe_data;
+use crate::observability::slow::core::record_slow_subscribe_data;
 use crate::server::common::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
 use crate::subscribe::common::is_ignore_push_error;
