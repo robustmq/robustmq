@@ -136,6 +136,10 @@ impl BrokerConfig {
     pub fn is_enable_slow_subscribe_record(&self) -> bool {
         self.mqtt_slow_subscribe_config.enable
     }
+
+    pub fn get_slow_subscribe_max_store_num(&self) -> u32 {
+        self.mqtt_slow_subscribe_config.max_store_num
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
@@ -297,10 +301,12 @@ impl MqttFlappingDetect {
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct MqttSlowSubscribeConfig {
     pub enable: bool,
+    pub max_store_num: u32,
     pub whole_ms: u64,
     pub internal_ms: u32,
     pub response_ms: u32,
 }
+
 impl MqttSlowSubscribeConfig {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()

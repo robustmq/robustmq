@@ -276,7 +276,7 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
             let _response_time = finish_time - send_time;
 
             let calculate_time = whole_time;
-            let config_num = 1000;
+            let config_num = broker_config.get_slow_subscribe_max_store_num();
 
             record_slow_subscribe_data(
                 &context.metrics_cache_manager,

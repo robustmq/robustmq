@@ -130,6 +130,7 @@ pub fn default_mqtt_slow_subscribe_config() -> MqttSlowSubscribeConfig {
         whole_ms: 0,
         internal_ms: 0,
         response_ms: 0,
+        max_store_num: 1000,
     }
 }
 

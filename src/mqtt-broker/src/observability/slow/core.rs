@@ -21,7 +21,7 @@ use std::sync::Arc;
 pub fn record_slow_subscribe_data(
     metrics_cache_manager: &Arc<MetricsCacheManager>,
     calculate_time: u64,
-    config_num: usize,
+    config_num: u32,
     subscriber: &Subscriber,
 ) {
     let client_id = subscriber.client_id.clone();
@@ -95,10 +95,10 @@ fn handle_new_record_insertion(
     client_id: String,
     topic_name: String,
     calculate_time: u64,
-    config_num: usize,
+    config_num: u32,
 ) {
     // Check if we need to enforce capacity limit
-    if !capacity_exceeded(metrics_cache_manager, config_num) {
+    if !capacity_exceeded(metrics_cache_manager, config_num as usize) {
         // No capacity limit reached, directly insert
         insert_new_record(
             metrics_cache_manager,
@@ -334,7 +334,10 @@ mod tests {
         record_slow_subscribe_data(&metrics_cache_manager, 3000, config_num, &subscriber3);
 
         // Verify capacity limit is respected
-        assert_eq!(metrics_cache_manager.slow_subscribe_info.len(), config_num);
+        assert_eq!(
+            metrics_cache_manager.slow_subscribe_info.len(),
+            config_num as usize
+        );
 
         // Verify the record with minimum time_span was removed
         let min_key = SlowSubscribeKey {
@@ -572,7 +575,7 @@ mod tests {
         let result = read_slow_subscribe_record(&metrics_cache_manager);
 
         // Should only have config_num records
-        assert_eq!(result.len(), config_num);
+        assert_eq!(result.len(), config_num as usize);
 
         // Should not contain the record with minimum time_span (client1)
         let has_client1 = result.iter().any(|record| record.client_id == "client1");
