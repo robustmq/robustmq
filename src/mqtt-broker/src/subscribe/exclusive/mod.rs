@@ -29,6 +29,7 @@ use crate::subscribe::common::is_ignore_push_error;
 use crate::subscribe::manager::SubPushThreadData;
 use crate::subscribe::push::{build_pub_qos, build_sub_ids};
 use common_base::tools::now_second;
+use common_config::broker::broker_config;
 use metadata_struct::adapter::record::Record;
 use protocol::mqtt::common::QoS;
 use std::sync::Arc;
@@ -267,20 +268,23 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
         .await?;
         let finish_time = now_second();
 
-        let receive_time = record.timestamp;
-        let whole_time = finish_time - receive_time;
-        let _internal_time = send_time - receive_time;
-        let _response_time = finish_time - send_time;
+        let broker_config = broker_config();
+        if broker_config.is_enable_slow_subscribe_record() {
+            let receive_time = record.timestamp;
+            let whole_time = finish_time - receive_time;
+            let _internal_time = send_time - receive_time;
+            let _response_time = finish_time - send_time;
 
-        let calculate_time = whole_time;
-        let config_num = 1000;
+            let calculate_time = whole_time;
+            let config_num = 1000;
 
-        record_slow_subscribe_data(
-            &context.metrics_cache_manager,
-            calculate_time,
-            config_num,
-            &context.subscriber,
-        );
+            record_slow_subscribe_data(
+                &context.metrics_cache_manager,
+                calculate_time,
+                config_num,
+                &context.subscriber,
+            );
+        }
 
         // commit offset
         loop_commit_offset(

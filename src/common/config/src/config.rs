@@ -132,6 +132,10 @@ impl BrokerConfig {
     pub fn is_start_broker(&self) -> bool {
         self.roles.contains(&"broker".to_string())
     }
+
+    pub fn is_enable_slow_subscribe_record(&self) -> bool {
+        self.mqtt_slow_sub.enable
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
