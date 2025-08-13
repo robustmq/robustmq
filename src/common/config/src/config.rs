@@ -308,9 +308,6 @@ pub struct MqttSlowSubscribeConfig {
     pub enable: bool,
     pub max_store_num: u32,
     pub delay_type: DelayType,
-    pub whole_ms: u64,
-    pub internal_ms: u32,
-    pub response_ms: u32,
 }
 
 impl MqttSlowSubscribeConfig {

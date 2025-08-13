@@ -129,9 +129,6 @@ pub fn default_mqtt_slow_subscribe_config() -> MqttSlowSubscribeConfig {
         enable: false,
         max_store_num: 1000,
         delay_type: DelayType::Whole,
-        whole_ms: 0,
-        internal_ms: 0,
-        response_ms: 0,
     }
 }
 
