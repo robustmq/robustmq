@@ -21,7 +21,10 @@ use protocol::mqtt::common::{Filter, Login, MqttProtocol, Subscribe};
 use crate::common::types::ResultMqttBrokerError;
 use crate::subscribe::manager::SubscribeManager;
 
-use super::{cache::CacheManager, subscribe::save_subscribe};
+use super::{
+    cache::CacheManager,
+    subscribe::{save_subscribe, SaveSubscribeContext},
+};
 
 pub async fn try_auto_subscribe(
     client_id: String,
@@ -66,15 +69,15 @@ pub async fn try_auto_subscribe(
             filters: filters.clone(),
         };
 
-        match save_subscribe(
-            &client_id,
-            protocol,
-            client_pool,
-            cache_manager,
-            subscribe_manager,
-            &subscribe,
-            &None,
-        )
+        match save_subscribe(SaveSubscribeContext {
+            client_id: client_id.clone(),
+            protocol: protocol.clone(),
+            client_pool: client_pool.clone(),
+            cache_manager: cache_manager.clone(),
+            subscribe_manager: subscribe_manager.clone(),
+            subscribe: subscribe.clone(),
+            subscribe_properties: None,
+        })
         .await
         {
             Ok(_) => {

@@ -14,7 +14,7 @@
 
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
-use crate::handler::command::Command;
+use crate::handler::command::{Command, CommandContext};
 use crate::observability::metrics::server::record_ws_request_duration;
 use crate::security::AuthDriver;
 use crate::server::common::connection::NetworkConnection;
@@ -48,6 +48,19 @@ use tracing::{error, info, warn};
 pub const ROUTE_ROOT: &str = "/mqtt";
 
 #[derive(Clone)]
+pub struct WebSocketServerContext {
+    pub connection_manager: Arc<ConnectionManager>,
+    pub subscribe_manager: Arc<SubscribeManager>,
+    pub cache_manager: Arc<CacheManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub stop_sx: broadcast::Sender<bool>,
+    pub message_storage_adapter: ArcStorageAdapter,
+    pub delay_message_manager: Arc<DelayMessageManager>,
+    pub schema_manager: Arc<SchemaRegisterManager>,
+    pub auth_driver: Arc<AuthDriver>,
+}
+
+#[derive(Clone)]
 pub struct WebSocketServerState {
     sucscribe_manager: Arc<SubscribeManager>,
     cache_manager: Arc<CacheManager>,
@@ -61,28 +74,17 @@ pub struct WebSocketServerState {
 }
 
 impl WebSocketServerState {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        sucscribe_manager: Arc<SubscribeManager>,
-        cache_manager: Arc<CacheManager>,
-        connection_manager: Arc<ConnectionManager>,
-        message_storage_adapter: ArcStorageAdapter,
-        delay_message_manager: Arc<DelayMessageManager>,
-        schema_manager: Arc<SchemaRegisterManager>,
-        client_pool: Arc<ClientPool>,
-        auth_driver: Arc<AuthDriver>,
-        stop_sx: broadcast::Sender<bool>,
-    ) -> Self {
+    pub fn new(context: WebSocketServerContext) -> Self {
         Self {
-            sucscribe_manager,
-            cache_manager,
-            connection_manager,
-            message_storage_adapter,
-            delay_message_manager,
-            schema_manager,
-            client_pool,
-            auth_driver,
-            stop_sx,
+            connection_manager: context.connection_manager,
+            sucscribe_manager: context.subscribe_manager,
+            cache_manager: context.cache_manager,
+            message_storage_adapter: context.message_storage_adapter,
+            delay_message_manager: context.delay_message_manager,
+            schema_manager: context.schema_manager,
+            client_pool: context.client_pool,
+            stop_sx: context.stop_sx,
+            auth_driver: context.auth_driver,
         }
     }
 }
@@ -156,16 +158,17 @@ async fn ws_handler(
         String::from("Unknown Source")
     };
     info!("websocket `{user_agent}` at {addr} connected.");
-    let command = Command::new(
-        state.cache_manager.clone(),
-        state.message_storage_adapter.clone(),
-        state.delay_message_manager.clone(),
-        state.sucscribe_manager.clone(),
-        state.client_pool.clone(),
-        state.connection_manager.clone(),
-        state.schema_manager.clone(),
-        state.auth_driver.clone(),
-    );
+    let context = CommandContext {
+        cache_manager: state.cache_manager.clone(),
+        message_storage_adapter: state.message_storage_adapter.clone(),
+        delay_message_manager: state.delay_message_manager.clone(),
+        subscribe_manager: state.sucscribe_manager.clone(),
+        client_pool: state.client_pool.clone(),
+        connection_manager: state.connection_manager.clone(),
+        schema_manager: state.schema_manager.clone(),
+        auth_driver: state.auth_driver.clone(),
+    };
+    let command = Command::new(context);
     let codec = MqttCodec::new(None);
     ws.protocols(["mqtt", "mqttv3.1"])
         .on_upgrade(move |socket| {
@@ -268,10 +271,7 @@ async fn process_socket_packet_by_binary(
     if let Some(packet) = codec.decode_data(&mut buf)? {
         info!("recv websocket packet:{packet:?}");
 
-        if let Some(resp_pkg) = command
-            .apply(connection_manager, tcp_connection, addr, &packet)
-            .await
-        {
+        if let Some(resp_pkg) = command.apply(tcp_connection, addr, &packet).await {
             if let MqttPacket::Connect(_, _, _, _, _, _) = packet {
                 if let Some(pv) =
                     connection_manager.get_connect_protocol(tcp_connection.connection_id)

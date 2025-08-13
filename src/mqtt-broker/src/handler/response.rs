@@ -54,55 +54,59 @@ pub fn build_pub_ack_fail(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
+#[derive(Clone)]
+pub struct ResponsePacketMqttConnectSuccessContext {
+    pub protocol: MqttProtocol,
+    pub cluster: BrokerConfig,
+    pub client_id: String,
+    pub auto_client_id: bool,
+    pub session_expiry_interval: u32,
+    pub session_present: bool,
+    pub keep_alive: u16,
+    pub connect_properties: Option<ConnectProperties>,
+}
+
 pub fn response_packet_mqtt_connect_success(
-    protocol: &MqttProtocol,
-    cluster: &BrokerConfig,
-    client_id: String,
-    auto_client_id: bool,
-    session_expiry_interval: u32,
-    session_present: bool,
-    keep_alive: u16,
-    connect_properties: &Option<ConnectProperties>,
+    context: ResponsePacketMqttConnectSuccessContext,
 ) -> MqttPacket {
-    if !protocol.is_mqtt5() {
+    if !context.protocol.is_mqtt5() {
         return MqttPacket::ConnAck(
             ConnAck {
-                session_present,
+                session_present: context.session_present,
                 code: ConnectReturnCode::Success,
             },
             None,
         );
     }
 
-    let assigned_client_identifier = if auto_client_id {
-        Some(client_id)
+    let assigned_client_identifier = if context.auto_client_id {
+        Some(context.client_id)
     } else {
         None
     };
 
     let properties = ConnAckProperties {
-        session_expiry_interval: Some(session_expiry_interval),
-        receive_max: Some(cluster.mqtt_protocol_config.receive_max),
-        max_qos: Some(cluster.mqtt_protocol_config.max_qos),
+        session_expiry_interval: Some(context.session_expiry_interval),
+        receive_max: Some(context.cluster.mqtt_protocol_config.receive_max),
+        max_qos: Some(context.cluster.mqtt_protocol_config.max_qos),
         retain_available: Some(1),
-        max_packet_size: Some(cluster.mqtt_protocol_config.max_packet_size),
+        max_packet_size: Some(context.cluster.mqtt_protocol_config.max_packet_size),
         assigned_client_identifier,
-        topic_alias_max: Some(cluster.mqtt_protocol_config.topic_alias_max),
+        topic_alias_max: Some(context.cluster.mqtt_protocol_config.topic_alias_max),
         reason_string: None,
         user_properties: Vec::new(),
         wildcard_subscription_available: Some(1),
         subscription_identifiers_available: Some(1),
         shared_subscription_available: Some(1),
-        server_keep_alive: Some(keep_alive),
-        response_information: response_information(connect_properties),
+        server_keep_alive: Some(context.keep_alive),
+        response_information: response_information(&context.connect_properties),
         server_reference: None,
         authentication_method: None,
         authentication_data: None,
     };
     MqttPacket::ConnAck(
         ConnAck {
-            session_present,
+            session_present: context.session_present,
             code: ConnectReturnCode::Success,
         },
         Some(properties),
