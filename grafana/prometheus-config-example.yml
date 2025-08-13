@@ -39,7 +39,7 @@ scrape_configs:
     scrape_interval: 15s
     metrics_path: /metrics
     scheme: http
-    
+
     # Optional: Add labels to identify this instance
     relabel_configs:
       - target_label: instance
@@ -52,14 +52,14 @@ scrape_configs:
   # Additional RobustMQ services (if you have multiple instances)
   - job_name: 'robustmq-mqtt-broker-cluster'
     static_configs:
-      - targets: 
+      - targets:
         - 'robustmq-node1:9090'
         - 'robustmq-node2:9090'
         - 'robustmq-node3:9090'
     scrape_interval: 15s
     metrics_path: /metrics
     scheme: http
-    
+
     relabel_configs:
       - target_label: service
         replacement: 'mqtt-broker-cluster'
@@ -73,7 +73,7 @@ scrape_configs:
     scrape_interval: 30s
     metrics_path: /metrics
     scheme: http
-    
+
     relabel_configs:
       - target_label: service
         replacement: 'journal-server'
@@ -85,7 +85,7 @@ scrape_configs:
     scrape_interval: 30s
     metrics_path: /metrics
     scheme: http
-    
+
     relabel_configs:
       - target_label: service
         replacement: 'placement-center'
