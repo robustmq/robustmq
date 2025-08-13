@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod amqp;
-pub mod broker_mqtt;
-pub mod cluster;
-pub mod journal_server;
-pub mod kafka;
-pub mod mqtt;
-pub mod placement_center;
+#![cfg_attr(any(), rustfmt::skip)]
+#![allow(clippy::all)]
+
+pub mod cluster_status {
+    tonic::include_proto!("broker.cluster");
+}
