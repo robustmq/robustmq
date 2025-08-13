@@ -24,6 +24,7 @@ use super::default::{
 use crate::common::Log;
 use crate::common::Prometheus;
 use crate::common::{default_log, default_pprof, default_prometheus};
+use common_base::enum_type::delay_type::DelayType;
 use serde::{Deserialize, Serialize};
 use toml::Table;
 
@@ -139,6 +140,10 @@ impl BrokerConfig {
 
     pub fn get_slow_subscribe_max_store_num(&self) -> u32 {
         self.mqtt_slow_subscribe_config.max_store_num
+    }
+
+    pub fn get_slow_subscribe_delay_type(&self) -> DelayType {
+        self.mqtt_slow_subscribe_config.delay_type
     }
 }
 
@@ -302,6 +307,7 @@ impl MqttFlappingDetect {
 pub struct MqttSlowSubscribeConfig {
     pub enable: bool,
     pub max_store_num: u32,
+    pub delay_type: DelayType,
     pub whole_ms: u64,
     pub internal_ms: u32,
     pub response_ms: u32,

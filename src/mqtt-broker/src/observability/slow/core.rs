@@ -16,6 +16,8 @@ use crate::common::metrics_cache::MetricsCacheManager;
 use crate::observability::slow::slow_subscribe_data::SlowSubscribeData;
 use crate::observability::slow::slow_subscribe_key::SlowSubscribeKey;
 use crate::subscribe::common::Subscriber;
+use common_base::enum_type::delay_type::DelayType;
+use common_config::broker::broker_config;
 use std::sync::Arc;
 
 pub fn record_slow_subscribe_data(
@@ -177,10 +179,29 @@ pub fn read_slow_subscribe_record(
     slow_subscribe_data_list
 }
 
+pub fn get_calculate_time_from_broker_config(
+    send_time: u64,
+    finish_time: u64,
+    receive_time: u64,
+) -> u64 {
+    let broker_config = broker_config();
+
+    let whole_time = finish_time - receive_time;
+    let internal_time = send_time - receive_time;
+    let response_time = finish_time - send_time;
+
+    match broker_config.get_slow_subscribe_delay_type() {
+        DelayType::Whole => whole_time,
+        DelayType::Internal => internal_time,
+        DelayType::Response => response_time,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use common_base::tools::now_second;
+    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use protocol::mqtt::common::{MqttProtocol, QoS, RetainHandling};
 
     fn create_test_subscriber(client_id: &str, topic_name: &str, sub_path: &str) -> Subscriber {
@@ -763,5 +784,25 @@ mod tests {
             !has_old_client1_1000,
             "Old client1 record (1000) should be gone"
         );
+    }
+
+    #[test]
+    fn test_get_calculate_time_from_broker_config_time_span() {
+        let config = default_broker_config();
+        init_broker_conf_by_config(config.clone());
+
+        // Test calculation with DelayType::Whole
+        // Note: This test depends on the broker config having DelayType::Whole as default
+        let receive_time = 1000u64;
+        let send_time = 1500u64;
+        let finish_time = 2000u64;
+
+        let result = get_calculate_time_from_broker_config(send_time, finish_time, receive_time);
+
+        // For DelayType::Whole, it should return finish_time - receive_time
+        let expected_whole_time = finish_time - receive_time; // 2000 - 1000 = 1000
+
+        // Since the default delay type is Whole, we expect whole_time
+        assert_eq!(result, expected_whole_time);
     }
 }

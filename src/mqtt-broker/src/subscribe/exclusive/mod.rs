@@ -22,7 +22,9 @@ use crate::common::metrics_cache::MetricsCacheManager;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
-use crate::observability::slow::core::record_slow_subscribe_data;
+use crate::observability::slow::core::{
+    get_calculate_time_from_broker_config, record_slow_subscribe_data,
+};
 use crate::server::common::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
 use crate::subscribe::common::is_ignore_push_error;
@@ -271,13 +273,9 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
         let broker_config = broker_config();
         if broker_config.is_enable_slow_subscribe_record() {
             let receive_time = record.timestamp;
-            let whole_time = finish_time - receive_time;
-            let _internal_time = send_time - receive_time;
-            let _response_time = finish_time - send_time;
-
-            let calculate_time = whole_time;
+            let calculate_time =
+                get_calculate_time_from_broker_config(send_time, finish_time, receive_time);
             let config_num = broker_config.get_slow_subscribe_max_store_num();
-
             record_slow_subscribe_data(
                 &context.metrics_cache_manager,
                 calculate_time,
