@@ -34,8 +34,8 @@ pub fn network_types() -> Vec<String> {
     vec![
         "tcp".to_string(),
         "ws".to_string(),
-        "wss".to_string(),
-        "ssl".to_string(),
+        // "wss".to_string(),
+        // "ssl".to_string(),
     ]
 }
 

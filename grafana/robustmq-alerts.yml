@@ -1,0 +1,223 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# RobustMQ MQTT Broker Alerting Rules
+# This file contains Prometheus alerting rules for RobustMQ monitoring
+
+groups:
+  - name: robustmq.mqtt.broker
+    rules:
+      # High connection count
+      - alert: RobustMQHighConnectionCount
+        expr: broker_connections_num > 5000
+        for: 5m
+        labels:
+          severity: warning
+          service: robustmq-mqtt-broker
+        annotations:
+          summary: "RobustMQ MQTT Broker has high connection count"
+          description: "MQTT Broker has {{ $value }} active connections, which is above the threshold of 5000."
+
+      # Connection capacity warning
+      - alert: RobustMQConnectionCapacityWarning
+        expr: (broker_connections_num / broker_connections_max) > 0.8
+        for: 2m
+        labels:
+          severity: warning
+          service: robustmq-mqtt-broker
+        annotations:
+          summary: "RobustMQ MQTT Broker connection capacity warning"
+          description: "MQTT Broker is using {{ $value | humanizePercentage }} of its connection capacity."
+
+      # High request latency
+      - alert: RobustMQHighRequestLatency
+        expr: histogram_quantile(0.95, rate(request_total_ms_bucket[5m])) > 100
+        for: 10m
+        labels:
+          severity: warning
+          service: robustmq-mqtt-broker
+        annotations:
+          summary: "RobustMQ MQTT Broker high request latency"
+          description: "95th percentile latency is {{ $value }}ms for network {{ $labels.network }}."
+
+      # Critical request latency
+      - alert: RobustMQCriticalRequestLatency
+        expr: histogram_quantile(0.95, rate(request_total_ms_bucket[5m])) > 500
+        for: 5m
+        labels:
+          severity: critical
+          service: robustmq-mqtt-broker
+        annotations:
+          summary: "RobustMQ MQTT Broker critical request latency"
+          description: "95th percentile latency is {{ $value }}ms for network {{ $labels.network }}."
+
+      # Authentication failures
+      - alert: RobustMQAuthenticationFailures
+        expr: rate(packets_connack_auth_error[5m]) > 10
+        for: 2m
+        labels:
+          severity: critical
+          service: robustmq-mqtt-broker
+        annotations:
+          summary: "RobustMQ MQTT Broker authentication failures"
+          description: "High authentication failure rate: {{ $value }} failures/sec on {{ $labels.network }}."
+
+      # Connection errors
+      - alert: RobustMQConnectionErrors
+        expr: rate(packets_connack_error[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: robustmq-mqtt-broker
+        annotations:
+          summary: "RobustMQ MQTT Broker connection errors"
+          description: "High connection error rate: {{ $value }} errors/sec on {{ $labels.network }}."
+
+      # High packet error rate
+      - alert: RobustMQPacketErrors
+        expr: rate(packets_received_error[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: robustmq-mqtt-broker
+        annotations:
+          summary: "RobustMQ MQTT Broker packet errors"
+          description: "High packet error rate: {{ $value }} errors/sec on {{ $labels.network }}."
+
+      # High queue depth
+      - alert: RobustMQHighQueueDepth
+        expr: network_queue_num > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: robustmq-mqtt-broker
+        annotations:
+          summary: "RobustMQ MQTT Broker high queue depth"
+          description: "Network queue depth is {{ $value }} for {{ $labels.label }} {{ $labels.type }} queue."
+
+      # Critical queue depth
+      - alert: RobustMQCriticalQueueDepth
+        expr: network_queue_num > 5000
+        for: 2m
+        labels:
+          severity: critical
+          service: robustmq-mqtt-broker
+        annotations:
+          summary: "RobustMQ MQTT Broker critical queue depth"
+          description: "Network queue depth is {{ $value }} for {{ $labels.label }} {{ $labels.type }} queue."
+
+      # High message drop rate
+      - alert: RobustMQHighMessageDrops
+        expr: rate(messages_dropped_no_subscribers[5m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: robustmq-mqtt-broker
+        annotations:
+          summary: "RobustMQ MQTT Broker high message drop rate"
+          description: "High message drop rate due to no subscribers: {{ $value }} drops/sec for QoS {{ $labels.qos }}."
+
+      # High discard rate
+      - alert: RobustMQHighDiscardRate
+        expr: rate(messages_dropped_discard[5m]) > 50
+        for: 5m
+        labels:
+          severity: warning
+          service: robustmq-mqtt-broker
+        annotations:
+          summary: "RobustMQ MQTT Broker high discard rate"
+          description: "High message discard rate: {{ $value }} discards/sec for QoS {{ $labels.qos }}."
+
+      # Low throughput (might indicate issues)
+      - alert: RobustMQLowThroughput
+        expr: rate(packets_received[10m]) < 1
+        for: 15m
+        labels:
+          severity: info
+          service: robustmq-mqtt-broker
+        annotations:
+          summary: "RobustMQ MQTT Broker low throughput"
+          description: "Very low packet throughput: {{ $value }} packets/sec on {{ $labels.network }}."
+
+      # Broker down
+      - alert: RobustMQBrokerDown
+        expr: up{job="robustmq-mqtt-broker"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: robustmq-mqtt-broker
+        annotations:
+          summary: "RobustMQ MQTT Broker is down"
+          description: "RobustMQ MQTT Broker instance {{ $labels.instance }} is down."
+
+  - name: robustmq.mqtt.broker.capacity
+    rules:
+      # Capacity planning alerts
+      - alert: RobustMQCapacityPlanningNeeded
+        expr: increase(broker_connections_max[24h]) > 0
+        for: 1h
+        labels:
+          severity: info
+          service: robustmq-mqtt-broker
+        annotations:
+          summary: "RobustMQ MQTT Broker capacity planning needed"
+          description: "Maximum connections increased in the last 24 hours, consider capacity planning."
+
+      # High thread utilization
+      - alert: RobustMQHighThreadUtilization
+        expr: broker_active_thread_num > 50
+        for: 10m
+        labels:
+          severity: warning
+          service: robustmq-mqtt-broker
+        annotations:
+          summary: "RobustMQ MQTT Broker high thread utilization"
+          description: "High thread count: {{ $value }} active threads for {{ $labels.network }} {{ $labels.thread_type }}."
+
+  - name: robustmq.mqtt.broker.performance
+    rules:
+      # Recording rules for better query performance
+      - record: robustmq:request_latency_95th
+        expr: histogram_quantile(0.95, rate(request_total_ms_bucket[5m]))
+
+      - record: robustmq:request_latency_50th
+        expr: histogram_quantile(0.50, rate(request_total_ms_bucket[5m]))
+
+      - record: robustmq:packet_rate_received
+        expr: rate(packets_received[5m])
+
+      - record: robustmq:packet_rate_sent
+        expr: rate(packets_sent[5m])
+
+      - record: robustmq:byte_rate_received
+        expr: rate(bytes_received[5m])
+
+      - record: robustmq:byte_rate_sent
+        expr: rate(bytes_sent[5m])
+
+      - record: robustmq:error_rate_total
+        expr: rate(packets_received_error[5m]) + rate(packets_connack_auth_error[5m]) + rate(packets_connack_error[5m])
+
+      - record: robustmq:connection_utilization
+        expr: broker_connections_num / broker_connections_max
+
+      # SLI/SLO metrics
+      - record: robustmq:sli_availability
+        expr: up{job="robustmq-mqtt-broker"}
+
+      - record: robustmq:sli_latency_good
+        expr: (rate(request_total_ms_bucket{le="100"}[5m]) / rate(request_total_ms_count[5m])) * 100
+
+      - record: robustmq:sli_error_rate
+        expr: (rate(packets_received_error[5m]) / rate(packets_received[5m])) * 100

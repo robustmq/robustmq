@@ -12,10 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod amqp;
-pub mod broker_mqtt;
-pub mod cluster;
-pub mod journal_server;
-pub mod kafka;
-pub mod mqtt;
-pub mod placement_center;
+use protocol::cluster::cluster_status::{
+    cluster_service_server::ClusterService, ClusterStatusReply, ClusterStatusRequest,
+};
+use tonic::{Request, Response, Status};
+
+pub struct ClusterInnerService {}
+
+impl ClusterInnerService {
+    pub fn new() -> Self {
+        ClusterInnerService {}
+    }
+}
+
+#[tonic::async_trait]
+impl ClusterService for ClusterInnerService {
+    async fn cluster_status(
+        &self,
+        _: Request<ClusterStatusRequest>,
+    ) -> Result<Response<ClusterStatusReply>, Status> {
+        Ok(Response::new(ClusterStatusReply::default()))
+    }
+}
