@@ -76,38 +76,40 @@ pub(crate) async fn response_process(mut context: ResponseProcessContext) {
     response_child_process(child_context);
 
     let mut response_process_seq = 0;
-    loop {
-        select! {
-            val = stop_rx.recv() =>{
-                if let Ok(flag) = val {
-                    if flag {
-                        debug!("{}","TCP Server response process thread stopped successfully.");
-                        break;
+    tokio::spawn(async move {
+        loop {
+            select! {
+                val = stop_rx.recv() =>{
+                    if let Ok(flag) = val {
+                        if flag {
+                            debug!("{}","TCP Server response process thread stopped successfully.");
+                            break;
+                        }
                     }
                 }
-            }
 
-            val = context.response_queue_rx.recv()=>{
-                if let Some(packet) = val{
-                    let mut sleep_ms = 0;
-                    metrics_response_queue_size("total", context.response_queue_rx.len());
+                val = context.response_queue_rx.recv()=>{
+                    if let Some(packet) = val{
+                        let mut sleep_ms = 0;
+                        metrics_response_queue_size("total", context.response_queue_rx.len());
 
-                    loop {
-                        response_process_seq += 1;
-                        if let Some(handler_sx) = context.request_channel.get_available_response(&context.network_type,response_process_seq){
-                            if handler_sx.try_send(packet.clone()).is_ok() {
-                                break;
+                        loop {
+                            response_process_seq += 1;
+                            if let Some(handler_sx) = context.request_channel.get_available_response(&context.network_type,response_process_seq){
+                                if handler_sx.try_send(packet.clone()).is_ok() {
+                                    break;
+                                }
+                            }else{
+                                error!("{}","Response child thread, no request packet processing thread available");
                             }
-                        }else{
-                            error!("{}","Response child thread, no request packet processing thread available");
+                            sleep_ms += 2;
+                            sleep(Duration::from_millis(sleep_ms)).await;
                         }
-                        sleep_ms += 2;
-                        sleep(Duration::from_millis(sleep_ms)).await;
                     }
                 }
             }
         }
-    }
+    });
 }
 
 pub(crate) fn response_child_process(context: ResponseChildProcessContext) {
