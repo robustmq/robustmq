@@ -28,9 +28,11 @@ use crate::security::auth::super_user::init_system_user;
 use crate::security::storage::sync::sync_auth_storage_info;
 use crate::security::AuthDriver;
 use crate::server::common::connection_manager::ConnectionManager;
-use crate::server::quic::server::start_quic_server;
-use crate::server::server::Server;
-use crate::server::websocket::server::{websocket_server, websockets_server, WebSocketServerState};
+use crate::server::quic::server::{start_quic_server, QuicServerContext};
+use crate::server::server::{Server, ServerContext};
+use crate::server::websocket::server::{
+    websocket_server, websockets_server, WebSocketServerContext, WebSocketServerState,
+};
 use crate::storage::cluster::ClusterStorage;
 use crate::subscribe::exclusive::ExclusivePush;
 use crate::subscribe::manager::SubscribeManager;
@@ -78,17 +80,17 @@ pub struct MqttBrokerServer {
 impl MqttBrokerServer {
     pub fn new(params: MqttBrokerServerParams, main_stop: broadcast::Sender<bool>) -> Self {
         let (inner_stop, _) = broadcast::channel(2);
-        let server = Arc::new(Server::new(
-            params.subscribe_manager.clone(),
-            params.cache_manager.clone(),
-            params.connection_manager.clone(),
-            params.message_storage_adapter.clone(),
-            params.delay_message_manager.clone(),
-            params.schema_manager.clone(),
-            params.client_pool.clone(),
-            inner_stop.clone(),
-            params.auth_driver.clone(),
-        ));
+        let server = Arc::new(Server::new(ServerContext {
+            subscribe_manager: params.subscribe_manager.clone(),
+            cache_manager: params.cache_manager.clone(),
+            connection_manager: params.connection_manager.clone(),
+            message_storage_adapter: params.message_storage_adapter.clone(),
+            delay_message_manager: params.delay_message_manager.clone(),
+            schema_manager: params.schema_manager.clone(),
+            client_pool: params.client_pool.clone(),
+            stop_sx: inner_stop.clone(),
+            auth_driver: params.auth_driver.clone(),
+        }));
 
         MqttBrokerServer {
             main_stop,
@@ -206,45 +208,45 @@ impl MqttBrokerServer {
         let schema_manager = self.schema_manager.clone();
         let raw_stop_send = self.inner_stop.clone();
         tokio::spawn(async move {
-            start_quic_server(
+            start_quic_server(QuicServerContext {
                 subscribe_manager,
-                cache,
+                cache_manager: cache,
                 connection_manager,
                 message_storage_adapter,
                 delay_message_manager,
                 client_pool,
-                raw_stop_send,
+                stop_sx: raw_stop_send,
                 auth_driver,
-                schema_manager,
-            )
+                schema_register_manager: schema_manager,
+            })
             .await
         });
 
         // websocket server
-        let ws_state = WebSocketServerState::new(
-            self.subscribe_manager.clone(),
-            self.cache_manager.clone(),
-            self.connection_manager.clone(),
-            self.message_storage_adapter.clone(),
-            self.delay_message_manager.clone(),
-            self.schema_manager.clone(),
-            self.client_pool.clone(),
-            self.auth_driver.clone(),
-            self.inner_stop.clone(),
-        );
+        let ws_state = WebSocketServerState::new(WebSocketServerContext {
+            subscribe_manager: self.subscribe_manager.clone(),
+            cache_manager: self.cache_manager.clone(),
+            connection_manager: self.connection_manager.clone(),
+            message_storage_adapter: self.message_storage_adapter.clone(),
+            delay_message_manager: self.delay_message_manager.clone(),
+            schema_manager: self.schema_manager.clone(),
+            client_pool: self.client_pool.clone(),
+            stop_sx: self.inner_stop.clone(),
+            auth_driver: self.auth_driver.clone(),
+        });
         tokio::spawn(async move { websocket_server(ws_state).await });
 
-        let ws_state = WebSocketServerState::new(
-            self.subscribe_manager.clone(),
-            self.cache_manager.clone(),
-            self.connection_manager.clone(),
-            self.message_storage_adapter.clone(),
-            self.delay_message_manager.clone(),
-            self.schema_manager.clone(),
-            self.client_pool.clone(),
-            self.auth_driver.clone(),
-            self.inner_stop.clone(),
-        );
+        let ws_state = WebSocketServerState::new(WebSocketServerContext {
+            subscribe_manager: self.subscribe_manager.clone(),
+            cache_manager: self.cache_manager.clone(),
+            connection_manager: self.connection_manager.clone(),
+            message_storage_adapter: self.message_storage_adapter.clone(),
+            delay_message_manager: self.delay_message_manager.clone(),
+            schema_manager: self.schema_manager.clone(),
+            client_pool: self.client_pool.clone(),
+            stop_sx: self.inner_stop.clone(),
+            auth_driver: self.auth_driver.clone(),
+        });
 
         tokio::spawn(async move { websockets_server(ws_state).await });
     }

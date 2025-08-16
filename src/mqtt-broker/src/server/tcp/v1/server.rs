@@ -20,7 +20,7 @@ use crate::server::common::channel::RequestChannel;
 use crate::server::common::connection::NetworkConnectionType;
 use crate::server::common::connection_manager::ConnectionManager;
 use crate::server::common::handler::handler_process;
-use crate::server::common::response::response_process;
+use crate::server::common::response::{response_process, ResponseProcessContext};
 use crate::server::tcp::v1::tcp_acceptor::acceptor_process;
 use crate::server::tcp::v1::tls_acceptor::acceptor_tls_process;
 use crate::subscribe::manager::SubscribeManager;
@@ -41,6 +41,18 @@ pub struct ProcessorConfig {
     pub channel_size: usize,
 }
 
+#[derive(Clone)]
+pub struct TcpServerContext {
+    pub connection_manager: Arc<ConnectionManager>,
+    pub subscribe_manager: Arc<SubscribeManager>,
+    pub cache_manager: Arc<CacheManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub command: Command,
+    pub network_type: NetworkConnectionType,
+    pub proc_config: ProcessorConfig,
+    pub stop_sx: broadcast::Sender<bool>,
+}
+
 // U: codec: encoder + decoder
 // S: message storage adapter
 pub struct TcpServer {
@@ -57,32 +69,22 @@ pub struct TcpServer {
 }
 
 impl TcpServer {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        connection_manager: Arc<ConnectionManager>,
-        subscribe_manager: Arc<SubscribeManager>,
-        cache_manager: Arc<CacheManager>,
-        client_pool: Arc<ClientPool>,
-        command: Command,
-        network_type: NetworkConnectionType,
-        proc_config: ProcessorConfig,
-        stop_sx: broadcast::Sender<bool>,
-    ) -> Self {
+    pub fn new(context: TcpServerContext) -> Self {
         info!(
             "network type:{}, process thread num: {:?}",
-            network_type, proc_config
+            context.network_type, context.proc_config
         );
-        let request_channel = Arc::new(RequestChannel::new(proc_config.channel_size));
+        let request_channel = Arc::new(RequestChannel::new(context.proc_config.channel_size));
         let (acceptor_stop_send, _) = broadcast::channel(2);
         Self {
-            network_type,
-            command,
-            cache_manager,
-            client_pool,
-            connection_manager,
-            proc_config,
-            stop_sx,
-            subscribe_manager,
+            network_type: context.network_type,
+            command: context.command,
+            cache_manager: context.cache_manager,
+            client_pool: context.client_pool,
+            connection_manager: context.connection_manager,
+            proc_config: context.proc_config,
+            stop_sx: context.stop_sx,
+            subscribe_manager: context.subscribe_manager,
             request_channel,
             acceptor_stop_send,
         }
@@ -138,20 +140,21 @@ impl TcpServer {
         )
         .await;
 
-        response_process(
-            self.proc_config.response_process_num,
-            self.connection_manager.clone(),
-            self.cache_manager.clone(),
-            self.subscribe_manager.clone(),
-            response_recv_channel,
-            self.client_pool.clone(),
-            self.request_channel.clone(),
-            self.network_type.clone(),
-            self.stop_sx.clone(),
-        )
+        response_process(ResponseProcessContext {
+            response_process_num: self.proc_config.response_process_num,
+            connection_manager: self.connection_manager.clone(),
+            cache_manager: self.cache_manager.clone(),
+            subscribe_manager: self.subscribe_manager.clone(),
+            response_queue_rx: response_recv_channel,
+            client_pool: self.client_pool.clone(),
+            request_channel: self.request_channel.clone(),
+            network_type: self.network_type.clone(),
+            stop_sx: self.stop_sx.clone(),
+        })
         .await;
 
         self.record_pre_server_metrics();
+        println!("{}", 44);
         info!(
             "MQTT {} Server started successfully, listening port: {port}",
             self.network_type

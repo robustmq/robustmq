@@ -24,6 +24,7 @@ use crate::subscribe::manager::SubPushThreadData;
 use crate::subscribe::manager::{ShareLeaderSubscribeData, SubscribeManager};
 use crate::subscribe::push::{
     build_pub_qos, build_publish_message, build_sub_ids, send_publish_packet_to_client,
+    BuildPublishMessageContext,
 };
 use common_base::network::broker_not_available;
 use common_base::tools::now_second;
@@ -182,16 +183,18 @@ impl ShareLeaderPush {
                         }
                     }
                     res = read_message_process(
-                        &connection_manager,
-                        &cache_manager,
-                        &message_storage,
-                        &subscribe_manager,
-                        &share_leader_key,
-                        &sub_data,
-                        &group_id,
-                        offset,
-                        seq,
-                        &sub_thread_stop_sx,
+                        ShareLeaderPushContext {
+                            connection_manager: connection_manager.clone(),
+                            cache_manager: cache_manager.clone(),
+                            message_storage: message_storage.clone(),
+                            subscribe_manager: subscribe_manager.clone(),
+                            share_leader_key: share_leader_key.clone(),
+                            sub_data: sub_data.clone(),
+                            group_id: group_id.clone(),
+                            offset,
+                            seq,
+                            stop_sx: sub_thread_stop_sx.clone(),
+                        }
                     ) =>{
                         match res {
                             Ok((data,seq_num)) => {
@@ -228,21 +231,26 @@ impl ShareLeaderPush {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[derive(Clone)]
+pub struct ShareLeaderPushContext {
+    pub connection_manager: Arc<ConnectionManager>,
+    pub cache_manager: Arc<CacheManager>,
+    pub message_storage: MessageStorage,
+    pub subscribe_manager: Arc<SubscribeManager>,
+    pub share_leader_key: String,
+    pub sub_data: ShareLeaderSubscribeData,
+    pub group_id: String,
+    pub offset: u64,
+    pub seq: u64,
+    pub stop_sx: Sender<bool>,
+}
+
 async fn read_message_process(
-    connection_manager: &Arc<ConnectionManager>,
-    cache_manager: &Arc<CacheManager>,
-    message_storage: &MessageStorage,
-    subscribe_manager: &Arc<SubscribeManager>,
-    share_leader_key: &str,
-    sub_data: &ShareLeaderSubscribeData,
-    group_id: &str,
-    offset: u64,
-    mut seq: u64,
-    stop_sx: &Sender<bool>,
+    mut context: ShareLeaderPushContext,
 ) -> Result<(Option<u64>, u64), MqttBrokerError> {
-    let results = message_storage
-        .read_topic_message(&sub_data.topic_id, offset, 100)
+    let results = context
+        .message_storage
+        .read_topic_message(&context.sub_data.topic_id, context.offset, 100)
         .await?;
 
     let mut push_fn = async |record: &Record| -> ResultMqttBrokerError {
@@ -254,16 +262,18 @@ async fn read_message_process(
 
         let mut times = 0;
         loop {
-            seq += 1;
+            context.seq += 1;
             times += 1;
             if times > 3 {
                 warn!("Shared subscription failed to send messages {} times and the messages were discarded,, offset: {:?}", times, record.offset);
                 break;
             }
 
-            let subscriber = if let Some(subscrbie) =
-                get_subscribe_by_random(subscribe_manager, share_leader_key, seq)
-            {
+            let subscriber = if let Some(subscrbie) = get_subscribe_by_random(
+                &context.subscribe_manager,
+                &context.share_leader_key,
+                context.seq,
+            ) {
                 subscrbie
             } else {
                 warn!("No available subscribers were obtained. Continue looking for the next one, , offset: {:?}", record.offset);
@@ -271,27 +281,27 @@ async fn read_message_process(
                 continue;
             };
 
-            let qos = build_pub_qos(cache_manager, &subscriber);
+            let qos = build_pub_qos(&context.cache_manager, &subscriber);
             let sub_ids = build_sub_ids(&subscriber);
 
             // build publish params
-            let sub_pub_param = match build_publish_message(
-                cache_manager,
-                connection_manager,
-                &subscriber.client_id,
-                record.to_owned(),
-                group_id,
-                &qos,
-                &subscriber,
-                &sub_ids,
-            )
+            let sub_pub_param = match build_publish_message(BuildPublishMessageContext {
+                cache_manager: context.cache_manager.clone(),
+                connection_manager: context.connection_manager.clone(),
+                client_id: subscriber.client_id.clone(),
+                record: record.to_owned(),
+                group_id: context.group_id.clone(),
+                qos,
+                subscriber: subscriber.clone(),
+                sub_ids: sub_ids.clone(),
+            })
             .await
             {
                 Ok(Some(param)) => param,
                 Ok(None) => {
                     warn!(
                         "Build message is empty. group:{}, topic_id:{}, offset: {:?}",
-                        group_id, sub_data.topic_id, record.offset
+                        context.group_id, context.sub_data.topic_id, record.offset
                     );
                     break;
                 }
@@ -305,16 +315,18 @@ async fn read_message_process(
             };
 
             if let Err(e) = send_publish_packet_to_client(
-                connection_manager,
-                cache_manager,
+                &context.connection_manager,
+                &context.cache_manager,
                 &sub_pub_param,
                 &qos,
-                stop_sx,
+                &context.stop_sx,
             )
             .await
             {
                 if broker_not_available(&e.to_string()) {
-                    subscribe_manager.add_not_push_client(&subscriber.client_id);
+                    context
+                        .subscribe_manager
+                        .add_not_push_client(&subscriber.client_id);
                 }
 
                 debug!(
@@ -329,7 +341,13 @@ async fn read_message_process(
         }
 
         // commit offset
-        loop_commit_offset(message_storage, &sub_data.topic_id, group_id, record_offset).await?;
+        loop_commit_offset(
+            &context.message_storage,
+            &context.sub_data.topic_id,
+            &context.group_id,
+            record_offset,
+        )
+        .await?;
         Ok(())
     };
 
@@ -352,17 +370,19 @@ async fn read_message_process(
         }
     }
 
-    subscribe_manager.update_subscribe_leader_push_thread_info(
-        share_leader_key,
-        success_num as u64,
-        error_num as u64,
-    );
+    context
+        .subscribe_manager
+        .update_subscribe_leader_push_thread_info(
+            &context.share_leader_key,
+            success_num as u64,
+            error_num as u64,
+        );
 
     if results.is_empty() {
-        return Ok((None, seq));
+        return Ok((None, context.seq));
     }
 
-    Ok((results.last().unwrap().offset, seq))
+    Ok((results.last().unwrap().offset, context.seq))
 }
 
 fn get_subscribe_by_random(

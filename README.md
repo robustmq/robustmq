@@ -26,7 +26,7 @@
   <a href="#-features">Features</a> •
   <a href="#-architecture">Architecture</a> •
   <a href="#-quick-start">Quick Start</a> •
-  <a href="#-protocols">Protocols</a> •
+  <a href="#-build-script">Build Script</a> •
   <a href="#-documentation">Documentation</a> •
   <a href="#-contributing">Contributing</a> •
   <a href="#-community">Community</a>
@@ -95,13 +95,34 @@ cargo run --package cmd --bin broker-server
 
 #### Option 2: Pre-built Binaries
 
+**Method 1: Manual Download**
+
+Visit the [releases page](https://github.com/robustmq/robustmq/releases) and download the appropriate package for your platform:
+
 ```bash
-# Download and extract
-make build
+# Example for Linux x86_64 (replace with your platform)
+wget https://github.com/robustmq/robustmq/releases/latest/download/robustmq-v0.1.30-linux-amd64.tar.gz
+
+# Extract the package
+tar -xzf robustmq-v0.1.30-linux-amd64.tar.gz
+cd robustmq-v0.1.30-linux-amd64
 
 # Run the server
-cd build/robustmq-0.1.25
-bin/robust-server start
+./bin/robust-server start
+```
+
+**Available platforms**: `linux-amd64`, `linux-arm64`, `darwin-amd64`, `darwin-arm64`, `windows-amd64`
+
+**Method 2: Automated Install Script** (Recommended)
+
+```bash
+# Download and install automatically
+curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
+
+# Or download the script first to review it
+wget https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh
+chmod +x install.sh
+./install.sh --help  # See available options
 ```
 
 #### Option 3: Docker (Coming Soon)
@@ -118,25 +139,55 @@ Once RobustMQ is running, you should see output similar to:
 
 You can verify the installation by connecting with any MQTT client to `localhost:1883` or using the web console.
 
-## 🔌 Supported Protocols
+## 🔧 Build Script
 
-### MQTT (Message Queuing Telemetry Transport)
+RobustMQ provides a powerful build script (`scripts/build.sh`) for creating distribution packages:
 
-- **Versions**: 3.1, 3.1.1, 5.0
-- **Features**: QoS levels, retained messages, last will, shared subscriptions
-- **Ports**: 1883 (TCP), 1884 (SSL), 8083 (WebSocket), 8084 (WSS)
+### Quick Usage
 
-### Apache Kafka Protocol
+```bash
+# Build for current platform (default: server component only)
+./scripts/build.sh
 
-- **Compatibility**: Kafka 2.8+ wire protocol
-- **Features**: Topics, partitions, consumer groups, transactions
-- **Port**: 9092
+# Build for specific platform
+./scripts/build.sh --platform linux-amd64
 
-### AMQP (Advanced Message Queuing Protocol)
+# Build for all platforms
+./scripts/build.sh --platform all
 
-- **Version**: 1.0
-- **Features**: Exchanges, queues, routing, transactions
-- **Port**: 5672
+# Build specific component
+./scripts/build.sh --component operator
+
+# Build with custom version
+./scripts/build.sh --version v1.0.0
+
+# Show all options
+./scripts/build.sh --help
+```
+
+### Available Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-p, --platform` | Target platform | auto-detect |
+| `-c, --component` | Component to build | server |
+| `-v, --version` | Build version | git describe |
+| `-t, --build-type` | Build type (release/debug) | release |
+| `-o, --output` | Output directory | build/ |
+| `--all-platforms` | Build for all supported platforms | - |
+
+### Supported Platforms
+
+- **Linux**: `linux-amd64`, `linux-arm64`, `linux-386`, `linux-armv7`
+- **macOS**: `darwin-amd64`, `darwin-arm64`
+- **Windows**: `windows-amd64`, `windows-386`
+- **FreeBSD**: `freebsd-amd64`
+
+### Output
+
+Built packages are saved to `build/` directory with format:
+- **Server**: `robustmq-{version}-{platform}.tar.gz`
+- **Operator**: `robustmq-operator-{version}-{platform}.tar.gz`
 
 ## 📚 Documentation
 
@@ -191,7 +242,7 @@ Join our growing community of developers, users, and contributors:
 - **微信群**: Join our WeChat group for Chinese-speaking users
   
   <div align="center">
-    <img src="docs/images/wechat-group.jpg" alt="WeChat Group QR Code" width="200" />
+    <img src="docs/images/wechat-group.png" alt="WeChat Group QR Code" width="200" />
   </div>
 
 - **个人微信**: If the group QR code has expired, add the developer's personal WeChat:

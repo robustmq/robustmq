@@ -52,6 +52,7 @@ use std::{sync::Arc, thread::sleep, time::Duration};
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 use tracing::{error, info};
 
+mod cluster_service;
 pub mod common;
 mod grpc;
 mod metrics;

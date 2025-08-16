@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::flow_control::is_qos_message;
-use super::mqtt::MqttService;
+use super::mqtt::{MqttService, MqttServiceConnectContext, MqttServiceContext};
 use crate::handler::cache::CacheManager;
 use crate::handler::response::{
     response_packet_mqtt_connect_fail, response_packet_mqtt_distinct_by_reason,
@@ -40,64 +40,70 @@ pub struct Command {
     mqtt4_service: MqttService,
     mqtt5_service: MqttService,
     metadata_cache: Arc<CacheManager>,
+    connection_manager: Arc<ConnectionManager>,
+}
+
+#[derive(Clone)]
+pub struct CommandContext {
+    pub cache_manager: Arc<CacheManager>,
+    pub message_storage_adapter: ArcStorageAdapter,
+    pub delay_message_manager: Arc<DelayMessageManager>,
+    pub subscribe_manager: Arc<SubscribeManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub schema_manager: Arc<SchemaRegisterManager>,
+    pub auth_driver: Arc<AuthDriver>,
 }
 
 impl Command {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        cache_manager: Arc<CacheManager>,
-        message_storage_adapter: ArcStorageAdapter,
-        delay_message_manager: Arc<DelayMessageManager>,
-        subscribe_manager: Arc<SubscribeManager>,
-        client_pool: Arc<ClientPool>,
-        connection_manager: Arc<ConnectionManager>,
-        schema_manager: Arc<SchemaRegisterManager>,
-        auth_driver: Arc<AuthDriver>,
-    ) -> Self {
-        let mqtt3_service = MqttService::new(
-            MqttProtocol::Mqtt3,
-            cache_manager.clone(),
-            connection_manager.clone(),
-            message_storage_adapter.clone(),
-            delay_message_manager.clone(),
-            subscribe_manager.clone(),
-            schema_manager.clone(),
-            client_pool.clone(),
-            auth_driver.clone(),
-        );
-        let mqtt4_service = MqttService::new(
-            MqttProtocol::Mqtt4,
-            cache_manager.clone(),
-            connection_manager.clone(),
-            message_storage_adapter.clone(),
-            delay_message_manager.clone(),
-            subscribe_manager.clone(),
-            schema_manager.clone(),
-            client_pool.clone(),
-            auth_driver.clone(),
-        );
-        let mqtt5_service = MqttService::new(
-            MqttProtocol::Mqtt5,
-            cache_manager.clone(),
-            connection_manager.clone(),
-            message_storage_adapter.clone(),
-            delay_message_manager.clone(),
-            subscribe_manager.clone(),
-            schema_manager.clone(),
-            client_pool.clone(),
-            auth_driver.clone(),
-        );
+    pub fn new(context: CommandContext) -> Self {
+        let mqtt3_context = MqttServiceContext {
+            protocol: MqttProtocol::Mqtt3,
+            cache_manager: context.cache_manager.clone(),
+            connection_manager: context.connection_manager.clone(),
+            message_storage_adapter: context.message_storage_adapter.clone(),
+            delay_message_manager: context.delay_message_manager.clone(),
+            subscribe_manager: context.subscribe_manager.clone(),
+            schema_manager: context.schema_manager.clone(),
+            client_pool: context.client_pool.clone(),
+            auth_driver: context.auth_driver.clone(),
+        };
+        let mqtt3_service = MqttService::new(mqtt3_context);
+        let mqtt4_context = MqttServiceContext {
+            protocol: MqttProtocol::Mqtt4,
+            cache_manager: context.cache_manager.clone(),
+            connection_manager: context.connection_manager.clone(),
+            message_storage_adapter: context.message_storage_adapter.clone(),
+            delay_message_manager: context.delay_message_manager.clone(),
+            subscribe_manager: context.subscribe_manager.clone(),
+            schema_manager: context.schema_manager.clone(),
+            client_pool: context.client_pool.clone(),
+            auth_driver: context.auth_driver.clone(),
+        };
+        let mqtt4_service = MqttService::new(mqtt4_context);
+        let mqtt5_context = MqttServiceContext {
+            protocol: MqttProtocol::Mqtt5,
+            cache_manager: context.cache_manager.clone(),
+            connection_manager: context.connection_manager.clone(),
+            message_storage_adapter: context.message_storage_adapter.clone(),
+            delay_message_manager: context.delay_message_manager.clone(),
+            subscribe_manager: context.subscribe_manager.clone(),
+            schema_manager: context.schema_manager.clone(),
+            client_pool: context.client_pool.clone(),
+            auth_driver: context.auth_driver.clone(),
+        };
+        let mqtt5_service = MqttService::new(mqtt5_context);
         Command {
             mqtt3_service,
             mqtt4_service,
             mqtt5_service,
-            metadata_cache: cache_manager,
+            metadata_cache: context.cache_manager,
+            connection_manager: context.connection_manager,
         }
     }
 
     pub async fn apply(
         &mut self,
-        connect_manager: &Arc<ConnectionManager>,
         tcp_connection: &NetworkConnection,
         addr: &SocketAddr,
         packet: &MqttPacket,
@@ -123,53 +129,44 @@ impl Command {
                 last_will_properties,
                 login,
             ) => {
-                connect_manager.set_connect_protocol(
+                self.connection_manager.set_connect_protocol(
                     tcp_connection.connection_id,
                     protocol_version.to_owned(),
                 );
 
                 let resp_pkg = if is_mqtt3(protocol_version.to_owned()) {
-                    Some(
-                        self.mqtt3_service
-                            .connect(
-                                tcp_connection.connection_id,
-                                connect,
-                                properties,
-                                last_will,
-                                last_will_properties,
-                                login,
-                                addr,
-                            )
-                            .await,
-                    )
+                    let connect_context = MqttServiceConnectContext {
+                        connect_id: tcp_connection.connection_id,
+                        connect: connect.clone(),
+                        connect_properties: properties.clone(),
+                        last_will: last_will.clone(),
+                        last_will_properties: last_will_properties.clone(),
+                        login: login.clone(),
+                        addr: *addr,
+                    };
+                    Some(self.mqtt3_service.connect(connect_context).await)
                 } else if is_mqtt4(protocol_version.to_owned()) {
-                    Some(
-                        self.mqtt4_service
-                            .connect(
-                                tcp_connection.connection_id,
-                                connect,
-                                properties,
-                                last_will,
-                                last_will_properties,
-                                login,
-                                addr,
-                            )
-                            .await,
-                    )
+                    let connect_context = MqttServiceConnectContext {
+                        connect_id: tcp_connection.connection_id,
+                        connect: connect.clone(),
+                        connect_properties: properties.clone(),
+                        last_will: last_will.clone(),
+                        last_will_properties: last_will_properties.clone(),
+                        login: login.clone(),
+                        addr: *addr,
+                    };
+                    Some(self.mqtt4_service.connect(connect_context).await)
                 } else if is_mqtt5(protocol_version.to_owned()) {
-                    Some(
-                        self.mqtt5_service
-                            .connect(
-                                tcp_connection.connection_id,
-                                connect,
-                                properties,
-                                last_will,
-                                last_will_properties,
-                                login,
-                                addr,
-                            )
-                            .await,
-                    )
+                    let connect_context = MqttServiceConnectContext {
+                        connect_id: tcp_connection.connection_id,
+                        connect: connect.clone(),
+                        connect_properties: properties.clone(),
+                        last_will: last_will.clone(),
+                        last_will_properties: last_will_properties.clone(),
+                        login: login.clone(),
+                        addr: *addr,
+                    };
+                    Some(self.mqtt5_service.connect(connect_context).await)
                 } else {
                     return Some(response_packet_mqtt_connect_fail(
                         &MqttProtocol::Mqtt4,

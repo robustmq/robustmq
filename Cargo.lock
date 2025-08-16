@@ -83,7 +83,7 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "amqp-broker"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "axum",
  "bytes",
@@ -539,7 +539,7 @@ dependencies = [
 
 [[package]]
 name = "broker-server"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "axum",
  "bytes",
@@ -797,7 +797,7 @@ checksum = "b94f61472cee1439c0b966b47e3aca9ae07e45d070759512cd390ea2bebc6675"
 
 [[package]]
 name = "cli-bench"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "axum",
  "clap",
@@ -817,7 +817,7 @@ dependencies = [
 
 [[package]]
 name = "cli-command"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "axum",
  "bytes",
@@ -844,7 +844,7 @@ dependencies = [
 
 [[package]]
 name = "cmd"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "broker-server",
  "clap",
@@ -879,7 +879,7 @@ dependencies = [
 
 [[package]]
 name = "common-base"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "anyhow",
  "apache-avro",
@@ -923,7 +923,7 @@ dependencies = [
 
 [[package]]
 name = "common-config"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "bytes",
  "common-base",
@@ -1242,7 +1242,7 @@ dependencies = [
 
 [[package]]
 name = "delay-message"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "axum",
  "bytes",
@@ -1843,7 +1843,7 @@ dependencies = [
 
 [[package]]
 name = "grpc-clients"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "axum",
  "bytes",
@@ -2402,7 +2402,7 @@ dependencies = [
 
 [[package]]
 name = "journal-client"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "axum",
  "bytes",
@@ -2422,7 +2422,7 @@ dependencies = [
 
 [[package]]
 name = "journal-server"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "axum",
  "bytes",
@@ -2481,7 +2481,7 @@ dependencies = [
 
 [[package]]
 name = "kafka-broker"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "axum",
  "bytes",
@@ -2753,7 +2753,7 @@ dependencies = [
 
 [[package]]
 name = "message-expire"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "apache-avro",
  "axum",
@@ -2777,7 +2777,7 @@ dependencies = [
 
 [[package]]
 name = "meta-service"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "async-stream",
  "axum",
@@ -2812,7 +2812,7 @@ dependencies = [
 
 [[package]]
 name = "metadata-struct"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "bytes",
  "common-base",
@@ -2915,7 +2915,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt-broker"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -3295,6 +3295,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d05e27ee213611ffe7d6348b942e8f942b37114c00cc03cec254295a4a17852e"
 
 [[package]]
+name = "openssl-sys"
+version = "0.9.109"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90096e2e47630d78b7d1c20952dc621f957103f8bc2c8359ec81290d75238571"
+dependencies = [
+ "cc",
+ "libc",
+ "pkg-config",
+ "vcpkg",
+]
+
+[[package]]
 name = "opentelemetry"
 version = "0.27.1"
 source = "git+https://github.com/open-telemetry/opentelemetry-rust.git?rev=b6783a10984146c62ceaa6997fef1385d2ee5ae8#b6783a10984146c62ceaa6997fef1385d2ee5ae8"
@@ -3431,6 +3443,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4d3094e35ab92c9ffa90775d8faad0e8ecac0a0ed4c409c3e683cbf84f784287"
 dependencies = [
  "cmake",
+ "openssl-sys",
 ]
 
 [[package]]
@@ -3675,7 +3688,7 @@ dependencies = [
 
 [[package]]
 name = "pprof-monitor"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "axum",
  "bytes",
@@ -4073,7 +4086,7 @@ dependencies = [
 
 [[package]]
 name = "protocol"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "axum",
  "bincode",
@@ -4587,7 +4600,7 @@ checksum = "3582f63211428f83597b51b2ddb88e2a91a9d52d12831f9d08f5e624e8977422"
 
 [[package]]
 name = "robustmq-macro"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "async-trait",
  "macrotest",
@@ -4602,7 +4615,7 @@ dependencies = [
 [[package]]
 name = "robustmq-proto-build"
 version = "0.1.0"
-source = "git+https://github.com/robustmq/robustmq-proto.git?branch=main#0bca5812d9e1ac4311f21613515dd20ee8aa4755"
+source = "git+https://github.com/robustmq/robustmq-proto.git?branch=main#7665ee9fda60a28cae08c987757fa08006ba9e7b"
 dependencies = [
  "prost-build",
  "prost-validate-build",
@@ -4611,7 +4624,7 @@ dependencies = [
 
 [[package]]
 name = "robustmq-test"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "apache-avro",
  "axum",
@@ -4651,7 +4664,7 @@ dependencies = [
 
 [[package]]
 name = "rocksdb-engine"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "common-base",
  "common-config",
@@ -4900,7 +4913,7 @@ dependencies = [
 
 [[package]]
 name = "schema-register"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "apache-avro",
  "axum",
@@ -5204,7 +5217,7 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
 name = "storage-adapter"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "axum",
  "bytes",
@@ -5434,7 +5447,7 @@ checksum = "8f50febec83f5ee1df3015341d8bd429f2d1cc62bcba7ea2076759d315084683"
 
 [[package]]
 name = "third-driver"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "common-base",
  "mysql",

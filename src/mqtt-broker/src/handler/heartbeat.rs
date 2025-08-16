@@ -24,7 +24,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 pub async fn register_node(
     client_pool: &Arc<ClientPool>,
@@ -92,7 +92,7 @@ pub async fn check_placement_center_status(client_pool: Arc<ClientPool>) {
                 sleep(Duration::from_secs(1)).await;
             }
             Err(e) => {
-                warn!(" cluster is not yet ready. Error message: {}", e);
+                debug!(" cluster is not yet ready. Error message: {}", e);
                 sleep(Duration::from_secs(1)).await;
             }
         }

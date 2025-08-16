@@ -96,18 +96,23 @@ pub fn connect_server(client_properties: &ClientTestProperties) -> Client {
     let create_opts = build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
     println!("{client_properties:?}");
     let cli_res = Client::new(create_opts);
-    assert!(cli_res.is_ok());
-    let cli = cli_res.unwrap();
-
-    let conn_opts = build_conn_pros(client_properties.clone(), client_properties.err_pwd);
-    let result = cli.connect(conn_opts);
-    print!("result:{result:?}");
-    if client_properties.conn_is_err {
-        assert!(result.is_err());
+    if let Err(e) = cli_res {
+        panic!("{:?}", e);
     } else {
-        assert!(result.is_ok());
+        let cli = cli_res.unwrap();
+
+        let conn_opts = build_conn_pros(client_properties.clone(), client_properties.err_pwd);
+        let result = cli.connect(conn_opts);
+        if result.is_err() {
+            print!("result:{result:?}");
+        }
+        if client_properties.conn_is_err {
+            assert!(result.is_err());
+        } else {
+            assert!(result.is_ok());
+        }
+        cli
     }
-    cli
 }
 
 pub fn publish_data(cli: &Client, message: Message, is_err: bool) {
@@ -174,12 +179,9 @@ pub fn subscribe_data_with_options<S, T, P, F>(
 
     loop {
         let res = rx.recv_timeout(Duration::from_secs(10));
-        if let Ok(msg_opt) = res {
-            if msg_opt.is_some() {
-                let msg = msg_opt.unwrap();
-                if call_fn(msg) {
-                    break;
-                }
+        if let Ok(Some(msg)) = res {
+            if call_fn(msg) {
+                break;
             }
         }
     }
@@ -263,11 +265,9 @@ pub fn build_v5_conn_pros(
         ConnectOptionsBuilder::new_v5()
     };
     if client_test_properties.ssl {
+        let ssl_path = get_cargo_manifest_dir();
         let ssl_opts = SslOptionsBuilder::new()
-            .trust_store(format!(
-                "{}/../config/example/certs/ca.pem",
-                env!("CARGO_MANIFEST_DIR")
-            ))
+            .trust_store(ssl_path)
             .unwrap()
             .verify(false)
             .disable_default_trust_store(false)
@@ -342,10 +342,7 @@ pub fn build_v34_conn_pros(
 }
 
 fn get_cargo_manifest_dir() -> String {
-    format!(
-        "{}/../config/example/certs/ca.pem",
-        env!("CARGO_MANIFEST_DIR")
-    )
+    format!("{}/../config/certs/ca.pem", env!("CARGO_MANIFEST_DIR"))
 }
 
 pub fn kee_alive_interval() -> u64 {
