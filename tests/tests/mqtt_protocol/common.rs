@@ -32,9 +32,9 @@ pub fn protocol_versions() -> Vec<u32> {
 
 pub fn network_types() -> Vec<String> {
     vec![
-        // "tcp".to_string(),
-        // "ws".to_string(),
-        // "wss".to_string(),
+        "tcp".to_string(),
+        "ws".to_string(),
+        "wss".to_string(),
         "ssl".to_string(),
     ]
 }
@@ -94,7 +94,6 @@ pub fn build_conn_pros(
 
 pub fn connect_server(client_properties: &ClientTestProperties) -> Client {
     let create_opts = build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
-    println!("{create_opts:?}");
     println!("{client_properties:?}");
     let cli_res = Client::new(create_opts);
     if let Err(e) = cli_res {
@@ -104,7 +103,9 @@ pub fn connect_server(client_properties: &ClientTestProperties) -> Client {
 
         let conn_opts = build_conn_pros(client_properties.clone(), client_properties.err_pwd);
         let result = cli.connect(conn_opts);
-        print!("result:{result:?}");
+        if result.is_err(){
+            print!("result:{result:?}");
+        }
         if client_properties.conn_is_err {
             assert!(result.is_err());
         } else {
@@ -264,11 +265,7 @@ pub fn build_v5_conn_pros(
         ConnectOptionsBuilder::new_v5()
     };
     if client_test_properties.ssl {
-        let ssl_path = format!(
-                "{}/../config/certs/ca.pem",
-                env!("CARGO_MANIFEST_DIR")
-            );
-        println!("{}",ssl_path);
+        let ssl_path = get_cargo_manifest_dir();
         let ssl_opts = SslOptionsBuilder::new()
             .trust_store(ssl_path)
             .unwrap()
@@ -346,7 +343,7 @@ pub fn build_v34_conn_pros(
 
 fn get_cargo_manifest_dir() -> String {
     format!(
-        "{}/../config/example/certs/ca.pem",
+        "{}/../config/certs/ca.pem",
         env!("CARGO_MANIFEST_DIR")
     )
 }
