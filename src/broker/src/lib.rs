@@ -46,6 +46,7 @@ use mqtt_broker::{
     subscribe::manager::SubscribeManager,
 };
 use openraft::Raft;
+use pprof_monitor::pprof_monitor::start_pprof_monitor;
 use schema_register::schema::SchemaRegisterManager;
 use std::{sync::Arc, thread::sleep, time::Duration};
 use tokio::{runtime::Runtime, signal, sync::broadcast};
@@ -118,6 +119,14 @@ impl BrokerServer {
                 start_grpc_server(place_params, mqtt_params, journal_params, grpc_port).await
             {
                 panic!("{e}")
+            }
+        });
+
+        // start pprof server
+        server_runtime.spawn(async move {
+            let conf = broker_config();
+            if conf.p_prof.enable {
+                start_pprof_monitor(conf.p_prof.port, conf.p_prof.frequency).await;
             }
         });
 

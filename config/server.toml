@@ -22,6 +22,11 @@ placement_center = { 1 = "127.0.0.1:1228" }
 data_path = "./data/broker/data"
 max_open_files = 10000
 
+[p_prof]
+enable = true
+port = 6777
+frequency = 1000
+
 [log]
 log_config = "./config/server-tracing.toml"
 log_path = "./data/broker/logs"

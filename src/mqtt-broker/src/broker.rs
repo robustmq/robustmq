@@ -39,7 +39,6 @@ use crate::subscribe::share::leader::ShareLeaderPush;
 use common_config::broker::broker_config;
 use delay_message::{start_delay_message_manager, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
-use pprof_monitor::pprof_monitor::start_pprof_monitor;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
@@ -188,14 +187,6 @@ impl MqttBrokerServer {
     }
 
     fn start_server(&self) {
-        // pprof server
-        let conf = broker_config();
-        if conf.p_prof.enable {
-            tokio::spawn(async move {
-                start_pprof_monitor(conf.p_prof.port, conf.p_prof.frequency).await;
-            });
-        }
-
         // mqtt tcp server
         let server = self.server.clone();
         tokio::spawn(async move {
