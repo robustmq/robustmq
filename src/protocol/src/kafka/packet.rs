@@ -18,20 +18,20 @@ use kafka_protocol::messages::{
     RequestHeader, ResponseHeader,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct KafkaPacketWrapper {
     pub api_version: i16,
     pub header: KafkaHeader,
     pub packet: KafkaPacket,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum KafkaHeader {
     Request(RequestHeader),
     Response(ResponseHeader),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum KafkaPacket {
     ProduceReq(ProduceRequest),
     ProduceResponse(ProduceResponse),

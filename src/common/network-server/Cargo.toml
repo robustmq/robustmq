@@ -13,32 +13,21 @@
 # limitations under the License.
 
 [package]
-name = "broker-server"
+name = "network-server"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
-
 [dependencies]
-bytes.workspace = true
-axum.workspace = true
-thiserror.workspace = true
-mqtt-broker.workspace = true
-meta-service.workspace = true
-tonic.workspace = true
-tower-http = { workspace = true, features = ["cors"] }
-tonic-web.workspace = true
 tokio.workspace = true
-common-base.workspace = true
-tower.workspace = true
 protocol.workspace = true
-common-config.workspace = true
-openraft.workspace = true
-grpc-clients.workspace = true
-tracing-appender.workspace = true
-delay-message.workspace = true
-schema-register.workspace = true
+serde.workspace = true
+common-base.workspace = true
 tracing.workspace = true
-serde_json.workspace = true
-journal-server.workspace = true
-pprof-monitor.workspace = true
+dashmap.workspace = true
+axum.workspace = true
+futures.workspace = true
+tokio-util.workspace = true
+tokio-rustls.workspace = true
+quinn.workspace = true
+bytes.workspace = true

@@ -60,7 +60,6 @@ rcgen.workspace = true
 rustls-pki-types.workspace = true
 rustls.workspace = true
 rdkafka.workspace = true
-pprof-monitor.workspace = true
 humantime.workspace = true
 sysinfo.workspace = true
 tracing-appender.workspace = true
