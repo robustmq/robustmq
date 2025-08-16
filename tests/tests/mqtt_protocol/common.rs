@@ -97,13 +97,13 @@ pub fn connect_server(client_properties: &ClientTestProperties) -> Client {
     println!("{client_properties:?}");
     let cli_res = Client::new(create_opts);
     if let Err(e) = cli_res {
-        panic!("{:?}",e);
+        panic!("{:?}", e);
     } else {
         let cli = cli_res.unwrap();
 
         let conn_opts = build_conn_pros(client_properties.clone(), client_properties.err_pwd);
         let result = cli.connect(conn_opts);
-        if result.is_err(){
+        if result.is_err() {
             print!("result:{result:?}");
         }
         if client_properties.conn_is_err {
@@ -111,7 +111,7 @@ pub fn connect_server(client_properties: &ClientTestProperties) -> Client {
         } else {
             assert!(result.is_ok());
         }
-        return cli;
+        cli
     }
 }
 
@@ -342,10 +342,7 @@ pub fn build_v34_conn_pros(
 }
 
 fn get_cargo_manifest_dir() -> String {
-    format!(
-        "{}/../config/certs/ca.pem",
-        env!("CARGO_MANIFEST_DIR")
-    )
+    format!("{}/../config/certs/ca.pem", env!("CARGO_MANIFEST_DIR"))
 }
 
 pub fn kee_alive_interval() -> u64 {
