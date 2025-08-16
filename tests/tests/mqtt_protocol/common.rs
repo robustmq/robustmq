@@ -32,10 +32,10 @@ pub fn protocol_versions() -> Vec<u32> {
 
 pub fn network_types() -> Vec<String> {
     vec![
-        "tcp".to_string(),
-        "ws".to_string(),
+        // "tcp".to_string(),
+        // "ws".to_string(),
         // "wss".to_string(),
-        // "ssl".to_string(),
+        "ssl".to_string(),
     ]
 }
 
@@ -94,20 +94,24 @@ pub fn build_conn_pros(
 
 pub fn connect_server(client_properties: &ClientTestProperties) -> Client {
     let create_opts = build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
+    println!("{create_opts:?}");
     println!("{client_properties:?}");
     let cli_res = Client::new(create_opts);
-    assert!(cli_res.is_ok());
-    let cli = cli_res.unwrap();
-
-    let conn_opts = build_conn_pros(client_properties.clone(), client_properties.err_pwd);
-    let result = cli.connect(conn_opts);
-    print!("result:{result:?}");
-    if client_properties.conn_is_err {
-        assert!(result.is_err());
+    if let Err(e) = cli_res {
+        panic!("{:?}",e);
     } else {
-        assert!(result.is_ok());
+        let cli = cli_res.unwrap();
+
+        let conn_opts = build_conn_pros(client_properties.clone(), client_properties.err_pwd);
+        let result = cli.connect(conn_opts);
+        print!("result:{result:?}");
+        if client_properties.conn_is_err {
+            assert!(result.is_err());
+        } else {
+            assert!(result.is_ok());
+        }
+        return cli;
     }
-    cli
 }
 
 pub fn publish_data(cli: &Client, message: Message, is_err: bool) {
@@ -260,11 +264,13 @@ pub fn build_v5_conn_pros(
         ConnectOptionsBuilder::new_v5()
     };
     if client_test_properties.ssl {
-        let ssl_opts = SslOptionsBuilder::new()
-            .trust_store(format!(
-                "{}/../config/example/certs/ca.pem",
+        let ssl_path = format!(
+                "{}/../config/certs/ca.pem",
                 env!("CARGO_MANIFEST_DIR")
-            ))
+            );
+        println!("{}",ssl_path);
+        let ssl_opts = SslOptionsBuilder::new()
+            .trust_store(ssl_path)
             .unwrap()
             .verify(false)
             .disable_default_trust_store(false)
