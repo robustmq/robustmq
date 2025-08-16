@@ -3295,6 +3295,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d05e27ee213611ffe7d6348b942e8f942b37114c00cc03cec254295a4a17852e"
 
 [[package]]
+name = "openssl-sys"
+version = "0.9.109"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90096e2e47630d78b7d1c20952dc621f957103f8bc2c8359ec81290d75238571"
+dependencies = [
+ "cc",
+ "libc",
+ "pkg-config",
+ "vcpkg",
+]
+
+[[package]]
 name = "opentelemetry"
 version = "0.27.1"
 source = "git+https://github.com/open-telemetry/opentelemetry-rust.git?rev=b6783a10984146c62ceaa6997fef1385d2ee5ae8#b6783a10984146c62ceaa6997fef1385d2ee5ae8"
@@ -3431,6 +3443,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4d3094e35ab92c9ffa90775d8faad0e8ecac0a0ed4c409c3e683cbf84f784287"
 dependencies = [
  "cmake",
+ "openssl-sys",
 ]
 
 [[package]]

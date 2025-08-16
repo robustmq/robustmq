@@ -43,12 +43,12 @@ prefix = "journal"
 suffix = "log"
 max_log_files = 50
 
-[place]
+[meta]
 kind = "rolling_file"
-targets = [{ path = "placement_center", level = "info" }]
+targets = [{ path = "meeta_service", level = "info" }]
 rotation = "daily"
 directory = "./data/broker/logs"
-prefix = "place"
+prefix = "meta"
 suffix = "log"
 max_log_files = 50
 
@@ -96,8 +96,8 @@ targets = [
     { path = "openraft", level = "info" },
     { path = "openraft::engine", level = "off" },
 ]
-rotation = "minutely"
-directory = "./data/placement-center/logs"
+rotation = "daily"
+directory = "./data/meta-service/logs"
 prefix = "openraft-except-engine"
 suffix = "log"
 max_log_files = 10
