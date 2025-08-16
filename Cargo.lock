@@ -3099,6 +3099,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "network-server"
+version = "0.1.30"
+dependencies = [
+ "axum",
+ "bytes",
+ "common-base",
+ "dashmap",
+ "futures",
+ "protocol",
+ "quinn",
+ "serde",
+ "tokio",
+ "tokio-rustls 0.26.2",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
 name = "nix"
 version = "0.26.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"

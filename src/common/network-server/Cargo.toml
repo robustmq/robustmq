@@ -12,21 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-cluster_name = "broker-server"
-broker_id = 1
-roles = ["meta", "broker"]
-grpc_port = 1228
-placement_center = { 1 = "127.0.0.1:1228" }
+[package]
+name = "network-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 
-[rocksdb]
-data_path = "./data/broker/data"
-max_open_files = 10000
-
-[p_prof]
-enable = false
-port = 6777
-frequency = 1000
-
-[log]
-log_config = "./config/server-tracing.toml"
-log_path = "./data/broker/logs"
+[dependencies]
+tokio.workspace = true
+protocol.workspace = true
+serde.workspace = true
+common-base.workspace = true
+tracing.workspace = true
+dashmap.workspace = true
+axum.workspace = true
+futures.workspace = true
+tokio-util.workspace = true
+tokio-rustls.workspace = true
+quinn.workspace = true
+bytes.workspace = true
