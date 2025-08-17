@@ -28,7 +28,7 @@ use strum_macros::{Display, EnumString};
 #[derive(Default, EnumString, Display)]
 pub enum ClusterDynamicConfig {
     #[default]
-    MqttSlowSub,
+    MqttSlowSubscribeConfig,
     MqttFlappingDetect,
     MqttProtocol,
     MqttOfflineMessage,
@@ -137,7 +137,7 @@ pub async fn build_cluster_config(
         conf.mqtt_security = data;
     }
 
-    if let Some(data) = get_slow_sub(client_pool).await? {
+    if let Some(data) = get_slow_subscribe_config(client_pool).await? {
         conf.mqtt_slow_subscribe_config = data;
     }
 
@@ -166,9 +166,9 @@ pub async fn update_cluster_dynamic_config(
     config: Vec<u8>,
 ) -> ResultMqttBrokerError {
     match resource_type {
-        ClusterDynamicConfig::MqttSlowSub => {
-            let slow_sub = serde_json::from_slice(&config)?;
-            cache_manager.update_slow_sub_config(slow_sub);
+        ClusterDynamicConfig::MqttSlowSubscribeConfig => {
+            let slow_subscribe_config = serde_json::from_slice(&config)?;
+            cache_manager.update_slow_sub_config(slow_subscribe_config);
         }
         ClusterDynamicConfig::MqttFlappingDetect => {
             let flapping_detect = serde_json::from_slice(&config)?;
@@ -248,7 +248,7 @@ async fn get_security_config(
     Ok(None)
 }
 
-async fn get_slow_sub(
+async fn get_slow_subscribe_config(
     client_pool: &Arc<ClientPool>,
 ) -> Result<Option<MqttSlowSubscribeConfig>, MqttBrokerError> {
     let conf = broker_config();
@@ -256,7 +256,7 @@ async fn get_slow_sub(
     let data = cluster_storage
         .get_dynamic_config(
             &conf.cluster_name,
-            &ClusterDynamicConfig::MqttSlowSub.to_string(),
+            &ClusterDynamicConfig::MqttSlowSubscribeConfig.to_string(),
         )
         .await?;
     if !data.is_empty() {
