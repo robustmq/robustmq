@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::connection::{NetworkConnection, NetworkConnectionType};
 use crate::packet::{RobustMQPacket, RobustMQPacketWrapper};
-use crate::protocol::RobustMQProtocol;
 use crate::quic::stream::QuicMQTTFramedWriteStream;
 use crate::tool::is_ignore_print;
 use axum::extract::ws::{Message, WebSocket};
@@ -23,6 +21,8 @@ use common_base::network::broker_not_available;
 use dashmap::DashMap;
 use futures::stream::SplitSink;
 use futures::SinkExt;
+use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
+use metadata_struct::protocol::RobustMQProtocol;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use std::time::Duration;
 use tokio::time::sleep;

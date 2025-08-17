@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use crate::channel::RequestChannel;
-use crate::connection::NetworkConnectionType;
+use crate::command::ArcCommandAdapter;
 use crate::connection_manager::ConnectionManager;
-use crate::handler::command::Command;
 use crate::packet::{RequestPackage, ResponsePackage};
 use common_base::tools::now_mills;
+use metadata_struct::connection::NetworkConnectionType;
 use protocol::mqtt::common::mqtt_packet_to_string;
 use std::sync::Arc;
 use std::time::Duration;
@@ -31,7 +31,7 @@ pub(crate) async fn handler_process(
     handler_process_num: usize,
     mut request_queue_rx: Receiver<RequestPackage>,
     connection_manager: Arc<ConnectionManager>,
-    command: Command,
+    command: ArcCommandAdapter,
     request_channel: Arc<RequestChannel>,
     network_type: NetworkConnectionType,
     stop_sx: broadcast::Sender<bool>,
@@ -94,7 +94,7 @@ fn handler_child_process(
     handler_process_num: usize,
     connection_manager: Arc<ConnectionManager>,
     request_channel: Arc<RequestChannel>,
-    command: Command,
+    command: ArcCommandAdapter,
     network_type: NetworkConnectionType,
     stop_sx: broadcast::Sender<bool>,
 ) {
@@ -103,7 +103,7 @@ fn handler_child_process(
             request_channel.create_handler_child_channel(&network_type, index);
         let raw_connect_manager = connection_manager.clone();
         let request_channel = request_channel.clone();
-        let mut raw_command = command.clone();
+        let raw_command = command.clone();
         let mut raw_stop_rx = stop_sx.subscribe();
 
         let raw_network_type = network_type.clone();
@@ -124,20 +124,20 @@ fn handler_child_process(
                     },
                     val = child_process_rx.recv()=>{
                         if let Some(packet) = val{
-                            let label = format!("handler-{index}");
+                            // let label = format!("handler-{index}");
                             // metrics_request_queue_size(&label, child_process_rx.len());
                             if let Some(connect) = raw_connect_manager.get_connect(packet.connection_id) {
-                                let out_handler_queue_ms = now_mills();
+                                let _out_handler_queue_ms = now_mills();
 
                                 let response_data = raw_command
-                                    .apply(&connect, &packet.addr, &packet.packet)
+                                    .apply(connect, packet.addr, packet.packet)
                                     .await;
-                                let end_handler_ms = now_mills();
+                                let _end_handler_ms = now_mills();
 
                                 if let Some(resp) = response_data {
-                                    let response_package = ResponsePackage::new(packet.connection_id, resp,packet.receive_ms,
-                                                out_handler_queue_ms, end_handler_ms, mqtt_packet_to_string(&packet.packet));
-                                    request_channel.send_response_channel(&raw_network_type, response_package).await;
+                                    // let response_package = ResponsePackage::new(packet.connection_id, resp,packet.receive_ms,
+                                    //             out_handler_queue_ms, end_handler_ms, mqtt_packet_to_string(&packet.packet));
+                                    request_channel.send_response_channel(&raw_network_type, resp).await;
                                 } else {
                                     // record_packet_handler_info_no_response(&packet, out_handler_queue_ms, end_handler_ms, mqtt_packet_to_string(&packet.packet));
                                     info!("{}","No backpacking is required for this request");

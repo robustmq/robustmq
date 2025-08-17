@@ -14,7 +14,7 @@
 
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
-use crate::handler::command::{Command, CommandContext};
+use crate::handler::command::{MQTTHandlerCommand, CommandContext};
 use crate::observability::metrics::server::record_ws_request_duration;
 use crate::security::AuthDriver;
 use crate::server::common::connection::NetworkConnection;
@@ -168,7 +168,7 @@ async fn ws_handler(
         schema_manager: state.schema_manager.clone(),
         auth_driver: state.auth_driver.clone(),
     };
-    let command = Command::new(context);
+    let command = MQTTHandlerCommand::new(context);
     let codec = MqttCodec::new(None);
     ws.protocols(["mqtt", "mqttv3.1"])
         .on_upgrade(move |socket| {
@@ -186,7 +186,7 @@ async fn ws_handler(
 async fn handle_socket(
     socket: WebSocket,
     addr: SocketAddr,
-    mut command: Command,
+    mut command: MQTTHandlerCommand,
     mut codec: MqttCodec,
     connection_manager: Arc<ConnectionManager>,
     stop_sx: broadcast::Sender<bool>,
@@ -260,7 +260,7 @@ async fn handle_socket(
 async fn process_socket_packet_by_binary(
     connection_manager: &Arc<ConnectionManager>,
     codec: &mut MqttCodec,
-    command: &mut Command,
+    command: &mut MQTTHandlerCommand,
     tcp_connection: &mut NetworkConnection,
     addr: &SocketAddr,
     data: Vec<u8>,

@@ -14,7 +14,7 @@
 
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
-use crate::handler::command::Command;
+use crate::handler::command::MQTTHandlerCommand;
 use crate::observability::metrics::server::record_broker_thread_num;
 use crate::server::common::channel::RequestChannel;
 use crate::server::common::connection::NetworkConnectionType;
@@ -47,7 +47,7 @@ pub struct TcpServerContext {
     pub subscribe_manager: Arc<SubscribeManager>,
     pub cache_manager: Arc<CacheManager>,
     pub client_pool: Arc<ClientPool>,
-    pub command: Command,
+    pub command: MQTTHandlerCommand,
     pub network_type: NetworkConnectionType,
     pub proc_config: ProcessorConfig,
     pub stop_sx: broadcast::Sender<bool>,
@@ -56,7 +56,7 @@ pub struct TcpServerContext {
 // U: codec: encoder + decoder
 // S: message storage adapter
 pub struct TcpServer {
-    command: Command,
+    command: MQTTHandlerCommand,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeManager>,

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
-use crate::handler::command::{Command, CommandContext};
+use crate::handler::command::{MQTTHandlerCommand, CommandContext};
 use crate::handler::error::MqttBrokerError;
 use crate::security::AuthDriver;
 use crate::server::common::channel::RequestChannel;
@@ -57,7 +57,7 @@ pub struct QuicServerContext {
 
 pub async fn start_quic_server(context: QuicServerContext) {
     let conf = broker_config();
-    let command = Command::new(CommandContext {
+    let command = MQTTHandlerCommand::new(CommandContext {
         cache_manager: context.cache_manager.clone(),
         message_storage_adapter: context.message_storage_adapter.clone(),
         delay_message_manager: context.delay_message_manager.clone(),

@@ -12,14 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::result_large_err)]
-pub mod acl;
-pub mod adapter;
-pub mod connection;
-pub mod delay_info;
-pub mod journal;
-pub mod mqtt;
-pub mod placement;
-pub mod protocol;
-pub mod resource_config;
-pub mod schema;
+pub mod auth;
+pub mod event_metrics;
+pub mod packets;
+pub mod publish;
+pub mod server;
+pub mod session;
+pub mod time;

@@ -119,7 +119,7 @@ impl MqttService {
         }
     }
 
-    pub async fn connect(&mut self, context: MqttServiceConnectContext) -> MqttPacket {
+    pub async fn connect(&self, context: MqttServiceConnectContext) -> MqttPacket {
         let cluster = self.cache_manager.get_cluster_config();
 
         // connect params validator

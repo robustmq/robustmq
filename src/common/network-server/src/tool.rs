@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::mqtt::common::MqttPacket;
-use tracing::info;
-
 use crate::{
     channel::RequestChannel,
-    connection::{NetworkConnection, NetworkConnectionType},
     packet::{RequestPackage, RobustMQPacket},
 };
+use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
+use protocol::mqtt::common::MqttPacket;
+use tracing::info;
 
 pub fn is_ignore_print(packet: &RobustMQPacket) -> bool {
     if let RobustMQPacket::MQTT(pack) = packet {

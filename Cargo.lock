@@ -2824,6 +2824,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 1.0.69",
+ "tokio",
  "tracing",
 ]
 
@@ -2939,6 +2940,7 @@ dependencies = [
  "lazy_static",
  "metadata-struct",
  "mysql",
+ "network-server",
  "os_info",
  "prometheus-client",
  "protocol",
@@ -3108,6 +3110,8 @@ dependencies = [
  "common-base",
  "dashmap",
  "futures",
+ "metadata-struct",
+ "observability",
  "protocol",
  "quinn",
  "serde",
@@ -3230,6 +3234,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62948e14d923ea95ea2c7c86c71013138b66525b86bdc08d2dcc262bdb497b87"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "observability"
+version = "0.1.30"
+dependencies = [
+ "axum",
+ "bytes",
+ "common-base",
+ "hyper",
+ "metadata-struct",
+ "pprof",
+ "prometheus-client",
+ "protocol",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

@@ -13,10 +13,9 @@
 // limitations under the License.
 
 use common_base::tools::now_mills;
+use metadata_struct::protocol::RobustMQProtocol;
 use protocol::{kafka::packet::KafkaPacket, mqtt::common::MqttPacket};
 use std::net::SocketAddr;
-
-use crate::protocol::RobustMQProtocol;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RobustMQPacket {

@@ -31,3 +31,5 @@ tokio-util.workspace = true
 tokio-rustls.workspace = true
 quinn.workspace = true
 bytes.workspace = true
+observability.workspace = true
+metadata-struct.workspace = true

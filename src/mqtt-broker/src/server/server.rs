@@ -16,7 +16,7 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::{
     handler::{
         cache::CacheManager,
-        command::{Command, CommandContext},
+        command::{MQTTHandlerCommand, CommandContext},
     },
     security::AuthDriver,
     server::{
@@ -64,7 +64,7 @@ impl Server {
             schema_manager: context.schema_manager.clone(),
             auth_driver: context.auth_driver.clone(),
         };
-        let command = Command::new(command_context);
+        let command = MQTTHandlerCommand::new(command_context);
 
         let proc_config = ProcessorConfig {
             accept_thread_num: conf.network.accept_thread_num,

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::command::Command;
+use crate::handler::command::MQTTHandlerCommand;
 use crate::observability::metrics::server::metrics_request_queue_size;
 use crate::server::common::channel::RequestChannel;
 use crate::server::common::connection::NetworkConnectionType;
@@ -33,7 +33,7 @@ pub(crate) async fn handler_process(
     handler_process_num: usize,
     mut request_queue_rx: Receiver<RequestPackage>,
     connection_manager: Arc<ConnectionManager>,
-    command: Command,
+    command: MQTTHandlerCommand,
     request_channel: Arc<RequestChannel>,
     network_type: NetworkConnectionType,
     stop_sx: broadcast::Sender<bool>,
@@ -96,7 +96,7 @@ fn handler_child_process(
     handler_process_num: usize,
     connection_manager: Arc<ConnectionManager>,
     request_channel: Arc<RequestChannel>,
-    command: Command,
+    command: MQTTHandlerCommand,
     network_type: NetworkConnectionType,
     stop_sx: broadcast::Sender<bool>,
 ) {

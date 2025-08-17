@@ -35,7 +35,7 @@ use tracing::info;
 
 // S: message storage adapter
 #[derive(Clone)]
-pub struct Command {
+pub struct MQTTHandlerCommand {
     mqtt3_service: MqttService,
     mqtt4_service: MqttService,
     mqtt5_service: MqttService,
@@ -55,7 +55,7 @@ pub struct CommandContext {
     pub auth_driver: Arc<AuthDriver>,
 }
 
-impl Command {
+impl MQTTHandlerCommand {
     pub fn new(context: CommandContext) -> Self {
         let mqtt3_context = MqttServiceContext {
             protocol: MqttProtocol::Mqtt3,
@@ -93,7 +93,7 @@ impl Command {
             auth_driver: context.auth_driver.clone(),
         };
         let mqtt5_service = MqttService::new(mqtt5_context);
-        Command {
+        MQTTHandlerCommand {
             mqtt3_service,
             mqtt4_service,
             mqtt5_service,
