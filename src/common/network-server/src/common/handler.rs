@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::channel::RequestChannel;
-use crate::common::command::ArcCommandAdapter;
 use crate::common::connection_manager::ConnectionManager;
 use crate::common::packet::RequestPackage;
+use crate::{command::ArcCommandAdapter, common::channel::RequestChannel};
 use common_base::tools::now_mills;
 use metadata_struct::connection::NetworkConnectionType;
 use std::sync::Arc;
