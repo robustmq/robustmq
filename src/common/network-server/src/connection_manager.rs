@@ -12,39 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::connection::{NetworkConnection, NetworkConnectionType};
+use crate::packet::{RobustMQPacket, RobustMQPacketWrapper};
+use crate::protocol::RobustMQProtocol;
+use crate::quic::stream::QuicMQTTFramedWriteStream;
+use crate::tool::is_ignore_print;
 use axum::extract::ws::{Message, WebSocket};
+use common_base::error::{common::CommonError, ResultCommonError};
 use common_base::network::broker_not_available;
 use dashmap::DashMap;
 use futures::stream::SplitSink;
 use futures::SinkExt;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
-use protocol::mqtt::common::MqttProtocol;
 use std::time::Duration;
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
 use tracing::{debug, info};
 
-use super::connection::{NetworkConnection, NetworkConnectionType};
-use crate::server::quic::stream::QuicFramedWriteStream;
-use crate::tool::is_ignore_print;
-
 pub struct ConnectionManager {
     pub connections: DashMap<u64, NetworkConnection>,
-    pub tcp_write_list:
+    pub lock_max_try_mut_times: i32,
+    pub lock_try_mut_sleep_time_ms: u64,
+    // MQTT
+    pub mqtt_tcp_write_list:
         DashMap<u64, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, MqttCodec>>,
-    pub tcp_tls_write_list: DashMap<
+    pub mqtt_tcp_tls_write_list: DashMap<
         u64,
         FramedWrite<
             tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
             MqttCodec,
         >,
     >,
-    pub websocket_write_list: DashMap<u64, SplitSink<WebSocket, Message>>,
-    pub quic_write_list: DashMap<u64, QuicFramedWriteStream>,
+    pub mqtt_websocket_write_list: DashMap<u64, SplitSink<WebSocket, Message>>,
+    pub mqtt_quic_write_list: DashMap<u64, QuicMQTTFramedWriteStream>,
+    // Kafka
 }
 
 impl ConnectionManager {
-    pub fn new() -> ConnectionManager {
+    pub fn new(lock_max_try_mut_times: i32, lock_try_mut_sleep_time_ms: u64) -> ConnectionManager {
         let connections = DashMap::with_capacity(64);
         let tcp_write_list = DashMap::with_capacity(64);
         let tcp_tls_write_list = DashMap::with_capacity(64);
@@ -52,10 +57,12 @@ impl ConnectionManager {
         let quic_write_list = DashMap::with_capacity(64);
         ConnectionManager {
             connections,
-            tcp_write_list,
-            tcp_tls_write_list,
-            websocket_write_list,
-            quic_write_list,
+            mqtt_tcp_write_list: tcp_write_list,
+            mqtt_tcp_tls_write_list: tcp_tls_write_list,
+            mqtt_websocket_write_list: websocket_write_list,
+            mqtt_quic_write_list: quic_write_list,
+            lock_max_try_mut_times,
+            lock_try_mut_sleep_time_ms,
         }
     }
 
@@ -67,37 +74,6 @@ impl ConnectionManager {
 
     pub fn list_connect(&self) -> DashMap<u64, NetworkConnection> {
         self.connections.clone()
-    }
-    pub fn add_tcp_write(
-        &self,
-        connection_id: u64,
-        write: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, MqttCodec>,
-    ) {
-        self.tcp_write_list.insert(connection_id, write);
-    }
-
-    pub fn add_tcp_tls_write(
-        &self,
-        connection_id: u64,
-        write: FramedWrite<
-            tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
-            MqttCodec,
-        >,
-    ) {
-        self.tcp_tls_write_list.insert(connection_id, write);
-    }
-
-    pub fn add_websocket_write(&self, connection_id: u64, write: SplitSink<WebSocket, Message>) {
-        self.websocket_write_list.insert(connection_id, write);
-    }
-
-    pub fn add_quic_write(
-        &self,
-        connection_id: u64,
-        quic_framed_write_stream: QuicFramedWriteStream,
-    ) {
-        self.quic_write_list
-            .insert(connection_id, quic_framed_write_stream);
     }
 
     pub async fn close_all_connect(&self) {
@@ -111,7 +87,7 @@ impl ConnectionManager {
             connection.stop_connection().await;
         }
 
-        if let Some((id, mut stream)) = self.tcp_write_list.remove(&connection_id) {
+        if let Some((id, mut stream)) = self.mqtt_tcp_write_list.remove(&connection_id) {
             if stream.close().await.is_ok() {
                 debug!(
                     "server closes the tcp connection actively, connection id [{}]",
@@ -120,7 +96,7 @@ impl ConnectionManager {
             }
         }
 
-        if let Some((id, mut stream)) = self.tcp_tls_write_list.remove(&connection_id) {
+        if let Some((id, mut stream)) = self.mqtt_tcp_tls_write_list.remove(&connection_id) {
             if stream.close().await.is_ok() {
                 debug!(
                     "server closes the tcp connection actively, connection id [{}]",
@@ -129,7 +105,7 @@ impl ConnectionManager {
             }
         }
 
-        if let Some((id, mut stream)) = self.websocket_write_list.remove(&connection_id) {
+        if let Some((id, mut stream)) = self.mqtt_websocket_write_list.remove(&connection_id) {
             if stream.close().await.is_ok() {
                 debug!(
                     "server closes the websocket connection actively, connection id [{}]",
@@ -139,39 +115,158 @@ impl ConnectionManager {
         }
     }
 
+    pub fn get_connect(&self, connect_id: u64) -> Option<NetworkConnection> {
+        if let Some(connect) = self.connections.get(&connect_id) {
+            return Some(connect.clone());
+        }
+        None
+    }
+
+    pub fn get_connect_protocol(&self, connect_id: u64) -> Option<RobustMQProtocol> {
+        if let Some(connect) = self.connections.get(&connect_id) {
+            return connect.protocol.clone();
+        }
+        None
+    }
+
+    pub fn is_websocket(&self, connect_id: u64) -> bool {
+        if let Some(connect) = self.connections.get(&connect_id) {
+            return connect.connection_type == NetworkConnectionType::WebSocket;
+        }
+        false
+    }
+}
+
+impl ConnectionManager {
     pub async fn write_websocket_frame(
         &self,
         connection_id: u64,
-        packet_wrapper: MqttPacketWrapper,
+        packet_wrapper: RobustMQPacketWrapper,
         resp: Message,
-    ) -> ResultMqttBrokerError {
+    ) -> ResultCommonError {
         if !is_ignore_print(&packet_wrapper.packet) {
             info!("WebSockets response packet:{packet_wrapper:?},connection_id:{connection_id}");
         }
 
+        let _network_type = if let Some(connection) = self.get_connect(connection_id) {
+            connection.connection_type.to_string()
+        } else {
+            "".to_string()
+        };
+
+        if packet_wrapper.protocol.is_mqtt() {
+            match self.write_mqtt_websocket_frame(connection_id, resp).await {
+                Ok(_) => {
+                    return Ok(());
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            }
+        }
+
+        if packet_wrapper.protocol.is_kafka() {
+            // todo
+        }
+
+        Ok(())
+    }
+
+    pub async fn write_tcp_frame(
+        &self,
+        connection_id: u64,
+        packet_wrapper: RobustMQPacketWrapper,
+    ) -> ResultCommonError {
+        if !is_ignore_print(&packet_wrapper.packet) {
+            info!("WebSockets response packet:{packet_wrapper:?},connection_id:{connection_id}");
+        }
+
+        let _network_type = if let Some(connection) = self.get_connect(connection_id) {
+            connection.connection_type.to_string()
+        } else {
+            "".to_string()
+        };
+
+        if packet_wrapper.protocol.is_mqtt() {
+            if let RobustMQPacket::MQTT(pack) = packet_wrapper.packet {
+                let mqtt_packet = MqttPacketWrapper {
+                    protocol_version: 5,
+                    packet: pack,
+                };
+                match self.write_mqtt_tcp_frame(connection_id, mqtt_packet).await {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        return Err(e);
+                    }
+                }
+            }
+        }
+
+        if packet_wrapper.protocol.is_kafka() {
+            // todo
+        }
+        Ok(())
+    }
+}
+
+impl ConnectionManager {
+    pub fn add_mqtt_tcp_write(
+        &self,
+        connection_id: u64,
+        write: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, MqttCodec>,
+    ) {
+        self.mqtt_tcp_write_list.insert(connection_id, write);
+    }
+
+    pub fn add_mqtt_tcp_tls_write(
+        &self,
+        connection_id: u64,
+        write: FramedWrite<
+            tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
+            MqttCodec,
+        >,
+    ) {
+        self.mqtt_tcp_tls_write_list.insert(connection_id, write);
+    }
+
+    pub fn add_mqtt_websocket_write(
+        &self,
+        connection_id: u64,
+        write: SplitSink<WebSocket, Message>,
+    ) {
+        self.mqtt_websocket_write_list.insert(connection_id, write);
+    }
+
+    pub fn add_mqtt_quic_write(
+        &self,
+        connection_id: u64,
+        quic_framed_write_stream: QuicMQTTFramedWriteStream,
+    ) {
+        self.mqtt_quic_write_list
+            .insert(connection_id, quic_framed_write_stream);
+    }
+
+    pub async fn write_mqtt_websocket_frame(
+        &self,
+        connection_id: u64,
+        resp: Message,
+    ) -> ResultCommonError {
         let mut times = 0;
-        let cluster = self.cache_manager.get_cluster_config();
         loop {
-            match self.websocket_write_list.try_get_mut(&connection_id) {
+            match self.mqtt_websocket_write_list.try_get_mut(&connection_id) {
                 dashmap::try_result::TryResult::Present(mut da) => {
                     match da.send(resp.clone()).await {
                         Ok(_) => {
-                            let network_type =
-                                if let Some(connection) = self.get_connect(connection_id) {
-                                    connection.connection_type.to_string()
-                                } else {
-                                    "".to_string()
-                                };
-
-                            record_sent_metrics(&packet_wrapper, network_type);
                             break;
                         }
                         Err(e) => {
                             if broker_not_available(&e.to_string()) {
-                                return Err(MqttBrokerError::CommonError(e.to_string()));
+                                return Err(CommonError::CommonError(e.to_string()));
                             }
-                            if times > cluster.network.lock_max_try_mut_times {
-                                return Err(MqttBrokerError::FailedToWriteClient(
+                            if times > self.lock_max_try_mut_times {
+                                return Err(CommonError::FailedToWriteClient(
                                     "websocket".to_string(),
                                     e.to_string(),
                                 ));
@@ -181,8 +276,8 @@ impl ConnectionManager {
                 }
 
                 dashmap::try_result::TryResult::Absent => {
-                    if times > cluster.network.lock_max_try_mut_times {
-                        return Err(MqttBrokerError::NotObtainAvailableConnection(
+                    if times > self.lock_max_try_mut_times {
+                        return Err(CommonError::NotObtainAvailableConnection(
                             "websocket".to_string(),
                             connection_id,
                         ));
@@ -192,54 +287,37 @@ impl ConnectionManager {
                 dashmap::try_result::TryResult::Locked => {}
             }
             times += 1;
-            sleep(Duration::from_millis(
-                cluster.network.lock_try_mut_sleep_time_ms,
-            ))
-            .await
+            sleep(Duration::from_millis(self.lock_try_mut_sleep_time_ms)).await
         }
         Ok(())
     }
 
-    pub async fn write_tcp_frame(
+    pub async fn write_mqtt_tcp_frame(
         &self,
         connection_id: u64,
         resp: MqttPacketWrapper,
-    ) -> ResultMqttBrokerError {
-        if !is_ignore_print(&resp.packet) {
-            info!("Tcp response packet:{resp:?},connection_id:{connection_id}");
-        }
-
+    ) -> ResultCommonError {
         if let Some(connection) = self.get_connect(connection_id) {
             if connection.connection_type == NetworkConnectionType::Tls {
-                return self.write_tcp_tls_frame(connection_id, resp).await;
+                return self.write_mqtt_tcp_tls_frame(connection_id, resp).await;
             }
         }
 
         let mut times = 0;
-        let cluster = self.cache_manager.get_cluster_config();
         loop {
-            match self.tcp_write_list.try_get_mut(&connection_id) {
+            match self.mqtt_tcp_write_list.try_get_mut(&connection_id) {
                 dashmap::try_result::TryResult::Present(mut da) => {
                     match da.send(resp.clone()).await {
                         Ok(_) => {
-                            // write tls stream
-                            let network_type =
-                                if let Some(connection) = self.get_connect(connection_id) {
-                                    connection.connection_type.to_string()
-                                } else {
-                                    "".to_string()
-                                };
-
-                            record_sent_metrics(&resp, network_type);
                             break;
                         }
                         Err(e) => {
                             if broker_not_available(&e.to_string()) {
-                                return Err(MqttBrokerError::CommonError(e.to_string()));
+                                return Err(CommonError::CommonError(e.to_string()));
                             }
 
-                            if times > cluster.network.lock_max_try_mut_times {
-                                return Err(MqttBrokerError::FailedToWriteClient(
+                            if times > self.lock_max_try_mut_times {
+                                return Err(CommonError::FailedToWriteClient(
                                     "tcp".to_string(),
                                     e.to_string(),
                                 ));
@@ -248,8 +326,8 @@ impl ConnectionManager {
                     }
                 }
                 dashmap::try_result::TryResult::Absent => {
-                    if times > cluster.network.lock_max_try_mut_times {
-                        return Err(MqttBrokerError::NotObtainAvailableConnection(
+                    if times > self.lock_max_try_mut_times {
+                        return Err(CommonError::NotObtainAvailableConnection(
                             "tcp".to_string(),
                             connection_id,
                         ));
@@ -258,39 +336,27 @@ impl ConnectionManager {
                 dashmap::try_result::TryResult::Locked => {}
             }
             times += 1;
-            sleep(Duration::from_millis(
-                cluster.network.lock_try_mut_sleep_time_ms,
-            ))
-            .await
+            sleep(Duration::from_millis(self.lock_try_mut_sleep_time_ms)).await
         }
         Ok(())
     }
 
-    async fn write_tcp_tls_frame(
+    async fn write_mqtt_tcp_tls_frame(
         &self,
         connection_id: u64,
         resp: MqttPacketWrapper,
-    ) -> ResultMqttBrokerError {
+    ) -> ResultCommonError {
         let mut times = 0;
-        let cluster = self.cache_manager.get_cluster_config();
         loop {
-            match self.tcp_tls_write_list.try_get_mut(&connection_id) {
+            match self.mqtt_tcp_tls_write_list.try_get_mut(&connection_id) {
                 dashmap::try_result::TryResult::Present(mut da) => {
                     match da.send(resp.clone()).await {
                         Ok(_) => {
-                            let network_type =
-                                if let Some(connection) = self.get_connect(connection_id) {
-                                    connection.connection_type.to_string()
-                                } else {
-                                    "".to_string()
-                                };
-
-                            record_sent_metrics(&resp, network_type);
                             break;
                         }
                         Err(e) => {
-                            if times > cluster.network.lock_max_try_mut_times {
-                                return Err(MqttBrokerError::FailedToWriteClient(
+                            if times > self.lock_max_try_mut_times {
+                                return Err(CommonError::FailedToWriteClient(
                                     "tcp".to_string(),
                                     e.to_string(),
                                 ));
@@ -299,8 +365,8 @@ impl ConnectionManager {
                     }
                 }
                 dashmap::try_result::TryResult::Absent => {
-                    if times > cluster.network.lock_max_try_mut_times {
-                        return Err(MqttBrokerError::NotObtainAvailableConnection(
+                    if times > self.lock_max_try_mut_times {
+                        return Err(CommonError::NotObtainAvailableConnection(
                             "tcp".to_string(),
                             connection_id,
                         ));
@@ -309,51 +375,19 @@ impl ConnectionManager {
                 dashmap::try_result::TryResult::Locked => {}
             }
             times += 1;
-            sleep(Duration::from_millis(
-                cluster.network.lock_try_mut_sleep_time_ms,
-            ))
-            .await
+            sleep(Duration::from_millis(self.lock_try_mut_sleep_time_ms)).await
         }
         Ok(())
     }
 
-    pub fn tcp_connect_num_check(&self) -> bool {
-        let cluster = self.cache_manager.get_cluster_config();
-        if self.connections.len() >= cluster.mqtt_runtime.max_connection_num {
-            return true;
-        }
-        false
-    }
-
-    pub fn get_connect(&self, connect_id: u64) -> Option<NetworkConnection> {
-        if let Some(connect) = self.connections.get(&connect_id) {
-            return Some(connect.clone());
-        }
-        None
-    }
-
-    pub fn get_connect_protocol(&self, connect_id: u64) -> Option<MqttProtocol> {
-        if let Some(connect) = self.connections.get(&connect_id) {
-            return connect.protocol.clone();
-        }
-        None
-    }
-
-    pub fn set_connect_protocol(&self, connect_id: u64, protocol: u8) {
+    pub fn set_mqtt_connect_protocol(&self, connect_id: u64, protocol: u8) {
         if let Some(mut connect) = self.connections.get_mut(&connect_id) {
             match protocol {
-                3 => connect.set_protocol(MqttProtocol::Mqtt3),
-                4 => connect.set_protocol(MqttProtocol::Mqtt4),
-                5 => connect.set_protocol(MqttProtocol::Mqtt5),
+                3 => connect.set_protocol(RobustMQProtocol::MQTT3),
+                4 => connect.set_protocol(RobustMQProtocol::MQTT4),
+                5 => connect.set_protocol(RobustMQProtocol::MQTT5),
                 _ => {}
             };
         }
-    }
-
-    pub fn is_websocket(&self, connect_id: u64) -> bool {
-        if let Some(connect) = self.connections.get(&connect_id) {
-            return connect.connection_type == NetworkConnectionType::WebSocket;
-        }
-        false
     }
 }

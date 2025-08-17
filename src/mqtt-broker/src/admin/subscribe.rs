@@ -18,6 +18,7 @@ use crate::handler::error::MqttBrokerError;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
 use crate::subscribe::common::{decode_share_group_and_path, get_share_sub_leader, Subscriber};
 use crate::subscribe::manager::SubscribeManager;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 use common_config::broker::broker_config;
 use grpc_clients::mqtt::admin::call::mqtt_broker_subscribe_detail;
 use grpc_clients::pool::ClientPool;
@@ -29,7 +30,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     ListSubscribeReply, ListSubscribeRequest, MqttSubscribeRaw, SetAutoSubscribeRuleReply,
     SetAutoSubscribeRuleRequest, SubscribeDetailRaw, SubscribeDetailReply, SubscribeDetailRequest,
 };
-use protocol::mqtt::common::{qos, retain_forward_rule, Error};
+use protocol::mqtt::common::{qos, retain_forward_rule};
 use std::sync::Arc;
 
 pub async fn set_auto_subscribe_rule_by_req(
@@ -44,7 +45,7 @@ pub async fn set_auto_subscribe_rule_by_req(
         qos(request.qos as u8)
     } else {
         return Err(MqttBrokerError::CommonError(
-            Error::InvalidRemainingLength(request.qos as usize).to_string(),
+            MQTTProtocolError::InvalidRemainingLength(request.qos as usize).to_string(),
         ));
     };
 
@@ -53,7 +54,8 @@ pub async fn set_auto_subscribe_rule_by_req(
         retain_forward_rule(request.retained_handling as u8)
     } else {
         return Err(MqttBrokerError::CommonError(
-            Error::InvalidRemainingLength(request.retained_handling as usize).to_string(),
+            MQTTProtocolError::InvalidRemainingLength(request.retained_handling as usize)
+                .to_string(),
         ));
     };
 
@@ -61,13 +63,15 @@ pub async fn set_auto_subscribe_rule_by_req(
         cluster: config.cluster_name.clone(),
         topic: request.topic.clone(),
         qos: _qos.ok_or_else(|| {
-            MqttBrokerError::CommonError(Error::InvalidQoS(request.qos as u8).to_string())
+            MqttBrokerError::CommonError(
+                MQTTProtocolError::InvalidQoS(request.qos as u8).to_string(),
+            )
         })?,
         no_local: request.no_local,
         retain_as_published: request.retain_as_published,
         retained_handling: _retained_handling.ok_or_else(|| {
             MqttBrokerError::CommonError(
-                Error::InvalidQoS(request.retained_handling as u8).to_string(),
+                MQTTProtocolError::InvalidQoS(request.retained_handling as u8).to_string(),
             )
         })?,
     };

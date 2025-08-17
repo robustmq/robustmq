@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
+
 use super::*;
 
 pub fn len(auth: &Auth, properties: &Option<AuthProperties>) -> usize {
@@ -39,7 +41,7 @@ pub fn write(
     auth: &Auth,
     properties: &Option<AuthProperties>,
     buffer: &mut BytesMut,
-) -> Result<usize, Error> {
+) -> Result<usize, MQTTProtocolError> {
     let len = len(auth, properties);
     buffer.put_u8(0b1111_0000);
 
@@ -63,18 +65,18 @@ pub fn write(
 pub fn read(
     fixed_header: FixedHeader,
     mut bytes: Bytes,
-) -> Result<(Auth, Option<AuthProperties>), Error> {
+) -> Result<(Auth, Option<AuthProperties>), MQTTProtocolError> {
     let packet_type = fixed_header.byte1 >> 4;
     let flags = fixed_header.byte1 & 0b0000_1111;
 
     bytes.advance(fixed_header.fixed_header_len);
 
     if packet_type != PacketType::Auth as u8 {
-        return Err(Error::InvalidPacketType(packet_type));
+        return Err(MQTTProtocolError::InvalidPacketType(packet_type));
     };
 
     if flags != 0x00 {
-        return Err(Error::MalformedPacket);
+        return Err(MQTTProtocolError::MalformedPacket);
     };
 
     if fixed_header.remaining_len == 0 {
@@ -122,7 +124,10 @@ mod properties {
         len
     }
 
-    pub fn write(properties: &AuthProperties, buffer: &mut BytesMut) -> Result<(), Error> {
+    pub fn write(
+        properties: &AuthProperties,
+        buffer: &mut BytesMut,
+    ) -> Result<(), MQTTProtocolError> {
         let len = len(properties);
         write_remaining_length(buffer, len)?;
 
@@ -160,7 +165,7 @@ mod properties {
         Ok(())
     }
 
-    pub fn read(bytes: &mut Bytes) -> Result<Option<AuthProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<AuthProperties>, MQTTProtocolError> {
         let mut authentication_method = None;
         let mut authentication_data = None;
         let mut reason_string = None;
@@ -204,7 +209,7 @@ mod properties {
                     user_properties.push((key, value));
                 }
 
-                _ => return Err(Error::InvalidPropertyType(prop)),
+                _ => return Err(MQTTProtocolError::InvalidPropertyType(prop)),
             }
         }
 
@@ -225,12 +230,12 @@ fn code(reason: AuthReason) -> u8 {
     }
 }
 
-fn reason(code: u8) -> Result<AuthReason, Error> {
+fn reason(code: u8) -> Result<AuthReason, MQTTProtocolError> {
     let v = match code {
         0x00 => AuthReason::Success,
         0x18 => AuthReason::ContinueAuthentication,
         0x19 => AuthReason::ReAuthenticate,
-        other => return Err(Error::InvalidConnectReturnCode(other)),
+        other => return Err(MQTTProtocolError::InvalidConnectReturnCode(other)),
     };
     Ok(v)
 }

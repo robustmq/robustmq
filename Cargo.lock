@@ -902,6 +902,7 @@ dependencies = [
  "prometheus",
  "prometheus-client",
  "prost",
+ "quinn",
  "regex",
  "rocksdb",
  "serde",

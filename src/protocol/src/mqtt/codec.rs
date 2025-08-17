@@ -13,10 +13,11 @@
 // limitations under the License.
 
 use bytes::BytesMut;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 use tokio_util::codec;
 
 use super::common::ConnectReadOutcome;
-use crate::mqtt::common::{check, connect_read, Error, MqttPacket, PacketType};
+use crate::mqtt::common::{check, connect_read, MqttPacket, PacketType};
 
 #[derive(Debug, Clone)]
 pub struct MqttPacketWrapper {
@@ -39,7 +40,7 @@ impl MqttCodec {
     pub fn decode_data(
         &mut self,
         stream: &mut BytesMut,
-    ) -> Result<Option<MqttPacket>, crate::mqtt::common::Error> {
+    ) -> Result<Option<MqttPacket>, MQTTProtocolError> {
         let fixed_header = check(stream.iter(), 1000000)?;
         // Test with a stream with exactly the size to check border panics
         let packet = stream.split_to(fixed_header.frame_length());
@@ -83,13 +84,13 @@ impl MqttCodec {
                     }
                 }
                 Err(_) => {
-                    return Err(Error::InvalidProtocol);
+                    return Err(MQTTProtocolError::InvalidProtocol);
                 }
             }
         }
 
         if self.protocol_version.is_none() {
-            return Err(Error::InvalidProtocol);
+            return Err(MQTTProtocolError::InvalidProtocol);
         }
 
         let protocol_version = self.protocol_version.unwrap();
@@ -215,14 +216,14 @@ impl MqttCodec {
             return Ok(Some(packet));
         }
 
-        Err(Error::InvalidProtocol)
+        Err(MQTTProtocolError::InvalidProtocol)
     }
 
     pub fn encode_data(
         &mut self,
         packet_wrapper: MqttPacketWrapper,
         buffer: &mut BytesMut,
-    ) -> Result<(), crate::mqtt::common::Error> {
+    ) -> Result<(), MQTTProtocolError> {
         let packet = packet_wrapper.packet;
         let protocol_version = packet_wrapper.protocol_version;
 
@@ -324,7 +325,7 @@ impl MqttCodec {
 }
 
 impl codec::Encoder<MqttPacketWrapper> for MqttCodec {
-    type Error = crate::mqtt::common::Error;
+    type Error = MQTTProtocolError;
     fn encode(
         &mut self,
         packet_wrapper: MqttPacketWrapper,
@@ -336,7 +337,7 @@ impl codec::Encoder<MqttPacketWrapper> for MqttCodec {
 
 impl codec::Decoder for MqttCodec {
     type Item = MqttPacket;
-    type Error = crate::mqtt::common::Error;
+    type Error = MQTTProtocolError;
     fn decode(&mut self, stream: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         self.decode_data(stream)
     }
@@ -346,9 +347,7 @@ pub fn calc_mqtt_packet_size(packet_wrapper: MqttPacketWrapper) -> usize {
     calc_mqtt_packet_len(packet_wrapper).unwrap_or_default()
 }
 
-fn calc_mqtt_packet_len(
-    packet_wrapper: MqttPacketWrapper,
-) -> Result<usize, crate::mqtt::common::Error> {
+fn calc_mqtt_packet_len(packet_wrapper: MqttPacketWrapper) -> Result<usize, MQTTProtocolError> {
     let packet = packet_wrapper.packet;
     let protocol_version = packet_wrapper.protocol_version;
     let mut buffer = BytesMut::new();

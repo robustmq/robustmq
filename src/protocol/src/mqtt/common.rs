@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt;
 use std::slice::Iter;
-use std::str::Utf8Error;
-use std::{fmt, io};
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, PartialEq, Debug, Serialize, Deserialize)]
@@ -173,7 +173,7 @@ impl FixedHeader {
         }
     }
 
-    pub fn packet_type(&self) -> Result<PacketType, Error> {
+    pub fn packet_type(&self) -> Result<PacketType, MQTTProtocolError> {
         let num = self.byte1 >> 4;
         match num {
             1 => Ok(PacketType::Connect),
@@ -190,7 +190,7 @@ impl FixedHeader {
             12 => Ok(PacketType::PingReq),
             13 => Ok(PacketType::PingResp),
             14 => Ok(PacketType::Disconnect),
-            _ => Err(Error::InvalidPacketType(num)),
+            _ => Err(MQTTProtocolError::InvalidPacketType(num)),
         }
     }
 
@@ -211,11 +211,11 @@ impl fmt::Display for FixedHeader {
 }
 
 /// Parses fixed header
-pub fn parse_fixed_header(mut stream: Iter<u8>) -> Result<FixedHeader, Error> {
+pub fn parse_fixed_header(mut stream: Iter<u8>) -> Result<FixedHeader, MQTTProtocolError> {
     // At least 2 bytes are necessary to frame a packet
     let stream_len = stream.len();
     if stream_len < 2 {
-        return Err(Error::InsufficientBytes(2 - stream_len));
+        return Err(MQTTProtocolError::InsufficientBytes(2 - stream_len));
     }
     let byte1 = stream.next().unwrap();
     let (len_len, len) = length(stream)?;
@@ -225,7 +225,7 @@ pub fn parse_fixed_header(mut stream: Iter<u8>) -> Result<FixedHeader, Error> {
 /// Parses variable byte integer in the stream and returns the length
 /// and number of bytes that make it. Used for remaining length calculation
 /// as well as for calculating property lengths
-pub fn length(stream: Iter<u8>) -> Result<(usize, usize), Error> {
+pub fn length(stream: Iter<u8>) -> Result<(usize, usize), MQTTProtocolError> {
     let mut len: usize = 0;
     let mut len_len = 0;
     let mut done = false;
@@ -249,18 +249,18 @@ pub fn length(stream: Iter<u8>) -> Result<(usize, usize), Error> {
         // Only a max of 4 bytes allowed for remaining length
         // more than 4 shifts (0, 7, 14, 21) implies bad length
         if shift > 21 {
-            return Err(Error::MalformedRemainingLength);
+            return Err(MQTTProtocolError::MalformedRemainingLength);
         }
     }
     // Not enough bytes to frame remaining length. wait for one more byte
     if !done {
-        return Err(Error::InsufficientBytes(1));
+        return Err(MQTTProtocolError::InsufficientBytes(1));
     }
 
     Ok((len_len, len))
 }
 
-pub fn check(stream: Iter<u8>, max_packet_size: usize) -> Result<FixedHeader, Error> {
+pub fn check(stream: Iter<u8>, max_packet_size: usize) -> Result<FixedHeader, MQTTProtocolError> {
     // Create fixed header if there are enough bytes in the stream to frame full packet
     let stream_len = stream.len();
     let fixed_header = parse_fixed_header(stream)?;
@@ -268,59 +268,63 @@ pub fn check(stream: Iter<u8>, max_packet_size: usize) -> Result<FixedHeader, Er
     // Don't let rogue connections attack with huge payloads.
     // Disconnect them before reading all that data
     if fixed_header.remaining_len > max_packet_size {
-        return Err(Error::PayloadSizeLimitExceeded(fixed_header.remaining_len));
+        return Err(MQTTProtocolError::PayloadSizeLimitExceeded(
+            fixed_header.remaining_len,
+        ));
     }
 
     // If the current call fails due to insufficient bytes in the stream
     // after calculating remaining length, we extend the stream
     let frame_length = fixed_header.frame_length();
     if stream_len < frame_length {
-        return Err(Error::InsufficientBytes(frame_length - stream_len));
+        return Err(MQTTProtocolError::InsufficientBytes(
+            frame_length - stream_len,
+        ));
     }
 
     Ok(fixed_header)
 }
 
 /// Read a series of bytes with a length from a byte stream
-pub fn read_mqtt_bytes(stream: &mut Bytes) -> Result<Bytes, Error> {
+pub fn read_mqtt_bytes(stream: &mut Bytes) -> Result<Bytes, MQTTProtocolError> {
     let len = read_u16(stream)? as usize;
 
     // Prevent attacks with wrong remaining length. This method is used in packet.assembly() with
     // (enough) bytes to frame packet. Ensure that reading variable length string or bytes doesn't
     // cross promised boundary with 'read_fixed_header()'
     if len > stream.len() {
-        return Err(Error::BoundaryCrossed(len));
+        return Err(MQTTProtocolError::BoundaryCrossed(len));
     }
     Ok(stream.split_to(len))
 }
 
 // Reads a string from bytes stream
-pub fn read_mqtt_string(stream: &mut Bytes) -> Result<String, Error> {
+pub fn read_mqtt_string(stream: &mut Bytes) -> Result<String, MQTTProtocolError> {
     let s = read_mqtt_bytes(stream)?;
     match String::from_utf8(s.to_vec()) {
         Ok(v) => Ok(v),
-        Err(_e) => Err(Error::TopicNotUtf8),
+        Err(_e) => Err(MQTTProtocolError::TopicNotUtf8),
     }
 }
 
-pub fn read_u16(stream: &mut Bytes) -> Result<u16, Error> {
+pub fn read_u16(stream: &mut Bytes) -> Result<u16, MQTTProtocolError> {
     if stream.len() < 2 {
-        return Err(Error::MalformedPacket);
+        return Err(MQTTProtocolError::MalformedPacket);
     }
 
     Ok(stream.get_u16())
 }
 
-pub fn read_u8(stream: &mut Bytes) -> Result<u8, Error> {
+pub fn read_u8(stream: &mut Bytes) -> Result<u8, MQTTProtocolError> {
     if stream.is_empty() {
-        return Err(Error::MalformedPacket);
+        return Err(MQTTProtocolError::MalformedPacket);
     }
     Ok(stream.get_u8())
 }
 
-pub fn read_u32(stream: &mut Bytes) -> Result<u32, Error> {
+pub fn read_u32(stream: &mut Bytes) -> Result<u32, MQTTProtocolError> {
     if stream.len() < 4 {
-        return Err(Error::MalformedPacket);
+        return Err(MQTTProtocolError::MalformedPacket);
     }
 
     Ok(stream.get_u32())
@@ -338,9 +342,12 @@ pub fn write_mqtt_string(stream: &mut BytesMut, string: &str) {
 }
 
 /// Writes remaining length to stream and returns number of bytes for remaining length
-pub fn write_remaining_length(stream: &mut BytesMut, len: usize) -> Result<usize, Error> {
+pub fn write_remaining_length(
+    stream: &mut BytesMut,
+    len: usize,
+) -> Result<usize, MQTTProtocolError> {
     if len > 268_435_455 {
-        return Err(Error::PayloadTooLong); // Maximum packet length is 256MB
+        return Err(MQTTProtocolError::PayloadTooLong); // Maximum packet length is 256MB
     }
 
     let mut done = false;
@@ -1128,61 +1135,13 @@ impl fmt::Display for AuthProperties {
     }
 }
 
-/// Error during serialization and deserialization
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Invalid return code received as response fro connect = {0}")]
-    InvalidConnectReturnCode(u8),
-    #[error("Invalid reason = {0}")]
-    InvalidReason(u8),
-    #[error("Invalid reason = {0}")]
-    InvalidRemainingLength(usize),
-    #[error("Invalid protocol used")]
-    InvalidProtocol,
-    #[error("Invalid protocol level {0}. Make sure right port is being used.")]
-    InvalidProtocolLevel(u8),
-    #[error("Invalid packet format")]
-    IncorrectPacketFormat,
-    #[error("Invalid packet type = {0}")]
-    InvalidPacketType(u8),
-    #[error("Invalid retain forward rule = {0}")]
-    InvalidRetainForwardRule(u8),
-    #[error("Invalid QoS level = {0}")]
-    InvalidQoS(u8),
-    #[error("Payload is too long")]
-    PayloadTooLong,
-    #[error("Payload is required = {0}")]
-    PayloadNotUtf8(#[from] Utf8Error),
-    #[error("Promised boundary crossed, contains {0} bytes")]
-    BoundaryCrossed(usize),
-    #[error("Packet is malformed")]
-    MalformedPacket,
-    #[error("Remaining length is malformed")]
-    MalformedRemainingLength,
-    #[error("Insufficient number of bytes to frame packet, {0} more bytes required")]
-    InsufficientBytes(usize),
-    #[error("Packet received has id Zero")]
-    PacketIdZero,
-    #[error("Payload size has been exceeded by {0} bytes")]
-    PayloadSizeLimitExceeded(usize),
-    #[error("Empty Subscription")]
-    EmptySubscription,
-    #[error("Invalid subscribe reason code = {0}")]
-    InvalidSubscribeReasonCode(u8),
-    #[error("Topic not utf-8")]
-    TopicNotUtf8,
-    #[error("Payload size is incorrect")]
-    PayloadSizeIncorrect,
-    #[error("Invalid property type = {0}")]
-    InvalidPropertyType(u8),
-
-    #[error(transparent)]
-    IoError(#[from] io::Error),
-}
-
 pub trait Protocol {
-    fn read_mut(&mut self, stream: &mut BytesMut, max_size: usize) -> Result<MqttPacket, Error>;
-    fn write(&self, packet: MqttPacket, write: &mut BytesMut) -> Result<usize, Error>;
+    fn read_mut(
+        &mut self,
+        stream: &mut BytesMut,
+        max_size: usize,
+    ) -> Result<MqttPacket, MQTTProtocolError>;
+    fn write(&self, packet: MqttPacket, write: &mut BytesMut) -> Result<usize, MQTTProtocolError>;
 }
 
 // This type is used to avoid #[warn(clippy::type_complexity)]
@@ -1198,7 +1157,7 @@ pub struct ConnectReadOutcome {
 pub fn connect_read(
     fixed_header: FixedHeader,
     mut bytes: Bytes,
-) -> Result<ConnectReadOutcome, Error> {
+) -> Result<ConnectReadOutcome, MQTTProtocolError> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
 
@@ -1206,7 +1165,7 @@ pub fn connect_read(
     let protocol_name = read_mqtt_string(&mut bytes)?;
     let protocol_level = read_u8(&mut bytes)?;
     if protocol_name != "MQTT" && protocol_name != "MQIsdp" {
-        return Err(Error::InvalidProtocol);
+        return Err(MQTTProtocolError::InvalidProtocol);
     }
 
     if protocol_level == 5 {
@@ -1261,5 +1220,5 @@ pub fn connect_read(
         });
     }
 
-    Err(Error::InvalidProtocol)
+    Err(MQTTProtocolError::InvalidProtocol)
 }

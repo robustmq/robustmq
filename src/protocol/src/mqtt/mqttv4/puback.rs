@@ -14,18 +14,21 @@
 
 /// puback packet is an acknowledgement to QoS 1 publish packet
 use super::*;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 impl PubAck {}
 fn len() -> usize {
     2 // pkid - publish identifier
 }
 
-pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<PubAck, Error> {
+pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<PubAck, MQTTProtocolError> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
 
     if fixed_header.remaining_len != 2 {
-        return Err(Error::InvalidRemainingLength(fixed_header.remaining_len));
+        return Err(MQTTProtocolError::InvalidRemainingLength(
+            fixed_header.remaining_len,
+        ));
     }
 
     let pkid = read_u16(&mut bytes)?;
@@ -37,7 +40,7 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<PubAck, Error
     Ok(puback)
 }
 
-pub fn write(puback: &PubAck, buffer: &mut BytesMut) -> Result<usize, Error> {
+pub fn write(puback: &PubAck, buffer: &mut BytesMut) -> Result<usize, MQTTProtocolError> {
     let len = len();
     buffer.put_u8(0x40);
     let count = write_remaining_length(buffer, len)?;

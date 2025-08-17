@@ -13,18 +13,19 @@
 // limitations under the License.
 
 use bytes::BytesMut;
+use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::MqttPacket;
 use quinn::{RecvStream, SendStream};
 use tokio_util::codec::{Decoder, Encoder};
 
-pub struct QuicFramedWriteStream {
+pub struct QuicMQTTFramedWriteStream {
     write_stream: SendStream,
     codec: MqttCodec,
 }
 
-impl QuicFramedWriteStream {
+impl QuicMQTTFramedWriteStream {
     pub fn new(write_stream: SendStream, codec: MqttCodec) -> Self {
         Self {
             write_stream,
@@ -41,7 +42,6 @@ impl QuicFramedWriteStream {
             self.write_stream.finish()?;
             self.write_stream.stopped().await?;
         }
-
         Ok(())
     }
 }
@@ -55,7 +55,7 @@ impl QuicFramedReadStream {
     pub fn new(read_stream: RecvStream, codec: MqttCodec) -> Self {
         Self { read_stream, codec }
     }
-    pub async fn receive(&mut self) -> Result<Option<MqttPacket>, MqttBrokerError> {
+    pub async fn receive(&mut self) -> Result<Option<MqttPacket>, CommonError> {
         let mut decode_bytes = BytesMut::with_capacity(0);
         let vec = self.read_stream.read_to_end(1024).await?;
         decode_bytes.extend(vec);

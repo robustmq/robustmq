@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::*;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 fn len(pubrel: &PubRel, properties: &Option<PubRelProperties>) -> usize {
     let mut len = 2 + 1; // pkid + reason
@@ -38,7 +39,7 @@ pub fn write(
     pubrel: &PubRel,
     properties: &Option<PubRelProperties>,
     buffer: &mut BytesMut,
-) -> Result<usize, Error> {
+) -> Result<usize, MQTTProtocolError> {
     let len = len(pubrel, properties);
     buffer.put_u8(0x62);
     let count = write_remaining_length(buffer, len)?;
@@ -63,7 +64,7 @@ pub fn write(
 pub fn read(
     fixed_header: FixedHeader,
     mut bytes: Bytes,
-) -> Result<(PubRel, Option<PubRelProperties>), Error> {
+) -> Result<(PubRel, Option<PubRelProperties>), MQTTProtocolError> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
 
@@ -114,7 +115,10 @@ mod properties {
         len
     }
 
-    pub fn write(properties: &PubRelProperties, buffer: &mut BytesMut) -> Result<(), Error> {
+    pub fn write(
+        properties: &PubRelProperties,
+        buffer: &mut BytesMut,
+    ) -> Result<(), MQTTProtocolError> {
         let len = len(properties);
         write_remaining_length(buffer, len)?;
 
@@ -132,7 +136,7 @@ mod properties {
         Ok(())
     }
 
-    pub fn read(bytes: &mut Bytes) -> Result<Option<PubRelProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<PubRelProperties>, MQTTProtocolError> {
         let mut reason_string = None;
         let mut user_properties = Vec::new();
 
@@ -160,7 +164,7 @@ mod properties {
                     cursor += 2 + key.len() + 2 + value.len();
                     user_properties.push((key, value));
                 }
-                _ => return Err(Error::InvalidPacketType(prop)),
+                _ => return Err(MQTTProtocolError::InvalidPacketType(prop)),
             }
         }
         Ok(Some(PubRelProperties {
@@ -171,11 +175,11 @@ mod properties {
 }
 
 /// Connection return code type
-fn reason(num: u8) -> Result<PubRelReason, Error> {
+fn reason(num: u8) -> Result<PubRelReason, MQTTProtocolError> {
     let code = match num {
         0 => PubRelReason::Success,
         146 => PubRelReason::PacketIdentifierNotFound,
-        num => return Err(Error::InvalidConnectReturnCode(num)),
+        num => return Err(MQTTProtocolError::InvalidConnectReturnCode(num)),
     };
 
     Ok(code)

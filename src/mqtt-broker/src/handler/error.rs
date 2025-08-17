@@ -14,7 +14,7 @@
 
 use std::{num::ParseIntError, string::FromUtf8Error};
 
-use common_base::error::common::CommonError;
+use common_base::error::{common::CommonError, mqtt_protocol_error::MQTTProtocolError};
 use quinn::{ReadToEndError, StoppedError, WriteError};
 use rdkafka::error::KafkaError;
 use thiserror::Error;
@@ -74,7 +74,7 @@ pub enum MqttBrokerError {
     QuinnReadToEndError(#[from] ReadToEndError),
 
     #[error("{0}")]
-    FromProtocolMQTTCommonError(#[from] protocol::mqtt::common::Error),
+    FromProtocolMQTTCommonError(#[from] MQTTProtocolError),
 
     #[error("Topic alias is too long. alias is {0}")]
     TopicAliasTooLong(u16),

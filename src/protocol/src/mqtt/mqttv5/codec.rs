@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bytes::BytesMut;
-use tokio_util::codec;
-
 use super::{
     auth, check, connack, connect, disconnect, ping, puback, pubcomp, publish, pubrec, pubrel,
     suback, subscribe, unsuback, unsubscribe, ConnectReadOutcome, MqttPacket, PacketType,
 };
+use bytes::BytesMut;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
+use tokio_util::codec;
 
 #[derive(Clone, Debug)]
 pub struct Mqtt5Codec {}
@@ -36,7 +36,7 @@ impl Mqtt5Codec {
 }
 
 impl codec::Encoder<MqttPacket> for Mqtt5Codec {
-    type Error = super::Error;
+    type Error = MQTTProtocolError;
     fn encode(&mut self, packet: MqttPacket, buffer: &mut BytesMut) -> Result<(), Self::Error> {
         match packet {
             MqttPacket::Connect(_, connect, properties, last_will, last_will_peoperties, login) => {
@@ -94,7 +94,7 @@ impl codec::Encoder<MqttPacket> for Mqtt5Codec {
 
 impl codec::Decoder for Mqtt5Codec {
     type Item = MqttPacket;
-    type Error = super::Error;
+    type Error = MQTTProtocolError;
     fn decode(&mut self, stream: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         let fixed_header = check(stream.iter(), 1000000)?;
         // Test with a stream with exactly the size to check border panics

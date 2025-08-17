@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::*;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 pub fn len(unsubscribe: &Unsubscribe, properties: &Option<UnsubscribeProperties>) -> usize {
     // Packet id + length of filters (unlike subscribe, this just a string.
@@ -35,7 +36,7 @@ pub fn write(
     unsubscribe: &Unsubscribe,
     properties: &Option<UnsubscribeProperties>,
     buffer: &mut BytesMut,
-) -> Result<usize, Error> {
+) -> Result<usize, MQTTProtocolError> {
     buffer.put_u8(0xA2);
     // write remaining length
     let remaining_len = len(unsubscribe, properties);
@@ -60,7 +61,7 @@ pub fn write(
 pub fn read(
     fixed_header: FixedHeader,
     mut bytes: Bytes,
-) -> Result<(Unsubscribe, Option<UnsubscribeProperties>), Error> {
+) -> Result<(Unsubscribe, Option<UnsubscribeProperties>), MQTTProtocolError> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
 
@@ -89,7 +90,7 @@ mod properties {
         len
     }
 
-    pub fn read(bytes: &mut Bytes) -> Result<Option<UnsubscribeProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<UnsubscribeProperties>, MQTTProtocolError> {
         let mut user_properties = Vec::new();
 
         let (properties_len_len, properties_len) = length(bytes.iter())?;
@@ -112,13 +113,16 @@ mod properties {
                     cursor += 2 + key.len() + 2 + value.len();
                     user_properties.push((key, value));
                 }
-                _ => return Err(Error::InvalidPacketType(prop)),
+                _ => return Err(MQTTProtocolError::InvalidPacketType(prop)),
             }
         }
         Ok(Some(UnsubscribeProperties { user_properties }))
     }
 
-    pub fn write(properties: &UnsubscribeProperties, buffer: &mut BytesMut) -> Result<(), Error> {
+    pub fn write(
+        properties: &UnsubscribeProperties,
+        buffer: &mut BytesMut,
+    ) -> Result<(), MQTTProtocolError> {
         let len = len(properties);
         write_remaining_length(buffer, len)?;
 

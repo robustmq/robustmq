@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::*;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 fn len(disconnect: &Disconnect, properties: &Option<DisconnectProperties>) -> usize {
     if disconnect.reason_code.is_none() {
@@ -40,7 +41,7 @@ pub fn write(
     disconnect: &Disconnect,
     properties: &Option<DisconnectProperties>,
     buffer: &mut BytesMut,
-) -> Result<usize, Error> {
+) -> Result<usize, MQTTProtocolError> {
     buffer.put_u8(0xE0);
 
     let length = len(disconnect, properties);
@@ -66,18 +67,18 @@ pub fn write(
 pub fn read(
     fixed_header: FixedHeader,
     mut bytes: Bytes,
-) -> Result<(Disconnect, Option<DisconnectProperties>), Error> {
+) -> Result<(Disconnect, Option<DisconnectProperties>), MQTTProtocolError> {
     let packet_type = fixed_header.byte1 >> 4;
     let flags = fixed_header.byte1 & 0b0000_1111;
 
     bytes.advance(fixed_header.fixed_header_len);
 
     if packet_type != PacketType::Disconnect as u8 {
-        return Err(Error::InvalidPacketType(packet_type));
+        return Err(MQTTProtocolError::InvalidPacketType(packet_type));
     };
 
     if flags != 0x00 {
-        return Err(Error::MalformedPacket);
+        return Err(MQTTProtocolError::MalformedPacket);
     };
 
     if fixed_header.remaining_len == 0 {
@@ -124,7 +125,10 @@ mod properties {
         length
     }
 
-    pub fn write(properties: &DisconnectProperties, buffer: &mut BytesMut) -> Result<(), Error> {
+    pub fn write(
+        properties: &DisconnectProperties,
+        buffer: &mut BytesMut,
+    ) -> Result<(), MQTTProtocolError> {
         let length = len(properties);
         write_remaining_length(buffer, length)?;
 
@@ -152,7 +156,7 @@ mod properties {
         Ok(())
     }
 
-    pub fn read(bytes: &mut Bytes) -> Result<Option<DisconnectProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<DisconnectProperties>, MQTTProtocolError> {
         let (properties_len_len, properties_len) = length(bytes.iter())?;
 
         bytes.advance(properties_len_len);
@@ -193,7 +197,7 @@ mod properties {
                     cursor += 2 + reference.len();
                     server_reference = Some(reference);
                 }
-                _ => return Err(Error::InvalidPacketType(prop)),
+                _ => return Err(MQTTProtocolError::InvalidPacketType(prop)),
             }
         }
 
@@ -242,7 +246,7 @@ fn code(reason: DisconnectReasonCode) -> u8 {
     }
 }
 
-fn reason(code: u8) -> Result<DisconnectReasonCode, Error> {
+fn reason(code: u8) -> Result<DisconnectReasonCode, MQTTProtocolError> {
     let v = match code {
         0x00 => DisconnectReasonCode::NormalDisconnection,
         0x04 => DisconnectReasonCode::DisconnectWithWillMessage,
@@ -273,7 +277,7 @@ fn reason(code: u8) -> Result<DisconnectReasonCode, Error> {
         0xA0 => DisconnectReasonCode::MaximumConnectTime,
         0xA1 => DisconnectReasonCode::SubscriptionIdentifiersNotSupported,
         0xA2 => DisconnectReasonCode::WildcardSubscriptionsNotSupported,
-        other => return Err(Error::InvalidConnectReturnCode(other)),
+        other => return Err(MQTTProtocolError::InvalidConnectReturnCode(other)),
     };
     Ok(v)
 }

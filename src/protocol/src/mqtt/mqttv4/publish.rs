@@ -13,10 +13,11 @@
 // limitations under the License.
 
 use super::*;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
-pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<Publish, Error> {
+pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<Publish, MQTTProtocolError> {
     let qos_num = (fixed_header.byte1 & 0b0110) >> 1;
-    let qos = qos(qos_num).ok_or(Error::InvalidQoS(qos_num))?;
+    let qos = qos(qos_num).ok_or(MQTTProtocolError::InvalidQoS(qos_num))?;
     let dup = (fixed_header.byte1 & 0b1000) != 0;
     let retain = (fixed_header.byte1 & 0b0001) != 0;
 
@@ -31,7 +32,7 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<Publish, Erro
     };
 
     if qos != QoS::AtMostOnce && pkid == 0 {
-        return Err(Error::PacketIdZero);
+        return Err(MQTTProtocolError::PacketIdZero);
     }
 
     let publish = Publish {
@@ -46,7 +47,7 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<Publish, Erro
     Ok(publish)
 }
 
-pub fn write(publish: &Publish, buffer: &mut BytesMut) -> Result<usize, Error> {
+pub fn write(publish: &Publish, buffer: &mut BytesMut) -> Result<usize, MQTTProtocolError> {
     let len = publish.len();
     let dup = publish.dup as u8;
     let qos = publish.qos as u8;
@@ -59,7 +60,7 @@ pub fn write(publish: &Publish, buffer: &mut BytesMut) -> Result<usize, Error> {
     if publish.qos != QoS::AtMostOnce {
         let pkid = publish.p_kid;
         if pkid == 0 {
-            return Err(Error::PacketIdZero);
+            return Err(MQTTProtocolError::PacketIdZero);
         }
         buffer.put_u16(pkid);
     }

@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bytes::BytesMut;
-use tokio_util::codec;
-
 use super::{
     check, connack, connect, disconnect, ping, puback, pubcomp, publish, pubrec, pubrel, suback,
-    subscribe, unsuback, unsubscribe, Error, MqttPacket, PacketType,
+    subscribe, unsuback, unsubscribe, MqttPacket, PacketType,
 };
+use bytes::BytesMut;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
+use tokio_util::codec;
 
 #[derive(Clone, Debug)]
 pub struct Mqtt4Codec {}
@@ -36,7 +36,7 @@ impl Mqtt4Codec {
 }
 
 impl codec::Encoder<MqttPacket> for Mqtt4Codec {
-    type Error = super::Error;
+    type Error = MQTTProtocolError;
     fn encode(&mut self, packet: MqttPacket, buffer: &mut BytesMut) -> Result<(), Self::Error> {
         match packet {
             MqttPacket::Connect(_,connect, None, last_will, None, login) => {
@@ -67,7 +67,7 @@ impl codec::Encoder<MqttPacket> for Mqtt4Codec {
 
 impl codec::Decoder for Mqtt4Codec {
     type Item = MqttPacket;
-    type Error = super::Error;
+    type Error = MQTTProtocolError;
     fn decode(&mut self, stream: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         let fixed_header = check(stream.iter(), 1000000)?;
         // Test with a stream with exactly the size to check border panics
@@ -100,8 +100,8 @@ impl codec::Decoder for Mqtt4Codec {
             PacketType::PingResp => MqttPacket::PingResp(super::PingResp),
             // MQTT V4 Disconnect packet gets handled in the previous check, this branch gets
             // hit when Disconnect packet has properties which are only valid for MQTT V5
-            PacketType::Disconnect => return Err(Error::InvalidProtocol),
-            PacketType::Auth => return Err(Error::InvalidProtocol),
+            PacketType::Disconnect => return Err(MQTTProtocolError::InvalidProtocol),
+            PacketType::Auth => return Err(MQTTProtocolError::InvalidProtocol),
         };
         Ok(Some(packet))
     }

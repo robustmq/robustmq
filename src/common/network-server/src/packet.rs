@@ -16,10 +16,31 @@ use common_base::tools::now_mills;
 use protocol::{kafka::packet::KafkaPacket, mqtt::common::MqttPacket};
 use std::net::SocketAddr;
 
+use crate::protocol::RobustMQProtocol;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum RobustMQPacket {
     MQTT(MqttPacket),
     KAFKA(KafkaPacket),
+}
+
+#[derive(Clone, Debug)]
+pub struct MqttWrapperExtend {}
+
+#[derive(Clone, Debug)]
+pub struct KafkaWrapperExtend {}
+
+#[derive(Clone, Debug)]
+pub enum RobustMQWrapperExtend {
+    MQTT(MqttWrapperExtend),
+    KAFKA(KafkaWrapperExtend),
+}
+
+#[derive(Clone, Debug)]
+pub struct RobustMQPacketWrapper {
+    pub protocol: RobustMQProtocol,
+    pub extend: RobustMQWrapperExtend,
+    pub packet: RobustMQPacket,
 }
 
 #[derive(Clone, Debug)]

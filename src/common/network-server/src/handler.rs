@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::channel::RequestChannel;
+use crate::connection::NetworkConnectionType;
+use crate::connection_manager::ConnectionManager;
 use crate::handler::command::Command;
-use crate::observability::metrics::server::metrics_request_queue_size;
-use crate::server::common::channel::RequestChannel;
-use crate::server::common::connection::NetworkConnectionType;
-use crate::server::common::connection_manager::ConnectionManager;
-use crate::server::common::metric::record_packet_handler_info_no_response;
-use crate::server::common::packet::{RequestPackage, ResponsePackage};
+use crate::packet::{RequestPackage, ResponsePackage};
 use common_base::tools::now_mills;
 use protocol::mqtt::common::mqtt_packet_to_string;
 use std::sync::Arc;
@@ -64,7 +62,7 @@ pub(crate) async fn handler_process(
                 val = request_queue_rx.recv()=>{
                     if let Some(packet) = val{
                         let mut sleep_ms = 0;
-                        metrics_request_queue_size("total", request_queue_rx.len());
+                        // metrics_request_queue_size("total", request_queue_rx.len());
 
                         // Try to deliver the request packet to the child handler until it is delivered successfully.
                         // Because some request queues may be full or abnormal, the request packets can be delivered to other child handlers.
@@ -127,7 +125,7 @@ fn handler_child_process(
                     val = child_process_rx.recv()=>{
                         if let Some(packet) = val{
                             let label = format!("handler-{index}");
-                            metrics_request_queue_size(&label, child_process_rx.len());
+                            // metrics_request_queue_size(&label, child_process_rx.len());
                             if let Some(connect) = raw_connect_manager.get_connect(packet.connection_id) {
                                 let out_handler_queue_ms = now_mills();
 
@@ -141,7 +139,7 @@ fn handler_child_process(
                                                 out_handler_queue_ms, end_handler_ms, mqtt_packet_to_string(&packet.packet));
                                     request_channel.send_response_channel(&raw_network_type, response_package).await;
                                 } else {
-                                    record_packet_handler_info_no_response(&packet, out_handler_queue_ms, end_handler_ms, mqtt_packet_to_string(&packet.packet));
+                                    // record_packet_handler_info_no_response(&packet, out_handler_queue_ms, end_handler_ms, mqtt_packet_to_string(&packet.packet));
                                     info!("{}","No backpacking is required for this request");
                                 }
                             }
