@@ -33,3 +33,4 @@ quinn.workspace = true
 bytes.workspace = true
 observability.workspace = true
 metadata-struct.workspace = true
+grpc-clients.workspace = true

@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::channel::RequestChannel;
-use crate::command::ArcCommandAdapter;
-use crate::connection_manager::ConnectionManager;
-use crate::packet::{RequestPackage, ResponsePackage};
+use crate::common::channel::RequestChannel;
+use crate::common::command::ArcCommandAdapter;
+use crate::common::connection_manager::ConnectionManager;
+use crate::common::packet::RequestPackage;
 use common_base::tools::now_mills;
 use metadata_struct::connection::NetworkConnectionType;
-use protocol::mqtt::common::mqtt_packet_to_string;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;

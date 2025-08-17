@@ -24,7 +24,9 @@ pub enum RobustMQPacket {
 }
 
 #[derive(Clone, Debug)]
-pub struct MqttWrapperExtend {}
+pub struct MqttWrapperExtend {
+    protocol_version: u8,
+}
 
 #[derive(Clone, Debug)]
 pub struct KafkaWrapperExtend {}
@@ -99,5 +101,18 @@ impl ResponsePackage {
 
     pub fn get_receive_ms(&self) -> u128 {
         self.receive_ms
+    }
+}
+
+pub fn build_mqtt_packet_wrapper(
+    protocol: RobustMQProtocol,
+    packet: MqttPacket,
+) -> RobustMQPacketWrapper {
+    RobustMQPacketWrapper {
+        protocol: protocol.clone(),
+        extend: RobustMQWrapperExtend::MQTT(MqttWrapperExtend {
+            protocol_version: protocol.to_u8(),
+        }),
+        packet: RobustMQPacket::MQTT(packet),
     }
 }

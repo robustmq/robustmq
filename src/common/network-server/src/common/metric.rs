@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::packet::{RequestPackage, ResponsePackage};
+use crate::common::packet::{RequestPackage, ResponsePackage};
 use common_base::tools::now_mills;
 use metadata_struct::connection::NetworkConnectionType;
 use observability::mqtt::server::{

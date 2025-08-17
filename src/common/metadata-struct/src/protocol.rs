@@ -32,4 +32,13 @@ impl RobustMQProtocol {
     pub fn is_kafka(&self) -> bool {
         *self == RobustMQProtocol::KAFKA
     }
+
+    pub fn to_u8(&self) -> u8 {
+        match *self {
+            RobustMQProtocol::MQTT3 => 3,
+            RobustMQProtocol::MQTT4 => 4,
+            RobustMQProtocol::MQTT5 => 5,
+            RobustMQProtocol::KAFKA => 0,
+        }
+    }
 }

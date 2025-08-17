@@ -16,7 +16,7 @@ use crate::common::types::ResultMqttBrokerError;
 use crate::{
     handler::{
         cache::CacheManager,
-        command::{MQTTHandlerCommand, CommandContext},
+        command::{CommandContext, MQTTHandlerCommand},
     },
     security::AuthDriver,
     server::{

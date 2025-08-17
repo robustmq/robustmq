@@ -14,7 +14,7 @@
 
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
-use crate::handler::command::{MQTTHandlerCommand, CommandContext};
+use crate::handler::command::{CommandContext, MQTTHandlerCommand};
 use crate::observability::metrics::server::record_ws_request_duration;
 use crate::security::AuthDriver;
 use crate::server::common::connection::NetworkConnection;

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
-use crate::handler::command::{MQTTHandlerCommand, CommandContext};
+use crate::handler::command::{CommandContext, MQTTHandlerCommand};
 use crate::handler::error::MqttBrokerError;
 use crate::security::AuthDriver;
 use crate::server::common::channel::RequestChannel;

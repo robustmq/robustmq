@@ -3110,6 +3110,7 @@ dependencies = [
  "common-base",
  "dashmap",
  "futures",
+ "grpc-clients",
  "metadata-struct",
  "observability",
  "protocol",
