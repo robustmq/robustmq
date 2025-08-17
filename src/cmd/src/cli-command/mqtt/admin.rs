@@ -26,17 +26,16 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteConnectorRequest,
     DeleteSchemaRequest, DeleteTopicRewriteRuleRequest, DeleteUserRequest,
     ListAutoSubscribeRuleRequest, ListBindSchemaRequest, ListConnectorRequest, ListSchemaRequest,
-    ListSubscribeRequest, ListSystemAlarmRequest, SetAutoSubscribeRuleRequest,
-    SetClusterConfigRequest, SubscribeDetailRequest, UnbindSchemaRequest, UpdateConnectorRequest,
-    UpdateSchemaRequest,
-};
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    ListSlowSubscribeRequest, SetSystemAlarmConfigRequest,
+    ListSlowSubscribeRequest, ListSubscribeRequest, ListSystemAlarmRequest,
+    SetAutoSubscribeRuleRequest, SetClusterConfigRequest, SetSlowSubscribeConfigRequest,
+    SetSystemAlarmConfigRequest, SubscribeDetailRequest, UnbindSchemaRequest,
+    UpdateConnectorRequest, UpdateSchemaRequest,
 };
 
 // session
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of mqtt session, such as listing", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of mqtt session, such as listing", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct SessionArgs {
     #[command(subcommand)]
@@ -51,7 +50,8 @@ pub enum SessionActionType {
 
 // subscribe
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of mqtt subscriptions, such as listing", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of mqtt subscriptions, such as listing", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct SubscribesArgs {
     #[command(subcommand)]
@@ -78,7 +78,8 @@ pub(crate) struct DetailSubscribeArgs {
 
 // connection
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of mqtt connection, such as listing", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of mqtt connection, such as listing", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct ConnectionArgs {
     #[command(subcommand)]
@@ -93,7 +94,8 @@ pub enum ConnectionActionType {
 
 // cluster config
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of mqtt cluster, such as listing", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of mqtt cluster, such as listing", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct ClusterConfigArgs {
     #[command(subcommand)]
@@ -108,7 +110,8 @@ pub enum ClusterConfigActionType {
 
 // user
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of mqtt users, such as listing, creating, and deleting", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of mqtt users, such as listing, creating, and deleting", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct UserArgs {
     #[command(subcommand)]
@@ -146,7 +149,8 @@ pub(crate) struct DeleteUserArgs {
 
 // acl feat
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of access control list, such as listing, creating, and deleting", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of access control list, such as listing, creating, and deleting", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct AclArgs {
     #[command(subcommand)]
@@ -183,7 +187,8 @@ pub(crate) struct DeleteAclArgs {
 
 // blacklist feat
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of blacklist, such as listing, creating, and deleting", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of blacklist, such as listing, creating, and deleting", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct BlacklistArgs {
     #[command(subcommand)]
@@ -274,26 +279,46 @@ pub(crate) struct FlappingDetectArgs {
 #[derive(clap::Args, Debug)]
 #[command(author = "RobustMQ", about = "action: slow subscribe configuration", long_about = None)]
 #[command(next_line_help = true)]
-pub(crate) struct SlowSubArgs {
-    #[arg(
-        long = "enable",
-        value_parser = BoolishValueParser::new(),
-        action = ArgAction::Set,
-        num_args = 0..=1,
-        required = false,
-        require_equals = true,
-        exclusive = true,
-        conflicts_with_all = ["list", "sort", "topic", "sub_name", "client_id"],
-        help = "Enable or disable the feature"
+pub(crate) struct SlowSubscribeArgs {
+    #[command(subcommand)]
+    pub action: SlowSubscribeActionType,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum SlowSubscribeActionType {
+    #[command(author = "RobustMQ", about = "action: enable or disable slow subscribe", long_about = None
     )]
+    Enable(EnableSlowSubscribeArgs),
+    #[command(author = "RobustMQ", about = "action: set slow subscribe configuration", long_about = None
+    )]
+    Set(SetSlowSubscribeArgs),
+    #[command(author = "RobustMQ", about = "action: list slow subscribe", long_about = None)]
+    List(ListSlowSubscribeArgs),
+}
+
+#[derive(Debug, clap::Args)]
+#[command(next_line_help = true)]
+pub(crate) struct EnableSlowSubscribeArgs {
+    #[arg(long, required = true)]
     pub(crate) is_enable: Option<bool>,
+}
+
+#[derive(Debug, clap::Args)]
+#[command(next_line_help = true)]
+pub(crate) struct SetSlowSubscribeArgs {
+    #[arg(long, default_value_t = 1000, required = false)]
+    pub(crate) max_store_num: u32,
+    #[arg(long, required = true)]
+    pub(crate) delay_type: String,
+}
+
+#[derive(Debug, clap::Args)]
+#[command(next_line_help = true)]
+pub(crate) struct ListSlowSubscribeArgs {
     #[arg(
         long = "list",
         value_parser = RangedU64ValueParser::<u64>::new(),
         default_missing_value = "100",
-        action = ArgAction::Set,
-        num_args = 0..=1,
-        require_equals = true,
         help = "List the slow subscriptions"
     )]
     pub(crate) list: Option<u64>,
@@ -301,13 +326,10 @@ pub(crate) struct SlowSubArgs {
     #[arg(
         long = "sort",
         required = false,
-        requires = "list",
         require_equals = true,
         value_parser = EnumValueParser::<SortType>::new(),
         default_missing_value = "DESC",
         ignore_case = true,
-        action = ArgAction::Set,
-        num_args = 0..=1,
         help = "Sort the results"
     )]
     pub(crate) sort: Option<SortType>,
@@ -315,10 +337,7 @@ pub(crate) struct SlowSubArgs {
     #[arg(
         long = "topic",
         required = false,
-        requires = "list",
         require_equals = true,
-        action = ArgAction::Set,
-        num_args = 0..=1,
         value_parser = NonEmptyStringValueParser::new(),
         help = "Filter the results by topic"
     )]
@@ -327,10 +346,7 @@ pub(crate) struct SlowSubArgs {
     #[arg(
         long = "sub-name",
         required = false,
-        requires = "list",
         require_equals = true,
-        action = ArgAction::Set,
-        num_args = 0..=1,
         value_parser = NonEmptyStringValueParser::new(),
         help = "Filter the results by subscription name"
     )]
@@ -339,10 +355,7 @@ pub(crate) struct SlowSubArgs {
     #[arg(
         long = "client-id",
         required = false,
-        requires = "list",
         require_equals = true,
-        action = ArgAction::Set,
-        num_args = 0..=1,
         value_parser = NonEmptyStringValueParser::new(),
         help = "Filter the results by client ID"
     )]
@@ -351,7 +364,8 @@ pub(crate) struct SlowSubArgs {
 
 // ---- system alarm ----
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of system alarm, such as setting and listing", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of system alarm, such as setting and listing", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct SystemAlarmArgs {
     #[command(subcommand)]
@@ -383,7 +397,8 @@ pub(crate) struct SetSystemAlarmArgs {
 
 // topic rewrite rule
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of topic rewrite, such as creating and deleting", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of topic rewrite, such as creating and deleting", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct TopicRewriteArgs {
     #[command(subcommand)]
@@ -421,7 +436,8 @@ pub(crate) struct DeleteTopicRewriteArgs {
 
 // connector feat
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of connector, such as listing, creating, updating and deleting", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of connector, such as listing, creating, updating and deleting", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct ConnectorArgs {
     #[command(subcommand)]
@@ -476,7 +492,8 @@ pub(crate) struct UpdateConnectorArgs {
 
 // schema
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of mqtt schemas, such as listing, creating, updating, deleting, binding and unbinding", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of mqtt schemas, such as listing, creating, updating, deleting, binding and unbinding", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct SchemaArgs {
     #[command(subcommand)]
@@ -575,25 +592,32 @@ pub(crate) struct UnbindSchemaArgs {
     pub(crate) resource_name: String,
 }
 
-pub fn process_slow_sub_args(args: SlowSubArgs) -> MqttActionType {
-    if args.is_enable.is_none() {
-        if args.list.is_none() {
-            panic!("Please provide at least one argument(--is-enable | --list). Use --help for more information.")
-        } else {
-            MqttActionType::ListSlowSubscribe(ListSlowSubscribeRequest {
-                list: args.list.unwrap_or(100),
-                sub_name: args.sub_name.unwrap_or("".to_string()),
-                topic: args.topic.unwrap_or("".to_string()),
-                client_id: args.client_id.unwrap_or("".to_string()),
-                sort: args.sort.unwrap_or(SortType::DESC).to_string(),
+pub fn process_slow_sub_args(args: SlowSubscribeArgs) -> MqttActionType {
+    match args.action {
+        SlowSubscribeActionType::Enable(arg) => {
+            MqttActionType::SetClusterConfig(SetClusterConfigRequest {
+                feature_name: FeatureType::SlowSubscribe.to_string(),
+                is_enable: arg.is_enable.unwrap_or(false),
             })
         }
-    } else {
-        MqttActionType::SetClusterConfig(SetClusterConfigRequest {
-            feature_name: FeatureType::SlowSubscribe.to_string(),
-            is_enable: args.is_enable.unwrap(),
-        })
+        SlowSubscribeActionType::Set(arg) => {
+            MqttActionType::SetSlowSubscribeConfig(SetSlowSubscribeConfigRequest {
+                max_store_num: arg.max_store_num,
+                delay_type: arg.delay_type.parse().unwrap_or_default(),
+            })
+        }
+        SlowSubscribeActionType::List(arg) => process_list_slow_subscribe_args(arg),
     }
+}
+
+fn process_list_slow_subscribe_args(args: ListSlowSubscribeArgs) -> MqttActionType {
+    MqttActionType::ListSlowSubscribe(ListSlowSubscribeRequest {
+        list: args.list.unwrap_or(100),
+        sub_name: args.sub_name.unwrap_or("".to_string()),
+        topic: args.topic.unwrap_or("".to_string()),
+        client_id: args.client_id.unwrap_or("".to_string()),
+        sort: args.sort.unwrap_or(SortType::DESC).to_string(),
+    })
 }
 
 pub fn process_system_alarm_args(args: SystemAlarmArgs) -> MqttActionType {
@@ -772,7 +796,8 @@ pub fn process_schema_args(args: SchemaArgs) -> MqttActionType {
 }
 
 #[derive(clap::Args, Debug)]
-#[command(author = "RobustMQ", about = "related operations of mqtt auto subscribe, such as listing, setting, and deleting", long_about = None)]
+#[command(author = "RobustMQ", about = "related operations of mqtt auto subscribe, such as listing, setting, and deleting", long_about = None
+)]
 #[command(next_line_help = true)]
 pub(crate) struct AutoSubscribeRuleCommand {
     #[command(subcommand)]
@@ -830,88 +855,5 @@ pub fn process_auto_subscribe_args(args: AutoSubscribeRuleCommand) -> MqttAction
                 topic: arg.topic,
             })
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[tokio::test]
-    async fn test_process_slow_sub_args_function_field_is_enable_not_none() {
-        let args = SlowSubArgs {
-            is_enable: Some(true),
-            list: None,
-            sort: None,
-            topic: None,
-            sub_name: None,
-            client_id: None,
-        };
-
-        let action_type = process_slow_sub_args(args);
-        assert_eq!(
-            MqttActionType::SetClusterConfig(SetClusterConfigRequest {
-                feature_name: FeatureType::SlowSubscribe.to_string(),
-                is_enable: true,
-            }),
-            action_type
-        )
-    }
-
-    #[tokio::test]
-    #[should_panic(
-        expected = "Please provide at least one argument(--is-enable | --list). Use --help for more information."
-    )]
-    async fn test_process_slow_sub_args_function_filed_is_enable_none() {
-        let args = SlowSubArgs {
-            is_enable: None,
-            list: None,
-            sort: None,
-            topic: None,
-            sub_name: None,
-            client_id: None,
-        };
-
-        process_slow_sub_args(args);
-    }
-
-    #[tokio::test]
-    #[should_panic(
-        expected = "Please provide at least one argument(--is-enable | --list). Use --help for more information."
-    )]
-    async fn test_process_slow_sub_args_function_filed_is_enable_none_1() {
-        let args = SlowSubArgs {
-            is_enable: None,
-            list: None,
-            sort: Some(SortType::ASC),
-            topic: Some("topic_name".to_string()),
-            sub_name: Some("sub_name".to_string()),
-            client_id: Some("client_id".to_string()),
-        };
-
-        process_slow_sub_args(args);
-    }
-
-    #[tokio::test]
-    async fn test_process_slow_sub_args_function_filed_is_enable_none_2() {
-        let args = SlowSubArgs {
-            is_enable: None,
-            list: Some(100),
-            sort: Some(SortType::ASC),
-            topic: Some("topic_name".to_string()),
-            sub_name: Some("sub_name".to_string()),
-            client_id: Some("client_id".to_string()),
-        };
-
-        let action_type = process_slow_sub_args(args);
-        assert_eq!(
-            MqttActionType::ListSlowSubscribe(ListSlowSubscribeRequest {
-                list: 100,
-                sub_name: "sub_name".to_string(),
-                topic: "topic_name".to_string(),
-                client_id: "client_id".to_string(),
-                sort: "asc".to_string(),
-            }),
-            action_type
-        )
     }
 }

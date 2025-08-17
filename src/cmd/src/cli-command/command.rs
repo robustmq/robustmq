@@ -35,7 +35,8 @@ use crate::mqtt::admin::{
     process_acl_args, process_blacklist_args, process_connector_args, process_schema_args,
     process_slow_sub_args, process_subscribes_args, process_system_alarm_args,
     process_topic_rewrite_args, process_user_args, AclArgs, BlacklistArgs, ConnectorArgs,
-    FlappingDetectArgs, SlowSubArgs, SubscribesArgs, SystemAlarmArgs, TopicRewriteArgs, UserArgs,
+    FlappingDetectArgs, SlowSubscribeArgs, SubscribesArgs, SystemAlarmArgs, TopicRewriteArgs,
+    UserArgs,
 };
 use crate::mqtt::publish::{process_publish_args, PubSubArgs};
 
@@ -99,7 +100,7 @@ enum MQTTAction {
     Connection(ConnectionArgs),
     // #### observability ####
     // ---- slow subscription ----
-    SlowSub(SlowSubArgs),
+    SlowSubscribe(SlowSubscribeArgs),
     // ---- system alarm ----
     SystemAlarm(SystemAlarmArgs),
     // list topic
@@ -223,7 +224,7 @@ async fn handle_mqtt(args: MqttArgs, cmd: MqttBrokerCommand) {
             MQTTAction::ListTopic => MqttActionType::ListTopic,
             // topic rewrite rule
             MQTTAction::TopicRewriteRule(args) => process_topic_rewrite_args(args),
-            MQTTAction::SlowSub(args) => process_slow_sub_args(args),
+            MQTTAction::SlowSubscribe(args) => process_slow_sub_args(args),
             // pub/sub
             MQTTAction::Publish(args) => process_publish_args(args),
             MQTTAction::Subscribe(args) => process_subscribe_args(args),

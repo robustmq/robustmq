@@ -18,9 +18,13 @@ use super::manager::SubscribeManager;
 use super::push::{
     build_publish_message, send_publish_packet_to_client, BuildPublishMessageContext,
 };
+use crate::common::metrics_cache::MetricsCacheManager;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
+use crate::observability::slow::core::{
+    get_calculate_time_from_broker_config, record_slow_subscribe_data,
+};
 use crate::server::common::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
 use crate::subscribe::common::is_ignore_push_error;
@@ -43,6 +47,7 @@ pub struct ExclusivePush {
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     message_storage: ArcStorageAdapter,
+    metrics_cache_manager: Arc<MetricsCacheManager>,
 }
 
 impl ExclusivePush {
@@ -51,12 +56,14 @@ impl ExclusivePush {
         cache_manager: Arc<CacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
+        metrics_cache_manager: Arc<MetricsCacheManager>,
     ) -> Self {
         ExclusivePush {
             message_storage,
             cache_manager,
             subscribe_manager,
             connection_manager,
+            metrics_cache_manager,
         }
     }
 
@@ -108,6 +115,7 @@ impl ExclusivePush {
             let cache_manager = self.cache_manager.clone();
             let connection_manager = self.connection_manager.clone();
             let subscribe_manager = self.subscribe_manager.clone();
+            let metrics_cache_manager = self.metrics_cache_manager.clone();
 
             // Subscribe to the data push thread
             self.subscribe_manager.exclusive_push_thread.insert(
@@ -164,6 +172,7 @@ impl ExclusivePush {
                                 connection_manager: connection_manager.clone(),
                                 message_storage: message_storage.clone(),
                                 cache_manager: cache_manager.clone(),
+                                metrics_cache_manager: metrics_cache_manager.clone(),
                                 subscriber: subscriber.clone(),
                                 group_id: group_id.clone(),
                                 qos,
@@ -205,6 +214,7 @@ pub struct ExclusivePushContext {
     pub connection_manager: Arc<ConnectionManager>,
     pub message_storage: MessageStorage,
     pub cache_manager: Arc<CacheManager>,
+    pub metrics_cache_manager: Arc<MetricsCacheManager>,
     pub subscriber: Subscriber,
     pub group_id: String,
     pub qos: QoS,
@@ -247,6 +257,7 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
             return Ok(());
         };
 
+        let send_time = now_second();
         // publish data to client
         send_publish_packet_to_client(
             &context.connection_manager,
@@ -256,6 +267,22 @@ async fn pub_message(context: ExclusivePushContext) -> Result<Option<u64>, MqttB
             &context.sub_thread_stop_sx,
         )
         .await?;
+        let finish_time = now_second();
+
+        let is_enable = &context.cache_manager.get_slow_sub_config().enable;
+
+        if *is_enable {
+            let receive_time = record.timestamp;
+            let calculate_time =
+                get_calculate_time_from_broker_config(send_time, finish_time, receive_time);
+            let config_num = &context.cache_manager.get_slow_sub_config().max_store_num;
+            record_slow_subscribe_data(
+                &context.metrics_cache_manager,
+                calculate_time,
+                *config_num,
+                &context.subscriber,
+            );
+        }
 
         // commit offset
         loop_commit_offset(

@@ -17,13 +17,14 @@ use super::default::{
     default_journal_runtime, default_journal_server, default_journal_storage,
     default_mqtt_auth_storage, default_mqtt_message_storage, default_mqtt_offline_message,
     default_mqtt_protocol_config, default_mqtt_runtime, default_mqtt_schema, default_mqtt_security,
-    default_mqtt_server, default_mqtt_slow_sub, default_mqtt_system_monitor, default_network,
-    default_place_runtime, default_placement_center, default_rocksdb, default_roles,
-    default_runtime,
+    default_mqtt_server, default_mqtt_slow_subscribe_config, default_mqtt_system_monitor,
+    default_network, default_place_runtime, default_placement_center, default_rocksdb,
+    default_roles, default_runtime,
 };
 use crate::common::Log;
 use crate::common::Prometheus;
 use crate::common::{default_log, default_pprof, default_prometheus};
+use common_base::enum_type::delay_type::DelayType;
 use serde::{Deserialize, Serialize};
 use toml::Table;
 
@@ -94,8 +95,8 @@ pub struct BrokerConfig {
     #[serde(default = "default_mqtt_offline_message")]
     pub mqtt_offline_message: MqttOfflineMessage,
 
-    #[serde(default = "default_mqtt_slow_sub")]
-    pub mqtt_slow_sub: MqttSlowSub,
+    #[serde(default = "default_mqtt_slow_subscribe_config")]
+    pub mqtt_slow_subscribe_config: MqttSlowSubscribeConfig,
 
     #[serde(default = "default_flapping_detect")]
     pub mqtt_flapping_detect: MqttFlappingDetect,
@@ -131,6 +132,18 @@ impl BrokerConfig {
 
     pub fn is_start_broker(&self) -> bool {
         self.roles.contains(&"broker".to_string())
+    }
+
+    pub fn is_enable_slow_subscribe_record(&self) -> bool {
+        self.mqtt_slow_subscribe_config.enable
+    }
+
+    pub fn get_slow_subscribe_max_store_num(&self) -> u32 {
+        self.mqtt_slow_subscribe_config.max_store_num
+    }
+
+    pub fn get_slow_subscribe_delay_type(&self) -> DelayType {
+        self.mqtt_slow_subscribe_config.delay_type
     }
 }
 
@@ -291,13 +304,13 @@ impl MqttFlappingDetect {
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
-pub struct MqttSlowSub {
+pub struct MqttSlowSubscribeConfig {
     pub enable: bool,
-    pub whole_ms: u64,
-    pub internal_ms: u32,
-    pub response_ms: u32,
+    pub max_store_num: u32,
+    pub delay_type: DelayType,
 }
-impl MqttSlowSub {
+
+impl MqttSlowSubscribeConfig {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
     }

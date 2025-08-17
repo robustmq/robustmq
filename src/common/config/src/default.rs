@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::runtime::get_runtime_worker_threads;
-use toml::Table;
-
 use crate::config::{
     JournalRuntime, JournalServer, JournalStorage, MqttAuthStorage, MqttFlappingDetect,
     MqttMessageStorage, MqttOfflineMessage, MqttProtocolConfig, MqttRuntime, MqttSchema,
-    MqttSecurity, MqttServer, MqttSlowSub, MqttSystemMonitor, Network, PlaceRuntime, Rocksdb,
-    Runtime, SchemaFailedOperation, SchemaStrategy,
+    MqttSecurity, MqttServer, MqttSlowSubscribeConfig, MqttSystemMonitor, Network, PlaceRuntime,
+    Rocksdb, Runtime, SchemaFailedOperation, SchemaStrategy,
 };
+use common_base::enum_type::delay_type::DelayType;
+use common_base::runtime::get_runtime_worker_threads;
+use toml::Table;
 
 pub fn default_roles() -> Vec<String> {
     vec!["place".to_string(), "broker".to_string()]
@@ -124,12 +124,11 @@ pub fn default_mqtt_offline_message() -> MqttOfflineMessage {
     }
 }
 
-pub fn default_mqtt_slow_sub() -> MqttSlowSub {
-    MqttSlowSub {
+pub fn default_mqtt_slow_subscribe_config() -> MqttSlowSubscribeConfig {
+    MqttSlowSubscribeConfig {
         enable: false,
-        whole_ms: 0,
-        internal_ms: 0,
-        response_ms: 0,
+        max_store_num: 1000,
+        delay_type: DelayType::Whole,
     }
 }
 
