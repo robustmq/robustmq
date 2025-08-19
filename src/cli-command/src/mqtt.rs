@@ -29,9 +29,9 @@ use grpc_clients::mqtt::admin::call::{
     mqtt_broker_list_flapping_detect, mqtt_broker_list_schema, mqtt_broker_list_session,
     mqtt_broker_list_slow_subscribe, mqtt_broker_list_subscribe, mqtt_broker_list_system_alarm,
     mqtt_broker_list_topic, mqtt_broker_list_user, mqtt_broker_set_auto_subscribe_rule,
-    mqtt_broker_set_cluster_config, mqtt_broker_set_system_alarm_config,
-    mqtt_broker_subscribe_detail, mqtt_broker_unbind_schema, mqtt_broker_update_connector,
-    mqtt_broker_update_schema,
+    mqtt_broker_set_cluster_config, mqtt_broker_set_slow_subscribe_config,
+    mqtt_broker_set_system_alarm_config, mqtt_broker_subscribe_detail, mqtt_broker_unbind_schema,
+    mqtt_broker_update_connector, mqtt_broker_update_schema,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -49,8 +49,8 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     ListConnectionRequest, ListConnectorRequest, ListFlappingDetectRequest, ListSchemaRequest,
     ListSessionRequest, ListSlowSubscribeRequest, ListSubscribeRequest, ListSystemAlarmRequest,
     ListTopicRequest, ListUserRequest, SetAutoSubscribeRuleRequest, SetClusterConfigRequest,
-    SetSystemAlarmConfigRequest, SubscribeDetailRequest, UnbindSchemaRequest,
-    UpdateConnectorRequest, UpdateSchemaRequest,
+    SetSlowSubscribeConfigRequest, SetSystemAlarmConfigRequest, SubscribeDetailRequest,
+    UnbindSchemaRequest, UpdateConnectorRequest, UpdateSchemaRequest,
 };
 use std::str::FromStr;
 use std::sync::Arc;
@@ -103,6 +103,7 @@ pub enum MqttActionType {
 
     // #### observability ####
     // slow subscribe
+    SetSlowSubscribeConfig(SetSlowSubscribeConfigRequest),
     ListSlowSubscribe(ListSlowSubscribeRequest),
 
     // flapping detect
@@ -328,6 +329,10 @@ impl MqttBrokerCommand {
             MqttActionType::DetailSubscribe(ref request) => {
                 self.detail_subscribe(&client_pool, params.clone(), request.to_owned())
                     .await;
+            }
+            MqttActionType::SetSlowSubscribeConfig(ref request) => {
+                self.set_slow_subscribe_config(&client_pool, params.clone(), request.to_owned())
+                    .await
             }
         }
     }
@@ -935,6 +940,34 @@ impl MqttBrokerCommand {
     // #### observability ###
     // ---- slow subscribe ----
 
+    async fn set_slow_subscribe_config(
+        &self,
+        client_pool: &ClientPool,
+        params: MqttCliCommandParam,
+        cli_request: SetSlowSubscribeConfigRequest,
+    ) {
+        match mqtt_broker_set_slow_subscribe_config(
+            client_pool,
+            &grpc_addr(params.server),
+            cli_request,
+        )
+        .await
+        {
+            Ok(data) => {
+                println!("Set slow subscribe config successfully! Current Config:");
+                let mut table = Table::new();
+                table.set_titles(row!["Config Options", "Value"]);
+                table.add_row(row!["enable", data.is_enable]);
+                table.add_row(row!["delay_type", data.delay_type]);
+                table.add_row(row!["max_store_num", data.max_store_num]);
+                table.printstd()
+            }
+            Err(e) => {
+                println!("MQTT broker set slow subscribe config exception");
+                error_info(e.to_string());
+            }
+        }
+    }
     async fn list_slow_subscribe(
         &self,
         client_pool: &ClientPool,
@@ -961,25 +994,29 @@ impl MqttBrokerCommand {
                 let sort_type = SortType::from_str(sort.as_str()).unwrap_or(SortType::DESC);
                 let mut list_slow_sub_raw = data.list_slow_subscribe_raw;
                 match sort_type {
-                    SortType::ASC => list_slow_sub_raw.sort_by(|a, b| a.time_ms.cmp(&b.time_ms)),
-                    SortType::DESC => list_slow_sub_raw.sort_by(|a, b| b.time_ms.cmp(&a.time_ms)),
+                    SortType::ASC => {
+                        list_slow_sub_raw.sort_by(|a, b| a.time_span.cmp(&b.time_span))
+                    }
+                    SortType::DESC => {
+                        list_slow_sub_raw.sort_by(|a, b| b.time_span.cmp(&a.time_span))
+                    }
                 }
                 // format table
                 let mut table = Table::new();
                 table.set_titles(row![
                     "client_id",
-                    "topic",
-                    "sub_name",
-                    "time_ms",
+                    "topic_name",
+                    "subscribe_name",
+                    "time_span",
                     "create_time"
                 ]);
                 for raw in list_slow_sub_raw {
                     table.add_row(row![
                         raw.client_id,
-                        raw.topic,
-                        raw.sub_name,
-                        raw.time_ms,
-                        raw.create_time
+                        raw.topic_name,
+                        raw.subscribe_name,
+                        raw.time_span,
+                        raw.create_time,
                     ]);
                 }
                 // output cmd
@@ -1577,127 +1614,5 @@ impl MqttBrokerCommand {
                 error_info(e.to_string());
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use common_base::error::common::CommonError;
-    use protocol::broker_mqtt::broker_mqtt_admin::{ListSlowSubScribeRaw, ListSlowSubscribeReply};
-
-    fn set_up_slow_sub_config() -> Result<ListSlowSubscribeReply, CommonError> {
-        let mut list_slow_sub_raw: Vec<ListSlowSubScribeRaw> = Vec::new();
-        let raw1 = ListSlowSubScribeRaw {
-            client_id: "ed280344fec44aad8a78b00ff1dec99a".to_string(),
-            topic: "/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e".to_string(),
-            time_ms: 543,
-            node_info: "RobustMQ-MQTT@172.22.194.185".to_string(),
-            create_time: 1733898597,
-            sub_name: "/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e".to_string(),
-        };
-        list_slow_sub_raw.push(raw1);
-        let raw3 = ListSlowSubScribeRaw {
-            client_id: "49e10a8d8a494cefa904a00dcf0b30af".to_string(),
-            topic: "/request/131edb8526804e80b32b387fa2340d35".to_string(),
-            time_ms: 13,
-            node_info: "RobustMQ-MQTT@172.22.194.185".to_string(),
-            create_time: 1733898601,
-            sub_name: "/request/131edb8526804e80b32b387fa2340d35".to_string(),
-        };
-        list_slow_sub_raw.push(raw3);
-        let raw2 = ListSlowSubScribeRaw {
-            client_id: "49e10a8d8a494cefa904a00dcf0b30af".to_string(),
-            topic: "/request/131edb8526804e80b32b387fa2340d35".to_string(),
-            time_ms: 273,
-            node_info: "RobustMQ-MQTT@172.22.194.185".to_string(),
-            create_time: 1733898601,
-            sub_name: "/request/131edb8526804e80b32b387fa2340d35".to_string(),
-        };
-        list_slow_sub_raw.push(raw2);
-
-        Ok(ListSlowSubscribeReply {
-            list_slow_subscribe_raw: list_slow_sub_raw,
-        })
-    }
-    #[test]
-    fn test_get_sort_data_asc() {
-        let mut reply = set_up_slow_sub_config().unwrap();
-        reply
-            .list_slow_subscribe_raw
-            .sort_by(|a, b| a.time_ms.cmp(&b.time_ms));
-        assert_eq!(
-            ListSlowSubScribeRaw {
-                client_id: "49e10a8d8a494cefa904a00dcf0b30af".to_string(),
-                topic: "/request/131edb8526804e80b32b387fa2340d35".to_string(),
-                time_ms: 13,
-                node_info: "RobustMQ-MQTT@172.22.194.185".to_string(),
-                create_time: 1733898601,
-                sub_name: "/request/131edb8526804e80b32b387fa2340d35".to_string(),
-            },
-            reply.list_slow_subscribe_raw[0]
-        );
-        assert_eq!(
-            ListSlowSubScribeRaw {
-                client_id: "49e10a8d8a494cefa904a00dcf0b30af".to_string(),
-                topic: "/request/131edb8526804e80b32b387fa2340d35".to_string(),
-                time_ms: 273,
-                node_info: "RobustMQ-MQTT@172.22.194.185".to_string(),
-                create_time: 1733898601,
-                sub_name: "/request/131edb8526804e80b32b387fa2340d35".to_string(),
-            },
-            reply.list_slow_subscribe_raw[1]
-        );
-        assert_eq!(
-            ListSlowSubScribeRaw {
-                client_id: "ed280344fec44aad8a78b00ff1dec99a".to_string(),
-                topic: "/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e".to_string(),
-                time_ms: 543,
-                node_info: "RobustMQ-MQTT@172.22.194.185".to_string(),
-                create_time: 1733898597,
-                sub_name: "/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e".to_string(),
-            },
-            reply.list_slow_subscribe_raw[2]
-        );
-    }
-
-    #[test]
-    fn test_get_sort_data_desc() {
-        let mut reply = set_up_slow_sub_config().unwrap();
-        reply
-            .list_slow_subscribe_raw
-            .sort_by(|a, b| b.time_ms.cmp(&a.time_ms));
-        assert_eq!(
-            ListSlowSubScribeRaw {
-                client_id: "49e10a8d8a494cefa904a00dcf0b30af".to_string(),
-                topic: "/request/131edb8526804e80b32b387fa2340d35".to_string(),
-                time_ms: 13,
-                node_info: "RobustMQ-MQTT@172.22.194.185".to_string(),
-                create_time: 1733898601,
-                sub_name: "/request/131edb8526804e80b32b387fa2340d35".to_string(),
-            },
-            reply.list_slow_subscribe_raw[2]
-        );
-        assert_eq!(
-            ListSlowSubScribeRaw {
-                client_id: "49e10a8d8a494cefa904a00dcf0b30af".to_string(),
-                topic: "/request/131edb8526804e80b32b387fa2340d35".to_string(),
-                time_ms: 273,
-                node_info: "RobustMQ-MQTT@172.22.194.185".to_string(),
-                create_time: 1733898601,
-                sub_name: "/request/131edb8526804e80b32b387fa2340d35".to_string(),
-            },
-            reply.list_slow_subscribe_raw[1]
-        );
-        assert_eq!(
-            ListSlowSubScribeRaw {
-                client_id: "ed280344fec44aad8a78b00ff1dec99a".to_string(),
-                topic: "/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e".to_string(),
-                time_ms: 543,
-                node_info: "RobustMQ-MQTT@172.22.194.185".to_string(),
-                create_time: 1733898597,
-                sub_name: "/packet_tcp_ssl/7fce56aa49ef4cea90dc4be77d6a775e".to_string(),
-            },
-            reply.list_slow_subscribe_raw[0]
-        );
     }
 }

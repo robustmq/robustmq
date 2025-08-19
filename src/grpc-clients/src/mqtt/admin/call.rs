@@ -32,9 +32,10 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     ListSubscribeRequest, ListSystemAlarmReply, ListSystemAlarmRequest, ListTopicReply,
     ListTopicRequest, ListUserReply, ListUserRequest, SetAutoSubscribeRuleReply,
     SetAutoSubscribeRuleRequest, SetClusterConfigReply, SetClusterConfigRequest,
-    SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest, SubscribeDetailReply,
-    SubscribeDetailRequest, UnbindSchemaReply, UnbindSchemaRequest, UpdateConnectorReply,
-    UpdateConnectorRequest, UpdateSchemaReply, UpdateSchemaRequest,
+    SetSlowSubscribeConfigReply, SetSlowSubscribeConfigRequest, SetSystemAlarmConfigReply,
+    SetSystemAlarmConfigRequest, SubscribeDetailReply, SubscribeDetailRequest, UnbindSchemaReply,
+    UnbindSchemaRequest, UpdateConnectorReply, UpdateConnectorRequest, UpdateSchemaReply,
+    UpdateSchemaRequest,
 };
 
 use crate::pool::ClientPool;
@@ -158,6 +159,13 @@ generate_mqtt_admin_service_call!(
 
 // #### observability ####
 // ---- slow subscribe features ----
+
+generate_mqtt_admin_service_call!(
+    mqtt_broker_set_slow_subscribe_config,
+    SetSlowSubscribeConfigRequest,
+    SetSlowSubscribeConfigReply,
+    SetSlowSubscribeConfig
+);
 
 generate_mqtt_admin_service_call!(
     mqtt_broker_list_slow_subscribe,

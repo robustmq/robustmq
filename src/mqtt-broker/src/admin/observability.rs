@@ -13,48 +13,51 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
-use crate::observability::slow::sub::{read_slow_sub_record, SlowSubData};
+use std::str::FromStr;
 
-use common_base::utils::file_utils::get_project_root;
-use common_config::broker::broker_config;
+use crate::common::metrics_cache::MetricsCacheManager;
+use common_base::enum_type::delay_type::DelayType;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ListSlowSubScribeRaw, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListSystemAlarmRaw,
-    ListSystemAlarmReply, ListSystemAlarmRequest, SetSystemAlarmConfigReply,
-    SetSystemAlarmConfigRequest,
+    ListSystemAlarmReply, ListSystemAlarmRequest, SetSlowSubscribeConfigReply,
+    SetSlowSubscribeConfigRequest, SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest,
 };
 use std::sync::Arc;
 use tonic::Status;
 
 // ---- slow subscribe ----
+pub async fn set_slow_subscribe_config_by_req(
+    cache_manager: &Arc<CacheManager>,
+    request: &SetSlowSubscribeConfigRequest,
+) -> Result<SetSlowSubscribeConfigReply, crate::handler::error::MqttBrokerError> {
+    let mut slow_subscribe_config = cache_manager.get_slow_sub_config();
+    if let Ok(delay_type) = DelayType::from_str(request.delay_type.as_str()) {
+        slow_subscribe_config.delay_type = delay_type
+    }
+    slow_subscribe_config.max_store_num = request.max_store_num;
+    cache_manager.update_slow_sub_config(slow_subscribe_config.clone());
+    Ok(SetSlowSubscribeConfigReply {
+        is_enable: slow_subscribe_config.enable,
+        delay_type: slow_subscribe_config.delay_type.to_string(),
+        max_store_num: slow_subscribe_config.max_store_num,
+    })
+}
 pub async fn list_slow_subscribe_by_req(
     cache_manager: &Arc<CacheManager>,
-    request: &ListSlowSubscribeRequest,
+    metrics_cache_manager: &Arc<MetricsCacheManager>,
+    _request: &ListSlowSubscribeRequest,
 ) -> Result<ListSlowSubscribeReply, crate::handler::error::MqttBrokerError> {
     let mut list_slow_subscribe_raw: Vec<ListSlowSubScribeRaw> = Vec::new();
-    let mqtt_config = broker_config();
     if cache_manager.get_slow_sub_config().enable {
-        let path = mqtt_config.log.log_path.clone();
-        let path_buf = get_project_root()?.join(path.replace("./", "") + "/slow_sub.log");
-        let deque = read_slow_sub_record(request.clone(), path_buf)?;
-        for slow_sub_data in deque {
-            match serde_json::from_str::<SlowSubData>(slow_sub_data.as_str()) {
-                Ok(data) => {
-                    let raw = ListSlowSubScribeRaw {
-                        client_id: data.client_id,
-                        topic: data.topic,
-                        time_ms: data.time_ms,
-                        node_info: data.node_info,
-                        create_time: data.create_time,
-                        sub_name: data.sub_name,
-                    };
-                    list_slow_subscribe_raw.push(raw);
-                }
-                Err(e) => {
-                    return Err(crate::handler::error::MqttBrokerError::CommonError(
-                        e.to_string(),
-                    ));
-                }
-            }
+        for (_, slow_data) in metrics_cache_manager.slow_subscribe_info.iter_reverse() {
+            list_slow_subscribe_raw.push(ListSlowSubScribeRaw {
+                client_id: slow_data.client_id.clone(),
+                topic_name: slow_data.topic_name.clone(),
+                time_span: slow_data.time_span,
+                node_info: slow_data.node_info.clone(),
+                create_time: slow_data.create_time,
+                subscribe_name: slow_data.subscribe_name.clone(),
+            });
         }
     }
     Ok(ListSlowSubscribeReply {
@@ -118,6 +121,7 @@ pub async fn list_system_alarm_by_req(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::admin::broker_config;
     use crate::observability::system_topic::sysmon::SystemAlarmEventMessage;
     use crate::storage::message::cluster_name;
 

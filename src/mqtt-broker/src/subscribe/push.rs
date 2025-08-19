@@ -260,7 +260,7 @@ pub async fn push_packet_to_client(
         let packet = RobustMQPacket::MQTT(sub_pub_param.packet.clone());
         let resp = ResponsePackage::new(connect_id, packet, 0, 0, 0, "Subsceibe".to_string());
 
-        send_message_to_client(resp, sub_pub_param, connection_manager, cache_manager).await
+        send_message_to_client(resp, connection_manager).await
     };
 
     retry_tool_fn_timeout(action_fn, stop_sx, "push_packet_to_client").await
@@ -352,9 +352,7 @@ pub async fn wait_packet_ack(
 
 pub async fn send_message_to_client(
     resp: ResponsePackage,
-    sub_pub_param: &SubPublishParam,
     connection_manager: &Arc<ConnectionManager>,
-    metadata_cache: &Arc<CacheManager>,
 ) -> ResultMqttBrokerError {
     let protocol =
         if let Some(protocol) = connection_manager.get_connect_protocol(resp.connection_id) {
@@ -381,16 +379,6 @@ pub async fn send_message_to_client(
             .await?
     }
 
-    // record slow sub data
-    if metadata_cache.get_slow_sub_config().enable && sub_pub_param.create_time > 0 {
-        let slow_data = SlowSubData::build(
-            sub_pub_param.subscribe.sub_path.clone(),
-            sub_pub_param.subscribe.client_id.clone(),
-            sub_pub_param.subscribe.topic_name.clone(),
-            (now_mills() - sub_pub_param.create_time) as u64,
-        );
-        record_slow_sub_data(slow_data, metadata_cache.get_slow_sub_config().whole_ms)?;
-    }
     Ok(())
 }
 

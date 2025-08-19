@@ -34,7 +34,7 @@
 
 ---
 
-> **⚠️ Development Status**  
+> **⚠️ Development Status**
 > This project is currently in its early preview stage and is undergoing rapid iteration and testing. A stable release is expected in the second half of 2025. We are actively working towards making RobustMQ production-ready and aim to become a top-level Apache project in the message queue ecosystem.
 
 ## 🚀 Introduction
@@ -240,13 +240,13 @@ Join our growing community of developers, users, and contributors:
 ### 🇨🇳 Chinese Community
 
 - **微信群**: Join our WeChat group for Chinese-speaking users
-  
+
   <div align="center">
     <img src="docs/images/wechat-group.png" alt="WeChat Group QR Code" width="200" />
   </div>
 
 - **个人微信**: If the group QR code has expired, add the developer's personal WeChat:
-  
+
   <div align="center">
     <img src="docs/images/wechat.jpg" alt="Personal WeChat QR Code" width="200" />
   </div>

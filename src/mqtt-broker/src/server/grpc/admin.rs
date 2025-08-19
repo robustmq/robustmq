@@ -23,7 +23,8 @@ use crate::admin::connector::{
     update_connector_by_req,
 };
 use crate::admin::observability::{
-    list_slow_subscribe_by_req, list_system_alarm_by_req, set_system_alarm_config_by_req,
+    list_slow_subscribe_by_req, list_system_alarm_by_req, set_slow_subscribe_config_by_req,
+    set_system_alarm_config_by_req,
 };
 use crate::admin::schema::{
     bind_schema_by_req, create_schema_by_req, delete_schema_by_req, list_bind_schema_by_req,
@@ -69,9 +70,10 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     ListSubscribeReply, ListSubscribeRequest, ListSystemAlarmReply, ListSystemAlarmRequest,
     ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest, SetAutoSubscribeRuleReply,
     SetAutoSubscribeRuleRequest, SetClusterConfigReply, SetClusterConfigRequest,
-    SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest, SubscribeDetailReply,
-    SubscribeDetailRequest, UnbindSchemaReply, UnbindSchemaRequest, UpdateConnectorReply,
-    UpdateConnectorRequest, UpdateSchemaReply, UpdateSchemaRequest,
+    SetSlowSubscribeConfigReply, SetSlowSubscribeConfigRequest, SetSystemAlarmConfigReply,
+    SetSystemAlarmConfigRequest, SubscribeDetailReply, SubscribeDetailRequest, UnbindSchemaReply,
+    UnbindSchemaRequest, UpdateConnectorReply, UpdateConnectorRequest, UpdateSchemaReply,
+    UpdateSchemaRequest,
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
@@ -329,12 +331,23 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             .map(Response::new)
     }
 
+    async fn set_slow_subscribe_config(
+        &self,
+        request: Request<SetSlowSubscribeConfigRequest>,
+    ) -> Result<Response<SetSlowSubscribeConfigReply>, Status> {
+        let request = request.into_inner();
+        set_slow_subscribe_config_by_req(&self.cache_manager, &request)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
+    }
+
     async fn list_slow_subscribe(
         &self,
         request: Request<ListSlowSubscribeRequest>,
     ) -> Result<Response<ListSlowSubscribeReply>, Status> {
         let request = request.into_inner();
-        list_slow_subscribe_by_req(&self.cache_manager, &request)
+        list_slow_subscribe_by_req(&self.cache_manager, &self.metrics_cache_manager, &request)
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)

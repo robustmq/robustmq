@@ -281,6 +281,7 @@ impl MqttBrokerServer {
             self.cache_manager.clone(),
             self.subscribe_manager.clone(),
             self.connection_manager.clone(),
+            self.metrics_cache_manager.clone(),
         );
 
         tokio::spawn(async move {

@@ -34,9 +34,10 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     ListSubscribeRequest, ListSystemAlarmReply, ListSystemAlarmRequest, ListTopicReply,
     ListTopicRequest, ListUserReply, ListUserRequest, SetAutoSubscribeRuleReply,
     SetAutoSubscribeRuleRequest, SetClusterConfigReply, SetClusterConfigRequest,
-    SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest, SubscribeDetailReply,
-    SubscribeDetailRequest, UnbindSchemaReply, UnbindSchemaRequest, UpdateConnectorReply,
-    UpdateConnectorRequest, UpdateSchemaReply, UpdateSchemaRequest,
+    SetSlowSubscribeConfigReply, SetSlowSubscribeConfigRequest, SetSystemAlarmConfigReply,
+    SetSystemAlarmConfigRequest, SubscribeDetailReply, SubscribeDetailRequest, UnbindSchemaReply,
+    UnbindSchemaRequest, UpdateConnectorReply, UpdateConnectorRequest, UpdateSchemaReply,
+    UpdateSchemaRequest,
 };
 use tonic::transport::Channel;
 
@@ -198,6 +199,14 @@ impl_retriable_request!(
 // #### observability ####
 
 // ---- slow subscribe ----
+impl_retriable_request!(
+    SetSlowSubscribeConfigRequest,
+    MqttBrokerAdminServiceClient<Channel>,
+    SetSlowSubscribeConfigReply,
+    mqtt_broker_admin_services_client,
+    set_slow_subscribe_config
+);
+
 impl_retriable_request!(
     ListSlowSubscribeRequest,
     MqttBrokerAdminServiceClient<Channel>,
