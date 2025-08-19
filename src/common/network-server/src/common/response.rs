@@ -46,7 +46,7 @@ pub struct ResponseChildProcessContext {
     pub stop_sx: broadcast::Sender<bool>,
 }
 
-pub(crate) async fn response_process(mut context: ResponseProcessContext) {
+pub async fn response_process(mut context: ResponseProcessContext) {
     let mut stop_rx = context.stop_sx.subscribe();
 
     let child_context = ResponseChildProcessContext {

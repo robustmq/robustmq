@@ -15,12 +15,12 @@
 use std::sync::Arc;
 
 use common_base::tools::now_mills;
+use network_server::common::packet::RequestPackage;
 use protocol::mqtt::codec::parse_mqtt_packet_to_name;
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
 use crate::handler::cache::CacheManager;
-use crate::server::common::packet::RequestPackage;
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct SlowRequestMs {
@@ -41,7 +41,7 @@ pub fn try_record_total_request_ms(cache_manager: Arc<CacheManager>, package: Re
         return;
     }
 
-    let command = parse_mqtt_packet_to_name(package.packet);
+    let command = parse_mqtt_packet_to_name(package.packet.get_mqtt_packet().unwrap());
     let slow = SlowRequestMs { command, time_ms };
 
     match serde_json::to_string(&slow) {

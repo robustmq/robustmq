@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
-use crate::handler::command::MQTTHandlerCommand;
-use crate::observability::metrics::server::record_broker_thread_num;
-use crate::server::common::channel::RequestChannel;
-use crate::server::common::connection::NetworkConnectionType;
-use crate::server::common::connection_manager::ConnectionManager;
-use crate::server::common::handler::handler_process;
-use crate::server::common::response::{response_process, ResponseProcessContext};
-use crate::server::tcp::v1::tcp_acceptor::acceptor_process;
-use crate::server::tcp::v1::tls_acceptor::acceptor_tls_process;
+use crate::server::tcp::tcp_acceptor::acceptor_process;
 use crate::subscribe::manager::SubscribeManager;
+use crate::{
+    common::types::ResultMqttBrokerError, server::tcp::tls_acceptor::acceptor_tls_process,
+};
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::connection::NetworkConnectionType;
+use network_server::command::ArcCommandAdapter;
+use network_server::common::handler::handler_process;
+use network_server::common::response::{response_process, ResponseProcessContext};
+use network_server::common::{channel::RequestChannel, connection_manager::ConnectionManager};
+use observability::mqtt::server::record_broker_thread_num;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
@@ -47,7 +47,7 @@ pub struct TcpServerContext {
     pub subscribe_manager: Arc<SubscribeManager>,
     pub cache_manager: Arc<CacheManager>,
     pub client_pool: Arc<ClientPool>,
-    pub command: MQTTHandlerCommand,
+    pub command: ArcCommandAdapter,
     pub network_type: NetworkConnectionType,
     pub proc_config: ProcessorConfig,
     pub stop_sx: broadcast::Sender<bool>,
@@ -56,10 +56,8 @@ pub struct TcpServerContext {
 // U: codec: encoder + decoder
 // S: message storage adapter
 pub struct TcpServer {
-    command: MQTTHandlerCommand,
+    command: ArcCommandAdapter,
     connection_manager: Arc<ConnectionManager>,
-    cache_manager: Arc<CacheManager>,
-    subscribe_manager: Arc<SubscribeManager>,
     client_pool: Arc<ClientPool>,
     proc_config: ProcessorConfig,
     network_type: NetworkConnectionType,
@@ -79,12 +77,10 @@ impl TcpServer {
         Self {
             network_type: context.network_type,
             command: context.command,
-            cache_manager: context.cache_manager,
             client_pool: context.client_pool,
             connection_manager: context.connection_manager,
             proc_config: context.proc_config,
             stop_sx: context.stop_sx,
-            subscribe_manager: context.subscribe_manager,
             request_channel,
             acceptor_stop_send,
         }
@@ -143,8 +139,6 @@ impl TcpServer {
         response_process(ResponseProcessContext {
             response_process_num: self.proc_config.response_process_num,
             connection_manager: self.connection_manager.clone(),
-            cache_manager: self.cache_manager.clone(),
-            subscribe_manager: self.subscribe_manager.clone(),
             response_queue_rx: response_recv_channel,
             client_pool: self.client_pool.clone(),
             request_channel: self.request_channel.clone(),

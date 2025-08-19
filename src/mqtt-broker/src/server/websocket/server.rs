@@ -14,11 +14,8 @@
 
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
-use crate::handler::command::{CommandContext, MQTTHandlerCommand};
-use crate::observability::metrics::server::record_ws_request_duration;
+use crate::handler::command::{create_command, CommandContext};
 use crate::security::AuthDriver;
-use crate::server::common::connection::NetworkConnection;
-use crate::server::common::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{ConnectInfo, State, WebSocketUpgrade};
@@ -34,6 +31,11 @@ use common_config::broker::broker_config;
 use delay_message::DelayMessageManager;
 use futures_util::stream::StreamExt;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
+use network_server::command::ArcCommandAdapter;
+use network_server::common::connection_manager::ConnectionManager;
+use network_server::common::packet::{RobustMQPacket, RobustMQPacketWrapper};
+use observability::mqtt::server::record_ws_request_duration;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::MqttPacket;
 use schema_register::schema::SchemaRegisterManager;
@@ -157,6 +159,7 @@ async fn ws_handler(
     } else {
         String::from("Unknown Source")
     };
+
     info!("websocket `{user_agent}` at {addr} connected.");
     let context = CommandContext {
         cache_manager: state.cache_manager.clone(),
@@ -168,7 +171,8 @@ async fn ws_handler(
         schema_manager: state.schema_manager.clone(),
         auth_driver: state.auth_driver.clone(),
     };
-    let command = MQTTHandlerCommand::new(context);
+
+    let command = create_command(context);
     let codec = MqttCodec::new(None);
     ws.protocols(["mqtt", "mqttv3.1"])
         .on_upgrade(move |socket| {
@@ -186,19 +190,15 @@ async fn ws_handler(
 async fn handle_socket(
     socket: WebSocket,
     addr: SocketAddr,
-    mut command: MQTTHandlerCommand,
+    command: ArcCommandAdapter,
     mut codec: MqttCodec,
     connection_manager: Arc<ConnectionManager>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     let (sender, mut receiver) = socket.split();
-    let mut tcp_connection = NetworkConnection::new(
-        crate::server::common::connection::NetworkConnectionType::WebSocket,
-        addr,
-        None,
-    );
+    let tcp_connection = NetworkConnection::new(NetworkConnectionType::WebSocket, addr, None);
 
-    connection_manager.add_websocket_write(tcp_connection.connection_id, sender);
+    connection_manager.add_mqtt_websocket_write(tcp_connection.connection_id, sender);
     connection_manager.add_connection(tcp_connection.clone());
     let mut stop_rx = stop_sx.subscribe();
 
@@ -215,7 +215,7 @@ async fn handle_socket(
                 if let Some(msg) = val{
                     match msg {
                         Ok(Message::Binary(data)) => {
-                            if let Err(e) = process_socket_packet_by_binary(&connection_manager,&mut codec,&mut command,&mut tcp_connection,&addr,data).await{
+                            if let Err(e) = process_socket_packet_by_binary(&connection_manager,&mut codec, command.clone(), tcp_connection.clone(), addr,data).await{
                                 error!("Websocket failed to parse MQTT protocol packet with error message :{e:?}");
                             }
                         }
@@ -260,9 +260,9 @@ async fn handle_socket(
 async fn process_socket_packet_by_binary(
     connection_manager: &Arc<ConnectionManager>,
     codec: &mut MqttCodec,
-    command: &mut MQTTHandlerCommand,
-    tcp_connection: &mut NetworkConnection,
-    addr: &SocketAddr,
+    command: ArcCommandAdapter,
+    mut tcp_connection: NetworkConnection,
+    addr: SocketAddr,
     data: Vec<u8>,
 ) -> ResultMqttBrokerError {
     let receive_ms = now_mills();
@@ -271,7 +271,14 @@ async fn process_socket_packet_by_binary(
     if let Some(packet) = codec.decode_data(&mut buf)? {
         info!("recv websocket packet:{packet:?}");
 
-        if let Some(resp_pkg) = command.apply(tcp_connection, addr, &packet).await {
+        if let Some(resp_pkg) = command
+            .apply(
+                tcp_connection.clone(),
+                addr,
+                RobustMQPacket::MQTT(packet.clone()),
+            )
+            .await
+        {
             if let MqttPacket::Connect(_, _, _, _, _, _) = packet {
                 if let Some(pv) =
                     connection_manager.get_connect_protocol(tcp_connection.connection_id)
@@ -282,7 +289,7 @@ async fn process_socket_packet_by_binary(
             let mut response_buff = BytesMut::new();
             let packet_wrapper = MqttPacketWrapper {
                 protocol_version: tcp_connection.get_protocol().into(),
-                packet: resp_pkg,
+                packet: resp_pkg.packet.get_mqtt_packet().unwrap(),
             };
             codec.encode_data(packet_wrapper.clone(), &mut response_buff)?;
             let response_ms = now_mills();
@@ -290,7 +297,7 @@ async fn process_socket_packet_by_binary(
             if let Err(e) = connection_manager
                 .write_websocket_frame(
                     tcp_connection.connection_id,
-                    packet_wrapper,
+                    RobustMQPacketWrapper::from_mqtt(packet_wrapper),
                     Message::Binary(response_buff.to_vec()),
                 )
                 .await
@@ -300,7 +307,6 @@ async fn process_socket_packet_by_binary(
                     .close_connect(tcp_connection.connection_id)
                     .await;
             }
-
             record_ws_request_duration(receive_ms, response_ms);
         }
     }

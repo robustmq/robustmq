@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use protocol::mqtt::common::MqttProtocol;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -29,6 +30,10 @@ impl RobustMQProtocol {
             || *self == RobustMQProtocol::MQTT5
     }
 
+    pub fn is_mqtt5(&self) -> bool {
+        *self == RobustMQProtocol::MQTT5
+    }
+
     pub fn is_kafka(&self) -> bool {
         *self == RobustMQProtocol::KAFKA
     }
@@ -39,6 +44,23 @@ impl RobustMQProtocol {
             RobustMQProtocol::MQTT4 => 4,
             RobustMQProtocol::MQTT5 => 5,
             RobustMQProtocol::KAFKA => 0,
+        }
+    }
+
+    pub fn to_mqtt(&self) -> MqttProtocol {
+        match *self {
+            RobustMQProtocol::MQTT3 => MqttProtocol::Mqtt3,
+            RobustMQProtocol::MQTT4 => MqttProtocol::Mqtt4,
+            RobustMQProtocol::MQTT5 => MqttProtocol::Mqtt5,
+            RobustMQProtocol::KAFKA => MqttProtocol::Mqtt3,
+        }
+    }
+
+    pub fn from_u8(protocol: u8) -> RobustMQProtocol {
+        match protocol {
+            4 => RobustMQProtocol::MQTT4,
+            5 => RobustMQProtocol::MQTT5,
+            _ => RobustMQProtocol::MQTT3,
         }
     }
 }

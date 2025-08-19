@@ -25,7 +25,7 @@ use tokio::sync::mpsc::Receiver;
 use tokio::time::sleep;
 use tracing::{debug, error, info};
 
-pub(crate) async fn handler_process(
+pub async fn handler_process(
     handler_process_num: usize,
     mut request_queue_rx: Receiver<RequestPackage>,
     connection_manager: Arc<ConnectionManager>,

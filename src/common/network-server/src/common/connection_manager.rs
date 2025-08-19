@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::common::packet::{RobustMQPacket, RobustMQPacketWrapper};
-use crate::quic::stream::QuicMQTTFramedWriteStream;
 use crate::common::tool::is_ignore_print;
+use crate::quic::stream::QuicMQTTFramedWriteStream;
 use axum::extract::ws::{Message, WebSocket};
 use common_base::error::{common::CommonError, ResultCommonError};
 use common_base::network::broker_not_available;
@@ -134,6 +134,10 @@ impl ConnectionManager {
             return connect.connection_type == NetworkConnectionType::WebSocket;
         }
         false
+    }
+
+    pub fn get_tcp_connect_num_check(&self) -> u64 {
+        0
     }
 }
 

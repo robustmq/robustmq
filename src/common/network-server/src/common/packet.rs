@@ -14,13 +14,25 @@
 
 use common_base::tools::now_mills;
 use metadata_struct::protocol::RobustMQProtocol;
-use protocol::{kafka::packet::KafkaPacket, mqtt::common::MqttPacket};
+use protocol::{
+    kafka::packet::KafkaPacket,
+    mqtt::{codec::MqttPacketWrapper, common::MqttPacket},
+};
 use std::net::SocketAddr;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RobustMQPacket {
     MQTT(MqttPacket),
     KAFKA(KafkaPacket),
+}
+
+impl RobustMQPacket {
+    pub fn get_mqtt_packet(&self) -> Option<MqttPacket> {
+        match self.clone() {
+            RobustMQPacket::MQTT(pack) => Some(pack),
+            RobustMQPacket::KAFKA(_) => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -37,11 +49,39 @@ pub enum RobustMQWrapperExtend {
     KAFKA(KafkaWrapperExtend),
 }
 
+impl RobustMQWrapperExtend {
+    pub fn to_mqtt_protocol(&self) -> u8 {
+        match self.clone() {
+            RobustMQWrapperExtend::MQTT(extend) => extend.protocol_version,
+            RobustMQWrapperExtend::KAFKA(_) => 3,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct RobustMQPacketWrapper {
     pub protocol: RobustMQProtocol,
     pub extend: RobustMQWrapperExtend,
     pub packet: RobustMQPacket,
+}
+
+impl RobustMQPacketWrapper {
+    pub fn from_mqtt(wrapper: MqttPacketWrapper) -> Self {
+        RobustMQPacketWrapper {
+            protocol: RobustMQProtocol::from_u8(wrapper.protocol_version),
+            extend: RobustMQWrapperExtend::MQTT(MqttWrapperExtend {
+                protocol_version: wrapper.protocol_version,
+            }),
+            packet: RobustMQPacket::MQTT(wrapper.packet),
+        }
+    }
+
+    pub fn to_mqtt(&self) -> MqttPacketWrapper {
+        MqttPacketWrapper {
+            protocol_version: self.extend.to_mqtt_protocol(),
+            packet: self.packet.get_mqtt_packet().unwrap(),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -92,6 +132,17 @@ impl ResponsePackage {
             out_queue_ms,
             end_handler_ms,
             request_packet,
+        }
+    }
+
+    pub fn build(connection_id: u64, packet: RobustMQPacket) -> Self {
+        Self {
+            connection_id,
+            packet,
+            receive_ms: 0,
+            out_queue_ms: 0,
+            end_handler_ms: 0,
+            request_packet: "".to_string(),
         }
     }
 

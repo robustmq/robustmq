@@ -42,3 +42,4 @@ tracing.workspace = true
 serde_json.workspace = true
 journal-server.workspace = true
 pprof-monitor.workspace = true
+network-server.workspace = true

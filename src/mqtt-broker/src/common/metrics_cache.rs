@@ -13,15 +13,13 @@
 // limitations under the License.
 
 use crate::common::types::ResultMqttBrokerError;
-use crate::observability::metrics::server::{
-    record_broker_connections_max, record_broker_connections_num,
-};
 use crate::{
-    common::tool::loop_select, handler::cache::CacheManager,
-    server::common::connection_manager::ConnectionManager, subscribe::manager::SubscribeManager,
+    common::tool::loop_select, handler::cache::CacheManager, subscribe::manager::SubscribeManager,
 };
 use common_base::tools::now_second;
 use dashmap::DashMap;
+use network_server::common::connection_manager::ConnectionManager;
+use observability::mqtt::server::{record_broker_connections_max, record_broker_connections_num};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;
 use tracing::info;
@@ -258,15 +256,13 @@ mod test {
 
     use common_base::tools::now_second;
     use grpc_clients::pool::ClientPool;
+    use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
+    use network_server::common::connection_manager::ConnectionManager;
     use tokio::{sync::broadcast, time::sleep};
 
     use crate::{
         common::metrics_cache::{metrics_gc_thread, metrics_record_thread, MetricsCacheManager},
         handler::cache::CacheManager,
-        server::common::{
-            connection::{NetworkConnection, NetworkConnectionType},
-            connection_manager::ConnectionManager,
-        },
         subscribe::manager::SubscribeManager,
     };
 
@@ -296,7 +292,7 @@ mod test {
         let subscribe_manager = Arc::new(SubscribeManager::new());
 
         // add mock connection
-        let connection_mgr = ConnectionManager::new(cache_manager.clone());
+        let connection_mgr = ConnectionManager::new(3, 1000);
         connection_mgr.add_connection(NetworkConnection::new(
             NetworkConnectionType::Tls,
             std::net::SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080)),

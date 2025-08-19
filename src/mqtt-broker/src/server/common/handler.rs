@@ -16,7 +16,7 @@ use crate::handler::command::MQTTHandlerCommand;
 use crate::observability::metrics::server::metrics_request_queue_size;
 use crate::server::common::channel::RequestChannel;
 use crate::server::common::connection::NetworkConnectionType;
-use crate::server::common::connection_manager::ConnectionManager;
+use network_server::common::connection_manager::ConnectionManager;
 use crate::server::common::metric::record_packet_handler_info_no_response;
 use crate::server::common::packet::{RequestPackage, ResponsePackage};
 use common_base::tools::now_mills;

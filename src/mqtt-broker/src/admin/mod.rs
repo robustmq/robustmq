@@ -30,12 +30,12 @@ use crate::admin::query::{apply_filters, apply_pagination, apply_sorting, Querya
 use crate::common::metrics_cache::MetricsCacheManager;
 use crate::handler::cache::CacheManager;
 use crate::handler::flapping_detect::enable_flapping_detect;
-use crate::server::common::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
 use crate::{handler::error::MqttBrokerError, storage::cluster::ClusterStorage};
 use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
+use network_server::common::connection_manager::ConnectionManager;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     BrokerNodeRaw, ClusterOverviewMetricsReply, ClusterOverviewMetricsRequest, ClusterStatusReply,
     EnableFlappingDetectReply, EnableFlappingDetectRequest, FlappingDetectRaw, ListConnectionRaw,
@@ -79,10 +79,10 @@ pub async fn cluster_status_by_req(
         topic_num: cache_manager.topic_info.len() as u32,
         nodes: resp_node_list,
         placement_status,
-        tcp_connection_num: connection_manager.tcp_write_list.len() as u32,
-        tls_connection_num: connection_manager.tcp_tls_write_list.len() as u32,
-        websocket_connection_num: connection_manager.websocket_write_list.len() as u32,
-        quic_connection_num: connection_manager.quic_write_list.len() as u32,
+        tcp_connection_num: connection_manager.mqtt_tcp_write_list.len() as u32,
+        tls_connection_num: connection_manager.mqtt_tcp_tls_write_list.len() as u32,
+        websocket_connection_num: connection_manager.mqtt_websocket_write_list.len() as u32,
+        quic_connection_num: connection_manager.mqtt_quic_write_list.len() as u32,
     };
     let _ = subscribe_manager.snapshot_info();
 
@@ -153,7 +153,7 @@ pub async fn list_connection_by_req(
                 connection_id: value.connection_id,
                 connection_type: value.connection_type.to_string(),
                 protocol: match value.protocol {
-                    Some(protocol) => protocol.into(),
+                    Some(protocol) => format!("{:?}", protocol),
                     None => "None".to_string(),
                 },
                 source_addr: value.addr.to_string(),

@@ -41,10 +41,10 @@ use mqtt_broker::{
     common::metrics_cache::MetricsCacheManager,
     handler::{cache::CacheManager as MqttCacheManager, heartbeat::check_placement_center_status},
     security::AuthDriver,
-    server::common::connection_manager::ConnectionManager as MqttConnectionManager,
     storage::message::build_message_storage_driver,
     subscribe::manager::SubscribeManager,
 };
+use network_server::common::connection_manager::ConnectionManager as MqttConnectionManager;
 use openraft::Raft;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
 use schema_register::schema::SchemaRegisterManager;
@@ -243,7 +243,10 @@ impl BrokerServer {
         let arc_storage_driver = Arc::new(storage_driver);
         let subscribe_manager = Arc::new(SubscribeManager::new());
         let connector_manager = Arc::new(ConnectorManager::new());
-        let connection_manager = Arc::new(MqttConnectionManager::new(cache_manager.clone()));
+        let connection_manager = Arc::new(MqttConnectionManager::new(
+            config.network.lock_max_try_mut_times as i32,
+            config.network.lock_try_mut_sleep_time_ms,
+        ));
         let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_pool.clone()));
         let delay_message_manager = Arc::new(DelayMessageManager::new(
             config.cluster_name.clone(),

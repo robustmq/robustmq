@@ -21,7 +21,7 @@ use tokio::sync::broadcast;
 
 use crate::handler::cache::CacheManager;
 
-pub mod metrics;
+// pub mod metrics;
 pub mod slow;
 pub mod system_topic;
 

@@ -20,6 +20,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::mqtt::session::MqttSession;
+use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::{DisconnectReasonCode, MqttProtocol, Subscribe, Unsubscribe};
 use serde::{Deserialize, Serialize};
 use storage_adapter::storage::ArcStorageAdapter;
@@ -30,7 +31,6 @@ use super::{
     SYSTEM_TOPIC_BROKERS_SUBSCRIBED, SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED,
 };
 use crate::handler::cache::CacheManager;
-use crate::server::common::connection_manager::ConnectionManager;
 
 #[derive(Clone)]
 pub struct StReportDisconnectedEventContext {
@@ -141,7 +141,7 @@ pub async fn st_report_connected_event(context: StReportConnectedEventContext) {
             username: context.connection.login_user.clone(),
             ts: now_mills(),
             sock_port: network_connection.addr.port(),
-            proto_ver: network_connection.protocol.clone(),
+            proto_ver: Some(network_connection.protocol.unwrap().to_mqtt()),
             proto_name: "MQTT".to_string(),
             keepalive: context.connection.keep_alive,
             ip_address: context.connection.source_ip_addr.clone(),
@@ -186,7 +186,7 @@ pub async fn st_report_disconnected_event(context: StReportDisconnectedEventCont
             ts: now_mills(),
             sock_port: network_connection.addr.port(),
             reason: format!("{:?}", context.reason),
-            proto_ver: network_connection.protocol.clone(),
+            proto_ver: Some(network_connection.protocol.unwrap().to_mqtt()),
             proto_name: "MQTT".to_string(),
             ip_address: context.connection.source_ip_addr.clone(),
             client_id: context.session.client_id.to_string(),

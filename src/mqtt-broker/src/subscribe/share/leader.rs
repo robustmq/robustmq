@@ -15,7 +15,6 @@
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
-use crate::server::common::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
 use crate::subscribe::common::is_ignore_push_error;
 use crate::subscribe::common::loop_commit_offset;
@@ -29,6 +28,7 @@ use crate::subscribe::push::{
 use common_base::network::broker_not_available;
 use common_base::tools::now_second;
 use metadata_struct::adapter::record::Record;
+use network_server::common::connection_manager::ConnectionManager;
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::storage::ArcStorageAdapter;

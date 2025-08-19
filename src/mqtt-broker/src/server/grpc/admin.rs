@@ -45,9 +45,9 @@ use crate::admin::{
 };
 use crate::common::metrics_cache::MetricsCacheManager;
 use crate::handler::cache::CacheManager;
-use crate::server::common::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
 use grpc_clients::pool::ClientPool;
+use network_server::common::connection_manager::ConnectionManager;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     BindSchemaReply, BindSchemaRequest, ClusterOverviewMetricsReply, ClusterOverviewMetricsRequest,

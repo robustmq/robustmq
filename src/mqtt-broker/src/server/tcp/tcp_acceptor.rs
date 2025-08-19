@@ -13,12 +13,13 @@
 // limitations under the License.
 
 use crate::handler::connection::tcp_establish_connection_check;
-use crate::observability::metrics::packets::record_received_error_metrics;
-use crate::server::common::channel::RequestChannel;
-use crate::server::common::connection::{NetworkConnection, NetworkConnectionType};
-use crate::server::common::connection_manager::ConnectionManager;
-use crate::server::common::tool::read_packet;
 use futures_util::StreamExt;
+use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
+use network_server::common::channel::RequestChannel;
+use network_server::common::connection_manager::ConnectionManager;
+use network_server::common::packet::RobustMQPacket;
+use network_server::common::tool::read_packet;
+use observability::mqtt::packets::record_received_error_metrics;
 use protocol::mqtt::codec::MqttCodec;
 use std::sync::Arc;
 use std::time::Duration;
@@ -95,7 +96,7 @@ pub(crate) async fn acceptor_process(
                                 );
 
                                 connection_manager.add_connection(connection.clone());
-                                connection_manager.add_tcp_write(connection.connection_id, write_frame_stream);
+                                connection_manager.add_mqtt_tcp_write(connection.connection_id, write_frame_stream);
 
                                 info!("acceptor_process => connection_id = {}",connection.connection_id);
                                 read_frame_process(
@@ -144,7 +145,7 @@ fn read_frame_process(
                         match pkg {
                             Ok(pack) => {
                                 let connection = connection_manager.get_connect(connection_id).unwrap();
-                                read_packet(pack, &request_channel, &connection, &network_type).await;
+                                read_packet(RobustMQPacket::MQTT(pack), &request_channel, &connection, &network_type).await;
                             }
                             Err(e) => {
                                 record_received_error_metrics(network_type.clone());

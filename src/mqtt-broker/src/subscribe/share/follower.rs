@@ -40,7 +40,6 @@ use crate::common::tool::is_ignore_print;
 use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
 use crate::handler::error::MqttBrokerError;
 use crate::handler::subscribe::{add_share_push_leader, ParseShareQueueSubscribeRequest};
-use crate::server::common::connection_manager::ConnectionManager;
 use crate::subscribe::common::get_share_sub_leader;
 use crate::subscribe::common::SubPublishParam;
 use crate::subscribe::common::Subscriber;
@@ -50,6 +49,7 @@ use crate::subscribe::push::{
     exclusive_publish_message_qos1, push_packet_to_client, qos2_send_pubrel, wait_packet_ack,
     wait_pub_rec,
 };
+use network_server::common::connection_manager::ConnectionManager;
 
 use super::write::WriteStream;
 

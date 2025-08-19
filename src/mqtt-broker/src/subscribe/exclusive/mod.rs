@@ -21,13 +21,13 @@ use super::push::{
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
-use crate::server::common::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
 use crate::subscribe::common::is_ignore_push_error;
 use crate::subscribe::manager::SubPushThreadData;
 use crate::subscribe::push::{build_pub_qos, build_sub_ids};
 use common_base::tools::now_second;
 use metadata_struct::adapter::record::Record;
+use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::QoS;
 use std::sync::Arc;
 use std::time::Duration;

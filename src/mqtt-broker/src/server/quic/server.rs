@@ -13,19 +13,19 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
-use crate::handler::command::{CommandContext, MQTTHandlerCommand};
+use crate::handler::command::{create_command, CommandContext};
 use crate::handler::error::MqttBrokerError;
 use crate::security::AuthDriver;
-use crate::server::common::channel::RequestChannel;
-use crate::server::common::connection::NetworkConnectionType;
-use crate::server::common::connection_manager::ConnectionManager;
-use crate::server::common::handler::handler_process;
-use crate::server::common::response::{response_process, ResponseProcessContext};
 use crate::server::quic::acceptor::acceptor_process;
 use crate::subscribe::manager::SubscribeManager;
 use common_config::broker::broker_config;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::connection::NetworkConnectionType;
+use network_server::common::channel::RequestChannel;
+use network_server::common::connection_manager::ConnectionManager;
+use network_server::common::handler::handler_process;
+use network_server::common::response::{response_process, ResponseProcessContext};
 use quinn::{Connection, Endpoint, ServerConfig, VarInt};
 use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 use rustls_pki_types::PrivateKeyDer;
@@ -57,7 +57,7 @@ pub struct QuicServerContext {
 
 pub async fn start_quic_server(context: QuicServerContext) {
     let conf = broker_config();
-    let command = MQTTHandlerCommand::new(CommandContext {
+    let command_context = CommandContext {
         cache_manager: context.cache_manager.clone(),
         message_storage_adapter: context.message_storage_adapter.clone(),
         delay_message_manager: context.delay_message_manager.clone(),
@@ -66,8 +66,9 @@ pub async fn start_quic_server(context: QuicServerContext) {
         connection_manager: context.connection_manager.clone(),
         schema_manager: context.schema_register_manager.clone(),
         auth_driver: context.auth_driver.clone(),
-    });
+    };
 
+    let command = create_command(command_context);
     let mut server = QuicServer::new(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
         conf.mqtt_server.quic_port as u16,
@@ -105,8 +106,6 @@ pub async fn start_quic_server(context: QuicServerContext) {
     response_process(ResponseProcessContext {
         response_process_num: conf.network.response_thread_num,
         connection_manager: context.connection_manager.clone(),
-        cache_manager: context.cache_manager.clone(),
-        subscribe_manager: context.subscribe_manager.clone(),
         response_queue_rx: response_recv_channel,
         client_pool: context.client_pool.clone(),
         request_channel: request_channel.clone(),

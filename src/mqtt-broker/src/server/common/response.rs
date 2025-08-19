@@ -19,7 +19,7 @@ use crate::observability::metrics::server::{
 };
 use crate::server::common::channel::RequestChannel;
 use crate::server::common::connection::NetworkConnectionType;
-use crate::server::common::connection_manager::ConnectionManager;
+use network_server::common::connection_manager::ConnectionManager;
 use crate::server::common::metric::record_packet_handler_info_by_response;
 use crate::server::common::packet::ResponsePackage;
 use crate::subscribe::manager::SubscribeManager;
