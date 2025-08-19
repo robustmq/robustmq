@@ -15,6 +15,7 @@
 use super::flow_control::is_qos_message;
 use super::mqtt::{MqttService, MqttServiceConnectContext, MqttServiceContext};
 use crate::handler::cache::CacheManager;
+use crate::handler::connection::disconnect_connection;
 use crate::handler::response::{
     response_packet_mqtt_connect_fail, response_packet_mqtt_distinct_by_reason,
 };
@@ -38,7 +39,7 @@ use schema_register::schema::SchemaRegisterManager;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
-use tracing::info;
+use tracing::{error, info};
 
 // S: message storage adapter
 #[derive(Clone)]
@@ -46,8 +47,10 @@ pub struct MQTTHandlerCommand {
     mqtt3_service: MqttService,
     mqtt4_service: MqttService,
     mqtt5_service: MqttService,
-    metadata_cache: Arc<CacheManager>,
+    cache_manager: Arc<CacheManager>,
     connection_manager: Arc<ConnectionManager>,
+    subscribe_manager: Arc<SubscribeManager>,
+    pub client_pool: Arc<ClientPool>,
 }
 
 #[derive(Clone)]
@@ -86,7 +89,7 @@ impl Command for MQTTHandlerCommand {
             ));
         }
 
-        match packet {
+        let resp_package = match packet {
             MqttPacket::Connect(
                 protocol_version,
                 connect,
@@ -95,68 +98,59 @@ impl Command for MQTTHandlerCommand {
                 last_will_properties,
                 login,
             ) => {
-                return self
-                    .process_connect(
-                        &tcp_connection,
-                        &addr,
-                        protocol_version,
-                        connect,
-                        properties,
-                        last_will,
-                        last_will_properties,
-                        login,
-                    )
-                    .await;
+                self.process_connect(
+                    &tcp_connection,
+                    &addr,
+                    protocol_version,
+                    connect,
+                    properties,
+                    last_will,
+                    last_will_properties,
+                    login,
+                )
+                .await
             }
 
             MqttPacket::Publish(publish, publish_properties) => {
-                return self
-                    .process_publish(&tcp_connection, publish, publish_properties)
-                    .await;
+                self.process_publish(&tcp_connection, publish, publish_properties)
+                    .await
             }
 
             MqttPacket::PubRec(pub_rec, pub_rec_properties) => {
-                return self
-                    .process_pubrec(&tcp_connection, &pub_rec, &pub_rec_properties)
-                    .await;
+                self.process_pubrec(&tcp_connection, &pub_rec, &pub_rec_properties)
+                    .await
             }
 
             MqttPacket::PubComp(pub_comp, pub_comp_properties) => {
-                return self
-                    .process_pubcomp(&tcp_connection, &pub_comp, &pub_comp_properties)
-                    .await;
+                self.process_pubcomp(&tcp_connection, &pub_comp, &pub_comp_properties)
+                    .await
             }
 
             MqttPacket::PubRel(pub_rel, pub_rel_properties) => {
-                return self
-                    .process_pubrel(&tcp_connection, &pub_rel, &pub_rel_properties)
-                    .await;
+                self.process_pubrel(&tcp_connection, &pub_rel, &pub_rel_properties)
+                    .await
             }
 
             MqttPacket::PubAck(pub_ack, pub_ack_properties) => {
-                return self
-                    .process_puback(&tcp_connection, &pub_ack, &pub_ack_properties)
-                    .await;
+                self.process_puback(&tcp_connection, &pub_ack, &pub_ack_properties)
+                    .await
             }
 
             MqttPacket::Subscribe(subscribe, subscribe_properties) => {
-                return self
-                    .process_subscribe(&tcp_connection, &subscribe, &subscribe_properties)
-                    .await;
+                self.process_subscribe(&tcp_connection, &subscribe, &subscribe_properties)
+                    .await
             }
 
-            MqttPacket::PingReq(ping) => return self.process_ping(&tcp_connection, &ping).await,
+            MqttPacket::PingReq(ping) => self.process_ping(&tcp_connection, &ping).await,
 
             MqttPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => {
-                return self
-                    .process_unsubscribe(&tcp_connection, &unsubscribe, &unsubscribe_properties)
-                    .await;
+                self.process_unsubscribe(&tcp_connection, &unsubscribe, &unsubscribe_properties)
+                    .await
             }
 
             MqttPacket::Disconnect(disconnect, disconnect_properties) => {
-                return self
-                    .process_disconnect(&tcp_connection, &disconnect, &disconnect_properties)
-                    .await;
+                self.process_disconnect(&tcp_connection, &disconnect, &disconnect_properties)
+                    .await
             }
 
             _ => {
@@ -170,7 +164,32 @@ impl Command for MQTTHandlerCommand {
                     )),
                 ));
             }
+        };
+
+        if let Some(pkg) = resp_package.clone() {
+            if let MqttPacket::Disconnect(_, _) = pkg.packet.get_mqtt_packet().unwrap() {
+                if let Some(connection) = self
+                    .cache_manager
+                    .get_connection(tcp_connection.connection_id)
+                {
+                    if let Err(e) = disconnect_connection(
+                        &connection.client_id,
+                        connection.connect_id,
+                        &self.cache_manager,
+                        &self.client_pool,
+                        &self.connection_manager,
+                        &self.subscribe_manager,
+                        true,
+                    )
+                    .await
+                    {
+                        error!("{}", e);
+                    };
+                }
+            }
         }
+        
+        resp_package
     }
 }
 impl MQTTHandlerCommand {
@@ -242,7 +261,7 @@ impl MQTTHandlerCommand {
                 } else {
                     "".to_string()
                 };
-                self.metadata_cache
+                self.cache_manager
                     .login_success(tcp_connection.connection_id, username);
                 info!("connect [{}] login success", tcp_connection.connection_id);
             }
@@ -260,7 +279,7 @@ impl MQTTHandlerCommand {
         publish_properties: Option<PublishProperties>,
     ) -> Option<ResponsePackage> {
         let connection = if let Some(se) = self
-            .metadata_cache
+            .cache_manager
             .connection_info
             .get(&tcp_connection.connection_id)
         {
@@ -658,13 +677,15 @@ impl MQTTHandlerCommand {
             mqtt3_service,
             mqtt4_service,
             mqtt5_service,
-            metadata_cache: context.cache_manager,
+            client_pool: context.client_pool.clone(),
+            subscribe_manager: context.subscribe_manager.clone(),
+            cache_manager: context.cache_manager,
             connection_manager: context.connection_manager,
         }
     }
 
     pub async fn check_login_status(&self, connection_id: u64) -> bool {
-        self.metadata_cache.is_login(connection_id)
+        self.cache_manager.is_login(connection_id)
     }
 }
 

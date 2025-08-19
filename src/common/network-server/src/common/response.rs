@@ -141,22 +141,7 @@ pub(crate) fn response_child_process(context: ResponseChildProcessContext) {
                                     response_ms = now_mills();
                                     record_response_and_total_ms(&NetworkConnectionType::Tcp,response_package.get_receive_ms(),out_response_queue_ms);
                             }
-
-                            // if let MqttPacket::Disconnect(_, _) = response_package.packet {
-                            //     if let Some(connection) = raw_cache_manager.get_connection(response_package.connection_id){
-                            //         if let Err(e) =  disconnect_connection(
-                            //             &connection.client_id,
-                            //             connection.connect_id,
-                            //             &raw_cache_manager,
-                            //             &raw_client_pool,
-                            //             &raw_connect_manager,
-                            //             &raw_subscribe_manager,
-                            //             true
-                            //         ).await{
-                            //             error!("{}",e);
-                            //         };
-                            //     }
-                            // }
+                            
                             record_packet_handler_info_by_response(&response_package, out_response_queue_ms, response_ms);
                         }
                     }
