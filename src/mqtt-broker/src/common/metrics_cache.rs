@@ -14,6 +14,8 @@
 
 use crate::common::concurrent_btree_map::ShardedConcurrentBTreeMap;
 use crate::common::types::ResultMqttBrokerError;
+use crate::observability::slow::slow_subscribe_data::SlowSubscribeData;
+use crate::observability::slow::slow_subscribe_key::SlowSubscribeKey;
 use crate::{
     common::tool::loop_select, handler::cache::CacheManager, subscribe::manager::SubscribeManager,
 };

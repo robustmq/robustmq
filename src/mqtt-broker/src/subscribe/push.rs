@@ -19,7 +19,6 @@ use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, 
 use crate::handler::error::MqttBrokerError;
 use crate::handler::message::is_message_expire;
 use crate::handler::sub_option::{get_retain_flag_by_retain_as_published, is_send_msg_by_bo_local};
-use crate::observability::slow::sub::{record_slow_sub_data, SlowSubData};
 use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
 use axum::extract::ws::Message;
 use bytes::{Bytes, BytesMut};
