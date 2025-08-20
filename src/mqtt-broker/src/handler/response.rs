@@ -125,7 +125,7 @@ pub fn response_packet_mqtt_connect_fail(
             ConnectReturnCode::BadClientId
         } else if code == ConnectReturnCode::ProtocolError {
             ConnectReturnCode::RefusedProtocolVersion
-        } else if code == ConnectReturnCode::Success && code == ConnectReturnCode::NotAuthorized {
+        } else if code == ConnectReturnCode::Success || code == ConnectReturnCode::NotAuthorized {
             code
         } else {
             ConnectReturnCode::ServiceUnavailable

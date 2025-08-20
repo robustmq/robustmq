@@ -194,7 +194,7 @@ impl ConnectionManager {
         if packet_wrapper.protocol.is_mqtt() {
             if let RobustMQPacket::MQTT(pack) = packet_wrapper.packet {
                 let mqtt_packet = MqttPacketWrapper {
-                    protocol_version: 5,
+                    protocol_version: packet_wrapper.protocol.to_u8(),
                     packet: pack,
                 };
                 match self.write_mqtt_tcp_frame(connection_id, mqtt_packet).await {

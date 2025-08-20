@@ -497,7 +497,6 @@ impl MQTTHandlerCommand {
         } else {
             None
         };
-
         if let Some(pkg) = resp {
             return Some(ResponsePackage::build(
                 tcp_connection.connection_id,
