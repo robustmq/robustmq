@@ -20,10 +20,6 @@ use crate::handler::sub_option::{
     get_retain_flag_by_retain_as_published, is_send_msg_by_bo_local,
     is_send_retain_msg_by_retain_handling,
 };
-use crate::observability::metrics::packets::{
-    record_retain_recv_metrics, record_retain_sent_metrics,
-};
-use crate::server::common::connection_manager::ConnectionManager;
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::common::Subscriber;
 use crate::subscribe::common::{get_sub_topic_id_list, min_qos};
@@ -34,6 +30,8 @@ use bytes::Bytes;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
+use network_server::common::connection_manager::ConnectionManager;
+use observability::mqtt::packets::{record_retain_recv_metrics, record_retain_sent_metrics};
 use protocol::mqtt::common::{
     qos, MqttPacket, MqttProtocol, Publish, PublishProperties, Subscribe, SubscribeProperties,
 };

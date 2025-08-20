@@ -12,15 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::command::Command;
-use crate::observability::metrics::server::metrics_request_queue_size;
-use crate::server::common::channel::RequestChannel;
-use crate::server::common::connection::NetworkConnectionType;
-use crate::server::common::connection_manager::ConnectionManager;
-use crate::server::common::metric::record_packet_handler_info_no_response;
-use crate::server::common::packet::{RequestPackage, ResponsePackage};
+use crate::common::connection_manager::ConnectionManager;
+use crate::common::packet::RequestPackage;
+use crate::{command::ArcCommandAdapter, common::channel::RequestChannel};
 use common_base::tools::now_mills;
-use protocol::mqtt::common::mqtt_packet_to_string;
+use metadata_struct::connection::NetworkConnectionType;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;
@@ -29,11 +25,11 @@ use tokio::sync::mpsc::Receiver;
 use tokio::time::sleep;
 use tracing::{debug, error, info};
 
-pub(crate) async fn handler_process(
+pub async fn handler_process(
     handler_process_num: usize,
     mut request_queue_rx: Receiver<RequestPackage>,
     connection_manager: Arc<ConnectionManager>,
-    command: Command,
+    command: ArcCommandAdapter,
     request_channel: Arc<RequestChannel>,
     network_type: NetworkConnectionType,
     stop_sx: broadcast::Sender<bool>,
@@ -64,7 +60,7 @@ pub(crate) async fn handler_process(
                 val = request_queue_rx.recv()=>{
                     if let Some(packet) = val{
                         let mut sleep_ms = 0;
-                        metrics_request_queue_size("total", request_queue_rx.len());
+                        // metrics_request_queue_size("total", request_queue_rx.len());
 
                         // Try to deliver the request packet to the child handler until it is delivered successfully.
                         // Because some request queues may be full or abnormal, the request packets can be delivered to other child handlers.
@@ -96,7 +92,7 @@ fn handler_child_process(
     handler_process_num: usize,
     connection_manager: Arc<ConnectionManager>,
     request_channel: Arc<RequestChannel>,
-    command: Command,
+    command: ArcCommandAdapter,
     network_type: NetworkConnectionType,
     stop_sx: broadcast::Sender<bool>,
 ) {
@@ -105,7 +101,7 @@ fn handler_child_process(
             request_channel.create_handler_child_channel(&network_type, index);
         let raw_connect_manager = connection_manager.clone();
         let request_channel = request_channel.clone();
-        let mut raw_command = command.clone();
+        let raw_command = command.clone();
         let mut raw_stop_rx = stop_sx.subscribe();
 
         let raw_network_type = network_type.clone();
@@ -126,22 +122,22 @@ fn handler_child_process(
                     },
                     val = child_process_rx.recv()=>{
                         if let Some(packet) = val{
-                            let label = format!("handler-{index}");
-                            metrics_request_queue_size(&label, child_process_rx.len());
+                            // let label = format!("handler-{index}");
+                            // metrics_request_queue_size(&label, child_process_rx.len());
                             if let Some(connect) = raw_connect_manager.get_connect(packet.connection_id) {
-                                let out_handler_queue_ms = now_mills();
+                                let _out_handler_queue_ms = now_mills();
 
                                 let response_data = raw_command
-                                    .apply(&connect, &packet.addr, &packet.packet)
+                                    .apply(connect, packet.addr, packet.packet)
                                     .await;
-                                let end_handler_ms = now_mills();
+                                let _end_handler_ms = now_mills();
 
                                 if let Some(resp) = response_data {
-                                    let response_package = ResponsePackage::new(packet.connection_id, resp,packet.receive_ms,
-                                                out_handler_queue_ms, end_handler_ms, mqtt_packet_to_string(&packet.packet));
-                                    request_channel.send_response_channel(&raw_network_type, response_package).await;
+                                    // let response_package = ResponsePackage::new(packet.connection_id, resp,packet.receive_ms,
+                                    //             out_handler_queue_ms, end_handler_ms, mqtt_packet_to_string(&packet.packet));
+                                    request_channel.send_response_channel(&raw_network_type, resp).await;
                                 } else {
-                                    record_packet_handler_info_no_response(&packet, out_handler_queue_ms, end_handler_ms, mqtt_packet_to_string(&packet.packet));
+                                    // record_packet_handler_info_no_response(&packet, out_handler_queue_ms, end_handler_ms, mqtt_packet_to_string(&packet.packet));
                                     info!("{}","No backpacking is required for this request");
                                 }
                             }

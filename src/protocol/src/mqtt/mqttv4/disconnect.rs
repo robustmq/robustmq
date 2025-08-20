@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use super::*;
-
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 impl Disconnect {}
 
 // In MQTT V4(3.1.1) there are no reason code and properties for disconnect packet
-pub fn write(_disconnect: &Disconnect, payload: &mut BytesMut) -> Result<usize, Error> {
+pub fn write(_disconnect: &Disconnect, payload: &mut BytesMut) -> Result<usize, MQTTProtocolError> {
     payload.put_slice(&[0xE0, 0x00]); // 1st byte of fixed header in disconnect packet is 0x1110 0000
                                       // 1110(14) is the packet type of disconnect
                                       // 0000 is reserved connection flags which must be 0

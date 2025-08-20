@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::*;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 fn len(puback: &PubAck, properties: &Option<PubAckProperties>) -> usize {
     let mut len = 2 + 1; // pkid + reason code
@@ -38,7 +39,7 @@ pub fn write(
     puback: &PubAck,
     properties: &Option<PubAckProperties>,
     buffer: &mut BytesMut,
-) -> Result<usize, Error> {
+) -> Result<usize, MQTTProtocolError> {
     let len = len(puback, properties);
     buffer.put_u8(0x40); // 1st byte
     let count = write_remaining_length(buffer, len)?;
@@ -61,7 +62,7 @@ pub fn write(
 pub fn read(
     fixed_header: FixedHeader,
     mut bytes: Bytes,
-) -> Result<(PubAck, Option<PubAckProperties>), Error> {
+) -> Result<(PubAck, Option<PubAckProperties>), MQTTProtocolError> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
     let pkid = read_u16(&mut bytes)?;
@@ -111,7 +112,10 @@ mod properties {
         len
     }
 
-    pub fn write(properties: &PubAckProperties, buffer: &mut BytesMut) -> Result<(), Error> {
+    pub fn write(
+        properties: &PubAckProperties,
+        buffer: &mut BytesMut,
+    ) -> Result<(), MQTTProtocolError> {
         let len = len(properties);
         write_remaining_length(buffer, len)?;
 
@@ -129,7 +133,7 @@ mod properties {
         Ok(())
     }
 
-    pub fn read(bytes: &mut Bytes) -> Result<Option<PubAckProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<PubAckProperties>, MQTTProtocolError> {
         let mut reason_string = None;
         let mut user_properties = Vec::new();
 
@@ -157,7 +161,7 @@ mod properties {
                     cursor += 2 + key.len() + 2 + value.len();
                     user_properties.push((key, value));
                 }
-                _ => return Err(Error::InvalidPropertyType(prop)),
+                _ => return Err(MQTTProtocolError::InvalidPropertyType(prop)),
             }
         }
         Ok(Some(PubAckProperties {
@@ -168,7 +172,7 @@ mod properties {
 }
 
 /// Connection return code type
-fn reason(num: u8) -> Result<PubAckReason, Error> {
+fn reason(num: u8) -> Result<PubAckReason, MQTTProtocolError> {
     let code = match num {
         0 => PubAckReason::Success,
         16 => PubAckReason::NoMatchingSubscribers,
@@ -179,7 +183,7 @@ fn reason(num: u8) -> Result<PubAckReason, Error> {
         145 => PubAckReason::PacketIdentifierInUse,
         151 => PubAckReason::QuotaExceeded,
         153 => PubAckReason::PayloadFormatInvalid,
-        num => return Err(Error::InvalidConnectReturnCode(num)),
+        num => return Err(MQTTProtocolError::InvalidConnectReturnCode(num)),
     };
     Ok(code)
 }

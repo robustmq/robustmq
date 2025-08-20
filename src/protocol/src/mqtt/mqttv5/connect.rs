@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::*;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 pub fn write(
     connect: &Connect,
@@ -21,7 +22,7 @@ pub fn write(
     will_properties: &Option<LastWillProperties>,
     l: &Option<Login>,
     buffer: &mut BytesMut,
-) -> Result<usize, Error> {
+) -> Result<usize, MQTTProtocolError> {
     let len = {
         let mut len = 2 + "MQTT".len()  // protocol name
                         + 1             // protocol version(v5)
@@ -89,7 +90,10 @@ pub fn write(
     Ok(len)
 }
 
-pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<ConnectReadOutcome, Error> {
+pub fn read(
+    fixed_header: FixedHeader,
+    mut bytes: Bytes,
+) -> Result<ConnectReadOutcome, MQTTProtocolError> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
 
@@ -97,10 +101,10 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<ConnectReadOu
     let protocol_name = read_mqtt_string(&mut bytes)?;
     let protocol_level = read_u8(&mut bytes)?;
     if protocol_name != "MQTT" {
-        return Err(Error::InvalidProtocol);
+        return Err(MQTTProtocolError::InvalidProtocol);
     }
     if protocol_level != 5 {
-        return Err(Error::InvalidProtocolLevel(protocol_level));
+        return Err(MQTTProtocolError::InvalidProtocolLevel(protocol_level));
     }
 
     let connect_flags = read_u8(&mut bytes)?;
@@ -131,7 +135,7 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<ConnectReadOu
 pub mod properties {
     use super::*;
 
-    pub fn read(bytes: &mut Bytes) -> Result<Option<ConnectProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<ConnectProperties>, MQTTProtocolError> {
         let mut session_expiry_interval = None;
         let mut receive_maximum = None;
         let mut max_packet_size = None;
@@ -194,7 +198,7 @@ pub mod properties {
                     cursor += 2 + data.len();
                     authentication_data = Some(data);
                 }
-                _ => return Err(Error::InvalidPropertyType(prop)),
+                _ => return Err(MQTTProtocolError::InvalidPropertyType(prop)),
             }
         }
 
@@ -211,7 +215,10 @@ pub mod properties {
         }))
     }
 
-    pub fn write(properties: &ConnectProperties, buffer: &mut BytesMut) -> Result<(), Error> {
+    pub fn write(
+        properties: &ConnectProperties,
+        buffer: &mut BytesMut,
+    ) -> Result<(), MQTTProtocolError> {
         let len = len(properties);
         write_remaining_length(buffer, len)?;
 
@@ -328,10 +335,10 @@ pub mod will {
     pub fn read(
         connect_flags: u8,
         bytes: &mut Bytes,
-    ) -> Result<(Option<LastWill>, Option<LastWillProperties>), Error> {
+    ) -> Result<(Option<LastWill>, Option<LastWillProperties>), MQTTProtocolError> {
         let o = match connect_flags & 0b100 {
             0 if (connect_flags & 0b0011_1000) != 0 => {
-                return Err(Error::IncorrectPacketFormat);
+                return Err(MQTTProtocolError::IncorrectPacketFormat);
             }
             0 => (None, None),
             _ => {
@@ -341,7 +348,7 @@ pub mod will {
                 let will_topic = read_mqtt_bytes(bytes)?;
                 let will_message = read_mqtt_bytes(bytes)?;
                 let qos_num = (connect_flags & 0b11000) >> 3;
-                let will_qos = qos(qos_num).ok_or(Error::InvalidQoS(qos_num))?;
+                let will_qos = qos(qos_num).ok_or(MQTTProtocolError::InvalidQoS(qos_num))?;
                 let will = Some(LastWill {
                     topic: will_topic,
                     message: will_message,
@@ -360,7 +367,7 @@ pub mod will {
         will: &LastWill,
         properties: &Option<LastWillProperties>,
         buffer: &mut BytesMut,
-    ) -> Result<u8, Error> {
+    ) -> Result<u8, MQTTProtocolError> {
         let mut connect_flags = 0;
 
         connect_flags |= 0x04 | ((will.qos as u8) << 3);
@@ -417,7 +424,7 @@ mod willproperties {
         len
     }
 
-    pub fn read(bytes: &mut Bytes) -> Result<Option<LastWillProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<LastWillProperties>, MQTTProtocolError> {
         let mut delay_interval = None;
         let mut payload_format_indicator = None;
         let mut message_expiry_interval = None;
@@ -472,7 +479,7 @@ mod willproperties {
                     cursor += 2 + key.len() + 2 + value.len();
                     user_properties.push((key, value));
                 }
-                _ => return Err(Error::InvalidPropertyType(prop)),
+                _ => return Err(MQTTProtocolError::InvalidPropertyType(prop)),
             }
         }
 
@@ -487,7 +494,10 @@ mod willproperties {
         }))
     }
 
-    pub fn write(properties: &LastWillProperties, buffer: &mut BytesMut) -> Result<(), Error> {
+    pub fn write(
+        properties: &LastWillProperties,
+        buffer: &mut BytesMut,
+    ) -> Result<(), MQTTProtocolError> {
         let len = len(properties);
         write_remaining_length(buffer, len)?;
 
@@ -541,7 +551,7 @@ pub mod login {
         }
     }
 
-    pub fn read(connect_flags: u8, bytes: &mut Bytes) -> Result<Option<Login>, Error> {
+    pub fn read(connect_flags: u8, bytes: &mut Bytes) -> Result<Option<Login>, MQTTProtocolError> {
         let username = match connect_flags & 0b1000_0000 {
             0 => String::new(),
             _ => read_mqtt_string(bytes)?,

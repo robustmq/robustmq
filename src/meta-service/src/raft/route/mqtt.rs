@@ -23,6 +23,7 @@ use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
 use crate::storage::rocksdb::RocksDBEngine;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 use common_base::tools::now_mills;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
@@ -34,7 +35,7 @@ use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use prost::Message as _;
-use protocol::mqtt::common::{qos, retain_forward_rule, Error, QoS, RetainHandling};
+use protocol::mqtt::common::{qos, retain_forward_rule, QoS, RetainHandling};
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclRequest, CreateBlacklistRequest, CreateConnectorRequest, CreateSessionRequest,
     CreateTopicRequest, CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
@@ -266,7 +267,7 @@ impl DataRouteMqtt {
             _qos = qos(req.qos as u8);
         } else {
             return Err(PlacementCenterError::CommonError(
-                Error::InvalidRemainingLength(req.qos as usize).to_string(),
+                MQTTProtocolError::InvalidRemainingLength(req.qos as usize).to_string(),
             ));
         };
 
@@ -275,7 +276,8 @@ impl DataRouteMqtt {
             _retained_handling = retain_forward_rule(req.retained_handling as u8);
         } else {
             return Err(PlacementCenterError::CommonError(
-                Error::InvalidRemainingLength(req.retained_handling as usize).to_string(),
+                MQTTProtocolError::InvalidRemainingLength(req.retained_handling as usize)
+                    .to_string(),
             ));
         };
 
@@ -283,12 +285,13 @@ impl DataRouteMqtt {
             cluster: req.cluster_name.clone(),
             topic: req.topic.clone(),
             qos: _qos.ok_or(PlacementCenterError::CommonError(
-                Error::InvalidQoS(req.qos as u8).to_string(),
+                MQTTProtocolError::InvalidQoS(req.qos as u8).to_string(),
             ))?,
             no_local: req.no_local,
             retain_as_published: req.retain_as_published,
             retained_handling: _retained_handling.ok_or(PlacementCenterError::CommonError(
-                Error::InvalidRetainForwardRule(req.retained_handling as u8).to_string(),
+                MQTTProtocolError::InvalidRetainForwardRule(req.retained_handling as u8)
+                    .to_string(),
             ))?,
         };
         storage.save_auto_subscribe_rule(&req.cluster_name, &req.topic, auto_subscribe_rule)

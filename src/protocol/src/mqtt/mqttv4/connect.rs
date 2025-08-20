@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::*;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 fn len(connect: &Connect, login: &Option<Login>, will: &Option<LastWill>) -> usize {
     /*
@@ -45,7 +46,7 @@ fn len(connect: &Connect, login: &Option<Login>, will: &Option<LastWill>) -> usi
 pub fn read(
     fixed_header: FixedHeader,
     mut bytes: Bytes,
-) -> Result<(u8, Connect, Option<Login>, Option<LastWill>), Error> {
+) -> Result<(u8, Connect, Option<Login>, Option<LastWill>), MQTTProtocolError> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
 
@@ -54,11 +55,11 @@ pub fn read(
     let protocol_name = std::str::from_utf8(&protocol_name)?.to_owned(); // convert to string by to_owned()
     let protocol_level = read_u8(&mut bytes)?;
     if protocol_name != "MQTT" {
-        return Err(Error::InvalidProtocol);
+        return Err(MQTTProtocolError::InvalidProtocol);
     }
 
     if protocol_level != 4 && protocol_level != 3 {
-        return Err(Error::InvalidProtocolLevel(protocol_level));
+        return Err(MQTTProtocolError::InvalidProtocolLevel(protocol_level));
     }
 
     let connect_flags = read_u8(&mut bytes)?;
@@ -84,7 +85,7 @@ pub fn write(
     login: &Option<Login>,
     will: &Option<LastWill>,
     buffer: &mut BytesMut,
-) -> Result<usize, Error> {
+) -> Result<usize, MQTTProtocolError> {
     let len = self::len(connect, login, will);
     buffer.put_u8(0b0001_0000); // fixheader byte1 0x10
     let count = write_remaining_length(buffer, len)?;
@@ -126,13 +127,16 @@ pub mod will {
         len
     }
 
-    pub fn read(connect_flags: u8, bytes: &mut Bytes) -> Result<Option<LastWill>, Error> {
+    pub fn read(
+        connect_flags: u8,
+        bytes: &mut Bytes,
+    ) -> Result<Option<LastWill>, MQTTProtocolError> {
         let last_will = match connect_flags & 0b100 {
             // & 0b100 to check Will Flag(bit 2) is 0 or 1
             0 if (connect_flags & 0b0011_1000) != 0 => {
                 // when Will Flag is 0, then "if" part checks
                 // Will QoS(bit 3 & 4) and Will Retain(bit 5)
-                return Err(Error::IncorrectPacketFormat); // if Will QoS and Retain are 1 but Will Flag 0, return incorrect
+                return Err(MQTTProtocolError::IncorrectPacketFormat); // if Will QoS and Retain are 1 but Will Flag 0, return incorrect
             }
             0 => None,
             _ => {
@@ -140,7 +144,7 @@ pub mod will {
                 let will_message = read_mqtt_bytes(bytes)?;
                 // figure out Will QoS number (0, 1 or 2) by &0b11000 and moving right 3 bits
                 let qos_num = (connect_flags & 0b11000) >> 3;
-                let will_qos = qos(qos_num).ok_or(Error::InvalidQoS(qos_num))?;
+                let will_qos = qos(qos_num).ok_or(MQTTProtocolError::InvalidQoS(qos_num))?;
                 //construct the LastWill message with topic name, message, QoS(0, 1 or 2) and Retain(0 or 1)
                 Some(LastWill {
                     topic: will_topic,
@@ -154,7 +158,7 @@ pub mod will {
         Ok(last_will)
     }
 
-    pub fn write(will: &LastWill, buffer: &mut BytesMut) -> Result<u8, Error> {
+    pub fn write(will: &LastWill, buffer: &mut BytesMut) -> Result<u8, MQTTProtocolError> {
         let mut connect_flags = 0;
 
         connect_flags |= 0x04 | ((will.qos as u8) << 3);
@@ -172,7 +176,7 @@ pub mod login {
 
     use super::*;
 
-    pub fn read(connect_flags: u8, bytes: &mut Bytes) -> Result<Option<Login>, Error> {
+    pub fn read(connect_flags: u8, bytes: &mut Bytes) -> Result<Option<Login>, MQTTProtocolError> {
         let username = match connect_flags & 0b1000_0000 {
             0 => String::new(),
             _ => {

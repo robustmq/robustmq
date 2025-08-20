@@ -22,16 +22,15 @@ use crate::common::metrics_cache::MetricsCacheManager;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
-use crate::observability::slow::core::{
-    get_calculate_time_from_broker_config, record_slow_subscribe_data,
-};
-use crate::server::common::connection_manager::ConnectionManager;
+use crate::observability::slow::core::get_calculate_time_from_broker_config;
+use crate::observability::slow::core::record_slow_subscribe_data;
 use crate::storage::message::MessageStorage;
 use crate::subscribe::common::is_ignore_push_error;
 use crate::subscribe::manager::SubPushThreadData;
 use crate::subscribe::push::{build_pub_qos, build_sub_ids};
 use common_base::tools::now_second;
 use metadata_struct::adapter::record::Record;
+use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::QoS;
 use std::sync::Arc;
 use std::time::Duration;

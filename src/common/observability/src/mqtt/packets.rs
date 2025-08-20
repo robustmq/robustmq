@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::server::common::connection::{NetworkConnection, NetworkConnectionType};
+use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use prometheus_client::encoding::EncodeLabelSet;
 use protocol::mqtt::{
     codec::{calc_mqtt_packet_size, MqttPacketWrapper},
@@ -275,9 +275,10 @@ pub fn record_received_metrics(
     let label = NetworkLabel {
         network: network_type.to_string(),
     };
-    let payload_size = if let Some(protocol) = connection.protocol.clone() {
+    let payload_size = if let Some(_protocol) = connection.protocol.clone() {
         let wrapper = MqttPacketWrapper {
-            protocol_version: protocol.into(),
+            // protocol_version: protocol.into(),
+            protocol_version: 3,
             packet: pkg.clone(),
         };
         calc_mqtt_packet_size(wrapper)
@@ -398,6 +399,7 @@ mod test {
     use super::*;
     use common_base::metrics::metrics_register_default;
     use common_base::tools::get_addr_by_local_hostname;
+    use metadata_struct::protocol::RobustMQProtocol;
     use prometheus_client::encoding::text::encode;
     #[tokio::test]
     async fn test_gauge() {
@@ -459,7 +461,7 @@ mod test {
     }
 
     use protocol::mqtt::codec::{calc_mqtt_packet_size, MqttPacketWrapper};
-    use protocol::mqtt::common::{MqttPacket, MqttProtocol, Publish, UnsubAck};
+    use protocol::mqtt::common::{MqttPacket, Publish, UnsubAck};
 
     #[test]
     fn calc_mqtt_packet_size_test() {
@@ -496,7 +498,7 @@ mod test {
             addr: get_addr_by_local_hostname(1883).parse().unwrap(),
             connection_stop_sx: None,
             connection_id: 100,
-            protocol: Some(MqttProtocol::Mqtt3),
+            protocol: Some(RobustMQProtocol::MQTT3),
         };
         let ty = NetworkConnectionType::Tcp;
         record_received_metrics(&nc, &mp, &ty);

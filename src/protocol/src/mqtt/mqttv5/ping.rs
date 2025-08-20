@@ -13,11 +13,12 @@
 // limitations under the License.
 
 use super::*;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 /// pingreq and pingresp in MQTT v5 are as same as that in MQTT v4
 pub mod pingreq {
     use super::*;
-    pub fn write(payload: &mut BytesMut) -> Result<usize, Error> {
+    pub fn write(payload: &mut BytesMut) -> Result<usize, MQTTProtocolError> {
         payload.put_slice(&[0xC0, 0x00]);
         Ok(2)
     }
@@ -25,7 +26,7 @@ pub mod pingreq {
 
 pub mod pingresp {
     use super::*;
-    pub fn write(payload: &mut BytesMut) -> Result<usize, Error> {
+    pub fn write(payload: &mut BytesMut) -> Result<usize, MQTTProtocolError> {
         payload.put_slice(&[0xD0, 0x00]);
         Ok(2)
     }

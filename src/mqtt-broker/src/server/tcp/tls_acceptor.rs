@@ -15,13 +15,14 @@
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::connection::tcp_tls_establish_connection_check;
 use crate::handler::error::MqttBrokerError;
-use crate::observability::metrics::packets::record_received_error_metrics;
-use crate::server::common::channel::RequestChannel;
-use crate::server::common::connection::{NetworkConnection, NetworkConnectionType};
-use crate::server::common::connection_manager::ConnectionManager;
-use crate::server::common::tool::read_packet;
 use common_config::broker::broker_config;
 use futures_util::StreamExt;
+use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
+use network_server::common::channel::RequestChannel;
+use network_server::common::connection_manager::ConnectionManager;
+use network_server::common::packet::RobustMQPacket;
+use network_server::common::tool::read_packet;
+use observability::mqtt::packets::record_received_error_metrics;
 use protocol::mqtt::codec::MqttCodec;
 use rustls_pemfile::{certs, private_key};
 use std::fs::File;
@@ -110,7 +111,7 @@ pub(crate) async fn acceptor_tls_process(
                                     Some(connection_stop_sx.clone())
                                 );
                                 connection_manager.add_connection(connection.clone());
-                                connection_manager.add_tcp_tls_write(connection.connection_id, write_frame_stream);
+                                connection_manager.add_mqtt_tcp_tls_write(connection.connection_id, write_frame_stream);
 
                                 read_tls_frame_process(read_frame_stream, connection, request_channel.clone(), connection_stop_rx, network_type.clone());
                             }
@@ -152,7 +153,7 @@ pub(crate) fn read_tls_frame_process(
                     if let Some(pkg) = package {
                         match pkg {
                             Ok(pack) => {
-                                read_packet(pack, &request_channel, &connection, &network_type).await;
+                                read_packet(RobustMQPacket::MQTT(pack), &request_channel, &connection, &network_type).await;
                             }
                             Err(e) => {
                                 record_received_error_metrics(network_type.clone());

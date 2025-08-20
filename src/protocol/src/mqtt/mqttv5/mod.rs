@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bytes::{Buf, BufMut, Bytes, BytesMut};
-
 use crate::mqtt::common::*;
+use bytes::{Buf, BufMut, Bytes, BytesMut};
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 pub mod auth;
 pub mod codec;
@@ -64,7 +64,7 @@ enum PropertyType {
     SharedSubscriptionAvailable = 42,
 }
 
-fn property(num: u8) -> Result<PropertyType, Error> {
+fn property(num: u8) -> Result<PropertyType, MQTTProtocolError> {
     let property = match num {
         1 => PropertyType::PayloadFormatIndicator,
         2 => PropertyType::MessageExpiryInterval,
@@ -93,7 +93,7 @@ fn property(num: u8) -> Result<PropertyType, Error> {
         40 => PropertyType::WildcardSubscriptionAvailable,
         41 => PropertyType::SubscriptionIdentifierAvailable,
         42 => PropertyType::SharedSubscriptionAvailable,
-        num => return Err(Error::InvalidPropertyType(num)),
+        num => return Err(MQTTProtocolError::InvalidPropertyType(num)),
     };
     Ok(property)
 }

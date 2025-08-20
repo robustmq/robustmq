@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::*;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 fn len(pubcomp: &PubComp, properties: &Option<PubCompProperties>) -> usize {
     let mut len = 2 + 1; // pkid + reason
@@ -39,7 +40,7 @@ pub fn write(
     pubcomp: &PubComp,
     properties: &Option<PubCompProperties>,
     buffer: &mut BytesMut,
-) -> Result<usize, Error> {
+) -> Result<usize, MQTTProtocolError> {
     let len = len(pubcomp, properties);
     buffer.put_u8(0x70); // 1st byte of pubcomp
     let count = write_remaining_length(buffer, len)?;
@@ -64,7 +65,7 @@ pub fn write(
 pub fn read(
     fiexd_header: FixedHeader,
     mut bytes: Bytes,
-) -> Result<(PubComp, Option<PubCompProperties>), Error> {
+) -> Result<(PubComp, Option<PubCompProperties>), MQTTProtocolError> {
     let variable_header_index = fiexd_header.fixed_header_len;
     bytes.advance(variable_header_index);
     let pkid = read_u16(&mut bytes)?;
@@ -113,7 +114,10 @@ mod properties {
         len
     }
 
-    pub fn write(properties: &PubCompProperties, buffer: &mut BytesMut) -> Result<(), Error> {
+    pub fn write(
+        properties: &PubCompProperties,
+        buffer: &mut BytesMut,
+    ) -> Result<(), MQTTProtocolError> {
         let len = len(properties);
         write_remaining_length(buffer, len)?;
 
@@ -130,7 +134,7 @@ mod properties {
         Ok(())
     }
 
-    pub fn read(bytes: &mut Bytes) -> Result<Option<PubCompProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<PubCompProperties>, MQTTProtocolError> {
         let mut reason_string = None;
         let mut user_properties = Vec::new();
 
@@ -158,7 +162,7 @@ mod properties {
                     cursor += 2 + key.len() + 2 + value.len();
                     user_properties.push((key, value));
                 }
-                _ => return Err(Error::InvalidPropertyType(prop)),
+                _ => return Err(MQTTProtocolError::InvalidPropertyType(prop)),
             }
         }
 
@@ -170,11 +174,11 @@ mod properties {
 }
 
 /// Connection return code type
-fn reason(num: u8) -> Result<PubCompReason, Error> {
+fn reason(num: u8) -> Result<PubCompReason, MQTTProtocolError> {
     let code = match num {
         0 => PubCompReason::Success,
         146 => PubCompReason::PacketIdentifierNotFound,
-        num => return Err(Error::InvalidConnectReturnCode(num)),
+        num => return Err(MQTTProtocolError::InvalidConnectReturnCode(num)),
     };
     Ok(code)
 }

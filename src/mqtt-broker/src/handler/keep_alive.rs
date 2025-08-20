@@ -17,15 +17,16 @@ use super::connection::disconnect_connection;
 use super::response::response_packet_mqtt_distinct_by_reason;
 use crate::common::tool::loop_select;
 use crate::common::types::ResultMqttBrokerError;
-use crate::server::common::connection::NetworkConnection;
-use crate::server::common::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
 use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::tools::now_second;
 use common_config::config::BrokerConfig;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::connection::NetworkConnection;
 use metadata_struct::mqtt::connection::MQTTConnection;
+use network_server::common::connection_manager::ConnectionManager;
+use network_server::common::packet::RobustMQPacketWrapper;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{DisconnectReasonCode, MqttProtocol};
 use serde::{Deserialize, Serialize};
@@ -86,12 +87,12 @@ impl ClientKeepAlive {
                 if let Some(network) = self.connection_manager.get_connect(connect_id) {
                     let protocol = network.protocol.clone().unwrap();
                     let resp = response_packet_mqtt_distinct_by_reason(
-                        &protocol,
+                        &protocol.to_mqtt(),
                         Some(DisconnectReasonCode::NormalDisconnection),
                     );
 
                     let wrap = MqttPacketWrapper {
-                        protocol_version: protocol.clone().into(),
+                        protocol_version: protocol.to_u8(),
                         packet: resp,
                     };
 
@@ -103,7 +104,7 @@ impl ClientKeepAlive {
                         network: network.clone(),
                         connection: connection.clone(),
                         wrap,
-                        protocol: protocol.clone(),
+                        protocol: protocol.to_mqtt(),
                         connect_id,
                     };
                     self.try_send_distinct_packet(context);
@@ -124,7 +125,10 @@ impl ClientKeepAlive {
             if context.network.is_tcp() {
                 let _ = context
                     .connection_manager
-                    .write_tcp_frame(context.connection.connect_id, context.wrap.clone())
+                    .write_tcp_frame(
+                        context.connection.connect_id,
+                        RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
+                    )
                     .await;
             } else {
                 let mut codec = MqttCodec::new(Some(context.protocol.clone().into()));
@@ -137,7 +141,7 @@ impl ClientKeepAlive {
                     .connection_manager
                     .write_websocket_frame(
                         context.connection.connect_id,
-                        context.wrap.clone(),
+                        RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
                         Message::Binary(buff.to_vec()),
                     )
                     .await;
@@ -226,8 +230,8 @@ mod test {
     use super::keep_live_time;
     use crate::handler::cache::CacheManager;
     use crate::handler::keep_alive::{client_keep_live_time, ClientKeepAlive};
-    use crate::server::common::connection_manager::ConnectionManager;
     use crate::subscribe::manager::SubscribeManager;
+    use network_server::common::connection_manager::ConnectionManager;
 
     #[tokio::test]
     pub async fn keep_live_test() {
@@ -291,7 +295,7 @@ mod test {
             conf.cluster_name.clone(),
         ));
 
-        let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
+        let connection_manager = Arc::new(ConnectionManager::new(3, 1000));
         let subscribe_manager = Arc::new(SubscribeManager::new());
         let alive = ClientKeepAlive::new(
             client_pool,

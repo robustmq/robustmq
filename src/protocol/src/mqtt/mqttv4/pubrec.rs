@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::*;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 impl PubRec {}
 
@@ -21,7 +22,7 @@ fn len() -> usize {
     2
 }
 
-pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<PubRec, Error> {
+pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<PubRec, MQTTProtocolError> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
     let pkid = read_u16(&mut bytes)?;
@@ -31,11 +32,13 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<PubRec, Error
             reason: Some(PubRecReason::Success),
         })
     } else {
-        Err(Error::InvalidRemainingLength(fixed_header.remaining_len))
+        Err(MQTTProtocolError::InvalidRemainingLength(
+            fixed_header.remaining_len,
+        ))
     }
 }
 
-pub fn write(pubrec: &PubRec, buffer: &mut BytesMut) -> Result<usize, Error> {
+pub fn write(pubrec: &PubRec, buffer: &mut BytesMut) -> Result<usize, MQTTProtocolError> {
     let len = len();
     buffer.put_u8(0x50);
     let count = write_remaining_length(buffer, len)?;

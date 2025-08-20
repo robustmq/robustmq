@@ -18,6 +18,7 @@ use std::sync::Arc;
 use common_base::tools::{now_mills, now_second};
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
+use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::{
     qos, Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MqttPacket, MqttProtocol, PingReq,
@@ -63,7 +64,6 @@ use crate::observability::system_topic::event::{
     StReportSubscribedEventContext, StReportUnsubscribedEventContext,
 };
 use crate::security::AuthDriver;
-use crate::server::common::connection_manager::ConnectionManager;
 use crate::subscribe::common::min_qos;
 use crate::subscribe::manager::SubscribeManager;
 
@@ -119,7 +119,7 @@ impl MqttService {
         }
     }
 
-    pub async fn connect(&mut self, context: MqttServiceConnectContext) -> MqttPacket {
+    pub async fn connect(&self, context: MqttServiceConnectContext) -> MqttPacket {
         let cluster = self.cache_manager.get_cluster_config();
 
         // connect params validator

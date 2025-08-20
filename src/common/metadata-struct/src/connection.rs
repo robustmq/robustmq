@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::protocol::RobustMQProtocol;
+use protocol::mqtt::common::MqttProtocol;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::net::SocketAddr;
 use std::sync::atomic::AtomicU64;
-
-use protocol::mqtt::common::MqttProtocol;
-use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tracing::error;
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
@@ -51,7 +51,7 @@ impl fmt::Display for NetworkConnectionType {
 pub struct NetworkConnection {
     pub connection_type: NetworkConnectionType,
     pub connection_id: u64,
-    pub protocol: Option<MqttProtocol>,
+    pub protocol: Option<RobustMQProtocol>,
     pub addr: SocketAddr,
     #[serde(skip_serializing, skip_deserializing)]
     pub connection_stop_sx: Option<mpsc::Sender<bool>>,
@@ -77,27 +77,27 @@ impl NetworkConnection {
         self.connection_id
     }
 
-    pub fn set_protocol(&mut self, protocol: MqttProtocol) {
+    pub fn set_protocol(&mut self, protocol: RobustMQProtocol) {
         self.protocol = Some(protocol);
     }
 
     pub fn is_mqtt3(&self) -> bool {
         if let Some(protocol) = self.protocol.clone() {
-            return protocol == MqttProtocol::Mqtt3;
+            return protocol == RobustMQProtocol::MQTT3;
         }
         false
     }
 
     pub fn is_mqtt4(&self) -> bool {
         if let Some(protocol) = self.protocol.clone() {
-            return protocol == MqttProtocol::Mqtt4;
+            return protocol == RobustMQProtocol::MQTT4;
         }
         false
     }
 
     pub fn is_mqtt5(&self) -> bool {
         if let Some(protocol) = self.protocol.clone() {
-            return protocol == MqttProtocol::Mqtt5;
+            return protocol == RobustMQProtocol::MQTT5;
         }
         false
     }

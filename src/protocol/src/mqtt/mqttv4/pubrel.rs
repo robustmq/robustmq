@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::*;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 impl PubRel {}
 
@@ -20,7 +21,7 @@ fn len() -> usize {
     2 //pkid which is publish packet identifier
 }
 
-pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<PubRel, Error> {
+pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<PubRel, MQTTProtocolError> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
     let pkid = read_u16(&mut bytes)?;
@@ -30,11 +31,13 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<PubRel, Error
             reason: Some(PubRelReason::Success),
         })
     } else {
-        Err(Error::InvalidRemainingLength(fixed_header.remaining_len))
+        Err(MQTTProtocolError::InvalidRemainingLength(
+            fixed_header.remaining_len,
+        ))
     }
 }
 
-pub fn write(pubrel: &PubRel, buffer: &mut BytesMut) -> Result<usize, Error> {
+pub fn write(pubrel: &PubRel, buffer: &mut BytesMut) -> Result<usize, MQTTProtocolError> {
     let len = len();
     buffer.put_u8(0x62); // 1st byte of publish release packet is 0b01100010
     let count = write_remaining_length(buffer, len)?;

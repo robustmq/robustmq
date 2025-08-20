@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::*;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 fn len(properties: &Option<ConnAckProperties>) -> usize {
     let mut len = 1     // session present
@@ -33,7 +34,7 @@ pub fn write(
     connack: &ConnAck,
     properties: &Option<ConnAckProperties>,
     buffer: &mut BytesMut,
-) -> Result<usize, Error> {
+) -> Result<usize, MQTTProtocolError> {
     let len = len(properties);
     buffer.put_u8(0x20);
 
@@ -53,7 +54,7 @@ pub fn write(
 pub fn read(
     fixed_header: FixedHeader,
     mut bytes: Bytes,
-) -> Result<(ConnAck, Option<ConnAckProperties>), Error> {
+) -> Result<(ConnAck, Option<ConnAckProperties>), MQTTProtocolError> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
 
@@ -71,7 +72,7 @@ pub fn read(
 }
 
 // Connection return code type
-fn connect_return(num: u8) -> Result<ConnectReturnCode, Error> {
+fn connect_return(num: u8) -> Result<ConnectReturnCode, MQTTProtocolError> {
     let code = match num {
         0 => ConnectReturnCode::Success,
         128 => ConnectReturnCode::UnspecifiedError,
@@ -95,7 +96,7 @@ fn connect_return(num: u8) -> Result<ConnectReturnCode, Error> {
         156 => ConnectReturnCode::UseAnotherServer,
         157 => ConnectReturnCode::ServerMoved,
         159 => ConnectReturnCode::ConnectionRateExceeded,
-        num => return Err(Error::InvalidConnectReturnCode(num)),
+        num => return Err(MQTTProtocolError::InvalidConnectReturnCode(num)),
     };
     Ok(code)
 }
@@ -206,7 +207,7 @@ mod properties {
         len
     }
 
-    pub fn read(bytes: &mut Bytes) -> Result<Option<ConnAckProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<ConnAckProperties>, MQTTProtocolError> {
         let mut session_expiry_interval = None;
         let mut receive_max = None;
         let mut max_qos = None;
@@ -314,7 +315,7 @@ mod properties {
                     cursor += 2 + data.len();
                     authentication_data = Some(data);
                 }
-                _ => return Err(Error::InvalidPropertyType(prop)),
+                _ => return Err(MQTTProtocolError::InvalidPropertyType(prop)),
             }
         }
 
@@ -339,7 +340,10 @@ mod properties {
         }))
     }
 
-    pub fn write(properties: &ConnAckProperties, buffer: &mut BytesMut) -> Result<(), Error> {
+    pub fn write(
+        properties: &ConnAckProperties,
+        buffer: &mut BytesMut,
+    ) -> Result<(), MQTTProtocolError> {
         let len = len(properties);
         write_remaining_length(buffer, len)?;
 

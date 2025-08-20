@@ -27,7 +27,6 @@ use crate::observability::start_observability;
 use crate::security::auth::super_user::init_system_user;
 use crate::security::storage::sync::sync_auth_storage_info;
 use crate::security::AuthDriver;
-use crate::server::common::connection_manager::ConnectionManager;
 use crate::server::quic::server::{start_quic_server, QuicServerContext};
 use crate::server::server::{Server, ServerContext};
 use crate::server::websocket::server::{
@@ -41,7 +40,7 @@ use crate::subscribe::share::leader::ShareLeaderPush;
 use common_config::broker::broker_config;
 use delay_message::{start_delay_message_manager, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
-use pprof_monitor::pprof_monitor::start_pprof_monitor;
+use network_server::common::connection_manager::ConnectionManager;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
@@ -190,14 +189,6 @@ impl MqttBrokerServer {
     }
 
     fn start_server(&self) {
-        // pprof server
-        let conf = broker_config();
-        if conf.p_prof.enable {
-            tokio::spawn(async move {
-                start_pprof_monitor(conf.p_prof.port, conf.p_prof.frequency).await;
-            });
-        }
-
         // mqtt tcp server
         let server = self.server.clone();
         tokio::spawn(async move {

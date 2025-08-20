@@ -12,17 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    observability::metrics::server::{
-        metrics_request_handler_ms, metrics_request_queue_ms, metrics_request_response_ms,
-        metrics_request_response_queue_ms, metrics_request_total_ms,
-    },
-    server::common::{
-        connection::NetworkConnectionType,
-        packet::{RequestPackage, ResponsePackage},
-    },
-};
+use crate::common::packet::{RequestPackage, ResponsePackage};
 use common_base::tools::now_mills;
+use metadata_struct::connection::NetworkConnectionType;
+use observability::mqtt::server::{
+    metrics_request_handler_ms, metrics_request_queue_ms, metrics_request_response_ms,
+    metrics_request_response_queue_ms, metrics_request_total_ms,
+};
 use tracing::info;
 
 pub fn record_packet_handler_info_no_response(

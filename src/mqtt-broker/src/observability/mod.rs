@@ -12,16 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use crate::handler::cache::CacheManager;
 use grpc_clients::pool::ClientPool;
+use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
 use system_topic::SystemTopic;
 use tokio::sync::broadcast;
 
-use crate::handler::cache::CacheManager;
-
-pub mod metrics;
 pub mod slow;
 pub mod system_topic;
 
