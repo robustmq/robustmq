@@ -27,15 +27,14 @@ pub fn qos_list() -> Vec<i32> {
 }
 
 pub fn protocol_versions() -> Vec<u32> {
-    // vec![3, 4, 5]
-    vec![5]
+    vec![3, 4, 5]
 }
 
 pub fn network_types() -> Vec<String> {
     vec![
         "tcp".to_string(),
-        // "ws".to_string(),
-        // "wss".to_string(),
+        "ws".to_string(),
+        "wss".to_string(),
         "ssl".to_string(),
     ]
 }

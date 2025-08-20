@@ -15,6 +15,7 @@
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::cache::CacheManager;
 use crate::handler::command::{create_command, CommandContext};
+use crate::handler::error::MqttBrokerError;
 use crate::security::AuthDriver;
 use crate::subscribe::manager::SubscribeManager;
 use axum::extract::ws::{Message, WebSocket};
@@ -64,7 +65,7 @@ pub struct WebSocketServerContext {
 
 #[derive(Clone)]
 pub struct WebSocketServerState {
-    sucscribe_manager: Arc<SubscribeManager>,
+    subscribe_manager: Arc<SubscribeManager>,
     cache_manager: Arc<CacheManager>,
     message_storage_adapter: ArcStorageAdapter,
     delay_message_manager: Arc<DelayMessageManager>,
@@ -79,7 +80,7 @@ impl WebSocketServerState {
     pub fn new(context: WebSocketServerContext) -> Self {
         Self {
             connection_manager: context.connection_manager,
-            sucscribe_manager: context.subscribe_manager,
+            subscribe_manager: context.subscribe_manager,
             cache_manager: context.cache_manager,
             message_storage_adapter: context.message_storage_adapter,
             delay_message_manager: context.delay_message_manager,
@@ -165,7 +166,7 @@ async fn ws_handler(
         cache_manager: state.cache_manager.clone(),
         message_storage_adapter: state.message_storage_adapter.clone(),
         delay_message_manager: state.delay_message_manager.clone(),
-        subscribe_manager: state.sucscribe_manager.clone(),
+        subscribe_manager: state.subscribe_manager.clone(),
         client_pool: state.client_pool.clone(),
         connection_manager: state.connection_manager.clone(),
         schema_manager: state.schema_manager.clone(),
@@ -197,7 +198,6 @@ async fn handle_socket(
 ) {
     let (sender, mut receiver) = socket.split();
     let tcp_connection = NetworkConnection::new(NetworkConnectionType::WebSocket, addr, None);
-
     connection_manager.add_mqtt_websocket_write(tcp_connection.connection_id, sender);
     connection_manager.add_connection(tcp_connection.clone());
     let mut stop_rx = stop_sx.subscribe();
@@ -215,7 +215,7 @@ async fn handle_socket(
                 if let Some(msg) = val{
                     match msg {
                         Ok(Message::Binary(data)) => {
-                            if let Err(e) = process_socket_packet_by_binary(&connection_manager,&mut codec, command.clone(), tcp_connection.clone(), addr,data).await{
+                            if let Err(e) = process_socket_packet_by_binary(tcp_connection.connection_id(), &connection_manager,&mut codec, command.clone(), addr,data).await{
                                 error!("Websocket failed to parse MQTT protocol packet with error message :{e:?}");
                             }
                         }
@@ -258,10 +258,10 @@ async fn handle_socket(
 }
 
 async fn process_socket_packet_by_binary(
+    connection_id: u64,
     connection_manager: &Arc<ConnectionManager>,
     codec: &mut MqttCodec,
     command: ArcCommandAdapter,
-    mut tcp_connection: NetworkConnection,
     addr: SocketAddr,
     data: Vec<u8>,
 ) -> ResultMqttBrokerError {
@@ -270,7 +270,11 @@ async fn process_socket_packet_by_binary(
     buf.put(data.as_slice());
     if let Some(packet) = codec.decode_data(&mut buf)? {
         info!("recv websocket packet:{packet:?}");
-
+        let tcp_connection = if let Some(conn) = connection_manager.get_connect(connection_id) {
+            conn
+        } else {
+            return Err(MqttBrokerError::NotFoundConnectionInCache(connection_id));
+        };
         if let Some(resp_pkg) = command
             .apply(
                 tcp_connection.clone(),
@@ -279,13 +283,11 @@ async fn process_socket_packet_by_binary(
             )
             .await
         {
-            if let MqttPacket::Connect(_, _, _, _, _, _) = packet {
-                if let Some(pv) =
-                    connection_manager.get_connect_protocol(tcp_connection.connection_id)
-                {
-                    tcp_connection.set_protocol(pv.clone());
-                }
+            if let MqttPacket::Connect(protocol, _, _, _, _, _) = packet {
+                connection_manager
+                    .set_mqtt_connect_protocol(tcp_connection.connection_id, protocol);
             }
+
             let mut response_buff = BytesMut::new();
             let packet_wrapper = MqttPacketWrapper {
                 protocol_version: tcp_connection.get_protocol().into(),
@@ -308,6 +310,8 @@ async fn process_socket_packet_by_binary(
                     .await;
             }
             record_ws_request_duration(receive_ms, response_ms);
+        } else {
+            info!("{}", "No backpacking is required for this request");
         }
     }
 
