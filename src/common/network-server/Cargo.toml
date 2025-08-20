@@ -34,3 +34,6 @@ bytes.workspace = true
 observability.workspace = true
 metadata-struct.workspace = true
 grpc-clients.workspace = true
+futures-util.workspace = true
+rustls-pemfile.workspace = true
+common-config.workspace = true

@@ -17,6 +17,7 @@ use crate::common::{
     packet::{RequestPackage, RobustMQPacket},
 };
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
+use observability::mqtt::packets::record_received_metrics;
 use protocol::mqtt::common::MqttPacket;
 use tracing::info;
 
@@ -45,7 +46,7 @@ pub async fn read_packet(
             network_type, pack, connection.connection_id
         );
     }
-    // record_received_metrics(connection, &pack, network_type);
+    record_received_metrics(connection, &pack.get_mqtt_packet().unwrap(), network_type);
 
     let package = RequestPackage::new(connection.connection_id, connection.addr, pack);
     request_channel
