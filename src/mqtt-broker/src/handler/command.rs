@@ -188,7 +188,7 @@ impl Command for MQTTHandlerCommand {
                 }
             }
         }
-        
+
         resp_package
     }
 }
@@ -245,7 +245,7 @@ impl MQTTHandlerCommand {
             return Some(ResponsePackage::build(
                 tcp_connection.connection_id,
                 RobustMQPacket::MQTT(response_packet_mqtt_connect_fail(
-                    &MqttProtocol::Mqtt4,
+                    &MqttProtocol::Mqtt5,
                     ConnectReturnCode::UnsupportedProtocolVersion,
                     &None,
                     None,
