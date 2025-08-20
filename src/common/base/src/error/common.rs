@@ -66,6 +66,9 @@ pub enum CommonError {
     FromMQTTProtocolError(#[from] MQTTProtocolError),
 
     #[error("{0}")]
+    FromRustlsError(#[from] rustls::Error),
+
+    #[error("{0}")]
     AnyHowError(#[from] anyhow::Error),
 
     #[error("{0}")]
