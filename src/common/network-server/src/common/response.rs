@@ -121,27 +121,24 @@ pub(crate) fn response_child_process(context: ResponseChildProcessContext) {
                             let label = format!("handler-{index}");
                             metrics_response_queue_size(&label, response_process_rx.len());
                             let mut response_ms = now_mills();
-                            if let Some(protocol) =raw_connect_manager.get_connect_protocol(response_package.connection_id)
-                                {
+                            if let Some(protocol) =raw_connect_manager.get_connect_protocol(response_package.connection_id){
+                                let packet_wrapper = match response_package.packet.clone(){
+                                    RobustMQPacket::MQTT(packet) => {
+                                        build_mqtt_packet_wrapper(protocol, packet)
+                                    }
+                                    RobustMQPacket::KAFKA(_packet) => {
+                                        // todo
+                                        return;
+                                    }
+                                };
 
-                                    let packet_wrapper = match response_package.packet.clone(){
-                                            RobustMQPacket::MQTT(packet) => {
-                                                build_mqtt_packet_wrapper(protocol, packet)
-                                            }
-                                            RobustMQPacket::KAFKA(_packet) => {
-                                                // todo
-                                                return;
-                                            }
-                                    };
+                                if let Err(e) =  raw_connect_manager.write_tcp_frame(response_package.connection_id, packet_wrapper).await {
+                                    error!("{}",e);
+                                };
 
-                                    if let Err(e) =  raw_connect_manager.write_tcp_frame(response_package.connection_id, packet_wrapper).await {
-                                        error!("{}",e);
-                                    };
-
-                                    response_ms = now_mills();
-                                    record_response_and_total_ms(&NetworkConnectionType::Tcp,response_package.get_receive_ms(),out_response_queue_ms);
+                                response_ms = now_mills();
+                                record_response_and_total_ms(&NetworkConnectionType::Tcp,response_package.get_receive_ms(),out_response_queue_ms);
                             }
-
                             record_packet_handler_info_by_response(&response_package, out_response_queue_ms, response_ms);
                         }
                     }
