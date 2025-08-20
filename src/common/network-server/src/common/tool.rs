@@ -12,21 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::{
+    channel::RequestChannel,
+    packet::{RequestPackage, RobustMQPacket},
+};
+use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::mqtt::common::MqttPacket;
 use tracing::info;
 
-use crate::{
-    common::tool::is_ignore_print,
-    observability::metrics::packets::record_received_metrics,
-    server::common::{
-        channel::RequestChannel,
-        connection::{NetworkConnection, NetworkConnectionType},
-        packet::RequestPackage,
-    },
-};
+pub fn is_ignore_print(packet: &RobustMQPacket) -> bool {
+    if let RobustMQPacket::MQTT(pack) = packet {
+        if let MqttPacket::PingResp(_) = pack {
+            return true;
+        }
+        if let MqttPacket::PingReq(_) = pack {
+            return true;
+        }
+    }
+
+    false
+}
 
 pub async fn read_packet(
-    pack: MqttPacket,
+    pack: RobustMQPacket,
     request_channel: &RequestChannel,
     connection: &NetworkConnection,
     network_type: &NetworkConnectionType,
@@ -37,7 +45,7 @@ pub async fn read_packet(
             network_type, pack, connection.connection_id
         );
     }
-    record_received_metrics(connection, &pack, network_type);
+    // record_received_metrics(connection, &pack, network_type);
 
     let package = RequestPackage::new(connection.connection_id, connection.addr, pack);
     request_channel

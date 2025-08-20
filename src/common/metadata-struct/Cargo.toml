@@ -29,3 +29,4 @@ bytes.workspace = true
 tracing.workspace = true
 dashmap.workspace = true
 crc32fast.workspace = true
+tokio.workspace = true

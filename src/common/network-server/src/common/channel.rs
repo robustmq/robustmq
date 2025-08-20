@@ -12,11 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::server::common::{
-    connection::{calc_child_channel_index, NetworkConnectionType},
-    packet::{RequestPackage, ResponsePackage},
-};
+use crate::common::packet::{RequestPackage, ResponsePackage};
 use dashmap::DashMap;
+use metadata_struct::connection::{calc_child_channel_index, NetworkConnectionType};
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tracing::error;
 

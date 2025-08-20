@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::*;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 // fn len(suback: &SubAck) -> usize {
 
@@ -20,7 +21,7 @@ use super::*;
 //     2 + suback.return_codes.len()
 // }
 
-pub fn write(suback: &SubAck, buffer: &mut BytesMut) -> Result<usize, Error> {
+pub fn write(suback: &SubAck, buffer: &mut BytesMut) -> Result<usize, MQTTProtocolError> {
     buffer.put_u8(0x90);
     let remaining_len = suback.len();
     let remaining_len_bytes = write_remaining_length(buffer, remaining_len)?;
@@ -32,13 +33,13 @@ pub fn write(suback: &SubAck, buffer: &mut BytesMut) -> Result<usize, Error> {
     Ok(1 + remaining_len_bytes + remaining_len)
 }
 
-fn reason(code: u8) -> Result<SubscribeReasonCode, Error> {
+fn reason(code: u8) -> Result<SubscribeReasonCode, MQTTProtocolError> {
     let v = match code {
         0 => SubscribeReasonCode::Success(QoS::AtMostOnce),
         1 => SubscribeReasonCode::Success(QoS::AtLeastOnce),
         2 => SubscribeReasonCode::Success(QoS::ExactlyOnce),
         128 => SubscribeReasonCode::Failure,
-        v => return Err(Error::InvalidSubscribeReasonCode(v)),
+        v => return Err(MQTTProtocolError::InvalidSubscribeReasonCode(v)),
     };
 
     Ok(v)
@@ -65,13 +66,13 @@ fn code(reason: SubscribeReasonCode) -> u8 {
     }
 }
 
-pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<SubAck, Error> {
+pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<SubAck, MQTTProtocolError> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
     let pkid = read_u16(&mut bytes)?;
 
     if !bytes.has_remaining() {
-        return Err(Error::MalformedPacket);
+        return Err(MQTTProtocolError::MalformedPacket);
     }
 
     let mut return_codes = Vec::new();

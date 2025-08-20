@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
+
 use super::*;
 
 fn len() -> usize {
@@ -19,7 +21,7 @@ fn len() -> usize {
     1 + 1
 }
 
-pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<ConnAck, Error> {
+pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<ConnAck, MQTTProtocolError> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
 
@@ -34,7 +36,7 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<ConnAck, Erro
     Ok(connack)
 }
 
-pub fn write(connack: &ConnAck, buffer: &mut BytesMut) -> Result<usize, Error> {
+pub fn write(connack: &ConnAck, buffer: &mut BytesMut) -> Result<usize, MQTTProtocolError> {
     let len = len();
     buffer.put_u8(0x20); // write the first byte 0010 0000 to demonstrate this packet type
                          //as a connack(connection acknowledgement)
@@ -45,7 +47,7 @@ pub fn write(connack: &ConnAck, buffer: &mut BytesMut) -> Result<usize, Error> {
 
     Ok(1 + count + len)
 }
-fn connect_return(num: u8) -> Result<ConnectReturnCode, Error> {
+fn connect_return(num: u8) -> Result<ConnectReturnCode, MQTTProtocolError> {
     match num {
         0 => Ok(ConnectReturnCode::Success),
         1 => Ok(ConnectReturnCode::RefusedProtocolVersion),
@@ -53,7 +55,7 @@ fn connect_return(num: u8) -> Result<ConnectReturnCode, Error> {
         3 => Ok(ConnectReturnCode::ServiceUnavailable),
         4 => Ok(ConnectReturnCode::BadUserNamePassword),
         5 => Ok(ConnectReturnCode::NotAuthorized),
-        num => Err(Error::InvalidConnectReturnCode(num)),
+        num => Err(MQTTProtocolError::InvalidConnectReturnCode(num)),
     }
 }
 

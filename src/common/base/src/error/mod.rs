@@ -12,5 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::error::common::CommonError;
+
 pub mod common;
 pub mod log_config;
+pub mod mqtt_protocol_error;
+
+pub type ResultCommonError = Result<(), CommonError>;

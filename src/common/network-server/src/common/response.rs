@@ -12,21 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::CacheManager;
-use crate::handler::connection::disconnect_connection;
-use crate::observability::metrics::server::{
-    metrics_response_queue_size, record_response_and_total_ms,
-};
-use crate::server::common::channel::RequestChannel;
-use crate::server::common::connection::NetworkConnectionType;
-use crate::server::common::connection_manager::ConnectionManager;
-use crate::server::common::metric::record_packet_handler_info_by_response;
-use crate::server::common::packet::ResponsePackage;
-use crate::subscribe::manager::SubscribeManager;
+use crate::common::connection_manager::ConnectionManager;
+use crate::common::packet::{build_mqtt_packet_wrapper, ResponsePackage, RobustMQPacket};
+use crate::common::{channel::RequestChannel, metric::record_packet_handler_info_by_response};
 use common_base::tools::now_mills;
 use grpc_clients::pool::ClientPool;
-use protocol::mqtt::codec::MqttPacketWrapper;
-use protocol::mqtt::common::MqttPacket;
+use metadata_struct::connection::NetworkConnectionType;
+use observability::mqtt::server::{metrics_response_queue_size, record_response_and_total_ms};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;
@@ -38,8 +30,6 @@ use tracing::{debug, error};
 pub struct ResponseProcessContext {
     pub response_process_num: usize,
     pub connection_manager: Arc<ConnectionManager>,
-    pub cache_manager: Arc<CacheManager>,
-    pub subscribe_manager: Arc<SubscribeManager>,
     pub response_queue_rx: Receiver<ResponsePackage>,
     pub client_pool: Arc<ClientPool>,
     pub request_channel: Arc<RequestChannel>,
@@ -52,23 +42,17 @@ pub struct ResponseChildProcessContext {
     pub response_process_num: usize,
     pub request_channel: Arc<RequestChannel>,
     pub connection_manager: Arc<ConnectionManager>,
-    pub cache_manager: Arc<CacheManager>,
-    pub subscribe_manager: Arc<SubscribeManager>,
-    pub client_pool: Arc<ClientPool>,
     pub network_type: NetworkConnectionType,
     pub stop_sx: broadcast::Sender<bool>,
 }
 
-pub(crate) async fn response_process(mut context: ResponseProcessContext) {
+pub async fn response_process(mut context: ResponseProcessContext) {
     let mut stop_rx = context.stop_sx.subscribe();
 
     let child_context = ResponseChildProcessContext {
         response_process_num: context.response_process_num,
         request_channel: context.request_channel.clone(),
         connection_manager: context.connection_manager.clone(),
-        cache_manager: context.cache_manager.clone(),
-        subscribe_manager: context.subscribe_manager.clone(),
-        client_pool: context.client_pool.clone(),
         network_type: context.network_type.clone(),
         stop_sx: context.stop_sx.clone(),
     };
@@ -119,9 +103,6 @@ pub(crate) fn response_child_process(context: ResponseChildProcessContext) {
             .create_response_child_channel(&context.network_type, index);
         let mut raw_stop_rx = context.stop_sx.subscribe();
         let raw_connect_manager = context.connection_manager.clone();
-        let raw_cache_manager = context.cache_manager.clone();
-        let raw_client_pool = context.client_pool.clone();
-        let raw_subscribe_manager = context.subscribe_manager.clone();
         tokio::spawn(async move {
             debug!("Server response process thread {index} start successfully.");
             loop {
@@ -142,9 +123,15 @@ pub(crate) fn response_child_process(context: ResponseChildProcessContext) {
                             let mut response_ms = now_mills();
                             if let Some(protocol) =raw_connect_manager.get_connect_protocol(response_package.connection_id)
                                 {
-                                    let packet_wrapper = MqttPacketWrapper {
-                                        protocol_version: protocol.into(),
-                                        packet: response_package.packet.clone(),
+
+                                    let packet_wrapper = match response_package.packet.clone(){
+                                            RobustMQPacket::MQTT(packet) => {
+                                                build_mqtt_packet_wrapper(protocol, packet)
+                                            }
+                                            RobustMQPacket::KAFKA(_packet) => {
+                                                // todo
+                                                return;
+                                            }
                                     };
 
                                     if let Err(e) =  raw_connect_manager.write_tcp_frame(response_package.connection_id, packet_wrapper).await {
@@ -154,22 +141,7 @@ pub(crate) fn response_child_process(context: ResponseChildProcessContext) {
                                     response_ms = now_mills();
                                     record_response_and_total_ms(&NetworkConnectionType::Tcp,response_package.get_receive_ms(),out_response_queue_ms);
                             }
-
-                            if let MqttPacket::Disconnect(_, _) = response_package.packet {
-                                if let Some(connection) = raw_cache_manager.get_connection(response_package.connection_id){
-                                    if let Err(e) =  disconnect_connection(
-                                        &connection.client_id,
-                                        connection.connect_id,
-                                        &raw_cache_manager,
-                                        &raw_client_pool,
-                                        &raw_connect_manager,
-                                        &raw_subscribe_manager,
-                                        true
-                                    ).await{
-                                        error!("{}",e);
-                                    };
-                                }
-                            }
+                            
                             record_packet_handler_info_by_response(&response_package, out_response_queue_ms, response_ms);
                         }
                     }

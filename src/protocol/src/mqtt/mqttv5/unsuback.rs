@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::*;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 pub fn len(unsuback: &UnsubAck, properties: &Option<UnsubAckProperties>) -> usize {
     let mut len = 2 + unsuback.reasons.len();
@@ -33,7 +34,7 @@ pub fn write(
     unsuback: &UnsubAck,
     properties: &Option<UnsubAckProperties>,
     buffer: &mut BytesMut,
-) -> Result<usize, Error> {
+) -> Result<usize, MQTTProtocolError> {
     buffer.put_u8(0xB0);
     let remaining_len = len(unsuback, properties);
     let remaining_len_bytes = write_remaining_length(buffer, remaining_len)?;
@@ -54,7 +55,7 @@ pub fn write(
 pub fn read(
     fixed_header: FixedHeader,
     mut bytes: Bytes,
-) -> Result<(UnsubAck, Option<UnsubAckProperties>), Error> {
+) -> Result<(UnsubAck, Option<UnsubAckProperties>), MQTTProtocolError> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
 
@@ -62,7 +63,7 @@ pub fn read(
     let properties = properties::read(&mut bytes)?;
 
     if !bytes.has_remaining() {
-        return Err(Error::MalformedPacket);
+        return Err(MQTTProtocolError::MalformedPacket);
     }
 
     let mut reasons = Vec::new();
@@ -89,7 +90,7 @@ mod properties {
         len
     }
 
-    pub fn read(bytes: &mut Bytes) -> Result<Option<UnsubAckProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<UnsubAckProperties>, MQTTProtocolError> {
         let mut reason_string = None;
         let mut user_properties = Vec::new();
 
@@ -117,7 +118,7 @@ mod properties {
                     cursor += 2 + key.len() + 2 + value.len();
                     user_properties.push((key, value));
                 }
-                _ => return Err(Error::InvalidPacketType(prop)),
+                _ => return Err(MQTTProtocolError::InvalidPacketType(prop)),
             }
         }
 
@@ -127,7 +128,10 @@ mod properties {
         }))
     }
 
-    pub fn write(properties: &UnsubAckProperties, buffer: &mut BytesMut) -> Result<(), Error> {
+    pub fn write(
+        properties: &UnsubAckProperties,
+        buffer: &mut BytesMut,
+    ) -> Result<(), MQTTProtocolError> {
         let len = len(properties);
         write_remaining_length(buffer, len)?;
 
@@ -147,7 +151,7 @@ mod properties {
 }
 
 /// Connection return code type
-fn reason(num: u8) -> Result<UnsubAckReason, Error> {
+fn reason(num: u8) -> Result<UnsubAckReason, MQTTProtocolError> {
     let code = match num {
         0x00 => UnsubAckReason::Success,
         0x11 => UnsubAckReason::NoSubscriptionExisted,
@@ -156,7 +160,7 @@ fn reason(num: u8) -> Result<UnsubAckReason, Error> {
         0x87 => UnsubAckReason::NotAuthorized,
         0x8F => UnsubAckReason::TopicFilterInvalid,
         0x91 => UnsubAckReason::PacketIdentifierInUse,
-        num => return Err(Error::InvalidSubscribeReasonCode(num)),
+        num => return Err(MQTTProtocolError::InvalidSubscribeReasonCode(num)),
     };
 
     Ok(code)

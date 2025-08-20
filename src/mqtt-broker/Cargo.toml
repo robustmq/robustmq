@@ -60,7 +60,6 @@ rcgen.workspace = true
 rustls-pki-types.workspace = true
 rustls.workspace = true
 rdkafka.workspace = true
-pprof-monitor.workspace = true
 humantime.workspace = true
 sysinfo.workspace = true
 tracing-appender.workspace = true
@@ -68,6 +67,8 @@ chrono.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 async-stream.workspace = true
+network-server.workspace = true
+observability.workspace = true
 
 [dev-dependencies]
 # test

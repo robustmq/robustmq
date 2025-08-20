@@ -19,6 +19,7 @@ use common_base::tools::{now_second, unique_id};
 use common_config::config::BrokerConfig;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
+use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::{Connect, ConnectProperties, DisconnectReasonCode, MqttProtocol};
 
 use super::cache::CacheManager;
@@ -26,7 +27,6 @@ use super::keep_alive::client_keep_live_time;
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::flow_control::is_connection_rate_exceeded;
 use crate::handler::response::response_packet_mqtt_distinct_by_reason;
-use crate::server::common::connection_manager::ConnectionManager;
 use crate::storage::session::SessionStorage;
 use crate::subscribe::manager::SubscribeManager;
 use futures_util::SinkExt;
@@ -198,7 +198,7 @@ async fn handle_tpc_connection_overflow<T>(
 where
     T: AsyncWriteExt + AsyncWrite,
 {
-    if connection_manager.tcp_connect_num_check() {
+    if connection_manager.get_tcp_connect_num_check() > 5000 {
         let packet_wrapper = MqttPacketWrapper {
             protocol_version: MqttProtocol::Mqtt5.into(),
             packet: response_packet_mqtt_distinct_by_reason(

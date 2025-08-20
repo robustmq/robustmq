@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::*;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 pub fn len(subscribe: &Subscribe, properties: &Option<SubscribeProperties>) -> usize {
     let mut len = 2 + subscribe.filters.iter().fold(0, |s, t| s + filter::len(t));
@@ -32,7 +33,7 @@ pub fn len(subscribe: &Subscribe, properties: &Option<SubscribeProperties>) -> u
 pub fn read(
     fixed_header: FixedHeader,
     mut bytes: Bytes,
-) -> Result<(Subscribe, Option<SubscribeProperties>), Error> {
+) -> Result<(Subscribe, Option<SubscribeProperties>), MQTTProtocolError> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
 
@@ -56,12 +57,12 @@ pub fn read(
             0 => RetainHandling::OnEverySubscribe,
             1 => RetainHandling::OnNewSubscribe,
             2 => RetainHandling::Never,
-            r => return Err(Error::InvalidRetainForwardRule(r)),
+            r => return Err(MQTTProtocolError::InvalidRetainForwardRule(r)),
         };
 
         filters.push(Filter {
             path,
-            qos: qos(requested_qos).ok_or(Error::InvalidQoS(requested_qos))?,
+            qos: qos(requested_qos).ok_or(MQTTProtocolError::InvalidQoS(requested_qos))?,
             nolocal,
             preserve_retain,
             retain_handling: retain_forward_rule,
@@ -69,7 +70,7 @@ pub fn read(
     }
 
     match filters.len() {
-        0 => Err(Error::EmptySubscription),
+        0 => Err(MQTTProtocolError::EmptySubscription),
         _ => Ok((
             Subscribe {
                 packet_identifier: pkid,
@@ -84,7 +85,7 @@ pub fn write(
     subscribe: &Subscribe,
     properties: &Option<SubscribeProperties>,
     buffer: &mut BytesMut,
-) -> Result<usize, Error> {
+) -> Result<usize, MQTTProtocolError> {
     // write packet type
     buffer.put_u8(0x82);
 
@@ -157,7 +158,7 @@ mod properties {
         len
     }
 
-    pub fn read(bytes: &mut Bytes) -> Result<Option<SubscribeProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<SubscribeProperties>, MQTTProtocolError> {
         let mut id = None;
         let mut user_properties = Vec::new();
 
@@ -188,7 +189,7 @@ mod properties {
                     cursor += 2 + key.len() + 2 + value.len();
                     user_properties.push((key, value));
                 }
-                _ => return Err(Error::InvalidPropertyType(prop)),
+                _ => return Err(MQTTProtocolError::InvalidPropertyType(prop)),
             }
         }
 
@@ -198,7 +199,10 @@ mod properties {
         }))
     }
 
-    pub fn write(properties: &SubscribeProperties, buffer: &mut BytesMut) -> Result<(), Error> {
+    pub fn write(
+        properties: &SubscribeProperties,
+        buffer: &mut BytesMut,
+    ) -> Result<(), MQTTProtocolError> {
         let len = len(properties);
         write_remaining_length(buffer, len)?;
 

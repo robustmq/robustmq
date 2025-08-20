@@ -13,13 +13,14 @@
 // limitations under the License.
 
 use super::*;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 fn len(subscribe: &Subscribe) -> usize {
     // length of pkid (variable header 2 bytes) + vec! [subscribed topic filter length]
     2 + subscribe.filters.iter().fold(0, |s, t| s + filter::len(t))
 }
 
-pub fn write(subscribe: &Subscribe, buffer: &mut BytesMut) -> Result<usize, Error> {
+pub fn write(subscribe: &Subscribe, buffer: &mut BytesMut) -> Result<usize, MQTTProtocolError> {
     // write packet type of subscribe
     buffer.put_u8(0x82);
 
@@ -38,7 +39,7 @@ pub fn write(subscribe: &Subscribe, buffer: &mut BytesMut) -> Result<usize, Erro
     Ok(1 + remaining_length_bytes + remaining_length)
 }
 
-pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<Subscribe, Error> {
+pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<Subscribe, MQTTProtocolError> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
 
@@ -46,7 +47,7 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<Subscribe, Er
     let filters = filter::read(&mut bytes)?;
 
     match filters.len() {
-        0 => Err(Error::EmptySubscription),
+        0 => Err(MQTTProtocolError::EmptySubscription),
         _ => Ok(Subscribe {
             packet_identifier: pkid,
             filters,
@@ -63,7 +64,7 @@ mod filter {
         2 + filter.path.len() + 1
     }
 
-    pub fn read(bytes: &mut Bytes) -> Result<Vec<Filter>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Vec<Filter>, MQTTProtocolError> {
         // variable header size 2 bytes (packet identifier)
         let mut filters = Vec::new();
         while bytes.has_remaining() {
@@ -74,7 +75,7 @@ mod filter {
 
             filters.push(Filter {
                 path,
-                qos: qos(requested_qos).ok_or(Error::InvalidQoS(requested_qos))?,
+                qos: qos(requested_qos).ok_or(MQTTProtocolError::InvalidQoS(requested_qos))?,
                 // the following options only valid in mqtt v5 and will be ignored in mqtt v4
                 nolocal: false,
                 preserve_retain: false,

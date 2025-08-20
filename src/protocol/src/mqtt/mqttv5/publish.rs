@@ -13,12 +13,13 @@
 // limitations under the License.
 
 use super::*;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
 pub fn write(
     publish: &Publish,
     properties: &Option<PublishProperties>,
     buffer: &mut BytesMut,
-) -> Result<usize, Error> {
+) -> Result<usize, MQTTProtocolError> {
     let len = len(publish, properties);
     let dup = publish.dup as u8;
     let qos = publish.qos as u8;
@@ -31,7 +32,7 @@ pub fn write(
     if publish.qos != QoS::AtMostOnce {
         let pkid = publish.p_kid;
         if pkid == 0 {
-            return Err(Error::PacketIdZero);
+            return Err(MQTTProtocolError::PacketIdZero);
         }
         buffer.put_u16(pkid);
     }
@@ -50,9 +51,9 @@ pub fn write(
 pub fn read(
     fixed_header: FixedHeader,
     mut bytes: Bytes,
-) -> Result<(Publish, Option<PublishProperties>), Error> {
+) -> Result<(Publish, Option<PublishProperties>), MQTTProtocolError> {
     let qos_num = (fixed_header.byte1 & 0b0110) >> 1;
-    let qos = qos(qos_num).ok_or(Error::InvalidQoS(qos_num))?;
+    let qos = qos(qos_num).ok_or(MQTTProtocolError::InvalidQoS(qos_num))?;
     let dup = (fixed_header.byte1 & 0b1000) != 0;
     let retain = (fixed_header.byte1 & 0b0001) != 0;
 
@@ -66,7 +67,7 @@ pub fn read(
     };
 
     if qos != QoS::AtMostOnce && pkid == 0 {
-        return Err(Error::PacketIdZero);
+        return Err(MQTTProtocolError::PacketIdZero);
     }
 
     let properties = properties::read(&mut bytes)?;
@@ -145,7 +146,10 @@ mod properties {
         len
     }
 
-    pub fn write(properties: &PublishProperties, buffer: &mut BytesMut) -> Result<(), Error> {
+    pub fn write(
+        properties: &PublishProperties,
+        buffer: &mut BytesMut,
+    ) -> Result<(), MQTTProtocolError> {
         let len = len(properties);
         write_remaining_length(buffer, len)?;
 
@@ -193,7 +197,7 @@ mod properties {
         Ok(())
     }
 
-    pub fn read(bytes: &mut Bytes) -> Result<Option<PublishProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<PublishProperties>, MQTTProtocolError> {
         let mut payload_format_indicator = None;
         let mut message_expiry_interval = None;
         let mut topic_alias = None;
@@ -262,7 +266,7 @@ mod properties {
                     cursor += 2 + content_type_value.len();
                     content_type = Some(content_type_value);
                 }
-                _ => return Err(Error::InvalidPropertyType(prop)),
+                _ => return Err(MQTTProtocolError::InvalidPropertyType(prop)),
             }
         }
 

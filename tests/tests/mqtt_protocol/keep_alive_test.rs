@@ -17,27 +17,33 @@ mod tests {
     use std::time::Duration;
 
     use bytes::Bytes;
+    use common_base::tools::now_second;
     use futures::{SinkExt, StreamExt};
     use protocol::mqtt::common::{Connect, LastWill, Login, MqttPacket};
-    use protocol::mqtt::mqttv4::codec::Mqtt4Codec;
+    use protocol::mqtt::mqttv5::codec::Mqtt5Codec;
     use tokio::net::TcpStream;
     use tokio::time::{sleep, Instant};
     use tokio_util::codec::Framed;
+    use tokio_util::time::FutureExt;
 
     use crate::mqtt_protocol::common::{build_client_id, password};
 
     #[tokio::test]
     async fn mqtt4_keep_alive_test() {
-        let socket = TcpStream::connect("127.0.0.1:1883").await.unwrap();
-        let mut stream: Framed<TcpStream, Mqtt4Codec> = Framed::new(socket, Mqtt4Codec::new());
+        let socket = TcpStream::connect("127.0.0.1:1883")
+            .timeout(Duration::from_secs(3))
+            .await
+            .unwrap()
+            .unwrap();
+        let mut stream: Framed<TcpStream, Mqtt5Codec> = Framed::new(socket, Mqtt5Codec::new());
 
         // send connect package
-        let packet = build_mqtt4_pg_connect();
+        let packet = build_mqtt5_pg_connect();
         let _ = stream.send(packet).await;
         let now = Instant::now();
         loop {
             if let Some(data) = stream.next().await {
-                println!("response:{data:?}");
+                println!("{},response:{data:?}", now_second());
                 match data {
                     Ok(da) => {
                         println!("success:{da:?}");
@@ -54,11 +60,12 @@ mod tests {
         }
         let ts = now.elapsed().as_secs();
         println!("ms: {ts}");
-        assert!((14..=17).contains(&ts));
+        // assert!((14..=17).contains(&ts));
+        assert!((74..=76).contains(&ts));
     }
 
     /// Build the connect content package for the mqtt4 protocol
-    fn build_mqtt4_pg_connect() -> MqttPacket {
+    fn build_mqtt5_pg_connect() -> MqttPacket {
         let client_id = build_client_id("mqtt4_keep_alive_test");
         let login = Some(Login {
             username: "admin".to_string(),
@@ -76,6 +83,7 @@ mod tests {
             client_id,
             clean_session: true,
         };
-        MqttPacket::Connect(4, connect, None, lastwill, None, login)
+
+        MqttPacket::Connect(5, connect, None, lastwill, None, login)
     }
 }

@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::observability::metrics::packets::record_received_error_metrics;
-use crate::server::common::channel::RequestChannel;
-use crate::server::common::connection::{NetworkConnection, NetworkConnectionType};
-use crate::server::common::connection_manager::ConnectionManager;
-use crate::server::common::tool::read_packet;
-use crate::server::quic::stream::{QuicFramedReadStream, QuicFramedWriteStream};
+use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
+use network_server::common::channel::RequestChannel;
+use network_server::common::connection_manager::ConnectionManager;
+use network_server::common::packet::RobustMQPacket;
+use network_server::common::tool::read_packet;
+use network_server::quic::stream::{QuicFramedReadStream, QuicMQTTFramedWriteStream};
+use observability::mqtt::packets::record_received_error_metrics;
 use protocol::mqtt::codec::MqttCodec;
 use quinn::Endpoint;
 use std::sync::Arc;
@@ -64,7 +65,7 @@ pub(crate) async fn acceptor_process(
                                     match connection.accept_bi().await {
                                         Ok((w_stream, r_stream)) => {
                                             let codec = MqttCodec::new(None);
-                                            let codec_write = QuicFramedWriteStream::new(w_stream, codec.clone());
+                                            let codec_write = QuicMQTTFramedWriteStream::new(w_stream, codec.clone());
                                             let codec_read = QuicFramedReadStream::new(r_stream, codec.clone());
                                             // todo we need to add quic_establish_connection_check
 
@@ -76,7 +77,7 @@ pub(crate) async fn acceptor_process(
                                             );
 
                                             connection_manager.add_connection(connection.clone());
-                                            connection_manager.add_quic_write(connection.connection_id, codec_write);
+                                            connection_manager.add_mqtt_quic_write(connection.connection_id, codec_write);
 
                                             read_frame_process(codec_read,  raw_request_channel.clone(),connection.clone(),network_type.clone(), connection_stop_rx)
                                         },
@@ -119,7 +120,7 @@ fn read_frame_process(
                     match package {
                         Ok(pack) => {
                             if let Some(pk) = pack{
-                                read_packet(pk, &request_channel, &connection, &network_type).await;
+                                read_packet(RobustMQPacket::MQTT(pk), &request_channel, &connection, &network_type).await;
                             }
                         }
                         Err(e) => {

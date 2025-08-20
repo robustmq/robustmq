@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::future::Future;
-use std::sync::Arc;
-use std::time::Duration;
-
 use super::common::min_qos;
 use super::common::Subscriber;
 use crate::common::types::ResultMqttBrokerError;
@@ -23,8 +19,6 @@ use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, 
 use crate::handler::error::MqttBrokerError;
 use crate::handler::message::is_message_expire;
 use crate::handler::sub_option::{get_retain_flag_by_retain_as_published, is_send_msg_by_bo_local};
-use crate::server::common::connection_manager::ConnectionManager;
-use crate::server::common::packet::ResponsePackage;
 use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
 use axum::extract::ws::Message;
 use bytes::{Bytes, BytesMut};
@@ -32,9 +26,17 @@ use common_base::network::broker_not_available;
 use common_base::tools::now_mills;
 use metadata_struct::adapter::record::Record;
 use metadata_struct::mqtt::message::MqttMessage;
-use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
+use metadata_struct::protocol::RobustMQProtocol;
+use network_server::common::connection_manager::ConnectionManager;
+use network_server::common::packet::build_mqtt_packet_wrapper;
+use network_server::common::packet::ResponsePackage;
+use network_server::common::packet::RobustMQPacket;
+use protocol::mqtt::codec::MqttCodec;
 use protocol::mqtt::common::qos;
-use protocol::mqtt::common::{MqttPacket, MqttProtocol, PubRel, Publish, PublishProperties, QoS};
+use protocol::mqtt::common::{MqttPacket, PubRel, Publish, PublishProperties, QoS};
+use std::future::Future;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::{sleep, timeout};
@@ -98,7 +100,7 @@ pub async fn build_publish_message(
 
     let mut contain_properties = false;
     if let Some(protocol) = context.connection_manager.get_connect_protocol(connect_id) {
-        if MqttProtocol::is_mqtt5(&protocol) {
+        if protocol.is_mqtt5() {
             contain_properties = true;
         }
     }
@@ -254,14 +256,8 @@ pub async fn push_packet_to_client(
             return Err(MqttBrokerError::ConnectionNullSkipPushMessage(client_id));
         };
 
-        let resp = ResponsePackage::new(
-            connect_id,
-            sub_pub_param.packet.clone(),
-            0,
-            0,
-            0,
-            "Subsceibe".to_string(),
-        );
+        let packet = RobustMQPacket::MQTT(sub_pub_param.packet.clone());
+        let resp = ResponsePackage::new(connect_id, packet, 0, 0, 0, "Subsceibe".to_string());
 
         send_message_to_client(resp, connection_manager).await
     };
@@ -361,18 +357,16 @@ pub async fn send_message_to_client(
         if let Some(protocol) = connection_manager.get_connect_protocol(resp.connection_id) {
             protocol
         } else {
-            MqttProtocol::Mqtt3
+            RobustMQProtocol::MQTT3
         };
 
-    let response: MqttPacketWrapper = MqttPacketWrapper {
-        protocol_version: protocol.clone().into(),
-        packet: resp.packet,
-    };
+    let response =
+        build_mqtt_packet_wrapper(protocol.clone(), resp.packet.get_mqtt_packet().unwrap());
 
     if connection_manager.is_websocket(resp.connection_id) {
-        let mut codec = MqttCodec::new(Some(protocol.into()));
+        let mut codec = MqttCodec::new(Some(protocol.to_u8()));
         let mut buff = BytesMut::new();
-        if let Err(e) = codec.encode_data(response.clone(), &mut buff) {
+        if let Err(e) = codec.encode_data(response.to_mqtt(), &mut buff) {
             return Err(MqttBrokerError::WebsocketEncodePacketFailed(e.to_string()));
         }
         connection_manager

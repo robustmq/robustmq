@@ -40,7 +40,7 @@ pub fn get_client_connection_counter(client_id: String) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use crate::observability::metrics::event_metrics;
+    use crate::mqtt::event_metrics;
 
     #[test]
     fn test_incr_client_connection_counter() {

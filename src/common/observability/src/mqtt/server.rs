@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::server::common::connection::NetworkConnectionType;
 use common_base::metrics::NoLabelSet;
 use common_base::tools::now_mills;
+use metadata_struct::connection::NetworkConnectionType;
 use prometheus_client::encoding::EncodeLabelSet;
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]

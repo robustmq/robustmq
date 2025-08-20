@@ -13,8 +13,9 @@
 // limitations under the License.
 
 use super::*;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 
-pub fn write(unsubscribe: &Unsubscribe, buffer: &mut BytesMut) -> Result<usize, Error> {
+pub fn write(unsubscribe: &Unsubscribe, buffer: &mut BytesMut) -> Result<usize, MQTTProtocolError> {
     let remaining_len = 2 + unsubscribe // 2 bytes for packet identifier
         .filters
         .iter()
@@ -34,7 +35,7 @@ pub fn write(unsubscribe: &Unsubscribe, buffer: &mut BytesMut) -> Result<usize, 
     Ok(1 + remaining_len_bytes + remaining_len)
 }
 
-pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<Unsubscribe, Error> {
+pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<Unsubscribe, MQTTProtocolError> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
 

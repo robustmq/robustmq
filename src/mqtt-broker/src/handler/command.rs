@@ -15,32 +15,42 @@
 use super::flow_control::is_qos_message;
 use super::mqtt::{MqttService, MqttServiceConnectContext, MqttServiceContext};
 use crate::handler::cache::CacheManager;
+use crate::handler::connection::disconnect_connection;
 use crate::handler::response::{
     response_packet_mqtt_connect_fail, response_packet_mqtt_distinct_by_reason,
 };
 use crate::security::AuthDriver;
-use crate::server::common::connection::NetworkConnection;
-use crate::server::common::connection_manager::ConnectionManager;
 use crate::subscribe::manager::SubscribeManager;
+use axum::async_trait;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::connection::NetworkConnection;
+use network_server::command::Command;
+use network_server::common::connection_manager::ConnectionManager;
+use network_server::common::packet::{ResponsePackage, RobustMQPacket};
 use protocol::mqtt::common::{
-    is_mqtt3, is_mqtt4, is_mqtt5, ConnectReturnCode, DisconnectReasonCode, MqttPacket, MqttProtocol,
+    is_mqtt3, is_mqtt4, is_mqtt5, Connect, ConnectProperties, ConnectReturnCode, Disconnect,
+    DisconnectProperties, DisconnectReasonCode, LastWill, LastWillProperties, Login, MqttPacket,
+    MqttProtocol, PingReq, PubAck, PubAckProperties, PubComp, PubCompProperties, PubRec,
+    PubRecProperties, PubRel, PubRelProperties, Publish, PublishProperties, Subscribe,
+    SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
 use schema_register::schema::SchemaRegisterManager;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
-use tracing::info;
+use tracing::{error, info};
 
 // S: message storage adapter
 #[derive(Clone)]
-pub struct Command {
+pub struct MQTTHandlerCommand {
     mqtt3_service: MqttService,
     mqtt4_service: MqttService,
     mqtt5_service: MqttService,
-    metadata_cache: Arc<CacheManager>,
+    cache_manager: Arc<CacheManager>,
     connection_manager: Arc<ConnectionManager>,
+    subscribe_manager: Arc<SubscribeManager>,
+    pub client_pool: Arc<ClientPool>,
 }
 
 #[derive(Clone)]
@@ -55,7 +65,577 @@ pub struct CommandContext {
     pub auth_driver: Arc<AuthDriver>,
 }
 
-impl Command {
+#[async_trait]
+impl Command for MQTTHandlerCommand {
+    async fn apply(
+        &self,
+        tcp_connection: NetworkConnection,
+        addr: SocketAddr,
+        robust_packet: RobustMQPacket,
+    ) -> Option<ResponsePackage> {
+        let packet = robust_packet.get_mqtt_packet().unwrap();
+        let mut is_connect_pkg = false;
+        if let MqttPacket::Connect(_, _, _, _, _, _) = packet {
+            is_connect_pkg = true;
+        }
+
+        if !is_connect_pkg && !self.check_login_status(tcp_connection.connection_id).await {
+            return Some(ResponsePackage::build(
+                tcp_connection.connection_id,
+                RobustMQPacket::MQTT(response_packet_mqtt_distinct_by_reason(
+                    &MqttProtocol::Mqtt5,
+                    Some(DisconnectReasonCode::NotAuthorized),
+                )),
+            ));
+        }
+
+        let resp_package = match packet {
+            MqttPacket::Connect(
+                protocol_version,
+                connect,
+                properties,
+                last_will,
+                last_will_properties,
+                login,
+            ) => {
+                self.process_connect(
+                    &tcp_connection,
+                    &addr,
+                    protocol_version,
+                    connect,
+                    properties,
+                    last_will,
+                    last_will_properties,
+                    login,
+                )
+                .await
+            }
+
+            MqttPacket::Publish(publish, publish_properties) => {
+                self.process_publish(&tcp_connection, publish, publish_properties)
+                    .await
+            }
+
+            MqttPacket::PubRec(pub_rec, pub_rec_properties) => {
+                self.process_pubrec(&tcp_connection, &pub_rec, &pub_rec_properties)
+                    .await
+            }
+
+            MqttPacket::PubComp(pub_comp, pub_comp_properties) => {
+                self.process_pubcomp(&tcp_connection, &pub_comp, &pub_comp_properties)
+                    .await
+            }
+
+            MqttPacket::PubRel(pub_rel, pub_rel_properties) => {
+                self.process_pubrel(&tcp_connection, &pub_rel, &pub_rel_properties)
+                    .await
+            }
+
+            MqttPacket::PubAck(pub_ack, pub_ack_properties) => {
+                self.process_puback(&tcp_connection, &pub_ack, &pub_ack_properties)
+                    .await
+            }
+
+            MqttPacket::Subscribe(subscribe, subscribe_properties) => {
+                self.process_subscribe(&tcp_connection, &subscribe, &subscribe_properties)
+                    .await
+            }
+
+            MqttPacket::PingReq(ping) => self.process_ping(&tcp_connection, &ping).await,
+
+            MqttPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => {
+                self.process_unsubscribe(&tcp_connection, &unsubscribe, &unsubscribe_properties)
+                    .await
+            }
+
+            MqttPacket::Disconnect(disconnect, disconnect_properties) => {
+                self.process_disconnect(&tcp_connection, &disconnect, &disconnect_properties)
+                    .await
+            }
+
+            _ => {
+                return Some(ResponsePackage::build(
+                    tcp_connection.connection_id,
+                    RobustMQPacket::MQTT(response_packet_mqtt_connect_fail(
+                        &MqttProtocol::Mqtt5,
+                        ConnectReturnCode::MalformedPacket,
+                        &None,
+                        None,
+                    )),
+                ));
+            }
+        };
+
+        if let Some(pkg) = resp_package.clone() {
+            if let MqttPacket::Disconnect(_, _) = pkg.packet.get_mqtt_packet().unwrap() {
+                if let Some(connection) = self
+                    .cache_manager
+                    .get_connection(tcp_connection.connection_id)
+                {
+                    if let Err(e) = disconnect_connection(
+                        &connection.client_id,
+                        connection.connect_id,
+                        &self.cache_manager,
+                        &self.client_pool,
+                        &self.connection_manager,
+                        &self.subscribe_manager,
+                        true,
+                    )
+                    .await
+                    {
+                        error!("{}", e);
+                    };
+                }
+            }
+        }
+
+        resp_package
+    }
+}
+impl MQTTHandlerCommand {
+    #[allow(clippy::too_many_arguments)]
+    pub async fn process_connect(
+        &self,
+        tcp_connection: &NetworkConnection,
+        addr: &SocketAddr,
+        protocol_version: u8,
+        connect: Connect,
+        properties: Option<ConnectProperties>,
+        last_will: Option<LastWill>,
+        last_will_properties: Option<LastWillProperties>,
+        login: Option<Login>,
+    ) -> Option<ResponsePackage> {
+        self.connection_manager
+            .set_mqtt_connect_protocol(tcp_connection.connection_id, protocol_version.to_owned());
+
+        let resp_pkg = if is_mqtt3(protocol_version.to_owned()) {
+            let connect_context = MqttServiceConnectContext {
+                connect_id: tcp_connection.connection_id,
+                connect: connect.clone(),
+                connect_properties: properties.clone(),
+                last_will: last_will.clone(),
+                last_will_properties: last_will_properties.clone(),
+                login: login.clone(),
+                addr: *addr,
+            };
+            Some(self.mqtt3_service.connect(connect_context).await)
+        } else if is_mqtt4(protocol_version.to_owned()) {
+            let connect_context = MqttServiceConnectContext {
+                connect_id: tcp_connection.connection_id,
+                connect: connect.clone(),
+                connect_properties: properties.clone(),
+                last_will: last_will.clone(),
+                last_will_properties: last_will_properties.clone(),
+                login: login.clone(),
+                addr: *addr,
+            };
+            Some(self.mqtt4_service.connect(connect_context).await)
+        } else if is_mqtt5(protocol_version.to_owned()) {
+            let connect_context = MqttServiceConnectContext {
+                connect_id: tcp_connection.connection_id,
+                connect: connect.clone(),
+                connect_properties: properties.clone(),
+                last_will: last_will.clone(),
+                last_will_properties: last_will_properties.clone(),
+                login: login.clone(),
+                addr: *addr,
+            };
+            Some(self.mqtt5_service.connect(connect_context).await)
+        } else {
+            return Some(ResponsePackage::build(
+                tcp_connection.connection_id,
+                RobustMQPacket::MQTT(response_packet_mqtt_connect_fail(
+                    &MqttProtocol::Mqtt5,
+                    ConnectReturnCode::UnsupportedProtocolVersion,
+                    &None,
+                    None,
+                )),
+            ));
+        };
+
+        let ack_pkg = resp_pkg.unwrap();
+        if let MqttPacket::ConnAck(conn_ack, _) = ack_pkg.clone() {
+            if conn_ack.code == ConnectReturnCode::Success {
+                let username = if let Some(user) = login {
+                    user.username.to_owned()
+                } else {
+                    "".to_string()
+                };
+                self.cache_manager
+                    .login_success(tcp_connection.connection_id, username);
+                info!("connect [{}] login success", tcp_connection.connection_id);
+            }
+        }
+        Some(ResponsePackage::build(
+            tcp_connection.connection_id,
+            RobustMQPacket::MQTT(ack_pkg),
+        ))
+    }
+
+    pub async fn process_publish(
+        &self,
+        tcp_connection: &NetworkConnection,
+        publish: Publish,
+        publish_properties: Option<PublishProperties>,
+    ) -> Option<ResponsePackage> {
+        let connection = if let Some(se) = self
+            .cache_manager
+            .connection_info
+            .get(&tcp_connection.connection_id)
+        {
+            se.clone()
+        } else {
+            return Some(ResponsePackage::build(
+                tcp_connection.connection_id,
+                RobustMQPacket::MQTT(response_packet_mqtt_distinct_by_reason(
+                    &tcp_connection.get_protocol(),
+                    Some(DisconnectReasonCode::MaximumConnectTime),
+                )),
+            ));
+        };
+
+        if is_qos_message(publish.qos) {
+            connection.recv_qos_message_incr();
+        }
+
+        let resp = if tcp_connection.is_mqtt3() {
+            self.mqtt3_service
+                .publish(tcp_connection.connection_id, &publish, &publish_properties)
+                .await
+        } else if tcp_connection.is_mqtt4() {
+            self.mqtt4_service
+                .publish(tcp_connection.connection_id, &publish, &publish_properties)
+                .await
+        } else if tcp_connection.is_mqtt5() {
+            self.mqtt5_service
+                .publish(tcp_connection.connection_id, &publish, &publish_properties)
+                .await
+        } else {
+            None
+        };
+
+        if let Some(pack) = resp.clone() {
+            if let MqttPacket::PubRec(_, _) = pack {
+                // todo
+            } else if is_qos_message(publish.qos) {
+                connection.recv_qos_message_decr();
+            }
+        }
+        if let Some(pkg) = resp {
+            return Some(ResponsePackage::build(
+                tcp_connection.connection_id,
+                RobustMQPacket::MQTT(pkg),
+            ));
+        }
+        None
+    }
+
+    pub async fn process_pubrec(
+        &self,
+        tcp_connection: &NetworkConnection,
+        pub_rec: &PubRec,
+        pub_rec_properties: &Option<PubRecProperties>,
+    ) -> Option<ResponsePackage> {
+        let resp = if tcp_connection.is_mqtt3() {
+            self.mqtt3_service
+                .publish_rec(tcp_connection.connection_id, pub_rec, pub_rec_properties)
+                .await
+        } else if tcp_connection.is_mqtt4() {
+            self.mqtt4_service
+                .publish_rec(tcp_connection.connection_id, pub_rec, pub_rec_properties)
+                .await
+        } else if tcp_connection.is_mqtt5() {
+            self.mqtt5_service
+                .publish_rec(tcp_connection.connection_id, pub_rec, pub_rec_properties)
+                .await
+        } else {
+            None
+        };
+        if let Some(pkg) = resp {
+            return Some(ResponsePackage::build(
+                tcp_connection.connection_id,
+                RobustMQPacket::MQTT(pkg),
+            ));
+        }
+        None
+    }
+
+    pub async fn process_pubcomp(
+        &self,
+        tcp_connection: &NetworkConnection,
+        pub_comp: &PubComp,
+        pub_comp_properties: &Option<PubCompProperties>,
+    ) -> Option<ResponsePackage> {
+        let resp = if tcp_connection.is_mqtt3() {
+            self.mqtt3_service
+                .publish_comp(tcp_connection.connection_id, pub_comp, pub_comp_properties)
+                .await
+        } else if tcp_connection.is_mqtt4() {
+            self.mqtt4_service
+                .publish_comp(tcp_connection.connection_id, pub_comp, pub_comp_properties)
+                .await
+        } else if tcp_connection.is_mqtt5() {
+            self.mqtt5_service
+                .publish_comp(tcp_connection.connection_id, pub_comp, pub_comp_properties)
+                .await
+        } else {
+            None
+        };
+
+        if let Some(pkg) = resp {
+            return Some(ResponsePackage::build(
+                tcp_connection.connection_id,
+                RobustMQPacket::MQTT(pkg),
+            ));
+        }
+        None
+    }
+
+    pub async fn process_pubrel(
+        &self,
+        tcp_connection: &NetworkConnection,
+        pub_rel: &PubRel,
+        pub_rel_properties: &Option<PubRelProperties>,
+    ) -> Option<ResponsePackage> {
+        let resp = if tcp_connection.is_mqtt3() {
+            Some(
+                self.mqtt3_service
+                    .publish_rel(tcp_connection.connection_id, pub_rel, pub_rel_properties)
+                    .await,
+            )
+        } else if tcp_connection.is_mqtt4() {
+            Some(
+                self.mqtt4_service
+                    .publish_rel(tcp_connection.connection_id, pub_rel, pub_rel_properties)
+                    .await,
+            )
+        } else if tcp_connection.is_mqtt5() {
+            Some(
+                self.mqtt5_service
+                    .publish_rel(tcp_connection.connection_id, pub_rel, pub_rel_properties)
+                    .await,
+            )
+        } else {
+            None
+        };
+
+        if let Some(pkg) = resp {
+            return Some(ResponsePackage::build(
+                tcp_connection.connection_id,
+                RobustMQPacket::MQTT(pkg),
+            ));
+        }
+        None
+    }
+
+    pub async fn process_puback(
+        &self,
+        tcp_connection: &NetworkConnection,
+        pub_ack: &PubAck,
+        pub_ack_properties: &Option<PubAckProperties>,
+    ) -> Option<ResponsePackage> {
+        let resp = if tcp_connection.is_mqtt3() {
+            self.mqtt3_service
+                .publish_ack(tcp_connection.connection_id, pub_ack, pub_ack_properties)
+                .await
+        } else if tcp_connection.is_mqtt4() {
+            self.mqtt4_service
+                .publish_ack(tcp_connection.connection_id, pub_ack, pub_ack_properties)
+                .await
+        } else if tcp_connection.is_mqtt5() {
+            self.mqtt5_service
+                .publish_ack(tcp_connection.connection_id, pub_ack, pub_ack_properties)
+                .await
+        } else {
+            None
+        };
+        if let Some(pkg) = resp {
+            return Some(ResponsePackage::build(
+                tcp_connection.connection_id,
+                RobustMQPacket::MQTT(pkg),
+            ));
+        }
+        None
+    }
+
+    pub async fn process_subscribe(
+        &self,
+        tcp_connection: &NetworkConnection,
+        subscribe: &Subscribe,
+        subscribe_properties: &Option<SubscribeProperties>,
+    ) -> Option<ResponsePackage> {
+        let resp = if tcp_connection.is_mqtt3() {
+            Some(
+                self.mqtt3_service
+                    .subscribe(
+                        tcp_connection.connection_id,
+                        subscribe,
+                        subscribe_properties,
+                    )
+                    .await,
+            )
+        } else if tcp_connection.is_mqtt4() {
+            Some(
+                self.mqtt4_service
+                    .subscribe(
+                        tcp_connection.connection_id,
+                        subscribe,
+                        subscribe_properties,
+                    )
+                    .await,
+            )
+        } else if tcp_connection.is_mqtt5() {
+            Some(
+                self.mqtt5_service
+                    .subscribe(
+                        tcp_connection.connection_id,
+                        subscribe,
+                        subscribe_properties,
+                    )
+                    .await,
+            )
+        } else {
+            None
+        };
+
+        if let Some(pkg) = resp {
+            return Some(ResponsePackage::build(
+                tcp_connection.connection_id,
+                RobustMQPacket::MQTT(pkg),
+            ));
+        }
+        None
+    }
+
+    pub async fn process_ping(
+        &self,
+        tcp_connection: &NetworkConnection,
+        ping: &PingReq,
+    ) -> Option<ResponsePackage> {
+        let resp = if tcp_connection.is_mqtt3() {
+            Some(
+                self.mqtt3_service
+                    .ping(tcp_connection.connection_id, ping)
+                    .await,
+            )
+        } else if tcp_connection.is_mqtt4() {
+            Some(
+                self.mqtt4_service
+                    .ping(tcp_connection.connection_id, ping)
+                    .await,
+            )
+        } else if tcp_connection.is_mqtt5() {
+            Some(
+                self.mqtt5_service
+                    .ping(tcp_connection.connection_id, ping)
+                    .await,
+            )
+        } else {
+            None
+        };
+        if let Some(pkg) = resp {
+            return Some(ResponsePackage::build(
+                tcp_connection.connection_id,
+                RobustMQPacket::MQTT(pkg),
+            ));
+        }
+        None
+    }
+
+    pub async fn process_unsubscribe(
+        &self,
+        tcp_connection: &NetworkConnection,
+        unsubscribe: &Unsubscribe,
+        unsubscribe_properties: &Option<UnsubscribeProperties>,
+    ) -> Option<ResponsePackage> {
+        let resp = if tcp_connection.is_mqtt3() {
+            Some(
+                self.mqtt3_service
+                    .un_subscribe(
+                        tcp_connection.connection_id,
+                        unsubscribe,
+                        unsubscribe_properties,
+                    )
+                    .await,
+            )
+        } else if tcp_connection.is_mqtt4() {
+            Some(
+                self.mqtt4_service
+                    .un_subscribe(
+                        tcp_connection.connection_id,
+                        unsubscribe,
+                        unsubscribe_properties,
+                    )
+                    .await,
+            )
+        } else if tcp_connection.is_mqtt5() {
+            Some(
+                self.mqtt5_service
+                    .un_subscribe(
+                        tcp_connection.connection_id,
+                        unsubscribe,
+                        unsubscribe_properties,
+                    )
+                    .await,
+            )
+        } else {
+            None
+        };
+
+        if let Some(pkg) = resp {
+            return Some(ResponsePackage::build(
+                tcp_connection.connection_id,
+                RobustMQPacket::MQTT(pkg),
+            ));
+        }
+        None
+    }
+
+    pub async fn process_disconnect(
+        &self,
+        tcp_connection: &NetworkConnection,
+        disconnect: &Disconnect,
+        disconnect_properties: &Option<DisconnectProperties>,
+    ) -> Option<ResponsePackage> {
+        let resp = if tcp_connection.is_mqtt3() {
+            self.mqtt3_service
+                .disconnect(
+                    tcp_connection.connection_id,
+                    disconnect,
+                    disconnect_properties,
+                )
+                .await
+        } else if tcp_connection.is_mqtt4() {
+            self.mqtt4_service
+                .disconnect(
+                    tcp_connection.connection_id,
+                    disconnect,
+                    disconnect_properties,
+                )
+                .await
+        } else if tcp_connection.is_mqtt5() {
+            self.mqtt5_service
+                .disconnect(
+                    tcp_connection.connection_id,
+                    disconnect,
+                    disconnect_properties,
+                )
+                .await
+        } else {
+            None
+        };
+
+        if let Some(pkg) = resp {
+            return Some(ResponsePackage::build(
+                tcp_connection.connection_id,
+                RobustMQPacket::MQTT(pkg),
+            ));
+        }
+        None
+    }
+}
+
+impl MQTTHandlerCommand {
     pub fn new(context: CommandContext) -> Self {
         let mqtt3_context = MqttServiceContext {
             protocol: MqttProtocol::Mqtt3,
@@ -93,396 +673,24 @@ impl Command {
             auth_driver: context.auth_driver.clone(),
         };
         let mqtt5_service = MqttService::new(mqtt5_context);
-        Command {
+        MQTTHandlerCommand {
             mqtt3_service,
             mqtt4_service,
             mqtt5_service,
-            metadata_cache: context.cache_manager,
+            client_pool: context.client_pool.clone(),
+            subscribe_manager: context.subscribe_manager.clone(),
+            cache_manager: context.cache_manager,
             connection_manager: context.connection_manager,
         }
     }
 
-    pub async fn apply(
-        &mut self,
-        tcp_connection: &NetworkConnection,
-        addr: &SocketAddr,
-        packet: &MqttPacket,
-    ) -> Option<MqttPacket> {
-        let mut is_connect_pkg = false;
-        if let MqttPacket::Connect(_, _, _, _, _, _) = packet {
-            is_connect_pkg = true;
-        }
-
-        if !is_connect_pkg && !self.check_login_status(tcp_connection.connection_id).await {
-            return Some(response_packet_mqtt_distinct_by_reason(
-                &MqttProtocol::Mqtt5,
-                Some(DisconnectReasonCode::NotAuthorized),
-            ));
-        }
-
-        match packet {
-            MqttPacket::Connect(
-                protocol_version,
-                connect,
-                properties,
-                last_will,
-                last_will_properties,
-                login,
-            ) => {
-                self.connection_manager.set_connect_protocol(
-                    tcp_connection.connection_id,
-                    protocol_version.to_owned(),
-                );
-
-                let resp_pkg = if is_mqtt3(protocol_version.to_owned()) {
-                    let connect_context = MqttServiceConnectContext {
-                        connect_id: tcp_connection.connection_id,
-                        connect: connect.clone(),
-                        connect_properties: properties.clone(),
-                        last_will: last_will.clone(),
-                        last_will_properties: last_will_properties.clone(),
-                        login: login.clone(),
-                        addr: *addr,
-                    };
-                    Some(self.mqtt3_service.connect(connect_context).await)
-                } else if is_mqtt4(protocol_version.to_owned()) {
-                    let connect_context = MqttServiceConnectContext {
-                        connect_id: tcp_connection.connection_id,
-                        connect: connect.clone(),
-                        connect_properties: properties.clone(),
-                        last_will: last_will.clone(),
-                        last_will_properties: last_will_properties.clone(),
-                        login: login.clone(),
-                        addr: *addr,
-                    };
-                    Some(self.mqtt4_service.connect(connect_context).await)
-                } else if is_mqtt5(protocol_version.to_owned()) {
-                    let connect_context = MqttServiceConnectContext {
-                        connect_id: tcp_connection.connection_id,
-                        connect: connect.clone(),
-                        connect_properties: properties.clone(),
-                        last_will: last_will.clone(),
-                        last_will_properties: last_will_properties.clone(),
-                        login: login.clone(),
-                        addr: *addr,
-                    };
-                    Some(self.mqtt5_service.connect(connect_context).await)
-                } else {
-                    return Some(response_packet_mqtt_connect_fail(
-                        &MqttProtocol::Mqtt4,
-                        ConnectReturnCode::UnsupportedProtocolVersion,
-                        &None,
-                        None,
-                    ));
-                };
-
-                let ack_pkg = resp_pkg.unwrap();
-                if let MqttPacket::ConnAck(conn_ack, _) = ack_pkg.clone() {
-                    if conn_ack.code == ConnectReturnCode::Success {
-                        let username = if let Some(user) = login {
-                            user.username.to_owned()
-                        } else {
-                            "".to_string()
-                        };
-                        self.metadata_cache
-                            .login_success(tcp_connection.connection_id, username);
-                        info!("connect [{}] login success", tcp_connection.connection_id);
-                    }
-                }
-                return Some(ack_pkg);
-            }
-
-            MqttPacket::Publish(publish, publish_properties) => {
-                let connection = if let Some(se) = self
-                    .metadata_cache
-                    .connection_info
-                    .get(&tcp_connection.connection_id)
-                {
-                    se.clone()
-                } else {
-                    return Some(response_packet_mqtt_distinct_by_reason(
-                        &tcp_connection.get_protocol(),
-                        Some(DisconnectReasonCode::MaximumConnectTime),
-                    ));
-                };
-
-                if is_qos_message(publish.qos) {
-                    connection.recv_qos_message_incr();
-                }
-
-                let resp = if tcp_connection.is_mqtt3() {
-                    self.mqtt3_service
-                        .publish(tcp_connection.connection_id, publish, publish_properties)
-                        .await
-                } else if tcp_connection.is_mqtt4() {
-                    self.mqtt4_service
-                        .publish(tcp_connection.connection_id, publish, publish_properties)
-                        .await
-                } else if tcp_connection.is_mqtt5() {
-                    self.mqtt5_service
-                        .publish(tcp_connection.connection_id, publish, publish_properties)
-                        .await
-                } else {
-                    None
-                };
-
-                if let Some(pack) = resp.clone() {
-                    if let MqttPacket::PubRec(_, _) = pack {
-                        // todo
-                    } else if is_qos_message(publish.qos) {
-                        connection.recv_qos_message_decr();
-                    }
-                }
-                return resp;
-            }
-
-            MqttPacket::PubRec(pub_rec, pub_rec_properties) => {
-                if tcp_connection.is_mqtt3() {
-                    return self
-                        .mqtt3_service
-                        .publish_rec(tcp_connection.connection_id, pub_rec, pub_rec_properties)
-                        .await;
-                }
-                if tcp_connection.is_mqtt4() {
-                    return self
-                        .mqtt4_service
-                        .publish_rec(tcp_connection.connection_id, pub_rec, pub_rec_properties)
-                        .await;
-                }
-                if tcp_connection.is_mqtt5() {
-                    return self
-                        .mqtt5_service
-                        .publish_rec(tcp_connection.connection_id, pub_rec, pub_rec_properties)
-                        .await;
-                }
-            }
-
-            MqttPacket::PubComp(pub_comp, pub_comp_properties) => {
-                if tcp_connection.is_mqtt3() {
-                    return self
-                        .mqtt3_service
-                        .publish_comp(tcp_connection.connection_id, pub_comp, pub_comp_properties)
-                        .await;
-                }
-
-                if tcp_connection.is_mqtt4() {
-                    return self
-                        .mqtt4_service
-                        .publish_comp(tcp_connection.connection_id, pub_comp, pub_comp_properties)
-                        .await;
-                }
-
-                if tcp_connection.is_mqtt5() {
-                    return self
-                        .mqtt5_service
-                        .publish_comp(tcp_connection.connection_id, pub_comp, pub_comp_properties)
-                        .await;
-                }
-            }
-
-            MqttPacket::PubRel(pub_rel, pub_rel_properties) => {
-                if tcp_connection.is_mqtt3() {
-                    return Some(
-                        self.mqtt3_service
-                            .publish_rel(tcp_connection.connection_id, pub_rel, pub_rel_properties)
-                            .await,
-                    );
-                }
-                if tcp_connection.is_mqtt4() {
-                    return Some(
-                        self.mqtt4_service
-                            .publish_rel(tcp_connection.connection_id, pub_rel, pub_rel_properties)
-                            .await,
-                    );
-                }
-
-                if tcp_connection.is_mqtt5() {
-                    return Some(
-                        self.mqtt5_service
-                            .publish_rel(tcp_connection.connection_id, pub_rel, pub_rel_properties)
-                            .await,
-                    );
-                }
-            }
-
-            MqttPacket::PubAck(pub_ack, pub_ack_properties) => {
-                if tcp_connection.is_mqtt3() {
-                    return self
-                        .mqtt3_service
-                        .publish_ack(tcp_connection.connection_id, pub_ack, pub_ack_properties)
-                        .await;
-                }
-
-                if tcp_connection.is_mqtt4() {
-                    return self
-                        .mqtt4_service
-                        .publish_ack(tcp_connection.connection_id, pub_ack, pub_ack_properties)
-                        .await;
-                }
-
-                if tcp_connection.is_mqtt5() {
-                    return self
-                        .mqtt5_service
-                        .publish_ack(tcp_connection.connection_id, pub_ack, pub_ack_properties)
-                        .await;
-                }
-                return None;
-            }
-
-            MqttPacket::Subscribe(subscribe, subscribe_properties) => {
-                if tcp_connection.is_mqtt3() {
-                    return Some(
-                        self.mqtt3_service
-                            .subscribe(
-                                tcp_connection.connection_id,
-                                subscribe,
-                                subscribe_properties,
-                            )
-                            .await,
-                    );
-                }
-                if tcp_connection.is_mqtt4() {
-                    return Some(
-                        self.mqtt4_service
-                            .subscribe(
-                                tcp_connection.connection_id,
-                                subscribe,
-                                subscribe_properties,
-                            )
-                            .await,
-                    );
-                }
-
-                if tcp_connection.is_mqtt5() {
-                    return Some(
-                        self.mqtt5_service
-                            .subscribe(
-                                tcp_connection.connection_id,
-                                subscribe,
-                                subscribe_properties,
-                            )
-                            .await,
-                    );
-                }
-            }
-
-            MqttPacket::PingReq(ping) => {
-                if tcp_connection.is_mqtt3() {
-                    return Some(
-                        self.mqtt3_service
-                            .ping(tcp_connection.connection_id, ping)
-                            .await,
-                    );
-                }
-
-                if tcp_connection.is_mqtt4() {
-                    return Some(
-                        self.mqtt4_service
-                            .ping(tcp_connection.connection_id, ping)
-                            .await,
-                    );
-                }
-
-                if tcp_connection.is_mqtt5() {
-                    return Some(
-                        self.mqtt5_service
-                            .ping(tcp_connection.connection_id, ping)
-                            .await,
-                    );
-                }
-            }
-
-            MqttPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => {
-                if tcp_connection.is_mqtt3() {
-                    return Some(
-                        self.mqtt3_service
-                            .un_subscribe(
-                                tcp_connection.connection_id,
-                                unsubscribe,
-                                unsubscribe_properties,
-                            )
-                            .await,
-                    );
-                }
-
-                if tcp_connection.is_mqtt4() {
-                    return Some(
-                        self.mqtt4_service
-                            .un_subscribe(
-                                tcp_connection.connection_id,
-                                unsubscribe,
-                                unsubscribe_properties,
-                            )
-                            .await,
-                    );
-                }
-
-                if tcp_connection.is_mqtt5() {
-                    return Some(
-                        self.mqtt5_service
-                            .un_subscribe(
-                                tcp_connection.connection_id,
-                                unsubscribe,
-                                unsubscribe_properties,
-                            )
-                            .await,
-                    );
-                }
-            }
-
-            MqttPacket::Disconnect(disconnect, disconnect_properties) => {
-                if tcp_connection.is_mqtt3() {
-                    return self
-                        .mqtt3_service
-                        .disconnect(
-                            tcp_connection.connection_id,
-                            disconnect,
-                            disconnect_properties,
-                        )
-                        .await;
-                }
-
-                if tcp_connection.is_mqtt4() {
-                    return self
-                        .mqtt4_service
-                        .disconnect(
-                            tcp_connection.connection_id,
-                            disconnect,
-                            disconnect_properties,
-                        )
-                        .await;
-                }
-
-                if tcp_connection.is_mqtt5() {
-                    return self
-                        .mqtt5_service
-                        .disconnect(
-                            tcp_connection.connection_id,
-                            disconnect,
-                            disconnect_properties,
-                        )
-                        .await;
-                }
-            }
-
-            _ => {
-                return Some(response_packet_mqtt_connect_fail(
-                    &MqttProtocol::Mqtt5,
-                    ConnectReturnCode::MalformedPacket,
-                    &None,
-                    None,
-                ));
-            }
-        }
-        Some(response_packet_mqtt_connect_fail(
-            &MqttProtocol::Mqtt5,
-            ConnectReturnCode::UnsupportedProtocolVersion,
-            &None,
-            None,
-        ))
-    }
-
     pub async fn check_login_status(&self, connection_id: u64) -> bool {
-        self.metadata_cache.is_login(connection_id)
+        self.cache_manager.is_login(connection_id)
     }
+}
+
+pub fn create_command(command_context: CommandContext) -> Arc<Box<dyn Command + Send + Sync>> {
+    let storage: Box<dyn Command + Send + Sync> =
+        Box::new(MQTTHandlerCommand::new(command_context));
+    Arc::new(storage)
 }

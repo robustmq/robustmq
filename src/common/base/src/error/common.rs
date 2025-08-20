@@ -12,15 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use anyhow;
+use quinn::{ReadToEndError, StoppedError, WriteError};
 use std::io;
 use std::net::AddrParseError;
 use std::num::ParseIntError;
 use std::string::FromUtf8Error;
-
-use anyhow;
 use thiserror::Error;
 use tonic::Status;
 use valico::json_schema::SchemaError;
+
+use crate::error::mqtt_protocol_error::MQTTProtocolError;
 
 #[derive(Error, Debug)]
 pub enum CommonError {
@@ -37,6 +39,18 @@ pub enum CommonError {
     FromDecodeError(#[from] prost::DecodeError),
 
     #[error("{0}")]
+    QuinnWriteError(#[from] WriteError),
+
+    #[error("{0}")]
+    QuinnClosedStreamError(#[from] quinn::ClosedStream),
+
+    #[error("{0}")]
+    QuinnStoppedError(#[from] StoppedError),
+
+    #[error("{0}")]
+    QuinnReadToEndError(#[from] ReadToEndError),
+
+    #[error("{0}")]
     FromSerdeJsonError(#[from] serde_json::Error),
 
     #[error("{0}")]
@@ -47,6 +61,9 @@ pub enum CommonError {
 
     #[error("{0}")]
     FromIoError(#[from] io::Error),
+
+    #[error("{0}")]
+    FromMQTTProtocolError(#[from] MQTTProtocolError),
 
     #[error("{0}")]
     AnyHowError(#[from] anyhow::Error),
@@ -101,6 +118,12 @@ pub enum CommonError {
 
     #[error("CRC check for the message data failed")]
     CrcCheckByMessage,
+
+    #[error("Failed to write data to the mqtt {0} client, error message: {1}")]
+    FailedToWriteClient(String, String),
+
+    #[error("[write_frame]Connection management could not obtain an available {0} connection. Connection ID: {1}")]
+    NotObtainAvailableConnection(String, u64),
 
     #[error("{0}")]
     OpenDALError(#[from] opendal::Error),

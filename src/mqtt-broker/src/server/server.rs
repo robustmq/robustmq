@@ -13,21 +13,18 @@
 // limitations under the License.
 
 use crate::common::types::ResultMqttBrokerError;
+use crate::handler::command::create_command;
+use crate::server::tcp::server::{ProcessorConfig, TcpServer, TcpServerContext};
 use crate::{
-    handler::{
-        cache::CacheManager,
-        command::{Command, CommandContext},
-    },
+    handler::{cache::CacheManager, command::CommandContext},
     security::AuthDriver,
-    server::{
-        common::{connection::NetworkConnectionType, connection_manager::ConnectionManager},
-        tcp::v1::server::{ProcessorConfig, TcpServer, TcpServerContext},
-    },
     subscribe::manager::SubscribeManager,
 };
 use common_config::broker::broker_config;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::connection::NetworkConnectionType;
+use network_server::common::connection_manager::ConnectionManager;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
@@ -64,7 +61,7 @@ impl Server {
             schema_manager: context.schema_manager.clone(),
             auth_driver: context.auth_driver.clone(),
         };
-        let command = Command::new(command_context);
+        let command = create_command(command_context);
 
         let proc_config = ProcessorConfig {
             accept_thread_num: conf.network.accept_thread_num,
