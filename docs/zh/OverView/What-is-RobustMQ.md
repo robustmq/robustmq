@@ -1,8 +1,10 @@
 
-# RobustMQ —— 用 Rust 构建的下一代云原生消息队列
-
 ## Logo
 ![image](../../../docs/images/robustmq-logo.png)
+
+## 愿景
+
+一个用 Rust 语言构建的高性能分布式消息队列。
 
 ## 背景与动机：为什么要做 RobustMQ
 
