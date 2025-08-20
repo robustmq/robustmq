@@ -19,8 +19,10 @@ fn len(puback: &PubAck, properties: &Option<PubAckProperties>) -> usize {
     let mut len = 2 + 1; // pkid + reason code
 
     // If there are no properties, sending reason code is optional
-    if puback.reason.unwrap() == PubAckReason::Success && properties.is_none() {
-        return 2;
+    if let Some(reason) = puback.reason {
+        if reason == PubAckReason::Success && properties.is_none() {
+            return 2;
+        }
     }
 
     if let Some(p) = properties {
@@ -45,11 +47,12 @@ pub fn write(
     let count = write_remaining_length(buffer, len)?;
     buffer.put_u16(puback.pkid);
     // Reason code is optional with success if there are no properties
-    if puback.reason.unwrap() == PubAckReason::Success && properties.is_none() {
-        return Ok(4);
+    if let Some(reason) = puback.reason {
+        if reason == PubAckReason::Success && properties.is_none() {
+            return Ok(4);
+        }
+        buffer.put_u8(code(reason));
     }
-
-    buffer.put_u8(code(puback.reason.unwrap()));
     if let Some(p) = properties {
         properties::write(p, buffer)?;
     } else {
