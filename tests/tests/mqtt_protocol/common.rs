@@ -97,7 +97,7 @@ pub fn connect_server(client_properties: &ClientTestProperties) -> Client {
     println!("{client_properties:?}");
     let cli_res = Client::new(create_opts);
     if let Err(e) = cli_res {
-        panic!("{:?}", e);
+        panic!("{e:?}");
     } else {
         let cli = cli_res.unwrap();
 

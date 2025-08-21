@@ -153,7 +153,7 @@ pub async fn list_connection_by_req(
                 connection_id: value.connection_id,
                 connection_type: value.connection_type.to_string(),
                 protocol: match value.protocol {
-                    Some(protocol) => format!("{:?}", protocol),
+                    Some(protocol) => format!("{protocol:?}"),
                     None => "None".to_string(),
                 },
                 source_addr: value.addr.to_string(),
