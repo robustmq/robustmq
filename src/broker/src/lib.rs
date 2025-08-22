@@ -48,7 +48,14 @@ use network_server::common::connection_manager::ConnectionManager as MqttConnect
 use openraft::Raft;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
 use schema_register::schema::SchemaRegisterManager;
-use std::{sync::Arc, thread::sleep, time::Duration};
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    thread::sleep,
+    time::Duration,
+};
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 use tracing::{error, info};
 
@@ -115,6 +122,10 @@ impl BrokerServer {
         let server_runtime =
             create_runtime("server-runtime", self.config.runtime.runtime_worker_threads);
         let grpc_port = self.config.grpc_port;
+
+        let grpc_ready = Arc::new(AtomicBool::new(false));
+        let grpc_ready_check = grpc_ready.clone();
+
         server_runtime.spawn(async move {
             if let Err(e) =
                 start_grpc_server(place_params, mqtt_params, journal_params, grpc_port).await
@@ -122,6 +133,9 @@ impl BrokerServer {
                 panic!("{e}")
             }
         });
+
+        // check grpc server ready
+        self.check_grpc_server_ready(grpc_port, grpc_ready_check);
 
         // start pprof server
         server_runtime.spawn(async move {
@@ -139,8 +153,7 @@ impl BrokerServer {
             });
         }
 
-        // check grpc service ready
-        sleep(Duration::from_secs(3));
+        self.wait_for_grpc_ready(&grpc_ready);
 
         let mut place_stop_send = None;
         let mut mqtt_stop_send = None;
@@ -175,11 +188,10 @@ impl BrokerServer {
             journal_runtime.spawn(async move {
                 server.start().await;
             });
+            self.check_journal_server_ready(&self.journal_params);
         }
 
-        // check journal ready
-        sleep(Duration::from_secs(3));
-        //todo
+        self.wait_for_journal_ready();
 
         // start mqtt server
         let (stop_send, _) = broadcast::channel(2);
@@ -327,5 +339,121 @@ impl BrokerServer {
             }
             sleep(Duration::from_secs(3));
         });
+    }
+
+    fn check_grpc_server_ready(&self, grpc_port: u32, grpc_ready: Arc<AtomicBool>) {
+        let max_retries = 30;
+        let retry_interval = Duration::from_millis(100);
+
+        std::thread::spawn(move || {
+            let addr = format!("127.0.0.1:{}", grpc_port);
+
+            for attempt in 1..=max_retries {
+                match std::net::TcpStream::connect(&addr) {
+                    Ok(_) => {
+                        info!("GRPC server is ready on port {}", grpc_port);
+                        grpc_ready.store(true, Ordering::Relaxed);
+                        return;
+                    }
+                    Err(e) => {
+                        if attempt % 10 == 0 {
+                            info!(
+                                "GRPC server not ready yet (attempt {}/{}): {}",
+                                attempt, max_retries, e
+                            );
+                        }
+                    }
+                }
+
+                std::thread::sleep(retry_interval);
+            }
+            error!(
+                "GRPC server failed to start within {} attempts",
+                max_retries
+            );
+            std::process::exit(1);
+        });
+    }
+
+    fn check_journal_server_ready(&self, journal_params: &Option<JournalServerParams>) {
+        if journal_params.is_none() {
+            return;
+        }
+
+        let config = self.config.clone();
+        let max_retries = 30;
+        let retry_interval = Duration::from_millis(100);
+
+        std::thread::spawn(move || {
+            let journal_port = config.journal_server.tcp_port;
+            let addr = format!("127.0.0.1:{}", journal_port);
+
+            for attempt in 1..=max_retries {
+                match std::net::TcpStream::connect(&addr) {
+                    Ok(_) => {
+                        info!("Journal server is ready on port {}", journal_port);
+                        return;
+                    }
+                    Err(e) => {
+                        if attempt % 10 == 0 {
+                            info!(
+                                "Journal server not ready yet (attempt {}/{}): {}",
+                                attempt, max_retries, e
+                            );
+                        }
+                    }
+                }
+
+                std::thread::sleep(retry_interval);
+            }
+
+            error!(
+                "Journal server failed to start within {} attempts",
+                max_retries
+            );
+            std::process::exit(1);
+        });
+    }
+
+    fn wait_for_grpc_ready(&self, grpc_ready: &Arc<AtomicBool>) {
+        let max_wait_time = Duration::from_secs(10);
+        let check_interval = Duration::from_millis(100);
+        let start_time = std::time::Instant::now();
+
+        while !grpc_ready.load(Ordering::Relaxed) {
+            if start_time.elapsed() > max_wait_time {
+                error!("GRPC server failed to start within {:?}", max_wait_time);
+                std::process::exit(1);
+            }
+            std::thread::sleep(check_interval);
+        }
+
+        info!("GRPC server startup check completed");
+    }
+
+    fn wait_for_journal_ready(&self) {
+        if self.journal_params.is_none() {
+            return;
+        }
+
+        let journal_port = self.config.journal_server.tcp_port;
+        let max_wait_time = Duration::from_secs(10);
+        let check_interval = Duration::from_millis(100);
+        let start_time = std::time::Instant::now();
+
+        while start_time.elapsed() < max_wait_time {
+            match std::net::TcpStream::connect(format!("127.0.0.1:{}", journal_port)) {
+                Ok(_) => {
+                    info!("Journal server startup check completed");
+                    return;
+                }
+                Err(_) => {
+                    std::thread::sleep(check_interval);
+                }
+            }
+        }
+
+        error!("Journal server failed to start within {:?}", max_wait_time);
+        std::process::exit(1);
     }
 }

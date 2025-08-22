@@ -84,7 +84,7 @@ temp-env = "0.3.6"
 regex = "1.10.4"
 grep = "0.3.2"
 ## observability
-prometheus = "0.13.3"
+prometheus = "0.14.0"
 prometheus_exporter = "0.8"
 prometheus-client = "0.23.1"
 ## logging
@@ -141,7 +141,7 @@ openraft = { git = "https://github.com/databendlabs/openraft.git", features = [
     "serde",
     "type-alias",
 ] }
-validator = { version = "0.18", features = ["derive"] }
+validator = { version = "0.19", features = ["derive"] }
 rand = "0.8.5"
 opendal = { version = "0.51", features = ["services-s3"] }
 valico = "4.0.0"
