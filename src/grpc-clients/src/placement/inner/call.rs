@@ -46,7 +46,9 @@ generate_placement_service_call!(
     ClusterStatusReply,
     ClusterStatus
 );
+
 generate_placement_service_call!(node_list, NodeListRequest, NodeListReply, ListNode);
+
 generate_placement_service_call!(
     register_node,
     RegisterNodeRequest,

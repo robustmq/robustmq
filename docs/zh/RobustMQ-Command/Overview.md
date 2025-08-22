@@ -2,7 +2,13 @@
 
 ## 整体介绍
 
-RobustMQ Command 是 RobustMQ 提供的命令行工具，用于集群相关操作。目前包含 mqtt、place、journal 三个模块，分别对应 RobustMQ 的 MQTT Broker、元数据服务 Placement Center、存储层 Journal Server 三个组件。
+RobustMQ Command 是 RobustMQ 提供的命令行工具，用于集群相关操作。
+目前包含 mqtt、place、journal 三个模块，分别对应 RobustMQ 的 MQTT Broker、
+元数据服务 Placement Center、存储层 Journal Server 三个组件。
+
+> [!NOTE]
+> 当前版本的 RobustMQ Command 仅支持单机数据的获取，多集群数据获取还在支持中, 欢迎
+> 帮忙构建。
 
 ```
 $ ./bin/robust-ctl
