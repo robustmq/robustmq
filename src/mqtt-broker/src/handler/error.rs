@@ -17,6 +17,7 @@ use std::{num::ParseIntError, string::FromUtf8Error};
 use common_base::error::{common::CommonError, mqtt_protocol_error::MQTTProtocolError};
 use quinn::{ReadToEndError, StoppedError, WriteError};
 use rdkafka::error::KafkaError;
+use reqwest::Error as RequestError;
 use thiserror::Error;
 use tonic::Status;
 
@@ -51,6 +52,9 @@ pub enum MqttBrokerError {
 
     #[error("{0}")]
     TokioSyncBroadcastErrorRecvError(#[from] tokio::sync::broadcast::error::RecvError),
+
+    #[error("{0}")]
+    RequestError(#[from] RequestError),
 
     #[error("{0}")]
     StrumParseError(#[from] strum::ParseError),

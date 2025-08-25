@@ -69,6 +69,7 @@ strum_macros.workspace = true
 async-stream.workspace = true
 network-server.workspace = true
 common-metrics.workspace = true
+reqwest.workspace = true
 
 [dev-dependencies]
 # test

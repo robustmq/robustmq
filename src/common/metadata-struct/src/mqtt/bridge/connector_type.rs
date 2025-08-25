@@ -21,6 +21,7 @@ pub enum ConnectorType {
     #[default]
     Kafka,
     LocalFile,
+    GreptimeDB,
 }
 
 impl Display for ConnectorType {
