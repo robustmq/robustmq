@@ -15,11 +15,11 @@
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
-use network_server::common::packet::RobustMQPacket;
 use network_server::common::tool::read_packet;
 use network_server::quic::stream::{QuicFramedReadStream, QuicMQTTFramedWriteStream};
 use observability::mqtt::packets::record_received_error_metrics;
 use protocol::mqtt::codec::MqttCodec;
+use protocol::robust::RobustMQPacket;
 use quinn::Endpoint;
 use std::sync::Arc;
 use tokio::select;

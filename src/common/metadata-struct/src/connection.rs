@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::protocol::RobustMQProtocol;
 use protocol::mqtt::common::MqttProtocol;
+use protocol::robust::RobustMQProtocol;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::net::SocketAddr;

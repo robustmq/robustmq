@@ -15,6 +15,8 @@
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_config::broker::broker_config;
+use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
+use protocol::robust::RobustMQPacket;
 // Copyright 2023 RobustMQ Team
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,12 +32,10 @@ use common_config::broker::broker_config;
 // limitations under the License.
 use crate::common::channel::RequestChannel;
 use crate::common::connection_manager::ConnectionManager;
-use crate::common::packet::RobustMQPacket;
 use crate::common::tool::read_packet;
 use futures_util::StreamExt;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use observability::mqtt::packets::record_received_error_metrics;
-use protocol::mqtt::codec::MqttCodec;
 use rustls_pemfile::{certs, private_key};
 use std::fs::File;
 use std::io::{self, BufReader};
@@ -63,13 +63,14 @@ pub(crate) fn load_key(path: &Path) -> io::Result<PrivateKeyDer<'static>> {
         .ok_or(io::Error::other("no private key found".to_string()))
 }
 
-pub(crate) async fn acceptor_tls_process(
+pub async fn acceptor_tls_process(
     accept_thread_num: usize,
     listener_arc: Arc<TcpListener>,
     stop_sx: broadcast::Sender<bool>,
     network_type: NetworkConnectionType,
     connection_manager: Arc<ConnectionManager>,
     request_channel: Arc<RequestChannel>,
+    codec: RobustMQCodec,
 ) -> ResultCommonError {
     let tls_acceptor = create_tls_accept()?;
 
@@ -80,6 +81,7 @@ pub(crate) async fn acceptor_tls_process(
         let request_channel = request_channel.clone();
         let raw_tls_acceptor = tls_acceptor.clone();
         let network_type = network_type.clone();
+        let row_codec = codec.clone();
         tokio::spawn(async move {
             debug!(
                 "{} Server acceptor thread {} start successfully.",
@@ -108,9 +110,8 @@ pub(crate) async fn acceptor_tls_process(
                                 };
 
                                 let (r_stream, w_stream) = tokio::io::split(stream);
-                                let codec = MqttCodec::new(None);
-                                let read_frame_stream = FramedRead::new(r_stream, codec.clone());
-                                let write_frame_stream = FramedWrite::new(w_stream, codec.clone());
+                                let read_frame_stream = FramedRead::new(r_stream, row_codec.clone());
+                                let write_frame_stream = FramedWrite::new(w_stream, row_codec.clone());
 
                                 // if !tcp_tls_establish_connection_check(&addr,&connection_manager,&mut write_frame_stream).await{
                                 //     continue;
@@ -143,7 +144,7 @@ pub(crate) async fn acceptor_tls_process(
 pub(crate) fn read_tls_frame_process(
     mut read_frame_stream: FramedRead<
         tokio::io::ReadHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
-        MqttCodec,
+        RobustMQCodec,
     >,
     connection: NetworkConnection,
     request_channel: Arc<RequestChannel>,
@@ -165,7 +166,14 @@ pub(crate) fn read_tls_frame_process(
                     if let Some(pkg) = package {
                         match pkg {
                             Ok(pack) => {
-                                read_packet(RobustMQPacket::MQTT(pack), &request_channel, &connection, &network_type).await;
+                                 match pack{
+                                    RobustMQCodecWrapper::MQTT(pk) =>{
+                                        read_packet(RobustMQPacket::MQTT(pk.packet), &request_channel, &connection, &network_type).await;
+                                    }
+                                    RobustMQCodecWrapper::KAFKA(pk) => {
+                                        read_packet(RobustMQPacket::KAFKA(pk.packet), &request_channel, &connection, &network_type).await;
+                                    }
+                                }
                             }
                             Err(e) => {
                                 record_received_error_metrics(network_type.clone());
@@ -184,6 +192,7 @@ pub(crate) fn read_tls_frame_process(
     });
 }
 
+#[allow(clippy::result_large_err)]
 fn create_tls_accept() -> Result<TlsAcceptor, CommonError> {
     let conf = broker_config();
     let certs = load_certs(Path::new(&conf.runtime.tls_cert))?;

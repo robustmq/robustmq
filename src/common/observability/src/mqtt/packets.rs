@@ -399,7 +399,6 @@ mod test {
     use super::*;
     use common_base::metrics::metrics_register_default;
     use common_base::tools::get_addr_by_local_hostname;
-    use metadata_struct::protocol::RobustMQProtocol;
     use prometheus_client::encoding::text::encode;
     #[tokio::test]
     async fn test_gauge() {
@@ -479,6 +478,7 @@ mod test {
     }
 
     use bytes::Bytes;
+    use protocol::robust::RobustMQProtocol;
     #[test]
     fn calc_mqtt_packet_test() {
         let mp: MqttPacket = MqttPacket::Publish(

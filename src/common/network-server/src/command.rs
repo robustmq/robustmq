@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::packet::{ResponsePackage, RobustMQPacket};
+use crate::common::packet::ResponsePackage;
 use axum::async_trait;
 use metadata_struct::connection::NetworkConnection;
+use protocol::robust::RobustMQPacket;
 use std::{net::SocketAddr, sync::Arc};
 
 #[async_trait]
