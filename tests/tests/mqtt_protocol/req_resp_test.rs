@@ -14,8 +14,6 @@
 
 #[cfg(test)]
 mod tests {
-    use common_base::tools::unique_id;
-    use paho_mqtt::{Message, MessageBuilder, Properties, PropertyCode};
     use crate::mqtt_protocol::{
         common::{
             broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
@@ -23,6 +21,8 @@ mod tests {
         },
         ClientTestProperties,
     };
+    use common_base::tools::unique_id;
+    use paho_mqtt::{Message, MessageBuilder, Properties, PropertyCode};
 
     #[tokio::test]
     async fn client5_request_response_test() {
