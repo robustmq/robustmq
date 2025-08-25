@@ -20,6 +20,7 @@ use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use grpc_clients::placement::mqtt::call::placement_list_connector;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::bridge::config_greptimedb::GreptimeDBConnectorConfig;
 use metadata_struct::mqtt::bridge::config_kafka::KafkaConnectorConfig;
 use metadata_struct::mqtt::bridge::config_local_file::LocalFileConnectorConfig;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
@@ -143,6 +144,9 @@ fn connector_config_validator(
         ConnectorType::Kafka => {
             let _kafka_config: KafkaConnectorConfig = serde_json::from_str(config)?;
         }
+        ConnectorType::GreptimeDB => {
+            let _greptime_config: GreptimeDBConnectorConfig = serde_json::from_str(config)?;
+        }
     }
     Ok(())
 }
@@ -151,6 +155,7 @@ fn parse_mqtt_connector_type(connector_type: broker_mqtt_admin::ConnectorType) -
     match connector_type {
         broker_mqtt_admin::ConnectorType::File => ConnectorType::LocalFile,
         broker_mqtt_admin::ConnectorType::Kafka => ConnectorType::Kafka,
+        broker_mqtt_admin::ConnectorType::Greptimedb => ConnectorType::GreptimeDB,
     }
 }
 

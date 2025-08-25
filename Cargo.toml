@@ -128,6 +128,7 @@ uuid = { version = "1.7.0", features = ["v4"] }
 mobc = "0.9.0"
 dashmap = { version = "6.1.0", features = ["serde"] }
 snowflake = "1.3.0"
+reqwest = "0.12.23"
 rumqttc = "0.24.0"
 paho-mqtt = { version = "0.13.3", default-features = false, features = [
     "bundled",
@@ -177,7 +178,7 @@ metadata-struct = { path = "src/common/metadata-struct" }
 third-driver = { path = "src/common/third-driver" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }
-robustmq-proto-build = { git = "https://github.com/robustmq/robustmq-proto.git", branch = "main" }
+robustmq-proto-build = { git = "https://github.com/firefantasy/robustmq-proto", rev = "38da7e28cc3471bd2793f88ace8c320c63376132" }
 pprof-monitor = { path = "src/common/pprof-monitor" }
 sysinfo = "0.29.10"
 chrono = "0.4.41"

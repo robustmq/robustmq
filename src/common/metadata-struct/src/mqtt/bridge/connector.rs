@@ -47,6 +47,7 @@ impl From<ConnectorType> for ProtoConnectorType {
         match type_enum {
             ConnectorType::Kafka => ProtoConnectorType::Kafka,
             ConnectorType::LocalFile => ProtoConnectorType::File,
+            ConnectorType::GreptimeDB => ProtoConnectorType::Greptimedb,
         }
     }
 }
