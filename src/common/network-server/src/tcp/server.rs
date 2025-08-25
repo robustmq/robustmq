@@ -12,18 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::CacheManager;
-use crate::subscribe::manager::SubscribeManager;
+use common_base::error::ResultCommonError;
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
-use network_server::command::ArcCommandAdapter;
-use network_server::common::handler::handler_process;
-use network_server::common::response::{response_process, ResponseProcessContext};
-use network_server::common::tcp_acceptor::acceptor_process;
-use network_server::common::tls_acceptor::acceptor_tls_process;
-use network_server::common::{channel::RequestChannel, connection_manager::ConnectionManager};
 use observability::mqtt::server::record_broker_thread_num;
 use protocol::codec::RobustMQCodec;
 use std::sync::Arc;
@@ -32,6 +37,18 @@ use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
 use tracing::{error, info};
+
+use crate::{
+    command::ArcCommandAdapter,
+    common::{
+        channel::RequestChannel,
+        connection_manager::ConnectionManager,
+        handler::handler_process,
+        response::{response_process, ResponseProcessContext},
+        tcp_acceptor::acceptor_process,
+        tls_acceptor::acceptor_tls_process,
+    },
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ProcessorConfig {
@@ -44,8 +61,6 @@ pub struct ProcessorConfig {
 #[derive(Clone)]
 pub struct TcpServerContext {
     pub connection_manager: Arc<ConnectionManager>,
-    pub subscribe_manager: Arc<SubscribeManager>,
-    pub cache_manager: Arc<CacheManager>,
     pub client_pool: Arc<ClientPool>,
     pub command: ArcCommandAdapter,
     pub network_type: NetworkConnectionType,
@@ -86,7 +101,7 @@ impl TcpServer {
         }
     }
 
-    pub async fn start(&self, tls: bool) -> ResultMqttBrokerError {
+    pub async fn start(&self, tls: bool) -> ResultCommonError {
         let conf = broker_config();
         let port = if tls {
             conf.mqtt_server.tls_port

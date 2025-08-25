@@ -14,7 +14,6 @@
 
 use crate::common::types::ResultMqttBrokerError;
 use crate::handler::command::create_command;
-use crate::server::tcp::server::{ProcessorConfig, TcpServer, TcpServerContext};
 use crate::{
     handler::{cache::CacheManager, command::CommandContext},
     security::AuthDriver,
@@ -25,6 +24,7 @@ use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
 use network_server::common::connection_manager::ConnectionManager;
+use network_server::tcp::server::{ProcessorConfig, TcpServer, TcpServerContext};
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
@@ -72,8 +72,6 @@ impl Server {
 
         let tcp_server = TcpServer::new(TcpServerContext {
             connection_manager: context.connection_manager.clone(),
-            subscribe_manager: context.subscribe_manager.clone(),
-            cache_manager: context.cache_manager.clone(),
             client_pool: context.client_pool.clone(),
             command: command.clone(),
             network_type: NetworkConnectionType::Tcp,
@@ -83,8 +81,6 @@ impl Server {
 
         let tls_server = TcpServer::new(TcpServerContext {
             connection_manager: context.connection_manager.clone(),
-            subscribe_manager: context.subscribe_manager.clone(),
-            cache_manager: context.cache_manager.clone(),
             client_pool: context.client_pool.clone(),
             command: command.clone(),
             network_type: NetworkConnectionType::Tls,
