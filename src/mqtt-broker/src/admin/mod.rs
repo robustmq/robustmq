@@ -79,10 +79,10 @@ pub async fn cluster_status_by_req(
         topic_num: cache_manager.topic_info.len() as u32,
         nodes: resp_node_list,
         placement_status,
-        tcp_connection_num: connection_manager.mqtt_tcp_write_list.len() as u32,
-        tls_connection_num: connection_manager.mqtt_tcp_tls_write_list.len() as u32,
-        websocket_connection_num: connection_manager.mqtt_websocket_write_list.len() as u32,
-        quic_connection_num: connection_manager.mqtt_quic_write_list.len() as u32,
+        tcp_connection_num: connection_manager.tcp_write_list.len() as u32,
+        tls_connection_num: connection_manager.tcp_tls_write_list.len() as u32,
+        websocket_connection_num: connection_manager.websocket_write_list.len() as u32,
+        quic_connection_num: connection_manager.quic_write_list.len() as u32,
     };
     let _ = subscribe_manager.snapshot_info();
 

@@ -27,7 +27,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnection;
 use network_server::command::Command;
 use network_server::common::connection_manager::ConnectionManager;
-use network_server::common::packet::{ResponsePackage, RobustMQPacket};
+use network_server::common::packet::ResponsePackage;
 use protocol::mqtt::common::{
     is_mqtt3, is_mqtt4, is_mqtt5, Connect, ConnectProperties, ConnectReturnCode, Disconnect,
     DisconnectProperties, DisconnectReasonCode, LastWill, LastWillProperties, Login, MqttPacket,
@@ -35,6 +35,7 @@ use protocol::mqtt::common::{
     PubRecProperties, PubRel, PubRelProperties, Publish, PublishProperties, Subscribe,
     SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
+use protocol::robust::RobustMQPacket;
 use schema_register::schema::SchemaRegisterManager;
 use std::net::SocketAddr;
 use std::sync::Arc;

@@ -12,8 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::mqtt::common::MqttProtocol;
 use serde::{Deserialize, Serialize};
+
+use crate::{
+    kafka::packet::KafkaPacket,
+    mqtt::{
+        codec::MqttPacketWrapper,
+        common::{MqttPacket, MqttProtocol},
+    },
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum RobustMQProtocol {
@@ -61,6 +68,70 @@ impl RobustMQProtocol {
             4 => RobustMQProtocol::MQTT4,
             5 => RobustMQProtocol::MQTT5,
             _ => RobustMQProtocol::MQTT3,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct MqttWrapperExtend {
+    pub protocol_version: u8,
+}
+
+#[derive(Clone, Debug)]
+pub struct KafkaWrapperExtend {}
+
+#[derive(Clone, Debug)]
+pub enum RobustMQWrapperExtend {
+    MQTT(MqttWrapperExtend),
+    KAFKA(KafkaWrapperExtend),
+}
+
+impl RobustMQWrapperExtend {
+    pub fn to_mqtt_protocol(&self) -> u8 {
+        match self.clone() {
+            RobustMQWrapperExtend::MQTT(extend) => extend.protocol_version,
+            RobustMQWrapperExtend::KAFKA(_) => 3,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct RobustMQPacketWrapper {
+    pub protocol: RobustMQProtocol,
+    pub extend: RobustMQWrapperExtend,
+    pub packet: RobustMQPacket,
+}
+
+impl RobustMQPacketWrapper {
+    pub fn from_mqtt(wrapper: MqttPacketWrapper) -> Self {
+        RobustMQPacketWrapper {
+            protocol: RobustMQProtocol::from_u8(wrapper.protocol_version),
+            extend: RobustMQWrapperExtend::MQTT(MqttWrapperExtend {
+                protocol_version: wrapper.protocol_version,
+            }),
+            packet: RobustMQPacket::MQTT(wrapper.packet),
+        }
+    }
+
+    pub fn to_mqtt(&self) -> MqttPacketWrapper {
+        MqttPacketWrapper {
+            protocol_version: self.extend.to_mqtt_protocol(),
+            packet: self.packet.get_mqtt_packet().unwrap(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum RobustMQPacket {
+    MQTT(MqttPacket),
+    KAFKA(KafkaPacket),
+}
+
+impl RobustMQPacket {
+    pub fn get_mqtt_packet(&self) -> Option<MqttPacket> {
+        match self.clone() {
+            RobustMQPacket::MQTT(pack) => Some(pack),
+            RobustMQPacket::KAFKA(_) => None,
         }
     }
 }
