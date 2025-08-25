@@ -12,3 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub struct KafkaBrokerServer {}
+
+impl KafkaBrokerServer {
+    pub fn new() -> Self {
+        KafkaBrokerServer {}
+    }
+
+    pub async fn start(&self) {
+        self.start_server();
+    }
+
+    fn start_server(&self) {}
+}

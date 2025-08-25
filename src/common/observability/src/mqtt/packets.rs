@@ -275,10 +275,9 @@ pub fn record_received_metrics(
     let label = NetworkLabel {
         network: network_type.to_string(),
     };
-    let payload_size = if let Some(_protocol) = connection.protocol.clone() {
+    let payload_size = if let Some(protocol) = connection.protocol.clone() {
         let wrapper = MqttPacketWrapper {
-            // protocol_version: protocol.into(),
-            protocol_version: 3,
+            protocol_version: protocol.to_u8(),
             packet: pkg.clone(),
         };
         calc_mqtt_packet_size(wrapper)

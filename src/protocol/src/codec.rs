@@ -71,9 +71,14 @@ impl Decoder for RobustMQCodec {
             if protoc.is_mqtt() {
                 let res = self.mqtt_codec.decode_data(stream);
                 if let Ok(Some(pkg)) = res {
-                    self.protocol = Some(RobustMQProtocol::MQTT5);
+                    if self.protocol.is_none() {
+                        self.protocol = self
+                            .mqtt_codec
+                            .protocol_version
+                            .map(RobustMQProtocol::from_u8);
+                    }
                     return Ok(Some(RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
-                        protocol_version: self.mqtt_codec.protocol_version.unwrap_or(5),
+                        protocol_version: self.mqtt_codec.protocol_version.unwrap_or(4),
                         packet: pkg,
                     })));
                 }
@@ -82,9 +87,14 @@ impl Decoder for RobustMQCodec {
             // try decode mqtt
             let res = self.mqtt_codec.decode_data(stream);
             if let Ok(Some(pkg)) = res {
-                self.protocol = Some(RobustMQProtocol::MQTT5);
+                if self.protocol.is_none() {
+                    self.protocol = self
+                        .mqtt_codec
+                        .protocol_version
+                        .map(RobustMQProtocol::from_u8);
+                }
                 return Ok(Some(RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
-                    protocol_version: self.mqtt_codec.protocol_version.unwrap_or(5),
+                    protocol_version: self.mqtt_codec.protocol_version.unwrap_or(4),
                     packet: pkg,
                 })));
             }

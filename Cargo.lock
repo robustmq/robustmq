@@ -2492,6 +2492,8 @@ dependencies = [
  "dashmap",
  "futures",
  "metadata-struct",
+ "network-server",
+ "protocol",
  "storage-adapter",
  "thiserror 1.0.69",
  "tokio",
