@@ -18,9 +18,9 @@ use crate::handler::dynamic_config::{save_cluster_dynamic_config, ClusterDynamic
 use common_base::enum_type::time_unit_enum::TimeUnit;
 use common_base::tools::{convert_seconds, now_second};
 use common_config::config::MqttFlappingDetect;
+use common_metrics::mqtt::event_metrics;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
-use observability::mqtt::event_metrics;
 use protocol::broker_mqtt::broker_mqtt_admin::EnableFlappingDetectRequest;
 use std::sync::Arc;
 use std::time::Duration;

@@ -25,9 +25,9 @@ use crate::{
 };
 use common_base::error::ResultCommonError;
 use common_config::broker::broker_config;
+use common_metrics::mqtt::server::record_broker_thread_num;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
-use observability::mqtt::server::record_broker_thread_num;
 use protocol::codec::RobustMQCodec;
 use std::sync::Arc;
 use std::time::Duration;

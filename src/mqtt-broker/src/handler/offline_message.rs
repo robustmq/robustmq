@@ -25,10 +25,10 @@ use super::{
 };
 use crate::{storage::message::MessageStorage, subscribe::manager::SubscribeManager};
 use common_base::tools::now_second;
+use common_metrics::mqtt::packets::record_messages_dropped_discard_metrics;
 use delay_message::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::{message::MqttMessage, topic::MQTTTopic};
-use observability::mqtt::packets::record_messages_dropped_discard_metrics;
 use protocol::mqtt::common::{Publish, PublishProperties};
 use storage_adapter::storage::ArcStorageAdapter;
 

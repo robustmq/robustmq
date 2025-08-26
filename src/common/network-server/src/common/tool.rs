@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::common::{channel::RequestChannel, packet::RequestPackage};
+use common_metrics::mqtt::packets::record_received_metrics;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
-use observability::mqtt::packets::record_received_metrics;
 use protocol::{mqtt::common::MqttPacket, robust::RobustMQPacket};
 use tracing::info;
 

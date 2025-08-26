@@ -13,19 +13,14 @@
 # limitations under the License.
 
 [package]
-name = "observability"
+name = "common-security"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
-tokio.workspace = true
-pprof.workspace = true
-hyper.workspace = true
-axum.workspace = true
 bytes.workspace = true
 tracing.workspace = true
-common-base.workspace = true
-prometheus-client.workspace = true
-protocol.workspace = true
-metadata-struct.workspace = true
+
+[dev-dependencies]
+mockall.workspace = true

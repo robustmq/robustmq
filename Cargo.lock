@@ -942,6 +942,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "common-metrics"
+version = "0.1.30"
+dependencies = [
+ "axum",
+ "bytes",
+ "common-base",
+ "hyper",
+ "metadata-struct",
+ "pprof",
+ "prometheus-client",
+ "protocol",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "common-security"
+version = "0.1.30"
+dependencies = [
+ "bytes",
+ "mockall",
+ "tracing",
+]
+
+[[package]]
 name = "concurrent-queue"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2922,6 +2947,7 @@ dependencies = [
  "chrono",
  "common-base",
  "common-config",
+ "common-metrics",
  "dashmap",
  "delay-message",
  "futures",
@@ -2935,7 +2961,6 @@ dependencies = [
  "metadata-struct",
  "mysql",
  "network-server",
- "observability",
  "os_info",
  "prometheus-client",
  "protocol",
@@ -3106,13 +3131,13 @@ dependencies = [
  "bytes",
  "common-base",
  "common-config",
+ "common-metrics",
  "dashmap",
  "futures",
  "futures-util",
  "grpc-clients",
  "kafka-protocol",
  "metadata-struct",
- "observability",
  "protocol",
  "quinn",
  "rustls-pemfile",
@@ -3236,22 +3261,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62948e14d923ea95ea2c7c86c71013138b66525b86bdc08d2dcc262bdb497b87"
 dependencies = [
  "memchr",
-]
-
-[[package]]
-name = "observability"
-version = "0.1.30"
-dependencies = [
- "axum",
- "bytes",
- "common-base",
- "hyper",
- "metadata-struct",
- "pprof",
- "prometheus-client",
- "protocol",
- "tokio",
- "tracing",
 ]
 
 [[package]]
