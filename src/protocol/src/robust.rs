@@ -72,12 +72,12 @@ impl RobustMQProtocol {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct MqttWrapperExtend {
     pub protocol_version: u8,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct KafkaWrapperExtend {}
 
 #[derive(Clone, Debug)]

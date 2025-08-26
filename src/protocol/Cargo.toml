@@ -34,7 +34,7 @@ common-base.workspace = true
 serde.workspace = true
 validator.workspace = true
 prost-validate = { workspace = true, features = ["derive"] }
-kafka-protocol = "0.15.1"
+kafka-protocol.workspace = true
 
 [dev-dependencies]
 robustmq-test.workspace = true

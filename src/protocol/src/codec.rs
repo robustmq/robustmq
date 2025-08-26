@@ -21,6 +21,7 @@ use bytes::BytesMut;
 use common_base::error::common::CommonError;
 use tokio_util::codec::{Decoder, Encoder};
 
+#[derive(Debug, Clone)]
 pub enum RobustMQCodecWrapper {
     KAFKA(KafkaPacketWrapper),
     MQTT(MqttPacketWrapper),
@@ -54,11 +55,12 @@ impl Default for RobustMQCodec {
     }
 }
 
-impl Decoder for RobustMQCodec {
-    type Item = RobustMQCodecWrapper;
-    type Error = CommonError;
-
-    fn decode(&mut self, stream: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+impl RobustMQCodec {
+    #[allow(clippy::result_large_err)]
+    pub fn decode_data(
+        &mut self,
+        stream: &mut BytesMut,
+    ) -> Result<Option<RobustMQCodecWrapper>, CommonError> {
         if let Some(protoc) = self.protocol.clone() {
             if protoc.is_kafka() {
                 let res = self.kafka_codec.decode_data(stream);
@@ -108,6 +110,33 @@ impl Decoder for RobustMQCodec {
         }
 
         Ok(None)
+    }
+
+    #[allow(clippy::result_large_err)]
+    pub fn encode_data(
+        &mut self,
+        packet_wrapper: RobustMQCodecWrapper,
+        buffer: &mut BytesMut,
+    ) -> Result<(), CommonError> {
+        match packet_wrapper {
+            RobustMQCodecWrapper::MQTT(wrapper) => {
+                self.mqtt_codec.encode_data(wrapper, buffer)?;
+            }
+            RobustMQCodecWrapper::KAFKA(wrapper) => {
+                self.kafka_codec.encode_data(wrapper, buffer)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl Decoder for RobustMQCodec {
+    type Item = RobustMQCodecWrapper;
+    type Error = CommonError;
+
+    fn decode(&mut self, stream: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+        self.decode_data(stream)
     }
 }
 

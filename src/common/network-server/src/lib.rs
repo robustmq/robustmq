@@ -16,3 +16,4 @@ pub mod command;
 pub mod common;
 pub mod quic;
 pub mod tcp;
+pub mod websocket;

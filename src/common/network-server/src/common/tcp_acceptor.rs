@@ -15,9 +15,9 @@
 use crate::common::channel::RequestChannel;
 use crate::common::connection_manager::ConnectionManager;
 use crate::common::tool::read_packet;
+use common_metrics::mqtt::packets::record_received_error_metrics;
 use futures_util::StreamExt;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
-use observability::mqtt::packets::record_received_error_metrics;
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
 use protocol::robust::RobustMQPacket;
 use std::sync::Arc;
@@ -96,7 +96,7 @@ pub async fn acceptor_process(
                                 );
 
                                 connection_manager.add_connection(connection.clone());
-                                connection_manager.add_mqtt_tcp_write(connection.connection_id, write_frame_stream);
+                                connection_manager.add_tcp_write(connection.connection_id, write_frame_stream);
 
                                 info!("acceptor_process => connection_id = {}",connection.connection_id);
                                 read_frame_process(

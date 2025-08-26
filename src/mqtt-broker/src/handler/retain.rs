@@ -27,11 +27,11 @@ use crate::subscribe::common::{is_ignore_push_error, SubPublishParam};
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::push::send_publish_packet_to_client;
 use bytes::Bytes;
+use common_metrics::mqtt::packets::{record_retain_recv_metrics, record_retain_sent_metrics};
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use network_server::common::connection_manager::ConnectionManager;
-use observability::mqtt::packets::{record_retain_recv_metrics, record_retain_sent_metrics};
 use protocol::mqtt::common::{
     qos, MqttPacket, MqttProtocol, Publish, PublishProperties, Subscribe, SubscribeProperties,
 };

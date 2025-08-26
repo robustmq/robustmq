@@ -89,6 +89,9 @@ pub enum CommonError {
     #[error("{0}")]
     CommonError(String),
 
+    #[error("Connection ID [0] information not found in cache.")]
+    NotFoundConnectionInCache(u64),
+
     #[error("Grpc call of the node failed,Grpc status was {0}")]
     GrpcServerStatus(#[from] Status),
 

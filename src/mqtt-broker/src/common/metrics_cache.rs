@@ -20,9 +20,9 @@ use crate::{
     common::tool::loop_select, handler::cache::CacheManager, subscribe::manager::SubscribeManager,
 };
 use common_base::tools::now_second;
+use common_metrics::mqtt::server::{record_broker_connections_max, record_broker_connections_num};
 use dashmap::DashMap;
 use network_server::common::connection_manager::ConnectionManager;
-use observability::mqtt::server::{record_broker_connections_max, record_broker_connections_num};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;
 use tracing::info;

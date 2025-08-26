@@ -13,30 +13,19 @@
 # limitations under the License.
 
 [package]
-name = "network-server"
+name = "common-metrics"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
 tokio.workspace = true
-protocol.workspace = true
-serde.workspace = true
-common-base.workspace = true
-tracing.workspace = true
-dashmap.workspace = true
+pprof.workspace = true
+hyper.workspace = true
 axum.workspace = true
-futures.workspace = true
-tokio-util.workspace = true
-tokio-rustls.workspace = true
-quinn.workspace = true
 bytes.workspace = true
-common-metrics.workspace = true
+tracing.workspace = true
+common-base.workspace = true
+prometheus-client.workspace = true
+protocol.workspace = true
 metadata-struct.workspace = true
-grpc-clients.workspace = true
-futures-util.workspace = true
-rustls-pemfile.workspace = true
-common-config.workspace = true
-axum-extra.workspace = true
-axum-server.workspace = true
-kafka-protocol.workspace = true

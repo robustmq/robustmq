@@ -33,9 +33,9 @@ use protocol::robust::RobustMQPacket;
 use crate::common::channel::RequestChannel;
 use crate::common::connection_manager::ConnectionManager;
 use crate::common::tool::read_packet;
+use common_metrics::mqtt::packets::record_received_error_metrics;
 use futures_util::StreamExt;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
-use observability::mqtt::packets::record_received_error_metrics;
 use rustls_pemfile::{certs, private_key};
 use std::fs::File;
 use std::io::{self, BufReader};
@@ -124,7 +124,7 @@ pub async fn acceptor_tls_process(
                                     Some(connection_stop_sx.clone())
                                 );
                                 connection_manager.add_connection(connection.clone());
-                                connection_manager.add_mqtt_tcp_tls_write(connection.connection_id, write_frame_stream);
+                                connection_manager.add_tcp_tls_write(connection.connection_id, write_frame_stream);
 
                                 read_tls_frame_process(read_frame_stream, connection, request_channel.clone(), connection_stop_rx, network_type.clone());
                             }

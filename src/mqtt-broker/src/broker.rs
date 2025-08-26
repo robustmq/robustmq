@@ -29,9 +29,6 @@ use crate::security::storage::sync::sync_auth_storage_info;
 use crate::security::AuthDriver;
 use crate::server::quic::server::{start_quic_server, QuicServerContext};
 use crate::server::server::{Server, ServerContext};
-use crate::server::websocket::server::{
-    websocket_server, websockets_server, WebSocketServerContext, WebSocketServerState,
-};
 use crate::storage::cluster::ClusterStorage;
 use crate::subscribe::exclusive::ExclusivePush;
 use crate::subscribe::manager::SubscribeManager;
@@ -221,34 +218,6 @@ impl MqttBrokerServer {
             })
             .await
         });
-
-        // websocket server
-        let ws_state = WebSocketServerState::new(WebSocketServerContext {
-            subscribe_manager: self.subscribe_manager.clone(),
-            cache_manager: self.cache_manager.clone(),
-            connection_manager: self.connection_manager.clone(),
-            message_storage_adapter: self.message_storage_adapter.clone(),
-            delay_message_manager: self.delay_message_manager.clone(),
-            schema_manager: self.schema_manager.clone(),
-            client_pool: self.client_pool.clone(),
-            stop_sx: self.inner_stop.clone(),
-            auth_driver: self.auth_driver.clone(),
-        });
-        tokio::spawn(async move { websocket_server(ws_state).await });
-
-        let ws_state = WebSocketServerState::new(WebSocketServerContext {
-            subscribe_manager: self.subscribe_manager.clone(),
-            cache_manager: self.cache_manager.clone(),
-            connection_manager: self.connection_manager.clone(),
-            message_storage_adapter: self.message_storage_adapter.clone(),
-            delay_message_manager: self.delay_message_manager.clone(),
-            schema_manager: self.schema_manager.clone(),
-            client_pool: self.client_pool.clone(),
-            stop_sx: self.inner_stop.clone(),
-            auth_driver: self.auth_driver.clone(),
-        });
-
-        tokio::spawn(async move { websockets_server(ws_state).await });
     }
 
     fn start_connector_thread(&self) {

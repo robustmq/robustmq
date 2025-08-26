@@ -214,7 +214,7 @@ impl ConnectionManager {
 }
 
 impl ConnectionManager {
-    pub fn add_mqtt_tcp_write(
+    pub fn add_tcp_write(
         &self,
         connection_id: u64,
         write: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, RobustMQCodec>,
@@ -222,7 +222,7 @@ impl ConnectionManager {
         self.tcp_write_list.insert(connection_id, write);
     }
 
-    pub fn add_mqtt_tcp_tls_write(
+    pub fn add_tcp_tls_write(
         &self,
         connection_id: u64,
         write: FramedWrite<
@@ -233,11 +233,7 @@ impl ConnectionManager {
         self.tcp_tls_write_list.insert(connection_id, write);
     }
 
-    pub fn add_mqtt_websocket_write(
-        &self,
-        connection_id: u64,
-        write: SplitSink<WebSocket, Message>,
-    ) {
+    pub fn add_websocket_write(&self, connection_id: u64, write: SplitSink<WebSocket, Message>) {
         self.websocket_write_list.insert(connection_id, write);
     }
 
