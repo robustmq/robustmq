@@ -25,6 +25,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
 use network_server::common::connection_manager::ConnectionManager;
 use network_server::tcp::server::{ProcessorConfig, TcpServer, TcpServerContext};
+use network_server::websocket::server::{WebSocketServer, WebSocketServerState};
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
@@ -33,6 +34,7 @@ use tokio::sync::broadcast;
 pub struct Server {
     tcp_server: TcpServer,
     tls_server: TcpServer,
+    ws_server: WebSocketServer,
 }
 
 #[derive(Clone)]
@@ -87,20 +89,31 @@ impl Server {
             proc_config,
             stop_sx: context.stop_sx.clone(),
         });
+
+        let ws_server = WebSocketServer::new(WebSocketServerState {
+            ws_port: conf.mqtt_server.websocket_port,
+            wss_port: conf.mqtt_server.websockets_port,
+            command: command.clone(),
+            connection_manager: context.connection_manager.clone(),
+            stop_sx: context.stop_sx.clone(),
+        });
         Server {
             tcp_server,
             tls_server,
+            ws_server,
         }
     }
 
     pub async fn start(&self) -> ResultMqttBrokerError {
         self.tcp_server.start(false).await?;
         self.tls_server.start(true).await?;
+        self.ws_server.start().await?;
         Ok(())
     }
 
     pub async fn stop(&self) {
         self.tcp_server.stop().await;
         self.tls_server.stop().await;
+        self.ws_server.stop().await;
     }
 }

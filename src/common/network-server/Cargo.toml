@@ -37,3 +37,6 @@ grpc-clients.workspace = true
 futures-util.workspace = true
 rustls-pemfile.workspace = true
 common-config.workspace = true
+axum-extra.workspace = true
+axum-server.workspace = true
+kafka-protocol.workspace = true

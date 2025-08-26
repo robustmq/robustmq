@@ -3101,6 +3101,8 @@ name = "network-server"
 version = "0.1.30"
 dependencies = [
  "axum",
+ "axum-extra",
+ "axum-server",
  "bytes",
  "common-base",
  "common-config",
@@ -3108,6 +3110,7 @@ dependencies = [
  "futures",
  "futures-util",
  "grpc-clients",
+ "kafka-protocol",
  "metadata-struct",
  "observability",
  "protocol",

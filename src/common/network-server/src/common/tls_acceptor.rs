@@ -124,7 +124,7 @@ pub async fn acceptor_tls_process(
                                     Some(connection_stop_sx.clone())
                                 );
                                 connection_manager.add_connection(connection.clone());
-                                connection_manager.add_mqtt_tcp_tls_write(connection.connection_id, write_frame_stream);
+                                connection_manager.add_tcp_tls_write(connection.connection_id, write_frame_stream);
 
                                 read_tls_frame_process(read_frame_stream, connection, request_channel.clone(), connection_stop_rx, network_type.clone());
                             }

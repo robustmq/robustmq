@@ -12,12 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::types::ResultMqttBrokerError;
-use crate::handler::cache::CacheManager;
-use crate::handler::command::{create_command, CommandContext};
-use crate::handler::error::MqttBrokerError;
-use crate::security::AuthDriver;
-use crate::subscribe::manager::SubscribeManager;
+use crate::command::ArcCommandAdapter;
+use crate::common::connection_manager::ConnectionManager;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{ConnectInfo, State, WebSocketUpgrade};
 use axum::response::Response;
@@ -27,23 +23,24 @@ use axum_extra::headers::UserAgent;
 use axum_extra::TypedHeader;
 use axum_server::tls_rustls::RustlsConfig;
 use bytes::{BufMut, BytesMut};
+use common_base::error::common::CommonError;
+use common_base::error::ResultCommonError;
 use common_base::tools::now_mills;
 use common_config::broker::broker_config;
-use delay_message::DelayMessageManager;
 use futures_util::stream::StreamExt;
-use grpc_clients::pool::ClientPool;
+use kafka_protocol::messages::ResponseHeader;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
-use network_server::command::ArcCommandAdapter;
-use network_server::common::connection_manager::ConnectionManager;
 use observability::mqtt::server::record_ws_request_duration;
-use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
-use protocol::mqtt::common::MqttPacket;
-use protocol::robust::{RobustMQPacket, RobustMQPacketWrapper};
-use schema_register::schema::SchemaRegisterManager;
+use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
+use protocol::kafka::packet::{KafkaHeader, KafkaPacketWrapper};
+use protocol::mqtt::codec::MqttPacketWrapper;
+use protocol::robust::{
+    KafkaWrapperExtend, MqttWrapperExtend, RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol,
+    RobustMQWrapperExtend,
+};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
-use storage_adapter::storage::ArcStorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self};
 use tracing::{error, info, warn};
@@ -51,100 +48,81 @@ use tracing::{error, info, warn};
 pub const ROUTE_ROOT: &str = "/mqtt";
 
 #[derive(Clone)]
-pub struct WebSocketServerContext {
-    pub connection_manager: Arc<ConnectionManager>,
-    pub subscribe_manager: Arc<SubscribeManager>,
-    pub cache_manager: Arc<CacheManager>,
-    pub client_pool: Arc<ClientPool>,
-    pub stop_sx: broadcast::Sender<bool>,
-    pub message_storage_adapter: ArcStorageAdapter,
-    pub delay_message_manager: Arc<DelayMessageManager>,
-    pub schema_manager: Arc<SchemaRegisterManager>,
-    pub auth_driver: Arc<AuthDriver>,
-}
-
-#[derive(Clone)]
 pub struct WebSocketServerState {
-    subscribe_manager: Arc<SubscribeManager>,
-    cache_manager: Arc<CacheManager>,
-    message_storage_adapter: ArcStorageAdapter,
-    delay_message_manager: Arc<DelayMessageManager>,
-    client_pool: Arc<ClientPool>,
-    stop_sx: broadcast::Sender<bool>,
-    connection_manager: Arc<ConnectionManager>,
-    schema_manager: Arc<SchemaRegisterManager>,
-    auth_driver: Arc<AuthDriver>,
+    pub ws_port: u32,
+    pub wss_port: u32,
+    pub command: ArcCommandAdapter,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub stop_sx: broadcast::Sender<bool>,
 }
 
 impl WebSocketServerState {
-    pub fn new(context: WebSocketServerContext) -> Self {
+    pub fn new(
+        ws_port: u32,
+        wss_port: u32,
+        command: ArcCommandAdapter,
+        connection_manager: Arc<ConnectionManager>,
+        stop_sx: broadcast::Sender<bool>,
+    ) -> Self {
         Self {
-            connection_manager: context.connection_manager,
-            subscribe_manager: context.subscribe_manager,
-            cache_manager: context.cache_manager,
-            message_storage_adapter: context.message_storage_adapter,
-            delay_message_manager: context.delay_message_manager,
-            schema_manager: context.schema_manager,
-            client_pool: context.client_pool,
-            stop_sx: context.stop_sx,
-            auth_driver: context.auth_driver,
+            ws_port,
+            wss_port,
+            command,
+            connection_manager,
+            stop_sx,
         }
     }
 }
 
-pub async fn websocket_server(state: WebSocketServerState) {
-    let config = broker_config();
-    let ip: SocketAddr = format!("0.0.0.0:{}", config.mqtt_server.websocket_port)
-        .parse()
-        .unwrap();
-    let app = routes_v1(state);
-    info!(
-        "Broker WebSocket Server start success. port:{}",
-        config.mqtt_server.websocket_port
-    );
-    match axum_server::bind(ip)
-        .serve(app.into_make_service_with_connect_info::<SocketAddr>())
-        .await
-    {
-        Ok(()) => {}
-        Err(e) => panic!("{}", e.to_string()),
-    }
+pub struct WebSocketServer {
+    state: WebSocketServerState,
 }
 
-pub async fn websockets_server(state: WebSocketServerState) {
-    let config = broker_config();
-    let ip: SocketAddr = format!("0.0.0.0:{}", config.mqtt_server.websockets_port)
-        .parse()
-        .unwrap();
-    let app = routes_v1(state);
+impl WebSocketServer {
+    pub fn new(state: WebSocketServerState) -> Self {
+        WebSocketServer { state }
+    }
+    pub async fn start(&self) -> ResultCommonError {
+        self.start_ws().await?;
+        self.start_wss().await?;
+        Ok(())
+    }
 
-    let tls_config = match RustlsConfig::from_pem_file(
-        PathBuf::from(config.runtime.tls_cert.clone()),
-        PathBuf::from(config.runtime.tls_key.clone()),
-    )
-    .await
-    {
-        Ok(cf) => cf,
-        Err(e) => {
-            panic!("{}", e.to_string());
-        }
-    };
+    pub async fn stop(&self) {}
 
-    info!(
-        "Broker WebSocket TLS Server start success. port:{}",
-        config.mqtt_server.websockets_port
-    );
-    if let Err(e) = axum_server::bind_rustls(ip, tls_config)
-        .serve(app.into_make_service_with_connect_info::<SocketAddr>())
-        .await
-    {
-        panic!("{}", e.to_string());
+    async fn start_ws(&self) -> ResultCommonError {
+        let ip: SocketAddr = format!("0.0.0.0:{}", self.state.ws_port).parse()?;
+        let app = routes_v1(self.state.clone());
+
+        info!("Broker WebSocket Server start success. addr:{}", ip);
+
+        axum_server::bind(ip)
+            .serve(app.into_make_service_with_connect_info::<SocketAddr>())
+            .await?;
+        Ok(())
+    }
+
+    async fn start_wss(&self) -> ResultCommonError {
+        let ip: SocketAddr = format!("0.0.0.0:{}", self.state.wss_port).parse()?;
+        let app = routes_v1(self.state.clone());
+
+        let config = broker_config();
+        let tls_config = RustlsConfig::from_pem_file(
+            PathBuf::from(config.runtime.tls_cert.clone()),
+            PathBuf::from(config.runtime.tls_key.clone()),
+        )
+        .await?;
+
+        info!("Broker WebSocket TLS Server start success. addr:{}", ip);
+        axum_server::bind_rustls(ip, tls_config)
+            .serve(app.into_make_service_with_connect_info::<SocketAddr>())
+            .await?;
+        Ok(())
     }
 }
 
 fn routes_v1(state: WebSocketServerState) -> Router {
     let mqtt_ws = Router::new().route(ROUTE_ROOT, get(ws_handler));
-
     let app = Router::new().merge(mqtt_ws);
     app.with_state(state)
 }
@@ -162,25 +140,13 @@ async fn ws_handler(
     };
 
     info!("websocket `{user_agent}` at {addr} connected.");
-    let context = CommandContext {
-        cache_manager: state.cache_manager.clone(),
-        message_storage_adapter: state.message_storage_adapter.clone(),
-        delay_message_manager: state.delay_message_manager.clone(),
-        subscribe_manager: state.subscribe_manager.clone(),
-        client_pool: state.client_pool.clone(),
-        connection_manager: state.connection_manager.clone(),
-        schema_manager: state.schema_manager.clone(),
-        auth_driver: state.auth_driver.clone(),
-    };
-
-    let command = create_command(context);
-    let codec = MqttCodec::new(None);
+    let codec = RobustMQCodec::new();
     ws.protocols(["mqtt", "mqttv3.1"])
         .on_upgrade(move |socket| {
             handle_socket(
                 socket,
                 addr,
-                command,
+                state.command,
                 codec,
                 state.connection_manager.clone(),
                 state.stop_sx.clone(),
@@ -192,13 +158,13 @@ async fn handle_socket(
     socket: WebSocket,
     addr: SocketAddr,
     command: ArcCommandAdapter,
-    mut codec: MqttCodec,
+    mut codec: RobustMQCodec,
     connection_manager: Arc<ConnectionManager>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     let (sender, mut receiver) = socket.split();
     let tcp_connection = NetworkConnection::new(NetworkConnectionType::WebSocket, addr, None);
-    connection_manager.add_mqtt_websocket_write(tcp_connection.connection_id, sender);
+    connection_manager.add_websocket_write(tcp_connection.connection_id, sender);
     connection_manager.add_connection(tcp_connection.clone());
     let mut stop_rx = stop_sx.subscribe();
 
@@ -216,7 +182,7 @@ async fn handle_socket(
                     match msg {
                         Ok(Message::Binary(data)) => {
                             if let Err(e) = process_socket_packet_by_binary(tcp_connection.connection_id(), &connection_manager,&mut codec, command.clone(), addr,data).await{
-                                error!("Websocket failed to parse MQTT protocol packet with error message :{e:?}");
+                                error!("Websocket failed to process protocol packet with error message :{e:?}");
                             }
                         }
                         Ok(Message::Text(data)) => {
@@ -245,6 +211,7 @@ async fn handle_socket(
                                     ">>> {addr} somehow sent close message without CloseFrame"
                                 );
                             }
+                              connection_manager.close_connect(tcp_connection.connection_id).await;
                             break;
                         }
                         Err(e) => {
@@ -260,46 +227,67 @@ async fn handle_socket(
 async fn process_socket_packet_by_binary(
     connection_id: u64,
     connection_manager: &Arc<ConnectionManager>,
-    codec: &mut MqttCodec,
+    codec: &mut RobustMQCodec,
     command: ArcCommandAdapter,
     addr: SocketAddr,
     data: Vec<u8>,
-) -> ResultMqttBrokerError {
+) -> ResultCommonError {
     let receive_ms = now_mills();
     let mut buf = BytesMut::with_capacity(data.len());
     buf.put(data.as_slice());
     if let Some(packet) = codec.decode_data(&mut buf)? {
         info!("recv websocket packet:{packet:?}");
+
         let tcp_connection = if let Some(conn) = connection_manager.get_connect(connection_id) {
             conn
         } else {
-            return Err(MqttBrokerError::NotFoundConnectionInCache(connection_id));
+            return Err(CommonError::NotFoundConnectionInCache(connection_id));
         };
+
+        let robust_packet = match packet {
+            RobustMQCodecWrapper::KAFKA(pkg) => RobustMQPacket::KAFKA(pkg.packet),
+            RobustMQCodecWrapper::MQTT(pkg) => RobustMQPacket::MQTT(pkg.packet),
+        };
+
         if let Some(resp_pkg) = command
-            .apply(
-                tcp_connection.clone(),
-                addr,
-                RobustMQPacket::MQTT(packet.clone()),
-            )
+            .apply(tcp_connection.clone(), addr, robust_packet)
             .await
         {
-            if let MqttPacket::Connect(protocol, _, _, _, _, _) = packet {
-                connection_manager
-                    .set_mqtt_connect_protocol(tcp_connection.connection_id, protocol);
-            }
-
+            // encode resp packet
             let mut response_buff = BytesMut::new();
-            let packet_wrapper = MqttPacketWrapper {
-                protocol_version: tcp_connection.get_protocol().into(),
-                packet: resp_pkg.packet.get_mqtt_packet().unwrap(),
+            let resp_codec_wrapper = match resp_pkg.packet.clone() {
+                RobustMQPacket::MQTT(pkg) => RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
+                    protocol_version: codec.mqtt_codec.protocol_version.unwrap(),
+                    packet: pkg,
+                }),
+                RobustMQPacket::KAFKA(pkg) => RobustMQCodecWrapper::KAFKA(KafkaPacketWrapper {
+                    api_version: 1,
+                    header: KafkaHeader::Response(ResponseHeader::default()),
+                    packet: pkg,
+                }),
             };
-            codec.encode_data(packet_wrapper.clone(), &mut response_buff)?;
-            let response_ms = now_mills();
+            codec.encode_data(resp_codec_wrapper, &mut response_buff)?;
 
+            // build resp wrapper
+            let resp_wrapper = match resp_pkg.packet.clone() {
+                RobustMQPacket::MQTT(pkg) => RobustMQPacketWrapper {
+                    protocol: RobustMQProtocol::MQTT3,
+                    extend: RobustMQWrapperExtend::MQTT(MqttWrapperExtend::default()),
+                    packet: RobustMQPacket::MQTT(pkg),
+                },
+                RobustMQPacket::KAFKA(pkg) => RobustMQPacketWrapper {
+                    protocol: RobustMQProtocol::KAFKA,
+                    extend: RobustMQWrapperExtend::KAFKA(KafkaWrapperExtend::default()),
+                    packet: RobustMQPacket::KAFKA(pkg),
+                },
+            };
+
+            // write to client
+            let response_ms = now_mills();
             if let Err(e) = connection_manager
                 .write_websocket_frame(
                     tcp_connection.connection_id,
-                    RobustMQPacketWrapper::from_mqtt(packet_wrapper),
+                    resp_wrapper,
                     Message::Binary(response_buff.to_vec()),
                 )
                 .await
