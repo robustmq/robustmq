@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::types::ResultMqttBrokerError;
+use crate::handler::error::MqttBrokerError;
+use crate::security::AuthStorageAdapter;
 use axum::async_trait;
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::{
@@ -22,10 +25,6 @@ use metadata_struct::mqtt::user::MqttUser;
 use mysql::prelude::Queryable;
 use mysql::Pool;
 use third_driver::mysql::build_mysql_conn_pool;
-
-use crate::common::types::ResultMqttBrokerError;
-use crate::handler::error::MqttBrokerError;
-use crate::security::AuthStorageAdapter;
 
 mod schema;
 pub struct MySQLAuthStorageAdapter {
