@@ -275,10 +275,9 @@ pub fn record_received_metrics(
     let label = NetworkLabel {
         network: network_type.to_string(),
     };
-    let payload_size = if let Some(_protocol) = connection.protocol.clone() {
+    let payload_size = if let Some(protocol) = connection.protocol.clone() {
         let wrapper = MqttPacketWrapper {
-            // protocol_version: protocol.into(),
-            protocol_version: 3,
+            protocol_version: protocol.to_u8(),
             packet: pkg.clone(),
         };
         calc_mqtt_packet_size(wrapper)
@@ -399,7 +398,6 @@ mod test {
     use super::*;
     use common_base::metrics::metrics_register_default;
     use common_base::tools::get_addr_by_local_hostname;
-    use metadata_struct::protocol::RobustMQProtocol;
     use prometheus_client::encoding::text::encode;
     #[tokio::test]
     async fn test_gauge() {
@@ -479,6 +477,7 @@ mod test {
     }
 
     use bytes::Bytes;
+    use protocol::robust::RobustMQProtocol;
     #[test]
     fn calc_mqtt_packet_test() {
         let mp: MqttPacket = MqttPacket::Publish(

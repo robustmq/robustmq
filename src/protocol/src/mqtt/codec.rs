@@ -373,7 +373,7 @@ fn calc_mqtt_packet_len(packet_wrapper: MqttPacketWrapper) -> Result<usize, MQTT
 
             //Packet::
             _=> unreachable!(
-                "This branch only matches for packets with Properties, which is not possible in MQTT V4",
+                "This branch only matches for packets with Properties, which is not possible in MQTT V4,{:?}",packet
             ),
         };
     } else if protocol_version == 5 {

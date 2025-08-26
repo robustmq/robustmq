@@ -14,13 +14,12 @@
 
 use crate::common::channel::RequestChannel;
 use crate::common::connection_manager::ConnectionManager;
-use crate::common::packet::RobustMQPacket;
 use crate::common::tool::read_packet;
-use futures::{AsyncRead, AsyncWrite};
 use futures_util::StreamExt;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use observability::mqtt::packets::record_received_error_metrics;
-use protocol::mqtt::codec::MqttCodec;
+use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
+use protocol::robust::RobustMQPacket;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
@@ -28,7 +27,7 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver};
 use tokio::time::sleep;
 use tokio::{io, select};
-use tokio_util::codec::{Decoder, FramedRead, FramedWrite};
+use tokio_util::codec::{FramedRead, FramedWrite};
 use tracing::{debug, error, info};
 
 /// The `acceptor_process` function is responsible for accepting incoming TCP connections
@@ -44,23 +43,22 @@ use tracing::{debug, error, info};
 /// - `cache_manager`: An `Arc`-wrapped `CacheManager` for managing cache operations.
 /// - `network_connection_type`: An enum indicating the type of network connection.
 ///
-pub(crate) async fn acceptor_process<T>(
+pub async fn acceptor_process(
     accept_thread_num: usize,
     connection_manager: Arc<ConnectionManager>,
     stop_sx: broadcast::Sender<bool>,
     listener_arc: Arc<TcpListener>,
     request_channel: Arc<RequestChannel>,
     network_type: NetworkConnectionType,
-    codec: T,
-) where
-    T: Decoder + AsyncRead + AsyncWrite + Clone,
-{
+    codec: RobustMQCodec,
+) {
     for index in 1..=accept_thread_num {
         let listener = listener_arc.clone();
         let connection_manager = connection_manager.clone();
         let mut stop_rx = stop_sx.subscribe();
         let request_channel = request_channel.clone();
         let network_type = network_type.clone();
+        let row_codec = codec.clone();
         tokio::spawn(async move {
             debug!(
                 "{} Server acceptor thread {} start successfully.",
@@ -68,7 +66,7 @@ pub(crate) async fn acceptor_process<T>(
             );
             loop {
                 select! {
-                    val = stop_rx.recv() =>{
+                    val = stop_rx.recv() => {
                         if let Ok(flag) = val {
                             if flag {
                                 debug!("{} Server acceptor thread {} stopped successfully.", network_type, index);
@@ -83,9 +81,8 @@ pub(crate) async fn acceptor_process<T>(
                                 info!("Accept {} connection:{:?}", network_type, addr);
 
                                 let (r_stream, w_stream) = io::split(stream);
-                                // let codec = MqttCodec::new(None);
-                                let read_frame_stream = FramedRead::new(r_stream, codec.clone());
-                                let write_frame_stream = FramedWrite::new(w_stream, codec.clone());
+                                let read_frame_stream = FramedRead::new(r_stream, row_codec.clone());
+                                let write_frame_stream = FramedWrite::new(w_stream, row_codec.clone());
 
                                 // if !tcp_establish_connection_check(&addr, &connection_manager, &mut write_frame_stream).await{
                                 //     continue;
@@ -123,16 +120,14 @@ pub(crate) async fn acceptor_process<T>(
 }
 
 // spawn connection read thread
-fn read_frame_process<T>(
-    mut read_frame_stream: FramedRead<io::ReadHalf<tokio::net::TcpStream>, T>,
+fn read_frame_process(
+    mut read_frame_stream: FramedRead<io::ReadHalf<tokio::net::TcpStream>, RobustMQCodec>,
     connection_id: u64,
     connection_manager: Arc<ConnectionManager>,
     request_channel: Arc<RequestChannel>,
     mut connection_stop_rx: Receiver<bool>,
     network_type: NetworkConnectionType,
-) where
-    T: Decoder + AsyncRead + AsyncWrite + Clone,
-{
+) {
     tokio::spawn(async move {
         loop {
             select! {
@@ -149,8 +144,17 @@ fn read_frame_process<T>(
                      if let Some(pkg) = package {
                         match pkg {
                             Ok(pack) => {
+
                                 let connection = connection_manager.get_connect(connection_id).unwrap();
-                                read_packet(RobustMQPacket::MQTT(pack), &request_channel, &connection, &network_type).await;
+                                match pack{
+                                    RobustMQCodecWrapper::MQTT(pk) =>{
+                                        read_packet(RobustMQPacket::MQTT(pk.packet), &request_channel, &connection, &network_type).await;
+                                    }
+                                    RobustMQCodecWrapper::KAFKA(pk) => {
+                                        read_packet(RobustMQPacket::KAFKA(pk.packet), &request_channel, &connection, &network_type).await;
+                                    }
+                                }
+
                             }
                             Err(e) => {
                                 record_received_error_metrics(network_type.clone());

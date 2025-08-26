@@ -12,6 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod server;
-mod tcp_acceptor;
-mod tls_acceptor;
+use axum::async_trait;
+use metadata_struct::connection::NetworkConnection;
+use network_server::{command::Command, common::packet::ResponsePackage};
+use protocol::robust::RobustMQPacket;
+use std::net::SocketAddr;
+
+pub struct KafkaCommand {}
+
+impl KafkaCommand {
+    pub fn new() -> Self {
+        return KafkaCommand {};
+    }
+}
+
+#[async_trait]
+impl Command for KafkaCommand {
+    async fn apply(
+        &self,
+        tcp_connection: NetworkConnection,
+        addr: SocketAddr,
+        robust_packet: RobustMQPacket,
+    ) -> Option<ResponsePackage> {
+        None
+    }
+}

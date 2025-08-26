@@ -31,3 +31,5 @@ tokio.workspace = true
 tokio-util.workspace = true
 tracing.workspace = true
 futures.workspace = true
+network-server.workspace = true
+protocol.workspace = true

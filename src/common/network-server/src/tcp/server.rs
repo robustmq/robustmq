@@ -12,20 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::CacheManager;
-use crate::server::tcp::tcp_acceptor::acceptor_process;
-use crate::subscribe::manager::SubscribeManager;
 use crate::{
-    common::types::ResultMqttBrokerError, server::tcp::tls_acceptor::acceptor_tls_process,
+    command::ArcCommandAdapter,
+    common::{
+        channel::RequestChannel,
+        connection_manager::ConnectionManager,
+        handler::handler_process,
+        response::{response_process, ResponseProcessContext},
+        tcp_acceptor::acceptor_process,
+        tls_acceptor::acceptor_tls_process,
+    },
 };
+use common_base::error::ResultCommonError;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
-use network_server::command::ArcCommandAdapter;
-use network_server::common::handler::handler_process;
-use network_server::common::response::{response_process, ResponseProcessContext};
-use network_server::common::{channel::RequestChannel, connection_manager::ConnectionManager};
 use observability::mqtt::server::record_broker_thread_num;
+use protocol::codec::RobustMQCodec;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
@@ -44,8 +47,6 @@ pub struct ProcessorConfig {
 #[derive(Clone)]
 pub struct TcpServerContext {
     pub connection_manager: Arc<ConnectionManager>,
-    pub subscribe_manager: Arc<SubscribeManager>,
-    pub cache_manager: Arc<CacheManager>,
     pub client_pool: Arc<ClientPool>,
     pub command: ArcCommandAdapter,
     pub network_type: NetworkConnectionType,
@@ -86,7 +87,7 @@ impl TcpServer {
         }
     }
 
-    pub async fn start(&self, tls: bool) -> ResultMqttBrokerError {
+    pub async fn start(&self, tls: bool) -> ResultCommonError {
         let conf = broker_config();
         let port = if tls {
             conf.mqtt_server.tls_port
@@ -102,7 +103,7 @@ impl TcpServer {
         let response_recv_channel = self
             .request_channel
             .create_response_channel(&self.network_type);
-
+        let codec = RobustMQCodec::new();
         if tls {
             acceptor_tls_process(
                 self.proc_config.accept_thread_num,
@@ -111,6 +112,7 @@ impl TcpServer {
                 self.network_type.clone(),
                 self.connection_manager.clone(),
                 self.request_channel.clone(),
+                codec,
             )
             .await?;
         } else {
@@ -121,6 +123,7 @@ impl TcpServer {
                 arc_listener.clone(),
                 self.request_channel.clone(),
                 self.network_type.clone(),
+                codec,
             )
             .await;
         }

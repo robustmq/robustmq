@@ -1,8 +1,9 @@
-# RobustMQ — A Next-Generation Cloud-Native Message Queue Built with Rust
-
 ## Logo
 
 ![image](../../../docs/images/robustmq-logo.png)
+
+## Vision
+A high-performance distributed message queue built with Rust language.
 
 ## Background & Motivation: Why Build RobustMQ
 
