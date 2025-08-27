@@ -18,10 +18,8 @@ mod tests {
 
     use common_base::tools::now_second;
     use metadata_struct::placement::node::BrokerNode;
-    use protocol::placement_center::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
-    use protocol::placement_center::placement_center_inner::{
-        NodeListRequest, RegisterNodeRequest,
-    };
+    use protocol::meta::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
+    use protocol::meta::placement_center_inner::{NodeListRequest, RegisterNodeRequest};
     use tokio::time::sleep;
 
     use crate::place_server::common::{

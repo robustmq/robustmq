@@ -18,6 +18,6 @@ pub mod cluster;
 pub mod codec;
 pub mod journal_server;
 pub mod kafka;
+pub mod meta;
 pub mod mqtt;
-pub mod placement_center;
 pub mod robust;

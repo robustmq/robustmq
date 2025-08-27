@@ -16,7 +16,7 @@ use metadata_struct::placement::cluster::ClusterInfo;
 use metadata_struct::placement::node::BrokerNode;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use prost::Message as _;
-use protocol::placement_center::placement_center_inner::{
+use protocol::meta::placement_center_inner::{
     BindSchemaRequest, CreateSchemaRequest, DeleteIdempotentDataRequest,
     DeleteResourceConfigRequest, DeleteSchemaRequest, SaveOffsetDataRequest,
     SetIdempotentDataRequest, SetResourceConfigRequest, UnBindSchemaRequest, UnRegisterNodeRequest,
@@ -172,7 +172,7 @@ mod tests {
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::default_broker_config;
     use metadata_struct::placement::node::BrokerNode;
-    use protocol::placement_center::placement_center_inner::ClusterType;
+    use protocol::meta::placement_center_inner::ClusterType;
 
     use crate::core::cache::CacheManager;
     use crate::raft::route::common::DataRouteCluster;

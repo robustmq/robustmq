@@ -26,7 +26,7 @@ use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::resource_config::ClusterResourceConfig;
 use prost::Message;
-use protocol::placement_center::placement_center_inner::{
+use protocol::meta::placement_center_inner::{
     ClusterStatusReply, DeleteIdempotentDataReply, DeleteIdempotentDataRequest,
     DeleteResourceConfigReply, DeleteResourceConfigRequest, ExistsIdempotentDataReply,
     ExistsIdempotentDataRequest, GetOffsetDataReply, GetOffsetDataReplyOffset,

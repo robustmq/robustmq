@@ -27,8 +27,7 @@ use crate::observability::start_observability;
 use crate::security::auth::super_user::init_system_user;
 use crate::security::storage::sync::sync_auth_storage_info;
 use crate::security::AuthDriver;
-use crate::server::quic::server::{start_quic_server, QuicServerContext};
-use crate::server::server::{Server, ServerContext};
+use crate::server::{Server, TcpServerContext};
 use crate::storage::cluster::ClusterStorage;
 use crate::subscribe::exclusive::ExclusivePush;
 use crate::subscribe::manager::SubscribeManager;
@@ -77,7 +76,7 @@ pub struct MqttBrokerServer {
 impl MqttBrokerServer {
     pub fn new(params: MqttBrokerServerParams, main_stop: broadcast::Sender<bool>) -> Self {
         let (inner_stop, _) = broadcast::channel(2);
-        let server = Arc::new(Server::new(ServerContext {
+        let server = Arc::new(Server::new(TcpServerContext {
             subscribe_manager: params.subscribe_manager.clone(),
             cache_manager: params.cache_manager.clone(),
             connection_manager: params.connection_manager.clone(),
@@ -186,37 +185,11 @@ impl MqttBrokerServer {
     }
 
     fn start_server(&self) {
-        // mqtt tcp server
         let server = self.server.clone();
         tokio::spawn(async move {
             if let Err(e) = server.start().await {
                 panic!("{}", e);
             }
-        });
-
-        // mqtt quic server
-        let cache = self.cache_manager.clone();
-        let message_storage_adapter = self.message_storage_adapter.clone();
-        let subscribe_manager = self.subscribe_manager.clone();
-        let client_pool = self.client_pool.clone();
-        let connection_manager = self.connection_manager.clone();
-        let auth_driver = self.auth_driver.clone();
-        let delay_message_manager = self.delay_message_manager.clone();
-        let schema_manager = self.schema_manager.clone();
-        let raw_stop_send = self.inner_stop.clone();
-        tokio::spawn(async move {
-            start_quic_server(QuicServerContext {
-                subscribe_manager,
-                cache_manager: cache,
-                connection_manager,
-                message_storage_adapter,
-                delay_message_manager,
-                client_pool,
-                stop_sx: raw_stop_send,
-                auth_driver,
-                schema_register_manager: schema_manager,
-            })
-            .await
         });
     }
 

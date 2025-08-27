@@ -14,8 +14,8 @@
 
 use common_base::error::common::CommonError;
 use mobc::Manager;
-use protocol::placement_center::placement_center_kv::kv_service_client::KvServiceClient;
-use protocol::placement_center::placement_center_kv::{
+use protocol::meta::placement_center_kv::kv_service_client::KvServiceClient;
+use protocol::meta::placement_center_kv::{
     DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetPrefixReply, GetPrefixRequest,
     GetReply, GetRequest, ListShardReply, ListShardRequest, SetReply, SetRequest,
 };

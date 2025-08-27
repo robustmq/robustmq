@@ -22,7 +22,7 @@ use protocol::journal_server::journal_engine::{
     ClientSegmentMetadata, CreateShardReq, DeleteShardReq, GetShardMetadataReq,
     GetShardMetadataRespShard, ListShardReq,
 };
-use protocol::placement_center::placement_center_journal::{
+use protocol::meta::placement_center_journal::{
     CreateNextSegmentRequest, UpdateSegmentStatusRequest,
 };
 

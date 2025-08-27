@@ -27,7 +27,7 @@ mod test {
         config_kafka::KafkaConnectorConfig, config_local_file::LocalFileConnectorConfig,
         connector::MQTTConnector, connector_type::ConnectorType,
     };
-    use protocol::placement_center::placement_center_mqtt::{
+    use protocol::meta::placement_center_mqtt::{
         CreateConnectorRequest, DeleteConnectorRequest, ListConnectorRequest,
         UpdateConnectorRequest,
     };

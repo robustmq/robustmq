@@ -19,7 +19,7 @@ use crate::{controller::mqtt::call_broker::MQTTInnerCallManager, core::cache::Ca
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::placement::node::str_to_cluster_type;
-use protocol::placement_center::placement_center_inner::UnRegisterNodeRequest;
+use protocol::meta::placement_center_inner::UnRegisterNodeRequest;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{error, info};

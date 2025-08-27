@@ -22,7 +22,7 @@ use crate::storage::mqtt::topic::MqttTopicStorage;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use prost::Message;
-use protocol::placement_center::placement_center_mqtt::{
+use protocol::meta::placement_center_mqtt::{
     CreateTopicReply, CreateTopicRequest, CreateTopicRewriteRuleReply,
     CreateTopicRewriteRuleRequest, DeleteTopicReply, DeleteTopicRequest,
     DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, GetTopicRetainMessageReply,

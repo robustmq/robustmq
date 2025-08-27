@@ -30,7 +30,7 @@ use metadata_struct::journal::segment::{
 };
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::JournalShard;
-use protocol::placement_center::placement_center_journal::{
+use protocol::meta::placement_center_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, DeleteSegmentReply, DeleteSegmentRequest,
     ListSegmentMetaReply, ListSegmentMetaRequest, ListSegmentReply, ListSegmentRequest,
     UpdateSegmentMetaReply, UpdateSegmentMetaRequest, UpdateSegmentStatusReply,
@@ -540,7 +540,7 @@ mod tests {
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::journal::node_extend::JournalNodeExtend;
     use metadata_struct::placement::node::BrokerNode;
-    use protocol::placement_center::placement_center_inner::ClusterType;
+    use protocol::meta::placement_center_inner::ClusterType;
     use rocksdb_engine::RocksDBEngine;
     use std::sync::Arc;
 

@@ -18,7 +18,7 @@ use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::kv::KvStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 use prost::Message;
-use protocol::placement_center::placement_center_kv::{
+use protocol::meta::placement_center_kv::{
     DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetPrefixReply, GetPrefixRequest,
     GetReply, GetRequest, ListShardReply, ListShardRequest, SetReply, SetRequest,
 };

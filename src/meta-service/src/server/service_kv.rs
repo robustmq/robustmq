@@ -17,8 +17,8 @@ use std::sync::Arc;
 use crate::server::services::kv::{
     delete_by_req, exists_by_req, get_by_req, get_prefix_by_req, list_shard_by_req, set_by_req,
 };
-use protocol::placement_center::placement_center_kv::kv_service_server::KvService;
-use protocol::placement_center::placement_center_kv::{
+use protocol::meta::placement_center_kv::kv_service_server::KvService;
+use protocol::meta::placement_center_kv::{
     DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetPrefixReply, GetPrefixRequest,
     GetReply, GetRequest, ListShardReply, ListShardRequest, SetReply, SetRequest,
 };

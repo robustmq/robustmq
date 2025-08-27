@@ -73,7 +73,7 @@ impl NodeStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use protocol::placement_center::placement_center_inner::ClusterType;
+    use protocol::meta::placement_center_inner::ClusterType;
     use tempfile::tempdir;
 
     fn setup_kv_storage() -> NodeStorage {

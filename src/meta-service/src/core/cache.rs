@@ -36,7 +36,7 @@ use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::placement::cluster::ClusterInfo;
 use metadata_struct::placement::node::BrokerNode;
-use protocol::placement_center::placement_center_inner::ClusterType;
+use protocol::meta::placement_center_inner::ClusterType;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

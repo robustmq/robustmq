@@ -17,13 +17,13 @@ mod tests {
     use common_base::tools::now_second;
     use metadata_struct::journal::shard::JournalShardConfig;
     use metadata_struct::placement::node::BrokerNode;
-    use protocol::placement_center::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
-    use protocol::placement_center::placement_center_inner::{
+    use protocol::meta::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
+    use protocol::meta::placement_center_inner::{
         ClusterType, HeartbeatRequest, RegisterNodeRequest, SetIdempotentDataRequest,
         UnRegisterNodeRequest,
     };
-    use protocol::placement_center::placement_center_journal::engine_service_client::EngineServiceClient;
-    use protocol::placement_center::placement_center_journal::{
+    use protocol::meta::placement_center_journal::engine_service_client::EngineServiceClient;
+    use protocol::meta::placement_center_journal::{
         CreateNextSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
     };
 

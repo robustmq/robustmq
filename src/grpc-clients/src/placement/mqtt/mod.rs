@@ -14,8 +14,8 @@
 
 use common_base::error::common::CommonError;
 use mobc::Manager;
-use protocol::placement_center::placement_center_mqtt::mqtt_service_client::MqttServiceClient;
-use protocol::placement_center::placement_center_mqtt::{
+use protocol::meta::placement_center_mqtt::mqtt_service_client::MqttServiceClient;
+use protocol::meta::placement_center_mqtt::{
     ConnectorHeartbeatReply, ConnectorHeartbeatRequest, CreateAclReply, CreateAclRequest,
     CreateBlacklistReply, CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest,
     CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,

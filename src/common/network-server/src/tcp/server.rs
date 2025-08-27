@@ -22,9 +22,9 @@ use crate::{
         tcp_acceptor::acceptor_process,
         tls_acceptor::acceptor_tls_process,
     },
+    context::{ProcessorConfig, ServerContext},
 };
 use common_base::error::ResultCommonError;
-use common_config::broker::broker_config;
 use common_metrics::mqtt::server::record_broker_thread_num;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
@@ -35,24 +35,6 @@ use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
 use tracing::{error, info};
-
-#[derive(Debug, Clone, Copy)]
-pub struct ProcessorConfig {
-    pub accept_thread_num: usize,
-    pub handler_process_num: usize,
-    pub response_process_num: usize,
-    pub channel_size: usize,
-}
-
-#[derive(Clone)]
-pub struct TcpServerContext {
-    pub connection_manager: Arc<ConnectionManager>,
-    pub client_pool: Arc<ClientPool>,
-    pub command: ArcCommandAdapter,
-    pub network_type: NetworkConnectionType,
-    pub proc_config: ProcessorConfig,
-    pub stop_sx: broadcast::Sender<bool>,
-}
 
 // U: codec: encoder + decoder
 // S: message storage adapter
@@ -68,7 +50,7 @@ pub struct TcpServer {
 }
 
 impl TcpServer {
-    pub fn new(context: TcpServerContext) -> Self {
+    pub fn new(context: ServerContext) -> Self {
         info!(
             "network type:{}, process thread num: {:?}",
             context.network_type, context.proc_config
@@ -87,14 +69,7 @@ impl TcpServer {
         }
     }
 
-    pub async fn start(&self, tls: bool) -> ResultCommonError {
-        let conf = broker_config();
-        let port = if tls {
-            conf.mqtt_server.tls_port
-        } else {
-            conf.mqtt_server.tcp_port
-        };
-
+    pub async fn start(&self, tls: bool, port: u32) -> ResultCommonError {
         let listener = TcpListener::bind(format!("0.0.0.0:{port}")).await?;
         let arc_listener = Arc::new(listener);
         let request_recv_channel = self

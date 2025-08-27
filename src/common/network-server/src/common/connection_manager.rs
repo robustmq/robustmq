@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::common::tool::is_ignore_print;
-use crate::quic::stream::QuicMQTTFramedWriteStream;
+use crate::quic::stream::QuicFramedWriteStream;
 use axum::extract::ws::{Message, WebSocket};
 use common_base::error::{common::CommonError, ResultCommonError};
 use common_base::network::broker_not_available;
@@ -43,7 +43,7 @@ pub struct ConnectionManager {
         >,
     >,
     pub websocket_write_list: DashMap<u64, SplitSink<WebSocket, Message>>,
-    pub quic_write_list: DashMap<u64, QuicMQTTFramedWriteStream>,
+    pub quic_write_list: DashMap<u64, QuicFramedWriteStream>,
 }
 
 impl ConnectionManager {
@@ -240,7 +240,7 @@ impl ConnectionManager {
     pub fn add_mqtt_quic_write(
         &self,
         connection_id: u64,
-        quic_framed_write_stream: QuicMQTTFramedWriteStream,
+        quic_framed_write_stream: QuicFramedWriteStream,
     ) {
         self.quic_write_list
             .insert(connection_id, quic_framed_write_stream);

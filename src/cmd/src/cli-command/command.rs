@@ -27,9 +27,7 @@ use mqtt::admin::{
 use mqtt::publish::process_subscribe_args;
 use protocol::broker_mqtt::broker_mqtt_admin::EnableFlappingDetectRequest;
 
-use protocol::placement_center::placement_center_openraft::{
-    AddLearnerRequest, ChangeMembershipRequest, Node,
-};
+use protocol::meta::placement_center_openraft::{AddLearnerRequest, ChangeMembershipRequest, Node};
 
 use crate::mqtt::admin::{
     process_acl_args, process_blacklist_args, process_connector_args, process_schema_args,

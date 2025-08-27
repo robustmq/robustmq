@@ -14,8 +14,8 @@
 
 use common_base::error::common::CommonError;
 use mobc::Manager;
-use protocol::placement_center::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
-use protocol::placement_center::placement_center_inner::{
+use protocol::meta::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
+use protocol::meta::placement_center_inner::{
     BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
     CreateSchemaReply, CreateSchemaRequest, DeleteIdempotentDataReply, DeleteIdempotentDataRequest,
     DeleteResourceConfigReply, DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,

@@ -25,7 +25,7 @@ use grpc_clients::placement::inner::call::{
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::node_extend::MqttNodeExtend;
 use metadata_struct::placement::node::BrokerNode;
-use protocol::placement_center::placement_center_inner::{
+use protocol::meta::placement_center_inner::{
     ClusterStatusRequest, ClusterType, DeleteResourceConfigRequest, GetResourceConfigRequest,
     HeartbeatRequest, NodeListRequest, RegisterNodeRequest, SetResourceConfigRequest,
     UnRegisterNodeRequest,

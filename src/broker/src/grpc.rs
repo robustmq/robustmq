@@ -36,11 +36,11 @@ use protocol::journal_server::journal_admin::journal_server_admin_service_server
 use protocol::journal_server::journal_inner::journal_server_inner_service_server::JournalServerInnerServiceServer;
 // use protocol::journal_server::journal_admin::journal_server_admin_service_server::JournalServerAdminServiceServer;
 // use protocol::journal_server::journal_inner::journal_server_inner_service_server::JournalServerInnerServiceServer;
-use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterServiceServer;
-use protocol::placement_center::placement_center_journal::engine_service_server::EngineServiceServer;
-use protocol::placement_center::placement_center_kv::kv_service_server::KvServiceServer;
-use protocol::placement_center::placement_center_mqtt::mqtt_service_server::MqttServiceServer;
-use protocol::placement_center::placement_center_openraft::open_raft_service_server::OpenRaftServiceServer;
+use protocol::meta::placement_center_inner::placement_center_service_server::PlacementCenterServiceServer;
+use protocol::meta::placement_center_journal::engine_service_server::EngineServiceServer;
+use protocol::meta::placement_center_kv::kv_service_server::KvServiceServer;
+use protocol::meta::placement_center_mqtt::mqtt_service_server::MqttServiceServer;
+use protocol::meta::placement_center_openraft::open_raft_service_server::OpenRaftServiceServer;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tonic::transport::Server;

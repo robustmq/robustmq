@@ -24,7 +24,7 @@ use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::status::MQTTStatus;
-use protocol::placement_center::placement_center_mqtt::CreateConnectorRequest;
+use protocol::meta::placement_center_mqtt::CreateConnectorRequest;
 use std::{collections::HashMap, sync::Arc};
 use tokio::{select, sync::broadcast};
 use tracing::{info, warn};

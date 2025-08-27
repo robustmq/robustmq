@@ -24,7 +24,7 @@ use grpc_clients::{
 };
 use metadata_struct::schema::{SchemaData, SchemaType};
 use protocol::broker_mqtt::broker_mqtt_admin;
-use protocol::placement_center::placement_center_inner;
+use protocol::meta::placement_center_inner;
 use std::sync::Arc;
 
 // List schemas by request

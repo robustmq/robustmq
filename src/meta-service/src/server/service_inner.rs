@@ -30,8 +30,8 @@ use crate::server::services::inner::{
 use crate::storage::rocksdb::RocksDBEngine;
 use grpc_clients::pool::ClientPool;
 use prost_validate::Validator;
-use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterService;
-use protocol::placement_center::placement_center_inner::{
+use protocol::meta::placement_center_inner::placement_center_service_server::PlacementCenterService;
+use protocol::meta::placement_center_inner::{
     BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
     CreateSchemaReply, CreateSchemaRequest, DeleteIdempotentDataReply, DeleteIdempotentDataRequest,
     DeleteResourceConfigReply, DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
