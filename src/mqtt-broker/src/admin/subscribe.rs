@@ -25,7 +25,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::node_extend::MqttNodeExtend;
 use metadata_struct::mqtt::subscribe_data::is_mqtt_share_subscribe;
-use protocol::broker_mqtt::broker_mqtt_admin::{
+use protocol::broker::broker_mqtt_admin::{
     DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest, ListAutoSubscribeRuleReply,
     ListSubscribeReply, ListSubscribeRequest, MqttSubscribeRaw, SetAutoSubscribeRuleReply,
     SetAutoSubscribeRuleRequest, SubscribeDetailRaw, SubscribeDetailReply, SubscribeDetailRequest,

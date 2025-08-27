@@ -17,7 +17,7 @@ use std::str::FromStr;
 
 use crate::common::metrics_cache::MetricsCacheManager;
 use common_base::enum_type::delay_type::DelayType;
-use protocol::broker_mqtt::broker_mqtt_admin::{
+use protocol::broker::broker_mqtt_admin::{
     ListSlowSubScribeRaw, ListSlowSubscribeReply, ListSlowSubscribeRequest, ListSystemAlarmRaw,
     ListSystemAlarmReply, ListSystemAlarmRequest, SetSlowSubscribeConfigReply,
     SetSlowSubscribeConfigRequest, SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest,

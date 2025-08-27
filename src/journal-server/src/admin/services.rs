@@ -17,7 +17,7 @@ use std::sync::Arc;
 use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
 use crate::segment::SegmentIdentity;
-use protocol::journal_server::journal_admin::{
+use protocol::journal::journal_admin::{
     ListSegmentReply, ListSegmentRequest, ListShardReply, ListShardRequest,
 };
 

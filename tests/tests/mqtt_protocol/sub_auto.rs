@@ -24,7 +24,7 @@ mod tests {
         pool::ClientPool,
     };
     use paho_mqtt::{Message, QOS_1};
-    use protocol::broker_mqtt::broker_mqtt_admin::{
+    use protocol::broker::broker_mqtt_admin::{
         DeleteAutoSubscribeRuleRequest, SetAutoSubscribeRuleRequest,
     };
 

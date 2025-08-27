@@ -14,8 +14,8 @@
 
 use crate::admin::services::{list_segment_by_req, list_shard_by_req};
 use crate::core::cache::CacheManager;
-use protocol::journal_server::journal_admin::journal_server_admin_service_server::JournalServerAdminService;
-use protocol::journal_server::journal_admin::{
+use protocol::journal::journal_admin::journal_server_admin_service_server::JournalServerAdminService;
+use protocol::journal::journal_admin::{
     ListSegmentReply, ListSegmentRequest, ListShardReply, ListShardRequest,
 };
 use std::sync::Arc;

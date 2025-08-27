@@ -29,7 +29,7 @@ mod tests {
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
     use paho_mqtt::MessageBuilder;
-    use protocol::broker_mqtt::broker_mqtt_admin::{
+    use protocol::broker::broker_mqtt_admin::{
         CreateAclRequest, CreateUserRequest, DeleteAclRequest, DeleteUserRequest, ListAclRequest,
     };
     use std::sync::Arc;

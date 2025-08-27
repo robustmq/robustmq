@@ -22,7 +22,7 @@ mod tests {
     use grpc_clients::mqtt::admin::call::mqtt_broker_enable_flapping_detect;
     use grpc_clients::pool::ClientPool;
     use paho_mqtt::Client;
-    use protocol::broker_mqtt::broker_mqtt_admin::EnableFlappingDetectRequest;
+    use protocol::broker::broker_mqtt_admin::EnableFlappingDetectRequest;
     use std::process;
     use std::sync::Arc;
 

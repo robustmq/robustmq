@@ -17,7 +17,7 @@ use crate::handler::cache::CacheManager;
 use crate::handler::error::MqttBrokerError;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::session::MqttSession;
-use protocol::broker_mqtt::broker_mqtt_admin::{ClientRaw, ListClientReply, ListClientRequest};
+use protocol::broker::broker_mqtt_admin::{ClientRaw, ListClientReply, ListClientRequest};
 use std::sync::Arc;
 
 // List all clients by request

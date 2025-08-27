@@ -23,7 +23,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use prost::Message;
-use protocol::journal_server::journal_record::JournalRecord;
+use protocol::journal::journal_record::JournalRecord;
 use rocksdb_engine::RocksDBEngine;
 use std::sync::Arc;
 

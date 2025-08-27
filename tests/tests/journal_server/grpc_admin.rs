@@ -20,7 +20,7 @@ mod tests {
         journal_admin_list_segment, journal_admin_list_shard,
     };
     use grpc_clients::pool::ClientPool;
-    use protocol::journal_server::journal_admin::{ListSegmentRequest, ListShardRequest};
+    use protocol::journal::journal_admin::{ListSegmentRequest, ListShardRequest};
 
     use crate::journal_server::common::journal_grpc_addr;
 

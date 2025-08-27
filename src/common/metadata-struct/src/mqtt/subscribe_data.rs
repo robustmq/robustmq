@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use common_base::utils::time_util::timestamp_to_local_datetime;
-use protocol::broker_mqtt::broker_mqtt_admin::MqttSubscribeRaw;
+use protocol::broker::broker_mqtt_admin::MqttSubscribeRaw;
 use protocol::mqtt::common::{Filter, MqttProtocol, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 

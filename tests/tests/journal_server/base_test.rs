@@ -16,8 +16,8 @@
 mod tests {
     use common_base::tools::now_second;
     use futures::{SinkExt, StreamExt};
-    use protocol::journal_server::codec::{JournalEnginePacket, JournalServerCodec};
-    use protocol::journal_server::journal_engine::{
+    use protocol::journal::codec::{JournalEnginePacket, JournalServerCodec};
+    use protocol::journal::journal_engine::{
         ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, DeleteShardReq, DeleteShardReqBody,
         FetchOffsetReq, FetchOffsetReqBody, GetClusterMetadataReq, GetShardMetadataReq,
         GetShardMetadataReqBody, GetShardMetadataReqShard, ReadReq, ReadReqBody, ReadReqFilter,

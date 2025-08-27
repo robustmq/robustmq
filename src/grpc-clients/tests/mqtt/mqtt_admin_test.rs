@@ -28,8 +28,8 @@ mod tests {
     use metadata_struct::mqtt::bridge::connector_type::ConnectorType;
     use metadata_struct::schema::{SchemaData, SchemaType};
     use prost::Message;
-    use protocol::broker_mqtt::broker_mqtt_admin::{self, ConnectorRaw};
-    use protocol::broker_mqtt::broker_mqtt_admin::{
+    use protocol::broker::broker_mqtt_admin::{self, ConnectorRaw};
+    use protocol::broker::broker_mqtt_admin::{
         ClusterStatusRequest, CreateConnectorRequest, CreateSchemaRequest, CreateUserRequest,
         DeleteConnectorRequest, DeleteSchemaRequest, DeleteUserRequest, ListConnectorRequest,
         ListSchemaRequest, ListUserRequest, UpdateConnectorRequest, UpdateSchemaRequest,

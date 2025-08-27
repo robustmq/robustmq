@@ -21,7 +21,7 @@ use common_config::config::MqttFlappingDetect;
 use common_metrics::mqtt::event_metrics;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
-use protocol::broker_mqtt::broker_mqtt_admin::EnableFlappingDetectRequest;
+use protocol::broker::broker_mqtt_admin::EnableFlappingDetectRequest;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;

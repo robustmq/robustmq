@@ -20,7 +20,7 @@ use common_base::tools::now_mills;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
-use protocol::broker_mqtt::broker_mqtt_admin::{
+use protocol::broker::broker_mqtt_admin::{
     CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, DeleteTopicRewriteRuleReply,
     DeleteTopicRewriteRuleRequest, ListRewriteTopicRuleReply, ListTopicReply, ListTopicRequest,
     MqttTopicRaw, MqttTopicRewriteRuleRaw,

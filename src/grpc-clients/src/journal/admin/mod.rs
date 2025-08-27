@@ -14,8 +14,8 @@
 
 use common_base::error::common::CommonError;
 use mobc::Manager;
-use protocol::journal_server::journal_admin::journal_server_admin_service_client::JournalServerAdminServiceClient;
-use protocol::journal_server::journal_admin::{
+use protocol::journal::journal_admin::journal_server_admin_service_client::JournalServerAdminServiceClient;
+use protocol::journal::journal_admin::{
     ListSegmentReply, ListSegmentRequest, ListShardReply, ListShardRequest,
 };
 use tonic::transport::Channel;

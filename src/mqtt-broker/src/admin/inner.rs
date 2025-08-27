@@ -21,7 +21,7 @@ use crate::{bridge::manager::ConnectorManager, common::tool::wait_cluster_runnin
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::LastWillData;
-use protocol::broker_mqtt::broker_mqtt_inner::{
+use protocol::broker::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
     UpdateMqttCacheReply, UpdateMqttCacheRequest,
 };

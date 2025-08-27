@@ -25,8 +25,8 @@ use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::placement::node::BrokerNode;
 use metadata_struct::resource_config::ClusterResourceConfig;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
-use protocol::broker_mqtt::broker_mqtt_inner::MqttBrokerUpdateCacheResourceType;
-use protocol::broker_mqtt::broker_mqtt_inner::{
+use protocol::broker::broker_mqtt_inner::MqttBrokerUpdateCacheResourceType;
+use protocol::broker::broker_mqtt_inner::{
     MqttBrokerUpdateCacheActionType, UpdateMqttCacheRequest,
 };
 use std::sync::Arc;

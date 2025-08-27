@@ -20,8 +20,8 @@ mod tests {
     use dashmap::DashMap;
     use futures::{SinkExt, StreamExt};
     use journal_client::tool::resp_header_error;
-    use protocol::journal_server::codec::{JournalEnginePacket, JournalServerCodec};
-    use protocol::journal_server::journal_engine::{
+    use protocol::journal::codec::{JournalEnginePacket, JournalServerCodec};
+    use protocol::journal::journal_engine::{
         ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, FetchOffsetReq, FetchOffsetReqBody,
         FetchOffsetShard, GetClusterMetadataReq, GetShardMetadataReq, GetShardMetadataReqBody,
         GetShardMetadataReqShard, ReadReq, ReadReqBody, ReadReqFilter, ReadReqMessage, ReadType,

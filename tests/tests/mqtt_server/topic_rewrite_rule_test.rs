@@ -20,7 +20,7 @@ mod tests {
         mqtt_broker_create_topic_rewrite_rule, mqtt_broker_delete_topic_rewrite_rule,
     };
     use grpc_clients::pool::ClientPool;
-    use protocol::broker_mqtt::broker_mqtt_admin::{
+    use protocol::broker::broker_mqtt_admin::{
         CreateTopicRewriteRuleRequest, DeleteTopicRewriteRuleRequest,
     };
 

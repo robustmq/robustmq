@@ -17,7 +17,7 @@ use std::sync::Arc;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::shard::shard_name_iden;
-use protocol::journal_server::journal_engine::{
+use protocol::journal::journal_engine::{
     FetchOffsetReq, FetchOffsetRespBody, FetchOffsetShardMeta, JournalEngineError, ReadReq,
     ReadRespSegmentMessage, WriteReq, WriteRespMessage,
 };

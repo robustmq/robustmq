@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use common_base::tools::now_second;
-use protocol::broker_mqtt::broker_mqtt_admin::MqttTopicRaw;
+use protocol::broker::broker_mqtt_admin::MqttTopicRaw;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
