@@ -28,7 +28,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use prost::Message;
 use prost_validate::Result;
-use protocol::placement_center::placement_center_inner::{
+use protocol::meta::placement_center_inner::{
     BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, ListBindSchemaRequest,
     ListSchemaRequest, UnBindSchemaRequest, UpdateSchemaRequest,
 };

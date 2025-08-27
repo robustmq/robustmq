@@ -26,7 +26,7 @@ use metadata_struct::mqtt::{
 };
 use protocol::{
     mqtt::common::{Filter, MqttProtocol, Subscribe, SubscribeProperties},
-    placement_center::placement_center_mqtt::SetSubscribeRequest,
+    meta::placement_center_mqtt::SetSubscribeRequest,
 };
 use serde::{Deserialize, Serialize};
 use tracing::error;

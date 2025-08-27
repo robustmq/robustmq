@@ -23,7 +23,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
-use protocol::placement_center::placement_center_mqtt::{
+use protocol::meta::placement_center_mqtt::{
     CreateTopicRequest, CreateTopicRewriteRuleRequest, DeleteTopicRequest,
     DeleteTopicRewriteRuleRequest, ListTopicRequest, ListTopicRewriteRuleRequest,
     SetTopicRetainMessageRequest,

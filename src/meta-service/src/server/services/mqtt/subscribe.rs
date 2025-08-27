@@ -26,7 +26,7 @@ use crate::{
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use prost::Message;
-use protocol::placement_center::placement_center_mqtt::{
+use protocol::meta::placement_center_mqtt::{
     DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest, DeleteSubscribeReply,
     DeleteSubscribeRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
     ListSubscribeReply, ListSubscribeRequest, SetAutoSubscribeRuleReply,

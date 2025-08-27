@@ -28,7 +28,7 @@ use metadata_struct::mqtt::bridge::status::MQTTStatus;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     self, ConnectorRaw, ListConnectorReply, ListConnectorRequest,
 };
-use protocol::placement_center::placement_center_mqtt;
+use protocol::meta::placement_center_mqtt;
 use std::sync::Arc;
 
 // List connectors by request

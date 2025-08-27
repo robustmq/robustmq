@@ -16,7 +16,7 @@ use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use grpc_clients::{placement::inner::call::list_schema, pool::ClientPool};
 use metadata_struct::schema::SchemaData;
-use protocol::placement_center::placement_center_inner::ListSchemaRequest;
+use protocol::meta::placement_center_inner::ListSchemaRequest;
 use std::sync::Arc;
 
 pub struct SchemaStorage {

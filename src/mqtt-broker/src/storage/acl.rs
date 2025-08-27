@@ -18,7 +18,7 @@ use common_config::broker::broker_config;
 use grpc_clients::placement::mqtt::call::{create_acl, delete_acl, list_acl};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
-use protocol::placement_center::placement_center_mqtt::{
+use protocol::meta::placement_center_mqtt::{
     CreateAclRequest, DeleteAclRequest, ListAclRequest,
 };
 

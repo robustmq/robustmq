@@ -29,7 +29,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::SegmentStatus;
 use metadata_struct::journal::segment_meta::JournalSegmentMetadata;
 use metadata_struct::journal::shard::{JournalShard, JournalShardConfig, JournalShardStatus};
-use protocol::placement_center::placement_center_journal::{
+use protocol::meta::placement_center_journal::{
     CreateShardReply, CreateShardRequest, DeleteShardReply, DeleteShardRequest, ListShardReply,
     ListShardRequest,
 };

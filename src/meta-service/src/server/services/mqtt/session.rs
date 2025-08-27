@@ -30,7 +30,7 @@ use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
 use prost::Message;
-use protocol::placement_center::placement_center_mqtt::{
+use protocol::meta::placement_center_mqtt::{
     CreateSessionReply, CreateSessionRequest, DeleteSessionReply, DeleteSessionRequest,
     ListSessionReply, ListSessionRequest, UpdateSessionReply, UpdateSessionRequest,
 };

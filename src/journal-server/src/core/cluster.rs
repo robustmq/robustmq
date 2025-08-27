@@ -23,7 +23,7 @@ use grpc_clients::placement::inner::call::{heartbeat, register_node, unregister_
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::node_extend::JournalNodeExtend;
 use metadata_struct::placement::node::BrokerNode;
-use protocol::placement_center::placement_center_inner::{
+use protocol::meta::placement_center_inner::{
     ClusterType, HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
 };
 use tokio::{sync::broadcast, time::sleep};

@@ -22,7 +22,7 @@ mod tests {
     use metadata_struct::acl::mqtt_acl::{
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
-    use protocol::placement_center::placement_center_mqtt::{
+    use protocol::meta::placement_center_mqtt::{
         CreateAclRequest, DeleteAclRequest, ListAclRequest,
     };
 

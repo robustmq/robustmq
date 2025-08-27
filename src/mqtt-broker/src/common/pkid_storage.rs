@@ -19,7 +19,7 @@ use grpc_clients::placement::inner::call::{
     delete_idempotent_data, exists_idempotent_data, set_idempotent_data,
 };
 use grpc_clients::pool::ClientPool;
-use protocol::placement_center::placement_center_inner::{
+use protocol::meta::placement_center_inner::{
     DeleteIdempotentDataRequest, ExistsIdempotentDataRequest, SetIdempotentDataRequest,
 };
 

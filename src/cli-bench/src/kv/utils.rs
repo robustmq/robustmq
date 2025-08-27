@@ -20,7 +20,7 @@ use grpc_clients::{
     pool::ClientPool,
 };
 use prettytable::{row, Table};
-use protocol::placement_center::placement_center_kv::{GetRequest, SetRequest};
+use protocol::meta::placement_center_kv::{GetRequest, SetRequest};
 use rand::{thread_rng, Rng};
 use serde::{de::DeserializeOwned, Serialize};
 

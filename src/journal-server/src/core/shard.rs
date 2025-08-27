@@ -23,7 +23,7 @@ use metadata_struct::journal::shard::{shard_name_iden, JournalShardConfig};
 use protocol::journal_server::journal_inner::{
     DeleteShardFileRequest, GetShardDeleteStatusRequest,
 };
-use protocol::placement_center::placement_center_journal::{
+use protocol::meta::placement_center_journal::{
     CreateShardRequest, DeleteShardRequest,
 };
 use rocksdb_engine::RocksDBEngine;

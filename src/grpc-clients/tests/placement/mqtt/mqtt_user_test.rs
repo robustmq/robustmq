@@ -21,7 +21,7 @@ mod tests {
     };
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::user::MqttUser;
-    use protocol::placement_center::placement_center_mqtt::{
+    use protocol::meta::placement_center_mqtt::{
         CreateUserRequest, DeleteUserRequest, ListUserRequest,
     };
 

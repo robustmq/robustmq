@@ -61,7 +61,7 @@ mod test {
     use std::sync::Arc;
 
     use metadata_struct::placement::cluster::ClusterInfo;
-    use protocol::placement_center::placement_center_inner::ClusterType;
+    use protocol::meta::placement_center_inner::ClusterType;
     use rocksdb_engine::RocksDBEngine;
     use tempfile::tempdir;
 

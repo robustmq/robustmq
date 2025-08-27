@@ -23,7 +23,7 @@ use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::connector::MqttConnectorStorage;
 use grpc_clients::pool::ClientPool;
 use prost::Message;
-use protocol::placement_center::placement_center_mqtt::{
+use protocol::meta::placement_center_mqtt::{
     ConnectorHeartbeatReply, ConnectorHeartbeatRequest, CreateConnectorReply,
     CreateConnectorRequest, DeleteConnectorReply, DeleteConnectorRequest, ListConnectorReply,
     ListConnectorRequest, UpdateConnectorReply, UpdateConnectorRequest,
