@@ -23,9 +23,7 @@ use crate::segment::SegmentIdentity;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::SegmentStatus;
-use protocol::journal::journal_engine::{
-    WriteReqBody, WriteRespMessage, WriteRespMessageStatus,
-};
+use protocol::journal::journal_engine::{WriteReqBody, WriteRespMessage, WriteRespMessageStatus};
 use protocol::journal::journal_record::JournalRecord;
 use rocksdb_engine::RocksDBEngine;
 use std::collections::HashMap;

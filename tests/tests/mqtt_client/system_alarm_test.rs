@@ -16,9 +16,7 @@ use crate::mqtt_protocol::common::broker_grpc_addr;
 use common_config::broker::{default_broker_config, init_broker_conf_by_config};
 use grpc_clients::mqtt::admin::call::mqtt_broker_set_system_alarm_config;
 use grpc_clients::pool::ClientPool;
-use protocol::broker::broker_mqtt_admin::{
-    SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest,
-};
+use protocol::broker::broker_mqtt_admin::{SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest};
 use std::sync::Arc;
 
 #[tokio::test]

@@ -20,9 +20,7 @@ use std::time::Duration;
 use common_base::tools::now_mills;
 use dashmap::DashMap;
 use metadata_struct::journal::segment::segment_name;
-use protocol::journal::journal_engine::{
-    WriteReqBody, WriteReqMessages, WriteReqSegmentMessages,
-};
+use protocol::journal::journal_engine::{WriteReqBody, WriteReqMessages, WriteReqSegmentMessages};
 use tokio::select;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::time::{sleep, timeout};
