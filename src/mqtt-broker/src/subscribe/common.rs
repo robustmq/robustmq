@@ -23,11 +23,9 @@ use common_config::broker::broker_config;
 use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::subscribe_data::{is_mqtt_queue_sub, is_mqtt_share_sub};
+use protocol::meta::placement_center_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest};
 use protocol::mqtt::common::{Filter, MqttProtocol, RetainHandling, SubscribeProperties};
 use protocol::mqtt::common::{MqttPacket, QoS};
-use protocol::meta::placement_center_mqtt::{
-    GetShareSubLeaderReply, GetShareSubLeaderRequest,
-};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

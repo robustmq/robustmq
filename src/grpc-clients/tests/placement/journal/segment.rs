@@ -23,9 +23,7 @@ mod tests {
     use metadata_struct::journal::shard::JournalShardConfig;
     use metadata_struct::placement::node::BrokerNode;
     use protocol::meta::placement_center_inner::{ClusterType, RegisterNodeRequest};
-    use protocol::meta::placement_center_journal::{
-        CreateNextSegmentRequest, CreateShardRequest,
-    };
+    use protocol::meta::placement_center_journal::{CreateNextSegmentRequest, CreateShardRequest};
 
     use crate::common::get_placement_addr;
     #[tokio::test]

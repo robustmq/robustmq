@@ -14,8 +14,7 @@
 
 use common_base::utils::time_util;
 use protocol::{
-    broker_mqtt::broker_mqtt_admin::BrokerNodeRaw,
-    meta::placement_center_inner::ClusterType,
+    broker_mqtt::broker_mqtt_admin::BrokerNodeRaw, meta::placement_center_inner::ClusterType,
 };
 use serde::{Deserialize, Serialize};
 

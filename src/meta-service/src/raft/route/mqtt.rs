@@ -35,7 +35,6 @@ use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use prost::Message as _;
-use protocol::mqtt::common::{qos, retain_forward_rule, QoS, RetainHandling};
 use protocol::meta::placement_center_mqtt::{
     CreateAclRequest, CreateBlacklistRequest, CreateConnectorRequest, CreateSessionRequest,
     CreateTopicRequest, CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
@@ -44,6 +43,7 @@ use protocol::meta::placement_center_mqtt::{
     DeleteTopicRewriteRuleRequest, DeleteUserRequest, SaveLastWillMessageRequest,
     SetAutoSubscribeRuleRequest, SetSubscribeRequest, UpdateSessionRequest,
 };
+use protocol::mqtt::common::{qos, retain_forward_rule, QoS, RetainHandling};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]

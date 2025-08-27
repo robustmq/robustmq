@@ -18,9 +18,7 @@ use crate::storage::keys::storage_key_mqtt_node_sub_group_leader;
 use crate::storage::placement::kv::KvStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 use common_base::error::common::CommonError;
-use protocol::meta::placement_center_mqtt::{
-    GetShareSubLeaderReply, GetShareSubLeaderRequest,
-};
+use protocol::meta::placement_center_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest};
 use std::collections::HashMap;
 use std::sync::Arc;
 

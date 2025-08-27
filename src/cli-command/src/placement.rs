@@ -20,9 +20,7 @@ use grpc_clients::placement::openraft::call::{
 };
 use grpc_clients::pool::ClientPool;
 use protocol::meta::placement_center_inner::ClusterStatusRequest;
-use protocol::meta::placement_center_openraft::{
-    AddLearnerRequest, ChangeMembershipRequest,
-};
+use protocol::meta::placement_center_openraft::{AddLearnerRequest, ChangeMembershipRequest};
 
 use crate::{error_info, grpc_addr};
 
