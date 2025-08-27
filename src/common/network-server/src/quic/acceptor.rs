@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::channel::RequestChannel;
+use crate::common::connection_manager::ConnectionManager;
+use crate::common::tool::read_packet;
+use crate::quic::stream::{QuicFramedReadStream, QuicFramedWriteStream};
 use common_metrics::mqtt::packets::record_received_error_metrics;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
-use network_server::common::channel::RequestChannel;
-use network_server::common::connection_manager::ConnectionManager;
-use network_server::common::tool::read_packet;
-use network_server::quic::stream::{QuicFramedReadStream, QuicMQTTFramedWriteStream};
-use protocol::mqtt::codec::MqttCodec;
+use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
 use protocol::robust::RobustMQPacket;
 use quinn::Endpoint;
 use std::sync::Arc;
@@ -33,6 +33,7 @@ pub(crate) async fn acceptor_process(
     endpoint_arc: Arc<Endpoint>,
     request_channel: Arc<RequestChannel>,
     network_type: NetworkConnectionType,
+    codec: RobustMQCodec,
     stop_sx: broadcast::Sender<bool>,
 ) {
     for index in 1..=accept_thread_num {
@@ -41,6 +42,7 @@ pub(crate) async fn acceptor_process(
         let mut stop_rx = stop_sx.subscribe();
         let raw_request_channel = request_channel.clone();
         let network_type = network_type.clone();
+        let row_codec = codec.clone();
         tokio::spawn(async move {
             debug!(
                 "{} Server acceptor thread {} start successfully.",
@@ -64,10 +66,12 @@ pub(crate) async fn acceptor_process(
                                     let client_addr = connection.remote_address();
                                     match connection.accept_bi().await {
                                         Ok((w_stream, r_stream)) => {
-                                            let codec = MqttCodec::new(None);
-                                            let codec_write = QuicMQTTFramedWriteStream::new(w_stream, codec.clone());
-                                            let codec_read = QuicFramedReadStream::new(r_stream, codec.clone());
-                                            // todo we need to add quic_establish_connection_check
+                                            let codec_write = QuicFramedWriteStream::new(w_stream, row_codec.clone());
+                                            let codec_read = QuicFramedReadStream::new(r_stream, row_codec.clone());
+
+                                            // if !tcp_establish_connection_check(&addr, &connection_manager, &mut write_frame_stream).await{
+                                            //     continue;
+                                            // }
 
                                             let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
                                             let connection = NetworkConnection::new(
@@ -79,7 +83,16 @@ pub(crate) async fn acceptor_process(
                                             connection_manager.add_connection(connection.clone());
                                             connection_manager.add_mqtt_quic_write(connection.connection_id, codec_write);
 
-                                            read_frame_process(codec_read,  raw_request_channel.clone(),connection.clone(),network_type.clone(), connection_stop_rx)
+
+                                            info!("acceptor_process => connection_id = {}",connection.connection_id);
+                                            read_frame_process(
+                                                codec_read,
+                                                connection.connection_id,
+                                                connection_manager.clone(),
+                                                raw_request_channel.clone(),
+                                                connection_stop_rx,
+                                                network_type.clone()
+                                            );
                                         },
                                         Err(e) => {
                                             error!("{} accept failed to create connection with error message :{:?}", network_type, e);
@@ -100,10 +113,11 @@ pub(crate) async fn acceptor_process(
 
 fn read_frame_process(
     mut read_frame_stream: QuicFramedReadStream,
+    connection_id: u64,
+    connection_manager: Arc<ConnectionManager>,
     request_channel: Arc<RequestChannel>,
-    connection: NetworkConnection,
-    network_type: NetworkConnectionType,
     mut connection_stop_rx: Receiver<bool>,
+    network_type: NetworkConnectionType,
 ) {
     tokio::spawn(async move {
         loop {
@@ -111,7 +125,7 @@ fn read_frame_process(
                 val = connection_stop_rx.recv() =>{
                     if let Some(flag) = val{
                         if flag {
-                            debug!("{} connection 【{}】 acceptor thread stopped successfully.", network_type, connection.connection_id);
+                            debug!("{} connection 【{}】 acceptor thread stopped successfully.", network_type, connection_id);
                             break;
                         }
                     }
@@ -120,7 +134,15 @@ fn read_frame_process(
                     match package {
                         Ok(pack) => {
                             if let Some(pk) = pack{
-                                read_packet(RobustMQPacket::MQTT(pk), &request_channel, &connection, &network_type).await;
+                                let connection = connection_manager.get_connect(connection_id).unwrap();
+                                match pk{
+                                    RobustMQCodecWrapper::MQTT(p) =>{
+                                        read_packet(RobustMQPacket::MQTT(p.packet), &request_channel, &connection, &network_type).await;
+                                    }
+                                    RobustMQCodecWrapper::KAFKA(p) => {
+                                        read_packet(RobustMQPacket::KAFKA(p.packet), &request_channel, &connection, &network_type).await;
+                                    }
+                                }
                             }
                         }
                         Err(e) => {

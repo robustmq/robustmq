@@ -16,7 +16,7 @@
 mod tests {
     use bytes::BytesMut;
     use mqtt_broker::server::quic::server::QuicServer;
-    use network_server::quic::stream::QuicMQTTFramedWriteStream;
+    use network_server::quic::stream::QuicFramedWriteStream;
     use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
     use robustmq_test::mqtt_build_tool::build_connack::build_mqtt5_pg_connect_ack_wrapper;
     use robustmq_test::mqtt_build_tool::build_connect::build_mqtt5_pg_connect_wrapper;
@@ -125,7 +125,7 @@ mod tests {
             //     }
             // }
             let mut quic_framed_write_stream =
-                QuicMQTTFramedWriteStream::new(server_send_stream, MqttCodec::new(Some(5)));
+                QuicFramedWriteStream::new(server_send_stream, MqttCodec::new(Some(5)));
             if let Err(_e) = quic_framed_write_stream
                 .send(build_mqtt5_pg_connect_ack_wrapper())
                 .await
@@ -138,7 +138,7 @@ mod tests {
         let connection = client.connect(server_addr, "127.0.0.1").await.unwrap();
 
         let (client_send_stream, _client_recv_stream) = connection.open_bi().await.unwrap();
-        if let Err(_e) = QuicMQTTFramedWriteStream::new(client_send_stream, MqttCodec::new(None))
+        if let Err(_e) = QuicFramedWriteStream::new(client_send_stream, MqttCodec::new(None))
             .send(build_mqtt5_pg_connect_wrapper())
             .await
         {
