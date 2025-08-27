@@ -170,6 +170,7 @@ fn start_thread(
                 }
             }
             ConnectorType::Kafka => {}
+            ConnectorType::GreptimeDB => {}
         }
     });
 }
