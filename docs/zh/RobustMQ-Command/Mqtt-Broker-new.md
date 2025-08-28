@@ -183,6 +183,8 @@ message_drop_num: [{"date":1755778208,"value":30}...]
   --is-superuser false
 ```
 
+// 这里需要修改一下对应的命令行，现在`--is-superuser`是不支持传入`true/false`的
+// 同时这里创建完之后，不支持更新，只支持删除，这里可以添加一个更新操作
 **参数说明:**
 - `--username, -u`: 用户名（必需）
 - `--password, -p`: 密码（必需）
@@ -199,7 +201,7 @@ message_drop_num: [{"date":1755778208,"value":30}...]
 MQTT Broker 提供了 ACL 功能来控制用户对特定资源的访问权限。
 
 ### 4.1 查看 ACL 列表
-
+// 该部分暂时没有验证取决于创建acl问题解决
 ```console
 % ./bin/robust-ctl mqtt acl list
 +---------------+---------------+-------+----+--------+------------+
@@ -212,6 +214,7 @@ MQTT Broker 提供了 ACL 功能来控制用户对特定资源的访问权限。
 
 ### 4.2 创建 ACL 规则
 
+// acl部分规则创建有点儿麻烦，同时对于acl这里提示的不够明显，需要向用户说明该传入什么内容，这部分可能需要进行一轮修正
 ```console
 % ./bin/robust-ctl mqtt acl create \
 --cluster-name broker-server \
@@ -224,7 +227,7 @@ Created successfully!
 - `--acl, -a`: ACL 规则的 JSON 字符串（必需）
 
 ### 4.3 删除 ACL 规则
-
+// 该部分暂时没有验证，取决于创建ACL规则问题解决
 ```console
 % ./bin/robust-ctl mqtt acl delete --cluster-name broker-server --acl '{"resource_type":"User","resource_name":"testuser","topic":"sensor/#","ip":"","action":"Pub","permission":"Allow"}'
 Deleted successfully!
@@ -291,6 +294,7 @@ Deleted successfully!
 
 ### 7.1 查看订阅列表
 
+// 这部分和下面的subscribe有点儿打架，对应内容应该想办法进行合并
 ```console
 % ./bin/robust-ctl mqtt subscribes list
 +-----------+-------------+----------+-----------+----------+-----+----------+------------------+------------------+-------------+-------+------------+
@@ -331,6 +335,7 @@ connection list:
 
 ## 9. 主题管理
 
+// 这部分需要做一个合并，该部分当前也有着一些问题，利用topic来管理相关的功能
 查看当前系统中的所有主题信息。
 
 ```console
@@ -434,6 +439,7 @@ system alarm list result:
 
 ## 12. 连接抖动检测
 
+// 这部分功能可能需要参考emqx进行一轮重构
 连接抖动检测功能用于识别频繁连接/断开的客户端。
 
 ```console
@@ -462,6 +468,7 @@ The flapping detect feature has been successfully enabled.
 
 主题重写功能允许在消息传递过程中重写主题名称。
 
+// 这个功能需要做场景测试，可能会有相关的功能错误
 ### 13.1 创建主题重写规则
 
 ```console
@@ -487,7 +494,7 @@ Deleted successfully!
 连接器用于将MQTT数据连接到外部系统。
 
 ### 14.1 查看连接器列表
-
+// 这部分连接器的功能暂时还不知道干嘛用的，记得好像是可以用在greptime_db这部分，这里可以到时候看一下
 ```console
 % ./bin/robust-ctl mqtt connector list --connector-name webhook_connector
 connector list result:
@@ -499,7 +506,7 @@ connector list result:
 ```
 
 ### 14.2 创建连接器
-
+// 这里是同样的问题，到时候可能需要重新构建一下
 ```console
 % ./bin/robust-ctl mqtt connector create --connector-name new_webhook --connector-type Http --config '{"url":"http://example.com/webhook","method":"POST"}' --topic-id topic1
 Created successfully!
@@ -623,6 +630,7 @@ Deleted successfully!
 
 ### 17.1 发布消息
 
+// 对应的发布消息部分有问题，没有办法正常发布消息， 同时--qos， --retained这部分需要补充，并没有这部分内容
 ```console
 % ./bin/robust-ctl mqtt publish --username admin --password robustmq --topic test/topic --qos 1 --retained false
 you can post a message on the terminal:
