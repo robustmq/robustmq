@@ -73,7 +73,7 @@ impl WebSocketServerState {
         }
     }
 }
-
+#[derive(Clone)]
 pub struct WebSocketServer {
     state: WebSocketServerState,
 }
@@ -82,27 +82,19 @@ impl WebSocketServer {
     pub fn new(state: WebSocketServerState) -> Self {
         WebSocketServer { state }
     }
-    pub async fn start(&self) -> ResultCommonError {
-        self.start_ws().await?;
-        self.start_wss().await?;
-        Ok(())
-    }
 
-    pub async fn stop(&self) {}
-
-    async fn start_ws(&self) -> ResultCommonError {
+    pub async fn start_ws(&self) -> ResultCommonError {
         let ip: SocketAddr = format!("0.0.0.0:{}", self.state.ws_port).parse()?;
         let app = routes_v1(self.state.clone());
 
         info!("Broker WebSocket Server start success. addr:{}", ip);
-
         axum_server::bind(ip)
             .serve(app.into_make_service_with_connect_info::<SocketAddr>())
             .await?;
         Ok(())
     }
 
-    async fn start_wss(&self) -> ResultCommonError {
+    pub async fn start_wss(&self) -> ResultCommonError {
         let ip: SocketAddr = format!("0.0.0.0:{}", self.state.wss_port).parse()?;
         let app = routes_v1(self.state.clone());
 

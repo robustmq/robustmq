@@ -32,6 +32,7 @@ use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::storage::ArcStorageAdapter;
 use tokio::sync::broadcast;
+use tracing::error;
 
 pub mod grpc;
 
@@ -121,7 +122,21 @@ impl Server {
         self.tls_server
             .start(true, conf.mqtt_server.tls_port)
             .await?;
-        self.ws_server.start().await?;
+
+        let ws_server = self.ws_server.clone();
+        tokio::spawn(async move {
+            if let Err(e) = ws_server.start_ws().await {
+                error!("{}", e);
+            }
+        });
+
+        let ws_server = self.ws_server.clone();
+        tokio::spawn(async move {
+            if let Err(e) = ws_server.start_wss().await {
+                error!("{}", e);
+            }
+        });
+
         self.quic_server.start(conf.mqtt_server.quic_port).await?;
         Ok(())
     }
@@ -129,7 +144,6 @@ impl Server {
     pub async fn stop(&self) {
         self.tcp_server.stop().await;
         self.tls_server.stop().await;
-        self.ws_server.stop().await;
         self.quic_server.stop().await;
     }
 }
