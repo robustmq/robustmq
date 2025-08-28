@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use protocol::journal_server::journal_engine::{
+use protocol::journal::journal_engine::{
     ReadReqBody, ReadReqFilter, ReadReqOptions, ReadRespMessage, ReadRespSegmentMessage, ReadType,
 };
 use rocksdb_engine::RocksDBEngine;
@@ -228,7 +228,7 @@ mod tests {
     use std::time::Duration;
 
     use common_config::broker::broker_config;
-    use protocol::journal_server::journal_engine::{
+    use protocol::journal::journal_engine::{
         ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
     };
     use tokio::time::sleep;

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::broker_mqtt::broker_mqtt_admin::MqttTopicRewriteRuleRaw;
+use protocol::broker::broker_mqtt_admin::MqttTopicRewriteRuleRaw;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]

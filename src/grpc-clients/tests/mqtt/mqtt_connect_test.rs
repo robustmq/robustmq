@@ -20,7 +20,7 @@ mod tests {
         mqtt_broker_cluster_overview_metrics, mqtt_broker_list_connection,
     };
     use grpc_clients::pool::ClientPool;
-    use protocol::broker_mqtt::broker_mqtt_admin::{
+    use protocol::broker::broker_mqtt_admin::{
         ClusterOverviewMetricsRequest, ListConnectionRequest,
     };
     use std::sync::Arc;

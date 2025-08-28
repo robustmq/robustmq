@@ -25,7 +25,7 @@ mod tests {
     use grpc_clients::mqtt::admin::call::mqtt_broker_create_topic_rewrite_rule;
     use grpc_clients::pool::ClientPool;
     use paho_mqtt::{Message, MessageBuilder};
-    use protocol::broker_mqtt::broker_mqtt_admin::CreateTopicRewriteRuleRequest;
+    use protocol::broker::broker_mqtt_admin::CreateTopicRewriteRuleRequest;
     use std::sync::Arc;
 
     #[tokio::test]

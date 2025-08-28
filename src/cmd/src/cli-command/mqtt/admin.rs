@@ -20,7 +20,7 @@ use cli_command::mqtt::MqttActionType;
 use common_base::enum_type::feature_type::FeatureType;
 use common_base::enum_type::sort_type::SortType;
 use core::option::Option::Some;
-use protocol::broker_mqtt::broker_mqtt_admin::{
+use protocol::broker::broker_mqtt_admin::{
     BindSchemaRequest, CreateAclRequest, CreateBlacklistRequest, CreateConnectorRequest,
     CreateSchemaRequest, CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
     DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteConnectorRequest,

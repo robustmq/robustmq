@@ -20,7 +20,7 @@ use grpc_clients::mqtt::admin::call::{
     mqtt_broker_get_cluster_config, mqtt_broker_set_cluster_config,
 };
 use grpc_clients::pool::ClientPool;
-use protocol::broker_mqtt::broker_mqtt_admin::{
+use protocol::broker::broker_mqtt_admin::{
     GetClusterConfigRequest, SetClusterConfigReply, SetClusterConfigRequest,
 };
 use std::sync::Arc;

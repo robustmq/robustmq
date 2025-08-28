@@ -19,7 +19,7 @@ mod tests {
     use common_base::tools::{now_second, unique_id};
     use grpc_clients::{mqtt::admin::call::mqtt_broker_list_session, pool::ClientPool};
     use paho_mqtt::{Message, QOS_1};
-    use protocol::broker_mqtt::broker_mqtt_admin::{ListSessionRequest, SessionRaw};
+    use protocol::broker::broker_mqtt_admin::{ListSessionRequest, SessionRaw};
     use tokio::time::{sleep, timeout};
 
     use crate::mqtt_protocol::{

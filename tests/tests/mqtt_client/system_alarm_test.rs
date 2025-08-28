@@ -16,9 +16,7 @@ use crate::mqtt_protocol::common::broker_grpc_addr;
 use common_config::broker::{default_broker_config, init_broker_conf_by_config};
 use grpc_clients::mqtt::admin::call::mqtt_broker_set_system_alarm_config;
 use grpc_clients::pool::ClientPool;
-use protocol::broker_mqtt::broker_mqtt_admin::{
-    SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest,
-};
+use protocol::broker::broker_mqtt_admin::{SetSystemAlarmConfigReply, SetSystemAlarmConfigRequest};
 use std::sync::Arc;
 
 #[tokio::test]
@@ -81,7 +79,7 @@ pub async fn list_cluster_system_alarm() {
     let client_pool = Arc::new(ClientPool::new(3));
     let grpc_addr = vec![broker_grpc_addr()];
 
-    let request = protocol::broker_mqtt::broker_mqtt_admin::ListSystemAlarmRequest {};
+    let request = protocol::broker::broker_mqtt_admin::ListSystemAlarmRequest {};
 
     match grpc_clients::mqtt::admin::call::mqtt_broker_list_system_alarm(
         &client_pool,

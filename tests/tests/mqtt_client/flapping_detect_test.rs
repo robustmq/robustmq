@@ -19,7 +19,7 @@ mod tests {
     use grpc_clients::pool::ClientPool;
 
     use crate::mqtt_protocol::common::broker_grpc_addr;
-    use protocol::broker_mqtt::broker_mqtt_admin::{
+    use protocol::broker::broker_mqtt_admin::{
         EnableFlappingDetectReply, EnableFlappingDetectRequest,
     };
     use std::sync::Arc;

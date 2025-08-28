@@ -21,7 +21,7 @@ use bytes::BytesMut;
 use common_base::tools::{file_exists, try_create_fold};
 use common_config::broker::broker_config;
 use prost::Message;
-use protocol::journal_server::journal_record::JournalRecord;
+use protocol::journal::journal_record::JournalRecord;
 use tokio::fs::{self, File, OpenOptions};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
@@ -276,7 +276,7 @@ mod tests {
     use common_base::tools::{now_second, unique_id};
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentConfig};
-    use protocol::journal_server::journal_record::JournalRecord;
+    use protocol::journal::journal_record::JournalRecord;
 
     use super::{data_file_segment, data_fold_shard, open_segment_write, SegmentFile};
     use crate::core::cache::CacheManager;

@@ -15,7 +15,7 @@
 use std::fmt;
 
 use common_base::error::common::CommonError;
-use protocol::broker_mqtt::broker_mqtt_admin::{BlacklistRaw, BlacklistType};
+use protocol::broker::broker_mqtt_admin::{BlacklistRaw, BlacklistType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]

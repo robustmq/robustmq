@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::journal_server::codec::JournalEnginePacket;
-use protocol::journal_server::journal_engine::RespHeader;
+use protocol::journal::codec::JournalEnginePacket;
+use protocol::journal::journal_engine::RespHeader;
 
 use crate::error::JournalClientError;
 

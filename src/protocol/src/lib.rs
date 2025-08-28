@@ -13,10 +13,10 @@
 // limitations under the License.
 
 pub mod amqp;
-pub mod broker_mqtt;
+pub mod broker;
 pub mod cluster;
 pub mod codec;
-pub mod journal_server;
+pub mod journal;
 pub mod kafka;
 pub mod meta;
 pub mod mqtt;

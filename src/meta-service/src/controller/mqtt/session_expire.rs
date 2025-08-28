@@ -23,7 +23,7 @@ use grpc_clients::mqtt::inner::call::{broker_mqtt_delete_session, send_last_will
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use metadata_struct::mqtt::session::MqttSession;
-use protocol::broker_mqtt::broker_mqtt_inner::{DeleteSessionRequest, SendLastWillMessageRequest};
+use protocol::broker::broker_mqtt_inner::{DeleteSessionRequest, SendLastWillMessageRequest};
 use rocksdb_engine::warp::StorageDataWrap;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

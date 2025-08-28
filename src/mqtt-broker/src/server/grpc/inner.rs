@@ -19,8 +19,8 @@ use crate::bridge::manager::ConnectorManager;
 use crate::handler::cache::CacheManager;
 use crate::subscribe::manager::SubscribeManager;
 use grpc_clients::pool::ClientPool;
-use protocol::broker_mqtt::broker_mqtt_inner::mqtt_broker_inner_service_server::MqttBrokerInnerService;
-use protocol::broker_mqtt::broker_mqtt_inner::{
+use protocol::broker::broker_mqtt_inner::mqtt_broker_inner_service_server::MqttBrokerInnerService;
+use protocol::broker::broker_mqtt_inner::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
     UpdateMqttCacheReply, UpdateMqttCacheRequest,
 };

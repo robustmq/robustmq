@@ -17,7 +17,7 @@ use crate::handler::dynamic_config::{save_cluster_dynamic_config, ClusterDynamic
 use crate::handler::error::MqttBrokerError;
 use common_base::enum_type::feature_type::FeatureType;
 use grpc_clients::pool::ClientPool;
-use protocol::broker_mqtt::broker_mqtt_admin::{
+use protocol::broker::broker_mqtt_admin::{
     GetClusterConfigReply, SetClusterConfigReply, SetClusterConfigRequest,
 };
 use std::str::FromStr;

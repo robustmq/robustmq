@@ -26,7 +26,7 @@ use metadata_struct::mqtt::bridge::config_local_file::LocalFileConnectorConfig;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::bridge::connector_type::ConnectorType;
 use metadata_struct::mqtt::bridge::status::MQTTStatus;
-use protocol::broker_mqtt::broker_mqtt_admin::{
+use protocol::broker::broker_mqtt_admin::{
     self, ConnectorRaw, ListConnectorReply, ListConnectorRequest,
 };
 use protocol::meta::placement_center_mqtt;

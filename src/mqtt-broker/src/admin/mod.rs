@@ -36,7 +36,7 @@ use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
-use protocol::broker_mqtt::broker_mqtt_admin::{
+use protocol::broker::broker_mqtt_admin::{
     BrokerNodeRaw, ClusterOverviewMetricsReply, ClusterOverviewMetricsRequest, ClusterStatusReply,
     EnableFlappingDetectReply, EnableFlappingDetectRequest, FlappingDetectRaw, ListConnectionRaw,
     ListConnectionReply, ListFlappingDetectReply, ListFlappingDetectRequest,

@@ -23,7 +23,7 @@ use grpc_clients::{
     pool::ClientPool,
 };
 use metadata_struct::schema::{SchemaData, SchemaType};
-use protocol::broker_mqtt::broker_mqtt_admin;
+use protocol::broker::broker_mqtt_admin;
 use protocol::meta::placement_center_inner;
 use std::sync::Arc;
 

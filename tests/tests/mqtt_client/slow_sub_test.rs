@@ -19,7 +19,7 @@ mod tests {
         mqtt_broker_list_slow_subscribe, mqtt_broker_set_cluster_config,
     };
     use grpc_clients::pool::ClientPool;
-    use protocol::broker_mqtt::broker_mqtt_admin::{
+    use protocol::broker::broker_mqtt_admin::{
         ListSlowSubscribeRequest, SetClusterConfigReply, SetClusterConfigRequest,
     };
     use std::sync::Arc;

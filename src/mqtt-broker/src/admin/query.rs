@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::broker_mqtt::broker_mqtt_admin::{MatchMode, OrderDirection, QueryOptions};
+use protocol::broker::broker_mqtt_admin::{MatchMode, OrderDirection, QueryOptions};
 
 /// A common interface for resource types to support generic querying logic.
 ///

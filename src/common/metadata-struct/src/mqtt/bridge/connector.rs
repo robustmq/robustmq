@@ -15,7 +15,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::{connector_type::ConnectorType, status::MQTTStatus};
-use protocol::broker_mqtt::broker_mqtt_admin::{
+use protocol::broker::broker_mqtt_admin::{
     ConnectorRaw, ConnectorType as ProtoConnectorType, MqttStatus as ProtoMQTTStatus,
 };
 

@@ -19,7 +19,7 @@ mod tests {
     use common_base::tools::unique_id;
     use grpc_clients::mqtt::admin::call::{mqtt_broker_create_user, mqtt_broker_delete_user};
     use grpc_clients::pool::ClientPool;
-    use protocol::broker_mqtt::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequest};
+    use protocol::broker::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequest};
 
     use crate::mqtt_protocol::common::{
         broker_addr_by_type, broker_grpc_addr, build_client_id, connect_server, distinct_conn,

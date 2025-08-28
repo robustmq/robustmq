@@ -14,8 +14,8 @@
 
 use common_base::error::common::CommonError;
 use mobc::Manager;
-use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
-use protocol::broker_mqtt::broker_mqtt_admin::{
+use protocol::broker::broker_mqtt_admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
+use protocol::broker::broker_mqtt_admin::{
     BindSchemaReply, BindSchemaRequest, ClusterOverviewMetricsReply, ClusterOverviewMetricsRequest,
     ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
     CreateBlacklistReply, CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest,

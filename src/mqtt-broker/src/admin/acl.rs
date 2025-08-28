@@ -17,7 +17,7 @@ use crate::handler::error::MqttBrokerError;
 use crate::security::AuthDriver;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
-use protocol::broker_mqtt::broker_mqtt_admin::{
+use protocol::broker::broker_mqtt_admin::{
     CreateAclReply, CreateAclRequest, DeleteAclReply, DeleteAclRequest, ListAclReply,
 };
 use std::sync::Arc;

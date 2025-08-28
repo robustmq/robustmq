@@ -14,7 +14,7 @@
 
 use std::fmt::Display;
 
-use protocol::broker_mqtt::broker_mqtt_admin::MqttStatus as ProtoMQTTStatus;
+use protocol::broker::broker_mqtt_admin::MqttStatus as ProtoMQTTStatus;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]

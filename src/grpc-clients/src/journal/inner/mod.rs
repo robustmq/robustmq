@@ -14,8 +14,8 @@
 
 use common_base::error::common::CommonError;
 use mobc::Manager;
-use protocol::journal_server::journal_inner::journal_server_inner_service_client::JournalServerInnerServiceClient;
-use protocol::journal_server::journal_inner::{
+use protocol::journal::journal_inner::journal_server_inner_service_client::JournalServerInnerServiceClient;
+use protocol::journal::journal_inner::{
     DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
     GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply,
     GetShardDeleteStatusRequest, UpdateJournalCacheReply, UpdateJournalCacheRequest,

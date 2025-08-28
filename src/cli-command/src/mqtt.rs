@@ -38,7 +38,7 @@ use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::schema::SchemaData;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
-use protocol::broker_mqtt::broker_mqtt_admin::{
+use protocol::broker::broker_mqtt_admin::{
     BindSchemaRequest, ClusterOverviewMetricsRequest, ClusterStatusRequest, CreateAclRequest,
     CreateBlacklistRequest, CreateConnectorRequest, CreateSchemaRequest,
     CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use protocol::broker_mqtt::broker_mqtt_admin::{
+use protocol::broker::broker_mqtt_admin::{
     BindSchemaReply, BindSchemaRequest, ClusterOverviewMetricsReply, ClusterOverviewMetricsRequest,
     ClusterStatusReply, ClusterStatusRequest, CreateAclReply, CreateAclRequest,
     CreateBlacklistReply, CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest,
