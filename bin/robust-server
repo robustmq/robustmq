@@ -18,7 +18,7 @@ usage() {
     echo "Usage: $0 <action> [config_file]"
     echo "  action: start | stop"
     echo "  config_file: optional, default is config/<module>.toml"
-    echo "  example start: $0 start config/placement-center.toml"
+    echo "  example start: $0 start config/server.toml"
     echo "  example stop: $0 stop"
     exit 1
 }
@@ -40,39 +40,54 @@ case "${action}" in
 esac
 
 [ -z $conf ] && conf=${workdir}/../config/server.toml
-log_file=${workdir}/../logs/nohup.log
+log_file=${workdir}/../logs/robustmq.log
+# Get absolute path for cleaner display
+log_file_abs=$(cd "$(dirname "${log_file}")" && pwd)/$(basename "${log_file}")
 
 start_service() {
   local bin_path="${workdir}/../libs/broker-server"
   [ ! -x "$bin_path" ] && echo "ERROR: $bin_path not found or not executable" && exit 1
   [ ! -f $conf ] && echo "Config file not found: $conf" && exit 1
-  echo "Config:$conf"
+  echo "Config: $conf"
+  echo "Starting RobustMQ broker server..."
   nohup "${bin_path}" --conf="${conf}" >> "${log_file}" 2>&1 &
   sleep 3
+  # shellcheck disable=SC2006
   num=` ps -ef | grep /libs/broker-server | grep -v grep | wc -l`
   if [ $num -ge 1 ]
   then
-    echo "broker started successfully."
+    echo "✅ RobustMQ broker started successfully."
+    echo "📁 Log file location: ${log_file_abs}"
+    echo "📝 To view logs in real-time: tail -f \"${log_file_abs}\""
+    echo "🔍 To check service status: ps -ef | grep broker-server"
+    echo "💡 Log directory: $(dirname "${log_file_abs}")"
   else
-    echo "WARN: broker started failure. please check detail in ${log_file}"
+    echo "❌ WARN: broker started failure. please check detail in ${log_file_abs}"
+    echo "📁 Error log location: ${log_file_abs}"
   fi
 
 }
 
 stop_service() {
   no=$(ps -ef | grep "broker-server" | grep conf | grep -v grep | awk '{print $2}')
-  [ ! -n "$no" ] && echo "No running processes found for broker-server." && exit 0
-  echo "Currently running process numbers: $no"
+  [ ! -n "$no" ] && echo "ℹ️  No running processes found for broker-server." && exit 0
+  echo "🔍 Currently running process numbers: $no"
+  echo "🛑 Stopping RobustMQ broker server..."
   for pid in $no; do
-    echo "Killing process: $pid"
+    echo "   Killing process: $pid"
     kill "$pid"
   done
   sleep 3
   num=$(ps -ef | grep "/libs/broker-server" | grep conf | grep -v grep | wc -l)
   if [ "$num" -eq 0 ]; then
-    echo "broker stopped successfully."
+    echo "✅ RobustMQ broker stopped successfully."
+    echo "📁 Final logs available at: ${log_file_abs}"
+    echo "📝 To view shutdown logs: tail -n 50 \"${log_file_abs}\""
+    echo "💡 Log directory: $(dirname "${log_file_abs}")"
   else
-    echo "WARN: broker stop failure."
+    echo "❌ WARN: broker stop failure."
+    echo "📁 Check logs for details: ${log_file_abs}"
+    echo "🔧 Try manual cleanup: kill -9 \$(ps -ef | grep broker-server | awk '{print \$2}')"
   fi
 }
 

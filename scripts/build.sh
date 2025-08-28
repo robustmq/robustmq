@@ -14,13 +14,13 @@
 # limitations under the License.
 
 # RobustMQ Build Script
-# 
+#
 # This script builds and packages RobustMQ for different operating systems and architectures.
 # It supports both server and operator components with cross-compilation capabilities.
 #
 # Usage:
 #   ./build.sh [OPTIONS]
-#   
+#
 # Examples:
 #   ./build.sh                           # Build for current platform
 #   ./build.sh --platform linux-amd64   # Build for specific platform
@@ -128,83 +128,81 @@ log_debug() {
 }
 
 show_help() {
-    cat << EOF
-${BOLD}${BLUE}RobustMQ Build Script${NC}
-
-${BOLD}USAGE:${NC}
-    $0 [OPTIONS]
-
-${BOLD}OPTIONS:${NC}
-    -h, --help                  Show this help message
-    -v, --version VERSION       Build version (default: auto-detect from git)
-    -c, --component COMP        Component to build: server, operator, or all (default: server)
-    -p, --platform PLATFORM    Target platform (default: auto-detect)
-    -a, --all-platforms         Build for all supported platforms
-    -t, --type TYPE            Build type: release or debug (default: release)
-    -o, --output DIR           Output directory (default: ./build)
-    --clean                    Clean output directory before building
-    --verbose                  Enable verbose output
-    --dry-run                  Show what would be built without actually building
-    --no-parallel              Disable parallel builds
-
-${BOLD}PLATFORMS:${NC}
-    linux-amd64               Linux x86_64
-    linux-amd64-musl          Linux x86_64 (musl)
-    linux-arm64               Linux ARM64
-    linux-arm64-musl          Linux ARM64 (musl)
-    linux-armv7               Linux ARMv7
-    darwin-amd64              macOS x86_64
-    darwin-arm64              macOS ARM64 (Apple Silicon)
-    windows-amd64             Windows x86_64
-    windows-386               Windows x86
-    windows-arm64             Windows ARM64
-    freebsd-amd64             FreeBSD x86_64
-
-${BOLD}COMPONENTS:${NC}
-    server                    RobustMQ server binaries (Rust)
-    operator                  RobustMQ Kubernetes operator (Go)
-    all                       Both server and operator
-
-${BOLD}ENVIRONMENT VARIABLES:${NC}
-    VERSION                   Build version
-    COMPONENT                 Component to build
-    PLATFORM                  Target platform
-    BUILD_TYPE                Build type (release/debug)
-    OUTPUT_DIR                Output directory
-    CLEAN                     Clean before build (true/false)
-    VERBOSE                   Verbose output (true/false)
-    DRY_RUN                   Dry run mode (true/false)
-    PARALLEL                  Parallel builds (true/false)
-
-${BOLD}EXAMPLES:${NC}
-    # Build for current platform (server only)
-    $0
-
-    # Build specific component for specific platform
-    $0 --component server --platform linux-amd64
-
-    # Build all platforms
-    $0 --all-platforms
-
-    # Build with custom version
-    $0 --version v1.0.0
-
-    # Build for development (debug mode)
-    $0 --type debug
-
-    # Clean build
-    $0 --clean
-
-    # Dry run to see what would be built
-    $0 --dry-run --all-platforms
-
-For more information, visit: https://github.com/robustmq/robustmq
-EOF
+    echo -e "${BOLD}${BLUE}RobustMQ Build Script${NC}"
+    echo
+    echo -e "${BOLD}USAGE:${NC}"
+    echo "    $0 [OPTIONS]"
+    echo
+    echo -e "${BOLD}OPTIONS:${NC}"
+    echo "    -h, --help                  Show this help message"
+    echo "    -v, --version VERSION       Build version (default: auto-detect from git)"
+    echo "    -c, --component COMP        Component to build: server, operator, or all (default: server)"
+    echo "    -p, --platform PLATFORM    Target platform (default: auto-detect)"
+    echo "    -a, --all-platforms         Build for all supported platforms"
+    echo "    -t, --type TYPE            Build type: release or debug (default: release)"
+    echo "    -o, --output DIR           Output directory (default: ./build)"
+    echo "    --clean                    Clean output directory before building"
+    echo "    --verbose                  Enable verbose output"
+    echo "    --dry-run                  Show what would be built without actually building"
+    echo "    --no-parallel              Disable parallel builds"
+    echo
+    echo -e "${BOLD}PLATFORMS:${NC}"
+    echo "    linux-amd64               Linux x86_64"
+    echo "    linux-amd64-musl          Linux x86_64 (musl)"
+    echo "    linux-arm64               Linux ARM64"
+    echo "    linux-arm64-musl          Linux ARM64 (musl)"
+    echo "    linux-armv7               Linux ARMv7"
+    echo "    darwin-amd64              macOS x86_64"
+    echo "    darwin-arm64              macOS ARM64 (Apple Silicon)"
+    echo "    windows-amd64             Windows x86_64"
+    echo "    windows-386               Windows x86"
+    echo "    windows-arm64             Windows ARM64"
+    echo "    freebsd-amd64             FreeBSD x86_64"
+    echo
+    echo -e "${BOLD}COMPONENTS:${NC}"
+    echo "    server                    RobustMQ server binaries (Rust)"
+    echo "    operator                  RobustMQ Kubernetes operator (Go)"
+    echo "    all                       Both server and operator"
+    echo
+    echo -e "${BOLD}ENVIRONMENT VARIABLES:${NC}"
+    echo "    VERSION                   Build version"
+    echo "    COMPONENT                 Component to build"
+    echo "    PLATFORM                  Target platform"
+    echo "    BUILD_TYPE                Build type (release/debug)"
+    echo "    OUTPUT_DIR                Output directory"
+    echo "    CLEAN                     Clean before build (true/false)"
+    echo "    VERBOSE                   Verbose output (true/false)"
+    echo "    DRY_RUN                   Dry run mode (true/false)"
+    echo "    PARALLEL                  Parallel builds (true/false)"
+    echo
+    echo -e "${BOLD}EXAMPLES:${NC}"
+    echo "    # Build for current platform (server only)"
+    echo "    $0"
+    echo
+    echo "    # Build specific component for specific platform"
+    echo "    $0 --component server --platform linux-amd64"
+    echo
+    echo "    # Build all platforms"
+    echo "    $0 --all-platforms"
+    echo
+    echo "    # Build with custom version"
+    echo "    $0 --version v1.0.0"
+    echo
+    echo "    # Build for development (debug mode)"
+    echo "    $0 --type debug"
+    echo
+    echo "    # Clean build"
+    echo "    $0 --clean"
+    echo
+    echo "    # Dry run to see what would be built"
+    echo "    $0 --dry-run --all-platforms"
+    echo
+    echo "For more information, visit: https://github.com/robustmq/robustmq"
 }
 
 detect_current_platform() {
     local os_type arch_type
-    
+
     case "$(uname -s)" in
         Darwin)
             os_type="darwin"
@@ -223,7 +221,7 @@ detect_current_platform() {
             return 1
             ;;
     esac
-    
+
     case "$(uname -m)" in
         x86_64|amd64)
             arch_type="amd64"
@@ -242,13 +240,13 @@ detect_current_platform() {
             return 1
             ;;
     esac
-    
+
     echo "${os_type}-${arch_type}"
 }
 
 check_dependencies() {
     local missing_deps=()
-    
+
     # Check for required tools
     if [ "$COMPONENT" = "server" ] || [ "$COMPONENT" = "all" ]; then
         if ! command -v cargo >/dev/null 2>&1; then
@@ -258,21 +256,21 @@ check_dependencies() {
             missing_deps+=("rustup")
         fi
     fi
-    
+
     if [ "$COMPONENT" = "operator" ] || [ "$COMPONENT" = "all" ]; then
         if ! command -v go >/dev/null 2>&1; then
             missing_deps+=("go")
         fi
     fi
-    
+
     if ! command -v tar >/dev/null 2>&1; then
         missing_deps+=("tar")
     fi
-    
+
     if ! command -v git >/dev/null 2>&1; then
         missing_deps+=("git")
     fi
-    
+
     if [ ${#missing_deps[@]} -ne 0 ]; then
         log_error "Missing required dependencies: ${missing_deps[*]}"
         log_info "Please install the missing dependencies and try again."
@@ -282,12 +280,12 @@ check_dependencies() {
 
 prepare_rust_target() {
     local target="$1"
-    
+
     if [ "$DRY_RUN" = "true" ]; then
         log_debug "[DRY RUN] Would prepare Rust target: $target"
         return 0
     fi
-    
+
     log_debug "Checking Rust target: $target"
     if ! rustup target list | grep -q "${target} (installed)"; then
         log_info "Installing Rust target: $target"
@@ -303,38 +301,38 @@ build_server_component() {
     local rust_target="$(get_rust_target "$platform")"
     local output_name="robustmq-${VERSION}-${platform}"
     local package_path="${OUTPUT_DIR}/${output_name}"
-    
+
     if [ -z "$rust_target" ]; then
         log_error "Unsupported platform for server component: $platform"
         return 1
     fi
-    
+
     log_step "Building server component for $platform"
-    
+
     if [ "$DRY_RUN" = "true" ]; then
         log_info "[DRY RUN] Would build server for $platform using target $rust_target"
         return 0
     fi
-    
+
     # Prepare Rust target
     prepare_rust_target "$rust_target"
-    
+
     # Build
     log_info "Compiling Rust binaries for $rust_target..."
     local cargo_cmd="cargo build --target $rust_target"
     if [ "$BUILD_TYPE" = "release" ]; then
         cargo_cmd="$cargo_cmd --release"
     fi
-    
+
     log_info "Running: $cargo_cmd"
     if ! $cargo_cmd; then
         log_error "Failed to build server component for $platform"
         return 1
     fi
-    
+
     # Create package structure
     mkdir -p "$package_path"/{bin,libs,config,docs}
-    
+
     # Copy binaries
     local target_dir="target/$rust_target"
     if [ "$BUILD_TYPE" = "release" ]; then
@@ -342,16 +340,16 @@ build_server_component() {
     else
         target_dir="$target_dir/debug"
     fi
-    
+
     local binaries="broker-server cli-command cli-bench"
     local found_binaries=()
-    
+
     for binary in $binaries; do
         local bin_file="$binary"
         if [[ "$platform" == windows-* ]]; then
             bin_file="$binary.exe"
         fi
-        
+
         local bin_path="$target_dir/$bin_file"
         if [ -f "$bin_path" ]; then
             cp "$bin_path" "$package_path/libs/"
@@ -361,24 +359,24 @@ build_server_component() {
             log_warning "Binary not found: $bin_path"
         fi
     done
-    
+
     if [ ${#found_binaries[@]} -eq 0 ]; then
         log_error "No binaries found for $platform"
         return 1
     fi
-    
+
     # Copy additional files
     if [ -d "$PROJECT_ROOT/bin" ]; then
         cp -r "$PROJECT_ROOT/bin/"* "$package_path/bin/" 2>/dev/null || true
     fi
-    
+
     if [ -d "$PROJECT_ROOT/config" ]; then
         cp -r "$PROJECT_ROOT/config/"* "$package_path/config/" 2>/dev/null || true
     fi
-    
+
     # Create version file
     echo "$VERSION" > "$package_path/config/version.txt"
-    
+
     # Create package info
     cat > "$package_path/package-info.txt" << EOF
 Package: robustmq-server
@@ -389,21 +387,21 @@ Build Type: $BUILD_TYPE
 Build Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
 Binaries: ${found_binaries[*]}
 EOF
-    
+
     # Set permissions
     chmod -R 755 "$package_path/bin/"* 2>/dev/null || true
     chmod -R 755 "$package_path/libs/"* 2>/dev/null || true
-    
+
     # Create tarball
     log_info "Creating tarball for $platform..."
     (cd "$OUTPUT_DIR" && tar -czf "${output_name}.tar.gz" "$(basename "$package_path")")
-    
+
     # Calculate checksum
     (cd "$OUTPUT_DIR" && sha256sum "${output_name}.tar.gz" > "${output_name}.tar.gz.sha256")
-    
+
     # Clean up directory
     rm -rf "$package_path"
-    
+
     log_success "Server component built successfully: ${output_name}.tar.gz"
 }
 
@@ -412,53 +410,53 @@ build_operator_component() {
     local go_target="$(get_go_target "$platform")"
     local output_name="robustmq-operator-${VERSION}-${platform}"
     local package_path="${OUTPUT_DIR}/${output_name}"
-    
+
     if [ -z "$go_target" ]; then
         log_error "Unsupported platform for operator component: $platform"
         return 1
     fi
-    
+
     log_step "Building operator component for $platform"
-    
+
     if [ "$DRY_RUN" = "true" ]; then
         log_info "[DRY RUN] Would build operator for $platform using target $go_target"
         return 0
     fi
-    
+
     # Build operator
     log_info "Compiling Go binary for $go_target..."
-    
+
     local goos="${go_target%/*}"
     local goarch="${go_target#*/}"
-    
+
     # Handle special case for ARMv7
     local goarm=""
     if [ "$goarch" = "arm" ] && [[ "$platform" == *"armv7"* ]]; then
         goarm="7"
     fi
-    
+
     local binary_name="robustmq-operator"
     if [ "$goos" = "windows" ]; then
         binary_name="robustmq-operator.exe"
     fi
-    
+
     local build_cmd="env GOOS=$goos GOARCH=$goarch"
     if [ -n "$goarm" ]; then
         build_cmd="$build_cmd GOARM=$goarm"
     fi
-    
+
     # Set Go build flags
     local ldflags="-s -w -X main.version=$VERSION -X main.buildDate=$(date -u '+%Y-%m-%d_%H:%M:%S')"
     build_cmd="$build_cmd go build -ldflags \"$ldflags\""
-    
+
     if [ "$BUILD_TYPE" = "debug" ]; then
         build_cmd="$build_cmd -gcflags=\"-N -l\""
     fi
-    
+
     build_cmd="$build_cmd -o $binary_name ."
-    
+
     log_debug "Running: $build_cmd"
-    
+
     # Change to operator directory and build
     (
         cd "$PROJECT_ROOT/operator"
@@ -467,29 +465,29 @@ build_operator_component() {
             exit 1
         fi
     )
-    
+
     # Create package structure
     mkdir -p "$package_path"/{bin,config,manifests,docs}
-    
+
     # Move binary
     mv "$PROJECT_ROOT/operator/$binary_name" "$package_path/bin/"
-    
+
     # Copy operator-specific files
     if [ -f "$PROJECT_ROOT/operator/robustmq.yaml" ]; then
         cp "$PROJECT_ROOT/operator/robustmq.yaml" "$package_path/manifests/"
     fi
-    
+
     if [ -f "$PROJECT_ROOT/operator/sample-robustmq.yaml" ]; then
         cp "$PROJECT_ROOT/operator/sample-robustmq.yaml" "$package_path/manifests/"
     fi
-    
+
     if [ -f "$PROJECT_ROOT/operator/README.md" ]; then
         cp "$PROJECT_ROOT/operator/README.md" "$package_path/docs/"
     fi
-    
+
     # Create version file
     echo "$VERSION" > "$package_path/config/version.txt"
-    
+
     # Create package info
     cat > "$package_path/package-info.txt" << EOF
 Package: robustmq-operator
@@ -500,46 +498,46 @@ Build Type: $BUILD_TYPE
 Build Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
 Binary: $binary_name
 EOF
-    
+
     # Set permissions
     chmod 755 "$package_path/bin/$binary_name"
-    
+
     # Create tarball
     log_info "Creating tarball for $platform..."
     (cd "$OUTPUT_DIR" && tar -czf "${output_name}.tar.gz" "$(basename "$package_path")")
-    
+
     # Calculate checksum
     (cd "$OUTPUT_DIR" && sha256sum "${output_name}.tar.gz" > "${output_name}.tar.gz.sha256")
-    
+
     # Clean up directory
     rm -rf "$package_path"
-    
+
     log_success "Operator component built successfully: ${output_name}.tar.gz"
 }
 
 build_platform() {
     local platform="$1"
-    
+
     log_step "Building for platform: $platform"
-    
+
     # Validate platform
     if [[ "$COMPONENT" == "server" || "$COMPONENT" == "all" ]] && [[ -z "$(get_rust_target "$platform")" ]]; then
         log_error "Platform $platform is not supported for server component"
         return 1
     fi
-    
+
     if [[ "$COMPONENT" == "operator" || "$COMPONENT" == "all" ]] && [[ -z "$(get_go_target "$platform")" ]]; then
         log_error "Platform $platform is not supported for operator component"
         return 1
     fi
-    
+
     # Build components
     if [ "$COMPONENT" = "server" ] || [ "$COMPONENT" = "all" ]; then
         if ! build_server_component "$platform"; then
             return 1
         fi
     fi
-    
+
     if [ "$COMPONENT" = "operator" ] || [ "$COMPONENT" = "all" ]; then
         if ! build_operator_component "$platform"; then
             return 1
@@ -550,9 +548,9 @@ build_platform() {
 build_all_platforms() {
     local failed_platforms=()
     local successful_platforms=()
-    
+
     log_step "Building for all platforms: ${ALL_PLATFORMS[*]}"
-    
+
     for platform in "${ALL_PLATFORMS[@]}"; do
         log_info "Building platform: $platform"
         if build_platform "$platform"; then
@@ -562,14 +560,14 @@ build_all_platforms() {
             log_error "Failed to build for platform: $platform"
         fi
     done
-    
+
     # Summary
     echo
     log_step "Build Summary"
     if [ ${#successful_platforms[@]} -gt 0 ]; then
         log_success "Successfully built for: ${successful_platforms[*]}"
     fi
-    
+
     if [ ${#failed_platforms[@]} -gt 0 ]; then
         log_error "Failed to build for: ${failed_platforms[*]}"
         return 1
@@ -657,7 +655,7 @@ main() {
                 ;;
         esac
     done
-    
+
     # Validate component
     case "$COMPONENT" in
         server|operator|all)
@@ -668,7 +666,7 @@ main() {
             exit 1
             ;;
     esac
-    
+
     # Validate build type
     case "$BUILD_TYPE" in
         release|debug)
@@ -679,41 +677,41 @@ main() {
             exit 1
             ;;
     esac
-    
+
     # Detect current platform if auto
     if [ "$PLATFORM" = "auto" ]; then
         PLATFORM=$(detect_current_platform)
         log_debug "Detected current platform: $PLATFORM"
     fi
-    
+
     # Show header
     if [ "$DRY_RUN" != "true" ]; then
         echo -e "${BOLD}${BLUE}🔨 RobustMQ Build Script${NC}"
     else
         echo -e "${BOLD}${YELLOW}🔍 RobustMQ Build Script (DRY RUN)${NC}"
     fi
-    
+
     show_build_info
-    
+
     # Check dependencies
     log_step "Checking dependencies..."
     check_dependencies
-    
+
     # Cleanup if requested
     cleanup_output_dir
-    
+
     # Create output directory
     if [ "$DRY_RUN" != "true" ]; then
         mkdir -p "$OUTPUT_DIR"
     fi
-    
+
     # Build
     if [ "$PLATFORM" = "all" ]; then
         build_all_platforms
     else
         build_platform "$PLATFORM"
     fi
-    
+
     # Show completion message
     if [ "$DRY_RUN" != "true" ]; then
         echo
