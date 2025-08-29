@@ -15,6 +15,7 @@
 [workspace]
 members = [
     "src/broker",
+    "src/admin-server",
     "src/mqtt-broker",
     "src/amqp-broker",
     "src/kafka-broker",
@@ -182,6 +183,7 @@ third-driver = { path = "src/common/third-driver" }
 network-server = { path = "src/common/network-server" }
 common-metrics = { path = "src/common/metrics" }
 common-security = { path = "src/common/security" }
+admin-server = { path = "src/common/admin-server" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }
 robustmq-proto-build = { git = "https://github.com/robustmq/robustmq-proto.git", branch = "main" }
