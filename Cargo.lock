@@ -551,6 +551,7 @@ dependencies = [
 name = "broker-server"
 version = "0.1.30"
 dependencies = [
+ "admin-server",
  "axum",
  "bytes",
  "common-base",

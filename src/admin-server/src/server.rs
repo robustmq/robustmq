@@ -17,24 +17,24 @@ use tracing::info;
 
 use crate::mqtt::session::session_list;
 
-pub struct DashboardServer {}
+pub struct AdminServer {}
 
-impl Default for DashboardServer {
+impl Default for AdminServer {
     fn default() -> Self {
         Self::new()
     }
 }
-impl DashboardServer {
+impl AdminServer {
     pub fn new() -> Self {
-        DashboardServer {}
+        AdminServer {}
     }
 
-    pub async fn start(port: u32) {
+    pub async fn start(&self, port: u32) {
         let ip = format!("0.0.0.0:{port}");
         let route = Router::new().route("/session/list", get(session_list));
         let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
         info!(
-            "Prometheus HTTP Server started successfully, listening port: {}",
+            "Admin HTTP Server started successfully, listening port: {}",
             port
         );
         axum::serve(listener, route).await.unwrap();

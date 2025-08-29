@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::grpc::start_grpc_server;
+use admin_server::server::AdminServer;
 use common_base::{metrics::register_prometheus_export, runtime::create_runtime};
 use common_config::{broker::broker_config, config::BrokerConfig};
 use delay_message::DelayMessageManager;
@@ -132,6 +133,12 @@ impl BrokerServer {
             {
                 panic!("{e}")
             }
+        });
+
+        // Start Admin Server
+        server_runtime.spawn(async move {
+            let admin_server = AdminServer::new();
+            admin_server.start(8080).await;
         });
 
         // check grpc server ready
